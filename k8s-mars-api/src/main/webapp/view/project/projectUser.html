@@ -1,0 +1,30 @@
+<div class="service-information">
+	<ul class="service-information-ul">
+		<li class="service-information-list">
+			<div class="service-informantion-label">
+				<table class="informantion-label-table network-table">
+					<tr class="port-name">
+						<td>{{'Username'|translate}}</td>
+						<td>{{'Role'|translate}}</td>
+						<td class="pointer edit-td" ng-click="addUser()"><span class="icon-plus green"></span></td>
+					</tr>
+					<tr class="port-content" ng-repeat="u in userList" ng-show="u.role != 'tm'">
+						<td class="port">
+							<span class="pointer">
+								<a ui-sref="userDetial({username:u.name})">{{u.name}}</a>
+							</span>
+						</td>
+						<td class="port">
+							<span>
+								{{u.role}}
+							</span>
+						</td>
+						<td class="edit-td">
+							<a delete-confirm="deleteUser($index)" class="remove ico-cross pointer"></a>
+						</td>
+					</tr>
+				</table>
+			</div>
+		</li>
+	</ul>
+</div>

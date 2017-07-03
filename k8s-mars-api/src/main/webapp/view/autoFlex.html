@@ -1,0 +1,116 @@
+<div class="hc-service-information clearfix">
+	<div class="clearfix">
+		<div class="hc-info-block">
+			<div class="hc-info-head">
+				<span ng-bind="'BasicInfo'|translate"></span>
+			</div>
+			<div class="hc-info-body">
+				<ul>
+					<li class="hc-info-list">
+						<span class="hc-info-name" title="{{'targetCpuUsage'|translate}}">
+						{{'targetCpuUsage'|translate}} ：</span>
+						<span class="hc-info-value" ng-show="!ifCpuEdit">
+							<a ng-click="editCpu()" class="pointer underline">{{service.autoScaling.targetCpu}}%</a>
+						</span>
+						<div class="edit-form" ng-show="ifCpuEdit">
+							<div  sp-number name="count" sp-min="1" sp-max="400" sp-interval="1" sp-dirty="" sp-data="tempCpu" sp-filter="cpuRate" ng-model="tempCpu" required></div>
+							<span class="img-button pointer ico-check hc-state-start" ng-click="saveCpu(tempCpu)"></span>
+							<span class="img-button pointer ico-cross hc-state-stop" ng-click="editCpu()"></span>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name" title="{{'instanceRange'|translate}}">{{'instanceRange'|translate}} ：</span>
+						<span class="hc-info-value" ng-show="!ifRangeEdit">
+							<a ng-click="editRange()" class="pointer underline">{{service.autoScaling.instanceRange[0]}} -- {{service.autoScaling.instanceRange[1]}}</a>
+						</span>
+						<div class="edit-form hc-width-p575" ng-show="ifRangeEdit">
+							<input type="number" class="hc-width-p30"  ng-model="tempMin">
+							——
+							<input type="number" class="hc-width-p30"  ng-model="tempMax">
+							<span class="img-button pointer ico-check hc-state-start" ng-click="saveRange(tempMin,tempMax)"></span>
+							<span class="img-button pointer ico-cross hc-state-stop" ng-click="editRange()"></span>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name" title="{{'nowInatanceNum'|translate}}">{{'nowInatanceNum'|translate}} ：</span>
+						<span class="hc-info-value" edit-instance="service.instance"></span>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name" title="{{'nowCpuUsage'|translate}}">{{'nowCpuUsage'|translate}} ：</span>
+						<span class="hc-info-value" ng-show="service.autoScaling.cpu">{{service.autoScaling.cpu}}%</span>
+						<span class="hc-info-value" ng-show="service.autoScaling.cpu == 0">{{service.autoScaling.cpu}}%</span>
+						<span class="hc-info-value" ng-show="!service.autoScaling.cpu && service.autoScaling.cpu != 0">{{'none'|translate}}</span>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name" title="{{'autoflexTime'|translate}}">{{'autoflexTime'|translate}} ：</span>
+						<span class="hc-info-value" ng-show="service.autoScaling.scaleTime">{{service.autoScaling.scaleTime | transTime}}</span>
+						<span class="hc-info-value" ng-show="!service.autoScaling.scaleTime">{{'none'|translate}}</span>
+					</li>
+				</ul>
+			</div>
+		</div>
+		<button class="function-button delete hc-fl-right" delete-confirm="deleteFlex()" delete-text="{{'closeAutoflexText'|translate}}">{{'closeAutoflex'|translate}}</button>
+	</div>
+	<div class="clearfix">
+		<div class="hc-info-block">
+			<div class="hc-info-head">
+				<span ng-bind="'event'|translate"></span>
+			</div>
+			<div class="hc-info-body hc-event-block">
+				<span ng-show="service.autoScalingHistory.length == 0">
+					{{'noEvent'|translate}}
+				</span>
+				<div ng-repeat="event in service.autoScalingHistory track by $index">
+					<ul class="hc-event-ul">
+						<li>
+							<div class="hc-event-time">
+								{{event.lastTimestamp | transTime}}
+							</div>
+							<div class="hc-dialog-left"></div>
+						</li>
+						<li class="hc-event-spot">
+							<div class="hc-event-span">
+								<div class="hc-circle-iron" ng-show="event.type == 'Normal'"></div>
+								<div class="hc-circle-iron" ng-show="event.type == 'Warning'" style="background-color:red;"></div>
+							</div>	
+						</li>
+						<li class="hc-event-list">
+							<div class="hc-dialog-right"></div>
+							<div class="hc-event-detail">
+								<div class="hc-event-reason" ng-bind="event.reason"></div>
+								<span ng-bind="event.message"></span>
+								<div>
+									<div class="hc-event-bottom hc-event-count">
+										Arised
+										<span ng-bind="event.count"></span>
+										<span ng-show="event.count == 1">time</span>
+										<span ng-show="event.count>1">times</span>
+									</div>
+								</div>
+							</div>
+						</li>
+					</ul>
+				</div>
+			</div>
+		</div>
+	</div>
+	<!-- <div class="flex-time">
+		<div ng-repeat="event in service.autoScalingHistory track by $index">
+			<ul class="flex-time-ul">
+				<li class="flex-li-time">{{event.lastTimestamp | transTime}}</li>
+				<li class="flex-li-spot">
+					<div class="flex-li-span">
+						<div class="my-circle-iron" ng-show="event.type == 'Normal'"></div>
+						<div class="my-circle-iron" ng-show="event.type == 'Warning'" style="background-color:red;"></div>
+					</div>	
+				</li>
+				<li class="flex-li-detail">
+						{{event.reason}}
+					<span class="event-count">(arised {{event.count}} times)</span>
+					<span class="flex-detail-time">{{event.firstTimestamp | transTime}}</span><br>
+						{{event.message}}
+				</li>
+			</ul>
+		</div>
+	</div> -->
+</div>

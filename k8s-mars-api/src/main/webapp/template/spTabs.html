@@ -1,0 +1,9 @@
+<div class="sp-tab-wrap">
+	<ul class="tab-head">
+		<li class="tab-head-item left pointer" ng-repeat="tab in spTabs" ng-bind="tab.serName|translate" ng-class="{active:now==tab.serName}" ng-click="switchTab(tab.serName)"></li>
+
+	</ul>
+	<div class="tab-content-wrap">
+		<div class="tab-item" ng-repeat="tab in spTabs" ng-include="baseUrl+'view/'+tab.serTemplate+'.html'" ng-class="{active:now==tab.serName}"></div>
+	</div>
+</div>

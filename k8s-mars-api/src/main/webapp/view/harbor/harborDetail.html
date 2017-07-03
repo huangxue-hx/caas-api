@@ -1,0 +1,139 @@
+<div class="hc-service-detail">
+	<div class="hc-detail-topbar">
+		<div class="hc-topbar-block hc-back pointer ico-rewind" ng-click="back()">
+		</div>
+		<div class="hc-topbar-block">
+			<span ng-bind="harbor.name|harborName" class="hc-topbar-name"></span>
+		</div>
+		<div class="hc-action-wrap">
+			<div class="hc-topbar-block hc-button-block hc-p0-ml10">
+				<button class="hc-button hc-button-green hc-button-green-heavy" ng-bind="'refresh'|translate" ng-click="refresh()"></button>
+			</div>
+		</div>
+	</div>
+	<div class="hc-detail-outer clearfix">
+		<div class="hc-container hc-detail-inner">
+			<div class="hc-service-information clearfix">
+				<div class="hc-info-block hc-harbor-block">
+					<div class="hc-info-head">
+						<span ng-bind="'harborInformation'|translate"></span>
+					</div>
+					<div class="hc-info-body">
+						<ul>
+							<li class="hc-info-list">
+								<span class="hc-info-name">{{'Harborname'|translate}} ：</span>
+								<span class="hc-info-value" ng-bind="harbor.name|harborName"></span>
+							</li>
+							<li class="hc-info-list">
+								<span class="hc-info-name">{{'tenant'|translate}} ：</span>
+								<span class="hc-info-value" ng-bind="harbor.tenant.name"></span>
+							</li>
+							<li class="hc-info-list">
+								<span class="hc-info-name">{{'creationTime'|translate}} ：</span>
+								<span class="hc-info-value" ng-bind="harbor.time|transTime"></span>
+							</li>
+						</ul>
+					</div>
+				</div>
+				<div class="hc-info-block hc-harbor-block">
+					<div class="hc-info-head">
+						<span ng-bind="'imageAnalyze'|translate"></span>
+					</div>
+					<div class="hc-info-body">
+						<div ng-if="total == 0" class="hc-no-repotext">
+							<span ng-bind="'no repo'|translate"></span>
+						</div>
+						<div class="hc-container-pie hc-harbor-pie" ne-pie ne-value="analyze" ne-title="" ne-background="'#fff'" ne-color="color" ng-if="total != 0">
+						</div>
+						<div class="hc-info-pietext" ng-if="total != 0">
+							<div>
+								<span>{{'total'|translate}} : {{total}}</span>
+							</div>
+							<div>
+								<span>{{'security'|translate}} : {{analyze[0].value}}</span>
+							</div>
+							<div>
+								<span>{{'insecurity'|translate}} : {{analyze[1].value}}</span>
+							</div>
+							<div>
+								<span>{{'mild'|translate}} : {{analyze[4].value}}</span>
+							</div>
+							<div>
+								<span>{{'not support'|translate}} : {{analyze[2].value}}</span>
+							</div>
+							<div>
+								<span>{{'abnormal'|translate}} : {{analyze[3].value}}</span>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="hc-info-block hc-podlist-block hc-harbor-block">
+					<div class="hc-info-head">
+						<span ng-bind="'Image'|translate"></span>
+					</div>
+					<div class="hc-info-body">
+						<div class="hc-ne-table hc-shrink-item-wrap">
+							<div class="thead">
+								<div class="tr">
+									<div class="td" style="width: 2.5%">
+									</div>
+									<div class="td" style="width: 40%" ng-bind="'name'|translate"></div>
+									<div class="td" style="width: 40%" ng-bind="'source'|translate"></div>
+									<div class="td pointer" style="width: 10%">	
+									</div>
+								</div>
+							</div>
+							<div class="tbody">
+								<div class="tr shadow" ng-repeat="image in repoList" ng-init="reponame=image.name" ng-class="{shrink:!image.shrink}" ng-click="toggle(image)" ng-style="{height:72+30*image.tags.length}" >
+									<div class="td pos_r pointer" style="width: 2.5%">
+										<span class="shrink-icon ico-chevron-thin-down"></span>
+									</div>
+									<div class="td pointer" style="width: 40%"  ng-bind="image.name" cl-width='50'></div>
+									<div class="td pointer" style="width: 40%"  ng-bind="image.source"></div>
+									<div class="td pointer" style="width: 10%; color: #df665c">
+										<span class="ico-cross delete-button" delete-confirm="deleteRepo(image,$event)" delete-text="{{'deleteText'|translate}}" ></span>
+									</div>
+									<div class="extra-content" ng-click="$event.stopPropagation()">
+										<div class="hc-ne-table">
+											<div class="thead">
+												<div class="tr pos_r">
+													<div class="td"  style="width: 23.5%" ng-bind="'version'|translate"></div>
+													<div class="td"  style="width: 32%" ng-bind="'high'|translate"></div>
+													<div class="td"  style="width: 30.3%" ng-bind="'other'|translate"></div>
+													<div class="td"  style="width: 3%">	
+													</div>
+													<div class="td"  style="width: 4%">
+													</div>
+												</div>
+											</div>
+											<div class="tbody">
+												<div class="tr pos_r"  ng-repeat="tag in image.tags">
+													<div class="td pointer"  style="width: 23.5%">
+														<a ng-bind="tag.tag" ui-sref="repoDetail({harbor:harbor.name,repo:reponame,tag:tag.tag})"></a>
+													</div>
+													<div class="td"  style="width: 32%" ng-bind="tag.high_num"></div>
+													<div class="td"  style="width: 30.3%" ng-bind="tag.other_num"></div>
+													<div class="td pointer"  style="width: 4%; color:#df665c">
+														<span class="ico-cross op-button delete-button" delete-confirm="deleteTag(image,tag,$event)" delete-text="{{'deleteText'|translate}}" ></span>
+													</div>
+												</div>
+											</div>
+
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<p ng-show="loading" class="center">{{'loading'|translate}}</p>
+
+
+
+						<div id="loadWait" class="load-wait">
+							
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

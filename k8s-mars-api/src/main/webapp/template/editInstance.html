@@ -1,0 +1,11 @@
+<div class="edit-instance">
+	<span ng-show="!ifEdit" ng-click="edit()" class="blue underline pointer" ng-bind="service.instance"></span>
+	<form ng-show="ifEdit" name="instance_form" class="edit-form">
+		<div sp-number sp-data="count" sp-min="0" sp-interval="1" sp-dirty="" name="count" ng-model="count" required></div>
+		<span class="img-button pointer ico-check hc-state-start" ng-disabled="disable()" ng-click="saveCount()"></span>
+		<span class="img-button pointer ico-cross hc-state-stop"  ng-click="edit()"></span>
+			<span ng-show="instance_form.count.$dirty &&instance_form.count.$error.required" style="color:#F00;">{{'inputInstance'|translate}}</span>
+			<span ng-show="!instance_form.count.$error.required &&instance_form.count.$invalid" style="color:#F00;">{{'instanceMustNumber'|translate}}</span>
+			<span ng-show="(count<1)" style="color:#F00;">{{'instanceMustLagerOne'|translate}}</span>
+	</form>
+</div>

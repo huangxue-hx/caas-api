@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace必须指向Dao接口 -->
+<mapper namespace="com.harmonycloud.dao.application.ExternalTypeMapper">
+
+	<resultMap id="ExternalTypeMap" type="com.harmonycloud.dao.application.bean.ExternalTypeBean">
+		<id property="id" column="id" />
+		<result property="type" column="type" />
+	</resultMap>
+
+	<select id="list" resultMap="ExternalTypeMap">
+		select * from external_type
+	</select>
+
+</mapper>

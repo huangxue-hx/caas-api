@@ -1,0 +1,13 @@
+ 安装本地仓库
+
+mvn install:install-file -Dfile=/home/andy/repos/extend/pty4j-0.7.2.jar -DgroupId=pty4j -DartifactId=pty4j -Dversion=1.0 -Dpackaging=jar
+
+
+ 配置怕pom.xml
+    <dependency>
+            <groupId>pty4j</groupId>
+            <artifactId>pty4j</artifactId>
+            <version>1.0</version>
+        </dependency>
+
+

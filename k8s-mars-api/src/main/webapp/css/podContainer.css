@@ -1,0 +1,113 @@
+.pod-container .container-input-key{
+	margin: 0px;
+	margin-left: 5px;
+
+}
+.pod-container .container-input-value{
+	width: 252px;
+}
+.pod-container .container-input{
+	margin-left: 5px;
+}
+.pod-container .div-length{
+	margin-left: 5px;
+	padding: 0px 7px 0px 7px;
+	line-height: 25px;
+}
+.pod-container .value{
+	margin-left: 0px;
+}
+.pod-container .img-name{
+	margin-left: 5px;
+}
+.port-select{
+	margin-bottom: 0px;
+	padding: 0px;
+}
+.pod-container .port{
+	width: 200px;
+}
+.pod-container .edit-td{
+	width: 50px;
+}
+.pod-container .edit-td .instant-edit{
+	padding-left: 0px;
+}
+.pod-container .edit-td .remove{
+	padding-left: 5px;
+	color: #df675d;
+	font-size: 15px;
+}
+.pod-container .edit-td .img-button{
+	max-width: 15px;
+	max-height: 15px;
+	margin-left: 0px;
+}
+.port .port-short{
+	width: 100px !important;
+	padding-left: 5px;
+}
+.no-add{
+	display: none;
+	transition: display 1s;
+	-webkit-transition: display 1s;
+}
+.addport{
+	display: table-row;
+}
+.pod-container .div-tr{
+	display: inline-block;
+}
+.long-td{
+	width: 400px !important;
+}
+.long-input{
+	width: 300px !important;
+	padding-left: 5px;
+	line-height: 15px;
+}
+.path-width{
+	width: 180px !important;
+	padding-left: 5px;
+	line-height: 15px;
+}
+.path-width-git{
+	width: 120px !important;
+	padding-left: 5px;
+}
+.git-text{
+	display: inline-block;
+	width: 150px;
+	margin-right: 5px;
+	height: 25px;
+}
+.volume-text{
+	display: inline-block;
+	width: 250px;
+	margin-left: 5px;
+	height: 25px;
+}
+.ifReayOnly{
+	width: 80px;
+}
+.args-width{
+	width: 242px !important;
+}
+.args-input{
+	width: 195px !important;
+	padding-left: 5px;
+	line-height: 15px;
+}
+.env-short{
+	width: 85px !important;
+	padding-left: 5px;
+	line-height: 15px;
+}
+.a-width{
+	display: inline-block;
+	width: 250px;
+}
+
+.pod-container input.ng-invalid-pattern{
+	border: 1px solid red !important;
+}

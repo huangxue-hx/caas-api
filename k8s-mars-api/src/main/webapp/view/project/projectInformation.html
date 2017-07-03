@@ -1,0 +1,169 @@
+<div class="hc-service-information clearfix">
+	<div class="clearfix">
+		<div class="hc-info-block">
+			<div class="hc-info-head">
+				<span ng-bind="'BasicConfig'|translate"></span>
+			</div>
+			<div class="hc-info-body">
+				<ul>
+					<li class="hc-info-list">
+						<span class="hc-info-name">{{'name'|translate}} ：</span>
+						<span class="hc-info-value">{{project.name|harborName}}</span>
+					</li>
+					<li class="hc-info-list" ng-show="pre == 'tenant'">
+						<span class="hc-info-name">{{'tenant'|translate}} ：</span>
+						<span class="hc-info-value">{{project.tenant.name}}</span>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name">{{'Network'|translate}} ：</span>
+						<span class="hc-info-value">{{project.network.name}}</span>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name">{{'Subnet'|translate}} ：</span>
+						<span class="hc-info-value">{{project.network.subnet.subnetname}}</span>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name">{{'annotation'|translate}} ：</span>
+						<span class="hc-info-value">{{project.annotation}}</span>
+					</li>
+				</ul>
+			</div>
+		</div>
+		<div class="hc-info-block">
+			<div class="hc-info-head">
+				<span ng-bind="'ResourceQuota'|translate"></span>
+			</div>
+			<div class="hc-info-body">
+				<ul>
+					<li class="hc-info-list">
+						<span class="hc-info-name">Pod ：</span>
+						<div class="rate-block">
+							<div class="rate-bar">
+								<div class="rate-used" ng-style="podUsage" style="background: #5eb1dc"></div>
+							</div>
+							<span class="service-informantion-var rate-number">{{project.quota.pod[1]}}/{{project.quota.pod[0]}}</span>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name">Service ：</span>
+						<div class="rate-block">
+							<div class="rate-bar">
+								<div class="rate-used" ng-style="serviceUsage" style="background: #3297cc"></div>
+							</div>
+							<span class="service-informantion-var rate-number">{{project.quota.service[1]}}/{{project.quota.service[0]}}</span>
+						</div>
+					</li>
+					<!-- <li class="hc-info-list">
+						<div class="service-informantion-name">
+							<span class="ne-required">RC ：</span>
+						</div>
+						<div class="rate-block">
+							<div class="rate-bar">
+								<div class="rate-used" ng-style="rcUsage"></div>
+							</div>
+							<span class="service-informantion-var rate-number">{{project.quota.rc}}/{{project.quota.rc}}</span>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<div class="service-informantion-name">
+							<span class="ne-required">Resource ：</span>
+						</div>
+						<div class="rate-block">
+							<div class="rate-bar">
+								<div class="rate-used" ng-style="resourceQuotaUsage"></div>
+							</div>
+							<span class="service-informantion-var rate-number">{{project.quota.resourceQuota}}/{{project.quota.resourceQuota}}</span>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<div class="service-informantion-name">
+							<span class="ne-required">Secret ：</span>
+						</div>
+						<div class="rate-block">
+							<div class="rate-bar">
+								<div class="rate-used" ng-style="secretUsage"></div>
+							</div>
+							<span class="service-informantion-var rate-number">{{project.quota.secret}}/{{project.quota.secret}}</span>
+						</div>
+					</li> -->
+					<li class="hc-info-list">
+						<span class="hc-info-name">PVC ：</span>
+						<div class="rate-block">
+							<div class="rate-bar">
+								<div class="rate-used" ng-style="pvcUsage" style="background: #2d89b9"></div>
+							</div>
+							<span class="service-informantion-var rate-number">{{project.quota.pvc[1]}}/{{project.quota.pvc[0]}}</span>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name">CPU ：</span>
+						<div class="rate-block">
+							<div class="rate-bar">
+								<div class="rate-used" ng-style="cpuUsage" style="background: #25739d"></div>
+							</div>
+							<span class="service-informantion-var rate-number">{{project.quota.cpu[1]|cpuNumber}}/{{project.quota.cpu[0]|cpuNumber}}</span>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name">Memory ：</span>
+						<div class="rate-block">
+							<div class="rate-bar">
+								<div class="rate-used" ng-style="memoryUsage" style="background: #1b5b7c"></div>
+							</div>
+							<span class="service-informantion-var rate-number">{{project.quota.memory[1]}}/{{project.quota.memory[0]}}MiB</span>
+						</div>
+					</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+	<div class="hc-info-block hc-podlist-block">
+		<div class="hc-info-head">
+			<span ng-bind="'Service'|translate"></span>
+		</div>
+		<div class="hc-info-body">
+			<table class="hc-info-table hc-podlist-table">
+				<tr class="hc-info-table-head">
+					<td>{{'name'|translate}}</td>
+					<td>{{'state'|translate}}</td>
+					<td>{{'label'|translate}}</td>
+					<td>{{'version'|translate}}</td>
+					<td>{{'instanceCount'|translate}}</td>
+					<td>{{'creationTime'|translate}}</td>
+				</tr>
+				<tr class="hc-info-table-row" ng-repeat="service in serviceList">
+					<td>
+						<a ui-sref="projectService({name:service.name,namespace:service.namespace})">{{service.name}}</a>
+					</td>
+					<td ng-show="service.status==0">
+						{{'stopped'|translate}}
+						&nbsp
+						<span class="state-icon icon-circle" style="color: red;"></span>
+					</td>
+					<td ng-show="service.status==1">
+						{{'started'|translate}}
+						&nbsp
+						<span class="state-icon icon-circle"></span>
+					</td>
+					<td ng-show="service.status==2">
+						{{'stopping'|translate}}
+						&nbsp
+						<span class="state-icon icon-circle" style="color: #f4c600;"></span>
+					</td>
+					<td ng-show="service.status==3">
+						{{'starting'|translate}}
+						&nbsp
+						<span class="state-icon icon-circle" style="color: #f4c600;"></span>
+					</td>
+					<td>
+						<div class="service-all-label" ng-repeat="(name,value) in service.labels">{{name}}={{value}}</div>
+						<span ng-if="!service.labels">{{'none'|translate}}</span>
+					</td>
+					<td>{{service.version}}</td>
+					<td>{{service.instance}}</td>
+					<td>{{service.createTime | transTime}}</td>
+				</tr>
+			</table>
+		</div>
+	</div>
+</div>

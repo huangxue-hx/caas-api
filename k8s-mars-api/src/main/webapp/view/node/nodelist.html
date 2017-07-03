@@ -1,0 +1,67 @@
+<div class="service-all">
+	<div class="hc-detail-topbar">
+		<div class="hc-topbar-block">
+			<span ng-bind="'nodeList'|translate" class="hc-topbar-name"></span>
+		</div>
+		
+		<div class="hc-action-wrap">
+			<div class="hc-topbar-block hc-button-block hc-p0-ml10">
+		<!-- 		<button class="hc-button hc-button-green" ui-sref="tenantNew"  ng-bind="'new'|translate"></button> -->
+				<button class="hc-button hc-button-green" ng-show="isLogMonitor" ng-click="logMonitor()" ng-bind="'ConfigLogAlarm'|translate"></button>
+				<button class="hc-button hc-button-green" ng-show="!isLogMonitor" ng-click="logMonitor()" ng-bind="'OpenLogAlarm'|translate"></button>
+
+
+			</div>
+			<div class="hc-topbar-block hc-button-block hc-p0-ml10">
+				<button class="hc-button hc-button-green" ng-show="!isInfluxMonitor" ng-click="influxMonitor()" ng-bind="'OpenLogMonitor'|translate"></button>
+				<button class="hc-button hc-button-green" ng-show="isInfluxMonitor" ng-click="influxMonitor()" ng-bind="'ConfigLogMonitor'|translate"></button>
+				<!-- <button class="hc-button hc-button-red" delete-confirm="delete()" delete-text="{{'deleteText'|translate}}" ng-bind="'delete'|translate"></button> -->
+			</div>
+		</div>
+	</div>
+	<div class="hc-detail-outer">
+		<div class="service-table-div mt0">
+			<table class="service-table">
+				<thead class="service-table-head">
+					<tr>
+						<td class="service-choose-td"><!-- <input class="service-choose-box" id="choose-all" type="checkbox" ng-model="checkboxAll"> --></td>
+						<td class="service-name" ng-bind="'name'|translate">
+						</td>
+						<td ng-bind="'type'|translate"></td>
+						<td ng-bind="'IP'|translate"></td>
+						<td ng-bind="'creationTime'|translate"></td>
+						<td ng-bind="'state'|translate"></td>
+					</tr>
+				</thead>
+				<tbody  class="service-table-body">
+					<tr ng-repeat="node in list">
+						<td class="service-choose-td"><!-- <input class="service-choose-box" type="checkbox" ng-model="service.checkbox"> --></td>
+						<td class="service-name">
+							<a ng-bind="node.name" ui-sref="nodeDetail({nodeName:node.name})"></a>
+						</td>
+						<td ng-bind="node.type"></td>
+
+						<td ng-bind="node.ip"></td>
+						<td ng-bind="node.time | transTime"></td>
+						<td ng-bind="node.status"></td>
+					</tr>
+				</tbody>
+			</table>
+			<span ng-show="!list||list.length==0" class="nomore">
+			</span>
+		</div>
+		<!-- <div class="service-page">
+			<ul class="service-page-ul">
+  				<li><a href="#">上一页</a></li>
+  				<li class="active"><a href="#">1</a></li>
+  				<li><a href="#">2</a></li>
+  				<li><a href="#">3</a></li>
+  				<li><a href="#">4</a></li>
+  				<li><a href="#">5</a></li>
+  				<li><a href="#">下一页</a></li>
+  				<li>共 <span>5</span> 条/ <span>1</span> 页 </li>
+			</ul>
+		</div> -->
+	</div>
+	
+</div>

@@ -1,0 +1,62 @@
+<div class="service-detail role-detail">
+	<div class="service-detail-title storage-title">
+		<div class="back">
+			<span class="icon-double-angle-left pointer" ng-click="back()"></span>
+		</div>
+		<div class="service-detail-text">
+			<span class="service-detail-name">{{roleBinding.name}} ( {{roleBinding.type}} )</span>
+		</div>
+	</div>
+
+	<div class="service-information storage-detail detail-list">
+		<ul class="service-information-ul">
+			<li class="service-information-list">
+				<span class="service-informantion-name">{{'name'|translate}} ：</span>
+				<span class="service-informantion-var">{{roleBinding.name}}</span>
+			</li>
+			<li class="service-information-list" ng-show="roleBinding.type=='RoleBinding'">
+				<span class="service-informantion-name">{{'namespace'|translate}} ：</span>
+				<span class="service-informantion-var">{{roleBinding.namespace}}</span>
+			</li>
+			<li class="service-information-list">
+				<span class="service-informantion-name">{{'creationTime'|translate}} ：</span>
+				<span class="service-informantion-var">{{roleBinding.time|transTime}}</span>
+			</li>
+			<li class="service-information-list overflow-visible">
+				<div class="service-informantion-name service-list">
+					<span>{{'user'|translate}}：</span>
+				</div>
+				<div class="resource-all">
+					<div ng-repeat="user in userList" ng-init="index = $index" class="resource-block">
+						<div class="resource-content" ng-class="{chooseblock:user.choose}" ng-click="chooseUser($index)">
+							<div class="resList-name pointer">
+								<span ng-bind="user.name"></span>
+							</div>
+							<div class="choose-but pointer">
+								<span class="icon-ok-circle"></span>
+							</div>
+						</div>
+					</div>
+				</div>
+			</li>
+			<li class="service-information-list" ng-show="roleBinding.type=='RoleBinding'">
+				<div class="service-informantion-name service-list">
+					<span>{{'role'|translate}}/{{'clusterrole'|translate}}：</span>
+				</div>
+				<select type="input" name="namespace" class="service-new-input namespace-width" ng-model="roleBinding.role" required>
+					<option ng-repeat="r in roleList track by $index" value="{{r}}">{{r}}</option>
+				</select>
+			</li>
+			<li class="service-information-list"  ng-show="roleBinding.type=='ClusterRoleBinding'">
+				<div class="service-informantion-name service-list">
+					<span>{{'clusterrole'|translate}}：</span>
+				</div>
+				<select type="input" name="namespace" class="service-new-input namespace-width" ng-model="roleBinding.clusterRole" required>
+					<option ng-repeat="r in croleList track by $index" value="{{r}}">{{r}}</option>
+				</select>
+			</li>
+		</ul>
+		<button class="function-button refresh" ng-click="refresh()">{{'refreshConfig'|translate}}</button>
+	</div>
+	<!-- <div class="service-detail-content" ui-view></div> -->
+</div>	

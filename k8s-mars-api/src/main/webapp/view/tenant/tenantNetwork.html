@@ -1,0 +1,44 @@
+<div class="hc-service-detail">
+	<div class="hc-detail-topbar" ng-show="!parent">
+		<div class="hc-topbar-block">
+			<span ng-bind="'Create Network For Tenant'|translate" class="hc-topbar-name"></span>
+		</div>
+		<div class="hc-topbar-block hc-button-block hc-flright">
+			<button class="hc-button hc-button-green hc-button-green-heavy" ui-sref="tenantProject({id:tenantid})" ng-bind="'Next'|translate"></button>
+		</div>
+	</div>
+	<div ng-class="{'hc-detail-outer':!parent}">
+		<div class="hc-detail-innerwrap">
+			<form name="newRole_form" class="noneMargin">
+				<ul class="service-information-ul">
+					<li class="service-information-list">
+						<span class="service-informantion-name network-title">{{'Network'|translate}} ：</span>
+						<div class="service-informantion-label">
+							<table class="informantion-label-table network-table">
+								<tr class="port-name">
+									<td>{{'Networkname'|translate}}</td>
+									<td>{{'tenant'|translate}}</td>
+									<td class="pointer edit-td" ng-click="newNetwork()"><span class="icon-plus green"></span></td>
+								</tr>
+								<tr class="port-content" ng-repeat="n in networkList | orderBy: '-name'">
+									<td class="port">
+										<span class="pointer">
+											<a ui-sref="tenantNetworkDetail({tenantid:tenantid,networkid:n.networkid})">{{n.name}}</a>
+										</span>
+									</td>
+									<td class="port">
+										<span>{{n.tenant.name}}</span>
+									</td>
+									<td class="edit-td">
+										<a delete-confirm="deleteNetwork(n)" class="remove ico-cross pointer"></a>
+									</td>
+								</tr>
+							</table>
+						</div>
+					</li>
+				</ul>
+			</form>	
+		</div>
+		
+	</div>
+</div>

@@ -1,0 +1,92 @@
+<div class="service-detail role-detail">
+	<div class="hc-detail-topbar" ng-show="!parent">
+		<div class="hc-topbar-block hc-back pointer ico-rewind" ng-click="back()">
+		</div>
+		<div class="hc-topbar-block">
+			<span ng-bind="role.name+'('+role.type+')'" class="hc-topbar-name"></span>
+		</div>
+		<!-- <div class="hc-topbar-block hc-button-block hc-flright hc-p0-ml10">
+			<button class="hc-button hc-button-green" ng-click="refresh()">{{'refreshConfig'|translate}}</button>
+		</div> -->
+	</div>
+	<div class="service-information storage-detail detail-list  pb100">
+		<ul class="service-information-ul">
+			<li class="service-information-list">
+				<span class="service-informantion-name">{{'name'|translate}} ：</span>
+				<span class="service-informantion-var">{{role.name}}</span>
+			</li>
+			<li class="service-information-list" ng-show="role.type=='Role'">
+				<span class="service-informantion-name">{{'namespace'|translate}} ：</span>
+				<span class="service-informantion-var">{{role.namespace}}</span>
+			</li>
+			<li class="service-information-list">
+				<span class="service-informantion-name">{{'type'|translate}} ：</span>
+				<span class="service-informantion-var">{{role.type}}</span>
+			</li>
+			<!-- <li class="service-information-list">
+				<span class="service-informantion-name">{{'priority'|translate}} ：</span>
+				<span class="service-informantion-var">{{role.index}}</span>
+			</li>
+			<li class="service-information-list">
+				<span class="service-informantion-name">{{'bindCount'|translate}} ：</span>
+				<span class="service-informantion-var">{{role.bindCount}}</span>
+			</li> -->
+			<li class="service-information-list">
+				<span class="service-informantion-name">{{'creationTime'|translate}} ：</span>
+				<span class="service-informantion-var">{{role.time|transTime}}</span>
+			</li>
+			<li class="service-information-list overflow-visible">
+				<div class="service-informantion-name service-list">
+					<span>{{'resource'|translate}}：</span>
+				</div>
+				<div class="resource-all">
+					<div ng-repeat="res in resource" ng-init="index = $index" class="resource-block">
+						<div class="resource-content" ng-class="{chooseblock:res.choose}">
+							<div class="resList-name pointer" ng-click="expand($index)" title="{{res.name}}">
+								<span ng-bind="res.name"></span>
+							</div>
+							<div class="choose-but pointer" ng-click="disableRes($index)">
+								<span class="icon-ok-circle"></span>
+							</div>
+							<div class="resource-operation" ng-class="{hidden:res.hidden}" ng-style="{height: 25*res.operations.length}">
+								<ul class="operall">
+									<li ng-repeat="op in res.operations" class="oper-list" ng-click="chooseOpe(index)">
+										<input class="ope-box" type="checkbox" name="" ng-model="op.choose" disabled="disabled">
+										<span ng-bind="op.name"></span>
+									</li>
+								</ul>
+							</div>
+						</div>
+					</div>
+				</div>
+			</li>
+			<!-- <li class="service-information-list overflow-visible">
+				<div class="service-informantion-name service-list">
+					<span>{{'noneResorce'|translate}}：</span>
+				</div>
+				<div class="resource-all">
+					<div ng-repeat="res in noneResource" ng-init="index = $index" class="resource-block">
+						<div class="resource-content" ng-class="{chooseblock:res.choose}">
+							<div class="resList-name pointer" ng-click="expandNone($index)" title="{{res.name}}">
+								<span ng-bind="res.name"></span>
+							</div>
+							<div class="choose-but" ng-click="disableNoneRes($index)">
+								<span class="icon-ok-circle"></span>
+							</div>
+							<div class="resource-operation" ng-class="{hidden:res.hidden}" ng-style="{height: 25*res.operations.length}">
+								<ul class="operall">
+									<li ng-repeat="op in res.operations" class="oper-list" ng-click="chooseNoneOpe(index)">
+										<input class="ope-box" type="checkbox" name="" ng-model="op.choose">
+										<span ng-bind="op.name"></span>
+									</li>
+								</ul>
+							</div>
+						</div>
+					</div>
+				</div>
+			</li> -->
+		</ul>
+		
+	</div>
+	<!-- <div class="service-detail-content" ui-view></div> -->
+</div>	

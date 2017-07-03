@@ -1,0 +1,67 @@
+<div class="hc-service-detail">
+	<div class="hc-detail-topbar">
+		<div class="hc-topbar-block hc-back pointer ico-rewind" ng-click="back()">
+		</div>
+		<div class="hc-topbar-block">
+			<span ng-bind="volume.name" class="hc-topbar-name"></span>
+		</div>
+	</div>
+	<div class="hc-detail-outer clearfix">
+		<div class="hc-container hc-detail-inner">
+			<div class="service-information storage-detail">
+				<ul class="service-information-ul">
+					<li class="service-information-list">
+						<div class="service-informantion-name">
+							<span class="ne-required">{{'Volumename'|translate}} ：</span>
+						</div>
+						<span class="service-informantion-var">{{volume.name}}</span>
+					</li>
+					<li class="service-information-list">
+						<div class="service-informantion-name">
+							<span class="ne-required">{{'tenant'|translate}} ：</span>
+						</div>
+						<span class="service-informantion-var">{{volume.tenant.name}}</span>
+					</li>
+					<li class="service-information-list">
+						<div class="service-informantion-name">
+							<span class="ne-required">{{'type'|translate}} ：</span>
+						</div>
+						<span class="service-informantion-var">{{volume.type}}</span>
+					</li>
+					<li class="service-information-list">
+						<div class="service-informantion-name">
+							<span class="ne-required">{{'capacity'|translate}} ：</span>
+						</div>
+						<span class="service-informantion-var">{{volume.capacity|newmemoryFormat}}</span>
+					</li>
+					<li class="service-information-list">
+						<div class="service-informantion-name">
+							<span class="ne-required">{{'readOnly'|translate}}：</span>
+						</div>
+						<span class="service-informantion-var">{{volume.readOnly}}</span>
+					</li>
+					<li class="service-information-list">
+						<div class="service-informantion-name">
+							<span class="ne-required">{{'Multiple'|translate}}：</span>
+						</div>
+						<span class="service-informantion-var">{{volume.multiple}}</span>
+					</li>
+					<li class="service-information-list">
+						<div class="service-informantion-name">
+							<span class="ne-required">{{'Usage'|translate}}：</span>
+						</div>
+						<span class="service-informantion-var" ng-show="!volume.usage || volume.usage.lngth==0">none</span>
+						<span class="service-informantion-var" ng-show="volume.usage" ng-bind="volume.usage"></span>
+					</li>
+					<li class="service-information-list">
+						<div class="service-informantion-name">
+							<span class="ne-required">{{'creationTime'|translate}} ：</span>
+						</div>
+						<span class="service-informantion-var">{{volume.time|transTime}}</span>
+					</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+	<!-- <div class="service-detail-content" ui-view></div> -->
+</div>	

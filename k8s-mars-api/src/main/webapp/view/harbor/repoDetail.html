@@ -1,0 +1,57 @@
+<div class="hc-service-detail">
+	<div class="hc-detail-topbar">
+		<div class="hc-topbar-block hc-back pointer ico-rewind" ng-click="back()">
+		</div>
+		<div class="hc-topbar-block">
+			<span ng-bind="reponame+':'+tag" class="hc-topbar-name"></span>
+		</div>
+	</div>
+	<div class="hc-detail-outer clearfix">
+		<div class="hc-container hc-detail-inner">
+			<div class="hc-repo-detail">
+				<div ng-show="vulAna != 0" class="img-otherinf">
+					<!-- <span class="vulinf-title" ng-show="vulAna == 1">Success : </span>
+					<span class="vulinf-title" ng-show="vulAna == 2">Not Support : </span>
+					<span class="vulinf-title" ng-show="vulAna == 3">Abnormal : </span> -->
+					<span ng-bind="vulInf"></span>
+				</div>
+				<div class="chart-block clearfix" ng-show="vulAna == 0">
+					<div class="chart-circle" su-circle ne-value="inform.data" ne-title="" ne-style="pieStyle"></div>
+					<div class="chart-state">
+						<div class="state-text">
+							<div class="text-line text-line-total">
+								<span ng-bind="inform.sum" class="state-number"></span>
+								<span class="state-word" ng-bind="'Total Number of Vulnerabilitles'|translate"></span>
+							</div>
+							<div class="text-line text-line-total">
+								<span ng-bind="inform.repair" class="state-number"></span>
+								<span class="state-word" ng-bind="'Vulnerabilitles can be Repaired'|translate"></span>
+							</div>
+							<div class="text-line">
+								<span ng-bind="inform.state.high_risk" class="state-number" style="color:#bd2119"></span>
+								<span class="state-word" ng-bind="'Number of High Risk vulnerabilitle(s)'|translate"></span>
+							</div>
+							<div class="text-line">
+								<span ng-bind="inform.state.medium_risk" class="state-number" style="color:#d96c2b"></span>
+								<span class="state-word" ng-bind="'Number of Medium Risk vulnerabilitle(s)'|translate"></span>
+							</div>
+							<div class="text-line">
+								<span ng-bind="inform.state.low_risk" class="state-number" style="color:#dec57b"></span>
+								<span class="state-word" ng-bind="'Number of Low Risk vulnerabilitle(s)'|translate"></span>
+							</div>
+							<div class="text-line">
+								<span ng-bind="inform.state.negligible_risk" class="state-number" style="color:#527384"></span>
+								<span class="state-word" ng-bind="'Number of Negligible Risk vulnerabilitle(s)'|translate"></span>
+							</div>
+							<div class="text-line">
+								<span ng-bind="inform.state.unknown" class="state-number" style="color:#298473"></span>
+								<span class="state-word" ng-bind="'Number of Unknow vulnerabilitle(s)'|translate"></span>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div sp-tabs sp-default-tab="package" ng-show="vulAna == 0"></div>
+			</div>
+		</div>
+	</div>
+</div>	

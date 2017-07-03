@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.harmonycloud.dao.network.TopologyMapper" >
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.network.bean.Topology" >
+    <id column="id" property="id" jdbcType="INTEGER" />
+    <result column="business_id" property="businessId" jdbcType="INTEGER" />
+    <result column="source" property="source" jdbcType="VARCHAR" />
+    <result column="target" property="target" jdbcType="VARCHAR" />
+    <result column="details" property="details" jdbcType="VARCHAR" />
+  </resultMap>
+  
+  <insert id="insert" parameterType="com.harmonycloud.dao.network.bean.Topology">
+    insert into topology (business_id, source,target,details)
+    values (#{businessId}, #{source},#{target},#{details})
+  </insert> 
+  
+  <select id="listToplogyByBusinessTemplatesId" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select * from topology where business_id=#{businessId}
+  </select>
+
+  <select id="selectByBusinessIdAndServiceTemplateId" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select * from topology where business_id=#{businessTemplateId} and (source in (select  service_template_id from service where business_id=#{businessId}) AND target in (select  service_template_id from service where business_id=#{businessId}))
+  </select>
+  
+  <delete id="deleteTopologyByTenant">
+  	delete from topology where business_id in (select id from business_templates  where tenant in
+   	  <foreach item="item" index="index" collection="tenant" open="(" separator="," close=")">  
+       	#{item}
+         </foreach>
+	)
+  </delete>
+  <delete id="deleteTopology">
+    delete from topology where business_id = #{businessTemplateId}
+  </delete>
+</mapper>

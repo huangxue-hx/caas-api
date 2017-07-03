@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace必须指向Dao接口 -->
+<mapper namespace="com.harmonycloud.dao.user.RoleMapper">
+
+    <resultMap id="roleMap" type="com.harmonycloud.dao.user.bean.Role">
+        <id property="id" column="id" />
+        <result property="name" column="name" />
+        <result property="description" column="description" />
+        <result property="resourceIdsStr" column="resourceIdsStr" />
+        <result property="available" column="available" />
+    </resultMap>
+
+    <select id="findByName" resultMap="roleMap" parameterType="java.lang.String">
+        select id, name, description, resource_ids as resourceIdsStr, available
+        from role where name=#{roleName} and available = 1
+    </select>
+
+</mapper>

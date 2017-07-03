@@ -1,0 +1,1068 @@
+package com.harmonycloud.service.application.impl;
+
+import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.HttpStatusUtil;
+import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.dao.application.*;
+import com.harmonycloud.dao.application.bean.Business;
+import com.harmonycloud.dao.application.bean.BusinessService;
+import com.harmonycloud.dao.application.bean.ServiceTemplates;
+import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.dao.network.TopologyMapper;
+import com.harmonycloud.dao.network.bean.Topology;
+import com.harmonycloud.dao.tenant.TenantBindingMapper;
+import com.harmonycloud.dao.tenant.bean.TenantBinding;
+import com.harmonycloud.dao.tenant.bean.TenantBindingExample;
+import com.harmonycloud.dto.business.*;
+import com.harmonycloud.dto.business.SelectorDto;
+import com.harmonycloud.dto.svc.*;
+import com.harmonycloud.k8s.bean.*;
+import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
+import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.constant.Resource;
+import com.harmonycloud.k8s.service.DeploymentService;
+import com.harmonycloud.k8s.service.PvService;
+import com.harmonycloud.k8s.service.ServicesService;
+import com.harmonycloud.k8s.util.K8SClientResponse;
+import com.harmonycloud.k8s.util.K8SURL;
+import com.harmonycloud.service.application.BusinessDeployService;
+import com.harmonycloud.service.application.DeploymentsService;
+import com.harmonycloud.service.application.RouterService;
+import com.harmonycloud.service.application.VolumeSerivce;
+import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.platform.bean.BusinessList;
+import com.harmonycloud.service.platform.bean.PvDto;
+import com.harmonycloud.service.platform.bean.RouterSvc;
+import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.tenant.TenantService;
+import com.harmonycloud.k8s.client.K8sMachineClient;
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.text.SimpleDateFormat;
+import java.util.*;
+
+
+/**
+ * Created by root on 4/10/17.
+ */
+@Service
+@Transactional(rollbackFor = Exception.class)
+public class BusinessDeployServiceImpl implements BusinessDeployService {
+
+    @Autowired
+    private BusinessMapper businessMapper;
+
+    @Autowired
+    private BusinessServiceMapper businessServiceMapper;
+
+    @Autowired
+    private TopologyMapper topologyMapper;
+
+    @Autowired
+    private TenantService tenantService;
+    
+    @Autowired
+    private ClusterService clusterService;
+    
+    @Autowired
+    private ServiceMapper serviceMapper;
+
+    @Autowired
+    private VolumeSerivce volumeSerivce;
+
+    @Autowired
+    private DeploymentsService deploymentsService;
+
+    @Autowired
+    private BusinessTemplatesMapper businessTemplatesMapper;
+
+    @Autowired
+    private RouterService routerService;
+
+    @Autowired
+    private TenantBindingMapper tenantBindingMapper;
+
+    @Autowired
+    private PvService pvService;
+
+    @Autowired
+    private DeploymentService dpService;
+    
+    @Autowired
+    private ServiceTemplatesMapper serviceTemplatesMapper;
+
+    public static final String ABNORMAL = "0";
+
+    public static final String NORMAL = "1";
+
+    @Autowired
+    private ServicesService sService;
+
+    @Value("#{propertiesReader['image.url']}")
+    private String harborUrl;
+
+    /**
+     * get application by tenant namespace name status service implement
+     * 
+     * @author gurongyun
+     * 
+     * @param tenant
+     *            tenant name
+     * @param namespace
+     *            namespace
+     * @param name
+     *            application name
+     * @param status
+     *            application running status 0:abnormal;1:normal
+     * @return ActionReturnUtil
+     */
+	@Override
+    public ActionReturnUtil searchBusiness(String tenantId, String tenant, String namespace, String name, String status) throws Exception {
+        JSONObject json = new JSONObject();
+        // application list
+        JSONArray array = new JSONArray();
+        List<Business> blist = null;
+        // search application
+        if(StringUtils.isEmpty(namespace)){
+        	String [] namespaces = new String[0];
+        	if(StringUtils.isEmpty(tenant)){
+        		String [] tenants= new String[0];
+        		blist = businessMapper.search(tenants, namespaces, name);
+            }else{
+            	String [] tenants = {tenant};
+                if( tenant.contains(",")){
+                	tenants=tenant.split(",");
+                }
+                blist = businessMapper.search(tenants, namespaces, name);
+            }
+        }else{
+        	String [] namespaces = {namespace};
+            if(namespace.contains(",")){
+            	namespaces=namespace.split(",");
+            }
+        	if(StringUtils.isEmpty(tenant)){
+        		String [] tenants= new String[0];
+        		blist = businessMapper.search(tenants, namespaces, name);
+            }else{
+            	String [] tenants = {tenant};
+                if( tenant.contains(",")){
+                	tenants=tenant.split(",");
+                }
+                blist = businessMapper.search(tenants, namespaces, name);
+            }
+        }
+
+
+        Cluster	cluster=tenantService.getClusterByTenantid(tenantId);
+
+        // number of application
+        int count = 0;
+        if (blist != null && blist.size() > 0) {
+            count = blist.size();
+            for (Business bs : blist) {
+                JSONObject js = new JSONObject();
+                // put application info
+                js.put("name", bs.getName());
+                js.put("id", bs.getId());
+                js.put("desc", bs.getDetails());
+                js.put("createTime", dateToString(bs.getCreateTime()));
+                js.put("businessTemplateId", bs.getTemplateId());
+                js.put("namespce", bs.getNamespaces());
+                js.put("tenant", bs.getTenant());
+                js.put("user", bs.getUser());
+                JSONObject servicejson = listServiceByBusinessId(bs.getId(), bs.getNamespaces(),cluster);
+                js.putAll(servicejson);
+                if (StringUtils.isEmpty(status)) {
+                    array.add(js);
+                } else {
+                    if (status.equals(NORMAL)) {
+                        // running
+                        if (NORMAL.equals(js.get("status"))) {
+                            array.add(js);
+                        }
+                    } else {
+                        if (ABNORMAL.equals(js.get("status"))) {
+                            array.add(js);
+                        }
+                    }
+                }
+            }
+
+        } else {
+            return ActionReturnUtil.returnSuccessWithData(null);
+        }
+        json.put("list", array);
+        json.put("count", count);
+        return ActionReturnUtil.returnSuccessWithData(json);
+    }
+
+    /**
+     * get application by id service implement.
+     * 
+     * @author gurongyun
+     * @param id
+     *            application id
+     * @return ActionReturnUtil
+     */
+    @Override
+    public ActionReturnUtil selectBusinessById(int id, Cluster cluster) throws Exception {
+        if (id == 0) {
+            return ActionReturnUtil.returnErrorWithMsg("application id is null");
+        }
+        JSONObject js = new JSONObject();
+        // get application
+        Business business = businessMapper.selectByPrimaryKey(id);
+        if (business != null) {
+            // put application info
+            js.put("id", business.getId());
+            js.put("name", business.getName());
+            js.put("createTime", dateToString(business.getCreateTime()));
+            js.put("desc", business.getDetails());
+            js.put("businessTemplateId", business.getTemplateId());
+            js.put("namespace", business.getNamespaces());
+            js.put("tenant", business.getTenant());
+            js.put("user", business.getUser());
+            // get topology
+            List<Topology> tolist = topologyMapper.selectByBusinessIdAndServiceTemplateId(business.getTemplateId(), business.getId());
+            JSONArray toarray = new JSONArray();
+            if (tolist != null && tolist.size() > 0) {
+                for (Topology to : tolist) {
+                    JSONObject js1 = new JSONObject();
+                    // topology info
+                    js1.put("id", to.getId());
+                    js1.put("businessTemplateId", to.getBusinessId());
+                    js1.put("detail", to.getDetails());
+                    js1.put("source", to.getSource());
+                    js1.put("target", to.getTarget());
+                    toarray.add(js1);
+                }
+            }
+            js.put("topologyList", toarray);
+            // getService
+            List<com.harmonycloud.dao.application.bean.Service> servicelist = serviceMapper.selectByBusinessId(id);
+            JSONArray serarray = new JSONArray();
+            if (servicelist != null && servicelist.size() > 0) {
+                for (com.harmonycloud.dao.application.bean.Service ser : servicelist) {
+                    JSONObject json = new JSONObject();
+                    // service info
+                    json.put("id", ser.getId());
+                    json.put("businessId", ser.getBusinessId());
+                    json.put("isExternal", ser.getIsExternal());
+                    json.put("name", ser.getName());
+                    json.put("serviceTemplateId", ser.getServiceTemplateId());
+                    if (ser.getIsExternal() == 1) {
+                        // external service always is running
+                        K8SClientResponse response = sService.doServiceByName(Resource.EXTERNALNAMESPACE, null, null, HTTPMethod.GET,ser.getName());
+                        if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
+                            return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+                        }
+                        if (response.getStatus() != Constant.HTTP_404){
+                            com.harmonycloud.k8s.bean.Service svc = JsonUtil.jsonToPojo(response.getBody(), com.harmonycloud.k8s.bean.Service.class);
+                            json.put("ip",svc.getMetadata().getLabels().get("ip").toString());
+                            json.put("port",svc.getSpec().getPorts().get(0).getTargetPort());
+                            json.put("type",svc.getMetadata().getLabels().get("type").toString());
+                            json.put("createTime",svc.getMetadata().getCreationTimestamp());
+                        }
+                        json.put("status", Constant.SERVICE_START);
+                    } else {
+                        // get deployment by name
+                        K8SClientResponse depRes = dpService.doSpecifyDeployment(business.getNamespaces(), ser.getName(), null, null, HTTPMethod.GET,cluster);
+                        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus()) && depRes.getStatus() != Constant.HTTP_404) {
+                            return ActionReturnUtil.returnErrorWithMsg(depRes.getBody());
+                        }
+                        if (depRes.getStatus() == Constant.HTTP_404){
+                            continue;
+                        }
+
+                        Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+                        // get labels
+                        JSONObject labeljson = new JSONObject();
+                        String labels = null;
+                        if (dep.getMetadata().getAnnotations() != null && dep.getMetadata().getAnnotations().containsKey("nephele/labels")) {
+                            labels = dep.getMetadata().getAnnotations().get("nephele/labels").toString();
+                        }
+                        if (!StringUtils.isEmpty(labels)) {
+                            String[] arrLabel = labels.split(",");
+                            for (String l : arrLabel) {
+                                String[] tmp = l.split("=");
+                                labeljson.put(tmp[0], tmp[1]);
+                            }
+                            json.put("labels", labeljson);
+                        }
+                        // get status
+                        // deploment status
+                        String status = null;
+                        if (dep.getMetadata().getAnnotations() != null && dep.getMetadata().getAnnotations().containsKey("nephele/status")) {
+                            status = dep.getMetadata().getAnnotations().get("nephele/status").toString();
+                        }
+
+                        if (!StringUtils.isEmpty(status)) {
+                            switch (status) {
+                                case Constant.STARTING :
+                                    if (dep.getStatus().getReplicas() != null && dep.getStatus().getReplicas() > 0
+                                            && (dep.getStatus().getAvailableReplicas() == dep.getStatus().getReplicas())) {
+                                        json.put("status", Constant.SERVICE_START);
+                                    } else {
+                                        json.put("status", Constant.SERVICE_STARTING);
+                                    }
+                                    break;
+                                case Constant.STOPPING :
+                                    if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
+                                        json.put("status", Constant.SERVICE_STOPPING);
+                                    } else {
+                                        json.put("status", Constant.SERVICE_STOP);
+                                    }
+                                    break;
+                                default :
+                                    if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
+                                        json.put("status", Constant.SERVICE_START);
+                                    } else {
+                                        json.put("status", Constant.SERVICE_STOP);
+                                    }
+                                    break;
+                            }
+                        } else {
+                            if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
+                                json.put("status", Constant.SERVICE_START);
+                            } else {
+                                json.put("status", Constant.SERVICE_STOP);
+                            }
+                        }
+                        // get version
+                        if (dep.getMetadata().getAnnotations() != null && dep.getMetadata().getAnnotations().containsKey("deployment.kubernetes.io/revision")) {
+                            json.put("version", "v" + dep.getMetadata().getAnnotations().get("deployment.kubernetes.io/revision"));
+                        }
+                        // get image
+                        List<String> img = new ArrayList<String>();
+                        List<Container> containers = dep.getSpec().getTemplate().getSpec().getContainers();
+                        for (Container container : containers) {
+                            img.add(container.getImage());
+                        }
+                        json.put("img", img);
+                        json.put("instance", dep.getSpec().getReplicas());
+                        json.put("createTime", dep.getMetadata().getCreationTimestamp());
+                        json.put("namespace", dep.getMetadata().getNamespace());
+                        json.put("selector", dep.getSpec().getSelector());
+                    }
+                    serarray.add(json);
+                }
+                js.put("serviceList", serarray);
+            } else {
+                return ActionReturnUtil.returnErrorWithMsg("service is null");
+            }
+        } else {
+            return ActionReturnUtil.returnSuccessWithData(null);
+        }
+        return ActionReturnUtil.returnSuccessWithData(js);
+    }
+
+    /**
+     * deployment application service implement.
+     * 
+     * @author yanli
+     * 
+     * @param businessDeploy
+     *            BusinessDeployBean
+     * @param username
+     *            username
+     * @return ActionReturnUtil
+     */
+    @Override
+    public synchronized ActionReturnUtil deployBusinessTemplate(BusinessDeployDto businessDeploy, String username, Cluster cluster) throws Exception {
+        // check value
+        if (StringUtils.isEmpty(username) || businessDeploy == null || businessDeploy.getBusinessTemplate().getServiceList().size() <= 0) {
+            return ActionReturnUtil.returnErrorWithMsg("username , application deploy or service is null");
+        }
+
+        //check k8s name
+        //deployment(/rest/deployments?namespace=leo-leoproject) ingress(TCP:/router/svc?namespace=leo-leoproject HTTP:/router/ing?namespace=leo-leoproject)
+
+
+
+        String namespace = businessDeploy.getNamespace();
+        Business business = new Business();
+        // application info
+        business.setName(businessDeploy.getBusinessTemplate().getName());
+        business.setTemplateId(businessDeploy.getBusinessTemplate().getId());
+        business.setNamespaces(businessDeploy.getNamespace());
+        business.setDetails(businessDeploy.getBusinessTemplate().getDesc());
+        business.setCreateTime(new Date());
+        business.setUser(username);
+        business.setTenant(businessDeploy.getBusinessTemplate().getTenant());
+        // insert into application
+        businessMapper.insert(business);
+
+        List<String> errorMessage = new ArrayList<>();
+
+        // loop businessTemplate
+        for (ServiceTemplateDto service : businessDeploy.getBusinessTemplate().getServiceList()) {
+            com.harmonycloud.dao.application.bean.Service svc = new com.harmonycloud.dao.application.bean.Service();
+            // is external service
+            if (service.getExternal() == Constant.EXTERNAL_SERVICE) {
+                svc.setBusinessId(business.getId());
+                ServiceTemplates externalservice=serviceTemplatesMapper.getExternalService(service.getName());
+                if(externalservice!=null){
+                    svc.setServiceTemplateId(externalservice.getId());
+                }
+                svc.setIsExternal(Constant.EXTERNAL_SERVICE);
+                //svc.setName(service.getDeploymentDetaile().getName());
+                svc.setName(service.getName());
+                serviceMapper.insertService(svc);
+                continue;
+            }
+            // todo retry and rollback
+            List<String> pvcList = new ArrayList<>();
+            // creat pvc
+            for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
+                if (c.getStorage() != null) {
+                    for (CreateVolumeDto pvc : c.getStorage()) {
+                    	if(pvc.getType() != null && "nfs".equals(pvc.getType())){
+                    		if (pvc.getPvcName() == "" || pvc.getPvcName() == null) {
+                                continue;
+                            }
+                            try {
+                                volumeSerivce.createVolume(namespace, pvc.getPvcName(), pvc.getPvcCapacity(), pvc.getPvcTenantid(), pvc.getReadOnly(), pvc.getPvcBindOne(),
+                                        pvc.getVolume());
+                                pvcList.add(pvc.getPvcName());
+                            } catch (Exception e) {
+//                                e.printStackTrace();
+                                errorMessage.add(pvc.getPvcName());
+                            }
+                    	}
+                    }
+                }
+            }
+            List<String> ingresses = new ArrayList<>();
+            // creat ingress
+            if (service.getIngress() != null) {
+                for (IngressDto ingress : service.getIngress()) {
+                    if ("HTTP".equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getParsedIngressList().getName())) {
+                        try {
+                            SvcTcpDto one = new SvcTcpDto();
+                            com.harmonycloud.dto.svc.SelectorDto two = new com.harmonycloud.dto.svc.SelectorDto();
+                            List<TcpRuleDto> th = new ArrayList<>();
+                            TcpRuleDto fuck =  new TcpRuleDto();
+
+                            one.setName(ingress.getParsedIngressList().getName());
+                            one.setNamespace(namespace);
+                            two.setApp(service.getDeploymentDetail().getName());
+                            one.setSelector(two);
+
+                            fuck.setPort("80");
+                            fuck.setProtocol("TCP");
+                            if (ingress.getParsedIngressList().getRules().size() > 0){
+                                fuck.setTargetPort(ingress.getParsedIngressList().getRules().get(0).getPort());
+                            } else {
+                                fuck.setTargetPort("80");
+                            }
+
+                            th.add(fuck);
+                            one.setRules(th);
+
+                            routerService.createhttpsvc(one);
+                            routerService.ingCreate(ingress.getParsedIngressList());
+                            ingresses.add("{\"type\":\"HTTP\",\"name\":\"" + ingress.getParsedIngressList().getName() + "\"}");
+                        } catch (Exception e) {
+//                            e.printStackTrace();
+                            errorMessage.add(ingress.getParsedIngressList().getName());
+                        }
+
+                    } else if ("TCP".equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getSvcRouter().getName())) {
+                        try {
+                            routerService.svcCreate(ingress.getSvcRouter());
+                            ingresses.add("{\"type\":\"TCP\",\"name\":\"" + ingress.getSvcRouter().getName() + "\"}");
+                        } catch (Exception e) {
+//                            e.printStackTrace();
+                            errorMessage.add(ingress.getSvcRouter().getName());
+                        }
+                    }
+                }
+            }
+            // insert into service
+            if (ingresses.size() > 0) {
+                JSONArray jsonArray = JSONArray.fromObject(ingresses);
+                svc.setIngress(jsonArray.toString());
+            }
+
+
+            // creat config map & deploy service deployment & get node label by
+            // namespace
+            try {
+                //todo so bad
+                service.getDeploymentDetail().setNamespace(namespace);
+                for (CreateContainerDto c:service.getDeploymentDetail().getContainers()){
+                    String[] hou;
+                    String[] qian;
+                    String images;
+
+                    if (harborUrl.contains("//") && harborUrl.contains(":")) {
+                        hou = harborUrl.split("//");
+                        qian = hou[1].split(":");
+                        images = qian[0]+"/" + c.getImg();
+                    } else {
+                        images = harborUrl;
+                    }
+                    c.setImg(images);
+                }
+                //deploymentsService.createDeployment(service.getDeploymentDetail(), username, businessDeploy.getBusinessTemplate().getName() + "_" +businessDeploy.getBusinessTemplate().getTag());
+                deploymentsService.createDeployment(service.getDeploymentDetail(), username, businessDeploy.getBusinessTemplate().getName(), cluster);
+            } catch (Exception e) {
+//                e.printStackTrace();
+                errorMessage.add(service.getDeploymentDetail().getName());
+            }
+
+            if (pvcList.size() > 0) {
+                JSONArray jsonArraypvc = JSONArray.fromObject(pvcList);
+                svc.setPvc(jsonArraypvc.toString());
+            }
+            svc.setName(service.getDeploymentDetail().getName());
+            svc.setServiceTemplateId(service.getId());
+            svc.setBusinessId(business.getId());
+            svc.setIsExternal(0);
+
+            serviceMapper.insertService(svc);
+        }
+        // update application template isdeploy
+        businessTemplatesMapper.updateDeployById(businessDeploy.getBusinessTemplate().getId());
+
+        if (errorMessage.size() > 0) {
+            return ActionReturnUtil.returnErrorWithData(errorMessage);
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    /**
+     * delete application service implement
+     * 
+     * @author yanli
+     * 
+     * @param businessList
+     *            application id list
+     * @param username
+     *            username
+     * @return ActionReturnUtil
+     */
+    @Override
+    public ActionReturnUtil deleteBusinessTemplate(BusinessList businessList, String username) throws Exception {
+        // check value
+        if (businessList == null || businessList.getIdList().size() <= 0) {
+            return ActionReturnUtil.returnErrorWithMsg("businessList is null");
+        }
+        List<String> errorMessage = new ArrayList<>();
+        Cluster cluster = tenantService.getClusterByTenantid(businessList.getTenantId());
+        // loop businessTemplate
+        for (int id : businessList.getIdList()) {
+            boolean businessFlag = true;
+            Business business = businessMapper.selectByPrimaryKey(id);
+            if (business != null) {
+                List<com.harmonycloud.dao.application.bean.Service> services = serviceMapper.selectByBusinessId(business.getId());
+                if (services != null) {
+                    List<Integer> idList = new ArrayList<>();
+                    for (com.harmonycloud.dao.application.bean.Service service : services) {
+                        boolean serviceFlag = true;
+                        // is external service
+                        if (service.getIsExternal() == 1) {
+                            // delete service db
+                            idList.add(service.getId());
+                            continue;
+                        }
+                        // delete config map & deploy service deployment
+                        ActionReturnUtil deleteDeployReturn = deploymentsService.deleteDeployment(service.getName(), business.getNamespaces(), username, cluster);
+                        if (!deleteDeployReturn.isSuccess()) {
+                            serviceFlag = false;
+                            businessFlag = false;
+                            errorMessage.add(business.getName() + "." + service.getName());
+                        }
+
+
+                        //todo sooooooooooooooooooooooo bad
+                        // delete ingress
+                        Map<String, Object> labelMap = new HashMap<String, Object>();
+                        ParsedIngressListDto parsedIngressListDto = new ParsedIngressListDto();
+                        parsedIngressListDto.setNamespace(business.getNamespaces());
+                        labelMap.put("app",service.getName());
+                        parsedIngressListDto.setLabels(labelMap);
+                        List<RouterSvc> routerSvcs = new ArrayList<RouterSvc>();
+                        routerSvcs = routerService.listIngressByName(parsedIngressListDto);
+                        if (routerSvcs !=null && routerSvcs.size() > 0){
+                            for (RouterSvc svcone:routerSvcs){
+                                if ("HTTP".equals(svcone.getLabels().get("type"))) {
+                                    routerService.ingDelete(business.getNamespaces(), svcone.getName());
+                                    routerService.svcDelete(business.getNamespaces(), svcone.getName());
+                                } else if ("TCP".equals(svcone.getLabels().get("type"))) {
+                                    routerService.svcDelete(business.getNamespaces(), svcone.getName());
+                                }
+                            }
+                        }
+                        if (service.getIngress() != null) {
+                            JSONArray jsStr = JSONArray.fromObject(service.getIngress());
+                            if (jsStr.size() > 0) {
+                                for (int i = 0; i < jsStr.size(); i++) {
+                                    JSONObject ingress = jsStr.getJSONObject(i);
+                                    String type = ingress.get("type").toString();
+                                    String name = ingress.get("name").toString();
+                                    if ("HTTP".equals(type)) {
+                                        routerService.ingDelete(business.getNamespaces(), name);
+                                        routerService.svcDelete(business.getNamespaces(), "routersvc" + name);
+                                    } else if ("TCP".equals(type)) {
+                                        routerService.svcDelete(business.getNamespaces(), "routersvc" + name);
+                                    }
+                                }
+                            }
+                        }
+
+
+
+                        // delete pvc
+                        if (service.getPvc() != null) {
+                            JSONArray js = JSONArray.fromObject(service.getPvc());
+                            if (js.size() > 0) {
+                                for (int i = 0; i < js.size(); i++) {
+                                    String pvc = (String) js.get(i);
+                                    K8SURL url = new K8SURL();
+                                    url.setName(pvc).setNamespace(business.getNamespaces()).setResource(Resource.PERSISTENTVOLUMECLAIM);
+                                    Map<String, Object> headers = new HashMap<>();
+                                    headers.put("Content-Type", "application/json");
+                                    Map<String, Object> bodys = new HashMap<>();
+                                    bodys.put("gracePeriodSeconds", 1);
+                                    K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE, headers, bodys,cluster);
+                                    if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
+                                        serviceFlag = false;
+                                        businessFlag = false;
+                                        errorMessage.add(response.getBody());
+                                    }
+
+                                    // update pv
+                                    if (response.getStatus() != Constant.HTTP_404 && pvc.contains(Constant.PVC_BREAK)) {
+                                        String [] str=pvc.split(Constant.PVC_BREAK);
+                                        String pvname = str[0];
+                                        PersistentVolume pv = pvService.getPvByName(pvname,null);
+                                        if (pv != null) {
+                                            Map<String, Object> bodysPV = new HashMap<String, Object>();
+                                            Map<String, Object> metadata = new HashMap<String, Object>();
+                                            metadata.put("name", pv.getMetadata().getName());
+                                            metadata.put("labels", pv.getMetadata().getLabels());
+                                            bodysPV.put("metadata", metadata);
+                                            Map<String, Object> spec = new HashMap<String, Object>();
+                                            spec.put("capacity", pv.getSpec().getCapacity());
+                                            spec.put("nfs", pv.getSpec().getNfs());
+                                            spec.put("accessModes", pv.getSpec().getAccessModes());
+                                            bodysPV.put("spec", spec);
+                                            K8SURL urlPV = new K8SURL();
+                                            urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
+                                            Map<String, Object> headersPV = new HashMap<>();
+                                            headersPV.put("Content-Type", "application/json");
+                                            K8SClientResponse responsePV = new K8SClient().doit(urlPV, HTTPMethod.PUT, headersPV, bodysPV,cluster);
+                                            if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
+                                                errorMessage.add(responsePV.getBody());
+                                            }
+                                        }
+                                    }
+
+                                }
+                            }
+                        }
+
+                        // add service
+                        if (serviceFlag) {
+                            idList.add(service.getId());
+                        }
+                    }
+
+                    // delete service list
+                    if (idList.size() > 0) {
+                        serviceMapper.deleteSerivceByID(idList);
+                    }
+                }
+                // delete application db
+                if (businessFlag) {
+                    businessMapper.deleteBusinessById(business.getId());
+                }
+            }
+
+        }
+
+        if (errorMessage.size() > 0) {
+            return ActionReturnUtil.returnErrorWithData(errorMessage);
+        }
+        return ActionReturnUtil.returnSuccess();
+
+    }
+
+    /**
+     * stop application service implement
+     * 
+     * @author yanli
+     * 
+     * @param businessList
+     *            BusinessListBean application id list
+     * @param username
+     *            username
+     * @return ActionReturnUtil
+     */
+    @Override
+    public ActionReturnUtil stopBusinessTemplate(BusinessList businessList, String username, Cluster cluster) throws Exception {
+
+        if (businessList == null || businessList.getIdList().size() <= 0) {
+            return ActionReturnUtil.returnErrorWithMsg("businessList is null");
+        }
+
+        List<String> errorMessage = new ArrayList<>();
+
+        // loop every service
+        for (int id : businessList.getIdList()) {
+            Business business = businessMapper.selectByPrimaryKey(id);
+            List<com.harmonycloud.dao.application.bean.Service> services = serviceMapper.selectByBusinessId(business.getId());
+            if (services != null && services.size() > 0) {
+                for (com.harmonycloud.dao.application.bean.Service service : services) {
+                    if (service.getIsExternal() == 1) {
+                        continue;
+                    }
+                    ActionReturnUtil stopDeployReturn = deploymentsService.stopDeployments(service.getName(), business.getNamespaces(), username, cluster);
+                    if (!stopDeployReturn.isSuccess()) {
+                        errorMessage.add(business.getName() + "." + service.getName());
+                    }
+                }
+            }
+        }
+
+        if (errorMessage.size() > 0) {
+            return ActionReturnUtil.returnErrorWithData(errorMessage);
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    /**
+     * start application service on 17/04/11.
+     * 
+     * @author yanli
+     * 
+     * @param businessList
+     *            BusinessListBean application id list
+     * @param username
+     *            username
+     * @return ActionReturnUtil
+     */
+    @Override
+    public ActionReturnUtil startBusinessTemplate(BusinessList businessList, String username, Cluster cluster) throws Exception {
+
+        if (businessList == null || businessList.getIdList().size() <= 0) {
+            return ActionReturnUtil.returnErrorWithMsg("businessList is null");
+        }
+
+        List<String> errorMessage = new ArrayList<>();
+
+        // loop every service
+        for (int id : businessList.getIdList()) {
+            Business business = businessMapper.selectByPrimaryKey(id);
+            List<com.harmonycloud.dao.application.bean.Service> services = serviceMapper.selectByBusinessId(business.getId());
+            if (services != null && services.size() > 0) {
+                for (com.harmonycloud.dao.application.bean.Service service : services) {
+                    if (service.getIsExternal() == 1) {
+                        continue;
+                    }
+                    ActionReturnUtil startDeployReturn = deploymentsService.startDeployments(service.getName(), business.getNamespaces(), username, cluster);
+                    if (!startDeployReturn.isSuccess()) {
+                        errorMessage.add(business.getName() + "." + service.getName());
+                    }
+                }
+            }
+        }
+
+        if (errorMessage.size() > 0) {
+            return ActionReturnUtil.returnErrorWithData(errorMessage);
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    @Override
+    public ActionReturnUtil selectPv(String tenantId, String namespace, int status) throws Exception {
+        K8SURL url = new K8SURL();
+        url.setResource(Resource.PERSISTENTVOLUME);
+        Map<String, Object> bodys = new HashMap<>();
+        JSONArray array = new JSONArray();
+        if (StringUtils.isEmpty(namespace)) {
+            if (!StringUtils.isEmpty(tenantId)) {
+                // select by tenantid
+                String label = "nephele_tenantid=" + tenantId;
+                bodys.put("labelSelector", label);
+            } else {
+                bodys = null;
+            }
+        } else {
+            bodys = null;
+            url.setNamespace(namespace);
+        }
+        Cluster cluster = tenantService.getClusterByTenantid(tenantId);
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys,cluster);
+        if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            PersistentVolumeList persistentVolumeList = K8SClient.converToBean(response, PersistentVolumeList.class);
+            List<PersistentVolume> items = persistentVolumeList.getItems();
+            if (items != null && items.size() > 0) {
+                // 处理items返回页面需要的对象
+                for (PersistentVolume pv : items) {
+                    PvDto pvDto = new PvDto();
+                    // 设置读写权限
+                    if (pv.getSpec().getAccessModes() != null) {
+                        if (pv.getSpec().getAccessModes().get(0).equals("ReadOnlyMany")) {
+                            pvDto.setMultiple(true);
+                            pvDto.setReadOnly(true);
+                        }
+                        if (pv.getSpec().getAccessModes().get(0).equals("ReadWriteMany")) {
+                            pvDto.setMultiple(true);
+                            pvDto.setReadOnly(false);
+                        }
+                        if (pv.getSpec().getAccessModes().get(0).equals("ReadWriteOnce")) {
+                            pvDto.setMultiple(false);
+                            pvDto.setReadOnly(false);
+                        }
+                        // 设置bind
+                        if (pv.getSpec().getClaimRef() == null) {
+                            pvDto.setBind(false);
+                            // 设置usage
+                            pvDto.setUsage("none");
+                        } else {
+                            pvDto.setBind(pv.getSpec().getClaimRef());
+                            // 设置usage
+                            pvDto.setUsage(pv.getSpec().getClaimRef().getName());
+                        }
+                        // 设置容量
+                        @SuppressWarnings("unchecked")
+                        Map<String, String> capacity = (Map<String, String>) pv.getSpec().getCapacity();
+                        pvDto.setCapacity(capacity.get("storage"));
+                        // 设置pv名称
+                        pvDto.setName(pv.getMetadata().getName());
+                        // 设置time
+                        pvDto.setTime(pv.getMetadata().getCreationTimestamp());
+                        // 设置type
+                        pvDto.setType("nfs");
+                        // 设置tenantid
+                        Map<String, Object> labels = pv.getMetadata().getLabels();
+                        Collection<Object> values = labels.values();
+                        String min = null;
+                        for (Object object : values) {
+                            if (min == null) {
+                                min = object.toString();
+                            }
+                            if (object.toString().length() < min.length()) {
+                                min = object.toString();
+                            }
+                        }
+                        // 设置tenant
+                        PvDto.Tenant tenant = pvDto.new Tenant();
+                        tenant.setTenantid(min);
+                        pvDto.setTenant(tenant);
+                        pvDto.setTenantid(min);
+                        if (pv.getSpec().getClaimRef() != null) {
+                            String namespaces = pv.getSpec().getClaimRef().getNamespace();
+                            // 将namespace处理为tenantname
+                            String[] split = namespaces.split("-");
+                            tenant.setTenantname(split[1]);
+                        } else {
+                            // 根据tenantId查询tenantName
+                            TenantBindingExample example = new TenantBindingExample();
+                            example.createCriteria().andTenantIdEqualTo(min);
+                            List<TenantBinding> list = tenantBindingMapper.selectByExample(example);
+                            if (list != null && list.size() > 0) {
+                                tenant.setTenantname(list.get(0).getTenantName());
+                            }
+                        }
+                        if (status == 0) {
+                            // all
+                            array.add(pvDto);
+                        } else if (status == 1) {
+                            // used
+                            if (!pvDto.getBind().equals(false)) {
+                                array.add(pvDto);
+                            }
+                        } else {
+                            // unused
+                            if (pvDto.getBind().equals(false) || pvDto.getUsage().equals("none")) {
+                                array.add(pvDto);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return ActionReturnUtil.returnSuccessWithData(array);
+    }
+
+    /**
+     * get application by id service implement.
+     * 
+     * @author gurongyun
+     * 
+     * @param tenant
+     *            tenant name
+     * @return ActionReturnUtil
+     */
+    @Override
+    public ActionReturnUtil searchSumBusiness(String [] tenant, String clusterId) throws Exception {
+        JSONObject json = new JSONObject();
+        // search application
+        String [] namespace=new String[0];
+        List<Business> blist = businessMapper.search(tenant, namespace, null);
+        // number of application
+        int count = 0;
+        // number of application 正常
+        int normal = 0;
+        // number of application 异常
+        int abnormal = 0;
+        Cluster cluster=clusterService.findClusterById(clusterId);
+        if (blist != null && blist.size() > 0) {
+            count = blist.size();
+            for (Business bs : blist) {
+            	JSONObject servicejson=listServiceByBusinessId(bs.getId(), bs.getNamespaces(), cluster);
+            	if(NORMAL.equals(servicejson.get("status"))){
+            		normal ++ ;
+            	}else{
+            		abnormal ++ ;
+            	}
+            	
+            }
+        } else {
+            return ActionReturnUtil.returnSuccessWithData(null);
+        }
+        json.put("normal", normal);
+        json.put("abnormal", abnormal);
+        json.put("count", count);
+        return ActionReturnUtil.returnSuccessWithData(json);
+    }
+
+/*    private static Date stringToDate(String strTime)
+            throws Exception {
+        String formatType = "yyyy-MM-dd";
+        SimpleDateFormat formatter = new SimpleDateFormat(formatType);
+        Date date = null;
+        date = formatter.parse(strTime);
+        return date;
+    }
+*/
+    private static String dateToString(Date time){
+        SimpleDateFormat formatter;
+        formatter = new SimpleDateFormat("yyyy-MM-dd");
+        String ctime = formatter.format(time);
+
+        return ctime;
+    }
+
+	@Override
+	public ActionReturnUtil deleteBusinessByNamespace(String namespace) throws Exception {
+		if(!StringUtils.isEmpty(namespace)){
+			businessMapper.deleteBusinessByNamespace(namespace);
+			return ActionReturnUtil.returnSuccess();
+		}else{
+			return ActionReturnUtil.returnErrorWithMsg("namespace为空");
+		}
+		
+	}
+
+	@Override
+	public ActionReturnUtil searchSum(String[] tenant) throws Exception {
+        // search application
+		String [] namespace=new String[0];
+        List<Business> blist = businessMapper.search(tenant, namespace, null);
+        // number of application
+        int count = 0;
+        if (blist != null && blist.size() > 0) {
+            count = blist.size();
+        }
+		return ActionReturnUtil.returnSuccessWithData(count);
+	}
+	
+	private JSONObject listServiceByBusinessId(int businessId, String namespace, Cluster cluster) throws Exception {
+		JSONObject json = new JSONObject();
+        // number of application running
+        int start = 0;
+        // number of deploment
+        int total = 0;
+		List<com.harmonycloud.dao.application.bean.Service> services = serviceMapper.selectByBusinessId(businessId);
+        if (services != null && services.size() > 0) {
+        	total = services.size();
+            for (com.harmonycloud.dao.application.bean.Service service : services) {
+                if (service.getIsExternal() == 1) {
+                	start++;
+                }else{
+                	K8SURL url = new K8SURL();
+                	url.setNamespace(namespace).setResource(Resource.DEPLOYMENT).setName(service.getName());
+            		K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+					if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
+							&& depRes.getStatus() != Constant.HTTP_404 ) {
+						JSONObject js = JSONObject.fromObject(depRes.getBody());
+						K8sResponseBody k8sresbody = (K8sResponseBody) JSONObject.toBean(js, K8sResponseBody.class);
+						return (JSONObject) json.put(service.getName() + "error", k8sresbody.getMessage());
+					}
+					if (depRes.getStatus() == Constant.HTTP_404) {
+						continue;
+					}
+					Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+					if (dep != null) {
+						String status = getDeploymentStatus(dep);
+						if (Constant.START.equals(status)) {
+							start++;
+						}
+					}
+                }
+                
+            }
+        }
+        if (start == total && total != 0) {
+        	json.put("status", NORMAL);
+        } else {
+        	json.put("status", ABNORMAL);
+        }
+        json.put("start", start);
+        json.put("total", total);
+		return json;
+		
+	}
+	private String getDeploymentStatus(Deployment dep) throws Exception {
+		String status = null;
+		String flag = Constant.START;
+        if (dep.getMetadata().getAnnotations() != null && dep.getMetadata().getAnnotations().containsKey("nephele/status")) {
+            status = dep.getMetadata().getAnnotations().get("nephele/status").toString();
+        }
+        if (!StringUtils.isEmpty(status)) {
+            switch (status) {
+                case Constant.STARTING :
+                    if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getReplicas() > 0 && (dep.getStatus().getAvailableReplicas() == dep.getStatus().getReplicas())) {
+                        flag = Constant.START;
+                    } else {
+                    	flag = status;
+                    }
+                    break;
+                case Constant.STOPPING :
+                    if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
+                    	flag = status;
+                    } else {
+                    	flag = Constant.STOP;
+                    }
+                    break;
+                default :
+                    if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
+                    	flag = Constant.START;
+                    } else {
+                    	flag = Constant.STOP;
+                    }
+                    break;
+            }
+        } else {
+            if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
+            	flag = Constant.START;
+            } else {
+            	flag = Constant.STOP;
+            }
+        }
+		return flag;
+		
+	}
+}

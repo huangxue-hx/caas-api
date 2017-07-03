@@ -1,0 +1,47 @@
+<div class="service-new role-new" ng-class="{margintop: parent}">
+	<div class="back" ng-show="!parent">
+		<span class="icon-double-angle-left pointer" ng-click="back()"></span>
+	</div>
+	<span class="service-title" ng-bind="'Create Project For Tenant'" ng-show="!parent"></span>
+	<div class="service-new-detail">
+		<form name="newRole_form" class="noneMargin">
+		<ul class="service-information-ul">
+			<li class="service-information-list">
+				<span class="service-informantion-name network-title">{{'Project'|translate}} ：</span>
+				<div class="service-informantion-label">
+					<table class="informantion-label-table network-table">
+						<tr class="port-name">
+							<td>{{'name'|translate}}</td>
+							<td>{{'creationTime'|translate}}</td>
+							<td>{{'annotation'|translate}}</td>
+							<td class="pointer edit-td" ng-click="newProject()"><span class="icon-plus green"></span></td>
+						</tr>
+						<tr class="port-content" ng-repeat="p in projectList">
+							<td class="port">
+								<span class="pointer">
+									<a ui-sref="mytenantProjectDetail({id:tenantid,name:p.name})">{{p.name|harborName}}</a>
+								</span>
+							</td>
+							<td class="port">
+								<span>
+									{{p.creationTimestamp|transTime}}
+								</span>
+							</td>
+							<td class="port">
+								<span>{{p.annotation}}</span>
+							</td>
+							<td class="edit-td">
+								<a delete-confirm="deleteProject($index)" class="remove ico-cross pointer"></a>
+								<a ng-click="changeProject($index)" class="instant-edit icon-pencil pointer"></a>
+							</td>
+						</tr>
+					</table>
+				</div>
+			</li>
+			<li class="service-information-list service-information-button" ng-show="!parent">
+				<button class="service-new-button service-new-create disabled-{{disable()}} margin-left1300" ui-sref="tenantHarbor({id:tenantid})">Next</button>
+			</li>
+		</ul>
+		</form>
+	</div>
+</div>

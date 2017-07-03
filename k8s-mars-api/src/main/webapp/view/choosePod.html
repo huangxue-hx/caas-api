@@ -1,0 +1,24 @@
+<div class="modify-container">
+	<div class="modify-container-title">{{'openConsole'|translate}}</div>
+	<ul class="service-information-ul">
+			<li class="service-information-list">
+				<span class="service-informantion-name podname-span">{{'choosePod'|translate}} ：</span>
+				<select class="service-new-menu" ng-model="pod">
+					<option value="{{pod.name}}" ng-repeat="pod in podList" ng-bind="pod.name"></option>
+					
+				</select>	
+			</li>
+			<li class="service-information-list">
+				<span class="service-informantion-name podname-span">{{'chooseContainer'|translate}} ：</span>
+				<select class="service-new-menu" ng-model="container">
+					<option value="{{container.name}}" ng-repeat="container in containerList" ng-bind="container.name"></option>
+				</select>	
+			</li>
+			<li class="console">
+				<a class="button fr" ng-click="getSn(container,pod)">{{'getConsoleInformation'|translate}}
+				</a>
+				<p class="fr getconsolewrap open-console" ng-show="sn.length"><a ng-click="openTerminal()" class="pointer">{{'openConsole'|translate}}</a></p>
+				
+			</li>
+		</ul>
+</div>

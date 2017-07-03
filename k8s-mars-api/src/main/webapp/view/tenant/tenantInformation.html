@@ -1,0 +1,311 @@
+<div class="hc-service-information clearfix">
+	<div class="clearfix">
+		<div class="hc-info-block hc-mar-bt0">
+			<div class="hc-info-head">
+				<span ng-bind="'BasicInfo'|translate"></span>
+			</div>
+			<div class="hc-info-body hc-pd-bt0">
+				<ul>
+					<li class="hc-info-list">
+						<span class="hc-info-name">{{'name'|translate}} ：</span>
+						<span class="hc-info-value">{{tenant.name}}</span>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name">{{'creationTime'|translate}} ：</span>
+						<span class="hc-info-value">{{tenant.time | transTime}}</span>
+					</li>
+					<li class="hc-info-list hc-heigh-auto">
+						<span class="hc-info-name">{{'Admin'|translate}} ：</span>
+						<div class="hc-tenant-info-block">
+							<div class="hc-user-label" ng-repeat="u in tenant.user">
+								<span class="hc-name-label-text">{{u.username}}</span>
+								<span class="ico-cross hc-name-label-icon pointer" delete-confirm="deleteTm(u.username)" ></span>
+							</div>
+							<div class="hc-user-add hc-user-label pointer" ng-click="addTm()">
+								{{'add'|translate}}
+							</div>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name">{{'annotation'|translate}} ：</span>
+						<span class="hc-info-value">{{tenant.annotation}}</span>
+					</li>
+				</ul>
+			</div>
+		</div>
+		<div class="hc-info-block hc-mar-bt0">
+			<div class="hc-info-head">
+				<span ng-bind="'Project Overview'|translate"></span>
+			</div>
+			<div class="hc-info-body hc-pd-bt0">
+				<div class="hc-choose-bar">
+					<div class="hc-choose-bar-text pointer" ng-class="{hcBarChoosed:circleData.title == 'service'}" ng-click="chooseCircle('service')">
+						<span>{{'By Service'|translate}}</span>
+					</div><div class="hc-choose-bar-text pointer" ng-class="{hcBarChoosed:circleData.title == 'member'}" ng-click="chooseCircle('member')">
+						<span>{{'By Member'|translate}}</span>
+					</div>
+				</div>
+				<div class="hc-tenant-pie" su-circle ne-value="circleData.data" ne-title="" ne-style="circleStyle" ne-mouseover="circleMouseOver(data)" ne-mouseout="circleMouseOut(data)">
+				</div>
+				<div class="hc-tenant-pie-right" ng-class="{'hcDisplay':!!mouse}"  >
+					<div class="hc-tenant-dialog-trangle"></div>
+					<div class="hc-tenant-pie-explain">
+						<ul>
+							<li class="hc-info-list">
+								<span class="hc-info-name">{{'name'|translate}} ：</span>
+								<span class="hc-info-value" ng-bind="nowProject.name|harborName" title="{{nowProject.name|harborName}}"></span>
+							</li>
+							<li class="hc-info-list">
+								<span class="hc-info-name">{{'service'|translate}} ：</span>
+								<span class="hc-info-value" ng-bind="nowProject.serviceNumber" title="{{nowProject.serviceNumber}}"></span>
+							</li>
+							<li class="hc-info-list">
+								<span class="hc-info-name">{{'Member'|translate}} ：</span>
+								<span class="hc-info-value" ng-bind="nowProject.memberNumber" title="{{nowProject.memberNumber}}"></span>
+							</li>
+							<li class="hc-info-list">
+								<span class="hc-info-name">{{'creationTime'|translate}} ：</span>
+								<span class="hc-info-value" ng-bind="nowProject.time|transTime" title="{{nowProject.time|transTime}}"></span>
+							</li>
+							<li class="hc-info-list">
+								<span class="hc-info-name">{{'annotation'|translate}} ：</span>
+								<span class="hc-info-value" ng-bind="nowProject.annotation" title="{{nowProject.annotation}}"></span>
+							</li>
+						</ul>
+					</div>
+				</div>
+				<!-- <div class="hc-info-pietext">
+					<div>
+						<span class="hc-pie-running">{{'running'|translate}} : </span>
+						<span ng-bind="pieData[0].value"></span>
+					</div>
+					<div>
+						<span class="hc-pie-pause">{{'pause'|translate}} : </span>
+						<span ng-bind="pieData[1].value"></span>
+					</div>
+				</div> -->
+			</div>
+		</div>
+	</div>
+	<div class="hc-info-block hc-podlist-block">
+		<div class="hc-info-head">
+			<span ng-bind="'Project'|translate"></span>
+			<span class="hc-project-add pointer" ng-bind="'add'|translate" ng-click="newProject()"></span>
+		</div>
+		<div class="hc-info-body hc-project-list">
+			<div ng-repeat="p in projectList" ng-init="pindex = $index" class="hc-mutiple-project" ng-class="{hcProExpand:p.exp}">
+				<div class="hc-project-label">
+					<span ng-bind="p.name|harborName" class="hc-project-label-text pointer" ng-click="expProject($index)"></span>
+					<span class="ico-cross pointer"  delete-confirm="deleteProject(p)"></span>
+				</div>
+				<div class="hc-tenant-second clearfix">
+					<div class="clearfix">
+						<div class="hc-info-block">
+							<div class="hc-info-head">
+								<span ng-bind="'BasicConfig'|translate"></span>
+							</div>
+							<div class="hc-info-body hc-over-visible hc-pro-info-height300">
+								<ul>
+									<li class="hc-info-list">
+										<span class="hc-info-name">{{'name'|translate}} ：</span>
+										<span class="hc-info-value">{{p.detail.name|harborName}}</span>
+									</li>
+									<li class="hc-info-list" ng-show="pre == 'tenant'">
+										<span class="hc-info-name">{{'tenant'|translate}} ：</span>
+										<span class="hc-info-value">{{p.detail.tenant.name}}</span>
+									</li>
+									<li class="hc-info-list">
+										<span class="hc-info-name">{{'Network'|translate}} ：</span>
+										<span class="hc-info-value">{{p.detail.network.name}}</span>
+									</li>
+									<li class="hc-info-list">
+										<span class="hc-info-name">{{'Subnet'|translate}} ：</span>
+										<span class="hc-info-value">{{p.detail.network.subnet.subnetname}}</span>
+									</li>
+									<li class="hc-info-list">
+										<span class="hc-info-name">{{'annotation'|translate}} ：</span>
+										<span class="hc-info-value">{{p.detail.annotation}}</span>
+									</li>
+									<li class="hc-info-list hc-heigh-auto">
+										<span class="hc-info-name">{{'Member'|translate}} ：</span>
+										<div class="hc-tenant-info-block">
+											<div class="hc-user-label hc-member-label clairfix" ng-repeat="u in p.detail.userList" ng-init="uindex = $index">
+												<div class="pointer" ng-click="expandMember(pindex,$index)">
+													<span class="hc-name-label-text">{{u.member.length}} {{u.name}}(s)</span>
+													<span class="ico-chevron-thin-down hc-fl-right hc-member-label-icon pointer"></span>
+												</div>
+												<ul class="hc-member-ul" ng-class="{height0:u.fold}" ng-style="{height:25*u.member.length}">
+													<li  ng-repeat="m in u.member track by $index">
+														<span ng-bind="m" class="hc-member-li-name" title="{{m}}"></span>
+														<span class="ico-cross hc-fl-right hc-member-label-icon pointer" delete-confirm="deleteProUser(pindex,uindex,$index)"></span>
+													</li>
+												</ul>
+											</div>
+											<div class="hc-project-user-add hc-user-label pointer " ng-click="addProUser(pindex)">
+												{{'add'|translate}}
+											</div>
+										</div>
+									</li>
+									<li class="hc-info-list hc-heigh-auto">
+										<span class="hc-info-name">{{'HarborMember'|translate}} ：</span>
+										<div class="hc-tenant-info-block hc-height130">
+											<div class="hc-con-info" ng-repeat="u in p.detail.harborUserList track by $index">
+												<div class="hc-con-value hc-width-p30" ng-bind="u.user[0]" title="{{'Username'|translate}}"></div>
+												<div class="hc-con-value hc-width-p30" title="{{'Role'|translate}}">
+													<span ng-if="u.role == 'harbor_project_developer'">Pull/Push</span>
+													<span ng-if="u.role != 'harbor_project_developer'">Pull</span>
+												</div>
+												<div class="hc-con-value hc-width-p30" ng-bind="u.harborProjectName|harborName" title="{{'Harbor'|translate}}"></div>
+												<span class="hc-delete-icon ico-cross pointer hc-state-stop hc-width-p5" delete-confirm="deleteHarborUser(pindex,$index)"></span>
+											</div>
+											<div class="hc-project-user-add hc-user-label pointer " ng-click="addHarborUser(pindex)">
+												{{'add'|translate}}
+											</div>
+										</div>
+									</li>
+								</ul>
+							</div>
+						</div>
+						<div class="hc-info-block">
+							<div class="hc-info-head">
+								<span ng-bind="'ResourceQuota'|translate"></span>
+								<span class="hc-resource-edit pointer" ng-bind="'Edit'|translate" ng-click="changeProject(p,$index)"></span>
+							</div>
+							<div class="hc-info-body hc-pro-info-height300">
+								<ul>
+									<li class="hc-info-list">
+										<span class="hc-info-name rate-block-name">Pod ：</span>
+										<div class="rate-block">
+											<div class="rate-bar">
+												<div class="rate-used" ng-style="p.detail.podUsage" style="background: #5eb1dc"></div>
+											</div>
+											<span class="service-informantion-var rate-number">{{p.detail.quota.pod[1]}}/{{p.detail.quota.pod[0]}}</span>
+										</div>
+									</li>
+									<li class="hc-info-list">
+										<span class="hc-info-name rate-block-name">Service ：</span>
+										<div class="rate-block">
+											<div class="rate-bar">
+												<div class="rate-used" ng-style="p.detail.serviceUsage" style="background: #3297cc"></div>
+											</div>
+											<span class="service-informantion-var rate-number">{{p.detail.quota.service[1]}}/{{p.detail.quota.service[0]}}</span>
+										</div>
+									</li>
+									<!-- <li class="hc-info-list">
+										<div class="service-informantion-name">
+											<span class="ne-required">RC ：</span>
+										</div>
+										<div class="rate-block">
+											<div class="rate-bar">
+												<div class="rate-used" ng-style="rcUsage"></div>
+											</div>
+											<span class="service-informantion-var rate-number">{{p.detail.quota.rc}}/{{p.detail.quota.rc}}</span>
+										</div>
+									</li>
+									<li class="hc-info-list">
+										<div class="service-informantion-name">
+											<span class="ne-required">Resource ：</span>
+										</div>
+										<div class="rate-block">
+											<div class="rate-bar">
+												<div class="rate-used" ng-style="resourceQuotaUsage"></div>
+											</div>
+											<span class="service-informantion-var rate-number">{{p.detail.quota.resourceQuota}}/{{p.detail.quota.resourceQuota}}</span>
+										</div>
+									</li>
+									<li class="hc-info-list">
+										<div class="service-informantion-name">
+											<span class="ne-required">Secret ：</span>
+										</div>
+										<div class="rate-block">
+											<div class="rate-bar">
+												<div class="rate-used" ng-style="secretUsage"></div>
+											</div>
+											<span class="service-informantion-var rate-number">{{p.detail.quota.secret}}/{{p.detail.quota.secret}}</span>
+										</div>
+									</li> -->
+									<li class="hc-info-list">
+										<span class="hc-info-name rate-block-name">PVC ：</span>
+										<div class="rate-block">
+											<div class="rate-bar">
+												<div class="rate-used" ng-style="p.detail.pvcUsage" style="background: #2d89b9"></div>
+											</div>
+											<span class="service-informantion-var rate-number">{{p.detail.quota.pvc[1]}}/{{p.detail.quota.pvc[0]}}</span>
+										</div>
+									</li>
+									<li class="hc-info-list">
+										<span class="hc-info-name rate-block-name">CPU ：</span>
+										<div class="rate-block">
+											<div class="rate-bar">
+												<div class="rate-used" ng-style="p.detail.cpuUsage" style="background: #25739d"></div>
+											</div>
+											<span class="service-informantion-var rate-number">{{p.detail.quota.cpu[1]|cpuNumber}}/{{p.detail.quota.cpu[0]|cpuNumber}}</span>
+										</div>
+									</li>
+									<li class="hc-info-list">
+										<span class="hc-info-name rate-block-name">Memory ：</span>
+										<div class="rate-block">
+											<div class="rate-bar">
+												<div class="rate-used" ng-style="p.detail.memoryUsage" style="background: #1b5b7c"></div>
+											</div>
+											<span class="service-informantion-var rate-number">{{p.detail.quota.memory[1]}}/{{p.detail.quota.memory[0]}}MiB</span>
+										</div>
+									</li>
+								</ul>
+							</div>
+						</div>
+					</div>
+					<div class="hc-info-block hc-podlist-block">
+						<div class="hc-info-head">
+							<span ng-bind="'Service'|translate"></span>
+						</div>
+						<div class="hc-info-body">
+							<table class="hc-info-table hc-podlist-table">
+								<tr class="hc-info-table-head">
+									<td>{{'name'|translate}}</td>
+									<td>{{'state'|translate}}</td>
+									<td>{{'label'|translate}}</td>
+									<td>{{'version'|translate}}</td>
+									<td>{{'instanceCount'|translate}}</td>
+									<td>{{'creationTime'|translate}}</td>
+								</tr>
+								<tr class="hc-info-table-row" ng-repeat="service in p.detail.serviceList">
+									<td>
+										<a ui-sref="projectService({name:service.name,namespace:service.namespace})">{{service.name}}</a>
+									</td>
+									<td ng-show="service.status==0">
+										{{'stopped'|translate}}
+										&nbsp
+										<span class="state-icon icon-circle" style="color: red;"></span>
+									</td>
+									<td ng-show="service.status==1">
+										{{'started'|translate}}
+										&nbsp
+										<span class="state-icon icon-circle"></span>
+									</td>
+									<td ng-show="service.status==2">
+										{{'stopping'|translate}}
+										&nbsp
+										<span class="state-icon icon-circle" style="color: #f4c600;"></span>
+									</td>
+									<td ng-show="service.status==3">
+										{{'starting'|translate}}
+										&nbsp
+										<span class="state-icon icon-circle" style="color: #f4c600;"></span>
+									</td>
+									<td>
+										<div class="service-all-label" ng-repeat="(name,value) in service.labels">{{name}}={{value}}</div>
+										<span ng-if="!service.labels">{{'none'|translate}}</span>
+									</td>
+									<td>{{service.version}}</td>
+									<td>{{service.instance}}</td>
+									<td>{{service.createTime | transTime}}</td>
+								</tr>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

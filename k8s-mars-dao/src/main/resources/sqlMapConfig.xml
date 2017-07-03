@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+    <settings>
+        <setting name="cacheEnabled" value="true" />
+        <setting name="useGeneratedKeys" value="true" />
+        <setting name="defaultExecutorType" value="REUSE" />
+        <setting name="lazyLoadingEnabled" value="false" />
+        <setting name="defaultStatementTimeout" value="25000" />
+        <setting name="logImpl" value="STDOUT_LOGGING" />
+    </settings>
+    <typeAliases>
+        <typeAlias alias="HarborProjectTenant" type="com.harmonycloud.dao.tenant.bean.HarborProjectTenant" />
+        <typeAlias alias="NamespceBindSubnet" type="com.harmonycloud.dao.network.bean.NamespceBindSubnet" />
+        <typeAlias alias="NamespceBindSubnetExample" type="com.harmonycloud.dao.network.bean.NamespceBindSubnetExample" />
+        <typeAlias alias="Network" type="com.harmonycloud.dao.network.bean.Network" />
+        <typeAlias alias="Resource" type="com.harmonycloud.dao.user.bean.Resource" />
+        <typeAlias alias="Role" type="com.harmonycloud.dao.user.bean.Role" />
+        <typeAlias alias="Tenant" type="com.harmonycloud.dao.tenant.bean.Tenant" />
+        <typeAlias alias="TenantBinding" type="com.harmonycloud.dao.tenant.bean.TenantBinding" />
+        <typeAlias alias="TenantBindingExample" type="com.harmonycloud.dao.tenant.bean.TenantBindingExample" />
+        <typeAlias alias="User" type="com.harmonycloud.dao.user.bean.User" />
+        <typeAlias alias="Usertenant" type="com.harmonycloud.dao.tenant.bean.UserTenant" />
+        <typeAlias alias="UsertenantExample" type="com.harmonycloud.dao.tenant.bean.UserTenantExample" />
+        <typeAlias alias="NetworkCalicoExample" type="com.harmonycloud.dao.network.bean.NetworkCalicoExample" />
+        <typeAlias alias="NetworkCalico" type="com.harmonycloud.dao.network.bean.NetworkCalico" />
+        <typeAlias alias="NetworkTopologyExample" type="com.harmonycloud.dao.network.bean.NetworkTopologyExample" />
+        <typeAlias alias="PrivatePartition" type="com.harmonycloud.dao.tenant.bean.PrivatePartition" />
+        <typeAlias alias="PrivatePartitionExample" type="com.harmonycloud.dao.tenant.bean.PrivatePartitionExample" />
+        <typeAlias alias="Business" type="com.harmonycloud.dao.application.bean.Business" />
+        <typeAlias alias="BusinessTemplates" type="com.harmonycloud.dao.application.bean.BusinessTemplates" />
+        <typeAlias alias="ServiceTemplates" type="com.harmonycloud.dao.application.bean.ServiceTemplates" />
+        <typeAlias alias="Topology" type="com.harmonycloud.dao.network.bean.Topology" />
+        <typeAlias alias="BusinessService" type="com.harmonycloud.dao.application.bean.BusinessService" />
+        <typeAlias alias="Service" type="com.harmonycloud.dao.application.bean.Service" />
+        <typeAlias alias="ExternalTypeBean" type="com.harmonycloud.dao.application.bean.ExternalTypeBean" />
+        <typeAlias alias="NodePort" type="com.harmonycloud.dao.application.bean.NodePort" />
+        <typeAlias alias="HarborUser" type="com.harmonycloud.dao.application.bean.HarborUser" />
+        <typeAlias alias="ClusterDomain" type="com.harmonycloud.dao.cluster.bean.ClusterDomain" />
+	<!--  配置中心 gurongyun start -->
+        <typeAlias alias="ConfigFile" type="com.harmonycloud.dao.application.bean.ConfigFile" />
+<!--         <typeAlias alias="ConfigItem" type="com.harmonycloud.db.bean.ConfigItem" /> -->
+        <!--  配置中心 gurongyun end -->
+        <!--<typeAlias alias="Topology" type="com.harmonycloud.db.bean.BusinessService" />-->
+        <typeAlias alias="AuthUserExample" type="com.harmonycloud.dao.user.bean.AuthUserExample" />
+        <typeAlias alias="Cluster" type="com.harmonycloud.dao.cluster.bean.Cluster" />
+
+    </typeAliases>
+
+    <mappers>
+        <mapper resource="com/harmonycloud/mapping/HarborProjectTenantMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/NamespceBindSubnetMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/ResourceMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/RoleMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/TenantBindingMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/UserMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/UserTenantMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/NetworkCalicoMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/NetworkTopologyMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/PrivatePartitionMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/NetworkTopologyMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/BusinessMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/BusinessTemplatesMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/ServiceTemplatesMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/TopologyMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/BusinessServiceMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/ServiceMapper.xml" />
+
+        <mapper resource="com/harmonycloud/mapping/ExternalTypeMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/NodePortMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/HarborUserMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/ClusterDomainMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/custums/UserTenantMapperCustom.xml" />
+        <!--  配置中心 gurongyun start -->
+        <mapper resource="com/harmonycloud/mapping/ConfigFileMapper.xml" />
+<!--         <mapper resource="com/harmonycloud/mapping/ConfigItemMapper.xml" /> -->
+        <!--  配置中心 gurongyun end -->
+         <mapper resource="com/harmonycloud/mapping/NetworkTopologyMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/AuthUserMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/ClusterMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/NodeInstallProgressMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/JobMapper.xml" />
+    </mappers>
+</configuration>

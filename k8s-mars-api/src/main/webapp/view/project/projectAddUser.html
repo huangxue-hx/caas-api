@@ -1,0 +1,28 @@
+<div class="hc-container-outer hc-detail-outer clearfix">
+	<div class="modify-container-title hc-container-title" ng-bind="'Add User To Project'|translate"></div>
+	<ul class="hc-info-total">
+		<li class="hc-info-list">
+			<span class="hc-info-name hc-dialog-info-name ne-required">{{'Username'|translate}}：</span>
+			<div class="hc-con-info-block">
+				<div class="hc-con-info hc-width-p100">
+					<select name="img-name" class="hc-con-add hc-width-p98" ng-model="user">
+						<option ng-repeat="u in userList track by $index" value="{{u.username}}">{{u.username}}</option>
+					</select>
+				</div>
+			</div>
+		</li>
+		<li class="hc-info-list">
+			<span class="hc-info-name hc-dialog-info-name ne-required">{{'Role'|translate}} ：</span>
+			<div class="hc-con-info-block">
+				<div class="hc-con-info hc-width-p100">
+					<select name="img-name" class="hc-con-add hc-width-p98" ng-model="role">
+						<option ng-repeat="r in roleList track by $index" value="{{r.name}}">{{r.name}}</option>
+					</select>
+				</div>
+			</div>
+		</li>
+	</ul>
+	<div class="hc-dialogOp-block">
+		<button class="service-new-button container-next next-position disabled-{{disable()}}"  ng-click="save()" ng-disabled="disable()">{{'save'|translate}}</button>
+	</div>
+</div>

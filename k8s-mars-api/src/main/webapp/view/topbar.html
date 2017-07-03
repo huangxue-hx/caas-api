@@ -1,0 +1,25 @@
+<div class="hc-topbar" id="topbar" ng-controller="NavCtrl">
+	<div class="pointer" ng-click="openMenu()"></div>
+	<div class="operation-area">
+		<div class="menu-wrap hc-border-left" ne-dropdown="currentTenant" ne-list="tenantlist" ne-name="'tenant'|translate" ne-disp="name"></div>
+		<div class="menu-wrap hc-border-left"   ne-dropdown="currentNamespace" ne-list="namespacelist" ne-name="'namespace'|translate" ne-filter="harborName">
+		</div>
+
+		<div class="menu-wrap hc-border-left">
+			<div class="hc-user-wrap">
+				<span ng-bind="username" title="{{username}}"></span>				
+			</div>	
+		</div>
+		<div class="noti-sign ico-exit hc-border-left" ng-click="logout()"></div>
+		<div class="noti-sign hc-border-left hc-hidden" ng-click="openNoti()">
+			<div class="hc-slider-wrap " ng-class="{'show-number':showNumber}">
+				<div class=" icon-bell-alt noti-block">
+					<span class="number-sign" ng-show="notiCount > 0" ng-class="{'hc-red':hasWarning,'hc-green':!hasWarning}"></span>
+				</div>
+				<div class="noti-block" float-number="notiCount" ng-class="{'hc-red':hasWarning,'hc-green':!hasWarning&&(notiCount != 0)}"></div>	
+			</div>
+			
+		</div> 
+		
+	</div>
+</div>

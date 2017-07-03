@@ -1,0 +1,14 @@
+代码结构说明
+
+ 工程k8s-mars
+ 	k8s-mars-common：工程所有公共使用的资源的模块
+
+ 	k8s-mars-dao：工程持久化相关资源模块（数据库相关，bean，dao，mapper）按照业务进行模块划分（tenant，user，application等）
+
+ 	k8s-mars-native：工程k8s原生接口的封装
+
+ 	k8s-mars-service：工程是所有service的模块，下面按照业务进行模块划分（tenant，user，application等）以及对应的service实现
+
+ 	k8s-mars-api：对ui暴露接口的模块
+
+    version:2017/06/17 11:51:00

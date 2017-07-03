@@ -1,0 +1,42 @@
+<div class="hc-repo-chart-block">
+	<div class="table-block" ng-show="packageAna == 0">
+		<!-- <div class="table-title">
+			<span>Image Packages</span>
+		</div> -->
+		<div class="vul-table">
+			<div class="vultab-title">
+				<div class="vul-th name-td">{{'PackageName'|translate}}</div>
+				<div class="vul-th version-td">{{'PackageVersion'|translate}}</div>
+				<div class="vul-th num-td">{{'HighLevel'|translate}}</div>
+				<div class="vul-th num-td">{{'MediumLevel'|translate}}</div>
+				<div class="vul-th num-td">{{'LowLevel'|translate}}</div>
+				<div class="vul-th num-td">{{'NegligibleLevel'|translate}}</div>
+				<div class="vul-th num-td">{{'UnknowLevel'|translate}}</div>
+			</div>
+			<div class="vultab-body" ng-repeat="p in package.table">
+				<div class="vul-td name-td" ng-bind="p.package_name"></div>
+				<div class="vul-td version-td" ng-bind="p.package_version"></div>
+				<div class="vul-td num-td">
+					<span ng-bind="p.vulnerabilitles.high_level" class="table-state-number" style="color:#bd2119"></span>
+					(<span ng-bind="p.pemaning_after_upgrade.high_level" style="color:#bd2119"></span> <span ng-bind="'can be repaired'|translate"></span>)
+				</div>
+				<div class="vul-td num-td">
+					<span ng-bind="p.vulnerabilitles.medium_level" class="table-state-number" style="color:#d96c2b"></span>
+					(<span ng-bind="p.pemaning_after_upgrade.medium_level" style="color:#d96c2b"></span> <span ng-bind="'can be repaired'|translate"></span>)
+				</div>
+				<div class="vul-td num-td">
+					<span ng-bind="p.vulnerabilitles.low_level" class="table-state-number" style="color:#dec57b"></span>
+					(<span ng-bind="p.pemaning_after_upgrade.low_level" style="color:#dec57b"></span> <span ng-bind="'can be repaired'|translate"></span>)
+				</div>
+				<div class="vul-td num-td">
+					<span ng-bind="p.vulnerabilitles.negligible_level" class="table-state-number" style="color:#527384"></span>
+					(<span ng-bind="p.pemaning_after_upgrade.negligible_level" style="color:#527384"></span> <span ng-bind="'can be repaired'|translate"></span>)
+				</div>
+				<div class="vul-td num-td">
+					<span ng-bind="p.vulnerabilitles.unknown_level" class="table-state-number" style="color:#298473"></span>
+					(<span ng-bind="p.pemaning_after_upgrade.unknown_level" style="color:#298473"></span> <span ng-bind="'can be repaired'|translate"></span>)
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

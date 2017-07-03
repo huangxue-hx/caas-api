@@ -1,0 +1,161 @@
+/*roleAll page*/
+.role-block:hover{
+	background-color: #eee !important;
+}
+
+.role-detail .service-information-ul{
+	display: inline-block;
+}
+.role-detail .refresh{
+	float: right;
+	margin: 0px 100px 0px 20px;
+	background-color: #34b369;
+	border: none;
+	color: #fff;
+}
+.noneMargin{
+	margin:0px;
+}
+.role-new .service-information-list{
+	padding:10px 0px 10px 0px;
+}
+.overflow-visible{
+	overflow: visible;
+}
+.resource-all{
+	/*background-color: red;*/
+	padding-right: 200px;
+	display: inline-block;
+	font-size: 13px;
+}
+.resource-all .chooseblock{
+	background-color: #e7f3ff;
+}
+.resource-all .chooseblock .choose-but{
+	color: #2a8ec0;
+}
+
+.resource-block{
+	display: inline-block;
+	float: left;
+	margin: 10px 10px 0px 0px;
+	position: relative;
+	height: 65px;
+	overflow:visible;
+	/*transition: height 2s;
+	-moz-transition: height 2s;	
+    -webkit-transition: height 2s;
+    -o-transition: height 2s;*/
+}
+.resource-content{
+	background-color: #eee;
+	border-radius: 5px;
+}
+.resList-name{
+	display: inline-block;
+	text-align: center;
+	padding:5px 10px 10px 10px;
+	height: 50px;
+	width: 150px;
+	line-height: 50px;
+	overflow: hidden;
+}
+.choose-but{
+	display: inline-block;
+	color: #aaa;
+	position: absolute;
+	right: 10px;
+	top:40px;
+	font-size: 20px;
+}
+.resource-operation{
+	position: relative;
+	overflow: hidden;
+	z-index: 99;
+	background-color: #eee;
+	border-radius: 0px 0px 10px 10px;
+	-moz-transition: height 0.3s;	
+    -webkit-transition: height 0.3s;
+    -o-transition: height 0.3s;
+}
+.chooseblock .resource-operation{
+	background-color: #e7f3ff;
+}
+.operall{
+	border-top: 1px solid #aaa;
+	margin:0px 10px;
+	overflow: hidden;
+	transition: height 2s;
+	padding-bottom: 5px;
+}
+.resource-all .hidden{
+	border-top: 0px;
+	height: 0px !important;
+}
+.oper-list{
+	height: 25px;
+	line-height: 25px;
+}
+.ope-box{
+	margin:0px;
+}
+.role-new .service-information-button{
+	margin-top: 40px;
+}
+.namespace-box{
+	margin: 0px 0px 0px 10px !important;
+}
+
+.detail-list{
+	position: relative;
+	overflow: hidden;
+}
+.detail-list .refresh{
+	position: absolute;
+	top: 20px;
+	right: 20px;
+}
+.padding-b160{
+	padding-bottom: 160px;
+}
+.padding-b70{
+	padding-bottom: 70px;
+}
+
+.user-block{
+	display: inline-block;
+	float: left;
+	margin: 0px 10px 10px 0px;
+	position: relative;
+	height: 65px;
+	overflow:visible;
+	/*transition: height 2s;
+	-moz-transition: height 2s;	
+    -webkit-transition: height 2s;
+    -o-transition: height 2s;*/
+}
+.user-content{
+	background-color: #eee;
+	border-radius: 5px;
+}
+.userList-name{
+	display: inline-block;
+	text-align: center;
+	padding:5px 10px 10px 10px;
+	height: 50px;
+	width: 150px;
+	line-height: 40px;
+	overflow: hidden;
+}
+
+.user-but{
+	font-size: 15px;
+}
+
+/*tenant begin*/
+.margintop{
+	margin-top: 25px;
+}
+.pb100{
+	padding-bottom: 100px;
+}

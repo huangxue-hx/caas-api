@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.harmonycloud.dao.network.NamespceBindSubnetMapper" >
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.network.bean.NamespceBindSubnet" >
+    <id column="id" property="id" jdbcType="INTEGER" />
+    <result column="namespace" property="namespace" jdbcType="VARCHAR" />
+    <result column="subnet_id" property="subnetId" jdbcType="VARCHAR" />
+    <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
+    <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
+    <result column="net_id" property="netId" jdbcType="VARCHAR" />
+    <result column="subnet_name" property="subnetName" jdbcType="VARCHAR" />
+    <result column="binding" property="binding" jdbcType="INTEGER" />
+  </resultMap>
+  <sql id="Example_Where_Clause" >
+    <where >
+      <foreach collection="oredCriteria" item="criteria" separator="or" >
+        <if test="criteria.valid" >
+          <trim prefix="(" suffix=")" prefixOverrides="and" >
+            <foreach collection="criteria.criteria" item="criterion" >
+              <choose >
+                <when test="criterion.noValue" >
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue" >
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue" >
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue" >
+                  and ${criterion.condition}
+                  <foreach collection="criterion.value" item="listItem" open="(" close=")" separator="," >
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List" >
+    id, namespace, subnet_id, create_time, update_time, net_id, subnet_name, binding
+  </sql>
+  <select id="selectByExample" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.network.bean.NamespceBindSubnetExample" >
+    select
+    <if test="distinct" >
+      distinct
+    </if>
+    'false' as QUERYID,
+    <include refid="Base_Column_List" />
+    from namespace_bind_subnet
+    <if test="_parameter != null" >
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null" >
+      order by ${orderByClause}
+    </if>
+  </select>
+  <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="java.lang.Integer" >
+    select 
+    <include refid="Base_Column_List" />
+    from namespace_bind_subnet
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer" >
+    delete from namespace_bind_subnet
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <delete id="deleteBySubnetId" parameterType="java.lang.String" >
+    delete from namespace_bind_subnet
+    where subnet_id = #{subnetid,jdbcType=VARCHAR}
+  </delete>
+  <insert id="insert" parameterType="com.harmonycloud.dao.network.bean.NamespceBindSubnet" >
+    insert into namespace_bind_subnet (id, namespace, subnet_id, 
+      create_time, update_time, net_id, 
+      subnet_name, binding)
+    values (#{id,jdbcType=INTEGER}, #{namespace,jdbcType=VARCHAR}, #{subnetId,jdbcType=VARCHAR}, 
+      #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{netId,jdbcType=VARCHAR}, 
+      #{subnetName,jdbcType=VARCHAR}, #{binding,jdbcType=INTEGER})
+  </insert>
+  <insert id="insertSelective" parameterType="com.harmonycloud.dao.network.bean.NamespceBindSubnet" >
+    insert into namespace_bind_subnet
+    <trim prefix="(" suffix=")" suffixOverrides="," >
+      <if test="id != null" >
+        id,
+      </if>
+      <if test="namespace != null" >
+        namespace,
+      </if>
+      <if test="subnetId != null" >
+        subnet_id,
+      </if>
+      <if test="createTime != null" >
+        create_time,
+      </if>
+      <if test="updateTime != null" >
+        update_time,
+      </if>
+      <if test="netId != null" >
+        net_id,
+      </if>
+      <if test="subnetName != null" >
+        subnet_name,
+      </if>
+      <if test="binding != null" >
+        binding,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides="," >
+      <if test="id != null" >
+        #{id,jdbcType=INTEGER},
+      </if>
+      <if test="namespace != null" >
+        #{namespace,jdbcType=VARCHAR},
+      </if>
+      <if test="subnetId != null" >
+        #{subnetId,jdbcType=VARCHAR},
+      </if>
+      <if test="createTime != null" >
+        #{createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="updateTime != null" >
+        #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="netId != null" >
+        #{netId,jdbcType=VARCHAR},
+      </if>
+      <if test="subnetName != null" >
+        #{subnetName,jdbcType=VARCHAR},
+      </if>
+      <if test="binding != null" >
+        #{binding,jdbcType=INTEGER},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.network.bean.NamespceBindSubnet" >
+    update namespace_bind_subnet
+    <set >
+      <if test="namespace != null" >
+        namespace = #{namespace,jdbcType=VARCHAR},
+      </if>
+      <if test="subnetId != null" >
+        subnet_id = #{subnetId,jdbcType=VARCHAR},
+      </if>
+      <if test="createTime != null" >
+        create_time = #{createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="updateTime != null" >
+        update_time = #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="netId != null" >
+        net_id = #{netId,jdbcType=VARCHAR},
+      </if>
+      <if test="subnetName != null" >
+        subnet_name = #{subnetName,jdbcType=VARCHAR},
+      </if>
+      <if test="binding != null" >
+        binding = #{binding,jdbcType=INTEGER},
+      </if>
+    </set>
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.network.bean.NamespceBindSubnet" >
+    update namespace_bind_subnet
+    set namespace = #{namespace,jdbcType=VARCHAR},
+      subnet_id = #{subnetId,jdbcType=VARCHAR},
+      create_time = #{createTime,jdbcType=TIMESTAMP},
+      update_time = #{updateTime,jdbcType=TIMESTAMP},
+      net_id = #{netId,jdbcType=VARCHAR},
+      subnet_name = #{subnetName,jdbcType=VARCHAR},
+      binding = #{binding,jdbcType=INTEGER}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+</mapper>

@@ -1,0 +1,55 @@
+<div class="hc-service-detail">
+	<div class="hc-detail-topbar">
+		<div class="hc-topbar-block hc-back pointer ico-rewind" ng-click="back()">
+		</div>
+		<div class="hc-topbar-block">
+			<span ng-bind="'newStorage'|translate" class="hc-topbar-name"></span>
+		</div>
+		<div class="hc-action-wrap">
+			<div class="hc-topbar-block hc-button-block hc-p0-ml10">
+				<button class="hc-button hc-button-green hc-disabled-{{disable()}} " ng-click="save()" ng-disabled="disable()" su-load="/rest/volumeBytenantid">{{'saveStorage'|translate}}</button>
+			</div>
+		</div>
+	</div>
+	<div class="hc-detail-outer">
+		<div class="hc-detail-innerwrap">
+			<div class="hc-info-block">
+				<form name="input_form">
+					<ul class="service-information-ul hc-servicenew-total">
+						<li class="hc-info-list">
+							<span class="hc-info-name ne-required">{{'storageName'|translate}}：</span>
+							<div class="hc-con-info-block">
+								<div class="hc-con-info hc-width-p100">
+									<input type="input" name="name" class="hc-con-add" ng-model="storageName" ng-pattern="namePattern" required>
+								</div>
+							</div>
+							<span ng-show="input_form.name.$dirty &&input_form.name.$error.required" class="error">{{'fillInStorageName'|translate}}</span>
+							<span ng-show="input_form.name.$invalid && !input_form.name.$error.required" class="error">{{'wrongStorageName'|translate}}</span>
+						</li>
+						<li class="hc-info-list">
+							<span class="hc-info-name ne-required">{{'namespace'|translate}}：</span>
+							<div class="hc-con-info-block">
+								<div class="hc-con-info hc-width-p100">
+									<span ng-bind="namespace|harborName"></span>
+								</div>
+							</div>
+						</li>
+						<li class="hc-info-list">
+							<span class="hc-info-name ne-required">{{'capacity'|translate}}：</span>
+							<div class="hc-con-info-block">
+								<div sp-number name="capacity" sp-data="capacity" sp-min="128" sp-max="1024" sp-interval="128" sp-filter="memoryFormat" sp-dirty="" ng-model="capacity" required></div>
+							</div>
+						</li>
+						<li class="hc-info-list">
+							<span class="hc-info-name"></span>
+							<div class="hc-con-info-block">
+								<span class="stay-session-text">{{'readOnly'|translate}}</span>
+								<input class="stay-session-checkbox" type="checkbox" ng-model="readonly">
+							</div>
+						</li>
+					</ul>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>

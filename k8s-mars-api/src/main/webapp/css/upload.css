@@ -1,0 +1,21 @@
+.upload{
+	margin: 0px 30px 0px 30px;
+	font-size: 14px;
+	font-family: font-family:  Microsoft Yahei, Hiragino Sans GB, WenQuanYi Micro Hei, sans-serif !important;
+	color: #576979;
+}
+.h4{
+	font-size: 18px;
+	margin: 10px 0px 10px 0px;
+}
+.step{
+	color:#999;
+}
+.upload pre{
+	/*background-color: #f5f5f5;*/
+	color: #4280CB;
+	border: none;
+	overflow: auto;
+	/*font-size: 13px;
+	padding: 6px;*/
+}

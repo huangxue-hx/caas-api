@@ -1,0 +1,25 @@
+
+{
+	success:true,
+	data:[
+		{
+			name:'dsdsdsd',
+			status:1,
+			capacity:512,
+			bounds:['service1','service2'],
+			createTime:123245342434
+		},{
+			name:'dsdsdsd',
+			status:1,
+			capacity:512,
+			bounds:['service1','service2'],
+			createTime:123245342434
+		},{
+			name:'dsdsdsd',
+			status:1,
+			capacity:512,
+			bounds:['service1','service2'],
+			createTime:123245342434
+		}
+	]
+}

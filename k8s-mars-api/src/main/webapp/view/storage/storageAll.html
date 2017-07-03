@@ -1,0 +1,85 @@
+<div class="service-all">
+
+
+
+
+
+	<div class="hc-detail-topbar">
+		<div class="hc-topbar-block">
+			<span ng-bind="'storageList'|translate" class="hc-topbar-name"></span>
+		</div>
+		
+		<div class="hc-action-wrap">
+			<div class="hc-topbar-block hc-button-block hc-p0-ml10">
+				<button class="hc-button hc-button-red" delete-confirm="delete()" delete-text="{{'deleteStorage'|translate}}" ng-bind="'delete'|translate"></button>
+			</div>
+			<div class="hc-topbar-block hc-button-block hc-p0-ml10">
+				<button class="hc-button hc-button-green hc-button-green-heavy" ui-sref="storageNew">{{'new'|translate}}</button>
+			</div>
+		</div>
+	</div>
+	<div class="hc-detail-outer">
+		<div class="service-table-div">
+			<table class="service-table">
+				<thead class="service-table-head">
+					<tr>
+						<td class="service-choose-td"><input class="service-choose-box" id="choose-all" type="checkbox" ng-model="checkboxAll"></td>
+						<td class="service-name" ng-bind="'name'|translate"></td>
+						<td>{{'namespace'|translate}}</td>
+						<td ng-bind="'state'|translate"></td>
+						<td ng-bind="'capacity'|translate"></td>
+						<td ng-bind="'usageState'|translate"></td>
+						<td ng-bind="'creationTime'|translate"></td>
+					</tr>
+				</thead>
+				<tbody  class="service-table-body" ng-repeat="storage in storageList">
+					<tr>
+						<td class="service-choose-td"><input class="service-choose-box" type="checkbox" ng-model="storage.checkbox"></td>
+						<td class="service-name">{{storage.name}}</td>
+						<td ng-bind="storage.namespace|harborName"></td>
+						<td>
+							<span ng-if="storage.status == 'Bound'">
+								{{'bound'|translate}}
+								&nbsp
+								<span class="state-icon icon-circle"></span>
+							</span>
+							<span ng-if="storage.status == 'Pending'">
+								{{'pending'|translate}}
+								&nbsp
+								<span class="state-icon icon-circle"  style="color:red"></span>
+							</span>
+							<span ng-if="storage.status == 'Lost'">
+								{{'lost'|translate}}
+								&nbsp
+								<span class="state-icon icon-circle"  style="color:#aaa"></span>
+							</span>
+						</td>
+						<td>{{storage.capacity}}M</td>
+						<td>
+							<span ng-if="!storage.bounds.length" ng-bind="'noBindService'|translate"></span>
+							<span ng-if="storage.bounds.length" ng-repeat="bound in storage.bounds">
+								<a ui-sref="serviceDetail({name:bound,namespace:storage.namespace})">{{bound}}&nbsp</a>
+							</span>
+						</td>
+						<td>{{storage.createTime | transTime}}</td>
+					</tr>
+				</tbody>
+			</table>
+			<span ng-show="!storageList||storageList.length == 0" class="nomore">
+			
+			</span>
+		</div>
+		<div class="service-page">
+			<!-- <ul class="service-page-ul">
+  				<li><a href="#">上一页</a></li>
+  				<li class="active"><a href="#">1</a></li>
+  				<li><a href="#">2</a></li>
+  				<li><a href="#">3</a></li>
+  				<li><a href="#">4</a></li>
+  				<li><a href="#">5</a></li>
+  				<li><a href="#">下一页</a></li>
+  				<li>共 <span>5</span> 条/ <span>1</span> 页 </li>
+			</ul> -->
+		</div>
+	</div>
+</div>

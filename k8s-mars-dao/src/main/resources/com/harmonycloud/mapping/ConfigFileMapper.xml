@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace必须指向Dao接口 -->
+<mapper namespace="com.harmonycloud.dao.application.ConfigFileMapper">
+
+    <resultMap id="configfileMap" type="com.harmonycloud.dao.application.bean.ConfigFile">
+        <id property="id" column="id" />
+        <result property="name" column="name" />
+        <result property="tenant" column="tenant" />
+        <result property="description" column="description" />
+        <result property="tags" column="tags"/>
+        <result property="createTime" column="create_time"/>
+        <result property="user" column="user"/>
+        <result property="repoName" column="reponame"/>
+        <result property="item" column="item"/>
+    </resultMap>
+    
+    <!-- 根据配置文件名称，tenant,repo名称版本号最大的 -->
+    <select id="getConfigFile" parameterType="java.lang.String" resultMap="configfileMap">
+        SELECT * FROM configfile where tags = (SELECT  max(tags) FROM configfile where name=#{0} and tenant=#{1} and reponame=#{2}) AND name=#{0} and tenant=#{1} and reponame=#{2}
+    </select> 
+    
+    <delete id="removeConfigFileById" parameterType="java.lang.String">
+        delete from configfile where id=#{id}
+    </delete>
+
+    <!-- 根据租户、文件名称，repo名称查找安照版本号倒叙 -->
+    <select id="listConfigByName" parameterType="java.lang.String" resultMap="configfileMap">
+        select * from configfile where tenant=#{0} and name=#{1} and reponame=#{2} order by tags desc
+    </select>    
+    
+    <!-- 删除根据name,tent,reponame删除 -->
+    <delete id="deleteConfigFileByName" parameterType="java.lang.String">
+        delete from configfile where name=#{0} and tenant=#{1} and reponame=#{2}
+    </delete>
+    
+    <!-- 根据tenant keyword模糊查找 -->
+    <select id="listConfigSearch" parameterType="java.util.List" resultMap="configfileMap">
+        select distinct name ,reponame,tenant from configfile 
+        <where>
+          <if test="tenant !=null  and tenant != ''  ">
+            tenant=#{tenant}
+          </if>
+          <if test="keyword !=null  and keyword != ''  ">  
+            and ( name like concat (concat('%',#{keyword}),'%') or reponame like concat (concat('%',#{keyword}),'%') )
+          </if> 
+        </where>
+    </select>
+    
+    <!-- 根据租户、文件名称，repo名称查找安照时间倒叙  -->
+    <select id="listConfigByNameLatest" parameterType="java.lang.String" resultMap="configfileMap">
+        select * from configfile where tenant=#{tenant} and name=#{name} and reponame=#{repoName} order by create_time desc
+    </select>   
+ 
+    <!-- 根据租户、文件名称，repo名称查找安照时间倒叙  -->
+    <select id="listConfigByNameAsc" parameterType="java.lang.String" resultMap="configfileMap">
+        select * from configfile where tenant=#{tenant} and name=#{name} and reponame=#{repoName} order by create_time
+    </select>
+ 
+    <!-- 根据tenant,reponame查找listsOverview -->
+    <select id="listConfigOverview" parameterType="java.lang.String" resultMap="configfileMap">
+        select distinct name,tenant,reponame from configfile
+        <where>
+          <if test="tenant != null and tenant !=''">
+            tenant=#{tenant}
+          </if>
+          <if test="repoName != null and repoName !=''">
+           and reponame=#{repoName}
+          </if>
+        </where> 
+        order by name
+    </select>
+    
+    <!-- 添加ConfigFile -->
+    <insert id="saveConfigFile" parameterType="com.harmonycloud.dao.application.bean.ConfigFile">
+        insert into configfile(id,name,tenant,description,tags,create_time,user,reponame,item)
+        values(#{id},#{name},#{tenant},#{description},#{tags},#{createTime},#{user},#{repoName},#{item})
+    </insert>
+
+    <select id="getId" parameterType="java.lang.String" resultType="java.lang.String">
+        select id from configfile where id=#{id}
+    </select>
+
+    <select id="getConfigFileById" parameterType="java.lang.String" resultMap="configfileMap">
+        select * from configfile where id=#{id}
+    </select>
+
+	<select id="getTenantByName" parameterType="java.lang.String" resultMap="configfileMap">
+		select distinct tenant from configfile where name=#{name}
+	</select>
+
+	<delete id="deleteConfigFileByTenant" parameterType="java.lang.String">
+		delete from configfile where tenant=#{tenant}
+	</delete>
+</mapper>

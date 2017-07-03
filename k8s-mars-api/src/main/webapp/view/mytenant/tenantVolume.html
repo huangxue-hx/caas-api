@@ -1,0 +1,43 @@
+<div class="service-new role-new" ng-class="{margintop: parent}">
+	<div class="service-new-detail">
+		<form name="newRole_form" class="noneMargin">
+		<ul class="service-information-ul">
+			<li class="service-information-list">
+				<span class="service-informantion-name network-title">{{'Volume'|translate}} ：</span>
+				<div class="service-informantion-label">
+					<table class="informantion-label-table network-table">
+						<tr class="port-name">
+							<td>{{'Volumename'|translate}}</td>
+							<td>{{'type'|translate}}</td>
+							<td>{{'readOnly'|translate}}</td>
+							<td>{{'creationTime'|translate}}</td>
+							<td class="pointer edit-td" ng-click="newVolume()"><span class="icon-plus green"></span></td>
+						</tr>
+						<tr class="port-content" ng-repeat="v in volumeList">
+							<td class="port">
+								<span class="pointer">
+									<a ui-sref="mytenantVolumeDetail({id:tenantid,name:v.name})">{{v.name}}</a>
+								</span>
+							</td>
+							<td class="port">
+								<span>{{v.type}}</span>
+							</td>
+							<td class="port">
+								<span>{{v.readOnly}}</span>
+							</td>
+							<td class="port">
+								<span>
+									{{v.time|transTime}}
+								</span>
+							</td>
+							<td class="edit-td">
+								<a delete-confirm="deleteVolume($index)" class="remove ico-cross pointer"></a>
+							</td>
+						</tr>
+					</table>
+				</div>
+			</li>
+		</ul>
+		</form>
+	</div>
+</div>

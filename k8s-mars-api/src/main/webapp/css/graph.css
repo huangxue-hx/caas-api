@@ -1,0 +1,155 @@
+
+ul,li{
+	list-style: none;
+	padding: 0;
+	margin: 0;
+
+}
+/*.selection{
+	margin-top: 40px;
+}*/
+.selwrap{
+	width: 120px;
+	background-color: #263340;
+	float: left;
+	border-right: 1px solid #212a32;
+	border-radius: 5px;
+	/*margin-right: 5px;*/
+}
+.selwrap .title{
+	text-align: center;
+	color: #BBBBBB;
+	cursor: default;
+}
+.selwrap .title:hover{
+	background-color: none;
+}
+.selwrap li{
+	height: 36px;
+	line-height: 36px;
+	text-indent: 10px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	cursor: pointer;
+
+}
+.selwrap li.selected{
+	background-color: #212a32;
+}
+.selwrap li:hover{
+	background-color: #212a32;
+}
+
+.graphWrap{
+	padding-top: 10px;
+	/*width: 1150px;*/
+	/*margin: auto;*/
+}
+.selection{
+	padding-top: 20px;
+	margin-left: 35px;
+	/*width: 250px;*/
+	/*float: left;*/
+}
+.type{
+
+	margin:0px 55px;
+}
+
+.graphWrap .graphContent{
+	height: 350px;
+	margin: auto 55px;
+    border: 1px solid #dadada;
+}
+.graphWrap .graphInner{
+	/*width: 800px;*/
+	/*float: right;*/
+}
+.graphTitle{
+	width: 800px;
+	margin: auto;
+	text-align: center;
+	margin-bottom: 20px;
+	color: #000;
+
+}
+.monitor-chart{
+	margin: 25px 20px 7px 0px;
+	background-color: #fff;
+	border-radius: 5px;
+}
+.graph-div{
+	width: 100%;
+	height: 350px;
+	padding-bottom: 40px;
+}
+.untop{
+	margin-top: 0px;
+}
+.text{
+	display: inline;
+	color: #000;
+	font-size: 18px;
+	font-family: sMicrosoft Yahei, Hiragino Sans GB, WenQuanYi Micro Hei, sans-serif !important;
+}
+.text1{
+	margin-left: 120px;
+}
+.text2{
+	margin-left: 400px;
+}
+.input-wrap{
+	height: 30px;
+	line-height: 30px;
+	margin-bottom: 10px;
+	display: inline-block;
+	/*width: 500px;*/
+}
+.input-wrap label{
+	margin-left: 20px;
+	display: block;
+	float: left;
+	height: 25px;
+	line-height: 25px;
+	color: #000;
+	text-align: right;
+}
+.input-wrap select{
+	float: left;
+}
+.monitor-chart .choose{
+	height: 25px;
+	width: 200px;
+	margin: 0px;
+	border: 1px solid #818691;
+	line-height: 25px;
+	padding:0px 0px 0px 5px;
+}
+.monitor-chart .choose-type{
+	padding: 5px 8px 5px 8px;
+	background-color: #f3f3f3;
+	color: #747680; 
+	display: inline-block;
+	font-size: 12px;
+	border-top-left-radius: 3px;
+	border-top-right-radius: 3px;
+	margin-right: 2px;
+	width: 50px;
+    text-align: center;
+}
+.monitor-chart .choose-type:hover{
+	background-color: #5ca4da;
+	color: #fff; 
+}
+.monitor-chart .active{
+	background-color: #5ca4da;
+	color: #fff; 
+}
+.graphInner .nodata{
+	margin: 20px 0px 0px 55px;
+	padding-bottom: 20px; 
+}
+
+
+

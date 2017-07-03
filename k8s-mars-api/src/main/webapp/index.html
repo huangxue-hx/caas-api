@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>HarmonyCloud</title>
+	<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" /> 
+
+	<link rel="stylesheet" type="text/css" href="./css/ui-bubble.css">
+	<link rel="stylesheet" type="text/css" href="./css/ui-popup.css">
+	<link rel="stylesheet" type="text/css" href="./css/bootstrap.min.css">
+	<link rel="stylesheet" type="text/css" href="./css/font-awesome.min.css">
+	<link rel="stylesheet" type="text/css" href="./css/index.css">
+	<link rel="stylesheet" type="text/css" href="./css/serviceAll.css">
+	<link rel="stylesheet" type="text/css" href="./css/adminAudit.css">
+	<link rel="stylesheet" type="text/css" href="./css/storageAll.css">
+	<link rel="stylesheet" type="text/css" href="./css/serviceDetail.css">
+	<link rel="stylesheet" type="text/css" href="./css/serviceInformation.css">
+	<link rel="stylesheet" type="text/css" href="./css/podInstance.css">
+	<link rel="stylesheet" type="text/css" href="./css/autoFlex.css">
+	<link rel="stylesheet" type="text/css" href="./css/serviceNew.css">
+	<link rel="stylesheet" type="text/css" href="./css/newRouter.css">
+	<link rel="stylesheet" type="text/css" href="./css/modifyContainer.css">
+	<link rel="stylesheet" type="text/css" href="./css/console.css">
+	<link rel="stylesheet" type="text/css" href="./css/modifyRouter.css">
+	<link rel="stylesheet" type="text/css" href="./css/newContainer.css"> 
+	<link rel="stylesheet" type="text/css" href="./css/graph.css">
+	<link rel="stylesheet" type="text/css" href="./css/event.css">
+	<link rel="stylesheet" type="text/css" href="./css/storageDetail.css">
+	<link rel="stylesheet" type="text/css" href="./css/imageAll.css">
+	<link rel="stylesheet" type="text/css" href="./css/podContainer.css">
+	<link rel="stylesheet" type="text/css" href="./css/bootstrap-datetimepicker.min.css">
+	<link rel="stylesheet" type="text/css" href="./css/datepicker.css">
+	<link rel="stylesheet" type="text/css" href="./css/daterangepicker.css">
+
+	<link rel="stylesheet" type="text/css" href="./css/ngDialog.css">
+	<link rel="stylesheet" type="text/css" href="./css/ngDialog-theme-default.css">
+	<link rel="stylesheet" type="text/css" href="./css/podDetail.css">
+	<link rel="stylesheet" type="text/css" href="./css/img.css">
+	<link rel="stylesheet" type="text/css" href="./css/upload.css">
+	<link rel="stylesheet" type="text/css" href="./css/inform.css">
+	<link rel="stylesheet" type="text/css" href="./css/login.css">
+	<link rel="stylesheet" type="text/css"  media="screen and (max-width:1200px)"  href="./css/small.css" />
+
+	<link rel="stylesheet" type="text/css" href="./css/auth.css">
+	<link rel="stylesheet" type="text/css" href="./css/tenant.css">
+	<link rel="stylesheet" type="text/css" href="./css/project.css">
+	<link rel="stylesheet" type="text/css" href="./css/dashboard.css">
+	<link rel="stylesheet" type="text/css" href="./css/harbor.css">
+
+	<link rel="stylesheet" type="text/css" href="./css/initial.css">
+
+
+	<!-- new style -->
+	<!-- font icon moons -->
+	<link rel="stylesheet" type="text/css" href="./style/fonts.css">
+
+	<link rel="stylesheet" type="text/css" href="./style/index.css">
+	<link rel="stylesheet" type="text/css" href="./style/base.css">
+	<link rel="stylesheet" type="text/css" href="./style/hc.css">
+	<link rel="stylesheet" type="text/css" href="./style/service.css">
+	<link rel="stylesheet" type="text/css" href="./style/harbor.css">
+	<link rel="stylesheet" type="text/css" href="./style/container.css">
+	<link rel="stylesheet" type="text/css" href="./style/tenant.css">
+
+	<link rel="stylesheet" type="text/css" media="screen and (max-width:1630px)" href="./style/small/style.css">
+	<link rel="stylesheet" type="text/css" media="screen and (max-width:1410px)" href="./style/small/styleSecond.css">
+
+
+
+
+</head>
+<body ng-app="mainApp" ng-click="getTarget($event)" ne-preload class="ne-preload">
+	<div class="hc-main-wrap">
+		<div class="hc-menu-wrap" ng-include="'view/menulist.html'">
+			
+		</div>
+
+		<div class="hc-content-wrap width-{{foldMenu}}" id="content">
+			<div class="hc-topbar-wrap" ng-include="'view/topbar.html'"></div>
+			
+			<div class="hc-content-body" ui-view></div>
+		</div>
+	</div>
+	
+
+	
+	<script id="notificationTpl" type="text/html">
+		<div class="notification-wrap" ng-class="{'show':expand}">
+			<div class="notification sp-sliders-wrap">
+				<p class="noti-title">{{'notification'|translate}}</p>
+				<div class="noti-list">
+					<div class="slider-item" ng-class="{'green':item.type=='message','red':item.type=='error','deleteItem':item.isDelete||item.animate}" id="{{serial}}" ng-repeat="item in noti">
+				        <div class="slider-content" ng-click="jump(item)">
+				          <p class="slider-title slider-inner" ng-bind="item.title" title="{{item.title}}"></p>
+				          <p class="slider-text slider-inner" ng-bind="item.text" title="{{item.text}}"></p>
+				          <p class="slider-date slider-inner" ng-bind="item.time|date:'yyyy-MM-dd HH:mm:ss'"></p>
+				        </div>
+				        <div class="slider-button" ng-click="close($index)">
+				          {{'close'|translate}}
+				        </div>
+				    </div>
+				    <p class="empty" ng-class="{'hidden':noti.length !=_deleteCount }">{{'notNotification'|translate}}</p>
+
+				</div>
+			</div>	
+		</div>  
+	</script>
+	<script id="sliderTpl" type="text/html">
+      <div class="slider-item" ng-class="{'green':type=='message','red':type=='error','on':isShow,'shrink':isHide}" id="{{serial}}">
+        <div class="slider-content">
+          <p class="slider-title slider-inner" ng-bind="title" title="{{title}}"></p>
+          <p class="slider-text slider-inner" ng-bind="text" title="{{text}}"></p>
+          <p class="slider-date slider-inner" ng-bind="time|date:'yyyy-MM-dd HH:mm:ss'"></p>
+        </div>
+        <div class="slider-button" ng-click="confirm(serial)">
+          {{'confirm'|translate}}
+        </div>
+      </div>
+  	</script>
+  	<script id="loginTpl" type="text/html">
+		<div class="login-slider" ng-class="{'dis_n':isLogin}">
+		  <div class="login-outter" ng-style="{bottom:bottom+'px'}">
+		    <div class="login-wrap">
+		      <div class="logo">
+		      <!-- <span class="hletter">H</span>armony<span class="cletter">C</span>loud -->
+		      </div>
+		      <div class="login-input-wrap" ng-class="{'shake':isWrong}">
+		        <div class="input-item">
+		          <input type="text" class="input-text j-user" data-reg='^[A-Za-z0-9]{1,40}$' ng-model="username" enter-search="loginFn()" />
+		          <label class="hint" ng-show="!username||(username.length == 0)"></label>
+		          <span class="hint-sign"></span>
+		        </div>
+		        <div class="input-item">
+		          <input type="password" class="input-text j-password" ng-model="password" enter-search="loginFn()" />
+		          <label class="hint" ng-show="!password||(password.length) == 0"></label>
+		          <span class="hint-sign"></span>
+		        </div>
+		      </div>
+		      <div class="action-wrap">
+		        <!-- <div class="remember-me">
+		          <input type="checkbox" name="rememberMe" id="rememberMe" class="rm-ckeck" />
+		          <label for="rememberMe" class="check-label">保持我的登录状态</label>
+		        </div> -->
+		        <a class="login-button button" ng-click="loginFn()">{{'login'|translate}}</a>
+		      </div>
+		    </div>
+		  </div>
+		</div>
+	</script>
+
+	<script id="containerNew" type="text/html">
+		<!-- <div class="hc-detail-outer clearfix"></div> -->
+		<div class="hc-container-outer hc-detail-outer clearfix">
+			<div class="modify-container-title hc-container-title">{{'newContainer'|translate}}</div>
+			<form name="input_form">
+				<ul class="hc-info-total">
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name ne-required">{{'conatinerName'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info hc-width-p100">
+								<input class="hc-con-add" type="input" name="name" placeholder="{{'Input Name'|translate}}" ng-model="containerName" ng-pattern="containerPattern" required>
+							</div>
+						</div>
+						<span ng-show=" input_form.name.$dirty && input_form.name.$error.required" class="error err-msg">{{'fillInContainerName'|translate}}</span>
+						<span ng-show=" input_form.name.$invalid && !input_form.name.$error.required" class="error err-msg">{{'wrongContainerName'|translate}}</span>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name ne-required">{{'chooseHarbor'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info hc-width-p100">
+								<select name="harbor-name" ng-model="harborid" class="hc-con-add hc-width-p98" ng-options="h.harborid as h.name|harborName for h in harborList">
+								</select>
+							</div>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name ne-required">{{'chooseImage'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info hc-image-info">
+								<select name="img-name" class="hc-con-add hc-width-p49" ng-model="imageName">
+									<option ng-repeat="i in img track by $index" value="{{i.source}}">{{i.name}}</option>
+								</select>
+								<select name="img-version" class="hc-con-add hc-width-p49" ng-model="imageVersion">
+									<option ng-repeat="t in imgTag track by $index" value="{{t.tag}}">{{t.tag}}</option>
+								</select>	
+							</div>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name ne-required">{{'memory'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div sp-number sp-data="resource.memory" sp-min="128" sp-max="1024" sp-interval="128" sp-filter="memoryFormat"  name="memory" ng-model="resource.memory" sp-dirty="" required></div>
+						</div>	
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name ne-required">{{'cpuValue'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div sp-number sp-data="resource.cpu" sp-min="100" sp-max="4000" sp-interval="100" sp-filter="cpuNumber" name="cpu" ng-model="resource.cpu" placeholder="{{'cpuValue'|translate}}" sp-dirty="" required></div>
+						</div>	
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name ne-required">{{'portConfig'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info hc-width-p100" ng-repeat="p in ports track by $index">
+								<div class="hc-info-value hc-con-value hc-two-width">{{p.port}}</div>
+								<span class="hc-connect-icon hc-hasplace"></span>
+								<div class="hc-info-value hc-con-value hc-two-width">{{p.protocol}}</div>
+								<span class="hc-delete-icon ico-cross hc-color-red pointer" ng-click="deletePorts($index)"></span>
+							</div>
+							<div class="hc-con-info hc-width-p100">
+								<input type="number" class="hc-con-add hc-two-width" type="text" name="portsport" placeholder="{{'fillInPort'|translate}}"  ng-model="oneports.port" min="10" max="65535" enter-search="savePorts(oneports)">
+								<span class="hc-connect-icon hc-hasplace"></span>
+								<select name="portsprotocol" class="hc-con-add hc-two-width" placeholder="{{'fillInProtocol'|translate}}" ng-model="oneports.protocol">
+									<option value="TCP">TCP</option>
+									<option value="UDP">UDP</option>
+								</select>
+								<span class="hc-delete-icon ico-check hc-color-green pointer" ng-click="savePorts(oneports)"></span>
+							</div>
+						</div>
+						<span ng-show="input_form.portsport.$invalid" class="error">{{'wrongPort'|translate}}</span>
+						<span ng-show="ListDuplicate" class="error">{{'portDuplicatePort'|translate}}</span>
+						<span ng-show="containerDup" class="error">{{'portDuplicateContainer'|translate}}</span>
+					</li>
+				</ul>
+				<ul class="hc-fold" ng-style="{height:(command.length+args.length+env.length+ports.length+storage.length+12)*35+100+'px'}" ng-class="{hcFold: !expand}">
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name">{{'livenessProbe'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<!-- <div ne-showmore ne-width="456" ne-shrink-height="32" ne-expand-height="64" > -->
+								<div class="hc-con-info hc-width-p100">
+									<select name="liveness" class="hc-con-add hc-width-p30" ng-model="livenessProbe.name">
+										<option value="httpGet">HTTP</option>
+										<option value="tcpSocket">TCP</option>
+									</select>
+									<div class="confHttp hc-width-p30" ng-show="livenessProbe.name == 'httpGet'">
+										<input type="number" name="livPort" class="hc-con-add hc-width-p100" placeholder="{{'fillInPort'|translate}}" min="10" max="65535" ng-model="liveConfHttp.port">
+									</div>
+									<div class="confHttp hc-width-p30" ng-show="livenessProbe.name == 'httpGet'">
+										<input type="input" name="path" class="hc-con-add hc-width-p100" placeholder="{{'fillInPath'|translate}}" ng-model="liveConfHttp.path" ng-pattern="pathPattern">
+									</div>
+									<div class="confTcp" ng-show="livenessProbe.name == 'tcpSocket'">
+										<input type="number" name="livTcpport" class="hc-con-add" placeholder="{{'fillInPort'|translate}}" min="10" max="65535" ng-model="liveConfTcp.port">
+									</div>
+								</div>
+								<div class="hc-con-info hc-width-p100">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p30" placeholder="{{'fillInInitialDelaySeconds'|translate}}" min="1" ng-model="livenessProbe.initialDelaySeconds">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p30" placeholder="{{'fillInTimeoutSeconds'|translate}}" min="1" ng-model="livenessProbe.timeoutSeconds">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p30" placeholder="{{'fillInPeriodSeconds'|translate}}" min="1" ng-model="livenessProbe.periodSeconds">
+								</div>
+								<div class="hc-con-info hc-width-p60">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p49" placeholder="{{'fillInSuccessThreshold'|translate}}" min="1" value="1" disabled="disabled">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p49" placeholder="{{'fillInFailureThreshold'|translate}}" min="1" ng-model="livenessProbe.failureThreshold">
+								</div>
+							<!-- </div> -->
+							<!-- <span ng-show="((livenessProbe.name=='httpGet'&& (input_form.path.$dirty && input_form.path.$error.required || input_form.livPort.$dirty && input_form.livPort.$error.required )) || (livenessProbe.name=='tcpSocket'&&input_form.livTcpport.$dirty && input_form.livTcpport.$error.required))" class="error none-top">{{'fillInProbe'|translate}}</span> -->
+						</div>		
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name">{{'readinessProbe'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<!-- <div ne-showmore ne-width="456" ne-shrink-height="32" ne-expand-height="64" > -->
+								<div class="hc-con-info hc-width-p100">
+									<select name="readiness" class="hc-con-add hc-width-p30" ng-model="readinessProbe.name">
+										<option value="httpGet">HTTP</option>
+										<option value="tcpSocket">TCP</option>
+									</select>
+									<div class="confHttp hc-width-p30" ng-show="readinessProbe.name == 'httpGet'">
+										<input type="number" name="redPort" class="hc-con-add hc-width-p4100" placeholder="{{'fillInPort'|translate}}" min="10" max="65535" ng-model="readConfHttp.port">
+									</div>
+									<div class="confHttp hc-width-p30" ng-show="readinessProbe.name == 'httpGet'">
+										<input type="input" name="path" class="hc-con-add hc-width-p100" placeholder="{{'fillInPath'|translate}}" ng-model="readConfHttp.path" ng-pattern="pathPattern">
+									</div>
+									<div class="confTcp" ng-show="readinessProbe.name == 'tcpSocket'">
+										<input type="number" name="redTcpport" class="hc-con-add" placeholder="{{'fillInPort'|translate}}" min="10" max="65535" ng-model="readConfTcp.port">
+									</div>
+								</div>
+								<div class="hc-con-info hc-width-p100">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p30" placeholder="{{'fillInInitialDelaySeconds'|translate}}" min="1" ng-model="readinessProbe.initialDelaySeconds">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p30" placeholder="{{'fillInTimeoutSeconds'|translate}}" min="1" ng-model="readinessProbe.timeoutSeconds">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p30" placeholder="{{'fillInPeriodSeconds'|translate}}" min="1" ng-model="readinessProbe.periodSeconds">
+								</div>
+								<div class="hc-con-info hc-width-p60">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p49" placeholder="{{'fillInSuccessThreshold'|translate}}" min="1" ng-model="readinessProbe.successThreshold">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p49" placeholder="{{'fillInFailureThreshold'|translate}}" min="1" ng-model="readinessProbe.failureThreshold">
+								</div>
+							<!-- </div> -->
+							<!-- <span ng-show="((readinessProbe.name=='httpGet'&& (input_form.path.$dirty && input_form.path.$error.required || input_form.redPort.$dirty && input_form.redPort.$error.required )) || (readinessProbe.name=='tcpSocket'&&input_form.redTcpport.$dirty && input_form.redTcpport.$error.required))" class="error none-top">{{'fillInProbe'|translate}}</span>	 -->
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name">{{'log'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info">
+								<input type="input" name="path" class="hc-con-add" placeholder="{{'fillInPath'|translate}}" ng-model="log.path" ng-pattern="pathPattern">
+							</div>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name">{{'command'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info" ng-repeat="c in command track by $index">
+								<div class="hc-info-value hc-con-value">{{c}}</div>
+								<span class="hc-delete-icon ico-cross hc-color-red pointer" ng-click="deleteCommand($index)"></span>
+							</div>
+							<div class="hc-con-info">
+								<input type="input" name="instruct" class="hc-con-add" placeholder="{{'fillInCommand'|translate}}" ng-model="onecommand" enter-search="saveCommand(onecommand)">
+								<span class="hc-delete-icon ico-check hc-color-green pointer" ng-click="saveCommand(onecommand)"></span>
+							</div>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name">{{'args'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info" ng-repeat="a in args track by $index">
+								<div class="hc-info-value hc-con-value">{{a}}</div>
+								<span class="hc-delete-icon ico-cross hc-color-red pointer" ng-click="deleteArgs($index)"></span>
+							</div>
+							<div class="hc-con-info">
+								<input type="input" name="args" class="hc-con-add" placeholder="{{'fillInArgs'|translate}}" ng-model="oneargs" enter-search="saveArgs(oneargs)">
+								<span class="hc-delete-icon ico-check hc-color-green pointer" ng-click="saveArgs(oneargs)"></span>
+							</div>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name">{{'env'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info hc-width-p100" ng-repeat="e in env track by $index">
+								<div class="hc-info-value hc-con-value hc-two-width">{{e.key}}</div>
+								<span class="hc-connect-icon">=</span>
+								<div class="hc-info-value hc-con-value hc-two-width">{{e.value}}</div>
+								<span class="hc-delete-icon ico-cross hc-color-red pointer" ng-click="deleteEnv($index)"></span>
+							</div>
+							<div class="hc-con-info hc-width-p100">
+								<input type="input" name="envkey" class="hc-con-add hc-two-width" placeholder="{{'inputEnvKey'|translate}}" ng-model="oneEnv.key">
+								<span class="hc-connect-icon hc-connect-placeholder">=</span>
+								<input type="input" name="envvalue" class="hc-con-add hc-two-width" placeholder="{{'inputEnvValue'|translate}}" ng-model="oneEnv.value" enter-search="saveEnv(oneEnv)">
+								<span class="hc-delete-icon ico-check hc-color-green pointer" ng-click="saveEnv(oneEnv)"></span>
+							</div>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name">{{'constantStorage'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info hc-width-p100" ng-repeat="s in storage track by $index">
+								<div class="hc-info-value hc-con-value hc-width-p30" title="{{s.path}}">{{s.path}}</div>
+								<span class="hc-connect-icon ico-arrow-right"></span>
+								<div class="hc-info-value hc-con-value hc-width-p30" title="{{s.volume}}">{{s.volume}}</div>
+								<span class="check">
+									<input type="checkbox" name="onestorage.readOnly" ng-model="s.readOnly" disabled>
+									{{'readOnly'|translate}}
+								</span>
+								<span class="hc-delete-icon ico-cross hc-color-red pointer" ng-click="deleteStorage($index)"></span>
+							</div>
+							<div class="hc-con-info hc-width-p100">
+								<input type="input" name="path" class="hc-con-add hc-width-p30" placeholder="{{'inputMount'|translate}}" ng-model="onestorage.path" ng-pattern="pathPattern">
+								<span class="hc-connect-icon hc-connect-placeholder ico-arrow-right"></span>
+								<select name="volume" class="hc-con-add hc-width-p30" ng-model="onestorage.volume">
+									<option value="">{{'chooseVolume'|translate}}</option>
+									<option ng-repeat="v in volume" value="{{v.name}}">{{v.name}}</option>
+								</select>
+								<span class="check">
+									<input type="checkbox" name="readOnly" ng-model="onestorage.readOnly">
+									{{'readOnly'|translate}}
+								</span>
+								<span class="hc-delete-icon ico-check hc-color-green pointer" ng-click="saveStorage(onestorage)"></span>
+							</div>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name">{{'ConfigMap'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info hc-width-p100">
+								<input type="input" name="path" class="hc-con-add  hc-two-width" placeholder="{{'inputConfigPath'|translate}}" ng-model="configmap.path" ng-pattern="pathPattern">
+								<span class="hc-connect-icon hc-connect-placeholder">/</span>
+								<input type="input" name="envvalue" class="hc-con-add hc-two-width" placeholder="{{'inputConfigName'|translate}}" ng-model="configmap.file">
+							</div>
+							<textarea class="hc-width-p100 hc-con-textarea" ng-model="configmap.value" placeholder="{{'inputConfigValue'|translate}}">
+							</textarea>
+						</div>
+					</li>
+				</ul>
+			</form>
+			<div class="hc-dialogOp-block">
+				<a class="hc-button hc-button-black hc-button-a" ng-click="expandAction()">
+					<span ng-show="!expand">{{'Config More'|translate}}</span>
+					<span ng-show="expand">{{'Config Less'|translate}}</span>
+				</a>
+				<button class="service-new-button container-next next-position disabled-{{disable()}}"  ng-click="saveContainer()" ng-disabled="disable()">{{'saveContainer'|translate}}</button>
+			</div>
+		</div>
+	</script>
+
+	<script id="modifyContainer" type="text/html">
+		<div class="hc-container-outer hc-detail-outer clearfix">
+			<div class="modify-container-title hc-container-title">{{'modifyContainer'|translate}}</div>
+			<form name="input_form">
+				<ul class="hc-info-total">
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name ne-required">{{'conatinerName'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info hc-width-p100">
+								<input type="input" name="name" class="hc-con-add" ng-pattern="containerPattern" placeholder="{{'Input Name'|translate}}"  ng-model="container.name" required>
+							</div>
+						</div>
+						<span ng-show="input_form.name.$dirty &&input_form.name.$error.required" class="error err-msg">{{'fillInContainerName'|translate}}</span>
+						<span ng-show="input_form.name.$invalid && !input_form.name.$error.required" class="error err-msg">{{'wrongContainerName'|translate}}</span>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name ne-required">{{'chooseHarbor'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info hc-width-p100">
+								<select name="harbor-name" class="hc-con-add" ng-model="harborid" ng-options="h.harborid as h.name|harborName for h in harborList">
+								</select>
+							</div>
+						</div>	
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name ne-required">{{'chooseImage'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info hc-image-info">
+								<select name="img-name" class="hc-con-add hc-width-p575" ng-model="imgDetail[0]">
+									<option ng-repeat="i in img track by $index" value="{{i.source}}">{{i.name}}</option>
+								</select>
+								<select name="img-version" class="hc-con-add hc-width-p30"  ng-model="imgDetail[1]">
+									<option ng-repeat="t in imgTag track by $index" value="{{t.tag}}">{{t.tag}}</option>
+								</select>
+							</div>
+						</div>	
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name ne-required">{{'memory'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div sp-number sp-data="resource.memory" sp-min="128" sp-max="1024" sp-interval="128" sp-filter="memoryFormat"  name="memory" ng-model="resource.memory" sp-dirty="" required>
+							</div>
+						</div>	
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name ne-required">{{'cpuValue'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div sp-number sp-data="resource.cpu" sp-min="100" sp-max="4000" sp-interval="100" sp-filter="cpuNumber" name="cpu" ng-model="resource.cpu" placeholder="{{'cpuValue'|translate}}" sp-dirty="" required>
+							</div>
+						</div>	
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name ne-required">{{'portConfig'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info hc-width-p100" ng-repeat="p in ports track by $index">
+								<div class="hc-info-value hc-con-value hc-two-width">{{p.port}}</div>
+								<span class="hc-connect-icon hc-hasplace"></span>
+								<div class="hc-info-value hc-con-value hc-two-width">{{p.protocol}}</div>
+								<span class="hc-delete-icon ico-cross hc-color-red pointer" ng-click="deletePorts($index)"></span>
+							</div>
+							<div class="hc-con-info hc-width-p100">
+								<input type="number" class="hc-con-add hc-two-width" type="text" name="portsport" placeholder="{{'fillInPort'|translate}}"  ng-model="oneports.port" min="10" max="65535" enter-search="savePorts(oneports)">
+								<span class="hc-connect-icon hc-hasplace"></span>
+								<select name="portsprotocol" class="hc-con-add hc-two-width" placeholder="{{'fillInProtocol'|translate}}" ng-model="oneports.protocol">
+									<option value="TCP">TCP</option>
+									<option value="UDP">UDP</option>
+								</select>
+								<span class="hc-delete-icon ico-check hc-color-green pointer" ng-click="savePorts(oneports)"></span>
+							</div>
+							<span ng-show="ports_form.portsport.$invalid" class="error">{{'wrongPort'|translate}}</span>
+							<span ng-show="ListDuplicate" class="error">{{'portDuplicatePort'|translate}}</span>
+							<span ng-show="containerDup" class="error">{{'portDuplicateContainer'|translate}}</span>
+						</div>
+					</li>
+				</ul>
+				<ul class="hc-fold" ng-style="{height:(command.length+args.length+env.length+ports.length+storage.length+12)*35+100+'px'}" ng-class="{hcFold: !expand}">
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name">{{'livenessProbe'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<!-- <div ne-showmore ne-width="456" ne-shrink-height="32" ne-expand-height="64" > -->
+								<div class="hc-con-info hc-width-p100">
+									<select name="liveness" class="hc-con-add hc-width-p30" ng-model="livenessProbe.name">
+										<option value="httpGet">httpGet</option>
+										<option value="tcpSocket">tcpSocket</option>
+									</select>
+									<div class="confHttp hc-width-p30" ng-show="livenessProbe.name == 'httpGet'">
+										<input type="number" name="port" class="hc-con-add hc-width-p100" placeholder="{{'fillInPort'|translate}}" min="10" max="65535" ng-model="liveConfHttp.port">
+									</div>
+									<div class="confHttp hc-width-p30" ng-show="livenessProbe.name == 'httpGet'">
+										<input type="input" name="path" class="hc-con-add hc-width-p100" placeholder="{{'fillInPath'|translate}}" ng-model="liveConfHttp.path" ng-pattern="pathPattern">
+									</div>
+									<div class="confTcp" ng-show="livenessProbe.name == 'tcpSocket'">
+										<input type="number" name="livTcpport" class="hc-con-add" placeholder="{{'fillInPort'|translate}}" min="10" max="65535" ng-model="liveConfTcp.port">
+									</div>
+								</div>
+								<div class="hc-con-info hc-width-p100">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p30" placeholder="{{'fillInInitialDelaySeconds'|translate}}" min="1" ng-model="livenessProbe.initialDelaySeconds">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p30" placeholder="{{'fillInTimeoutSeconds'|translate}}" min="1" ng-model="livenessProbe.timeoutSeconds">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p30" placeholder="{{'fillInPeriodSeconds'|translate}}" min="1" ng-model="livenessProbe.periodSeconds">
+								</div>
+								<div class="hc-con-info hc-width-p60">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p49" placeholder="{{'fillInSuccessThreshold'|translate}}" min="1" value="1" disabled="disabled">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p49" placeholder="{{'fillInFailureThreshold'|translate}}" min="1" ng-model="livenessProbe.failureThreshold">
+								</div>
+							<!-- </div> -->
+						</div>	
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name">{{'readinessProbe'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<!-- <div ne-showmore ne-width="456" ne-shrink-height="32" ne-expand-height="64" > -->
+								<div class="hc-con-info hc-width-p100">
+									<select name="readiness" class="hc-con-add hc-width-p30" ng-model="readinessProbe.name">
+										<option value="httpGet">httpGet</option>
+										<option value="tcpSocket">tcpSocket</option>
+									</select>
+									<div class="confHttp hc-width-p30" ng-show="readinessProbe.name == 'httpGet'">
+										<input type="number" name="port" class="hc-con-add hc-width-p100" placeholder="{{'fillInPort'|translate}}" min="10" max="65535" ng-model="readConfHttp.port">
+									</div>
+									<div class="confHttp hc-width-p30" ng-show="readinessProbe.name == 'httpGet'">
+										<input type="input" name="path" class="hc-con-add hc-width-p100" placeholder="{{'fillInPath'|translate}}" ng-model="readConfHttp.path" ng-pattern="pathPattern">
+									</div>
+									<div class="confTcp" ng-show="readinessProbe.name == 'tcpSocket'">
+										<input type="number" name="redTcpport" class="hc-con-add" placeholder="{{'fillInPort'|translate}}" min="10" max="65535" ng-model="readConfTcp.port">
+									</div>
+								</div>
+								<div class="hc-con-info hc-width-p100">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p30" placeholder="{{'fillInInitialDelaySeconds'|translate}}" min="1" ng-model="readinessProbe.initialDelaySeconds">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p30" placeholder="{{'fillInTimeoutSeconds'|translate}}" min="1" ng-model="readinessProbe.timeoutSeconds">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p30" placeholder="{{'fillInPeriodSeconds'|translate}}" min="1" ng-model="readinessProbe.periodSeconds">
+								</div>
+								<div class="hc-con-info hc-width-p60">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p49" placeholder="{{'fillInSuccessThreshold'|translate}}" min="1" ng-model="readinessProbe.successThreshold">
+									<input type="number" name="livPort" class="hc-con-add hc-width-p49" placeholder="{{'fillInFailureThreshold'|translate}}" min="1" ng-model="readinessProbe.failureThreshold">
+								</div>
+							<!-- </div> -->
+						</div>		
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name">{{'log'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info">
+								<input type="input" name="path" class="hc-con-add" placeholder="{{'fillInPath'|translate}}" ng-model="log.path" ng-pattern="pathPattern">
+							</div>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name">{{'command'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info" ng-repeat="c in command track by $index">
+								<div class="hc-info-value hc-con-value">{{c}}</div>
+								<span class="hc-delete-icon ico-cross hc-color-red pointer" ng-click="deleteCommand($index)"></span>
+							</div>
+							<div class="hc-con-info">
+								<input type="input" name="instruct" class="hc-con-add" placeholder="{{'fillInCommand'|translate}}" ng-model="onecommand" enter-search="saveCommand(onecommand)">
+								<span class="hc-delete-icon ico-check hc-color-green pointer" ng-click="saveCommand(onecommand)"></span>
+							</div>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name">{{'args'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info" ng-repeat="a in args track by $index">
+								<div class="hc-info-value hc-con-value">{{a}}</div>
+								<span class="hc-delete-icon ico-cross hc-color-red pointer" ng-click="deleteArgs($index)"></span>
+							</div>
+							<div class="hc-con-info">
+								<input type="input" name="args" class="hc-con-add" placeholder="{{'fillInArgs'|translate}}" ng-model="oneargs" enter-search="saveArgs(oneargs)">
+								<span class="hc-delete-icon ico-check hc-color-green pointer" ng-click="saveArgs(oneargs)"></span>
+							</div>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name">{{'env'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info hc-width-p100" ng-repeat="e in env track by $index">
+								<div class="hc-info-value hc-con-value hc-two-width">{{e.key}}</div>
+								<span class="hc-connect-icon">=</span>
+								<div class="hc-info-value hc-con-value hc-two-width">{{e.value}}</div>
+								<span class="hc-delete-icon ico-cross hc-color-red pointer" ng-click="deleteEnv($index)"></span>
+							</div>
+							<div class="hc-con-info hc-width-p100">
+								<input type="input" name="envkey" class="hc-con-add hc-two-width" placeholder="{{'inputEnvKey'|translate}}" ng-model="oneEnv.key">
+								<span class="hc-connect-icon hc-connect-placeholder">=</span>
+								<input type="input" name="envvalue" class="hc-con-add hc-two-width" placeholder="{{'inputEnvValue'|translate}}" ng-model="oneEnv.value" enter-search="saveEnv(oneEnv)">
+								<span class="hc-delete-icon ico-check hc-color-green pointer" ng-click="saveEnv(oneEnv)"></span>
+							</div>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name">{{'constantStorage'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info hc-width-p100" ng-repeat="s in storage track by $index">
+								<div class="hc-info-value hc-con-value hc-width-p30" title="{{s.path}}">{{s.path}}</div>
+								<span class="hc-connect-icon ico-arrow-right"></span>
+								<div class="hc-info-value hc-con-value hc-width-p30" title="{{s.volume}}">{{s.volume}}</div>
+								<span class="check">
+									<input type="checkbox" name="onestorage.readOnly" ng-model="s.readOnly" disabled>
+									{{'readOnly'|translate}}
+								</span>
+								<span class="hc-delete-icon ico-cross hc-color-red pointer" ng-click="deleteStorage($index)"></span>
+							</div>
+							<div class="hc-con-info hc-width-p100">
+								<input type="input" name="path" class="hc-con-add hc-width-p30" placeholder="{{'inputMount'|translate}}" ng-model="onestorage.path" ng-pattern="pathPattern">
+								<span class="hc-connect-icon hc-connect-placeholder ico-arrow-right"></span>
+								<select name="volume" class="hc-con-add hc-width-p30" ng-model="onestorage.volume">
+									<option value="">{{'chooseVolume'|translate}}</option>
+									<option ng-repeat="v in volume" value="{{v.name}}">{{v.name}}</option>
+								</select>
+								<span class="check">
+									<input type="checkbox" name="readOnly" ng-model="onestorage.readOnly">
+									{{'readOnly'|translate}}
+								</span>
+								<span class="hc-delete-icon ico-check hc-color-green pointer" ng-click="saveStorage(onestorage)"></span>
+							</div>
+						</div>
+					</li>
+					<li class="hc-info-list">
+						<span class="hc-info-name hc-dialog-info-name">{{'ConfigMap'|translate}} ：</span>
+						<div class="hc-con-info-block">
+							<div class="hc-con-info hc-width-p100">
+								<input type="input" name="path" class="hc-con-add  hc-two-width" placeholder="{{'inputConfigPath'|translate}}" ng-model="configmap.path" ng-pattern="pathPattern">
+								<span class="hc-connect-icon hc-connect-placeholder">/</span>
+								<input type="input" name="envvalue" class="hc-con-add hc-two-width" placeholder="{{'inputConfigName'|translate}}" ng-model="configmap.file">
+							</div>
+							<textarea class="hc-width-p100 hc-con-textarea" ng-model="configmap.value" placeholder="{{'inputConfigValue'|translate}}">
+							</textarea>
+						</div>
+					</li>
+				</ul>
+				<!-- <div class="clearfix">
+					<div class="hc-expand-button pointer" ng-click="expandAction()">
+						<span ng-show="!expand">{{'Config More'|translate}}</span>
+						<span ng-show="expand">{{'Collapse'|translate}}</span>
+						<div  ng-class="{hcAngleReverse: expand}" class="hc-expand-icon">
+							<span class="ico-rewind"></span>
+						</div>
+					</div>
+				</div>
+				<button class="service-new-button container-seave hc-mt50" delete-confirm="deleteContainer()" delete-text="{{'deleteContainerText'|translate}}">{{'deleteContainer'|translate}}</button>
+				<button class="service-new-button container-next hc-mt50 disabled-{{disable()}}" ng-disabled="disable()" ng-click="save()" >{{'save'|translate}}</button> -->
+			</form>
+			<div class="hc-dialogOp-block">
+				<a class="hc-button hc-button-black hc-button-a" ng-click="expandAction()">
+					<span ng-show="!expand">{{'Config More'|translate}}</span>
+					<span ng-show="expand">{{'Config Less'|translate}}</span>
+				</a>
+				<button class="service-new-button container-next next-position disabled-{{disable()}}"  ng-click="save()" ng-disabled="disable()">{{'saveContainer'|translate}}</button>
+				<a class="hc-flright hc-delete-color" delete-confirm="deleteContainer()" delete-text="{{'deleteContainerText'|translate}}">{{'deleteContainer'|translate}}</a>
+			</div>
+		</div>
+	</script>
+
+	<script type="text/javascript" src="./lib/jquery-2.2.4.min.js"></script>
+	<script type="text/javascript" src="./lib/jquery.page.js"></script>
+ 	<script type="text/javascript" src="./lib/bootstrap-datetimepicker.min.js"></script>
+ 	<script type="text/javascript" src="./lib/bootstrap-datetimepicker.zh-CN.js"></script>
+	<script type="text/javascript" src="./lib/bootstrap.min.js"></script>
+	<script type="text/javascript" src="./lib/angular.min.js"></script>
+	<script type="text/javascript" src="./lib/angular-ui-router.min.js"></script>
+	<script type="text/javascript" src="./lib/ngDialog.min.js"></script>
+	<script type="text/javascript" src="./lib/socket.io-1.4.5.js"></script>
+	<script type="text/javascript" src="./lib/console.js"></script>
+	<script type="text/javascript" src="./lib/echarts.js"></script>
+	<script type="text/javascript" src="./lib/immutable.min.js"></script>
+	<script type="text/javascript" src="./lib/angular-animate.js"></script>
+	<script type="text/javascript" src="./lib/angular-popups.js"></script>
+	<script type="text/javascript" src="./lib/angular-translate.js"></script>
+
+	<!-- <script type="text/javascript" src="./lib/angular-permission.min.js"></script> -->
+	<!-- <script type="text/javascript" src="./lib/angular-permission-ui.min.js"></script> -->
+
+	<script type="text/javascript" src="./js/style.js"></script>
+	<script type="text/javascript" src="./js/console.js"></script>
+	<script type="text/javascript" src="./js/factor/translate.js"></script>
+	<script type="text/javascript" src="./js/controller/serviceNewController.js"></script>
+	<script type="text/javascript" src="./js/controller/newRouterController.js"></script>
+	<script type="text/javascript" src="./js/controller/serviceDetailController.js"></script>
+	<script type="text/javascript" src="./js/controller/serviceAllController.js"></script>
+	<script type="text/javascript" src="./js/controller/newContainerController.js"></script>
+	<script type="text/javascript" src="./js/controller/modifyContainerController.js"></script>
+	<script type="text/javascript" src="./js/controller/editInstanceController.js"></script>
+	<script type="text/javascript" src="./js/controller/podDetailController.js"></script>
+	<script type="text/javascript" src="./js/controller/storageAllController.js"></script>
+	<script type="text/javascript" src="./js/controller/storageNewController.js"></script>
+	<script type="text/javascript" src="./js/controller/storageDetailController.js"></script>
+	<script type="text/javascript" src="./js/controller/imageAllController.js"></script>
+	<script type="text/javascript" src="./js/controller/routerController.js"></script>
+	<script type="text/javascript" src="./js/controller/routerSvcCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/newIngCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/newLbCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/confirmCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/messageController.js"></script>
+	<script type="text/javascript" src="./js/controller/chooseFlexController.js"></script>
+	<script type="text/javascript" src="./js/controller/newIngCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/newTermCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/navCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/warningCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/settingCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/modifypasswordCtrl.js"></script>
+
+	<script type="text/javascript" src="./js/controller/tenant/tenantListCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/tenant/tenantDetailCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/tenant/tenantNewCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/tenant/tenantNetworkCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/tenant/tenantProjectCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/tenant/tenantHarborCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/tenant/tenantVolumeCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/tenant/tenantAddUserCtrl.js"></script>
+
+	<script type="text/javascript" src="./js/controller/network/networkNewCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/network/networkDetailCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/network/addSubnetCtrl.js"></script>
+
+	<script type="text/javascript" src="./js/controller/project/projectNewCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/project/projectChangeCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/project/projectDetailCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/project/projectAddUserCtrl.js"></script>
+
+	<script type="text/javascript" src="./js/controller/harbor/harborNewCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/harbor/harborDetailCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/harbor/repoDetailCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/harbor/harborAddUser.js"></script>
+
+	<script type="text/javascript" src="./js/controller/volume/volumeNewCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/volume/volumeChangeCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/volume/volumeDetailCtrl.js"></script>
+
+	<script type="text/javascript" src="./js/controller/auth/roleAllCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/auth/croleAllCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/auth/roleBindingAllCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/auth/croleBindingAllCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/auth/roleDetailCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/auth/croleDetailCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/auth/roleNewCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/auth/croleNewCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/auth/roleBindingDetailCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/auth/croleBindingDetailCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/auth/bindingNewCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/auth/cbindingNewCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/user/userListController.js"></script>
+	<script type="text/javascript" src="./js/controller/user/userNewController.js"></script>
+	<script type="text/javascript" src="./js/controller/user/UserDetialCotroller.js"></script>
+	<script type="text/javascript" src="./js/controller/user/userUpdateController.js"></script>
+	<!-- <script type="text/javascript" src="./js/controller/myTenant/mytenantController.js"></script> -->
+
+	<!-- nodeCtrl -->
+	<script type="text/javascript" src="./js/controller/node/nodeListController.js"></script>
+	<script type="text/javascript" src="./js/controller/node/nodeDetailController.js"></script>
+
+	<script type="text/javascript" src="./js/controller/network/networkListCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/harbor/harborAllController.js"></script>
+	<script type="text/javascript" src="./js/controller/volume/volumeListCtrl.js"></script>
+
+
+	<!-- dashboard -->
+	<script type="text/javascript" src="./js/controller/dashboard/dashBoardController.js"></script>
+	<script type="text/javascript" src="./js/controller/dashboard/dashboardPmCtrl.js"></script>
+
+	<script type="text/javascript" src="./js/controller/node/logAlarmController.js"></script>
+	<script type="text/javascript" src="./js/controller/node/influxAlarmController.js"></script>
+
+	<!-- component -->
+	<script type="text/javascript" src="./js/controller/component/componentListController.js"></script>
+	<script type="text/javascript" src="./js/controller/component/componentDetailController.js"></script>
+
+	<script type="text/javascript" src="./js/controller/extend/monitorProviderListController.js"></script>
+	<script type="text/javascript" src="./js/controller/extend/imageProviderListController.js"></script>
+	<script type="text/javascript" src="./js/controller/extend/networkProviderListController.js"></script>
+	<script type="text/javascript" src="./js/controller/extend/logserviceProviderListController.js"></script>
+	<script type="text/javascript" src="./js/controller/extend/storageProviderListController.js"></script>
+	<script type="text/javascript" src="./js/controller/extend/lbProviderListController.js"></script>
+
+	<script type="text/javascript" src="./js/controller/init/initialCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/init/initAddMachineCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/init/initAddAdminCtrl.js"></script>
+
+	<script type="text/javascript" src="./js/controller/audit/adminAuditCtrl.js"></script>
+	<script type="text/javascript" src="./js/controller/editConfigCtrl.js"></script>
+
+
+
+	<script type="text/javascript" src="./js/service/ec.js"></script>
+	<script type="text/javascript" src="./js/service/linecharts.js"></script>
+	<script type="text/javascript" src="./js/service/containerList.js"></script>
+	<script type="text/javascript" src="./js/service/immutable.js"></script>
+	<script type="text/javascript" src="./js/service/serviceList.js"></script>
+	<script type="text/javascript" src="./js/service/pod.js"></script>
+	<script type="text/javascript" src="./js/service/storage.js"></script>
+	<script type="text/javascript" src="./js/service/imgStore.js"></script>
+	<script type="text/javascript" src="./js/service/autoscaleStore.js"></script>
+	<script type="text/javascript" src="./js/service/namespaceStore.js"></script>
+	<script type="text/javascript" src="./js/service/terminalStore.js"></script>
+	<script type="text/javascript" src="./js/service/monitorStore.js"></script>
+	<script type="text/javascript" src="./js/service/routerStore.js"></script>
+	<script type="text/javascript" src="./js/service/inform.js"></script>
+	<script type="text/javascript" src="./js/service/notification.js"></script>
+	<script type="text/javascript" src="./js/service/jump.js"></script>
+	<script type="text/javascript" src="./js/service/comm.js"></script>
+	<script type="text/javascript" src="./js/service/eventStore.js"></script>
+	<script type="text/javascript" src="./js/service/socketio.js"></script>
+	<script type="text/javascript" src="./js/service/suFormat.js"></script>
+	<script type="text/javascript" src="./js/service/spHttp.js"></script>
+	<script type="text/javascript" src="./js/service/auth.js"></script>
+	<script type="text/javascript" src="./js/service/login.js"></script>
+	<script type="text/javascript" src="./js/service/duplicate.js"></script>
+	<script type="text/javascript" src="./js/service/entryStore.js"></script>
+	<script type="text/javascript" src="./js/service/pattern.js"></script>
+	<script type="text/javascript" src="./js/service/userStore.js"></script>
+
+
+	<script type="text/javascript" src="./js/service/auth/authData.js"></script>
+	<script type="text/javascript" src="./js/service/auth/namespace.js"></script>
+	<script type="text/javascript" src="./js/service/auth/resource.js"></script>
+	<script type="text/javascript" src="./js/service/auth/binding.js"></script>
+	<script type="text/javascript" src="./js/service/auth/menu.js"></script>
+	<script type="text/javascript" src="./js/service/auth/tenant.js"></script>
+	<script type="text/javascript" src="./js/service/auth/network.js"></script>
+	<script type="text/javascript" src="./js/service/auth/harborStore.js"></script>
+	<script type="text/javascript" src="./js/service/auth/volume.js"></script>
+
+	<script type="text/javascript" src="./js/service/user/user.js"></script>
+	<script type="text/javascript" src="./js/service/audit/adminAudit.js"></script>
+	<!-- <script type="text/javascript" src="./js/service/mytenant/mytenant.js"></script> -->
+	<!-- <script type="text/javascript" src="./js/service/user/userDetial.js"></script>
+ -->
+
+ <!-- nodestore -->
+ 	<script type="text/javascript" src="./js/service/node/node.js"></script>
+
+ 	<script type="text/javascript" src="./js/service/node/monitor.js"></script>
+
+ 	<script type="text/javascript" src="./js/service/extend/extendStore.js"></script>
+
+ 	<script type="text/javascript" src="./js/service/initialStore.js"></script>
+
+
+
+ 	<!-- dashboard store -->
+ 	<script type="text/javascript" src="./js/service/dashboard/dashBoardStore.js"></script>
+
+ 	<script type="text/javascript" src="./js/service/loadSvc.js"></script>
+
+	<script type="text/javascript" src="./js/directive/spTabs.js"></script>
+	<script type="text/javascript" src="./js/directive/podTabs.js"></script>
+	<script type="text/javascript" src="./js/directive/editInstance.js"></script>
+	<script type="text/javascript" src="./js/directive/enterSearch.js"></script>
+	<script type="text/javascript" src="./js/directive/spNumber.js"></script>
+	<script type="text/javascript" src="./js/directive/deleteConfirm.js"></script>
+	<script type="text/javascript" src="./js/directive/clEdit.js"></script>
+	<script type="text/javascript" src="./js/directive/tanTabs.js"></script>
+	<script type="text/javascript" src="./js/directive/projectTabs.js"></script>
+	<script type="text/javascript" src="./js/directive/neGauge.js"></script>
+	<script type="text/javascript" src="./js/directive/neLine.js"></script>
+	<script type="text/javascript" src="./js/directive/nePie.js"></script>
+	<script type="text/javascript" src="./js/directive/spSwitch.js"></script>
+	<script type="text/javascript" src="./js/directive/suCircle.js"></script>
+	<script type="text/javascript" src="./js/directive/suLoad.js"></script>
+	<script type="text/javascript" src="./js/directive/suSlider.js"></script>
+	<script type="text/javascript" src="./js/directive/nePreload.js"></script>
+	<script type="text/javascript" src="./js/directive/neDropdown.js"></script>
+	<script type="text/javascript" src="./js/directive/conEdit.js"></script>
+	<script type="text/javascript" src="./js/directive/datetimePicker.js"></script>
+	<script type="text/javascript" src="./js/directive/pager.js"></script>
+	<script type="text/javascript" src="./js/directive/floatNumber.js"></script>
+	<script type="text/javascript" src="./js/directive/neDropdownHint.js"></script>
+	<script type="text/javascript" src="./js/directive/neShowmore.js"></script>
+
+	<script type="text/javascript" src="./js/factor/httpInterceptor.js"></script>
+
+	<script type="text/javascript" src="./js/filter/transTime.js"></script>
+	<script type="text/javascript" src="./js/filter/transCpu.js"></script>
+	<script type="text/javascript" src="./js/filter/transMonitor.js"></script>
+	<script type="text/javascript" src="./js/filter/transName.js"></script>
+
+
+
+</body>
+</html>

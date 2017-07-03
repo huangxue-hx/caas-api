@@ -1,0 +1,66 @@
+<div class="hc-container-outer hc-detail-outer clearfix">
+	<div class="modify-container-title hc-container-title" ng-bind="'Create Volume For Tenant'|translate"></div>
+	<form name="volume_form">
+		<ul class="hc-info-total">
+			<li class="hc-info-list">
+				<span class="hc-info-name hc-dialog-info-name ne-required">{{'Volumename'|translate}} ：</span>
+				<div class="hc-con-info-block">
+					<div class="hc-con-info hc-width-p100">
+						<input type="input" name="name" class="hc-con-add" ng-model="name" ng-pattern="namePattern" required>
+					</div>
+				</div>
+				<span ng-show="volume_form.name.$dirty && volume_form.name.$error.required" class="error">{{'fillInVolumeName'|translate}}</span>
+				<span ng-show="volume_form.name.$invalid && !volume_form.name.$error.required" class="error">{{'wrongVolumeName'|translate}}</span>
+			</li>
+			<li class="hc-info-list" ng-show="pre == 'new'">
+				<span class="hc-info-name hc-dialog-info-name ne-required">{{'tenant'|translate}} ：</span>
+				<div class="hc-con-info-block">
+					<div class="hc-con-info hc-width-p100">
+						<select name="img-name" class="hc-con-add hc-width-p98" ng-model="tenantid">
+							<option ng-repeat="t in tenantList track by $index" value="{{t.tenantid}}">{{t.name}}</option>
+						</select>
+					</div>
+				</div>
+			</li>
+			<li class="hc-info-list" ng-show="pre == 'tenant'">
+				<span class="hc-info-name hc-dialog-info-name ne-required">{{'tenant'|translate}} ：</span>
+				<div class="hc-con-info-block">
+					<div class="hc-con-info hc-width-p100">
+						<span>{{tenantname}}</span>
+					</div>
+				</div>
+			</li>
+			<li class="hc-info-list">
+				<span class="hc-info-name hc-dialog-info-name ne-required">{{'capacity'|translate}}：</span>
+				<div class="hc-con-info-block">
+					<div sp-number name="capacity" sp-data="capacity" sp-min="128" sp-max="1024" sp-interval="128" sp-filter="memoryFormat" sp-dirty="" ng-model="capacity" required></div>
+				</div>
+			</li>
+			<li class="hc-info-list">
+				<span class="hc-info-name hc-dialog-info-name ne-required">{{'Provider'|translate}} ：</span>
+				<div class="hc-con-info-block">
+					<div class="hc-con-info hc-width-p100">
+						<select name="img-name" class="hc-con-add hc-width-p98" ng-model="provider" ng-options="p as p.name for p in providerList">
+						</select>
+					</div>
+				</div>
+				
+			</li>
+			<li class="service-information-list">
+				<span class="hc-info-name hc-dialog-info-name">{{'readOnly'|translate}}：</span>
+				<div>
+					<input class="stay-session-checkbox" type="checkbox" ng-model="readOnly">
+				</div>
+			</li>
+			<li class="service-information-list">
+				<span class="hc-info-name hc-dialog-info-name">{{'Multiple'|translate}}：</span>
+				<div>
+					<input class="stay-session-checkbox" type="checkbox" ng-model="multiple" ng-disabled="readOnly">
+				</div>
+			</li>
+		</ul>
+		<div class="hc-dialogOp-block">
+			<button class="service-new-button container-next next-position disabled-{{disable()}}"  ng-click="save()" ng-disabled="disable()" su-load="/rest/volumeBytenantid">save</button>
+		</div>
+	</form>
+</div>

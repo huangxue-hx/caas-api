@@ -1,0 +1,50 @@
+<div class="service-information harbor-pie">
+	<ul class="service-information-ul harbor-inform">
+		<li class="service-information-list">
+			<div class="service-informantion-name">
+				<span class="ne-required">{{'Harborname'|translate}} ：</span>
+			</div>
+			<span class="service-informantion-var">{{harbor.name|harborName}}</span>
+		</li>
+		<li class="service-information-list">
+			<div class="service-informantion-name">
+				<span class="ne-required">{{'tenant'|translate}} ：</span>
+			</div>
+			<span class="service-informantion-var">{{harbor.tenant.name}}</span>
+		</li>
+		<li class="service-information-list">
+			<div class="service-informantion-name">
+				<span class="ne-required">{{'creationTime'|translate}} ：</span>
+			</div>
+			<span class="service-informantion-var">{{harbor.time|transTime}}</span>
+		</li>
+	</ul>
+	<div class="harbor-blockb">
+		<div ng-if="total == 0" class="no-repotext">
+			no repo for now
+		</div>
+		<div class="harbor-block-pie" ne-pie ne-value="analyze" ne-title="'image analyze'" ne-background="'#fff'" ne-color="color" ng-if="total != 0">
+			
+		</div>
+		<div class="harbor-block-state" ng-if="total != 0">
+			<div>
+				<span>{{'total'|translate}} : {{total}}</span>
+			</div>
+			<div>
+				<span>{{'security'|translate}} : {{analyze[0].value}}</span>
+			</div>
+			<div>
+				<span>{{'insecurity'|translate}} : {{analyze[1].value}}</span>
+			</div>
+			<div>
+				<span>{{'mild'|translate}} : {{analyze[4].value}}</span>
+			</div>
+			<div>
+				<span>{{'not support'|translate}} : {{analyze[2].value}}</span>
+			</div>
+			<div>
+				<span>{{'abnormal'|translate}} : {{analyze[3].value}}</span>
+			</div>
+		</div>
+	</div>
+</div>

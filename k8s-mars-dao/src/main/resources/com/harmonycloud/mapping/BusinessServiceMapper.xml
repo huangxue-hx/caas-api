@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.harmonycloud.dao.application.BusinessServiceMapper" >
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.application.bean.BusinessService" >
+    <id column="id" property="id" jdbcType="INTEGER" />
+    <result column="business_id" property="businessId" jdbcType="INTEGER" />
+    <result column="service_id" property="serviceId" jdbcType="INTEGER" />
+    <result column="status" property="status" jdbcType="INTEGER" />
+    <result column="is_external" property="isExternal" jdbcType="INTEGER" />
+  </resultMap>
+
+  <select id="selectByIdList" parameterType="java.util.List" resultType="java.lang.Integer">
+    select count(*) from business_service WHERE status != 1 AND service_id IN
+    <foreach collection="idList" index="index" item="item"
+             open="(" separator="," close=")">
+      #{item}
+    </foreach>
+  </select>
+  <insert id="insert" parameterType="com.harmonycloud.dao.application.bean.BusinessService" useGeneratedKeys="true" keyProperty="id">
+    insert into business_service (business_id, service_id,status,is_external)
+    values (#{businessId}, #{serviceId},#{status},#{isExternal})
+  </insert>
+  
+  <update id="deleteBusinessService" parameterType="java.lang.String">
+    update business_service set status=1 where business_id in ( select id from business_templates where name=#{name}) and status=0
+  </update>
+  
+  <select id="listBusinessServiceByBusinessTemplatesId" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select * from business_service where business_id=#{businessId} and status=0
+  </select>
+
+  <select id="selectExternalBusinessServiceByBusinessId" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select * from business_service where business_id=#{businessId} and status=0 and is_external=1
+  </select>
+  <delete id="deleteByTenant">
+  	delete from business_service where business_id in (select id from business_templates  where tenant in
+   	  <foreach item="item" index="index" collection="tenant" open="(" separator="," close=")">  
+       	#{item}
+         </foreach>
+	)
+  </delete>
+  <update id="deleteBusinessServiceByBusinessTemplateId" parameterType="java.lang.Integer">
+    update business_service set status=1 where business_id = #{businessId} and status=0
+  </update>
+</mapper>

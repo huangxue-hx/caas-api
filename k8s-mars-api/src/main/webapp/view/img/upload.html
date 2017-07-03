@@ -1,0 +1,32 @@
+<div class="upload">
+	<div>
+		<div class="h4">{{'downloadImage'|translate}}</div>
+		<p class="step">
+			{{'downloadStep1'|translate}}
+		</p>
+		<pre>sudo docker pull {{imgHost}}/default/&lt;repository&gt;:&lt;tag&gt;</pre>
+		<p class="step">
+			{{'downloadStep2'|translate}}
+		</p>
+		<pre>sudo docker tag {{imgHost}}/mysql:latst mysql:latest</pre>
+	</div>
+	<div>
+		<div class="h4">{{'pushImage'|translate}}</div>
+		<p class="step">
+			{{'stepOne'|translate}}
+		</p>
+		<pre>sudo docker login {{imgHost}}</pre>
+		<p class="step">
+			{{'stepTwo'|translate}}
+		</p>
+		<pre>docker pull hello-world:latest</pre>
+		<p class="step">
+			{{'stepThree'|translate}}
+		</p>
+		<pre>sudo docker tag hello-world:latest {{imgHost}}/default/hello:latest({{'repository'|translate}});</pre>
+		<p class="step">
+			{{'stepFour'|translate}}
+		</p>
+		<pre>sudo docker push {{imgHost}}/default/hello:latest({{'repository'|translate}}).</pre>
+	</div>
+</div>

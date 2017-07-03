@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace必须指向Dao接口 -->
+<mapper namespace="com.harmonycloud.dao.user.UserMapper">
+
+    <resultMap id="userMap" type="com.harmonycloud.dao.user.bean.User">
+        <id property="id" column="uuid"/>
+        <result property="username" column="username"/>
+        <result property="realName" column="real_name"/>
+        <result property="email" column="email"/>
+        <result property="isAdmin" column="isAdmin"/>
+        <result property="isMachine" column="isMachine"/>
+        <result property="comment" column="comment"/>
+        <result property="createTime" column="create_time" jdbcType="TIMESTAMP" javaType="java.util.Date"/>
+    </resultMap>
+
+    <resultMap id="userTenantMap" type="com.harmonycloud.dao.user.bean.User">
+        <id property="id" column="uuid"/>
+        <result property="username" column="username"/>
+        <result property="realName" column="real_name"/>
+        <result property="email" column="email"/>
+        <result property="isAdmin" column="isAdmin"/>
+        <result property="isMachine" column="isMachine"/>
+        <result property="createTime" column="create_time" jdbcType="TIMESTAMP" javaType="java.util.Date"/>
+        <result property="updateTime" column="update_time" jdbcType="TIMESTAMP" javaType="java.util.Date"/>
+    </resultMap>
+
+
+    <select id="findByUsername" resultMap="userMap" parameterType="java.lang.String">
+        select uuid, username, password, token, create_time,email,real_name,isAdmin,isMachine,comment 
+        from user where username=#{username}
+    </select>
+
+    <insert id="addUser" parameterType="com.harmonycloud.dao.user.bean.User">
+		insert into user(uuid,username,password,create_time,real_name,update_time,email,comment)
+		values(#{id},#{username},#{password},#{createTime},#{realName},#{updateTime},#{email},#{comment})
+	</insert>
+
+    <delete id="deleteUserByName" parameterType="java.lang.String">
+		delete from user where username=#{username}
+	</delete>
+
+    <update id="updatePassword">
+		update user set password = #{password,jdbcType=VARCHAR} where username=#{username,jdbcType=VARCHAR}
+	</update>
+
+    <select id="findUserByEmail" parameterType="java.lang.String" resultType="com.harmonycloud.dao.user.bean.User">
+		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment from user where email = #{email}
+	</select>
+
+    <select id="listUsers" resultMap="userTenantMap">
+		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment from user;
+	</select>
+
+    <select id="findUserByToken" resultType="com.harmonycloud.dao.user.bean.User" parameterType="java.lang.String">
+		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment from user where token = #{token}
+	</select>
+
+    <select id="listMachineUsers" resultType="com.harmonycloud.dao.user.bean.User">
+		select uuid,username,password,token,create_time createTime,token_create,isAdmin,update_time,email,real_name,isMachine,comment from user where isMachine = '1';
+	</select>
+
+    <select id="listAdmin" resultType="com.harmonycloud.dao.user.bean.User">
+		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment from user where isAdmin = '1';
+	</select>
+
+
+    <select id="updateUser" parameterType="com.harmonycloud.dao.user.bean.User">
+        update user
+        <trim prefix="set" suffixOverrides=",">
+            <if test="id!=null">uuid=#{id},</if>
+            <if test="password!=null">password=#{password},</if>
+            <if test="token!=null">token=#{token},</if>
+            <if test="createTime!=null">create_time=#{createTime},</if>
+            <if test="tokenCreate!=null">token_create=#{tokenCreate},</if>
+            <if test="isAdmin!=null">isAdmin=#{isAdmin},</if>
+            <if test="updateTime!=null">update_time=#{updateTime},</if>
+            <if test="email!=null">email=#{email},</if>
+            <if test="realName!=null">real_name=#{realName},</if>
+            <if test="isMachine!=null">isMachine=#{isMachine},</if>
+            <if test="comment!=null">comment=#{comment}</if>
+        </trim>
+        WHERE username=#{username}
+    </select>
+</mapper>

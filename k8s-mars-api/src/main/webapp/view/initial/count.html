@@ -1,0 +1,41 @@
+<div>
+	<div class="initial-title" ng-bind="'Machine Account Initial'"></div>
+	<div>
+		<div class="initial-button-div">
+			<!-- <button ng-bind="'Initial'" class="slid-button initial-button" ng-click="initRole()"></button> -->
+		</div>
+		<!-- <div> -->
+		<div class="service-table-div">
+			<div class="ne-table">
+				<div class="thead">
+					<div class="tr">
+						<div class="td" style="width: 2.5%">
+							
+						</div>
+						<div class="td font14" style="width: 35%" ng-bind="'userName'|translate"></div>
+						<div class="td font14" style="width: 45%" ng-bind="'creationTime'|translate"></div>
+						<div class="td pointer" style="width: 5%" ng-click="addMachine()">
+							<span class="icon-plus green"></span>
+						</div>
+					</div>
+				</div>
+				<div class="tbody">
+					<div class="tr role-block" ng-repeat="m in machineList">
+						<div class="td pointer" style="width: 2.5%">
+							
+						</div>
+						<div class="td pointer font14" style="width: 35%" cl-width='50' ng-bind="m.userName"></div>
+						<div class="td pointer" style="width: 45%" ng-bind="m.createTime|transTime"></div>
+						<div class="td pointer" style="width: 5%">
+							<a delete-confirm="deleteMachine(m)" class="remove ico-cross pointer"></a>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<span ng-show="(!machineList||machineList.length==0)" class="nomore">
+				Sorry,don't have machine account.Please initial first.
+			</span>
+		</div>
+	</div>
+</div>

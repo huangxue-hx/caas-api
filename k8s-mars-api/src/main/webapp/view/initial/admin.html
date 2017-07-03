@@ -1,0 +1,41 @@
+<div>
+	<div class="initial-title" ng-bind="'Admin Initial'"></div>
+	<div>
+		<div class="initial-button-div">
+			
+		</div>
+		<!-- <div> -->
+		<div class="service-table-div">
+			<div class="ne-table">
+				<div class="thead">
+					<div class="tr">
+						<div class="td" style="width: 2.5%">
+							
+						</div>
+						<div class="td font14" style="width: 35%" ng-bind="'Username'|translate"></div>
+						<div class="td font14" style="width: 45%" ng-bind="'creationTime'|translate"></div>
+						<div class="td pointer" style="width: 5%" ng-click="addAdmin()">
+							<span class="icon-plus green"></span>
+						</div>
+					</div>
+				</div>
+				<div class="tbody">
+					<div class="tr role-block" ng-repeat="a in adminList">
+						<div class="td pointer" style="width: 2.5%">
+							
+						</div>
+						<div class="td pointer font14" style="width: 35%" cl-width='50' ng-bind="a.userName"></div>
+						<div class="td pointer" style="width: 45%" ng-bind="a.createTime|transTime"></div>
+						<div class="td pointer" style="width: 5%">
+							<a delete-confirm="deleteAdmin(a)" class="remove ico-cross pointer"></a>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<span ng-show="(!adminList||adminList.length==0)" class="nomore">
+				Sorry,don't have machine account.Please initial first.
+			</span>
+		</div>
+	</div>
+</div>

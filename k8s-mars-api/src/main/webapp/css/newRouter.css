@@ -1,0 +1,28 @@
+.new-router{
+	margin: 10px 15px auto 15px;
+	margin-top:61px; 
+	/*background-color: red;*/
+}
+.router-change{
+	background-color: #4cac4f;
+	border: 1px solid #4cac4f;
+	color: #fff;
+	border-radius: 2px;
+}
+.new-router-label{
+	width: 120px;
+	height: 70px;
+	text-align: center;
+	line-height: 30px;
+	font-size: 20px;
+	padding-top: 10px;
+	padding-left: 70px;
+}
+.larger-width{
+	width: 90px;
+}
+
+
+.border-red{
+	border-color: #f00!important;
+}

@@ -1,0 +1,108 @@
+<div class="hc-container-outer hc-detail-outer clearfix">
+	<div class="modify-container-title hc-container-title">{{'CreateProject'|translate}}</div>
+	<form name="project_form" class="noneMargin">
+		<ul class="hc-info-total hc-pro-ul">
+			<li class="second-title">
+				<span>{{'BasicConfig'|translate}}</span>
+			</li>
+			<li class="hc-info-list">
+				<span class="hc-info-name hc-dialog-info-name ne-required">{{'name'|translate}} ：</span>
+				<div class="hc-con-info-block">
+					<div class="hc-con-info hc-width-p100">
+						<input type="input" name="name" class="hc-con-add" ng-model="name" ng-pattern="namePattern" required>
+					</div>
+				</div>
+				<span ng-show="project_form.name.$dirty && project_form.name.$error.required" class="error">{{'fillInProjectName'|translate}}</span>
+				<span ng-show="project_form.name.$invalid && !project_form.name.$error.required" class="error">{{'wrongProjectName'|translate}}</span>
+			</li>
+			<li class="hc-info-list" ng-show="pre == 'new'">
+				<span class="hc-info-name hc-dialog-info-name ne-required">{{'tenant'|translate}} ：</span>
+				<div class="hc-con-info-block">
+					<div class="hc-con-info hc-width-p100">
+						<select name="img-name" class="hc-con-add hc-width-p98" ng-model="tenantid">
+							<option ng-repeat="t in tenantList track by $index" value="{{t.tenantid}}">{{t.name}}</option>
+						</select>
+					</div>
+				</div>
+			</li>
+			<li class="hc-info-list" ng-show="pre == 'tenant'">
+				<span class="hc-info-name hc-dialog-info-name ne-required">{{'tenant'|translate}} ：</span>
+				<div class="hc-con-info-block">
+					<div class="hc-con-info hc-width-p100">
+						<span>{{tenantname}}</span>
+					</div>
+				</div>
+			</li>
+			<li class="hc-info-list">
+				<span class="hc-info-name hc-dialog-info-name ne-required">{{'Network'|translate}} ：</span>
+				<div class="hc-con-info-block">
+					<div class="hc-con-info hc-width-p100">
+						<select name="img-name" class="hc-con-add hc-width-p98" ng-model="network" ng-options="n as n.name for n in networkList">
+						</select>
+					</div>
+				</div>
+			</li>
+			<li class="hc-info-list">
+				<span class="hc-info-name hc-dialog-info-name ne-required">{{'Subnet'|translate}} ：</span>
+				<div class="hc-con-info-block">
+					<div class="hc-con-info hc-width-p100">
+						<select name="img-name" class="hc-con-add hc-width-p98" ng-model="subnet" ng-options="s.name disable when s.binding for s in subnetList" title="{{s}}">
+						</select>
+					</div>
+				</div>
+			</li>
+			<li class="hc-info-list service-information-list">
+				<span class="hc-info-name hc-dialog-info-name">{{'annotation'|translate}} ：</span>
+				<div class="hc-con-info-block">
+					<div class="hc-con-info hc-width-p100">
+						<input class="hc-con-add" ng-model="annotation"></input>
+					</div>
+				</div>
+			</li>
+			<li class="second-title">
+				<span>{{'ResourceQuota'|translate}}</span>
+			</li>
+			<li class="hc-info-list">
+				<span class="hc-info-name hc-dialog-info-name ne-required">Pod ：</span>
+				<div sp-number sp-data="pod" sp-min="1" sp-max="100" sp-interval="1" sp-filter="" name="pod" ng-model="pod" sp-dirty="" required></div>	
+			</li>
+			<li class="hc-info-list">
+				<span class="hc-info-name hc-dialog-info-name ne-required">Service ：</span>
+				<div sp-number sp-data="service" sp-min="1" sp-max="100" sp-interval="1" sp-filter="" name="cpu" ng-model="service" sp-dirty="" required></div>	
+			</li>
+			<!-- <li class="hc-info-list">
+				<div class="service-informantion-name">
+					<span class="ne-required">RC ：</span>
+				</div>
+				<div sp-number sp-data="rc" sp-min="1" sp-max="100" sp-interval="1" sp-filter="" name="cpu" ng-model="rc" sp-dirty="" required></div>	
+			</li>
+			<li class="hc-info-list">
+				<div class="service-informantion-name">
+					<span class="ne-required">Resource ：</span>
+				</div>
+				<div sp-number sp-data="resource" sp-min="1" sp-max="100" sp-interval="1" sp-filter="" name="cpu" ng-model="resource" sp-dirty="" required></div>	
+			</li>
+			<li class="hc-info-list">
+				<div class="service-informantion-name">
+					<span class="ne-required">Secret ：</span>
+				</div>
+				<div sp-number sp-data="secret" sp-min="1" sp-max="100" sp-interval="1" sp-filter="" name="cpu" ng-model="secret" sp-dirty="" required></div>	
+			</li> -->
+			<li class="hc-info-list">
+				<span class="hc-info-name hc-dialog-info-name ne-required">PVC ：</span>
+				<div sp-number sp-data="pvc" sp-min="1" sp-max="100" sp-interval="1" sp-filter="" name="cpu" ng-model="pvc" sp-dirty="" required></div>	
+			</li>
+			<li class="hc-info-list">
+				<span class="hc-info-name hc-dialog-info-name ne-required">CPU ：</span>
+				<div sp-number sp-data="cpu" sp-min="100" sp-max="40000" sp-interval="100" sp-filter="cpuNumber" name="cpu" ng-model="cpu" sp-dirty="" required></div>	
+			</li>
+			<li class="hc-info-list">
+				<span class="hc-info-name hc-dialog-info-name ne-required">Memory ：</span>
+				<div sp-number sp-data="memory" sp-min="128" sp-max="25600" sp-interval="128" sp-filter="memoryFormat"  name="memory" ng-model="memory" sp-dirty="" required></div>
+			</li>
+		</ul>
+		<div class="hc-dialogOp-block">
+			<button class="service-new-button container-next next-position disabled-{{disable()}}"  ng-click="save()" ng-disabled="disable()" su-load="/rest/namespace">{{'save'|translate}}</button>
+		</div>
+	</form>
+</div>

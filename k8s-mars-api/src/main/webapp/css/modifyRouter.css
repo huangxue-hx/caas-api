@@ -1,0 +1,12 @@
+.yes{
+	background-color: #4cac4f;
+	border: 1px solid #4cac4f;
+	color: #fff;
+	border-radius: 2px;
+	margin-left: 200px;
+}
+.yes a{
+	text-decoration: none;
+	font-family:  Microsoft Yahei, Hiragino Sans GB, WenQuanYi Micro Hei, sans-serif !important;
+	color: #fff;
+}

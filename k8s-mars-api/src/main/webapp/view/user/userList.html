@@ -1,0 +1,46 @@
+<div class="service-all">
+	<div class="hc-detail-topbar">
+		<div class="hc-topbar-block">
+			<span ng-bind="'usersList'|translate" class="hc-topbar-name"></span>
+		</div>
+		
+		<div class="hc-action-wrap">
+			
+			<div class="hc-topbar-block hc-button-block  hc-p0-ml10">
+				<button class="hc-button hc-button-red" delete-confirm="delete('username')" delete-text="{{'deletemessage'|translate}}" ng-bind="'delete'|translate"></button>
+			</div>
+			<div class="hc-topbar-block hc-button-block  hc-p0-ml10">
+				<button class="hc-button hc-button-green hc-button-green-heavy" ui-sref="userNew"  ng-bind="'new'|translate"></button>
+			</div>
+		</div>
+	</div>
+
+	<div class="hc-detail-outer">
+		<div class="service-table-div">
+			<table class="service-table">
+				<thead class="service-table-head">
+					<tr>
+						<td class="service-choose-td"><input class="service-choose-box" id="choose-all" type="checkbox" ng-model="checkboxAll"></td>
+						<td class="service-name" ng-bind="'username'|translate"></td>
+						<td class="service-name" ng-bind="'realname'|translate"></td>
+						<td class="service-name" ng-bind="'email'|translate"></td>
+						<td class="service-name" ng-bind="'createtime'|translate"></td>
+					</tr>
+				</thead>
+				<tbody class="service-table-body">
+					<tr ng-repeat="user in usersList">
+						<td class="service-choose-td"><input class="service-choose-box" type="checkbox" ng-model="user.checkbox"></td>
+						<td class="service-name"><a ui-sref="userDetial({username:user.username,pasword:user.pasword})">{{user.username}}</a></td>
+						<td class="service-name">{{user.realname}}</td>
+						<td class="service-name">{{user.email}}</td>
+						<td class="service-name">{{user.creation_time | transTime}}</td>
+					</tr>
+				</tbody>
+			</table>
+			<span ng-show="!usersList||usersList.length == 0" class="nomore">
+			Sorry!
+			</span>
+		</div>
+	</div>
+</div>
+

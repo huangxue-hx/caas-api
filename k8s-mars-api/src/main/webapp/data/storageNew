@@ -1,0 +1,7 @@
+{
+	name:'rfdfdf',
+	capacity:512,
+	readonly:false,
+	bindOne:false,
+	namespace:'default'
+}

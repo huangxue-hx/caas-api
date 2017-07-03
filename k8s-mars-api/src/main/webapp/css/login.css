@@ -1,0 +1,183 @@
+
+.dis_n{
+	display: none;
+}
+.login-slider{
+	position: fixed;
+	width: 100%;
+	height: 100%;
+	top: 0px;
+	left: 0px;
+	z-index: 100000;
+}
+.login-outter{
+	position: fixed;
+	width: 100%;
+	height: 100%;
+	left: 0px;
+	bottom: 0px;
+	-webkit-transition: all 300ms ease-in-out;
+	-ms-transition: all 300ms ease-in-out;
+	-moz-transition: all 300ms ease-in-out;
+	-o-transition: all 300ms ease-in-out;
+	transition: all 300ms ease-in-out;
+	background-color: rgb(93, 93, 93);
+}
+/*.login-outter:after{
+	content: '';
+	position: absolute;
+	height: 100%;
+	width: 100%;
+	top:0px;
+	left: 0px;
+	background-color: #999;
+	-webkit-filter: blur(2px);
+}*/
+.login-wrap{
+	height: 400px;
+	width: 490px;
+	padding-top: 100px;
+	margin: 0px auto;
+}
+.login-wrap .logo{
+	width: 490px;
+	height: 100px;
+	/*background: url(../images/logoBig.png) center no-repeat;*/
+	margin-bottom: 20px;
+	text-align: center;
+	line-height: 100px;
+	background: none;
+	font-size: 30px;
+	background: url(../images/logo.png) center no-repeat ;
+
+}
+
+
+.login-wrap .logo .hletter{
+	color: #ea7e17;
+}
+.login-wrap .logo .cletter{
+	color: #ea7e17;
+}
+.login-wrap .login-input-wrap{
+	width: 100%;
+	border-radius: 4px;
+	background-color: #fff;
+	overflow: hidden;
+}
+.login-wrap .input-item{
+	height: 40px;
+	border-bottom: 1px solid #e9e9e9;
+	margin-bottom: -1px;
+	position: relative;
+	padding: 10px;
+}
+.login-wrap .input-item .input-text{
+	height: 40px;
+	width: 420px;
+	border:none;
+	text-indent: 10px;
+	font-size: 18px;
+	color: #54565E;
+	line-height: 40px;
+	position: relative;
+	z-index: 10;
+	background: none;
+}
+.login-wrap .input-item .hint{
+	display: block;
+	height: 40px;
+	width: 440px;
+	color: #cccccc;
+	line-height: 40px;
+	font-size: 18px;
+	text-indent: 10px;
+	position: absolute;
+	top: 10px; 
+	left: 10px;
+}
+.login-wrap .input-item .hint-sign{
+	height: 35px;
+	width: 35px;
+	display: none;
+	position: absolute;
+	top: 13px;
+	right: 10px;
+	background: url(../images/hintSign.png) 0px 0px no-repeat;
+
+}
+.login-wrap .input-item.error .hint-sign{
+	display: block;
+	background-position: 0px -35px;
+}
+.login-wrap .input-item.ok .hint-sign{
+	display: block;
+	background-position: 0px 0px;
+}
+.login-wrap .action-wrap{
+	height: 40px;
+	margin-top: 24px;
+}
+.login-wrap .remember-me{
+	width: 336px;
+	height: 40px;
+	background-color: #40404c;
+	border-radius: 4px;
+	float: left;
+	position: relative;
+}
+.login-wrap .login-button{
+	width: 140px;
+	height: 40px;
+	background-color: #0EE19A;
+	display: block;
+	border-radius: 4px;
+	text-align: center;
+	line-height: 40px;
+	color: #fff;
+	font-size: 20px;
+	float: right;
+	cursor: pointer;
+}
+.login-wrap .rm-ckeck{
+	position: absolute;
+	margin: auto;
+	top: 0px; 
+	bottom: 0px;
+	left: 10px;
+}
+.login-wrap .check-label{
+	display: block;
+	height: 100%;
+	width: 100%;
+	line-height: 40px;
+	text-align: center;
+	color: #fff;
+	font-size: 18px;
+	cursor: pointer;
+}
+
+.shake{
+  animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+@keyframes shake {
+  10%, 90% {
+    transform: translate3d(-1px, 0, 0);
+  }
+  
+  20%, 80% {
+    transform: translate3d(2px, 0, 0);
+  }
+
+  30%, 50%, 70% {
+    transform: translate3d(-4px, 0, 0);
+  }
+
+  40%, 60% {
+    transform: translate3d(4px, 0, 0);
+  }
+}

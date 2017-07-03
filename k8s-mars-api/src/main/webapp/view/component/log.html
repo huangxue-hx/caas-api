@@ -1,0 +1,28 @@
+<div class="service-information">
+	<div class="selection monitor-graph">
+		<div class="selection monitor-graph">
+			<div class="input-wrap" style="height: -30px">
+				<label ng-bind="'Node'+':'"></label>
+				<label ng-bind="comp.host"></label>
+			</div>
+			<div class="input-wrap">
+				<label>{{'process'|translate}}：</label>
+				<label ng-bind="comp.name"></label>
+			</div>
+			
+			<div class="input-wrap">
+				<label>{{'time'|translate}}：</label>
+
+				<select ng-model="selectNow.range" ng-options="item.value as item.name|translate for item in rangeList"  class="choose"></select>
+
+				
+			</div>
+		</div>
+		
+		<div class="log-bodys" style="margin-left: -40px;margin-right: 20px">
+			<ul>
+				<li ng-repeat="l in log track by $index" ng-bind="l+'\n'"></li>
+
+			</ul>
+		</div>
+</div>

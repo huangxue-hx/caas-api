@@ -1,0 +1,45 @@
+<div class="service-all">
+	<div class="hc-detail-topbar">
+		<div class="hc-topbar-block">
+			<span ng-bind="'Tenantlist'|translate" class="hc-topbar-name"></span>
+		</div>
+		
+		<div class="hc-action-wrap">
+			<div class="hc-topbar-block hc-button-block hc-p0-ml10">
+				<button class="hc-button hc-button-red" delete-confirm="delete()" delete-text="{{'deleteText'|translate}}" ng-bind="'delete'|translate"></button>
+			</div>
+			<div class="hc-topbar-block hc-button-block hc-p0-ml10">
+				<button class="hc-button hc-button-green hc-button-green-heavy" ui-sref="tenantNew"  ng-bind="'new'|translate"></button>
+			</div>
+			
+		</div>
+	</div>
+	<div class="hc-detail-outer">
+		<div class="service-table-div">
+			<table class="service-table">
+				<thead class="service-table-head">
+					<tr>
+						<td class="service-choose-td"><input class="service-choose-box" id="choose-all" type="checkbox" ng-model="checkboxAll"></td>
+						<td class="service-name" ng-bind="'Tenantname'|translate"></td>
+						<td ng-bind="'NetworkCount'|translate"></td>
+						<td ng-bind="'ProjectCount'|translate"></td>
+						<td ng-bind="'RepoGroupCount'|translate"></td>
+						<td ng-bind="'creationTime'|translate"></td>
+						<td ng-bind="'annotation'|translate"></td>
+					</tr>
+				</thead>
+				<tbody  class="service-table-body">
+					<tr ng-repeat="tenant in tenantList | orderBy: '-time'">
+						<td class="service-choose-td"><input class="service-choose-box" type="checkbox" ng-model="tenant.checkbox"></td>
+						<td class="service-name"><a ui-sref="tenantDetail({id:tenant.tenantid})">{{tenant.name}}</a></td>
+						<td ng-bind="tenant.networkNum"></td>
+						<td ng-bind="tenant.namespaceNum"></td>
+						<td ng-bind="tenant.harborPerjectNum"></td>
+						<td>{{tenant.time | transTime}}</td>
+						<td>{{tenant.annotation}}</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</div>
+</div>

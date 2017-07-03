@@ -1,0 +1,55 @@
+<div class="hc-container-outer hc-detail-outer clearfix">
+	<div class="modify-container-title hc-container-title">{{'createNetwork'|translate}}</div>
+	<form name="network_form">
+		<ul class="hc-info-total">
+			<li class="hc-info-list">
+				<span class="hc-info-name hc-dialog-info-name ne-required">{{'networkName'|translate}} ：</span>
+				<div class="hc-con-info-block">
+					<div class="hc-con-info hc-width-p100">
+						<input type="input" name="name" class="hc-con-add" ng-model="name" ng-pattern="namePattern" required>
+					</div>
+				</div>
+				<span ng-show="network_form.name.$dirty && network_form.name.$error.required" class="error">{{'fillInNetworkName'|translate}}</span>
+				<span ng-show="network_form.name.$invalid && !network_form.name.$error.required" class="error">{{'wrongNetworkName'|translate}}</span>
+			</li>
+			<li class="hc-info-list" ng-show="pre == 'new'">
+				<span class="hc-info-name hc-dialog-info-name ne-required">{{'tenant'|translate}} ：</span>
+				<div class="hc-con-info-block">
+					<div class="hc-con-info hc-width-p100">
+						<select name="img-name" class="hc-con-add hc-width-p98" ng-model="tenant" ng-options="t as t.name for t in tenantList">
+						</select>
+					</div>
+				</div>
+			</li>
+			<li class="hc-info-list" ng-show="pre == 'tenant'">
+				<span class="hc-info-name hc-dialog-info-name ne-required">{{'tenant'|translate}} ：</span>
+				<div class="hc-con-info-block">
+					<div class="hc-con-info hc-width-p100">
+						<span>{{tenant.name}}</span>
+					</div>
+				</div>
+			</li>
+			<li class="hc-info-list">
+				<span class="hc-info-name hc-dialog-info-name">{{'subnet'|translate}} ：</span>
+				<div class="hc-con-info-block">
+					<div class="hc-con-info hc-width-p100">
+						<input type="input" name="path" class="hc-con-add hc-width-p30" placeholder="please input name" ng-model="onesub.subname">
+						<!-- <input name="url" placeholder="please input CIDR" class="hc-con-add hc-width-p30" ng-model="onesub.cidr">
+						<input name="revision" placeholder="please input gateway" class="hc-con-add hc-width-p30" ng-model="onesub.gateway"> -->
+
+						<span class="hc-delete-icon ico-check pointer" ng-click="saveSub(onegit)"></span>
+					</div>
+					<div class="hc-con-info hc-width-p100" ng-repeat="s in subnets track by $index">
+						<div class="hc-info-value hc-con-value hc-width-p30"  title="{{s.subname}}">{{s.subname}}</div>
+						<!-- <div class="hc-info-value hc-con-value hc-width-p30"  title="{{s.cidr}}">{{s.cidr}}</div>
+						<div class="hc-info-value hc-con-value hc-width-p30" title="{{s.gateway}}">{{s.gateway}}</div> -->
+						<span class="hc-delete-icon ico-cross pointer" ng-click="deleteSub($index)"></span>
+					</div>
+				</div>		
+			</li>
+			<div class="hc-dialogOp-block">
+				<button class="service-new-button container-next next-position disabled-{{disable()}}"  ng-click="save()" ng-disabled="disable()" su-load="/rest/network/create">{{'save'|translate}}</button>
+			</div>
+		</ul>
+	</form>	
+</div>

@@ -1,0 +1,234 @@
+<div class="hc-service-information clearfix">
+<div class="hc-col-block">
+	<div class="hc-info-block">
+		<div class="hc-info-head">
+			<span ng-bind="'BasicInfo'|translate"></span>
+		</div>
+		<div class="hc-info-body">
+			<ul class="service-information-ul">
+				<li class="service-information-list">
+					<span class="service-informantion-name">{{'name'|translate}} ：</span>
+					<span class="service-informantion-var">{{pod.name}}</span>
+				</li>
+				<li class="service-information-list">
+					<span class="service-informantion-name">{{'namespace'|translate}} ：</span>
+					<span class="service-informantion-var">{{pod.namespace}}</span>
+				</li>
+				<li class="service-information-list">
+					<span class="service-informantion-name">{{'runState'|translate}} ：</span>
+					<span class="service-informantion-var">{{pod.status|lowercase}}</span>
+				</li>
+				<li class="service-information-list">
+					<span class="service-informantion-name">{{'creationTime'|translate}} ：</span>
+					<span class="service-informantion-var">{{pod.createTime | transTime}}</span>
+				</li>
+				<li class="service-information-list">
+					<span class="service-informantion-name">{{'containerCount'|translate}} ：</span>
+					<span class="service-informantion-var">{{pod.containers.length}}</span>
+				</li>
+				<li class="service-information-list">
+					<span class="service-informantion-name">{{'podIP'|translate}} ：</span>
+					<span class="service-informantion-var" ng-if="!pod.ip">{{'none'|translate}}</span>
+					<span class="service-informantion-var">{{pod.ip}}</span>
+				</li>
+				<li class="service-information-list">
+					<span class="service-informantion-name">{{'nodeIP'|translate}} ：</span>
+					<span class="service-informantion-var" ng-if="!pod.hostIp">{{'none'|translate}}</span>
+					<span class="service-informantion-var">{{pod.hostIp}}</span>
+				</li>
+				<li class="service-information-list">
+					<span class="service-informantion-name">{{'volumes'|translate}} ：</span>
+					<span class="service-informantion-var" ng-repeat="volume in pod.volumes track by $index">{{volume}}</span>
+				</li>
+			</ul>
+		</div>
+	</div>
+	<div class="hc-info-block">
+		<div class="hc-info-head">
+			<span ng-bind="'event'|translate"></span>
+		</div>
+		<div class="hc-info-body hc-event-block">
+			<span ng-show="events.length == 0">
+				{{'noEvent'|translate}}
+			</span>
+			<div ng-repeat="event in pod.events track by $index">
+				<ul class="hc-event-ul">
+					<li>
+						<div class="hc-event-time">
+							{{event.lastTimestamp | transTime}}
+						</div>
+						<div class="hc-dialog-left"></div>
+					</li>
+					<li class="hc-event-spot">
+						<div class="hc-event-span">
+							<div class="hc-circle-iron" ng-show="event.type == 'Normal'"></div>
+							<div class="hc-circle-iron" ng-show="event.type == 'Warning'" style="background-color:red;"></div>
+						</div>	
+					</li>
+					<li class="hc-event-list">
+						<div class="hc-dialog-right"></div>
+						<div class="hc-event-detail">
+							<div class="hc-event-reason" ng-bind="event.reason"></div>
+							<span ng-bind="event.message"></span>
+							<div>
+								<div class="hc-event-bottom hc-event-count">
+									Arised
+									<span ng-bind="event.count"></span>
+									<span ng-show="event.count == 1">time</span>
+									<span ng-show="event.count>1">times</span>
+								</div>
+							</div>
+						</div>
+					</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+</div>
+<div class="hc-col-block">
+	<div class="hc-info-block hc-container-block">
+		<div class="hc-info-head">
+			<span ng-bind="'Specs'|translate"></span>
+		</div>
+		<div class="hc-info-body" ng-repeat="con in pod.containers" ng-init="conIndex = $index">
+			<ul>
+				<li class="hc-info-list hc-first-li">
+					<span class="hc-info-name">{{'conatinerName'|translate}} ：</span>
+					<span class="hc-info-value" ng-bind="con.name"></span>
+				</li>
+				<li class="hc-info-list">
+					<span class="hc-info-name">{{'runState'|translate}} ：</span>
+					<span class="hc-info-value">{{con.status}}</span>
+				</li>
+				<li class="hc-info-list">
+					<span class="hc-info-name">{{'restartTime'|translate}} ：</span>
+					<span class="hc-info-value" ng-if="!con.restartTime">{{'none'|translate}}</span>
+					<span class="hc-info-value" ng-if="con.restartTime">{{con.restartTime}}</span>
+				</li>
+				<li class="hc-info-list">
+					<span class="hc-info-name">{{'image'|translate}} ：</span>
+					<span class="hc-info-value" ng-bind="con.img"></span>
+				</li>
+				<li class="hc-info-list">
+					<span class="hc-info-name">{{'livenessProbe'|translate}} ：</span>
+					<span class="hc-info-value" ng-if="!con.livenessProbe">{{'none'|translate}}</span>
+					<p class="hc-info-value" ng-if="con.livenessProbe">
+						<span ng-if="!!con.livenessProbe.httpGet">
+							{{con.livenessProbe.httpGet.path}}({{con.livenessProbe.httpGet.scheme}})
+						</span>
+						<span ng-if="!!con.livenessProbe.tcpSocket">
+							{{con.livenessProbe.tcpSocket.port}}(TCP)
+						</span>
+					</p>
+				</li>
+				<li class="hc-info-list">
+					<span class="hc-info-name">{{'readinessProbe'|translate}} ：</span>
+					<span class="hc-info-value" ng-if="!con.readinessProbe">{{'none'|translate}}</span>
+					<p class="hc-info-value" ng-if="con.readinessProbe">
+						<span ng-if="!!con.readinessProbe.httpGet">
+							{{con.readinessProbe.httpGet.path}}({{con.readinessProbe.httpGet.scheme}})
+						</span>
+						<span ng-if="!!con.readinessProbe.tcpSocket">
+							{{con.readinessProbe.tcpSocket.port}}(TCP)
+						</span>
+					</p>
+				</li>
+				<li class="hc-info-list">
+					<span class="hc-info-name">{{'cpuValue'|translate}} ：</span>
+					<span class="hc-info-value">
+						{{con.resource.cpu|cpuNumber}}
+					</span>
+				</li>
+				<li class="hc-info-list">
+					<span class="hc-info-name">{{'memory'|translate}} ：</span>
+					<span class="hc-info-value">
+						{{con.resource.memory}}
+					</span>
+				</li>
+			</ul>
+			<ul class="hc-fold" ng-style="{height:(con.command.length+con.args.length+con.env.length+con.ports.length+con.storage.length+4)*35+'px'}" ng-class="{hcFold: !con.expand}">
+				<li class="hc-info-list">
+					<span class="hc-info-name">{{'ConfigMap'|translate}} ：</span>
+					<div class="hc-con-info-block">
+						<div class="hc-con-info hc-width-p100" ng-if="!!con.configmap">
+							<span ng-bind="con.configmap.path"></span>
+						</div>
+						<div class="hc-con-info hc-width-p100" ng-if="!con.configmap">
+							<span class="hc-info-value">{{'none'|translate}}</span>
+						</div>
+					</div>
+				</li>
+				<li class="hc-info-list">
+					<span class="hc-info-name">{{'command'|translate}} ：</span>
+					<div class="hc-con-info-block">
+						<div class="hc-con-info hc-width-p100" ng-if="!con.command || con.command.length==0">
+							<span class="hc-info-value">{{'none'|translate}}</span>
+						</div>
+						<div class="hc-con-info" ng-repeat="c in con.command track by $index">
+							<span ng-bind="c"></span>
+						</div>
+					</div>
+				</li>
+				<li class="hc-info-list">
+					<span class="hc-info-name">{{'args'|translate}} ：</span>
+					<div class="hc-con-info-block">
+						<div class="hc-con-info hc-width-p100" ng-if="!con.args || con.args.length==0">
+							<span class="hc-info-value">{{'none'|translate}}</span>
+						</div>
+						<div class="hc-con-info" ng-repeat="a in con.args track by $index">
+							<span ng-bind="a"></span>
+						</div>
+					</div>
+				</li>
+				<li class="hc-info-list">
+					<span class="hc-info-name">{{'env'|translate}} ：</span>
+					<div class="hc-con-info-block">
+						<div class="hc-con-info hc-width-p100" ng-if="!con.env || con.env.length==0">
+							<span class="hc-info-value">{{'none'|translate}}</span>
+						</div>
+						<div class="hc-con-info" ng-repeat="e in con.env track by $index">
+							<span class="hc-con-span hc-two-width"  ng-bind="e.name"></span>
+							<span class="hc-connect-icon">=</span>
+							<span class="hc-con-span hc-two-width"  ng-bind="e.value"></span>
+						</div>
+					</div>
+				</li>
+				<li class="hc-info-list">
+					<span class="hc-info-name">{{'port'|translate}} ：</span>
+					<div class="hc-con-info-block">
+						<div class="hc-con-info hc-width-p100" ng-if="!con.ports || con.ports.length==0">
+							<span class="hc-info-value">{{'none'|translate}}</span>
+						</div>
+						<div class="hc-con-info" ng-repeat="p in con.ports track by $index">
+							<span class="hc-con-span hc-two-width"  ng-bind="p.containerPort"></span>
+							<span class="hc-connect-icon hc-hasplace"></span>
+							<span class="hc-con-span hc-two-width"  ng-bind="p.protocol"></span>
+						</div>
+					</div>
+				</li>
+				<li class="hc-info-list">
+					<span class="hc-info-name">{{'VolumeMounts'|translate}} ：</span>
+					<div class="hc-con-info-block">
+						<div class="hc-con-info hc-width-p100" ng-if="!con.storage || con.storage.length==0">
+							<span class="hc-info-value">{{'none'|translate}}</span>
+						</div>
+						<div class="hc-con-info" ng-repeat="s in con.storage track by $index" ng-show="s.type =='pv'">
+							<span ng-bind="s.name"></span>
+							<span class="hc-connect-icon ico-arrow-right"></span>
+							<span ng-bind="s.mountPath"></span>
+						</div>
+					</div>
+				</li>
+			</ul>
+			<div>
+				<div class="hc-expand-button pointer" ng-click="expand(conIndex)">
+					<div class="hc-expand-text">
+						<span ng-show="!con.expand" ng-bind="'Config More'|translate"></span>
+						<span ng-show="con.expand" ng-bind="'Config Less'|translate">collapse</span>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+</div>

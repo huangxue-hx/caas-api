@@ -1,0 +1,24 @@
+<div class="hc-container-outer hc-detail-outer clearfix hc-new-autoflex">
+	<div class="modify-container-title hc-container-title">{{'autoflexConfig'|translate}}</div>
+	<form>
+		<ul class="hc-info-total">
+			<li class="hc-info-total">
+				<span class="hc-info-name hc-dialog-info-name ne-required" title="{{'targetCpuUsage'|translate}}">{{'targetCpuUsage'|translate}} ：</span>
+				<div  sp-number name="count" sp-min="1" sp-max="400" sp-interval="1" sp-dirty="" sp-data="cpu" sp-filter="cpuRate" ng-model="cpu" required></div>
+			</li>
+			<li class="hc-info-total">
+				<span class="hc-info-name hc-dialog-info-name ne-required" title="{{'minInstance'|translate}}">{{'minInstance'|translate}} ：</span>
+				<div  sp-number name="count" sp-min="1" sp-interval="1" sp-dirty="" sp-data="min" ng-model="min" required></div>
+			</li>
+			<li class="hc-info-total">
+				<span class="hc-info-name hc-dialog-info-name ne-required" title="{{'maxInstance'|translate}}">{{'maxInstance'|translate}} ：</span>
+				<div  sp-number name="count" sp-min="1" sp-interval="1" sp-dirty="" sp-data="max" ng-model="max" required></div>
+			</li>
+		</ul>
+		<div class="hc-dialogOp-block">
+			<button class="service-new-button yes container-next" ng-click="putAutoscale()">
+				{{'confirm'|translate}}
+			</button>
+		</div>
+	</form>	
+</div>

@@ -1,0 +1,12 @@
+<div class="slider-outter">
+	<div class="slider-inner">
+		<div ng-repeat="tab in suSlider" ng-include="'../view/'+tab.serTemplate+'.html'" ng-style="slideView{{$index}}" class="slid-view">
+			
+		</div>
+		<div class="slide-button-div">
+			<button ng-bind="'< previous'" ng-show="suNow != 0" ng-click="pre()" class="slid-button previous"></button>
+			<button ng-bind="'next >'" ng-show="suNow < suSlider.length-1" ng-click="next()"  class="slid-button next"></button>
+			<button ng-bind="'done'" ng-show="suNow == suSlider.length-1" ng-click="done()"  class="slid-button next"></button>
+		</div>
+	</div>
+</div>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace必须指向Dao接口 -->
+<mapper namespace="com.harmonycloud.dao.tenant.HarborProjectTenantMapper">
+
+    <resultMap id="harborProjectTenantMap" type="com.harmonycloud.dao.tenant.bean.HarborProjectTenant">
+        <id property="id" column="id" />
+        <result property="harborProjectId" column="harborProject_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="createTime" column="create_time" />
+        <result property="tenantName" column="tenant_name" />
+        <result property="harborProjectName" column="harbor_project_name" />
+        <result property="isPublic" column="isPublic" />
+    </resultMap>
+
+    <select id="getByHarborProjectId" parameterType="java.lang.Long" resultMap="harborProjectTenantMap">
+        select
+        id,harborProject_id,tenant_id,tenant_name,create_time,harbor_project_name
+        from harborProject_tenant where harborProject_id = #{harborProjectId}
+    </select>
+
+    <select id="list" resultMap="harborProjectTenantMap">
+        select
+        id,harborProject_id,tenant_id,tenant_name,create_time,harbor_project_name
+        from harborProject_tenant
+    </select>
+
+    <select id="getByTenantId" resultMap="harborProjectTenantMap" parameterType="java.lang.String">
+        select
+        id,harborProject_id,tenant_id,tenant_name,create_time,harbor_project_name,isPublic
+        from harborProject_tenant
+        where tenant_id = #{tenantId} or isPublic = 1
+    </select>
+
+    <select id="getByTenantIdPrivate" resultMap="harborProjectTenantMap" parameterType="com.harmonycloud.dao.tenant.bean.HarborProjectTenant">
+        select
+        id,harborProject_id,tenant_id,tenant_name,create_time,harbor_project_name,isPublic
+        from harborProject_tenant
+        where tenant_id = #{tenantId} and isPublic = #{isPublic}
+    </select>
+
+    <select id="getByTenantIdPublic" resultMap="harborProjectTenantMap" parameterType="java.lang.Integer">
+        select
+        id,harborProject_id,tenant_id,tenant_name,create_time,harbor_project_name,isPublic
+        from harborProject_tenant
+        where isPublic = #{isPublic}
+    </select>
+
+
+    <insert id="insert" parameterType="com.harmonycloud.dao.tenant.bean.HarborProjectTenant">
+        insert into
+        harborProject_tenant(harborProject_id,tenant_id,tenant_name,create_time, harbor_project_name,isPublic)
+        values(#{harborProjectId},#{tenantId},#{tenantName},#{createTime}, #{harborProjectName},#{isPublic})
+    </insert>
+
+    <delete id="delete" parameterType="java.lang.Long">
+        delete from
+        harborProject_tenant where harborProject_id=#{harborProjectId}
+    </delete>
+
+</mapper>

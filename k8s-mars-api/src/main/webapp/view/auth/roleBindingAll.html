@@ -1,0 +1,94 @@
+<!-- <div class="image roleBinding-all"  ng-controller="CRoleBindingAllController">
+	<p>
+		<span class="image-title mr20" ng-bind="'clusterRoleBinding'|translate"></span>
+	</p>
+	<div class="service-body marinlr16">
+			<button class="function-button refresh" ng-click=refresh()>刷新</button>
+		<button class="function-button hc-new" ui-sref="cbindingNew"  ng-bind="'new'|translate"></button>
+			<button class="function-button delete" delete-confirm="delete()" delete-text="{{'deleteText'|translate}}" ng-bind="'delete'|translate"></button>
+		
+		<div class="service-table-div">
+
+			<div class="ne-table">
+				<div class="thead">
+					<div class="tr">
+						<div class="td" style="width: 2.5%">
+							<input type="checkbox" ng-model="checkAll"/>
+						</div>
+						<div class="td font14" style="width: 15%" ng-bind="'name'|translate"></div>
+						<div class="td font14" style="width: 14%" ng-bind="'type'|translate"></div>
+						<div class="td font14" style="width: 25%" ng-bind="'user'|translate"></div>
+						<div class="td font14" style="width: 19%" ng-bind="'creationTime'|translate"></div>
+					</div>
+				</div>
+				<div class="tbody">
+					<div class="tr role-block" ng-repeat="rb in cRoleBinding" ng-click="roleBindingDetail(rb.name)">
+						<div class="td pointer" style="width: 2.5%" ng-click="$event.stopPropagation()">
+							<input type="checkbox" ng-model="rb.selected"/>
+						</div>
+						<div class="td pointer font14" style="width: 15%" cl-width='50' ng-bind="rb.name"></div>
+						<div class="td pointer font14" style="width: 14%" ng-bind="rb.type"></div>
+						<div class="td pointer font14" style="width: 25%">
+							<span ng-repeat="u in rb.user track by $index"> {{u}} </span>
+						</div>
+						<div class="td pointer" style="width: 19%" ng-bind="rb.time|transTime"></div>
+					</div>
+				</div>
+			</div>
+
+			<span ng-show="(!cRoleBinding||cRoleBinding.length==0)" class="nomore">
+				sorry,don't have roleBinding yet.
+			</span>
+		</div>
+	</div>
+
+</div> -->
+
+<div class="image roleBinding-all"  ng-controller="RoleBindingAllController">
+	<p>
+		<span class="image-title mr20" ng-bind="'roleBinding'|translate"></span>
+	</p>
+	<div class="service-body marinlr16">
+			<!-- <button class="function-button refresh" ng-click=refresh()>刷新</button> -->
+		<button class="function-button hc-new" ui-sref="bindingNew"  ng-bind="'new'|translate"></button>
+			<button class="function-button delete" delete-confirm="delete()" delete-text="{{'deleteText'|translate}}" ng-bind="'delete'|translate"></button>
+		
+		<div class="service-table-div">
+
+			<div class="ne-table">
+				<div class="thead">
+					<div class="tr">
+						<div class="td" style="width: 2.5%">
+							<input type="checkbox" ng-model="checkAll"/>
+						</div>
+						<div class="td font14" style="width: 15%" ng-bind="'name'|translate"></div>
+						<div class="td font14" style="width: 18%" ng-bind="'namespace'|translate"></div>
+						<div class="td font14" style="width: 14%" ng-bind="'type'|translate"></div>
+						<div class="td font14" style="width: 25%" ng-bind="'user'|translate"></div>
+						<div class="td font14" style="width: 19%" ng-bind="'creationTime'|translate"></div>
+					</div>
+				</div>
+				<div class="tbody">
+					<div class="tr role-block" ng-repeat="rb in roleBinding" ng-click="roleBindingDetail(rb.name,rb.namespace)">
+						<div class="td pointer" style="width: 2.5%" ng-click="$event.stopPropagation()">
+							<input type="checkbox" ng-model="rb.selected"/>
+						</div>
+						<div class="td pointer font14" style="width: 15%" cl-width='50' ng-bind="rb.name"></div>
+						<div class="td pointer font14" style="width: 18%"  ng-bind="rb.namespace"></div>
+						<div class="td pointer font14" style="width: 14%" ng-bind="rb.type"></div>
+						<div class="td pointer font14" style="width: 25%">
+							<!-- {{rb.user}} -->
+							<span ng-repeat="u in rb.user track by $index"> {{u}} </span>
+						</div>
+						<div class="td pointer" style="width: 19%" ng-bind="rb.time|transTime"></div>
+					</div>
+				</div>
+			</div>
+
+			<span ng-show="(!roleBinding||roleBinding.length==0)" class="nomore">
+				sorry,don't have roleBinding yet.
+			</span>
+		</div>
+	</div>
+
+</div>

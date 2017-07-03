@@ -1,0 +1,23 @@
+<div class="service-detail">
+	<div class="hc-detail-topbar">
+		<div class="hc-topbar-block hc-back pointer ico-rewind" ng-click="back()">
+		</div>
+		<div class="hc-topbar-block">
+			<span ng-bind="pod.name" class="hc-topbar-name"></span>
+		</div>
+		<div class="hc-topbar-block">
+			<span ng-bind="service.name" class="hc-topbar-name"></span>
+			<span ng-if="pod.status == 'Pending'" class="hc-state-stop hc-topbar-state">
+				{{'Pending'|translate}}
+			</span>
+			<span ng-if="pod.status == 'Running'" class="hc-state-start hc-topbar-state">
+				{{'Running'|translate}}
+			</span>
+		</div>
+	</div>
+	<div class="hc-detail-outer clearfix">
+		<div class="hc-container hc-detail-inner">
+			<div pod-tabs></div>
+		</div>
+	</div>
+</div>

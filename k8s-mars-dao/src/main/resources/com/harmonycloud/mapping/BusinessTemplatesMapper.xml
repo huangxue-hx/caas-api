@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.harmonycloud.dao.application.BusinessTemplatesMapper" >
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.application.bean.BusinessTemplates" >
+    <id column="id" property="id" jdbcType="INTEGER" />
+    <result column="name" property="name" jdbcType="VARCHAR" />
+    <result column="tag" property="tag" jdbcType="VARCHAR" />
+    <result column="details" property="details" jdbcType="VARCHAR" />
+    <result column="status" property="status" jdbcType="INTEGER" />
+    <result column="tenant" property="tenant" jdbcType="VARCHAR" />
+    <result column="user" property="user" jdbcType="VARCHAR" />
+    <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
+    <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
+    <result column="is_deploy" property="isDeploy" jdbcType="INTEGER" />
+    <result column="image_list" property="imageList" jdbcType="VARCHAR" />
+  </resultMap>
+
+  
+   <insert id="saveBusinessTemplates" parameterType="com.harmonycloud.dao.application.bean.BusinessTemplates" useGeneratedKeys="true" keyProperty="id">
+    insert into business_templates (name, tag, details, status, tenant, user, create_time,image_list)
+    values (#{name}, #{tag}, #{details}, #{status}, #{tenant}, #{user}, #{createTime},#{imageList})
+  </insert>
+  
+  <select id="listBusinessTempaltesMaxTagByName" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT * FROM business_templates where tag = (SELECT  max(tag) FROM business_templates where name = #{name} AND status = 0 ) AND name = #{name} AND status = 0  
+  </select>
+  
+  <select id="getBusinessTemplatesByNameAndTag" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT * FROM business_templates where status = 0  AND tag=#{tag} And name=#{name}    
+  </select>
+  
+  <!-- 删除根据name,tenantt删除 -->
+  <update id="deleteBusinessTemplate" parameterType="java.lang.String">
+    update business_templates set status=1 where name=#{name} and status = 0 
+  </update>
+  
+  <select id="listNameByTenant" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select distinct name from business_templates where status = 0  
+    <if test="tenant!=null and tenant!='' ">
+      and tenant =#{tenant}
+    </if>
+  </select>
+  
+  <select id="listBusinessTemplatesByName" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select * from business_templates where name =#{name}
+    <if test="tenant!=null and tenant!='' ">
+      and tenant=#{tenant}
+    </if> 
+      and status = 0 order by create_time
+  </select>
+  
+  <select id="getBusinessTemplatesByName" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select distinct tenant from business_templates where name=#{name} and status = 0
+  </select>
+  
+  <select id="listNameByName" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select distinct name from business_templates where status = 0  and name like #{name}
+    <if test="tenant!=null and tenant!='' ">
+      and tenant =#{tenant}
+    </if>
+  </select>
+  
+  <select id="listNameByImage" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select distinct name from business_templates where status = 0  and image_list like concat(concat('%',#{imageList}),'%')
+    <if test="tenant!=null and tenant!='' ">
+      and tenant =#{tenant}
+    </if>
+  </select>
+  
+  <select id="listBusinessTemplatesByNameAndImage" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select * from business_templates where status = 0 and name=#{name} and image_list like concat(concat('%',#{imageList}),'%')
+    <if test="tenant!=null and tenant!='' ">
+      and tenant =#{tenant}
+    </if>
+    order by create_time
+  </select>
+  
+  <update id="updateImageById" parameterType="java.lang.String" >
+    update business_templates set image_list=#{0} where id=#{1}
+  </update>
+
+  <select id="selectById" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select * from business_templates where id=#{id}
+  </select>
+
+  <update id="updateDeployById" parameterType="java.lang.String" >
+    update business_templates set is_deploy=1 where id=#{0}
+  </update>
+
+  <delete id="deleteByTenant">
+    delete from business_templates where tenant in
+   	  <foreach item="item" index="index" collection="tenant" open="(" separator="," close=")">  
+       	#{item}
+         </foreach> 
+  </delete>
+
+  <update id="updateBusinessTemplate" parameterType="com.harmonycloud.dao.application.bean.BusinessTemplates">
+    update business_templates
+    <set>
+      <if test="details != null">
+        details = #{details},
+      </if>
+      <if test="status != null">
+        status = #{status},
+      </if>
+      <if test="user != null">
+        user = #{user},
+      </if>
+      <if test="updateTime != null">
+        update_time = #{updateTime},
+      </if>
+      <if test="imageList != null">
+        image_list = #{imageList},
+      </if>
+    </set>
+    where id = #{id}
+  </update>
+</mapper>

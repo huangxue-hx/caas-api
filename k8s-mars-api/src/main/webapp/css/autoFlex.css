@@ -1,0 +1,118 @@
+.flex-information{
+	margin: 25px 20px 0px 0px;
+	padding: 15px 0px 15px 10px;
+	background-color: #fff;
+	border-radius: 5px;
+	font-size: 13px;
+	color: #728a9a;
+}
+.flex-informantion-name{
+	float: left;
+	display: inline-block;
+	width:200px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-weight: bold;
+	color: #000;
+	line-height: 25px;
+	white-space: nowrap;
+}
+.current-count-set{
+	padding-left: 30px;
+}
+
+.flex-time{
+	margin: 25px 20px 20px 0px;
+	padding: 8px 0px 8px 25px;
+	background-color: #fff;
+	border-radius: 5px;
+	font-size: 13px;
+	color: #536476;
+}
+.flex-time-ul{
+	margin: 0px;
+	padding: 0px;
+	background: url(../images/time-back.png) repeat-y 90px 0px;
+	overflow: hidden;
+
+}
+.flex-time-ul li{
+	list-style-type: none;
+	display: inline-block;
+	padding-top: 20px;
+	padding-bottom: 10px;
+	float: left;
+}
+.flex-li-time{
+	width: 80px;
+}
+.flex-li-detail{
+	width: 500px;
+	margin-left: 10px;
+}
+.flex-li-span{
+	margin-left: 5px;
+	width: 11px;
+	height: 17px;
+	background-color: #fff;
+	line-height: 17px;
+	text-align: center;
+}
+.my-circle-iron{
+	display: inline-block;
+	background-color: #68b363;
+	width: 6px;
+	height: 6px;
+	border-radius: 3px;
+}
+
+.auto-flex{
+	margin-top: 20px;
+}
+
+.modify-flex .input-name{
+	width: 190px;
+	text-align: right;
+}
+.modify-flex .service-information-list{
+	line-height: 25px;
+}
+.modify-flex .cpu-input{
+	height: 25px;
+	width: 250px;
+} 
+.modify-flex .range-input{
+	width: 250px;
+}
+/*.range-input{
+	width: 130px;
+}*/
+
+.flex-information .delete{
+	width: auto;
+	float: right;
+	margin: 0px;
+	margin-right: 50px;
+	padding: 0px 10px;
+}
+.flex-information .service-information-ul{
+	display: inline-block;
+}
+
+.auto-flex .form{
+	display: inline-block;
+	margin: 0px;
+	padding: 0px;
+}
+.auto-flex .form input{
+	margin: 0px;
+}
+.auto-flex .service-informantion-var{
+	line-height: 25px;
+}
+.modify-flex .service-information-button{
+	margin-left: 0px;
+}
+.auto-flex .autoflex-width{
+	width: 80px;
+}

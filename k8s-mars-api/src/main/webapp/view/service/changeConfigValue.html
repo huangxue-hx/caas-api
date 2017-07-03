@@ -1,0 +1,21 @@
+<div class="hc-container-outer hc-detail-outer clearfix hc-padding-b0">
+	<div class="modify-container-title hc-container-title">{{'ChangeConfigValue'|translate}}</div>
+	<ul>
+		<li class="hc-info-list">
+			<div class="hc-con-info-block hc-width-p100">
+				<div class="hc-con-info hc-width-p100">
+					<input class="hc-con-add" type="input" name="name" placeholder="{{'Input Name'|translate}}" ng-model="file" ng-pattern="containerPattern" required>
+				</div>
+			</div>
+		</li>
+		<li class="hc-info-list">
+			<div class="hc-con-info-block hc-width-p100">
+				<textarea class="hc-width-p100 hc-con-textarea hc-height-300" ng-model="data" placeholder="{{'inputConfigValue'|translate}}">
+				</textarea>
+			</div>
+		</li>
+	</ul>
+	<div>
+		<button class="service-new-button container-next next-position"  ng-click="change()">{{'save'|translate}}</button>
+	</div>
+</div>

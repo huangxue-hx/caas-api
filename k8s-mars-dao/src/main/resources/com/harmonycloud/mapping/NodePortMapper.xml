@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace必须指向Dao接口 -->
+<mapper namespace="com.harmonycloud.dao.application.NodePortMapper">
+
+	<resultMap id="NodePortMap" type="com.harmonycloud.dao.application.bean.NodePort">
+		<id property="id" column="id" jdbcType="INTEGER" />
+		<result property="nodePort" column="nodeport" jdbcType="VARCHAR"/>
+	</resultMap>
+
+		<insert id="insert" parameterType="com.harmonycloud.dao.application.bean.NodePort">
+		insert into
+		nodeport(nodeport)
+		values(#{nodePort})
+	</insert>
+
+	<delete id="delete" parameterType="java.lang.Integer">
+		delete from
+		nodeport where nodeport=#{nodePort}
+	</delete>
+
+
+	<select id="list" resultType="java.lang.Integer">
+		select
+		nodeport
+		from nodeport
+	</select>
+	
+	<select id="getnodeport"  resultType="java.lang.Integer">
+		select COUNT(*) from nodeport where nodeport=#{nodePort}
+	</select>
+
+</mapper>

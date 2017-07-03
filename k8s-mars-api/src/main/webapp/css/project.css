@@ -1,0 +1,28 @@
+.rate-block{
+	float: left;
+	width: 70%;
+	overflow: hidden;
+}
+.rate-bar{
+	height: 20px;
+	width: 250px;
+	margin-top: 6px;
+	display: inline-block;
+	background: #eee;
+	border-radius: 3px;
+	float: left;
+}
+.rate-used{
+	background: #2a8ec0;
+	height: 20px;
+	width: 0px;
+	border-radius: 3px;
+	-webkit-transition:width 2s;
+	-moz-transition:width 2s;
+	-ms-transition:width 2s;
+	-o-transition:width 2s; 
+}
+.rate-number{
+	padding-left: 10px;
+	float: left;
+}

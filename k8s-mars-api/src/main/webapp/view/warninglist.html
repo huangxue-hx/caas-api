@@ -1,0 +1,30 @@
+<div class="noti-wrap">
+	<h3 class="warning-title">{{'warning'|translate}}</h3>
+	<div class="flex-time">
+		<span ng-show="events.length == 0" class="no-event">
+			{{'noEvent'|translate}}
+		</span>
+		<div ng-repeat="event in events track by $index">
+			<ul class="flex-time-ul">
+				<li class="flex-li-time">{{event.lastTimestamp | transTime}}</li>
+				<li class="flex-li-spot">
+					<div class="flex-li-span">
+						<div class="my-circle-iron" ng-show="event.type == 'Normal'"></div>
+						<div class="my-circle-iron" ng-show="event.type == 'Warning'" style="background-color:red;"></div>
+					</div>	
+				</li>
+				<li class="flex-li-detail">
+						{{event.reason}}
+					<span class="event-count">(arised {{event.count}} times)</span>
+					<span class="flex-detail-time">{{event.firstTimestamp | transTime}}</span><br>
+						{{event.message}}
+				</li>
+				<li class="flex-li-related related">
+					<span>{{'related'|translate}}</span>
+					<p ng-bind="event.involvedObject.name" ng-click="gotoDetail(event)" class="related-object"></p>
+				</li>
+			</ul>
+		</div>
+	</div>
+	
+</div>

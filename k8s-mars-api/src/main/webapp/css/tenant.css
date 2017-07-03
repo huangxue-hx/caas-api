@@ -1,0 +1,54 @@
+
+/*.margin-left1300{
+	margin-left: 1300px;
+}*/
+.network-title{
+	width: 100px;
+}
+.network-table{
+	width: 850px !important;
+}
+.remove{
+    color: #df675d;
+    font-size: 15px;
+}
+.network-new .service-information-button{
+	margin-top: 30px;
+}
+.network-new .remark-input{
+	width: 415px;
+}
+.width208{
+	width: 208px !important;
+}
+.second-title{
+	margin-bottom: 20px;
+    text-indent: 10px;
+    font-size: 14px;
+    border-bottom: 1px solid #eaeaea;
+    line-height: 34px;
+}
+
+.user-label-block{
+	display: inline-block;
+    float: left;
+	margin:0px 5px 5px 0px;
+}
+.user-label{
+	margin: 2px 3px 0px 0px;
+    padding: 0px 5px 0px 5px;
+    border-radius: 3px;
+    color: #aaa;
+    background-color: #fff;
+    border: 1px solid #aaa;
+    /*float: */
+}
+.userChoosed{
+	color: #43b134;
+    background-color: #fff;
+    border: 1px solid #43b134;
+}
+.user-plus{
+    display: inline-block;
+    margin-right: 10px;
+}

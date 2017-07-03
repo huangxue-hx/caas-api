@@ -1,0 +1,82 @@
+.modify-container{
+	color: #546675;
+	background-color: #fff;
+	font-size: 13px;
+	font-family: Microsoft Yahei, Hiragino Sans GB, WenQuanYi Micro Hei, sans-serif !important;
+}
+.ngdialog-content{
+	background-color: #fff !important;
+}
+.modify-container-title{
+	font-size: 15px;
+	width: 100%;
+	text-align: center;
+	margin-bottom: 10px;
+}
+.service-new-menu{
+	width: 208px;
+	height: 25px !important;
+	border: 1px solid #b8c2c7;
+	display: inline-block;
+	border: 1px solid #b8c2c7 !important;
+	border-radius: 0px !important;
+	/*margin-right: 20px;*/
+	margin-bottom: 0px !important;
+	/*line-height: 25px;*/
+	padding: 0px 6px 0px 6px;
+}
+.config-label-choose{
+	display: inline-block;
+	margin-right: 20px;
+}
+.config-label-name{
+	width: 28px;
+	height: 65px;
+	color: #fff;
+	font-size: 13px;
+	text-align: center;
+	/*line-height: 65px;*/
+	padding: 2px;
+	float: left;
+	background-color: #5fba77;
+	border-right: 2px solid #5fba77;
+}
+.config-label-content{
+	width: 90px;
+	height: 65px;
+	font-size: 13px;
+	text-align: center;
+	line-height: 25px;
+	padding: 4px 2px 2px 4px;
+	float: left;
+	background-color: #f2f2f3;
+	color: #546675;
+}
+.choose .config-label-name{
+	 background-color: #39b46b;
+	 border-right: 2px dashed #fff;
+}
+.choose .config-label-content{
+	background-color: #5fba77;
+	color: #fff;
+}
+.container-seave{
+	background-color: #fff;
+	border: 1px solid #e07063;
+	color: #e07063;
+	border-radius: 2px;
+	margin-left: 20px;
+	float: left;
+}
+.container-next{
+	background-color: #4cac4f;
+	border: 1px solid #4cac4f;
+	color: #fff;
+	margin-left: 400px;
+	float: right;
+	margin-right:0px;
+}
+.container-button-father{
+	overflow: hidden;
+	margin-left: 0px;
+}

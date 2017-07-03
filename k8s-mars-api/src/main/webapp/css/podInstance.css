@@ -1,0 +1,23 @@
+.pod-instance{
+	margin: 25px 18px 0px 0px;
+	box-shadow: 2px 2px 2px #d5d8da;
+	background-color: #fff;
+	border: 1px solid #e2e5e7;
+	border-radius: 3px;
+}
+
+.pod-first-td{
+	width: 60px;
+}
+.pod-name{
+	width: 300px;
+	padding-left: 20px;
+}
+.pod-name-var{
+	padding-left: 20px;
+}
+/*.pod-name-var{
+	width: 300px;
+	float: left;
+	padding-left: 20px;
+}*/

@@ -1,0 +1,53 @@
+<div class="hc-service-detail">
+	<div class="hc-detail-topbar" ng-show="!parent">
+		<div class="hc-topbar-block hc-back pointer ico-rewind" ng-click="back()">
+		</div>
+		<div class="hc-topbar-block">
+			<span ng-bind="'Create Repo Group For Tenant'|translate" class="hc-topbar-name"></span>
+		</div>
+		<div class="hc-topbar-block hc-button-block hc-flright">
+			<button class="hc-button hc-button-green hc-button-green-heavy" ui-sref="tenantVolume({id:tenantid})" ng-bind="'Next'|translate"></button>
+		</div>
+	</div>
+	<div ng-class="{'hc-detail-outer':!parent}">
+		<div class="hc-detail-innerwrap">
+			<form name="newRole_form" class="noneMargin">
+				<ul class="service-information-ul">
+					<li class="service-information-list">
+						<span class="service-informantion-name network-title">{{'Harbor'|translate}} ：</span>
+						<div class="service-informantion-label">
+							<table class="informantion-label-table network-table">
+								<tr class="port-name">
+									<td>{{'Harborname'|translate}}</td>
+									<td>{{'creationTime'|translate}}</td>
+									<td class="pointer edit-td" ng-click="newHarbor()"><span class="icon-plus green"></span></td>
+								</tr>
+								<tr class="port-content" ng-repeat="h in harborList | orderBy: '-time'">
+									<td class="port">
+										<span class="pointer" ng-show="!parent">
+											{{h.name|harborName}}
+										</span>
+										<span ng-show="parent" class="pointer">
+											<a ui-sref="tenantHarborDetail({tenantid:tenantid,harborid:h.harborid})">{{h.name|harborName}}</a>
+										</span>
+									</td>
+									<td class="port">
+										<span>
+											{{h.time|transTime}}
+										</span>
+									</td>
+									<td class="edit-td">
+										<a delete-confirm="deleteHarbor(h)" class="remove ico-cross pointer"></a>
+									</td>
+								</tr>
+							</table>
+						</div>
+					</li>
+				<!-- 	<li class="service-information-list service-information-button" ng-show="!parent">
+						<button class="service-new-button service-new-create disabled-{{disable()}} margin-left1300" ui-sref="tenantVolume({id:tenantid})">Next</button>
+					</li> -->
+				</ul>
+			</form>	
+		</div>
+	</div>
+</div>
