@@ -130,5 +130,5 @@ buildNumber.properties
 # Exclude maven wrapper
 !/.mvn/wrapper/maven-wrapper.jar
 
-k8s-mars-api/src/main/resources/constant.properties
+#k8s-mars-api/src/main/resources/constant.properties
 /*.properties
