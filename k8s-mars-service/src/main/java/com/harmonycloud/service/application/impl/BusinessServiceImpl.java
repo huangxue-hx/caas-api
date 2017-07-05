@@ -242,7 +242,7 @@ public class BusinessServiceImpl implements BusinessService {
         int businessTemplatesId = businessTemplates.getId();
         map.put(businessTemplates.getName(),businessTemplatesId+"");
         // check service templates
-        if (businessTemplate.getServiceList().size() <= 0) {
+        if (businessTemplate.getServiceList() != null && businessTemplate.getServiceList().size() <= 0) {
             return ActionReturnUtil.returnErrorWithMsg("service template is null");
         }
         List<String> list = new LinkedList<String>();

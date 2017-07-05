@@ -198,12 +198,14 @@ public class ServiceServiceImpl implements ServiceService {
 			throws Exception {
 
 		// check value
-		if (StringUtils.isEmpty(username) || serviceTemplate == null || StringUtils.isEmpty(tag)) {
+		if (StringUtils.isEmpty(username) || serviceTemplate == null) {
 			return ActionReturnUtil.returnErrorWithMsg("username or service template is null");
 		}
 		ServiceTemplates serviceTemplateDB = new ServiceTemplates();
 		serviceTemplateDB.setName(serviceTemplate.getName());
-		serviceTemplateDB.setTag(tag);
+		if(!StringUtils.isEmpty(tag)){
+			serviceTemplateDB.setTag(tag);
+		}
 		serviceTemplateDB.setDetails(serviceTemplate.getDesc());
 		serviceTemplateDB.setId(serviceTemplate.getId());
 		if (serviceTemplate.getDeploymentDetail() != null) {
