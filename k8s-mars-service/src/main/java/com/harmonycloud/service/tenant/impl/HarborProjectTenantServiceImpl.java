@@ -231,10 +231,20 @@ public class HarborProjectTenantServiceImpl implements HarborProjectTenantServic
     public ActionReturnUtil deleteHarborProject(String tenantname, String tenantid, String projectid) throws Exception {
 
         try {
+            // 0.公共镜像仓库禁止删除
+            HarborProjectTenant harbor = harborProjectTenantMapper.getByHarborProjectId(Long.valueOf(projectid));
+            if(harbor != null){
+                Integer isPublic = harbor.getIsPublic();
+                if (isPublic == 1){
+                    return ActionReturnUtil.returnErrorWithData("Public project can not be deleted");
+                }
+
+            }
             // 1.查询租户详情
             TenantBinding tenantBinding = tenantService.getTenantByTenantid(tenantid);
             if (null == tenantBinding) {
-                return ActionReturnUtil.returnError();
+                //return ActionReturnUtil.returnError();
+                return ActionReturnUtil.returnErrorWithData("Current tenant is not existed");
             }
 
             // 2.判断租户下是否有用户存在，有用户时提示先删除用户再删除harbor project
@@ -262,11 +272,11 @@ public class HarborProjectTenantServiceImpl implements HarborProjectTenantServic
                 harborProjectIdList.remove(projectid);
             }
             if (tenantBindingService.updateHarborProjectsByTenantId(tenantid, harborProjectIdList) < 0) {
-                return ActionReturnUtil.returnErrorWithMsg("delete harbor projecct failed");
+                return ActionReturnUtil.returnErrorWithData("delete harbor projecct failed");
             }
             // 5. 删除数据库harbor数据
             if (this.delete(projectid) < 0) {
-                return ActionReturnUtil.returnErrorWithMsg("delete harbor projecct failed");
+                return ActionReturnUtil.returnErrorWithData("delete harbor projecct failed");
             }
             return ActionReturnUtil.returnSuccess();
         } catch (Exception e) {

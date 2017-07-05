@@ -15,7 +15,7 @@
 
     <select id="getByHarborProjectId" parameterType="java.lang.Long" resultMap="harborProjectTenantMap">
         select
-        id,harborProject_id,tenant_id,tenant_name,create_time,harbor_project_name
+        id,harborProject_id,tenant_id,tenant_name,create_time,harbor_project_name,isPublic
         from harborProject_tenant where harborProject_id = #{harborProjectId}
     </select>
 
