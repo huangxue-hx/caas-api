@@ -1136,57 +1136,13 @@ public class VersionControlServiceImpl implements VersionControlService {
                         default:
                             break;
                     }
-                    /*if (vol.getType().equals("pv")) {
-                        vtemp.put(vol.getName(), vol.getName());
-                        PersistentVolumeClaimVolumeSource pvc = new PersistentVolumeClaimVolumeSource();
-                        if (vol.getPvcName() == null) {
-                            if (vol.getName() != null) {
-                                if (!vol.getName().equals("") && vol.getName().indexOf("-") <= 0) {
-                                    vol.setPvcName(vol.getName() + "-" + newDep.getName());
-                                }
-                            }
-                            ;
-                        }
-
-                        pvc.setClaimName(vol.getPvcName());
-                        Volume v = new Volume();
-
-
-                        v.setPersistentVolumeClaim(pvc);
-                        v.setName(vol.getName());
-                        volumes.add(v);
-                        VolumeMount volm = new VolumeMount();
-                        volm.setName(vol.getName());
-                        volm.setMountPath(vol.getMountPath());
-                        boolean flag = vol.getReadOnly().equals("true");
-                        volm.setReadOnly(flag);
-                        volumeMounts.add(volm);
-                    	if (!volFlag.containsKey(vol.getPvcName())) {
-							PersistentVolumeClaimVolumeSource pvClaim = new PersistentVolumeClaimVolumeSource();
-							volFlag.put(vol.getPvcName(), vol.getPvcName());
-							if (vol.getReadOnly().equals("true")) {
-								pvClaim.setReadOnly(true);
-							}
-							if (vol.getReadOnly().equals("false")) {
-								pvClaim.setReadOnly(false);
-							}
-							pvClaim.setClaimName(vol.getPvcName());
-							Volume v = new Volume();
-							v.setPersistentVolumeClaim(pvClaim);
-							v.setName(vol.getPvcName());
-							volumes.add(v);
-						}
-						VolumeMount volm = new VolumeMount();
-						volm.setName(vol.getPvcName());
-						volm.setReadOnly(Boolean.parseBoolean(vol.getReadOnly()));
-						volm.setMountPath(vol.getMountPath());
-						volumeMounts.add(volm);
-                    }*/
                 }
             }
             container.setVolumeMounts(volumeMounts);
             container.setCommand(cc.getCommand());
             container.setArgs(cc.getArgs());
+            container.setLivenessProbe(null);
+            container.setReadinessProbe(null);
             if (cc.getLivenessProbe() != null && !cc.getLivenessProbe().isEmpty()) {
                 Probe lProbe = new Probe();
                 HTTPGetAction httpGet = new HTTPGetAction();
@@ -1224,7 +1180,6 @@ public class VersionControlServiceImpl implements VersionControlService {
                 lProbe.setSuccessThreshold(cc.getLivenessProbe().getSuccessThreshold());
                 lProbe.setFailureThreshold(cc.getLivenessProbe().getFailureThreshold());
                 container.setLivenessProbe(lProbe);
-                container.setReadinessProbe(null);
             }
 
             if (cc.getReadinessProbe() != null  && !cc.getReadinessProbe().isEmpty()) {
@@ -1265,7 +1220,6 @@ public class VersionControlServiceImpl implements VersionControlService {
                 rProbe.setSuccessThreshold(cc.getReadinessProbe().getSuccessThreshold());
                 rProbe.setFailureThreshold(cc.getReadinessProbe().getFailureThreshold());
                 container.setReadinessProbe(rProbe);
-                container.setLivenessProbe(null);
             }
             if (cc.getEnv() != null && !cc.getEnv().isEmpty()) { //如果环境变量有更新
                 List<EnvVar> envVars = new ArrayList<EnvVar>();

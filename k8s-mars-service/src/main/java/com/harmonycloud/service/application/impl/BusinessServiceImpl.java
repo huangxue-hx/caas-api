@@ -100,6 +100,7 @@ public class BusinessServiceImpl implements BusinessService {
         if (businessTemplates != null) {
             js.put("name", businessTemplates.getName());
             js.put("desc", businessTemplates.getDetails());
+            js.put("id", businessTemplates.getId());
             js.put("tenant", businessTemplates.getTenant());
             JSONArray array = new JSONArray();
             // select service Template
@@ -253,9 +254,10 @@ public class BusinessServiceImpl implements BusinessService {
             listR = saveServiceTemplates(serviceTemplate, businessTemplatesId, businessTemplate.getTenant(), userName, list);
             //获取每个内部服务镜像
             if (serviceTemplate.getExternal() == null || serviceTemplate.getExternal() == 0) {
-                list = (List<String>) listR.get(1);
+            	if(listR.get(1) != null){
+            		list = (List<String>) listR.get(1);
+            	}
             }
-            ;
             maps.putAll((Map<String, Object>)listR.get(0));
         }
         if (list != null && list.size()>0){
@@ -346,10 +348,10 @@ public class BusinessServiceImpl implements BusinessService {
                 externalservice.setStatus(Constant.TEMPLATE_STATUS_CREATE);
                 // insert external service
                 serviceTemplatesMapper.insert(externalservice);
-                JSONObject json = new JSONObject();
-                json.put(externalservice.getName(), externalservice.getId());
-                result.add(json);
             }
+            JSONObject json = new JSONObject();
+            json.put(externalservice.getName(), externalservice.getId());
+            result.add(json);
             // save businessTemplate-serviceTemplate mapper
             saveBusinessService(businessTemplatesId, externalservice.getId(), Constant.TEMPLATE_STATUS_CREATE, Constant.EXTERNAL_SERVICE);
         } else {
@@ -361,7 +363,7 @@ public class BusinessServiceImpl implements BusinessService {
             	result.add(json);
             	// add application - service template
                 saveBusinessService(businessTemplatesId, Integer.parseInt(json.get(serviceTemplate.getName()).toString()), Constant.TEMPLATE_STATUS_CREATE, Constant.K8S_SERVICE);
-            }  
+            } 
             listImages(serviceTemplate.getDeploymentDetail().getContainers(), imageList);
         }
         result.add(imageList);
@@ -512,11 +514,15 @@ public class BusinessServiceImpl implements BusinessService {
         List<Object> listR = new LinkedList<Object>();
         // addSave service templates
 
+      //删除已有的业务模板和应用模板的Mapper联系
+        businessServiceService.deletebusiness(businessTemplatesId);
         for (ServiceTemplateDto serviceTemplate : businessTemplate.getServiceList()) {
             listR = updateServiceTemplates(serviceTemplate, businessTemplatesId, businessTemplate.getTenant(), userName, list);
             //内部服务镜像
             if(serviceTemplate.getExternal() == null && Constant.K8S_SERVICE.equals(serviceTemplate.getExternal())){
-            	list = (List<String>) listR.get(1);
+            	if(listR.get(1) != null){
+            		list = (List<String>) listR.get(1);
+            	}
             }
             //存放应用模板的name和id
             maps.putAll((Map<String, Object>)listR.get(0));
@@ -553,8 +559,6 @@ public class BusinessServiceImpl implements BusinessService {
 	private List<Object> updateServiceTemplates(ServiceTemplateDto serviceTemplate, Integer businessTemplatesId, String tenant, String userName, List<String> imageList)
             throws Exception {
         List<Object> result = new ArrayList<Object>();
-        //删除已有的业务模板和应用模板的Mapper联系
-        businessServiceService.deletebusiness(businessTemplatesId);
         //添加service
         if (serviceTemplate.getExternal() != null && serviceTemplate.getExternal() == Constant.EXTERNAL_SERVICE) {
             // external service
@@ -570,10 +574,10 @@ public class BusinessServiceImpl implements BusinessService {
                 externalservice.setStatus(Constant.TEMPLATE_STATUS_CREATE);
                 // insert external service
                 serviceTemplatesMapper.insert(externalservice);
-                JSONObject json = new JSONObject();
-                json.put(externalservice.getName(), externalservice.getId());
-                result.add(json);
             }
+            JSONObject json = new JSONObject();
+            json.put(externalservice.getName(), externalservice.getId());
+            result.add(json);
             // save businessTemplate-serviceTemplate mapper
             saveBusinessService(businessTemplatesId, externalservice.getId(), Constant.TEMPLATE_STATUS_CREATE, Constant.EXTERNAL_SERVICE);
         } else {
@@ -616,12 +620,14 @@ public class BusinessServiceImpl implements BusinessService {
         topologyService.deleteToplogy(businessTemplatesId);
         if (topologys != null && topologys.size() > 0 && (businessTemplatesId != null && businessTemplatesId != 0)) {
             for (TopologysDto ts : topologys) {
-                Topology topology = new Topology();
-                topology.setBusinessId(businessTemplatesId);
-                topology.setDetails(ts.getDesc());
-                topology.setSource(map.get(ts.getSource().getName()).toString());
-                topology.setTarget(map.get(ts.getTarget().getName()).toString() + "");
-                topologyMapper.insert(topology);
+            	if(ts != null && ts.getSource() != null && ts.getSource().getName() != null){
+            		Topology topology = new Topology();
+                    topology.setBusinessId(businessTemplatesId);
+                    topology.setDetails(ts.getDesc());
+                    topology.setSource(map.get(ts.getSource().getName()).toString());
+                    topology.setTarget(map.get(ts.getTarget().getName()).toString() + "");
+                    topologyMapper.insert(topology);
+            	}
             }
             boo = true;
         }

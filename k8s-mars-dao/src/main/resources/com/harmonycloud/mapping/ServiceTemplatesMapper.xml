@@ -93,7 +93,7 @@
   </select>
   
   <select id="getExternalService" parameterType="java.lang.String" resultMap="BaseResultMap">
-    select * from service_templates where name=#{name} and flag=1;
+    select * from service_templates where name=#{name} and flag=1 and status = 0;
   </select>
   
   <select id="listSearchByImage" parameterType="java.lang.String" resultMap="BaseResultMap">
@@ -126,9 +126,7 @@
   <update id="updateServiceTemplate">
     update service_templates
     <set>
-      <if test="details != null">
         details = #{details},
-      </if>
       <if test="deploymentContent != null">
         deployment_content = #{deploymentContent},
       </if>
@@ -138,12 +136,8 @@
       <if test="imageList != null">
         image_list = #{imageList},
       </if>
-      <if test="ingressContent != null">
         ingress_content = #{ingressContent},
-      </if>
-      <if test="nodeSelector != null">
         node_selector = #{nodeSelector},
-      </if>
     </set>
     where id = #{id}
   </update>

@@ -97,9 +97,7 @@
   <update id="updateBusinessTemplate" parameterType="com.harmonycloud.dao.application.bean.BusinessTemplates">
     update business_templates
     <set>
-      <if test="details != null">
         details = #{details},
-      </if>
       <if test="status != null">
         status = #{status},
       </if>
