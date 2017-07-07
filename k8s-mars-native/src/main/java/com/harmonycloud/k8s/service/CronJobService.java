@@ -73,7 +73,7 @@ public class CronJobService {
 	public ActionReturnUtil delJobs(String namespace, Map<String, Object> queryParams, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.CRONJOB).setQueryParams(queryParams);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE,null,null,cluster);
+		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE,null,queryParams,cluster);
 		if(HttpStatusUtil.isSuccessStatus(response.getStatus())){
 			return ActionReturnUtil.returnSuccess();
 		}
@@ -116,10 +116,7 @@ public class CronJobService {
 	public K8SClientResponse getCronJob(String namespace, String name, Map<String, Object> queryParams, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.CRONJOB).setSubpath(name);
-		if(queryParams != null){
-			url.setQueryParams(queryParams);
-		}
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,null,cluster);
+		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,queryParams,cluster);
 		return response;
 	}
 	
@@ -136,10 +133,7 @@ public class CronJobService {
 		if(StringUtils.isEmpty(namespace)){
 			url.setNamespace(namespace);
 		}
-		if(queryParams != null){
-			url.setQueryParams(queryParams);
-		}
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,null,cluster);
+		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,queryParams,cluster);
 		return response;
 	}
 	
@@ -154,10 +148,7 @@ public class CronJobService {
 	public K8SClientResponse watchCronJob(String namespace, String name, Map<String, Object> queryParams, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.CRONJOB).setSubpath(name).setWatch(APIGroup.WATCH);
-		if(queryParams != null){
-			url.setQueryParams(queryParams);
-		}
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,null,cluster);
+		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,queryParams,cluster);
 		return response;
 	}
 	

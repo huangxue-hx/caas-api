@@ -171,7 +171,7 @@ public class VersionControlServiceImpl implements VersionControlService {
             deped.getSpec().getStrategy().getRollingUpdate().setMaxUnavailable(0);
         }
 
-
+        deped.getSpec().setPaused(false);
         Map<String, Object> bodys = CollectionUtil.transBean2Map(deped);
         Map<String, Object> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
@@ -384,7 +384,7 @@ public class VersionControlServiceImpl implements VersionControlService {
 
         //根据label查询出来所有的RS
 //        K8SClientResponse rsRes = rsService.doRsByNamespace(namespace, null, query, null, HTTPMethod.GET);
-        K8SClientResponse rsRes = rsService.doRsByNamespace(namespace, headers, body, null, HTTPMethod.GET,cluster);
+        K8SClientResponse rsRes = rsService.doRsByNamespace(namespace, headers, body, HTTPMethod.GET,cluster);
         if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus())) {
             return ActionReturnUtil.returnErrorWithMsg(rsRes.getBody());
         }
@@ -433,7 +433,7 @@ public class VersionControlServiceImpl implements VersionControlService {
 
 
         //根据label查询出来所有的RS
-        K8SClientResponse rsRes = rsService.doRsByNamespace(namespace, null, query, null, HTTPMethod.GET, cluster);
+        K8SClientResponse rsRes = rsService.doRsByNamespace(namespace, null, query, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus())) {
             return null;
         }
@@ -467,7 +467,7 @@ public class VersionControlServiceImpl implements VersionControlService {
         Map<String, Object> body = new HashedMap();
         body.put("labelSelector", "app=" + query.get("app"));
 
-        K8SClientResponse rsRes = rsService.doRsByNamespace(namespace, headers, body, null, HTTPMethod.GET,cluster);
+        K8SClientResponse rsRes = rsService.doRsByNamespace(namespace, headers, body, HTTPMethod.GET,cluster);
         if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus())) {
             return ActionReturnUtil.returnErrorWithMsg(rsRes.getBody());
         }

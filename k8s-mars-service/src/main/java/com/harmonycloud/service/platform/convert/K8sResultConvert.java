@@ -154,7 +154,7 @@ public class K8sResultConvert {
 		return appDetail;
 	}
 
-	public static List<PodDetail> podListConvert(PodList podList) throws Exception {
+	public static List<PodDetail> podListConvert(PodList podList ,String tag) throws Exception {
 		List<Pod> pods = podList.getItems();
 		List<PodDetail> res = new ArrayList<PodDetail>();
 		for (int i = 0; i < pods.size(); i++) {
@@ -162,6 +162,7 @@ public class K8sResultConvert {
 					pods.get(i).getMetadata().getNamespace(), pods.get(i).getStatus().getPhase(),
 					pods.get(i).getStatus().getPodIP(), pods.get(i).getStatus().getHostIP(),
 					pods.get(i).getStatus().getStartTime());
+			podDetail.setTag(tag);
 			List<ContainerWithStatus> containers = new ArrayList<ContainerWithStatus>();
 			List<ContainerStatus> containerStatues = pods.get(i).getStatus().getContainerStatuses();
 			int flag = 0;
