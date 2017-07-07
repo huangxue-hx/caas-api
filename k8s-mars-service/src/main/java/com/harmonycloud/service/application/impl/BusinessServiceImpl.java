@@ -6,17 +6,26 @@ import com.harmonycloud.dao.application.BusinessTemplatesMapper;
 import com.harmonycloud.dao.application.ServiceTemplatesMapper;
 import com.harmonycloud.dao.application.bean.BusinessTemplates;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
+import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dao.network.TopologyMapper;
 import com.harmonycloud.dao.network.bean.Topology;
 import com.harmonycloud.dto.business.BusinessTemplateDto;
 import com.harmonycloud.dto.business.CreateContainerDto;
 import com.harmonycloud.dto.business.ServiceTemplateDto;
 import com.harmonycloud.dto.business.TopologysDto;
+import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.constant.Resource;
+import com.harmonycloud.k8s.service.ReplicasetsService;
+import com.harmonycloud.k8s.util.K8SClientResponse;
+import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.BusinessService;
 import com.harmonycloud.service.application.BusinessServiceService;
 import com.harmonycloud.service.application.ServiceService;
 import com.harmonycloud.service.application.TopologyService;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.tenant.TenantService;
+
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,6 +70,10 @@ public class BusinessServiceImpl implements BusinessService {
 
     @Autowired
     private TopologyMapper topologyMapper;
+    @Autowired
+	ReplicasetsService rsService;
+    @Autowired
+    TenantService tenantService;
 
     /**
      * remove businessTemplate on 17/04/07.

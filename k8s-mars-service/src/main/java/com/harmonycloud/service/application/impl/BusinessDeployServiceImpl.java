@@ -988,32 +988,36 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 		List<com.harmonycloud.dao.application.bean.Service> services = serviceMapper.selectByBusinessId(businessId);
         if (services != null && services.size() > 0) {
         	total = services.size();
-            for (com.harmonycloud.dao.application.bean.Service service : services) {
-                if (service.getIsExternal() == 1) {
-                	start++;
-                }else{
-                	K8SURL url = new K8SURL();
-                	url.setNamespace(namespace).setResource(Resource.DEPLOYMENT).setName(service.getName());
-            		K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
-					if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
-							&& depRes.getStatus() != Constant.HTTP_404 ) {
-						JSONObject js = JSONObject.fromObject(depRes.getBody());
-						K8sResponseBody k8sresbody = (K8sResponseBody) JSONObject.toBean(js, K8sResponseBody.class);
-						return (JSONObject) json.put(service.getName() + "error", k8sresbody.getMessage());
-					}
-					if (depRes.getStatus() == Constant.HTTP_404) {
-						continue;
-					}
-					Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
-					if (dep != null) {
-						String status = getDeploymentStatus(dep);
-						if (Constant.START.equals(status)) {
-							start++;
-						}
-					}
-                }
-                
-            }
+        	K8SURL url = new K8SURL();
+        	url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
+    		K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+			if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
+					&& depRes.getStatus() != Constant.HTTP_404 ) {
+				JSONObject js = JSONObject.fromObject(depRes.getBody());
+				K8sResponseBody k8sresbody = (K8sResponseBody) JSONObject.toBean(js, K8sResponseBody.class);
+				return (JSONObject) json.put("获取k8sDeployment错误", k8sresbody.getMessage());
+			}
+			DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+			if(deplist != null && deplist.getItems() != null ){
+				List<Deployment> deps = deplist.getItems();
+				if(deps != null && deps.size() > 0){
+					for (com.harmonycloud.dao.application.bean.Service service : services) {
+		                if (service.getIsExternal() == 1) {
+		                	start++;
+		                }else{
+		                	for(Deployment dep : deps){
+		                		if (dep != null && service.getName().equals(dep.getMetadata().getName())) {
+									String status = getDeploymentStatus(dep);
+									if (Constant.START.equals(status)) {
+										start++;
+									}
+								}
+		                	}
+		                }
+		                
+		            }
+				}
+			}
         }
         if (start == total && total != 0) {
         	json.put("status", NORMAL);

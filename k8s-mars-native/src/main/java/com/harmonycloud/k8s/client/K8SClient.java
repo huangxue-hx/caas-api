@@ -172,16 +172,18 @@ public class K8SClient {
 				sb.append("/").append(url.getSubpath());
 			}
 		}
-		
+		String substring = "";
 		if (url.getQueryParams() != null && !url.getQueryParams().isEmpty()) {
 			sb.append("?");
 			for (Map.Entry<String, Object> param : url.getQueryParams().entrySet()) {
 				sb.append(param.getKey()+"="+String.valueOf(param.getValue())+"&");
 			}
-			sb.substring(0,sb.length()-1);
+			substring = sb.substring(0,sb.length()-1);
+		}else{
+			substring = sb.toString();
 		}
 
-		return sb.toString();
+		return substring;
 	}
 
 	/**

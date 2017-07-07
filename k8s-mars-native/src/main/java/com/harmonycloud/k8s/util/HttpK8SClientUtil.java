@@ -1,6 +1,7 @@
 package com.harmonycloud.k8s.util;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.http.HeaderElement;
 import org.apache.http.HttpEntity;
@@ -19,6 +20,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.util.HttpSslClientUtil;
 import com.harmonycloud.common.util.JsonUtil;
@@ -166,16 +168,14 @@ public class HttpK8SClientUtil {
 			RequestConfig requestConfig = RequestConfig.custom().setSocketTimeout(TIMEOUT).setConnectTimeout(TIMEOUT)
 					.build();
 
-			HttpDeleteWithBody httpDeleteWithBody = new HttpDeleteWithBody(url);
-			httpDeleteWithBody.setConfig(requestConfig);
-			if (params != null) {
-				StringEntity entity = new StringEntity(
-						JsonUtil.objectToJson(params), "utf-8");
-				entity.setContentType("application/json");
-				entity.setContentEncoding("utf-8");
-				httpDeleteWithBody.setEntity(entity);
+			if(params != null){
+				if (params != null) {
+					ArrayList<NameValuePair> pairs = covertParams2NVPS(params);
+					ub.setParameters(pairs);
+				}
 			}
-
+			HttpDeleteWithBody httpDeleteWithBody = new HttpDeleteWithBody(ub.build());
+			httpDeleteWithBody.setConfig(requestConfig);
 			if (headers != null) {
 				for (Map.Entry<String, Object> param : headers.entrySet()) {
 					httpDeleteWithBody.addHeader(param.getKey(), String.valueOf(param.getValue()));

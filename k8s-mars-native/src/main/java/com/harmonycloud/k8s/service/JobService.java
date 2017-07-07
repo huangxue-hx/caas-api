@@ -73,8 +73,8 @@ public class JobService {
 	 */
 	public ActionReturnUtil delJobs(String namespace, Map<String, Object> queryParams, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
-		url.setNamespace(namespace).setResource(Resource.JOB).setQueryParams(queryParams);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE,null,null,cluster);
+		url.setNamespace(namespace).setResource(Resource.JOB);
+		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE,null,queryParams,cluster);
 		if(HttpStatusUtil.isSuccessStatus(response.getStatus())){
 			return ActionReturnUtil.returnSuccess();
 		}
@@ -117,10 +117,7 @@ public class JobService {
 	public K8SClientResponse getJob(String namespace, String name, Map<String, Object> queryParams, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.JOB).setSubpath(name);
-		if(queryParams != null){
-			url.setQueryParams(queryParams);
-		}
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,null,cluster);
+		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,queryParams,cluster);
 		return response;
 	}
 	
@@ -137,10 +134,7 @@ public class JobService {
 		if(StringUtils.isEmpty(namespace)){
 			url.setNamespace(namespace);
 		}
-		if(queryParams != null){
-			url.setQueryParams(queryParams);
-		}
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,null,cluster);
+		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,queryParams,cluster);
 		return response;
 	}
 	
@@ -155,10 +149,7 @@ public class JobService {
 	public K8SClientResponse watchJob(String namespace, String name, Map<String, Object> queryParams, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.JOB).setSubpath(name).setWatch(APIGroup.WATCH);
-		if(queryParams != null){
-			url.setQueryParams(queryParams);
-		}
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,null,cluster);
+		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,queryParams,cluster);
 		return response;
 	}
 	
@@ -177,10 +168,7 @@ public class JobService {
 		if(StringUtils.isEmpty(namespace)){
 			url.setNamespace(namespace);
 		}
-		if(queryParams != null){
-			url.setQueryParams(queryParams);
-		}
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,null,cluster);
+		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,queryParams,cluster);
 		return response;
 	}
 }

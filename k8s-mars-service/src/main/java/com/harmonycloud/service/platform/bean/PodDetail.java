@@ -16,6 +16,8 @@ public class PodDetail {
 	
 	private String startTime;
 	
+	private String tag;
+	
 	private List<ContainerWithStatus> containers;
 	
 	public PodDetail() {
@@ -85,6 +87,14 @@ public class PodDetail {
 
 	public void setContainers(List<ContainerWithStatus> containers) {
 		this.containers = containers;
+	}
+
+	public String getTag() {
+		return tag;
+	}
+
+	public void setTag(String tag) {
+		this.tag = tag;
 	}
 
 }
