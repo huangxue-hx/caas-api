@@ -653,6 +653,7 @@ CREATE TABLE `user` (
   `real_name` varchar(255) DEFAULT NULL,
   `isMachine` tinyint(1) DEFAULT '0' COMMENT '是否是机器账号',
   `comment` varchar(255) DEFAULT NULL,
+  `pause` varchar(255) DEFAULT NULL COMMENT '用户的状态',
   PRIMARY KEY (`uuid`),
   UNIQUE KEY `username_UNIQUE` (`username`),
   UNIQUE KEY `email_UNIQUE` (`email`)
@@ -665,7 +666,7 @@ CREATE TABLE `user` (
 
 LOCK TABLES `user` WRITE;
 /*!40000 ALTER TABLE `user` DISABLE KEYS */;
-INSERT INTO `user` VALUES (1,'admin','A0A475CF454CF9A06979034098167B9E','330957b867a3462ea457bec41410624b',NULL,'2016-11-03 14:48:37',1,NULL,NULL,NULL,0,NULL),(15500,'kube','E10ADC3949BA59ABBE56E057F20F883E','4b2abe00454b4399a2fce41215bff499','2016-10-18 17:33:52','2016-11-02 16:54:03',0,NULL,NULL,NULL,1,NULL),(155002,'machine_front','A0A475CF454CF9A06979034098167B9E','ee97937bce71432e8c5b0e3dda0f2b1f','2016-10-18 17:33:52','2016-11-02 16:54:03',0,NULL,NULL,NULL,1,NULL);
+INSERT INTO `user` VALUES (1,'admin','A0A475CF454CF9A06979034098167B9E','330957b867a3462ea457bec41410624b',NULL,'2016-11-03 14:48:37',1,NULL,NULL,NULL,0,NULL,'normal'),(15500,'kube','E10ADC3949BA59ABBE56E057F20F883E','4b2abe00454b4399a2fce41215bff499','2016-10-18 17:33:52','2016-11-02 16:54:03',0,NULL,NULL,NULL,1,NULL,'normal'),(155002,'machine_front','A0A475CF454CF9A06979034098167B9E','ee97937bce71432e8c5b0e3dda0f2b1f','2016-10-18 17:33:52','2016-11-02 16:54:03',0,NULL,NULL,NULL,1,NULL,'normal');
 /*!40000 ALTER TABLE `user` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -698,3 +699,40 @@ CREATE TABLE `user_tenant` (
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 -- Dump completed on 2017-06-09 15:22:37
+/*
+Navicat MySQL Data Transfer
+
+Source Server         : 10.10.101.143
+Source Server Version : 50635
+Source Host           : 10.10.101.143:30306
+Source Database       : k8s_auth_server
+
+Target Server Type    : MYSQL
+Target Server Version : 50635
+File Encoding         : 65001
+
+Date: 2017-07-07 14:21:27
+*/
+
+SET FOREIGN_KEY_CHECKS=0;
+
+-- ----------------------------
+-- Table structure for message
+-- ----------------------------
+DROP TABLE IF EXISTS `message`;
+CREATE TABLE `message` (
+  `id` int(255) NOT NULL AUTO_INCREMENT,
+  `app_key` varchar(255) NOT NULL,
+  `server_url` varchar(255) NOT NULL,
+  `app_secret` varchar(255) NOT NULL,
+  `nonce` varchar(255) NOT NULL,
+  `templateid` varchar(255) NOT NULL,
+  `annotation` varchar(255) CHARACTER SET utf8 DEFAULT NULL COMMENT '短信接口供应商',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
+
+-- ----------------------------
+-- Records of message
+-- ----------------------------
+INSERT INTO `message` VALUES ('1', 'e28545b26aa3fa384d07924d9164cc85', 'https://api.netease.im/sms/sendtemplate.action', 'c0bfefaa0d88', '12345', '3056657', '网易云信');
+

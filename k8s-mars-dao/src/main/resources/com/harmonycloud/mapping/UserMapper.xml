@@ -11,6 +11,7 @@
         <result property="isAdmin" column="isAdmin"/>
         <result property="isMachine" column="isMachine"/>
         <result property="comment" column="comment"/>
+        <result property="pause" column="pause"/>
         <result property="createTime" column="create_time" jdbcType="TIMESTAMP" javaType="java.util.Date"/>
     </resultMap>
 
@@ -21,19 +22,20 @@
         <result property="email" column="email"/>
         <result property="isAdmin" column="isAdmin"/>
         <result property="isMachine" column="isMachine"/>
+        <result property="pause" column="pause"/>
         <result property="createTime" column="create_time" jdbcType="TIMESTAMP" javaType="java.util.Date"/>
         <result property="updateTime" column="update_time" jdbcType="TIMESTAMP" javaType="java.util.Date"/>
     </resultMap>
 
 
     <select id="findByUsername" resultMap="userMap" parameterType="java.lang.String">
-        select uuid, username, password, token, create_time,email,real_name,isAdmin,isMachine,comment 
+        select uuid, username, password, token, create_time,email,real_name,isAdmin,isMachine,comment,pause
         from user where username=#{username}
     </select>
 
     <insert id="addUser" parameterType="com.harmonycloud.dao.user.bean.User">
-		insert into user(uuid,username,password,create_time,real_name,update_time,email,comment)
-		values(#{id},#{username},#{password},#{createTime},#{realName},#{updateTime},#{email},#{comment})
+		insert into user(uuid,username,password,create_time,real_name,update_time,email,comment,pause)
+		values(#{id},#{username},#{password},#{createTime},#{realName},#{updateTime},#{email},#{comment},#{pause})
 	</insert>
 
     <delete id="deleteUserByName" parameterType="java.lang.String">
@@ -45,23 +47,23 @@
 	</update>
 
     <select id="findUserByEmail" parameterType="java.lang.String" resultType="com.harmonycloud.dao.user.bean.User">
-		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment from user where email = #{email}
+		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment,pause from user where email = #{email}
 	</select>
 
     <select id="listUsers" resultMap="userTenantMap">
-		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment from user;
+		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment,pause from user;
 	</select>
 
     <select id="findUserByToken" resultType="com.harmonycloud.dao.user.bean.User" parameterType="java.lang.String">
-		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment from user where token = #{token}
+		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment,pause from user where token = #{token}
 	</select>
 
     <select id="listMachineUsers" resultType="com.harmonycloud.dao.user.bean.User">
-		select uuid,username,password,token,create_time createTime,token_create,isAdmin,update_time,email,real_name,isMachine,comment from user where isMachine = '1';
+		select uuid,username,password,token,create_time createTime,token_create,isAdmin,update_time,email,real_name,isMachine,comment,pause from user where isMachine = '1';
 	</select>
 
     <select id="listAdmin" resultType="com.harmonycloud.dao.user.bean.User">
-		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment from user where isAdmin = '1';
+		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment,pause from user where isAdmin = '1';
 	</select>
 
 
@@ -79,6 +81,7 @@
             <if test="realName!=null">real_name=#{realName},</if>
             <if test="isMachine!=null">isMachine=#{isMachine},</if>
             <if test="comment!=null">comment=#{comment}</if>
+            <if test="pause!=null">pause=#{pause}</if>
         </trim>
         WHERE username=#{username}
     </select>

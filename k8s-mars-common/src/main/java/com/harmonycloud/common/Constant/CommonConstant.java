@@ -185,6 +185,8 @@ public class CommonConstant {
      public static final String LABEL_STATUS_C = "C";
      public static final String LABEL_STATUS_D = "D";
      public static final String FROM = "from";
+     public static final String PAUSE = "pause";
+     public static final String NORMAL = "normal";
 
      
      

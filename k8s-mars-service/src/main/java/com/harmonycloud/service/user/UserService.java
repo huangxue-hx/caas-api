@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HarborUtil;
 import com.harmonycloud.common.util.HttpClientResponse;
@@ -141,6 +142,7 @@ public class UserService {
 						user.setPassword(MD5password);
 						user.setId(Long.valueOf(harborUId));
 						user.setCreateTime(new Date());
+						user.setPause(CommonConstant.NORMAL);
 						userMapper.addUser(user);
 						harboruserMapper.addUser(harbor);
 						return ActionReturnUtil.returnSuccess();
@@ -574,7 +576,21 @@ public class UserService {
 		}
 		return null;
 	}
-
+	/**
+	 * 更新用户状态
+	 * @param username
+	 * @return
+	 * @throws Exception
+	 */
+	public User updateUserStatus(String username,String status) throws Exception{
+        if (username != null) {
+            User user = this.getUser(username);
+            user.setPause(status);
+            this.userMapper.updateUser(user);
+            return user;
+        }
+        return null;
+    }
 	/**
 	 * 获取该用户所有权限
 	 * 
@@ -669,6 +685,7 @@ public class UserService {
                     u.setNikeName(user.getRealName());
                     u.setEmail(user.getEmail());
                     u.setComment(user.getComment());
+                    u.setPause(user.getPause());
                     Date createTime = user.getCreateTime();
                     String date = DateUtil.DateToString(createTime, DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z);
                     u.setCreateTime(date);
