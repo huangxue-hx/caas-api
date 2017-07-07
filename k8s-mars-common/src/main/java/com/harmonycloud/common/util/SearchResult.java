@@ -1,13 +1,9 @@
 package com.harmonycloud.common.util;
 
 
-import com.harmonycloud.common.util.date.DateUtil;
-
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Comparator;
-import java.util.Date;
 
 /**
  * Created by czm on 2017/3/29.
@@ -15,14 +11,17 @@ import java.util.Date;
  *
  */
 public class SearchResult implements Comparable<SearchResult>{
-    private String user;
-//    private String tenant;
-    private String module;
-    private String opFun;
-    private String opType;
-    private String opTime;
-    private String opDetails;
-    private String opStatus;
+    private String user;      //用户
+//    private String tenant;  
+    private String module;    //模块
+    private String opFun;     //接口调用模块方法
+    private String method;    //http请求方法
+    private String opTime;    //http请求开始时间
+    private String requestParams;   //http请求参数
+    private String opStatus;        //http请求失败或成功
+    private String response;        //http请求结果
+    private String remoteIp;        //访问IP
+    private String path;            //http请求路径
 
     public String getUser() {
         return user;
@@ -56,14 +55,6 @@ public class SearchResult implements Comparable<SearchResult>{
         this.opFun = opFun;
     }
 
-    public String getOpType() {
-        return opType;
-    }
-
-    public void setOpType(String opType) {
-        this.opType = opType;
-    }
-
     public String getOpTime() {
         return opTime;
     }
@@ -72,13 +63,6 @@ public class SearchResult implements Comparable<SearchResult>{
         this.opTime = opTime;
     }
 
-    public String getOpDetails() {
-        return opDetails;
-    }
-
-    public void setOpDetails(String opDetails) {
-        this.opDetails = opDetails;
-    }
 
     public String getOpStatus() {
         return opStatus;
@@ -87,9 +71,41 @@ public class SearchResult implements Comparable<SearchResult>{
     public void setOpStatus(String opStatus) {
         this.opStatus = opStatus;
     }
+    
+    public String getMethod() {
+		return method;
+	}
+
+	public void setMethod(String method) {
+		this.method = method;
+	}
+
+	public String getRequestParams() {
+		return requestParams;
+	}
+
+	public void setRequestParams(String requestParams) {
+		this.requestParams = requestParams;
+	}
+	
+	public String getResponse() {
+		return response;
+	}
+
+	public void setResponse(String response) {
+		this.response = response;
+	}
 
 
-    @Override
+    public String getRemoteIp() {
+		return remoteIp;
+	}
+
+	public void setRemoteIp(String remoteIp) {
+		this.remoteIp = remoteIp;
+	}
+
+	@Override
     public int compareTo(SearchResult o) {
         DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         int res = 0 ;
@@ -100,4 +116,13 @@ public class SearchResult implements Comparable<SearchResult>{
         }
         return res;
     }
+
+	public String getPath() {
+		return path;
+	}
+
+	public void setPath(String path) {
+		this.path = path;
+	}
+
 }

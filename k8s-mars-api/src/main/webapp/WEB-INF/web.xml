@@ -76,13 +76,13 @@
   <listener>
     <listener-class>org.springframework.web.context.request.RequestContextListener</listener-class>
   </listener>
-  <filter>
+<!--   <filter>
     <filter-name>RequestFilter</filter-name>
     <filter-class>com.harmonycloud.filters.SimpleWrappedFilter</filter-class>
   </filter>
   <filter-mapping>
     <filter-name>RequestFilter</filter-name>
     <url-pattern>/*</url-pattern>
-  </filter-mapping>
+  </filter-mapping> -->
   
 </web-app>

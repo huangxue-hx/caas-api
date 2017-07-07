@@ -118,8 +118,8 @@ public class SimpleWrappedFilter implements Filter {
                 sr.setUser(username);
                 sr.setOpStatus(opStatus);
                 sr.setModule(moduleName);
-                sr.setOpDetails(opDetails.toString());
-                sr.setOpType(opType);
+                //sr.setOpDetails(opDetails.toString());
+                //sr.setOpType(opType);
                 sr.setOpFun(opFun);
 
 

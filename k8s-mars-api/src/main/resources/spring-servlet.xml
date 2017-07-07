@@ -164,5 +164,5 @@
 	<!-- 对转向页面的路径解析。prefix：前缀， suffix：后缀 -->
 	<bean class="org.springframework.web.servlet.view.InternalResourceViewResolver"
 		p:prefix="/" p:suffix=".html" />
-
+    <aop:aspectj-autoproxy/>
 </beans>
