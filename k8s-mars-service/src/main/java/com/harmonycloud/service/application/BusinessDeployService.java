@@ -129,5 +129,22 @@ public interface BusinessDeployService {
      */
     ActionReturnUtil searchSum(String [] tenant) throws Exception;
 
-
+    /**
+     * deployment application service on 17/04/11.
+     * 
+     * @author yanli
+     * 
+     * @param name
+     *            BusinessTemplate name
+     * @param tag
+     *            BusinessTemplate tag
+     * @param namespace
+     * 	          namespace
+     * @param username
+     *            username
+     * @param cluster
+     *            cluster
+     * @return ActionReturnUtil
+     */
+    ActionReturnUtil deployBusinessTemplateByName(String name, String tag, String namespace, String userName, Cluster cluster) throws Exception;
 }

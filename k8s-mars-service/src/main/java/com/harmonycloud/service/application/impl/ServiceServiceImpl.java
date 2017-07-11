@@ -302,6 +302,8 @@ public class ServiceServiceImpl implements ServiceService {
 				JSONObject idAndTag = new JSONObject();
 				idAndTag.put("id", serviceTemplatesList.get(i).getId());
 				idAndTag.put("tag", serviceTemplatesList.get(i).getTag());
+				idAndTag.put("image", serviceTemplatesList.get(i).getImageList());
+				idAndTag.put("user", serviceTemplatesList.get(i).getUser());
 				tagArray.add(idAndTag);
 				json.put("createtime", dateToString(serviceTemplatesList.get(i).getCreateTime()));
 			}

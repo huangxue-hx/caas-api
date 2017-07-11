@@ -1,7 +1,10 @@
 package com.harmonycloud.service.application;
 
+import java.util.List;
+
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.dto.business.CreateConfigMapDto;
 import com.harmonycloud.dto.business.JobsDetailDto;
 
 /**
@@ -16,7 +19,7 @@ public interface JobsService {
      * @return
      * @throws Exception
      */
-    public ActionReturnUtil createJob(JobsDetailDto detail, String userName, String business, Cluster cluster) throws Exception;
+    public ActionReturnUtil createJob(JobsDetailDto detail, String userName, Cluster cluster) throws Exception;
 
     /**
      * 获取当前namespace的job（name参数目前没有用）
@@ -87,4 +90,14 @@ public interface JobsService {
      * @throws Exception
      */
     public ActionReturnUtil reRunJob(String name, String namespace, String userName, Cluster cluster) throws Exception;
+    
+    /**
+     * create Configmap
+     * @param name
+     * @param namespace
+     * @param userName
+     * @return
+     * @throws Exception
+     */
+    public ActionReturnUtil createConfigMap(List<CreateConfigMapDto> configMaps, String namespace, String containerName, String name, Cluster cluster, String type, String businessName) throws Exception;
 }

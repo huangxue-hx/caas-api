@@ -231,4 +231,23 @@ public class BusinessDeployController {
         return businessDeployService.searchSum(tenant);
     }
 
+    /**
+     * #4 deploy application template
+     * 
+     * @param businessDeploy
+     *            BusinessDeploy Bean
+     * @return ActionReturnUtil
+     */
+    @ResponseBody
+    @RequestMapping(value = "/deploy/name", method = RequestMethod.POST)
+
+    public ActionReturnUtil deployDeploymentsById(@RequestParam(value = "name", required = true) String name, @RequestParam(value = "tag", required = true) String tag, @RequestParam(value = "namespace", required = true) String namespace) throws Exception {
+        logger.info("deploy business");
+        String userName = (String) session.getAttribute("username");
+        if(userName == null){
+			throw new K8sAuthException(Constant.HTTP_401);
+		}
+		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+        return businessDeployService.deployBusinessTemplateByName(name, tag, namespace, userName, cluster);
+    }
 }

@@ -793,7 +793,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			headers.put("Content-type", "application/json");
 			Map<String, Object> bodys = new HashMap<String, Object>();
 			bodys = CollectionUtil.transBean2Map(dep);
-			K8SClientResponse response = new K8SClient().doit(k8surl, HTTPMethod.POST, headers, bodys,null);
+			K8SClientResponse response = new K8SClient().doit(k8surl, HTTPMethod.POST, headers, bodys,cluster);
 			if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 				return ActionReturnUtil.returnErrorWithMsg(response.getBody());
 			}
@@ -802,7 +802,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			k8surl.setNamespace(detail.getNamespace()).setResource(Resource.SERVICE);
 			bodys.clear();
 			bodys = CollectionUtil.transBean2Map(service);
-			K8SClientResponse sResponse = new K8SClient().doit(k8surl, HTTPMethod.POST, headers, bodys,null);
+			K8SClientResponse sResponse = new K8SClient().doit(k8surl, HTTPMethod.POST, headers, bodys,cluster);
 			if (!HttpStatusUtil.isSuccessStatus(sResponse.getStatus())) {
 				return ActionReturnUtil.returnErrorWithMsg(sResponse.getBody());
 			}

@@ -45,7 +45,7 @@ public class JobsController {
                 throw new K8sAuthException(Constant.HTTP_401);
             }
             Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-            return jobsService.createJob(jobDetailDto, userName, "", cluster);
+            return jobsService.createJob(jobDetailDto, userName, cluster);
         } catch (Exception e) {
             logger.error("创建job失败：, error:"+e.getMessage()+e.getCause());
             e.printStackTrace();

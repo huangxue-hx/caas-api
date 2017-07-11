@@ -32,6 +32,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.yaml.snakeyaml.events.Event.ID;
 
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -473,6 +474,8 @@ public class BusinessServiceImpl implements BusinessService {
             	JSONObject idAndTag=new JSONObject();
             	idAndTag.put("id", businessTemplatesList.get(i).getId());
             	idAndTag.put("tag", businessTemplatesList.get(i).getTag());
+            	idAndTag.put("image", businessTemplatesList.get(i).getImageList());
+            	idAndTag.put("user", businessTemplatesList.get(i).getUser());
             	tagArray.add(idAndTag);
                 json.put("createtime", dateToString(businessTemplatesList.get(i).getCreateTime()));
             }

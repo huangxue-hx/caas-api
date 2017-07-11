@@ -93,5 +93,11 @@ public class Constant {
 	public final static String VOLUME_TYPE_GITREPO = "gitRepo";
 	public final static String VOLUME_TYPE_EMPTYDIR = "emptyDir";
 
-
+	//labels资源类型
+	public final static String TYPE_JOB = "jobs";
+	public final static String TYPE_DEPLOYMENT = "app";
+	//重启策略
+	public final static String RESTARTPOLICY_ALWAYS = "Always";
+	public final static String RESTARTPOLICY_NERVER = "Never";
+	public final static String RESTARTPOLICY_ONFAILURE = "OnFailure";
 }
