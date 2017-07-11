@@ -26,10 +26,17 @@ public class User implements Serializable {
     private Integer isAdmin;
     private Integer isMachine;
     private String token;
+    private String pause;
     private Date tokenCreate;
    
     
-	public User() {
+	public String getPause() {
+        return pause;
+    }
+    public void setPause(String pause) {
+        this.pause = pause;
+    }
+    public User() {
 		super();
 	}
 	public User(String username, String password) {

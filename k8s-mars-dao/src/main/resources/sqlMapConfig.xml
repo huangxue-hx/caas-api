@@ -44,6 +44,7 @@
         <!--<typeAlias alias="Topology" type="com.harmonycloud.db.bean.BusinessService" />-->
         <typeAlias alias="AuthUserExample" type="com.harmonycloud.dao.user.bean.AuthUserExample" />
         <typeAlias alias="Cluster" type="com.harmonycloud.dao.cluster.bean.Cluster" />
+        <typeAlias alias="Message" type="com.harmonycloud.dao.message.bean.Message" />
 
     </typeAliases>
 
@@ -80,5 +81,6 @@
          <mapper resource="com/harmonycloud/mapping/ClusterMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/NodeInstallProgressMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/JobMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/MessageMapper.xml" />
     </mappers>
 </configuration>

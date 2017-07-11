@@ -91,16 +91,19 @@ public class AuthController {
     public ActionReturnUtil Login(@RequestParam(value = "username") final String username, @RequestParam(value = "password") final String password) throws Exception {
         String res = authDispatch.login(username, password);
         if (StringUtils.isNotBlank(res)) {
-            List<UserTenant> userByUserName = userTenantService.getUserByUserName(username);
-            if(!CommonConstant.ADMIN.equals(username)&&(userByUserName==null||userByUserName.size()<=0)){
-                return ActionReturnUtil.returnErrorWithMsg("该用户未授权，请联系管理员");
-            }
             User user = userService.getUser(username);
             if (user == null) {
                 user = new User();
                 user.setUsername(username);
                 user.setIsAdmin(0);
                 user.setIsMachine(0);
+            }
+            List<UserTenant> userByUserName = userTenantService.getUserByUserName(username);
+            if(CommonConstant.PAUSE.equals(user.getPause())){
+                return ActionReturnUtil.returnErrorWithMsg("该用户暂时停止使用，请联系管理员");
+            }
+            if(user.getIsAdmin()!=1&&(userByUserName==null||userByUserName.size()<=0)){
+                return ActionReturnUtil.returnErrorWithMsg("该用户未授权，请联系管理员");
             }
             session.setAttribute("username", user.getUsername());
             session.setAttribute("isAdmin", user.getIsAdmin());

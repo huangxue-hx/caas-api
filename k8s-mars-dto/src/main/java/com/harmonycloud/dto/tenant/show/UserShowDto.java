@@ -22,6 +22,16 @@ public class UserShowDto {
     private Boolean isTm;
 
     private String updateTime;
+    
+    private String pause;
+
+    public String getPause() {
+        return pause;
+    }
+
+    public void setPause(String pause) {
+        this.pause = pause;
+    }
 
     public String getUpdateTime() {
     	return updateTime;

@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.exception.K8sAuthException;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dto.user.UserDetailDto;
@@ -330,8 +331,36 @@ public class UserController {
         return ActionReturnUtil.returnSuccessWithData(menu);
 
     }
+	/**
+	 * 更新用户状态为pause
+	 * @param username
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/user/updateUserStatusPause", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil updateUserStatusPause(@RequestParam(value = "username") String username) throws Exception {
+        User user = userService.updateUserStatus(username, CommonConstant.PAUSE);
+        if(user==null){
+            throw new MarsRuntimeException("更新用户pause状态失败");
+        }
+        return ActionReturnUtil.returnSuccess();
 
+    }
+	/**
+     * 更新用户状态为normal
+     * @param username
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/user/updateUserStatusNormal", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil updateUserStatusNormal(@RequestParam(value = "username") String username) throws Exception {
+        User user = userService.updateUserStatus(username, CommonConstant.NORMAL);
+        if(user==null){
+            throw new MarsRuntimeException("更新用户normal状态失败");
+        }
+        return ActionReturnUtil.returnSuccess();
 
+    }
 
 	
 	
