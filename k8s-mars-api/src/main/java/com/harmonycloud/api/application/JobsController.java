@@ -231,7 +231,7 @@ public class JobsController {
      */
     @ResponseBody
     @RequestMapping(value = "/reRun",method = RequestMethod.POST)
-    public ActionReturnUtil deleteDeployments(@RequestParam(value = "name", required = true) String name,
+    public ActionReturnUtil reRunJob(@RequestParam(value = "name", required = true) String name,
                                               @RequestParam(value = "namespace", required = true) String namespace) {
 
         try {
