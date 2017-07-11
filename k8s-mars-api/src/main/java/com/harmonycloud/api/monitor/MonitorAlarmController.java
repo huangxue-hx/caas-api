@@ -316,6 +316,7 @@ public class MonitorAlarmController {
             if(null != listCluster && listCluster.size() > 0) {
                 for (Cluster cluster : listCluster) {
                     Map<String, String> map = new HashMap<String, String>();
+					map.put("clusterId", cluster.getId().toString());
                     map.put("clusterName", cluster.getName());
 //                    map.put("cluster", Constant.STATUS_NORMAL);
                     map.put("kubeApiserver", Constant.STATUS_NORMAL);
