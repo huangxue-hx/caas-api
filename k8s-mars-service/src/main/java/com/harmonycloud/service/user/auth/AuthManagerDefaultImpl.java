@@ -6,8 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.harmonycloud.common.util.StringUtil;
-import com.harmonycloud.dao.user.UserMapper;
 import com.harmonycloud.dao.user.bean.User;
+import com.harmonycloud.dao.user.customs.CustomUserMapper;
 import com.harmonycloud.service.user.AuthManager;
 
 /**
@@ -21,7 +21,7 @@ import com.harmonycloud.service.user.AuthManager;
 public class AuthManagerDefaultImpl implements AuthManager {
 
     @Autowired
-    private UserMapper userMapper;
+    private CustomUserMapper userMapper;
 
     @Override
     public String auth(String userName, String password) throws Exception {

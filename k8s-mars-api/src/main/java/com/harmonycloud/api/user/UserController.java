@@ -8,6 +8,7 @@ import java.util.Map;
 import javax.servlet.http.HttpSession;
 
 import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.UserTenant;
 import com.harmonycloud.service.cluster.ClusterService;
 import org.slf4j.Logger;
@@ -29,6 +30,7 @@ import com.harmonycloud.dto.user.UserDetailDto;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.tenant.UserTenantService;
+import com.harmonycloud.service.user.MessageService;
 import com.harmonycloud.service.user.ResourceService;
 import com.harmonycloud.service.user.RoleService;
 import com.harmonycloud.service.user.UserService;
@@ -48,6 +50,8 @@ public class UserController {
 	
 	@Autowired
     ResourceService resourceService;
+	@Autowired
+    MessageService messageService;
 	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 	
@@ -361,7 +365,46 @@ public class UserController {
         return ActionReturnUtil.returnSuccess();
 
     }
+    /**
+     * 获取所有pause的用户
+     * @param username
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/user/getAllUserPausedList", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil getAllUserPausedList() throws Exception {
+        List<User> list = userService.getAllUserPausedList();
+        return ActionReturnUtil.returnSuccessWithData(list);
 
-	
-	
+    }
+    /**
+     * 获取所有normal的用户
+     * @param username
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/user/getAllUserNormalList", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil getAllUserNormalList() throws Exception {
+        List<User> list = userService.getAllUserNormalList();
+        return ActionReturnUtil.returnSuccessWithData(list);
+
+    }
+    /**
+     * 获取30天以内活跃的用户
+     * @param username
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/user/getActiveUserList", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil getActiveUserList(@RequestParam(value = "domain") Integer domain) throws Exception {
+        List<User> list = userService.getActiveUserList(domain);
+        return ActionReturnUtil.returnSuccessWithData(list);
+
+    }
+    @RequestMapping(value = "/user/testTime", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil getActiveUserListuu(@RequestParam(value = "domain") Integer domain) throws Exception {
+        List<TenantBinding> list = tenantService.testTime(domain);
+        return ActionReturnUtil.returnSuccessWithData(list);
+
+    }
 }

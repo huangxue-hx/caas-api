@@ -24,10 +24,10 @@ import com.harmonycloud.common.util.HttpClientUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.StringUtil;
 import com.harmonycloud.dao.user.AuthUserMapper;
-import com.harmonycloud.dao.user.UserMapper;
 import com.harmonycloud.dao.user.bean.AuthUser;
 import com.harmonycloud.dao.user.bean.AuthUserExample;
 import com.harmonycloud.dao.user.bean.User;
+import com.harmonycloud.dao.user.customs.CustomUserMapper;
 import com.harmonycloud.service.user.AuthManager;
 import com.harmonycloud.service.user.UserService;
 
@@ -61,7 +61,7 @@ public class AuthManager4LdapImpl implements AuthManager {
     private UserService userService;
 
     @Autowired
-    private UserMapper userMapper;
+    private CustomUserMapper userMapper;
 
     @Autowired
     private AuthUserMapper authUserMapper;

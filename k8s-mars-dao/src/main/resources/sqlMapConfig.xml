@@ -55,6 +55,7 @@
         <mapper resource="com/harmonycloud/mapping/RoleMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/TenantBindingMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/UserMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/custums/CustomUserMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/UserTenantMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/NetworkCalicoMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/NetworkTopologyMapper.xml" />

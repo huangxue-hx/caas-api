@@ -15,8 +15,8 @@ import com.harmonycloud.dao.tenant.UserTenantMapper;
 import com.harmonycloud.dao.tenant.bean.UserTenant;
 import com.harmonycloud.dao.tenant.bean.UserTenantExample;
 import com.harmonycloud.dao.tenant.customs.CustomUserTenantMapper;
-import com.harmonycloud.dao.user.UserMapper;
 import com.harmonycloud.dao.user.bean.User;
+import com.harmonycloud.dao.user.customs.CustomUserMapper;
 import com.harmonycloud.dto.tenant.show.UserShowDto;
 import com.harmonycloud.service.tenant.UserTenantService;
 
@@ -29,7 +29,7 @@ public class UserTenantServiceImpl implements UserTenantService {
     @Autowired
     private CustomUserTenantMapper customUserTenantMapper;
     @Autowired
-    private UserMapper userMapper;
+    private CustomUserMapper userMapper;
 
     @Override
     public List<UserTenant> getUserByTenantid(String tenantid) throws Exception {

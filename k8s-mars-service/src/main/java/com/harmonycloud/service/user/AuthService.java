@@ -10,15 +10,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.harmonycloud.common.util.StringUtil;
-import com.harmonycloud.dao.user.UserMapper;
 import com.harmonycloud.dao.user.bean.User;
+import com.harmonycloud.dao.user.customs.CustomUserMapper;
 
 
 @Service
 @Transactional(rollbackFor = Exception.class)
 public class AuthService {
     @Autowired
-    private UserMapper userMapper;
+    private CustomUserMapper userMapper;
 
 	/**
 	 * 根据用户名密码,认证用户, 认证成功:返回用户对象, 认证失败:返回null

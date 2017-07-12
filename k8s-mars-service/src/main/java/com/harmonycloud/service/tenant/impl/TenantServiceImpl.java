@@ -4,6 +4,7 @@ import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -46,8 +47,8 @@ import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.TenantBindingExample;
 import com.harmonycloud.dao.tenant.bean.UserTenant;
 import com.harmonycloud.dao.tenant.bean.UserTenantExample;
-import com.harmonycloud.dao.user.UserMapper;
 import com.harmonycloud.dao.user.bean.User;
+import com.harmonycloud.dao.user.customs.CustomUserMapper;
 import com.harmonycloud.dto.tenant.CreateNetwork;
 import com.harmonycloud.dto.tenant.HarborProjectDto;
 import com.harmonycloud.dto.tenant.NamespaceUserDto;
@@ -103,7 +104,7 @@ public class TenantServiceImpl implements TenantService {
     @Autowired
     TenantBindingMapper tenantBindingMapper;
     @Autowired
-    UserMapper userMapper;
+    CustomUserMapper userMapper;
     @Autowired
     NamespaceService namespaceService;
     @Autowired
@@ -888,8 +889,8 @@ public class TenantServiceImpl implements TenantService {
         NetworkCalico networkto = net1.get(0);
         String networknamefrom = networkfrom.getNetworkname();
         String networknameto = networkto.getNetworkname();
-        String networkidfrom = networkfrom.getNetworkname();
-        String networkidto = networkto.getNetworkname();
+        String networkidfrom = networkfrom.getNetworkid();
+        String networkidto = networkto.getNetworkid();
         // 检查是否拓扑关系存在
         NetworkTopology topology2 = networkService.getTopologybyNetworkidfromAndNetworkidto(networkidfrom, networkidto, networknamefrom, networknameto);
         if (topology2 == null) {
@@ -1228,6 +1229,18 @@ public class TenantServiceImpl implements TenantService {
             }
         }
         return false;
+    }
+    @Override
+    public List<TenantBinding> testTime(Integer domain) throws Exception {
+        Date date=new Date();  
+        Calendar calendar = Calendar.getInstance();  
+        calendar.setTime(date);  
+        calendar.add(Calendar.DAY_OF_MONTH, -domain);  
+        Date leftDate = calendar.getTime();
+        TenantBindingExample example = new TenantBindingExample();
+        example.createCriteria().andCreateTimeBetween(leftDate, date).andCreateTimeIsNotNull();
+        List<TenantBinding> listTenantBinding = tenantBindingMapper.selectByExample(example);
+        return listTenantBinding;
     }
     
 }

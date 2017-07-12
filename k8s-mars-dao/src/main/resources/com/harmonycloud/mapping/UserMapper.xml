@@ -1,88 +1,238 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<!-- namespace必须指向Dao接口 -->
-<mapper namespace="com.harmonycloud.dao.user.UserMapper">
-
-    <resultMap id="userMap" type="com.harmonycloud.dao.user.bean.User">
-        <id property="id" column="uuid"/>
-        <result property="username" column="username"/>
-        <result property="realName" column="real_name"/>
-        <result property="email" column="email"/>
-        <result property="isAdmin" column="isAdmin"/>
-        <result property="isMachine" column="isMachine"/>
-        <result property="comment" column="comment"/>
-        <result property="pause" column="pause"/>
-        <result property="createTime" column="create_time" jdbcType="TIMESTAMP" javaType="java.util.Date"/>
-    </resultMap>
-
-    <resultMap id="userTenantMap" type="com.harmonycloud.dao.user.bean.User">
-        <id property="id" column="uuid"/>
-        <result property="username" column="username"/>
-        <result property="realName" column="real_name"/>
-        <result property="email" column="email"/>
-        <result property="isAdmin" column="isAdmin"/>
-        <result property="isMachine" column="isMachine"/>
-        <result property="pause" column="pause"/>
-        <result property="createTime" column="create_time" jdbcType="TIMESTAMP" javaType="java.util.Date"/>
-        <result property="updateTime" column="update_time" jdbcType="TIMESTAMP" javaType="java.util.Date"/>
-    </resultMap>
-
-
-    <select id="findByUsername" resultMap="userMap" parameterType="java.lang.String">
-        select uuid, username, password, token, create_time,email,real_name,isAdmin,isMachine,comment,pause
-        from user where username=#{username}
-    </select>
-
-    <insert id="addUser" parameterType="com.harmonycloud.dao.user.bean.User">
-		insert into user(uuid,username,password,create_time,real_name,update_time,email,comment,pause)
-		values(#{id},#{username},#{password},#{createTime},#{realName},#{updateTime},#{email},#{comment},#{pause})
-	</insert>
-
-    <delete id="deleteUserByName" parameterType="java.lang.String">
-		delete from user where username=#{username}
-	</delete>
-
-    <update id="updatePassword">
-		update user set password = #{password,jdbcType=VARCHAR} where username=#{username,jdbcType=VARCHAR}
-	</update>
-
-    <select id="findUserByEmail" parameterType="java.lang.String" resultType="com.harmonycloud.dao.user.bean.User">
-		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment,pause from user where email = #{email}
-	</select>
-
-    <select id="listUsers" resultMap="userTenantMap">
-		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment,pause from user;
-	</select>
-
-    <select id="findUserByToken" resultType="com.harmonycloud.dao.user.bean.User" parameterType="java.lang.String">
-		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment,pause from user where token = #{token}
-	</select>
-
-    <select id="listMachineUsers" resultType="com.harmonycloud.dao.user.bean.User">
-		select uuid,username,password,token,create_time createTime,token_create,isAdmin,update_time,email,real_name,isMachine,comment,pause from user where isMachine = '1';
-	</select>
-
-    <select id="listAdmin" resultType="com.harmonycloud.dao.user.bean.User">
-		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment,pause from user where isAdmin = '1';
-	</select>
-
-
-    <select id="updateUser" parameterType="com.harmonycloud.dao.user.bean.User">
-        update user
-        <trim prefix="set" suffixOverrides=",">
-            <if test="id!=null">uuid=#{id},</if>
-            <if test="password!=null">password=#{password},</if>
-            <if test="token!=null">token=#{token},</if>
-            <if test="createTime!=null">create_time=#{createTime},</if>
-            <if test="tokenCreate!=null">token_create=#{tokenCreate},</if>
-            <if test="isAdmin!=null">isAdmin=#{isAdmin},</if>
-            <if test="updateTime!=null">update_time=#{updateTime},</if>
-            <if test="email!=null">email=#{email},</if>
-            <if test="realName!=null">real_name=#{realName},</if>
-            <if test="isMachine!=null">isMachine=#{isMachine},</if>
-            <if test="comment!=null">comment=#{comment}</if>
-            <if test="pause!=null">pause=#{pause}</if>
-        </trim>
-        WHERE username=#{username}
-    </select>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.harmonycloud.dao.user.UserMapper" >
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.user.bean.User" >
+    <id column="uuid" property="uuid" jdbcType="BIGINT" />
+    <result column="username" property="username" jdbcType="VARCHAR" />
+    <result column="password" property="password" jdbcType="VARCHAR" />
+    <result column="token" property="token" jdbcType="VARCHAR" />
+    <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
+    <result column="token_create" property="tokenCreate" jdbcType="TIMESTAMP" />
+    <result column="isAdmin" property="isadmin" jdbcType="BIT" />
+    <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
+    <result column="email" property="email" jdbcType="VARCHAR" />
+    <result column="real_name" property="realName" jdbcType="VARCHAR" />
+    <result column="isMachine" property="ismachine" jdbcType="BIT" />
+    <result column="comment" property="comment" jdbcType="VARCHAR" />
+    <result column="pause" property="pause" jdbcType="VARCHAR" />
+  </resultMap>
+  <sql id="Example_Where_Clause" >
+    <where >
+      <foreach collection="oredCriteria" item="criteria" separator="or" >
+        <if test="criteria.valid" >
+          <trim prefix="(" suffix=")" prefixOverrides="and" >
+            <foreach collection="criteria.criteria" item="criterion" >
+              <choose >
+                <when test="criterion.noValue" >
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue" >
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue" >
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue" >
+                  and ${criterion.condition}
+                  <foreach collection="criterion.value" item="listItem" open="(" close=")" separator="," >
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List" >
+    uuid, username, password, token, create_time, token_create, isAdmin, update_time, 
+    email, real_name, isMachine, comment, pause
+  </sql>
+  <select id="selectByExample" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.user.bean.UserExample" >
+    select
+    <if test="distinct" >
+      distinct
+    </if>
+    'false' as QUERYID,
+    <include refid="Base_Column_List" />
+    from user
+    <if test="_parameter != null" >
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null" >
+      order by ${orderByClause}
+    </if>
+  </select>
+  <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="java.lang.Long" >
+    select 
+    <include refid="Base_Column_List" />
+    from user
+    where uuid = #{uuid,jdbcType=BIGINT}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Long" >
+    delete from user
+    where uuid = #{uuid,jdbcType=BIGINT}
+  </delete>
+  <delete id="deleteByExample" parameterType="com.harmonycloud.dao.user.bean.UserExample" >
+    delete from user
+    <if test="_parameter != null" >
+      <include refid="Example_Where_Clause" />
+    </if>
+  </delete>
+  <insert id="insert" parameterType="com.harmonycloud.dao.user.bean.User" >
+    insert into user (uuid, username, password, 
+      token, create_time, token_create, 
+      isAdmin, update_time, email, 
+      real_name, isMachine, comment, 
+      pause)
+    values (#{uuid,jdbcType=BIGINT}, #{username,jdbcType=VARCHAR}, #{password,jdbcType=VARCHAR}, 
+      #{token,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{tokenCreate,jdbcType=TIMESTAMP}, 
+      #{isadmin,jdbcType=BIT}, #{updateTime,jdbcType=TIMESTAMP}, #{email,jdbcType=VARCHAR}, 
+      #{realName,jdbcType=VARCHAR}, #{ismachine,jdbcType=BIT}, #{comment,jdbcType=VARCHAR}, 
+      #{pause,jdbcType=VARCHAR})
+  </insert>
+  <insert id="insertSelective" parameterType="com.harmonycloud.dao.user.bean.User" >
+    insert into user
+    <trim prefix="(" suffix=")" suffixOverrides="," >
+      <if test="uuid != null" >
+        uuid,
+      </if>
+      <if test="username != null" >
+        username,
+      </if>
+      <if test="password != null" >
+        password,
+      </if>
+      <if test="token != null" >
+        token,
+      </if>
+      <if test="createTime != null" >
+        create_time,
+      </if>
+      <if test="tokenCreate != null" >
+        token_create,
+      </if>
+      <if test="isadmin != null" >
+        isAdmin,
+      </if>
+      <if test="updateTime != null" >
+        update_time,
+      </if>
+      <if test="email != null" >
+        email,
+      </if>
+      <if test="realName != null" >
+        real_name,
+      </if>
+      <if test="ismachine != null" >
+        isMachine,
+      </if>
+      <if test="comment != null" >
+        comment,
+      </if>
+      <if test="pause != null" >
+        pause,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides="," >
+      <if test="uuid != null" >
+        #{uuid,jdbcType=BIGINT},
+      </if>
+      <if test="username != null" >
+        #{username,jdbcType=VARCHAR},
+      </if>
+      <if test="password != null" >
+        #{password,jdbcType=VARCHAR},
+      </if>
+      <if test="token != null" >
+        #{token,jdbcType=VARCHAR},
+      </if>
+      <if test="createTime != null" >
+        #{createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="tokenCreate != null" >
+        #{tokenCreate,jdbcType=TIMESTAMP},
+      </if>
+      <if test="isadmin != null" >
+        #{isadmin,jdbcType=BIT},
+      </if>
+      <if test="updateTime != null" >
+        #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="email != null" >
+        #{email,jdbcType=VARCHAR},
+      </if>
+      <if test="realName != null" >
+        #{realName,jdbcType=VARCHAR},
+      </if>
+      <if test="ismachine != null" >
+        #{ismachine,jdbcType=BIT},
+      </if>
+      <if test="comment != null" >
+        #{comment,jdbcType=VARCHAR},
+      </if>
+      <if test="pause != null" >
+        #{pause,jdbcType=VARCHAR},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.user.bean.User" >
+    update user
+    <set >
+      <if test="username != null" >
+        username = #{username,jdbcType=VARCHAR},
+      </if>
+      <if test="password != null" >
+        password = #{password,jdbcType=VARCHAR},
+      </if>
+      <if test="token != null" >
+        token = #{token,jdbcType=VARCHAR},
+      </if>
+      <if test="createTime != null" >
+        create_time = #{createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="tokenCreate != null" >
+        token_create = #{tokenCreate,jdbcType=TIMESTAMP},
+      </if>
+      <if test="isadmin != null" >
+        isAdmin = #{isadmin,jdbcType=BIT},
+      </if>
+      <if test="updateTime != null" >
+        update_time = #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="email != null" >
+        email = #{email,jdbcType=VARCHAR},
+      </if>
+      <if test="realName != null" >
+        real_name = #{realName,jdbcType=VARCHAR},
+      </if>
+      <if test="ismachine != null" >
+        isMachine = #{ismachine,jdbcType=BIT},
+      </if>
+      <if test="comment != null" >
+        comment = #{comment,jdbcType=VARCHAR},
+      </if>
+      <if test="pause != null" >
+        pause = #{pause,jdbcType=VARCHAR},
+      </if>
+    </set>
+    where uuid = #{uuid,jdbcType=BIGINT}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.user.bean.User" >
+    update user
+    set username = #{username,jdbcType=VARCHAR},
+      password = #{password,jdbcType=VARCHAR},
+      token = #{token,jdbcType=VARCHAR},
+      create_time = #{createTime,jdbcType=TIMESTAMP},
+      token_create = #{tokenCreate,jdbcType=TIMESTAMP},
+      isAdmin = #{isadmin,jdbcType=BIT},
+      update_time = #{updateTime,jdbcType=TIMESTAMP},
+      email = #{email,jdbcType=VARCHAR},
+      real_name = #{realName,jdbcType=VARCHAR},
+      isMachine = #{ismachine,jdbcType=BIT},
+      comment = #{comment,jdbcType=VARCHAR},
+      pause = #{pause,jdbcType=VARCHAR}
+    where uuid = #{uuid,jdbcType=BIGINT}
+  </update>
 </mapper>

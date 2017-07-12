@@ -16,6 +16,7 @@ public class User implements Serializable {
 	 */
 	private Long id;
     private String tenantid;
+    private Long uuid;
     private String username;
     private String realName;
     private String email;
@@ -24,13 +25,48 @@ public class User implements Serializable {
     private Date createTime;
     private Date updateTime;
     private Integer isAdmin;
+    private Integer isadmin;
     private Integer isMachine;
+    private Integer ismachine;
     private String token;
     private String pause;
     private Date tokenCreate;
+    private Date leftTime;
+    private Date rightTime;
+    
    
     
-	public String getPause() {
+	public Long getUuid() {
+        return uuid;
+    }
+    public void setUuid(Long uuid) {
+        this.uuid = uuid;
+    }
+    public Integer getIsadmin() {
+        return isadmin;
+    }
+    public void setIsadmin(Integer isadmin) {
+        this.isadmin = isadmin;
+    }
+    public Integer getIsmachine() {
+        return ismachine;
+    }
+    public void setIsmachine(Integer ismachine) {
+        this.ismachine = ismachine;
+    }
+    public Date getLeftTime() {
+        return leftTime;
+    }
+    public void setLeftTime(Date leftTime) {
+        this.leftTime = leftTime;
+    }
+    public Date getRightTime() {
+        return rightTime;
+    }
+    public void setRightTime(Date rightTime) {
+        this.rightTime = rightTime;
+    }
+    public String getPause() {
         return pause;
     }
     public void setPause(String pause) {

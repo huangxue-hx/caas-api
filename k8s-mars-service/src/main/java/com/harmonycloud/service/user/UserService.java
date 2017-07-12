@@ -3,6 +3,7 @@ package com.harmonycloud.service.user;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -34,6 +35,8 @@ import com.harmonycloud.dao.user.UserMapper;
 import com.harmonycloud.dao.user.bean.AuthUser;
 import com.harmonycloud.dao.user.bean.AuthUserExample;
 import com.harmonycloud.dao.user.bean.User;
+import com.harmonycloud.dao.user.bean.UserExample;
+import com.harmonycloud.dao.user.customs.CustomUserMapper;
 import com.harmonycloud.dto.tenant.show.UserShowDto;
 import com.harmonycloud.dto.user.UserDetailDto;
 import com.harmonycloud.k8s.bean.RoleBinding;
@@ -51,7 +54,10 @@ import com.harmonycloud.service.tenant.UserTenantService;
 public class UserService {
 
 	@Autowired
-	private UserMapper userMapper;
+	private CustomUserMapper userMapper;
+	
+	@Autowired
+    private UserMapper userMapperNew;
 
 	@Autowired
 	private HarborUserMapper harboruserMapper;
@@ -586,10 +592,43 @@ public class UserService {
         if (username != null) {
             User user = this.getUser(username);
             user.setPause(status);
-            this.userMapper.updateUser(user);
+            user.setUuid(user.getId());
+            user.setUpdateTime(new Date());
+            int updateByPrimaryKeySelective = this.userMapperNew.updateByPrimaryKeySelective(user);
             return user;
         }
         return null;
+    }
+	/**
+     * 获取所有被pause的用户
+     * @return
+     */
+	public List<User> getAllUserPausedList() throws Exception{
+	    List<User> pausedList = this.userMapper.getAllUserPausedList();
+        return pausedList;
+    }
+	/**
+     * 获取所有normal的用户
+     * @return
+     */
+    public List<User> getAllUserNormalList() throws Exception{
+        List<User> normalList = this.userMapper.getAllUserNormalList();
+        return normalList;
+    }
+    /**
+     * 获取一定时间段的活跃用户
+     * @return
+     */
+    public List<User> getActiveUserList(Integer domain) throws Exception{
+        Date date=new Date();  
+        Calendar calendar = Calendar.getInstance();  
+        calendar.setTime(date);  
+        calendar.add(Calendar.DAY_OF_MONTH, -domain);  
+        Date leftDate = calendar.getTime();
+        UserExample example = new UserExample();
+        example.createCriteria().andTokenCreateBetween(leftDate, date).andTokenCreateIsNotNull().andPauseEqualTo("normal");
+        List<User> normalList = this.userMapperNew.selectByExample(example);
+        return normalList;
     }
 	/**
 	 * 获取该用户所有权限
@@ -648,6 +687,8 @@ public class UserService {
 			Map<String, Object> map = new HashMap<>();
 			map.put("createTime", user.getCreateTime());
 			map.put("userName", user.getUsername());
+			map.put("email", user.getEmail());
+			map.put("realName", user.getRealName());
 			list.add(map);
 		}
 		return ActionReturnUtil.returnSuccessWithData(list);

@@ -213,5 +213,6 @@ public interface TenantService {
      * @throws Exception
      */
     public boolean isAdmin(String tenantid,String username) throws Exception;
+    public List<TenantBinding> testTime(Integer domain) throws Exception;
 
 }
