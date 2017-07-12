@@ -9,6 +9,7 @@
         <result column="is_external" property="isExternal" jdbcType="INTEGER" />
         <result column="pvc" property="pvc" jdbcType="VARCHAR" />
         <result column="ingress" property="ingress" jdbcType="VARCHAR" />
+        <result column="namespace" property="namespace" jdbcType="VARCHAR" />
     </resultMap>
 
     <select id="selectByBusinessIdAndName" parameterType="java.lang.String" resultType="com.harmonycloud.dao.application.bean.Service">
@@ -20,7 +21,7 @@
     </select>
 
     <insert id="insertService" parameterType="com.harmonycloud.dao.application.bean.Service">
-        INSERT INTO service (name,business_id,service_template_id,is_external,pvc,ingress) VALUE (#{name},#{businessId},#{serviceTemplateId},#{isExternal},#{pvc},#{ingress})
+        INSERT INTO service (name,business_id,service_template_id,is_external,pvc,ingress,namespace) VALUE (#{name},#{businessId},#{serviceTemplateId},#{isExternal},#{pvc},#{ingress},#{namespace})
     </insert>
 
     <delete id="deleteSerivceByID" parameterType="java.util.List">
@@ -32,7 +33,7 @@
     </delete>
     
     <delete id="deleteSerivceByNamespace" parameterType="java.lang.String">
-        DELETE FROM service WHERE business_id IN (select id from business where namespaces = #{namespace})  
+        DELETE FROM service WHERE namespace = #{namespace} 
     </delete>
 
 
@@ -53,10 +54,10 @@
     </select>
 
 	<select id="selectServiceByName" parameterType="java.lang.String" resultMap="BaseResultMap">
-        select * from service WHERE name =#{name}
+        select * from service WHERE name =#{name} and namespace = #{namespace}
     </select>
 	
 	<update id="updateServicePVC">
-		update service set pvc=#{pvc} where name=#{name}
+		update service set pvc=#{pvc} where name=#{name} and namespace = #{namespace}
 	</update>
 </mapper>

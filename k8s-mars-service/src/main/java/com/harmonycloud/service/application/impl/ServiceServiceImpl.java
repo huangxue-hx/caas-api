@@ -549,20 +549,20 @@ public class ServiceServiceImpl implements ServiceService {
 	}
 
 	@Override
-	public com.harmonycloud.dao.application.bean.Service getServiceByname(String name) throws Exception {
+	public com.harmonycloud.dao.application.bean.Service getServiceByname(String name, String namespace) throws Exception {
 		if(StringUtils.isEmpty(name)){
 			return null;
 		}else{
-			return serviceMapper.selectServiceByName(name);
+			return serviceMapper.selectServiceByName(name, namespace);
 		}
 	}
 
 	@Override
-	public ActionReturnUtil updateServicePvcByname(String name, String pvc) throws Exception {
+	public ActionReturnUtil updateServicePvcByname(String name, String pvc, String namespace) throws Exception {
 		if(StringUtils.isEmpty(name)){
 			return ActionReturnUtil.returnErrorWithMsg("name 为空");
 		}else{
-			serviceMapper.updateServicePVC(name, pvc);
+			serviceMapper.updateServicePVC(name, pvc, namespace);
 			return ActionReturnUtil.returnSuccess();
 		}
 		

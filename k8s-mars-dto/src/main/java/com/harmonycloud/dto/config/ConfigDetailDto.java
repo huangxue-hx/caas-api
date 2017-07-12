@@ -11,6 +11,7 @@ public class ConfigDetailDto implements Serializable {
     private String tenant;
     private String repoName;
     private String items;
+    private String path;
     
     public String getId() {
         return id;
@@ -59,5 +60,13 @@ public class ConfigDetailDto implements Serializable {
     public void setRepoName(String repoName) {
         this.repoName = repoName;
     }
+
+	public String getPath() {
+		return path;
+	}
+
+	public void setPath(String path) {
+		this.path = path;
+	}
   
 }

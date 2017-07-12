@@ -49,6 +49,8 @@ public class AppDetail {
 	
 	private Object autoScaling;
 	
+	private String restartPolicy;
+	
 	private List<Event> autoScalingHistory;
 
 	public String getClusterIP() {
@@ -201,5 +203,13 @@ public class AppDetail {
 
 	public void setStatus(String status) {
 		this.status = status;
+	}
+
+	public String getRestartPolicy() {
+		return restartPolicy;
+	}
+
+	public void setRestartPolicy(String restartPolicy) {
+		this.restartPolicy = restartPolicy;
 	}
 }

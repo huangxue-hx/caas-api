@@ -369,7 +369,7 @@ public class BusinessServiceImpl implements BusinessService {
             // save businessTemplate-serviceTemplate mapper
             saveBusinessService(businessTemplatesId, externalservice.getId(), Constant.TEMPLATE_STATUS_CREATE, Constant.EXTERNAL_SERVICE);
         } else {
-        	//添加版本 
+        	/*//添加版本 
             ActionReturnUtil res = serviceService.saveServiceTemplate(serviceTemplate, userName);
             if(res.isSuccess()){
             	JSONObject json = new JSONObject();
@@ -378,6 +378,27 @@ public class BusinessServiceImpl implements BusinessService {
             	// add application - service template
                 saveBusinessService(businessTemplatesId, Integer.parseInt(json.get(serviceTemplate.getName()).toString()), Constant.TEMPLATE_STATUS_CREATE, Constant.K8S_SERVICE);
             } 
+            listImages(serviceTemplate.getDeploymentDetail().getContainers(), imageList);*/
+        	 // check flag  
+            if (serviceTemplate.getFlag() == null || serviceTemplate.getFlag() == SERVICE_SAVE) {
+            	//添加版本 
+                ActionReturnUtil res = serviceService.saveServiceTemplate(serviceTemplate, userName);
+                if(res.isSuccess()){
+                	JSONObject json = new JSONObject();
+                	json = (JSONObject) res.get("data");
+                	result.add(json);
+                	// add application - service template
+                    saveBusinessService(businessTemplatesId, Integer.parseInt(json.get(serviceTemplate.getName()).toString()), Constant.TEMPLATE_STATUS_CREATE, Constant.K8S_SERVICE);
+                }  
+            } else if (serviceTemplate.getFlag() == SERVICE_UPDATE) {
+                // service template existed update
+            	serviceService.updateServiceTemplata(serviceTemplate, userName, serviceTemplate.getTag());
+                // save businessTemplates-serviceTemplates mapper
+                saveBusinessService(businessTemplatesId, serviceTemplate.getId(), Constant.TEMPLATE_STATUS_CREATE, Constant.K8S_SERVICE);
+                JSONObject json = new JSONObject();
+                json.put(serviceTemplate.getName(), serviceTemplate.getId());
+                result.add(json);
+            }
             listImages(serviceTemplate.getDeploymentDetail().getContainers(), imageList);
         }
         result.add(imageList);

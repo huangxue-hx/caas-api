@@ -905,6 +905,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 				UnversionedStatus sta = JsonUtil.jsonToPojo(delRes.getBody(), UnversionedStatus.class);
 				return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
 			}
+			//删除rs
 			Map<String, Object> labels = new HashMap<>();
 //			labels.put("labelSelector", exp);
 			labels.put("labelSelector", "app=" + name);
@@ -913,19 +914,12 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 				UnversionedStatus sta = JsonUtil.jsonToPojo(rsRes.getBody(), UnversionedStatus.class);
 				return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
 			}
-			/*K8SClientResponse qwq = rsService.doRsByNamespace(namespace, null, labels, HTTPMethod.GET, cluster);
-			
-			ReplicaSetList rslist = K8SClient.converToBean(qwq,ReplicaSetList.class);
-			List<ReplicaSet> rss = rslist.getItems();
-			if(rss != null && rss.size() > 0){
-				for(ReplicaSet rs: rss){
-					K8SClientResponse rsRes = rsService.doRsByNamespace(namespace, null, null, rs.getMetadata().getName(), HTTPMethod.DELETE, cluster);
-					if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus()) && rsRes.getStatus() != Constant.HTTP_404) {
-						UnversionedStatus sta = JsonUtil.jsonToPojo(rsRes.getBody(), UnversionedStatus.class);
-						return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
-					}
-				}
-			}*/
+			//删除pod
+			K8SClientResponse podRes = podService.getPodByNamespace(namespace, null, labels, HTTPMethod.DELETE, cluster);
+			if (!HttpStatusUtil.isSuccessStatus(podRes.getStatus()) && podRes.getStatus() != Constant.HTTP_404) {
+				UnversionedStatus sta = JsonUtil.jsonToPojo(podRes.getBody(), UnversionedStatus.class);
+				return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
+			}
 		}
 
 		// 删除ingress
