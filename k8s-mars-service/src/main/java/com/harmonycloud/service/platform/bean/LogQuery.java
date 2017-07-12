@@ -14,6 +14,7 @@ public class LogQuery{
     private String namespace;
     private String container;
     private String logDir;
+    private String clusterId;
     /**
      * Elasticsearch分页id
      */
@@ -99,5 +100,13 @@ public class LogQuery{
 
     public void setPageSize(Integer pageSize) {
         this.pageSize = pageSize;
+    }
+
+    public String getClusterId() {
+        return clusterId;
+    }
+
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
     }
 }

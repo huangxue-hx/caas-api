@@ -164,7 +164,7 @@ public class MonitorAlarmController {
 	@RequestMapping(value="/monitor/pod", method=RequestMethod.GET)
 	public ActionReturnUtil getPodMonit(@RequestParam(value="rangeType") String rangeType, @RequestParam(value="startTime") String startTime,
 			@RequestParam(value="pod") String pod, @RequestParam(value="container") String container, @RequestParam(value="target") String target) throws Exception {
-		ActionReturnUtil result = influxdbService.podMonit(rangeType, startTime, pod, container, target);
+		ActionReturnUtil result = influxdbService.podMonit(rangeType, startTime, pod, container, target, null);
 		return result;
 	}
 	
@@ -200,9 +200,9 @@ public class MonitorAlarmController {
 	@ResponseBody
 	@RequestMapping(value="/monitor", method=RequestMethod.GET)
 	public ActionReturnUtil monitorContainer(@RequestParam(value="rangeType") String rangeType, @RequestParam(value="startTime") String startTime,
-			@RequestParam(value="pod") String pod, @RequestParam(value="container", required=false) String container, @RequestParam(value="target") String target) throws Exception {
+			@RequestParam(value="pod") String pod, @RequestParam(value="container", required=false) String container, @RequestParam(value="target") String target, @RequestParam(value="clusterId", required=false) String clusterId) throws Exception {
 		try {
-			return influxdbService.podMonit(rangeType, startTime, pod, container, target);
+			return influxdbService.podMonit(rangeType, startTime, pod, container, target, clusterId);
 		} catch (Exception e) {
 			throw e;
 		}

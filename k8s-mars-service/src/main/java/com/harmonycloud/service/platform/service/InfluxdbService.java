@@ -15,7 +15,7 @@ import java.util.Map;
  */
 public interface InfluxdbService {
 	
-	public ActionReturnUtil podMonit(String rangeType, String startTime, String pod, String container, String target) throws Exception;
+	public ActionReturnUtil podMonit(String rangeType, String startTime, String pod, String container, String target, String clusterId) throws Exception;
 	
 	public ActionReturnUtil nodeQuery(String type, String rangeType, String target, String name, String startTime, String processName) throws Exception;
 	

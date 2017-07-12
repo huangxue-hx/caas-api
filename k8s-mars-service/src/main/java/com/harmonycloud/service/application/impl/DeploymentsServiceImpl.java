@@ -1,6 +1,7 @@
 package com.harmonycloud.service.application.impl;
 
 import com.harmonycloud.common.util.*;
+import com.harmonycloud.dao.cluster.ClusterMapper;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.business.CreateConfigMapDto;
 import com.harmonycloud.dto.business.CreateContainerDto;
@@ -66,6 +67,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
 	@Autowired
 	HttpSession session;
+
+	@Autowired
+	ClusterMapper clusterMapper;
 
 	public ActionReturnUtil listDeployments(String tenantId, String name, String namespace, String labels, String status) throws Exception {
 		K8SURL url = new K8SURL();
@@ -620,7 +624,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		return ActionReturnUtil.returnSuccessWithData(containers);
 	}
 
-	public ActionReturnUtil getPodAppLog(String namespace, String container, String pod, Integer sinceSeconds) throws Exception {
+	public ActionReturnUtil getPodAppLog(String namespace, String container, String pod, Integer sinceSeconds, String clusterId) throws Exception {
 		Map<String, Object> bodys = new HashMap<String, Object>();
 		if (StringUtils.isNotBlank(container)) {
 			bodys.put("container", container);
@@ -628,10 +632,16 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		if(sinceSeconds != null && sinceSeconds>0) {
 			bodys.put("sinceSeconds", sinceSeconds);
 		}
+
+		Cluster cluster = null;
+		if(clusterId != null && !clusterId.equals("")) {
+			cluster = this.clusterMapper.findClusterById(clusterId);
+		}
+
 		//设置查询最大的日志量
 		bodys.put("tailLines", MAX_LOG_LINES);
 		K8SClientResponse response = podService.getPodLogByNamespace(namespace,
-				pod, "log", null, bodys, HTTPMethod.GET,null);
+				pod, "log", null, bodys, HTTPMethod.GET,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			LOGGER.error("getPodAppLog failed. message:{}", response.getBody().toString());
 			return ActionReturnUtil.returnErrorWithMsg(response.getBody());

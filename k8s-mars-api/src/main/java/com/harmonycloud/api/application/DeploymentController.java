@@ -7,6 +7,7 @@ import com.harmonycloud.dto.business.DeploymentDetailDto;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.EsService;
+import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.UpdateDeployment;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -34,6 +35,9 @@ public class DeploymentController {
 	EsService esService;
 	@Autowired
 	HttpSession session;
+
+	@Autowired
+	ClusterService clusterService;
 	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -235,7 +239,7 @@ public class DeploymentController {
 	@ResponseBody
 	@RequestMapping(value="/pod", method = RequestMethod.GET)
 	public ActionReturnUtil getPodDetail(@RequestParam(value = "name", required = true) String name,
-			@RequestParam(value = "namespace", required = true) String namespace) {
+			@RequestParam(value = "namespace", required = true) String namespace, @RequestParam(value = "clusterId", required = false) String clusterId) {
 		
 		try {
 			logger.info("获取服务中的pod详情");
@@ -246,7 +250,13 @@ public class DeploymentController {
 			if(userName == null){
 				throw new K8sAuthException(Constant.HTTP_401);
 			}
-			Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+
+			Cluster cluster = null;
+			if(null != clusterId && !"".equals(clusterId)) {
+				cluster = this.clusterService.findClusterById(clusterId);
+			} else {
+				cluster = (Cluster) session.getAttribute("currentCluster");
+			}
 			return dpService.getPodDetail(name, namespace, cluster);
 		} catch (Exception e) {
 			logger.error("获取服务中的pod详情失败：name="+name+ ", namespace="+namespace+", error:"+e.getMessage());
@@ -279,7 +289,7 @@ public class DeploymentController {
 	
 	@ResponseBody
 	@RequestMapping(value="/events", method = RequestMethod.GET)
-	public ActionReturnUtil getAppEvents(@RequestParam(value="name") String name, @RequestParam(value="namespace" , required=true) String namespace) {
+	public ActionReturnUtil getAppEvents(@RequestParam(value="name") String name, @RequestParam(value="namespace" , required=true) String namespace, @RequestParam(value="clusterId" , required=false) String clusterId) {
 		
 		try {
 			logger.info("获取服务的事件");
@@ -290,7 +300,12 @@ public class DeploymentController {
 			if(userName == null){
 				throw new K8sAuthException(Constant.HTTP_401);
 			}
-			Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+			Cluster cluster = null;
+			if(null != clusterId && !"".equals(clusterId)) {
+				cluster = this.clusterService.findClusterById(clusterId);
+			} else {
+				cluster = (Cluster) session.getAttribute("currentCluster");
+			}
 			return dpService.getDeploymentEvents(namespace, name, cluster);
 		} catch (Exception e) {
 			logger.error("获取服务的事件失败：name="+name+ ", namespace="+namespace+", error:"+e.getMessage());
