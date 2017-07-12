@@ -22,6 +22,8 @@ public class Service implements Serializable {
     private String pvc;
 
     private String ingress;
+    
+    private String namespace;
 
     public Integer getId() {
         return id;
@@ -82,5 +84,13 @@ public class Service implements Serializable {
     public void setIngress(String ingress) {
         this.ingress = ingress;
     }
+
+	public String getNamespace() {
+		return namespace;
+	}
+
+	public void setNamespace(String namespace) {
+		this.namespace = namespace;
+	}
 }
 

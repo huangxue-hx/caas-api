@@ -13,6 +13,7 @@
         <result property="user" column="user"/>
         <result property="repoName" column="reponame"/>
         <result property="item" column="item"/>
+        <result property="path" column="path"/>
     </resultMap>
     
     <!-- 根据配置文件名称，tenant,repo名称版本号最大的 -->
@@ -73,8 +74,8 @@
     
     <!-- 添加ConfigFile -->
     <insert id="saveConfigFile" parameterType="com.harmonycloud.dao.application.bean.ConfigFile">
-        insert into configfile(id,name,tenant,description,tags,create_time,user,reponame,item)
-        values(#{id},#{name},#{tenant},#{description},#{tags},#{createTime},#{user},#{repoName},#{item})
+        insert into configfile(id,name,tenant,description,tags,create_time,user,reponame,item,path)
+        values(#{id},#{name},#{tenant},#{description},#{tags},#{createTime},#{user},#{repoName},#{item},#{path})
     </insert>
 
     <select id="getId" parameterType="java.lang.String" resultType="java.lang.String">

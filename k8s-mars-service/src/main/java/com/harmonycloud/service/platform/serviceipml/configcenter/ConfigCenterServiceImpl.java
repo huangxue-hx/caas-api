@@ -75,6 +75,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 		configFile.setUser(userName);
 		configFile.setRepoName(configDetail.getRepoName());
 		configFile.setItem(configDetail.getItems());
+		configFile.setPath(configDetail.getPath());
 		boolean equals = false;
 		if (list != null && list.size() >0) {
 			// 存在版本号+0.1
@@ -164,6 +165,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 						// 添加版本号Id
 						tags.put("id", c.getId());
 						tags.put("tag", c.getTags());
+						tags.put("path", c.getPath());
 						json.put("create_time", c.getCreateTime());
 						configFileTagsArray.add(tags);
 					}
@@ -206,6 +208,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 						js.put("tag", con.getTags());
 						js.put("item", con.getItem());
 						js.put("desc", con.getDescription());
+						js.put("path", con.getPath());
 						jsarr.add(js);
 					}	
 				}
@@ -232,6 +235,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 		json.put("name", cfgf.getName());
 		json.put("tags", cfgf.getTags());
 		json.put("value", cfgf.getItem());
+		json.put("path", cfgf.getPath());
 		return ActionReturnUtil.returnSuccessWithData(json);
 	}
 
@@ -257,6 +261,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 		json.put("reponame", cfgf.getRepoName());
 		json.put("create_time", cfgf.getCreateTime());
 		json.put("items", cfgf.getItem());
+		json.put("path", cfgf.getPath());
 		return ActionReturnUtil.returnSuccessWithData(json);
 	}
 
@@ -370,6 +375,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 		json.put("tenant", cfgf.getTenant());
 		json.put("create_time", cfgf.getCreateTime());
 		json.put("items", cfgf.getItem());
+		json.put("path", cfgf.getPath());
 		return ActionReturnUtil.returnSuccessWithData(json);
 	}
 

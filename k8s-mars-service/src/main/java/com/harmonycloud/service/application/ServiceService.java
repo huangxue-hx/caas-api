@@ -34,8 +34,8 @@ public interface ServiceService {
     
     public ActionReturnUtil deleteServiceByTenant(String [] tenant) throws Exception;
     
-    public com.harmonycloud.dao.application.bean.Service getServiceByname(String name) throws Exception;
+    public com.harmonycloud.dao.application.bean.Service getServiceByname(String name, String namespace) throws Exception;
     
-    public ActionReturnUtil updateServicePvcByname(String name,String pvc) throws Exception;
+    public ActionReturnUtil updateServicePvcByname(String name,String pvc, String namespace) throws Exception;
 
 }

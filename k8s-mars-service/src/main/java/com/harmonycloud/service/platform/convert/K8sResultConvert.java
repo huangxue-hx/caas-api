@@ -38,6 +38,7 @@ public class K8sResultConvert {
 		appDetail.setInstance(dep.getSpec().getReplicas());
 		appDetail.setOwner(meta.getLabels().get("nephele/user").toString());
 		appDetail.setHostName(dep.getSpec().getTemplate().getSpec().getHostname());
+		appDetail.setRestartPolicy(dep.getSpec().getTemplate().getSpec().getRestartPolicy());
 		Map<String, Object> labels = new HashMap<String, Object>();
 		for (Map.Entry<String, Object> m : meta.getLabels().entrySet()) {
 			if (m.getKey().indexOf("nephele/") > 0) {
@@ -281,6 +282,7 @@ public class K8sResultConvert {
 				ContainerOfPodDetail cOfPodDetail = new ContainerOfPodDetail(ct.getName(), ct.getImage(),
 						ct.getLivenessProbe(), ct.getReadinessProbe(), ct.getPorts(), ct.getArgs(), ct.getEnv(),
 						ct.getCommand());
+				
 				if (ct.getResources().getLimits() != null) {
 					String pattern = ".*m.*";
 					Pattern r = Pattern.compile(pattern);
@@ -306,7 +308,7 @@ public class K8sResultConvert {
 								if (volume.getSecret() != null) {
 									vmExt.setType("secret");
 								} else if (volume.getPersistentVolumeClaim() != null) {
-									vmExt.setType("pv");
+									vmExt.setType("nfs");
 								} else if (volume.getEmptyDir() != null) {
 									vmExt.setType("emptyDir");
 									if(volume.getEmptyDir() != null){
@@ -735,6 +737,7 @@ public class K8sResultConvert {
 		PodTemplateSpec podTemplateSpec = new PodTemplateSpec();
 		PodSpec podSpec = new PodSpec();
 		podSpec.setContainers(cs);
+		podSpec.setRestartPolicy(detail.getRestartPolicy());
 		podSpec.setHostname(detail.getHostName());
 		//node Selector
 		Map<String, Object> nodeselector = new HashMap<>();

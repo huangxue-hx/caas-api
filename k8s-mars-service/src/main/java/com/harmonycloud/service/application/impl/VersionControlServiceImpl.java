@@ -104,7 +104,7 @@ public class VersionControlServiceImpl implements VersionControlService {
         com.harmonycloud.k8s.bean.Service service = JsonUtil.jsonToPojo(rsRes.getBody(), com.harmonycloud.k8s.bean.Service.class);
 
         //从数据库获取service的pvc信息
-        com.harmonycloud.dao.application.bean.Service svc = serviceService.getServiceByname(detail.getName());
+        com.harmonycloud.dao.application.bean.Service svc = serviceService.getServiceByname(detail.getName(), detail.getNamespace());
         JSONArray pvclist =new JSONArray();
         if(svc != null && svc.getPvc() != null){
             pvclist = JSONArray.fromObject(svc.getPvc());
@@ -149,7 +149,7 @@ public class VersionControlServiceImpl implements VersionControlService {
                 }
             }
         }
-        serviceService.updateServicePvcByname(detail.getName(), pvclistnew.toString());
+        serviceService.updateServicePvcByname(detail.getName(), pvclistnew.toString(), detail.getNamespace());
 
         //在这里创建configmap,在convertAppPut当中增加Deployment的注解,返回的是容器和configmap之间的映射关系列表
         Map<String, String> containerToConfigMap = createConfigmaps(detail, cluster);

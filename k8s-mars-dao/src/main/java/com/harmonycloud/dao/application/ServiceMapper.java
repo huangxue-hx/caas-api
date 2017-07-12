@@ -25,7 +25,7 @@ public interface ServiceMapper {
     
     void deleteSerivceByNamespace(@Param("namespace") String namespace);
     
-    Service selectServiceByName(@Param("name") String name);
+    Service selectServiceByName(@Param("name") String name, @Param("namespace") String namespace);
     
-    void updateServicePVC(@Param("name") String name, @Param("pvc") String pvc);
+    void updateServicePVC(@Param("name") String name, @Param("pvc") String pvc, @Param("namespace") String namespace);
 }

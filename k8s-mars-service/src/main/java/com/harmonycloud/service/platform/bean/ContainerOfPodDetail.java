@@ -31,6 +31,8 @@ public class ContainerOfPodDetail {
 	
 	private Map<String, Object> configmap;
 	
+	private String restartCount;
+	
 	public ContainerOfPodDetail() {
 		
 	}
@@ -133,6 +135,14 @@ public class ContainerOfPodDetail {
 
 	public void setConfigmap(Map<String, Object> configmap) {
 		this.configmap = configmap;
+	}
+
+	public String getRestartCount() {
+		return restartCount;
+	}
+
+	public void setRestartCount(String restartCount) {
+		this.restartCount = restartCount;
 	}
 
 }

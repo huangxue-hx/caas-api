@@ -13,6 +13,8 @@ public class DeploymentDetailDto {
 	private String instance;
 
 	private String annotation;
+	
+    private String restartPolicy;
 
 	private List<CreateContainerDto> containers;
 
@@ -123,5 +125,13 @@ public class DeploymentDetailDto {
     public void setNodeSelector(String nodeSelector) {
         this.nodeSelector = nodeSelector;
     }
+
+	public String getRestartPolicy() {
+		return restartPolicy;
+	}
+
+	public void setRestartPolicy(String restartPolicy) {
+		this.restartPolicy = restartPolicy;
+	}
 
 }

@@ -17,12 +17,12 @@ public class ConfigFile implements Serializable {
 	private String user; // 创建者
 	private String createTime; // 创建时间
 	private String item; //配置文件内容
-	
+	private String path; //容器内部挂载路径
 	@Override
 	public boolean equals(Object obj) {
 		// TODO Auto-generated method stub
 		ConfigFile o = (ConfigFile)obj;
-		return this.name.equals(o.getName())&&this.repoName.equals(o.getRepoName())&&this.tenant.equals(o.getTenant())&&this.description.equals(o.getDescription())&&this.item.equals(o.getItem());
+		return this.name.equals(o.getName())&&this.repoName.equals(o.getRepoName())&&this.tenant.equals(o.getTenant())&&this.description.equals(o.getDescription())&&this.item.equals(o.getItem())&&this.path.equals(o.getPath());
 	}
 
 	public ConfigFile() {
@@ -99,6 +99,14 @@ public class ConfigFile implements Serializable {
 
 	public void setCreateTime(String createTime) {
 		this.createTime = createTime;
+	}
+
+	public String getPath() {
+		return path;
+	}
+
+	public void setPath(String path) {
+		this.path = path;
 	}
 
 }
