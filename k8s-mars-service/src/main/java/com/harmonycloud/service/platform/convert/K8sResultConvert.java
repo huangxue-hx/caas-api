@@ -50,31 +50,31 @@ public class K8sResultConvert {
 			switch (state) {
 			case 3:
 				if (dep.getStatus().getReplicas() == dep.getStatus().getAvailableReplicas()) {
-					appDetail.setStatus(Integer.valueOf(Constant.START));
+					appDetail.setStatus(Constant.SERVICE_START);
 				} else {
-					appDetail.setStatus(state);
+					appDetail.setStatus(Constant.SERVICE_STARTING);
 				}
 				break;
 			case 2:
 				if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
-					appDetail.setStatus(state);
+					appDetail.setStatus(Constant.SERVICE_STOPPING);
 				} else {
-					appDetail.setStatus(Integer.valueOf(Constant.STOP));
+					appDetail.setStatus(Constant.SERVICE_STOP);
 				}
 				break;
 			default:
 				if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
-					appDetail.setStatus(Integer.valueOf(Constant.START));
+					appDetail.setStatus(Constant.SERVICE_START);
 				} else {
-					appDetail.setStatus(Integer.valueOf(Constant.STOP));
+					appDetail.setStatus(Constant.SERVICE_STOP);
 				}
 				break;
 			}
 		} else {
 			if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
-				appDetail.setStatus(Integer.valueOf(Constant.START));
+				appDetail.setStatus(Constant.SERVICE_START);
 			} else {
-				appDetail.setStatus(Integer.valueOf(Constant.STOP));
+				appDetail.setStatus(Constant.SERVICE_STOP);
 			}
 		}
 		if (meta.getAnnotations() != null && meta.getAnnotations().containsKey("nephele/annotation")) {
@@ -694,7 +694,7 @@ public class K8sResultConvert {
 								filename = cm.getPath().substring(in+1, cm.getPath().length());
 							}
 							Volume cMap = new Volume();
-							cMap.setName(cm.getFile() + "v" + cm.getTag().replace(".", "-"));
+							cMap.setName((cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
 							ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
 							coMap.setName(detail.getName() + c.getName());
 							List<KeyToPath> items=new LinkedList<KeyToPath>();
@@ -706,7 +706,7 @@ public class K8sResultConvert {
 							cMap.setConfigMap(coMap);
 							volumes.add(cMap);
 							VolumeMount volm = new VolumeMount();
-							volm.setName(cm.getFile() + "v" + cm.getTag().replace(".", "-"));
+							volm.setName((cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
 							volm.setMountPath(cm.getPath());
 							// volm.setMountPath(c.getConfigmap().getPath()+"/"+c.getConfigmap().getFile());
 							volm.setSubPath(filename);
@@ -1203,5 +1203,362 @@ public class K8sResultConvert {
 		hpAutoscaler.setSpec(hpaSpec);
 		return hpAutoscaler;
 	}
+	
+	/**
+	 * 组装 pod template*/
+	public static PodTemplateSpec convertPodTemplate(String name, List<CreateContainerDto> containers, String label, String annotation, String userName, String type, String nodeSelector, String restartPolicy)throws Exception {
+		//组装pod tempate
+		PodTemplateSpec podTemplate = new PodTemplateSpec();
+		
+		//metadata
+		ObjectMeta metadata = new ObjectMeta();
+		Map<String, Object> labels = new HashMap<>();
+	    labels.put(type, name);
+	    /*List<LocalObjectReference> lors = new ArrayList<LocalObjectReference>();
+	    LocalObjectReference lor = new LocalObjectReference();
+	    lor.setName(userName + "-secret");
+	    lors.add(lor);
+	    podSpec.setImagePullSecrets(lors);*/
+	    if (!StringUtils.isEmpty(label)) {
+	    	String[] ls ={};
+	    	if(label.contains(",")){
+				ls = label.split(",");
+	    	}else{
+	    		ls[0] = label;
+	    	}
+	    	for (String lab : ls) {
+				String[] tmp = lab.split("=");
+				labels.put(tmp[0], tmp[1]);
+			}
+	    }
+	    metadata.setLabels(labels);
+	    //annotations-QOS
+	    Map<String, Object> metadataanno = new HashMap<>();
+	    if(annotation!=null){
+			if (annotation.contains(",")) {
+				String[] qos = annotation.split(",");
+				if (qos != null && qos.length > 0) {
+					for (String s : qos) {
+						if (s.contains("ingress") && s.contains("=")) {
+							metadataanno.put("kubernetes.io/ingress-bandwidth", s.split("=")[1]);
+						}
+						if (s.contains("egress") && s.contains("=")) {
+							metadataanno.put("kubernetes.io/egress-bandwidth", s.split("=")[1]);
+						}
+					}
+				}
+			} else {
+				if (annotation.contains("ingress") && annotation.contains("=")) {
+					metadataanno.put("kubernetes.io/ingress-bandwidth", annotation.split("=")[1]);
+				}
+				if (annotation.contains("egress") && annotation.contains("=")) {
+					metadataanno.put("kubernetes.io/egress-bandwidth", annotation.split("=")[1]);
+				}
+			}
+	    }
+	    metadata.setAnnotations(metadataanno);
+		podTemplate.setMetadata(metadata);
+		//podSpec
+		PodSpec podSpec = new PodSpec();
+		List<Container> cs = new ArrayList<Container>();
+	    List<Volume> volumes = new ArrayList<Volume>();
+	    if(containers != null && containers.size() > 0 ){
+	    	for(CreateContainerDto c : containers){
+	    		Container container = new Container();
+	            container.setName(c.getName());
+	            if (StringUtils.isEmpty(c.getTag())) {
+	              container.setImage(c.getImg());
+	            } else {
+	              container.setImage(c.getImg() + ":" + c.getTag());
+	            }
+	            container.setCommand(c.getCommand());
+	            container.setArgs(c.getArgs());
+	            if (c.getLivenessProbe() != null) {
+	              Probe lProbe = new Probe();
+	              HTTPGetAction httpGet = new HTTPGetAction();
+	              TCPSocketAction tcp=new TCPSocketAction();
+	              if (c.getLivenessProbe().getHttpGet() != null) {
+	                httpGet.setPath(c.getLivenessProbe().getHttpGet().getPath());
+	                if (c.getLivenessProbe().getHttpGet().getPort() == 0) {
+	                    httpGet.setPort(80);
+	                } else {
+	                  //lProbe.getHttpGet().setPort(c.getLivenessProbe().getHttpGet().getPort());
+	                  httpGet.setPort(c.getLivenessProbe().getHttpGet().getPort());
+	                }
+	                lProbe.setHttpGet(httpGet);
+	              }
+	              
+	              if (c.getLivenessProbe().getExec() != null ) {
+	                            if(c.getLivenessProbe().getExec().getCommand()!=null){
+	                                ExecAction exec= new ExecAction();
+	                                exec.setCommand(c.getLivenessProbe().getExec().getCommand());
+	                                lProbe.setExec(exec);
+	                            }
+	                        }
+	              
+	              if (c.getLivenessProbe().getTcpSocket() != null) {
+	                if (c.getLivenessProbe().getTcpSocket().getPort() == 0) {
+	                    tcp.setPort(80);
+	                } else {
+	                  tcp.setPort(c.getLivenessProbe().getTcpSocket().getPort());
+	                }
+	                lProbe.setTcpSocket(tcp);
+	              }
+	              lProbe.setInitialDelaySeconds(c.getLivenessProbe().getInitialDelaySeconds());
+	              lProbe.setTimeoutSeconds(c.getLivenessProbe().getTimeoutSeconds());
+	              lProbe.setPeriodSeconds(c.getLivenessProbe().getPeriodSeconds());
+	              lProbe.setSuccessThreshold(c.getLivenessProbe().getSuccessThreshold());
+	              lProbe.setFailureThreshold(c.getLivenessProbe().getFailureThreshold());
+	              container.setLivenessProbe(lProbe);
+	            }
 
+	                    if (c.getReadinessProbe() != null) {
+	                        Probe rProbe = new Probe();
+	                        HTTPGetAction httpGet = new HTTPGetAction();
+	                        TCPSocketAction tcp=new TCPSocketAction();
+	                        if (c.getReadinessProbe().getHttpGet() != null) {
+	                          httpGet.setPath(c.getReadinessProbe().getHttpGet().getPath());
+	                            if (c.getReadinessProbe().getHttpGet().getPort() == 0) {
+	                                rProbe.getHttpGet().setPort(80);
+	                            } else {
+	                                // rProbe.getHttpGet().setPort(c.getReadinessProbe().getHttpGet().getPort());
+	                                httpGet.setPort(c.getReadinessProbe().getHttpGet().getPort());
+	                            }
+	                            rProbe.setHttpGet(httpGet);
+	                        }
+
+	                        if (c.getReadinessProbe().getExec() != null) {
+	                            if (c.getReadinessProbe().getExec().getCommand() != null) {
+	                                ExecAction exec = new ExecAction();
+	                                exec.setCommand(c.getReadinessProbe().getExec().getCommand());
+	                                rProbe.setExec(exec);
+	                            }
+	                        }
+
+	                        if (c.getReadinessProbe().getTcpSocket() != null) {
+	                            if (c.getReadinessProbe().getTcpSocket().getPort() == 0) {
+	                                tcp.setPort(80);
+	                            } else {
+	                                // rProbe.getTcpSocket().setPort(c.getReadinessProbe().getTcpSocket().getPort());
+	                                tcp.setPort(c.getReadinessProbe().getTcpSocket().getPort());
+	                            }
+	                            rProbe.setTcpSocket(tcp);
+	                        }
+	              rProbe.setInitialDelaySeconds(c.getReadinessProbe().getInitialDelaySeconds());
+	              rProbe.setTimeoutSeconds(c.getReadinessProbe().getTimeoutSeconds());
+	              rProbe.setPeriodSeconds(c.getReadinessProbe().getPeriodSeconds());
+	              rProbe.setSuccessThreshold(c.getReadinessProbe().getSuccessThreshold());
+	              rProbe.setFailureThreshold(c.getReadinessProbe().getFailureThreshold());
+	              container.setReadinessProbe(rProbe);
+	            }
+
+	            if (c.getPorts() != null && !c.getPorts().isEmpty()) {
+	              List<ContainerPort> ps = new ArrayList<ContainerPort>();
+	              for (CreatePortDto p : c.getPorts()) {
+	                ContainerPort port = new ContainerPort();
+	                port.setContainerPort(Integer.valueOf(p.getPort()));
+	                port.setProtocol(p.getProtocol());
+	                ps.add(port);
+	              }
+	              container.setPorts(ps);
+	            }
+
+	            if (c.getEnv() != null && !c.getEnv().isEmpty()) {
+	              List<EnvVar> envVars = new ArrayList<EnvVar>();
+	              for (CreateEnvDto env : c.getEnv()) {
+	                EnvVar eVar = new EnvVar();
+	                eVar.setName(env.getKey());
+	                eVar.setValue(env.getValue());
+	                envVars.add(eVar);
+	              }
+	              container.setEnv(envVars);
+	            }
+
+	            if (c.getResource() != null) {
+	              ResourceRequirements limit = new ResourceRequirements();
+	              Map<String, String> res = new HashMap<String, String>();
+	              String regEx="[^0-9]";
+	              Pattern p = Pattern.compile(regEx);
+	              Matcher m = p.matcher(c.getResource().getCpu());
+	              String result = m.replaceAll("").trim();
+	              res.put("cpu", result + "m");
+//	              res.put("cpu", c.getResource().getCpu());
+	              Matcher mm = p.matcher(c.getResource().getMemory());
+	                        String resultm = mm.replaceAll("").trim();
+	                        res.put("memory", resultm + "Mi");
+	              /*res.put("memory", c.getResource().getMemory() + "Mi");*/
+	              limit.setLimits(res);
+	              container.setResources(limit);
+	            }
+
+	            List<VolumeMount> volumeMounts = new ArrayList<VolumeMount>();
+	            container.setVolumeMounts(volumeMounts);
+	            if (c.getStorage() != null && !c.getStorage().isEmpty()) {
+	              Map<String, Object> volFlag = new HashMap<String, Object>();
+	              for (CreateVolumeDto vm : c.getStorage()) {
+	                if(vm.getType()!=null){
+	                  switch (vm.getType()) {
+	                  case Constant.VOLUME_TYPE_PV:
+	                    if (!volFlag.containsKey(vm.getPvcName())) {
+	                      PersistentVolumeClaimVolumeSource pvClaim = new PersistentVolumeClaimVolumeSource();
+	                      volFlag.put(vm.getPvcName(), vm.getPvcName());
+	                      if (vm.getReadOnly().equals("true")) {
+	                        pvClaim.setReadOnly(true);
+	                      }
+	                      if (vm.getReadOnly().equals("false")) {
+	                        pvClaim.setReadOnly(false);
+	                      }
+	                      pvClaim.setClaimName(vm.getPvcName());
+	                      Volume vol = new Volume();
+	                      vol.setPersistentVolumeClaim(pvClaim);
+	                      vol.setName(vm.getPvcName());
+	                      volumes.add(vol);
+	                    }
+	                    VolumeMount volm = new VolumeMount();
+	                    volm.setName(vm.getPvcName());
+	                    volm.setReadOnly(Boolean.parseBoolean(vm.getReadOnly()));
+	                    volm.setMountPath(vm.getPath());
+	                    volumeMounts.add(volm);
+	                    container.setVolumeMounts(volumeMounts);
+	                    break;
+	                  case Constant.VOLUME_TYPE_GITREPO:
+	                    if (!volFlag.containsKey(vm.getGitUrl())) {
+	                      volFlag.put(vm.getGitUrl(), RandomNum.randomNumber(8));
+	                      Volume gitRep = new Volume();
+	                      gitRep.setName(volFlag.get(vm.getGitUrl()).toString());
+	                      GitRepoVolumeSource gp = new GitRepoVolumeSource();
+	                      gp.setRepository(vm.getGitUrl());
+	                      gp.setRevision(vm.getRevision());
+	                      gitRep.setGitRepo(gp);
+	                      volumes.add(gitRep);
+	                    }
+	                    VolumeMount volmg = new VolumeMount();
+	                    volmg.setName(volFlag.get(vm.getGitUrl()).toString());
+	                    volmg.setReadOnly(Boolean.parseBoolean(vm.getReadOnly()));
+	                    volmg.setMountPath(vm.getPath());
+	                    volumeMounts.add(volmg);
+	                    container.setVolumeMounts(volumeMounts);
+	                    break;
+	                  case Constant.VOLUME_TYPE_EMPTYDIR:
+	                    if (!volFlag.containsKey(Constant.VOLUME_TYPE_EMPTYDIR+vm.getEmptyDir()==null ? "": vm.getEmptyDir())) {
+	                      volFlag.put(Constant.VOLUME_TYPE_EMPTYDIR+vm.getEmptyDir()==null ? "": vm.getEmptyDir(), RandomNum.getRandomString(8));
+	                      Volume empty = new Volume();
+	                      empty.setName(volFlag.get(Constant.VOLUME_TYPE_EMPTYDIR+vm.getEmptyDir()==null ? "": vm.getEmptyDir()).toString());
+	                      EmptyDirVolumeSource ed =new EmptyDirVolumeSource();
+	                      if(vm.getEmptyDir() != null && "Memory".equals(vm.getEmptyDir())){
+	                        ed.setMedium(vm.getEmptyDir());//Memory
+	                      }
+	                      empty.setEmptyDir(ed);
+	                      volumes.add(empty);
+	                    }
+	                    VolumeMount volme = new VolumeMount();
+	                    volme.setName(volFlag.get(Constant.VOLUME_TYPE_EMPTYDIR+vm.getEmptyDir()==null ? "": vm.getEmptyDir()).toString());
+	                    volme.setMountPath(vm.getPath());
+	                    volumeMounts.add(volme);
+	                    container.setVolumeMounts(volumeMounts);
+	                    break;
+	                  case Constant.VOLUME_TYPE_HOSTPASTH:
+	                    if (!volFlag.containsKey(Constant.VOLUME_TYPE_HOSTPASTH+vm.getHostPath())) {
+	                      volFlag.put(Constant.VOLUME_TYPE_HOSTPASTH+vm.getHostPath(), RandomNum.getRandomString(8));
+	                      Volume empty = new Volume();
+	                      empty.setName(volFlag.get(Constant.VOLUME_TYPE_HOSTPASTH+vm.getHostPath()).toString());
+	                      HostPath hp =new HostPath();
+	                      hp.setPath(vm.getHostPath());
+	                      empty.setHostPath(hp);
+	                      volumes.add(empty);
+	                    }
+	                    VolumeMount volmh = new VolumeMount();
+	                    volmh.setName(volFlag.get(Constant.VOLUME_TYPE_HOSTPASTH+vm.getHostPath()).toString());
+	                    volmh.setMountPath(vm.getPath());
+	                    volumeMounts.add(volmh);
+	                    container.setVolumeMounts(volumeMounts);
+	                    break;
+	                  default:
+	                    break;
+	                  }
+	                }
+	              }
+	            }
+
+	            if (!StringUtils.isEmpty(c.getLog())) {
+	              Volume emp = new Volume();
+	              emp.setName("logdir" + c.getName());
+	              EmptyDirVolumeSource ed = new EmptyDirVolumeSource();
+	              ed.setMedium("");
+	              emp.setEmptyDir(ed);
+	              volumes.add(emp);
+	              VolumeMount volm = new VolumeMount();
+	              volm.setName("logdir" + c.getName());
+	              volm.setMountPath(c.getLog());
+	              volumeMounts.add(volm);
+	              container.setVolumeMounts(volumeMounts);
+	            }
+
+	            if (c.getConfigmap() != null && c.getConfigmap().size()>0) {
+	              for (CreateConfigMapDto cm : c.getConfigmap()) {
+	                if (cm != null && !StringUtils.isEmpty(cm.getPath())) {
+	                  String filename = cm.getFile();
+	                  if(cm.getPath().contains("/")){
+	                    int in = cm.getPath().lastIndexOf("/");
+	                    filename = cm.getPath().substring(in+1, cm.getPath().length());
+	                  }
+	                  Volume cMap = new Volume();
+	                  cMap.setName((cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
+	                  ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
+	                  coMap.setName(name + c.getName());
+	                  List<KeyToPath> items=new LinkedList<KeyToPath>();
+	                  KeyToPath key=new KeyToPath();
+	                  key.setKey(cm.getFile()+"v"+cm.getTag());
+	                  key.setPath(filename);
+	                  items.add(key);
+	                  coMap.setItems(items);
+	                  cMap.setConfigMap(coMap);
+	                  volumes.add(cMap);
+	                  VolumeMount volm = new VolumeMount();
+	                  volm.setName((cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
+	                  volm.setMountPath(cm.getPath());
+	                  volm.setSubPath(filename);
+	                  volumeMounts.add(volm);
+	                  container.setVolumeMounts(volumeMounts);
+	                }
+	              }
+	            }
+	            cs.add(container);
+	    	}
+	    }
+	    podSpec.setContainers(cs);
+		Map<String, Object> nodeselector = new HashMap<>();
+        if (!StringUtils.isEmpty(nodeSelector)) {
+        	String[] ns = {};
+            if (nodeSelector.contains(",")) {
+                ns = nodeSelector.split(",");
+            }else{
+            	ns[0] = nodeSelector;
+            }
+			for (String n : ns) {
+				if (n.contains("=")) {
+					String[] s = n.split("=");
+					nodeselector.put(s[0], s[1]);
+				}
+			}
+        }
+        podSpec.setNodeSelector(nodeselector);
+        List<LocalObjectReference> imagePullSecrets = new ArrayList<>();
+        LocalObjectReference e = new LocalObjectReference();
+        e.setName(userName+"-secret");
+        if(Constant.TYPE_JOB.equals(type)){
+        	if(StringUtils.isEmpty(restartPolicy)){
+        		podSpec.setRestartPolicy(Constant.RESTARTPOLICY_NERVER);
+        	}else{
+        		podSpec.setRestartPolicy(restartPolicy);
+        	}
+        }
+        imagePullSecrets.add(e);
+        podSpec.setImagePullSecrets(imagePullSecrets);
+        if (volumes.size() > 0) {
+        	podSpec.setVolumes(volumes);
+        }
+        podTemplate.setSpec(podSpec);
+		return podTemplate;
+	}
 }

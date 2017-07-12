@@ -39,7 +39,7 @@ public class AppDetail {
 	
 	private Map<String, Object> labels;
 	
-	private Integer status;
+	private String status;
 	
 	private String annotation;
 	
@@ -155,14 +155,6 @@ public class AppDetail {
 		this.labels = labels;
 	}
 
-	public Integer getStatus() {
-		return status;
-	}
-
-	public void setStatus(Integer status) {
-		this.status = status;
-	}
-
 	public String getAnnotation() {
 		return annotation;
 	}
@@ -201,5 +193,13 @@ public class AppDetail {
 
 	public void setAutoScalingHistory(List<Event> autoScalingHistory) {
 		this.autoScalingHistory = autoScalingHistory;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
 	}
 }

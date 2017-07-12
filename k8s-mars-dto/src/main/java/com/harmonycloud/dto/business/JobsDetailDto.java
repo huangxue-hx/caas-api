@@ -14,12 +14,16 @@ public class JobsDetailDto {
     private String labels;
 
     private String annotation;
+    
+    private String nodeSelector;
 
     private Integer activeDeadlineSeconds;
 
     private Integer completions;
 
     private boolean manualSelector;
+    
+    private String restartPolicy;
 
     private Integer parallelism;
 
@@ -96,4 +100,20 @@ public class JobsDetailDto {
     public void setContainers(List<CreateContainerDto> containers) {
         this.containers = containers;
     }
+
+	public String getNodeSelector() {
+		return nodeSelector;
+	}
+
+	public void setNodeSelector(String nodeSelector) {
+		this.nodeSelector = nodeSelector;
+	}
+
+	public String getRestartPolicy() {
+		return restartPolicy;
+	}
+
+	public void setRestartPolicy(String restartPolicy) {
+		this.restartPolicy = restartPolicy;
+	}
 }

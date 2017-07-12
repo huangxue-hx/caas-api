@@ -16,6 +16,7 @@ import com.harmonycloud.dao.tenant.bean.TenantBindingExample;
 import com.harmonycloud.dto.business.*;
 import com.harmonycloud.dto.business.SelectorDto;
 import com.harmonycloud.dto.svc.*;
+import com.harmonycloud.dto.tenant.NetworkBean;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
@@ -36,7 +37,6 @@ import com.harmonycloud.service.platform.bean.PvDto;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.tenant.TenantService;
-import com.harmonycloud.k8s.client.K8sMachineClient;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,9 +58,6 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
     @Autowired
     private BusinessMapper businessMapper;
-
-    @Autowired
-    private BusinessServiceMapper businessServiceMapper;
 
     @Autowired
     private TopologyMapper topologyMapper;
@@ -85,6 +82,9 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
     @Autowired
     private RouterService routerService;
+    
+    @Autowired
+    private com.harmonycloud.service.application.BusinessService businessService;
 
     @Autowired
     private TenantBindingMapper tenantBindingMapper;
@@ -172,6 +172,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                 js.put("name", bs.getName());
                 js.put("id", bs.getId());
                 js.put("desc", bs.getDetails());
+                js.put("namespace", bs.getNamespaces());
                 js.put("createTime", dateToString(bs.getCreateTime()));
                 js.put("businessTemplateId", bs.getTemplateId());
                 js.put("namespce", bs.getNamespaces());
@@ -423,7 +424,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
             for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
                 if (c.getStorage() != null) {
                     for (CreateVolumeDto pvc : c.getStorage()) {
-                    	if(pvc.getType() != null && "nfs".equals(pvc.getType())){
+                    	if(pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())){
                     		if (pvc.getPvcName() == "" || pvc.getPvcName() == null) {
                                 continue;
                             }
@@ -1068,5 +1069,125 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         }
 		return flag;
 		
+	}
+
+	@Override
+	public ActionReturnUtil deployBusinessTemplateByName(String name, String tag, String namespace, String userName, Cluster cluster)
+			throws Exception {
+		if(StringUtils.isEmpty(name) && StringUtils.isEmpty(tag) && StringUtils.isEmpty(namespace)){
+			//根据name和tag获取模板信息
+			ActionReturnUtil btresponse = businessService.getBusinessTemplate(name, tag);
+			if(!btresponse.isSuccess()){
+				return ActionReturnUtil.returnErrorWithMsg("业务模板获取失败");
+			}
+			JSONObject json = (JSONObject) btresponse.get("data");
+			BusinessDeployDto businessDeploy = new BusinessDeployDto();
+			businessDeploy.setNamespace(namespace);
+			BusinessTemplateDto businessTemplate = new BusinessTemplateDto();
+			businessTemplate.setDesc(json.getString("desc"));
+			businessTemplate.setId(json.getInt("id"));
+			businessTemplate.setName(json.getString("name"));
+			businessTemplate.setTenant(json.getString("tenant"));
+			//应用模板list
+			JSONArray stList = json.getJSONArray("servicelist");
+			List<ServiceTemplateDto> servicelist = new LinkedList<ServiceTemplateDto>();
+			if(stList != null && stList.size() > 0){
+				for(int i=0; i < stList.size(); i++){
+					ServiceTemplateDto serviceTemplate = new ServiceTemplateDto();
+					JSONObject js = stList.getJSONObject(i);
+					serviceTemplate.setId(js.getInt("id"));
+					serviceTemplate.setName(js.getString("name"));
+					serviceTemplate.setTag(js.getString("tag"));
+					serviceTemplate.setDesc(js.getString("desc"));
+					serviceTemplate.setExternal(js.getInt("isExternal"));
+					DeploymentDetailDto deployment = JsonUtil.jsonToPojo(js.getString("deployment"), DeploymentDetailDto.class);
+					deployment.setNamespace(namespace);
+					serviceTemplate.setDeploymentDetail(deployment);
+					JSONArray jsarray = js.getJSONArray("ingress");
+					List<IngressDto> ingress = new LinkedList<IngressDto>();
+					if(jsarray != null && jsarray.size() > 0 ){
+						for(int j = 0; j < jsarray.size(); j++){
+							JSONObject ingressJson = jsarray.getJSONObject(j);
+							IngressDto ing = JsonUtil.jsonToPojo(ingressJson.toString(), IngressDto.class);
+							ingress.add(ing);
+						}
+					}
+					serviceTemplate.setIngress(ingress);
+					servicelist.add(serviceTemplate);
+				}
+			}else{
+				return ActionReturnUtil.returnErrorWithMsg("该业务模板没有应用模板");
+			}
+			businessTemplate.setServiceList(servicelist);
+			businessDeploy.setBusinessTemplate(businessTemplate);
+			JSONObject msg= new JSONObject();
+			//check name
+			//service name
+			K8SURL url = new K8SURL();
+        	url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
+    		K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+			if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
+					&& depRes.getStatus() != Constant.HTTP_404 ) {
+				JSONObject js = JSONObject.fromObject(depRes.getBody());
+				K8sResponseBody k8sresbody = (K8sResponseBody) JSONObject.toBean(js, K8sResponseBody.class);
+				return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
+			}
+			DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+			List<Deployment> deps = new ArrayList<Deployment>();
+			if(deplist != null && deplist.getItems() != null ){
+				deps = deplist.getItems();
+			}
+			//ingress http
+			List<ParsedIngressListDto> httplist = routerService.ingList(namespace);
+			//ingress tcp
+			ActionReturnUtil tcpRes = routerService.svcList(namespace);
+			if(!tcpRes.isSuccess()){
+				return tcpRes;
+			}
+			@SuppressWarnings("unchecked")
+			List<RouterSvc> tcplist = (List<RouterSvc>) tcpRes.get("data");
+			boolean flag = true ;
+			for(ServiceTemplateDto std : servicelist){
+				//check service name
+				if(std.getDeploymentDetail() != null && deps != null && deps.size() > 0){
+					for(Deployment dep : deps){
+						if(std.getDeploymentDetail().getName().equals(dep.getMetadata().getName())){
+							msg.put(std.getDeploymentDetail().getName(), "名称重复");
+							flag = false;
+						}
+					}
+				}
+				//check ingress
+				if(std.getIngress() != null && std.getIngress().size() > 0){
+					for(IngressDto ing : std.getIngress()){
+						if(ing.getType() != null && "HTTP".equals(ing.getType()) && httplist != null && httplist.size() > 0){
+							for(ParsedIngressListDto http : httplist){
+								if(ing.getParsedIngressList().getName().equals(http.getName())){
+									msg.put(ing.getParsedIngressList().getName(), "名称重复");
+									flag = false;
+								}
+							}
+							
+						}
+						if(ing.getType() != null && "TCP".equals(ing.getType()) && tcplist != null && tcplist.size() > 0){
+							for(RouterSvc tcp : tcplist){
+								if(ing.getSvcRouter().getName().equals(tcp.getName())){
+									msg.put(ing.getSvcRouter().getName(), "名称重复");
+									flag = false;
+								}
+							}
+						}
+					}
+				}
+			}
+			if(flag){
+				//发布
+				return deployBusinessTemplate(businessDeploy, userName, cluster);
+			}else{
+				return ActionReturnUtil.returnErrorWithData(msg);
+			}
+		}else{
+			return ActionReturnUtil.returnErrorWithMsg("业务模板名称或者版本号或者分区为空");
+		}
 	}
 }

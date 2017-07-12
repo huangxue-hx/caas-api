@@ -24,5 +24,8 @@ public class Job extends BaseResource {
 	public void setStatus(JobStatus status) {
 		this.status = status;
 	}
-	
+	public Job(){
+		this.setKind("Job");
+		this.setApiVersion("");
+	}
 }

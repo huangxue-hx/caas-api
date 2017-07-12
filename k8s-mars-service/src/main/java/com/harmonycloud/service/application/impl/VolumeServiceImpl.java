@@ -214,6 +214,51 @@ public class VolumeServiceImpl implements VolumeSerivce {
 		}
 		return ActionReturnUtil.returnSuccessWithData(response.getBody());
 	}
+	
+	@Override
+	public ActionReturnUtil createVolume(String namespace, String pvcname, String capacity, String tenantid,
+			String readonly, String bindOne,String PVname, String type, String name) throws Exception {
+		PersistentVolumeClaim pVolumeClaim = new PersistentVolumeClaim();
+		ObjectMeta meta = new ObjectMeta();
+		meta.setName(pvcname);
+		PersistentVolumeClaimSpec pvSpec = new PersistentVolumeClaimSpec();
+		List<String> modes = new ArrayList<String>();
+		if ("true".equals(readonly)) {
+			modes.add("ReadOnlyMany");
+		} else if ("true".equals(bindOne)){
+			modes.add("ReadWriteOnce");
+		} else {
+			modes.add("ReadWriteMany");
+		}
+		pvSpec.setAccessModes(modes);
+		LabelSelector labelSelector = new LabelSelector();
+		Map<String, Object> labels = new HashMap<String, Object>();
+		labels.put("nephele_tenantid_"+tenantid, tenantid);
+		labels.put(type, name);
+		labelSelector.setMatchLabels(labels);
+		pvSpec.setSelector(labelSelector);
+		Map<String, Object> limits = new HashMap<String, Object>();
+		if(capacity.contains("Mi") ||capacity.contains("Gi")){
+			limits.put("storage", capacity);
+		}
+		ResourceRequirements resources = new ResourceRequirements();
+		resources.setLimits(limits);
+		resources.setRequests(limits);
+		pvSpec.setResources(resources);
+		pvSpec.setVolumeName(PVname);
+		pVolumeClaim.setMetadata(meta);
+		pVolumeClaim.setSpec(pvSpec);
+		Map<String, Object> headers = new HashMap<>();
+		headers.put("Content-Type", "application/json");
+		Map<String, Object> bodys = CollectionUtil.transBean2Map(pVolumeClaim);
+		K8SURL url = new K8SURL();
+		url.setNamespace(namespace).setResource(Resource.PERSISTENTVOLUMECLAIM);;
+		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.POST, headers, bodys);
+		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+		}
+		return ActionReturnUtil.returnSuccessWithData(response.getBody());
+	}
 
 	@Override
 	public ActionReturnUtil deleteVolume(String namespace, String name) throws Exception {
