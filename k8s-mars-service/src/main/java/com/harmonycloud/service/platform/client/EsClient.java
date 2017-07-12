@@ -42,6 +42,13 @@ public class EsClient {
 //		super();
 	}
 
+	public EsClient(Cluster cluster){
+		this.setHost(cluster.getEsHost());
+		this.setPort(cluster.getEsPort());
+		this.setClusterName(cluster.getEsClusterName());
+		this.setVersion(cluster.getEsVersion());
+	}
+
 
 
 	public  TransportClient getEsClient() throws Exception{

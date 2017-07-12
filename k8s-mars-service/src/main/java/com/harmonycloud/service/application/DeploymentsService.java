@@ -125,7 +125,7 @@ public interface DeploymentsService {
 	 * @return
 	 * @throws Exception
 	 */
-	public ActionReturnUtil getPodAppLog(String namespace, String container, String pod, Integer sinceSeconds) throws Exception;
+	public ActionReturnUtil getPodAppLog(String namespace, String container, String pod, Integer sinceSeconds, String clusterId) throws Exception;
 
 	/**
 	 * 创建deployment

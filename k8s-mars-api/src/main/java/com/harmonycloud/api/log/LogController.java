@@ -64,11 +64,12 @@ public class LogController {
     @ResponseBody
     @RequestMapping(value="/logfile/list", method= RequestMethod.GET)
     public ActionReturnUtil listContainerFile(@RequestParam(value="container") String container,
-                                              @RequestParam(value="namespace", required=true) String namespace) throws Exception{
+                                              @RequestParam(value="namespace", required=true) String namespace,
+                                              @RequestParam(value="clusterId", required=false) String clusterId) throws Exception{
 
         try {
             logger.info("获取container的日志文件列表");
-            return esService.listfileName(container, namespace);
+            return esService.listfileName(container, namespace, clusterId);
         } catch (Exception e) {
             logger.error("获取容器日志文件列表失败：namespace:{}", container,e);
             return ActionReturnUtil.returnErrorWithMsg(e.getMessage());
@@ -82,10 +83,11 @@ public class LogController {
                                          @RequestParam(value="namespace") String namespace,
                                          @RequestParam(value="container", required=false) String container,
                                          @RequestParam(value="recentTimeNum", required=false) Integer recentTimeNum,
-                                         @RequestParam(value="recentTimeUnit", required=false) String recentTimeUnit) throws Exception{
+                                         @RequestParam(value="recentTimeUnit", required=false) String recentTimeUnit,
+                                         @RequestParam(value="clusterId", required=false) String clusterId) throws Exception{
         try {
             Integer sinceSeconds = this.getSinceSeconds(recentTimeNum, recentTimeUnit);
-            return deploymentService.getPodAppLog(namespace, container, pod, sinceSeconds);
+            return deploymentService.getPodAppLog(namespace, container, pod, sinceSeconds, clusterId);
         }catch(IllegalArgumentException e){
             logger.error("获取pod的应用日志失败",e);
             return ActionReturnUtil.returnErrorWithData(e.getMessage());

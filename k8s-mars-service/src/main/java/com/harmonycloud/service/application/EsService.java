@@ -14,7 +14,7 @@ public interface EsService {
 
 	ActionReturnUtil fileLog(LogQuery logQuery) throws Exception;
 	
-	ActionReturnUtil listfileName(String container, String namespace) throws Exception;
+	ActionReturnUtil listfileName(String container, String namespace, String clusterId) throws Exception;
 	
 	ActionReturnUtil getProcessLog(String rangeType, String processName, String node) throws Exception;
 	

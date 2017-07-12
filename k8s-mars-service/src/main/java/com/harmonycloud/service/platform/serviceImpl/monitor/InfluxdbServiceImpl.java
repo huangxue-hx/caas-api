@@ -28,6 +28,8 @@ import com.harmonycloud.service.platform.client.InfluxdbClient;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.InfluxdbService;
 
+import javax.servlet.http.HttpSession;
+
 /**
  * influxdb service:查询监控信息
  * 
@@ -40,13 +42,21 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 
 	@Autowired
 	private ClusterMapper clusterMapper;
+	@Autowired
+	HttpSession session;
 	//监控数据最大展示100个监控点
     private static final int MAX_MONITOR_POINT = 100;
 
 
-	public ActionReturnUtil podMonit(String rangeType, String startTime, String pod, String container, String target) throws Exception {
+	public ActionReturnUtil podMonit(String rangeType, String startTime, String pod, String container, String target, String clusterId) throws Exception {
 		String interval = "";
 		String range = "";
+		Cluster cluster = null;
+		if(clusterId != null && !clusterId.equals("")) {
+			cluster = this.clusterMapper.findClusterById(clusterId);
+		} else {
+			cluster = (Cluster) session.getAttribute("currentCluster");
+		}
 		if(rangeType.equals("5")){
 			if(StringUtils.isBlank(startTime)){
 				return ActionReturnUtil.returnErrorWithMsg("服务创建时间为空!");
@@ -102,7 +112,7 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 		} else {
 			sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"type\""+" = "+"\'"+type+"\'"+" AND "+"\"pod_name\""+" = "+"\'"+pod+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+") fill(0)";
 		}
-		InfluxdbClient influxdbClient = new InfluxdbClient();
+		InfluxdbClient influxdbClient = new InfluxdbClient(cluster);
 		String influxServer = influxdbClient.getInfluxServer() + "?db="+influxdbClient.getDbName();
 		influxServer = influxServer + "&&q="+URLEncoder.encode(sql, "UTF-8");
 		HttpClientResponse response = HttpClientUtil.doGet(influxServer, null, null);

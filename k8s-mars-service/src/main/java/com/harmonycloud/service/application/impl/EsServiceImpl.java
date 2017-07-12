@@ -3,6 +3,8 @@ package com.harmonycloud.service.application.impl;
 import com.harmonycloud.common.enumm.EnumLogSeverity;
 import com.harmonycloud.common.enumm.EnumMonitorQuery;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dao.cluster.ClusterMapper;
+import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.service.application.EsService;
 import com.harmonycloud.service.platform.bean.ContainerLog;
 import com.harmonycloud.service.platform.bean.LogQuery;
@@ -23,9 +25,11 @@ import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms.Bucket;
 import org.elasticsearch.search.sort.SortOrder;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
+import javax.servlet.http.HttpSession;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -34,6 +38,10 @@ import java.util.*;
 public class EsServiceImpl implements EsService {
 
 	private static final int SEARCH_TIME = 60000;
+	@Autowired
+	private HttpSession session;
+
+	private ClusterMapper clusterMapper;
 
 	public ActionReturnUtil fileLog(LogQuery logQuery)
 			throws Exception {
@@ -42,7 +50,14 @@ public class EsServiceImpl implements EsService {
 		SearchResponse scrollResp = null;
 		String scrollId = logQuery.getScrollId();
 
-		EsClient esClient = new EsClient();
+		Cluster cluster = null;
+		if(logQuery.getClusterId() != null && !logQuery.getClusterId().equals("")) {
+			cluster = this.clusterMapper.findClusterById(logQuery.getClusterId());
+		} else {
+			cluster = (Cluster) session.getAttribute("currentCluster");
+		}
+
+		EsClient esClient = new EsClient(cluster);
 		TransportClient client = esClient.getEsClient();
 		if(StringUtils.isBlank(scrollId)){
 			Assert.hasText(logQuery.getContainer(),"container cannot be null");
@@ -67,7 +82,7 @@ public class EsServiceImpl implements EsService {
 	    return ActionReturnUtil.returnSuccessWithData(data);
 	}
 	
-	public ActionReturnUtil listfileName(String container, String namespace) throws Exception {
+	public ActionReturnUtil listfileName(String container, String namespace, String clusterId) throws Exception {
 		TreeSet<String> logFileNames = new TreeSet<String>();
 		 //创建客户端
 		if (StringUtils.isEmpty(container)) {
@@ -77,7 +92,15 @@ public class EsServiceImpl implements EsService {
 		if (StringUtils.isEmpty(namespace)) {
 			return ActionReturnUtil.returnErrorWithMsg("namespace cannot be null");
 		}
-		EsClient esClient = new EsClient();
+
+		Cluster cluster = null;
+		if(clusterId != null && !clusterId.equals("")) {
+			cluster = this.clusterMapper.findClusterById(clusterId);
+		} else {
+			cluster = (Cluster) session.getAttribute("currentCluster");
+		}
+
+		EsClient esClient = new EsClient(cluster);
 		Client client = esClient.getEsClient();
 		QueryBuilder queryBuilder = QueryBuilders.boolQuery().must(QueryBuilders.termQuery("container_name", container))
 									.must(QueryBuilders.termQuery("namespace_name", namespace));
