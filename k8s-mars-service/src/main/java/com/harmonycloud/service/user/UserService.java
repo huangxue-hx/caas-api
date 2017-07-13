@@ -656,7 +656,7 @@ public class UserService {
         calendar.add(Calendar.DAY_OF_MONTH, -domain);  
         Date leftDate = calendar.getTime();
         UserExample example = new UserExample();
-        example.createCriteria().andTokenCreateBetween(leftDate, date).andTokenCreateIsNotNull().andPauseEqualTo("normal");
+        example.createCriteria().andTokenCreateBetween(leftDate, date).andTokenCreateIsNotNull().andPauseEqualTo("normal").andIsadminEqualTo(false).andIsmachineEqualTo(false);
         List<User> normalList = this.userMapperNew.selectByExample(example);
         return normalList;
     }
@@ -667,8 +667,16 @@ public class UserService {
         calendar.add(Calendar.DAY_OF_MONTH, -domain);  
         Date leftDate = calendar.getTime();
         UserExample example = new UserExample();
-        example.createCriteria().andTokenCreateBetween(leftDate, date).andTokenCreateIsNull().andPauseEqualTo("normal");
+        example.createCriteria().andPauseEqualTo("normal").andTokenCreateIsNull().andIsadminEqualTo(false).andIsmachineEqualTo(false);
         List<User> normalList = this.userMapperNew.selectByExample(example);
+        UserExample example1 = new UserExample();
+        example1.createCriteria().andTokenCreateNotBetween(leftDate, date).andTokenCreateIsNotNull().andPauseEqualTo("normal").andIsadminEqualTo(false).andIsmachineEqualTo(false);
+        List<User> normalList1 = this.userMapperNew.selectByExample(example1);
+        if(normalList1!=null&&normalList1.size()>0){
+            for (User user : normalList1) {
+                normalList.add(user);
+            }
+        }
         return normalList;
     }
     /**
