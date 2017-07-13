@@ -75,7 +75,9 @@
     <select id="getActiveUserList" resultMap="userMap" parameterType="com.harmonycloud.dao.user.bean.User">
         select 'false' as QUERYID,uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment,pause from user WHERE ( token_create between #{leftTime} and #{rightTime}  and token_create is not null);
     </select>
-
+    <select id="getUnauthorizedUserList" resultMap="userMap" >
+        SELECT uuid,username ,create_time, isAdmin,email,real_name,`comment` ,pause FROM `user` LEFT JOIN  (SELECT username AS checkname FROM user_tenant GROUP BY username )as b ON `user`.username = b.checkname WHERE checkname is null AND isAdmin != 1 AND isMachine != 1;
+    </select>
     <select id="updateUser" parameterType="com.harmonycloud.dao.user.bean.User">
         update user
         <set >

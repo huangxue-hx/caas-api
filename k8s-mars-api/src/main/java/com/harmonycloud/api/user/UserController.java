@@ -26,6 +26,7 @@ import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.user.bean.User;
+import com.harmonycloud.dto.user.SummaryUserInfo;
 import com.harmonycloud.dto.user.UserDetailDto;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.service.tenant.TenantService;
@@ -366,6 +367,49 @@ public class UserController {
 
     }
     /**
+     * 更改普通用户为admin
+     * @param username
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/user/updateUserToAdmin", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil updateUserToAdmin(@RequestParam(value = "username") String username) throws Exception {
+        Object user = session.getAttribute("username");
+        if(user == null){
+            throw new K8sAuthException(Constant.HTTP_401);
+        }
+        int isadmin = (Integer)session.getAttribute("isAdmin");
+        if(isadmin!=1){
+            throw new MarsRuntimeException("admin用户才能操作");
+        }
+        User user2 = userService.updateUserToAdmin(username,1);
+        if(user2==null){
+            throw new MarsRuntimeException("更新用户状态失败");
+        }
+        return ActionReturnUtil.returnSuccess();
+
+    }
+    @RequestMapping(value = "/user/updateAdminToNormal", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil updateAdminToNormal(@RequestParam(value = "username") String username) throws Exception {
+        Object user = session.getAttribute("username");
+        if(user == null){
+            throw new K8sAuthException(Constant.HTTP_401);
+        }
+        int isadmin = (Integer)session.getAttribute("isAdmin");
+        if(isadmin!=1){
+            throw new MarsRuntimeException("admin用户才能操作");
+        }
+       if(username.equals(user.toString())){
+           ActionReturnUtil.returnErrorWithMsg("管理员不能操作自己账户");
+       }
+        User user2 = userService.updateUserToAdmin(username,0);
+        if(user2==null){
+            throw new MarsRuntimeException("更新用户状态失败");
+        }
+        return ActionReturnUtil.returnSuccess();
+
+    }
+    /**
      * 获取所有pause的用户
      * @param username
      * @return
@@ -398,6 +442,31 @@ public class UserController {
     @RequestMapping(value = "/user/getActiveUserList", method = RequestMethod.GET)
     public @ResponseBody ActionReturnUtil getActiveUserList(@RequestParam(value = "domain") Integer domain) throws Exception {
         List<User> list = userService.getActiveUserList(domain);
+        return ActionReturnUtil.returnSuccessWithData(list);
+
+    }
+    @RequestMapping(value = "/user/getUnauthorizedUserList", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil getUnauthorizedUserList() throws Exception {  
+        List<User> list = userService.getUnauthorizedUserList();
+        return ActionReturnUtil.returnSuccessWithData(list);
+    }
+    @RequestMapping(value = "/user/getAllSummary", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil getAllSummary(@RequestParam(value = "domain") Integer domain) throws Exception {
+        int isadmin = (Integer)session.getAttribute("isAdmin");
+          if(isadmin!=1){
+          throw new MarsRuntimeException("admin用户才能查看未授权用户");
+      }
+        SummaryUserInfo allSummary = userService.getAllSummary(domain);
+        return ActionReturnUtil.returnSuccessWithData(allSummary);
+
+    }
+    @RequestMapping(value = "/user/getAdminList", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil getAdminList() throws Exception {
+        int isadmin = (Integer)session.getAttribute("isAdmin");
+          if(isadmin!=1){
+          throw new MarsRuntimeException("admin用户才能查看admin用户列表");
+      }
+        List<User> list = userService.getAdminUserList();
         return ActionReturnUtil.returnSuccessWithData(list);
 
     }

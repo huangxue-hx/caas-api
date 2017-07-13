@@ -92,6 +92,11 @@ public interface CustomUserMapper {
 	 * @return
 	 */
 	List<User> getActiveUserList(User user);
+	/**
+	 * 获取所有未授权的用户
+	 * @return
+	 */
+	List<User> getUnauthorizedUserList();
 
 	/**
 	 * 获取所有租户

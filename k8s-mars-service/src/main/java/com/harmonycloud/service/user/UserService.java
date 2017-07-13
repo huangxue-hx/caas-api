@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HarborUtil;
 import com.harmonycloud.common.util.HttpClientResponse;
@@ -38,6 +39,7 @@ import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.bean.UserExample;
 import com.harmonycloud.dao.user.customs.CustomUserMapper;
 import com.harmonycloud.dto.tenant.show.UserShowDto;
+import com.harmonycloud.dto.user.SummaryUserInfo;
 import com.harmonycloud.dto.user.UserDetailDto;
 import com.harmonycloud.k8s.bean.RoleBinding;
 import com.harmonycloud.k8s.bean.RoleBindingList;
@@ -600,6 +602,34 @@ public class UserService {
         return null;
     }
 	/**
+	 * 更改用户isadmin状态
+	 * @param username
+	 * @param status
+	 * @return
+	 * @throws Exception
+	 */
+	public User updateUserToAdmin(String username,Integer isadmin) throws Exception{
+        if (username != null) {
+            User user = this.getUser(username);
+            if(user==null){
+                throw new MarsRuntimeException("用户"+username+"不存在！");
+            }
+            if(user.getIsAdmin()==isadmin){
+                if(isadmin==0){
+                    throw new MarsRuntimeException("用户"+username+"已经是普通用户！");
+                }else{
+                    throw new MarsRuntimeException("用户"+username+"已经是管理员！");
+                }
+            }
+            user.setIsadmin(isadmin);
+            user.setUuid(user.getId());
+            user.setUpdateTime(new Date());
+            int updateByPrimaryKeySelective = this.userMapperNew.updateByPrimaryKeySelective(user);
+            return user;
+        }
+        return null;
+    }
+	/**
      * 获取所有被pause的用户
      * @return
      */
@@ -616,7 +646,7 @@ public class UserService {
         return normalList;
     }
     /**
-     * 获取一定时间段的活跃用户
+     * 获取所有部门一定时间段的活跃用户
      * @return
      */
     public List<User> getActiveUserList(Integer domain) throws Exception{
@@ -629,6 +659,66 @@ public class UserService {
         example.createCriteria().andTokenCreateBetween(leftDate, date).andTokenCreateIsNotNull().andPauseEqualTo("normal");
         List<User> normalList = this.userMapperNew.selectByExample(example);
         return normalList;
+    }
+    public List<User> getUnActiveUserList(Integer domain) throws Exception{
+        Date date=new Date();  
+        Calendar calendar = Calendar.getInstance();  
+        calendar.setTime(date);  
+        calendar.add(Calendar.DAY_OF_MONTH, -domain);  
+        Date leftDate = calendar.getTime();
+        UserExample example = new UserExample();
+        example.createCriteria().andTokenCreateBetween(leftDate, date).andTokenCreateIsNull().andPauseEqualTo("normal");
+        List<User> normalList = this.userMapperNew.selectByExample(example);
+        return normalList;
+    }
+    /**
+     * 获取未授权用户列表
+     * @return
+     * @throws Exception
+     */
+    public List<User> getUnauthorizedUserList() throws Exception{
+        List<User> unauthorizedUserList = userMapper.getUnauthorizedUserList();
+        return unauthorizedUserList;
+    }
+    public List<User> getAdminUserList() throws Exception{
+        UserExample example = new UserExample ();
+        example.createCriteria().andIsadminEqualTo(true);
+        List<User> adminUserList = userMapperNew.selectByExample(example);
+        return adminUserList;
+    }
+    /**
+     * 获取用户总览
+     * @return
+     * @throws Exception
+     */
+    public SummaryUserInfo getAllSummary(Integer domain) throws Exception{
+        SummaryUserInfo su= new SummaryUserInfo();
+        //活跃用户
+        List<User> activeUserList = this.getActiveUserList(domain);
+        su.setActiveSum(activeUserList.size());
+        su.setActiveUserList(activeUserList);
+        //不活跃用户
+        List<User> unActiveUserList = this.getUnActiveUserList(domain);
+        su.setUnActiveUserList(unActiveUserList);
+        su.setUnActiveSum(unActiveUserList.size());
+        //正常用户
+        List<User> allUserNormalList = this.getAllUserNormalList();
+        su.setNormalUserList(allUserNormalList);
+        su.setUserNormalSum(allUserNormalList.size());
+        //未授权用户
+        List<User> unauthorizedUserList = this.getUnauthorizedUserList();
+        su.setUnauthorizedUserList(unauthorizedUserList);
+        su.setUnauthorizedUserSum(unauthorizedUserList.size());
+        //被阻止用户
+        List<User> allUserPausedList = this.getAllUserPausedList();
+        su.setPausedUserList(allUserPausedList);
+        su.setUserPausedSum(allUserPausedList.size());
+        List<User> adminUserList = this.getAdminUserList();
+        //管理员用户
+        su.setAdminList(adminUserList);
+        su.setAdminSum(adminUserList.size());
+        su.setUserSum(allUserNormalList.size()+allUserPausedList.size());
+        return su;
     }
 	/**
 	 * 获取该用户所有权限
