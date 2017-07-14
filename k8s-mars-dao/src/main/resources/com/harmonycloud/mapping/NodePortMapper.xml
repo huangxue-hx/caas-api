@@ -29,5 +29,13 @@
 	<select id="getnodeport"  resultType="java.lang.Integer">
 		select COUNT(*) from nodeport where nodeport=#{nodePort}
 	</select>
+	
+	<select id="getnodeportbyid"  resultType="java.lang.Integer">
+		select nodeport from nodeport where id=#{id}
+	</select>
+	
+	<select id="getidbynodeport"  resultType="java.lang.Integer">
+		select id from nodeport where nodeport=#{nodePort}
+	</select>
 
 </mapper>

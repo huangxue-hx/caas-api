@@ -40,7 +40,7 @@ public interface RouterService {
     
     public ActionReturnUtil svcDelete(String namespace, String name) throws Exception;
    
-    public ActionReturnUtil deleteTcpSvc(String namespace, String name,String port) throws Exception;
+    public ActionReturnUtil deleteTcpSvc(String namespace, String name,String port,String tenantId) throws Exception;
 
     public ActionReturnUtil getEntry() throws Exception;
     
@@ -48,9 +48,13 @@ public interface RouterService {
     
     public ActionReturnUtil listProvider() throws Exception;
     
-    public ActionReturnUtil getPort() throws Exception;
+    public ActionReturnUtil getPort(String tenantId) throws Exception;
     
-    public ActionReturnUtil checkPort(CheckPort checkPort) throws Exception;
+    public ActionReturnUtil checkPort(String port,String tenantId) throws Exception;
+    
+    public ActionReturnUtil updatePort(String oldport,String nowport,String tenantId) throws Exception;
+    
+    public ActionReturnUtil delPort(String port,String tenantId) throws Exception;
 
     List<RouterSvc> listIngressByName(ParsedIngressListDto parsedIngressListDto) throws Exception;
 }
