@@ -133,7 +133,6 @@ public class BusinessDeployController {
         if(userName == null){
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
-		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
         return businessDeployService.deleteBusinessTemplate(businessList, userName);
     }
 
@@ -232,7 +231,7 @@ public class BusinessDeployController {
     }
 
     /**
-     * #4 deploy application template
+     * #11 deploy application template
      * 
      * @param businessDeploy
      *            BusinessDeploy Bean
@@ -249,5 +248,25 @@ public class BusinessDeployController {
 		}
 		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
         return businessDeployService.deployBusinessTemplateByName(name, tag, namespace, userName, cluster);
+    }
+    
+    /**
+     * #12 deploy application serviceTemplate 在已有发布的业务中
+     * 
+     * @param businessDeploy
+     *            BusinessDeploy Bean
+     * @return ActionReturnUtil
+     */
+    @ResponseBody
+    @RequestMapping(value = "/deploy/service", method = RequestMethod.POST)
+
+    public ActionReturnUtil deplotDeployments(@ModelAttribute BusinessDeployDto businessDeploy) throws Exception {
+        logger.info("deploy business");
+        String userName = (String) session.getAttribute("username");
+        if(userName == null){
+			throw new K8sAuthException(Constant.HTTP_401);
+		}
+		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+        return businessDeployService.addAndDeployBusinessTemplate(businessDeploy, userName, cluster);
     }
 }

@@ -1115,6 +1115,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			LabelSelector las=new LabelSelector();
 			las.setMatchLabels(mla);
 			dep.getSpec().setSelector(las);
+			DeploymentStrategy strategy = new DeploymentStrategy();
+			strategy.setType("Recreate");
+			dep.getSpec().setStrategy(strategy);
 			dep.getSpec().getTemplate().getMetadata().setLabels(la);
 			//annotations-QOS
 			Map<String, Object> metadataanno = new HashMap<>();

@@ -147,4 +147,17 @@ public interface BusinessDeployService {
      * @return ActionReturnUtil
      */
     ActionReturnUtil deployBusinessTemplateByName(String name, String tag, String namespace, String userName, Cluster cluster) throws Exception;
+    
+    /**
+     * and and deploy application service 已有的业务  on 17/04/11.
+     * 
+     * @author yanli
+     * 
+     * @param businessDeploy
+     *            BusinessDeploybean
+     * @param username
+     *            username
+     * @return ActionReturnUtil
+     */
+    ActionReturnUtil addAndDeployBusinessTemplate(BusinessDeployDto businessDeploy, String username, Cluster cluster)throws Exception;
 }

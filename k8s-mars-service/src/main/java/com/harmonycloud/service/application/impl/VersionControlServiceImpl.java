@@ -32,15 +32,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
-import org.ho.yaml.Yaml;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -66,9 +61,6 @@ public class VersionControlServiceImpl implements VersionControlService {
 
     @Autowired
     PodService podService;
-
-    @Autowired
-    private PvService pvService;
 
     @Autowired
     private VolumeSerivce volumeSerivce;
@@ -158,7 +150,8 @@ public class VersionControlServiceImpl implements VersionControlService {
 
         //设置灰度升级相关的参数
         Deployment deped = (Deployment) res.get("dep");
-
+        DeploymentStrategy strategy =new DeploymentStrategy();
+        strategy.setType("RollingUpdate");
         //当实例数目不为0时才需要灰度更新
         if (detail.getInstances() != 0) {
             if (detail.getSeconds() < 5) {
@@ -166,9 +159,11 @@ public class VersionControlServiceImpl implements VersionControlService {
             } else {
                 deped.getSpec().setMinReadySeconds(detail.getSeconds());
             }
-
-            deped.getSpec().getStrategy().getRollingUpdate().setMaxSurge(1);
-            deped.getSpec().getStrategy().getRollingUpdate().setMaxUnavailable(0);
+            RollingUpdateDeployment ru =new RollingUpdateDeployment();
+            ru.setMaxSurge(1);
+            ru.setMaxUnavailable(0);
+            strategy.setRollingUpdate(ru);
+            deped.getSpec().setStrategy(strategy);;
         }
 
         deped.getSpec().setPaused(false);
@@ -262,14 +257,18 @@ public class VersionControlServiceImpl implements VersionControlService {
         Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
 
         //返回当前列表中新老实例,格式,顺序为:新实例,老实例,总共实例,当新的实例等于总的实例的时候终止前端定时器
+        
         List<Integer> counts = new ArrayList<>();
-        Integer updateCounts = dep.getStatus().getUpdatedReplicas();
-        updateCounts = updateCounts == null ? 0 : updateCounts;
-        counts.add(updateCounts);
-        counts.add(dep.getSpec().getReplicas() - updateCounts);
-//        counts.add(dep.getSpec().getReplicas());
-
-
+        if("RollingUpdate".equals(dep.getSpec().getStrategy().getType())){
+        	Integer updateCounts = dep.getStatus().getUpdatedReplicas();
+            updateCounts = updateCounts == null ? 0 : updateCounts;
+            counts.add(updateCounts);
+            counts.add(dep.getSpec().getReplicas() - updateCounts);
+        }else{
+        	Integer updateCounts = dep.getStatus().getUpdatedReplicas();
+        	counts.add(updateCounts);
+            counts.add(0);
+        }
         return ActionReturnUtil.returnSuccessWithData(counts);
     }
 

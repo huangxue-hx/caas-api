@@ -1,7 +1,10 @@
 package com.harmonycloud.service.application;
 
+import java.util.List;
+
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.business.BusinessTemplateDto;
+import com.harmonycloud.dto.business.TopologysDto;
 
 /**
  * Created by root on 3/29/17.
@@ -85,4 +88,12 @@ public interface BusinessService {
      * @return ActionReturnUtil
      */
     ActionReturnUtil deleteBusinessTemplateByTenant(String[] tenant) throws Exception;
+    
+    /**
+     * save topology on 17/04/07.
+     * 
+     * @param topologys
+     *            re
+     */
+    boolean saveTopology(List<TopologysDto> topologys, Integer businessTemplatesId) throws Exception;
 }

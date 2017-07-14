@@ -451,6 +451,9 @@ public class K8sResultConvert {
 		dep.setMetadata(meta);
 		DeploymentSpec depSpec = new DeploymentSpec();
 		depSpec.setReplicas(Integer.valueOf(detail.getInstance()));
+		DeploymentStrategy strategy = new DeploymentStrategy();
+		strategy.setType("Recreate");
+		depSpec.setStrategy(strategy);
 		dep.setSpec(depSpec);
 		List<CreateContainerDto> containers = detail.getContainers();
 		List<Container> cs = new ArrayList<Container>();
@@ -1217,11 +1220,6 @@ public class K8sResultConvert {
 		ObjectMeta metadata = new ObjectMeta();
 		Map<String, Object> labels = new HashMap<>();
 	    labels.put(type, name);
-	    /*List<LocalObjectReference> lors = new ArrayList<LocalObjectReference>();
-	    LocalObjectReference lor = new LocalObjectReference();
-	    lor.setName(userName + "-secret");
-	    lors.add(lor);
-	    podSpec.setImagePullSecrets(lors);*/
 	    if (!StringUtils.isEmpty(label)) {
 	    	String[] ls ={};
 	    	if(label.contains(",")){

@@ -10,6 +10,7 @@ public class BusinessTemplateDto implements Serializable {
 	 */
 	private static final long serialVersionUID = -8400861610658189494L;
 	private int id;
+	private int businessId;
 	private String name; // 模板名字
 	private String tag; // 版本
 	private String desc; // 描述
@@ -71,5 +72,13 @@ public class BusinessTemplateDto implements Serializable {
 
 	public void setTopologyList(List<TopologysDto> topologyList) {
 		this.topologyList = topologyList;
+	}
+
+	public int getBusinessId() {
+		return businessId;
+	}
+
+	public void setBusinessId(int businessId) {
+		this.businessId = businessId;
 	}
 }

@@ -412,7 +412,7 @@ public class BusinessServiceImpl implements BusinessService {
      * @param topologys
      *            re
      */
-    private boolean saveTopology(List<TopologysDto> topologys, Integer businessTemplatesId) throws Exception {
+    public boolean saveTopology(List<TopologysDto> topologys, Integer businessTemplatesId) throws Exception {
         boolean boo = false;
         if (topologys != null && topologys.size() > 0 && (businessTemplatesId != null && businessTemplatesId != 0)) {
             for (TopologysDto ts : topologys) {

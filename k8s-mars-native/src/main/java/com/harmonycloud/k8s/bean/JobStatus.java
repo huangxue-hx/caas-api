@@ -12,6 +12,12 @@ public class JobStatus {
 	private String completionTime;
 	
 	private List<JobCondition> conditions;
+	
+	private Integer failed;
+	
+	private String startTime;
+	
+	private Integer succeeded; 
 
 	public Integer getActive() {
 		return active;
@@ -35,5 +41,29 @@ public class JobStatus {
 
 	public void setConditions(List<JobCondition> conditions) {
 		this.conditions = conditions;
+	}
+
+	public Integer getFailed() {
+		return failed;
+	}
+
+	public void setFailed(Integer failed) {
+		this.failed = failed;
+	}
+
+	public String getStartTime() {
+		return startTime;
+	}
+
+	public void setStartTime(String startTime) {
+		this.startTime = startTime;
+	}
+
+	public Integer getSucceeded() {
+		return succeeded;
+	}
+
+	public void setSucceeded(Integer succeeded) {
+		this.succeeded = succeeded;
 	}
 }

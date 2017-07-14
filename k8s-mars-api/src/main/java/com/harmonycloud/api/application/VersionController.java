@@ -3,14 +3,8 @@ package com.harmonycloud.api.application;
 import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 
-import com.harmonycloud.common.util.ESFactory;
-import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.cluster.bean.Cluster;
-import com.harmonycloud.k8s.bean.ConfigMap;
-import com.harmonycloud.k8s.bean.Deployment;
 import com.harmonycloud.k8s.constant.Constant;
-import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.application.ConfigMapService;
 import com.harmonycloud.service.application.VersionControlService;
 import com.harmonycloud.service.platform.bean.CanaryDeployment;

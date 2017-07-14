@@ -91,7 +91,7 @@ public class JobService {
 	 */
 	public ActionReturnUtil updateJob(String namespace, String name, Job job, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
-		url.setNamespace(namespace).setResource(Resource.JOB);
+		url.setNamespace(namespace).setResource(Resource.JOB).setName(name);
 		Map<String, Object> bodys = new HashMap<>();
 		bodys.put("metadata", job.getMetadata());
 		bodys.put("kind", job.getKind());
