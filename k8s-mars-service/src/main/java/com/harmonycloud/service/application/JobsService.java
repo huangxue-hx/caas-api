@@ -30,7 +30,7 @@ public interface JobsService {
      * @return
      * @throws Exception
      */
-    public ActionReturnUtil listJob(String tenantId, String name, String namespace, String labels, String status) throws Exception;
+    public ActionReturnUtil listJob(String tenantId, String name, String namespace, String labels, String status, Cluster cluster) throws Exception;
 
     /**
      * 获取job详情

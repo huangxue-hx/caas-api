@@ -73,7 +73,8 @@ public class JobsController {
 
         try {
             logger.info("获取job列表");
-            ActionReturnUtil result = jobsService.listJob(tenantId,name, namespace, labels, status);
+            Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+            ActionReturnUtil result = jobsService.listJob(tenantId,name, namespace, labels, status, cluster);
             return result;
         } catch (Exception e) {
             if (e instanceof K8sAuthException) {

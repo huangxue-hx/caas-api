@@ -3,28 +3,26 @@ package com.harmonycloud.service.application.impl;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.common.util.StringUtil;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.business.CreateConfigMapDto;
 import com.harmonycloud.dto.business.CreateContainerDto;
 import com.harmonycloud.dto.business.CreateVolumeDto;
 import com.harmonycloud.dto.business.JobsDetailDto;
-import com.harmonycloud.k8s.bean.Job;
-import com.harmonycloud.k8s.bean.JobSpec;
-import com.harmonycloud.k8s.bean.ObjectMeta;
-import com.harmonycloud.k8s.bean.PodTemplateSpec;
-import com.harmonycloud.k8s.bean.UnversionedStatus;
+import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.JobService;
+import com.harmonycloud.k8s.service.PodService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.JobsService;
 import com.harmonycloud.service.application.VolumeSerivce;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
-
 import org.apache.commons.lang3.StringUtils;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -43,6 +41,10 @@ public class JobsServiceImpl implements JobsService{
     
     @Autowired
     private VolumeSerivce volumeSerivce;
+
+    @Autowired
+    PodService podService;
+
 
     @Override
     public ActionReturnUtil createJob(JobsDetailDto detail, String userName, Cluster cluster) throws Exception {
@@ -76,13 +78,47 @@ public class JobsServiceImpl implements JobsService{
     }
 
     @Override
-    public ActionReturnUtil listJob(String tenantId, String name, String namespace, String labels, String status) throws Exception {
-        return null;
+    public ActionReturnUtil listJob(String tenantId, String name, String namespace, String labels, String status, Cluster cluster) throws Exception {
+        Map<String, Object> bodys = new HashMap<String, Object>();
+
+        if (!StringUtils.isEmpty(labels)) {
+            bodys.put("labelSelector", labels);
+        }
+
+        K8SClientResponse listJob = jobService.listJob(namespace,bodys,cluster);
+        if (!HttpStatusUtil.isSuccessStatus(listJob.getStatus())) {
+            return ActionReturnUtil.returnErrorWithMsg(listJob.getBody());
+        }
+
+        JobList jobList = JsonUtil.jsonToPojo(listJob.getBody(), JobList.class);
+
+        return ActionReturnUtil.returnSuccessWithData(jobList);
     }
 
     @Override
     public ActionReturnUtil getJobDetail(String namespace, String name, Cluster cluster) throws Exception {
-        return null;
+        // 获取job
+        Map<String, Object> bodys = new HashMap<String, Object>();
+        K8SClientResponse deleteJob = jobService.getJob(namespace,name,bodys,cluster);
+        if (!HttpStatusUtil.isSuccessStatus(deleteJob.getStatus())) {
+            return ActionReturnUtil.returnErrorWithMsg(deleteJob.getBody());
+        }
+        Job job = JsonUtil.jsonToPojo(deleteJob.getBody(), Job.class);
+
+        // 获取pod
+        bodys.clear();
+        bodys.put("labelSelector", "jobs=" + name);
+        K8SClientResponse podRes = podService.getPodByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(podRes.getStatus())) {
+            return ActionReturnUtil.returnErrorWithMsg(podRes.getBody());
+        }
+        PodList podList = JsonUtil.jsonToPojo(podRes.getBody(), PodList.class);
+
+        bodys.clear();
+        bodys.put("job",job);
+        bodys.put("podlist",podList);
+
+        return ActionReturnUtil.returnSuccessWithData(bodys);
     }
 
     @Override
