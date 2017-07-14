@@ -4,7 +4,11 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.dao.application.NodePortClusterMapper;
 import com.harmonycloud.dao.application.NodePortMapper;
+import com.harmonycloud.dao.application.bean.NodePortCluster;
+import com.harmonycloud.dao.application.bean.NodePortClusterExample;
+import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.business.*;
 import com.harmonycloud.dto.svc.CheckPort;
 import com.harmonycloud.dto.svc.SvcTcpDto;
@@ -19,6 +23,7 @@ import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.RouterService;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.tenant.TenantService;
 import com.sun.jna.platform.win32.WinBase.SYSTEM_INFO;
 
 import org.apache.commons.lang3.StringUtils;
@@ -41,7 +46,13 @@ public class RouterServiceImpl implements RouterService {
 	private ServicesService sService;
 	
 	@Autowired
+	private TenantService tService;
+	
+	@Autowired
     private NodePortMapper nodePortMapper;	
+	
+	@Autowired
+    private NodePortClusterMapper npcMapper;
 
 	@Value("#{propertiesReader['clusterHost.hostname']}")
 	private String hostName;
@@ -364,8 +375,27 @@ public class RouterServiceImpl implements RouterService {
 		return ActionReturnUtil.returnSuccessWithData(newService);
 	}
 
-    @Override
+	@Override
 	public ActionReturnUtil createTcpSvc(SvcTcpDto svcTcpDto) throws Exception {
+    	if (svcTcpDto == null) {
+            return ActionReturnUtil.returnErrorWithMsg("参数不能为空");
+        }
+    	String tenantId = svcTcpDto.getTenantId();
+    	 // 根据tenantid获取cluster
+        Cluster cluster = tService.getClusterByTenantid(tenantId);
+        int clusterId = tService.getClusterByTenantid(tenantId).getId().intValue();
+        ArrayList<NodePortCluster> lnpc = new ArrayList<NodePortCluster>();
+        //修改nodeport_cluster中间表的status
+        for(int i =0 ;i<svcTcpDto.getRules().size();i++){
+        	int nodeport = Integer.valueOf(svcTcpDto.getRules().get(i).getPort());
+        	int nodeportId = nodePortMapper.getidbynodeport(nodeport);
+        	NodePortCluster npc = new NodePortCluster ();
+        	npc.setClusterid(clusterId);
+        	npc.setNodeportid(nodeportId);
+        	npc.setStatus(2);
+        	lnpc.add(npc);
+        }
+    	
 		com.harmonycloud.k8s.bean.Service service = new com.harmonycloud.k8s.bean.Service();
 		ObjectMeta meta = new ObjectMeta();
 		meta.setName("routersvc" + svcTcpDto.getName());
@@ -374,7 +404,7 @@ public class RouterServiceImpl implements RouterService {
 			labels = svcTcpDto.getLabels();
 		}
 		labels.put("nephele_Type", "HAP");
-        labels.put("type", "TCP");
+		labels.put("type", "TCP");
 		meta.setLabels(labels);
 		Map<String, Object> anno = new HashMap<String, Object>();
 		anno.put("nephele/deployment", svcTcpDto.getApp());
@@ -385,7 +415,6 @@ public class RouterServiceImpl implements RouterService {
 		ServiceSpec serviceSpec = new ServiceSpec();
 		serviceSpec.setType("ClusterIP");
 		List<ServicePort> ports = new ArrayList<ServicePort>();
-		serviceSpec.setPorts(ports);
 		if (svcTcpDto.getRules() != null && !svcTcpDto.getRules().isEmpty()) {
 			List<TcpRuleDto> rules = svcTcpDto.getRules();
 			for (int i = 0; i < rules.size(); i++) {
@@ -410,16 +439,26 @@ public class RouterServiceImpl implements RouterService {
 		Map<String, Object> head = new HashMap<String, Object>();
 		head.put("Content-Type", "application/json");
 		K8SClientResponse response = sService.doServiceByNamespace(svcTcpDto.getNamespace(), head, bodys,
-				HTTPMethod.POST);
-		nodePortMapper.insert(Integer.valueOf(svcTcpDto.getRules().get(0).getPort()));
+				HTTPMethod.POST,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			nodePortMapper.delete(Integer.valueOf(svcTcpDto.getRules().get(0).getPort()));
+			  for(int i =0 ;i<svcTcpDto.getRules().size();i++){
+		        	int nodeport = Integer.valueOf(svcTcpDto.getRules().get(i).getPort());
+		        	int nodeportId = nodePortMapper.getidbynodeport(nodeport);
+					NodePortClusterExample example = new NodePortClusterExample ();
+					//创建tcp失败释放端口
+					example.createCriteria().andClusteridEqualTo(clusterId).andNodeportidEqualTo(nodeportId).andStatusEqualTo(1);
+			    	npcMapper.deleteByExample(example);
+			  }
 			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
 		}
 		com.harmonycloud.k8s.bean.Service newService = JsonUtil.jsonToPojo(response.getBody(),
 				com.harmonycloud.k8s.bean.Service.class);
+		for(int i =0;i<lnpc.size();i++){
+				npcMapper.updateNodePortCluster(lnpc.get(i));
+		}
 		return ActionReturnUtil.returnSuccessWithData(newService);
 	}	
+
 
     @Override
 	public ActionReturnUtil createhttpsvc(SvcTcpDto svcTcpDto) throws Exception {
@@ -575,18 +614,25 @@ public class RouterServiceImpl implements RouterService {
 	 * 删除(tcp) service,释放数据库占用30000-30050端口
 	 */
 	@Override
-	public ActionReturnUtil deleteTcpSvc(String namespace, String name,String port) throws Exception {
+	public ActionReturnUtil deleteTcpSvc(String namespace, String name,String port,String tenantId) throws Exception {
+		//根据tenantId获取clusterId
+		int clusterId = tService.getClusterByTenantid(tenantId).getId().intValue();
+		// 根据tenantid获取cluster
+        Cluster cluster = tService.getClusterByTenantid(tenantId);
 		//查询port并释放
-		nodePortMapper.delete(Integer.valueOf(port));
+        int nodeport = nodePortMapper.getidbynodeport(Integer.valueOf(port));
+        NodePortClusterExample example = new NodePortClusterExample ();
+		example.createCriteria().andClusteridEqualTo(clusterId).andNodeportidEqualTo(nodeport).andStatusEqualTo(2);
 		//删除service
 		K8SURL url = new K8SURL();
 		url.setResource(Resource.SERVICE).setNamespace(namespace).setSubpath(name);
-		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, null);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, null,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
 			nodePortMapper.insert(Integer.valueOf(port));
 			return ActionReturnUtil.returnErrorWithMsg("删除出错");
 		}
-		return ActionReturnUtil.returnSuccessWithData(response.getBody());
+		npcMapper.deleteByExample(example);
+		return ActionReturnUtil.returnSuccessWithData(port);
 	}
 
 	/**
@@ -706,32 +752,92 @@ public class RouterServiceImpl implements RouterService {
 	}
 
 	@Override
-	public ActionReturnUtil getPort() throws Exception {	
-		//从数据库中获取已创建的nodePort，判断随机生成的nodePoort是否被使用，未使用则保存数据库并对外展示nodeport。
-		int nodePort = 0;
-		/*//数据库获取所有nodePort
-		List<Integer> nodeports = nodePortMapper.list();*/
-		//查询随机生成的nodeport是否已存在
-		for(int j=0 ; j<=50 ; j++ ){
-			nodePort = 30000+j;
-			if(nodePortMapper.getnodeport(nodePort)!=1){
-				return ActionReturnUtil.returnSuccessWithMsg( Integer.toString(nodePort));
-			}
+	public ActionReturnUtil getPort(String tenantId) throws Exception {	
+    	if (tenantId=="" || tenantId == null) {
+			return ActionReturnUtil.returnErrorWithMsg("tenantId为空！");
 		}
-		 return ActionReturnUtil.returnErrorWithMsg("获取port信息失败");
+		//根据tenantId获取clusterId
+		int clusterId = tService.getClusterByTenantid(tenantId).getId().intValue();
+		//根据clusterId查询nodeport_cluster中间表,去除已使用端口;
+		NodePortClusterExample example = new NodePortClusterExample ();
+		example.createCriteria().andClusteridEqualTo(clusterId);
+		List<NodePortCluster> list = npcMapper.selectByExample(example);
+		ArrayList<Integer> nlist = new ArrayList<Integer>();
+		if(list == null|| list.isEmpty()){
+					NodePortCluster npCluster = new NodePortCluster();
+					npCluster.setClusterid(clusterId);
+					npCluster.setNodeportid(1);
+					npCluster.setStatus(1);
+					npcMapper.insert(npCluster);
+					return ActionReturnUtil.returnSuccessWithMsg("30000");
+		}else{
+					for(int i = 0 ; i<list.size();i++){
+						nlist.add(nodePortMapper.getnodeportbyid(list.get(i).getNodeportid()));
+					}
+					//生成分配 端口,增加同步
+					int nodePort = 0;
+					for(int j=0 ; j<=50 ; j++ ){
+								nodePort = 30000+j;
+								if (!nlist.contains(nodePort)) {
+									NodePortCluster npCluster = new NodePortCluster();
+									npCluster.setClusterid(clusterId);
+									npCluster.setNodeportid(j+1);
+									npCluster.setStatus(1);
+									npcMapper.insert(npCluster);
+									return ActionReturnUtil.returnSuccessWithMsg(String.valueOf(nodePort));
+								}
+					}
+		}
+			return ActionReturnUtil.returnErrorWithMsg("获取port信息失败");
 	}
 
-    @Override
-	public ActionReturnUtil checkPort(CheckPort checkPort) throws Exception {	
-    	List<String> list = checkPort.getPort();
-    	List<String> listSuccess = new ArrayList<>();
-    	for(int i = 0 ; i < list.size() ; i++) {
-    		if(nodePortMapper.getnodeport(Integer.valueOf(list.get(i)))>0){
-    			listSuccess.add(list.get(i));
-    		}
-    	}
-    	return ActionReturnUtil.returnSuccessWithData(listSuccess);
+	@Override
+	public ActionReturnUtil checkPort(String port,String tenantId) throws Exception {	
+    	int clusterId = tService.getClusterByTenantid(tenantId).getId().intValue();
+    	int nodeport = Integer.valueOf(port);
+    	int nodeportId = nodePortMapper.getidbynodeport(nodeport);
+    	NodePortClusterExample example = new NodePortClusterExample ();
+		example.createCriteria().andClusteridEqualTo(clusterId).andNodeportidEqualTo(nodeportId);
+		List<NodePortCluster> list = npcMapper.selectByExample(example);
+		if(list == null || list.isEmpty()){
+			return ActionReturnUtil.returnSuccessWithData("端口未被占用");
+		}
+    		return ActionReturnUtil.returnSuccessWithData("true");
 	}
+	
+	@Override
+	public ActionReturnUtil updatePort(String oldport,String nowport,String tenantId) throws Exception {	
+    	int clusterId = tService.getClusterByTenantid(tenantId).getId().intValue();
+    	int oldnodeport = Integer.valueOf(oldport);
+    	int oldnodeportId = nodePortMapper.getidbynodeport(oldnodeport);
+    	int nownodeport = Integer.valueOf(nowport);
+    	int nownodeportId = nodePortMapper.getidbynodeport(nownodeport);
+    	NodePortCluster npc = new NodePortCluster();
+    	npc.setClusterid(clusterId);
+    	npc.setNodeportid(oldnodeportId);
+    	npc.setUnodeport(nownodeportId);
+    	npc.setStatus(1);
+		npcMapper.updateNodePortClusterbynodeportid(npc);
+    	return ActionReturnUtil.returnSuccessWithData("true");
+	}
+	
+    @Override
+   	public ActionReturnUtil delPort(String port,String tenantId) throws Exception {	
+       	if (StringUtils.isEmpty(port) || port == null) {
+   			return ActionReturnUtil.returnErrorWithMsg("端口为空！");
+   		}
+       	if (StringUtils.isEmpty(tenantId) || tenantId == null) {
+   			return ActionReturnUtil.returnErrorWithMsg("tenantId为空！");
+   		}
+       	//根据tenantId获取clusterId
+       	int clusterId = tService.getClusterByTenantid(tenantId).getId().intValue();
+       	int nodeport = Integer.valueOf(port);
+       	int nodeportId = nodePortMapper.getidbynodeport(nodeport);
+       	NodePortClusterExample example = new NodePortClusterExample ();
+       	example.createCriteria().andClusteridEqualTo(clusterId).andNodeportidEqualTo(nodeportId).andStatusEqualTo(1);
+       	npcMapper.deleteByExample(example);
+       	return ActionReturnUtil.returnSuccess();
+   	}
 
 
 	@Override

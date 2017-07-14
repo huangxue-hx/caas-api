@@ -25,6 +25,16 @@ public class SvcTcpDto {
     
     private List<TcpRuleDto> rules = new ArrayList<>();
     
+    private String tenantId;
+    
+    public String getTenantId() {
+		return tenantId;
+	}
+
+	public void setTenantId(String tenantId) {
+		this.tenantId = tenantId;
+	}
+    
 	public String getNamespace() {
 		return namespace;
 	}

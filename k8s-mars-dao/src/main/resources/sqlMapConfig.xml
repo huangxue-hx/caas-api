@@ -35,6 +35,7 @@
         <typeAlias alias="Service" type="com.harmonycloud.dao.application.bean.Service" />
         <typeAlias alias="ExternalTypeBean" type="com.harmonycloud.dao.application.bean.ExternalTypeBean" />
         <typeAlias alias="NodePort" type="com.harmonycloud.dao.application.bean.NodePort" />
+        <typeAlias alias="NodePortCluster" type="com.harmonycloud.dao.application.bean.NodePortCluster" />
         <typeAlias alias="HarborUser" type="com.harmonycloud.dao.application.bean.HarborUser" />
         <typeAlias alias="ClusterDomain" type="com.harmonycloud.dao.cluster.bean.ClusterDomain" />
 	<!--  配置中心 gurongyun start -->
@@ -70,6 +71,7 @@
 
         <mapper resource="com/harmonycloud/mapping/ExternalTypeMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/NodePortMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/NodePortClusterMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/HarborUserMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/ClusterDomainMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/custums/UserTenantMapperCustom.xml" />

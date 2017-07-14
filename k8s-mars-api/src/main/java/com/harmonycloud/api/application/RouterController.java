@@ -74,9 +74,9 @@ public class RouterController {
 	
 	@ResponseBody
 	@RequestMapping(value = "/getPort", method = { RequestMethod.GET })
-	public ActionReturnUtil getPort() throws Exception{
+	public ActionReturnUtil getPort(@RequestParam(value = "tenantId", required = true) String tenantId) throws Exception{
 		try {
-			return routerService.getPort();
+			return routerService.getPort(tenantId);
 		} catch (Exception e) {
 			throw e;
 		}
@@ -84,14 +84,34 @@ public class RouterController {
 	
 	@ResponseBody
 	@RequestMapping(value = "/checkPort", method = { RequestMethod.POST })
-	public ActionReturnUtil checkPort(@ModelAttribute CheckPort checkPort) throws Exception{
+	public ActionReturnUtil checkPort(@RequestParam(value = "port", required = true) String port,@RequestParam(value = "tenantId", required = true) String tenantId) throws Exception{
 		try {
-			return routerService.checkPort(checkPort);
+			return routerService.checkPort(port,tenantId);
 		} catch (Exception e) {
 			throw e;
 		}
 	}
 
+	@ResponseBody
+	@RequestMapping(value = "/updatePort", method = { RequestMethod.POST })
+	public ActionReturnUtil updatePort(@RequestParam(value = "oldport", required = true) String oldport,@RequestParam(value = "nowport", required = true) String nowport,@RequestParam(value = "tenantId", required = true) String tenantId) throws Exception{
+		try {
+			return routerService.updatePort(oldport,nowport,tenantId);
+		} catch (Exception e) {
+			throw e;
+		}
+	}
+	
+	@ResponseBody
+	@RequestMapping(value = "/delPort", method = { RequestMethod.DELETE })
+	public ActionReturnUtil delPort(@RequestParam(value = "port", required = true) String port,@RequestParam(value = "tenantId", required = true) String tenantId) throws Exception{
+		try {
+			return routerService.delPort(port,tenantId);
+		} catch (Exception e) {
+			throw e;
+		}
+	}
+	
 	@ResponseBody
 	@RequestMapping(value = "/ing", method = RequestMethod.DELETE)
 	public ActionReturnUtil deleteIng(@RequestParam(value = "namespace", required = true) String namespace,
@@ -214,10 +234,10 @@ public class RouterController {
 	@ResponseBody
 	@RequestMapping(value="/deltcp", method = RequestMethod.DELETE)
 	public ActionReturnUtil deleteTcpSvc(@RequestParam(value = "namespace", required = true) String namespace,
-                                      @RequestParam(value = "name", required = true) String name,@RequestParam(value = "port", required = true) String port) throws Exception{
+                                      @RequestParam(value = "name", required = true) String name,@RequestParam(value = "port", required = true) String port,@RequestParam(value = "tenantId", required = true) String tenantId) throws Exception{
 		try {
 			logger.info("删除svc路由（tcp）");
-			return routerService.deleteTcpSvc(namespace,name,port);
+			return routerService.deleteTcpSvc(namespace,name,port,tenantId);
 		} catch (Exception e) {
 			logger.error("删除svc路由（tcp）错误，namespace="+namespace+",name="+name+",e="+e.getMessage());
 			e.printStackTrace();
