@@ -52,7 +52,11 @@
             <version>1.2.17</version>
         </dependency>
 
-
+        <dependency>
+            <groupId>com.github.pagehelper</groupId>
+            <artifactId>pagehelper</artifactId>
+            <version>4.2.1</version>
+        </dependency>
     </dependencies>
     <build>
         <finalName>k8s-mars-service</finalName>
