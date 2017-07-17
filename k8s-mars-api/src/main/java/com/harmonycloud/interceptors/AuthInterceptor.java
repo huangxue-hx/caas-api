@@ -46,6 +46,10 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         // 获取请求的URL
         String url = request.getRequestURI();
         LOGGER.info("url=" + url);
+        //路径包含openapi的不需要验证是否登陆，oam task定时任务没有用户
+        if(url.indexOf("/openapi/")>-1){
+            return true;
+        }
         // 判断是否为白名单中的请求地址，是直接返回验证成功
         for(String whiteUrl : WHITE_URL_LIST){
             if(url.indexOf(whiteUrl)>-1){

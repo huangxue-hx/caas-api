@@ -10,6 +10,8 @@ import com.harmonycloud.k8s.bean.Probe;
 public class ContainerOfPodDetail {
 	
 	private String name;
+
+	private String deploymentName;
 	
 	private String img;
 	
@@ -32,7 +34,7 @@ public class ContainerOfPodDetail {
 	private Map<String, Object> configmap;
 	
 	private String restartCount;
-	
+
 	public ContainerOfPodDetail() {
 		
 	}
@@ -55,6 +57,14 @@ public class ContainerOfPodDetail {
 
 	public void setName(String name) {
 		this.name = name;
+	}
+
+	public String getDeploymentName() {
+		return deploymentName;
+	}
+
+	public void setDeploymentName(String deploymentName) {
+		this.deploymentName = deploymentName;
 	}
 
 	public String getImg() {
