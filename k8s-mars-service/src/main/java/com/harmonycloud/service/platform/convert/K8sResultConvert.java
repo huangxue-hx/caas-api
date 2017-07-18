@@ -1134,7 +1134,7 @@ public class K8sResultConvert {
 			tMap.put("resource", c.getResources().getLimits());
 			if (tMap.get("resource") != null) {
 				Map<String, Object> resource = (Map<String, Object>) tMap.get("resource");
-				if (resource.get("cpu").toString().indexOf("m") < 0) {
+				if (resource.get("cpu") != null && resource.get("cpu").toString().indexOf("m") < 0) {
 					resource.put("cpu", Integer.valueOf(resource.get("cpu").toString())*1000 + "m");
 				}
 			}

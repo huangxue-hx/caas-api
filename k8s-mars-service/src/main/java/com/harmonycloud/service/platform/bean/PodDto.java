@@ -6,6 +6,7 @@ public class PodDto {
 	private String namespace;
 	private String startTime;
 	private String status;
+	private String nodeName;
 
 	public String getIp() {
 		return ip;
@@ -47,4 +48,11 @@ public class PodDto {
 		this.status = status;
 	}
 
+	public String getNodeName() {
+		return nodeName;
+	}
+
+	public void setNodeName(String nodeName) {
+		this.nodeName = nodeName;
+	}
 }

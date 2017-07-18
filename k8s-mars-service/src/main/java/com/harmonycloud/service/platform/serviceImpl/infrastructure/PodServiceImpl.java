@@ -72,6 +72,7 @@ public class PodServiceImpl implements PodService {
 					podDto.setNamespace(pod.getMetadata().getNamespace());
 					podDto.setStartTime(pod.getMetadata().getCreationTimestamp());
 					podDto.setStatus(pod.getStatus().getPhase());
+					podDto.setNodeName(pod.getSpec().getNodeName());
 					podDtos.add(podDto);
 				}
 			}
