@@ -5,7 +5,7 @@ import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.business.DeploymentDetailDto;
 import com.harmonycloud.service.platform.bean.UpdateDeployment;
 
-import java.util.Set;
+import java.util.Map;
 
 /**
  * 
@@ -116,6 +116,14 @@ public interface DeploymentsService {
 	 * @throws Exception
      */
 	ActionReturnUtil namespaceContainer(String namespace, Cluster cluster) throws Exception;
+
+	/**
+	 * 获取某个namespace下的所有容器列表
+	 * @param namespace
+	 * @return
+	 * @throws Exception
+	 */
+	ActionReturnUtil namespaceContainer(String namespace, Cluster cluster, Map<String, Object> headers) throws Exception;
 
 	/**
 	 * 获取pod内的日志

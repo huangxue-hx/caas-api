@@ -282,7 +282,7 @@ public class K8sResultConvert {
 				ContainerOfPodDetail cOfPodDetail = new ContainerOfPodDetail(ct.getName(), ct.getImage(),
 						ct.getLivenessProbe(), ct.getReadinessProbe(), ct.getPorts(), ct.getArgs(), ct.getEnv(),
 						ct.getCommand());
-				
+				cOfPodDetail.setDeploymentName(deployment.getMetadata().getName());
 				if (ct.getResources().getLimits() != null) {
 					String pattern = ".*m.*";
 					Pattern r = Pattern.compile(pattern);

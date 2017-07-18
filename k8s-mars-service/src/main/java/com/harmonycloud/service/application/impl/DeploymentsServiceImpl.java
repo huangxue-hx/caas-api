@@ -592,7 +592,12 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
 	@Override
 	public ActionReturnUtil namespaceContainer(String namespace, Cluster cluster) throws Exception {
-		K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, null, null, null, HTTPMethod.GET, cluster);
+		return namespaceContainer(namespace, cluster, null);
+	}
+
+	@Override
+	public ActionReturnUtil namespaceContainer(String namespace, Cluster cluster, Map<String, Object> headers) throws Exception {
+		K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, null, headers, null, HTTPMethod.GET, cluster);
 		if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
 			return ActionReturnUtil.returnErrorWithMsg(depRes.getBody());
 		}
