@@ -90,4 +90,9 @@
 		<property name="authCenter" ref="authManager"></property>
 	</bean>
 	
+	<bean id="multipartResolver" 	class="com.harmonycloud.controller.CustomMultipartResolver">
+		<property name="defaultEncoding" value="UTF-8" />
+		<property name="maxUploadSize" value="1000000000000" />   <!-- 最大是931G -->
+	</bean>
+	
 </beans>

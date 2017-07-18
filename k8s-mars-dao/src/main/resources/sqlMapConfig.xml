@@ -48,9 +48,9 @@
         <typeAlias alias="AuthUserExample" type="com.harmonycloud.dao.user.bean.AuthUserExample" />
         <typeAlias alias="Cluster" type="com.harmonycloud.dao.cluster.bean.Cluster" />
         <typeAlias alias="Message" type="com.harmonycloud.dao.message.bean.Message" />
-
         <typeAlias alias="DockerFile" type="com.harmonycloud.dao.ci.bean.DockerFile" />
         <typeAlias alias="DockerFileJobStage" type="com.harmonycloud.dao.ci.bean.DockerFileJobStage" />
+        <typeAlias alias="FileUploadContainer" type="com.harmonycloud.dao.application.bean.FileUploadContainer" />
     </typeAliases>
 
     <mappers>
@@ -97,5 +97,6 @@
          <mapper resource="com/harmonycloud/mapping/StageTypeMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/JobBuildMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/StageBuildMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/FileUploadContainerMapper.xml" />
     </mappers>
 </configuration>
