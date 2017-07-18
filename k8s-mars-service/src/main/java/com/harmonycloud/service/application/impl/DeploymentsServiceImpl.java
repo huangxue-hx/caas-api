@@ -336,22 +336,6 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			}
 			;
 		}
-		/*// 获得deployment
-		K8SClientResponse response = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
-		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
-		}
-		Deployment dep = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
-
-		// 调用GETpod
-		Map<String, Object> bodys = new HashMap<String, Object>();
-		bodys.put("labelSelector", K8sResultConvert.convertExpression(dep, name));
-		K8SClientResponse podRes = podService.getPodByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
-		if (!HttpStatusUtil.isSuccessStatus(podRes.getStatus())) {
-			return ActionReturnUtil.returnErrorWithMsg(podRes.getBody());
-		}*/
-		/*PodList podList = JsonUtil.jsonToPojo(podRes.getBody(), PodList.class);*/
-		/*return ActionReturnUtil.returnSuccessWithData(K8sResultConvert.podListConvert(podList));*/
 		return ActionReturnUtil.returnSuccessWithData(list);
 	}
 

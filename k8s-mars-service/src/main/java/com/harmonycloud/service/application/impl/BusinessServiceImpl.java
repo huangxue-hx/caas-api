@@ -113,7 +113,7 @@ public class BusinessServiceImpl implements BusinessService {
         JSONObject js = new JSONObject();
         if (businessTemplates != null) {
             js.put("name", businessTemplates.getName());
-            js.put("desc", businessTemplates.getDetails());
+            js.put("desc", (businessTemplates.getDetails() != null) ? businessTemplates.getDetails() : "");
             js.put("id", businessTemplates.getId());
             js.put("tenant", businessTemplates.getTenant());
             JSONArray array = new JSONArray();

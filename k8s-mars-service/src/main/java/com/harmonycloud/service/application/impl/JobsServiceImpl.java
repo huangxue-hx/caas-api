@@ -22,12 +22,17 @@ import com.harmonycloud.service.application.JobsService;
 import com.harmonycloud.service.application.VolumeSerivce;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
+
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
+
 import org.apache.commons.lang3.StringUtils;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -100,7 +105,58 @@ public class JobsServiceImpl implements JobsService{
         }
 
         JobList jobList = JsonUtil.jsonToPojo(listJob.getBody(), JobList.class);
-
+        JSONArray array = new JSONArray();
+        if(jobList != null){
+        	List<Job> jobs = jobList.getItems();
+        	if(jobs != null && jobs.size() > 0){
+        		for(Job job : jobs){
+        			JSONObject json = new JSONObject();
+        			json.put("name", job.getMetadata().getName());
+        			json.put("namespace", job.getMetadata().getNamespace());
+        			if(job.getMetadata().getAnnotations() != null && job.getMetadata().getAnnotations().containsKey("nephele/labels")){
+        				json.put("labels", job.getMetadata().getAnnotations().get("nephele/labels"));
+    				}else{
+    					json.put("labels", "");
+    				}
+    				List<String> img = new ArrayList<String>();
+    				List<Container> containers = job.getSpec().getTemplate().getSpec().getContainers();
+    				for (Container container : containers) {
+    					img.add(container.getImage());
+    				}
+    				json.put("img", img);
+    				json.put("owner", job.getMetadata().getLabels().get("nephele/user").toString());
+    				json.put("completions", job.getSpec().getCompletions());
+    				json.put("parallelism", job.getSpec().getParallelism());
+    				json.put("createTime", job.getMetadata().getCreationTimestamp());
+    				json.put("namespace", job.getMetadata().getNamespace());
+    				json.put("selector", job.getSpec().getSelector());
+    				String sta = getJobDetail(job);
+    				json.put("status", sta);
+    				if(StringUtils.isEmpty(status)){
+    					// 全部
+    					array.add(json);
+    				}else if(Constant.RUNNING.equals(status) && Constant.RUNNING.equals(sta)){
+    					//运行
+    					array.add(json);
+    				}else if(Constant.JOB_SUCCEEDED.equals(status) && Constant.JOB_SUCCEEDED.equals(sta)){
+    					//成功
+    					array.add(json);
+    				}else if(Constant.JOB_FAILED.equals(status) && Constant.JOB_FAILED.equals(sta)){
+    					//失败
+    					array.add(json);
+    				}else if(Constant.SERVICE_STARTING.equals(status) && Constant.SERVICE_STARTING.equals(sta)){
+    					//starting
+    					array.add(json);
+    				}else if(Constant.SERVICE_STOPPING.equals(status) && Constant.SERVICE_STOPPING.equals(sta)){
+    					//stopping
+    					array.add(json);
+    				}else if(Constant.SERVICE_STOP.equals(status) && Constant.SERVICE_STOP.equals(sta)){
+    					//stoped
+    					array.add(json);
+    				}
+        		}
+        	}
+        }
         return ActionReturnUtil.returnSuccessWithData(jobList);
     }
 
@@ -122,11 +178,56 @@ public class JobsServiceImpl implements JobsService{
             return ActionReturnUtil.returnErrorWithMsg(podRes.getBody());
         }
         PodList podList = JsonUtil.jsonToPojo(podRes.getBody(), PodList.class);
-
+        
         bodys.clear();
-        bodys.put("job",job);
-        bodys.put("podlist",podList);
-
+        JSONObject jobjs =new JSONObject();
+        jobjs.put("name", job.getMetadata().getName());
+		jobjs.put("namespace", job.getMetadata().getNamespace());
+		if(job.getMetadata().getAnnotations() != null && job.getMetadata().getAnnotations().containsKey("nephele/labels")){
+			jobjs.put("labels", job.getMetadata().getAnnotations().get("nephele/labels"));
+		}else{
+			jobjs.put("labels", "");
+		}
+		if(job.getMetadata().getAnnotations() != null && job.getMetadata().getAnnotations().containsKey("nephele/annotation")){
+			jobjs.put("annotation", job.getMetadata().getAnnotations().get("nephele/annotation"));
+		}else{
+			jobjs.put("annotation", "");
+		}
+		if (!job.getMetadata().getAnnotations().containsKey("updateTimestamp")
+				|| StringUtils.isEmpty(job.getMetadata().getAnnotations().get("updateTimestamp").toString())) {
+			jobjs.put("updatetime", job.getMetadata().getAnnotations().containsKey("updateTimestamp"));
+		} else {
+			jobjs.put("updateTime", "");
+		}
+		List<String> img = new ArrayList<String>();
+		List<Container> containers = job.getSpec().getTemplate().getSpec().getContainers();
+		JSONArray cons = new JSONArray();
+		for (Container container : containers) {
+			img.add(container.getImage());
+			JSONObject js = new JSONObject();
+			js.put("name", container.getName());
+			js.put("image", container.getImage());
+			js.put("resources", container.getResources().getLimits());
+			js.put("env", container.getEnv());
+			js.put("command", container.getCommand());
+			js.put("args", container.getArgs());
+			js.put("livenessProbe", container.getLivenessProbe());
+			js.put("readinessProbe", container.getReadinessProbe());
+			js.put("ports", container.getPorts());
+			cons.add(js);
+		}
+		jobjs.put("img", img);
+		jobjs.put("owner", job.getMetadata().getLabels().get("nephele/user").toString());
+		jobjs.put("completions", job.getSpec().getCompletions());
+		jobjs.put("parallelism", job.getSpec().getParallelism());
+		jobjs.put("createTime", job.getMetadata().getCreationTimestamp());
+		jobjs.put("namespace", job.getMetadata().getNamespace());
+		jobjs.put("selector", job.getSpec().getSelector());
+		jobjs.put("restartPolicy", job.getSpec().getTemplate().getSpec().getRestartPolicy());
+		String sta = getJobDetail(job);
+		jobjs.put("status", sta);
+        bodys.put("job",jobjs);
+        bodys.put("podlist",K8sResultConvert.podListConvert(podList, "v1"));
         return ActionReturnUtil.returnSuccessWithData(bodys);
     }
 
@@ -593,5 +694,53 @@ public class JobsServiceImpl implements JobsService{
 		jobSpec.setTemplate(template);
 		job.setSpec(jobSpec);
     	return job ;
+    }
+    
+    private String getJobDetail(Job job){
+    	String status = "";
+    	if ( job.getMetadata().getAnnotations() != null &&  job.getMetadata().getAnnotations().containsKey("nephele/status")) {
+			status = job.getMetadata().getAnnotations().get("nephele/status").toString();
+		}
+    	if (!StringUtils.isEmpty(status)) {
+			switch (Integer.valueOf(status)) {
+			case 3:
+				if (job.getStatus().getSucceeded() != null&&job.getStatus().getSucceeded() > 0) {
+					status = Constant.JOB_SUCCEEDED;
+				} else if (job.getStatus().getActive() != null && job.getStatus().getActive() >0){
+					status = Constant.RUNNING;
+				}else if(job.getStatus().getFailed() != null && job.getStatus().getFailed() >0){
+					status = Constant.JOB_FAILED;
+				}else{
+					status = Constant.SERVICE_STARTING;
+				}
+				break;
+			case 2:
+				if (job.getSpec().getParallelism() != null
+						&& job.getSpec().getParallelism() > 0) {
+					status = Constant.SERVICE_STOPPING;
+				} else {
+					status = Constant.SERVICE_STOP;
+				}
+				break;
+			default:
+				if (job.getStatus().getSucceeded() != null&&job.getStatus().getSucceeded() > 0) {
+					status = Constant.JOB_SUCCEEDED;
+				} else if (job.getStatus().getActive() != null && job.getStatus().getActive() >0){
+					status = Constant.RUNNING;
+				}else if(job.getStatus().getFailed() != null && job.getStatus().getFailed() >0){
+					status = Constant.JOB_FAILED;
+				}
+				break;
+			}
+		} else {
+			if (job.getStatus().getSucceeded() != null&&job.getStatus().getSucceeded() > 0) {
+				status = Constant.JOB_SUCCEEDED;
+			} else if (job.getStatus().getActive() != null && job.getStatus().getActive() >0){
+				status = Constant.RUNNING;
+			}else if(job.getStatus().getFailed() != null && job.getStatus().getFailed() >0){
+				status = Constant.JOB_FAILED;
+			}
+		}
+    	return status;
     }
 }

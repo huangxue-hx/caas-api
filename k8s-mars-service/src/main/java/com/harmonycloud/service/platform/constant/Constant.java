@@ -19,6 +19,10 @@ public class Constant {
 
 	public final static String SERVICE_STARTING = "starting";
 	
+	public final static String JOB_SUCCEEDED = "succeeded";
+	
+	public final static String JOB_FAILED = "failed";
+	
 	public final static String WAITING = "waiting";
 	
 	public final static String RUNNING = "running";

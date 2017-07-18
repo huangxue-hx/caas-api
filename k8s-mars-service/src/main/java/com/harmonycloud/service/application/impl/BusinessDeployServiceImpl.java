@@ -1077,7 +1077,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 	@Override
 	public ActionReturnUtil deployBusinessTemplateByName(String name, String tag, String namespace, String userName, Cluster cluster)
 			throws Exception {
-		if(StringUtils.isEmpty(name) && StringUtils.isEmpty(tag) && StringUtils.isEmpty(namespace)){
+		if(!StringUtils.isEmpty(name) && !StringUtils.isEmpty(tag) && !StringUtils.isEmpty(namespace)){
 			//根据name和tag获取模板信息
 			ActionReturnUtil btresponse = businessService.getBusinessTemplate(name, tag);
 			if(!btresponse.isSuccess()){
@@ -1101,21 +1101,26 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 					serviceTemplate.setId(js.getInt("id"));
 					serviceTemplate.setName(js.getString("name"));
 					serviceTemplate.setTag(js.getString("tag"));
-					serviceTemplate.setDesc(js.getString("desc"));
+					serviceTemplate.setDesc(js.getString("details"));
 					serviceTemplate.setExternal(js.getInt("isExternal"));
-					DeploymentDetailDto deployment = JsonUtil.jsonToPojo(js.getString("deployment"), DeploymentDetailDto.class);
-					deployment.setNamespace(namespace);
-					serviceTemplate.setDeploymentDetail(deployment);
-					JSONArray jsarray = js.getJSONArray("ingress");
-					List<IngressDto> ingress = new LinkedList<IngressDto>();
-					if(jsarray != null && jsarray.size() > 0 ){
-						for(int j = 0; j < jsarray.size(); j++){
-							JSONObject ingressJson = jsarray.getJSONObject(j);
-							IngressDto ing = JsonUtil.jsonToPojo(ingressJson.toString(), IngressDto.class);
-							ingress.add(ing);
-						}
+					if(js.getInt("isExternal") == Constant.K8S_SERVICE){
+						String dep=js.getJSONArray("deployment").getJSONObject(0).toString().replaceAll(":\"\",", ":"+null+",").replaceAll(":\"\"", ":"+null+"");
+						DeploymentDetailDto deployment = JsonUtil.jsonToPojo(dep, DeploymentDetailDto.class);
+						deployment.setNamespace(namespace);
+						serviceTemplate.setDeploymentDetail(deployment);
 					}
-					serviceTemplate.setIngress(ingress);
+					if(!StringUtils.isEmpty(js.getString("ingress"))){
+						JSONArray jsarray = js.getJSONArray("ingress");
+						List<IngressDto> ingress = new LinkedList<IngressDto>();
+						if(jsarray != null && jsarray.size() > 0 ){
+							for(int j = 0; j < jsarray.size(); j++){
+								JSONObject ingressJson = jsarray.getJSONObject(j);
+								IngressDto ing = JsonUtil.jsonToPojo(ingressJson.toString().toString().replaceAll(":\"\",", ":"+null+",").replaceAll(":\"\"", ":"+null+""), IngressDto.class);
+								ingress.add(ing);
+							}
+						}
+						serviceTemplate.setIngress(ingress);
+					}
 					servicelist.add(serviceTemplate);
 				}
 			}else{
