@@ -1,7 +1,5 @@
 package com.harmonycloud.k8s.util;
 
-import com.harmonycloud.k8s.bean.UnversionedStatus;
-
 public class K8SClientResponse {
 	
 	private int status;
