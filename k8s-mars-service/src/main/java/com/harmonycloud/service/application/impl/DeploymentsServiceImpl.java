@@ -81,15 +81,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		if (!checkParamNUll(labels)) {
 			bodys.put("labelSelector", labels);
 		}
-
-//		if(!StringUtils.isEmpty(tenantId)){
 		Cluster cluster=tenantService.getClusterByTenantid(tenantId);
-//		}
-//		//name
-//		if (!StringUtils.isEmpty(name)){
-//			url.setName(name);
-//		}
-
 		//namespace
 		if (!StringUtils.isEmpty(namespace)){
 			String[] ns = namespace.split(",");
@@ -97,16 +89,29 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			 for (int i = 0; i < ns.length; i++){
 			 	if (ns[i] != null && !StringUtils.isEmpty(ns[i])){
 					url.setNamespace(ns[i]);
-					DeploymentList deployment = K8SClient.converToBean(new K8SClient().doit(url, HTTPMethod.GET, null, bodys,cluster),
-							DeploymentList.class);
-					items.addAll(deployment.getItems());
+					K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, bodys,cluster);
+					if(!HttpStatusUtil.isSuccessStatus(depRes.getStatus()) && depRes.getStatus() != Constant.HTTP_404){
+						UnversionedStatus sta = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+						return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
+					}
+					DeploymentList deployment = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+					if(deployment != null){
+						items.addAll(deployment.getItems());
+					}
 				}
 			 }
 			deployments.setItems(items);
 		}
 		else {
-			DeploymentList deployment = K8SClient.converToBean(new K8SClient().doit(url, HTTPMethod.GET, null, bodys,cluster), DeploymentList.class);
-			deployments.setItems(deployment.getItems());
+			K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, bodys,cluster);
+			if(!HttpStatusUtil.isSuccessStatus(depRes.getStatus()) && depRes.getStatus() != Constant.HTTP_404){
+				UnversionedStatus sta = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+				return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
+			}
+			DeploymentList deployment = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+			if(deployment != null){
+				deployments.setItems(deployment.getItems());
+			}
 		}
 
 		return ActionReturnUtil.returnSuccessWithData(K8sResultConvert.convertAppList(deployments));
