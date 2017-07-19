@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.harmonycloud.dao.user.UserGroupRelationMapper" >
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.user.bean.UserGroupRelation" >
+    <result column="userid" property="userid" jdbcType="BIGINT" />
+    <result column="groupid" property="groupid" jdbcType="INTEGER" />
+  </resultMap>
+  <sql id="Example_Where_Clause" >
+    <where >
+      <foreach collection="oredCriteria" item="criteria" separator="or" >
+        <if test="criteria.valid" >
+          <trim prefix="(" suffix=")" prefixOverrides="and" >
+            <foreach collection="criteria.criteria" item="criterion" >
+              <choose >
+                <when test="criterion.noValue" >
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue" >
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue" >
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue" >
+                  and ${criterion.condition}
+                  <foreach collection="criterion.value" item="listItem" open="(" close=")" separator="," >
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List" >
+    userid, groupid
+  </sql>
+  <select id="selectByExample" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.user.bean.UserGroupRelationExample" >
+    select
+    <if test="distinct" >
+      distinct
+    </if>
+    'false' as QUERYID,
+    <include refid="Base_Column_List" />
+    from user_group_relation
+    <if test="_parameter != null" >
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null" >
+      order by ${orderByClause}
+    </if>
+  </select>
+  <delete id="deleteByExample" parameterType="com.harmonycloud.dao.user.bean.UserGroupRelationExample" >
+    delete from user_group_relation
+    <if test="_parameter != null" >
+      <include refid="Example_Where_Clause" />
+    </if>
+  </delete>
+  <insert id="insert" parameterType="com.harmonycloud.dao.user.bean.UserGroupRelation" >
+    insert into user_group_relation (userid, groupid)
+    values (#{userid,jdbcType=BIGINT}, #{groupid,jdbcType=INTEGER})
+  </insert>
+  <insert id="insertSelective" parameterType="com.harmonycloud.dao.user.bean.UserGroupRelation" >
+    insert into user_group_relation
+    <trim prefix="(" suffix=")" suffixOverrides="," >
+      <if test="userid != null" >
+        userid,
+      </if>
+      <if test="groupid != null" >
+        groupid,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides="," >
+      <if test="userid != null" >
+        #{userid,jdbcType=BIGINT},
+      </if>
+      <if test="groupid != null" >
+        #{groupid,jdbcType=INTEGER},
+      </if>
+    </trim>
+  </insert>
+  <insert id="addUserGroupRelation"  parameterType="java.util.List">  
+    insert into user_group_relation (userid,groupid)   
+    values  
+    <foreach collection="list" item="ugrs"  separator="," >  
+        (#{ugrs.userid},#{ugrs.groupid})  
+    </foreach>  
+</insert>
+</mapper>

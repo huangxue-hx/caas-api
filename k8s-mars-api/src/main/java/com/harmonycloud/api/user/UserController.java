@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -26,6 +27,7 @@ import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.user.bean.User;
+import com.harmonycloud.dao.user.bean.UserGroup;
 import com.harmonycloud.dto.user.SummaryUserInfo;
 import com.harmonycloud.dto.user.UserDetailDto;
 import com.harmonycloud.k8s.constant.Constant;
@@ -474,6 +476,53 @@ public class UserController {
     public @ResponseBody ActionReturnUtil getActiveUserListuu(@RequestParam(value = "domain") Integer domain) throws Exception {
         List<TenantBinding> list = tenantService.testTime(domain);
         return ActionReturnUtil.returnSuccessWithData(list);
-
     }
+    
+    @RequestMapping(value = "/user/group/create_group", method = RequestMethod.POST)
+    public @ResponseBody ActionReturnUtil create_group(@ModelAttribute UserGroup usergroup ) throws Exception {
+    	userService.create_group(usergroup);
+    	return ActionReturnUtil.returnSuccess();
+    }
+    
+    @RequestMapping(value = "/user/group/delete_group", method = RequestMethod.DELETE)
+    public @ResponseBody ActionReturnUtil delete_group(@RequestParam("groupnames[]") List<String> groupnames ) throws Exception {
+    	userService.delete_group(groupnames);
+    	return ActionReturnUtil.returnSuccess();
+    }
+    
+    @RequestMapping(value = "/user/group/delete_groupbyid", method = RequestMethod.DELETE)
+    public @ResponseBody ActionReturnUtil delete_groupbyid(@RequestParam("groupid") int groupid ) throws Exception {
+    	userService.delete_groupbyid(groupid);
+    	return ActionReturnUtil.returnSuccess();
+    }
+    
+    @RequestMapping(value = "/user/group/search_group", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil get_groups() throws Exception {
+    	List<UserGroup> list = userService.get_groups();
+        return ActionReturnUtil.returnSuccessWithData(list);
+    }
+    
+    @RequestMapping(value = "/user/group/samegroupname", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil issame(@RequestParam("groupname")String groupname) throws Exception {
+        return ActionReturnUtil.returnSuccessWithData(userService.issame(groupname));
+    }
+    
+    @RequestMapping(value = "/user/group/searchuserbygroupid", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil searchuserbygroupid(@RequestParam("groupid")int groupid) throws Exception {
+    	List<User> list =  userService.searchuserbygroupid(groupid);
+        return ActionReturnUtil.returnSuccessWithData(list);
+    }
+    
+    @RequestMapping(value = "/user/group/search_group_username", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil search_group_username(@RequestParam("username")String username) throws Exception {
+    	UserGroup usergroup =  userService.search_group_username(username);
+        return ActionReturnUtil.returnSuccessWithData(usergroup);
+    }
+    
+    @RequestMapping(value = "/user/group/search_users_groupname", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil search_users_groupname(@RequestParam("groupname")String groupname) throws Exception {
+    	List<User> users =  userService.search_users_groupname(groupname);
+        return ActionReturnUtil.returnSuccessWithData(users);
+    }
+    
 }

@@ -32,11 +32,18 @@ import com.harmonycloud.dao.application.bean.HarborUser;
 import com.harmonycloud.dao.tenant.bean.UserTenant;
 import com.harmonycloud.dao.user.AuthUserMapper;
 import com.harmonycloud.dao.user.HarborUserMapper;
+import com.harmonycloud.dao.user.UserGroupMapper;
+import com.harmonycloud.dao.user.UserGroupRelationMapper;
 import com.harmonycloud.dao.user.UserMapper;
 import com.harmonycloud.dao.user.bean.AuthUser;
 import com.harmonycloud.dao.user.bean.AuthUserExample;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.bean.UserExample;
+import com.harmonycloud.dao.user.bean.UserGroup;
+import com.harmonycloud.dao.user.bean.UserGroupExample;
+import com.harmonycloud.dao.user.bean.UserGroupExample.Criteria;
+import com.harmonycloud.dao.user.bean.UserGroupRelation;
+import com.harmonycloud.dao.user.bean.UserGroupRelationExample;
 import com.harmonycloud.dao.user.customs.CustomUserMapper;
 import com.harmonycloud.dto.tenant.show.UserShowDto;
 import com.harmonycloud.dto.user.SummaryUserInfo;
@@ -57,6 +64,12 @@ public class UserService {
 
 	@Autowired
 	private CustomUserMapper userMapper;
+	
+	@Autowired
+	private UserGroupRelationMapper usergrouprelationMapper;
+	
+	@Autowired
+	private UserGroupMapper usergroupMapper;
 	
 	@Autowired
     private UserMapper userMapperNew;
@@ -912,7 +925,188 @@ public class UserService {
 		User user = userMapper.findUserByEmail(email);
 		return user != null;
 	}
+	
+	/**
+	 * 创建用户群组
+	 * 
+	 * @param UserGroup
+	 * @return ActionReturnUtil
+	 */
+	public ActionReturnUtil create_group(UserGroup usergroup)throws Exception {
+		if(usergroup == null){
+				return ActionReturnUtil.returnErrorWithData("创建群组对象不能为空！");
+		}
+		if(usergroup.getGroupname() == "" || usergroup.getGroupname() == null){
+			return ActionReturnUtil.returnErrorWithData("群组名不能为空！");
+		}
+		//在user_group表中增加数据
+		usergroupMapper.insert(usergroup);
+		UserGroupExample ugexample = new UserGroupExample();
+		ugexample.createCriteria().andGroupnameEqualTo(usergroup.getGroupname());
+		//获取用户群组id，群组名唯一
+		int groupid = usergroupMapper.selectByExample(ugexample).get(0).getId();
+		//在user_group_relation表中增加数据
+		List<User> ls = usergroup.getUsers();
+		List<UserGroupRelation> ints = new ArrayList<UserGroupRelation>();
+		for(int i=0;i<ls.size();i++){
+			String username = ls.get(i).getUsername();
+			UserExample example = new UserExample();
+			example.createCriteria().andUsernameEqualTo(username);
+			UserGroupRelation ugr = new UserGroupRelation();
+			ugr.setGroupid(groupid);
+			//用户名唯一
+			ugr.setUserid(userMapperNew.selectByExample(example).get(0).getUuid());
+			ints.add(ugr);
+		}
+		//在user_ group_relation表中增加数据
+		usergrouprelationMapper.addUserGroupRelation(ints);
+		return ActionReturnUtil.returnSuccess();
+	}
+	
+	/**
+	 * 删除用户群组
+	 * 
+	 * @param List<String> groupnames
+	 * @return ActionReturnUtil
+	 */
+	public ActionReturnUtil delete_group(List<String> groupnames)throws Exception {
+		//删除user_group表中的相关数据同时删除user_group_relation表中的关联数据
+		try {
+				UserGroupExample delexample = new UserGroupExample();
+				Criteria criteria = delexample.createCriteria();  
+				criteria.andGroupnameIn(groupnames) ;
+				usergroupMapper.deleteByExample(delexample);
+				return ActionReturnUtil.returnSuccess();
+		} catch (Exception e) {
+			   return ActionReturnUtil.returnErrorWithData(e);
+		}
+	}
+	
+	/**
+	 * 删除用户群组
+	 * 
+	 * @param List<String> groupnames
+	 * @return ActionReturnUtil
+	 */
+	public ActionReturnUtil delete_groupbyid(int groupid)throws Exception {
+		//删除user_group表中的相关数据同时删除user_group_relation表中的关联数据
+		try {
+				UserGroupExample delexample = new UserGroupExample();
+				delexample.createCriteria().andIdEqualTo(groupid);
+				usergroupMapper.deleteByExample(delexample);
+				UserGroupRelationExample ugrexample = new UserGroupRelationExample();
+				ugrexample.createCriteria().andGroupidEqualTo(groupid);
+				usergrouprelationMapper.deleteByExample(ugrexample);
+				return ActionReturnUtil.returnSuccess();
+		} catch (Exception e) {
+			   return ActionReturnUtil.returnErrorWithData(e);
+		}
+	}
+	
+	/**
+	 * 修改用户群组信息
+	 * 
+	 * @param 
+	 * @return ActionReturnUtil
+	 */
+	public ActionReturnUtil update_group(UserGroup usergroup)throws Exception {
+		//修改user_group表和user_group_relation表【user_group:groupname、describe】【user_group_relation:userid、groupid】
+		
+		return ActionReturnUtil.returnSuccess();
+	}
+	
+	/**
+	 * 查询所有群组信息
+	 * 
+	 * @param 
+	 * @return  List<UserGroup>
+	 */
+	public List<UserGroup> get_groups()throws Exception {
+		UserGroupExample ugexample = new UserGroupExample();
+		List<UserGroup> ugs = usergroupMapper.selectByExample(ugexample);
+		return ugs;
+	}
 
+	/**
+	 * 查询群组是否重名
+	 * 
+	 * @param groupname
+	 * @return boolean
+	 */
+	public boolean issame(String groupname)throws Exception {
+		UserGroupExample example  = new UserGroupExample();
+		example.createCriteria().andGroupnameEqualTo(groupname);
+		//群组名唯一，所以只有一个
+		List<UserGroup> ug =  usergroupMapper.selectByExample(example);
+		if(ug==null || ug.isEmpty()){
+			return false;
+		}
+			return true;
+	}
+	
+	/**
+	 * 根据群组id,获取用户详情
+	 * 
+	 * @param groupid
+	 * @return list<User>
+	 */
+	public List<User> searchuserbygroupid(int  groupid)throws Exception {
+		UserGroupRelationExample  ugrexample = new UserGroupRelationExample();
+		ugrexample.createCriteria().andGroupidEqualTo(groupid);
+		List<UserGroupRelation> ls = usergrouprelationMapper.selectByExample(ugrexample);
+		List<User> users = new ArrayList<User>();
+		for(int i=0;i<ls.size();i++){
+			User user = new User();
+			Long userid = ls.get(i).getUserid();
+			UserExample uexample = new UserExample();
+			uexample.createCriteria().andUuidEqualTo(userid);
+			user = userMapperNew.selectByExample(uexample).get(0);
+			users.add(user);
+		}
+		return users;
+	}
+	
+	/**
+	 * 根据用户名获取群组详情
+	 * 
+	 * @param username
+	 * @return List<UserGroup>
+	 */
+	public UserGroup search_group_username(String  username)throws Exception {
+		UserExample uexample = new UserExample();
+		uexample.createCriteria().andUsernameEqualTo(username);
+		Long userid = userMapperNew.selectByExample(uexample).get(0).getUuid();
+		UserGroupRelationExample  ugrexample = new UserGroupRelationExample();
+		ugrexample.createCriteria().andUseridEqualTo(userid);
+		int groupid = usergrouprelationMapper.selectByExample(ugrexample).get(0).getGroupid();
+		UserGroup usergroup = usergroupMapper.selectByPrimaryKey(groupid);
+		return usergroup;
+	}
+	
+	/**
+	 * 根据群组名获取用户详情
+	 * 
+	 * @param username
+	 * @return List<UserGroup>
+	 */
+	public List<User> search_users_groupname(String  groupname)throws Exception {
+		UserGroupExample ugexample = new UserGroupExample();
+		ugexample.createCriteria().andGroupnameEqualTo(groupname);
+		int groupid = usergroupMapper.selectByExample(ugexample).get(0).getId();
+		UserGroupRelationExample  ugrexample = new UserGroupRelationExample();
+		ugrexample.createCriteria().andGroupidEqualTo(groupid);
+		List<UserGroupRelation> ls = usergrouprelationMapper.selectByExample(ugrexample);
+		List<User> users = new ArrayList<User>();
+		for(int i=0;i<ls.size();i++){
+			User user= new User();
+			UserExample example = new UserExample();
+			example.createCriteria().andUuidEqualTo(ls.get(i).getUserid());
+			user = userMapperNew.selectByExample(example).get(0);
+			users.add(user);
+		}
+		return users;
+	}
+	
 	public String getWebhook() {
 		return webhook;
 	}
