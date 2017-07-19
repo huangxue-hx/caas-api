@@ -456,7 +456,7 @@ public class MonitorAlarmController {
             double normalCount = 0;
 			double totalCount = 0;
             for(Map<String, String> map : list) {
-				totalCount = totalCount + map.size() - 1;
+				totalCount = totalCount + map.size() - 2;
 				for (Map.Entry<String, String> entry : map.entrySet()) {
 					if(entry.getValue().equalsIgnoreCase(Constant.STATUS_NORMAL)) {
 						normalCount ++;
