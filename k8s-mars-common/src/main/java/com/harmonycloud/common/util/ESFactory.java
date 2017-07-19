@@ -37,6 +37,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.sun.tools.classfile.StackMap_attribute.stack_map_frame;
+
 /**
  * Created by czm on 2017/3/28.
  */
@@ -110,10 +112,10 @@ public class ESFactory {
 		IndexResponse indexResponse = ESFactory.createES()
 				.prepareIndex(indexName, type, String.valueOf(new Date().getTime()))
 				.setSource(                 // 这里可以直接用json字符串
-						XContentFactory.jsonBuilder().startObject().field("user", user).field("tenant", "tmp")
+						XContentFactory.jsonBuilder().startObject().field("user", user).field("tenant", sr.getTenant())
 								.field("module", module).field("opFun", opFun).field("method", method)
 								.field("opTime", opTime).field("requestParams", reqParams).field("remoteIp", remoteIp)
-								.field("response", response).field("path", path).field("opStatus", opStatus)
+								.field("response", response).field("path", path).field("opStatus", opStatus).field("subject", sr.getSubject())
 								.endObject())
 				.setTTL(1000).get();
 		return ActionReturnUtil.returnSuccess();
@@ -196,6 +198,12 @@ public class ESFactory {
 			if (doc.get("remoteIp") != null) {
 				sr.setRemoteIp(doc.get("remoteIp").toString());
 			}
+			if (doc.get("subject") != null) {
+				sr.setSubject(doc.get("subject").toString());
+			}
+			if (doc.get("tenant") != null) {
+				sr.setTenant(doc.get("tenant").toString());
+			}
 			searchResults.add(sr);
 		}
 
@@ -256,7 +264,8 @@ public class ESFactory {
 				.startObject("requestParams").field("type", "string").endObject().startObject("path")
 				.field("type", "string").endObject().startObject("remoteIp").field("type", "string").endObject()
 				.startObject("response").field("type", "string").endObject().startObject("opStatus")
-				.field("type", "boolean").field("index", "not_analyzed").endObject().endObject().endObject();
+				.field("type", "boolean").field("index", "not_analyzed").endObject().startObject("subject")
+				.field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject();
 
 		// 创建mapping
 		logger.debug("正在创建mapping:" + mappingType);

@@ -1,6 +1,8 @@
 package com.harmonycloud.aop;
 
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -14,10 +16,12 @@ import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.annotation.Pointcut;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import com.fasterxml.jackson.annotation.JsonFormat.Value;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.DicUtil;
 import com.harmonycloud.common.util.ESFactory;
@@ -25,6 +29,13 @@ import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.SearchResult;
 import com.harmonycloud.common.util.TenantUtils;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.application.BusinessMapper;
+import com.harmonycloud.dao.application.bean.Business;
+import com.harmonycloud.dao.tenant.HarborProjectTenantMapper;
+import com.harmonycloud.dao.tenant.TenantBindingMapper;
+import com.harmonycloud.dao.tenant.bean.HarborProjectTenant;
+import com.harmonycloud.dao.tenant.bean.TenantBinding;
+import com.harmonycloud.dao.tenant.bean.TenantBindingExample;
 
 /**
  * 
@@ -37,14 +48,24 @@ public class AuditControllerAspect {
 
 	private static final Logger log = LoggerFactory.getLogger(AuditControllerAspect.class);
 	ThreadLocal<SearchResult> result = new ThreadLocal<>();
+	
+	@Autowired
+	private TenantBindingMapper tenantBindingMapper;
+	
+	@Autowired
+	private BusinessMapper businessMapper;
+	
+	@Autowired
+	private HarborProjectTenantMapper hpTenantMapper;
 
 	@Pointcut("execution(public * com.harmonycloud.api..*.*(..))")
 	public void auditController() {
 
 	}
 
+	@SuppressWarnings("unchecked")
 	@Before("auditController()")
-	public void doBefore(JoinPoint joinPoint) {
+	public void doBefore(JoinPoint joinPoint){
 		Date date = TenantUtils.getUtctime();
 		date = new Date(date.getTime() + 8 * 60 * 60 * 1000L);
 
@@ -55,17 +76,73 @@ public class AuditControllerAspect {
 		String moduleKey = DicUtil.parseModelName(url, 3);
 		final String moduleName = DicUtil.get(moduleKey);
 		String method = request.getMethod();
-		String opFun = DicUtil.get(DicUtil.parseDicKey(url, method));
+		String opFunKey = DicUtil.parseDicKey(url, method);
+		String opFun = DicUtil.get(opFunKey);
+		String opParams = DicUtil.get(DicUtil.parseDicKeyOfParams(url, method));
 		if (StringUtils.isNotBlank(moduleName) && StringUtils.isNotBlank(opFun)) {
+			String subject = null;
+			String tenant = null;
+			SearchResult sr = new SearchResult();
 			try {
 				HttpSession session = request.getSession();
-
 				String username = (String) session.getAttribute("username");
-				String reqParam = DicUtil.parseParams(request);
-
+				Map<String, Object> reqParams = DicUtil.parseRequestParams(request, opParams);
+				List<String> values = (List<String>) reqParams.get("values");
+				if (values != null && values.size() > 0 ) {
+					subject = values.get(0);
+				}
+                if (moduleName.equals("租户模块")) {
+                	if (opFunKey.equals("rest_tenant_deleteProject_DELETE")) {
+                		HarborProjectTenant hProjectTenant = hpTenantMapper.getByHarborProjectId(Long.valueOf(values.get(1)));
+                	    subject =  hProjectTenant.getHarborProjectName();
+                	    tenant = values.get(0);
+                	} else if (opFunKey.equals("rest_tenant_create_POST")) {
+                		subject = values.get(0);
+                		tenant = values.get(0);
+                	} else if (opFunKey.equals("rest_tenant_addTrustmember_POST") || opFunKey.equals("rest_tenant_removeTrustmember_DELETE")) {
+                		TenantBindingExample example = new TenantBindingExample();
+                    	example.createCriteria().andTenantIdEqualTo(values.get(0));
+                    	List<TenantBinding> list = tenantBindingMapper.selectByExample(example);
+                    	if (list != null) {
+                    		tenant = list.get(0).getTenantName();
+                    	}
+                    	example.clear();
+                    	example.createCriteria().andTenantIdEqualTo(values.get(1));
+                    	List<TenantBinding> list2 = tenantBindingMapper.selectByExample(example);
+                    	if (list2 != null) {
+                    		subject = list2.get(0).getTenantName();
+                    	}
+                	} else if (opFunKey.equals("rest_tenant_removeUser_DELETE")) {
+                		TenantBindingExample example = new TenantBindingExample();
+                    	example.createCriteria().andTenantIdEqualTo(values.get(1));
+                    	List<TenantBinding> list = tenantBindingMapper.selectByExample(example);
+                    	if (list != null) {
+                    		tenant = list.get(0).getTenantName();
+                    	}
+                    	subject = values.get(0);
+                	} else {
+                		TenantBindingExample example = new TenantBindingExample();
+                    	example.createCriteria().andTenantIdEqualTo(values.get(0));
+                    	List<TenantBinding> list = tenantBindingMapper.selectByExample(example);
+                    	if (list != null) {
+                    		tenant = list.get(0).getTenantName();
+                    	}
+                    	if (values.size() > 1) {
+                    		subject = values.get(1);
+                    	}
+                	}
+                }
+                if (moduleName.equals("业务模块")) {
+                    if (opFunKey.equals("rest_business_deploy_DELETE") || opFunKey.equals("rest_business_deploy_stop_POST") || opFunKey.equals("rest_business_deploy_start_POST")){
+                		Business business = businessMapper.selectByPrimaryKey(Integer.valueOf(values.get(0)));
+                    	subject = business.getName();
+                	} else {
+                		subject = values.get(0);
+                	}
+                }
 				StringBuffer requestParams = new StringBuffer();
-				if (StringUtils.isNotBlank(reqParam)) {
-					requestParams.append(reqParam);
+				if (StringUtils.isNotBlank(reqParams.get("allParams").toString())) {
+					requestParams.append(reqParams.get("allParams"));
 					if (url.contains("login") || url.indexOf("validation") >= 0 || url.indexOf("getToken") >= 0
 							|| url.contains("changePwd") || url.contains("adminReset") || url.contains("userReset")) {
 						requestParams.replace(0, requestParams.toString().length(), "请求参数:*****");
@@ -78,7 +155,7 @@ public class AuditControllerAspect {
 				}
 				String remoteIp = request.getRemoteAddr();
 				String args = requestParams.toString();
-				SearchResult sr = new SearchResult();
+				
 				sr.setOpTime(opDate);
 				sr.setUser(username);
 				sr.setModule(moduleName);
@@ -87,12 +164,15 @@ public class AuditControllerAspect {
 				sr.setRequestParams(args);
 				sr.setRemoteIp(remoteIp);
 				sr.setPath(url);
+				sr.setTenant(tenant);
+				sr.setSubject(subject);
 				result.set(sr);
 				log.info("REQUEST: URL: {}, HTTP_METHOD: {}, ARGS: {}, REMOTE_IP: {}, CLASS_METHOD: {}", new String[] {
 						url, method, args, remoteIp,
 						joinPoint.getSignature().getDeclaringTypeName() + "." + joinPoint.getSignature().getName() });
 			} catch (Exception e) {
 				log.error("spring aop before exception", e);
+				result.set(sr);
 			}
 		}
 
@@ -108,7 +188,7 @@ public class AuditControllerAspect {
 					audit.setResponse(reString);
 					String opStatus = "true";
 					if (reString.lastIndexOf("success") > -1) {
-						opStatus = reString.substring(reString.lastIndexOf("success") + 8, reString.length() - 1);
+						opStatus = reString.substring(reString.lastIndexOf("success") + 9, reString.length() - 1);
 					}
 					audit.setOpStatus(opStatus);
 					result.remove();
@@ -122,7 +202,7 @@ public class AuditControllerAspect {
 
 	}
 
-	@AfterThrowing(throwing = "ex", pointcut = "execution(* com.bean.*.*(..))")
+	@AfterThrowing(throwing = "ex", pointcut = "auditController()")
 	public void doAfterThrowing(Exception ex) {
 		try {
 			if (doCheckInDic()) {
