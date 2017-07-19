@@ -84,6 +84,7 @@ public class AuthService {
         // 将token存入数据库
         user.setToken(token);
         user.setTokenCreate(new Date());
+        user.setUuid(user.getId());
         userMapperNew.updateByPrimaryKeySelective(user);
 //        userMapper.updateUser(user);
 
