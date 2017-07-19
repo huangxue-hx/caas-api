@@ -20,6 +20,8 @@
         <typeAlias alias="TenantBinding" type="com.harmonycloud.dao.tenant.bean.TenantBinding" />
         <typeAlias alias="TenantBindingExample" type="com.harmonycloud.dao.tenant.bean.TenantBindingExample" />
         <typeAlias alias="User" type="com.harmonycloud.dao.user.bean.User" />
+        <typeAlias alias="Usergroup" type="com.harmonycloud.dao.user.bean.UserGroup" />
+        <typeAlias alias="UsergroupRelation" type="com.harmonycloud.dao.user.bean.UserGroupRelation" />
         <typeAlias alias="Usertenant" type="com.harmonycloud.dao.tenant.bean.UserTenant" />
         <typeAlias alias="UsertenantExample" type="com.harmonycloud.dao.tenant.bean.UserTenantExample" />
         <typeAlias alias="NetworkCalicoExample" type="com.harmonycloud.dao.network.bean.NetworkCalicoExample" />
@@ -58,6 +60,8 @@
         <mapper resource="com/harmonycloud/mapping/RoleMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/TenantBindingMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/UserMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/UserGroupMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/UserGroupRelationMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/custums/CustomUserMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/UserTenantMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/NetworkCalicoMapper.xml" />
