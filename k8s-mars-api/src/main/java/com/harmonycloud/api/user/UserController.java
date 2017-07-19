@@ -525,4 +525,10 @@ public class UserController {
         return ActionReturnUtil.returnSuccessWithData(users);
     }
     
+	@RequestMapping(value="/user/group/userlist",method=RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil userListbygroup() throws Exception{
+	    return userService.listUserswithoutgroup();  
+	}
+    
 }
