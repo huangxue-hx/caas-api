@@ -103,15 +103,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			deployments.setItems(items);
 		}
 		else {
-			K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, bodys,cluster);
-			if(!HttpStatusUtil.isSuccessStatus(depRes.getStatus()) && depRes.getStatus() != Constant.HTTP_404){
-				UnversionedStatus sta = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
-				return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
-			}
-			DeploymentList deployment = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
-			if(deployment != null){
-				deployments.setItems(deployment.getItems());
-			}
+			return ActionReturnUtil.returnErrorWithMsg("namespase 为空");
 		}
 
 		return ActionReturnUtil.returnSuccessWithData(K8sResultConvert.convertAppList(deployments));
