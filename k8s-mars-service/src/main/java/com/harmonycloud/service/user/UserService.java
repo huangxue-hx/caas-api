@@ -85,8 +85,10 @@ public class UserService {
 	
 	@Autowired
 	private AuthUserMapper authUserMapper;
+	
 	@Autowired
 	UserTenantService userTenantService;
+	
 
 	@Value("#{propertiesReader['webhook.host']}")
 	private String webhook;
@@ -643,14 +645,118 @@ public class UserService {
         return null;
     }
 	/**
-     * 获取所有被pause的用户
+     * 获取部门被pause的用户
      * @return
      */
-	public List<User> getAllUserPausedList() throws Exception{
-	    List<User> pausedList = this.userMapper.getAllUserPausedList();
+	public List<User> getUserPausedListByDepartmnet(String department) throws Exception{
+	    List<User> pausedList = this.userMapper.getUserPausedListByDepartmnet(department);
         return pausedList;
     }
 	/**
+     * 获取部门normal的用户
+     * @return
+     */
+    public List<User> getUserNormalListByDepartmnet(String department) throws Exception{
+        List<User> normalList = this.userMapper.getUserNormalListByDepartmnet(department);
+        return normalList;
+    }
+    /**
+     * 获取部门一定时间段的活跃用户
+     * @return
+     */
+    public List<User> getActiveUserListByDepartmnet(Integer domain,String department) throws Exception{
+        Date date=new Date();  
+        Calendar calendar = Calendar.getInstance();  
+        calendar.setTime(date);  
+        calendar.add(Calendar.DAY_OF_MONTH, -domain);  
+        Date leftDate = calendar.getTime();
+        UserExample example = new UserExample();
+        example.createCriteria().andTokenCreateBetween(leftDate, date).andTokenCreateIsNotNull().andIsadminEqualTo(false).andIsmachineEqualTo(false);
+        List<User> activeList = this.userMapperNew.selectByExample(example);
+        List<User> search_users_groupname = this.search_users_groupname(department);
+        Map<String, String> groupUser = new HashMap<>();
+        List<User> result = new ArrayList<>();
+        if(search_users_groupname!=null&&search_users_groupname.size()>0){
+            for (User user : search_users_groupname) {
+                groupUser.put(user.getUsername(), user.getUsername());
+            }
+            for (User user : activeList) {
+                if(groupUser.get(user.getUsername())!=null){
+                    result.add(user);
+                }
+            }
+        }
+        return result;
+    }
+    /**
+     * 获取部门一定时间段的不活跃用户
+     * @param domain
+     * @return
+     * @throws Exception
+     */
+    public List<User> getUnActiveUserListByDepartmnet(Integer domain,String department) throws Exception{
+        Date date=new Date();  
+        Calendar calendar = Calendar.getInstance();  
+        calendar.setTime(date);  
+        calendar.add(Calendar.DAY_OF_MONTH, -domain);  
+        Date leftDate = calendar.getTime();
+        UserExample example = new UserExample();
+        example.createCriteria().andTokenCreateIsNull().andIsadminEqualTo(false).andIsmachineEqualTo(false);
+        List<User> unActiveList = this.userMapperNew.selectByExample(example);
+        UserExample example1 = new UserExample();
+        example1.createCriteria().andTokenCreateNotBetween(leftDate, date).andTokenCreateIsNotNull().andIsadminEqualTo(false).andIsmachineEqualTo(false);
+        List<User> normalList1 = this.userMapperNew.selectByExample(example1);
+        if(normalList1!=null&&normalList1.size()>0){
+            for (User user : normalList1) {
+                unActiveList.add(user);
+            }
+        }
+        List<User> search_users_groupname = this.search_users_groupname(department);
+        Map<String, String> groupUser = new HashMap<>();
+        List<User> result = new ArrayList<>();
+        if(search_users_groupname!=null&&search_users_groupname.size()>0){
+            for (User user : search_users_groupname) {
+                groupUser.put(user.getUsername(), user.getUsername());
+            }
+            for (User user : unActiveList) {
+                if(groupUser.get(user.getUsername())!=null){
+                    result.add(user);
+                }
+            }
+        }
+        return result;
+    }
+    /**
+     * 获取部门未授权用户列表
+     * @return
+     * @throws Exception
+     */
+    public List<User> getUnauthorizedUserListByDepartmnet(String department) throws Exception{
+        List<User> unauthorizedUserList = userMapper.getUnauthorizedUserList();
+        List<User> search_users_groupname = this.search_users_groupname(department);
+        Map<String, String> groupUser = new HashMap<>();
+        List<User> result = new ArrayList<>();
+        if(search_users_groupname!=null&&search_users_groupname.size()>0){
+            for (User user : search_users_groupname) {
+                groupUser.put(user.getUsername(), user.getUsername());
+            }
+            for (User user : unauthorizedUserList) {
+                if(groupUser.get(user.getUsername())!=null){
+                    result.add(user);
+                }
+            }
+        }
+        return result;
+    }
+    /**
+     * 获取所有被pause的用户
+     * @return
+     */
+    public List<User> getAllUserPausedList() throws Exception{
+        List<User> pausedList = this.userMapper.getAllUserPausedList();
+        return pausedList;
+    }
+    /**
      * 获取所有normal的用户
      * @return
      */
@@ -669,10 +775,16 @@ public class UserService {
         calendar.add(Calendar.DAY_OF_MONTH, -domain);  
         Date leftDate = calendar.getTime();
         UserExample example = new UserExample();
-        example.createCriteria().andTokenCreateBetween(leftDate, date).andTokenCreateIsNotNull().andPauseEqualTo("normal").andIsadminEqualTo(false).andIsmachineEqualTo(false);
+        example.createCriteria().andTokenCreateBetween(leftDate, date).andTokenCreateIsNotNull().andIsadminEqualTo(false).andIsmachineEqualTo(false);
         List<User> normalList = this.userMapperNew.selectByExample(example);
         return normalList;
     }
+    /**
+     * 获取所有部门一定时间段的不活跃用户
+     * @param domain
+     * @return
+     * @throws Exception
+     */
     public List<User> getUnActiveUserList(Integer domain) throws Exception{
         Date date=new Date();  
         Calendar calendar = Calendar.getInstance();  
@@ -680,10 +792,10 @@ public class UserService {
         calendar.add(Calendar.DAY_OF_MONTH, -domain);  
         Date leftDate = calendar.getTime();
         UserExample example = new UserExample();
-        example.createCriteria().andPauseEqualTo("normal").andTokenCreateIsNull().andIsadminEqualTo(false).andIsmachineEqualTo(false);
+        example.createCriteria().andTokenCreateIsNull().andIsadminEqualTo(false).andIsmachineEqualTo(false);
         List<User> normalList = this.userMapperNew.selectByExample(example);
         UserExample example1 = new UserExample();
-        example1.createCriteria().andTokenCreateNotBetween(leftDate, date).andTokenCreateIsNotNull().andPauseEqualTo("normal").andIsadminEqualTo(false).andIsmachineEqualTo(false);
+        example1.createCriteria().andTokenCreateNotBetween(leftDate, date).andTokenCreateIsNotNull().andIsadminEqualTo(false).andIsmachineEqualTo(false);
         List<User> normalList1 = this.userMapperNew.selectByExample(example1);
         if(normalList1!=null&&normalList1.size()>0){
             for (User user : normalList1) {
@@ -732,6 +844,35 @@ public class UserService {
         su.setUnauthorizedUserSum(unauthorizedUserList.size());
         //被阻止用户
         List<User> allUserPausedList = this.getAllUserPausedList();
+        su.setPausedUserList(allUserPausedList);
+        su.setUserPausedSum(allUserPausedList.size());
+        List<User> adminUserList = this.getAdminUserList();
+        //管理员用户
+        su.setAdminList(adminUserList);
+        su.setAdminSum(adminUserList.size());
+        su.setUserSum(allUserNormalList.size()+allUserPausedList.size());
+        return su;
+    }
+    public SummaryUserInfo getSummaryByDepartmnet(Integer domain,String department) throws Exception{
+        SummaryUserInfo su= new SummaryUserInfo();
+        //活跃用户
+        List<User> activeUserList = this.getActiveUserListByDepartmnet(domain, department);
+        su.setActiveSum(activeUserList.size());
+        su.setActiveUserList(activeUserList);
+        //不活跃用户
+        List<User> unActiveUserList = this.getUnActiveUserListByDepartmnet(domain, department);
+        su.setUnActiveUserList(unActiveUserList);
+        su.setUnActiveSum(unActiveUserList.size());
+        //正常用户
+        List<User> allUserNormalList = this.getUserNormalListByDepartmnet(department);
+        su.setNormalUserList(allUserNormalList);
+        su.setUserNormalSum(allUserNormalList.size());
+        //未授权用户
+        List<User> unauthorizedUserList = this.getUnauthorizedUserListByDepartmnet(department);
+        su.setUnauthorizedUserList(unauthorizedUserList);
+        su.setUnauthorizedUserSum(unauthorizedUserList.size());
+        //被阻止用户
+        List<User> allUserPausedList = this.getUserPausedListByDepartmnet(department);
         su.setPausedUserList(allUserPausedList);
         su.setUserPausedSum(allUserPausedList.size());
         List<User> adminUserList = this.getAdminUserList();
