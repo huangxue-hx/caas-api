@@ -1,31 +1,39 @@
 package com.harmonycloud.service.platform.serviceImpl.ci;
 
-import com.harmonycloud.common.enumm.ProjectTypeEnum;
-import com.harmonycloud.common.enumm.RepositoryTypeEnum;
 import com.harmonycloud.common.util.*;
-import com.harmonycloud.dao.ci.JobMapper;
-import com.harmonycloud.dao.ci.bean.Job;
+import com.harmonycloud.dao.ci.*;
+import com.harmonycloud.dao.ci.bean.*;
+import com.harmonycloud.dto.cicd.JobDto;
+import com.harmonycloud.dto.cicd.StageDto;
 import com.harmonycloud.service.platform.client.HarborClient;
 import com.harmonycloud.service.platform.service.ci.JobService;
+import com.harmonycloud.service.platform.service.ci.StageService;
 import com.harmonycloud.service.platform.socket.SystemWebSocketHandler;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.Header;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RunnableFuture;
 
 /**
  * Created by anson on 17/5/31.
  */
 @Service
+@Transactional(rollbackFor = Exception.class)
 public class JobServiceImpl implements JobService {
     @Resource
     SystemWebSocketHandler systemWebSocketHandler;
@@ -36,33 +44,42 @@ public class JobServiceImpl implements JobService {
     @Autowired
     JobMapper jobMapper;
 
+    @Autowired
+    StageMapper stageMapper;
+
+    @Autowired
+    StageTypeMapper stageTypeMapper;
+
+    @Autowired
+    JobBuildMapper jobBuildMapper;
+
+    @Autowired
+    StageBuildMapper stageBuildMapper;
+
+    @Autowired
+    StageService stageService;
+
+    @Autowired
+    HttpSession session;
+
+    public static ExecutorService executor = Executors.newFixedThreadPool(10);
+
     DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-
+    DateFormat dfForTag = new SimpleDateFormat("yyyyMMddHHmmss");
     @Override
-    public ActionReturnUtil createJob(Job job, String username) {
-        List<String> jobList = new ArrayList<>();
-        String jenkinsJobName = job.getTenant() + "_" + job.getJobName();
-
-        //use the view to represent the user.
-        //check if the view exists
-        ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/view/" + username + "_view/api/json", null, null, false);
-        if (!result.isSuccess()) {
-            //if not, create a view with the username
-            createView(username);
-        } else {
-            //if yes, get existed jobs in the view
-            jobList = getViewJobList((String) result.get("data"));
-        }
-        if(StringUtils.isNotEmpty(job.getCredentialsUsername()) && StringUtils.isNotEmpty(job.getCredentialsPassword())) {
-            createCredentials(job);
-        }
-
+    public ActionReturnUtil createJob(JobDto jobDto) throws Exception {
+        Job job = jobDto.convertToBean();
+        String jenkinsJobName = job.getTenant() + "_" + job.getName();
 
         // validate jobname
-        result = nameValidate(job.getJobName(), job.getTenant());
+        ActionReturnUtil result = nameValidate(job.getName(), job.getTenant());
         if (!result.isSuccess()) {
             return result;
         }
+        String username = (String)session.getAttribute("username");
+        job.setCreateUser(username);
+        job.setCreateTime(new Date());
+        jobMapper.insertJob(job);
 
         //create job
         Map<String, Object> params = new HashMap<>();
@@ -71,26 +88,17 @@ public class JobServiceImpl implements JobService {
         params.put("json", JsonUtil.convertToJson(params));
         result = HttpJenkinsClientUtil.httpPostRequest("/createItem", null, params, null, 302);
 
-        try {
-            //config job
-            if (result.isSuccess()) {
-                Map<String, Object> dataModel = new HashMap<>();
-                dataModel.put("tag", job.getImageTag());
-                dataModel.put("script", generateScript(job));
-                String body = TemplateUtil.generate("jobConfig.ftl", dataModel);
-                result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
-            }
-
-            //add the new job to the user view
-            if (result.isSuccess()) {
-                jobList.add(jenkinsJobName);
-                Collections.sort(jobList);
-                updateView(username, jobList);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+        //config job
+        if (result.isSuccess()) {
+            Map<String, Object> dataModel = new HashMap<>();
+            dataModel.put("stageList", new ArrayList<>());
+            String script = TemplateUtil.generate("pipeline.ftl", dataModel);
+            dataModel.put("script", script);
+            String body = TemplateUtil.generate("jobConfig.ftl", dataModel);
+            result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
+        }else{
+            throw new Exception();
         }
-        jobMapper.insertJob(job);
 
         return ActionReturnUtil.returnSuccess();
     }
@@ -99,34 +107,37 @@ public class JobServiceImpl implements JobService {
 
     @Override
     public ActionReturnUtil updateJob(Job job) {
-        String jenkinsJobName = job.getTenant() + "_" + job.getJobName();
+        String username = (String)session.getAttribute("username");
+        job.setUpdateUser(username);
+        job.setUpdateTime(new Date());
+        jobMapper.updateJob(job);
+
+        String jenkinsJobName = job.getTenant() + "_" + job.getName();
         Map<String, Object> dataModel = new HashMap<>();
         try {
-            if(StringUtils.isNotEmpty(job.getCredentialsUsername()) && StringUtils.isNotEmpty(job.getCredentialsPassword())) {
-                updateCredentials(job);
-            }
-            dataModel.put("tag", job.getImageTag());
-            dataModel.put("script", generateScript(job));
+            //dataModel.put("tag", job.getImageTag());
+            //dataModel.put("script", generateScript(job));
             String body = null;
             body = TemplateUtil.generate("jobConfig.ftl", dataModel);
             ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
-        jobMapper.updateJob(job);
 
         return ActionReturnUtil.returnSuccess();
     }
 
     @Override
-    public ActionReturnUtil deleteJob(String jobName, String tenantName) {
-        String jenkinsJobName = tenantName + "_" + jobName;
+    public ActionReturnUtil deleteJob(Integer id) throws Exception {
+        Job job = jobMapper.queryById(id);
+        if(null == job){
+            throw new Exception("流程不存在。");
+        }
+        String jenkinsJobName = job.getTenant() + "_" + job.getName();
+        jobMapper.deleteJobById(id);
         ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/doDelete", null, null, null, 302);
         if (!result.isSuccess()) {
-            result.put("message", "not found");
-        }else {
-            jobMapper.deleteJobByTenantAndJobName(tenantName, jobName);
-            deleteCredentials(jenkinsJobName);
+            throw new Exception("删除失败。");
         }
         return result;
     }
@@ -152,20 +163,14 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
-    public ActionReturnUtil getJobList(String tenantName, String username) {
+    public ActionReturnUtil getJobList(String tenantName) {
         Map<String, Object> params = new HashMap<>();
         params.put("tree", "jobs[name,color,lastBuild[number,building,result,timestamp],builds[result]]");
         params.put("wrapper", "root");
         params.put("xpath", "//job/name[starts-with(text(),\"" + tenantName + "_\")]/..");
         ActionReturnUtil result;
-        if (StringUtils.isEmpty(username)) {
-            result = HttpJenkinsClientUtil.httpGetRequest("/view/all/api/xml", null, params, false);
-        } else {
-            result = HttpJenkinsClientUtil.httpGetRequest("/view/" + username + "_view/api/xml", null, params, false);
-            if(!result.isSuccess()){
-                return ActionReturnUtil.returnSuccessWithData(new ArrayList());
-            }
-        }
+        result = HttpJenkinsClientUtil.httpGetRequest("/view/all/api/xml", null, params, false);
+
         if (result.isSuccess()) {
             String jenkinsJobName;
             List jobList = new ArrayList<>();
@@ -178,11 +183,6 @@ public class JobServiceImpl implements JobService {
             List<Map> jenkinsJobList = new ArrayList<>();
             List<Map> jenkinsBuildList;
 
-//            Map dbJobsMap = new HashMap<>();
-//            List<Job> dbJobList = jobMapper.select(tenantName, null, username);
-//            for(Job job:dbJobList){
-//                dbJobsMap.put(job.getJobName(), job);
-//            }
 
             if (rootMap.get("job") instanceof Map) {
                 jenkinsJobList.add((Map) rootMap.get("job"));
@@ -243,15 +243,15 @@ public class JobServiceImpl implements JobService {
                 jobMap.put("success_num",successNum);
                 jobMap.put("fail_num",failNum);
 
-//                Job dbJob = (Job)dbJobsMap.get(jobMap.get("name"));
-                List<Job> dbJobList = jobMapper.select(tenantName, (String)jobMap.get("name"), null);
-                if(dbJobList != null && dbJobList.size()==1){
-                    Job dbJob = dbJobList.get(0);
-                    jobMap.put("harbor_project", dbJob.getHarborProject());
-                    jobMap.put("image_name", dbJob.getImageName());
-                    jobMap.put("image_tag", dbJob.getImageTag());
-                }
 
+                List<Job> dbJobList = jobMapper.select(tenantName, (String)jobMap.get("name"), null);
+                if(dbJobList != null && dbJobList.size() == 1){
+                    Job dbJob = dbJobList.get(0);
+                    jobMap.put("id", dbJob.getId());
+                }
+                else{
+                    continue;
+                }
 
                 jobList.add(jobMap);
             }
@@ -261,8 +261,10 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
-    public ActionReturnUtil getJobDetail(String tenantName, String jobName) {
-        String jenkinsJobName = tenantName + "_" + jobName;
+    public ActionReturnUtil getJobDetail(Integer id) {
+        Job dbJob = jobMapper.queryById(id);
+
+        String jenkinsJobName = dbJob.getTenant() + "_" + dbJob.getName();
         Map<String, Object> params = new HashMap<>();
         params.put("tree", "name,builds[number,building,result,duration,timestamp],lastBuild[number,building,result,duration,timestamp]");
         ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/api/xml", null, params, false);
@@ -272,8 +274,8 @@ public class JobServiceImpl implements JobService {
             Map buildMap;
             List<Map> jenkinsBuildList = new ArrayList<>();
             List buildList = new ArrayList<>();
-            job.put("jobName", jobName);
-            job.put("tenant", tenantName);
+            job.put("jobName", dbJob.getName());
+            job.put("tenant", dbJob.getTenant());
 
             Map rootMap = (Map) jenkinsDataMap.get("workflowJob");
             if (rootMap.get("build") instanceof Map) {
@@ -297,35 +299,130 @@ public class JobServiceImpl implements JobService {
             }
             job.put("build_list", buildList);
 
-            List<Job> dbJobList = jobMapper.select(tenantName, jobName, null);
-            if(dbJobList != null && dbJobList.size()==1){
-                Job dbJob = dbJobList.get(0);
-                job.put("projectType", dbJob.getProjectType());
-                job.put("buildType", dbJob.getBuildType());
-                job.put("repositoryType", dbJob.getRepositoryType());
-                job.put("repositoryUrl", dbJob.getRepositoryUrl());
-                job.put("repositoryBranch", dbJob.getRepositoryBranch());
-                job.put("baseImage", dbJob.getBaseImage());
-                job.put("imageName", dbJob.getImageName());
-                job.put("imageTag", dbJob.getImageTag());
-                job.put("credentialsUsername", dbJob.getCredentialsUsername());
-                job.put("credentialsPassword", dbJob.getCredentialsPassword());
-                job.put("harborProject",dbJob.getHarborProject());
+
+//            List<Job> dbJobList = jobMapper.select(tenantName, jobName, null);
+//            if(dbJobList != null && dbJobList.size()==1){
+//                Job dbJob = dbJobList.get(0);
+//                job.put("projectType", dbJob.getProjectType());
+//                job.put("buildType", dbJob.getBuildType());
+//                job.put("repositoryType", dbJob.getRepositoryType());
+//
+//            }
+
+            JobBuild jobBuildCondition = new JobBuild();
+            jobBuildCondition.setJobId(dbJob.getId());
+            jobBuildCondition.setBuildNum(dbJob.getLastBuildNum());
+            List<JobBuild> jobBuildList = jobBuildMapper.queryByObject(jobBuildCondition);
+            if(null != jobBuildList && jobBuildList.size() == 1) {
+                JobBuild jobBuild = jobBuildList.get(0);
+                job.put("lastBuildStatus", jobBuild.getStatus());
+                job.put("lastBuildTime", jobBuild.getStartTime());
+                job.put("lastBuildDuration", jobBuild.getDuration());
+            }else {
+                job.put("lastBuildStatus", "NOTBUILT");
+                job.put("lastBuildTime", null);
+                job.put("lastBuildDuration", null);
             }
+
+
+            List<Map> stageMapList = new ArrayList<>();
+
+            //get stage type info of stages for the job
+            List<Stage> stageList = stageMapper.queryByJobId(id);
+            List<StageType> stageTypeList = stageTypeMapper.queryByTenantId(dbJob.getTenant());
+            Map stageTypeMap = new HashMap<>();
+            for(StageType stageType : stageTypeList){
+                stageTypeMap.put(stageType.getId(),stageType.getName());
+            }
+
+            //get last build info of stages for the job
+            StageBuild stageBuildCondition = new StageBuild();
+            stageBuildCondition.setJobId(dbJob.getId());
+            stageBuildCondition.setBuildNum(dbJob.getLastBuildNum());
+            List<StageBuild> stageBuildList = stageBuildMapper.queryByObject(stageBuildCondition);
+            Map stageBuildMap = new HashMap<>();
+            for(StageBuild stageBuild : stageBuildList){
+                stageBuildMap.put(stageBuild.getStageId(),stageBuild);
+            }
+
+            for(Stage stage:stageList){
+                Map stageMap = new HashMap<>();
+                stageMap.put("id",stage.getId());
+                stageMap.put("stageName",stage.getStageName());
+                stageMap.put("stageType",stageTypeMap.get(stage.getStageTypeId()));
+                stageMap.put("stageOrder",stage.getStageOrder());
+
+                StageBuild stageBuild = (StageBuild)stageBuildMap.get(stage.getId());
+                if(stageBuild == null){
+                    stageMap.put("lastBuildStatus", "NOTBUILT");
+                    stageMap.put("lastBuildTime", null);
+                    stageMap.put("lastBuildDuration", null);
+                }else {
+                    stageMap.put("lastBuildStatus", stageBuild.getStatus());
+                    stageMap.put("lastBuildTime", stageBuild.getStartTime());
+                    stageMap.put("lastBuildDuration", stageBuild.getDuration());
+                }
+                stageMapList.add(stageMap);
+            }
+
+            job.put("stageList",stageMapList);
 
             return ActionReturnUtil.returnSuccessWithData(job);
         }
-        return ActionReturnUtil.returnError();
+        else {
+            return ActionReturnUtil.returnError();
+        }
     }
 
     @Override
-    public ActionReturnUtil build(String jobName, String tenantName, String tag) {
-        String jenkinsJobName = tenantName + "_" + jobName;
+    public ActionReturnUtil build(Integer id) {
+        Job job = jobMapper.queryById(id);
+        String jenkinsJobName = job.getTenant() + "_" + job.getName();
+
         Map<String, Object> params = new HashMap<>();
-        params.put("tag", tag);
+        List<Stage> stageList = stageMapper.queryByJobId(id);
+        for(Stage stage:stageList){
+            String tag;
+            if("0".equals(stage.getImageTagType())){
+                tag = dfForTag.format(new Date());
+            }else if("1".equals(stage.getImageTagType())){
+                tag = stage.getImageBaseTag();
+            }else if("2".equals(stage.getImageTagType())){
+                tag = stage.getImageTag();
+            }else{
+                continue;
+            }
+            params.put("tag" + stage.getStageOrder(), tag);
+        }
         params.put("delay", "0sec");
         ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/buildWithParameters", null, params, null, null);
         if (result.isSuccess()) {
+            params = new HashMap<>();
+            params.put("tree","number,timestamp");
+            result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/lastBuild/api/xml", null, params, false);
+            if(result.isSuccess()){
+                Map body = XmlUtil.parseXmlStringToMap((String) result.get("data"));
+                Map root = (Map)body.get("workflowRun");
+                Integer lastBuildNumber = Integer.valueOf((String) root.get("number"));
+                Date startTime = new Timestamp(Long.valueOf((String) root.get("timestamp")));
+                jobMapper.updateLastBuildNum(id, lastBuildNumber);
+                JobBuild jobBuild = new JobBuild();
+                jobBuild.setJobId(id);
+                jobBuild.setBuildNum(lastBuildNumber);
+                jobBuild.setStatus("BUILDING");
+                jobBuild.setStartTime(startTime);
+                jobBuild.setStartUser((String)session.getAttribute("username"));
+                jobBuildMapper.insert(jobBuild);
+
+                for(Stage stage : stageList){
+                    StageBuild stageBuild = new StageBuild();
+                    stageBuild.setJobId(id);
+                    stageBuild.setStageId(stage.getId());
+                    stageBuild.setBuildNum(lastBuildNumber);
+                    stageBuild.setStatus("WAITING");
+                    stageBuildMapper.insert(stageBuild);
+                }
+            }
             return ActionReturnUtil.returnSuccess();
         }
         return ActionReturnUtil.returnError();
@@ -433,6 +530,73 @@ public class JobServiceImpl implements JobService {
         }
     }
 
+    @Override
+    public ActionReturnUtil getNotification(Integer id) throws Exception {
+        Job job = jobMapper.queryById(id);
+        if(null == job){
+            return ActionReturnUtil.returnErrorWithMap("message", "流程不存在'");
+        }
+        JobDto jobDto = new JobDto();
+        jobDto.convertFromBean(job);
+        Map notificationMap = new HashMap();
+        notificationMap.put("notification", jobDto.isNotification());
+        notificationMap.put("sucessNotification", jobDto.isSuccessNotification());
+        notificationMap.put("failNotification", jobDto.isFailNotification());
+        notificationMap.put("mail", jobDto.getMail());
+        return ActionReturnUtil.returnSuccessWithData(notificationMap);
+    }
+
+    @Override
+    public ActionReturnUtil updateNotification(JobDto jobDto) {
+        Job job = jobDto.convertToBean();
+        String username = (String)session.getAttribute("username");
+        job.setUpdateUser(username);
+        job.setUpdateTime(new Date());
+        jobMapper.updateNotification(job);
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    @Override
+    public ActionReturnUtil getTrigger(Integer id) throws Exception {
+        Job job = jobMapper.queryById(id);
+        if(null == job){
+            return ActionReturnUtil.returnErrorWithMap("message", "流程不存在");
+        }
+        Map triggerMap = new HashMap();
+        triggerMap.put("trigger", job.isTrigger());
+        triggerMap.put("pollScm", job.isPollScm());
+        triggerMap.put("cronExpForPollScm", job.getCronExpForPollScm());
+        return ActionReturnUtil.returnSuccessWithData(triggerMap);
+    }
+
+    @Override
+    public ActionReturnUtil updateTrigger(Job job) {
+        String username = (String)session.getAttribute("username");
+        job.setUpdateUser(username);
+        job.setUpdateTime(new Date());
+        jobMapper.updateTrigger(job);
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    @Override
+    public void postBuild(Integer id, Integer buildNum) {
+        Runnable worker = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                String status = statusSync(id, buildNum);
+                notification(id, buildNum, status);
+            }
+        };
+        executor.execute(worker);
+
+
+    }
+
 
     private boolean createView(String username) {
         String viewName = username + "_view";
@@ -447,7 +611,7 @@ public class JobServiceImpl implements JobService {
         return false;
     }
 
-    private boolean updateView(String username, List jobList) throws IOException {
+    private boolean updateView(String username, List jobList) throws Exception {
         String viewName = username + "_view";
         Map dataModel = new HashMap();
         dataModel.put("viewName", viewName);
@@ -474,7 +638,7 @@ public class JobServiceImpl implements JobService {
         return true;
     }
 
-
+/*
     private String generateScript(Job job) {
         StringBuilder script = new StringBuilder("node(");
         String projectType = job.getProjectType();
@@ -517,50 +681,9 @@ public class JobServiceImpl implements JobService {
         return script.toString();
     }
 
-    private boolean createCredentials(Job job) {
-        Map<String, Object> params = new HashMap<>();
-        Map<String, Object> credentialsMap = new HashMap<>();
-        Map<String, Object> tempMap = new HashMap<>();
-        params.put("_.scope","scope:GLOBAL");
-        params.put("_.username", job.getCredentialsUsername());
-        params.put("_.password", job.getCredentialsPassword());
-        params.put("_.id", job.getTenant() + "_" + job.getJobName());
-        credentialsMap.put("scope", "GLOBAL");
-        credentialsMap.put("username", job.getCredentialsUsername());
-        credentialsMap.put("password", job.getCredentialsPassword());
-        credentialsMap.put("id", job.getTenant() + "_" + job.getJobName());
-        credentialsMap.put("stapler-class","com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl");
-        credentialsMap.put("$class", "com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl");
-        tempMap.put("","0");
-        tempMap.put("credentials", credentialsMap);
-        params.put("json", JsonUtil.convertToJson(tempMap));
-        ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/credentials/store/system/domain/_/createCredentials", null, params, null, 302);
-        if (result.isSuccess()) {
-            return true;
-        }
-        return false;
-    }
+*/
 
-    private boolean updateCredentials(Job job){
-        Map<String, Object> params = new HashMap<>();
-        Map<String, Object> jsonMap = new HashMap<>();
-        params.put("stapler-class","com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl");
-        params.put("_.scope","GLOBAL");
-        params.put("_.username", job.getCredentialsUsername());
-        params.put("_.password", job.getCredentialsPassword());
-        params.put("_.id", job.getTenant() + "_" + job.getJobName());
-        jsonMap.put("stapler-class","com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl");
-        jsonMap.put("scope","GLOBAL");
-        jsonMap.put("username", job.getCredentialsUsername());
-        jsonMap.put("password", job.getCredentialsPassword());
-        jsonMap.put("id", job.getTenant() + "_" + job.getJobName());
-        params.put("json", JsonUtil.convertToJson(jsonMap));
-        ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/credentials/store/system/domain/_/credential/" + job.getTenant() + "_" + job.getJobName() + "/updateSubmit", null, params, null, 302);
-        if (result.isSuccess()) {
-            return true;
-        }
-        return false;
-    }
+
 
 
     private boolean deleteCredentials(String jenkinsJobName) {
@@ -571,8 +694,142 @@ public class JobServiceImpl implements JobService {
         return false;
     }
 
-    public static void main(String[] args) throws Exception {
+    private String statusSync(Integer id, Integer buildNum){
+        Job job = jobMapper.queryById(id);
+
+        JobBuild jobBuildCondition = new JobBuild();
+        jobBuildCondition.setJobId(id);
+        jobBuildCondition.setBuildNum(buildNum);
+        List<JobBuild> jobBuildList = jobBuildMapper.queryByObject(jobBuildCondition);
+        JobBuild jobBuild = new JobBuild();
+        if(null != jobBuildList && jobBuildList.size()==1){
+            jobBuild = jobBuildList.get(0);
+        }else{
+            jobBuild.setJobId(id);
+            jobBuild.setBuildNum(buildNum);
+            jobBuildMapper.insert(jobBuild);
+        }
+
+        String jenkinsJobName = job.getTenant() + "_" + job.getName();
+        Map<String, Object> params = new HashMap<>();
+        params.put("tree", "building,timestamp,result,duration,number");
+        ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + buildNum + "/api/xml", null, params, false);
+        ActionReturnUtil logResult = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + buildNum + "/logText/progressiveHtml", null, null, false);
+        if (result.isSuccess()) {
+            Map jenkinsDataMap = XmlUtil.parseXmlStringToMap((String) result.get("data"));
+            Map build = new HashMap();
+            Map rootMap = (Map) jenkinsDataMap.get("workflowRun");
+            if (rootMap != null) {
+                //build.put("build_num", rootMap.get("number"));
+                if ("false".equalsIgnoreCase((String) rootMap.get("building"))) {
+                    //build.put("build_status", rootMap.get("result"));
+                    jobBuild.setStatus((String)rootMap.get("result"));
+                } else {
+                    //build.put("build_status", "BUILDING");
+                    jobBuild.setStatus("BUILDING");
+                }
+                if (rootMap.get("timestamp") != null) {
+                    //build.put("start_time", new Timestamp(Long.valueOf((String) rootMap.get("timestamp"))).toString());
+                    jobBuild.setStartTime(new Timestamp(Long.valueOf((String) rootMap.get("timestamp"))));
+                }
+                jobBuild.setDuration((String)rootMap.get("duration"));
+                //build.put("duration", rootMap.get("duration"));
+            }
+            if (logResult.isSuccess()) {
+                //build.put("build_log", logResult.get("data"));
+                jobBuild.setLog((String) logResult.get("data"));
+            }
+            jobBuildMapper.update(jobBuild);
+
+        }
+        return jobBuild.getStatus();
 
     }
 
+    private void notification(Integer id, Integer buildNum, String status){
+        Job job = jobMapper.queryById(id);
+        if(job.isNotification()) {
+            if (job.isFailNotification() && job.isSuccessNotification() || job.isFailNotification() && "FAILURE".equals(status) || job.isSuccessNotification() && "SUCCESS".equals(status)) {
+                JobDto jobDto = new JobDto();
+                jobDto.convertFromBean(job);
+                jobDto.getMail();
+            }
+        }
+    }
+
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(JobServiceImpl.class);
+    public static void main(String[] args) throws Exception {
+        /*Config config = new ConfigBuilder().withMasterUrl("https://10.10.101.143:6443").withTrustCerts(true).withOauthToken("330957b867a3462ea457bec41410624b1").build();
+        KubernetesClient client = new DefaultKubernetesClient(config);
+//        List<Namespace> nameSpaceList =client.namespaces().list().getItems();
+//
+//        Namespace ns = nameSpaceList.get(0);
+//
+//        System.out.println(ns.getMetadata().getName());
+        Container c = new Container();
+        Map m=new HashMap();
+       m.put("cpu","0");
+        m.put("memory","500Mi");
+
+        c.setImage("nginx");
+        c.setName("slave");
+        c.setResources(new ResourceRequirementsBuilder().withLimits(m).build());
+        Pod p = new PodBuilder().withNewMetadata().withName("slave").withNamespace("gywtesttenant-ping").endMetadata()
+                .withNewSpec().withContainers(c).endSpec().build();
+        client.pods().create(p);*/
+//        //client.pods().delete(p);
+//
+//        ExecutorService executorService = Executors.newSingleThreadExecutor();
+//
+//        ExecWatch w = client.pods().inNamespace("tenanta-aaaaaa").withName("slave").readingInput(System.in)
+//                .writingOutput(System.out)
+//                .writingError(System.err).withTTY().usingListener(new SimpleListener())
+//                .exec();
+//        InputStreamPumper pump = new InputStreamPumper(w.getOutput(), new SystemOutCallback());
+//        try{ executorService.submit(pump);
+//
+//        w.getInput().write("ls -al\n".getBytes());
+//        } catch (Exception e) {
+//            throw KubernetesClientException.launderThrowable(e);
+//        } finally {
+//            executorService.shutdownNow();
+//            w.close();
+//            pump.close();
+//        }
+
+        StageDto stage = new StageDto();
+        List cl = new ArrayList<>();
+        //cl.add("test1");
+        //cl.add("test2");
+        stage.setTenant("test");
+        stage.setJobName("test");
+        stage.setJobId(1);
+        stage.setStageOrder(4);
+        stage.setRepositoryType("git");
+        //stage.setStageType(StageTemplateTypeEnum.IMAGEBUILD);
+        stage.setStageOrder(1);
+        stage.setStageName("test");
+        stage.setRepositoryUrl("http://1111");
+        stage.setRepositoryBranch("master");
+        stage.setHarborProject("pj");
+        stage.setImageName("test");
+        stage.setCommand(cl);
+
+        //new JobServiceImpl().addStage(stage);
+
+
+        //System.out.println(StageTemplateTypeEnum.DEPLOY.ordinal());
+
+
+
+
+    }
+/*
+    private static class SystemOutCallback implements Callback<byte[]> {
+        @Override
+        public void call(byte[] data) {
+            System.out.print(new String(data));
+        }
+    }
+*/
 }

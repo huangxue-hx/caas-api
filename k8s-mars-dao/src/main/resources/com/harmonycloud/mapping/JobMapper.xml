@@ -4,35 +4,61 @@
 <mapper namespace="com.harmonycloud.dao.ci.JobMapper">
     <resultMap id="BaseResultMap" type="com.harmonycloud.dao.ci.bean.Job" >
         <id column="id" property="id" jdbcType="INTEGER" />
-        <result column="job_name" property="jobName" jdbcType="VARCHAR" />
+        <result column="name" property="name" jdbcType="VARCHAR" />
         <result column="tenant" property="tenant" jdbcType="VARCHAR" />
-        <result column="project_type" property="projectType" jdbcType="VARCHAR" />
-        <result column="build_type" property="buildType" jdbcType="VARCHAR" />
-        <result column="repository_type" property="repositoryType" jdbcType="VARCHAR" />
-        <result column="repository_url" property="repositoryUrl" jdbcType="VARCHAR" />
-        <result column="repository_branch" property="repositoryBranch" jdbcType="VARCHAR" />
-        <result column="credentials_username" property="credentialsUsername" jdbcType="VARCHAR" />
-        <result column="credentials_password" property="credentialsPassword" jdbcType="VARCHAR" />
-        <result column="base_image" property="baseImage" jdbcType="VARCHAR" />
-        <result column="image_name" property="imageName" jdbcType="VARCHAR" />
-        <result column="image_tag" property="imageTag" jdbcType="VARCHAR" />
-        <result column="harbor_project" property="harborProject" jdbcType="VARCHAR" />
-        <result column="" property="createUser" jdbcType="VARCHAR" />
+        <result column="notification" property="notification" jdbcType="BOOLEAN" />
+        <result column="success_notification" property="successNotification" jdbcType="BOOLEAN" />
+        <result column="fail_notification" property="failNotification" jdbcType="BOOLEAN" />
+        <result column="mail" property="mail" jdbcType="VARCHAR" />
+        <result column="trigger" property="trigger" jdbcType="BOOLEAN" />
+        <result column="poll_scm" property="pollScm" jdbcType="BOOLEAN" />
+        <result column="cron_exp_for_poll_scm" property="cronExpForPollScm" jdbcType="VARCHAR" />
+        <result column="create_user" property="createUser" jdbcType="VARCHAR" />
+        <result column="update_user" property="updateUser" jdbcType="VARCHAR" />
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
+        <result column="last_build_num" property="lastBuildNum" jdbcType="INTEGER" />
     </resultMap>
 
     <select id="select" resultMap="BaseResultMap" parameterType="java.lang.String">
-        SELECT id,job_name,tenant,project_type,build_type,repository_type,repository_url,repository_branch,credentials_username,credentials_password,base_image,image_name,image_tag,harbor_project,create_user
-        FROM job
+        SELECT id,name,tenant,create_user
+        FROM cicd_job
         WHERE 1=1
-        <if test="jobName!=null and jobName!=''"> AND job_name=#{jobName} </if>
+        <if test="jobName!=null and jobName!=''"> AND name=#{jobName} </if>
         <if test="tenant!=null and tenant!=''"> AND tenant=#{tenant} </if>
         <if test="createUser!=null and createUser!=''"> AND createUser=#{create_user} </if>
     </select>
 
+    <select id="queryById" resultMap="BaseResultMap" parameterType="java.lang.Integer">
+        SELECT id,name,tenant,notification,success_notification,fail_notification,mail,`trigger`,poll_scm,cron_exp_for_poll_scm,create_user,last_build_num
+        FROM cicd_job
+        WHERE id = #{id}
+    </select>
+
     <insert id="insertJob" parameterType="com.harmonycloud.dao.ci.bean.Job">
-        INSERT INTO job (job_name,tenant,project_type,build_type,repository_type,repository_url,repository_branch,credentials_username,credentials_password,base_image,image_name,image_tag,harbor_project,create_user)
-        VALUE (#{jobName},#{tenant},#{projectType},#{buildType},#{repositoryType},#{repositoryUrl},#{repositoryBranch},#{credentialsUsername},#{credentialsPassword},#{baseImage},#{imageName},#{imageTag},#{harborProject},#{createUser})
+        INSERT INTO cicd_job (name,tenant,notification,success_notification,fail_notification,mail,create_user,create_time)
+        VALUE (#{name},#{tenant},#{notification},#{successNotification},#{failNotification},#{mail},#{createUser},#{createTime})
     </insert>
+
+    <update id="updateNotification" parameterType="com.harmonycloud.dao.ci.bean.Job">
+        UPDATE cicd_job
+        SET notification = #{notification},
+        success_notification = #{successNotification},
+        fail_notification = #{failNotification},
+        mail = #{mail},
+        update_user = #{updateUser},
+        update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+    <update id="updateTrigger" parameterType="com.harmonycloud.dao.ci.bean.Job">
+        UPDATE cicd_job
+        SET `trigger` = #{trigger},
+        poll_scm = #{pollScm},
+        cron_exp_for_poll_scm = #{cronExpForPollScm},
+        update_user = #{updateUser},
+        update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
     <update id="updateJob" parameterType="com.harmonycloud.dao.ci.bean.Job">
         UPDATE job
         SET project_type = #{projectType},
@@ -51,6 +77,14 @@
     <delete id="deleteJobByTenantAndJobName" parameterType="java.lang.String">
         DELETE FROM job where tenant = #{tenant} and job_name = #{jobName}
     </delete>
+
+    <delete id="deleteJobById" parameterType="java.lang.Integer">
+        DELETE FROM cicd_job WHERE id=#{id}
+    </delete>
+
+    <update id="updateLastBuildNum" parameterType="java.lang.Integer">
+        UPDATE cicd_job SET last_build_num = #{buildNum} WHERE id = #{id}
+    </update>
 
 
 </mapper>

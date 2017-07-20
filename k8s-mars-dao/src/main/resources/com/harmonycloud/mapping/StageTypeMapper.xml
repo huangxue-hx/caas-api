@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.ci.StageTypeMapper">
+    <resultMap id="BaseResultMap" type="com.harmonycloud.dao.ci.bean.StageType">
+        <id column="id" jdbcType="INTEGER" property="id" />
+        <result column="name" jdbcType="VARCHAR" property="name" />
+        <result column="user_defined" jdbcType="BOOLEAN" property="userDefined" />
+        <result column="tenant_id" jdbcType="VARCHAR" property="tenantId" />
+        <result column="template_type" jdbcType="VARCHAR" property="templateType" />
+    </resultMap>
+
+    <select id="queryByTenantId" resultMap="BaseResultMap">
+        SELECT id,name,user_defined,template_type
+        FROM cicd_stage_type
+        WHERE tenant_id =#{tenentId} or tenant_id is NULL
+        ORDER BY id
+    </select>
+
+    <insert id="insertStageType" parameterType="com.harmonycloud.dao.ci.bean.StageType">
+        INSERT INTO cicd_stage_type(name,user_defined,tenant_id,template_type)
+        VALUES(#{name},#{userDefined},#{tenantId},#{templateType})
+    </insert>
+
+    <delete id="deleteStageType" parameterType="java.lang.Integer">
+      DELETE FROM cicd_stage_type WHERE id = #{id}
+    </delete>
+</mapper>

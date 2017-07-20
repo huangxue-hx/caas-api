@@ -202,4 +202,9 @@ public class CommonConstant {
     public static final Integer QUOTA_NUM = 10000;
 
     public static final Float QUOTA_SIZE = 10240.0f;
+
+    public static final Integer STAGE_TEMPLATE_COMPILE = 0;
+    public static final Integer STAGE_TEMPLATE_IMAGE = 1;
+    public static final Integer STAGE_TEMPLATE_DEPLOY = 2;
+    public static final Integer STAGE_TEMPLATE_SCRIPT = 3;
 }

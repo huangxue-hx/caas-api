@@ -7,6 +7,7 @@ import com.harmonycloud.dto.container.ContainerBriefDto;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.ContainerOfPodDetail;
+import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.user.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +41,9 @@ public class OpenApiController {
 	ClusterService clusterService;
 	@Autowired
 	UserService userService;
+
+    @Autowired
+    JobService jobService;
 
 	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -76,5 +80,16 @@ public class OpenApiController {
 			return new ResponseEntity("查找失败", HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
+
+    @RequestMapping(value = "/cicd/postBuild", method = RequestMethod.GET)
+    public ResponseEntity postBuild(@RequestParam(value = "id")Integer id, @RequestParam(value = "buildNum")Integer buildNum){
+        jobService.postBuild(id, buildNum);
+        return new ResponseEntity(HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/cicd/deploy", method = RequestMethod.GET)
+    public void deploy(@RequestParam(value = "id")Integer id, @RequestParam(value = "buildNum")Integer buildNum){
+        jobService.postBuild(id, buildNum);
+    }
 
 }

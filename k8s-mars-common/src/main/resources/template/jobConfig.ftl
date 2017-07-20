@@ -8,7 +8,7 @@
                 <hudson.model.StringParameterDefinition>
                     <name>tag</name>
                     <description/>
-                    <defaultValue>${tag}</defaultValue>
+                    <defaultValue>${tag!}</defaultValue>
                 </hudson.model.StringParameterDefinition>
             </parameterDefinitions>
         </hudson.model.ParametersDefinitionProperty>

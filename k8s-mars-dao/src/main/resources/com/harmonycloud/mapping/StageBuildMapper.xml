@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.ci.StageBuildMapper">
+    <resultMap id="BaseResultMap" type="com.harmonycloud.dao.ci.bean.StageBuild">
+        <id column="id" jdbcType="INTEGER" property="id" />
+        <result column="job_id" jdbcType="INTEGER" property="jobId" />
+        <result column="stage_id" jdbcType="INTEGER" property="stageId" />
+        <result column="build_num" jdbcType="VARCHAR" property="buildNum" />
+        <result column="status" jdbcType="VARCHAR" property="status" />
+        <result column="start_time" jdbcType="TIMESTAMP" property="startTime" />
+        <result column="duration" jdbcType="VARCHAR" property="duration" />
+        <result column="log" jdbcType="VARCHAR" property="log" />
+    </resultMap>
+
+    <select id="queryByObject" resultMap="BaseResultMap">
+        SELECT id,job_id,stage_id,build_num,status,start_time,duration,log
+        FROM cicd_stage_build
+        WHERE 1=1
+        <if test="jobId!=null and jobId!=''"> AND job_id=#{jobId} </if>
+        <if test="stageId!=null and stageId!=''"> AND stage_id=#{stageId} </if>
+        <if test="buildNum!=null and buildNum!=''"> AND build_num=#{buildNum} </if>
+    </select>
+
+    <insert id="insert" parameterType="com.harmonycloud.dao.ci.bean.StageBuild">
+        INSERT INTO cicd_stage_build(job_id,stage_id,build_num,status,start_time)
+        VALUE(#{jobId},#{stage_id},#{buildNum},#{status},#{startTime})
+    </insert>
+</mapper>

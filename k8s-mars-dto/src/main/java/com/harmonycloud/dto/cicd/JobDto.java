@@ -1,16 +1,21 @@
-package com.harmonycloud.dao.ci.bean;
+package com.harmonycloud.dto.cicd;
+
+import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.dao.ci.bean.Job;
+import org.springframework.beans.BeanUtils;
 
 import java.util.Date;
+import java.util.List;
 
 /**
- * Created by anson on 17/6/9.
+ * Created by anson on 17/7/19.
  */
-public class Job {
+public class JobDto {
     private Integer id;
     private String name;
     private String tenant;
     private boolean notification;
-    private String mail;
+    private List mail;
     private boolean failNotification;
     private boolean successNotification;
     private boolean trigger;
@@ -20,7 +25,6 @@ public class Job {
     private String updateUser;
     private Date createTime;
     private Date updateTime;
-    private Integer lastBuildNum;
 
     public Integer getId() {
         return id;
@@ -54,11 +58,11 @@ public class Job {
         this.notification = notification;
     }
 
-    public String getMail() {
+    public List getMail() {
         return mail;
     }
 
-    public void setMail(String mail) {
+    public void setMail(List mail) {
         this.mail = mail;
     }
 
@@ -134,11 +138,15 @@ public class Job {
         this.updateTime = updateTime;
     }
 
-    public Integer getLastBuildNum() {
-        return lastBuildNum;
+    public Job convertToBean(){
+        Job job = new Job();
+        BeanUtils.copyProperties(this, job);
+        job.setMail(JsonUtil.convertToJson(this.mail));
+        return job;
     }
 
-    public void setLastBuildNum(Integer lastBuildNum) {
-        this.lastBuildNum = lastBuildNum;
+    public void convertFromBean(Job job){
+        BeanUtils.copyProperties(job, this);
+        this.setMail(JsonUtil.jsonToList(job.getMail(), String.class));
     }
 }
