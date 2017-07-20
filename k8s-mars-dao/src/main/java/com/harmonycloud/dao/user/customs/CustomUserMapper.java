@@ -83,10 +83,22 @@ public interface CustomUserMapper {
 	 */
 	List<User> getAllUserPausedList();
 	/**
+	 * 获取部门被pause的用户
+	 * @param departmentName
+	 * @return
+	 */
+	List<User> getUserPausedListByDepartmnet(String department);
+	/**
 	 * 获取所有normal的用户
 	 * @return
 	 */
 	List<User> getAllUserNormalList();
+	/**
+	 * 获取部门被normal的用户
+	 * @param department
+	 * @return
+	 */
+	List<User> getUserNormalListByDepartmnet(String department);
 	/**
 	 * 获取一定时间段的活跃用户
 	 * @return

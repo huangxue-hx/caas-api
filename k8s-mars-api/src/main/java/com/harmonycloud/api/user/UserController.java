@@ -424,6 +424,18 @@ public class UserController {
 
     }
     /**
+     * 获取部门pause的用户
+     * @param department
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/user/getUserPausedListByDepartmnet", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil getUserPausedListByDepartmnet(String department) throws Exception {
+        List<User> list = userService.getUserPausedListByDepartmnet(department);
+        return ActionReturnUtil.returnSuccessWithData(list);
+
+    }
+    /**
      * 获取所有normal的用户
      * @param username
      * @return
@@ -436,7 +448,19 @@ public class UserController {
 
     }
     /**
-     * 获取30天以内活跃的用户
+     * 获取部门normal的用户
+     * @param department
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/user/getUserNormalListByDepartmnet", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil getUserNormalListByDepartmnet(String department) throws Exception {
+        List<User> list = userService.getUserNormalListByDepartmnet(department);
+        return ActionReturnUtil.returnSuccessWithData(list);
+
+    }
+    /**
+     * 获取domain天以内活跃的用户
      * @param username
      * @return
      * @throws Exception
@@ -447,16 +471,56 @@ public class UserController {
         return ActionReturnUtil.returnSuccessWithData(list);
 
     }
+    /**
+     * 根据部门获取domain天以内活跃的用户
+     * @param domain
+     * @param department
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/user/getActiveUserListByDepartmnet", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil getActiveUserListByDepartmnet(@RequestParam(value = "domain") Integer domain,@RequestParam(value = "department") String department) throws Exception {
+        List<User> list = userService.getActiveUserListByDepartmnet(domain,department);
+        return ActionReturnUtil.returnSuccessWithData(list);
+
+    }
+    /**
+     * 获取所有部门未授权的用户
+     * @param department
+     * @return
+     * @throws Exception
+     */
     @RequestMapping(value = "/user/getUnauthorizedUserList", method = RequestMethod.GET)
     public @ResponseBody ActionReturnUtil getUnauthorizedUserList() throws Exception {  
         List<User> list = userService.getUnauthorizedUserList();
+        return ActionReturnUtil.returnSuccessWithData(list);
+    }
+    /**
+     * 根据部门获取未授权的用户
+     * @param department
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/user/getUnauthorizedUserListByDepartmnet", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil getUnActiveUserListByDepartmnet(@RequestParam(value = "department") String department) throws Exception {  
+        List<User> list = userService.getUnauthorizedUserListByDepartmnet(department);
         return ActionReturnUtil.returnSuccessWithData(list);
     }
     @RequestMapping(value = "/user/getAllSummary", method = RequestMethod.GET)
     public @ResponseBody ActionReturnUtil getAllSummary(@RequestParam(value = "domain") Integer domain) throws Exception {
         int isadmin = (Integer)session.getAttribute("isAdmin");
           if(isadmin!=1){
-          throw new MarsRuntimeException("admin用户才能查看未授权用户");
+          throw new MarsRuntimeException("admin用户才能查看用户总览");
+      }
+        SummaryUserInfo allSummary = userService.getAllSummary(domain);
+        return ActionReturnUtil.returnSuccessWithData(allSummary);
+
+    }
+    @RequestMapping(value = "/user/getSummaryByDepartmnet", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil getSummaryByDepartmnet(@RequestParam(value = "domain") Integer domain,@RequestParam(value = "department") String department) throws Exception {
+        int isadmin = (Integer)session.getAttribute("isAdmin");
+          if(isadmin!=1){
+          throw new MarsRuntimeException("admin用户才能查看用户总览");
       }
         SummaryUserInfo allSummary = userService.getAllSummary(domain);
         return ActionReturnUtil.returnSuccessWithData(allSummary);
