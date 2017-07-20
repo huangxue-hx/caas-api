@@ -9,7 +9,7 @@ import com.harmonycloud.dto.svc.SelectorDto;
 
 public class SvcTcpDto {
 
-	private String namespace ;
+    private String namespace ;
 	
     private String name;
     

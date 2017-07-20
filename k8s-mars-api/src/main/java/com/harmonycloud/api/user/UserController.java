@@ -594,5 +594,11 @@ public class UserController {
 	public ActionReturnUtil userListbygroup() throws Exception{
 	    return userService.listUserswithoutgroup();  
 	}
+	
+	@RequestMapping(value="/user/usersfile/export",method=RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil fileexport() throws Exception{
+		return  userService.fileexport();  
+	}
     
 }

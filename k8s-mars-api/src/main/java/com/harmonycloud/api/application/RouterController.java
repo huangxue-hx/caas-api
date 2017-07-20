@@ -83,6 +83,16 @@ public class RouterController {
 	}
 	
 	@ResponseBody
+	@RequestMapping(value = "/getListPort", method = { RequestMethod.GET })
+	public ActionReturnUtil getListPort(@RequestParam(value = "tenantId", required = true) String tenantId) throws Exception{
+		try {
+			return  routerService.getListPort(tenantId);
+		} catch (Exception e) {
+			throw e;
+		}
+	}
+	
+	@ResponseBody
 	@RequestMapping(value = "/checkPort", method = { RequestMethod.POST })
 	public ActionReturnUtil checkPort(@RequestParam(value = "port", required = true) String port,@RequestParam(value = "tenantId", required = true) String tenantId) throws Exception{
 		try {
