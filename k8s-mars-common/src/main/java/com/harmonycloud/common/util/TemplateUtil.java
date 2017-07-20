@@ -17,19 +17,18 @@ public class TemplateUtil {
     }
 
 
-    public static String generate(String templateName, Map dataModel) throws IOException {
+    public static String generate(String templateName, Map dataModel) throws IOException,TemplateException {
         Template t = cfg.getTemplate(templateName);
         StringWriter stringWriter = new StringWriter();
         BufferedWriter writer = new BufferedWriter(stringWriter);
         try {
             t.process(dataModel,writer);
             return stringWriter.toString();
-        } catch (TemplateException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            throw e;
         }finally{
             writer.close();
         }
-        return "";
     }
 
 

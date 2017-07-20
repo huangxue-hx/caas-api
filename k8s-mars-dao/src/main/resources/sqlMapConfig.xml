@@ -93,5 +93,9 @@
          <mapper resource="com/harmonycloud/mapping/MessageMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/DockerFileMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/DockerFileJobStageMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/StageMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/StageTypeMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/JobBuildMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/StageBuildMapper.xml" />
     </mappers>
 </configuration>

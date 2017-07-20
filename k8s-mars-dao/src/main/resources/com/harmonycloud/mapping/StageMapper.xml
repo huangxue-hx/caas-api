@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.ci.StageMapper">
+    <resultMap id="BaseResultMap" type="com.harmonycloud.dao.ci.bean.Stage">
+        <id column="id" jdbcType="INTEGER" property="id" />
+        <result column="job_id" jdbcType="INTEGER" property="jobId" />
+        <result column="stage_order" jdbcType="VARCHAR" property="stageOrder" />
+        <result column="stage_type_id" jdbcType="INTEGER" property="stageTypeId" />
+        <result column="stage_template_type" jdbcType="INTEGER" property="stageTemplateType" />
+        <result column="stage_name" jdbcType="VARCHAR" property="stageName" />
+        <result column="repository_type" jdbcType="VARCHAR" property="repositoryType" />
+        <result column="repository_url" jdbcType="VARCHAR" property="repositoryUrl" />
+        <result column="repository_branch" jdbcType="VARCHAR" property="repositoryBranch" />
+        <result column="credentials_username" jdbcType="VARCHAR" property="credentialsUsername" />
+        <result column="credentials_password" jdbcType="VARCHAR" property="credentialsPassword" />
+        <result column="build_environment" jdbcType="VARCHAR" property="buildEnvironment" />
+        <result column="use_dependency" jdbcType="BOOLEAN" property="useDependency" />
+        <result column="dockerfile_type" jdbcType="VARCHAR" property="dockerfileType" />
+        <result column="base_image" jdbcType="VARCHAR" property="baseImage" />
+        <result column="dockerfile_id" jdbcType="VARCHAR" property="dockerfileId" />
+        <result column="dockerfile_path" jdbcType="VARCHAR" property="dockerfilePath" />
+        <result column="image_name" jdbcType="VARCHAR" property="imageName" />
+        <result column="image_tag_type" jdbcType="VARCHAR" property="imageTagType" />
+        <result column="image_base_tag" jdbcType="VARCHAR" property="imageBaseTag" />
+        <result column="image_increase_tag" jdbcType="VARCHAR" property="imageIncreaseTag" />
+        <result column="image_tag" jdbcType="VARCHAR" property="imageTag" />
+        <result column="harbor_project" jdbcType="VARCHAR" property="harborProject" />
+        <result column="business_name" jdbcType="VARCHAR" property="businessName" />
+        <result column="service_name" jdbcType="VARCHAR" property="serviceName" />
+        <result column="container_name" jdbcType="VARCHAR" property="containerName" />
+        <result column="command" jdbcType="VARCHAR" property="command" />
+        <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+        <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    </resultMap>
+
+    <sql id="selectAllColumns">
+        SELECT s.id,
+        s.job_id,
+        s.stage_order,
+        s.stage_type_id,
+        s.stage_name,
+        s.repository_type,
+        s.repository_url,
+        s.repository_branch,
+        s.credentials_username,
+        s.credentials_password,
+        s.build_environment,
+        s.use_dependency,
+        s.dockerfile_type,
+        s.base_image,
+        s.dockerfile_id,
+        s.dockerfile_path,
+        s.image_name,
+        s.image_tag_type,
+        s.image_base_tag,
+        s.image_increase_tag,
+        s.image_tag,
+        s.harbor_project,
+        s.business_name,
+        s.service_name,
+        s.container_name,
+        s.command,
+        s.create_time,
+        s.update_time,
+        cicd_stage_type.template_type stage_template_type
+        FROM cicd_stage s
+        JOIN cicd_stage_type ON s.stage_type_id = cicd_stage_type.id
+    </sql>
+
+    <insert id="insertStage" parameterType="com.harmonycloud.dao.ci.bean.Stage" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO cicd_stage(
+        job_id,
+        stage_order,
+        stage_type_id,
+        stage_name,
+        repository_type,
+        repository_url,
+        repository_branch,
+        credentials_username,
+        credentials_password,
+        build_environment,
+        use_dependency,
+        dockerfile_type,
+        base_image,
+        dockerfile_id,
+        dockerfile_path,
+        image_name,
+        image_tag_type,
+        image_base_tag,
+        image_increase_tag,
+        image_tag,
+        harbor_project,
+        business_name,
+        service_name,
+        container_name,
+        command,
+        create_time,
+        update_time
+        )
+        VALUES(
+        #{jobId},
+        #{stageOrder},
+        #{stageTypeId},
+        #{stageName},
+        #{repositoryType},
+        #{repositoryUrl},
+        #{repositoryBranch},
+        #{credentialsUsername},
+        #{credentialsPassword},
+        #{buildEnvironment},
+        #{useDependency},
+        #{dockerfileType},
+        #{baseImage},
+        #{dockerfileId},
+        #{dockerfilePath},
+        #{imageName},
+        #{imageTagType},
+        #{imageBaseTag},
+        #{imageIncreaseTag},
+        #{imageTag},
+        #{harborProject},
+        #{businessName},
+        #{serviceName},
+        #{containerName},
+        #{command},
+        #{createTime},
+        #{updateTime}
+        )
+    </insert>
+
+    <select id="queryByJobId" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+        <include refid="selectAllColumns"/>
+        WHERE s.job_id = #{jobId}  ORDER BY s.stage_order
+    </select>
+
+    <select id="queryById" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+        <include refid="selectAllColumns"/>
+        WHERE s.id = #{id}
+    </select>
+
+    <select id="queryByStageTypeId" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+        <include refid="selectAllColumns"/>
+        JOIN cicd_job ON s.job_id = cicd_job.id
+        WHERE cicd_stage_type.tenant_id = cicd_job.tenant_id AND s.stage_type_id = #{stageTypeId}
+    </select>
+
+    <update id="updateStage" parameterType="com.harmonycloud.dao.ci.bean.Stage">
+        UPDATE cicd_stage SET
+        stage_name = #{stageName},
+        stage_type_id = #{stageTypeId},
+        repository_type = #{repositoryType},
+        repository_url = #{repositoryUrl},
+        repository_branch = #{repositoryBranch},
+        credentials_username = #{credentialsUsername},
+        credentials_password = #{credentialsPassword},
+        build_environment = #{buildEnvironment},
+        use_dependency = #{useDependency},
+        dockerfile_type = #{dockerfileType},
+        base_image = #{baseImage},
+        dockerfile_id = #{dockerfileId},
+        dockerfile_path = #{dockerfilePath},
+        image_name = #{imageName},
+        image_tag_type = #{imageTagType},
+        image_base_tag = #{imageBaseTag},
+        image_increase_tag = #{imageIncreaseTag},
+        image_tag = #{imageTag},
+        harbor_project = #{harborProject},
+        business_name = #{businessName},
+        service_name = #{serviceName},
+        container_name = #{containerName},
+        command = #{command},
+        update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+
+    <update id="increaseStageOrder" parameterType="java.lang.Integer">
+        UPDATE cicd_stage SET stage_order = stage_order + 1 WHERE job_id = #{jobId} and stage_order >= #{stageOrder}
+    </update>
+    <update id="decreaseStageOrder" parameterType="java.lang.Integer">
+        UPDATE cicd_stage SET stage_order = stage_order - 1 WHERE job_id = #{jobId} and stage_order > #{stageOrder}
+    </update>
+
+    <delete id="deleteStage" parameterType="java.lang.Integer">
+        DELETE FROM cicd_stage where id = #{id}
+    </delete>
+
+</mapper>
