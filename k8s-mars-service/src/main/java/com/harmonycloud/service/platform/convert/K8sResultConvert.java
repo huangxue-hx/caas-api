@@ -1027,6 +1027,9 @@ public class K8sResultConvert {
 
 		dep.getSpec().getTemplate().getSpec().setContainers(newC);
         dep.getSpec().getTemplate().getSpec().setVolumes(volumes);
+        DeploymentStrategy strategy = new DeploymentStrategy();
+        strategy.setType("Recreate");
+        dep.getSpec().setStrategy(strategy);
 		Date now = new Date();
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 		sdf.setTimeZone(TimeZone.getTimeZone("GMT"));

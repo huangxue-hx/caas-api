@@ -23,6 +23,8 @@ import com.harmonycloud.service.platform.service.WatchService;
 
 import com.alibaba.fastjson.JSON;
 import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
+
 import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -160,8 +162,8 @@ public class VersionControlServiceImpl implements VersionControlService {
                 deped.getSpec().setMinReadySeconds(detail.getSeconds());
             }
             RollingUpdateDeployment ru =new RollingUpdateDeployment();
-            ru.setMaxSurge("1");
-            ru.setMaxUnavailable("0");
+            ru.setMaxSurge(1);
+            ru.setMaxUnavailable(0);
             strategy.setRollingUpdate(ru);
             deped.getSpec().setStrategy(strategy);;
         }
@@ -217,6 +219,8 @@ public class VersionControlServiceImpl implements VersionControlService {
                                 logger.error("灰度升级暂停Deployment报错");
                             }
                             break;
+                        }else if(dep1.getStatus() != null && dep1.getStatus().getReplicas() != null && dep1.getStatus().getReplicas() == instances){
+                        	break;
                         }
                     }
                     mCountDownLatch.countDown();
@@ -257,19 +261,43 @@ public class VersionControlServiceImpl implements VersionControlService {
         Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
 
         //返回当前列表中新老实例,格式,顺序为:新实例,老实例,总共实例,当新的实例等于总的实例的时候终止前端定时器
-        
+        JSONObject json = new JSONObject();
         List<Integer> counts = new ArrayList<>();
         if("RollingUpdate".equals(dep.getSpec().getStrategy().getType())){
-        	Integer updateCounts = dep.getStatus().getUpdatedReplicas();
-            updateCounts = updateCounts == null ? 0 : updateCounts;
-            counts.add(updateCounts);
-            counts.add(dep.getSpec().getReplicas() - updateCounts);
+        	Integer updateCounts = 0;
+        	if(dep.getStatus().getUpdatedReplicas() != null && dep.getStatus().getUpdatedReplicas() != 0){
+        		updateCounts = dep.getStatus().getUpdatedReplicas();
+        		counts.add(updateCounts);
+        		counts.add(dep.getSpec().getReplicas() - updateCounts);
+        	}else{
+        		int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
+        		updateCounts = dep.getSpec().getReplicas() - unavailableReplicas;
+        		counts.add(updateCounts);
+        		counts.add(unavailableReplicas);
+        	}
+        	/*Integer updateCounts = dep.getStatus().getUpdatedReplicas();
+            updateCounts = updateCounts == null ? 0 : updateCounts;*/
+            
+            //counts.add(dep.getSpec().getReplicas() - updateCounts);
         }else{
-        	Integer updateCounts = dep.getStatus().getUpdatedReplicas();
+        	Integer updateCounts = 0;
+        	if(dep.getStatus().getUpdatedReplicas() != null && dep.getStatus().getUpdatedReplicas() != 0){
+        		updateCounts = dep.getStatus().getUpdatedReplicas();
+        		counts.add(updateCounts);
+        		counts.add(0);
+        	}else{
+        		int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
+        		updateCounts = dep.getSpec().getReplicas() - unavailableReplicas;
+        		counts.add(updateCounts);
+        		counts.add(0);
+        	}
+        	/*Integer updateCounts = dep.getStatus().getUpdatedReplicas();
         	counts.add(updateCounts);
-            counts.add(0);
+            counts.add(0);*/
         }
-        return ActionReturnUtil.returnSuccessWithData(counts);
+        json.put("counts", counts);
+        json.put("message", dep.getStatus().getConditions());
+        return ActionReturnUtil.returnSuccessWithData(json);
     }
 
 

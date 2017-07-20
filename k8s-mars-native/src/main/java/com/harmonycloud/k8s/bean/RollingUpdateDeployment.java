@@ -9,25 +9,24 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class RollingUpdateDeployment {
 
-	private String maxUnavailable;
+	private Object maxUnavailable;
 	
-	private String maxSurge;
+	private Object maxSurge;
 
-	public String getMaxSurge() {
+	public Object getMaxSurge() {
 		return maxSurge;
 	}
 
-	public void setMaxSurge(String maxSurge) {
+	public void setMaxSurge(Object maxSurge) {
 		this.maxSurge = maxSurge;
 	}
 
-	public String getMaxUnavailable() {
+	public Object getMaxUnavailable() {
 		return maxUnavailable;
 	}
 
-	public void setMaxUnavailable(String maxUnavailable) {
+	public void setMaxUnavailable(Object maxUnavailable) {
 		this.maxUnavailable = maxUnavailable;
 	}
 
-	
 }
