@@ -1332,7 +1332,6 @@ public class UserService {
 	 * @return void
 	 */
 	public ActionReturnUtil fileexport()throws Exception {
-		System.out.println("xxxxxxxxxxxxxxxx");
 		String[] title = {"id","name","sex"};
 		//创建Excel工作簿
 		HSSFWorkbook workbook = new HSSFWorkbook();
