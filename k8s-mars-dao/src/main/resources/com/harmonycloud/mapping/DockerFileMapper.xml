@@ -36,7 +36,7 @@
         FROM cicd_docker_file df
         LEFT JOIN cicd_docker_file_job_stage dfj ON df.id=dfj.docker_file_id
         LEFT JOIN cicd_job cj ON cj.id=dfj.job_id
-        LEFT JOIN cicd_stage cs ON cs.id=dfj.stage_id group by df.id
+        LEFT JOIN cicd_stage cs ON cs.id=dfj.stage_id
         <trim prefix="where" prefixOverrides="and">
             <if test="name!=null and name!=''">
                 AND df.name LIKE  CONCAT('%', #{name}, '%')
@@ -45,9 +45,10 @@
                 AND df.tenant = #{tenant}
             </if>
         </trim>
+        group by df.id
     </select>
 
-    <insert id="insertDockerFile" parameterType="DockerFile">
+    <insert id="insertDockerFile" parameterType="DockerFile" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO cicd_docker_file
         (name,tenant,content,create_time,update_time)
         VALUE (#{name},#{tenant},#{content},now(),now())
