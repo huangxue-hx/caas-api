@@ -20,6 +20,7 @@ import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.JobsService;
 import com.harmonycloud.service.application.VolumeSerivce;
+import com.harmonycloud.service.platform.bean.VolumeMountExt;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
 
@@ -92,7 +93,7 @@ public class JobsServiceImpl implements JobsService{
     }
 
     @Override
-    public ActionReturnUtil listJob(String tenantId, String name, String namespace, String labels, String status, Cluster cluster) throws Exception {
+    public ActionReturnUtil listJob(String namespace, String labels, String status, Cluster cluster) throws Exception {
         Map<String, Object> bodys = new HashMap<String, Object>();
 
         if (!StringUtils.isEmpty(labels)) {
@@ -128,7 +129,6 @@ public class JobsServiceImpl implements JobsService{
     				json.put("completions", job.getSpec().getCompletions());
     				json.put("parallelism", job.getSpec().getParallelism());
     				json.put("createTime", job.getMetadata().getCreationTimestamp());
-    				json.put("namespace", job.getMetadata().getNamespace());
     				json.put("selector", job.getSpec().getSelector());
     				String sta = getJobDetail(job);
     				json.put("status", sta);
@@ -214,14 +214,61 @@ public class JobsServiceImpl implements JobsService{
 			js.put("livenessProbe", container.getLivenessProbe());
 			js.put("readinessProbe", container.getReadinessProbe());
 			js.put("ports", container.getPorts());
+			List<VolumeMount> volumeMounts = container.getVolumeMounts();
+			List<VolumeMountExt> vms = new ArrayList<VolumeMountExt>();
+			if (volumeMounts != null && volumeMounts.size() > 0) {
+				for (VolumeMount vm : volumeMounts) {
+					VolumeMountExt vmExt = new VolumeMountExt(vm.getName(), vm.getReadOnly(), vm.getMountPath(),
+							vm.getSubPath());
+					for (Volume volume : job.getSpec().getTemplate().getSpec().getVolumes()) {
+						if (vm.getName().equals(volume.getName())) {
+							if (volume.getSecret() != null) {
+								vmExt.setType("secret");
+							} else if (volume.getPersistentVolumeClaim() != null) {
+								vmExt.setType("nfs");
+							} else if (volume.getEmptyDir() != null) {
+								vmExt.setType("emptyDir");
+								if(volume.getEmptyDir() != null){
+									vmExt.setEmptyDir(volume.getEmptyDir().getMedium());
+								}else{
+									vmExt.setEmptyDir(null);
+								}
+								
+								if (vm.getName().indexOf("logdir") == 0) {
+									vmExt.setType("logDir");
+								}
+                            } else if (volume.getConfigMap() != null) {
+                                Map<String, Object> configMap = new HashMap<String, Object>();
+                                configMap.put("name", volume.getConfigMap().getName());
+                                configMap.put("path", vm.getMountPath());
+                                vmExt.setType("configMap");
+                                vmExt.setConfigMapName(volume.getConfigMap().getName());
+                            }else if (volume.getHostPath() != null) {
+								vmExt.setType("hostPath");
+								vmExt.setHostPath(volume.getHostPath().getPath());
+								if (vm.getName().indexOf("logdir") == 0) {
+									vmExt.setType("logDir");
+								}
+                            }
+							if (vmExt.getReadOnly() == null) {
+								vmExt.setReadOnly(false);
+							}
+							vms.add(vmExt);
+							break;
+						}
+					}
+				}
+				js.put("storage", vms);
+			}
+			
 			cons.add(js);
 		}
+		jobjs.put("container", cons);
 		jobjs.put("img", img);
 		jobjs.put("owner", job.getMetadata().getLabels().get("nephele/user").toString());
 		jobjs.put("completions", job.getSpec().getCompletions());
 		jobjs.put("parallelism", job.getSpec().getParallelism());
 		jobjs.put("createTime", job.getMetadata().getCreationTimestamp());
-		jobjs.put("namespace", job.getMetadata().getNamespace());
 		jobjs.put("selector", job.getSpec().getSelector());
 		jobjs.put("restartPolicy", job.getSpec().getTemplate().getSpec().getRestartPolicy());
 		String sta = getJobDetail(job);
