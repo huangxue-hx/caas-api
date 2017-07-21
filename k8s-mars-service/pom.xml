@@ -57,6 +57,12 @@
             <artifactId>pagehelper</artifactId>
             <version>4.2.1</version>
         </dependency>
+		<dependency>
+		    <groupId>org.apache.poi</groupId>
+		    <artifactId>poi</artifactId>
+		    <version>3.11</version>
+		</dependency>
+
     </dependencies>
     <build>
         <finalName>k8s-mars-service</finalName>

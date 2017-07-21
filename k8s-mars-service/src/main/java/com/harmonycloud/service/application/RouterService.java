@@ -5,11 +5,11 @@ import com.harmonycloud.dto.business.ParsedIngressListDto;
 import com.harmonycloud.dto.business.ParsedIngressListUpdateDto;
 import com.harmonycloud.dto.business.SvcRouterDto;
 import com.harmonycloud.dto.business.SvcRouterUpdateDto;
-import com.harmonycloud.dto.svc.CheckPort;
 import com.harmonycloud.dto.svc.SvcTcpDto;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 
 import java.util.List;
+
 
 /**
  * Created by czm on 2017/1/18.
@@ -49,6 +49,8 @@ public interface RouterService {
     public ActionReturnUtil listProvider() throws Exception;
     
     public ActionReturnUtil getPort(String tenantId) throws Exception;
+    
+    public ActionReturnUtil getListPort(String tenantId) throws Exception;
     
     public ActionReturnUtil checkPort(String port,String tenantId) throws Exception;
     
