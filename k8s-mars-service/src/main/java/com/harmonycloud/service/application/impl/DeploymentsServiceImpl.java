@@ -731,7 +731,8 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 					headers.put("Content-type", "application/json");
 					K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.POST, headers, bodys, cluster);
 					if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-						return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+						UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+						return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
 					}
 					ConfigMap cm = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
 					cms.add(cm);
@@ -759,7 +760,8 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			bodys = CollectionUtil.transBean2Map(service);
 			K8SClientResponse sResponse = new K8SClient().doit(k8surl, HTTPMethod.POST, headers, bodys, cluster);
 			if (!HttpStatusUtil.isSuccessStatus(sResponse.getStatus())) {
-				return ActionReturnUtil.returnErrorWithMsg(sResponse.getBody());
+				UnversionedStatus status = JsonUtil.jsonToPojo(sResponse.getBody(), UnversionedStatus.class);
+				return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
 			}
 			com.harmonycloud.k8s.bean.Service resS = JsonUtil.jsonToPojo(sResponse.getBody(),
 					com.harmonycloud.k8s.bean.Service.class);
@@ -791,7 +793,8 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			bodys = CollectionUtil.transBean2Map(dep);
 			K8SClientResponse response = new K8SClient().doit(k8surl, HTTPMethod.POST, headers, bodys,cluster);
 			if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-				return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+				UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+				return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
 			}
 			Deployment resD = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
 			com.harmonycloud.k8s.bean.Service service = K8sResultConvert.convertAppCreateOfService(detail);
@@ -800,7 +803,8 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			bodys = CollectionUtil.transBean2Map(service);
 			K8SClientResponse sResponse = new K8SClient().doit(k8surl, HTTPMethod.POST, headers, bodys,cluster);
 			if (!HttpStatusUtil.isSuccessStatus(sResponse.getStatus())) {
-				return ActionReturnUtil.returnErrorWithMsg(sResponse.getBody());
+				UnversionedStatus status = JsonUtil.jsonToPojo(sResponse.getBody(), UnversionedStatus.class);
+				return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
 			}
 			com.harmonycloud.k8s.bean.Service resS = JsonUtil.jsonToPojo(sResponse.getBody(),
 					com.harmonycloud.k8s.bean.Service.class);

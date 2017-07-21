@@ -3,6 +3,7 @@ package com.harmonycloud.service.application;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.business.DeployedServiceNamesDto;
+import com.harmonycloud.dto.business.ServiceDeployDto;
 import com.harmonycloud.dto.business.ServiceTemplateDto;
 
 /**
@@ -37,5 +38,9 @@ public interface ServiceService {
     public com.harmonycloud.dao.application.bean.Service getServiceByname(String name, String namespace) throws Exception;
     
     public ActionReturnUtil updateServicePvcByname(String name,String pvc, String namespace) throws Exception;
+    
+    public ActionReturnUtil deployServiceByname(String name,String tag, String namespace, Cluster cluster, String userName) throws Exception;
+    
+    public ActionReturnUtil deployService(ServiceDeployDto serviceDeploy, Cluster cluster, String userName) throws Exception;
 
 }

@@ -210,7 +210,8 @@ public class VolumeServiceImpl implements VolumeSerivce {
 		url.setNamespace(namespace).setResource(Resource.PERSISTENTVOLUMECLAIM);;
 		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.POST, headers, bodys);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+			UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
 		}
 		return ActionReturnUtil.returnSuccessWithData(response.getBody());
 	}

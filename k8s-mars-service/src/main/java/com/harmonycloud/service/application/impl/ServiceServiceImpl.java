@@ -1,7 +1,9 @@
 package com.harmonycloud.service.application.impl;
 
+import com.alibaba.fastjson.JSON;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
+import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.application.BusinessMapper;
 import com.harmonycloud.dao.application.BusinessServiceMapper;
 import com.harmonycloud.dao.application.ServiceMapper;
@@ -9,9 +11,15 @@ import com.harmonycloud.dao.application.ServiceTemplatesMapper;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.business.CreateContainerDto;
+import com.harmonycloud.dto.business.CreateVolumeDto;
 import com.harmonycloud.dto.business.DeployedServiceNamesDto;
+import com.harmonycloud.dto.business.DeploymentDetailDto;
+import com.harmonycloud.dto.business.IngressDto;
 import com.harmonycloud.dto.business.ParsedIngressListDto;
+import com.harmonycloud.dto.business.ServiceDeployDto;
 import com.harmonycloud.dto.business.ServiceTemplateDto;
+import com.harmonycloud.dto.business.TcpRuleDto;
+import com.harmonycloud.dto.svc.SvcTcpDto;
 import com.harmonycloud.k8s.bean.PersistentVolume;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
@@ -22,11 +30,13 @@ import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.RouterService;
 import com.harmonycloud.service.application.ServiceService;
+import com.harmonycloud.service.application.VolumeSerivce;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -63,6 +73,12 @@ public class ServiceServiceImpl implements ServiceService {
 
 	@Autowired
 	private DeploymentsService deploymentsService;
+	
+	@Autowired
+	private VolumeSerivce volumeSerivce;
+	
+    @Value("#{propertiesReader['image.url']}")
+    private String harborUrl;
 
 	DecimalFormat decimalFormat = new DecimalFormat("######0.0");
 
@@ -566,6 +582,179 @@ public class ServiceServiceImpl implements ServiceService {
 			return ActionReturnUtil.returnSuccess();
 		}
 		
+	}
+
+	@Override
+	public ActionReturnUtil deployServiceByname(String name, String tag, String namespace, Cluster cluster, String userName)
+			throws Exception {
+		if(StringUtils.isEmpty(name)){
+			return ActionReturnUtil.returnErrorWithMsg("应用模板名称为空");
+		}
+		if(StringUtils.isEmpty(tag)){
+			return ActionReturnUtil.returnErrorWithMsg("应用模板版本为空");
+		}
+		if(StringUtils.isEmpty(namespace)){
+			return ActionReturnUtil.returnErrorWithMsg("namespace为空");
+		}
+		//获取模板信息
+		ServiceTemplates serviceTemplate = serviceTemplatesMapper.getSpecificService(userName, tag);
+		if(serviceTemplate != null){
+			ServiceDeployDto serviceDeploy = new ServiceDeployDto();
+			serviceDeploy.setNamespace(namespace);
+			ServiceTemplateDto serviceDto = new ServiceTemplateDto();
+			serviceDto.setName(name);
+			serviceDto.setTag(tag);
+			serviceDto.setId(serviceTemplate.getId());
+			serviceDto.setTenant(serviceTemplate.getTenant());
+			DeploymentDetailDto deploymentDetail = JsonUtil.jsonToPojo(serviceTemplate.getDeploymentContent(), DeploymentDetailDto.class);
+			serviceDto.setDeploymentDetail(deploymentDetail);
+			serviceDto.setIngress(JsonUtil.jsonToList(serviceTemplate.getIngressContent(), IngressDto.class));
+			serviceDeploy.setServiceTemplate(serviceDto);
+			return deployService(serviceDeploy, cluster, userName);
+		}else{
+			return ActionReturnUtil.returnErrorWithMsg("不存在名称为name"+"，版本为"+tag+"模板");
+		}
+		
+		
+	}
+
+	@Override
+	public ActionReturnUtil deployService(ServiceDeployDto serviceDeploy, Cluster cluster, String userName) throws Exception {
+		if(serviceDeploy == null && StringUtils.isEmpty(serviceDeploy.getNamespace())){
+			return ActionReturnUtil.returnErrorWithMsg("应用模板或者namespace为空");
+		}
+		List<String> pvcList = new ArrayList<>();
+		List<Map<String, Object>> message = new ArrayList<>();
+		String namespace = serviceDeploy.getNamespace();
+		com.harmonycloud.dao.application.bean.Service svc = new com.harmonycloud.dao.application.bean.Service();
+		if (serviceDeploy.getServiceTemplate() != null
+				&& serviceDeploy.getServiceTemplate().getDeploymentDetail() != null) {
+			ServiceTemplateDto service = serviceDeploy.getServiceTemplate();
+			// creat pvc
+			for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
+				if (c.getStorage() != null) {
+					for (CreateVolumeDto pvc : c.getStorage()) {
+						if (pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())) {
+							if (pvc.getPvcName() == "" || pvc.getPvcName() == null) {
+								continue;
+							}
+							ActionReturnUtil pvcres = volumeSerivce.createVolume(namespace, pvc.getPvcName(),
+									pvc.getPvcCapacity(), pvc.getPvcTenantid(), pvc.getReadOnly(), pvc.getPvcBindOne(),
+									pvc.getVolume());
+							pvcList.add(pvc.getPvcName());
+							if (!pvcres.isSuccess()) {
+								Map<String, Object> map = new HashMap<String, Object>();
+								map.put(pvc.getPvcName(), pvcres.get("data"));
+								message.add(map);
+							}
+						}
+					}
+				}
+			}
+			List<String> ingresses = new ArrayList<>();
+			// creat ingress
+			if (service.getIngress() != null) {
+				for (IngressDto ingress : service.getIngress()) {
+					if ("HTTP".equals(ingress.getType())
+							&& !StringUtils.isEmpty(ingress.getParsedIngressList().getName())) {
+						SvcTcpDto one = new SvcTcpDto();
+						com.harmonycloud.dto.svc.SelectorDto two = new com.harmonycloud.dto.svc.SelectorDto();
+						List<TcpRuleDto> th = new ArrayList<>();
+						TcpRuleDto httpsvc = new TcpRuleDto();
+
+						one.setName(ingress.getParsedIngressList().getName());
+						one.setNamespace(namespace);
+						two.setApp(service.getDeploymentDetail().getName());
+						one.setSelector(two);
+
+						httpsvc.setPort("80");
+						httpsvc.setProtocol("TCP");
+						if (ingress.getParsedIngressList().getRules().size() > 0) {
+							httpsvc.setTargetPort(ingress.getParsedIngressList().getRules().get(0).getPort());
+						} else {
+							httpsvc.setTargetPort("80");
+						}
+
+						th.add(httpsvc);
+						one.setRules(th);
+
+						ActionReturnUtil httpSvcRes = routerService.createhttpsvc(one);
+						if (!httpSvcRes.isSuccess()) {
+							Map<String, Object> map = new HashMap<String, Object>();
+							map.put("service:" + ingress.getParsedIngressList().getName(), httpSvcRes.get("data"));
+							message.add(map);
+						}
+						ActionReturnUtil httpIngRes = routerService.ingCreate(ingress.getParsedIngressList());
+						if (!httpIngRes.isSuccess()) {
+							Map<String, Object> map = new HashMap<String, Object>();
+							map.put("ingress:" + ingress.getParsedIngressList().getName(), httpIngRes.get("data"));
+							message.add(map);
+						}
+						ingresses.add(
+								"{\"type\":\"HTTP\",\"name\":\"" + ingress.getParsedIngressList().getName() + "\"}");
+
+					} else if ("TCP".equals(ingress.getType())
+							&& !StringUtils.isEmpty(ingress.getSvcRouter().getName())) {
+						ActionReturnUtil tcpSvcRes = routerService.svcCreate(ingress.getSvcRouter());
+						if (!tcpSvcRes.isSuccess()) {
+							Map<String, Object> map = new HashMap<String, Object>();
+							map.put("ingress:" + ingress.getParsedIngressList().getName(), tcpSvcRes.get("data"));
+							message.add(map);
+						}
+						ingresses.add("{\"type\":\"TCP\",\"name\":\"" + ingress.getSvcRouter().getName() + "\"}");
+					}
+				}
+			}
+	        // insert into service
+	        if (ingresses.size() > 0) {
+	            JSONArray jsonArray = JSONArray.fromObject(ingresses);
+	            svc.setIngress(jsonArray.toString());
+	        }
+
+
+			// creat config map & deploy service deployment & get node label by
+			// namespace
+			// todo so bad
+			service.getDeploymentDetail().setNamespace(namespace);
+			for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
+				String[] hou;
+				String[] qian;
+				String images;
+
+				if (harborUrl.contains("//") && harborUrl.contains(":")) {
+					hou = harborUrl.split("//");
+					qian = hou[1].split(":");
+					images = qian[0] + "/" + c.getImg();
+				} else {
+					images = harborUrl;
+				}
+				c.setImg(images);
+			}
+			// deploymentsService.createDeployment(service.getDeploymentDetail(),
+			// username, businessDeploy.getBusinessTemplate().getName() + "_"
+			// +businessDeploy.getBusinessTemplate().getTag());
+			ActionReturnUtil depRes = deploymentsService.createDeployment(service.getDeploymentDetail(), userName, null,
+					cluster);
+			if (!depRes.isSuccess()) {
+				Map<String, Object> map = new HashMap<String, Object>();
+				map.put(service.getName(), depRes.get("data"));
+				message.add(map);
+			}
+
+	        if (pvcList.size() > 0) {
+	            JSONArray jsonArraypvc = JSONArray.fromObject(pvcList);
+	            svc.setPvc(jsonArraypvc.toString());
+	        }
+	        svc.setName(service.getDeploymentDetail().getName());
+	        svc.setServiceTemplateId(service.getId());
+	        svc.setNamespace(namespace);
+	        svc.setIsExternal(0);
+	        serviceMapper.insertService(svc);
+		}
+		if (message.size() > 0) {
+            return ActionReturnUtil.returnErrorWithData(message);
+        }
+        return ActionReturnUtil.returnSuccess();
 	}
 
 }

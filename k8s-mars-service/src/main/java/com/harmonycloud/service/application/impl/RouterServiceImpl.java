@@ -166,7 +166,8 @@ public class RouterServiceImpl implements RouterService {
 		String s = JsonUtil.convertToJsonNonNull(body);
 		K8SClientResponse k = new K8SClient().doit(url, HTTPMethod.POST, head, body,null);
 		if (!HttpStatusUtil.isSuccessStatus(k.getStatus())) {
-			return ActionReturnUtil.returnErrorWithMsg(k.getBody());
+			UnversionedStatus status = JsonUtil.jsonToPojo(k.getBody(), UnversionedStatus.class);
+			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
 		}
 		return ActionReturnUtil.returnSuccessWithData(k.getBody());
 
@@ -507,7 +508,8 @@ public class RouterServiceImpl implements RouterService {
 		K8SClientResponse response = sService.doServiceByNamespace(svcTcpDto.getNamespace(), head, bodys,
 				HTTPMethod.POST);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+			UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+			return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
 		}
 		com.harmonycloud.k8s.bean.Service newService = JsonUtil.jsonToPojo(response.getBody(),
 				com.harmonycloud.k8s.bean.Service.class);
