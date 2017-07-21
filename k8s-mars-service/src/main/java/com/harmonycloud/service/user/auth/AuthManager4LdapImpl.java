@@ -9,12 +9,15 @@ import java.util.Objects;
 import javax.naming.NamingException;
 import javax.naming.directory.Attributes;
 
+import com.harmonycloud.dto.user.LdapConfigDto;
+import com.harmonycloud.service.user.AuthManager4Ldap;
 import org.apache.http.Header;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.ldap.core.AttributesMapper;
 import org.springframework.ldap.core.LdapTemplate;
+import org.springframework.ldap.core.support.LdapContextSource;
 import org.springframework.ldap.filter.AndFilter;
 import org.springframework.ldap.filter.EqualsFilter;
 import org.springframework.stereotype.Service;
@@ -39,7 +42,7 @@ import com.harmonycloud.service.user.UserService;
  * @version V1.0
  */
 @Service
-public class AuthManager4LdapImpl implements AuthManager {
+public class AuthManager4LdapImpl implements AuthManager4Ldap {
 
     @Value("#{propertiesReader['image.host']}")
     private String harborIp;
@@ -54,8 +57,6 @@ public class AuthManager4LdapImpl implements AuthManager {
     @Autowired
     private HarborUtil harborUtil;
 
-    @Autowired
-    private LdapTemplate ldapTemplate;
 
     @Autowired
     private UserService userService;
@@ -71,12 +72,12 @@ public class AuthManager4LdapImpl implements AuthManager {
     private String object_class;
 
     @Override
-    public String auth(String userName, String password) throws Exception {
+    public String auth(String userName, String password, LdapConfigDto ldapConfigDto) throws Exception {
         // ladp 认证
         if (searchType == null || userName == null || password == null || object_class == null) {
             throw new RuntimeException();
         }
-        if (!this.isUserInLdap(userName, password)) {
+        if (!this.isUserInLdap(userName, password, ldapConfigDto)) {
             return null;
         }
         if (Objects.equals("admin", userName)) {
@@ -97,11 +98,27 @@ public class AuthManager4LdapImpl implements AuthManager {
         return userName;
     }
 
-    private boolean isUserInLdap(String userName, String password) {
+    private boolean isUserInLdap(String userName, String password, LdapConfigDto ldapConfigDto) {
         AndFilter filter = new AndFilter();
         filter.and(new EqualsFilter("objectclass", object_class)).and(new EqualsFilter(searchType, userName)).and(new EqualsFilter("userPassword", password));
+        LdapContextSource contextSource = new LdapContextSource();
+        contextSource.setUrl("ldap://"+ldapConfigDto.getIp()+":"+ldapConfigDto.getPort()+"");
+        contextSource.setBase(ldapConfigDto.getBase());
+        contextSource.setUserDn(ldapConfigDto.getUserdn());
+        contextSource.setPassword(ldapConfigDto.getPassword());
+
+        try {
+            contextSource.afterPropertiesSet();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+
+        LdapTemplate template = new LdapTemplate();
+
+        template.setContextSource(contextSource);
         @SuppressWarnings("rawtypes")
-        List search = ldapTemplate.search("", filter.encode(), new AttributesMapper() {
+        List search = template.search("", filter.encode(), new AttributesMapper() {
             @Override
             public Object mapFromAttributes(Attributes attributes) throws NamingException {
                 return attributes;
@@ -200,13 +217,6 @@ public class AuthManager4LdapImpl implements AuthManager {
         this.harborUtil = harborUtil;
     }
 
-    public LdapTemplate getLdapTemplate() {
-        return ldapTemplate;
-    }
-
-    public void setLdapTemplate(LdapTemplate ldapTemplate) {
-        this.ldapTemplate = ldapTemplate;
-    }
 
     public String getSearchType() {
         return searchType;

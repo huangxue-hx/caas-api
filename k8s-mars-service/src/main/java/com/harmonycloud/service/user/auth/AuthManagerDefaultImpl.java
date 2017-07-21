@@ -2,6 +2,7 @@ package com.harmonycloud.service.user.auth;
 
 import java.util.Objects;
 
+import com.harmonycloud.service.user.AuthManagerDefault;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -18,7 +19,7 @@ import com.harmonycloud.service.user.AuthManager;
  * @version V1.0
  */
 @Service
-public class AuthManagerDefaultImpl implements AuthManager {
+public class AuthManagerDefaultImpl implements AuthManagerDefault {
 
     @Autowired
     private CustomUserMapper userMapper;

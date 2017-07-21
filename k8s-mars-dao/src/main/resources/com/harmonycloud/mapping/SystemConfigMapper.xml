@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace必须指向Dao接口 -->
+<mapper namespace="com.harmonycloud.dao.system.SystemConfigMapper">
+
+    <resultMap id="systemConfigMap" type="com.harmonycloud.dao.system.bean.SystemConfig">
+        <id property="id" column="id"/>
+        <result property="configName" column="config_name"/>
+        <result property="configValue" column="config_value"/>
+        <result property="createUser" column="create_user"/>
+        <result property="updateUser" column="update_user"/>
+        <result property="createTime" column="create_time" jdbcType="TIMESTAMP" javaType="java.util.Date"/>
+        <result property="updateTime" column="update_time" jdbcType="TIMESTAMP" javaType="java.util.Date"/>
+    </resultMap>
+
+    <select id="findById" resultMap="systemConfigMap" parameterType="java.lang.String">
+        select id, config_name, config_value, config_type, create_user,update_user,create_time,update_time
+        from system_config where id=#{id}
+    </select>
+
+    <select id="findByConfigName" resultMap="systemConfigMap" parameterType="java.lang.String">
+        select id, config_name, config_value, config_type, create_user,update_user,create_time,update_time
+        from system_config where config_name=#{configName}
+    </select>
+
+    <select id="findByConfigType" resultMap="systemConfigMap" parameterType="java.lang.String">
+        select id, config_name, config_value, config_type, create_user,update_user,create_time,update_time
+        from system_config where config_type=#{configType}
+    </select>
+
+    <insert id="addSystemConfig" parameterType="com.harmonycloud.dao.system.bean.SystemConfig">
+		insert into system_config(id, config_name, config_value, config_type, create_user,update_user,create_time,update_time)
+		values(#{id},#{configName},#{configValue},#{configType},#{createUser},#{updateUser},#{createTime},#{updateTime})
+	</insert>
+
+    <select id="updateSystemConfig" parameterType="com.harmonycloud.dao.system.bean.SystemConfig">
+        update system_config
+        <trim prefix="set" suffixOverrides=",">
+            <if test="id!=null">id=#{id},</if>
+            <if test="configName!=null">config_name=#{configName},</if>
+            <if test="configValue!=null">config_value=#{configValue},</if>
+            <if test="configType!=null">config_type=#{configType},</if>
+            <if test="updateUser!=null">update_user=#{updateUser},</if>
+            <if test="updateTime!=null">update_time=#{updateTime}</if>
+        </trim>
+        WHERE id=#{id}
+    </select>
+</mapper>

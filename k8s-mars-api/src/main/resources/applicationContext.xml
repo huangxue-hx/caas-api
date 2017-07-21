@@ -64,32 +64,33 @@
 	</bean>
 
 	<!-- 配置ldap服务器 -->
-	<bean id="contextSource" class="org.springframework.ldap.core.support.LdapContextSource">
-		<property name="url" value="ldap://10.10.102.57:389" />
-		<property name="base" value="dc=cloudsoar,dc=com" />
-		<property name="userDn" value="cn=Manager,dc=cloudsoar,dc=com" />
-		<property name="password" value="secret" />
-		<property name="referral" value="follow"></property>
-	</bean>
+	<!--<bean id="contextSource" class="org.springframework.ldap.core.support.LdapContextSource">-->
+		<!--<property name="url" value="ldap://10.10.102.57:389" />-->
+		<!--<property name="base" value="dc=cloudsoar,dc=com" />-->
+		<!--<property name="userDn" value="cn=Manager,dc=cloudsoar,dc=com" />-->
+		<!--<property name="password" value="secret" />-->
+		<!--<property name="referral" value="follow"></property>-->
+	<!--</bean>-->
 
-	<bean id="ldapTemplate" class="org.springframework.ldap.core.LdapTemplate">
-		<constructor-arg ref="contextSource" />
-	</bean>
+	<!--<bean id="ldapTemplate" class="org.springframework.ldap.core.LdapTemplate">-->
+		<!--<constructor-arg ref="contextSource" />-->
+	<!--</bean>-->
 	
 	<!-- 配置认证方式为ldap,searchType为查找的用户名字段-->
 <!-- 	<bean id="authManager" class="com.harmonycloud.service.user.auth.AuthManager4LdapImpl">
 		<property name="object_class" value="person"></property>
 		<property name="searchType" value="uid"></property>
 	</bean> -->
-	
-	<!-- 默认认证方式mysql -->
-	<bean id="authManager" class="com.harmonycloud.service.user.auth.AuthManagerDefaultImpl"> </bean>
-	
-	
-	<bean id="authDispatch" class="com.harmonycloud.service.user.auth.AuthDispatchImpl">
-		<property name="authCenter" ref="authManager"></property>
+	<!-- 配置认证方式为ldap,searchType为查找的用户名字段-->
+	<bean id="authManager4Ldap" class="com.harmonycloud.service.user.auth.AuthManager4LdapImpl">
+		<property name="object_class" value="person"></property>
+		<property name="searchType" value="uid"></property>
 	</bean>
-	
+
+	<!-- 默认认证方式mysql -->
+	<bean id="authManagerDefault" class="com.harmonycloud.service.user.auth.AuthManagerDefaultImpl"> </bean>
+
+
 	<bean id="multipartResolver" 	class="com.harmonycloud.controller.CustomMultipartResolver">
 		<property name="defaultEncoding" value="UTF-8" />
 		<property name="maxUploadSize" value="1000000000000" />   <!-- 最大是931G -->

@@ -3,7 +3,6 @@ package com.harmonycloud.api.user;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,9 +10,11 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
-import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dao.tenant.bean.UserTenant;
 
+import com.harmonycloud.dto.user.LdapConfigDto;
+import com.harmonycloud.service.system.SystemConfigService;
+import com.harmonycloud.service.user.*;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -29,9 +30,6 @@ import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.service.application.SecretService;
 import com.harmonycloud.service.tenant.UserTenantService;
-import com.harmonycloud.service.user.AuthDispatch;
-import com.harmonycloud.service.user.AuthService;
-import com.harmonycloud.service.user.UserService;
 
 
 @Controller
@@ -46,14 +44,21 @@ public class AuthController {
     @Autowired
     private UserService userService;
 
-    @Autowired
-    private AuthDispatch authDispatch;
     
     @Autowired
     UserTenantService userTenantService;
     
     @Autowired
     private SecretService secretService;
+
+    @Autowired
+    SystemConfigService systemConfigService;
+
+    @Autowired
+    AuthManagerDefault authManagerDefault;
+
+    @Autowired
+    AuthManager4Ldap authManager4Ldap;
     /**
      * 用户认证
      * 
@@ -89,7 +94,13 @@ public class AuthController {
     @ResponseBody
     @RequestMapping(value = "/login",method = RequestMethod.POST)
     public ActionReturnUtil Login(@RequestParam(value = "username") final String username, @RequestParam(value = "password") final String password) throws Exception {
-        String res = authDispatch.login(username, password);
+        LdapConfigDto ldapConfigDto = this.systemConfigService.findByConfigType(CommonConstant.CONFIG_TYPE_LDAP);
+        String res = null;
+        if(ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1) {
+            res = this.authManager4Ldap.auth(username, password, ldapConfigDto);
+        } else {
+            res = authManagerDefault.auth(username, password);
+        }
         if (StringUtils.isNotBlank(res)) {
             User user = userService.getUser(username);
             if (user == null) {
@@ -187,8 +198,7 @@ public class AuthController {
     /**
      * 根据用户名密码获取token
      * 
-     * @param userName
-     * @param password
+
      * @return
      * @throws Exception
      */
