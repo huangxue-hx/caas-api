@@ -56,6 +56,7 @@ import com.harmonycloud.dao.user.customs.CustomUserMapper;
 import com.harmonycloud.dto.tenant.show.UserShowDto;
 import com.harmonycloud.dto.user.SummaryUserInfo;
 import com.harmonycloud.dto.user.UserDetailDto;
+import com.harmonycloud.dto.user.UserGroupDto;
 import com.harmonycloud.k8s.bean.RoleBinding;
 import com.harmonycloud.k8s.bean.RoleBindingList;
 import com.harmonycloud.k8s.client.K8SClient;
@@ -1160,30 +1161,257 @@ public class UserService {
             return ActionReturnUtil.returnErrorWithData(e);
         }
     }
-
+    
     /**
-     * 修改用户群组信息
-     * 
-     * @param
-     * @return ActionReturnUtil
-     */
-    public ActionReturnUtil update_group(UserGroup usergroup) throws Exception {
-        // 修改user_group表和user_group_relation表【user_group:groupname、describe】【user_group_relation:userid、groupid】
+	 * 修改用户群组信息
+	 * 
+	 * @param UserGroupDto usergroupdto
+	 * @return ActionReturnUtil
+	 */
+	public ActionReturnUtil updateGroup(UserGroupDto usergroupdto)throws Exception {
+		if(usergroupdto == null){
+			return ActionReturnUtil.returnErrorWithMsg("修改参数不能为空！");
+		}
+		//判断修改了那些内容：群组名、描述、增、删用户
+				//只修改群组名称
+			    if(usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() == null && usergroupdto.getDelusers() == null){
+							UserGroup usergroup =new UserGroup();
+							usergroup.setGroupname(usergroupdto.getUpdategroupname());
+							usergroup.setUserGroupDescribe(usergroupdto.getUsergroup().getUserGroupDescribe());
+							usergroup.setId(usergroupdto.getUsergroup().getId());
+							usergroupMapper.updateByPrimaryKeySelective(usergroup);
+			    }else if(usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() == null && usergroupdto.getDelusers() == null){
+					    	//只修改群组描述
+					    	UserGroup usergroup =new UserGroup();
+							usergroup.setGroupname(usergroupdto.getUsergroup().getGroupname());
+							usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
+							usergroup.setId(usergroupdto.getUsergroup().getId());
+							usergroupMapper.updateByPrimaryKeySelective(usergroup);
+			    }else if(usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() != null && usergroupdto.getDelusers() == null){
+			    	        //只增加用户
+			    			List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
+			    			List<String> users = usergroupdto.getAddusers();
+			    			int groupid = usergroupdto.getUsergroup().getId();
+			    			for(int i=0;i<users.size();i++){
+			    				UserGroupRelation ugr = new UserGroupRelation();
+			    				UserExample example = new UserExample();
+			    				example.createCriteria().andUsernameEqualTo(users.get(i));
+			    				User user = userMapperNew.selectByExample(example).get(0);
+			    				ugr.setGroupid(groupid);
+			    				ugr.setUserid(user.getUuid());
+			    				ugrs.add(ugr);
+			    			}
+			    			usergrouprelationMapper.addUserGroupRelation(ugrs);
+			    }else if(usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() == null && usergroupdto.getDelusers() != null){
+			    	 		//只删除用户
+			    			List<String> users = usergroupdto.getDelusers();
+			    			int groupid = usergroupdto.getUsergroup().getId();
+			    			for(int i=0;i<users.size();i++){
+			    				UserGroupRelationExample ugrexample = new UserGroupRelationExample();
+			    				UserExample example = new UserExample();
+			    				example.createCriteria().andUsernameEqualTo(users.get(i));
+			    				User user = userMapperNew.selectByExample(example).get(0);
+			    				Long userid = user.getUuid();
+			    				ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
+			    				usergrouprelationMapper.deleteByExample(ugrexample);
+			    			}
+			    }else if(usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() == null && usergroupdto.getDelusers() == null){
+			    			//修改群组名和描述
+					    	UserGroup usergroup =new UserGroup();
+							usergroup.setGroupname(usergroupdto.getUpdategroupname());
+							usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
+							usergroup.setId(usergroupdto.getUsergroup().getId());
+							usergroupMapper.updateByPrimaryKeySelective(usergroup);
+			    }else if(usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() != null && usergroupdto.getDelusers() != null){
+			    			//增、删用户
+					    	List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
+			    			List<String> addusers = usergroupdto.getAddusers();
+			    			int groupid = usergroupdto.getUsergroup().getId();
+			    			for(int i=0;i<addusers.size();i++){
+			    				UserGroupRelation ugr = new UserGroupRelation();
+			    				UserExample example = new UserExample();
+			    				example.createCriteria().andUsernameEqualTo(addusers.get(i));
+			    				User user = userMapperNew.selectByExample(example).get(0);
+			    				ugr.setGroupid(groupid);
+			    				ugr.setUserid(user.getUuid());
+			    				ugrs.add(ugr);
+			    			}
+			    			usergrouprelationMapper.addUserGroupRelation(ugrs);
+			    			List<String> delusers = usergroupdto.getDelusers();
+			    			for(int i=0;i<delusers.size();i++){
+			    				UserGroupRelationExample ugrexample = new UserGroupRelationExample();
+			    				UserExample example = new UserExample();
+			    				example.createCriteria().andUsernameEqualTo(delusers.get(i));
+			    				User user = userMapperNew.selectByExample(example).get(0);
+			    				Long userid = user.getUuid();
+			    				ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
+			    				usergrouprelationMapper.deleteByExample(ugrexample);
+			    			}
+			    }else if(usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() != null && usergroupdto.getDelusers() == null){
+			    			 	//修改了群组名、增用户
+						    	UserGroup usergroup =new UserGroup();
+								usergroup.setGroupname(usergroupdto.getUpdategroupname());
+								usergroup.setUserGroupDescribe(usergroupdto.getUsergroup().getUserGroupDescribe());
+								usergroup.setId(usergroupdto.getUsergroup().getId());
+								usergroupMapper.updateByPrimaryKeySelective(usergroup);		
+								List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
+				    			List<String> addusers = usergroupdto.getAddusers();
+				    			int groupid = usergroupdto.getUsergroup().getId();
+				    			for(int i=0;i<addusers.size();i++){
+				    				UserGroupRelation ugr = new UserGroupRelation();
+				    				UserExample example = new UserExample();
+				    				example.createCriteria().andUsernameEqualTo(addusers.get(i));
+				    				User user = userMapperNew.selectByExample(example).get(0);
+				    				ugr.setGroupid(groupid);
+				    				ugr.setUserid(user.getUuid());
+				    				ugrs.add(ugr);
+				    			}
+				    			usergrouprelationMapper.addUserGroupRelation(ugrs);
+			    }else if(usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() != null && usergroupdto.getDelusers() == null){
+			    				//修改了群描述、增用户
+						    	UserGroup usergroup =new UserGroup();
+								usergroup.setGroupname(usergroupdto.getUsergroup().getGroupname());
+								usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
+								usergroup.setId(usergroupdto.getUsergroup().getId());
+								usergroupMapper.updateByPrimaryKeySelective(usergroup);
+								List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
+				    			List<String> addusers = usergroupdto.getAddusers();
+				    			int groupid = usergroupdto.getUsergroup().getId();
+				    			for(int i=0;i<addusers.size();i++){
+				    				UserGroupRelation ugr = new UserGroupRelation();
+				    				UserExample example = new UserExample();
+				    				example.createCriteria().andUsernameEqualTo(addusers.get(i));
+				    				User user = userMapperNew.selectByExample(example).get(0);
+				    				ugr.setGroupid(groupid);
+				    				ugr.setUserid(user.getUuid());
+				    				ugrs.add(ugr);
+				    			}
+				    			usergrouprelationMapper.addUserGroupRelation(ugrs);
+			    }else if(usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() == null && usergroupdto.getDelusers() != null){
+			    				//修改了群组名、删除用户
+						    	UserGroup usergroup =new UserGroup();
+								usergroup.setGroupname(usergroupdto.getUpdategroupname());
+								usergroup.setUserGroupDescribe(usergroupdto.getUsergroup().getUserGroupDescribe());
+								usergroup.setId(usergroupdto.getUsergroup().getId());
+								usergroupMapper.updateByPrimaryKeySelective(usergroup);	
+								List<String> users = usergroupdto.getDelusers();
+				    			int groupid = usergroupdto.getUsergroup().getId();
+				    			for(int i=0;i<users.size();i++){
+				    				UserGroupRelationExample ugrexample = new UserGroupRelationExample();
+				    				UserExample example = new UserExample();
+				    				example.createCriteria().andUsernameEqualTo(users.get(i));
+				    				User user = userMapperNew.selectByExample(example).get(0);
+				    				Long userid = user.getUuid();
+				    				ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
+				    				usergrouprelationMapper.deleteByExample(ugrexample);
+				    			}
+			    }else if(usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() == null && usergroupdto.getDelusers() != null){
+			    				//修改了群描述、删除用户
+						    	UserGroup usergroup =new UserGroup();
+								usergroup.setGroupname(usergroupdto.getUsergroup().getGroupname());
+								usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
+								usergroup.setId(usergroupdto.getUsergroup().getId());
+								usergroupMapper.updateByPrimaryKeySelective(usergroup);
+								List<String> users = usergroupdto.getDelusers();
+				    			int groupid = usergroupdto.getUsergroup().getId();
+				    			for(int i=0;i<users.size();i++){
+				    				UserGroupRelationExample ugrexample = new UserGroupRelationExample();
+				    				UserExample example = new UserExample();
+				    				example.createCriteria().andUsernameEqualTo(users.get(i));
+				    				User user = userMapperNew.selectByExample(example).get(0);
+				    				Long userid = user.getUuid();
+				    				ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
+				    				usergrouprelationMapper.deleteByExample(ugrexample);
+				    			}
+			    }else if(usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() != null && usergroupdto.getDelusers() == null){
+			    				//修改了群描述、群组名、增加用户
+						    	UserGroup usergroup =new UserGroup();
+								usergroup.setGroupname(usergroupdto.getUpdategroupname());
+								usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
+								usergroup.setId(usergroupdto.getUsergroup().getId());
+								usergroupMapper.updateByPrimaryKeySelective(usergroup);
+								List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
+				    			List<String> addusers = usergroupdto.getAddusers();
+				    			int groupid = usergroupdto.getUsergroup().getId();
+				    			for(int i=0;i<addusers.size();i++){
+				    				UserGroupRelation ugr = new UserGroupRelation();
+				    				UserExample example = new UserExample();
+				    				example.createCriteria().andUsernameEqualTo(addusers.get(i));
+				    				User user = userMapperNew.selectByExample(example).get(0);
+				    				ugr.setGroupid(groupid);
+				    				ugr.setUserid(user.getUuid());
+				    				ugrs.add(ugr);
+				    			}
+				    			usergrouprelationMapper.addUserGroupRelation(ugrs);
+			    }else if(usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() == null && usergroupdto.getDelusers()  != null){
+			    				//修改了群描述、群组名、删除用户
+			    				UserGroup usergroup =new UserGroup();
+								usergroup.setGroupname(usergroupdto.getUpdategroupname());
+								usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
+								usergroup.setId(usergroupdto.getUsergroup().getId());
+								usergroupMapper.updateByPrimaryKeySelective(usergroup);
+								List<String> users = usergroupdto.getDelusers();
+				    			int groupid = usergroupdto.getUsergroup().getId();
+				    			for(int i=0;i<users.size();i++){
+				    				UserGroupRelationExample ugrexample = new UserGroupRelationExample();
+				    				UserExample example = new UserExample();
+				    				example.createCriteria().andUsernameEqualTo(users.get(i));
+				    				User user = userMapperNew.selectByExample(example).get(0);
+				    				Long userid = user.getUuid();
+				    				ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
+				    				usergrouprelationMapper.deleteByExample(ugrexample);
+				    			}
+			    }else if(usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() != null && usergroupdto.getDelusers()  != null){
+			    				//修改了群描述、群组名、增加用户、删除用户
+						    	UserGroup usergroup =new UserGroup();
+								usergroup.setGroupname(usergroupdto.getUpdategroupname());
+								usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
+								usergroup.setId(usergroupdto.getUsergroup().getId());
+								usergroupMapper.updateByPrimaryKeySelective(usergroup);
+								List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
+				    			List<String> addusers = usergroupdto.getAddusers();
+				    			int groupid = usergroupdto.getUsergroup().getId();
+				    			for(int i=0;i<addusers.size();i++){
+				    				UserGroupRelation ugr = new UserGroupRelation();
+				    				UserExample example = new UserExample();
+				    				example.createCriteria().andUsernameEqualTo(addusers.get(i));
+				    				User user = userMapperNew.selectByExample(example).get(0);
+				    				ugr.setGroupid(groupid);
+				    				ugr.setUserid(user.getUuid());
+				    				ugrs.add(ugr);
+				    			}
+				    			usergrouprelationMapper.addUserGroupRelation(ugrs);
+				    			List<String> delusers = usergroupdto.getDelusers();
+				    			for(int i=0;i<delusers.size();i++){
+				    				UserGroupRelationExample ugrexample = new UserGroupRelationExample();
+				    				UserExample example = new UserExample();
+				    				example.createCriteria().andUsernameEqualTo(delusers.get(i));
+				    				User user = userMapperNew.selectByExample(example).get(0);
+				    				Long userid = user.getUuid();
+				    				ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
+				    				usergrouprelationMapper.deleteByExample(ugrexample);
+				    			}
+			    }
+				return ActionReturnUtil.returnSuccess();
+	}
 
-        return ActionReturnUtil.returnSuccess();
-    }
-
-    /**
-     * 查询所有群组信息
-     * 
-     * @param
-     * @return List<UserGroup>
-     */
-    public List<UserGroup> get_groups() throws Exception {
-        UserGroupExample ugexample = new UserGroupExample();
-        List<UserGroup> ugs = usergroupMapper.selectByExample(ugexample);
-        return ugs;
-    }
+	/**
+	 * 查询所有群组信息
+	 * 
+	 * @param 
+	 * @return  List<UserGroup>
+	 */
+	public List<UserGroup> get_groups()throws Exception {
+		UserGroupExample ugexample = new UserGroupExample();
+		List<UserGroup> ugs = usergroupMapper.selectByExample(ugexample);
+		for(int i=0;i<ugs.size();i++){
+			int groupid = ugs.get(i).getId();
+			UserGroupRelationExample  ugrexample = new UserGroupRelationExample();
+			ugrexample.createCriteria().andGroupidEqualTo(groupid);
+			ugs.get(i).setUserNumber(usergrouprelationMapper.selectByExample(ugrexample).size());
+		}
+		return ugs;
+	}
 
     /**
      * 查询群组是否重名

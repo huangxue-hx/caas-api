@@ -11,7 +11,17 @@ public class UserGroup {
     
     private List<User> users;
 
-    public List<User> getUsers() {
+    private int userNumber;
+    
+    public int getUserNumber() {
+		return userNumber;
+	}
+
+	public void setUserNumber(int userNumber) {
+		this.userNumber = userNumber;
+	}
+
+	public List<User> getUsers() {
 		return users;
 	}
 

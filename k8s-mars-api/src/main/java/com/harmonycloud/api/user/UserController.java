@@ -30,6 +30,7 @@ import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.bean.UserGroup;
 import com.harmonycloud.dto.user.SummaryUserInfo;
 import com.harmonycloud.dto.user.UserDetailDto;
+import com.harmonycloud.dto.user.UserGroupDto;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.tenant.UserTenantService;
@@ -567,20 +568,22 @@ public class UserController {
 
     @RequestMapping(value = "/user/group/create_group", method = RequestMethod.POST)
     public @ResponseBody ActionReturnUtil create_group(@ModelAttribute UserGroup usergroup) throws Exception {
-        userService.create_group(usergroup);
-        return ActionReturnUtil.returnSuccess();
+    	return  userService.create_group(usergroup);
     }
 
     @RequestMapping(value = "/user/group/delete_group", method = RequestMethod.DELETE)
     public @ResponseBody ActionReturnUtil delete_group(@RequestParam("groupnames[]") List<String> groupnames) throws Exception {
-        userService.delete_group(groupnames);
-        return ActionReturnUtil.returnSuccess();
+    	return userService.delete_group(groupnames);
     }
 
     @RequestMapping(value = "/user/group/delete_groupbyid", method = RequestMethod.DELETE)
     public @ResponseBody ActionReturnUtil delete_groupbyid(@RequestParam("groupid") int groupid) throws Exception {
-        userService.delete_groupbyid(groupid);
-        return ActionReturnUtil.returnSuccess();
+    	return  userService.delete_groupbyid(groupid);
+    }
+    
+    @RequestMapping(value = "/user/group/changeGroup", method = RequestMethod.PUT)
+    public @ResponseBody ActionReturnUtil updateGroup(@ModelAttribute UserGroupDto usergroupdto) throws Exception {
+    	return userService.updateGroup(usergroupdto);
     }
 
     @RequestMapping(value = "/user/group/search_group", method = RequestMethod.GET)
