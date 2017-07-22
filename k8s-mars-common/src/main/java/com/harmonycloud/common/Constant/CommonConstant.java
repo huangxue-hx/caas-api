@@ -207,4 +207,12 @@ public class CommonConstant {
     public static final Integer STAGE_TEMPLATE_IMAGE = 1;
     public static final Integer STAGE_TEMPLATE_DEPLOY = 2;
     public static final Integer STAGE_TEMPLATE_SCRIPT = 3;
+
+    public static final String LDAP_IP = "ldap_ip";
+    public static final String LDAP_PORT = "ldap_port";
+    public static final String LDAP_BASE = "ldap_base";
+    public static final String LDAP_USERDN = "ldap_userdn";
+    public static final String LDAP_PASSWORD = "ldap_password";
+    public static final String LDAP_IS_ON = "ldap_is_on";
+    public static final String CONFIG_TYPE_LDAP = "ldap";
 }

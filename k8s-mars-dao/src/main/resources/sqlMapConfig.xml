@@ -98,5 +98,6 @@
          <mapper resource="com/harmonycloud/mapping/JobBuildMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/StageBuildMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/FileUploadContainerMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/SystemConfigMapper.xml" />
     </mappers>
 </configuration>
