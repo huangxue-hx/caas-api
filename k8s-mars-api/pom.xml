@@ -61,6 +61,7 @@
                     <include>**/*.properties</include>
                     <!--<include>**/*.so</include>-->
                     <!--<include>**/*.dylib</include>-->
+                    <include>**/*.sh</include>
                 </includes>
                 <filtering>true</filtering>
             </resource>

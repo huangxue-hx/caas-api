@@ -1,38 +1,38 @@
 package com.harmonycloud.api.application;
 
+import java.util.List;
+
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.test.context.ContextConfiguration;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dto.business.ContainerFileUploadDto;
+import com.harmonycloud.dto.business.PodContainerDto;
 import com.harmonycloud.dto.business.Progress;
 import com.harmonycloud.service.application.FileUploadToContainerService;
 /**
- * 
+ *
  * @author jmi
  *
  */
 @RequestMapping("/container")
 @Controller
 public class ContainerFileUploadController {
-	
+
 	@Autowired
 	private FileUploadToContainerService fileUploadToContainerService;
-	
-	@Autowired  
+
+	@Autowired
 	protected  HttpServletRequest request;
 	
 	private ClassLoader classLoader = this.getClass().getClassLoader();
@@ -40,14 +40,23 @@ public class ContainerFileUploadController {
 	@RequestMapping(value="/file/uploadTonode", method = RequestMethod.POST)
 	@ResponseBody
 	public ActionReturnUtil fileUploadToNode(
-            @RequestParam(value="file", required=false) MultipartFile file,
-            @ModelAttribute ContainerFileUploadDto containerFileUploadDto) throws Exception {
+            @RequestParam(value="file") MultipartFile file,
+            @RequestParam(value="pods") String pods,
+            @RequestParam(value="namespace") String namespace,
+            @RequestParam(value="deployment") String deployment,
+            @RequestParam(value="containerFilePath") String containerFilePath) throws Exception {
+		ContainerFileUploadDto containerFileUploadDto = new ContainerFileUploadDto();
+		containerFileUploadDto.setNamespace(namespace);
+		containerFileUploadDto.setContainerFilePath(containerFilePath);
+		containerFileUploadDto.setDeployment(deployment);
+		List<PodContainerDto> podsDto = JsonUtil.jsonToList(pods, PodContainerDto.class);
+		containerFileUploadDto.setPods(podsDto);
 		return fileUploadToContainerService.fileUploadToNode(containerFileUploadDto, file);
 	}
 	
 	@RequestMapping(value="/file/upload", method = RequestMethod.POST)
 	@ResponseBody
-	public ActionReturnUtil fileUpload(@RequestParam(value="file", required=false) MultipartFile file,@ModelAttribute ContainerFileUploadDto containerFileUploadDto) throws Exception {
+	public ActionReturnUtil fileUpload(@ModelAttribute ContainerFileUploadDto containerFileUploadDto) throws Exception {
 		String path = classLoader.getResource("shell/uploadFileToContainer.sh")
 				.getPath();
 		if (StringUtils.isBlank(path)) {
@@ -56,14 +65,14 @@ public class ContainerFileUploadController {
 		return fileUploadToContainerService.fileUploadToContainer(containerFileUploadDto, path);
 	}
 	
-	@RequestMapping(value="/file/upload/queryphase", method = RequestMethod.GET)
+	@RequestMapping(value="/file/upload/status", method = RequestMethod.POST)
 	@ResponseBody
 	public ActionReturnUtil queryFileUploadPhase(@ModelAttribute ContainerFileUploadDto containerFileUploadDto) throws Exception {
 		
 		return fileUploadToContainerService.queryUploadPhase(containerFileUploadDto);
 	}
 	
-	@RequestMapping(value="/file/upload/history", method = RequestMethod.GET)
+	@RequestMapping(value="/file/upload/history", method = RequestMethod.POST)
 	@ResponseBody
 	public ActionReturnUtil getFileUploadHistory(@ModelAttribute ContainerFileUploadDto containerFileUploadDto) throws Exception {
 		

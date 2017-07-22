@@ -15,7 +15,6 @@ import javax.servlet.http.HttpSession;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.aop.ThrowsAdvice;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -27,8 +26,10 @@ import com.harmonycloud.common.util.ESFactory;
 import com.harmonycloud.dao.application.FileUploadContainerMapper;
 import com.harmonycloud.dao.application.bean.FileUploadContainer;
 import com.harmonycloud.dao.application.bean.FileUploadContainerExample;
+import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.business.ContainerFileUploadDto;
 import com.harmonycloud.dto.business.PodContainerDto;
+import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.service.application.FileUploadToContainerService;
 
 /**
@@ -168,6 +169,10 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 			final ContainerFileUploadDto containerFu = containerFileUpload;
 			final PodContainerDto pd = pDto;
 			final String localPath = uploadPath + "/" + containerFu.getNamespace();
+			String username = String.valueOf(session.getAttribute("username"));
+			final String token = String.valueOf(K8SClient.tokenMap.get(username));
+			Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+	        final String server = cluster.getProtocol() + "://" + cluster.getHost() + ":" + cluster.getPort();
 			ESFactory.executor.execute(new Runnable() {
 
 				@Override
@@ -178,11 +183,11 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 							if (containers != null && containers.size() > 0) {
 								for (String c : containers) {
 									doUploadFile(localPath, containerFu.getNamespace(), pd.getName(),
-											containerFu.getContainerFilePath(), c, sPath, id);
+											containerFu.getContainerFilePath(), c, sPath, id, token, server);
 								}
 							} else {
 								doUploadFile(localPath, containerFu.getNamespace(), pd.getName(),
-										containerFu.getContainerFilePath(), null, sPath, id);
+										containerFu.getContainerFilePath(), null, sPath, id, token, server);
 							}
 						}
 					} catch (Exception e) {
@@ -236,9 +241,13 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 	@Override
 	public ActionReturnUtil lsContainerFile(String namespace, String containerFilePath, String container, String pod,
 			String shellPath) throws Exception {
-		ProcessBuilder proc = new ProcessBuilder("bash", shellPath, pod, containerFilePath, namespace);
+		String username = String.valueOf(session.getAttribute("username"));
+		String token = String.valueOf(K8SClient.tokenMap.get(username));
+		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+        String server = cluster.getProtocol() + "://" + cluster.getHost() + ":" + cluster.getPort();
+		ProcessBuilder proc = new ProcessBuilder("bash", shellPath, pod, containerFilePath, namespace, token, server);
 		if (StringUtils.isNotBlank(container)) {
-			proc = new ProcessBuilder("bash", shellPath, pod, containerFilePath, namespace, container);
+			proc = new ProcessBuilder("bash", shellPath, pod, containerFilePath, namespace, container, token, server);
 		}
 		Process p = proc.start();
 		String res = null;
@@ -282,17 +291,17 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 	}
 
 	private void doUploadFile(String localPath, String namespace, String pod, String containerPath, String container,
-			String shellPath, Integer id) throws Exception {
+			String shellPath, Integer id, String token, String server) throws Exception {
 		FileUploadContainer fileUpload = fileUploadContainerMapper.selectByPrimaryKey(id);
 		try {
 			fileUpload.setPhase(2);
 			fileUpload.setStatus("doing");
 			fileUploadContainerMapper.updateByPrimaryKeySelective(fileUpload);
 			ProcessBuilder proc = new ProcessBuilder("sh", shellPath, localPath + "/" + fileUpload.getFileName(),
-					namespace, pod, containerPath);
+					namespace, pod, containerPath, token, server);
 			if (StringUtils.isNotBlank(container)) {
 				proc = new ProcessBuilder("sh", shellPath, localPath + "/" + fileUpload.getFileName(), namespace, pod,
-						containerPath, container);
+						containerPath, container, token, server);
 			}
 
 			Process p = proc.start();
