@@ -12,7 +12,7 @@ import java.text.SimpleDateFormat;
  */
 public class SearchResult implements Comparable<SearchResult>{
     private String user;      //用户
-//    private String tenant;  
+    private String tenant;  
     private String module;    //模块
     private String opFun;     //接口调用模块方法
     private String method;    //http请求方法
@@ -22,6 +22,7 @@ public class SearchResult implements Comparable<SearchResult>{
     private String response;        //http请求结果
     private String remoteIp;        //访问IP
     private String path;            //http请求路径
+    private String subject;         //主体对象
 
     public String getUser() {
         return user;
@@ -123,6 +124,22 @@ public class SearchResult implements Comparable<SearchResult>{
 
 	public void setPath(String path) {
 		this.path = path;
+	}
+
+	public String getSubject() {
+		return subject;
+	}
+
+	public void setSubject(String subject) {
+		this.subject = subject;
+	}
+
+	public String getTenant() {
+		return tenant;
+	}
+
+	public void setTenant(String tenant) {
+		this.tenant = tenant;
 	}
 
 }
