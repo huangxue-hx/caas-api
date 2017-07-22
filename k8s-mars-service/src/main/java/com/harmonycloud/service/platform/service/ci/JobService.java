@@ -30,7 +30,7 @@ public interface JobService {
 
     ActionReturnUtil credentialsValidate(String repositoryType, String repositoryUrl, String username, String password);
 
-    ActionReturnUtil getBuildDetail(String tenantName, String jobName, String buildNum);
+    ActionReturnUtil getBuildList(Integer id);
 
     void sendMessage(WebSocketSession session, String jobName, String buildNum);
 
@@ -44,4 +44,6 @@ public interface JobService {
     ActionReturnUtil updateTrigger(Job jobDto);
 
     void postBuild(Integer id, Integer buildNum);
+
+    void stageSync(Integer id, Integer buildNum, Integer stageOrder);
 }

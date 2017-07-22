@@ -11,4 +11,8 @@ import java.util.List;
 public interface StageBuildMapper {
     List<StageBuild> queryByObject(StageBuild stageBuild);
     void insert(StageBuild stageBuild);
+
+    void updateByStageNameAndBuildNum(@Param("stageBuild")StageBuild stageBuild, @Param("stageName")String stageName);
+
+    void updateWaitingStage(@Param("jobId")Integer jobId, @Param("buildNum")Integer buildNum);
 }

@@ -909,6 +909,22 @@ public class DateUtil {
      return new Date(millSec);
     }
 
+    public static String getDuration(Long millSec){
+        long days = millSec / (1000 * 60 * 60 * 24);
+        long hours = (millSec % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60);
+        long minutes = (millSec % (1000 * 60 * 60)) / (1000 * 60);
+        double secondsD = (millSec % (1000 * 60)) / 1000.0;
+        long secondsL = (millSec % (1000 * 60)) / 1000;
+        String seconds = days > 0 || hours > 0 || minutes > 0?String.valueOf(secondsL):String.valueOf(secondsD);
+        return (days>0 ? days + "天":"") + (hours>0?hours + "小时":"") + (minutes>0? minutes + "分":"")
+                + seconds + "秒";
+    }
+
+    public static String getDuration(String millSecStr){
+        return getDuration(Long.valueOf(millSecStr));
+    }
+
+
     public static void main(String[] args){
 //    	Long currentTime = System.currentTimeMillis();
 //    	System.out.println(LongToDate(currentTime));

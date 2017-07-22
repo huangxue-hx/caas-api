@@ -5,9 +5,11 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpJenkinsClientUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.TemplateUtil;
+import com.harmonycloud.dao.ci.StageBuildMapper;
 import com.harmonycloud.dao.ci.StageMapper;
 import com.harmonycloud.dao.ci.StageTypeMapper;
 import com.harmonycloud.dao.ci.bean.Stage;
+import com.harmonycloud.dao.ci.bean.StageBuild;
 import com.harmonycloud.dao.ci.bean.StageType;
 import com.harmonycloud.dto.cicd.StageDto;
 import com.harmonycloud.service.platform.client.HarborClient;
@@ -34,6 +36,8 @@ public class StageServiceImpl implements StageService {
     @Autowired
     StageTypeMapper stageTypeMapper;
 
+    @Autowired
+    StageBuildMapper stageBuildMapper;
 
 
     @Override
@@ -125,6 +129,24 @@ public class StageServiceImpl implements StageService {
         }
         stageTypeMapper.deleteStageType(id);
         return ActionReturnUtil.returnSuccess();
+    }
+
+    @Override
+    public ActionReturnUtil getBuildList(Integer id) {
+        List stageBuildMapList = new ArrayList<>();
+        StageBuild stageBuildCondition = new StageBuild();
+        stageBuildCondition.setStageId(id);
+        List<StageBuild> stageBuildList = stageBuildMapper.queryByObject(stageBuildCondition);
+        for(StageBuild stageBuild:stageBuildList) {
+            Map stageBuildMap = new HashMap<>();
+            stageBuildMap.put("buildStatus", stageBuild.getStatus());
+            stageBuildMap.put("buildNum", stageBuild.getBuildNum());
+            stageBuildMap.put("buildTime", stageBuild.getStartTime());
+            stageBuildMap.put("duration", stageBuild.getDuration());
+            stageBuildMap.put("log", stageBuild.getLog());
+            stageBuildMapList.add(stageBuildMap);
+        }
+        return ActionReturnUtil.returnSuccessWithData(stageBuildMapList);
     }
 
     private String generateScript(StageDto stageDto) throws Exception {

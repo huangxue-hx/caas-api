@@ -16,6 +16,14 @@
         ORDER BY id
     </select>
 
+    <select id="queryByTenant" resultMap="BaseResultMap">
+        SELECT st.id,st.name,st.user_defined,st.template_type
+        FROM cicd_stage_type st
+        LEFT JOIN tenant_binding tb ON st.tenant_id=tb.tenant_id
+        WHERE tb.tenant_name =#{tenent} or st.tenant_id is NULL
+        ORDER BY id
+    </select>
+
     <insert id="insertStageType" parameterType="com.harmonycloud.dao.ci.bean.StageType">
         INSERT INTO cicd_stage_type(name,user_defined,tenant_id,template_type)
         VALUES(#{name},#{userDefined},#{tenantId},#{templateType})

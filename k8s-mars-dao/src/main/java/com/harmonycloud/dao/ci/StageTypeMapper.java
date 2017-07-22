@@ -11,4 +11,6 @@ public interface StageTypeMapper {
     void insertStageType(StageType stageType);
     void deleteStageType(Integer id);
     List<StageType> queryByTenantId(String tenantId);
+
+    List<StageType> queryByTenant(String tenant);
 }

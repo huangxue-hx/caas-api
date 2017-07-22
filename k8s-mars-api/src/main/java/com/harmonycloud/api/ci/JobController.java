@@ -1,10 +1,9 @@
 package com.harmonycloud.api.ci;
 
-import com.harmonycloud.common.util.*;
+import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.ci.bean.Job;
 import com.harmonycloud.dto.cicd.JobDto;
 import com.harmonycloud.service.platform.service.ci.JobService;
-import com.harmonycloud.service.platform.serviceImpl.ci.JobServiceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -79,11 +78,11 @@ public class JobController {
         return jobService.getJobDetail(id);
     }
 
-    @RequestMapping(value = "/buildDetail", method = RequestMethod.GET)
+    @RequestMapping(value = "/buildList", method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil getBuildDetail(@RequestParam(value="tenant") String tenantName, @RequestParam(value="name") String jobName, @RequestParam(value="buildNum") String buildNum){
+    public ActionReturnUtil getBuildDetail(@RequestParam(value="id") Integer id){
         logger.info("get build detail.");
-        return jobService.getBuildDetail(tenantName, jobName, buildNum);
+        return jobService.getBuildList(id);
     }
 
     @RequestMapping(value = "/build", method = RequestMethod.POST)

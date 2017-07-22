@@ -35,7 +35,7 @@
         WHERE id = #{id}
     </select>
 
-    <insert id="insertJob" parameterType="com.harmonycloud.dao.ci.bean.Job">
+    <insert id="insertJob" parameterType="com.harmonycloud.dao.ci.bean.Job" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO cicd_job (name,tenant,notification,success_notification,fail_notification,mail,create_user,create_time)
         VALUE (#{name},#{tenant},#{notification},#{successNotification},#{failNotification},#{mail},#{createUser},#{createTime})
     </insert>

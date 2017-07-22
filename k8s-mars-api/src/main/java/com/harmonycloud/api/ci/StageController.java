@@ -66,6 +66,16 @@ public class StageController {
         }
     }
 
+    @RequestMapping(value = "/buildList", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil listStageBuildList(@RequestParam(value="id") Integer id){
+        try{
+            return stageService.getBuildList(id);
+        }catch(Exception e){
+            return ActionReturnUtil.returnError();
+        }
+    }
+
     @RequestMapping(value = "/type", method = RequestMethod.POST)
     @ResponseBody
     public ActionReturnUtil addStageType(@RequestBody StageType stageType){
