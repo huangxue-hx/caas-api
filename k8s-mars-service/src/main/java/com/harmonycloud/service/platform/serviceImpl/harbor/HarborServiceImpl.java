@@ -2,12 +2,13 @@ package com.harmonycloud.service.platform.serviceImpl.harbor;
 
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
+import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.tenant.bean.HarborProjectTenant;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.service.tenant.TenantService;
-import net.sf.json.JSONObject;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.service.platform.bean.*;
@@ -24,17 +25,20 @@ import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.platform.client.HarborClient;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.harbor.HarborService;
+import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import com.harmonycloud.service.platform.bean.HarborManifest;
 //import com.harmonycloud.service.platform.bean.HarborManifest;
 import com.harmonycloud.service.platform.integrationService.HarborIntegrationService;
 import com.harmonycloud.dao.tenant.HarborProjectTenantMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 /**
  * Created by zsl on 2017/1/18.
  */
 @Service
 public class HarborServiceImpl implements HarborService {
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(HarborServiceImpl.class);
     @Autowired
     HarborUtil harborUtil;
     @Autowired
@@ -798,6 +802,72 @@ public class HarborServiceImpl implements HarborService {
             }
         }
        return ActionReturnUtil.returnSuccessWithData(projectRepoList);
+    }
+
+    /**
+     * 查询指定租户的默认镜像
+     *
+     * @return
+     * @throws Exception
+     */
+    public ActionReturnUtil getDefaultImageByTenantID(String tenantID, String projectName, String repoName) throws Exception {
+        //获取tenant的projectList
+        List<HarborProjectTenant> harborProjectTenantList = harborProjectTenantMapper.getByTenantId(tenantID);
+        if(CollectionUtils.isEmpty(harborProjectTenantList)){
+            return ActionReturnUtil.returnSuccessWithData(Collections.emptyList());
+        }
+        List<HarborProjectInfo> projectRepoList = new ArrayList<>();
+        if(StringUtils.isBlank(projectName)){
+            projectName = harborProjectTenantList.get(0).getHarborProjectName();
+        }
+        for(int i=0; i<harborProjectTenantList.size(); i++) {
+            HarborProjectTenant harborProjectTenant = harborProjectTenantList.get(i);
+            HarborProjectInfo projectInfo = new HarborProjectInfo();
+            projectInfo.setProject_name(harborProjectTenant.getHarborProjectName());
+            projectRepoList.add(projectInfo);
+            //只查询具体某一个project的镜像信息，如果查询条件projectName不为空，则使用参数，否则默认取第一条
+            if (!projectName.equalsIgnoreCase(harborProjectTenant.getHarborProjectName())) {
+                continue;
+            }
+            ActionReturnUtil repoResponse = repoListById(Integer.parseInt(harborProjectTenant.getHarborProjectId().toString()));
+            if ((boolean) repoResponse.get("success") == true) {
+                List<String> repoList = JsonUtil.jsonToList(repoResponse.get("data").toString(), String.class);
+                if (CollectionUtils.isEmpty(repoList)) {
+                    return ActionReturnUtil.returnSuccessWithData(Collections.emptyList());
+                }
+                List<HarborRepositoryMessage> repositoryMessagesList = new ArrayList<>();
+                if(StringUtils.isBlank(repoName)){
+                    repoName = repoList.get(0);
+                }
+                for(int j=0; j<repoList.size(); j++) {
+                    String repositoryName = repoList.get(j);
+                    HarborRepositoryMessage harborRepository = new HarborRepositoryMessage();
+                    harborRepository.setRepository(repositoryName);
+                    if(repositoryName.equals(repoName)) {
+                        ActionReturnUtil tagResponse = getTagsByRepoName(repositoryName);
+                        if ((boolean) tagResponse.get("success") == true) {
+                            if (tagResponse.get("data") != null) {
+                                List<HarborRepositoryTags> tags = getRepoTagList(tagResponse.get("data").toString());
+                                List<String> tagNames = tags.stream()
+                                        .map(HarborRepositoryTags::getTag).collect(Collectors.toList());
+                                harborRepository.setTags(tagNames);
+                            }
+                        } else {
+                            LOGGER.error("getTagsByRepoName error. repositoryName:{}, message:{}",
+                                    repositoryName, JSONObject.toJSONString(tagResponse));
+                            return tagResponse;
+                        }
+                    }
+                    repositoryMessagesList.add(harborRepository);
+                }
+                projectInfo.setHarborRepositoryMessagesList(repositoryMessagesList);
+            } else {
+                LOGGER.error("repoListById error. projectId:{},message:{}",
+                        harborProjectTenant.getHarborProjectId(), JSONObject.toJSONString(repoResponse));
+                return repoResponse;
+            }
+        }
+        return ActionReturnUtil.returnSuccessWithData(projectRepoList);
     }
 
     /*
