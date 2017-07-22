@@ -69,4 +69,12 @@ public class NodeInstallProgressServiceImpl implements NodeInstallProgressServic
         }
         return returnStr;
     }
+
+    @Override
+    public void cancelAddNode(Integer id) throws Exception {
+        NodeInstallProgress installProgress = nodeInstallProgressMapper.selectByPrimaryKey(id);
+        installProgress.setInstallStatus("cancel");
+        nodeInstallProgressMapper.updateByPrimaryKey(installProgress);
+    }
+    
 }

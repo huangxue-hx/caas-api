@@ -54,5 +54,12 @@ public interface NodeInstallProgressService {
 	 * @throws Exception
 	 */
 	public String getOnLineErrorStatus() throws Exception;
+	/**
+	 * 取消错误的上线状态
+	 * @param id
+	 * @return
+	 * @throws Exception
+	 */
+	public void cancelAddNode(Integer id) throws Exception;
 
 }

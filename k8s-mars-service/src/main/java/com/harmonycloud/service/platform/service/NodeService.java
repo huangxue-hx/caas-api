@@ -118,4 +118,11 @@ public interface NodeService {
      * @throws Exception
      */
     public ActionReturnUtil updateShareToNode(String nodeName,String clusterId) throws Exception;
+    /**
+     * 取消上线错误状态
+     * @param id
+     * @return
+     * @throws Exception
+     */
+    public ActionReturnUtil cancelAddNode(Integer id) throws Exception;
 }

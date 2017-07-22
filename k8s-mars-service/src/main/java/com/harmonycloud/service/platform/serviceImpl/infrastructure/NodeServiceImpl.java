@@ -852,5 +852,11 @@ public class NodeServiceImpl implements NodeService {
         }
         return ActionReturnUtil.returnErrorWithMsg(updateNode.getBody());
     }
+
+    @Override
+    public ActionReturnUtil cancelAddNode(Integer id) throws Exception {
+        this.nodeInstallProgressService.cancelAddNode(id);
+        return ActionReturnUtil.returnSuccess();
+    }
     
 }

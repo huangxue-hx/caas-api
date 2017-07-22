@@ -215,4 +215,10 @@ public class NodeController {
         ActionReturnUtil updateShareToNode = this.nodeService.updateShareToNode(nodeName,clusterId);
         return  ActionReturnUtil.returnSuccessWithData(updateShareToNode);
     }
+    @ResponseBody
+    @RequestMapping(value = "/node/cancelAddNode", method = RequestMethod.PUT)
+    public ActionReturnUtil cancelAddNode(Integer id) throws Exception {
+        ActionReturnUtil updateShareToNode = this.nodeService.cancelAddNode(id);
+        return  ActionReturnUtil.returnSuccessWithData(updateShareToNode);
+    }
 }
