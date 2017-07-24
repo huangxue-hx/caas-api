@@ -197,7 +197,7 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 				}
 			});
 		}
-		ESFactory.executor.shutdown();
+		//ESFactory.executor.shutdown();
 		return ActionReturnUtil.returnSuccess();
 	}
 
@@ -247,7 +247,7 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
         String server = cluster.getProtocol() + "://" + cluster.getHost() + ":" + cluster.getPort();
 		ProcessBuilder proc = new ProcessBuilder("bash", shellPath, pod, containerFilePath, namespace, token, server);
 		if (StringUtils.isNotBlank(container)) {
-			proc = new ProcessBuilder("bash", shellPath, pod, containerFilePath, namespace, container, token, server);
+			proc = new ProcessBuilder("bash", shellPath, pod, containerFilePath, namespace, token, server, container);
 		}
 		Process p = proc.start();
 		String res = null;
@@ -301,7 +301,7 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 					namespace, pod, containerPath, token, server);
 			if (StringUtils.isNotBlank(container)) {
 				proc = new ProcessBuilder("sh", shellPath, localPath + "/" + fileUpload.getFileName(), namespace, pod,
-						containerPath, container, token, server);
+						containerPath, token, server ,container);
 			}
 
 			Process p = proc.start();
@@ -319,11 +319,19 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 			// 0代表成功, 更新数据库
 			if (runningStatus == 0) {
 				fileUpload.setStatus("success");
+				String path = localPath + "/" + fileUpload.getFileName();
+				File file = new File(path);
+				if (file.isFile() && file.exists()) {
+					file.delete();
+				} 
 			} else {
 				fileUpload.setStatus("failed");
+				fileUpload.setErrMsg(res);
 			}
+			fileUploadContainerMapper.updateByPrimaryKeySelective(fileUpload);
 		} catch (Exception e) {
 			fileUpload.setStatus("failed");
+			fileUpload.setErrMsg(e.getMessage());
 			fileUploadContainerMapper.updateByPrimaryKeySelective(fileUpload);
 			throw e;
 		}
