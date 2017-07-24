@@ -78,16 +78,7 @@ public class UserController {
      */
     @ResponseBody
     @RequestMapping(value = "/user/adduser", method = RequestMethod.POST)
-    public ActionReturnUtil addUser(@RequestParam(value = "userName") String userName, @RequestParam(value = "Password") String password,
-            @RequestParam(value = "email") String email, @RequestParam(value = "realName") String realName, @RequestParam(value = "Comment") String comment) throws Exception {
-        User user = new User();
-        user.setUsername(userName);
-        user.setPassword(password);
-        user.setEmail(email);
-        user.setRealName(realName);
-        if (comment == null || !"undefined".equals(comment)) {
-            user.setComment(comment);
-        }
+    public ActionReturnUtil addUser(@ModelAttribute User user) throws Exception {
         return userService.addUser(user);
     }
 

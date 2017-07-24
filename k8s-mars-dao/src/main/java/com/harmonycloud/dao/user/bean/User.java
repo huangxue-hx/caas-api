@@ -33,9 +33,20 @@ public class User implements Serializable {
     private Date tokenCreate;
     private Date leftTime;
     private Date rightTime;
+    private String phone;
     
-   
-    
+	public String getTenantid() {
+		return tenantid;
+	}
+	public void setTenantid(String tenantid) {
+		this.tenantid = tenantid;
+	}
+	public String getPhone() {
+		return phone;
+	}
+	public void setPhone(String phone) {
+		this.phone = phone;
+	}
 	public Long getUuid() {
         return uuid;
     }

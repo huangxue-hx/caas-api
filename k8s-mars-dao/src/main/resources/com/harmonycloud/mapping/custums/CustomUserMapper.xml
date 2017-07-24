@@ -36,8 +36,8 @@
     </select>
 
     <insert id="addUser" parameterType="com.harmonycloud.dao.user.bean.User">
-		insert into user(uuid,username,password,create_time,real_name,update_time,email,comment,pause)
-		values(#{id},#{username},#{password},#{createTime},#{realName},#{updateTime},#{email},#{comment},#{pause})
+		insert into user(uuid,username,password,create_time,real_name,update_time,email,comment,pause,phone)
+		values(#{id},#{username},#{password},#{createTime},#{realName},#{updateTime},#{email},#{comment},#{pause},#{phone})
 	</insert>
 
     <delete id="deleteUserByName" parameterType="java.lang.String">
