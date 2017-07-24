@@ -4,6 +4,7 @@ import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.business.DeployedServiceNamesDto;
+import com.harmonycloud.dto.business.ServiceDeployDto;
 import com.harmonycloud.dto.business.ServiceTemplateDto;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.service.application.ServiceService;
@@ -190,6 +191,55 @@ public class ServiceController {
             @RequestParam(value = "searchvalue", required = false) String searchValue, @RequestParam(value = "tenant", required = false) String tenant) throws Exception {
         logger.info("delete service template");
         return serviceService.listServiceTemplate(searchKey, searchValue, tenant);
+    }
+    
+    /**
+     * deploy service template on 17/05/05.
+     *
+     * @param name
+     * 
+     * @param tag
+     * 
+     * @param namspace
+     *
+     * @return ActionReturnUtil
+     *
+     */
+    @ResponseBody
+    @RequestMapping(value = "/deploy/name", method = RequestMethod.POST)
+    public ActionReturnUtil deployServiceTemplateByName(@RequestParam(value = "name", required = true) String name,
+            @RequestParam(value = "namespace", required = true) String namespace, @RequestParam(value = "tag", required = true ) String tag) throws Exception {
+        logger.info("deploy service template");
+        String userName = (String) session.getAttribute("username");
+        if(userName == null){
+			throw new K8sAuthException(Constant.HTTP_401);
+		}
+		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+        return serviceService.deployServiceByname(name, tag, namespace, cluster, userName);
+    }
+    
+    /**
+     * deploy service template on 17/05/05.
+     *
+     * @param name
+     * 
+     * @param tag
+     * 
+     * @param namspace
+     *
+     * @return ActionReturnUtil
+     *
+     */
+    @ResponseBody
+    @RequestMapping(value = "/deploy", method = RequestMethod.POST)
+    public ActionReturnUtil deployServiceTemplate(@ModelAttribute ServiceDeployDto serviceDeploy) throws Exception {
+        logger.info("deploy service template");
+        String userName = (String) session.getAttribute("username");
+        if(userName == null){
+			throw new K8sAuthException(Constant.HTTP_401);
+		}
+		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+        return serviceService.deployService(serviceDeploy, cluster, userName);
     }
 
 }
