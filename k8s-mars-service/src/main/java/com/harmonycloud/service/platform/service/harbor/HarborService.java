@@ -146,4 +146,7 @@ public interface HarborService {
      * @throws Exception
      */
     ActionReturnUtil getImageByTenantID(String tenantID) throws Exception;
+
+    ActionReturnUtil getDefaultImageByTenantID(String tenantID, String projectName, String repoName) throws Exception;
+
 }

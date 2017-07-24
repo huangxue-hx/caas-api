@@ -226,6 +226,24 @@ public class HarborController {
         }
     }
 
+    /**查询满足条件的默认一个镜像
+     *
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/harborImage/search/first", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getFirstImageByTenantID(@RequestParam(value="tenantID") String tenantID,
+                                                    @RequestParam(value="projectName", required = false) String projectName,
+                                                    @RequestParam(value="repoName", required = false) String repoName)throws Exception{
+        try {
+            return this.harborServiceImpl.getDefaultImageByTenantID(tenantID, projectName, repoName);
+        } catch (Exception e) {
+            logger.info("查询租户的第一个镜像失败:tenantID="+tenantID);
+            throw e;
+        }
+    }
+
 }
 
 

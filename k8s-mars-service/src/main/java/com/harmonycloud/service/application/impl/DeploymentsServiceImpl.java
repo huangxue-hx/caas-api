@@ -40,7 +40,7 @@ import java.util.*;
 @Service
 public class DeploymentsServiceImpl implements DeploymentsService {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DeploymentsServiceImpl.class);
-    private static final int MAX_LOG_LINES = 10000;
+    private static final int MAX_LOG_LINES = 2000;
 	@Autowired
 	WatchService watchService;
 
