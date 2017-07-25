@@ -1,8 +1,12 @@
 package com.harmonycloud.service.platform.service.harbor;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.service.platform.bean.HarborLog;
 import com.harmonycloud.service.platform.bean.HarborProject;
 import com.harmonycloud.service.platform.bean.HarborProjectQuota;
+
+import java.util.List;
+
 /**
  * Created by zsl on 2017/1/18.
  * harbor常规接口
@@ -148,5 +152,8 @@ public interface HarborService {
     ActionReturnUtil getImageByTenantID(String tenantID) throws Exception;
 
     ActionReturnUtil getDefaultImageByTenantID(String tenantID, String projectName, String repoName) throws Exception;
+
+    List<HarborLog> projectOperationLogs(Integer projectId, Integer begin, Integer end,
+                                         String keywords) throws Exception;
 
 }

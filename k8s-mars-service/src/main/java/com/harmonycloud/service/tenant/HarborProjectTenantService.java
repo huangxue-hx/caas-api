@@ -15,7 +15,7 @@ public interface HarborProjectTenantService {
 
     HarborProjectTenant getByHarborProjectId(Long harborProjectTenantId) throws Exception;
 
-    List<HarborProjectTenant> harborProjectList() throws Exception;
+    List<HarborProjectTenant> harborProjectList();
 
     int create(String harborProjectId, String tenantId, String name,Integer isPublic) throws Exception;
 

@@ -89,7 +89,7 @@ public class HarborProjectTenantServiceImpl implements HarborProjectTenantServic
         return byHarborProjectId;
     }
     @Override
-    public List<HarborProjectTenant> harborProjectList() throws Exception {
+    public List<HarborProjectTenant> harborProjectList(){
         return harborProjectTenantMapper.list();
     }
     @Override

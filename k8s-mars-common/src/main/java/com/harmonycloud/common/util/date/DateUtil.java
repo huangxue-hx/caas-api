@@ -1,10 +1,14 @@
 package com.harmonycloud.common.util.date;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class DateUtil {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(DateUtil.class);
     /**
      * 通用的一个DateFormat
      */
@@ -251,6 +255,30 @@ public class DateUtil {
             try{
                 myDate = getDateFormat(parttern).parse(date);
             }catch(Exception e){
+            }
+        }
+        return myDate;
+    }
+
+    /**
+     * 将日期字符串转化为日期。失败返回null。
+     *
+     * @param date
+     *            日期字符串
+     * @param pattern
+     *            日期格式
+     * @return 日期
+     */
+    public static Date stringToDate(String date, String pattern, String timeZone){
+        Date myDate = null;
+        if(date != null){
+            try{
+                SimpleDateFormat format = getDateFormat(pattern);
+                format.setTimeZone(TimeZone.getTimeZone(timeZone));;
+                myDate = format.parse(date);
+            }catch(Exception e){
+                LOGGER.error("转换日期失败, date:{}",date, e);
+                return null;
             }
         }
         return myDate;
