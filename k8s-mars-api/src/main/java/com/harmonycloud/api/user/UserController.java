@@ -347,7 +347,7 @@ public class UserController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/user/updateUserStatusPause", method = RequestMethod.GET)
+    @RequestMapping(value = "/user/updateUserStatusPause", method = RequestMethod.PUT)
     public @ResponseBody ActionReturnUtil updateUserStatusPause(@RequestParam(value = "username") String username) throws Exception {
         User user = userService.updateUserStatus(username, CommonConstant.PAUSE);
         if (user == null) {
@@ -363,7 +363,7 @@ public class UserController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/user/updateUserStatusNormal", method = RequestMethod.GET)
+    @RequestMapping(value = "/user/updateUserStatusNormal", method = RequestMethod.PUT)
     public @ResponseBody ActionReturnUtil updateUserStatusNormal(@RequestParam(value = "username") String username) throws Exception {
         User user = userService.updateUserStatus(username, CommonConstant.NORMAL);
         if (user == null) {
@@ -379,7 +379,7 @@ public class UserController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/user/updateUserToAdmin", method = RequestMethod.GET)
+    @RequestMapping(value = "/user/updateUserToAdmin", method = RequestMethod.PUT)
     public @ResponseBody ActionReturnUtil updateUserToAdmin(@RequestParam(value = "username") String username) throws Exception {
         Object user = session.getAttribute("username");
         if (user == null) {
@@ -396,7 +396,7 @@ public class UserController {
         return ActionReturnUtil.returnSuccess();
 
     }
-    @RequestMapping(value = "/user/updateAdminToNormal", method = RequestMethod.GET)
+    @RequestMapping(value = "/user/updateAdminToNormal", method = RequestMethod.PUT)
     public @ResponseBody ActionReturnUtil updateAdminToNormal(@RequestParam(value = "username") String username) throws Exception {
         Object user = session.getAttribute("username");
         if (user == null) {
