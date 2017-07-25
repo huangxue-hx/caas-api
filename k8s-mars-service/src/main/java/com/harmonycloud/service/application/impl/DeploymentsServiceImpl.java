@@ -6,6 +6,7 @@ import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.business.CreateConfigMapDto;
 import com.harmonycloud.dto.business.CreateContainerDto;
 import com.harmonycloud.dto.business.DeploymentDetailDto;
+import com.harmonycloud.dto.business.ParsedIngressListDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
@@ -14,6 +15,7 @@ import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.DeploymentsService;
+import com.harmonycloud.service.application.RouterService;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
@@ -64,6 +66,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
 	@Autowired
 	ReplicasetsService rsService;
+
+	@Autowired
+	RouterService routerService;
 
 	@Autowired
 	HttpSession session;
@@ -918,6 +923,22 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		if (!HttpStatusUtil.isSuccessStatus(ingRes.getStatus()) && ingRes.getStatus() != Constant.HTTP_404) {
 			UnversionedStatus sta = JsonUtil.jsonToPojo(ingRes.getBody(), UnversionedStatus.class);
 			return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
+		}
+
+		//delete database port
+		ParsedIngressListDto ingress = new ParsedIngressListDto();
+		ingress.setNamespace(namespace);
+		ingress.setLabels(dep.getSpec().getTemplate().getMetadata().getLabels());
+		List<RouterSvc> routerSvcs = (List<RouterSvc>)routerService.listSvcByName(ingress).get("data");
+
+		if (routerSvcs != null && routerSvcs.size() > 0){
+			String tenantID = session.getAttribute("tenantId").toString();
+			for (RouterSvc onerouterSvcs:routerSvcs){
+				for (int i=0;onerouterSvcs.getRules().size() > i ;i++){
+					routerService.deleteTcpSvc(namespace,onerouterSvcs.getName(),onerouterSvcs.getRules().get(i).getPort().toString(),tenantID);
+				}
+
+			}
 		}
 
 		// 循环删除service

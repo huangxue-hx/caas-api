@@ -31,6 +31,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import javax.servlet.http.HttpSession;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -53,6 +54,9 @@ public class RouterServiceImpl implements RouterService {
 	
 	@Autowired
     private NodePortClusterMapper npcMapper;
+
+	@Autowired
+	HttpSession session;
 
 	@Value("#{propertiesReader['clusterHost.hostname']}")
 	private String hostName;
@@ -332,15 +336,44 @@ public class RouterServiceImpl implements RouterService {
 		serviceSpec.setPorts(ports);
 		if (svcRouter.getRules() != null && !svcRouter.getRules().isEmpty()) {
 			List<TcpRuleDto> rules = svcRouter.getRules();
+			List<TcpRuleDto> rulesNew = new ArrayList<>();
+
+			Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+			String tenantID = (String) session.getAttribute("tenantId");
+
 			for (int i = 0; i < rules.size(); i++) {
 				TcpRuleDto rule = rules.get(i);
 				ServicePort servicePort = new ServicePort();
 				servicePort.setName(svcRouter.getName() + "-port" + i);
 				servicePort.setProtocol(rule.getProtocol());
-				servicePort.setPort(Integer.valueOf(rule.getPort()));
+
+
+				if (rule.getPort()!= null){
+					servicePort.setPort(Integer.valueOf(rule.getPort()));
+					NodePortCluster npCluster = new NodePortCluster();
+					npCluster.setClusterid(Integer.valueOf((cluster.getId().toString())));
+					npCluster.setNodeportid(Integer.valueOf(rule.getPort()));
+					npCluster.setStatus(2);
+					npcMapper.insert(npCluster);
+					servicePort.setTargetPort(Integer.valueOf(rule.getTargetPort()));
+					ports.add(servicePort);
+				} else {
+					rulesNew.add(rules.get(i));
+//					String tenantID = (String) session.getAttribute("tenantId");
+//					servicePort.setPort(Integer.valueOf((String) getPort(tenantID).get("msg")));
+				}
+			}
+
+			for (int i = 0; i < rulesNew.size(); i++){
+				TcpRuleDto rule = rules.get(i);
+				ServicePort servicePort = new ServicePort();
+				servicePort.setName(svcRouter.getName() + "-port" + i);
+				servicePort.setProtocol(rule.getProtocol());
+				servicePort.setPort(Integer.valueOf((String) getPort(tenantID).get("msg")));
 				servicePort.setTargetPort(Integer.valueOf(rule.getTargetPort()));
 				ports.add(servicePort);
 			}
+
 			serviceSpec.setPorts(ports);
 		}
 		//selector

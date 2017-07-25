@@ -316,6 +316,7 @@ public class UserController {
             throw new K8sAuthException(Constant.HTTP_401);
         }
 
+        session.setAttribute("tenantId", tenantid);
         Cluster cluster = this.tenantService.getClusterByTenantid(tenantid);
         session.setAttribute("currentCluster", cluster);
 
