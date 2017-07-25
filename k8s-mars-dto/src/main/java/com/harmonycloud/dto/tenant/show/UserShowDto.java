@@ -9,6 +9,8 @@ import java.util.Map;
  */
 public class UserShowDto {
 
+    private Long id;
+
     private String name;
 
     private String email;
@@ -24,6 +26,14 @@ public class UserShowDto {
     private String updateTime;
     
     private String pause;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
 
     public String getPause() {
         return pause;
@@ -87,5 +97,5 @@ public class UserShowDto {
 
     public void setComment(String comment) {
         this.comment = comment;
-    }    
+    }
 }
