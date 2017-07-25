@@ -77,11 +77,11 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
         if (searchType == null || userName == null || password == null || object_class == null) {
             throw new RuntimeException();
         }
-        if (!this.isUserInLdap(userName, password, ldapConfigDto)) {
-            return null;
-        }
         if (Objects.equals("admin", userName)) {
             return "admin";
+        }
+        if (!this.isUserInLdap(userName, password, ldapConfigDto)) {
+            return null;
         }
         // 对ldap认证通过的用户,判断是否已经记录,如果已记录并且已修改,修改记录,并且更新Harbor
         AuthUserExample example = new AuthUserExample();
