@@ -15,10 +15,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.ESFactory;
 import com.harmonycloud.common.util.HttpClientUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
+import com.harmonycloud.common.util.JSchClient;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dao.cluster.bean.NodeInstallProgress;
 import com.harmonycloud.k8s.bean.ContainerImage;
@@ -41,6 +43,9 @@ import com.harmonycloud.service.platform.service.InfluxdbService;
 import com.harmonycloud.service.platform.service.NodeService;
 import com.harmonycloud.service.platform.service.PodService;
 import com.harmonycloud.service.tenant.TenantService;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
 
 @Service
 public class NodeServiceImpl implements NodeService {
@@ -57,7 +62,7 @@ public class NodeServiceImpl implements NodeService {
     PodService podService;
     @Autowired
     NodeInstallProgressService nodeInstallProgressService;
-    
+
     @Value("#{propertiesReader['image.domain']}")
     private String harborUrl;
     /**
@@ -76,11 +81,13 @@ public class NodeServiceImpl implements NodeService {
                 nodeDto.setIp(node.getStatus().getAddresses().get(0).getAddress());
                 nodeDto.setName(node.getMetadata().getName());
                 nodeDto.setTime(node.getMetadata().getCreationTimestamp());
-//                if (node.getMetadata().getLabels().get(CommonConstant.CLUSTORROLE) != null) {
-//                    nodeDto.setType("MasterNode");
-//                } else {
-//                    nodeDto.setType("DataNode");
-//                }
+                // if
+                // (node.getMetadata().getLabels().get(CommonConstant.CLUSTORROLE)
+                // != null) {
+                // nodeDto.setType("MasterNode");
+                // } else {
+                // nodeDto.setType("DataNode");
+                // }
                 Map<String, Object> labels = node.getMetadata().getLabels();
                 if (labels.get(CommonConstant.MASTERNODELABEL) != null) {
                     nodeDto.setType(CommonConstant.MASTERNODE);
@@ -88,16 +95,13 @@ public class NodeServiceImpl implements NodeService {
                 } else {
                     nodeDto.setType(CommonConstant.DATANODE);
                 }
-                if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
-                        && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
+                if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
                     nodeDto.setNodeShareStatus("闲置");
-                } else if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
-                        && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
+                } else if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
                     nodeDto.setNodeShareStatus("共享");
-                } else if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
-                        && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_D)) {
+                } else if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_D)) {
                     nodeDto.setNodeShareStatus("独占");
-                }else if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) != null
+                } else if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) != null
                         && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_A)) {
                     nodeDto.setNodeShareStatus("系统");
                 }
@@ -110,18 +114,18 @@ public class NodeServiceImpl implements NodeService {
                 }
 
                 NodeDto dto = this.getHostUsege(node, nodeDto, cluster);
-                List<Object> list = new ArrayList< Object>();
-                //显示主机标签
+                List<Object> list = new ArrayList<Object>();
+                // 显示主机标签
                 if (labels != null) {
                     Set<Entry<String, Object>> entrySet = labels.entrySet();
                     for (Entry<String, Object> entry : entrySet) {
                         if (entry.getKey().contains("harmonycloud.cn")) {
                             String key = entry.getKey();
                             key = key.replaceAll("harmonycloud.cn/", "");
-                            if(list.size()>0){
-                                list.add(","+key+"="+entry.getValue());
-                            }else{
-                                list.add(key+"="+entry.getValue());
+                            if (list.size() > 0) {
+                                list.add("," + key + "=" + entry.getValue());
+                            } else {
+                                list.add(key + "=" + entry.getValue());
                             }
                         }
                     }
@@ -150,12 +154,12 @@ public class NodeServiceImpl implements NodeService {
             List<NodeCondition> conditions = node.getStatus().getConditions();
             for (NodeCondition nodeCondition : conditions) {
                 if (nodeCondition.getType().equals("Ready")) {
-//                    NodeDetailDto.Status status = nodeDetailDto.new Status();
-//                    status.setLastHeartbeatTime(nodeCondition.getLastHeartbeatTime());
-//                    status.setLastTransitionTime(nodeCondition.getLastTransitionTime());
-//                    status.setMessage(nodeCondition.getMessage());
-//                    status.setName(nodeCondition.getType());
-//                    status.setReason(nodeCondition.getReason());
+                    // NodeDetailDto.Status status = nodeDetailDto.new Status();
+                    // status.setLastHeartbeatTime(nodeCondition.getLastHeartbeatTime());
+                    // status.setLastTransitionTime(nodeCondition.getLastTransitionTime());
+                    // status.setMessage(nodeCondition.getMessage());
+                    // status.setName(nodeCondition.getType());
+                    // status.setReason(nodeCondition.getReason());
                     nodeDetailDto.setStatus(nodeCondition.getStatus());
                     break;
                 }
@@ -234,7 +238,7 @@ public class NodeServiceImpl implements NodeService {
                 if (entry.getKey().contains("harmonycloud.cn")) {
                     String key = entry.getKey();
                     key = key.replaceAll("harmonycloud.cn/", "");
-                    list.add(key+"="+entry.getValue());
+                    list.add(key + "=" + entry.getValue());
                 }
             }
         }
@@ -280,49 +284,49 @@ public class NodeServiceImpl implements NodeService {
         Map<String, String> updateLabels = labels.getLabels();
         if (node != null) {
             Map<String, Object> oldLabels = node.getMetadata().getLabels();
-            Iterator<Entry<String, Object>> it = oldLabels.entrySet().iterator(); 
+            Iterator<Entry<String, Object>> it = oldLabels.entrySet().iterator();
             List<String> rm = new ArrayList<>();
-            if(updateLabels!=null&&oldLabels!=null){    
-                //循环遍历原来标签，如果新标签没有则删除，如果有则更新用户自定义的标签新值
+            if (updateLabels != null && oldLabels != null) {
+                // 循环遍历原来标签，如果新标签没有则删除，如果有则更新用户自定义的标签新值
                 // 更新labels
-                while(it.hasNext()){  
-                    Entry<String, Object> itEntry = it.next();  
-                    String itKey = itEntry.getKey();  
+                while (it.hasNext()) {
+                    Entry<String, Object> itEntry = it.next();
+                    String itKey = itEntry.getKey();
                     String[] split = null;
-                  if(itKey!=null){
-                      split = itKey.split("harmonycloud.cn/");
-                  }
-                  if(itKey.contains("harmonycloud.cn/")&&updateLabels.get(split[1])==null){
-                      it.remove();
-                  } else if(itKey.contains("harmonycloud.cn/")&&updateLabels.get(split[1])!=null){
-                      itEntry.setValue(updateLabels.get(split[1])); 
-                      rm.add(split[1]);
-                  }  
-                }  
-            }else if(updateLabels==null&&oldLabels!=null){
-              //循环遍历原来标签，如果新标签没有值，全部删除用户自定义的标签
-                while(it.hasNext()){
-                    Entry<String, Object> itEntry = it.next();  
-                    String itKey = itEntry.getKey();  
-                    if(itKey.contains("harmonycloud.cn/")){
-                      it.remove();
-                  }
-                }  
+                    if (itKey != null) {
+                        split = itKey.split("harmonycloud.cn/");
+                    }
+                    if (itKey.contains("harmonycloud.cn/") && updateLabels.get(split[1]) == null) {
+                        it.remove();
+                    } else if (itKey.contains("harmonycloud.cn/") && updateLabels.get(split[1]) != null) {
+                        itEntry.setValue(updateLabels.get(split[1]));
+                        rm.add(split[1]);
+                    }
+                }
+            } else if (updateLabels == null && oldLabels != null) {
+                // 循环遍历原来标签，如果新标签没有值，全部删除用户自定义的标签
+                while (it.hasNext()) {
+                    Entry<String, Object> itEntry = it.next();
+                    String itKey = itEntry.getKey();
+                    if (itKey.contains("harmonycloud.cn/")) {
+                        it.remove();
+                    }
+                }
             }
-            //添加新的用户自定义的标签
-            if(rm!=null&&rm.size()>0){
+            // 添加新的用户自定义的标签
+            if (rm != null && rm.size() > 0) {
                 for (String string : rm) {
                     updateLabels.remove(string);
                 }
             }
-            if(updateLabels!=null&&!updateLabels.isEmpty()){
-                Iterator<Entry<String, String>> itup = updateLabels.entrySet().iterator(); 
-                while(itup.hasNext()){  
-                    Entry<String, String> itEntry = itup.next();  
+            if (updateLabels != null && !updateLabels.isEmpty()) {
+                Iterator<Entry<String, String>> itup = updateLabels.entrySet().iterator();
+                while (itup.hasNext()) {
+                    Entry<String, String> itEntry = itup.next();
                     String itKey = itEntry.getKey();
-                    Object itValue = itEntry.getValue(); 
-                    oldLabels.put("harmonycloud.cn/" + itKey,itValue);
-                }  
+                    Object itValue = itEntry.getValue();
+                    oldLabels.put("harmonycloud.cn/" + itKey, itValue);
+                }
             }
             ObjectMeta metadata = node.getMetadata();
             metadata.setLabels(oldLabels);
@@ -580,20 +584,39 @@ public class NodeServiceImpl implements NodeService {
         }
         return nodeDtoList;
     }
-
+    @Override
+    public ActionReturnUtil checkNodeStatus(String host, String user, String passwd) throws Exception {
+        JSch jsch = JSchClient.createJSch();
+        Session session = jsch.getSession(user, host, 22);
+        // 如果服务器连接不上，则抛出异常
+        if (session == null) {
+            // throw new Exception("session is null");
+            throw new MarsRuntimeException("主机" + host + "服务器连接异常,请检查服务器是否可用");
+        }
+        // 设置登陆主机的密码
+        session.setPassword(passwd);
+        // 设置第一次登陆的时候提示，可选值：(ask | yes | no)
+        session.setConfig("StrictHostKeyChecking", "no");
+        // 设置登陆超时时间
+        try {
+            session.connect(8000);
+        } catch (Exception e) {
+            throw new MarsRuntimeException("主机" + host + "连接失败,请检查主机地址,用户名,密码是否输入正确!");
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
     @Override
     public ActionReturnUtil addNode(String host, String user, String passwd, String masterIp, String harborIp, String clusterId) throws Exception {
-
         // HttpClientUtil.httpPostRequest(url, headers, null);
         NodeInstallProgress nodeInstall = nodeInstallProgressService.getNodeInLineInfoByNodeIp(host);
-        if(nodeInstall==null){
+        if (nodeInstall == null) {
             nodeInstall = new NodeInstallProgress();
             nodeInstall.setInstallStatus(CommonConstant.BEGIN);
             nodeInstall.setName(host);
             nodeInstall.setProgress(0);
             nodeInstall.setClusterId(Integer.parseInt(clusterId));
             nodeInstallProgressService.addNodeInLineInfo(nodeInstall);
-        }else{
+        } else {
             nodeInstall.setProgress(0);
             nodeInstall.setInstallStatus(CommonConstant.BEGIN);
             nodeInstall.setClusterId(Integer.parseInt(clusterId));
@@ -605,28 +628,34 @@ public class NodeServiceImpl implements NodeService {
         params.put("passwd", passwd);
         params.put("masterIp", masterIp);
         params.put("harborIp", harborUrl);
-        if(StringUtils.isEmpty(host)||StringUtils.isEmpty(user)||StringUtils.isEmpty(passwd)||StringUtils.isEmpty(masterIp)||StringUtils.isEmpty(harborIp)||StringUtils.isEmpty(clusterId)){
+        if (StringUtils.isEmpty(host) || StringUtils.isEmpty(user) || StringUtils.isEmpty(passwd) || StringUtils.isEmpty(masterIp) || StringUtils.isEmpty(harborIp)
+                || StringUtils.isEmpty(clusterId)) {
             return ActionReturnUtil.returnErrorWithMsg("参数不能为空");
         }
-//        ActionReturnUtil httpGetRequest = HttpClientUtil.httpGetRequest("http://10.10.103.132:9999/installnode", null, params);
-//        Map<String, String> newLabels = new HashMap<>();
-//       if((Boolean) httpGetRequest.get(CommonConstant.SUCCESS) == true){
-//           Cluster cluster = null;
-//           cluster = this.clusterService.findClusterById(clusterId);
-//           Node node = this.nodeService.getNode(host, cluster);
-//           while(node==null){
-//               Thread.sleep(5000);
-//               node = this.nodeService.getNode(host, cluster);
-//           }
-//           nodeInstall = nodeInstallProgressService.getNodeInLineInfoByNodeIp(host);
-//           nodeInstall.setInstallStatus(CommonConstant.DONE);
-//           nodeInstallProgressService.updateNodeInLineInfo(nodeInstall);
-//           newLabels.put(CommonConstant.HARMONYCLOUD_STATUS, CommonConstant.LABEL_STATUS_B);
-//           ActionReturnUtil addNodeLabels = this.addNodeLabels(host, newLabels, clusterId);
-//           if ( (Boolean) addNodeLabels.get(CommonConstant.SUCCESS) == false) {
-//               return  addNodeLabels;
-//           }
-//       }
+        // ActionReturnUtil httpGetRequest =
+        // HttpClientUtil.httpGetRequest("http://10.10.103.132:9999/installnode",
+        // null, params);
+        // Map<String, String> newLabels = new HashMap<>();
+        // if((Boolean) httpGetRequest.get(CommonConstant.SUCCESS) == true){
+        // Cluster cluster = null;
+        // cluster = this.clusterService.findClusterById(clusterId);
+        // Node node = this.nodeService.getNode(host, cluster);
+        // while(node==null){
+        // Thread.sleep(5000);
+        // node = this.nodeService.getNode(host, cluster);
+        // }
+        // nodeInstall =
+        // nodeInstallProgressService.getNodeInLineInfoByNodeIp(host);
+        // nodeInstall.setInstallStatus(CommonConstant.DONE);
+        // nodeInstallProgressService.updateNodeInLineInfo(nodeInstall);
+        // newLabels.put(CommonConstant.HARMONYCLOUD_STATUS,
+        // CommonConstant.LABEL_STATUS_B);
+        // ActionReturnUtil addNodeLabels = this.addNodeLabels(host, newLabels,
+        // clusterId);
+        // if ( (Boolean) addNodeLabels.get(CommonConstant.SUCCESS) == false) {
+        // return addNodeLabels;
+        // }
+        // }
         Runnable worker = new Runnable() {
             @Override
             public void run() {
@@ -634,19 +663,19 @@ public class NodeServiceImpl implements NodeService {
                 try {
                     Cluster cluster = null;
                     cluster = clusterService.findClusterById(clusterId);
-                    ActionReturnUtil httpGetRequest = HttpClientUtil.httpGetRequest("http://"+cluster.getHost()+":9999/installnode", null, params);
+                    ActionReturnUtil httpGetRequest = HttpClientUtil.httpGetRequest("http://" + cluster.getHost() + ":9999/installnode", null, params);
                     if ((Boolean) httpGetRequest.get(CommonConstant.SUCCESS) != CommonConstant.FALSE) {
                         Object object = httpGetRequest.get(CommonConstant.DATA);
-                        String ad = object==null?"":object.toString();
-                        if(!ad.contains("1000")){
+                        String ad = object == null ? "" : object.toString();
+                        if (!ad.contains("1000")) {
                             NodeInstallProgress nodeInstall = nodeInstallProgressService.getNodeInLineInfoByNodeIp(host);
                             nodeInstall.setInstallStatus(ad);
                             nodeInstallProgressService.updateNodeInLineInfo(nodeInstall);
                         }
                         Map<String, String> newLabels = new HashMap<>();
-                        if((Boolean) httpGetRequest.get(CommonConstant.SUCCESS) == true){
+                        if ((Boolean) httpGetRequest.get(CommonConstant.SUCCESS) == true) {
                             Node node = nodeService.getNode(host, cluster);
-                            while(node==null){
+                            while (node == null) {
                                 Thread.sleep(5000);
                                 node = nodeService.getNode(host, cluster);
                             }
@@ -668,7 +697,7 @@ public class NodeServiceImpl implements NodeService {
                     } catch (Exception e1) {
                         // TODO Auto-generated catch block
                         e1.printStackTrace();
-                    } 
+                    }
                 }
             }
         };
@@ -686,22 +715,22 @@ public class NodeServiceImpl implements NodeService {
         params.put("passwd", passwd);
         params.put("masterIp", cluster.getHost());
         params.put("token", cluster.getMachineToken());
-        ActionReturnUtil httpGetRequest = HttpClientUtil.httpGetRequest("http://"+cluster.getHost()+":9999/uninstallnode", null, params);
+        ActionReturnUtil httpGetRequest = HttpClientUtil.httpGetRequest("http://" + cluster.getHost() + ":9999/uninstallnode", null, params);
         if ((Boolean) httpGetRequest.get(CommonConstant.SUCCESS) == CommonConstant.FALSE) {
             return httpGetRequest;
-        }else{
+        } else {
             Object object = httpGetRequest.get(CommonConstant.DATA);
-            String ad = object==null?"":object.toString();
-            if(ad.contains("1000")){
+            String ad = object == null ? "" : object.toString();
+            if (ad.contains("1000")) {
                 return httpGetRequest;
-            }else{
+            } else {
                 return ActionReturnUtil.returnErrorWithMsg(ad);
             }
         }
     }
 
     @Override
-    public Map getNode(String nodeIp,String clusterId) throws Exception {
+    public Map getNode(String nodeIp, String clusterId) throws Exception {
         Cluster cluster = clusterService.findClusterById(clusterId);
         NodeList nodeList = nodeService.listNode(cluster);
         List<NodeDto> nodeDtoList = new ArrayList<>();
@@ -710,8 +739,8 @@ public class NodeServiceImpl implements NodeService {
         if (nodeList != null && nodeList.getItems().size() > 0) {
             List<Node> items = nodeList.getItems();
             for (Node node : items) {
-                if(nodeIp.equals(node.getMetadata().getName())){
-                 // 处理为页面需要的值
+                if (nodeIp.equals(node.getMetadata().getName())) {
+                    // 处理为页面需要的值
                     if (node != null) {
                         if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) != null
                                 && node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
@@ -722,7 +751,7 @@ public class NodeServiceImpl implements NodeService {
                         } else if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) != null
                                 && node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_D)) {
                             nodeDetailDto.setNodeShareStatus("独占");
-                        }else if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) != null
+                        } else if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) != null
                                 && node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_A)) {
                             nodeDetailDto.setNodeShareStatus("系统");
                         }
@@ -771,7 +800,7 @@ public class NodeServiceImpl implements NodeService {
                         }
 
                     }
-                }else{
+                } else {
                     otherNodeList.add(node.getMetadata().getName());
                 }
             }
@@ -780,42 +809,45 @@ public class NodeServiceImpl implements NodeService {
         nodeDetailDto.setOtherNodeList(otherNodeList);
         nodeDetailDto.setClusterId(clusterId);
         nodeDetailDto.setPodlist(podList);
-//        Node node = nodeService.getNode(nodeIp, cluster);
-        
+        // Node node = nodeService.getNode(nodeIp, cluster);
+
         Map map = new HashMap<>();
         map.put(CommonConstant.DATA, nodeDetailDto);
         return map;
     }
-    private NodeDto getHostUsege(Node node,NodeDto nodeDto,Cluster cluster) throws Exception{
+    private NodeDto getHostUsege(Node node, NodeDto nodeDto, Cluster cluster) throws Exception {
         double nodeFilesystemCapacity = this.influxdbService.getClusterResourceUsage("node", "filesystem/limit", "nodename,resource_id", cluster, null,
                 node.getMetadata().getName());
         Object object = node.getStatus().getAllocatable();
         if (object != null) {
-            nodeDto.setCpu( ((Map<String, Object>) object).get("cpu").toString());
+            nodeDto.setCpu(((Map<String, Object>) object).get("cpu").toString());
             String memory = ((Map<String, Object>) object).get("memory").toString();
             memory = memory.substring(0, memory.indexOf("Ki"));
             double memoryDouble = Double.parseDouble(memory);
             nodeDto.setMemory(String.format("%.1f", memoryDouble / 1024 / 1024));
-            nodeDto.setDisk(String.format("%.1f", (nodeFilesystemCapacity / 1024 / 1024 / 1024)/**1.024*1.024*1.024*/));
+            nodeDto.setDisk(String.format("%.1f", (nodeFilesystemCapacity / 1024 / 1024
+                    / 1024)/** 1.024*1.024*1.024 */
+            ));
         }
         return nodeDto;
     }
 
     @Override
     public List<NodeInstallProgress> getOnLineStatusWithClusterId(String clusterId) throws Exception {
-        List<NodeInstallProgress> nodeInLineInfoByInstallStatusAndClusterId = this.nodeInstallProgressService.getNodeInLineInfoByInstallStatusAndClusterId(CommonConstant.BEGIN, clusterId);
-        
+        List<NodeInstallProgress> nodeInLineInfoByInstallStatusAndClusterId = this.nodeInstallProgressService.getNodeInLineInfoByInstallStatusAndClusterId(CommonConstant.BEGIN,
+                clusterId);
+
         return nodeInLineInfoByInstallStatusAndClusterId;
     }
 
     @Override
     public String getOnLineErrorStatus() throws Exception {
-         String errorStatus = this.nodeInstallProgressService.getOnLineErrorStatus();
-        
+        String errorStatus = this.nodeInstallProgressService.getOnLineErrorStatus();
+
         return errorStatus;
     }
     @Override
-    public ActionReturnUtil updateShareToNode(String nodeName,String clusterId) throws Exception {
+    public ActionReturnUtil updateShareToNode(String nodeName, String clusterId) throws Exception {
         Cluster cluster = clusterService.findClusterById(clusterId);
         Node node = this.nodeService.getNode(nodeName, cluster);
         K8SClientResponse updateNode = null;
@@ -825,14 +857,14 @@ public class NodeServiceImpl implements NodeService {
             // 更新labels
             for (Entry<String, Object> label : entrySet) {
                 // label
-                if(oldLabels.get(CommonConstant.HARMONYCLOUD_STATUS) != null&&CommonConstant.LABEL_STATUS_B.equals(oldLabels.get(CommonConstant.HARMONYCLOUD_STATUS))){
+                if (oldLabels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && CommonConstant.LABEL_STATUS_B.equals(oldLabels.get(CommonConstant.HARMONYCLOUD_STATUS))) {
                     oldLabels.put(CommonConstant.HARMONYCLOUD_STATUS, CommonConstant.LABEL_STATUS_C);
                     break;
-                }else if(oldLabels.get(CommonConstant.HARMONYCLOUD_STATUS) != null){
+                } else if (oldLabels.get(CommonConstant.HARMONYCLOUD_STATUS) != null) {
                     ActionReturnUtil.returnErrorWithMsg("只能修改闲置节点或者无状态节点！");
                 }
             }
-            if(oldLabels.get(CommonConstant.HARMONYCLOUD_STATUS) == null){
+            if (oldLabels.get(CommonConstant.HARMONYCLOUD_STATUS) == null) {
                 oldLabels.put(CommonConstant.HARMONYCLOUD_STATUS, CommonConstant.LABEL_STATUS_C);
             }
             ObjectMeta metadata = node.getMetadata();
@@ -858,5 +890,5 @@ public class NodeServiceImpl implements NodeService {
         this.nodeInstallProgressService.cancelAddNode(id);
         return ActionReturnUtil.returnSuccess();
     }
-    
+
 }

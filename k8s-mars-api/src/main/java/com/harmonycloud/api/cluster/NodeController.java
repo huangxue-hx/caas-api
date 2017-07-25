@@ -193,6 +193,13 @@ public class NodeController {
         return this.nodeService.addNode(host,user,passwd,masterIp,harborIp,clusterId);
     }
     @ResponseBody
+    @RequestMapping(value = "/node/checkNodeStatus", method = RequestMethod.GET)
+    public ActionReturnUtil checkNodeStatus(@RequestParam(value = "host", required = true) String host,
+                                                                    @RequestParam(value = "user", required = true)String user,
+                                                                    @RequestParam(value = "passwd", required = true)String passwd) throws Exception {
+        return this.nodeService.checkNodeStatus(host,user,passwd);
+    }
+    @ResponseBody
     @RequestMapping(value = "/node/removeNode", method = RequestMethod.DELETE)
     public ActionReturnUtil removeNode(@RequestParam(value = "host") String host,String user,String passwd,String clusterId) throws Exception {
         return  this.nodeService.removeNode(host,user,passwd,clusterId);

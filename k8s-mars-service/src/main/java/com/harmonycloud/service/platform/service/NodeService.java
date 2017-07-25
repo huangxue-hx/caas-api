@@ -80,6 +80,15 @@ public interface NodeService {
 	 */
 	public ActionReturnUtil addNode(String host,String user,String passwd,String masterIp,String harborIp,String clusterId) throws Exception;
 	/**
+	 * 检测主机状态
+	 * @param host
+	 * @param user
+	 * @param passwd
+	 * @return
+	 * @throws Exception
+	 */
+	public ActionReturnUtil checkNodeStatus(String host,String user,String passwd) throws Exception;
+	/**
 	 * 节点下线
      * @param host 上线机器的ip
      * @param user 上线机器的用户名
