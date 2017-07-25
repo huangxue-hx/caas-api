@@ -14,8 +14,9 @@
         <result column="credentials_username" jdbcType="VARCHAR" property="credentialsUsername" />
         <result column="credentials_password" jdbcType="VARCHAR" property="credentialsPassword" />
         <result column="build_environment" jdbcType="VARCHAR" property="buildEnvironment" />
+        <result column="environment_variables" jdbcType="VARCHAR" property="environmentVariables" />
         <result column="use_dependency" jdbcType="BOOLEAN" property="useDependency" />
-        <result column="dockerfile_type" jdbcType="VARCHAR" property="dockerfileType" />
+        <result column="dockerfile_type" jdbcType="INTEGER" property="dockerfileType" />
         <result column="base_image" jdbcType="VARCHAR" property="baseImage" />
         <result column="dockerfile_id" jdbcType="VARCHAR" property="dockerfileId" />
         <result column="dockerfile_path" jdbcType="VARCHAR" property="dockerfilePath" />
@@ -45,6 +46,7 @@
         s.credentials_username,
         s.credentials_password,
         s.build_environment,
+        s.environment_variables,
         s.use_dependency,
         s.dockerfile_type,
         s.base_image,
@@ -79,6 +81,7 @@
         credentials_username,
         credentials_password,
         build_environment,
+        environment_variables,
         use_dependency,
         dockerfile_type,
         base_image,
@@ -154,6 +157,7 @@
         credentials_username = #{credentialsUsername},
         credentials_password = #{credentialsPassword},
         build_environment = #{buildEnvironment},
+        environment_variables = #{environmentVariables},
         use_dependency = #{useDependency},
         dockerfile_type = #{dockerfileType},
         base_image = #{baseImage},

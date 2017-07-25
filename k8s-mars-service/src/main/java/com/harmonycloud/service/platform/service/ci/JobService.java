@@ -46,4 +46,6 @@ public interface JobService {
     void postBuild(Integer id, Integer buildNum);
 
     void stageSync(Integer id, Integer buildNum, Integer stageOrder);
+
+    void deploy(Integer stageId, Integer buildNum) throws Exception;
 }

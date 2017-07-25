@@ -1,19 +1,19 @@
 package com.harmonycloud.service.platform.serviceImpl.ci;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DockerfileTypeEnum;
+import com.harmonycloud.common.enumm.StageTemplateTypeEnum;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpJenkinsClientUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.TemplateUtil;
-import com.harmonycloud.dao.ci.StageBuildMapper;
-import com.harmonycloud.dao.ci.StageMapper;
-import com.harmonycloud.dao.ci.StageTypeMapper;
-import com.harmonycloud.dao.ci.bean.Stage;
-import com.harmonycloud.dao.ci.bean.StageBuild;
-import com.harmonycloud.dao.ci.bean.StageType;
+import com.harmonycloud.dao.ci.*;
+import com.harmonycloud.dao.ci.bean.*;
 import com.harmonycloud.dto.cicd.StageDto;
 import com.harmonycloud.service.platform.client.HarborClient;
 import com.harmonycloud.service.platform.service.ci.StageService;
+import org.apache.commons.collections.map.HashedMap;
+import org.apache.commons.lang.StringEscapeUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +39,15 @@ public class StageServiceImpl implements StageService {
     @Autowired
     StageBuildMapper stageBuildMapper;
 
+    @Autowired
+    DockerFileMapper dockerFileMapper;
+
+    @Autowired
+    JobMapper jobMapper;
+
+    @Autowired
+    BuildEnvironmentMapper buildEnvironmentMapper;
+
 
     @Override
     public ActionReturnUtil addStage(StageDto stageDto) throws Exception{
@@ -54,10 +63,7 @@ public class StageServiceImpl implements StageService {
         }
 
         String jenkinsJobName = stageDto.getTenant() + "_" + stageDto.getJobName();
-        Map dataModel = new HashMap<>();
-        dataModel.put("tag", "test");
-        dataModel.put("script", generateScript(stageDto));
-        String body = TemplateUtil.generate("jobConfig.ftl", dataModel);
+        String body = generateJobBody(stageDto.getJobId());
         ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
 
         return result;
@@ -78,10 +84,8 @@ public class StageServiceImpl implements StageService {
         }
 
         String jenkinsJobName = stageDto.getTenant() + "_" + stageDto.getJobName();
-        Map dataModel = new HashMap();
-        dataModel.put("tag", "test");
-        dataModel.put("script", generateScript(stageDto));
-        String body = TemplateUtil.generate("jobConfig.ftl", dataModel);
+
+        String body = generateJobBody(stageDto.getJobId());
         ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
         return result;
     }
@@ -104,7 +108,9 @@ public class StageServiceImpl implements StageService {
         }else {
             stageDto.convertFromBean(stage);
         }
-        return ActionReturnUtil.returnErrorWithData(stageDto);
+        StageType stageType = stageTypeMapper.queryById(stageDto.getStageTypeId());
+        stageDto.setStageTypeName(stageType.getName());
+        return ActionReturnUtil.returnSuccessWithData(stageDto);
     }
 
     @Override
@@ -149,18 +155,62 @@ public class StageServiceImpl implements StageService {
         return ActionReturnUtil.returnSuccessWithData(stageBuildMapList);
     }
 
-    private String generateScript(StageDto stageDto) throws Exception {
+    @Override
+    public ActionReturnUtil listBuildEnvironemnt() {
+        List<BuildEnvironment> buildEnvironmentList = buildEnvironmentMapper.queryAll();
+        List data = new ArrayList<>();
+        for(BuildEnvironment buildEnvironment : buildEnvironmentList){
+            Map buildEnvMap = new HashMap<>();
+            buildEnvMap.put("id", buildEnvironment.getId());
+            buildEnvMap.put("name",buildEnvironment.getName());
+            data.add(buildEnvMap);
+        }
+        return ActionReturnUtil.returnSuccessWithData(data);
+    }
+
+    private String generateJobBody(Integer id) throws Exception{
+        Job job = jobMapper.queryById(id);
+        Map dataModel = new HashMap<>();
+        List<Stage> stageList = stageMapper.queryByJobId(id);
+        dataModel.put("job", job);
+        dataModel.put("stageList", stageList);
+        dataModel.put("script", generateScript(id, stageList));
+        return TemplateUtil.generate("jobConfig.ftl", dataModel);
+    }
+
+    private String generateScript(Integer id, List<Stage> stageList) throws Exception {
         Map dataModel = new HashMap();
         dataModel.put("harborHost", harborClient.getHost());
-        List<Stage> stageList = stageMapper.queryByJobId(stageDto.getJobId());
         List<StageDto> stageDtoList = new ArrayList<>();
+        Map<Integer, DockerFile> dockerFileMap = new HashedMap();
         for(Stage stage:stageList){
             StageDto newStageDto = new StageDto();
             newStageDto.convertFromBean(stage);
+            if(StageTemplateTypeEnum.IMAGEBUILD.ordinal() == newStageDto.getStageTemplateType()){
+                if(DockerfileTypeEnum.PLATFORM.ordinal() == newStageDto.getDockerfileType()){
+                    DockerFile dockerFileCondition = new DockerFile();
+                    dockerFileCondition.setId(newStageDto.getDockerfileId());
+                    DockerFile dockerFile = dockerFileMapper.selectDockerFile(dockerFileCondition);
+                    dockerFile.setContent(StringEscapeUtils.escapeJava(dockerFile.getContent()));
+                    dockerFileMap.put(stage.getStageOrder(), dockerFile);
+                }
+            }
+            if(StageTemplateTypeEnum.CODECHECKOUT.ordinal() == newStageDto.getStageTemplateType()){
+                BuildEnvironment buildEnvironment = buildEnvironmentMapper.queryById(newStageDto.getBuildEnvironment());
+                newStageDto.setBuildEnvironment(buildEnvironment.getImage());
+            }
             stageDtoList.add(newStageDto);
         }
+        dataModel.put("jobId", id);
+        dataModel.put("dockerFileMap", dockerFileMap);
         dataModel.put("stageList", stageDtoList);
-        String script = TemplateUtil.generate("pipeline.ftl", dataModel);
+        String script = null;
+
+        try {
+            script = TemplateUtil.generate("pipeline.ftl", dataModel);
+        }catch(Exception e){
+            e.printStackTrace();
+        }
         return script;
     }
 

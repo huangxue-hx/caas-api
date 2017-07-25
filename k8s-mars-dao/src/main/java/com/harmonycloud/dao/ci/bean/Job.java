@@ -9,6 +9,7 @@ public class Job {
     private Integer id;
     private String name;
     private String tenant;
+    private String tenantId;
     private boolean notification;
     private String mail;
     private boolean failNotification;
@@ -44,6 +45,14 @@ public class Job {
 
     public void setTenant(String tenant) {
         this.tenant = tenant;
+    }
+
+    public String getTenantId() {
+        return tenantId;
+    }
+
+    public void setTenantId(String tenantId) {
+        this.tenantId = tenantId;
     }
 
     public boolean isNotification() {

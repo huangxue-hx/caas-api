@@ -4,8 +4,10 @@ import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.ci.bean.Stage;
 import org.springframework.beans.BeanUtils;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by anson on 17/7/12.
@@ -17,6 +19,7 @@ public class StageDto {
     private Integer jobId;
     private Integer stageOrder;
     private Integer stageTypeId;
+    private String stageTypeName;
     private Integer stageTemplateType;
     private String stageName;
     private String repositoryType;
@@ -25,8 +28,9 @@ public class StageDto {
     private String credentialsUsername;
     private String credentialsPassword;
     private String buildEnvironment;
+    private List<Map<String,Object>> environmentVariables;
     private boolean useDependency;
-    private String dockerfileType;
+    private Integer dockerfileType;
     private String baseImage;
     private Integer dockerfileId;
     private String dockerfilePath;
@@ -89,6 +93,14 @@ public class StageDto {
 
     public void setStageTypeId(Integer stageTypeId) {
         this.stageTypeId = stageTypeId;
+    }
+
+    public String getStageTypeName() {
+        return stageTypeName;
+    }
+
+    public void setStageTypeName(String stageTypeName) {
+        this.stageTypeName = stageTypeName;
     }
 
     public Integer getStageTemplateType() {
@@ -155,6 +167,14 @@ public class StageDto {
         this.buildEnvironment = buildEnvironment;
     }
 
+    public List<Map<String, Object>> getEnvironmentVariables() {
+        return environmentVariables;
+    }
+
+    public void setEnvironmentVariables(List<Map<String, Object>> environmentVariables) {
+        this.environmentVariables = environmentVariables;
+    }
+
     public boolean isUseDependency() {
         return useDependency;
     }
@@ -163,11 +183,11 @@ public class StageDto {
         this.useDependency = useDependency;
     }
 
-    public String getDockerfileType() {
+    public Integer getDockerfileType() {
         return dockerfileType;
     }
 
-    public void setDockerfileType(String dockerfileType) {
+    public void setDockerfileType(Integer dockerfileType) {
         this.dockerfileType = dockerfileType;
     }
 
@@ -294,12 +314,14 @@ public class StageDto {
     public Stage convertToBean(){
         Stage stage = new Stage();
         BeanUtils.copyProperties(this, stage);
-        stage.setCommand(JsonUtil.convertToJson(this.command));
+        stage.setCommand(JsonUtil.convertToJson(this.command==null?new ArrayList<>():this.command));
+        stage.setEnvironmentVariables(JsonUtil.convertToJson(this.environmentVariables == null ? new ArrayList<>() : this.environmentVariables));
         return stage;
     }
 
     public void convertFromBean(Stage stage){
         BeanUtils.copyProperties(stage, this);
-        this.setCommand(JsonUtil.jsonToList(stage.getCommand(), String.class));
+        this.setCommand(JsonUtil.jsonToList(stage.getCommand() == null ? "[]" : stage.getCommand(), String.class));
+        this.setEnvironmentVariables(JsonUtil.JsonToMapList(stage.getEnvironmentVariables()));
     }
 }
