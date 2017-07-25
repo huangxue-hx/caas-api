@@ -27,7 +27,7 @@ public interface ServiceService {
 
     public ActionReturnUtil getSpecificTemplate(String name, String tag) throws Exception;
 
-    public ActionReturnUtil deleteDeployedService(DeployedServiceNamesDto deployedServiceNamesDto, String userName, String namespace, Cluster cluster) throws Exception;
+    public ActionReturnUtil deleteDeployedService(DeployedServiceNamesDto deployedServiceNamesDto, String userName, Cluster cluster) throws Exception;
     
     public ActionReturnUtil listServiceTemplate(String searchKey, String searchvalue, String tenant) throws Exception;
     

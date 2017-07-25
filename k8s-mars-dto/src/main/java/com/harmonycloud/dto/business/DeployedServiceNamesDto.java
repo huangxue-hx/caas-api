@@ -1,20 +1,20 @@
 package com.harmonycloud.dto.business;
 
-import java.io.Serializable;
 import java.util.List;
 
 /**
  * Created by root on 5/18/17.
  */
-public class DeployedServiceNamesDto implements Serializable {
+public class DeployedServiceNamesDto{
 
-    private List<String> nameList;
+    private List<ServiceNameNamespace> serviceList;
 
-    public List<String> getNameList() {
-        return nameList;
-    }
+	public List<ServiceNameNamespace> getServiceList() {
+		return serviceList;
+	}
 
-    public void setNameList(List<String> nameList) {
-        this.nameList = nameList;
-    }
+	public void setServiceList(List<ServiceNameNamespace> serviceList) {
+		this.serviceList = serviceList;
+	}
+
 }

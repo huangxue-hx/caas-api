@@ -167,14 +167,14 @@ public class ServiceController {
      */
     @ResponseBody
     @RequestMapping(value = "/deployedService", method = RequestMethod.DELETE)
-    public ActionReturnUtil deleteDeployedService(@ModelAttribute DeployedServiceNamesDto deployedServiceNamesDto, @RequestParam(value = "namespace", required = true) String namespace) throws Exception {
+    public ActionReturnUtil deleteDeployedService(@ModelAttribute DeployedServiceNamesDto deployedServiceNamesDto) throws Exception {
         logger.info("delete service template");
         String userName = (String) session.getAttribute("username");
         if(userName == null){
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
 		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-		return serviceService.deleteDeployedService(deployedServiceNamesDto, userName, namespace, cluster);
+		return serviceService.deleteDeployedService(deployedServiceNamesDto, userName, cluster);
     }
     
     /**

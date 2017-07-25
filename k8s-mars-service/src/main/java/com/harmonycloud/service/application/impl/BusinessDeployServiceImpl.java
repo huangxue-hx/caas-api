@@ -451,25 +451,31 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                             SvcTcpDto one = new SvcTcpDto();
                             com.harmonycloud.dto.svc.SelectorDto two = new com.harmonycloud.dto.svc.SelectorDto();
                             List<TcpRuleDto> th = new ArrayList<>();
-                            TcpRuleDto fuck =  new TcpRuleDto();
+                            TcpRuleDto a =  new TcpRuleDto();
 
                             one.setName(ingress.getParsedIngressList().getName());
                             one.setNamespace(namespace);
                             two.setApp(service.getDeploymentDetail().getName());
                             one.setSelector(two);
 
-                            fuck.setPort("80");
-                            fuck.setProtocol("TCP");
+                            a.setPort("80");
+                            a.setProtocol("TCP");
                             if (ingress.getParsedIngressList().getRules().size() > 0){
-                                fuck.setTargetPort(ingress.getParsedIngressList().getRules().get(0).getPort());
+                                a.setTargetPort(ingress.getParsedIngressList().getRules().get(0).getPort());
                             } else {
-                                fuck.setTargetPort("80");
+                                a.setTargetPort("80");
                             }
 
-                            th.add(fuck);
+                            th.add(a);
                             one.setRules(th);
 
-                            routerService.createhttpsvc(one);
+                            ActionReturnUtil httpsvc = routerService.createhttpsvc(one);
+                            if(httpsvc.isSuccess()){
+                            	com.harmonycloud.k8s.bean.Service newService = (com.harmonycloud.k8s.bean.Service) httpsvc.get("data");
+                            	for(HttpRuleDto rule : ingress.getParsedIngressList().getRules()){
+                            		rule.setService(newService.getMetadata().getName());
+                            	}
+                            }
                             routerService.ingCreate(ingress.getParsedIngressList());
                             ingresses.add("{\"type\":\"HTTP\",\"name\":\"" + ingress.getParsedIngressList().getName() + "\"}");
                         } catch (Exception e) {
@@ -479,6 +485,9 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
                     } else if ("TCP".equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getSvcRouter().getName())) {
                         try {
+                        	Map<String, Object> labels = new HashMap<String, Object>();
+                        	labels.put("app", service.getDeploymentDetail().getName());
+                        	ingress.getSvcRouter().setLabels(labels);
                             routerService.svcCreate(ingress.getSvcRouter());
                             ingresses.add("{\"type\":\"TCP\",\"name\":\"" + ingress.getSvcRouter().getName() + "\"}");
                         } catch (Exception e) {
@@ -1179,7 +1188,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 						}
 						if(ing.getType() != null && "TCP".equals(ing.getType()) && tcplist != null && tcplist.size() > 0){
 							for(RouterSvc tcp : tcplist){
-								if(ing.getSvcRouter().getName().equals(tcp.getName())){
+								if(("routersvc"+ing.getSvcRouter().getName()).equals(tcp.getName())){
 									msg.put(ing.getSvcRouter().getName(), "名称重复");
 									flag = false;
 								}
@@ -1340,25 +1349,31 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 	                            SvcTcpDto one = new SvcTcpDto();
 	                            com.harmonycloud.dto.svc.SelectorDto two = new com.harmonycloud.dto.svc.SelectorDto();
 	                            List<TcpRuleDto> th = new ArrayList<>();
-	                            TcpRuleDto fuck =  new TcpRuleDto();
+	                            TcpRuleDto a =  new TcpRuleDto();
 
 	                            one.setName(ingress.getParsedIngressList().getName());
 	                            one.setNamespace(namespace);
 	                            two.setApp(service.getDeploymentDetail().getName());
 	                            one.setSelector(two);
 
-	                            fuck.setPort("80");
-	                            fuck.setProtocol("TCP");
+	                            a.setPort("80");
+	                            a.setProtocol("TCP");
 	                            if (ingress.getParsedIngressList().getRules().size() > 0){
-	                                fuck.setTargetPort(ingress.getParsedIngressList().getRules().get(0).getPort());
+	                                a.setTargetPort(ingress.getParsedIngressList().getRules().get(0).getPort());
 	                            } else {
-	                                fuck.setTargetPort("80");
+	                                a.setTargetPort("80");
 	                            }
 
-	                            th.add(fuck);
+	                            th.add(a);
 	                            one.setRules(th);
 
-	                            routerService.createhttpsvc(one);
+	                            ActionReturnUtil httpsvc = routerService.createhttpsvc(one);
+	                            if(httpsvc.isSuccess()){
+	                            	com.harmonycloud.k8s.bean.Service newService = (com.harmonycloud.k8s.bean.Service) httpsvc.get("data");
+	                            	for(HttpRuleDto rule : ingress.getParsedIngressList().getRules()){
+	                            		rule.setService(newService.getMetadata().getName());
+	                            	}
+	                            }
 	                            routerService.ingCreate(ingress.getParsedIngressList());
 	                            ingresses.add("{\"type\":\"HTTP\",\"name\":\"" + ingress.getParsedIngressList().getName() + "\"}");
 	                        } catch (Exception e) {
@@ -1367,6 +1382,9 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
 	                    } else if ("TCP".equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getSvcRouter().getName())) {
 	                        try {
+	                        	Map<String, Object> labels = new HashMap<String, Object>();
+	                        	labels.put("app", service.getDeploymentDetail().getName());
+	                        	ingress.getSvcRouter().setLabels(labels);
 	                            routerService.svcCreate(ingress.getSvcRouter());
 	                            ingresses.add("{\"type\":\"TCP\",\"name\":\"" + ingress.getSvcRouter().getName() + "\"}");
 	                        } catch (Exception e) {
