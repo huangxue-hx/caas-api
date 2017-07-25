@@ -1,6 +1,6 @@
 package com.harmonycloud.service.platform.bean;
-import com.harmonycloud.service.platform.bean.HarborManifest;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -11,6 +11,7 @@ public class HarborRepositoryMessage {
     private String  fullNameRepo;
     private List<HarborManifest> repositoryDetial;
     private List<String> tags;
+    private Date lastUpdateDate;
   //  private HarborManifest repositoryDetial;
 
 
@@ -44,5 +45,13 @@ public class HarborRepositoryMessage {
 
     public void setRepositoryDetial(List<HarborManifest> repositoryDetial) {
         this.repositoryDetial = repositoryDetial;
+    }
+
+    public Date getLastUpdateDate() {
+        return lastUpdateDate;
+    }
+
+    public void setLastUpdateDate(Date lastUpdateDate) {
+        this.lastUpdateDate = lastUpdateDate;
     }
 }

@@ -104,4 +104,7 @@ public class Constant {
 	public final static String RESTARTPOLICY_ALWAYS = "Always";
 	public final static String RESTARTPOLICY_NERVER = "Never";
 	public final static String RESTARTPOLICY_ONFAILURE = "OnFailure";
+
+	public final static int DEFAULT_PAGE_SIZE = 100;
+	public final static String TIME_ZONE_UTC = "UTC";
 }

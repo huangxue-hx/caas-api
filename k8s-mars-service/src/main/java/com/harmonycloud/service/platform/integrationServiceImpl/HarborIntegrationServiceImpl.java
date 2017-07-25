@@ -564,16 +564,16 @@ public class HarborIntegrationServiceImpl implements HarborIntegrationService {
             if (manifestMap.get("Author") != null) {
                 harborManifest.setAuthor(manifestMap.get("Author").toString());
             }
-            /*
-            if (manifestMap.get("Created") != null) {
-                harborManifest.setCreateTime(manifestMap.get("Created").toString());
-            }
-            */
             if (manifestMap.get("config") != null) {
                 String manifestTime = manifestMap.get("config").toString();
                 Integer start =manifestTime.indexOf("created");
-                harborManifest.setCreateTime(manifestTime.substring(start+10,start+29));
-                //harborManifest.setCreateTime(manifestMap.get("config").toString());
+                harborManifest.setCreateTime(manifestTime.substring(start+10,start+29).replace("T", " "));
+                //个别特殊情况 created 后有空格，根据位置截取截取的时间不对，需要先去除空格
+                if(!harborManifest.getCreateTime().startsWith("2")){
+                    manifestTime = manifestTime.replaceAll(" ","");
+                    start = manifestTime.indexOf("created");
+                    harborManifest.setCreateTime(manifestTime.substring(start+10,start+29).replace("T", " "));
+                }
             }
             if (isSuccessRequest(vulnerabilitySummaryResponse)) {
                 if (vulnerabilitySummaryResponse.get("data") != null) {

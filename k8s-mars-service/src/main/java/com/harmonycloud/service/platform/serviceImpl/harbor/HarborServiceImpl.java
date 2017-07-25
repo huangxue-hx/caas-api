@@ -2,12 +2,16 @@ package com.harmonycloud.service.platform.serviceImpl.harbor;
 
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.util.*;
+import com.harmonycloud.common.util.date.DateStyle;
+import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.tenant.bean.HarborProjectTenant;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
+import com.harmonycloud.service.tenant.HarborProjectTenantService;
 import com.harmonycloud.service.tenant.TenantService;
 
 import com.harmonycloud.common.Constant.CommonConstant;
@@ -15,6 +19,7 @@ import com.harmonycloud.service.platform.bean.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.harmonycloud.k8s.bean.RoleBinding;
@@ -33,6 +38,10 @@ import com.harmonycloud.service.platform.integrationService.HarborIntegrationSer
 import com.harmonycloud.dao.tenant.HarborProjectTenantMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static com.harmonycloud.service.platform.constant.Constant.DEFAULT_PAGE_SIZE;
+import static com.harmonycloud.service.platform.constant.Constant.TIME_ZONE_UTC;
+
 /**
  * Created by zsl on 2017/1/18.
  */
@@ -51,6 +60,11 @@ public class HarborServiceImpl implements HarborService {
 
     @Autowired
     private HarborProjectTenantMapper harborProjectTenantMapper;
+
+    @Autowired
+    private HarborProjectTenantService harborProjectTenantService;
+
+    private static ConcurrentHashMap<String,HarborRepositoryMessage> harborRepositoryMap = new ConcurrentHashMap<>();
 
     private static String SPLIT = "#@#";
 
@@ -441,11 +455,148 @@ public class HarborServiceImpl implements HarborService {
 
         ActionReturnUtil repoResponse = repoListById(projectId);
         if ((boolean) repoResponse.get("success") == true) {
+            //查询某个harbor项目下的镜像之前先根据操作日志更新缓存中的镜像
+            freshRepositoryCache(projectId);
             repoResponse.put("data", getHarborRepositoryDetail(repoResponse));
         } else {
             return repoResponse;
         }
         return repoResponse;
+    }
+
+    /**
+     * 根据projectId获取harbor repository列表
+     *
+     * @param projectId id
+     * @return
+     * @throws Exception
+     */
+    public List<HarborLog> projectOperationLogs(Integer projectId, Integer begin, Integer end, String keywords) throws Exception {
+        Assert.notNull(projectId);
+        String url = HarborClient.getPrefix() + "/api/projects/"+projectId+"/logs/filter";
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("cookie", harborUtil.checkCookieTimeout());
+        Map<String, Object> params = new HashMap<>();
+        params.put("page_size", DEFAULT_PAGE_SIZE);
+        params.put("begin_timestamp", begin);
+        params.put("end_timestamp", end);
+        params.put("keywords", keywords);
+        params.put("project_id", projectId);
+        params.put("username", "");
+        List<HarborLog> harborLogs = new ArrayList<>();
+        try{
+            //每次查询100条，最多查询10次，即最多查询1000条操作日志
+            for(int i=1; i<= 10; i++) {
+                params.put("page", i);
+                ActionReturnUtil result = HttpClientUtil.httpPostRequestForHarbor(url, headers, params);
+                if ((boolean) result.get("success") == true) {
+                    List<HarborLog> logs = this.parseOperationLogs(result.get("data").toString());
+                    harborLogs.addAll(logs);
+                    //如果一页小于100条，说明是最后一页，结束查询
+                    if(logs.size() < DEFAULT_PAGE_SIZE){
+                        break;
+                    }
+                    //第10页查询也有100条
+                    if(i == 10 && logs.size() == DEFAULT_PAGE_SIZE){
+                        LOGGER.warn("查询操作日志量太多，只返回1000条，projectId:{}",projectId);
+                    }
+                } else {
+                    LOGGER.error("查询harbor项目的操作日志失败", JSONObject.toJSONString(result));
+                }
+            }
+        }catch (Exception e){
+            LOGGER.error("查询harbor项目的操作日志失败, projectId:{}", projectId, e);
+            return null;
+        }
+        return harborLogs;
+    }
+
+    /**
+     * 根据harbor项目下镜像的操作日志更新操作过的镜像信息
+     * @param projectId
+     * @throws Exception
+     */
+    private void freshRepositoryCache(Integer projectId) throws Exception{
+        int end = (int) (new Date().getTime()/1000);
+        //当前时间的前20分钟内的操作日志
+        int begin = end - 20*60;
+        List<HarborLog> harborLogs = this.projectOperationLogs(projectId, begin, end, "create/push/delete");
+        if(CollectionUtils.isEmpty(harborLogs)){
+            return;
+        }
+        Set<String> refreshedRepoNames = new HashSet<>();
+        for(HarborLog harborLog : harborLogs){
+            Date operateDate = DateUtil.stringToDate(harborLog.getOperationTime(),
+                    DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue(), TIME_ZONE_UTC);
+            HarborRepositoryMessage  harborRepositoryMessage = harborRepositoryMap.get(harborLog.getRepoName());
+            //已更新 或 镜像的最后更新时间在操作日志之前，此操作日志已经过时，无需再更新镜像信息
+            if(refreshedRepoNames.contains(harborLog.getRepoName()) || (harborRepositoryMessage != null
+                    && harborRepositoryMessage.getLastUpdateDate().after(operateDate))){
+                continue;
+            }
+            harborRepositoryMap.put(harborLog.getRepoName(), this.getHarborRepositoryDetail(harborLog.getRepoName()));
+            refreshedRepoNames.add(harborLog.getRepoName());
+            LOGGER.info("刷新镜像缓存，镜像名称：{}", harborLog.getRepoName());
+        }
+    }
+
+    /**
+     * 每15分钟全量刷新缓存中的镜像
+     */
+    @Scheduled(fixedRate = 15 * 60 * 1000, initialDelay =  10 * 1000)
+    private void freshRepository() {
+        LOGGER.info("刷新缓存中的repository, total repository count: {}", harborRepositoryMap.size());
+        Long begin = System.currentTimeMillis();
+
+            if(harborRepositoryMap.size() == 0){
+                List<HarborProjectTenant> harborProjectTenants = harborProjectTenantService.harborProjectList();
+                for(HarborProjectTenant projectTenant : harborProjectTenants){
+                    try{
+                        getRepositoryDetailByProjectId(
+                                Integer.parseInt(String.valueOf(projectTenant.getHarborProjectId())));
+                    }catch (Exception e){
+                        LOGGER.error("刷新缓存中的repository失败,project:{}",
+                                JSONObject.toJSONString(projectTenant), e);
+                    }
+                }
+            }else {
+                try {
+                    for (String repoName : harborRepositoryMap.keySet()) {
+                        harborRepositoryMap.put(repoName, this.getHarborRepositoryDetail(repoName));
+                    }
+                }catch (Exception e){
+                    LOGGER.error("刷新缓存中的repository失败,", e);
+                }
+            }
+
+        LOGGER.info("刷新缓存中的repository耗时：{}s", (System.currentTimeMillis() - begin)/1000);
+    }
+
+    /**
+     * 得到harbor repository tag list
+     *
+     * @param dataJson json格式返回的data
+     * @return
+     */
+    private List<HarborLog> parseOperationLogs(String dataJson) throws Exception {
+        if (StringUtils.isNotEmpty(dataJson)) {
+            List<Map<String, Object>> mapList = JsonUtil.JsonToMapList(dataJson);
+            if (!CollectionUtils.isEmpty(mapList)) {
+                List<HarborLog> harborLogs = new ArrayList<>();
+                for (Map<String, Object> map : mapList) {
+                    HarborLog harborLog = new HarborLog();
+                    harborLog.setProjectId(Integer.parseInt(map.get("project_id").toString()));
+                    harborLog.setRepoName(map.get("repo_name").toString());
+                    harborLog.setRepoTag(map.get("repo_tag").toString());
+                    harborLog.setOperation(map.get("operation").toString());
+                    harborLog.setOperationTime(map.get("op_time").toString());
+                    harborLog.setUserName(map.get("username").toString());
+                    harborLogs.add(harborLog);
+                }
+                return harborLogs;
+            }
+        }
+        return Collections.emptyList();
     }
 
     /**
@@ -463,7 +614,7 @@ public class HarborServiceImpl implements HarborService {
             if (!CollectionUtils.isEmpty(repoNameList)) {
                 for (String repoName : repoNameList) {
                     if (StringUtils.isNotEmpty(repoName)) {
-                        HarborRepositoryMessage harborRepository = getHarborRepositoryDetail(repoName);
+                        HarborRepositoryMessage harborRepository = cacheHarborRepository(repoName);
                         harborRepositoryList.add(harborRepository);
                     }
                 }
@@ -514,14 +665,32 @@ public class HarborServiceImpl implements HarborService {
     }
 
     /**
+     * 根据镜像名称先从缓存中查找镜像，如果找不到再掉harbor api获取
+     * @param repoName
+     * @return
+     * @throws Exception
+     */
+    private HarborRepositoryMessage cacheHarborRepository(String repoName) throws Exception {
+        Assert.hasText(repoName);
+        if(harborRepositoryMap.get(repoName) != null){
+            return harborRepositoryMap.get(repoName);
+        }
+        HarborRepositoryMessage harborRepository = this.getHarborRepositoryDetail(repoName);
+        harborRepositoryMap.put(repoName, harborRepository);
+        return harborRepository;
+    }
+
+    /**
      * 得到repository details;
      */
     private HarborRepositoryMessage getHarborRepositoryDetail(String repoName) throws Exception {
+        Assert.hasText(repoName);
         HarborRepositoryMessage harborRepository = new HarborRepositoryMessage();
         //get tag list
         List<HarborRepositoryTags> tagLists = new ArrayList<>();
         ActionReturnUtil tagResponse = getTagsByRepoName(repoName);
         List<HarborManifest> repositoryDet = new ArrayList<>();
+        Date lastUpdateDate = null;
         if ((boolean) tagResponse.get("success") == true) {
             if (tagResponse.get("data") != null) {
                 tagLists = getRepoTagList(tagResponse.get("data").toString());
@@ -536,6 +705,12 @@ public class HarborServiceImpl implements HarborService {
                         if (maniResponse.get("data") != null) {
                             HarborManifest tagDetail = getHarborManifestLite(maniResponse);
                             repositoryDet.add(tagDetail);
+                            //记录镜像的最后更新时间
+                            Date operateDate = DateUtil.stringToDate(tagDetail.getCreateTime(),
+                                    DateStyle.YYYY_MM_DD_HH_MM_SS.getValue(), TIME_ZONE_UTC);
+                            if(lastUpdateDate == null || (operateDate != null && operateDate.after(lastUpdateDate))){
+                                lastUpdateDate = operateDate;
+                            }
                         }
                     }
                 }
@@ -553,6 +728,12 @@ public class HarborServiceImpl implements HarborService {
             harborRepository.setRepository(repoName);
             harborRepository.setRepositoryDetial(repositoryDet);
         }
+        if(lastUpdateDate == null){
+            harborRepository.setLastUpdateDate(new Date());
+        }else{
+            harborRepository.setLastUpdateDate(lastUpdateDate);
+        }
+
         return harborRepository;
     }
 
@@ -665,33 +846,17 @@ public class HarborServiceImpl implements HarborService {
                 }else{
                     return ActionReturnUtil.returnErrorWithData("inter error");
                 }
+                freshRepositoryCache(projectID);
                 HarborProjectInfo projectInfo = new HarborProjectInfo();
                 List<String> repoList = repoListMap.get(projectNameID);
                 List<HarborRepositoryMessage> repositoryMessagesList = new ArrayList<>();
                 for (String repositoryName : repoList) {
-                    HarborRepositoryMessage repositoryMessage = getHarborRepositoryDetail(repositoryName);
+                    HarborRepositoryMessage repositoryMessage = cacheHarborRepository(repositoryName);
                     repositoryMessagesList.add(repositoryMessage);
                 }
                 projectInfo.setProject_name(projectName);
                 projectInfo.setProject_id(projectID);
                 projectInfo.setHarborRepositoryMessagesList(repositoryMessagesList);
-                /*
-                ActionReturnUtil quotaResponse = getProjectQuota(projectName);
-                if ((boolean) quotaResponse.get("success") == true) {
-                    if (quotaResponse.get("data") != null) {
-                        Map<String,Object> projectQuota =JsonUtil.jsonToMap(quotaResponse.get("data").toString());
-                        if (projectQuota.get("quota_size")!=null){
-                            projectInfo.setQuota_size(Float.parseFloat(projectQuota.get("quota_size").toString()));
-                        }
-                        if (projectQuota.get("use_size")!=null){
-                            projectInfo.setUse_size(Float.parseFloat(projectQuota.get("use_size").toString()));
-                        }
-                        if (projectQuota.get("use_rate")!=null){
-                            projectInfo.setUse_rate(Float.parseFloat(projectQuota.get("use_rate").toString()));
-                        }
-                    }
-                }
-                */
                 projectRepoList.add(projectInfo);
             }
 
