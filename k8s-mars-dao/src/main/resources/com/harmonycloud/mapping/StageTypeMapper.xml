@@ -9,19 +9,27 @@
         <result column="template_type" jdbcType="VARCHAR" property="templateType" />
     </resultMap>
 
+    <sql id="selectAllColumns">
+        SELECT st.id,st.name,st.user_defined,st.template_type
+        FROM cicd_stage_type st
+    </sql>
+
     <select id="queryByTenantId" resultMap="BaseResultMap">
-        SELECT id,name,user_defined,template_type
-        FROM cicd_stage_type
+        <include refid="selectAllColumns"/>
         WHERE tenant_id =#{tenentId} or tenant_id is NULL
         ORDER BY id
     </select>
 
     <select id="queryByTenant" resultMap="BaseResultMap">
-        SELECT st.id,st.name,st.user_defined,st.template_type
-        FROM cicd_stage_type st
+        <include refid="selectAllColumns"/>
         LEFT JOIN tenant_binding tb ON st.tenant_id=tb.tenant_id
         WHERE tb.tenant_name =#{tenent} or st.tenant_id is NULL
         ORDER BY id
+    </select>
+
+    <select id="queryById" resultMap="BaseResultMap">
+        <include refid="selectAllColumns"/>
+        WHERE id=#{id}
     </select>
 
     <insert id="insertStageType" parameterType="com.harmonycloud.dao.ci.bean.StageType">

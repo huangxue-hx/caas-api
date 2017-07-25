@@ -14,6 +14,7 @@ public class JobDto {
     private Integer id;
     private String name;
     private String tenant;
+    private String tenantId;
     private boolean notification;
     private List mail;
     private boolean failNotification;
@@ -48,6 +49,14 @@ public class JobDto {
 
     public void setTenant(String tenant) {
         this.tenant = tenant;
+    }
+
+    public String getTenantId() {
+        return tenantId;
+    }
+
+    public void setTenantId(String tenantId) {
+        this.tenantId = tenantId;
     }
 
     public boolean isNotification() {

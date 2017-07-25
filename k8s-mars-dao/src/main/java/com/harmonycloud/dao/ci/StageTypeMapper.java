@@ -13,4 +13,6 @@ public interface StageTypeMapper {
     List<StageType> queryByTenantId(String tenantId);
 
     List<StageType> queryByTenant(String tenant);
+
+    StageType queryById(Integer stageTypeId);
 }

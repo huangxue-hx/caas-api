@@ -105,4 +105,10 @@ public class StageController {
             return ActionReturnUtil.returnError();
         }
     }
+
+    @RequestMapping(value = "/buildEnvironment", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil listbuildenvironment(){
+        return stageService.listBuildEnvironemnt();
+    }
 }

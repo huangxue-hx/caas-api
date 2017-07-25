@@ -94,8 +94,13 @@ public class OpenApiController {
     }
 
     @RequestMapping(value = "/cicd/deploy", method = RequestMethod.GET)
-    public void deploy(@RequestParam(value = "id")Integer id, @RequestParam(value = "buildNum")Integer buildNum){
-        jobService.postBuild(id, buildNum);
+    public ResponseEntity deploy(@RequestParam(value = "buildNum")Integer buildNum, @RequestParam(value = "stageId")Integer stageId){
+        try {
+            jobService.deploy(stageId, buildNum);
+        } catch (Exception e) {
+            return new ResponseEntity("fail",HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        return new ResponseEntity(HttpStatus.OK);
     }
 
 }

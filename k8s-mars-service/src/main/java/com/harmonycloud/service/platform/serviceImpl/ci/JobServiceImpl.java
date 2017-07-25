@@ -1,14 +1,36 @@
 package com.harmonycloud.service.platform.serviceImpl.ci;
 
 import com.harmonycloud.common.util.*;
+import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.ci.*;
 import com.harmonycloud.dao.ci.bean.*;
+import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.dto.business.CreateConfigMapDto;
+import com.harmonycloud.dto.business.CreateEnvDto;
+import com.harmonycloud.dto.business.CreatePortDto;
+import com.harmonycloud.dto.business.CreateResourceDto;
 import com.harmonycloud.dto.cicd.JobDto;
+import com.harmonycloud.k8s.bean.ConfigMap;
+import com.harmonycloud.k8s.bean.ContainerPort;
+import com.harmonycloud.k8s.bean.Deployment;
+import com.harmonycloud.k8s.bean.EnvVar;
+import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.service.DeploymentService;
+import com.harmonycloud.k8s.util.K8SClientResponse;
+import com.harmonycloud.service.application.BusinessDeployService;
+import com.harmonycloud.service.application.ConfigMapService;
+import com.harmonycloud.service.application.DeploymentsService;
+import com.harmonycloud.service.application.VersionControlService;
+import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.client.HarborClient;
+import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.platform.service.ci.StageService;
 import com.harmonycloud.service.platform.socket.SystemWebSocketHandler;
+import com.harmonycloud.service.tenant.TenantService;
+import net.sf.json.JSONArray;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.Header;
 import org.slf4j.LoggerFactory;
@@ -66,10 +88,32 @@ public class JobServiceImpl implements JobService {
     @Autowired
     HttpSession session;
 
+    @Autowired
+    DeploymentsService deploymentsService;
+
+    @Autowired
+    DeploymentService deploymentService;
+
+
+    @Autowired
+    ClusterService clusterService;
+
+    @Autowired
+    TenantService tenantService;
+
+    @Autowired
+    VersionControlService versionControlService;
+
+    @Autowired
+    BusinessDeployService businessDeployService;
+
+    @Autowired
+    ConfigMapService configMapService;
+
+
     public static ExecutorService executor = Executors.newFixedThreadPool(10);
 
     DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    DateFormat dfForTag = new SimpleDateFormat("yyyyMMddHHmmss");
     @Override
     public ActionReturnUtil createJob(JobDto jobDto) throws Exception {
         Job job = jobDto.convertToBean();
@@ -96,7 +140,9 @@ public class JobServiceImpl implements JobService {
         if (result.isSuccess()) {
             Map<String, Object> dataModel = new HashMap<>();
             dataModel.put("stageList", new ArrayList<>());
+            dataModel.put("jobId", job.getId());
             String script = TemplateUtil.generate("pipeline.ftl", dataModel);
+            dataModel.put("job", job);
             dataModel.put("script", script);
             String body = TemplateUtil.generate("jobConfig.ftl", dataModel);
             result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
@@ -123,6 +169,7 @@ public class JobServiceImpl implements JobService {
             //dataModel.put("tag", job.getImageTag());
             //dataModel.put("script", generateScript(job));
             String body = null;
+            dataModel.put("job", job);
             body = TemplateUtil.generate("jobConfig.ftl", dataModel);
             ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
         } catch (Exception e) {
@@ -391,7 +438,7 @@ public class JobServiceImpl implements JobService {
         for(Stage stage:stageList){
             String tag;
             if("0".equals(stage.getImageTagType())){
-                tag = dfForTag.format(new Date());
+                tag = DateUtil.DateToString(new Date(), DateStyle.YYMMDDHHMMSS);
             }else if("1".equals(stage.getImageTagType())){
                 tag = stage.getImageBaseTag();
             }else if("2".equals(stage.getImageTagType())){
@@ -664,6 +711,127 @@ public class JobServiceImpl implements JobService {
             }
         };
         executor.execute(worker);
+    }
+
+    @Override
+    public void deploy(Integer stageId, Integer buildNum) throws Exception{
+        //String userName = (String) session.getAttribute("username");
+        Stage stage = stageMapper.queryById(stageId);
+        Job job = jobMapper.queryById(stage.getJobId());
+        Cluster cluster = null;
+        try {
+            cluster = clusterService.findClusterByTenantId(job.getTenantId());
+            K8SClientResponse depRes = deploymentService.doSpecifyDeployment(stage.getBusinessName(), stage.getServiceName(), null, null, HTTPMethod.GET ,cluster);
+            if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
+
+            }
+            Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+            List<ContainerOfPodDetail> containerList = K8sResultConvert.convertContainer(dep);
+
+            //Container container = deploymentsService.deploymentContainer(stage.getBusinessName(), stage.getContainerName(), cluster);
+
+            for(ContainerOfPodDetail containerOfPodDetail: containerList){
+                UpdateContainer updateContainer = new UpdateContainer();
+                updateContainer.setName(containerOfPodDetail.getName());
+                updateContainer.setArgs(containerOfPodDetail.getArgs());
+                updateContainer.setCommand(containerOfPodDetail.getCommand());
+                updateContainer.setLivenessProbe(containerOfPodDetail.getLivenessProbe());
+                updateContainer.setReadinessProbe(containerOfPodDetail.getReadinessProbe());
+                CreateResourceDto createResourceDto = new CreateResourceDto();
+                createResourceDto.setCpu((String)containerOfPodDetail.getResource().get("cpu"));
+                createResourceDto.setMemory((String)containerOfPodDetail.getResource().get("memory"));
+                updateContainer.setResource(createResourceDto);
+                List<CreateEnvDto> envList = new ArrayList<>();
+                for(EnvVar envVar:containerOfPodDetail.getEnv()){
+                    CreateEnvDto createEnvDto = new CreateEnvDto();
+                    createEnvDto.setKey(envVar.getName());
+                    createEnvDto.setName(envVar.getName());
+                    createEnvDto.setValue(envVar.getValue());
+                    envList.add(createEnvDto);
+                }
+                updateContainer.setEnv(envList);
+                List<CreatePortDto> portList = new ArrayList<>();
+                for(ContainerPort containerPort :containerOfPodDetail.getPorts()){
+                    CreatePortDto createPortDto = new CreatePortDto();
+                    createPortDto.setProtocol(containerPort.getProtocol());
+                    createPortDto.setPort(String.valueOf(containerPort.getContainerPort()));
+                    createPortDto.setContainerPort(String.valueOf(containerPort.getContainerPort()));
+                    portList.add(createPortDto);
+                }
+                updateContainer.setPorts(portList);
+                List<UpdateVolume> updateVolumnList = new ArrayList<>();
+                List<CreateConfigMapDto> configMaplist = new ArrayList<>();
+                for(VolumeMountExt volumeMountExt : containerOfPodDetail.getStorage()){
+                    if("logDir".equals(volumeMountExt.getType())){
+                        LogVolume logVolumn = new LogVolume();
+                        logVolumn.setName(volumeMountExt.getName());
+                        logVolumn.setMountPath(volumeMountExt.getMountPath());
+                        logVolumn.setReadOnly(volumeMountExt.getReadOnly().toString());
+                        logVolumn.setType(volumeMountExt.getType());
+
+                        updateContainer.setLog(logVolumn);
+                    }else if("nfs".equals(volumeMountExt.getType()) || "emptyDir".equals(volumeMountExt.getType()) || "hostPath".equals(volumeMountExt.getType())){
+                        UpdateVolume updateVolume = new UpdateVolume();
+                        updateVolume.setType(volumeMountExt.getType());
+                        updateVolume.setReadOnly(volumeMountExt.getReadOnly().toString());
+                        updateVolume.setMountPath(volumeMountExt.getMountPath());
+                        updateVolume.setName(volumeMountExt.getName());
+                        updateVolume.setEmptyDir(volumeMountExt.getEmptyDir());
+                        updateVolume.setHostPath(volumeMountExt.getHostPath());
+                        updateVolume.setRevision(volumeMountExt.getRevision());
+                        updateVolume.setSubPath(volumeMountExt.getSubPath());
+                        if("nfs".equals(volumeMountExt.getType())){
+                            updateVolume.setPvcBindOne("true");
+                            updateVolume.setPvcTenantid(job.getTenantId());
+                            updateVolume.setPvcName(updateVolume.getName());
+                            ActionReturnUtil result = businessDeployService.selectPv(job.getTenantId(), null, 1);
+                            if(result.isSuccess()){
+                                JSONArray array = (JSONArray)result.get("data");
+                                for(Object object : array){
+                                    PvDto pvDto = (PvDto)object;
+                                    if(volumeMountExt.getName().split("-")[0].equals(pvDto.getName())){
+                                        updateVolume.setPvcCapacity(pvDto.getCapacity());
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        updateVolumnList.add(updateVolume);
+                    }else if("configMap".equals(volumeMountExt.getType())){
+                        CreateConfigMapDto configMap = new CreateConfigMapDto();
+                        configMap.setPath(volumeMountExt.getMountPath());
+                        if(volumeMountExt.getName() != null && volumeMountExt.getName().lastIndexOf("v")>0){
+                            configMap.setTag(volumeMountExt.getName().substring(volumeMountExt.getName().lastIndexOf("v") + 1).replace("-", "."));
+                            configMap.setFile(volumeMountExt.getName().substring(0,volumeMountExt.getName().lastIndexOf("v")));
+                        }
+                        ActionReturnUtil configMapResult = configMapService.getConfigMapByName(stage.getBusinessName(), volumeMountExt.getConfigMapName(), null, cluster);
+                        if(configMapResult.isSuccess()) {
+                            ConfigMap config = (ConfigMap)configMapResult.get("data");
+                            Map data = (Map)config.getData();
+                            configMap.setValue((String)data.get(volumeMountExt.getName().replace("-",".")));
+                        }
+                        configMaplist.add(configMap);
+                    }
+                }
+                updateContainer.setStorage(updateVolumnList);
+                updateContainer.setConfigmap(configMaplist);
+                updateContainer.setImg(stage.getHarborProject() + "/" + stage.getImageName());
+            }
+
+            CanaryDeployment canaryDeployment = new CanaryDeployment();
+            canaryDeployment.setName(stage.getServiceName());
+            canaryDeployment.setContainers(null);
+            canaryDeployment.setInstances(1);
+            canaryDeployment.setNamespace(stage.getBusinessName());
+            canaryDeployment.setSeconds(5);
+
+
+            versionControlService.canaryUpdate(canaryDeployment, 1, null, cluster);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
     }
 
 

@@ -8,12 +8,28 @@
                 <hudson.model.StringParameterDefinition>
                     <name>tag</name>
                     <description/>
-                    <defaultValue>${tag!}</defaultValue>
+                    <defaultValue></defaultValue>
                 </hudson.model.StringParameterDefinition>
+                <#list stageList as stage><#if stage.stageTemplateType == 1>
+                <hudson.model.StringParameterDefinition>
+                    <name>tag${stage.stageOrder}</name>
+                    <description/>
+                    <defaultValue></defaultValue>
+                </hudson.model.StringParameterDefinition>
+                </#if></#list>
             </parameterDefinitions>
         </hudson.model.ParametersDefinitionProperty>
         <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
-            <triggers/>
+            <#if job.trigger! == true>
+            <triggers>
+                <#if job.pollScm! == true>
+                <hudson.triggers.SCMTrigger>
+                    <spec>${job.cronExpForPollScm}</spec>
+                    <ignorePostCommitHooks>false</ignorePostCommitHooks>
+                </hudson.triggers.SCMTrigger>
+                </#if>
+            </triggers>
+            </#if>
         </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
     </properties>
     <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.31">
