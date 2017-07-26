@@ -18,6 +18,11 @@
             <artifactId>k8s-mars-native</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
+        <dependency>
+		    <groupId>org.apache.poi</groupId>
+		    <artifactId>poi</artifactId>
+		    <version>3.11</version>
+		</dependency>
   </dependencies>
   <build>
         <plugins>

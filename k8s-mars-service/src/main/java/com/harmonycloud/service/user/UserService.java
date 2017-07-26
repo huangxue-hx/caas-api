@@ -1,9 +1,13 @@
 package com.harmonycloud.service.user;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.sql.SQLException;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -11,6 +15,10 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.http.Header;
@@ -19,11 +27,16 @@ import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFRow;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.exception.MarsRuntimeException;
@@ -54,6 +67,7 @@ import com.harmonycloud.dao.user.bean.UserGroupRelation;
 import com.harmonycloud.dao.user.bean.UserGroupRelationExample;
 import com.harmonycloud.dao.user.customs.CustomUserMapper;
 import com.harmonycloud.dto.tenant.show.UserShowDto;
+import com.harmonycloud.dto.user.ExcelUtil;
 import com.harmonycloud.dto.user.SummaryUserInfo;
 import com.harmonycloud.dto.user.UserDetailDto;
 import com.harmonycloud.dto.user.UserGroupDto;
@@ -1568,8 +1582,9 @@ public class UserService {
 	 * @param 
 	 * @return void
 	 */
-	public ActionReturnUtil fileexport()throws Exception {
-		String[] title = {"id","name","sex"};
+/*	public ActionReturnUtil fileexport()throws Exception {
+		String path = "";
+		String[] title = {"平台账号","密码","用户邮箱","姓名","手机号","备注"};
 		//创建Excel工作簿
 		HSSFWorkbook workbook = new HSSFWorkbook();
 		//创建一个工作表sheet
@@ -1588,12 +1603,27 @@ public class UserService {
 			HSSFCell cell2 = nextrow.createCell(0);
 			cell2.setCellValue("a"+i);
 			cell2 = nextrow.createCell(1);
-			cell2.setCellValue("user"+i);
+			cell2.setCellValue("a"+i);
 			cell2 = nextrow.createCell(2);
-			cell2.setCellValue("男");
+			cell2.setCellValue("2231231@qq.com");
+			cell2 = nextrow.createCell(3);
+			cell2.setCellValue("小a");
+			cell2 = nextrow.createCell(4);
+			cell2.setCellValue("15131234123");
+			cell2 = nextrow.createCell(5);
+			cell2.setCellValue("asdasd");
 		}
-		//创建一个文件
-		File file =new File("/home/root123/project/user.xls");
+		//创建一个文件，判断操作系统
+		Properties prop = System.getProperties();
+		String os = prop.getProperty("os.name");
+		File file ;
+		if(os.startsWith("win") || os.startsWith("Win")){
+			file = new File("C:/user.xls");
+			path = "C:/user.xls";
+		}else{
+			file = new File("/home/root123/project/user.xls");
+			path = "/home/root123/project/user.xls";
+		}
 		try {
 			file.createNewFile();
 			FileOutputStream stream = FileUtils.openOutputStream(file);
@@ -1604,8 +1634,121 @@ public class UserService {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		return ActionReturnUtil.returnSuccessWithMsg(path);
+	}*/
+    public ActionReturnUtil fileexport(HttpServletRequest req,HttpServletResponse resp)throws Exception {
+		try {
+			String[] title = {"平台账号","密码","用户邮箱","姓名","手机号","备注"};
+			HttpServletResponse response = null;
+			//创建Excel工作簿
+			HSSFWorkbook workbook = new HSSFWorkbook();
+			//创建一个工作表sheet
+			HSSFSheet sheet = workbook.createSheet();
+			//创建第一行
+			HSSFRow row = sheet.createRow(0);
+			HSSFCell cell = null;
+			//插入第一行数据id,name,sex
+			for(int i=0;i<title.length;i++){
+						cell = row.createCell(i);
+						cell.setCellValue(title[i]);
+			}
+			response = resp;
+		   // response.reset();
+			response.setHeader("Content-type", "text/html;charset=UTF-8");  
+			response.setHeader("Content-Disposition", "attachment; filename=users.xls");
+			response.setContentType("application/msexcel");  //设置生成的文件类型  
+			OutputStream output= response.getOutputStream(); 
+			workbook.write(output);
+			workbook.close();
+			output.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		return ActionReturnUtil.returnSuccess();
 	}
+	
+	/**
+	 * 用户批量上传
+	 * 
+	 * @param 
+	 * @return void
+	 */
+	public ActionReturnUtil userBulkUpload(InputStream in, MultipartFile file)throws Exception {
+				//定义报错提示用户名username和excel记录行号rowNumber,获取传入文件后缀suffix和excel的title。
+				String username = "";
+				int rowNumber = 1;
+				String[] title = {"平台账号","密码","用户邮箱","姓名","手机号","备注"};
+				List<List<Object>> listob = ExcelUtil.getUserListByExcel(in,file.getOriginalFilename());
+				List<User> salaryList = new ArrayList<User>();
+				 //遍历listob数据，把数据放到List中
+		        for (int i = 0; i < listob.size(); i++) {
+		            List<Object> ob = listob.get(i);
+		            User user = new User();
+		            //通过遍历实现把每一列封装成一个model中，再把所有的model用List集合装载
+		            user.setUsername(String.valueOf(ob.get(0)));
+		            user.setPassword(String.valueOf(ob.get(1)));
+		            user.setEmail(String.valueOf(ob.get(2)));
+		            user.setRealName(String.valueOf(ob.get(3)));
+		            user.setPhone(String.valueOf(ob.get(4)));
+		            user.setComment(String.valueOf(ob.get(5)));
+		            //为了避免用户提交产生错误数据，所以一个个插入,
+		            addUser(user);
+		        }
+				/*//按行读取行数据，并记录行，将当前行记录用户保存到数据库和harbor，若错误则抛出出错信息及行号。提示用户操作xls，删除已生成用户记录和修改错误记录
+				User user = new User();
+				rowNumber ++;
+				try {
+						  this.addUser(user);
+				} catch (Exception e) {
+					return ActionReturnUtil.returnErrorWithData("excel文件第"+rowNumber+"行"+username+"无法正常插入。错误详情："+e);
+				}
+				return ActionReturnUtil.returnSuccess();*/
+		        return ActionReturnUtil.returnSuccess();
+	}
+	
+	/**
+     * 描述：根据文件后缀，自适应上传文件的版本
+     */
+    public static  Workbook getWorkbook(InputStream inStr,String fileName) throws Exception{
+        Workbook wb = null;
+        String fileType = fileName.substring(fileName.lastIndexOf("."));
+        if("xls".equals(fileType)){
+            wb = new HSSFWorkbook(inStr);  //2003-
+        }else if("xlsx".equals(fileType)){
+           // wb = new XSSFWorkbook(in);  //2007+
+        }else{
+        	throw new Exception("当前文件非excel，请确认后重新上传！");
+        }
+        return wb;
+    }
+	            
+	/**
+	* 描述：对表格中数值进行格式化
+	 */
+	public static  Object getCellValue(Cell cell){
+			Object value = null;
+			DecimalFormat df = new DecimalFormat("0");  //格式化字符类型的数字
+	        switch (cell.getCellType()) {
+	                case Cell.CELL_TYPE_STRING:
+	                	value = cell.getRichStringCellValue().getString();
+	                	break;
+	                case Cell.CELL_TYPE_NUMERIC:
+	                        if("General".equals(cell.getCellStyle().getDataFormatString())){
+	                            value = df.format(cell.getNumericCellValue());
+	                        }
+	                        break;
+	                case Cell.CELL_TYPE_BOOLEAN:
+	                        value = cell.getBooleanCellValue();
+	                        break;
+	                case Cell.CELL_TYPE_BLANK:
+	                        value = "";
+	                        break;
+	                default:
+	                        break;
+	                }
+	                return value;
+	 }
 	
 	public String getWebhook() {
 		return webhook;

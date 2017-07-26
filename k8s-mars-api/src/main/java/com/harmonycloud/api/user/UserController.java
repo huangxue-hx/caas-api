@@ -1,10 +1,13 @@
 package com.harmonycloud.api.user;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import com.harmonycloud.dao.cluster.bean.Cluster;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.exception.K8sAuthException;
@@ -615,8 +619,22 @@ public class UserController {
 	
 	@RequestMapping(value="/user/usersfile/export",method=RequestMethod.GET)
 	@ResponseBody
-	public ActionReturnUtil fileexport() throws Exception{
-		return  userService.fileexport();  
+	public ActionReturnUtil fileexport(HttpServletRequest req,HttpServletResponse resp) throws Exception{
+		return  userService.fileexport(req,resp);  
 	}
     
+	@RequestMapping(value="/user/usersfile/import",method=RequestMethod.POST)
+	@ResponseBody
+	public ActionReturnUtil userBulkUpload(@RequestParam(value="file") MultipartFile file) throws Exception{
+        /*//获取上传的文件
+        MultipartHttpServletRequest multipart = (MultipartHttpServletRequest) request;
+        //获得文件
+        MultipartFile file = multipart.getFile("file");*/
+        //获得数据流
+        InputStream in = file.getInputStream();
+        //数据导入
+        userService.userBulkUpload(in,file);
+        in.close();
+        return ActionReturnUtil.returnSuccess();   
+	}
 }
