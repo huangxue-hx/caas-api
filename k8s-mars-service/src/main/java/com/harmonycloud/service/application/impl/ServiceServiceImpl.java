@@ -1,6 +1,5 @@
 package com.harmonycloud.service.application.impl;
 
-import com.alibaba.fastjson.JSON;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
@@ -8,6 +7,7 @@ import com.harmonycloud.dao.application.BusinessMapper;
 import com.harmonycloud.dao.application.BusinessServiceMapper;
 import com.harmonycloud.dao.application.ServiceMapper;
 import com.harmonycloud.dao.application.ServiceTemplatesMapper;
+import com.harmonycloud.dao.application.bean.BusinessTemplates;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.business.CreateContainerDto;
@@ -837,6 +837,32 @@ public class ServiceServiceImpl implements ServiceService {
 			return ActionReturnUtil.returnSuccess();
 		}else{
 			return ActionReturnUtil.returnErrorWithMsg(msg.toString());
+		}
+	}
+
+	@Override
+	public ActionReturnUtil listTemplateTagsByName(String name, String tenant) throws Exception {
+		if(StringUtils.isEmpty(name)){
+			return ActionReturnUtil.returnErrorWithMsg("name为空");
+		}
+		if(StringUtils.isEmpty(tenant)){
+			return ActionReturnUtil.returnErrorWithMsg("租户为空");
+		}
+		List<ServiceTemplates> list = serviceTemplatesMapper.listServiceByTenant(name, tenant);
+		JSONObject json = new JSONObject();
+		if(list != null && list.size() >0){
+			JSONArray array = new JSONArray();
+			json.put("name", name);
+			for(ServiceTemplates s : list){
+				JSONObject js = new JSONObject();
+				js.put("tag", s.getTag());
+				js.put("id", s.getId());
+				array.add(js);
+			}
+			json.put("tags", array);
+			return ActionReturnUtil.returnSuccessWithData(json);
+		}else{
+			return ActionReturnUtil.returnErrorWithMsg("不存在模板");
 		}
 	}
 }

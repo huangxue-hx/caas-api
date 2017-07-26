@@ -6,19 +6,13 @@ import com.harmonycloud.dao.application.BusinessTemplatesMapper;
 import com.harmonycloud.dao.application.ServiceTemplatesMapper;
 import com.harmonycloud.dao.application.bean.BusinessTemplates;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
-import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dao.network.TopologyMapper;
 import com.harmonycloud.dao.network.bean.Topology;
 import com.harmonycloud.dto.business.BusinessTemplateDto;
 import com.harmonycloud.dto.business.CreateContainerDto;
 import com.harmonycloud.dto.business.ServiceTemplateDto;
 import com.harmonycloud.dto.business.TopologysDto;
-import com.harmonycloud.k8s.client.K8SClient;
-import com.harmonycloud.k8s.constant.HTTPMethod;
-import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.ReplicasetsService;
-import com.harmonycloud.k8s.util.K8SClientResponse;
-import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.BusinessService;
 import com.harmonycloud.service.application.BusinessServiceService;
 import com.harmonycloud.service.application.ServiceService;
@@ -28,11 +22,11 @@ import com.harmonycloud.service.tenant.TenantService;
 
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.yaml.snakeyaml.events.Event.ID;
 
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -115,7 +109,11 @@ public class BusinessServiceImpl implements BusinessService {
             js.put("name", businessTemplates.getName());
             js.put("desc", (businessTemplates.getDetails() != null) ? businessTemplates.getDetails() : "");
             js.put("id", businessTemplates.getId());
+            js.put("image", businessTemplates.getImageList());
+            js.put("tag", businessTemplates.getTag());
             js.put("tenant", businessTemplates.getTenant());
+            js.put("user", businessTemplates.getUser());
+            js.put("createTime", dateToString(businessTemplates.getCreateTime()));
             JSONArray array = new JSONArray();
             // select service Template
             List<com.harmonycloud.dao.application.bean.BusinessService> businessServiceList = businessServiceMapper.listBusinessServiceByBusinessTemplatesId(businessTemplates.getId());
@@ -670,4 +668,31 @@ public class BusinessServiceImpl implements BusinessService {
         }
         return boo;
     }
+
+	@Override
+	public ActionReturnUtil getBusinessTemplateByName(String name, String tenant) throws Exception {
+		if(StringUtils.isEmpty(name)){
+			return ActionReturnUtil.returnErrorWithMsg("模板名称为空");
+		}
+		if(StringUtils.isEmpty(tenant)){
+			return ActionReturnUtil.returnErrorWithMsg("租户为空");
+		}
+		List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByName(name, tenant);
+		JSONObject json = new JSONObject();
+		if(list != null && list.size() > 0){
+			JSONArray array = new JSONArray();
+			json.put("name", name);
+			for(BusinessTemplates bt : list){
+				JSONObject js = new JSONObject();
+				js.put("tag", bt.getTag());
+				js.put("id", bt.getId());
+				array.add(js);
+			}
+			json.put("tags", array);
+			return ActionReturnUtil.returnSuccessWithData(json);
+		}else{
+			return ActionReturnUtil.returnErrorWithMsg("不存在改模板");
+		}
+		
+	}
 }

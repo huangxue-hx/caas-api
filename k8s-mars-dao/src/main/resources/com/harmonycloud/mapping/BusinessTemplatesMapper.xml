@@ -46,7 +46,7 @@
     <if test="tenant!=null and tenant!='' ">
       and tenant=#{tenant}
     </if> 
-      and status = 0 order by create_time
+      and status = 0 order by tag
   </select>
   
   <select id="getBusinessTemplatesByName" parameterType="java.lang.String" resultMap="BaseResultMap">
