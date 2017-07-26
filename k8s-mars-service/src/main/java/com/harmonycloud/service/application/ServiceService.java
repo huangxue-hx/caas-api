@@ -42,5 +42,6 @@ public interface ServiceService {
     public ActionReturnUtil deployServiceByname(String name,String tag, String namespace, Cluster cluster, String userName) throws Exception;
     
     public ActionReturnUtil deployService(ServiceDeployDto serviceDeploy, Cluster cluster, String userName) throws Exception;
-
+    
+    public ActionReturnUtil listTemplateTagsByName(String name, String tenant) throws Exception;
 }

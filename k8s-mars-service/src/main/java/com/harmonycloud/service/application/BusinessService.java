@@ -96,4 +96,18 @@ public interface BusinessService {
      *            re
      */
     boolean saveTopology(List<TopologysDto> topologys, Integer businessTemplatesId) throws Exception;
+    
+    /**
+     * get application template by name  on 17/04/07.
+     * 
+     * @author gurongyun
+     * 
+     * @param name
+     * 
+     * @param tenant
+     * 
+     * @return ActionReturnUtil
+     */
+    ActionReturnUtil getBusinessTemplateByName(String name, String tenant) throws Exception;
+    
 }

@@ -242,4 +242,24 @@ public class ServiceController {
         return serviceService.deployService(serviceDeploy, cluster, userName);
     }
 
+    
+    /**
+     * list template tags by name tenant on 17/05/05.
+     *
+     * @param name
+     * 
+     * @param tenant
+     * 
+     * @return
+     * 
+     * @throws Exception
+     * 
+     */
+    @ResponseBody
+    @RequestMapping(value = "/tags",method = RequestMethod.GET)
+    public ActionReturnUtil listTags(@RequestParam(value = "name", required = false) String name, @RequestParam(value = "tenant", required = false) String tenant)
+            throws Exception {
+        logger.info("get service template by tenant");
+        return serviceService.listTemplateTagsByName(name, tenant);
+    }
 }

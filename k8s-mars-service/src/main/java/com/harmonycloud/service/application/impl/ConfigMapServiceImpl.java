@@ -11,9 +11,6 @@ import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.ConfigMapService;
-import com.harmonycloud.service.tenant.TenantService;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -21,9 +18,6 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class ConfigMapServiceImpl implements ConfigMapService {
-	
-    @Autowired
-    private TenantService tenantService;
     
     @Override
     public ActionReturnUtil getConfigMapByName(String namespace, String name, String method, Cluster cluster) throws Exception {

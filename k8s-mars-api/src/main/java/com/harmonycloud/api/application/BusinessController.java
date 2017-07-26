@@ -109,5 +109,19 @@ public class BusinessController {
         logger.info("get application template");
         return businessService.deleteBusinessTemplate(name);
     }
-
+    
+    /**
+     * get application template by name and tag (and tenant) on 17/05/05 .
+     * 
+     * @param businessTemplate
+     * 
+     * @return ActionReturnUtil
+     */
+    @ResponseBody
+    @RequestMapping(value = "/list/tag", method = RequestMethod.GET)
+    public ActionReturnUtil getBusinessTemplateByName(@RequestParam(value = "name", required = true) String name, @RequestParam(value = "tenant", required = true) String tenant)
+            throws Exception {
+        logger.info("get application template");
+        return businessService.getBusinessTemplateByName(name, tenant);
+    }
 }

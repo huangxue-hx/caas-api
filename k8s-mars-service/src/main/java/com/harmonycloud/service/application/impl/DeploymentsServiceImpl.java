@@ -25,8 +25,6 @@ import com.harmonycloud.service.platform.service.WatchService;
 import com.harmonycloud.service.tenant.TenantService;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.NameValuePair;
-import org.apache.http.message.BasicNameValuePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -136,7 +134,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 					return ActionReturnUtil
 							.returnErrorWithMsg("service " + dep.getMetadata().getName() + " is already started");
 				} else {
-					int rcs = Integer.valueOf(anno.get("nephele/status").toString());
+					Integer.valueOf(anno.get("nephele/status").toString());
 
 					int rep = 1;
 					if (anno.get("nephele/replicas") != null){
@@ -885,7 +883,6 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		}
 		ServiceList svcs = JsonUtil.jsonToPojo(svcRes.getBody(), ServiceList.class);
 		
-		List<UnversionedStatus> status = new ArrayList<UnversionedStatus>();
 		// 删除rs
 		if(dep != null && dep.getSpec() != null){
 			/*String exp = K8sResultConvert.convertExpression(dep, name);*/
@@ -929,6 +926,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		ParsedIngressListDto ingress = new ParsedIngressListDto();
 		ingress.setNamespace(namespace);
 		ingress.setLabels(dep.getSpec().getTemplate().getMetadata().getLabels());
+		@SuppressWarnings("unchecked")
 		List<RouterSvc> routerSvcs = (List<RouterSvc>)routerService.listSvcByName(ingress).get("data");
 
 		if (routerSvcs != null && routerSvcs.size() > 0){

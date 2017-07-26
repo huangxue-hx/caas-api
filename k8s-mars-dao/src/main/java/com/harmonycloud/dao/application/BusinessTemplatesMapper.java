@@ -35,19 +35,6 @@ public interface BusinessTemplatesMapper {
     BusinessTemplates getBusinessTemplatesByNameAndTag(@Param("name")String name,@Param("tag")String tag);
     
     /**
-     * find Business Templates  on 17/04/07.
-     * 
-     * @author gurongyun
-     * 
-     * @param name 
-     * 
-     * @param tenant
-     * 
-     * @description find a Business Templates
-     */
-    BusinessTemplates selectByNameAndImageAndTenant(@Param("name")String name, @Param("tenant")String tenant);
-    
-    /**
      * delete Business Templates  on 17/04/07.
      * 
      * @author gurongyun
