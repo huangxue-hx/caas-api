@@ -103,6 +103,7 @@ public class UserTenantServiceImpl implements UserTenantService {
                 if(user!=null){
                     UserShowDto u = new UserShowDto();
                     u.setIsTm(userTenant.getIstm() == 1);
+                    u.setId(user.getId());
                     u.setName(user.getUsername());
                     u.setNikeName(user.getRealName());
                     u.setEmail(user.getEmail());
