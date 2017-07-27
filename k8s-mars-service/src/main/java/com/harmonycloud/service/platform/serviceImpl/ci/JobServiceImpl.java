@@ -15,6 +15,7 @@ import com.harmonycloud.k8s.bean.ConfigMap;
 import com.harmonycloud.k8s.bean.ContainerPort;
 import com.harmonycloud.k8s.bean.Deployment;
 import com.harmonycloud.k8s.bean.EnvVar;
+import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
@@ -35,16 +36,20 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.http.Header;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import javax.annotation.Resource;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeUtility;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.InputStream;
@@ -109,6 +114,9 @@ public class JobServiceImpl implements JobService {
 
     @Autowired
     ConfigMapService configMapService;
+
+    @Value("#{propertiesReader['web.url']}")
+    private String webUrl;
 
 
     public static ExecutorService executor = Executors.newFixedThreadPool(10);
@@ -440,7 +448,7 @@ public class JobServiceImpl implements JobService {
             if("0".equals(stage.getImageTagType())){
                 tag = DateUtil.DateToString(new Date(), DateStyle.YYMMDDHHMMSS);
             }else if("1".equals(stage.getImageTagType())){
-                tag = stage.getImageBaseTag();
+                tag = generateTag(stage);
             }else if("2".equals(stage.getImageTagType())){
                 tag = stage.getImageTag();
             }else{
@@ -468,10 +476,19 @@ public class JobServiceImpl implements JobService {
                 jobBuild.setStartUser((String)session.getAttribute("username"));
                 jobBuildMapper.insert(jobBuild);
 
+                Map<Integer, String> stageTypeMap = new HashMap<>();
+                List<StageType> stageTypeList = stageTypeMapper.queryByTenant(job.getTenant());
+                for(StageType stageType : stageTypeList){
+                    stageTypeMap.put(stageType.getId(),stageType.getName());
+                }
+
                 for(Stage stage : stageList){
                     StageBuild stageBuild = new StageBuild();
                     stageBuild.setJobId(id);
                     stageBuild.setStageId(stage.getId());
+                    stageBuild.setStageName(stage.getStageName());
+                    stageBuild.setStageOrder(stage.getStageOrder());
+                    stageBuild.setStageType(stageTypeMap.get(stage.getStageTypeId()));
                     stageBuild.setBuildNum(lastBuildNumber);
                     stageBuild.setStatus("WAITING");
                     stageBuildMapper.insert(stageBuild);
@@ -481,6 +498,7 @@ public class JobServiceImpl implements JobService {
         }
         return ActionReturnUtil.returnError();
     }
+
 
     @Override
     public ActionReturnUtil stopBuild(String jobName, String tenantName, String buildNum) {
@@ -519,11 +537,6 @@ public class JobServiceImpl implements JobService {
         for(Stage stage: stageList){
             stageMap.put(stage.getId(),stage);
         }
-        Map<Integer, String> stageTypeMap = new HashMap<>();
-        List<StageType> stageTypeList = stageTypeMapper.queryByTenant(job.getTenant());
-        for(StageType stageType : stageTypeList){
-            stageTypeMap.put(stageType.getId(),stageType.getName());
-        }
         for(JobBuild jobBuild:jobBuildList){
             Map buildMap = new HashMap();
             buildMap.put("buildNum", jobBuild.getBuildNum());
@@ -540,9 +553,9 @@ public class JobServiceImpl implements JobService {
                 Map stageBuildMap = new HashMap<>();
                 Integer stageId = stageBuild.getStageId();
                 stageBuildMap.put("stageId", stageId);
-                stageBuildMap.put("stageName",stageMap.get(stageId).getStageName());
-                stageBuildMap.put("stageOrder",stageMap.get(stageId).getStageOrder());
-                stageBuildMap.put("stageType",stageTypeMap.get(stageMap.get(stageId).getStageTypeId()));
+                stageBuildMap.put("stageName", stageBuild.getStageName());
+                stageBuildMap.put("stageOrder", stageBuild.getStageOrder());
+                stageBuildMap.put("stageType", stageBuild.getStageType());
                 stageBuildMap.put("buildStatus", stageBuild.getStatus());
                 stageBuildMap.put("buildNum", stageBuild.getBuildNum());
                 stageBuildMap.put("buildTime", stageBuild.getStartTime());
@@ -721,14 +734,19 @@ public class JobServiceImpl implements JobService {
         Cluster cluster = null;
         try {
             cluster = clusterService.findClusterByTenantId(job.getTenantId());
-            K8SClientResponse depRes = deploymentService.doSpecifyDeployment(stage.getBusinessName(), stage.getServiceName(), null, null, HTTPMethod.GET ,cluster);
+
+            HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+            session = request.getSession();
+            session.setAttribute("username","admin");
+            K8SClient.tokenMap.put("admin", cluster.getMachineToken());
+
+            K8SClientResponse depRes = deploymentService.doSpecifyDeployment(stage.getNamespace(), stage.getServiceName(), null, null, HTTPMethod.GET ,cluster);
             if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
 
             }
             Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
             List<ContainerOfPodDetail> containerList = K8sResultConvert.convertContainer(dep);
-
-            //Container container = deploymentsService.deploymentContainer(stage.getBusinessName(), stage.getContainerName(), cluster);
+            List<UpdateContainer> updateContainerList = new ArrayList<>();
 
             for(ContainerOfPodDetail containerOfPodDetail: containerList){
                 UpdateContainer updateContainer = new UpdateContainer();
@@ -787,8 +805,8 @@ public class JobServiceImpl implements JobService {
                             ActionReturnUtil result = businessDeployService.selectPv(job.getTenantId(), null, 1);
                             if(result.isSuccess()){
                                 JSONArray array = (JSONArray)result.get("data");
-                                for(Object object : array){
-                                    PvDto pvDto = (PvDto)object;
+                                List<PvDto> pvDtoList = JsonUtil.jsonToList(array.toString(), PvDto.class);
+                                for(PvDto pvDto : pvDtoList){
                                     if(volumeMountExt.getName().split("-")[0].equals(pvDto.getName())){
                                         updateVolume.setPvcCapacity(pvDto.getCapacity());
                                         break;
@@ -804,7 +822,7 @@ public class JobServiceImpl implements JobService {
                             configMap.setTag(volumeMountExt.getName().substring(volumeMountExt.getName().lastIndexOf("v") + 1).replace("-", "."));
                             configMap.setFile(volumeMountExt.getName().substring(0,volumeMountExt.getName().lastIndexOf("v")));
                         }
-                        ActionReturnUtil configMapResult = configMapService.getConfigMapByName(stage.getBusinessName(), volumeMountExt.getConfigMapName(), null, cluster);
+                        ActionReturnUtil configMapResult = configMapService.getConfigMapByName(stage.getNamespace(), volumeMountExt.getConfigMapName(), null, cluster);
                         if(configMapResult.isSuccess()) {
                             ConfigMap config = (ConfigMap)configMapResult.get("data");
                             Map data = (Map)config.getData();
@@ -815,18 +833,23 @@ public class JobServiceImpl implements JobService {
                 }
                 updateContainer.setStorage(updateVolumnList);
                 updateContainer.setConfigmap(configMaplist);
-                updateContainer.setImg(stage.getHarborProject() + "/" + stage.getImageName());
+                if(stage.getContainerName().equals(containerOfPodDetail.getName())){
+                    updateContainer.setImg(stage.getHarborProject() + "/" + stage.getImageName());
+                }else{
+                    updateContainer.setImg(containerOfPodDetail.getImg());
+                }
+                updateContainerList.add(updateContainer);
             }
 
             CanaryDeployment canaryDeployment = new CanaryDeployment();
             canaryDeployment.setName(stage.getServiceName());
-            canaryDeployment.setContainers(null);
-            canaryDeployment.setInstances(1);
-            canaryDeployment.setNamespace(stage.getBusinessName());
+            canaryDeployment.setContainers(updateContainerList);
+            canaryDeployment.setInstances(dep.getSpec().getReplicas());
+            canaryDeployment.setNamespace(stage.getNamespace());
             canaryDeployment.setSeconds(5);
 
 
-            versionControlService.canaryUpdate(canaryDeployment, 1, null, cluster);
+            versionControlService.canaryUpdate(canaryDeployment, dep.getSpec().getReplicas(), null, cluster);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -1066,23 +1089,67 @@ public class JobServiceImpl implements JobService {
                     helper.setTo((String[])mailList.toArray(new String[mailList.size()]));
                     helper.setSubject(MimeUtility.encodeText("CICD构建通知_" + job.getName() + "_" + jobBuild.getBuildNum(), MimeUtility.mimeCharset("gb2312"), null));
                     Map dataModel = new HashMap<>();
-                    dataModel.put("url", "http://10.10.101.143:30088/#cicd");
+                    Cluster cluster = clusterService.findClusterByTenantId(job.getTenantId());
+                    dataModel.put("url", webUrl + "/rest");
                     dataModel.put("jobName",job.getName());
                     dataModel.put("status",jobBuild.getStatus());
                     dataModel.put("time",new Date());
                     dataModel.put("startTime",jobBuild.getStartTime());
                     dataModel.put("duration", DateUtil.getDuration(jobBuild.getDuration()));
+                    StageBuild stageBuildCondition = new StageBuild();
+                    stageBuildCondition.setJobId(job.getId());
+                    stageBuildCondition.setBuildNum(buildNum);
+                    List<StageBuild> stageBuildList = stageBuildMapper.queryByObject(stageBuildCondition);
+                    List stageBuildMapList = new ArrayList<>();
+                    for(StageBuild stageBuild : stageBuildList){
+                        Map stageBuildMap = new HashMap<>();
+                        Stage stage = stageMapper.queryById(stageBuild.getStageId());
+                        stageBuildMap.put("name",stage.getStageName());
+                        stageBuildMap.put("status",stageBuild.getStatus());
+                        stageBuildMap.put("startTime", stageBuild.getStartTime());
+                        stageBuildMap.put("duration", DateUtil.getDuration(stageBuild.getDuration()));
+                        stageBuildMapList.add(stageBuildMap);
+                    }
+                    dataModel.put("stageBuildList",stageBuildMapList);
                     helper.setText(TemplateUtil.generate("notification.ftl",dataModel), true);
                     ClassLoader classLoader = MailUtil.class.getClassLoader();
-                    InputStream inputStream = classLoader.getResourceAsStream("alarm-icon.png");
+                    InputStream inputStream = classLoader.getResourceAsStream("icon-info.png");
                     byte[] bytes = MailUtil.stream2byte(inputStream);
-                    helper.addInline("icon-alarm", new ByteArrayResource(bytes), "image/png");
+                    helper.addInline("icon-info", new ByteArrayResource(bytes), "image/png");
+                    inputStream = classLoader.getResourceAsStream("icon-status.png");
+                    bytes = MailUtil.stream2byte(inputStream);
+                    helper.addInline("icon-status", new ByteArrayResource(bytes), "image/png");
                     MailUtil.sendMimeMessage(mimeMessage);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
         }
+    }
+
+    private String generateTag(Stage stage) {
+        String tag = "";
+        if(!StringUtils.isBlank(stage.getImageBaseTag()) && !StringUtils.isBlank(stage.getImageIncreaseTag())) {
+            String[] baseArray = stage.getImageBaseTag().split(".");
+            String[] increaceArray = stage.getImageIncreaseTag().split(".");
+
+            if (baseArray.length > 0 && increaceArray.length > 0) {
+                String suffix = "";
+                for(int i = baseArray[0].length() - 1; i>=0; i--){
+                    if(Character.isDigit(baseArray[0].charAt(i))){
+                        continue;
+                    }
+                    suffix = baseArray[0].substring(0, i);
+                    break;
+                }
+                for(int i = 0; i<baseArray.length; i++){
+                    tag = String.valueOf(Integer.valueOf(baseArray[i]) + Integer.valueOf(increaceArray[i])) + ".";
+                }
+                tag = (suffix + tag).substring(0, (suffix + tag).length() - 1);
+
+            }
+        }
+        return tag;
     }
 
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(JobServiceImpl.class);
@@ -1125,12 +1192,19 @@ public class JobServiceImpl implements JobService {
 //            pump.close();
 //        }
 
-        Job job = new Job();
-        job.setId(2);
-        job.setName("test");
-        job.setTenant("test");
-        new JobServiceImpl().allStageStatusSync(job, 57);
-
+//        Job job = new Job();
+//        job.setId(2);
+//        job.setName("test");
+//        job.setTenant("test");
+//        job.setNotification(true);
+//        job.setFailNotification(true);
+//        job.setMail("['kaiyunzhang@harmonycloud.cn']");
+//        new JobServiceImpl().notification(job, 70);
+        String a = "aaa,a123";
+        String[] b =a.split("g,");
+        for(int i=0;i<b.length;i++){
+            System.out.println(b[i]);
+        }
         //new JobServiceImpl().addStage(stage);
 
 

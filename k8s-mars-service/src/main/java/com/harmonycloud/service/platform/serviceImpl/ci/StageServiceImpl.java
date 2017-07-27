@@ -15,6 +15,7 @@ import com.harmonycloud.service.platform.service.ci.StageService;
 import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,6 +49,9 @@ public class StageServiceImpl implements StageService {
     @Autowired
     BuildEnvironmentMapper buildEnvironmentMapper;
 
+    @Value("#{propertiesReader['api.url']}")
+    private String apiUrl;
+
 
     @Override
     public ActionReturnUtil addStage(StageDto stageDto) throws Exception{
@@ -61,9 +65,9 @@ public class StageServiceImpl implements StageService {
         if(CommonConstant.STAGE_TEMPLATE_COMPILE == stageDto.getStageTemplateType()){
             createOrUpdateCredential(stage);
         }
-
-        String jenkinsJobName = stageDto.getTenant() + "_" + stageDto.getJobName();
-        String body = generateJobBody(stageDto.getJobId());
+        Job job = jobMapper.queryById(stageDto.getJobId());
+        String jenkinsJobName = job.getTenant() + "_" + job.getName();
+        String body = generateJobBody(job);
         ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
 
         return result;
@@ -82,10 +86,10 @@ public class StageServiceImpl implements StageService {
         if(CommonConstant.STAGE_TEMPLATE_COMPILE == stageDto.getStageTemplateType()) {
             createOrUpdateCredential(stage);
         }
+        Job job = jobMapper.queryById(stageDto.getJobId());
+        String jenkinsJobName = job.getTenant() + "_" + job.getName();
 
-        String jenkinsJobName = stageDto.getTenant() + "_" + stageDto.getJobName();
-
-        String body = generateJobBody(stageDto.getJobId());
+        String body = generateJobBody(job);
         ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
         return result;
     }
@@ -168,17 +172,16 @@ public class StageServiceImpl implements StageService {
         return ActionReturnUtil.returnSuccessWithData(data);
     }
 
-    private String generateJobBody(Integer id) throws Exception{
-        Job job = jobMapper.queryById(id);
+    private String generateJobBody(Job job) throws Exception{
         Map dataModel = new HashMap<>();
-        List<Stage> stageList = stageMapper.queryByJobId(id);
+        List<Stage> stageList = stageMapper.queryByJobId(job.getId());
         dataModel.put("job", job);
         dataModel.put("stageList", stageList);
-        dataModel.put("script", generateScript(id, stageList));
+        dataModel.put("script", generateScript(job, stageList));
         return TemplateUtil.generate("jobConfig.ftl", dataModel);
     }
 
-    private String generateScript(Integer id, List<Stage> stageList) throws Exception {
+    private String generateScript(Job job, List<Stage> stageList) throws Exception {
         Map dataModel = new HashMap();
         dataModel.put("harborHost", harborClient.getHost());
         List<StageDto> stageDtoList = new ArrayList<>();
@@ -201,7 +204,8 @@ public class StageServiceImpl implements StageService {
             }
             stageDtoList.add(newStageDto);
         }
-        dataModel.put("jobId", id);
+        dataModel.put("apiUrl", apiUrl);
+        dataModel.put("job", job);
         dataModel.put("dockerFileMap", dockerFileMap);
         dataModel.put("stageList", stageDtoList);
         String script = null;

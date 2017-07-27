@@ -9,6 +9,9 @@ public class StageBuild {
     private Integer id;
     private Integer jobId;
     private Integer stageId;
+    private String stageName;
+    private Integer stageOrder;
+    private String stageType;
     private Integer buildNum;
     private String status;
     private Date startTime;
@@ -37,6 +40,30 @@ public class StageBuild {
 
     public void setStageId(Integer stageId) {
         this.stageId = stageId;
+    }
+
+    public String getStageName() {
+        return stageName;
+    }
+
+    public void setStageName(String stageName) {
+        this.stageName = stageName;
+    }
+
+    public Integer getStageOrder() {
+        return stageOrder;
+    }
+
+    public void setStageOrder(Integer stageOrder) {
+        this.stageOrder = stageOrder;
+    }
+
+    public String getStageType() {
+        return stageType;
+    }
+
+    public void setStageType(String stageType) {
+        this.stageType = stageType;
     }
 
     public Integer getBuildNum() {

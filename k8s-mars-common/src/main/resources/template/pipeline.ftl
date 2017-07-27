@@ -28,10 +28,7 @@ podTemplate(
             args: '',
             command: '',
             envVars: [
-                containerEnvVar(key: 'DOCKER_DAEMON_ARGS', value: '--insecure-registry=${harborHost!}')
-                <#list stage.environmentVariables as environmentVariable>
-                ,containerEnvVar(key: '${environmentVariable.key}', value: '${environmentVariable.value}')
-                </#list>
+                containerEnvVar(key: 'DOCKER_DAEMON_ARGS', value: '--insecure-registry=${harborHost!}')<#list stage.environmentVariables as environmentVariable>,containerEnvVar(key: '${environmentVariable.key}', value: '${environmentVariable.value}')</#list>
             ],
             image: '${harborHost!}/${stage.buildEnvironment!}',
             name: 'jnlp',
@@ -71,23 +68,28 @@ podTemplate(
 </#if>
         stage('${stage.stageName}'){
 <#if stage.repositoryType! == "git">
-            git url:'${stage.repositoryUrl}',credentialsId:'${stage.tenant}_${stage.jobName}', branch:'${stage.repositoryBranch}'
+            git url:'${stage.repositoryUrl}',credentialsId:'${job.tenant}_${job.name}'<#if stage.repositoryBranch??>, branch:'${stage.repositoryBranch!}'</#if>
 <#elseif stage.repositoryType! == "svn">
             checkout([$class: 'SubversionSCM',  locations: [[credentialsId: '${stage.tenant}_${stage.jobName}', depthOption: 'infinity', ignoreExternalsOption: true, local: '.', remote: '${stage.repositoryUrl}']]]) }
 </#if>
 <#if stage.stageTemplateType == 1>
-            withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harbor', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']])
-            { sh 'docker login ${harborHost!} --username=$USERNAME --password=$PASSWORD' }
-            docker.build('${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}<#if stage.dockerfileType == 1> -f ./${stage.dockerFilePath}</#if><#if stage.dockerfileType == 2> -f <#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if>').push()
+            withDockerRegistry([credentialsId: 'harbor', url: 'http://${harborHost!}']) {
+                sh 'docker build <#if stage.dockerfileType == 1> -f ./${stage.dockerFilePath}</#if><#if stage.dockerfileType == 2> -f <#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if> -t ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!} .'
+                sh 'docker push ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}'
+            }
+            //withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harbor', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']])
+            //{ sh 'docker login ${harborHost!} --username=$USERNAME --password=$PASSWORD' }
+            //docker.build('${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}<#if stage.dockerfileType == 1> -f ./${stage.dockerFilePath}</#if><#if stage.dockerfileType == 2> -f <#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if>').push()
 </#if>
 <#if stage.stageTemplateType == 2>
-            httpRequest "http://10.100.100.134:8081/rest/openapi/cicd/deploy?stageId=${stage.stageId!}&amp;buildNum=${r'${currentBuild.number}'}"
+            echo ''
+            httpRequest "${apiUrl}/rest/openapi/cicd/deploy?stageId=${stage.id!}&amp;buildNum=${r'${currentBuild.number}'}"
 </#if>
 <#list stage.command as command>
             sh '${command}'
 </#list>
         }
-        httpRequest "http://10.100.100.134:8081/rest/openapi/cicd/stageSync?id=${jobId!}&amp;buildNum=${r'${currentBuild.number}'}&amp;stageOrder=${stage.stageOrder}"
+        httpRequest "${apiUrl}/rest/openapi/cicd/stageSync?id=${job.id!}&amp;buildNum=${r'${currentBuild.number}'}&amp;stageOrder=${stage.stageOrder}"
 </#list>
 <#if (stageList?size>0) >
     }
@@ -95,5 +97,5 @@ podTemplate(
 </#if>
 }finally{
     clearTemplateNames()
-    httpRequest "http://10.100.100.134:8081/rest/openapi/cicd/postBuild?id=${jobId!}&amp;buildNum=${r'${currentBuild.number}'}"
+    httpRequest "${apiUrl}/rest/openapi/cicd/postBuild?id=${job.id!}&amp;buildNum=${r'${currentBuild.number}'}"
 }

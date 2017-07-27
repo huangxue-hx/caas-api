@@ -5,6 +5,9 @@
         <id column="id" jdbcType="INTEGER" property="id" />
         <result column="job_id" jdbcType="INTEGER" property="jobId" />
         <result column="stage_id" jdbcType="INTEGER" property="stageId" />
+        <result column="stage_name" jdbcType="VARCHAR" property="stageName" />
+        <result column="stage_order" jdbcType="INTEGER" property="stageOrder" />
+        <result column="stage_type" jdbcType="VARCHAR" property="stageType" />
         <result column="build_num" jdbcType="VARCHAR" property="buildNum" />
         <result column="status" jdbcType="VARCHAR" property="status" />
         <result column="start_time" jdbcType="TIMESTAMP" property="startTime" />
@@ -13,7 +16,7 @@
     </resultMap>
 
     <select id="queryByObject" resultMap="BaseResultMap">
-        SELECT id,job_id,stage_id,build_num,status,start_time,duration,log
+        SELECT id,job_id,stage_id,stage_name,stage_order,stage_type,build_num,status,start_time,duration,log
         FROM cicd_stage_build
         WHERE 1=1
         <if test="jobId!=null and jobId!=''"> AND job_id=#{jobId} </if>
@@ -23,8 +26,8 @@
     </select>
 
     <insert id="insert" parameterType="com.harmonycloud.dao.ci.bean.StageBuild">
-        INSERT INTO cicd_stage_build(job_id,stage_id,build_num,status,start_time)
-        VALUE(#{jobId},#{stageId},#{buildNum},#{status},#{startTime})
+        INSERT INTO cicd_stage_build(job_id,stage_id,stage_name,stage_order,stage_type,build_num,status,start_time)
+        VALUE(#{jobId},#{stageId},#{stageName},#{stageOrder},#{stageType},#{buildNum},#{status},#{startTime})
     </insert>
 
     <update id="updateByStageNameAndBuildNum">

@@ -26,7 +26,7 @@
         <result column="image_increase_tag" jdbcType="VARCHAR" property="imageIncreaseTag" />
         <result column="image_tag" jdbcType="VARCHAR" property="imageTag" />
         <result column="harbor_project" jdbcType="VARCHAR" property="harborProject" />
-        <result column="business_name" jdbcType="VARCHAR" property="businessName" />
+        <result column="namespace" jdbcType="VARCHAR" property="namespace" />
         <result column="service_name" jdbcType="VARCHAR" property="serviceName" />
         <result column="container_name" jdbcType="VARCHAR" property="containerName" />
         <result column="command" jdbcType="VARCHAR" property="command" />
@@ -58,7 +58,7 @@
         s.image_increase_tag,
         s.image_tag,
         s.harbor_project,
-        s.business_name,
+        s.namespace,
         s.service_name,
         s.container_name,
         s.command,
@@ -93,7 +93,7 @@
         image_increase_tag,
         image_tag,
         harbor_project,
-        business_name,
+        namespace,
         service_name,
         container_name,
         command,
@@ -111,6 +111,7 @@
         #{credentialsUsername},
         #{credentialsPassword},
         #{buildEnvironment},
+        #{environmentVariables},
         #{useDependency},
         #{dockerfileType},
         #{baseImage},
@@ -122,7 +123,7 @@
         #{imageIncreaseTag},
         #{imageTag},
         #{harborProject},
-        #{businessName},
+        #{namespace},
         #{serviceName},
         #{containerName},
         #{command},
@@ -169,7 +170,7 @@
         image_increase_tag = #{imageIncreaseTag},
         image_tag = #{imageTag},
         harbor_project = #{harborProject},
-        business_name = #{businessName},
+        namespace = #{namespace},
         service_name = #{serviceName},
         container_name = #{containerName},
         command = #{command},

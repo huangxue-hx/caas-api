@@ -40,7 +40,7 @@ public class StageDto {
     private String imageIncreaseTag;
     private String imageTag;
     private String harborProject;
-    private String businessName;
+    private String namespace;
     private String serviceName;
     private String containerName;
     private List command;
@@ -263,12 +263,12 @@ public class StageDto {
         this.harborProject = harborProject;
     }
 
-    public String getBusinessName() {
-        return businessName;
+    public String getNamespace() {
+        return namespace;
     }
 
-    public void setBusinessName(String businessName) {
-        this.businessName = businessName;
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
     }
 
     public String getServiceName() {

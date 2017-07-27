@@ -6,6 +6,7 @@
         <id column="id" property="id" jdbcType="INTEGER" />
         <result column="name" property="name" jdbcType="VARCHAR" />
         <result column="tenant" property="tenant" jdbcType="VARCHAR" />
+        <result column="tenant_id" property="tenantId" jdbcType="VARCHAR" />
         <result column="notification" property="notification" jdbcType="BOOLEAN" />
         <result column="success_notification" property="successNotification" jdbcType="BOOLEAN" />
         <result column="fail_notification" property="failNotification" jdbcType="BOOLEAN" />
@@ -20,17 +21,17 @@
         <result column="last_build_num" property="lastBuildNum" jdbcType="INTEGER" />
     </resultMap>
 
-    <select id="select" resultMap="BaseResultMap" parameterType="java.lang.String">
-        SELECT id,name,tenant,create_user
-        FROM cicd_job
-        WHERE 1=1
-        <if test="jobName!=null and jobName!=''"> AND name=#{jobName} </if>
-        <if test="tenant!=null and tenant!=''"> AND tenant=#{tenant} </if>
-        <if test="createUser!=null and createUser!=''"> AND createUser=#{create_user} </if>
-    </select>
+    <!--<select id="select" resultMap="BaseResultMap" parameterType="java.lang.String">-->
+        <!--SELECT id,name,tenant,create_user-->
+        <!--FROM cicd_job-->
+        <!--WHERE 1=1-->
+        <!--<if test="jobName!=null and jobName!=''"> AND name=#{jobName} </if>-->
+        <!--<if test="tenant!=null and tenant!=''"> AND tenant=#{tenant} </if>-->
+        <!--<if test="createUser!=null and createUser!=''"> AND createUser=#{create_user} </if>-->
+    <!--</select>-->
 
     <select id="queryById" resultMap="BaseResultMap" parameterType="java.lang.Integer">
-        SELECT id,name,tenant,notification,success_notification,fail_notification,mail,`trigger`,poll_scm,cron_exp_for_poll_scm,create_user,last_build_num
+        SELECT id,name,tenant,tenant_id,notification,success_notification,fail_notification,mail,`trigger`,poll_scm,cron_exp_for_poll_scm,create_user,last_build_num
         FROM cicd_job
         WHERE id = #{id}
     </select>

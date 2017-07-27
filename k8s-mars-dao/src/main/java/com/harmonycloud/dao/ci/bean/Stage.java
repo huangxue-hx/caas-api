@@ -32,7 +32,7 @@ public class Stage {
     private String imageIncreaseTag;
     private String imageTag;
     private String harborProject;
-    private String businessName;
+    private String namespace;
     private String serviceName;
     private String containerName;
     private String command;
@@ -247,12 +247,12 @@ public class Stage {
         this.harborProject = harborProject;
     }
 
-    public String getBusinessName() {
-        return businessName;
+    public String getNamespace() {
+        return namespace;
     }
 
-    public void setBusinessName(String businessName) {
-        this.businessName = businessName;
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
     }
 
     public String getServiceName() {
