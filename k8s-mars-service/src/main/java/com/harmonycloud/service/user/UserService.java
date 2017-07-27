@@ -194,7 +194,6 @@ public class UserService {
                 }
             } catch (Exception e) {
                 if (e instanceof SQLException) {
-
                     // 删除harbor用户
                     String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + harborUId;
                     String dlCookie = harborUtil.checkCookieTimeout();
@@ -1582,60 +1581,6 @@ public class UserService {
 	 * @param 
 	 * @return void
 	 */
-/*	public ActionReturnUtil fileexport()throws Exception {
-		String path = "";
-		String[] title = {"平台账号","密码","用户邮箱","姓名","手机号","备注"};
-		//创建Excel工作簿
-		HSSFWorkbook workbook = new HSSFWorkbook();
-		//创建一个工作表sheet
-		HSSFSheet sheet = workbook.createSheet();
-		//创建第一行
-		HSSFRow row = sheet.createRow(0);
-		HSSFCell cell = null;
-		//插入第一行数据id,name,sex
-		for(int i=0;i<title.length;i++){
-					cell = row.createCell(i);
-					cell.setCellValue(title[i]);
-		}
-		//追加数据
-		for(int i=1;i<10;i++){
-			HSSFRow nextrow = sheet.createRow(i);
-			HSSFCell cell2 = nextrow.createCell(0);
-			cell2.setCellValue("a"+i);
-			cell2 = nextrow.createCell(1);
-			cell2.setCellValue("a"+i);
-			cell2 = nextrow.createCell(2);
-			cell2.setCellValue("2231231@qq.com");
-			cell2 = nextrow.createCell(3);
-			cell2.setCellValue("小a");
-			cell2 = nextrow.createCell(4);
-			cell2.setCellValue("15131234123");
-			cell2 = nextrow.createCell(5);
-			cell2.setCellValue("asdasd");
-		}
-		//创建一个文件，判断操作系统
-		Properties prop = System.getProperties();
-		String os = prop.getProperty("os.name");
-		File file ;
-		if(os.startsWith("win") || os.startsWith("Win")){
-			file = new File("C:/user.xls");
-			path = "C:/user.xls";
-		}else{
-			file = new File("/home/root123/project/user.xls");
-			path = "/home/root123/project/user.xls";
-		}
-		try {
-			file.createNewFile();
-			FileOutputStream stream = FileUtils.openOutputStream(file);
-			workbook.write(stream);
-			workbook.close();
-			stream.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return ActionReturnUtil.returnSuccessWithMsg(path);
-	}*/
     public ActionReturnUtil fileexport(HttpServletRequest req,HttpServletResponse resp)throws Exception {
 		try {
 			String[] title = {"平台账号","密码","用户邮箱","姓名","手机号","备注"};
@@ -1675,38 +1620,170 @@ public class UserService {
 	 * @return void
 	 */
 	public ActionReturnUtil userBulkUpload(InputStream in, MultipartFile file)throws Exception {
-				//定义报错提示用户名username和excel记录行号rowNumber,获取传入文件后缀suffix和excel的title。
-				String username = "";
-				int rowNumber = 1;
+				//定义title用来判断excel表的数据title头是否正确
 				String[] title = {"平台账号","密码","用户邮箱","姓名","手机号","备注"};
+				List<String> list = new ArrayList<String>();
 				List<List<Object>> listob = ExcelUtil.getUserListByExcel(in,file.getOriginalFilename());
-				List<User> salaryList = new ArrayList<User>();
-				 //遍历listob数据，把数据放到List中
-		        for (int i = 0; i < listob.size(); i++) {
-		            List<Object> ob = listob.get(i);
-		            User user = new User();
-		            //通过遍历实现把每一列封装成一个model中，再把所有的model用List集合装载
-		            user.setUsername(String.valueOf(ob.get(0)));
-		            user.setPassword(String.valueOf(ob.get(1)));
-		            user.setEmail(String.valueOf(ob.get(2)));
-		            user.setRealName(String.valueOf(ob.get(3)));
-		            user.setPhone(String.valueOf(ob.get(4)));
-		            user.setComment(String.valueOf(ob.get(5)));
-		            //为了避免用户提交产生错误数据，所以一个个插入,
-		            addUser(user);
-		        }
-				/*//按行读取行数据，并记录行，将当前行记录用户保存到数据库和harbor，若错误则抛出出错信息及行号。提示用户操作xls，删除已生成用户记录和修改错误记录
-				User user = new User();
-				rowNumber ++;
-				try {
-						  this.addUser(user);
-				} catch (Exception e) {
-					return ActionReturnUtil.returnErrorWithData("excel文件第"+rowNumber+"行"+username+"无法正常插入。错误详情："+e);
-				}
-				return ActionReturnUtil.returnSuccess();*/
+				//遍历listob数据，把数据放到List中
+			    for (int i = 0; i < listob.size(); i++) {
+			    		List<Object> ob = listob.get(i);
+			            User user = new User();
+			            //通过遍历获取每一列用户数据
+			            user.setUsername(String.valueOf(ob.get(0)));
+			            user.setPassword(String.valueOf(ob.get(1)));
+			            user.setEmail(String.valueOf(ob.get(2)));
+			            user.setRealName(String.valueOf(ob.get(3)));
+			            user.setPhone(String.valueOf(ob.get(4)));
+			            user.setComment(String.valueOf(ob.get(5)));
+			            list.add(String.valueOf(ob.get(0)));
+			            //为了避免用户提交产生错误数据，所以一个个插入,
+			            excelAddUser(user,i+1,list);
+			    }
 		        return ActionReturnUtil.returnSuccess();
 	}
 	
+	/**
+     * 向k8s和harbor中新增用户
+     * 
+     * @param user
+     * @param rowNumber
+     * @return
+     */
+    public ActionReturnUtil excelAddUser(User user,int rowNumber,List<String> list) throws Exception {
+        // 密码匹配
+        String regex = "^(?![0-9]+$)(?![a-zA-Z]+$)[0-9A-Za-z]{7,12}$";
+        String regex1 = "^[\u4E00-\u9FA5A-Za-z0-9]+$";
+        boolean matches = user.getPassword().matches(regex);
+        if (!matches) {
+        	for(int i =0;i<list.size()-1;i++){
+	    		//获取uuid
+	    		UserExample example =new UserExample();
+	    		example.createCriteria().andUsernameEqualTo(list.get(i));
+	    		Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
+	    		// 删除harbor用户
+	            String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
+	            String dlCookie = harborUtil.checkCookieTimeout();
+	            Map<String, Object> headers = new HashMap<String, Object>();
+	            headers.put("Cookie", dlCookie);
+	           HttpClientUtil.doDelete(deleteUrl, null, headers);
+	    	}
+            return ActionReturnUtil.returnErrorWithMsg("第"+rowNumber+"行用户信息插入发生错误，"+"密码必须是数字+字母组合且长度不能小于7！");
+        }
+        // 用户名非重
+        if (this.checkUserName(user.getUsername())) {
+        	for(int i =0;i<list.size()-1;i++){
+	    		//获取uuid
+	    		UserExample example =new UserExample();
+	    		example.createCriteria().andUsernameEqualTo(list.get(i));
+	    		Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
+	    		// 删除harbor用户
+	            String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
+	            String dlCookie = harborUtil.checkCookieTimeout();
+	            Map<String, Object> headers = new HashMap<String, Object>();
+	            headers.put("Cookie", dlCookie);
+	            HttpClientUtil.doDelete(deleteUrl, null, headers);
+	    	}
+            return ActionReturnUtil.returnErrorWithMsg("第"+rowNumber+"行用户信息插入发生错误，"+"用户名重复！");
+        }
+        // 邮箱非重
+        if (this.checkEmail(user.getEmail())) {
+        	for(int i =0;i<list.size()-1;i++){
+	    		//获取uuid
+	    		UserExample example =new UserExample();
+	    		example.createCriteria().andUsernameEqualTo(list.get(i));
+	    		Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
+	    		// 删除harbor用户
+	            String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
+	            String dlCookie = harborUtil.checkCookieTimeout();
+	            Map<String, Object> headers = new HashMap<String, Object>();
+	            headers.put("Cookie", dlCookie);
+	            HttpClientUtil.doDelete(deleteUrl, null, headers);
+	    	}
+            return ActionReturnUtil.returnErrorWithMsg("第"+rowNumber+"行用户信息插入发生错误，"+"邮箱重复！");
+        }
+        // 真实用户名判断，过滤特殊符号
+        boolean matchrealname = user.getRealName().matches(regex1);
+        if (!matchrealname) {
+        	for(int i =0;i<list.size()-1;i++){
+	    		//获取uuid
+	    		UserExample example =new UserExample();
+	    		example.createCriteria().andUsernameEqualTo(list.get(i));
+	    		Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
+	    		// 删除harbor用户
+	            String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
+	            String dlCookie = harborUtil.checkCookieTimeout();
+	            Map<String, Object> headers = new HashMap<String, Object>();
+	            headers.put("Cookie", dlCookie);
+	            HttpClientUtil.doDelete(deleteUrl, null, headers);
+	    	}
+            return ActionReturnUtil.returnErrorWithMsg("第"+rowNumber+"行用户信息插入发生错误，"+"真实姓名不符合要求！");
+        }
+        HarborUser harbor = new HarborUser();
+        harbor.setUsername(user.getUsername());
+        harbor.setPassword(user.getPassword());
+        
+        // 向harbor新增用户
+        String addUrl = "http://" + harborIP + ":" + harborPort + "/api/users";
+        Map<String, Object> params = new HashMap<String, Object>();
+        params.put("username", user.getUsername());
+        params.put("password", user.getPassword());
+        params.put("realname", user.getRealName());
+        params.put("comment", user.getComment());
+        params.put("email", user.getEmail());
+        String cookie = harborUtil.checkCookieTimeout();
+        Map<String, Object> header = new HashMap<String, Object>();
+        header.put("Cookie", cookie);
+        header.put("Content-type", "application/json");
+        String harborUId = null;
+            
+        CloseableHttpResponse response = HttpClientUtil.doBodyPost(addUrl, params, header);
+        if (HttpStatusUtil.isSuccessStatus(response.getStatusLine().getStatusCode())) {
+			        // 密码md5加密
+			        // 获取harbor用户uuid作为user id
+			        Header[] headers = response.getHeaders("Location");
+			        if (headers.length > 0) {
+							        Header location = headers[0];
+							        harborUId = location.getValue().substring(location.getValue().lastIndexOf("/") + 1);
+							        String MD5password = StringUtil.convertToMD5(user.getPassword());
+							        user.setPassword(MD5password);
+							        user.setId(Long.valueOf(harborUId));
+							        user.setCreateTime(new Date());
+							        user.setPause(CommonConstant.NORMAL);
+							        userMapper.addUser(user);
+							        harboruserMapper.addUser(harbor);
+							        return ActionReturnUtil.returnSuccess();
+			        } else {
+			        	for(int i =0;i<list.size()-1;i++){
+				    		//获取uuid
+				    		UserExample example =new UserExample();
+				    		example.createCriteria().andUsernameEqualTo(list.get(i));
+				    		Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
+				    		// 删除harbor用户
+				            String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
+				            String dlCookie = harborUtil.checkCookieTimeout();
+				            Map<String, Object> head = new HashMap<String, Object>();
+				            head.put("Cookie", dlCookie);
+				            HttpClientUtil.doDelete(deleteUrl, null, head);
+				    	}
+                        return ActionReturnUtil.returnErrorWithMsg("第"+rowNumber+"行用户信息插入发生错误,Create failed");
+			        }
+         } else {
+		        	 for(int i =0;i<list.size()-1;i++){
+		 	    		//获取uuid
+		 	    		UserExample example =new UserExample();
+		 	    		example.createCriteria().andUsernameEqualTo(list.get(i));
+		 	    		Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
+		 	    		// 删除harbor用户
+		 	            String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
+		 	            String dlCookie = harborUtil.checkCookieTimeout();
+		 	            Map<String, Object> headers = new HashMap<String, Object>();
+		 	            headers.put("Cookie", dlCookie);
+		 	            HttpClientUtil.doDelete(deleteUrl, null, headers);
+		 	    	}
+                    return ActionReturnUtil.returnErrorWithMsg("第"+rowNumber+"行用户信息插入发生错误,harbor Create failed");
+         }
+    }
+    
 	/**
      * 描述：根据文件后缀，自适应上传文件的版本
      */

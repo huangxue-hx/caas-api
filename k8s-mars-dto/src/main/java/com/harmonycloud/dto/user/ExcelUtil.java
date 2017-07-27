@@ -29,10 +29,8 @@ public class ExcelUtil {
         Row row = null;
         Cell cell = null;
         list = new ArrayList<List<Object>>();
-        //遍历Excel中所有的sheet
-        for (int i = 0; i < work.getNumberOfSheets(); i++) {
-            sheet = work.getSheetAt(i);
-            if(sheet==null){continue;}
+        //获取第一张表
+        sheet = work.getSheetAt(0);
             //遍历当前sheet中的所有行
             //包涵头部，所以要小于等于最后一列数,这里也可以在初始值加上头部行数，以便跳过头部
             for (int j = sheet.getFirstRowNum(); j <= sheet.getLastRowNum(); j++) {
@@ -44,11 +42,11 @@ public class ExcelUtil {
                 List<Object> li = new ArrayList<Object>();
                 for (int y = row.getFirstCellNum(); y < row.getLastCellNum(); y++) {
                     cell = row.getCell(y);
+                    if(cell ==null){continue;}
                     li.add(getCellValue(cell));
                 }
                 list.add(li);
             }
-        }
         return list;
     }
     /**
