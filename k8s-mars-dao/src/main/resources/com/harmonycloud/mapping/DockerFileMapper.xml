@@ -30,8 +30,8 @@
     </select>
 
     <select id="findPageByAll" resultType="com.harmonycloud.dao.ci.bean.DockerFilePage" parameterType="DockerFile">
-        SELECT df.id id,df.name name,GROUP_CONCAT(cj.name) jobNames,
-        GROUP_CONCAT(cs.stage_name) stageNames,GROUP_CONCAT(cs.id) stageIds,
+        SELECT df.id id,df.name name,GROUP_CONCAT(cj.id) jobIds,GROUP_CONCAT(cj.name) jobNames,
+        GROUP_CONCAT(cs.id) stageIds,GROUP_CONCAT(cs.stage_name) stageNames,
         df.create_time createTime,df.update_time updateTime
         FROM cicd_docker_file df
         LEFT JOIN cicd_docker_file_job_stage dfj ON df.id=dfj.docker_file_id

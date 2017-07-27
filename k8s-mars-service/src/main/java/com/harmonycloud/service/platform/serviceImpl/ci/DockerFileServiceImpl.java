@@ -4,6 +4,7 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.harmonycloud.common.util.StringUtil;
 import com.harmonycloud.dao.ci.DockerFileMapper;
+import com.harmonycloud.dao.ci.bean.Depends;
 import com.harmonycloud.dao.ci.bean.DockerFile;
 import com.harmonycloud.dao.ci.bean.DockerFilePage;
 import com.harmonycloud.dto.cicd.DockerFileDto;
@@ -12,6 +13,7 @@ import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -35,15 +37,22 @@ public class DockerFileServiceImpl implements DockerFileService {
         if(dockerFiles!=null && dockerFiles.size()>0){
             for(DockerFilePage dockerFilePage: dockerFiles){
                 if(StringUtils.isNotBlank(dockerFilePage.getJobNames()) && StringUtils.isNotBlank(dockerFilePage.getStageNames())){
+                    String[] jobIds = dockerFilePage.getJobIds().split("g,");
                     String[] jobNames = dockerFilePage.getJobNames().split(",");
+                    String[] stageIds = dockerFilePage.getStageIds().split(",");
                     String[] stageNames = dockerFilePage.getStageNames().split(",");
-                    if(jobNames!=null &&stageNames!=null && jobNames.length == stageNames.length){
-                        String depends="";
+                    if(jobIds!=null &&jobNames!=null && stageIds!=null &&stageNames!=null
+                            && jobIds.length == jobNames.length
+                            && stageIds.length == stageNames.length
+                            && stageIds.length == jobIds.length){
+                        List<Depends> depends = new ArrayList<>(jobNames.length);
                         for(int i=0;i<jobNames.length;i++){
-                            depends+=jobNames[i]+"("+stageNames[i]+")";
-                            if(i!=(jobNames.length-1)){
-                                depends+=",";
-                            }
+                            Depends depend = new Depends();
+                            depend.setJobId(Integer.parseInt(jobIds[i]));
+                            depend.setJobName(jobNames[i]);
+                            depend.setStageId(Integer.parseInt(stageIds[i]));
+                            depend.setStageName(stageNames[i]);
+                            depends.add(depend);
                         }
                         dockerFilePage.setDepends(depends);
                     }

@@ -1,14 +1,18 @@
 package com.harmonycloud.dao.ci.bean;
 
+import java.util.List;
+
 public class DockerFilePage extends DockerFile {
+
+    private String jobIds;
 
     private String jobNames;
 
-    private String stageNames;
-
     private String stageIds;
 
-    private String depends;
+    private String stageNames;
+
+    private List<Depends> depends;
 
     public String getJobNames() {
         return jobNames;
@@ -34,11 +38,19 @@ public class DockerFilePage extends DockerFile {
         this.stageIds = stageIds;
     }
 
-    public String getDepends() {
+    public List<Depends> getDepends() {
         return depends;
     }
 
-    public void setDepends(String depends) {
+    public void setDepends(List<Depends> depends) {
         this.depends = depends;
+    }
+
+    public String getJobIds() {
+        return jobIds;
+    }
+
+    public void setJobIds(String jobIds) {
+        this.jobIds = jobIds;
     }
 }
