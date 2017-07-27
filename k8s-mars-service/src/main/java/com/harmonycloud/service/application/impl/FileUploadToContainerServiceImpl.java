@@ -61,8 +61,9 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 		}
 		String fileName = file.getOriginalFilename();
 		String path = uploadPath + containerFileUpload.getNamespace();
-		final File dirFile = new File(path);
-		final File newFile = new File(path + "/" + fileName);
+		File dirFile = new File(path);
+		File newFile = new File(path + "/" + fileName);
+		logger.info("newFilepath:"+newFile.getPath());
 		Long userId = Long.valueOf(session.getAttribute("userId").toString());
 		List<Integer> uploadIds = new ArrayList<Integer>();
 		for (PodContainerDto pDto : podList) {
@@ -129,11 +130,13 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 		}
 
 		if (uploadIds != null && uploadIds.size() > 0) {
+			logger.info("dirFileExist:"+dirFile.exists());
 			if (!dirFile.exists()) {
 				dirFile.mkdirs();
 			}
 			try {
 				file.transferTo(newFile);
+				logger.info("newFileIsExist:"+newFile.exists());
 				for (Integer tId : uploadIds) {
 
 					// 上传成功更新上传状态
@@ -168,7 +171,7 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 		for (PodContainerDto pDto : podList) {
 			final ContainerFileUploadDto containerFu = containerFileUpload;
 			final PodContainerDto pd = pDto;
-			final String localPath = uploadPath + "/" + containerFu.getNamespace();
+			final String localPath = uploadPath + containerFu.getNamespace();
 			String username = String.valueOf(session.getAttribute("username"));
 			final String token = String.valueOf(K8SClient.tokenMap.get(username));
 			Cluster cluster = (Cluster) session.getAttribute("currentCluster");
@@ -294,6 +297,7 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 			String shellPath, Integer id, String token, String server) throws Exception {
 		FileUploadContainer fileUpload = fileUploadContainerMapper.selectByPrimaryKey(id);
 		try {
+			logger.info("文件是否存在:"+new File(localPath).listFiles().length);
 			fileUpload.setPhase(2);
 			fileUpload.setStatus("doing");
 			fileUploadContainerMapper.updateByPrimaryKeySelective(fileUpload);
@@ -312,24 +316,27 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 				logger.debug("执行上传文件脚本：" + res);
 			}
 			while ((res = stdError.readLine()) != null) {
-				logger.error("执行上传文件脚本错误：" + res);
+				logger.error("执行上传文件脚本错误：" + res+ ":" + localPath + "/" + fileUpload.getFileName());
 			}
 			int runningStatus = p.waitFor();
-			logger.debug("执行上传文件脚本结果：" + runningStatus);
+			logger.info("执行上传文件脚本结果：" + runningStatus);
 			// 0代表成功, 更新数据库
 			if (runningStatus == 0) {
 				fileUpload.setStatus("success");
 				String path = localPath + "/" + fileUpload.getFileName();
+				logger.info("上传到容器成功："+path);
 				File file = new File(path);
 				if (file.isFile() && file.exists()) {
 					file.delete();
 				} 
 			} else {
+				logger.info("执行上传文件脚本结果失败:"+res);
 				fileUpload.setStatus("failed");
 				fileUpload.setErrMsg(res);
 			}
 			fileUploadContainerMapper.updateByPrimaryKeySelective(fileUpload);
 		} catch (Exception e) {
+			logger.error("执行上传文件脚本结果失败:"+e.getLocalizedMessage()+";"+e.getMessage()+";"+e.getCause());
 			fileUpload.setStatus("failed");
 			fileUpload.setErrMsg(e.getMessage());
 			fileUploadContainerMapper.updateByPrimaryKeySelective(fileUpload);
