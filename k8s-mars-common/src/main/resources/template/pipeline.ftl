@@ -83,13 +83,13 @@ podTemplate(
 </#if>
 <#if stage.stageTemplateType == 2>
             echo '开始升级'
-            httpRequest "${apiUrl}/rest/openapi/cicd/deploy?stageId=${stage.id!}&amp;buildNum=${r'${currentBuild.number}'}"
+            httpRequest "${apiUrl!}/rest/openapi/cicd/deploy?stageId=${stage.id!}&amp;buildNum=${r'${currentBuild.number}'}"
 </#if>
 <#list stage.command as command>
             sh '${command}'
 </#list>
         }
-        httpRequest "${apiUrl}/rest/openapi/cicd/stageSync?id=${job.id!}&amp;buildNum=${r'${currentBuild.number}'}&amp;stageOrder=${stage.stageOrder}"
+        httpRequest "${apiUrl!}/rest/openapi/cicd/stageSync?id=${job.id!}&amp;buildNum=${r'${currentBuild.number}'}&amp;stageOrder=${stage.stageOrder}"
 </#list>
 <#if (stageList?size>0) >
     }
@@ -97,5 +97,5 @@ podTemplate(
 </#if>
 }finally{
     clearTemplateNames()
-    httpRequest "${apiUrl}/rest/openapi/cicd/postBuild?id=${job.id!}&amp;buildNum=${r'${currentBuild.number}'}"
+    httpRequest "${apiUrl!}/rest/openapi/cicd/postBuild?id=${job.id!}&amp;buildNum=${r'${currentBuild.number}'}"
 }

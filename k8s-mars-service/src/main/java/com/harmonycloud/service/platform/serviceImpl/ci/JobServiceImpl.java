@@ -119,6 +119,9 @@ public class JobServiceImpl implements JobService {
     @Value("#{propertiesReader['web.url']}")
     private String webUrl;
 
+    @Value("#{propertiesReader['api.url']}")
+    private String apiUrl;
+
 
     public static ExecutorService executor = Executors.newFixedThreadPool(10);
 
@@ -149,10 +152,11 @@ public class JobServiceImpl implements JobService {
         if (result.isSuccess()) {
             Map<String, Object> dataModel = new HashMap<>();
             dataModel.put("stageList", new ArrayList<>());
-            dataModel.put("jobId", job.getId());
-            String script = TemplateUtil.generate("pipeline.ftl", dataModel);
+            //dataModel.put("jobId", job.getId());
             dataModel.put("job", job);
+            String script = TemplateUtil.generate("pipeline.ftl", dataModel);
             dataModel.put("script", script);
+            dataModel.put("apiUrl",apiUrl);
             String body = TemplateUtil.generate("jobConfig.ftl", dataModel);
             result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
         }else{
@@ -886,46 +890,50 @@ public class JobServiceImpl implements JobService {
             String jobStatus = null;
             boolean end = false;
             Job job = jobMapper.queryById(id);
-            String jenkinsJobName = job.getTenant() + "-" + job.getName();
+            String jenkinsJobName = job.getTenant() + "_" + job.getName();
             Integer lastBuildNum = job.getLastBuildNum();
             while(true) {
                 ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + lastBuildNum + "/wfapi/describe", null, null, false);
                 if (result.isSuccess()) {
                     String data = (String) result.get("data");
                     Map dataMap = JsonUtil.convertJsonToMap(data);
-                    if (!"IN_PROCESS".equals(dataMap.get("status")) && end) {
+                    if (!"IN_PROGRESS".equals(dataMap.get("status")) && end) {
                         break;
-                    } else {
+                    }
+                    if(!"IN_PROGRESS".equals(dataMap.get("status"))){
                         end = true;
                     }
                     List<Map> stages = (List<Map>) dataMap.get("stages");
                     int i = 0;
                     boolean send = false;
                     List stageList = new ArrayList<>();
-                    Map stageMap = new HashMap<>();
                     for (Map stage : stages) {
+                        Map stageMap = new HashMap<>();
                         i++;
-                        if ("IN_PROCESS".equals(stage.get("status")) && i > buildingOrder || end) {
+                        if ("IN_PROGRESS".equals(stage.get("status")) && i > buildingOrder || end) {
                             send = true;
+                            buildingOrder = i;
                         }
                         stageMap.put("lastBuildStatus", stage.get("status"));
-                        stageMap.put("lastBuildDuration", String.valueOf(stageMap.get("durationMillis")));
-                        stageMap.put("lastBuildTime", new Timestamp((Long) stageMap.get("startTimeMillis")));
+                        stageMap.put("lastBuildDuration", String.valueOf(stage.get("durationMillis")));
+                        stageMap.put("lastBuildTime", new Timestamp((Long) stage.get("startTimeMillis")));
+                        stageMap.put("stageOrder", i);
                         stageList.add(stageMap);
                     }
                     if (send) {
                         Map jobMap = new HashMap<>();
                         jobMap.put("stageList", stageList);
                         jobMap.put("lastBuildStatus", dataMap.get("status"));
-                        jobMap.put("lastBuildTime", new Timestamp((Long) stageMap.get("startTimeMillis")));
+                        jobMap.put("lastBuildTime", new Timestamp((Long) dataMap.get("startTimeMillis")));
                         result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + lastBuildNum + "/api/json", null, null, false);
                         if (result.isSuccess()) {
                             dataMap = JsonUtil.convertJsonToMap((String) result.get("data"));
                         }
                         jobMap.put("lastBuildDuration", dataMap.get("duration"));
-                        session.sendMessage(new TextMessage((String) JsonUtil.convertToJson(jobMap)));
+                        session.sendMessage(new TextMessage((String) JsonUtil.convertToJson(ActionReturnUtil.returnSuccessWithData(jobMap))));
                     }
                 }
+                Thread.sleep(2000);
             }
                 } catch (Exception e) {
                     e.printStackTrace();
