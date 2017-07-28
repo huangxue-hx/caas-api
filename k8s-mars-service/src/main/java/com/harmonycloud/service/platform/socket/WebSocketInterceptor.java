@@ -1,17 +1,15 @@
 package com.harmonycloud.service.platform.socket;
 
-import org.springframework.http.server.ServerHttpRequest;
-
-import java.util.Map;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-
+import org.apache.commons.lang.StringUtils;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
+import java.util.Map;
 
 public class WebSocketInterceptor implements HandshakeInterceptor{
 
@@ -37,8 +35,15 @@ public class WebSocketInterceptor implements HandshakeInterceptor{
             HttpServletRequest httpServletRequest = servletRequest.getServletRequest();
             if(httpServletRequest!=null){
                 String jenkinsJobName = httpServletRequest.getParameter("tenant") + "_" + httpServletRequest.getParameter("name");
-                map.put("jenkinsJobName", jenkinsJobName);
-                map.put("buildNum", httpServletRequest.getParameter("buildNum"));
+                if(!StringUtils.isBlank(jenkinsJobName)){
+                    map.put("jenkinsJobName", jenkinsJobName);
+                }
+                if(!StringUtils.isBlank(httpServletRequest.getParameter("buildNum"))) {
+                    map.put("buildNum", httpServletRequest.getParameter("buildNum"));
+                }
+                if(!StringUtils.isBlank(httpServletRequest.getParameter("id"))) {
+                    map.put("id", httpServletRequest.getParameter("id"));
+                }
             }
 
 		}

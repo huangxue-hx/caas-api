@@ -25,4 +25,6 @@ public interface StageService {
     ActionReturnUtil getBuildList(Integer id);
 
     ActionReturnUtil listBuildEnvironemnt();
+
+    ActionReturnUtil listDeployImage(Integer jobId, Integer stageOrder);
 }

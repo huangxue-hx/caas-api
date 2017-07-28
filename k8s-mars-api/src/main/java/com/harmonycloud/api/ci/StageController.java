@@ -111,4 +111,10 @@ public class StageController {
     public ActionReturnUtil listbuildenvironment(){
         return stageService.listBuildEnvironemnt();
     }
+
+    @RequestMapping(value = "/deployImage", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil listImageForDeployStage(@RequestParam(value="jobId") Integer jobId, @RequestParam(value="stageOrder") Integer stageOrder){
+        return stageService.listDeployImage(jobId, stageOrder);
+    }
 }

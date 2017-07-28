@@ -13,10 +13,11 @@
         <result column="start_time" jdbcType="TIMESTAMP" property="startTime" />
         <result column="duration" jdbcType="VARCHAR" property="duration" />
         <result column="log" jdbcType="VARCHAR" property="log" />
+        <result column="image" jdbcType="VARCHAR" property="image"/>
     </resultMap>
 
     <select id="queryByObject" resultMap="BaseResultMap">
-        SELECT id,job_id,stage_id,stage_name,stage_order,stage_type,build_num,status,start_time,duration,log
+        SELECT id,job_id,stage_id,stage_name,stage_order,stage_type,build_num,status,start_time,duration,log,image
         FROM cicd_stage_build
         WHERE 1=1
         <if test="jobId!=null and jobId!=''"> AND job_id=#{jobId} </if>
@@ -26,8 +27,8 @@
     </select>
 
     <insert id="insert" parameterType="com.harmonycloud.dao.ci.bean.StageBuild">
-        INSERT INTO cicd_stage_build(job_id,stage_id,stage_name,stage_order,stage_type,build_num,status,start_time)
-        VALUE(#{jobId},#{stageId},#{stageName},#{stageOrder},#{stageType},#{buildNum},#{status},#{startTime})
+        INSERT INTO cicd_stage_build(job_id,stage_id,stage_name,stage_order,stage_type,build_num,status,start_time,image)
+        VALUE(#{jobId},#{stageId},#{stageName},#{stageOrder},#{stageType},#{buildNum},#{status},#{startTime},#{image})
     </insert>
 
     <update id="updateByStageNameAndBuildNum">

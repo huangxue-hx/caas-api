@@ -17,6 +17,7 @@ public class StageBuild {
     private Date startTime;
     private String duration;
     private String log;
+    private String image;
 
     public Integer getId() {
         return id;
@@ -104,5 +105,13 @@ public class StageBuild {
 
     public void setLog(String log) {
         this.log = log;
+    }
+
+    public String getImage() {
+        return image;
+    }
+
+    public void setImage(String image) {
+        this.image = image;
     }
 }
