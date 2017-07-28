@@ -87,9 +87,13 @@ public class JobController {
 
     @RequestMapping(value = "/build", method = RequestMethod.POST)
     @ResponseBody
-    public ActionReturnUtil build(@RequestParam(value="id") Integer id){
+    public ActionReturnUtil build(@RequestParam(value="id") Integer id) throws Exception {
         logger.info("build job.");
-        return jobService.build(id);
+        try {
+            return jobService.build(id);
+        }catch(Exception e){
+            return ActionReturnUtil.returnErrorWithMsg("启动失败");
+        }
     }
 
     @RequestMapping(value = "/stopBuild", method = RequestMethod.POST)

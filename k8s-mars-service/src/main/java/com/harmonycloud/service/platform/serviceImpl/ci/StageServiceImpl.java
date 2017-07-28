@@ -128,7 +128,9 @@ public class StageServiceImpl implements StageService {
         stageType.setUserDefined(true);
         stageType.setTemplateType(3);
         stageTypeMapper.insertStageType(stageType);
-        return ActionReturnUtil.returnSuccess();
+        Map data = new HashMap<>();
+        data.put("id",stageType.getId());
+        return ActionReturnUtil.returnSuccessWithData(data);
     }
 
     @Override
@@ -170,6 +172,18 @@ public class StageServiceImpl implements StageService {
             data.add(buildEnvMap);
         }
         return ActionReturnUtil.returnSuccessWithData(data);
+    }
+
+    @Override
+    public ActionReturnUtil listDeployImage(Integer jobId, Integer stageOrder) {
+        List<Stage> stageList = stageMapper.queryByJobId(jobId);
+        List deployImageList = new ArrayList<>();
+        for(Stage stage : stageList){
+            if(stage.getStageOrder() < stageOrder && StageTemplateTypeEnum.IMAGEBUILD.ordinal() == stage.getStageTemplateType()){
+                deployImageList.add(stage.getHarborProject() +"/"+ stage.getImageName());
+            }
+        }
+        return ActionReturnUtil.returnSuccessWithData(deployImageList);
     }
 
     private String generateJobBody(Job job) throws Exception{

@@ -82,7 +82,7 @@ podTemplate(
             //docker.build('${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}<#if stage.dockerfileType == 1> -f ./${stage.dockerFilePath}</#if><#if stage.dockerfileType == 2> -f <#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if>').push()
 </#if>
 <#if stage.stageTemplateType == 2>
-            echo ''
+            echo '开始升级'
             httpRequest "${apiUrl}/rest/openapi/cicd/deploy?stageId=${stage.id!}&amp;buildNum=${r'${currentBuild.number}'}"
 </#if>
 <#list stage.command as command>

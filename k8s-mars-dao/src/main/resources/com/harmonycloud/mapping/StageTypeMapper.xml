@@ -32,7 +32,7 @@
         WHERE id=#{id}
     </select>
 
-    <insert id="insertStageType" parameterType="com.harmonycloud.dao.ci.bean.StageType">
+    <insert id="insertStageType" parameterType="com.harmonycloud.dao.ci.bean.StageType" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO cicd_stage_type(name,user_defined,tenant_id,template_type)
         VALUES(#{name},#{userDefined},#{tenantId},#{templateType})
     </insert>

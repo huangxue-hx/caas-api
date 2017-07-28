@@ -22,7 +22,7 @@ public interface JobService {
 
     ActionReturnUtil getJobDetail(Integer id);
 
-    ActionReturnUtil build(Integer id);
+    ActionReturnUtil build(Integer id) throws Exception;
 
     ActionReturnUtil stopBuild(String jobName, String tenantName, String buildNum);
 
@@ -48,4 +48,6 @@ public interface JobService {
     void stageSync(Integer id, Integer buildNum, Integer stageOrder);
 
     void deploy(Integer stageId, Integer buildNum) throws Exception;
+
+    void jobStatusWS(WebSocketSession session, Integer id);
 }
