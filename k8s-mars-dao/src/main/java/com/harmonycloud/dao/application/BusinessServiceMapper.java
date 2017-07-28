@@ -18,6 +18,8 @@ public interface BusinessServiceMapper {
     
     List<BusinessService> selectExternalBusinessServiceByBusinessId(@Param("businessId")int businessId);
     
+    List<BusinessService> selectBusinessServiceByBusinessId(@Param("businessId")int businessId, @Param("serviceId")int serviceId);
+    
     void deleteByTenant(@Param("tenant") String [] tenant);
     
     void deleteBusinessServiceByBusinessTemplateId(@Param("businessId")int businessId);

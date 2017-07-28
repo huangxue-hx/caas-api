@@ -493,7 +493,7 @@ public class ServiceServiceImpl implements ServiceService {
 		}
 
 		if (errorMessage.size() > 0) {
-			return ActionReturnUtil.returnErrorWithData(errorMessage);
+			return ActionReturnUtil.returnErrorWithMsg(errorMessage.toString());
 		}
 		return ActionReturnUtil.returnSuccess();
 

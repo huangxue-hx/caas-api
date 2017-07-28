@@ -110,4 +110,29 @@ public interface BusinessService {
      */
     ActionReturnUtil getBusinessTemplateByName(String name, String tenant) throws Exception;
     
+    /**
+     * add application template by name  on 17/04/07.
+     * 
+     * @author gurongyun
+     * 
+     * @param name
+     * 
+     * @param tenant
+     * 
+     * @return ActionReturnUtil
+     */
+    ActionReturnUtil addServiceTemplateByName(BusinessTemplateDto businessTemplate, String userName) throws Exception;
+    
+    /**
+     * update application template by name  on 17/04/07.
+     * 
+     * @author gurongyun
+     * 
+     * @param name
+     * 
+     * @param tenant
+     * 
+     * @return ActionReturnUtil
+     */
+    ActionReturnUtil updateServiceTemplateByName(BusinessTemplateDto businessTemplate, String userName) throws Exception;
 }

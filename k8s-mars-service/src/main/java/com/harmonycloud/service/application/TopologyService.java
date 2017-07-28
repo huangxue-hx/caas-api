@@ -1,6 +1,10 @@
 package com.harmonycloud.service.application;
 
+import java.util.List;
+
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.business.TopologyListDto;
+import com.harmonycloud.dto.business.TopologysDto;
 
 public interface TopologyService {
 	
@@ -24,4 +28,15 @@ public interface TopologyService {
      * @return ActionReturnUtil
      */
     ActionReturnUtil deleteToplogy(int businesstemplateId) throws Exception;
+    
+	/**
+     * add topology .
+     * 
+     * @author gurongyun
+     * 
+     * @param businesstemplateId
+     * @return ActionReturnUtil
+     */
+    ActionReturnUtil saveToplogy(List<TopologysDto> list, int businessTemplateId) throws Exception;
+    
 }

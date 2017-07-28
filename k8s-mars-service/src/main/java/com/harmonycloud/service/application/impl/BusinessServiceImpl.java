@@ -320,12 +320,15 @@ public class BusinessServiceImpl implements BusinessService {
      * 
      */
     private void saveBusinessService(Integer businessTemplatesId, Integer serviceTemplateId, Integer status, Integer external) {
-    	com.harmonycloud.dao.application.bean.BusinessService businessService = new com.harmonycloud.dao.application.bean.BusinessService();
-        businessService.setBusinessId(businessTemplatesId);
-        businessService.setServiceId(serviceTemplateId);
-        businessService.setStatus(status);
-        businessService.setIsExternal(external);
-        businessServiceMapper.insert(businessService);
+    	List<com.harmonycloud.dao.application.bean.BusinessService> list = businessServiceMapper.selectBusinessServiceByBusinessId(businessTemplatesId, serviceTemplateId);
+    	if(list == null || list.size() <= 0){
+    		com.harmonycloud.dao.application.bean.BusinessService businessService = new com.harmonycloud.dao.application.bean.BusinessService();
+            businessService.setBusinessId(businessTemplatesId);
+            businessService.setServiceId(serviceTemplateId);
+            businessService.setStatus(status);
+            businessService.setIsExternal(external);
+            businessServiceMapper.insert(businessService);
+    	}
     }
 
     /**
@@ -694,5 +697,60 @@ public class BusinessServiceImpl implements BusinessService {
 			return ActionReturnUtil.returnErrorWithMsg("不存在改模板");
 		}
 		
+	}
+
+	@Override
+	public ActionReturnUtil addServiceTemplateByName(BusinessTemplateDto businessTemplate, String userName)
+			throws Exception {
+		if(businessTemplate == null || businessTemplate.getServiceList() == null){
+			return ActionReturnUtil.returnErrorWithMsg("业务模板为空");
+		}
+		//添加更新应用模板
+		List<ServiceTemplateDto> list = businessTemplate.getServiceList();
+		JSONObject json = new JSONObject();
+		
+		if(list !=null && list.size() > 0){
+			for( ServiceTemplateDto s : list){
+				if(s.getFlag() !=  null && s.getFlag() == 1){
+					serviceService.updateServiceTemplata(s, userName, "");
+					json.put(s.getName(), s.getId());
+				}else{
+					ActionReturnUtil serRes = serviceService.saveServiceTemplate(s, userName);
+					if(!serRes.isSuccess()){
+						return serRes;
+					}
+					JSONObject js = (JSONObject) serRes.get("data");
+					s.setId(js.getInt(s.getName()));
+					json.putAll(js);
+				}
+				//添加业务模板和应用模板Mapper
+				saveBusinessService(businessTemplate.getId(), s.getId(), Constant.TEMPLATE_STATUS_CREATE, Constant.K8S_SERVICE);
+			}
+		}else{
+			return ActionReturnUtil.returnErrorWithMsg("应用模板为空");
+		}
+		return ActionReturnUtil.returnSuccessWithData(json);
+	}
+
+	@Override
+	public ActionReturnUtil updateServiceTemplateByName(BusinessTemplateDto businessTemplate, String userName)
+			throws Exception {
+		if(businessTemplate == null || businessTemplate.getServiceList() == null){
+			return ActionReturnUtil.returnErrorWithMsg("业务模板为空");
+		}
+		//更新应用模板
+		List<ServiceTemplateDto> list = businessTemplate.getServiceList();
+		if(list !=null && list.size() > 0){
+			for( ServiceTemplateDto s : list){
+				if(s.getFlag() !=  null && s.getFlag() == 1){
+					serviceService.updateServiceTemplata(s, userName, "");
+				}
+				//添加业务模板和应用模板Mapper
+				saveBusinessService(businessTemplate.getId(), s.getId(), Constant.TEMPLATE_STATUS_CREATE, Constant.K8S_SERVICE);
+			}
+		}else{
+			return ActionReturnUtil.returnErrorWithMsg("应用模板为空");
+		}
+		return ActionReturnUtil.returnSuccess();
 	}
 }

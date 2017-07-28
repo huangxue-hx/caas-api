@@ -32,4 +32,7 @@
   <delete id="deleteTopology">
     delete from topology where business_id = #{businessTemplateId}
   </delete>
+  <select id="getTopology" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select * from topology where business_id = #{businessTemplateId} and source = #{sourceId} and target = #{targetId}
+  </select>
 </mapper>

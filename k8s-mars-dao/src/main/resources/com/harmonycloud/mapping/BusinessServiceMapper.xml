@@ -42,4 +42,8 @@
   <update id="deleteBusinessServiceByBusinessTemplateId" parameterType="java.lang.Integer">
     update business_service set status=1 where business_id = #{businessId} and status=0
   </update>
+  <select id="selectBusinessServiceByBusinessId" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select * from business_service where business_id=#{businessId} and service_id = #{serviceId} and status=0
+  </select>
+  
 </mapper>

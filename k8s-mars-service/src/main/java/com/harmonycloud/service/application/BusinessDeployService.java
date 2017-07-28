@@ -159,5 +159,5 @@ public interface BusinessDeployService {
      *            username
      * @return ActionReturnUtil
      */
-    ActionReturnUtil addAndDeployBusinessTemplate(BusinessDeployDto businessDeploy, String username, Cluster cluster)throws Exception;
+    ActionReturnUtil addAndDeployBusinessTemplate(BusinessDeployDto businessDeploy, String username, String tenantid, Cluster cluster)throws Exception;
 }

@@ -34,6 +34,7 @@ import com.harmonycloud.service.platform.bean.BusinessList;
 import com.harmonycloud.service.platform.bean.PvDto;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.TenantService;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -95,6 +96,9 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
     
     @Autowired
     private ServiceTemplatesMapper serviceTemplatesMapper;
+    
+    @Autowired
+    NamespaceService namespaceService;
 
     public static final String ABNORMAL = "0";
 
@@ -1209,7 +1213,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 	}
 
 	@Override
-	public ActionReturnUtil addAndDeployBusinessTemplate(BusinessDeployDto businessDeploy, String username,
+	public ActionReturnUtil addAndDeployBusinessTemplate(BusinessDeployDto businessDeploy, String username, String tenantid,
 			Cluster cluster) throws Exception {
 		// check value
         if (StringUtils.isEmpty(username) || businessDeploy == null || businessDeploy.getBusinessTemplate().getServiceList().size() <= 0) {
@@ -1218,6 +1222,9 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         //获取k8s同namespace相关的资源
 		//获取 Deployment name
         JSONObject msg= new JSONObject();
+        if(StringUtils.isEmpty(businessDeploy.getNamespace())){
+        	return ActionReturnUtil.returnErrorWithMsg("namespace为空");
+        }
         String namespace = businessDeploy.getNamespace();
 		K8SURL url = new K8SURL();
     	url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
@@ -1244,8 +1251,13 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 		List<RouterSvc> tcplist = (List<RouterSvc>) tcpRes.get("data");
 		boolean flag = true ;
 		JSONObject json = new JSONObject();
+		//获取nodeslector
+		ActionReturnUtil labRes = namespaceService.getPrivatePartitionLabel(tenantid, namespace);
+		if(!labRes.isSuccess()){
+			return labRes;
+		}
 		for(ServiceTemplateDto std : businessDeploy.getBusinessTemplate().getServiceList()){
-			//保存或者更新应用模板
+			/*//保存或者更新应用模板
 			if(std.getFlag() != null && std.getFlag() == 1){
 				//更新应用模板	
 				ActionReturnUtil res = serviceService.updateServiceTemplata(std, username, null);
@@ -1260,9 +1272,11 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 					return res;
 				}
 				json.putAll((JSONObject)res.get("data"));
-			}
+			}*/
 			//check service name
 			if(std.getDeploymentDetail() != null && deps != null && deps.size() > 0){
+				std.getDeploymentDetail().setNamespace(namespace);
+				std.getDeploymentDetail().setNodeSelector((String)labRes.get("data"));
 				for(Deployment dep : deps){
 					if(std.getDeploymentDetail().getName().equals(dep.getMetadata().getName())){
 						msg.put(std.getDeploymentDetail().getName(), "名称重复");
@@ -1293,14 +1307,14 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 				}
 			}
 		}
-		//保存拓扑
+		/*//保存拓扑
 		if(businessDeploy.getBusinessTemplate().getTopologyList() != null){
 			boolean to = businessService.saveTopology(businessDeploy.getBusinessTemplate().getTopologyList(), businessDeploy.getBusinessTemplate().getId());
 			if(!to){
 				flag = false;
 				msg.put("拓扑图", "添加失败");
 			}
-		}
+		}*/
 		if(flag){
 			msg= new JSONObject();
 			for (ServiceTemplateDto service : businessDeploy.getBusinessTemplate().getServiceList()) {
@@ -1374,6 +1388,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 	                            		rule.setService(newService.getMetadata().getName());
 	                            	}
 	                            }
+	                            ingress.getParsedIngressList().setNamespace(namespace);
 	                            routerService.ingCreate(ingress.getParsedIngressList());
 	                            ingresses.add("{\"type\":\"HTTP\",\"name\":\"" + ingress.getParsedIngressList().getName() + "\"}");
 	                        } catch (Exception e) {
@@ -1385,6 +1400,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 	                        	Map<String, Object> labels = new HashMap<String, Object>();
 	                        	labels.put("app", service.getDeploymentDetail().getName());
 	                        	ingress.getSvcRouter().setLabels(labels);
+	                        	ingress.getSvcRouter().setNamespace(namespace);
 	                            routerService.svcCreate(ingress.getSvcRouter());
 	                            ingresses.add("{\"type\":\"TCP\",\"name\":\"" + ingress.getSvcRouter().getName() + "\"}");
 	                        } catch (Exception e) {
@@ -1430,15 +1446,16 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 	            }
 	            svc.setName(service.getDeploymentDetail().getName());
 	            svc.setServiceTemplateId(service.getId());
+	            svc.setNamespace(namespace);
 	            svc.setBusinessId(businessDeploy.getBusinessTemplate().getBusinessId());
 	            svc.setIsExternal(0);
 	            serviceMapper.insertService(svc);
 			}
 			if(!msg.isEmpty()){
-				return ActionReturnUtil.returnErrorWithData(msg);
+				return ActionReturnUtil.returnErrorWithMsg(msg.toString());
 			}
 		}else{
-			return ActionReturnUtil.returnErrorWithData(msg);
+			return ActionReturnUtil.returnErrorWithMsg(msg.toString());
 		}
         return ActionReturnUtil.returnSuccess();
 	}

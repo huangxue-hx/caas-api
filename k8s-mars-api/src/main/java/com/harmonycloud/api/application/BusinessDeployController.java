@@ -266,7 +266,8 @@ public class BusinessDeployController {
         if(userName == null){
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
+        String tenantid = (String) session.getAttribute("tenantId");
 		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-        return businessDeployService.addAndDeployBusinessTemplate(businessDeploy, userName, cluster);
+        return businessDeployService.addAndDeployBusinessTemplate(businessDeploy, userName, tenantid, cluster);
     }
 }

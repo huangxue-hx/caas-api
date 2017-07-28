@@ -17,4 +17,6 @@ public interface TopologyMapper {
     void deleteTopologyByTenant(@Param("tenant") String [] tenant);
     
     void deleteTopology(@Param("businessTemplateId") int businessTemplateId);
+    
+    List<Topology> getTopology(@Param("businessTemplateId") int businessTemplateId, @Param("sourceId") int sourceId, @Param("targetId") int targetId);
 }

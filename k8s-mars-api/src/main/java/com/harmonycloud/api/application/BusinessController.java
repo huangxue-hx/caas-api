@@ -124,4 +124,36 @@ public class BusinessController {
         logger.info("get application template");
         return businessService.getBusinessTemplateByName(name, tenant);
     }
-}
+    
+    /**
+     *add service template to businessTemplate on 17/05/05 .
+     * 
+     * @param businessTemplate
+     * 
+     * @return ActionReturnUtil
+     */
+    @ResponseBody
+    @RequestMapping(value = "/serviceTempalte", method = RequestMethod.POST)
+    public ActionReturnUtil addServiceTemplate(@ModelAttribute BusinessTemplateDto businessTemplate)
+            throws Exception {
+        logger.info("add application template");
+        String userName = (String) session.getAttribute("username");
+        return businessService.addServiceTemplateByName(businessTemplate, userName);
+    }
+    
+    /**
+     *update service template to businessTemplate on 17/05/05 .
+     * 
+     * @param businessTemplate
+     * 
+     * @return ActionReturnUtil
+     */
+    @ResponseBody
+    @RequestMapping(value = "/serviceTempalte", method = RequestMethod.PUT)
+    public ActionReturnUtil updateServiceTemplate(@ModelAttribute BusinessTemplateDto businessTemplate)
+            throws Exception {
+        logger.info("update application template");
+        String userName = (String) session.getAttribute("username");
+        return businessService.updateServiceTemplateByName(businessTemplate, userName);
+    }
+} 
