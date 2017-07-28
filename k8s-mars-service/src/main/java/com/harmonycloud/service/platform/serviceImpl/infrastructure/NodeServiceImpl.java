@@ -815,6 +815,91 @@ public class NodeServiceImpl implements NodeService {
         map.put(CommonConstant.DATA, nodeDetailDto);
         return map;
     }
+    @Override
+    public Map getNode(String nodeIp, Cluster cluster) throws Exception {
+        NodeList nodeList = nodeService.listNode(cluster);
+        List<NodeDto> nodeDtoList = new ArrayList<>();
+        List<String> otherNodeList = new ArrayList<>();
+        NodeDetailDto nodeDetailDto = new NodeDetailDto();
+        if (nodeList != null && nodeList.getItems().size() > 0) {
+            List<Node> items = nodeList.getItems();
+            for (Node node : items) {
+                if (nodeIp.equals(node.getMetadata().getName())) {
+                    // 处理为页面需要的值
+                    if (node != null) {
+                        if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) != null
+                                && node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
+                            nodeDetailDto.setNodeShareStatus("闲置");
+                        } else if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) != null
+                                && node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
+                            nodeDetailDto.setNodeShareStatus("共享");
+                        } else if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) != null
+                                && node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_D)) {
+                            nodeDetailDto.setNodeShareStatus("独占");
+                        } else if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) != null
+                                && node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_A)) {
+                            nodeDetailDto.setNodeShareStatus("系统");
+                        }
+                        NodeDto nodedto = new NodeDto();
+                        NodeDto hostUsege = this.getHostUsege(node, nodedto, cluster);
+                        nodeDetailDto.setMemory(hostUsege.getMemory());
+                        nodeDetailDto.setCpu(hostUsege.getCpu());
+                        nodeDetailDto.setDisk(hostUsege.getDisk());
+                        // 设置address
+                        List<NodeAddress> addresses = node.getStatus().getAddresses();
+                        nodeDetailDto.setAddresses(addresses);
+                        // 设置images
+                        List<ContainerImage> images = node.getStatus().getImages();
+                        nodeDetailDto.setImages(images);
+                        // 设置status
+                        List<NodeCondition> conditions = node.getStatus().getConditions();
+                        for (NodeCondition nodeCondition : conditions) {
+                            if (nodeCondition.getType().equals("Ready")) {
+                                nodeDetailDto.setStatus(nodeCondition.getStatus());
+                                break;
+                            }
+                        }
+                        nodeDetailDto.setArchitecture(node.getStatus().getNodeInfo().getArchitecture());
+                        nodeDetailDto.setContainerRuntimeVersion(node.getStatus().getNodeInfo().getContainerRuntimeVersion());
+                        Map<String, Object> capacity = (Map<String, Object>) node.getStatus().getCapacity();
+                        nodeDetailDto.setCreationTime(node.getMetadata().getCreationTimestamp());
+
+                        Map<String, Object> allocatable = (Map<String, Object>) node.getStatus().getAllocatable();
+                        if (allocatable.get("alpha.kubernetes.io/nvidia-gpu") != null) {
+                            nodeDetailDto.setGpu(allocatable.get("alpha.kubernetes.io/nvidia-gpu").toString());
+                        }
+                        if (allocatable.get("gpu") != null) {
+                            nodeDetailDto.setGpu(allocatable.get("gpu").toString());
+                        }
+                        nodeDetailDto.setKernelVersion(node.getStatus().getNodeInfo().getKernelVersion());
+                        nodeDetailDto.setKubeProxyVersion(node.getStatus().getNodeInfo().getKubeProxyVersion());
+                        nodeDetailDto.setKubeletVersion(node.getStatus().getNodeInfo().getKubeletVersion());
+                        nodeDetailDto.setName(node.getMetadata().getName());
+                        nodeDetailDto.setOs(node.getStatus().getNodeInfo().getOperatingSystem());
+                        nodeDetailDto.setPods(capacity.get("pods").toString());
+                        Map<String, Object> labels = node.getMetadata().getLabels();
+                        if (labels.get("master") != null && labels.get("master").equals("master")) {
+                            nodeDetailDto.setType("master");
+                        } else {
+                            nodeDetailDto.setType("slave");
+                        }
+
+                    }
+                } else {
+                    otherNodeList.add(node.getMetadata().getName());
+                }
+            }
+        }
+        List<Object> podList = podService.PodList(nodeIp, cluster);
+        nodeDetailDto.setOtherNodeList(otherNodeList);
+        nodeDetailDto.setClusterId(cluster.getId().toString());
+        nodeDetailDto.setPodlist(podList);
+        // Node node = nodeService.getNode(nodeIp, cluster);
+
+        Map map = new HashMap<>();
+        map.put(CommonConstant.DATA, nodeDetailDto);
+        return map;
+    }
     private NodeDto getHostUsege(Node node, NodeDto nodeDto, Cluster cluster) throws Exception {
         double nodeFilesystemCapacity = this.influxdbService.getClusterResourceUsage("node", "filesystem/limit", "nodename,resource_id", cluster, null,
                 node.getMetadata().getName());

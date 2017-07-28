@@ -100,12 +100,20 @@ public interface NodeService {
 	 */
 	public ActionReturnUtil removeNode( String host,String user,String passwd,String clusterId) throws Exception;
     /**
-     * 根据
-     * @param nodeIp
+     * 根据nodeIp,clusterId获取node
+     * @param nodeIp,clusterId
      * @return
      * @throws Exception
      */
     public Map  getNode(String nodeIp,String clusterId) throws Exception;
+    /**
+     * 根据nodeIp,cluster获取node
+     * @param nodeIp
+     * @param cluster
+     * @return
+     * @throws Exception
+     */
+    public Map  getNode(String nodeIp,Cluster cluster) throws Exception;
     /**
      * 根据clusterid获取节点上线状态
      * @param clusterId

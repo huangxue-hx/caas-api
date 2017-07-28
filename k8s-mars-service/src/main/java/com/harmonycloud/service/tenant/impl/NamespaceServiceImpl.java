@@ -40,6 +40,7 @@ import com.harmonycloud.dao.tenant.bean.TenantBindingExample;
 import com.harmonycloud.dao.tenant.bean.UserTenant;
 import com.harmonycloud.dto.tenant.NamespaceDto;
 import com.harmonycloud.dto.tenant.NetworkDto;
+import com.harmonycloud.dto.tenant.QuotaDto;
 import com.harmonycloud.dto.tenant.SubnetDto;
 import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
 import com.harmonycloud.dto.tenant.show.QuotaDetailShowDto;
@@ -66,6 +67,7 @@ import com.harmonycloud.k8s.service.NetworkPolicyService;
 import com.harmonycloud.k8s.service.ResourceQuotaService;
 import com.harmonycloud.k8s.service.RoleBindingService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
+import com.harmonycloud.service.platform.bean.NodeDetailDto;
 import com.harmonycloud.service.platform.service.DashboardService;
 import com.harmonycloud.service.platform.service.NodeService;
 import com.harmonycloud.service.tenant.NamespaceService;
@@ -218,7 +220,7 @@ public class NamespaceServiceImpl implements NamespaceService {
             return ActionReturnUtil.returnErrorWithMsg("分区名字，租户id 不能为空");
         }
         // 初始化判断2
-        if (namespaceDto.getQuota() == null || StringUtils.isEmpty(namespaceDto.getQuota().getCpu()) || StringUtils.isEmpty(namespaceDto.getQuota().getMemory())) {
+        if (!namespaceDto.isPrivate() && (namespaceDto.getQuota() == null || StringUtils.isEmpty(namespaceDto.getQuota().getCpu()) || StringUtils.isEmpty(namespaceDto.getQuota().getMemory()))) {
             return ActionReturnUtil.returnErrorWithMsg("分区的限额cpu，内存不能为空");
         }
         // 初始化判断3
@@ -228,6 +230,18 @@ public class NamespaceServiceImpl implements NamespaceService {
         // 查询分区是否已经存在
         // 查询namespace详情
         Cluster cluster = this.getClusterByTenantid(namespaceDto.getTenantid());
+        if (namespaceDto.isPrivate()) {
+            Map node = nodeService.getNode(namespaceDto.getNodename(),cluster);
+            NodeDetailDto nodeDetail = (NodeDetailDto)node.get(CommonConstant.DATA);
+            if (nodeDetail == null) {
+                return ActionReturnUtil.returnErrorWithMsg("获取node:"+namespaceDto.getNodename()+"信息错误");
+            }
+            QuotaDto quota2 = namespaceDto.getQuota();
+            quota2.setCpu(nodeDetail.getCpu());
+            quota2.setMemory(nodeDetail.getMemory() + CommonConstant.GI);
+            namespaceDto.setQuota(quota2);
+        }
+        
         K8SClientResponse namespaceResponse = namespaceService.getNamespace(namespaceDto.getName(), null, null, cluster);
         Map<String, Object> convertJsonToMap = JsonUtil.convertJsonToMap(namespaceResponse.getBody());
         String metadata = convertJsonToMap.get(CommonConstant.METADATA).toString();
