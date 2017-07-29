@@ -23,5 +23,9 @@ public interface FileUploadToContainerService {
 	ActionReturnUtil lsContainerFile(String namespace, String containerFilePath, String container, String pod, String shellPath) throws Exception;
 	
 	ActionReturnUtil deleteFile(ContainerFileUploadDto containerFileUpload) throws Exception;
+	
+	ActionReturnUtil addFileMaxSizeConfig(String maxSize) throws Exception;
+	
+	ActionReturnUtil getFileMaxSizeConfig() throws Exception;
 
 }

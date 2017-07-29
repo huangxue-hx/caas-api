@@ -21,12 +21,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.ESFactory;
 import com.harmonycloud.dao.application.FileUploadContainerMapper;
 import com.harmonycloud.dao.application.bean.FileUploadContainer;
 import com.harmonycloud.dao.application.bean.FileUploadContainerExample;
 import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.dao.system.SystemConfigMapper;
+import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dto.business.ContainerFileUploadDto;
 import com.harmonycloud.dto.business.PodContainerDto;
 import com.harmonycloud.k8s.client.K8SClient;
@@ -48,6 +51,9 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 
 	@Value("#{propertiesReader['upload.path']}")
 	private String uploadPath;
+	
+	@Autowired
+    private SystemConfigMapper systemConfigMapper;
 
 	private final static Logger logger = LoggerFactory.getLogger(FileUploadToContainerServiceImpl.class);
 
@@ -291,6 +297,38 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 		}
 		fileUploadContainerMapper.deleteByExample(fucExample);
 		return ActionReturnUtil.returnSuccess();
+	}
+	
+
+	@Override
+	public ActionReturnUtil addFileMaxSizeConfig(String maxSize) throws Exception {
+		String username = (String) session.getAttribute("username");
+		SystemConfig fileConfig = systemConfigMapper.findByConfigName(CommonConstant.FILE_MAX_SIZE);
+		boolean flagIsAdd = false;
+		if (fileConfig == null) {
+			flagIsAdd = true;
+			fileConfig = new SystemConfig();
+			fileConfig.setCreateTime(new Date());
+			fileConfig.setCreateUser(username);
+		}
+		fileConfig.setConfigName(CommonConstant.FILE_MAX_SIZE);
+		fileConfig.setConfigValue(maxSize);
+		fileConfig.setConfigType(CommonConstant.CONFIG_TYPE_FILE);
+		fileConfig.setUpdateTime(new Date());
+		fileConfig.setUpdateUser(username);
+		if(flagIsAdd) {
+            this.systemConfigMapper.addSystemConfig(fileConfig);
+        } else {
+            this.systemConfigMapper.updateSystemConfig(fileConfig);
+        }
+		return ActionReturnUtil.returnSuccess();
+	}
+	
+	@Override
+	public ActionReturnUtil getFileMaxSizeConfig() throws Exception {
+		
+		SystemConfig systemConfig = systemConfigMapper.findByConfigName(CommonConstant.FILE_MAX_SIZE);
+		return ActionReturnUtil.returnSuccessWithData(systemConfig);
 	}
 
 	private void doUploadFile(String localPath, String namespace, String pod, String containerPath, String container,

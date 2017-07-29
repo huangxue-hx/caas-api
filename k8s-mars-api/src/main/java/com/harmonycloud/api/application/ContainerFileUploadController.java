@@ -102,9 +102,22 @@ public class ContainerFileUploadController {
 	
 	@RequestMapping(value = "/file/upload/progress", method = RequestMethod.GET )
 	@ResponseBody
-	public ActionReturnUtil getUpFilePg(HttpServletRequest request) {
+	public ActionReturnUtil getUpFilePg(HttpServletRequest request) throws Exception {
 		Progress status = (Progress) request.getSession().getAttribute("upload_ps");
 		return ActionReturnUtil.returnSuccessWithData(status);
+	}
+	
+	@RequestMapping(value="/file/maxsize", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil getFileMaxSize() throws Exception {
+		return fileUploadToContainerService.getFileMaxSizeConfig();
+	}
+	
+	@RequestMapping(value="/file/maxsize", method = RequestMethod.POST)
+	@ResponseBody
+	public ActionReturnUtil updateFileMaxSize(@RequestParam(value="maxSize") String maxSize) throws Exception {
+		
+		return fileUploadToContainerService.addFileMaxSizeConfig(maxSize);
 	}
 
 }
