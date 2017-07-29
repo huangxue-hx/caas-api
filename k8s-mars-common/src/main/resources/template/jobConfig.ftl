@@ -19,8 +19,8 @@
                 </#if></#list>
             </parameterDefinitions>
         </hudson.model.ParametersDefinitionProperty>
+        <#if job.trigger! == true>
         <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
-            <#if job.trigger! == true>
             <triggers>
                 <#if job.pollScm! == true>
                 <hudson.triggers.SCMTrigger>
@@ -29,8 +29,8 @@
                 </hudson.triggers.SCMTrigger>
                 </#if>
             </triggers>
-            </#if>
         </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+        </#if>
     </properties>
     <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.31">
         <script>

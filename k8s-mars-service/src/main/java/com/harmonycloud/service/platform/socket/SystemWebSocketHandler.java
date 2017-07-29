@@ -1,22 +1,15 @@
 package com.harmonycloud.service.platform.socket;
 
 import com.harmonycloud.service.platform.service.ci.JobService;
-import org.springframework.stereotype.Component;
-
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.*;
-import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import com.harmonycloud.common.util.ActionReturnUtil;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 
 @Component("systemWebSocketHandler")
@@ -61,7 +54,6 @@ public class SystemWebSocketHandler implements WebSocketHandler{
 			userSocketSessionMap.put(username, session);
 		}
 
-        jobService.sendMessage(session,session.getAttributes().get("jenkinsJobName").toString(),session.getAttributes().get("buildNum").toString());
 
 
 		//发送信息

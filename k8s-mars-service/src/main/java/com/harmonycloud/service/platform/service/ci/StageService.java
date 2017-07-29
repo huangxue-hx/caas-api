@@ -1,8 +1,13 @@
 package com.harmonycloud.service.platform.service.ci;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dao.ci.bean.Job;
 import com.harmonycloud.dao.ci.bean.StageType;
 import com.harmonycloud.dto.cicd.StageDto;
+import org.springframework.web.socket.WebSocketSession;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * Created by anson on 17/7/13.
@@ -27,4 +32,11 @@ public interface StageService {
     ActionReturnUtil listBuildEnvironemnt();
 
     ActionReturnUtil listDeployImage(Integer jobId, Integer stageOrder);
+
+    
+    List<Map> getStageBuildFromJenkins(Job job, Integer buildNum) throws Exception;
+
+    void stageBuildSync(Job job, Integer buildNum, Map stageMap);
+
+    void getStageLogWS(WebSocketSession session, Integer id, Integer buildNum);
 }

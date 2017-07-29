@@ -27,6 +27,7 @@ import com.harmonycloud.service.application.VersionControlService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.client.HarborClient;
+import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.platform.service.ci.StageService;
@@ -58,8 +59,6 @@ import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * Created by anson on 17/5/31.
@@ -121,9 +120,6 @@ public class JobServiceImpl implements JobService {
 
     @Value("#{propertiesReader['api.url']}")
     private String apiUrl;
-
-
-    public static ExecutorService executor = Executors.newFixedThreadPool(10);
 
     DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     @Override
@@ -615,15 +611,17 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
-    public void sendMessage(WebSocketSession session, String jobName, String buildNum) {
+    public void getJobLogWS(WebSocketSession session, Integer id, String buildNum) {
+        Job job = jobMapper.queryById(id);
+        String jenkinsjobName = job.getTenant() + "_" +job.getName();
         String start = "0";
-        String moreData = "true";
+        String moreData = "";
         try {
-            while (moreData != null) {
+            while (moreData != null && session.isOpen()) {
                 moreData = null;
                 Map params = new HashMap<>();
                 params.put("start", start);
-                ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jobName + "/" + buildNum + "/logText/progressiveHtml", null, params, true);
+                ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsjobName + "/" + buildNum + "/logText/progressiveHtml", null, params, true);
                 if (result.isSuccess()) {
                     if (result.get("data") != null) {
                         Header[] headers = (Header[]) ((Map) result.get("data")).get("header");
@@ -638,7 +636,7 @@ public class JobServiceImpl implements JobService {
                         if (StringUtils.isNotEmpty((String) ((Map) result.get("data")).get("body"))) {
                             session.sendMessage(new TextMessage((String) ((Map) result.get("data")).get("body")));
                         }
-                        Thread.sleep(1000);
+                        Thread.sleep(2000);
 
                     }
                 }
@@ -648,7 +646,9 @@ public class JobServiceImpl implements JobService {
             e.printStackTrace();
         } finally {
             try {
-                session.close();
+                if(session.isOpen()) {
+                    session.close();
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -719,9 +719,8 @@ public class JobServiceImpl implements JobService {
                 }
             }
         };
-        executor.execute(worker);
-
-
+        NewCachedThreadPool threadPool = NewCachedThreadPool.init();
+        threadPool.execute(worker);
     }
 
     @Override
@@ -736,10 +735,10 @@ public class JobServiceImpl implements JobService {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-
             }
         };
-        executor.execute(worker);
+        NewCachedThreadPool threadPool = NewCachedThreadPool.init();
+        threadPool.execute(worker);
     }
 
     @Override
@@ -874,7 +873,6 @@ public class JobServiceImpl implements JobService {
             canaryDeployment.setNamespace(stage.getNamespace());
             canaryDeployment.setSeconds(5);
 
-
             versionControlService.canaryUpdate(canaryDeployment, dep.getSpec().getReplicas(), null, cluster);
 
         } catch (Exception e) {
@@ -887,20 +885,19 @@ public class JobServiceImpl implements JobService {
     public void jobStatusWS(WebSocketSession session, Integer id) {
         try {
             int buildingOrder = 0;
-            String jobStatus = null;
             boolean end = false;
             Job job = jobMapper.queryById(id);
             String jenkinsJobName = job.getTenant() + "_" + job.getName();
             Integer lastBuildNum = job.getLastBuildNum();
-            while(true) {
+            while (session.isOpen()) {
                 ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + lastBuildNum + "/wfapi/describe", null, null, false);
                 if (result.isSuccess()) {
                     String data = (String) result.get("data");
                     Map dataMap = JsonUtil.convertJsonToMap(data);
-                    if (!"IN_PROGRESS".equals(dataMap.get("status")) && end) {
+                    if (!Constant.PIPELINE_STATUS_INPROGRESS.equals(dataMap.get("status")) && end) {
                         break;
                     }
-                    if(!"IN_PROGRESS".equals(dataMap.get("status"))){
+                    if (!Constant.PIPELINE_STATUS_INPROGRESS.equals(dataMap.get("status"))) {
                         end = true;
                     }
                     List<Map> stages = (List<Map>) dataMap.get("stages");
@@ -909,8 +906,7 @@ public class JobServiceImpl implements JobService {
                     List stageList = new ArrayList<>();
                     for (Map stage : stages) {
                         Map stageMap = new HashMap<>();
-                        i++;
-                        if ("IN_PROGRESS".equals(stage.get("status")) && i > buildingOrder || end) {
+                        if (Constant.PIPELINE_STATUS_INPROGRESS.equals(stage.get("status")) && ++i > buildingOrder || end) {
                             send = true;
                             buildingOrder = i;
                         }
@@ -930,24 +926,22 @@ public class JobServiceImpl implements JobService {
                             dataMap = JsonUtil.convertJsonToMap((String) result.get("data"));
                         }
                         jobMap.put("lastBuildDuration", dataMap.get("duration"));
-                        session.sendMessage(new TextMessage((String) JsonUtil.convertToJson(ActionReturnUtil.returnSuccessWithData(jobMap))));
+                        session.sendMessage(new TextMessage(JsonUtil.convertToJson(ActionReturnUtil.returnSuccessWithData(jobMap))));
                     }
                 }
                 Thread.sleep(2000);
             }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-        finally {
+        } catch (Exception e) {
+            logger.error("get job status error", e);
+        } finally {
             try {
-                session.close();
+                if(session.isOpen()) {
+                    session.close();
+                }
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.error("websocker close error", e);
             }
         }
-
-
-
 
     }
 
@@ -1099,63 +1093,25 @@ public class JobServiceImpl implements JobService {
     }
 
     private void stageStatusSync(Job job, Integer buildNum, Integer stageOrder) throws Exception {
-        List<Map> stageMapList = getStageBuildFromJenkins(job, buildNum);
-        for(int i = stageOrder-1;stageMapList.get(i) != null;i++){
-            stageBuildSync(job, buildNum, stageMapList.get(i));
+        List<Map> stageMapList = stageService.getStageBuildFromJenkins(job, buildNum);
+        for(int i = stageOrder-1; i< stageMapList.size();i++){
+            stageService.stageBuildSync(job, buildNum, stageMapList.get(i));
         }
 
     }
 
+
+
     private void allStageStatusSync(Job job, Integer buildNum) throws Exception {
-        List<Map> stageMapList = getStageBuildFromJenkins(job, buildNum);
+        List<Map> stageMapList = stageService.getStageBuildFromJenkins(job, buildNum);
         for(Map stageMap : stageMapList){
-            stageBuildSync(job, buildNum, stageMap);
+            stageService.stageBuildSync(job, buildNum, stageMap);
         }
         stageBuildMapper.updateWaitingStage(job.getId(), buildNum);
 
     }
 
-    private List<Map> getStageBuildFromJenkins(Job job, Integer buildNum) throws Exception {
-        String jenkinsJobName = job.getTenant() + "_" + job.getName();
-        ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + buildNum + "/wfapi/describe", null, null, false);
-        if(result.isSuccess()) {
-            String data = (String) result.get("data");
-            Map dataMap = JsonUtil.convertJsonToMap(data);
-            return (List<Map>) dataMap.get("stages");
-        }else{
-            throw new Exception();
-        }
-    }
 
-    private void stageBuildSync(Job job, Integer buildNum, Map stageMap){
-        String jenkinsJobName = job.getTenant() + "_" + job.getName();
-        StageBuild stageBuild = new StageBuild();
-        stageBuild.setJobId(job.getId());
-        stageBuild.setBuildNum(buildNum);
-        stageBuild.setStatus((String)stageMap.get("status"));
-        stageBuild.setStartTime(new Timestamp((Long)stageMap.get("startTimeMillis")));
-        stageBuild.setDuration(String.valueOf(stageMap.get("durationMillis")));
-
-        ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + buildNum + "/execution/node/" + stageMap.get("id") + "/wfapi/describe", null, null, false);
-        if(result.isSuccess()){
-            String data = (String)result.get("data");
-            Map dataMap = JsonUtil.convertJsonToMap(data);
-            List<Map> stageFlowNodeMapList = (List<Map>)dataMap.get("stageFlowNodes");
-            StringBuilder log = new StringBuilder();
-            for(Map stageFlowNodeMap : stageFlowNodeMapList){
-                result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + buildNum + "/execution/node/" + stageFlowNodeMap.get("id") + "/wfapi/log", null, null, false);
-                if(result.isSuccess()){
-                    data = (String)result.get("data");
-                    dataMap = JsonUtil.convertJsonToMap(data);
-                    if(null != dataMap.get("text")){
-                        log.append(dataMap.get("text"));
-                    }
-                }
-            }
-            stageBuild.setLog(log.toString());
-        }
-        stageBuildMapper.updateByStageNameAndBuildNum(stageBuild, (String)stageMap.get("name"));
-    }
 
 
     private void notification(Job job, Integer buildNum){
@@ -1300,10 +1256,9 @@ public class JobServiceImpl implements JobService {
 //        job.setFailNotification(true);
 //        job.setMail("['kaiyunzhang@harmonycloud.cn']");
 //        new JobServiceImpl().notification(job, 70);
-        Stage stage = new Stage();
-        stage.setImageBaseTag("v1v.0.0");
-        stage.setImageIncreaseTag("1.0.1");
-        System.out.println(new JobServiceImpl().generateTag(stage));
+        String log = "aaabbb";
+        log.replaceAll("aa","");
+        System.out.println(log);
         //new JobServiceImpl().addStage(stage);
 
 

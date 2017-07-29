@@ -25,12 +25,12 @@ public class StageController {
 
     @RequestMapping(method = RequestMethod.POST)
     @ResponseBody
-    public ActionReturnUtil addStage(@RequestBody StageDto stageDto){
+    public ActionReturnUtil addStage(@RequestBody StageDto stageDto) throws Exception {
         logger.info("add stage");
         try {
             return stageService.addStage(stageDto);
         } catch (Exception e) {
-            return ActionReturnUtil.returnError();
+            return ActionReturnUtil.returnErrorWithMsg(e.getMessage());
         }
     }
 

@@ -32,9 +32,6 @@ public interface JobService {
 
     ActionReturnUtil getBuildList(Integer id);
 
-    void sendMessage(WebSocketSession session, String jobName, String buildNum);
-
-
     ActionReturnUtil getNotification(Integer id) throws Exception;
 
     ActionReturnUtil updateNotification(JobDto job);
@@ -50,4 +47,6 @@ public interface JobService {
     void deploy(Integer stageId, Integer buildNum) throws Exception;
 
     void jobStatusWS(WebSocketSession session, Integer id);
+
+    void getJobLogWS(WebSocketSession session, Integer id, String buildNum);
 }

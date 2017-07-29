@@ -1,24 +1,27 @@
 package com.harmonycloud.service.platform.serviceImpl.ci;
 
-import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DockerfileTypeEnum;
 import com.harmonycloud.common.enumm.StageTemplateTypeEnum;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.HttpJenkinsClientUtil;
-import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.common.util.TemplateUtil;
+import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.ci.*;
 import com.harmonycloud.dao.ci.bean.*;
 import com.harmonycloud.dto.cicd.StageDto;
 import com.harmonycloud.service.platform.client.HarborClient;
+import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.platform.service.ci.StageService;
 import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
 
+import java.io.IOException;
+import java.sql.Timestamp;
 import java.util.*;
 
 /**
@@ -49,6 +52,9 @@ public class StageServiceImpl implements StageService {
     @Autowired
     BuildEnvironmentMapper buildEnvironmentMapper;
 
+    @Autowired
+    JobService jobService;
+
     @Value("#{propertiesReader['api.url']}")
     private String apiUrl;
 
@@ -62,15 +68,19 @@ public class StageServiceImpl implements StageService {
         stage.setUpdateTime(new Date());
         stageMapper.insertStage(stage);
 
-        if(CommonConstant.STAGE_TEMPLATE_COMPILE == stageDto.getStageTemplateType()){
+        if(StageTemplateTypeEnum.CODECHECKOUT.ordinal() == stageDto.getStageTemplateType()){
             createOrUpdateCredential(stage);
         }
         Job job = jobMapper.queryById(stageDto.getJobId());
         String jenkinsJobName = job.getTenant() + "_" + job.getName();
         String body = generateJobBody(job);
         ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
-
-        return result;
+        if(!result.isSuccess()){
+            throw new Exception("创建步骤失败。");
+        }
+        Map data = new HashMap<>();
+        data.put("id",stage.getId());
+        return ActionReturnUtil.returnSuccessWithData(data);
     }
 
 
@@ -83,7 +93,7 @@ public class StageServiceImpl implements StageService {
 
         stageMapper.updateStage(stage);
 
-        if(CommonConstant.STAGE_TEMPLATE_COMPILE == stageDto.getStageTemplateType()) {
+        if(StageTemplateTypeEnum.CODECHECKOUT.ordinal() == stageDto.getStageTemplateType()) {
             createOrUpdateCredential(stage);
         }
         Job job = jobMapper.queryById(stageDto.getJobId());
@@ -99,7 +109,9 @@ public class StageServiceImpl implements StageService {
         Stage stage = stageMapper.queryById(id);
         stageMapper.deleteStage(id);
         stageMapper.decreaseStageOrder(stage.getJobId(), stage.getStageOrder());
-        deleteCredentials(stage);
+        if(StageTemplateTypeEnum.CODECHECKOUT.ordinal() == stage.getStageTemplateType()) {
+            deleteCredentials(stage);
+        }
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -186,6 +198,90 @@ public class StageServiceImpl implements StageService {
         return ActionReturnUtil.returnSuccessWithData(deployImageList);
     }
 
+    @Override
+    public List<Map> getStageBuildFromJenkins(Job job, Integer buildNum) throws Exception {
+        String jenkinsJobName = job.getTenant() + "_" + job.getName();
+        ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + buildNum + "/wfapi/describe", null, null, false);
+        if(result.isSuccess()) {
+            String data = (String) result.get("data");
+            Map dataMap = JsonUtil.convertJsonToMap(data);
+            return (List<Map>) dataMap.get("stages");
+        }else{
+            throw new Exception("获取构建信息失败。");
+        }
+    }
+
+    @Override
+    public void stageBuildSync(Job job, Integer buildNum, Map stageMap){
+        StageBuild stageBuild = new StageBuild();
+        stageBuild.setJobId(job.getId());
+        stageBuild.setBuildNum(buildNum);
+        stageBuild.setStatus((String)stageMap.get("status"));
+        stageBuild.setStartTime(new Timestamp((Long)stageMap.get("startTimeMillis")));
+        stageBuild.setDuration(String.valueOf(stageMap.get("durationMillis")));
+        stageBuild.setLog(getStageBuildLogFromJenkins(job, buildNum, (String)stageMap.get("id")));
+        stageBuildMapper.updateByStageNameAndBuildNum(stageBuild, (String)stageMap.get("name"));
+    }
+
+
+    @Override
+    public void getStageLogWS(WebSocketSession session, Integer id, Integer buildNum) {
+        String existingLog = "";
+        Stage stage = stageMapper.queryById(id);
+        Job job = jobMapper.queryById(stage.getJobId());
+        try {
+            while(session.isOpen()) {
+                List<Map> stageMapList = getStageBuildFromJenkins(job, buildNum);
+                if(stageMapList.size() >= stage.getStageOrder()) {
+                    Map stageMap = stageMapList.get(stage.getStageOrder() - 1);
+                    String log = getStageBuildLogFromJenkins(job, buildNum, (String)stageMap.get("id"));
+                    String newLog;
+                    if(!StringUtils.isBlank(newLog = log.replaceFirst(existingLog, ""))) {
+                        existingLog = log;
+                        session.sendMessage(new TextMessage(newLog));
+                    }
+                    if(!Constant.PIPELINE_STATUS_INPROGRESS.equals(stageMap.get("status"))){
+                        break;
+                    }
+                    Thread.sleep(2000);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }finally{
+            if(session.isOpen()){
+                try {
+                    session.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private String getStageBuildLogFromJenkins(Job job, Integer buildNum, String stageNodeId){
+        String jenkinsJobName = job.getTenant() + "_" + job.getName();
+        ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + buildNum + "/execution/node/" + stageNodeId + "/wfapi/describe", null, null, false);
+        if(result.isSuccess()){
+            String data = (String)result.get("data");
+            Map dataMap = JsonUtil.convertJsonToMap(data);
+            List<Map> stageFlowNodeMapList = (List<Map>)dataMap.get("stageFlowNodes");
+            StringBuilder log = new StringBuilder();
+            for(Map stageFlowNodeMap : stageFlowNodeMapList){
+                result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + buildNum + "/execution/node/" + stageFlowNodeMap.get("id") + "/wfapi/log", null, null, false);
+                if(result.isSuccess()){
+                    data = (String)result.get("data");
+                    dataMap = JsonUtil.convertJsonToMap(data);
+                    if(null != dataMap.get("text")){
+                        log.append(dataMap.get("text"));
+                    }
+                }
+            }
+            return(log.toString());
+        }
+        return null;
+    }
+
     private String generateJobBody(Job job) throws Exception{
         Map dataModel = new HashMap<>();
         List<Stage> stageList = stageMapper.queryByJobId(job.getId());
@@ -233,7 +329,7 @@ public class StageServiceImpl implements StageService {
     }
 
     private void createOrUpdateCredential(Stage stage) throws Exception{
-        ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/credentials/store/system/domain/_/credential/" + stage.getTenant() + "_" + stage.getJobName() + "_" + stage.getId() + "/", null, null, false);
+        ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/credentials/store/system/domain/_/credential/" + stage.getId() + "/", null, null, false);
         if(result.isSuccess()){
             updateCredentials(stage);
         }else{
@@ -248,11 +344,11 @@ public class StageServiceImpl implements StageService {
         params.put("_.scope","scope:GLOBAL");
         params.put("_.username", stage.getCredentialsUsername());
         params.put("_.password", stage.getCredentialsPassword());
-        params.put("_.id", stage.getTenant() + "_" + stage.getJobName());
+        params.put("_.id", stage.getId());
         credentialsMap.put("scope", "GLOBAL");
         credentialsMap.put("username", stage.getCredentialsUsername());
         credentialsMap.put("password", stage.getCredentialsPassword());
-        credentialsMap.put("id", stage.getTenant() + "_" + stage.getJobName() + "_" + stage.getId());
+        credentialsMap.put("id", stage.getId());
         credentialsMap.put("stapler-class","com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl");
         credentialsMap.put("$class", "com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl");
         tempMap.put("","0");
@@ -271,24 +367,21 @@ public class StageServiceImpl implements StageService {
         params.put("_.scope","GLOBAL");
         params.put("_.username", stage.getCredentialsUsername());
         params.put("_.password", stage.getCredentialsPassword());
-        params.put("_.id", stage.getTenant() + "_" + stage.getJobName());
+        params.put("_.id", stage.getId());
         jsonMap.put("stapler-class","com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl");
         jsonMap.put("scope","GLOBAL");
         jsonMap.put("username", stage.getCredentialsUsername());
         jsonMap.put("password", stage.getCredentialsPassword());
-        jsonMap.put("id", stage.getTenant() + "_" + stage.getJobName());
+        jsonMap.put("id", stage.getId());
         params.put("json", JsonUtil.convertToJson(jsonMap));
-        ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/credentials/store/system/domain/_/credential/" + stage.getTenant() + "_" + stage.getJobName() + "_" + stage.getId() + "/updateSubmit", null, params, null, 302);
+        ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/credentials/store/system/domain/_/credential/" + stage.getId() + "/updateSubmit", null, params, null, 302);
         if (!result.isSuccess()) {
             throw new Exception();
         }
     }
 
     private void deleteCredentials(Stage stage) throws Exception {
-        ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/credentials/store/system/domain/_/credential/" + stage.getTenant() + "_" + stage.getJobName() + "_" + stage.getId() + "/doDelete", null, null, null, 302);
-        if(!result.isSuccess()){
-            throw new Exception();
-        }
+        ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/credentials/store/system/domain/_/credential/" + stage.getId() + "/doDelete", null, null, null, 302);
     }
 
 

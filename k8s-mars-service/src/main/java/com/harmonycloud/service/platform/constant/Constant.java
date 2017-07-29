@@ -107,4 +107,6 @@ public class Constant {
 
 	public final static int DEFAULT_PAGE_SIZE = 100;
 	public final static String TIME_ZONE_UTC = "UTC";
+
+    public final static String PIPELINE_STATUS_INPROGRESS = "IN_PROGRESS";
 }

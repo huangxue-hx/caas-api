@@ -1,6 +1,8 @@
 package com.harmonycloud.service.platform.socket;
 
+import com.harmonycloud.common.util.NewCachedThreadPool;
 import com.harmonycloud.service.platform.service.ci.JobService;
+import com.harmonycloud.service.platform.service.ci.StageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,16 +14,18 @@ import java.util.HashMap;
 import java.util.Map;
 
 
-@Component("jobStatusWebSocketHandler")
-public class JobStatusWebSocketHandler implements WebSocketHandler{
+@Component("cicdWebSocketHandler")
+public class CicdWebSocketHandler implements WebSocketHandler{
 
     @Autowired
     JobService jobService;
 
-	private static final Logger logger = LoggerFactory.getLogger(JobStatusWebSocketHandler.class);
+    @Autowired
+    StageService stageService;
+
+	private static final Logger logger = LoggerFactory.getLogger(CicdWebSocketHandler.class);
 
 	public static final Map<String, WebSocketSession> userSocketSessionMap = new HashMap<>();
-
 
 
 	@Override
@@ -53,9 +57,34 @@ public class JobStatusWebSocketHandler implements WebSocketHandler{
 		} else {
 			userSocketSessionMap.put(username, session);
 		}
+        Runnable worker = null;
+        String path = session.getUri().getPath();
+        if("/rest/cicd/job/status".equals(path)){
+            worker = new Runnable() {
+                @Override
+                public void run() {
+                    jobService.jobStatusWS(session, new Integer(session.getAttributes().get("id").toString()));
+                }
+            };
+        }else if("/rest/cicd/job/log".equals(path)){
+            worker = new Runnable() {
+                @Override
+                public void run() {
+                    jobService.getJobLogWS(session, new Integer(session.getAttributes().get("id").toString()), session.getAttributes().get("buildNum").toString());
+                }
+            };
+        }else if("/rest/cicd/stage/status".equals(path)){
+            worker = new Runnable() {
+                @Override
+                public void run() {
+                    stageService.getStageLogWS(session, new Integer(session.getAttributes().get("id").toString()), new Integer((String)session.getAttributes().get("buildNum")));
+                }
+            };
+        }
 
-        jobService.jobStatusWS(session, new Integer(session.getAttributes().get("id").toString()));
 
+        NewCachedThreadPool threadPool = NewCachedThreadPool.init();
+        threadPool.execute(worker);
 
 		//发送信息
 

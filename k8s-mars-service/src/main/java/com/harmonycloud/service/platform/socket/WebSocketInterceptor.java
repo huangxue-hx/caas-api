@@ -34,10 +34,6 @@ public class WebSocketInterceptor implements HandshakeInterceptor{
             }
             HttpServletRequest httpServletRequest = servletRequest.getServletRequest();
             if(httpServletRequest!=null){
-                String jenkinsJobName = httpServletRequest.getParameter("tenant") + "_" + httpServletRequest.getParameter("name");
-                if(!StringUtils.isBlank(jenkinsJobName)){
-                    map.put("jenkinsJobName", jenkinsJobName);
-                }
                 if(!StringUtils.isBlank(httpServletRequest.getParameter("buildNum"))) {
                     map.put("buildNum", httpServletRequest.getParameter("buildNum"));
                 }

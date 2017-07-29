@@ -25,16 +25,22 @@ public class WebSocketConfig extends WebMvcConfigurerAdapter implements WebSocke
 		//registry.addHandler(systemWebSocketHandler(), "/notification").addInterceptors(webSocketInterceptor())
 		//		.setAllowedOrigins("*").withSockJS();
 
-        registry.addHandler(systemWebSocketHandler(), "/ci/job/buildLog").addInterceptors(webSocketInterceptor())
+        registry.addHandler(cicdWebSocketHandler(), "/cicd/job/log").addInterceptors(webSocketInterceptor())
                 .setAllowedOrigins("*");
 
-        registry.addHandler(systemWebSocketHandler(), "/ci/job/buildLog").addInterceptors(webSocketInterceptor())
+        registry.addHandler(cicdWebSocketHandler(), "/cicd/job/log").addInterceptors(webSocketInterceptor())
                 .setAllowedOrigins("*").withSockJS();
 
-        registry.addHandler(jobStatusWebSocketHandler(), "/ci/job").addInterceptors(webSocketInterceptor())
+        registry.addHandler(cicdWebSocketHandler(), "/cicd/job/status").addInterceptors(webSocketInterceptor())
                 .setAllowedOrigins("*");
 
-        registry.addHandler(jobStatusWebSocketHandler(), "/ci/job").addInterceptors(webSocketInterceptor())
+        registry.addHandler(cicdWebSocketHandler(), "/cicd/job/status").addInterceptors(webSocketInterceptor())
+                .setAllowedOrigins("*").withSockJS();
+
+        registry.addHandler(cicdWebSocketHandler(), "/cicd/stage/status").addInterceptors(webSocketInterceptor())
+                .setAllowedOrigins("*");
+
+        registry.addHandler(cicdWebSocketHandler(), "/cicd/stage/status").addInterceptors(webSocketInterceptor())
                 .setAllowedOrigins("*").withSockJS();
 
 	}
@@ -45,8 +51,8 @@ public class WebSocketConfig extends WebMvcConfigurerAdapter implements WebSocke
 	}
 
     @Bean
-    public JobStatusWebSocketHandler jobStatusWebSocketHandler(){
-        return new JobStatusWebSocketHandler();
+    public CicdWebSocketHandler cicdWebSocketHandler(){
+        return new CicdWebSocketHandler();
     }
 
 	@Bean
