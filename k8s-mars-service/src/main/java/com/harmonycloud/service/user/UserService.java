@@ -184,7 +184,12 @@ public class UserService {
                         user.setCreateTime(new Date());
                         user.setPause(CommonConstant.NORMAL);
                         userMapper.addUser(user);
-                        harboruserMapper.addUser(harbor);
+                        HarborUser harborUser2 = harboruserMapper.findByUsername(user.getUsername());
+                        if (harborUser2 == null) {
+                            harboruserMapper.addUser(harbor);
+                        } else {
+                            harboruserMapper.updatePassword(harbor.getUsername(), harbor.getPassword());
+                        }
                         return ActionReturnUtil.returnSuccess();
                     } else {
                         return ActionReturnUtil.returnErrorWithMsg("Create failed");
@@ -580,7 +585,12 @@ public class UserService {
                 } catch (Exception e) {
                     // 回滚数据库
                     userMapper.addUser(userDb);
-                    harboruserMapper.addUser(harbor);
+                    HarborUser harborUser2 = harboruserMapper.findByUsername(userDb.getUsername());
+                    if (harborUser2 == null) {
+                        harboruserMapper.addUser(harbor);
+                    } else {
+                        harboruserMapper.updatePassword(harbor.getUsername(), harbor.getPassword());
+                    }
                     throw e;
                 }
             } else {
@@ -1174,257 +1184,270 @@ public class UserService {
             return ActionReturnUtil.returnErrorWithData(e);
         }
     }
-    
-    /**
-	 * 修改用户群组信息
-	 * 
-	 * @param UserGroupDto usergroupdto
-	 * @return ActionReturnUtil
-	 */
-	public ActionReturnUtil updateGroup(UserGroupDto usergroupdto)throws Exception {
-		if(usergroupdto == null){
-			return ActionReturnUtil.returnErrorWithMsg("修改参数不能为空！");
-		}
-		//判断修改了那些内容：群组名、描述、增、删用户
-				//只修改群组名称
-			    if(usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() == null && usergroupdto.getDelusers() == null){
-							UserGroup usergroup =new UserGroup();
-							usergroup.setGroupname(usergroupdto.getUpdategroupname());
-							usergroup.setUserGroupDescribe(usergroupdto.getUsergroup().getUserGroupDescribe());
-							usergroup.setId(usergroupdto.getUsergroup().getId());
-							usergroupMapper.updateByPrimaryKeySelective(usergroup);
-			    }else if(usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() == null && usergroupdto.getDelusers() == null){
-					    	//只修改群组描述
-					    	UserGroup usergroup =new UserGroup();
-							usergroup.setGroupname(usergroupdto.getUsergroup().getGroupname());
-							usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
-							usergroup.setId(usergroupdto.getUsergroup().getId());
-							usergroupMapper.updateByPrimaryKeySelective(usergroup);
-			    }else if(usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() != null && usergroupdto.getDelusers() == null){
-			    	        //只增加用户
-			    			List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
-			    			List<String> users = usergroupdto.getAddusers();
-			    			int groupid = usergroupdto.getUsergroup().getId();
-			    			for(int i=0;i<users.size();i++){
-			    				UserGroupRelation ugr = new UserGroupRelation();
-			    				UserExample example = new UserExample();
-			    				example.createCriteria().andUsernameEqualTo(users.get(i));
-			    				User user = userMapperNew.selectByExample(example).get(0);
-			    				ugr.setGroupid(groupid);
-			    				ugr.setUserid(user.getUuid());
-			    				ugrs.add(ugr);
-			    			}
-			    			usergrouprelationMapper.addUserGroupRelation(ugrs);
-			    }else if(usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() == null && usergroupdto.getDelusers() != null){
-			    	 		//只删除用户
-			    			List<String> users = usergroupdto.getDelusers();
-			    			int groupid = usergroupdto.getUsergroup().getId();
-			    			for(int i=0;i<users.size();i++){
-			    				UserGroupRelationExample ugrexample = new UserGroupRelationExample();
-			    				UserExample example = new UserExample();
-			    				example.createCriteria().andUsernameEqualTo(users.get(i));
-			    				User user = userMapperNew.selectByExample(example).get(0);
-			    				Long userid = user.getUuid();
-			    				ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
-			    				usergrouprelationMapper.deleteByExample(ugrexample);
-			    			}
-			    }else if(usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() == null && usergroupdto.getDelusers() == null){
-			    			//修改群组名和描述
-					    	UserGroup usergroup =new UserGroup();
-							usergroup.setGroupname(usergroupdto.getUpdategroupname());
-							usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
-							usergroup.setId(usergroupdto.getUsergroup().getId());
-							usergroupMapper.updateByPrimaryKeySelective(usergroup);
-			    }else if(usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() != null && usergroupdto.getDelusers() != null){
-			    			//增、删用户
-					    	List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
-			    			List<String> addusers = usergroupdto.getAddusers();
-			    			int groupid = usergroupdto.getUsergroup().getId();
-			    			for(int i=0;i<addusers.size();i++){
-			    				UserGroupRelation ugr = new UserGroupRelation();
-			    				UserExample example = new UserExample();
-			    				example.createCriteria().andUsernameEqualTo(addusers.get(i));
-			    				User user = userMapperNew.selectByExample(example).get(0);
-			    				ugr.setGroupid(groupid);
-			    				ugr.setUserid(user.getUuid());
-			    				ugrs.add(ugr);
-			    			}
-			    			usergrouprelationMapper.addUserGroupRelation(ugrs);
-			    			List<String> delusers = usergroupdto.getDelusers();
-			    			for(int i=0;i<delusers.size();i++){
-			    				UserGroupRelationExample ugrexample = new UserGroupRelationExample();
-			    				UserExample example = new UserExample();
-			    				example.createCriteria().andUsernameEqualTo(delusers.get(i));
-			    				User user = userMapperNew.selectByExample(example).get(0);
-			    				Long userid = user.getUuid();
-			    				ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
-			    				usergrouprelationMapper.deleteByExample(ugrexample);
-			    			}
-			    }else if(usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() != null && usergroupdto.getDelusers() == null){
-			    			 	//修改了群组名、增用户
-						    	UserGroup usergroup =new UserGroup();
-								usergroup.setGroupname(usergroupdto.getUpdategroupname());
-								usergroup.setUserGroupDescribe(usergroupdto.getUsergroup().getUserGroupDescribe());
-								usergroup.setId(usergroupdto.getUsergroup().getId());
-								usergroupMapper.updateByPrimaryKeySelective(usergroup);		
-								List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
-				    			List<String> addusers = usergroupdto.getAddusers();
-				    			int groupid = usergroupdto.getUsergroup().getId();
-				    			for(int i=0;i<addusers.size();i++){
-				    				UserGroupRelation ugr = new UserGroupRelation();
-				    				UserExample example = new UserExample();
-				    				example.createCriteria().andUsernameEqualTo(addusers.get(i));
-				    				User user = userMapperNew.selectByExample(example).get(0);
-				    				ugr.setGroupid(groupid);
-				    				ugr.setUserid(user.getUuid());
-				    				ugrs.add(ugr);
-				    			}
-				    			usergrouprelationMapper.addUserGroupRelation(ugrs);
-			    }else if(usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() != null && usergroupdto.getDelusers() == null){
-			    				//修改了群描述、增用户
-						    	UserGroup usergroup =new UserGroup();
-								usergroup.setGroupname(usergroupdto.getUsergroup().getGroupname());
-								usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
-								usergroup.setId(usergroupdto.getUsergroup().getId());
-								usergroupMapper.updateByPrimaryKeySelective(usergroup);
-								List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
-				    			List<String> addusers = usergroupdto.getAddusers();
-				    			int groupid = usergroupdto.getUsergroup().getId();
-				    			for(int i=0;i<addusers.size();i++){
-				    				UserGroupRelation ugr = new UserGroupRelation();
-				    				UserExample example = new UserExample();
-				    				example.createCriteria().andUsernameEqualTo(addusers.get(i));
-				    				User user = userMapperNew.selectByExample(example).get(0);
-				    				ugr.setGroupid(groupid);
-				    				ugr.setUserid(user.getUuid());
-				    				ugrs.add(ugr);
-				    			}
-				    			usergrouprelationMapper.addUserGroupRelation(ugrs);
-			    }else if(usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() == null && usergroupdto.getDelusers() != null){
-			    				//修改了群组名、删除用户
-						    	UserGroup usergroup =new UserGroup();
-								usergroup.setGroupname(usergroupdto.getUpdategroupname());
-								usergroup.setUserGroupDescribe(usergroupdto.getUsergroup().getUserGroupDescribe());
-								usergroup.setId(usergroupdto.getUsergroup().getId());
-								usergroupMapper.updateByPrimaryKeySelective(usergroup);	
-								List<String> users = usergroupdto.getDelusers();
-				    			int groupid = usergroupdto.getUsergroup().getId();
-				    			for(int i=0;i<users.size();i++){
-				    				UserGroupRelationExample ugrexample = new UserGroupRelationExample();
-				    				UserExample example = new UserExample();
-				    				example.createCriteria().andUsernameEqualTo(users.get(i));
-				    				User user = userMapperNew.selectByExample(example).get(0);
-				    				Long userid = user.getUuid();
-				    				ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
-				    				usergrouprelationMapper.deleteByExample(ugrexample);
-				    			}
-			    }else if(usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() == null && usergroupdto.getDelusers() != null){
-			    				//修改了群描述、删除用户
-						    	UserGroup usergroup =new UserGroup();
-								usergroup.setGroupname(usergroupdto.getUsergroup().getGroupname());
-								usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
-								usergroup.setId(usergroupdto.getUsergroup().getId());
-								usergroupMapper.updateByPrimaryKeySelective(usergroup);
-								List<String> users = usergroupdto.getDelusers();
-				    			int groupid = usergroupdto.getUsergroup().getId();
-				    			for(int i=0;i<users.size();i++){
-				    				UserGroupRelationExample ugrexample = new UserGroupRelationExample();
-				    				UserExample example = new UserExample();
-				    				example.createCriteria().andUsernameEqualTo(users.get(i));
-				    				User user = userMapperNew.selectByExample(example).get(0);
-				    				Long userid = user.getUuid();
-				    				ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
-				    				usergrouprelationMapper.deleteByExample(ugrexample);
-				    			}
-			    }else if(usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() != null && usergroupdto.getDelusers() == null){
-			    				//修改了群描述、群组名、增加用户
-						    	UserGroup usergroup =new UserGroup();
-								usergroup.setGroupname(usergroupdto.getUpdategroupname());
-								usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
-								usergroup.setId(usergroupdto.getUsergroup().getId());
-								usergroupMapper.updateByPrimaryKeySelective(usergroup);
-								List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
-				    			List<String> addusers = usergroupdto.getAddusers();
-				    			int groupid = usergroupdto.getUsergroup().getId();
-				    			for(int i=0;i<addusers.size();i++){
-				    				UserGroupRelation ugr = new UserGroupRelation();
-				    				UserExample example = new UserExample();
-				    				example.createCriteria().andUsernameEqualTo(addusers.get(i));
-				    				User user = userMapperNew.selectByExample(example).get(0);
-				    				ugr.setGroupid(groupid);
-				    				ugr.setUserid(user.getUuid());
-				    				ugrs.add(ugr);
-				    			}
-				    			usergrouprelationMapper.addUserGroupRelation(ugrs);
-			    }else if(usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() == null && usergroupdto.getDelusers()  != null){
-			    				//修改了群描述、群组名、删除用户
-			    				UserGroup usergroup =new UserGroup();
-								usergroup.setGroupname(usergroupdto.getUpdategroupname());
-								usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
-								usergroup.setId(usergroupdto.getUsergroup().getId());
-								usergroupMapper.updateByPrimaryKeySelective(usergroup);
-								List<String> users = usergroupdto.getDelusers();
-				    			int groupid = usergroupdto.getUsergroup().getId();
-				    			for(int i=0;i<users.size();i++){
-				    				UserGroupRelationExample ugrexample = new UserGroupRelationExample();
-				    				UserExample example = new UserExample();
-				    				example.createCriteria().andUsernameEqualTo(users.get(i));
-				    				User user = userMapperNew.selectByExample(example).get(0);
-				    				Long userid = user.getUuid();
-				    				ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
-				    				usergrouprelationMapper.deleteByExample(ugrexample);
-				    			}
-			    }else if(usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() != null && usergroupdto.getDelusers()  != null){
-			    				//修改了群描述、群组名、增加用户、删除用户
-						    	UserGroup usergroup =new UserGroup();
-								usergroup.setGroupname(usergroupdto.getUpdategroupname());
-								usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
-								usergroup.setId(usergroupdto.getUsergroup().getId());
-								usergroupMapper.updateByPrimaryKeySelective(usergroup);
-								List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
-				    			List<String> addusers = usergroupdto.getAddusers();
-				    			int groupid = usergroupdto.getUsergroup().getId();
-				    			for(int i=0;i<addusers.size();i++){
-				    				UserGroupRelation ugr = new UserGroupRelation();
-				    				UserExample example = new UserExample();
-				    				example.createCriteria().andUsernameEqualTo(addusers.get(i));
-				    				User user = userMapperNew.selectByExample(example).get(0);
-				    				ugr.setGroupid(groupid);
-				    				ugr.setUserid(user.getUuid());
-				    				ugrs.add(ugr);
-				    			}
-				    			usergrouprelationMapper.addUserGroupRelation(ugrs);
-				    			List<String> delusers = usergroupdto.getDelusers();
-				    			for(int i=0;i<delusers.size();i++){
-				    				UserGroupRelationExample ugrexample = new UserGroupRelationExample();
-				    				UserExample example = new UserExample();
-				    				example.createCriteria().andUsernameEqualTo(delusers.get(i));
-				    				User user = userMapperNew.selectByExample(example).get(0);
-				    				Long userid = user.getUuid();
-				    				ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
-				    				usergrouprelationMapper.deleteByExample(ugrexample);
-				    			}
-			    }
-				return ActionReturnUtil.returnSuccess();
-	}
 
-	/**
-	 * 查询所有群组信息
-	 * 
-	 * @param 
-	 * @return  List<UserGroup>
-	 */
-	public List<UserGroup> get_groups()throws Exception {
-		UserGroupExample ugexample = new UserGroupExample();
-		List<UserGroup> ugs = usergroupMapper.selectByExample(ugexample);
-		for(int i=0;i<ugs.size();i++){
-			int groupid = ugs.get(i).getId();
-			UserGroupRelationExample  ugrexample = new UserGroupRelationExample();
-			ugrexample.createCriteria().andGroupidEqualTo(groupid);
-			ugs.get(i).setUserNumber(usergrouprelationMapper.selectByExample(ugrexample).size());
-		}
-		return ugs;
-	}
+    /**
+     * 修改用户群组信息
+     * 
+     * @param UserGroupDto
+     *            usergroupdto
+     * @return ActionReturnUtil
+     */
+    public ActionReturnUtil updateGroup(UserGroupDto usergroupdto) throws Exception {
+        if (usergroupdto == null) {
+            return ActionReturnUtil.returnErrorWithMsg("修改参数不能为空！");
+        }
+        // 判断修改了那些内容：群组名、描述、增、删用户
+        // 只修改群组名称
+        if (usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() == null && usergroupdto.getDelusers() == null) {
+            UserGroup usergroup = new UserGroup();
+            usergroup.setGroupname(usergroupdto.getUpdategroupname());
+            usergroup.setUserGroupDescribe(usergroupdto.getUsergroup().getUserGroupDescribe());
+            usergroup.setId(usergroupdto.getUsergroup().getId());
+            usergroupMapper.updateByPrimaryKeySelective(usergroup);
+        } else if (usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() == null
+                && usergroupdto.getDelusers() == null) {
+            // 只修改群组描述
+            UserGroup usergroup = new UserGroup();
+            usergroup.setGroupname(usergroupdto.getUsergroup().getGroupname());
+            usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
+            usergroup.setId(usergroupdto.getUsergroup().getId());
+            usergroupMapper.updateByPrimaryKeySelective(usergroup);
+        } else if (usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() != null
+                && usergroupdto.getDelusers() == null) {
+            // 只增加用户
+            List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
+            List<String> users = usergroupdto.getAddusers();
+            int groupid = usergroupdto.getUsergroup().getId();
+            for (int i = 0; i < users.size(); i++) {
+                UserGroupRelation ugr = new UserGroupRelation();
+                UserExample example = new UserExample();
+                example.createCriteria().andUsernameEqualTo(users.get(i));
+                User user = userMapperNew.selectByExample(example).get(0);
+                ugr.setGroupid(groupid);
+                ugr.setUserid(user.getUuid());
+                ugrs.add(ugr);
+            }
+            usergrouprelationMapper.addUserGroupRelation(ugrs);
+        } else if (usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() == null
+                && usergroupdto.getDelusers() != null) {
+            // 只删除用户
+            List<String> users = usergroupdto.getDelusers();
+            int groupid = usergroupdto.getUsergroup().getId();
+            for (int i = 0; i < users.size(); i++) {
+                UserGroupRelationExample ugrexample = new UserGroupRelationExample();
+                UserExample example = new UserExample();
+                example.createCriteria().andUsernameEqualTo(users.get(i));
+                User user = userMapperNew.selectByExample(example).get(0);
+                Long userid = user.getUuid();
+                ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
+                usergrouprelationMapper.deleteByExample(ugrexample);
+            }
+        } else if (usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() == null
+                && usergroupdto.getDelusers() == null) {
+            // 修改群组名和描述
+            UserGroup usergroup = new UserGroup();
+            usergroup.setGroupname(usergroupdto.getUpdategroupname());
+            usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
+            usergroup.setId(usergroupdto.getUsergroup().getId());
+            usergroupMapper.updateByPrimaryKeySelective(usergroup);
+        } else if (usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() != null
+                && usergroupdto.getDelusers() != null) {
+            // 增、删用户
+            List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
+            List<String> addusers = usergroupdto.getAddusers();
+            int groupid = usergroupdto.getUsergroup().getId();
+            for (int i = 0; i < addusers.size(); i++) {
+                UserGroupRelation ugr = new UserGroupRelation();
+                UserExample example = new UserExample();
+                example.createCriteria().andUsernameEqualTo(addusers.get(i));
+                User user = userMapperNew.selectByExample(example).get(0);
+                ugr.setGroupid(groupid);
+                ugr.setUserid(user.getUuid());
+                ugrs.add(ugr);
+            }
+            usergrouprelationMapper.addUserGroupRelation(ugrs);
+            List<String> delusers = usergroupdto.getDelusers();
+            for (int i = 0; i < delusers.size(); i++) {
+                UserGroupRelationExample ugrexample = new UserGroupRelationExample();
+                UserExample example = new UserExample();
+                example.createCriteria().andUsernameEqualTo(delusers.get(i));
+                User user = userMapperNew.selectByExample(example).get(0);
+                Long userid = user.getUuid();
+                ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
+                usergrouprelationMapper.deleteByExample(ugrexample);
+            }
+        } else if (usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() != null
+                && usergroupdto.getDelusers() == null) {
+            // 修改了群组名、增用户
+            UserGroup usergroup = new UserGroup();
+            usergroup.setGroupname(usergroupdto.getUpdategroupname());
+            usergroup.setUserGroupDescribe(usergroupdto.getUsergroup().getUserGroupDescribe());
+            usergroup.setId(usergroupdto.getUsergroup().getId());
+            usergroupMapper.updateByPrimaryKeySelective(usergroup);
+            List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
+            List<String> addusers = usergroupdto.getAddusers();
+            int groupid = usergroupdto.getUsergroup().getId();
+            for (int i = 0; i < addusers.size(); i++) {
+                UserGroupRelation ugr = new UserGroupRelation();
+                UserExample example = new UserExample();
+                example.createCriteria().andUsernameEqualTo(addusers.get(i));
+                User user = userMapperNew.selectByExample(example).get(0);
+                ugr.setGroupid(groupid);
+                ugr.setUserid(user.getUuid());
+                ugrs.add(ugr);
+            }
+            usergrouprelationMapper.addUserGroupRelation(ugrs);
+        } else if (usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() != null
+                && usergroupdto.getDelusers() == null) {
+            // 修改了群描述、增用户
+            UserGroup usergroup = new UserGroup();
+            usergroup.setGroupname(usergroupdto.getUsergroup().getGroupname());
+            usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
+            usergroup.setId(usergroupdto.getUsergroup().getId());
+            usergroupMapper.updateByPrimaryKeySelective(usergroup);
+            List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
+            List<String> addusers = usergroupdto.getAddusers();
+            int groupid = usergroupdto.getUsergroup().getId();
+            for (int i = 0; i < addusers.size(); i++) {
+                UserGroupRelation ugr = new UserGroupRelation();
+                UserExample example = new UserExample();
+                example.createCriteria().andUsernameEqualTo(addusers.get(i));
+                User user = userMapperNew.selectByExample(example).get(0);
+                ugr.setGroupid(groupid);
+                ugr.setUserid(user.getUuid());
+                ugrs.add(ugr);
+            }
+            usergrouprelationMapper.addUserGroupRelation(ugrs);
+        } else if (usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() == null && usergroupdto.getAddusers() == null
+                && usergroupdto.getDelusers() != null) {
+            // 修改了群组名、删除用户
+            UserGroup usergroup = new UserGroup();
+            usergroup.setGroupname(usergroupdto.getUpdategroupname());
+            usergroup.setUserGroupDescribe(usergroupdto.getUsergroup().getUserGroupDescribe());
+            usergroup.setId(usergroupdto.getUsergroup().getId());
+            usergroupMapper.updateByPrimaryKeySelective(usergroup);
+            List<String> users = usergroupdto.getDelusers();
+            int groupid = usergroupdto.getUsergroup().getId();
+            for (int i = 0; i < users.size(); i++) {
+                UserGroupRelationExample ugrexample = new UserGroupRelationExample();
+                UserExample example = new UserExample();
+                example.createCriteria().andUsernameEqualTo(users.get(i));
+                User user = userMapperNew.selectByExample(example).get(0);
+                Long userid = user.getUuid();
+                ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
+                usergrouprelationMapper.deleteByExample(ugrexample);
+            }
+        } else if (usergroupdto.getUpdategroupname() == null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() == null
+                && usergroupdto.getDelusers() != null) {
+            // 修改了群描述、删除用户
+            UserGroup usergroup = new UserGroup();
+            usergroup.setGroupname(usergroupdto.getUsergroup().getGroupname());
+            usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
+            usergroup.setId(usergroupdto.getUsergroup().getId());
+            usergroupMapper.updateByPrimaryKeySelective(usergroup);
+            List<String> users = usergroupdto.getDelusers();
+            int groupid = usergroupdto.getUsergroup().getId();
+            for (int i = 0; i < users.size(); i++) {
+                UserGroupRelationExample ugrexample = new UserGroupRelationExample();
+                UserExample example = new UserExample();
+                example.createCriteria().andUsernameEqualTo(users.get(i));
+                User user = userMapperNew.selectByExample(example).get(0);
+                Long userid = user.getUuid();
+                ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
+                usergrouprelationMapper.deleteByExample(ugrexample);
+            }
+        } else if (usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() != null
+                && usergroupdto.getDelusers() == null) {
+            // 修改了群描述、群组名、增加用户
+            UserGroup usergroup = new UserGroup();
+            usergroup.setGroupname(usergroupdto.getUpdategroupname());
+            usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
+            usergroup.setId(usergroupdto.getUsergroup().getId());
+            usergroupMapper.updateByPrimaryKeySelective(usergroup);
+            List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
+            List<String> addusers = usergroupdto.getAddusers();
+            int groupid = usergroupdto.getUsergroup().getId();
+            for (int i = 0; i < addusers.size(); i++) {
+                UserGroupRelation ugr = new UserGroupRelation();
+                UserExample example = new UserExample();
+                example.createCriteria().andUsernameEqualTo(addusers.get(i));
+                User user = userMapperNew.selectByExample(example).get(0);
+                ugr.setGroupid(groupid);
+                ugr.setUserid(user.getUuid());
+                ugrs.add(ugr);
+            }
+            usergrouprelationMapper.addUserGroupRelation(ugrs);
+        } else if (usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() == null
+                && usergroupdto.getDelusers() != null) {
+            // 修改了群描述、群组名、删除用户
+            UserGroup usergroup = new UserGroup();
+            usergroup.setGroupname(usergroupdto.getUpdategroupname());
+            usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
+            usergroup.setId(usergroupdto.getUsergroup().getId());
+            usergroupMapper.updateByPrimaryKeySelective(usergroup);
+            List<String> users = usergroupdto.getDelusers();
+            int groupid = usergroupdto.getUsergroup().getId();
+            for (int i = 0; i < users.size(); i++) {
+                UserGroupRelationExample ugrexample = new UserGroupRelationExample();
+                UserExample example = new UserExample();
+                example.createCriteria().andUsernameEqualTo(users.get(i));
+                User user = userMapperNew.selectByExample(example).get(0);
+                Long userid = user.getUuid();
+                ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
+                usergrouprelationMapper.deleteByExample(ugrexample);
+            }
+        } else if (usergroupdto.getUpdategroupname() != null && usergroupdto.getUpdatedescribe() != null && usergroupdto.getAddusers() != null
+                && usergroupdto.getDelusers() != null) {
+            // 修改了群描述、群组名、增加用户、删除用户
+            UserGroup usergroup = new UserGroup();
+            usergroup.setGroupname(usergroupdto.getUpdategroupname());
+            usergroup.setUserGroupDescribe(usergroupdto.getUpdatedescribe());
+            usergroup.setId(usergroupdto.getUsergroup().getId());
+            usergroupMapper.updateByPrimaryKeySelective(usergroup);
+            List<UserGroupRelation> ugrs = new ArrayList<UserGroupRelation>();
+            List<String> addusers = usergroupdto.getAddusers();
+            int groupid = usergroupdto.getUsergroup().getId();
+            for (int i = 0; i < addusers.size(); i++) {
+                UserGroupRelation ugr = new UserGroupRelation();
+                UserExample example = new UserExample();
+                example.createCriteria().andUsernameEqualTo(addusers.get(i));
+                User user = userMapperNew.selectByExample(example).get(0);
+                ugr.setGroupid(groupid);
+                ugr.setUserid(user.getUuid());
+                ugrs.add(ugr);
+            }
+            usergrouprelationMapper.addUserGroupRelation(ugrs);
+            List<String> delusers = usergroupdto.getDelusers();
+            for (int i = 0; i < delusers.size(); i++) {
+                UserGroupRelationExample ugrexample = new UserGroupRelationExample();
+                UserExample example = new UserExample();
+                example.createCriteria().andUsernameEqualTo(delusers.get(i));
+                User user = userMapperNew.selectByExample(example).get(0);
+                Long userid = user.getUuid();
+                ugrexample.createCriteria().andGroupidEqualTo(groupid).andUseridEqualTo(userid);
+                usergrouprelationMapper.deleteByExample(ugrexample);
+            }
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    /**
+     * 查询所有群组信息
+     * 
+     * @param
+     * @return List<UserGroup>
+     */
+    public List<UserGroup> get_groups() throws Exception {
+        UserGroupExample ugexample = new UserGroupExample();
+        List<UserGroup> ugs = usergroupMapper.selectByExample(ugexample);
+        for (int i = 0; i < ugs.size(); i++) {
+            int groupid = ugs.get(i).getId();
+            UserGroupRelationExample ugrexample = new UserGroupRelationExample();
+            ugrexample.createCriteria().andGroupidEqualTo(groupid);
+            ugs.get(i).setUserNumber(usergrouprelationMapper.selectByExample(ugrexample).size());
+        }
+        return ugs;
+    }
 
     /**
      * 查询群组是否重名
@@ -1547,181 +1570,230 @@ public class UserService {
                         Date updateTime = user.getUpdateTime();
                         u.setUpdateTime(DateUtil.DateToString(updateTime, DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z));
                     }
-					userNameList.add(u);
-					break;
-				}
-			}
-		}
-		//用户群组所占用的用户
-		UserGroupRelationExample ugrexample = new UserGroupRelationExample();
-		List<UserGroupRelation> ugr = usergrouprelationMapper.selectByExample(ugrexample);
-		List<Integer> ls = new ArrayList<Integer>();
-		List<String> username = new  ArrayList<String>();
-	    for(int i=0;i<ugr.size();i++){
-	    	Long uuid = ugr.get(i).getUserid();
-	    	ls.add(uuid.intValue());
-	    	UserExample example = new UserExample();
-	    	example.createCriteria().andUuidEqualTo(uuid);
-	    	username.add(userMapperNew.selectByExample(example).get(0).getUsername());
-	    }
-	    //展示用户剔除已加入群组用户,查询在userNameList对应的下标，并remove
-	    for(int j=0;j<username.size();j++){
-	    	for(int g=0;g<userNameList.size();g++){
-	    		if(username.get(j).equals(userNameList.get(g).getName())){
-	    			userNameList.remove(g);
-	    		}
-	    	}
-	    }
-		return ActionReturnUtil.returnSuccessWithData(userNameList);
-	}
-	
-	/**
-	 * 文件导出
-	 * 
-	 * @param 
-	 * @return void
-	 */
-    public ActionReturnUtil fileexport(HttpServletRequest req,HttpServletResponse resp)throws Exception {
-		try {
-			String[] title = {"平台账号","密码","用户邮箱","姓名","手机号","备注"};
-			HttpServletResponse response = null;
-			//创建Excel工作簿
-			HSSFWorkbook workbook = new HSSFWorkbook();
-			//创建一个工作表sheet
-			HSSFSheet sheet = workbook.createSheet();
-			//创建第一行
-			HSSFRow row = sheet.createRow(0);
-			HSSFCell cell = null;
-			//插入第一行数据id,name,sex
-			for(int i=0;i<title.length;i++){
-						cell = row.createCell(i);
-						cell.setCellValue(title[i]);
-			}
-			response = resp;
-		   // response.reset();
-			response.setHeader("Content-type", "text/html;charset=UTF-8");  
-			response.setHeader("Content-Disposition", "attachment; filename=users.xls");
-			response.setContentType("application/msexcel");  //设置生成的文件类型  
-			OutputStream output= response.getOutputStream(); 
-			workbook.write(output);
-			workbook.close();
-			output.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return ActionReturnUtil.returnSuccess();
-	}
-	
-	/**
-	 * 用户批量上传
-	 * 
-	 * @param 
-	 * @return void
-	 */
-	public ActionReturnUtil userBulkUpload(InputStream in, MultipartFile file)throws Exception {
-				//定义title用来判断excel表的数据title头是否正确
-				String[] title = {"平台账号","密码","用户邮箱","姓名","手机号","备注"};
-				List<String> list = new ArrayList<String>();
-				List<List<Object>> listob = ExcelUtil.getUserListByExcel(in,file.getOriginalFilename());
-				//遍历listob数据，把数据放到List中
-			    for (int i = 0; i < listob.size(); i++) {
-			    		List<Object> ob = listob.get(i);
-			            User user = new User();
-			            //通过遍历获取每一列用户数据
-			            user.setUsername(String.valueOf(ob.get(0)));
-			            user.setPassword(String.valueOf(ob.get(1)));
-			            user.setEmail(String.valueOf(ob.get(2)));
-			            user.setRealName(String.valueOf(ob.get(3)));
-			            user.setPhone(String.valueOf(ob.get(4)));
-			            user.setComment(String.valueOf(ob.get(5)));
-			            list.add(String.valueOf(ob.get(0)));
-			            //为了避免用户提交产生错误数据，所以一个个插入,
-			            excelAddUser(user,i+1,list);
-			    }
-		        return ActionReturnUtil.returnSuccess();
-	}
-	
-	/**
+                    userNameList.add(u);
+                    break;
+                }
+            }
+        }
+        // 用户群组所占用的用户
+        UserGroupRelationExample ugrexample = new UserGroupRelationExample();
+        List<UserGroupRelation> ugr = usergrouprelationMapper.selectByExample(ugrexample);
+        List<Integer> ls = new ArrayList<Integer>();
+        List<String> username = new ArrayList<String>();
+        for (int i = 0; i < ugr.size(); i++) {
+            Long uuid = ugr.get(i).getUserid();
+            ls.add(uuid.intValue());
+            UserExample example = new UserExample();
+            example.createCriteria().andUuidEqualTo(uuid);
+            username.add(userMapperNew.selectByExample(example).get(0).getUsername());
+        }
+        // 展示用户剔除已加入群组用户,查询在userNameList对应的下标，并remove
+        for (int j = 0; j < username.size(); j++) {
+            for (int g = 0; g < userNameList.size(); g++) {
+                if (username.get(j).equals(userNameList.get(g).getName())) {
+                    userNameList.remove(g);
+                }
+            }
+        }
+        return ActionReturnUtil.returnSuccessWithData(userNameList);
+    }
+
+    /**
+     * 文件导出
+     * 
+     * @param
+     * @return void
+     */
+    public ActionReturnUtil fileexport(HttpServletRequest req, HttpServletResponse resp) throws Exception {
+        try {
+            String[] title = {"平台账号", "密码", "用户邮箱", "姓名", "手机号", "备注"};
+            HttpServletResponse response = null;
+            // 创建Excel工作簿
+            HSSFWorkbook workbook = new HSSFWorkbook();
+            // 创建一个工作表sheet
+            HSSFSheet sheet = workbook.createSheet();
+            // 创建第一行
+            HSSFRow row = sheet.createRow(0);
+            HSSFCell cell = null;
+            // 插入第一行数据id,name,sex
+            for (int i = 0; i < title.length; i++) {
+                cell = row.createCell(i);
+                cell.setCellValue(title[i]);
+            }
+            response = resp;
+            // response.reset();
+            response.setHeader("Content-type", "text/html;charset=UTF-8");
+            response.setHeader("Content-Disposition", "attachment; filename=users.xls");
+            response.setContentType("application/msexcel"); // 设置生成的文件类型
+            OutputStream output = response.getOutputStream();
+            workbook.write(output);
+            workbook.close();
+            output.close();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    /**
+     * 用户批量上传
+     * 
+     * @param
+     * @return void
+     */
+    public ActionReturnUtil userBulkUpload(InputStream in, MultipartFile file) throws Exception {
+        // 定义title用来判断excel表的数据title头是否正确
+        String[] title = {"平台账号", "密码", "用户邮箱", "姓名", "手机号", "备注"};
+        List<String> list = new ArrayList<String>();
+        List<List<Object>> listob = ExcelUtil.getUserListByExcel(in, file.getOriginalFilename());
+        if (listob == null && listob.size() <= 0) {
+            return ActionReturnUtil.returnErrorWithMsg("文件不能为空!");
+        }
+        // 遍历listob数据，把数据放到List中
+        try {
+            for (int i = 0; i < listob.size(); i++) {
+                List<Object> ob = listob.get(i);
+                User user = new User();
+                if (ob.size() < 5 || (ob.get(0) == null || ob.get(0).toString().trim().isEmpty()) && (ob.get(1) == null || ob.get(1).toString().trim().isEmpty())
+                        && (ob.get(2) == null || ob.get(2).toString().trim().isEmpty()) && (ob.get(3) == null || ob.get(3).toString().trim().isEmpty())
+                        && (ob.get(4) == null || ob.get(4).toString().trim().isEmpty())) {
+                    // 跳过空行
+                    break;
+                }
+                // 通过遍历获取每一列用户数据
+                if (ob.get(0) != null && !ob.get(0).toString().trim().isEmpty()) {
+                    user.setUsername(String.valueOf(ob.get(0)));
+                } else {
+                    return ActionReturnUtil.returnErrorWithMsg("第" + (i + 1) + "行,用户名不能为空");
+                }
+                if (ob.get(1) != null && !ob.get(1).toString().trim().isEmpty()) {
+                    user.setPassword(String.valueOf(ob.get(1)).trim());
+                } else {
+                    return ActionReturnUtil.returnErrorWithMsg("第" + (i + 1) + "行,密码不能为空");
+                }
+                if (ob.get(2) != null && !ob.get(2).toString().trim().isEmpty()) {
+                    user.setEmail(String.valueOf(ob.get(2)).trim());
+                } else {
+                    return ActionReturnUtil.returnErrorWithMsg("第" + (i + 1) + "行,用户邮箱不能为空");
+                }
+                if (ob.get(3) != null && !ob.get(3).toString().trim().isEmpty()) {
+                    user.setRealName(String.valueOf(ob.get(3)).trim());
+                } else {
+                    return ActionReturnUtil.returnErrorWithMsg("第" + (i + 1) + "行,真实姓名不能为空");
+                }
+                if (ob.get(4) != null && !ob.get(4).toString().trim().isEmpty()) {
+                    user.setPhone(String.valueOf(ob.get(4)).trim());
+                } else {
+                    return ActionReturnUtil.returnErrorWithMsg("第" + (i + 1) + "行,手机号不能为空");
+                }
+                if (ob.size() > 5 && ob.get(5) != null && !ob.get(5).toString().trim().isEmpty()) {
+                    user.setComment(String.valueOf(ob.get(5)).trim());
+                }
+                list.add(String.valueOf(ob.get(0)));
+                // 为了避免用户提交产生错误数据，所以一个个插入,
+                excelAddUser(user, i + 1, list);
+            }
+        } catch (Exception e) {
+            this.rollBackHarborUser(list);
+            throw new MarsRuntimeException(e.getMessage());
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
+    private void rollBackHarborUser(List<String> list) throws Exception {
+        for (int i = 0; i <= list.size() - 1; i++) {
+            // 获取uuid
+            UserExample example = new UserExample();
+            example.createCriteria().andUsernameEqualTo(list.get(i));
+            Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
+            // 删除harbor用户
+            String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
+            String dlCookie = harborUtil.checkCookieTimeout();
+            Map<String, Object> headers = new HashMap<String, Object>();
+            headers.put("Cookie", dlCookie);
+            HttpClientUtil.doDelete(deleteUrl, null, headers);
+        }
+    }
+    /**
      * 向k8s和harbor中新增用户
      * 
      * @param user
      * @param rowNumber
      * @return
      */
-    public ActionReturnUtil excelAddUser(User user,int rowNumber,List<String> list) throws Exception {
+    public ActionReturnUtil excelAddUser(User user, int rowNumber, List<String> list) throws Exception {
         // 密码匹配
         String regex = "^(?![0-9]+$)(?![a-zA-Z]+$)[0-9A-Za-z]{7,12}$";
         String regex1 = "^[\u4E00-\u9FA5A-Za-z0-9]+$";
         boolean matches = user.getPassword().matches(regex);
         if (!matches) {
-        	for(int i =0;i<list.size()-1;i++){
-	    		//获取uuid
-	    		UserExample example =new UserExample();
-	    		example.createCriteria().andUsernameEqualTo(list.get(i));
-	    		Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
-	    		// 删除harbor用户
-	            String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
-	            String dlCookie = harborUtil.checkCookieTimeout();
-	            Map<String, Object> headers = new HashMap<String, Object>();
-	            headers.put("Cookie", dlCookie);
-	           HttpClientUtil.doDelete(deleteUrl, null, headers);
-	    	}
-            return ActionReturnUtil.returnErrorWithMsg("第"+rowNumber+"行用户信息插入发生错误，"+"密码必须是数字+字母组合且长度不能小于7！");
+            for (int i = 0; i <= list.size() - 1; i++) {
+                // 获取uuid
+                UserExample example = new UserExample();
+                example.createCriteria().andUsernameEqualTo(list.get(i));
+                Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
+                // 删除harbor用户
+                String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
+                String dlCookie = harborUtil.checkCookieTimeout();
+                Map<String, Object> headers = new HashMap<String, Object>();
+                headers.put("Cookie", dlCookie);
+                HttpClientUtil.doDelete(deleteUrl, null, headers);
+            }
+            return ActionReturnUtil.returnErrorWithMsg("第" + rowNumber + "行用户信息插入发生错误，" + "密码必须是数字+字母组合且长度不能小于7！");
         }
         // 用户名非重
         if (this.checkUserName(user.getUsername())) {
-        	for(int i =0;i<list.size()-1;i++){
-	    		//获取uuid
-	    		UserExample example =new UserExample();
-	    		example.createCriteria().andUsernameEqualTo(list.get(i));
-	    		Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
-	    		// 删除harbor用户
-	            String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
-	            String dlCookie = harborUtil.checkCookieTimeout();
-	            Map<String, Object> headers = new HashMap<String, Object>();
-	            headers.put("Cookie", dlCookie);
-	            HttpClientUtil.doDelete(deleteUrl, null, headers);
-	    	}
-            return ActionReturnUtil.returnErrorWithMsg("第"+rowNumber+"行用户信息插入发生错误，"+"用户名重复！");
+            for (int i = 0; i <= list.size() - 1; i++) {
+                // 获取uuid
+                UserExample example = new UserExample();
+                example.createCriteria().andUsernameEqualTo(list.get(i));
+                Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
+                // 删除harbor用户
+                String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
+                String dlCookie = harborUtil.checkCookieTimeout();
+                Map<String, Object> headers = new HashMap<String, Object>();
+                headers.put("Cookie", dlCookie);
+                HttpClientUtil.doDelete(deleteUrl, null, headers);
+            }
+            return ActionReturnUtil.returnErrorWithMsg("第" + rowNumber + "行用户信息插入发生错误，" + "用户名重复！");
         }
         // 邮箱非重
         if (this.checkEmail(user.getEmail())) {
-        	for(int i =0;i<list.size()-1;i++){
-	    		//获取uuid
-	    		UserExample example =new UserExample();
-	    		example.createCriteria().andUsernameEqualTo(list.get(i));
-	    		Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
-	    		// 删除harbor用户
-	            String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
-	            String dlCookie = harborUtil.checkCookieTimeout();
-	            Map<String, Object> headers = new HashMap<String, Object>();
-	            headers.put("Cookie", dlCookie);
-	            HttpClientUtil.doDelete(deleteUrl, null, headers);
-	    	}
-            return ActionReturnUtil.returnErrorWithMsg("第"+rowNumber+"行用户信息插入发生错误，"+"邮箱重复！");
+            for (int i = 0; i <= list.size() - 1; i++) {
+                // 获取uuid
+                UserExample example = new UserExample();
+                example.createCriteria().andUsernameEqualTo(list.get(i));
+                Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
+                // 删除harbor用户
+                String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
+                String dlCookie = harborUtil.checkCookieTimeout();
+                Map<String, Object> headers = new HashMap<String, Object>();
+                headers.put("Cookie", dlCookie);
+                HttpClientUtil.doDelete(deleteUrl, null, headers);
+            }
+            return ActionReturnUtil.returnErrorWithMsg("第" + rowNumber + "行用户信息插入发生错误，" + "邮箱重复！");
         }
         // 真实用户名判断，过滤特殊符号
         boolean matchrealname = user.getRealName().matches(regex1);
         if (!matchrealname) {
-        	for(int i =0;i<list.size()-1;i++){
-	    		//获取uuid
-	    		UserExample example =new UserExample();
-	    		example.createCriteria().andUsernameEqualTo(list.get(i));
-	    		Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
-	    		// 删除harbor用户
-	            String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
-	            String dlCookie = harborUtil.checkCookieTimeout();
-	            Map<String, Object> headers = new HashMap<String, Object>();
-	            headers.put("Cookie", dlCookie);
-	            HttpClientUtil.doDelete(deleteUrl, null, headers);
-	    	}
-            return ActionReturnUtil.returnErrorWithMsg("第"+rowNumber+"行用户信息插入发生错误，"+"真实姓名不符合要求！");
+            for (int i = 0; i <= list.size() - 1; i++) {
+                // 获取uuid
+                UserExample example = new UserExample();
+                example.createCriteria().andUsernameEqualTo(list.get(i));
+                Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
+                // 删除harbor用户
+                String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
+                String dlCookie = harborUtil.checkCookieTimeout();
+                Map<String, Object> headers = new HashMap<String, Object>();
+                headers.put("Cookie", dlCookie);
+                HttpClientUtil.doDelete(deleteUrl, null, headers);
+            }
+            return ActionReturnUtil.returnErrorWithMsg("第" + rowNumber + "行用户信息插入发生错误，" + "真实姓名不符合要求！");
         }
         HarborUser harbor = new HarborUser();
         harbor.setUsername(user.getUsername());
         harbor.setPassword(user.getPassword());
-        
+
         // 向harbor新增用户
         String addUrl = "http://" + harborIP + ":" + harborPort + "/api/users";
         Map<String, Object> params = new HashMap<String, Object>();
@@ -1735,143 +1807,148 @@ public class UserService {
         header.put("Cookie", cookie);
         header.put("Content-type", "application/json");
         String harborUId = null;
-            
+
         CloseableHttpResponse response = HttpClientUtil.doBodyPost(addUrl, params, header);
         if (HttpStatusUtil.isSuccessStatus(response.getStatusLine().getStatusCode())) {
-			        // 密码md5加密
-			        // 获取harbor用户uuid作为user id
-			        Header[] headers = response.getHeaders("Location");
-			        if (headers.length > 0) {
-							        Header location = headers[0];
-							        harborUId = location.getValue().substring(location.getValue().lastIndexOf("/") + 1);
-							        String MD5password = StringUtil.convertToMD5(user.getPassword());
-							        user.setPassword(MD5password);
-							        user.setId(Long.valueOf(harborUId));
-							        user.setCreateTime(new Date());
-							        user.setPause(CommonConstant.NORMAL);
-							        userMapper.addUser(user);
-							        harboruserMapper.addUser(harbor);
-							        return ActionReturnUtil.returnSuccess();
-			        } else {
-			        	for(int i =0;i<list.size()-1;i++){
-				    		//获取uuid
-				    		UserExample example =new UserExample();
-				    		example.createCriteria().andUsernameEqualTo(list.get(i));
-				    		Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
-				    		// 删除harbor用户
-				            String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
-				            String dlCookie = harborUtil.checkCookieTimeout();
-				            Map<String, Object> head = new HashMap<String, Object>();
-				            head.put("Cookie", dlCookie);
-				            HttpClientUtil.doDelete(deleteUrl, null, head);
-				    	}
-                        return ActionReturnUtil.returnErrorWithMsg("第"+rowNumber+"行用户信息插入发生错误,Create failed");
-			        }
-         } else {
-		        	 for(int i =0;i<list.size()-1;i++){
-		 	    		//获取uuid
-		 	    		UserExample example =new UserExample();
-		 	    		example.createCriteria().andUsernameEqualTo(list.get(i));
-		 	    		Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
-		 	    		// 删除harbor用户
-		 	            String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
-		 	            String dlCookie = harborUtil.checkCookieTimeout();
-		 	            Map<String, Object> headers = new HashMap<String, Object>();
-		 	            headers.put("Cookie", dlCookie);
-		 	            HttpClientUtil.doDelete(deleteUrl, null, headers);
-		 	    	}
-                    return ActionReturnUtil.returnErrorWithMsg("第"+rowNumber+"行用户信息插入发生错误,harbor Create failed");
-         }
+            // 密码md5加密
+            // 获取harbor用户uuid作为user id
+            Header[] headers = response.getHeaders("Location");
+            if (headers.length > 0) {
+                Header location = headers[0];
+                harborUId = location.getValue().substring(location.getValue().lastIndexOf("/") + 1);
+                String MD5password = StringUtil.convertToMD5(user.getPassword());
+                user.setPassword(MD5password);
+                user.setId(Long.valueOf(harborUId));
+                user.setCreateTime(new Date());
+                user.setPause(CommonConstant.NORMAL);
+                userMapper.addUser(user);
+                HarborUser harborUser2 = harboruserMapper.findByUsername(user.getUsername());
+                if (harborUser2 == null) {
+                    harboruserMapper.addUser(harbor);
+                } else {
+                    harboruserMapper.updatePassword(harbor.getUsername(), harbor.getPassword());
+                }
+                return ActionReturnUtil.returnSuccess();
+            } else {
+                for (int i = 0; i <= list.size() - 1; i++) {
+                    // 获取uuid
+                    UserExample example = new UserExample();
+                    example.createCriteria().andUsernameEqualTo(list.get(i));
+                    Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
+                    // 删除harbor用户
+                    String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
+                    String dlCookie = harborUtil.checkCookieTimeout();
+                    Map<String, Object> head = new HashMap<String, Object>();
+                    head.put("Cookie", dlCookie);
+                    HttpClientUtil.doDelete(deleteUrl, null, head);
+                }
+                return ActionReturnUtil.returnErrorWithMsg("第" + rowNumber + "行用户信息插入发生错误,Create failed");
+            }
+        } else {
+            for (int i = 0; i <= list.size() - 1; i++) {
+                // 获取uuid
+                UserExample example = new UserExample();
+                example.createCriteria().andUsernameEqualTo(list.get(i));
+                Long uuid = userMapperNew.selectByExample(example).get(0).getUuid();
+                // 删除harbor用户
+                String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + uuid;
+                String dlCookie = harborUtil.checkCookieTimeout();
+                Map<String, Object> headers = new HashMap<String, Object>();
+                headers.put("Cookie", dlCookie);
+                HttpClientUtil.doDelete(deleteUrl, null, headers);
+            }
+            return ActionReturnUtil.returnErrorWithMsg("第" + rowNumber + "行用户信息插入发生错误,harbor Create failed");
+        }
     }
-    
-	/**
+
+    /**
      * 描述：根据文件后缀，自适应上传文件的版本
      */
-    public static  Workbook getWorkbook(InputStream inStr,String fileName) throws Exception{
+    public static Workbook getWorkbook(InputStream inStr, String fileName) throws Exception {
         Workbook wb = null;
         String fileType = fileName.substring(fileName.lastIndexOf("."));
-        if("xls".equals(fileType)){
-            wb = new HSSFWorkbook(inStr);  //2003-
-        }else if("xlsx".equals(fileType)){
-           // wb = new XSSFWorkbook(in);  //2007+
-        }else{
-        	throw new Exception("当前文件非excel，请确认后重新上传！");
+        if ("xls".equals(fileType)) {
+            wb = new HSSFWorkbook(inStr); // 2003-
+        } else if ("xlsx".equals(fileType)) {
+            // wb = new XSSFWorkbook(in); //2007+
+        } else {
+            throw new Exception("当前文件非excel，请确认后重新上传！");
         }
         return wb;
     }
-	            
-	/**
-	* 描述：对表格中数值进行格式化
-	 */
-	public static  Object getCellValue(Cell cell){
-			Object value = null;
-			DecimalFormat df = new DecimalFormat("0");  //格式化字符类型的数字
-	        switch (cell.getCellType()) {
-	                case Cell.CELL_TYPE_STRING:
-	                	value = cell.getRichStringCellValue().getString();
-	                	break;
-	                case Cell.CELL_TYPE_NUMERIC:
-	                        if("General".equals(cell.getCellStyle().getDataFormatString())){
-	                            value = df.format(cell.getNumericCellValue());
-	                        }
-	                        break;
-	                case Cell.CELL_TYPE_BOOLEAN:
-	                        value = cell.getBooleanCellValue();
-	                        break;
-	                case Cell.CELL_TYPE_BLANK:
-	                        value = "";
-	                        break;
-	                default:
-	                        break;
-	                }
-	                return value;
-	 }
-	
-	public String getWebhook() {
-		return webhook;
-	}
 
-	public void setWebhook(String webhook) {
-		this.webhook = webhook;
-	}
+    /**
+     * 描述：对表格中数值进行格式化
+     */
+    public static Object getCellValue(Cell cell) {
+        Object value = null;
+        DecimalFormat df = new DecimalFormat("0"); // 格式化字符类型的数字
+        switch (cell.getCellType()) {
+            case Cell.CELL_TYPE_STRING :
+                value = cell.getRichStringCellValue().getString();
+                break;
+            case Cell.CELL_TYPE_NUMERIC :
+                if ("General".equals(cell.getCellStyle().getDataFormatString())) {
+                    value = df.format(cell.getNumericCellValue());
+                }
+                break;
+            case Cell.CELL_TYPE_BOOLEAN :
+                value = cell.getBooleanCellValue();
+                break;
+            case Cell.CELL_TYPE_BLANK :
+                value = "";
+                break;
+            default :
+                break;
+        }
+        return value;
+    }
 
-	public String getHarborIP() {
-		return harborIP;
-	}
+    public String getWebhook() {
+        return webhook;
+    }
 
-	public void setHarborIP(String harborIP) {
-		this.harborIP = harborIP;
-	}
+    public void setWebhook(String webhook) {
+        this.webhook = webhook;
+    }
 
-	public String getHarborPort() {
-		return harborPort;
-	}
+    public String getHarborIP() {
+        return harborIP;
+    }
 
-	public void setHarborPort(String harborPort) {
-		this.harborPort = harborPort;
-	}
+    public void setHarborIP(String harborIP) {
+        this.harborIP = harborIP;
+    }
 
-	public String getHarborUser() {
-		return harborUser;
-	}
+    public String getHarborPort() {
+        return harborPort;
+    }
 
-	public void setHarborUser(String harborUser) {
-		this.harborUser = harborUser;
-	}
+    public void setHarborPort(String harborPort) {
+        this.harborPort = harborPort;
+    }
 
-	public String getHarborPassword() {
-		return harborPassword;
-	}
+    public String getHarborUser() {
+        return harborUser;
+    }
 
-	public void setHarborPassword(String harborPassword) {
-		this.harborPassword = harborPassword;
-	}
+    public void setHarborUser(String harborUser) {
+        this.harborUser = harborUser;
+    }
 
-	public String getHarborTimeout() {
-		return harborTimeout;
-	}
+    public String getHarborPassword() {
+        return harborPassword;
+    }
 
-	public void setHarborTimeout(String harborTimeout) {
-		this.harborTimeout = harborTimeout;
-	}
+    public void setHarborPassword(String harborPassword) {
+        this.harborPassword = harborPassword;
+    }
+
+    public String getHarborTimeout() {
+        return harborTimeout;
+    }
+
+    public void setHarborTimeout(String harborTimeout) {
+        this.harborTimeout = harborTimeout;
+    }
 }
