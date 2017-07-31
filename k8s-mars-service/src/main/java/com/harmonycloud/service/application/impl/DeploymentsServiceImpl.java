@@ -318,9 +318,14 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 				}
 
 			});
-			int tag = 1;
+			int tag = 0;
 			for(ReplicaSet rs : rss){
 				bodys = new HashMap<String, Object>();
+				if(rs.getMetadata().getAnnotations()!= null && !StringUtils.isEmpty(rs.getMetadata().getAnnotations().get("deployment.kubernetes.io/revision").toString())){
+					tag = Integer.parseInt(rs.getMetadata().getAnnotations().get("deployment.kubernetes.io/revision").toString());
+				}else{
+					tag++;
+				}
 				Map<String, Object> labels = new HashMap<String, Object>();
 				labels = rs.getMetadata().getLabels();
 				if(!StringUtils.isEmpty(labels.get("pod-template-hash").toString())){
@@ -331,7 +336,6 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 					}
 					PodList podList = JsonUtil.jsonToPojo(podRes.getBody(), PodList.class);
 					list.addAll(K8sResultConvert.podListConvert(podList, "v"+tag));
-					tag++;
 				}
 			}
 			;
