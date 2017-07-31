@@ -422,7 +422,7 @@ public class MonitorAlarmController {
 					}
 
 					if (etcdCount == 0) {
-						map.put("etcd", Constant.STATUS_NORMAL);
+						map.put("etcd", Constant.STATUS_ABNORMAL);
 					}
 
 					if (elasticsearchLoggingCount == 0) {
@@ -446,7 +446,7 @@ public class MonitorAlarmController {
 					}
 
 					if (nfsCount == 0) {
-						map.put("nfs", Constant.STATUS_NORMAL);
+						map.put("nfs", Constant.STATUS_ABNORMAL);
 					}
                     list.add(map);
 
