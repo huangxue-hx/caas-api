@@ -1,5 +1,8 @@
 package com.harmonycloud.api.tenant;
 
+import com.harmonycloud.common.exception.K8sAuthException;
+import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.constant.Constant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +17,7 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.tenant.NamespaceDto;
 import com.harmonycloud.service.tenant.NamespaceService;
 
+import javax.servlet.http.HttpSession;
 
 
 @Controller
@@ -21,6 +25,10 @@ public class NamespaceController {
 
     @Autowired
     NamespaceService namespaceService;
+
+    @Autowired
+
+    HttpSession session;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -113,6 +121,28 @@ public class NamespaceController {
 
         logger.info("查询namespace详情");
         return namespaceService.getNamespaceDetail(name,tenantid);
+
+    }
+
+    /**
+     * 查询namespace配额
+     *
+     * @param tenantid
+     * @param name
+     * @return
+     */
+    @RequestMapping(value = "/namespace/quota", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getNamespaceQuota( @RequestParam(value = "namespace", required = true) String namespace)
+            throws Exception {
+
+        logger.info("查询namespacequota");
+        String userName = (String) session.getAttribute("username");
+        if(userName == null){
+            throw new K8sAuthException(Constant.HTTP_401);
+        }
+        Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+        return ActionReturnUtil.returnSuccessWithData(namespaceService.getNamespaceQuota(namespace, cluster));
 
     }
 }

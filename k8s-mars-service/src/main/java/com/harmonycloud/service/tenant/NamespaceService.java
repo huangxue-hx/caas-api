@@ -5,6 +5,8 @@ import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.tenant.NamespaceDto;
 import com.harmonycloud.k8s.bean.ResourceQuotaList;
 
+import java.util.Map;
+
 
 /**
  * Created by andy on 17-1-20.
@@ -111,4 +113,12 @@ public interface NamespaceService {
      * @throws Exception
      */
     public ActionReturnUtil getNamespaceListByTenantid(String tenantid)throws Exception;
+
+    /**
+     * 根据查询namespace列表详情
+     * @param tenantid
+     * @return
+     * @throws Exception
+     */
+    public Map<String, Object> getNamespaceQuota(String namespace, Cluster cluster)throws Exception;
 }
