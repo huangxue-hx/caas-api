@@ -126,6 +126,7 @@ public class AuditControllerAspect {
                     	List<TenantBinding> list = tenantBindingMapper.selectByExample(example);
                     	if (list != null) {
                     		tenant = list.get(0).getTenantName();
+                    		subject = tenant;
                     	}
                     	if (values.size() > 1) {
                     		subject = values.get(1);
