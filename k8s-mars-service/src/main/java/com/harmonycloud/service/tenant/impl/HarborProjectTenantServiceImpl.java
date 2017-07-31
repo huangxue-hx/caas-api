@@ -53,6 +53,7 @@ import com.harmonycloud.service.platform.serviceImpl.harbor.HarborServiceImpl;
  * Created by zhangsl on 16/11/13.
  */
 @Service
+@Transactional(rollbackFor = Exception.class)
 public class HarborProjectTenantServiceImpl implements HarborProjectTenantService {
 
     @Autowired
