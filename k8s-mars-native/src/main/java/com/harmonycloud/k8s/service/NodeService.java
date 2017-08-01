@@ -150,6 +150,11 @@ public class NodeService {
 						list.add(node.getMetadata().getName());
 					}
 
+					if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
+							&& node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
+						list.add(node.getMetadata().getName());
+					}
+
 					if (labels.get(CommonConstant.MASTERNODELABEL) != null) {
 						list.add(node.getMetadata().getName());
 					}

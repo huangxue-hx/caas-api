@@ -277,6 +277,10 @@ public class DashboardServiceImpl implements DashboardService {
 						&& node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_A)) {
 					continue;
 				}
+				if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
+						&& node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
+					continue;
+				}
 				if (labels.get(CommonConstant.MASTERNODELABEL) != null) {
 					continue;
 				}
