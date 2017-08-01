@@ -1,22 +1,19 @@
 package com.harmonycloud.service.user.impl;
 
 
-import com.harmonycloud.common.util.*;
-
-import com.harmonycloud.common.util.ESFactory;
-import com.harmonycloud.common.util.date.DateUtil;
-import com.harmonycloud.service.user.UserAuditService;
+import java.io.IOException;
+import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.ESFactory;
+import com.harmonycloud.common.util.UserAuditSearch;
+import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.service.user.UserAuditService;
 
 /**
  * Created by czm on 2017/3/29.
@@ -34,6 +31,8 @@ public class UserAuditServiceImpl implements UserAuditService {
         String user = userAuditSearch.getUser();
         String scrollId = userAuditSearch.getScrollId();
         List<String> userLists = userAuditSearch.getUserList();
+        Integer pageSize = userAuditSearch.getSize();
+        Integer pageNum = userAuditSearch.getPageNum();
 
         BoolQueryBuilder query = QueryBuilders.boolQuery();
 
@@ -62,8 +61,7 @@ public class UserAuditServiceImpl implements UserAuditService {
         }
 
 
-
-        return ESFactory.searchFromIndex(query, scrollId,0,100);
+        return ESFactory.searchFromIndex(query, scrollId, pageSize, pageNum);
 
     }
 

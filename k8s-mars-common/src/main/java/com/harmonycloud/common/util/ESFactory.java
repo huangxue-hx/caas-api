@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.apache.commons.lang.StringUtils;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
@@ -26,6 +27,7 @@ import org.elasticsearch.client.Requests;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.query.BoolQueryBuilder;
@@ -136,29 +138,22 @@ public class ESFactory {
 		SearchResponse pageResponse = ESFactory.createES().prepareSearch(indexName).setTypes(type)
 				.setSearchType(SearchType.QUERY_AND_FETCH).setQuery(query).setFrom(0).setSize(10000).setExplain(true)
 				.get();
-
-		// long totalRecords = pageResponse.getHits().getTotalHits();
-		//
-		// long fromLocation = pageSize * (currentPage-1);
-		//
-		// if (pageSize * currentPage > totalRecords) {
-		// fromLocation = totalRecords;
-		// }
+        
+		//总数
+		long totalRecords = pageResponse.getHits().getTotalHits();
 
 		// 暂时去掉scrollid的分页
 		SearchResponse response;
-		// if(StringUtils.isBlank(scrollId)){
-		response = ESFactory.createES().prepareSearch(indexName).setTypes(type)
-				.setSearchType(SearchType.QUERY_AND_FETCH)
-				// .setScroll(new TimeValue(60000))
-				.setQuery(query).addSort("opTime", SortOrder.DESC).setFrom(0).setSize(100).setExplain(true) // 这里需要修改整整分页之后
-				.get();
-		// scrollId = response.getScrollId();
-		// }else {
-		// response =
-		// ESFactory.createES().prepareSearchScroll(scrollId).setScroll(new
-		// TimeValue(60000)).execute().actionGet();
-		// }
+		if (StringUtils.isBlank(scrollId)) {
+			response = ESFactory.createES().prepareSearch(indexName).setTypes(type)
+					.setSearchType(SearchType.QUERY_AND_FETCH).setScroll(new TimeValue(60000)).setQuery(query)
+					.addSort("opTime", SortOrder.DESC).setFrom(0).setSize(pageSize).setExplain(true) // 这里需要修改整整分页之后
+					.get();
+			scrollId = response.getScrollId();
+		} else {
+			response = ESFactory.createES().prepareSearchScroll(scrollId).setScroll(new TimeValue(60000)).execute()
+					.actionGet();
+		}
 
 		Iterator<SearchHit> it = response.getHits().iterator();
 		List<SearchResult> searchResults = new ArrayList<>();
@@ -211,9 +206,9 @@ public class ESFactory {
 
 		Collections.sort(searchResults);
 
-		// data.put("scrollId",scrollId);
+		data.put("scrollId", scrollId);
 		data.put("log", searchResults);
-		// data.put("totalPages", (totalRecords + pageSize-1) / pageSize);
+		data.put("totalPages", (totalRecords + pageSize - 1) / pageSize);
 
 		return ActionReturnUtil.returnSuccessWithData(data);
 	}
