@@ -49,4 +49,5 @@ public interface ServiceTemplatesMapper {
     
     void updateServiceTemplate(ServiceTemplates ServiceTemplates);
 
+    void deleteById(@Param("id") int id);
 }

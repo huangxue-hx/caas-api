@@ -17,7 +17,7 @@ public class BusinessTemplateDto implements Serializable {
 	private String tenant; // 租户
 	private List<ServiceTemplateDto> serviceList; // 应用模板list
 	private List<TopologysDto> topologyList; // 拓扑关系list
-
+	private int isDeploy;
 	public int getId() {
 		return id;
 	}
@@ -80,5 +80,13 @@ public class BusinessTemplateDto implements Serializable {
 
 	public void setBusinessId(int businessId) {
 		this.businessId = businessId;
+	}
+
+	public int getIsDeploy() {
+		return isDeploy;
+	}
+
+	public void setIsDeploy(int isDeploy) {
+		this.isDeploy = isDeploy;
 	}
 }

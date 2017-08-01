@@ -1,5 +1,7 @@
 package com.harmonycloud.service.application;
 
+import java.util.List;
+
 import com.harmonycloud.common.util.ActionReturnUtil;
 
 public interface BusinessServiceService {
@@ -24,4 +26,6 @@ public interface BusinessServiceService {
      * @return ActionReturnUtil
      */
     ActionReturnUtil deletebusiness(int businessTemplateId) throws Exception;
+    
+    List<com.harmonycloud.dao.application.bean.BusinessService> listByBusiness(int businessTemplateId) throws Exception;
 }

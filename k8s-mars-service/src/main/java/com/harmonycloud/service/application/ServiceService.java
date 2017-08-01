@@ -15,7 +15,7 @@ public interface ServiceService {
      * @return
      * @throws Exception
      */
-    public ActionReturnUtil saveServiceTemplate(ServiceTemplateDto serviceTemplate, String username) throws Exception;
+    public ActionReturnUtil saveServiceTemplate(ServiceTemplateDto serviceTemplate, String username, int type) throws Exception;
 
     public ActionReturnUtil listTemplateByTenat(String name, String tenat) throws Exception;
 
@@ -44,4 +44,6 @@ public interface ServiceService {
     public ActionReturnUtil deployService(ServiceDeployDto serviceDeploy, Cluster cluster, String userName) throws Exception;
     
     public ActionReturnUtil listTemplateTagsByName(String name, String tenant) throws Exception;
+    
+    public ActionReturnUtil delById(int id)throws Exception;
 }

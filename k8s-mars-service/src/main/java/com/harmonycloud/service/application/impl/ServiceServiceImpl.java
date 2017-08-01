@@ -96,32 +96,41 @@ public class ServiceServiceImpl implements ServiceService {
 	 * @throws Exception
 	 */
 	@Override
-	public ActionReturnUtil saveServiceTemplate(ServiceTemplateDto serviceTemplate, String userName) throws Exception {
+	public ActionReturnUtil saveServiceTemplate(ServiceTemplateDto serviceTemplate, String userName ,int type) throws Exception {
 
 		// check value
 		if (StringUtils.isEmpty(userName) || serviceTemplate == null) {
 			return ActionReturnUtil.returnErrorWithMsg("username or service template is null");
 		}
-
-		// check template name
-		List<String> tenentExit = serviceTemplatesMapper.listTenantByName(serviceTemplate.getName());
-		boolean flag = false;
-		if (tenentExit.size() > 0) {
-			for (String tenent : tenentExit) {
-				if (!serviceTemplate.getTenant().equals(tenent)) {
-					flag = true;
-					break;
+		int a = Constant.TEMPLATE_STATUS_CREATE;
+		double tag = Constant.TEMPLATE_TAG;
+		if(type == Constant.TEMPLATE_STATUS_DELETE){
+			a = Constant.TEMPLATE_STATUS_DELETE;
+		}else{
+			// check template name
+			List<String> tenentExit = serviceTemplatesMapper.listTenantByName(serviceTemplate.getName());
+			boolean flag = false;
+			if (tenentExit.size() > 0) {
+				for (String tenent : tenentExit) {
+					if (!serviceTemplate.getTenant().equals(tenent)) {
+						flag = true;
+						break;
+					}
 				}
 			}
+			if (flag) {
+				return ActionReturnUtil.returnErrorWithMsg("The service template name already exists");
+			}
+			List<ServiceTemplates> list = serviceTemplatesMapper.listByTemplateName(serviceTemplate.getName(),serviceTemplate.getTenant());
+			if (list != null && list.size() > 0) {
+				tag = Double.valueOf(list.get(0).getTag()) + Constant.TEMPLATE_TAG_INCREMENT;
+			}
 		}
-		if (flag) {
-			return ActionReturnUtil.returnErrorWithMsg("The service template name already exists");
-		}
+		
 		// create and insert into db
 		ServiceTemplates serviceTemplateDB = new ServiceTemplates();
 		serviceTemplateDB.setName(serviceTemplate.getName());
-		List<ServiceTemplates> list = serviceTemplatesMapper.listByTemplateName(serviceTemplate.getName(),serviceTemplate.getTenant());
-		double tag = Constant.TEMPLATE_TAG;
+		
 		serviceTemplateDB.setDetails(serviceTemplate.getDesc());
 
 		if (serviceTemplate.getDeploymentDetail() != null) {
@@ -134,22 +143,17 @@ public class ServiceServiceImpl implements ServiceService {
 			}
 			serviceTemplateDB.setImageList(images.substring(0, images.length() - 1));
 		}
-
 		if (serviceTemplate.getIngress() != null) {
 			JSONArray ingress = JSONArray.fromObject(serviceTemplate.getIngress());
 			serviceTemplateDB.setIngressContent(ingress.toString());
 		}
-
-		serviceTemplateDB.setStatus(Constant.TEMPLATE_STATUS_CREATE);
+		serviceTemplateDB.setStatus(a);
 		serviceTemplateDB.setTenant(serviceTemplate.getTenant());
 		serviceTemplateDB.setUser(userName);
 		serviceTemplateDB.setCreateTime(new Date());
 		serviceTemplateDB.setFlag(Constant.K8S_SERVICE);
 		if (serviceTemplate.getDeploymentDetail() != null) {
 			serviceTemplateDB.setNodeSelector(serviceTemplate.getDeploymentDetail().getNodeSelector());
-		}
-		if (list != null && list.size() > 0) {
-			tag = Double.valueOf(list.get(0).getTag()) + Constant.TEMPLATE_TAG_INCREMENT;
 		}
 		serviceTemplateDB.setTag(decimalFormat.format(tag));
 		serviceTemplatesMapper.insert(serviceTemplateDB);
@@ -863,6 +867,16 @@ public class ServiceServiceImpl implements ServiceService {
 			return ActionReturnUtil.returnSuccessWithData(json);
 		}else{
 			return ActionReturnUtil.returnErrorWithMsg("不存在模板");
+		}
+	}
+
+	@Override
+	public ActionReturnUtil delById(int id) throws Exception {
+		if(id != 0){
+			serviceTemplatesMapper.deleteById(id);
+			return ActionReturnUtil.returnSuccess();
+		}else{
+			return ActionReturnUtil.returnErrorWithMsg("模板id为空");
 		}
 	}
 }

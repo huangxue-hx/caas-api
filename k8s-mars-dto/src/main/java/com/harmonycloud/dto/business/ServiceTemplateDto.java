@@ -106,5 +106,4 @@ public class ServiceTemplateDto {
 	public void setTag(String tag) {
 		this.tag = tag;
 	}
-
 }

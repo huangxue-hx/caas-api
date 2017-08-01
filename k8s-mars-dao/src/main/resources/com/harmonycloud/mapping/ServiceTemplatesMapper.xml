@@ -123,6 +123,9 @@
       </foreach> 
   </delete>
   
+    <delete id="deleteById">
+    delete from service_templates where id = #{id}
+  </delete>
   <update id="updateServiceTemplate">
     update service_templates
     <set>

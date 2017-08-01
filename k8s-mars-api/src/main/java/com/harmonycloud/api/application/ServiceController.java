@@ -49,7 +49,7 @@ public class ServiceController {
         if (serviceTemplate == null) {
             return ActionReturnUtil.returnErrorWithMsg("serviceTemplate is null");
         }
-        return serviceService.saveServiceTemplate(serviceTemplate, userName);
+        return serviceService.saveServiceTemplate(serviceTemplate, userName, 0);
     }
 
     /**

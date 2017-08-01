@@ -227,27 +227,32 @@ public class BusinessServiceImpl implements BusinessService {
         if (StringUtils.isEmpty(userName) || businessTemplate == null) {
             return ActionReturnUtil.returnErrorWithMsg("username or application temolate is null");
         }
-        // check name
-        BusinessTemplates businessTemplates = businessTemplatesMapper.getBusinessTemplatesByName(businessTemplate.getName());
-        if (businessTemplates != null && !businessTemplates.getTenant().equals(businessTemplate.getTenant())) {
-            return ActionReturnUtil.returnErrorWithMsg(businessTemplate.getName() + " is existed");
+        BusinessTemplates businessTemplates = new BusinessTemplates();
+        if(businessTemplate.getIsDeploy() == 1){
+        	businessTemplates.setStatus(Constant.TEMPLATE_STATUS_DELETE);
+        }else{
+        	businessTemplates = businessTemplatesMapper.getBusinessTemplatesByName(businessTemplate.getName());
+            if (businessTemplates != null && !businessTemplates.getTenant().equals(businessTemplate.getTenant())) {
+                return ActionReturnUtil.returnErrorWithMsg(businessTemplate.getName() + " is existed");
+            }
+            double bttag = Constant.TEMPLATE_TAG;
+            // application templates version control
+            List<BusinessTemplates> btmaxtag = businessTemplatesMapper.listBusinessTempaltesMaxTagByName(businessTemplate.getName());
+            if (btmaxtag != null && btmaxtag.size() > 0) {
+                bttag = Double.valueOf(btmaxtag.get(0).getTag()) + Constant.TEMPLATE_TAG_INCREMENT;
+
+            }
+            businessTemplates.setTag(decimalFormat.format(bttag));
+            businessTemplates.setStatus(Constant.TEMPLATE_STATUS_CREATE);
         }
+        // check name
+         
         // add application templates
-        businessTemplates = new BusinessTemplates();
         businessTemplates.setName(businessTemplate.getName());
         businessTemplates.setUser(userName);
         businessTemplates.setCreateTime(new Date());
         businessTemplates.setTenant(businessTemplate.getTenant());
         businessTemplates.setDetails(businessTemplate.getDesc());
-        businessTemplates.setStatus(Constant.TEMPLATE_STATUS_CREATE);
-        double bttag = Constant.TEMPLATE_TAG;
-        // application templates version control
-        List<BusinessTemplates> btmaxtag = businessTemplatesMapper.listBusinessTempaltesMaxTagByName(businessTemplate.getName());
-        if (btmaxtag != null && btmaxtag.size() > 0) {
-            bttag = Double.valueOf(btmaxtag.get(0).getTag()) + Constant.TEMPLATE_TAG_INCREMENT;
-
-        }
-        businessTemplates.setTag(decimalFormat.format(bttag));
         businessTemplatesMapper.saveBusinessTemplates(businessTemplates);
         Map<String, Object> map = new HashMap<String, Object>();
         Map<String, Object> maps = new HashMap<String, Object>();
@@ -263,7 +268,7 @@ public class BusinessServiceImpl implements BusinessService {
         // addSave service templates
 
         for (ServiceTemplateDto serviceTemplate : businessTemplate.getServiceList()) {
-            listR = saveServiceTemplates(serviceTemplate, businessTemplatesId, businessTemplate.getTenant(), userName, list);
+            listR = saveServiceTemplates(serviceTemplate, businessTemplatesId, businessTemplate.getTenant(), userName, list, Constant.TEMPLATE_STATUS_DELETE);
             //获取每个内部服务镜像
             if (serviceTemplate.getExternal() == null || serviceTemplate.getExternal() == 0) {
             	if(listR.get(1) != null){
@@ -276,8 +281,6 @@ public class BusinessServiceImpl implements BusinessService {
             businessTemplatesMapper.updateImageById(splitString(list), businessTemplatesId);
         }
         // application template imagelist
-
-
         // add topology
         if (businessTemplate.getTopologyList() != null) {
             if (!saveTopology(businessTemplate.getTopologyList(), businessTemplatesId)) {
@@ -346,60 +349,35 @@ public class BusinessServiceImpl implements BusinessService {
      * 
      * @return imageList
      */
-    private List<Object> saveServiceTemplates(ServiceTemplateDto serviceTemplate, Integer businessTemplatesId, String tenant, String userName, List<String> imageList)
+    private List<Object> saveServiceTemplates(ServiceTemplateDto serviceTemplate, Integer businessTemplatesId, String tenant, String userName, List<String> imageList,int type)
             throws Exception {
         List<Object> result = new ArrayList<Object>();
         if (serviceTemplate.getExternal() != null && serviceTemplate.getExternal() == Constant.EXTERNAL_SERVICE) {
-            // external service
-            ServiceTemplates externalservice = serviceTemplatesMapper.getExternalService(serviceTemplate.getName());
-            if (externalservice == null) {
-                // new external service
-                externalservice = new ServiceTemplates();
-                externalservice.setName(serviceTemplate.getName());
-                externalservice.setDetails(serviceTemplate.getDesc());
-                externalservice.setFlag(Constant.EXTERNAL_SERVICE);
-                externalservice.setCreateTime(new Date());
-                externalservice.setTenant(tenant);
-                externalservice.setStatus(Constant.TEMPLATE_STATUS_CREATE);
-                // insert external service
-                serviceTemplatesMapper.insert(externalservice);
-            }
+        	ServiceTemplates externalservice = new ServiceTemplates();
+        	// external service
+            externalservice.setName(serviceTemplate.getName());
+            externalservice.setDetails(serviceTemplate.getDesc());
+            externalservice.setFlag(Constant.EXTERNAL_SERVICE);
+            externalservice.setCreateTime(new Date());
+            externalservice.setTenant(tenant);
+            externalservice.setStatus(Constant.TEMPLATE_STATUS_DELETE);
+            // insert external service
+            serviceTemplatesMapper.insert(externalservice);
             JSONObject json = new JSONObject();
             json.put(externalservice.getName(), externalservice.getId());
             result.add(json);
             // save businessTemplate-serviceTemplate mapper
             saveBusinessService(businessTemplatesId, externalservice.getId(), Constant.TEMPLATE_STATUS_CREATE, Constant.EXTERNAL_SERVICE);
         } else {
-        	/*//添加版本 
-            ActionReturnUtil res = serviceService.saveServiceTemplate(serviceTemplate, userName);
+    		//添加删除模板
+            ActionReturnUtil res = serviceService.saveServiceTemplate(serviceTemplate, userName, type);
             if(res.isSuccess()){
             	JSONObject json = new JSONObject();
             	json = (JSONObject) res.get("data");
             	result.add(json);
             	// add application - service template
                 saveBusinessService(businessTemplatesId, Integer.parseInt(json.get(serviceTemplate.getName()).toString()), Constant.TEMPLATE_STATUS_CREATE, Constant.K8S_SERVICE);
-            } 
-            listImages(serviceTemplate.getDeploymentDetail().getContainers(), imageList);*/
-        	 // check flag  
-            if (serviceTemplate.getFlag() == null || serviceTemplate.getFlag() == SERVICE_SAVE) {
-            	//添加版本 
-                ActionReturnUtil res = serviceService.saveServiceTemplate(serviceTemplate, userName);
-                if(res.isSuccess()){
-                	JSONObject json = new JSONObject();
-                	json = (JSONObject) res.get("data");
-                	result.add(json);
-                	// add application - service template
-                    saveBusinessService(businessTemplatesId, Integer.parseInt(json.get(serviceTemplate.getName()).toString()), Constant.TEMPLATE_STATUS_CREATE, Constant.K8S_SERVICE);
-                }  
-            } else if (serviceTemplate.getFlag() == SERVICE_UPDATE) {
-                // service template existed update
-            	serviceService.updateServiceTemplata(serviceTemplate, userName, serviceTemplate.getTag());
-                // save businessTemplates-serviceTemplates mapper
-                saveBusinessService(businessTemplatesId, serviceTemplate.getId(), Constant.TEMPLATE_STATUS_CREATE, Constant.K8S_SERVICE);
-                JSONObject json = new JSONObject();
-                json.put(serviceTemplate.getName(), serviceTemplate.getId());
-                result.add(json);
-            }
+            }  
             listImages(serviceTemplate.getDeploymentDetail().getContainers(), imageList);
         }
         result.add(imageList);
@@ -552,7 +530,16 @@ public class BusinessServiceImpl implements BusinessService {
         List<Object> listR = new LinkedList<Object>();
         // addSave service templates
 
-      //删除已有的业务模板和应用模板的Mapper联系
+        //删除应用模板
+        List<com.harmonycloud.dao.application.bean.BusinessService>  bsList = businessServiceService.listByBusiness(businessTemplate.getId());
+        if(bsList != null && bsList.size() > 0){
+        	for(com.harmonycloud.dao.application.bean.BusinessService bs : bsList){
+        		if(bs.getServiceId() != null){
+        			serviceService.delById(bs.getServiceId());
+        		}
+        	}
+        }
+        //删除已有的业务模板和应用模板的Mapper联系
         businessServiceService.deletebusiness(businessTemplatesId);
         for (ServiceTemplateDto serviceTemplate : businessTemplate.getServiceList()) {
             listR = updateServiceTemplates(serviceTemplate, businessTemplatesId, businessTemplate.getTenant(), userName, list);
@@ -622,7 +609,7 @@ public class BusinessServiceImpl implements BusinessService {
             // check flag  
             if (serviceTemplate.getFlag() == null || serviceTemplate.getFlag() == SERVICE_SAVE) {
             	//添加版本 
-                ActionReturnUtil res = serviceService.saveServiceTemplate(serviceTemplate, userName);
+                ActionReturnUtil res = serviceService.saveServiceTemplate(serviceTemplate, userName,1);
                 if(res.isSuccess()){
                 	JSONObject json = new JSONObject();
                 	json = (JSONObject) res.get("data");
@@ -715,7 +702,7 @@ public class BusinessServiceImpl implements BusinessService {
 					serviceService.updateServiceTemplata(s, userName, "");
 					json.put(s.getName(), s.getId());
 				}else{
-					ActionReturnUtil serRes = serviceService.saveServiceTemplate(s, userName);
+					ActionReturnUtil serRes = serviceService.saveServiceTemplate(s, userName,1);
 					if(!serRes.isSuccess()){
 						return serRes;
 					}
