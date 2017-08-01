@@ -18,7 +18,7 @@ public interface JobService {
 
     ActionReturnUtil nameValidate(String jobName, String tenantName);
 
-    ActionReturnUtil getJobList(String tenantName);
+    ActionReturnUtil getJobList(String tenantName, String name);
 
     ActionReturnUtil getJobDetail(Integer id);
 
@@ -42,11 +42,13 @@ public interface JobService {
 
     void postBuild(Integer id, Integer buildNum);
 
-    void stageSync(Integer id, Integer buildNum, Integer stageOrder);
+    void stageSync(Integer id, Integer buildNum);
 
     void deploy(Integer stageId, Integer buildNum) throws Exception;
 
     void jobStatusWS(WebSocketSession session, Integer id);
 
     void getJobLogWS(WebSocketSession session, Integer id, String buildNum);
+
+    ActionReturnUtil getYaml(Integer id);
 }

@@ -28,8 +28,9 @@ public class StageDto {
     private String credentialsUsername;
     private String credentialsPassword;
     private String buildEnvironment;
-    private List<Map<String,Object>> environmentVariables;
+    private List<Map<String, Object>> environmentVariables;
     private boolean useDependency;
+    private List<Dependence> dependences;
     private Integer dockerfileType;
     private String baseImage;
     private Integer dockerfileId;
@@ -183,6 +184,14 @@ public class StageDto {
         this.useDependency = useDependency;
     }
 
+    public List<Dependence> getDependences() {
+        return dependences;
+    }
+
+    public void setDependences(List<Dependence> dependences) {
+        this.dependences = dependences;
+    }
+
     public Integer getDockerfileType() {
         return dockerfileType;
     }
@@ -316,6 +325,7 @@ public class StageDto {
         BeanUtils.copyProperties(this, stage);
         stage.setCommand(JsonUtil.convertToJson(this.command==null?new ArrayList<>():this.command));
         stage.setEnvironmentVariables(JsonUtil.convertToJson(this.environmentVariables == null ? new ArrayList<>() : this.environmentVariables));
+        stage.setDependences(JsonUtil.convertToJson(this.dependences == null ? new ArrayList<>() : this.dependences));
         return stage;
     }
 
@@ -323,5 +333,46 @@ public class StageDto {
         BeanUtils.copyProperties(stage, this);
         this.setCommand(JsonUtil.jsonToList(stage.getCommand() == null ? "[]" : stage.getCommand(), String.class));
         this.setEnvironmentVariables(JsonUtil.JsonToMapList(stage.getEnvironmentVariables()));
+        this.setDependences(JsonUtil.jsonToList(stage.getDependences() == null ? "[]" : stage.getDependences(), Dependence.class));
+    }
+
+    public static class Dependence{
+        private String name;
+        private String server;
+        private String serverPath;
+        private String mountPath;
+
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public String getServer() {
+            return server;
+        }
+
+        public void setServer(String server) {
+            this.server = server;
+        }
+
+        public String getServerPath() {
+            return serverPath;
+        }
+
+        public void setServerPath(String serverPath) {
+            this.serverPath = serverPath;
+        }
+
+        public String getMountPath() {
+            return mountPath;
+        }
+
+        public void setMountPath(String mountPath) {
+            this.mountPath = mountPath;
+        }
     }
 }

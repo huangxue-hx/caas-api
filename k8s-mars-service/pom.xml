@@ -63,6 +63,11 @@
 		    <artifactId>poi</artifactId>
 		    <version>3.11</version>
 		</dependency>
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>1.18</version>
+        </dependency>
 
     </dependencies>
     <build>

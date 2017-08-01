@@ -66,9 +66,9 @@ public class JobController {
 
     @RequestMapping(value = "/list", method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil getJobList(@RequestParam(value="tenant") String tenantName){
+    public ActionReturnUtil getJobList(@RequestParam(value="tenant") String tenantName, @RequestParam(value = "name", required = false) String name){
         logger.info("get job list.");
-        return jobService.getJobList(tenantName);
+        return jobService.getJobList(tenantName, name);
     }
 
     @RequestMapping(method = RequestMethod.GET)
@@ -150,6 +150,15 @@ public class JobController {
         }
     }
 
+    @RequestMapping(value = "/yaml", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getYaml(@RequestParam(value="id") Integer id) throws Exception {
+        try {
+            return jobService.getYaml(id);
+        } catch (Exception e) {
+            return ActionReturnUtil.returnErrorWithMsg(e.getMessage());
+        }
+    }
 
 }
 

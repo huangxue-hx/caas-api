@@ -88,8 +88,8 @@ public class OpenApiController {
     }
 
     @RequestMapping(value = "/cicd/stageSync", method = RequestMethod.GET)
-    public ResponseEntity stageSync(@RequestParam(value = "id")Integer id, @RequestParam(value = "buildNum")Integer buildNum, @RequestParam(value = "stageOrder")Integer stageOrder){
-        jobService.stageSync(id, buildNum, stageOrder);
+    public ResponseEntity stageSync(@RequestParam(value = "id")Integer id, @RequestParam(value = "buildNum")Integer buildNum){
+        jobService.stageSync(id, buildNum);
         return new ResponseEntity(HttpStatus.OK);
     }
 

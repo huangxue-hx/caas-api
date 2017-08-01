@@ -12,6 +12,7 @@ import com.harmonycloud.dto.business.CreateEnvDto;
 import com.harmonycloud.dto.business.CreatePortDto;
 import com.harmonycloud.dto.business.CreateResourceDto;
 import com.harmonycloud.dto.cicd.JobDto;
+import com.harmonycloud.dto.cicd.StageDto;
 import com.harmonycloud.k8s.bean.ConfigMap;
 import com.harmonycloud.k8s.bean.ContainerPort;
 import com.harmonycloud.k8s.bean.Deployment;
@@ -47,6 +48,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
+import org.yaml.snakeyaml.Yaml;
 
 import javax.annotation.Resource;
 import javax.mail.internet.MimeMessage;
@@ -224,7 +226,7 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
-    public ActionReturnUtil getJobList(String tenantName) {
+    public ActionReturnUtil getJobList(String tenantName, String jobName) {
         Map<String, Object> params = new HashMap<>();
         params.put("tree", "jobs[name,color,lastBuild[number,building,result,timestamp],builds[result]]");
         params.put("wrapper", "root");
@@ -256,6 +258,9 @@ public class JobServiceImpl implements JobService {
                 if (jenkinsJobName != null) {
                     String[] name = jenkinsJobName.split("_", 2);
                     if (name.length == 2) {
+                        if(jobName !=null && !name[1].contains(jobName)){
+                            continue;
+                        }
                         jobMap.put("tenant", name[0]);
                         jobMap.put("name", name[1]);
                     }
@@ -655,6 +660,7 @@ public class JobServiceImpl implements JobService {
         }
     }
 
+
     @Override
     public ActionReturnUtil getNotification(Integer id) throws Exception {
         Job job = jobMapper.queryById(id);
@@ -724,14 +730,13 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
-    public void stageSync(Integer id, Integer buildNum, Integer stageOrder) {
+    public void stageSync(Integer id, Integer buildNum) {
         Runnable worker = new Runnable() {
             @Override
             public void run() {
                 try {
                     Thread.sleep(500);
-                    Job job = jobMapper.queryById(id);
-                    stageStatusSync(job, buildNum, stageOrder);
+                    stageStatusSync(id, buildNum);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -945,6 +950,81 @@ public class JobServiceImpl implements JobService {
 
     }
 
+    @Override
+    public ActionReturnUtil getYaml(Integer id) {
+        Yaml yaml = new Yaml();
+        Job job = jobMapper.queryById(id);
+        JobDto jobDto = new JobDto();
+        jobDto.convertFromBean(job);
+        Map jobMap = new LinkedHashMap<>();
+        jobMap.put("kind","Pipeline");
+        jobMap.put("name",job.getName());
+        Map notification = new LinkedHashMap<>();
+        if(job.isNotification()){
+            notification.put("email", jobDto.getMail());
+            notification.put("successNotification", job.isSuccessNotification());
+            notification.put("failNotification", job.isFailNotification());
+            jobMap.put("notification", notification);
+        }
+        if(job.isTrigger()){
+            Map trigger = new LinkedHashMap<>();
+            job.getCronExpForPollScm();
+            trigger.put("pollScm", job.getCronExpForPollScm());
+        }
+        List stages = new ArrayList<>();
+        List<Stage> stageList = stageMapper.queryByJobId(id);
+        for(Stage stage : stageList){
+            StageDto stageDto = new StageDto();
+            stageDto.convertFromBean(stage);
+            Map stageMap = new LinkedHashMap<>();
+            stageMap.put("name", stage.getStageTypeId());
+            stageMap.put("type", stage.getStageTypeId());
+
+            if(StageTemplateTypeEnum.CODECHECKOUT.ordinal() == stage.getStageTemplateType()){
+                Map repository = new LinkedHashMap<>();
+                repository.put("type", stage.getRepositoryType());
+                repository.put("url", stage.getRepositoryUrl());
+                repository.put("branch", stage.getRepositoryBranch());
+                repository.put("username", stage.getCredentialsUsername());
+                repository.put("password", stage.getCredentialsPassword());
+                stageMap.put("repository", repository);
+                stageMap.put("buildEnvironment",stage.getBuildEnvironment());
+                stageMap.put("environmentVariables", stageDto.getEnvironmentVariables());
+                stageMap.put("dependencies", stageDto.getDependences());
+
+            }
+            else if(StageTemplateTypeEnum.IMAGEBUILD.ordinal() == stage.getStageTemplateType()){
+                stageMap.put("DockerfileFrom", stage.getDockerfileType());
+                if("1".equals(stage.getDockerfileType())) {
+                    stageMap.put("DockerfilePath", stage.getDockerfilePath());
+                }else if("2".equals(stage.getDockerfileType())) {
+                    stageMap.put("DockerfileId", stage.getDockerfileId());
+                }
+                stageMap.put("image", stage.getImageName());
+                stageMap.put("imageTagType", stage.getImageTagType());
+                if("2".equals(stage.getImageTagType())) {
+                    stageMap.put("customTag", stage.getImageTag());
+                }
+                else if("1".equals(stage.getImageTagType())) {
+                    stageMap.put("baseTag", stage.getImageBaseTag());
+                    stageMap.put("increaseTag", stage.getImageIncreaseTag());
+                }
+            }
+            else if(StageTemplateTypeEnum.DEPLOY.ordinal() == stage.getStageTemplateType()){
+                stageMap.put("image", stage.getImageName());
+                stageMap.put("namespace", stage.getNamespace());
+                stageMap.put("service",stage.getServiceName());
+                stageMap.put("container",stage.getContainerName());
+            }
+
+            stageMap.put("command", stageDto.getCommand());
+            stages.add(stageMap);
+        }
+        jobMap.put("stages", stages);
+        System.out.println(yaml.dumpAsMap(jobMap));
+        return ActionReturnUtil.returnSuccessWithData(yaml.dumpAsMap(jobMap));
+    }
+
 
     private boolean createView(String username) {
         String viewName = username + "_view";
@@ -1092,9 +1172,12 @@ public class JobServiceImpl implements JobService {
 
     }
 
-    private void stageStatusSync(Job job, Integer buildNum, Integer stageOrder) throws Exception {
+    private void stageStatusSync(Integer id, Integer buildNum) throws Exception {
+        Stage stage = stageMapper.queryById(id);
+        Job job = jobMapper.queryById(stage.getJobId());
         List<Map> stageMapList = stageService.getStageBuildFromJenkins(job, buildNum);
-        for(int i = stageOrder-1; i< stageMapList.size();i++){
+        int i = stage.getStageOrder() - 2;
+        for(i = i<0?0:i ; i< stageMapList.size();i++){
             stageService.stageBuildSync(job, buildNum, stageMapList.get(i));
         }
 
@@ -1141,7 +1224,7 @@ public class JobServiceImpl implements JobService {
                     helper.setSubject(MimeUtility.encodeText("CICD构建通知_" + job.getName() + "_" + jobBuild.getBuildNum(), MimeUtility.mimeCharset("gb2312"), null));
                     Map dataModel = new HashMap<>();
                     Cluster cluster = clusterService.findClusterByTenantId(job.getTenantId());
-                    dataModel.put("url", webUrl + "/rest");
+                    dataModel.put("url", webUrl + "/#/cicd/process/"+job.getId());
                     dataModel.put("jobName",job.getName());
                     dataModel.put("status",jobBuild.getStatus());
                     dataModel.put("time",new Date());
@@ -1256,9 +1339,7 @@ public class JobServiceImpl implements JobService {
 //        job.setFailNotification(true);
 //        job.setMail("['kaiyunzhang@harmonycloud.cn']");
 //        new JobServiceImpl().notification(job, 70);
-        String log = "aaabbb";
-        log.replaceAll("aa","");
-        System.out.println(log);
+
         //new JobServiceImpl().addStage(stage);
 
 

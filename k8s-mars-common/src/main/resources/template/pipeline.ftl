@@ -47,9 +47,11 @@ podTemplate(
     nodeSelector: '',
     serviceAccount: '',
     volumes: [
-        nfsVolume(mountPath: '/root/.m2', readOnly: false, serverAddress: '10.10.101.147', serverPath: '/nfs/m2-pv'),
-        nfsVolume(mountPath: '/root/script', readOnly: false, serverAddress: '10.10.101.147', serverPath: '/nfs/buildscript'),
-        nfsVolume(mountPath: '/var/lib/docker', readOnly: false, serverAddress: '10.10.101.147', serverPath: '/nfs/docker')
+    <#list stage.dependences as dependence>
+        nfsVolume(mountPath: '${dependence.mountPath!}', readOnly: true, serverAddress: '${dependence.server!}', serverPath: '${dependence.serverPath!}')<#if dependence_has_next>,</#if>
+    </#list>
+        //nfsVolume(mountPath: '/root/.m2', readOnly: false, serverAddress: '10.10.101.147', serverPath: '/nfs/m2-pv'),
+        //nfsVolume(mountPath: '/var/lib/docker', readOnly: false, serverAddress: '10.10.101.147', serverPath: '/nfs/docker')
     ],
     workingDir: '/home/build',
     workspaceVolume: emptyDirWorkspaceVolume(false)
@@ -66,6 +68,7 @@ podTemplate(
         </#list>
     </#if>
 </#if>
+        httpRequest "${apiUrl!}/rest/openapi/cicd/stageSync?id=${stage.id!}&amp;buildNum=${r'${currentBuild.number}'}"
         stage('${stage.stageName}'){
 <#if stage.repositoryType! == "git">
             git url:'${stage.repositoryUrl}',credentialsId:'${stage.id}'<#if stage.repositoryBranch??>, branch:'${stage.repositoryBranch!}'</#if>
@@ -89,7 +92,7 @@ podTemplate(
             sh '${command}'
 </#list>
         }
-        httpRequest "${apiUrl!}/rest/openapi/cicd/stageSync?id=${job.id!}&amp;buildNum=${r'${currentBuild.number}'}&amp;stageOrder=${stage.stageOrder}"
+        //httpRequest "${apiUrl!}/rest/openapi/cicd/stageSync?id=${stage.id!}&amp;buildNum=${r'${currentBuild.number}'}"
 </#list>
 <#if (stageList?size>0) >
     }

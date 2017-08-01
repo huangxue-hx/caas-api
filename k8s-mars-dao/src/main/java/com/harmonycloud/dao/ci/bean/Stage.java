@@ -22,6 +22,7 @@ public class Stage {
     private String buildEnvironment;
     private String environmentVariables;
     private boolean useDependency;
+    private String dependences;
     private Integer dockerfileType;
     private String baseImage;
     private Integer dockerfileId;
@@ -165,6 +166,14 @@ public class Stage {
 
     public void setUseDependency(boolean useDependency) {
         this.useDependency = useDependency;
+    }
+
+    public String getDependences() {
+        return dependences;
+    }
+
+    public void setDependences(String dependences) {
+        this.dependences = dependences;
     }
 
     public Integer getDockerfileType() {

@@ -64,6 +64,7 @@ public class StageServiceImpl implements StageService {
         //increace order for all stages behind this stage
         stageMapper.increaseStageOrder(stageDto.getJobId(), stageDto.getStageOrder());
         Stage stage = stageDto.convertToBean();
+
         stage.setCreateTime(new Date());
         stage.setUpdateTime(new Date());
         stageMapper.insertStage(stage);
@@ -98,7 +99,6 @@ public class StageServiceImpl implements StageService {
         }
         Job job = jobMapper.queryById(stageDto.getJobId());
         String jenkinsJobName = job.getTenant() + "_" + job.getName();
-
         String body = generateJobBody(job);
         ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
         return result;
@@ -112,7 +112,16 @@ public class StageServiceImpl implements StageService {
         if(StageTemplateTypeEnum.CODECHECKOUT.ordinal() == stage.getStageTemplateType()) {
             deleteCredentials(stage);
         }
-        return ActionReturnUtil.returnSuccess();
+        Job job = jobMapper.queryById(stage.getJobId());
+        String jenkinsJobName = job.getTenant() + "_" + job.getName();
+
+        String body = generateJobBody(job);
+        ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
+        if(result.isSuccess()){
+            return result;
+        }else{
+            throw new Exception("删除步骤失败");
+        }
     }
 
     @Override
