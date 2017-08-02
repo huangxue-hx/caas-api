@@ -2,19 +2,21 @@ package com.harmonycloud.api.user;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-import javax.servlet.http.HttpSession;
 
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.SearchResult;
-import com.harmonycloud.common.util.UserAuditSearch;
-import com.harmonycloud.service.tenant.TenantService;
-import com.harmonycloud.service.user.UserAuditService;
+import javax.servlet.http.HttpSession;
 
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.UserAuditSearch;
+import com.harmonycloud.service.tenant.TenantService;
+import com.harmonycloud.service.user.UserAuditService;
 
 
 @Controller
@@ -111,6 +113,25 @@ public class UserAuditController {
 
         return userAuditService.serachAuditsByUser(userName, isAdmin.equals("1"));
 
+    }
+    
+    
+    @RequestMapping(value = "/search/count", method = RequestMethod.POST)
+    public @ResponseBody ActionReturnUtil getAuditLogsCount(@ModelAttribute UserAuditSearch userAuditSearch) throws Exception {
+        if (userAuditSearch == null || userAuditSearch.getSize() == null) {
+            return ActionReturnUtil.returnErrorWithMsg("pageSize参数不能为空");
+        }
+        String isAdmin = session.getAttribute("isAdmin").toString();
+        userAuditSearch.setUser(session.getAttribute("username").toString());
+        System.out.println(session.getAttribute(""));
+        List<String> userList = new ArrayList<>();
+        if(StringUtils.isNotBlank(userAuditSearch.getTenantName())&&!"all".equals(userAuditSearch.getTenantName())){
+            userList = tenantService.findByTenantName(userAuditSearch.getTenantName());
+        }
+        if (userList != null && userList.size() > 0) {
+            userAuditSearch.setUserList(userList);
+        }
+        return userAuditService.getAuditCount(userAuditSearch, isAdmin.equals("1"));
     }
 
 

@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.sun.tools.classfile.StackMap_attribute.stack_map_frame;
+import com.harmonycloud.common.Constant.CommonConstant;
 
 /**
  * Created by czm on 2017/3/28.
@@ -56,6 +56,8 @@ public class ESFactory {
 	public static String type;
 	public static String clusterName;
 	public static ExecutorService executor = Executors.newFixedThreadPool(20);
+	
+	private static final Integer ES_SCROLL_TIMEOUT = 60000;
 
 	public static TransportClient createES() {
 		if (esClient == null) {
@@ -134,24 +136,17 @@ public class ESFactory {
 	 */
 	public static ActionReturnUtil searchFromIndex(BoolQueryBuilder query, String scrollId, int pageSize,
 			int currentPage) throws IOException {
-		// 计算页数对应的数据行数，先查询出来总的记录个数，计算
-		SearchResponse pageResponse = ESFactory.createES().prepareSearch(indexName).setTypes(type)
-				.setSearchType(SearchType.QUERY_AND_FETCH).setQuery(query).setFrom(0).setSize(10000).setExplain(true)
-				.get();
-        
-		//总数
-		long totalRecords = pageResponse.getHits().getTotalHits();
 
-		// 暂时去掉scrollid的分页
+		// scrollid的分页,setSize中的5为分片数
 		SearchResponse response;
 		if (StringUtils.isBlank(scrollId)) {
 			response = ESFactory.createES().prepareSearch(indexName).setTypes(type)
-					.setSearchType(SearchType.QUERY_AND_FETCH).setScroll(new TimeValue(60000)).setQuery(query)
-					.addSort("opTime", SortOrder.DESC).setFrom(0).setSize(pageSize).setExplain(true) // 这里需要修改整整分页之后
+					.setSearchType(SearchType.QUERY_AND_FETCH).setScroll(new TimeValue(ES_SCROLL_TIMEOUT)).setQuery(query)
+					.addSort("opTime", SortOrder.DESC).setFrom(0).setSize(pageSize/CommonConstant.ES_SHARDS).setExplain(true) // 这里需要修改整整分页之后
 					.get();
 			scrollId = response.getScrollId();
 		} else {
-			response = ESFactory.createES().prepareSearchScroll(scrollId).setScroll(new TimeValue(60000)).execute()
+			response = ESFactory.createES().prepareSearchScroll(scrollId).setScroll(new TimeValue(ES_SCROLL_TIMEOUT)).execute()
 					.actionGet();
 		}
 
@@ -205,10 +200,8 @@ public class ESFactory {
 		Map<String, Object> data = new HashMap<>();
 
 		Collections.sort(searchResults);
-
 		data.put("scrollId", scrollId);
 		data.put("log", searchResults);
-		data.put("totalPages", (totalRecords + pageSize - 1) / pageSize);
 
 		return ActionReturnUtil.returnSuccessWithData(data);
 	}
@@ -273,6 +266,19 @@ public class ESFactory {
 		IndicesExistsResponse response = ESFactory.createES().admin().indices()
 				.exists(new IndicesExistsRequest().indices(new String[] { indexName })).actionGet();
 		return response.isExists();
+	}
+	
+	public static ActionReturnUtil getTotalCounts(BoolQueryBuilder query) throws Exception {
+		// 计算页数对应的数据行数，先查询出来总的记录个数，计算
+		SearchResponse pageResponse = ESFactory.createES().prepareSearch(indexName).setTypes(type)
+						.setSearchType(SearchType.QUERY_AND_FETCH).setQuery(query).setExplain(true)
+						.get();
+		        
+		//总数
+		long totalRecords = pageResponse.getHits().getTotalHits();
+		Map<String, Object> data = new HashMap<>();
+		data.put("total", totalRecords);
+		return ActionReturnUtil.returnSuccessWithData(data);
 	}
 
 	@Value("#{propertiesReader['es.host']}")

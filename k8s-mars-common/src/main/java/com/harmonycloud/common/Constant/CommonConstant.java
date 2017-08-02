@@ -213,4 +213,6 @@ public class CommonConstant {
     
     public static final String FILE_MAX_SIZE = "file_maxsize";
     public static final String CONFIG_TYPE_FILE = "file";
+    
+    public static final Integer ES_SHARDS = 5;
 }

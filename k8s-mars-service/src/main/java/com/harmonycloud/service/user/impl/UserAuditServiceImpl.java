@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
+import org.elasticsearch.common.util.concurrent.EsAbortPolicy;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.springframework.stereotype.Service;
@@ -109,6 +110,47 @@ public class UserAuditServiceImpl implements UserAuditService {
 //        ESFactory esFactory = new ESFactory();
         return ESFactory.searchFromIndex(query, null,10000,0);
     }
+
+
+	@Override
+	public ActionReturnUtil getAuditCount(UserAuditSearch userAuditSearch, boolean isAdmin) throws Exception {
+		String startTime = userAuditSearch.getStartTime();
+        String endTime = userAuditSearch.getEndTime();
+        String moduleName = userAuditSearch.getModuleName();
+        String keyWords = userAuditSearch.getKeyWords();
+        String user = userAuditSearch.getUser();
+        String scrollId = userAuditSearch.getScrollId();
+        List<String> userLists = userAuditSearch.getUserList();
+        Integer pageSize = userAuditSearch.getSize();
+        Integer pageNum = userAuditSearch.getPageNum();
+
+        BoolQueryBuilder query = QueryBuilders.boolQuery();
+
+
+        if (StringUtils.isNotBlank(startTime)&&StringUtils.isNotBlank(endTime)) {
+            if(DateUtil.timeFormat.parse(startTime).after(DateUtil.timeFormat.parse(endTime))){
+                return ActionReturnUtil.returnErrorWithMsg("开始时间大于结束时间");
+            }
+            query.must(QueryBuilders.rangeQuery("opTime").from(startTime).to(endTime));
+        }
+
+        if (StringUtils.isNotBlank(moduleName)&&!"all".equals(moduleName)) {
+            query.must(QueryBuilders.matchQuery("module", moduleName));
+        }
+
+        if (StringUtils.isNotBlank(keyWords)) {
+            query.must(QueryBuilders.multiMatchQuery(keyWords,"user","opFun"));
+        }
+
+        if (userLists != null && userLists.size() > 0) {
+            query.must(QueryBuilders.termsQuery("user", userLists));
+        }
+
+        if (!isAdmin&&user!=null) {
+            query.must(QueryBuilders.matchQuery("user", user));
+        }
+		return ESFactory.getTotalCounts(query);
+	}
 
 
 }
