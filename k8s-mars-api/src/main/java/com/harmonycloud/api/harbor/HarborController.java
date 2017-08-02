@@ -243,6 +243,25 @@ public class HarborController {
             throw e;
         }
     }
+    
+    /**查询满足条件的默认一个镜像
+    *
+    * @return
+    * @throws Exception
+    */
+   @RequestMapping(value = "/harborImage/search/repo", method = RequestMethod.GET)
+   @ResponseBody
+   public ActionReturnUtil getRepoByTenantID(@RequestParam(value="tenantID") String tenantID)throws Exception{
+       try {
+    	   if(StringUtils.isEmpty(tenantID)){
+    		  return ActionReturnUtil.returnErrorWithMsg("租户为空"); 
+    	   }
+           return this.harborServiceImpl.getRepoByTenantID(tenantID);
+       } catch (Exception e) {
+           logger.info("查询租户的第一个镜像失败:tenantID="+tenantID);
+           throw e;
+       }
+   }
 
 }
 

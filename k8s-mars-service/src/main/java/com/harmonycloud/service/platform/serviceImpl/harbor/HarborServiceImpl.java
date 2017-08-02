@@ -1058,4 +1058,37 @@ public class HarborServiceImpl implements HarborService {
         }
         return privateRepoList;
     }
+    
+    /**
+     * 查询指定租户的镜像
+     *
+     * @return
+     * @throws Exception
+     */
+    public ActionReturnUtil getRepoByTenantID(String tenantID) throws Exception {
+        //获取tenant的projectList
+        List<HarborProjectTenant> harborProjectTenantList = harborProjectTenantMapper.getByTenantId(tenantID);
+        List<HarborProjectInfo> projectRepoList = new ArrayList<>();
+        //获取project的repositoryList
+        for (HarborProjectTenant harborProjectTenant : harborProjectTenantList) {
+            ActionReturnUtil repoResponse = repoListById(Integer.parseInt(harborProjectTenant.getHarborProjectId().toString()));
+            if ((boolean) repoResponse.get("success") == true) {
+                List<String> repoList = JsonUtil.jsonToList(repoResponse.get("data").toString(), String.class);
+                HarborProjectInfo projectInfo = new HarborProjectInfo();
+                List<HarborRepositoryMessage> repositoryMessagesList = new ArrayList<>();
+                //获取repository的tagList
+                for (String repositoryName : repoList) {
+                    HarborRepositoryMessage harborRepository = new HarborRepositoryMessage();
+                    harborRepository.setRepository(repositoryName);
+                    repositoryMessagesList.add(harborRepository);
+                }
+                projectInfo.setProject_name(harborProjectTenant.getHarborProjectName());
+                projectInfo.setHarborRepositoryMessagesList(repositoryMessagesList);
+                projectRepoList.add(projectInfo);
+            } else {
+                return repoResponse;
+            }
+        }
+       return ActionReturnUtil.returnSuccessWithData(projectRepoList);
+    }
 }
