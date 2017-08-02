@@ -916,30 +916,30 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 				UnversionedStatus sta = JsonUtil.jsonToPojo(podRes.getBody(), UnversionedStatus.class);
 				return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
 			}
-		}
 
-		// 删除ingress
-		cUrl.setResource(Resource.INGRESS);
-		K8SClientResponse ingRes = new K8SClient().doit(cUrl, HTTPMethod.DELETE, null, null,null);
-		if (!HttpStatusUtil.isSuccessStatus(ingRes.getStatus()) && ingRes.getStatus() != Constant.HTTP_404) {
-			UnversionedStatus sta = JsonUtil.jsonToPojo(ingRes.getBody(), UnversionedStatus.class);
-			return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
-		}
+			// 删除ingress
+			cUrl.setResource(Resource.INGRESS);
+			K8SClientResponse ingRes = new K8SClient().doit(cUrl, HTTPMethod.DELETE, null, null,null);
+			if (!HttpStatusUtil.isSuccessStatus(ingRes.getStatus()) && ingRes.getStatus() != Constant.HTTP_404) {
+				UnversionedStatus sta = JsonUtil.jsonToPojo(ingRes.getBody(), UnversionedStatus.class);
+				return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
+			}
 
-		//delete database port
-		ParsedIngressListDto ingress = new ParsedIngressListDto();
-		ingress.setNamespace(namespace);
-		ingress.setLabels(dep.getSpec().getTemplate().getMetadata().getLabels());
-		@SuppressWarnings("unchecked")
-		List<RouterSvc> routerSvcs = (List<RouterSvc>)routerService.listSvcByName(ingress).get("data");
+			//delete database port
+			ParsedIngressListDto ingress = new ParsedIngressListDto();
+			ingress.setNamespace(namespace);
+			ingress.setLabels(dep.getSpec().getTemplate().getMetadata().getLabels());
+			@SuppressWarnings("unchecked")
+			List<RouterSvc> routerSvcs = (List<RouterSvc>)routerService.listSvcByName(ingress).get("data");
 
-		if (routerSvcs != null && routerSvcs.size() > 0){
-			String tenantID = session.getAttribute("tenantId").toString();
-			for (RouterSvc onerouterSvcs:routerSvcs){
-				for (int i=0;onerouterSvcs.getRules().size() > i ;i++){
-					routerService.deleteTcpSvc(namespace,onerouterSvcs.getName(),onerouterSvcs.getRules().get(i).getPort().toString(),tenantID);
+			if (routerSvcs != null && routerSvcs.size() > 0){
+				String tenantID = session.getAttribute("tenantId").toString();
+				for (RouterSvc onerouterSvcs:routerSvcs){
+					for (int i=0;onerouterSvcs.getRules().size() > i ;i++){
+						routerService.deleteTcpSvc(namespace,onerouterSvcs.getName(),onerouterSvcs.getRules().get(i).getPort().toString(),tenantID);
+					}
+
 				}
-
 			}
 		}
 

@@ -341,7 +341,8 @@ public class RouterServiceImpl implements RouterService {
 			Cluster cluster = (Cluster) session.getAttribute("currentCluster");
 			String tenantID = (String) session.getAttribute("tenantId");
 
-			for (int i = 0; i < rules.size(); i++) {
+			int i = 0;
+			for (i = 0; i < rules.size(); i++) {
 				TcpRuleDto rule = rules.get(i);
 				ServicePort servicePort = new ServicePort();
 				servicePort.setName(svcRouter.getName() + "-port" + i);
@@ -364,8 +365,8 @@ public class RouterServiceImpl implements RouterService {
 				}
 			}
 
-			for (int i = 0; i < rulesNew.size(); i++){
-				TcpRuleDto rule = rules.get(i);
+			for (int j = 0; j < rulesNew.size(); i++,j++){
+				TcpRuleDto rule = rules.get(j);
 				ServicePort servicePort = new ServicePort();
 				servicePort.setName(svcRouter.getName() + "-port" + i);
 				servicePort.setProtocol(rule.getProtocol());
