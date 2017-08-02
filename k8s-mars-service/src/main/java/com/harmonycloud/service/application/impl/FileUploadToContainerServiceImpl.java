@@ -9,6 +9,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 import javax.servlet.http.HttpSession;
 
@@ -69,7 +70,7 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 		String path = uploadPath + containerFileUpload.getNamespace();
 		File dirFile = new File(path);
 		File newFile = new File(path + "/" + fileName);
-		logger.info("newFilepath:"+newFile.getPath());
+		logger.info("newFilepath:" + newFile.getPath());
 		Long userId = Long.valueOf(session.getAttribute("userId").toString());
 		List<Integer> uploadIds = new ArrayList<Integer>();
 		for (PodContainerDto pDto : podList) {
@@ -136,13 +137,13 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 		}
 
 		if (uploadIds != null && uploadIds.size() > 0) {
-			logger.info("dirFileExist:"+dirFile.exists());
+			logger.info("dirFileExist:" + dirFile.exists());
 			if (!dirFile.exists()) {
 				dirFile.mkdirs();
 			}
 			try {
 				file.transferTo(newFile);
-				logger.info("newFileIsExist:"+newFile.exists());
+				logger.info("newFileIsExist:" + newFile.exists());
 				for (Integer tId : uploadIds) {
 
 					// 上传成功更新上传状态
@@ -173,32 +174,24 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 		if (podList == null && uploadIds == null) {
 			return ActionReturnUtil.returnErrorWithMsg("未选择pod");
 		}
+		FileUploadContainer fileUpload = fileUploadContainerMapper.selectByPrimaryKey(uploadIds.get(0));
 		final String sPath = shellPath;
-		for (PodContainerDto pDto : podList) {
-			final ContainerFileUploadDto containerFu = containerFileUpload;
-			final PodContainerDto pd = pDto;
-			final String localPath = uploadPath + containerFu.getNamespace();
-			String username = String.valueOf(session.getAttribute("username"));
-			final String token = String.valueOf(K8SClient.tokenMap.get(username));
-			Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-	        final String server = cluster.getProtocol() + "://" + cluster.getHost() + ":" + cluster.getPort();
+		final String localPath = uploadPath + containerFileUpload.getNamespace();
+		final String fileAbsolutePath = localPath + "/" + fileUpload.getFileName();
+		String username = String.valueOf(session.getAttribute("username"));
+		final String token = String.valueOf(K8SClient.tokenMap.get(username));
+		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+		final String server = cluster.getProtocol() + "://" + cluster.getHost() + ":" + cluster.getPort();
+        final CountDownLatch begin = new CountDownLatch(uploadIds.size());
+		for (int i = 0; i < uploadIds.size(); i++) {
+			final Integer id = uploadIds.get(i);
 			ESFactory.executor.execute(new Runnable() {
 
 				@Override
 				public void run() {
 					try {
-						for (Integer id : uploadIds) {
-							List<String> containers = pd.getContainer();
-							if (containers != null && containers.size() > 0) {
-								for (String c : containers) {
-									doUploadFile(localPath, containerFu.getNamespace(), pd.getName(),
-											containerFu.getContainerFilePath(), c, sPath, id, token, server);
-								}
-							} else {
-								doUploadFile(localPath, containerFu.getNamespace(), pd.getName(),
-										containerFu.getContainerFilePath(), null, sPath, id, token, server);
-							}
-						}
+						doUploadFile(localPath, sPath, id, token, server);
+						begin.countDown();
 					} catch (Exception e) {
 						logger.error(e.getMessage(), e);
 					}
@@ -206,7 +199,28 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 				}
 			});
 		}
-		//ESFactory.executor.shutdown();
+		begin.await();
+		
+		//删除文件
+		ESFactory.executor.execute(new Runnable() {
+
+			@Override
+			public void run() {
+				try {
+					if (StringUtils.isNotBlank(fileAbsolutePath)) {
+						File f = new File(fileAbsolutePath);
+						if (f.isFile() && f.exists()) {
+							f.delete();
+						}
+					}
+				} catch (Exception e) {
+					logger.error(e.getMessage(), e);
+				}
+
+			}
+		});
+
+		// ESFactory.executor.shutdown();
 		return ActionReturnUtil.returnSuccess();
 	}
 
@@ -253,7 +267,7 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 		String username = String.valueOf(session.getAttribute("username"));
 		String token = String.valueOf(K8SClient.tokenMap.get(username));
 		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-        String server = cluster.getProtocol() + "://" + cluster.getHost() + ":" + cluster.getPort();
+		String server = cluster.getProtocol() + "://" + cluster.getHost() + ":" + cluster.getPort();
 		ProcessBuilder proc = new ProcessBuilder("bash", shellPath, pod, containerFilePath, namespace, token, server);
 		if (StringUtils.isNotBlank(container)) {
 			proc = new ProcessBuilder("bash", shellPath, pod, containerFilePath, namespace, token, server, container);
@@ -331,50 +345,50 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 		return ActionReturnUtil.returnSuccessWithData(systemConfig);
 	}
 
-	private void doUploadFile(String localPath, String namespace, String pod, String containerPath, String container,
-			String shellPath, Integer id, String token, String server) throws Exception {
+	private void doUploadFile(String localPath, String shellPath, Integer id, String token, String server)
+			throws Exception {
 		FileUploadContainer fileUpload = fileUploadContainerMapper.selectByPrimaryKey(id);
+		String path = null;
 		try {
-			logger.info("文件是否存在:"+new File(localPath).listFiles().length);
+			logger.info("文件是否存在:" + new File(localPath).listFiles().length);
 			fileUpload.setPhase(2);
 			fileUpload.setStatus("doing");
 			fileUploadContainerMapper.updateByPrimaryKeySelective(fileUpload);
 			ProcessBuilder proc = new ProcessBuilder("sh", shellPath, localPath + "/" + fileUpload.getFileName(),
-					namespace, pod, containerPath, token, server);
-			if (StringUtils.isNotBlank(container)) {
-				proc = new ProcessBuilder("sh", shellPath, localPath + "/" + fileUpload.getFileName(), namespace, pod,
-						containerPath, token, server ,container);
+					fileUpload.getNamespace(), fileUpload.getPod(), fileUpload.getContainerFilePath(), token, server);
+			if (StringUtils.isNotBlank(fileUpload.getContainer())) {
+				proc = new ProcessBuilder("sh", shellPath, localPath + "/" + fileUpload.getFileName(),
+						fileUpload.getNamespace(), fileUpload.getPod(), fileUpload.getContainerFilePath(), token,
+						server, fileUpload.getContainer());
 			}
 
 			Process p = proc.start();
 			String res = null;
+			String exception = null;
 			BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
 			BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
 			while ((res = stdInput.readLine()) != null) {
 				logger.debug("执行上传文件脚本：" + res);
 			}
 			while ((res = stdError.readLine()) != null) {
-				logger.error("执行上传文件脚本错误：" + res+ ":" + localPath + "/" + fileUpload.getFileName());
+				exception = res;
+				logger.error("执行上传文件脚本错误：" + res + ":" + localPath + "/" + fileUpload.getFileName());
 			}
 			int runningStatus = p.waitFor();
 			logger.info("执行上传文件脚本结果：" + runningStatus);
 			// 0代表成功, 更新数据库
 			if (runningStatus == 0) {
 				fileUpload.setStatus("success");
-				String path = localPath + "/" + fileUpload.getFileName();
-				logger.info("上传到容器成功："+path);
-				File file = new File(path);
-				if (file.isFile() && file.exists()) {
-					file.delete();
-				} 
+				path = localPath + "/" + fileUpload.getFileName();
+				logger.info("上传到容器成功：" + path);
 			} else {
-				logger.info("执行上传文件脚本结果失败:"+res);
+				logger.info("执行上传文件脚本结果失败:" + exception);
 				fileUpload.setStatus("failed");
-				fileUpload.setErrMsg(res);
+				fileUpload.setErrMsg(exception);
 			}
 			fileUploadContainerMapper.updateByPrimaryKeySelective(fileUpload);
 		} catch (Exception e) {
-			logger.error("执行上传文件脚本结果失败:"+e.getLocalizedMessage()+";"+e.getMessage()+";"+e.getCause());
+			logger.error("执行上传文件脚本结果失败:" + e.getLocalizedMessage() + ";" + e.getMessage() + ";" + e.getCause());
 			fileUpload.setStatus("failed");
 			fileUpload.setErrMsg(e.getMessage());
 			fileUploadContainerMapper.updateByPrimaryKeySelective(fileUpload);
