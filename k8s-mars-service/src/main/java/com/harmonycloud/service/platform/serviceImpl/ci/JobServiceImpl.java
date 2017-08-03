@@ -150,11 +150,10 @@ public class JobServiceImpl implements JobService {
         if (result.isSuccess()) {
             Map<String, Object> dataModel = new HashMap<>();
             dataModel.put("stageList", new ArrayList<>());
-            //dataModel.put("jobId", job.getId());
             dataModel.put("job", job);
+            dataModel.put("apiUrl",apiUrl);
             String script = TemplateUtil.generate("pipeline.ftl", dataModel);
             dataModel.put("script", script);
-            dataModel.put("apiUrl",apiUrl);
             String body = TemplateUtil.generate("jobConfig.ftl", dataModel);
             result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
         }else{
@@ -327,13 +326,33 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
-    public ActionReturnUtil getJobDetail(Integer id) {
+    public ActionReturnUtil getJobDetail(Integer id) throws Exception {
         Job dbJob = jobMapper.queryById(id);
         Map job = new HashMap();
         job.put("jobName", dbJob.getName());
         job.put("tenant", dbJob.getTenant());
+        String jenkinsJobName = dbJob.getTenant() + "_" + dbJob.getName();
+        ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/lastBuild/api/json", null, null, false);
+        List<Map> jenkinsStageMap = new ArrayList<>();
+        if(result.isSuccess()){
+            Map map = JsonUtil.convertJsonToMap((String)result.get("data"));
+            if(false == (boolean)map.get("building")){
+                job.put("lastBuildStatus", map.get("result"));
+            }else{
+                job.put("lastBuildStatus", "BUILDING");
+            }
+            job.put("lastBuildDuration", map.get("duration"));
+            job.put("lastBuildTime", new Timestamp((Long)map.get("timestamp")));
+            jenkinsStageMap = stageService.getStageBuildFromJenkins(dbJob, 0);
+        }else{
+            job.put("lastBuildStatus", "NOTBUILT");
+            job.put("lastBuildDuration", null);
+            job.put("lastBuildTime", null);
+        }
 
-/*         String jenkinsJobName = dbJob.getTenant() + "_" + dbJob.getName();
+
+/*
+         String jenkinsJobName = dbJob.getTenant() + "_" + dbJob.getName();
         Map<String, Object> params = new HashMap<>();
         params.put("tree", "name,builds[number,building,result,duration,timestamp],lastBuild[number,building,result,duration,timestamp]");
         ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/api/xml", null, params, false);
@@ -366,8 +385,8 @@ public class JobServiceImpl implements JobService {
                 buildList.add(buildMap);
             }
             job.put("build_list", buildList);
-
 */
+
 //            List<Job> dbJobList = jobMapper.select(tenantName, jobName, null);
 //            if(dbJobList != null && dbJobList.size()==1){
 //                Job dbJob = dbJobList.get(0);
@@ -377,20 +396,20 @@ public class JobServiceImpl implements JobService {
 //
 //            }
 
-            JobBuild jobBuildCondition = new JobBuild();
-            jobBuildCondition.setJobId(dbJob.getId());
-            jobBuildCondition.setBuildNum(dbJob.getLastBuildNum());
-            List<JobBuild> jobBuildList = jobBuildMapper.queryByObject(jobBuildCondition);
-            if(null != jobBuildList && jobBuildList.size() == 1) {
-                JobBuild jobBuild = jobBuildList.get(0);
-                job.put("lastBuildStatus", jobBuild.getStatus());
-                job.put("lastBuildTime", jobBuild.getStartTime());
-                job.put("lastBuildDuration", jobBuild.getDuration());
-            }else {
-                job.put("lastBuildStatus", "NOTBUILT");
-                job.put("lastBuildTime", null);
-                job.put("lastBuildDuration", null);
-            }
+//            JobBuild jobBuildCondition = new JobBuild();
+//            jobBuildCondition.setJobId(dbJob.getId());
+//            jobBuildCondition.setBuildNum(dbJob.getLastBuildNum());
+//            List<JobBuild> jobBuildList = jobBuildMapper.queryByObject(jobBuildCondition);
+//            if(null != jobBuildList && jobBuildList.size() == 1) {
+//                JobBuild jobBuild = jobBuildList.get(0);
+//                job.put("lastBuildStatus", jobBuild.getStatus());
+//                job.put("lastBuildTime", jobBuild.getStartTime());
+//                job.put("lastBuildDuration", jobBuild.getDuration());
+//            }else {
+//                job.put("lastBuildStatus", "NOTBUILT");
+//                job.put("lastBuildTime", null);
+//                job.put("lastBuildDuration", null);
+//            }
 
 
             List<Map> stageMapList = new ArrayList<>();
@@ -403,35 +422,55 @@ public class JobServiceImpl implements JobService {
                 stageTypeMap.put(stageType.getId(),stageType.getName());
             }
 
-            //get last build info of stages for the job
-            StageBuild stageBuildCondition = new StageBuild();
-            stageBuildCondition.setJobId(dbJob.getId());
-            stageBuildCondition.setBuildNum(dbJob.getLastBuildNum());
-            List<StageBuild> stageBuildList = stageBuildMapper.queryByObject(stageBuildCondition);
-            Map stageBuildMap = new HashMap<>();
-            for(StageBuild stageBuild : stageBuildList){
-                stageBuildMap.put(stageBuild.getStageId(),stageBuild);
-            }
+//            //get last build info of stages for the job
+//            StageBuild stageBuildCondition = new StageBuild();
+//            stageBuildCondition.setJobId(dbJob.getId());
+//            stageBuildCondition.setBuildNum(dbJob.getLastBuildNum());
+//            List<StageBuild> stageBuildList = stageBuildMapper.queryByObject(stageBuildCondition);
 
-            for(Stage stage:stageList){
-                Map stageMap = new HashMap<>();
-                stageMap.put("id",stage.getId());
-                stageMap.put("stageName",stage.getStageName());
-                stageMap.put("stageType",stageTypeMap.get(stage.getStageTypeId()));
-                stageMap.put("stageOrder",stage.getStageOrder());
 
-                StageBuild stageBuild = (StageBuild)stageBuildMap.get(stage.getId());
-                if(stageBuild == null){
+        for(Stage stage:stageList){
+            Map stageMap = new HashMap<>();
+            stageMap.put("id",stage.getId());
+            stageMap.put("stageName",stage.getStageName());
+            stageMap.put("stageType",stageTypeMap.get(stage.getStageTypeId()));
+            stageMap.put("stageOrder",stage.getStageOrder());
+
+            if(stage.getStageOrder() <= jenkinsStageMap.size()){
+                Map map = jenkinsStageMap.get(stage.getStageOrder() - 1);
+                stageMap.put("lastBuildStatus", convertStatus((String)map.get("status")));
+                stageMap.put("lastBuildTime", new Timestamp((Long)map.get("startTimeMillis")));
+                stageMap.put("lastBuildDuration", map.get("durationMillis"));
+            }else{
+                if("BUILDING".equals(job.get("lastBuildStatus"))) {
+                    stageMap.put("lastBuildStatus", "WAITING");
+                }else{
                     stageMap.put("lastBuildStatus", "NOTBUILT");
-                    stageMap.put("lastBuildTime", null);
-                    stageMap.put("lastBuildDuration", null);
-                }else {
-                    stageMap.put("lastBuildStatus", stageBuild.getStatus());
-                    stageMap.put("lastBuildTime", stageBuild.getStartTime());
-                    stageMap.put("lastBuildDuration", stageBuild.getDuration());
                 }
-                stageMapList.add(stageMap);
+                stageMap.put("lastBuildTime", null);
+                stageMap.put("lastBuildDuration", null);
             }
+            //StageBuild stageBuild = (StageBuild)stageBuildMap.get(stage.getId());
+//            if(stageBuild == null){
+//                stageMap.put("lastBuildStatus", "NOTBUILT");
+//                stageMap.put("lastBuildTime", null);
+//                stageMap.put("lastBuildDuration", null);
+//            }else {
+//                stageMap.put("lastBuildStatus", stageBuild.getStatus());
+//                stageMap.put("lastBuildTime", stageBuild.getStartTime());
+//                stageMap.put("lastBuildDuration", stageBuild.getDuration());
+//            }
+            stageMapList.add(stageMap);
+        }
+
+
+
+//            Map stageBuildMap = new HashMap<>();
+//            for(StageBuild stageBuild : stageBuildList){
+//                stageBuildMap.put(stageBuild.getStageId(),stageBuild);
+//            }
+
+
 
             job.put("stageList",stageMapList);
 
@@ -449,20 +488,24 @@ public class JobServiceImpl implements JobService {
 
         Map<String, Object> params = new HashMap<>();
         List<Stage> stageList = stageMapper.queryByJobId(id);
+        Map tagMap = new HashMap<>();
         for(Stage stage:stageList){
-            String tag;
-            if("0".equals(stage.getImageTagType())){
-                tag = DateUtil.DateToString(new Date(), DateStyle.YYMMDDHHMMSS);
-            }else if("1".equals(stage.getImageTagType())){
-                tag = stage.getImageBaseTag();
-                stage.setImageBaseTag(generateTag(stage));
-                stageMapper.updateStage(stage);
-            }else if("2".equals(stage.getImageTagType())){
-                tag = stage.getImageTag();
-            }else{
-                continue;
+            if(StageTemplateTypeEnum.IMAGEBUILD.ordinal() == stage.getStageTemplateType()) {
+                String tag;
+                if ("0".equals(stage.getImageTagType())) {
+                    tag = DateUtil.DateToString(new Date(), DateStyle.YYMMDDHHMMSS);
+                } else if ("1".equals(stage.getImageTagType())) {
+                    tag = stage.getImageBaseTag();
+                    stage.setImageBaseTag(generateTag(stage));
+                    stageMapper.updateStage(stage);
+                } else if ("2".equals(stage.getImageTagType())) {
+                    tag = stage.getImageTag();
+                } else {
+                    continue;
+                }
+                tagMap.put(stage.getHarborProject() + "/" + stage.getImageName(), tag);
+                params.put("tag" + stage.getStageOrder(), tag);
             }
-            params.put("tag" + stage.getStageOrder(), tag);
         }
         params.put("delay", "0sec");
         ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/buildWithParameters", null, params, null, null);
@@ -500,7 +543,7 @@ public class JobServiceImpl implements JobService {
                     stageBuild.setBuildNum(lastBuildNumber);
                     stageBuild.setStatus("WAITING");
                     if(StageTemplateTypeEnum.DEPLOY.ordinal() == stage.getStageTemplateType()) {
-                        stageBuild.setImage(stage.getImageName() + ":" + (String)params.get("tag" + stage.getStageOrder()));
+                        stageBuild.setImage(stage.getImageName() + ":" + tagMap.get(stage.getImageName()));
                     }
                     stageBuildMapper.insert(stageBuild);
                 }
@@ -537,7 +580,7 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
-    public ActionReturnUtil getBuildList(Integer id) {
+    public ActionReturnUtil getBuildList(Integer id) throws Exception {
         Job job = jobMapper.queryById(id);
         List<Map> buildList = new ArrayList<>();
         JobBuild jobBuildCondition = new JobBuild();
@@ -548,8 +591,15 @@ public class JobServiceImpl implements JobService {
         for(Stage stage: stageList){
             stageMap.put(stage.getId(),stage);
         }
+        Map jobBuildMap = new HashMap<>();
+        for(JobBuild jobBuild:jobBuildList){
+            jobBuildMap.put(jobBuild.getBuildNum(),jobBuild);
+        }
         for(JobBuild jobBuild:jobBuildList){
             Map buildMap = new HashMap();
+            if(Constant.PIPELINE_STATUS_BUILDING.equals(jobBuild.getStatus())){
+                jobBuild = jobStatusSync(job, jobBuild.getBuildNum());
+            }
             buildMap.put("buildNum", jobBuild.getBuildNum());
             buildMap.put("buildStatus", jobBuild.getStatus());
             buildMap.put("buildTime", jobBuild.getStartTime());
@@ -562,8 +612,26 @@ public class JobServiceImpl implements JobService {
             List stageBuildMapList = new ArrayList<>();
             for(StageBuild stageBuild : stageBuildList){
                 Map stageBuildMap = new HashMap<>();
-                Integer stageId = stageBuild.getStageId();
-                stageBuildMap.put("stageId", stageId);
+                if(!Constant.PIPELINE_STATUS_BUILDING.equals(jobBuild.getStatus()) && Constant.PIPELINE_STATUS_WAITING.equals(stageBuild.getStatus())){
+                    allStageStatusSync(job, jobBuild.getBuildNum());
+                    stageBuildMapper.updateWaitingStage(job.getId(), jobBuild.getBuildNum());
+                    stageBuildList = stageBuildMapper.queryByObject(stageBuildCondition);
+                    stageBuildMapList = new ArrayList<>();
+                    for(StageBuild newStageBuild : stageBuildList){
+                        stageBuildMap.put("stageId", newStageBuild.getStageId());
+                        stageBuildMap.put("stageName", newStageBuild.getStageName());
+                        stageBuildMap.put("stageOrder", newStageBuild.getStageOrder());
+                        stageBuildMap.put("stageType", newStageBuild.getStageType());
+                        stageBuildMap.put("buildStatus", newStageBuild.getStatus());
+                        stageBuildMap.put("buildNum", newStageBuild.getBuildNum());
+                        stageBuildMap.put("buildTime", newStageBuild.getStartTime());
+                        stageBuildMap.put("duration", newStageBuild.getDuration());
+                        stageBuildMap.put("log", newStageBuild.getLog());
+                        stageBuildMapList.add(stageBuildMap);
+                    }
+                    break;
+                }
+                stageBuildMap.put("stageId", stageBuild.getStageId());
                 stageBuildMap.put("stageName", stageBuild.getStageName());
                 stageBuildMap.put("stageOrder", stageBuild.getStageOrder());
                 stageBuildMap.put("stageType", stageBuild.getStageType());
@@ -717,8 +785,9 @@ public class JobServiceImpl implements JobService {
                 try {
                     Thread.sleep(3000);
                     Job job = jobMapper.queryById(id);
-                    String status = jobStatusSync(job, buildNum);
+                    jobStatusSync(job, buildNum);
                     allStageStatusSync(job, buildNum);
+                    stageBuildMapper.updateWaitingStage(job.getId(), buildNum);
                     notification(job, buildNum);
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -889,44 +958,52 @@ public class JobServiceImpl implements JobService {
     @Override
     public void jobStatusWS(WebSocketSession session, Integer id) {
         try {
-            int buildingOrder = 0;
-            boolean end = false;
             Job job = jobMapper.queryById(id);
+            List<Stage> dbStageList = stageMapper.queryByJobId(id);
+            int stageCount = dbStageList.size();
             String jenkinsJobName = job.getTenant() + "_" + job.getName();
-            Integer lastBuildNum = job.getLastBuildNum();
+            StringBuilder lastStatus = new StringBuilder();
+            StringBuilder currentStatus;
             while (session.isOpen()) {
-                ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + lastBuildNum + "/wfapi/describe", null, null, false);
+                currentStatus =  new StringBuilder();
+                ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/lastBuild/wfapi/describe", null, null, false);
                 if (result.isSuccess()) {
                     String data = (String) result.get("data");
                     Map dataMap = JsonUtil.convertJsonToMap(data);
-                    if (!Constant.PIPELINE_STATUS_INPROGRESS.equals(dataMap.get("status")) && end) {
-                        break;
-                    }
-                    if (!Constant.PIPELINE_STATUS_INPROGRESS.equals(dataMap.get("status"))) {
-                        end = true;
-                    }
+                    String jobStatus = (String)dataMap.get("status");
+                    currentStatus.append(jobStatus);
                     List<Map> stages = (List<Map>) dataMap.get("stages");
                     int i = 0;
-                    boolean send = false;
                     List stageList = new ArrayList<>();
                     for (Map stage : stages) {
+                        i++;
                         Map stageMap = new HashMap<>();
-                        if (Constant.PIPELINE_STATUS_INPROGRESS.equals(stage.get("status")) && ++i > buildingOrder || end) {
-                            send = true;
-                            buildingOrder = i;
-                        }
-                        stageMap.put("lastBuildStatus", stage.get("status"));
+                        stageMap.put("lastBuildStatus", convertStatus((String)stage.get("status")));
                         stageMap.put("lastBuildDuration", String.valueOf(stage.get("durationMillis")));
                         stageMap.put("lastBuildTime", new Timestamp((Long) stage.get("startTimeMillis")));
                         stageMap.put("stageOrder", i);
                         stageList.add(stageMap);
+                        currentStatus.append(convertStatus((String)stage.get("status")));
                     }
-                    if (send) {
+                    while(stageList.size()<stageCount){
+                        Map stageMap = new HashMap<>();
+                        stageMap.put("lastBuildStatus", Constant.PIPELINE_STATUS_INPROGRESS.equals(jobStatus)?Constant.PIPELINE_STATUS_WAITING:Constant.PIPELINE_STATUS_NOTBUILT);
+                        stageMap.put("stageOrder", stageList.size()+1);
+                        stageList.add(stageMap);
+                        currentStatus.append((String)stageMap.get("lastBuildStatus"));
+                    }
+
+
+                    if (!currentStatus.toString().equals(lastStatus.toString())) {
                         Map jobMap = new HashMap<>();
                         jobMap.put("stageList", stageList);
-                        jobMap.put("lastBuildStatus", dataMap.get("status"));
+                        if("FAILED".equals(dataMap.get("status"))){
+                            jobMap.put("lastBuildStatus", "FAILURE");
+                        }else {
+                            jobMap.put("lastBuildStatus", convertStatus(jobStatus));
+                        }
                         jobMap.put("lastBuildTime", new Timestamp((Long) dataMap.get("startTimeMillis")));
-                        result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + lastBuildNum + "/api/json", null, null, false);
+                        result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/lastBuild/api/json", null, null, false);
                         if (result.isSuccess()) {
                             dataMap = JsonUtil.convertJsonToMap((String) result.get("data"));
                         }
@@ -934,6 +1011,8 @@ public class JobServiceImpl implements JobService {
                         session.sendMessage(new TextMessage(JsonUtil.convertToJson(ActionReturnUtil.returnSuccessWithData(jobMap))));
                     }
                 }
+                lastStatus = currentStatus;
+
                 Thread.sleep(2000);
             }
         } catch (Exception e) {
@@ -944,7 +1023,7 @@ public class JobServiceImpl implements JobService {
                     session.close();
                 }
             } catch (IOException e) {
-                logger.error("websocker close error", e);
+                logger.error("websocket close error", e);
             }
         }
 
@@ -1021,7 +1100,7 @@ public class JobServiceImpl implements JobService {
             stages.add(stageMap);
         }
         jobMap.put("stages", stages);
-        System.out.println(yaml.dumpAsMap(jobMap));
+        //System.out.println(yaml.dumpAsMap(jobMap));
         return ActionReturnUtil.returnSuccessWithData(yaml.dumpAsMap(jobMap));
     }
 
@@ -1122,7 +1201,7 @@ public class JobServiceImpl implements JobService {
         return false;
     }
 
-    private String jobStatusSync(Job job, Integer buildNum){
+    private JobBuild jobStatusSync(Job job, Integer buildNum){
         JobBuild jobBuildCondition = new JobBuild();
         jobBuildCondition.setJobId(job.getId());
         jobBuildCondition.setBuildNum(buildNum);
@@ -1130,7 +1209,7 @@ public class JobServiceImpl implements JobService {
         JobBuild jobBuild = new JobBuild();
         if(null != jobBuildList && jobBuildList.size()==1){
             jobBuild = jobBuildList.get(0);
-        }else{
+        }else if(null == jobBuildList || jobBuildList.size() == 0){
             jobBuild.setJobId(job.getId());
             jobBuild.setBuildNum(buildNum);
             jobBuildMapper.insert(jobBuild);
@@ -1168,7 +1247,7 @@ public class JobServiceImpl implements JobService {
             jobBuildMapper.update(jobBuild);
 
         }
-        return jobBuild.getStatus();
+        return jobBuild;
 
     }
 
@@ -1178,7 +1257,7 @@ public class JobServiceImpl implements JobService {
         List<Map> stageMapList = stageService.getStageBuildFromJenkins(job, buildNum);
         int i = stage.getStageOrder() - 2;
         for(i = i<0?0:i ; i< stageMapList.size();i++){
-            stageService.stageBuildSync(job, buildNum, stageMapList.get(i));
+            stageService.stageBuildSync(job, buildNum, stageMapList.get(i), i+1);
         }
 
     }
@@ -1187,11 +1266,10 @@ public class JobServiceImpl implements JobService {
 
     private void allStageStatusSync(Job job, Integer buildNum) throws Exception {
         List<Map> stageMapList = stageService.getStageBuildFromJenkins(job, buildNum);
+        int i=0;
         for(Map stageMap : stageMapList){
-            stageService.stageBuildSync(job, buildNum, stageMap);
+            stageService.stageBuildSync(job, buildNum, stageMap, ++i);
         }
-        stageBuildMapper.updateWaitingStage(job.getId(), buildNum);
-
     }
 
 
@@ -1289,6 +1367,14 @@ public class JobServiceImpl implements JobService {
             }
         }
         return tag;
+    }
+
+    private String convertStatus(String status){
+        if(Constant.PIPELINE_STATUS_INPROGRESS.equals(status) || Constant.PIPELINE_STATUS_NOTEXECUTED.equals(status)) {
+            return Constant.PIPELINE_STATUS_BUILDING;
+        }else{
+            return status;
+        }
     }
 
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(JobServiceImpl.class);

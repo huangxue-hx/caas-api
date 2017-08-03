@@ -109,4 +109,10 @@ public class Constant {
 	public final static String TIME_ZONE_UTC = "UTC";
 
     public final static String PIPELINE_STATUS_INPROGRESS = "IN_PROGRESS";
+    public final static String PIPELINE_STATUS_BUILDING = "BUILDING";
+    public final static String PIPELINE_STATUS_FAILED = "FAILED";
+    public final static String PIPELINE_STATUS_FAILURE = "FAILURE";
+    public final static String PIPELINE_STATUS_WAITING = "WAITING";
+    public final static String PIPELINE_STATUS_NOTBUILT = "NOTBUILT";
+    public final static String PIPELINE_STATUS_NOTEXECUTED = "NOT_EXECUTED";
 }

@@ -210,7 +210,12 @@ public class StageServiceImpl implements StageService {
     @Override
     public List<Map> getStageBuildFromJenkins(Job job, Integer buildNum) throws Exception {
         String jenkinsJobName = job.getTenant() + "_" + job.getName();
-        ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + buildNum + "/wfapi/describe", null, null, false);
+        ActionReturnUtil result;
+        if(buildNum == 0){
+            result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/lastBuild/wfapi/describe", null, null, false);
+        }else{
+            result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + buildNum + "/wfapi/describe", null, null, false);
+        }
         if(result.isSuccess()) {
             String data = (String) result.get("data");
             Map dataMap = JsonUtil.convertJsonToMap(data);
@@ -221,15 +226,16 @@ public class StageServiceImpl implements StageService {
     }
 
     @Override
-    public void stageBuildSync(Job job, Integer buildNum, Map stageMap){
+    public void stageBuildSync(Job job, Integer buildNum, Map stageMap, int stageOrder){
         StageBuild stageBuild = new StageBuild();
         stageBuild.setJobId(job.getId());
         stageBuild.setBuildNum(buildNum);
-        stageBuild.setStatus((String)stageMap.get("status"));
+        stageBuild.setStageOrder(stageOrder);
+        stageBuild.setStatus(convertStatus((String) stageMap.get("status")));
         stageBuild.setStartTime(new Timestamp((Long)stageMap.get("startTimeMillis")));
         stageBuild.setDuration(String.valueOf(stageMap.get("durationMillis")));
         stageBuild.setLog(getStageBuildLogFromJenkins(job, buildNum, (String)stageMap.get("id")));
-        stageBuildMapper.updateByStageNameAndBuildNum(stageBuild, (String)stageMap.get("name"));
+        stageBuildMapper.updateByStageOrderAndBuildNum(stageBuild);
     }
 
 
@@ -391,6 +397,14 @@ public class StageServiceImpl implements StageService {
 
     private void deleteCredentials(Stage stage) throws Exception {
         ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/credentials/store/system/domain/_/credential/" + stage.getId() + "/doDelete", null, null, null, 302);
+    }
+
+    private String convertStatus(String status){
+        if(Constant.PIPELINE_STATUS_INPROGRESS.equals(status)){
+            return Constant.PIPELINE_STATUS_BUILDING;
+        }else{
+            return status;
+        }
     }
 
 

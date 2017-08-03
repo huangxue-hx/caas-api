@@ -20,7 +20,7 @@ public interface JobService {
 
     ActionReturnUtil getJobList(String tenantName, String name);
 
-    ActionReturnUtil getJobDetail(Integer id);
+    ActionReturnUtil getJobDetail(Integer id) throws Exception;
 
     ActionReturnUtil build(Integer id) throws Exception;
 
@@ -30,7 +30,7 @@ public interface JobService {
 
     ActionReturnUtil credentialsValidate(String repositoryType, String repositoryUrl, String username, String password);
 
-    ActionReturnUtil getBuildList(Integer id);
+    ActionReturnUtil getBuildList(Integer id) throws Exception;
 
     ActionReturnUtil getNotification(Integer id) throws Exception;
 

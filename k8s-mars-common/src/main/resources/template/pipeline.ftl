@@ -24,7 +24,7 @@ label = uuid.take(8)
 podTemplate(
     containers: [
         containerTemplate(
-            alwaysPullImage: false,
+            alwaysPullImage: true,
             args: '',
             command: '',
             envVars: [

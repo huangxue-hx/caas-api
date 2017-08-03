@@ -36,7 +36,7 @@ public interface StageService {
     
     List<Map> getStageBuildFromJenkins(Job job, Integer buildNum) throws Exception;
 
-    void stageBuildSync(Job job, Integer buildNum, Map stageMap);
+    void stageBuildSync(Job job, Integer buildNum, Map stageMap, int stageOrder);
 
     void getStageLogWS(WebSocketSession session, Integer id, Integer buildNum);
 }

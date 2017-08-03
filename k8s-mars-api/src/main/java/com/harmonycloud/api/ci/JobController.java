@@ -73,14 +73,14 @@ public class JobController {
 
     @RequestMapping(method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil getJobDetail(@RequestParam(value="id") Integer id){
+    public ActionReturnUtil getJobDetail(@RequestParam(value="id") Integer id) throws Exception {
         logger.info("get job detail.");
         return jobService.getJobDetail(id);
     }
 
     @RequestMapping(value = "/buildList", method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil getBuildDetail(@RequestParam(value="id") Integer id){
+    public ActionReturnUtil getBuildDetail(@RequestParam(value="id") Integer id) throws Exception {
         logger.info("get build detail.");
         return jobService.getBuildList(id);
     }
