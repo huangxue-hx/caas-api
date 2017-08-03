@@ -1,12 +1,16 @@
 package com.harmonycloud.api.application;
 
+import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.business.ParsedIngressListDto;
 import com.harmonycloud.dto.business.ParsedIngressListUpdateDto;
 import com.harmonycloud.dto.business.SvcRouterDto;
 import com.harmonycloud.dto.business.SvcRouterUpdateDto;
+import com.harmonycloud.dto.business.TcpDeleteDto;
 import com.harmonycloud.dto.svc.CheckPort;
 import com.harmonycloud.dto.svc.SvcTcpDto;
+import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.service.application.RouterService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +20,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+
+import javax.servlet.http.HttpSession;
 
 /**
  * Created by czm on 2017/1/18.
@@ -28,6 +34,9 @@ public class RouterController {
 
     @Autowired
 	private RouterService routerService;
+    
+    @Autowired
+	HttpSession session;
 	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -243,16 +252,20 @@ public class RouterController {
 
 	@ResponseBody
 	@RequestMapping(value="/deltcp", method = RequestMethod.DELETE)
-	public ActionReturnUtil deleteTcpSvc(@RequestParam(value = "namespace", required = true) String namespace,
-                                      @RequestParam(value = "name", required = true) String name,@RequestParam(value = "port", required = true) String port,@RequestParam(value = "tenantId", required = true) String tenantId) throws Exception{
-		try {
-			logger.info("删除svc路由（tcp）");
-			return routerService.deleteTcpSvc(namespace,name,port,tenantId);
-		} catch (Exception e) {
-			logger.error("删除svc路由（tcp）错误，namespace="+namespace+",name="+name+",e="+e.getMessage());
-			e.printStackTrace();
-			throw e;
+	public ActionReturnUtil deleteTcpSvc(@ModelAttribute TcpDeleteDto tcpDeleteDto) throws Exception{
+		if(tcpDeleteDto == null){
+			return ActionReturnUtil.returnErrorWithMsg("参数为空");
 		}
+		if(StringUtils.isEmpty(tcpDeleteDto.getName())){
+			return ActionReturnUtil.returnErrorWithMsg("tcp名称为空");
+		}
+		if(StringUtils.isEmpty(tcpDeleteDto.getNamespace())){
+			return ActionReturnUtil.returnErrorWithMsg("namespace为空");
+		}
+		if(StringUtils.isEmpty(tcpDeleteDto.getTenantId())){
+			return ActionReturnUtil.returnErrorWithMsg("租户为空");
+		}
+		return routerService.deleteTcpSvc(tcpDeleteDto.getNamespace(), tcpDeleteDto.getName(), tcpDeleteDto.getPorts(), tcpDeleteDto.getTenantId());
 	}
 	
 	@ResponseBody
@@ -277,6 +290,18 @@ public class RouterController {
 			logger.error("获取host错误,e="+e.getMessage());
 			throw e;
 		}
+	}
+	
+	@ResponseBody
+	@RequestMapping(value = "/ingress/name", method = RequestMethod.GET)
+	public ActionReturnUtil listIngressByName(@RequestParam(value = "namespace", required = true) String namespace,
+            @RequestParam(value = "name", required = true) String name) throws Exception{
+		String userName = (String) session.getAttribute("username");
+		if (userName == null) {
+			throw new K8sAuthException(Constant.HTTP_401);
+		}
+		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+		return routerService.listIngressByName(namespace, name, cluster);
 	}
 
 }

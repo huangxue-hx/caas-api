@@ -931,14 +931,15 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			ingress.setLabels(dep.getSpec().getTemplate().getMetadata().getLabels());
 			@SuppressWarnings("unchecked")
 			List<RouterSvc> routerSvcs = (List<RouterSvc>)routerService.listSvcByName(ingress).get("data");
-
 			if (routerSvcs != null && routerSvcs.size() > 0){
 				String tenantID = session.getAttribute("tenantId").toString();
 				for (RouterSvc onerouterSvcs:routerSvcs){
+					List<Integer> ports = new ArrayList<Integer>();
 					for (int i=0;onerouterSvcs.getRules().size() > i ;i++){
-						routerService.deleteTcpSvc(namespace,onerouterSvcs.getName(),onerouterSvcs.getRules().get(i).getPort().toString(),tenantID);
-					}
+						ports.add(onerouterSvcs.getRules().get(i).getPort());
 
+					}
+					routerService.deleteTcpSvc(namespace,onerouterSvcs.getName(),ports,tenantID);
 				}
 			}
 		}
