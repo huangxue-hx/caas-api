@@ -10,14 +10,18 @@ import java.util.List;
  * Created by czm on 2017/5/11.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class CanaryDeployment implements Serializable {
+public class CanaryDeployment{
 
-    private int instances;
+
+	private int instances;
 
     private int seconds;
 
     private String name; //Deployment 名字
 
+    private int maxSurge;
+    
+    private int maxUnavailable;
 
     private String namespace; //Deployment 所属命名空间
 
@@ -63,5 +67,21 @@ public class CanaryDeployment implements Serializable {
     public void setSeconds(int seconds) {
         this.seconds = seconds;
     }
+
+	public int getMaxSurge() {
+		return maxSurge;
+	}
+
+	public void setMaxSurge(int maxSurge) {
+		this.maxSurge = maxSurge;
+	}
+
+	public int getMaxUnavailable() {
+		return maxUnavailable;
+	}
+
+	public void setMaxUnavailable(int maxUnavailable) {
+		this.maxUnavailable = maxUnavailable;
+	}
 
 }
