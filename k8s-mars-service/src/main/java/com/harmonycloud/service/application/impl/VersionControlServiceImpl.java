@@ -162,8 +162,13 @@ public class VersionControlServiceImpl implements VersionControlService {
                 deped.getSpec().setMinReadySeconds(detail.getSeconds());
             }
             RollingUpdateDeployment ru =new RollingUpdateDeployment();
-            ru.setMaxSurge(1);
-            ru.setMaxUnavailable(0);
+            if(detail.getMaxSurge() == 0 && detail.getMaxUnavailable() == 0){
+            	ru.setMaxSurge(1);
+                ru.setMaxUnavailable(0);
+            }else{
+            	ru.setMaxSurge(detail.getMaxSurge());
+                ru.setMaxUnavailable(detail.getMaxUnavailable());
+            }
             strategy.setRollingUpdate(ru);
             deped.getSpec().setStrategy(strategy);;
         }

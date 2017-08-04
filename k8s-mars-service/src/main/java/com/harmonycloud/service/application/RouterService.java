@@ -61,6 +61,6 @@ public interface RouterService {
 
     List<RouterSvc> listIngressByName(ParsedIngressListDto parsedIngressListDto) throws Exception;
     
-    public ActionReturnUtil listIngressByName(String namespace, String name, Cluster cluster) throws Exception;
+    public ActionReturnUtil listIngressByName(String namespace, String nameList, Cluster cluster) throws Exception;
     
 }

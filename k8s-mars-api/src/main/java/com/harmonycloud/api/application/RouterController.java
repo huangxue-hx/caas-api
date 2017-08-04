@@ -295,13 +295,13 @@ public class RouterController {
 	@ResponseBody
 	@RequestMapping(value = "/ingress/name", method = RequestMethod.GET)
 	public ActionReturnUtil listIngressByName(@RequestParam(value = "namespace", required = true) String namespace,
-            @RequestParam(value = "name", required = true) String name) throws Exception{
+            @RequestParam(value = "nameList", required = true) String nameList) throws Exception{
 		String userName = (String) session.getAttribute("username");
 		if (userName == null) {
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
 		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-		return routerService.listIngressByName(namespace, name, cluster);
+		return routerService.listIngressByName(namespace, nameList, cluster);
 	}
 
 }

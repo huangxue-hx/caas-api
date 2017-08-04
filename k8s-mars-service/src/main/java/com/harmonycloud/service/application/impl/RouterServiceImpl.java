@@ -1,5 +1,6 @@
 package com.harmonycloud.service.application.impl;
 
+import com.alibaba.druid.stat.TableStat.Name;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
@@ -984,11 +985,11 @@ public class RouterServiceImpl implements RouterService {
 	}
 
 	@Override
-	public ActionReturnUtil listIngressByName(String namespace, String name, Cluster cluster) throws Exception {
+	public ActionReturnUtil listIngressByName(String namespace, String nameList, Cluster cluster) throws Exception {
 		if (StringUtils.isEmpty(namespace)) {
 			return ActionReturnUtil.returnErrorWithMsg("没有分区");
 		}
-		if (StringUtils.isEmpty(name)) {
+		if (StringUtils.isEmpty(nameList)) {
 			return ActionReturnUtil.returnErrorWithMsg("应用名称不存在");
 		}
 		ActionReturnUtil hostRes = getEntry();
@@ -997,84 +998,93 @@ public class RouterServiceImpl implements RouterService {
 		}
 		String ip = (String) hostRes.get("data");
 		JSONArray array = new JSONArray();
-		// 获取ingress http
-		K8SURL url = new K8SURL();
-		url.setNamespace(namespace).setResource(Resource.INGRESS);// 资源类型怎么判断
-		Map<String, Object> bodys = new HashMap<String, Object>();
-		bodys.put("labelSelector", "app=" + name);
-		K8SClientResponse k = new K8SClient().doit(url, HTTPMethod.GET, null, bodys, cluster);
-		if (k.getStatus() == Constant.HTTP_404) {
-			return ActionReturnUtil.returnSuccess();
+		List<String> names = new ArrayList<>();
+		if(nameList.contains(",")){
+			String [] n = nameList.split(",");
+			names = java.util.Arrays.asList(n);
+		}else{
+			names.add(nameList);
 		}
-		if (!HttpStatusUtil.isSuccessStatus(k.getStatus()) && k.getStatus() != Constant.HTTP_404) {
-			UnversionedStatus status = JsonUtil.jsonToPojo(k.getBody(), UnversionedStatus.class);
-			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
-		}
-		IngressList ingressList = JsonUtil.jsonToPojo(k.getBody(), IngressList.class);
-		if (ingressList != null) {
-			List<Ingress> list = ingressList.getItems();
-			if (list != null && list.size() > 0) {
-				for (Ingress in : list) {
-					JSONObject json = new JSONObject();
-					json.put("name", in.getMetadata().getName());
-					json.put("type", "HTTP");
-					JSONArray ja = new JSONArray();
-					List<IngressRule> rules = in.getSpec().getRules();
-					if (rules != null && rules.size() > 0) {
-						IngressRule rule = rules.get(0);
-						HTTPIngressRuleValue http = rule.getHttp();
-						List<HTTPIngressPath> paths = http.getPaths();
-						if (paths != null && paths.size() > 0) {
-							for (HTTPIngressPath path : paths) {
-								JSONObject j = new JSONObject();
-								if (path.getBackend() != null) {
-									j.put("port", path.getBackend().getServicePort());
+		for(String name : names){
+			// 获取ingress http
+			K8SURL url = new K8SURL();
+			url.setNamespace(namespace).setResource(Resource.INGRESS);// 资源类型怎么判断
+			Map<String, Object> bodys = new HashMap<String, Object>();
+			bodys.put("labelSelector", "app=" + name);
+			K8SClientResponse k = new K8SClient().doit(url, HTTPMethod.GET, null, bodys, cluster);
+			if (k.getStatus() == Constant.HTTP_404) {
+				return ActionReturnUtil.returnSuccess();
+			}
+			if (!HttpStatusUtil.isSuccessStatus(k.getStatus()) && k.getStatus() != Constant.HTTP_404) {
+				UnversionedStatus status = JsonUtil.jsonToPojo(k.getBody(), UnversionedStatus.class);
+				return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+			}
+			IngressList ingressList = JsonUtil.jsonToPojo(k.getBody(), IngressList.class);
+			if (ingressList != null) {
+				List<Ingress> list = ingressList.getItems();
+				if (list != null && list.size() > 0) {
+					for (Ingress in : list) {
+						JSONObject json = new JSONObject();
+						json.put("name", in.getMetadata().getName());
+						json.put("type", "HTTP");
+						JSONArray ja = new JSONArray();
+						List<IngressRule> rules = in.getSpec().getRules();
+						if (rules != null && rules.size() > 0) {
+							IngressRule rule = rules.get(0);
+							HTTPIngressRuleValue http = rule.getHttp();
+							List<HTTPIngressPath> paths = http.getPaths();
+							if (paths != null && paths.size() > 0) {
+								for (HTTPIngressPath path : paths) {
+									JSONObject j = new JSONObject();
+									if (path.getBackend() != null) {
+										j.put("port", path.getBackend().getServicePort());
+									}
+									j.put("hostname", rule.getHost() + ":30888" + path.getPath());
+									j.put("ip", ip + ":30888" + path.getPath());
+									ja.add(j);
 								}
-								j.put("hostname", rule.getHost() + ":30888" + path.getPath());
-								j.put("ip", ip + ":30888" + path.getPath());
-								ja.add(j);
 							}
 						}
+						json.put("address", ja);
+						array.add(json);
 					}
-					json.put("address", ja);
-					array.add(json);
 				}
 			}
-		}
-		// 获取tcp
-		ActionReturnUtil tcpRes = svcList(namespace);
-		if (!tcpRes.isSuccess()) {
-			return tcpRes;
-		}
-		@SuppressWarnings("unchecked")
-		List<RouterSvc> routerSvcs = (List<RouterSvc>) tcpRes.get("data");
-		if (routerSvcs != null && routerSvcs.size() > 0) {
-			for (RouterSvc routerSvc : routerSvcs) {
-				if (routerSvc.getLabels() != null && routerSvc.getLabels().size() > 0) {
-					Map<String, Object> labels = routerSvc.getLabels();
-					if (labels.get("app") != null && name.equals(labels.get("app").toString())
-							&& labels.get("type") != null && "TCP".equals(labels.get("type"))) {
-						JSONObject json = new JSONObject();
-						json.put("name", routerSvc.getName());
-						json.put("type", "TCP");
-						if (routerSvc.getRules() != null) {
-							List<Integer> ports = new ArrayList<Integer>();
-							List<ServicePort> rules = routerSvc.getRules();
-							if (rules.size() > 0) {
-								JSONArray ja = new JSONArray();
-								for (ServicePort rule : rules) {
-									JSONObject j = new JSONObject();
-									j.put("port", rule.getTargetPort());
-									j.put("ip", ip + ":" + rule.getPort());
-									ja.add(j);
-									ports.add(rule.getPort());
+			// 获取tcp
+			ActionReturnUtil tcpRes = svcList(namespace);
+			if (!tcpRes.isSuccess()) {
+				return tcpRes;
+			}
+			@SuppressWarnings("unchecked")
+			List<RouterSvc> routerSvcs = (List<RouterSvc>) tcpRes.get("data");
+			if (routerSvcs != null && routerSvcs.size() > 0) {
+				for (RouterSvc routerSvc : routerSvcs) {
+					if (routerSvc.getLabels() != null && routerSvc.getLabels().size() > 0) {
+						Map<String, Object> labels = routerSvc.getLabels();
+						if (labels.get("app") != null && name.equals(labels.get("app").toString())
+								&& labels.get("type") != null && "TCP".equals(labels.get("type"))) {
+							JSONObject json = new JSONObject();
+							json.put("name", routerSvc.getName());
+							json.put("type", "TCP");
+							if (routerSvc.getRules() != null) {
+								List<Integer> ports = new ArrayList<Integer>();
+								List<ServicePort> rules = routerSvc.getRules();
+								if (rules.size() > 0) {
+									JSONArray ja = new JSONArray();
+									for (ServicePort rule : rules) {
+										JSONObject j = new JSONObject();
+										j.put("port", rule.getTargetPort());
+										j.put("ip", ip + ":" + rule.getPort());
+										ja.add(j);
+										ports.add(rule.getPort());
+									}
+									json.put("address", ja);
+									json.put("ports", ports);
 								}
-								json.put("address", ja);
-								json.put("ports", ports);
 							}
-						}
 
-						array.add(json);
+							array.add(json);
+						}
 					}
 				}
 			}
