@@ -50,7 +50,7 @@ public class K8sResultConvert {
 			Integer state = Integer.valueOf(meta.getAnnotations().get("nephele/status").toString());
 			switch (state) {
 			case 3:
-				if (dep.getStatus().getReplicas() == dep.getStatus().getAvailableReplicas()) {
+				if (dep.getSpec().getReplicas() != null && dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getReplicas() != null && dep.getStatus().getReplicas() == dep.getStatus().getAvailableReplicas() && dep.getSpec().getReplicas() == dep.getStatus().getReplicas()) {
 					appDetail.setStatus(Constant.SERVICE_START);
 				} else {
 					appDetail.setStatus(Constant.SERVICE_STARTING);
@@ -378,8 +378,8 @@ public class K8sResultConvert {
 				if (!StringUtils.isEmpty(status)) {
 					switch (Integer.valueOf(status)) {
 					case 3:
-						if (dep.getStatus().getReplicas()!=null&&dep.getStatus().getReplicas() > 0
-								&& (dep.getStatus().getAvailableReplicas() == dep.getStatus().getReplicas())) {
+						if (dep.getStatus().getReplicas()!=null && dep.getStatus().getReplicas() > 0
+								&& (dep.getStatus().getAvailableReplicas() == dep.getStatus().getReplicas()) && dep.getSpec().getReplicas() != null && dep.getSpec().getReplicas()== dep.getStatus().getReplicas()) {
 							tMap.put("status", Constant.SERVICE_START);
 						} else {
 							tMap.put("status", Constant.SERVICE_STARTING);

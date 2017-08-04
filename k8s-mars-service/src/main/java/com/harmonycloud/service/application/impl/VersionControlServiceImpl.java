@@ -277,6 +277,9 @@ public class VersionControlServiceImpl implements VersionControlService {
         	}else{
         		int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
         		updateCounts = dep.getSpec().getReplicas() - unavailableReplicas;
+        		if(updateCounts < 0){
+        			updateCounts = 0;
+        		}
         		counts.add(updateCounts);
         		counts.add(unavailableReplicas);
         	}
@@ -293,6 +296,9 @@ public class VersionControlServiceImpl implements VersionControlService {
         	}else{
         		int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
         		updateCounts = dep.getSpec().getReplicas() - unavailableReplicas;
+        		if(updateCounts < 0){
+        			updateCounts = 0;
+        		}
         		counts.add(updateCounts);
         		counts.add(0);
         	}
