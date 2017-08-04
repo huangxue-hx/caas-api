@@ -194,4 +194,8 @@
         DELETE FROM cicd_stage where id = #{id}
     </delete>
 
+    <delete id="deleteStageByJob" parameterType="java.lang.Integer">
+        DELETE FROM cicd_stage where job_id = #{id}
+    </delete>
+
 </mapper>
