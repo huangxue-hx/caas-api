@@ -31,6 +31,7 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.util.SystemOutLogger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -181,6 +182,7 @@ public class UserService {
                         String MD5password = StringUtil.convertToMD5(user.getPassword());
                         user.setPassword(MD5password);
                         user.setId(Long.valueOf(harborUId));
+                        user.setUuid(Long.valueOf(harborUId));
                         user.setCreateTime(new Date());
                         user.setPause(CommonConstant.NORMAL);
                         userMapper.addUser(user);
@@ -1012,13 +1014,21 @@ public class UserService {
             for (User user : users) {
                 String k8s = user.getUsername();
                 if (harbor.equals(k8s)) {
+                    UserGroupRelationExample ugr = new UserGroupRelationExample();
+                    ugr.createCriteria().andUseridEqualTo(user.getId());
                     UserShowDto u = new UserShowDto();
+                    if(null != usergrouprelationMapper.selectByExample(ugr) && usergrouprelationMapper.selectByExample(ugr).size()>0){
+                        int groupid = usergrouprelationMapper.selectByExample(ugr).get(0).getGroupid();
+                        String groupname = usergroupMapper.selectByPrimaryKey(groupid).getGroupname();
+                        u.setGroupName(groupname);
+                    }
                     u.setIsTm(user.getIsAdmin() == 1);
                     u.setName(user.getUsername());
                     u.setNikeName(user.getRealName());
                     u.setEmail(user.getEmail());
                     u.setComment(user.getComment());
                     u.setPause(user.getPause());
+                    u.setPhone(user.getPhone());
                     Date createTime = user.getCreateTime();
                     String date = DateUtil.DateToString(createTime, DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z);
                     u.setCreateTime(date);
@@ -1486,6 +1496,65 @@ public class UserService {
             users.add(user);
         }
         return users;
+    }
+
+    /**
+     * 根据用户名获取群组详情
+     *
+     * @param username
+     * @return ActionReturnUtil
+     */
+
+    public ActionReturnUtil searchGroupByUsername(String username) throws Exception{
+        if(username == null){
+            return ActionReturnUtil.returnErrorWithData("用户名不能为空!");
+        }
+        //根据传入的username模糊查询用户，获取list<uuid>
+        List<User> users = userMapperNew.selectLikeUsername(username);
+        //判断是否存在user用户
+        if(users.size() == 0 || null == users){
+            return ActionReturnUtil.returnSuccessWithData(null);
+        }
+        //定义反馈的群组信息
+        List<UserGroup> ls = new ArrayList<UserGroup>();
+        boolean flag;
+        //遍历List<user>
+        for(int i=0;i<users.size();i++){
+            flag = false;
+            //根据传入的user获取所属群组信息
+            Long uuid = users.get(i).getUuid();
+            UserGroupRelationExample ugr = new UserGroupRelationExample();
+            ugr.createCriteria().andUseridEqualTo(uuid);
+            List<UserGroupRelation> usergrouprelations = usergrouprelationMapper.selectByExample(ugr);
+            //如果用户没有分配群组，则跳过进入下一个用户
+            if(usergrouprelations.size() == 0){
+                break;
+            }
+            //一人只属于一群组，直接get(0)
+            UserGroupRelation usergrouprelation = usergrouprelationMapper.selectByExample(ugr).get(0);
+            //此时获取当前用户所属群组
+            int groupid = usergrouprelation.getGroupid();
+            UserGroup usergroup = usergroupMapper.selectByPrimaryKey(groupid);
+            //遍历反馈的信息，如果用户群组一样，那么在当前群组里面插入到List<User>的属性中，如果没有找到，那么整个插入新增的一条数据
+            for(int j=0;j<ls.size();j++){
+                //判断群组是否已存在list中，在则添加到当前群组的List<User>属性中，并结束内层for循环。
+                if(usergroup.getGroupname() == ls.get(j).getGroupname()){
+
+                    ls.get(j).getUsers().add(users.get(i));
+                    flag = true;
+                    break;
+                }
+            }
+            if(flag){
+                continue;
+            }
+            //如果当前list中无此群组信息，则加入
+            List<User> listusers = new ArrayList<User>();
+            listusers.add(users.get(i));
+            usergroup.setUsers(listusers);
+            ls.add(usergroup);
+        }
+        return ActionReturnUtil.returnSuccessWithData(ls);
     }
 
     /**
