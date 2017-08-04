@@ -2,7 +2,11 @@ package com.harmonycloud.service.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.Event;
 import com.harmonycloud.k8s.bean.EventList;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * 
@@ -18,5 +22,9 @@ public interface EventService {
 	public ActionReturnUtil listenEvents() throws Exception;
 
 	public EventList getEvents(String name, String namespace, String type, Cluster cluster) throws Exception;
+
+	EventList getEvents(Map<String, String> fieldSelector, Cluster cluster) throws Exception;
+
+	Map<String,List<Event>> getNodeRestartEvents() throws Exception;
 
 }
