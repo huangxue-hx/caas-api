@@ -15,6 +15,7 @@ def clearTemplateNames() {
 try{
 <#list stageList as stage>
 <#if stage.stageTemplateType == 0>
+<#assign checkout=true>
 <#if stage.stageOrder != 1>
     }
 }
@@ -94,7 +95,7 @@ podTemplate(
         }
         //httpRequest "${apiUrl!}/rest/openapi/cicd/stageSync?id=${stage.id!}&amp;buildNum=${r'${currentBuild.number}'}"
 </#list>
-<#if (stageList?size>0) >
+<#if (stageList?size>0 && checkout??)>
     }
 }
 </#if>

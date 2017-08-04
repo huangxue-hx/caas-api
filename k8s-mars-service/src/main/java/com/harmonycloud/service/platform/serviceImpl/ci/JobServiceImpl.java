@@ -332,6 +332,7 @@ public class JobServiceImpl implements JobService {
         job.put("jobName", dbJob.getName());
         job.put("tenant", dbJob.getTenant());
         String jenkinsJobName = dbJob.getTenant() + "_" + dbJob.getName();
+        Integer buildNum = null;
         ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/lastBuild/api/json", null, null, false);
         List<Map> jenkinsStageMap = new ArrayList<>();
         if(result.isSuccess()){
@@ -343,12 +344,14 @@ public class JobServiceImpl implements JobService {
             }
             job.put("lastBuildDuration", map.get("duration"));
             job.put("lastBuildTime", new Timestamp((Long)map.get("timestamp")));
+            buildNum = (Integer)map.get("number");
             jenkinsStageMap = stageService.getStageBuildFromJenkins(dbJob, 0);
         }else{
             job.put("lastBuildStatus", "NOTBUILT");
             job.put("lastBuildDuration", null);
             job.put("lastBuildTime", null);
         }
+        job.put("buildNum", buildNum);
 
 
 /*
@@ -450,6 +453,7 @@ public class JobServiceImpl implements JobService {
                 stageMap.put("lastBuildTime", null);
                 stageMap.put("lastBuildDuration", null);
             }
+            stageMap.put("buildNum", buildNum);
             //StageBuild stageBuild = (StageBuild)stageBuildMap.get(stage.getId());
 //            if(stageBuild == null){
 //                stageMap.put("lastBuildStatus", "NOTBUILT");
@@ -817,7 +821,6 @@ public class JobServiceImpl implements JobService {
 
     @Override
     public void deploy(Integer stageId, Integer buildNum) throws Exception{
-        //String userName = (String) session.getAttribute("username");
         Stage stage = stageMapper.queryById(stageId);
         Job job = jobMapper.queryById(stage.getJobId());
         Cluster cluster = null;
@@ -858,14 +861,16 @@ public class JobServiceImpl implements JobService {
                 createResourceDto.setMemory((String)containerOfPodDetail.getResource().get("memory"));
                 updateContainer.setResource(createResourceDto);
                 List<CreateEnvDto> envList = new ArrayList<>();
-                for(EnvVar envVar:containerOfPodDetail.getEnv()){
-                    CreateEnvDto createEnvDto = new CreateEnvDto();
-                    createEnvDto.setKey(envVar.getName());
-                    createEnvDto.setName(envVar.getName());
-                    createEnvDto.setValue(envVar.getValue());
-                    envList.add(createEnvDto);
+                if(containerOfPodDetail.getEnv() != null) {
+                    for (EnvVar envVar : containerOfPodDetail.getEnv()) {
+                        CreateEnvDto createEnvDto = new CreateEnvDto();
+                        createEnvDto.setKey(envVar.getName());
+                        createEnvDto.setName(envVar.getName());
+                        createEnvDto.setValue(envVar.getValue());
+                        envList.add(createEnvDto);
+                    }
+                    updateContainer.setEnv(envList);
                 }
-                updateContainer.setEnv(envList);
                 List<CreatePortDto> portList = new ArrayList<>();
                 for(ContainerPort containerPort :containerOfPodDetail.getPorts()){
                     CreatePortDto createPortDto = new CreatePortDto();
@@ -877,60 +882,66 @@ public class JobServiceImpl implements JobService {
                 updateContainer.setPorts(portList);
                 List<UpdateVolume> updateVolumnList = new ArrayList<>();
                 List<CreateConfigMapDto> configMaplist = new ArrayList<>();
-                for(VolumeMountExt volumeMountExt : containerOfPodDetail.getStorage()){
-                    if("logDir".equals(volumeMountExt.getType())){
-                        LogVolume logVolumn = new LogVolume();
-                        logVolumn.setName(volumeMountExt.getName());
-                        logVolumn.setMountPath(volumeMountExt.getMountPath());
-                        logVolumn.setReadOnly(volumeMountExt.getReadOnly().toString());
-                        logVolumn.setType(volumeMountExt.getType());
+                if(containerOfPodDetail.getStorage() != null) {
+                    for (VolumeMountExt volumeMountExt : containerOfPodDetail.getStorage()) {
+                        if ("logDir".equals(volumeMountExt.getType())) {
+                            LogVolume logVolumn = new LogVolume();
+                            logVolumn.setName(volumeMountExt.getName());
+                            logVolumn.setMountPath(volumeMountExt.getMountPath());
+                            logVolumn.setReadOnly(volumeMountExt.getReadOnly().toString());
+                            logVolumn.setType(volumeMountExt.getType());
 
-                        updateContainer.setLog(logVolumn);
-                    }else if("nfs".equals(volumeMountExt.getType()) || "emptyDir".equals(volumeMountExt.getType()) || "hostPath".equals(volumeMountExt.getType())){
-                        UpdateVolume updateVolume = new UpdateVolume();
-                        updateVolume.setType(volumeMountExt.getType());
-                        updateVolume.setReadOnly(volumeMountExt.getReadOnly().toString());
-                        updateVolume.setMountPath(volumeMountExt.getMountPath());
-                        updateVolume.setName(volumeMountExt.getName());
-                        updateVolume.setEmptyDir(volumeMountExt.getEmptyDir());
-                        updateVolume.setHostPath(volumeMountExt.getHostPath());
-                        updateVolume.setRevision(volumeMountExt.getRevision());
-                        updateVolume.setSubPath(volumeMountExt.getSubPath());
-                        if("nfs".equals(volumeMountExt.getType())){
-                            updateVolume.setPvcBindOne("true");
-                            updateVolume.setPvcTenantid(job.getTenantId());
-                            updateVolume.setPvcName(updateVolume.getName());
-                            ActionReturnUtil result = businessDeployService.selectPv(job.getTenantId(), null, 1);
-                            if(result.isSuccess()){
-                                JSONArray array = (JSONArray)result.get("data");
-                                List<PvDto> pvDtoList = JsonUtil.jsonToList(array.toString(), PvDto.class);
-                                for(PvDto pvDto : pvDtoList){
-                                    if(volumeMountExt.getName().split("-")[0].equals(pvDto.getName())){
-                                        updateVolume.setPvcCapacity(pvDto.getCapacity());
-                                        break;
+                            updateContainer.setLog(logVolumn);
+                        } else if ("nfs".equals(volumeMountExt.getType()) || "emptyDir".equals(volumeMountExt.getType()) || "hostPath".equals(volumeMountExt.getType())) {
+                            UpdateVolume updateVolume = new UpdateVolume();
+                            updateVolume.setType(volumeMountExt.getType());
+                            updateVolume.setReadOnly(volumeMountExt.getReadOnly().toString());
+                            updateVolume.setMountPath(volumeMountExt.getMountPath());
+                            updateVolume.setName(volumeMountExt.getName());
+                            updateVolume.setEmptyDir(volumeMountExt.getEmptyDir());
+                            updateVolume.setHostPath(volumeMountExt.getHostPath());
+                            updateVolume.setRevision(volumeMountExt.getRevision());
+                            updateVolume.setSubPath(volumeMountExt.getSubPath());
+                            if ("nfs".equals(volumeMountExt.getType())) {
+                                updateVolume.setPvcBindOne("true");
+                                updateVolume.setPvcTenantid(job.getTenantId());
+                                updateVolume.setPvcName(updateVolume.getName());
+                                ActionReturnUtil result = businessDeployService.selectPv(job.getTenantId(), null, 1);
+                                if (result.isSuccess()) {
+                                    JSONArray array = (JSONArray) result.get("data");
+                                    List<PvDto> pvDtoList = JsonUtil.jsonToList(array.toString(), PvDto.class);
+                                    for (PvDto pvDto : pvDtoList) {
+                                        if (volumeMountExt.getName().split("-")[0].equals(pvDto.getName())) {
+                                            updateVolume.setPvcCapacity(pvDto.getCapacity());
+                                            break;
+                                        }
                                     }
                                 }
                             }
+                            updateVolumnList.add(updateVolume);
+                        } else if ("configMap".equals(volumeMountExt.getType())) {
+                            CreateConfigMapDto configMap = new CreateConfigMapDto();
+                            configMap.setPath(volumeMountExt.getMountPath());
+                            if (volumeMountExt.getName() != null && volumeMountExt.getName().lastIndexOf("v") > 0) {
+                                configMap.setTag(volumeMountExt.getName().substring(volumeMountExt.getName().lastIndexOf("v") + 1).replace("-", "."));
+                                configMap.setFile(volumeMountExt.getName().substring(0, volumeMountExt.getName().lastIndexOf("v")));
+                            }
+                            ActionReturnUtil configMapResult = configMapService.getConfigMapByName(stage.getNamespace(), volumeMountExt.getConfigMapName(), null, cluster);
+                            if (configMapResult.isSuccess()) {
+                                ConfigMap config = (ConfigMap) configMapResult.get("data");
+                                Map data = (Map) config.getData();
+                                configMap.setValue((String) data.get(volumeMountExt.getName().replace("-", ".")));
+                            }
+                            configMaplist.add(configMap);
                         }
-                        updateVolumnList.add(updateVolume);
-                    }else if("configMap".equals(volumeMountExt.getType())){
-                        CreateConfigMapDto configMap = new CreateConfigMapDto();
-                        configMap.setPath(volumeMountExt.getMountPath());
-                        if(volumeMountExt.getName() != null && volumeMountExt.getName().lastIndexOf("v")>0){
-                            configMap.setTag(volumeMountExt.getName().substring(volumeMountExt.getName().lastIndexOf("v") + 1).replace("-", "."));
-                            configMap.setFile(volumeMountExt.getName().substring(0,volumeMountExt.getName().lastIndexOf("v")));
-                        }
-                        ActionReturnUtil configMapResult = configMapService.getConfigMapByName(stage.getNamespace(), volumeMountExt.getConfigMapName(), null, cluster);
-                        if(configMapResult.isSuccess()) {
-                            ConfigMap config = (ConfigMap)configMapResult.get("data");
-                            Map data = (Map)config.getData();
-                            configMap.setValue((String)data.get(volumeMountExt.getName().replace("-",".")));
-                        }
-                        configMaplist.add(configMap);
                     }
                 }
                 updateContainer.setStorage(updateVolumnList);
                 updateContainer.setConfigmap(configMaplist);
+
+                if(updateContainer.getLog() == null){
+                    updateContainer.setLog(new LogVolume());
+                }
 
                 if(stage.getContainerName().equals(containerOfPodDetail.getName())){
                     updateContainer.setImg(stageBuild.getImage());
@@ -1056,7 +1067,7 @@ public class JobServiceImpl implements JobService {
             StageDto stageDto = new StageDto();
             stageDto.convertFromBean(stage);
             Map stageMap = new LinkedHashMap<>();
-            stageMap.put("name", stage.getStageTypeId());
+            stageMap.put("name", stage.getStageName());
             stageMap.put("type", stage.getStageTypeId());
 
             if(StageTemplateTypeEnum.CODECHECKOUT.ordinal() == stage.getStageTemplateType()){
@@ -1080,7 +1091,7 @@ public class JobServiceImpl implements JobService {
                     stageMap.put("DockerfileId", stage.getDockerfileId());
                 }
                 stageMap.put("image", stage.getImageName());
-                stageMap.put("imageTagType", stage.getImageTagType());
+                stageMap.put("imageTagType", Integer.valueOf(stage.getImageTagType()));
                 if("2".equals(stage.getImageTagType())) {
                     stageMap.put("customTag", stage.getImageTag());
                 }
@@ -1095,8 +1106,9 @@ public class JobServiceImpl implements JobService {
                 stageMap.put("service",stage.getServiceName());
                 stageMap.put("container",stage.getContainerName());
             }
-
-            stageMap.put("command", stageDto.getCommand());
+            if(stageDto.getCommand().size()>0) {
+                stageMap.put("command", stageDto.getCommand());
+            }
             stages.add(stageMap);
         }
         jobMap.put("stages", stages);
@@ -1435,12 +1447,5 @@ public class JobServiceImpl implements JobService {
 
 
     }
-/*
-    private static class SystemOutCallback implements Callback<byte[]> {
-        @Override
-        public void call(byte[] data) {
-            System.out.print(new String(data));
-        }
-    }
-*/
+
 }
