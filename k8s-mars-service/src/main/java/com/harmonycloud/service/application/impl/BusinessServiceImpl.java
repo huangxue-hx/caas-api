@@ -234,6 +234,8 @@ public class BusinessServiceImpl implements BusinessService {
         	businessTemplates = businessTemplatesMapper.getBusinessTemplatesByName(businessTemplate.getName());
             if (businessTemplates != null && !businessTemplates.getTenant().equals(businessTemplate.getTenant())) {
                 return ActionReturnUtil.returnErrorWithMsg(businessTemplate.getName() + " is existed");
+            }else{
+            	businessTemplates = new BusinessTemplates();
             }
             double bttag = Constant.TEMPLATE_TAG;
             // application templates version control
