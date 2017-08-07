@@ -1156,23 +1156,41 @@ public class K8sResultConvert {
 			List<VolumeMountExt> vExts = new ArrayList<VolumeMountExt>();
 			for (VolumeMount vMount : c.getVolumeMounts()) {
 				for (Volume volume : pod.getSpec().getVolumes()) {
-					VolumeMountExt ext = new VolumeMountExt();
-					ext.setName(vMount.getName());
-					ext.setReadOnly(vMount.getReadOnly());
-					ext.setMountPath(vMount.getMountPath());
-					ext.setSubPath(vMount.getSubPath());
-					vExts.add(ext);
 					if (vMount.getName().equals(volume.getName())) {
+						VolumeMountExt vmExt = new VolumeMountExt(vMount.getName(), vMount.getReadOnly(), vMount.getMountPath(),
+								vMount.getSubPath());
 						if (volume.getSecret() != null) {
-							ext.setType(Constant.TYPE_SECRET);
-						} else if(volume.getPersistentVolumeClaim() != null) {
-							ext.setType(Constant.TYPE_PV);
-						} else if(volume.getGitRepo() != null){
-							ext.setType(Constant.TYPE_GIT);
-							ext.setGitUrl(volume.getGitRepo().getRepository());
-							ext.setRevision(volume.getGitRepo().getRevision());
+							vmExt.setType("secret");
+						} else if (volume.getPersistentVolumeClaim() != null) {
+							vmExt.setType("nfs");
+						} else if (volume.getEmptyDir() != null) {
+							vmExt.setType("emptyDir");
+							if(volume.getEmptyDir() != null){
+								vmExt.setEmptyDir(volume.getEmptyDir().getMedium());
+							}else{
+								vmExt.setEmptyDir(null);
+							}
+
+							if (vMount.getName().indexOf("logdir") == 0) {
+								vmExt.setType("logDir");
+							}
+						} else if (volume.getConfigMap() != null) {
+							Map<String, Object> configMap = new HashMap<String, Object>();
+							configMap.put("name", volume.getConfigMap().getName());
+							configMap.put("path", vMount.getMountPath());
+							vmExt.setType("configMap");
+							vmExt.setConfigMapName(volume.getConfigMap().getName());
+						}else if (volume.getHostPath() != null) {
+							vmExt.setType("hostPath");
+							vmExt.setHostPath(volume.getHostPath().getPath());
+							if (vMount.getName().indexOf("logdir") == 0) {
+								vmExt.setType("logDir");
+							}
 						}
-						vExts.add(ext);
+						if (vmExt.getReadOnly() == null) {
+							vmExt.setReadOnly(false);
+						}
+						vExts.add(vmExt);
 						break;
 					}
 				}
