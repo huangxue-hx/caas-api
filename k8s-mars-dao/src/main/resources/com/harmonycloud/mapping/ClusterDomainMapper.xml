@@ -10,7 +10,6 @@
   	
   	 <update id="updateDomain" parameterType="java.lang.String">
     update cluster_domain SET domain = #{domain}
-    WHERE id=1
   </update>
   	
   	  <select id="find"  resultMap="ClusterDomain">
