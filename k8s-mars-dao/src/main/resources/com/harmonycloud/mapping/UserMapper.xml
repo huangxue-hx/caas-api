@@ -15,6 +15,7 @@
     <result column="isMachine" property="ismachine" jdbcType="BIT" />
     <result column="comment" property="comment" jdbcType="VARCHAR" />
     <result column="pause" property="pause" jdbcType="VARCHAR" />
+    <result column="phone" property="phone" jdbcType="VARCHAR" />
   </resultMap>
   <sql id="Example_Where_Clause" >
     <where >
@@ -47,8 +48,13 @@
   </sql>
   <sql id="Base_Column_List" >
     uuid, username, password, token, create_time, token_create, isAdmin, update_time, 
-    email, real_name, isMachine, comment, pause
+    email, real_name, isMachine, comment, pause,phone
   </sql>
+  <select id="selectLikeUsername" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.user.bean.User" >
+    select
+    *
+    from user where username like concat(concat('%',#{username},'%'))
+  </select>
   <select id="selectByExample" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.user.bean.UserExample" >
     select
     <if test="distinct" >
@@ -85,12 +91,12 @@
       token, create_time, token_create, 
       isAdmin, update_time, email, 
       real_name, isMachine, comment, 
-      pause)
+      pause,phone)
     values (#{uuid,jdbcType=BIGINT}, #{username,jdbcType=VARCHAR}, #{password,jdbcType=VARCHAR}, 
       #{token,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{tokenCreate,jdbcType=TIMESTAMP}, 
       #{isadmin,jdbcType=BIT}, #{updateTime,jdbcType=TIMESTAMP}, #{email,jdbcType=VARCHAR}, 
       #{realName,jdbcType=VARCHAR}, #{ismachine,jdbcType=BIT}, #{comment,jdbcType=VARCHAR}, 
-      #{pause,jdbcType=VARCHAR})
+      #{pause,jdbcType=VARCHAR},#{phone,jdbcType=VARCHAR})
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.user.bean.User" >
     insert into user
@@ -134,6 +140,9 @@
       <if test="pause != null" >
         pause,
       </if>
+      <if test="phone != null">
+        phone,
+      </if>
     </trim>
     <trim prefix="values (" suffix=")" suffixOverrides="," >
       <if test="uuid != null" >
@@ -174,6 +183,9 @@
       </if>
       <if test="pause != null" >
         #{pause,jdbcType=VARCHAR},
+      </if>
+      <if test="phone != null">
+        #{phone,jdbcType=VARCHAR},
       </if>
     </trim>
   </insert>
@@ -216,6 +228,9 @@
       <if test="pause != null" >
         pause = #{pause,jdbcType=VARCHAR},
       </if>
+      <if test="phone != null" >
+        phone = #{phone,jdbcType=VARCHAR},
+      </if>
     </set>
     where uuid = #{uuid,jdbcType=BIGINT}
   </update>
@@ -232,7 +247,8 @@
       real_name = #{realName,jdbcType=VARCHAR},
       isMachine = #{ismachine,jdbcType=BIT},
       comment = #{comment,jdbcType=VARCHAR},
-      pause = #{pause,jdbcType=VARCHAR}
+      pause = #{pause,jdbcType=VARCHAR},
+      phone = #{phone,jdbcType=VARCHAR}
     where uuid = #{uuid,jdbcType=BIGINT}
   </update>
 </mapper>

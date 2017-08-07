@@ -73,6 +73,7 @@ public class UserController {
 
     @Autowired
     ClusterService clusterService;
+
     /**
      * 新增用户
      * 
@@ -603,6 +604,11 @@ public class UserController {
     public @ResponseBody ActionReturnUtil search_group_username(@RequestParam("username") String username) throws Exception {
         UserGroup usergroup = userService.search_group_username(username);
         return ActionReturnUtil.returnSuccessWithData(usergroup);
+    }
+
+    @RequestMapping(value = "/user/group/searchGroupbyUsername", method = RequestMethod.GET)
+    public @ResponseBody ActionReturnUtil searchGroupbyUsername(@RequestParam("username") String username) throws Exception {
+        return userService.searchGroupByUsername(username);
     }
 
     @RequestMapping(value = "/user/group/search_users_groupname", method = RequestMethod.GET)

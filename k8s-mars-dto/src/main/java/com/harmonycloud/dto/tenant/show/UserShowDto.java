@@ -27,6 +27,11 @@ public class UserShowDto {
     
     private String pause;
 
+    private String phone;
+
+
+    private String groupName;
+
     public Long getId() {
         return id;
     }
@@ -97,5 +102,21 @@ public class UserShowDto {
 
     public void setComment(String comment) {
         this.comment = comment;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getGroupName() {
+        return groupName;
+    }
+
+    public void setGroupName(String groupName) {
+        this.groupName = groupName;
     }
 }
