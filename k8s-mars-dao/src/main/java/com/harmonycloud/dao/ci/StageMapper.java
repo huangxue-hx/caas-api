@@ -13,6 +13,7 @@ public interface StageMapper {
     void insertStage(Stage Stage);
 
     void deleteStage(Integer id);
+    void deleteStageByJob(Integer id);
 
     void increaseStageOrder(@Param("jobId") Integer jobId, @Param("stageOrder") Integer stageOrder);
     void decreaseStageOrder(@Param("jobId") Integer jobId, @Param("stageOrder") Integer stageOrder);

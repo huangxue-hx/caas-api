@@ -55,6 +55,9 @@ public class StageServiceImpl implements StageService {
     @Autowired
     JobService jobService;
 
+    @Autowired
+    DockerFileJobStageMapper dockerFileJobStageMapper;
+
     @Value("#{propertiesReader['api.url']}")
     private String apiUrl;
 
@@ -71,6 +74,13 @@ public class StageServiceImpl implements StageService {
 
         if(StageTemplateTypeEnum.CODECHECKOUT.ordinal() == stageDto.getStageTemplateType()){
             createOrUpdateCredential(stage);
+        }
+        if(StageTemplateTypeEnum.IMAGEBUILD.ordinal() == stageDto.getStageTemplateType() && DockerfileTypeEnum.PLATFORM.ordinal() == stageDto.getDockerfileType()){
+            DockerFileJobStage dockerFileJobStage = new DockerFileJobStage();
+            dockerFileJobStage.setStageId(stage.getId());
+            dockerFileJobStage.setJobId(stage.getJobId());
+            dockerFileJobStage.setDockerFileId(stageDto.getDockerfileId());
+            dockerFileJobStageMapper.insertDockerFileJobStage(dockerFileJobStage);
         }
         Job job = jobMapper.queryById(stageDto.getJobId());
         String jenkinsJobName = job.getTenant() + "_" + job.getName();
@@ -97,6 +107,14 @@ public class StageServiceImpl implements StageService {
         if(StageTemplateTypeEnum.CODECHECKOUT.ordinal() == stageDto.getStageTemplateType()) {
             createOrUpdateCredential(stage);
         }
+        dockerFileJobStageMapper.deleteDockerFileByStageId(stage.getId());
+        if(StageTemplateTypeEnum.IMAGEBUILD.ordinal() == stageDto.getStageTemplateType() && DockerfileTypeEnum.PLATFORM.ordinal() == stageDto.getDockerfileType()){
+            DockerFileJobStage dockerFileJobStage = new DockerFileJobStage();
+            dockerFileJobStage.setStageId(stage.getId());
+            dockerFileJobStage.setJobId(stage.getJobId());
+            dockerFileJobStage.setDockerFileId(stageDto.getDockerfileId());
+            dockerFileJobStageMapper.insertDockerFileJobStage(dockerFileJobStage);
+        }
         Job job = jobMapper.queryById(stageDto.getJobId());
         String jenkinsJobName = job.getTenant() + "_" + job.getName();
         String body = generateJobBody(job);
@@ -109,6 +127,7 @@ public class StageServiceImpl implements StageService {
         Stage stage = stageMapper.queryById(id);
         stageMapper.deleteStage(id);
         stageMapper.decreaseStageOrder(stage.getJobId(), stage.getStageOrder());
+        dockerFileJobStageMapper.deleteDockerFileByStageId(id);
         if(StageTemplateTypeEnum.CODECHECKOUT.ordinal() == stage.getStageTemplateType()) {
             deleteCredentials(stage);
         }
@@ -172,6 +191,7 @@ public class StageServiceImpl implements StageService {
         List<StageBuild> stageBuildList = stageBuildMapper.queryByObject(stageBuildCondition);
         for(StageBuild stageBuild:stageBuildList) {
             Map stageBuildMap = new HashMap<>();
+            stageBuildMap.put("name", stageBuild.getStageName());
             stageBuildMap.put("buildStatus", stageBuild.getStatus());
             stageBuildMap.put("buildNum", stageBuild.getBuildNum());
             stageBuildMap.put("buildTime", stageBuild.getStartTime());

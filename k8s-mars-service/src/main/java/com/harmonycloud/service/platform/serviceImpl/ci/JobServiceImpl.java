@@ -117,6 +117,9 @@ public class JobServiceImpl implements JobService {
     @Autowired
     ConfigMapService configMapService;
 
+    @Autowired
+    DockerFileJobStageMapper dockerFileJobStageMapper;
+
     @Value("#{propertiesReader['web.url']}")
     private String webUrl;
 
@@ -197,6 +200,8 @@ public class JobServiceImpl implements JobService {
         }
         String jenkinsJobName = job.getTenant() + "_" + job.getName();
         jobMapper.deleteJobById(id);
+        stageMapper.deleteStageByJob(id);
+        dockerFileJobStageMapper.deleteDockerFileByJobId(id);
         ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/doDelete", null, null, null, 302);
         if (!result.isSuccess()) {
             throw new Exception("删除失败。");
@@ -987,21 +992,28 @@ public class JobServiceImpl implements JobService {
                     int i = 0;
                     List stageList = new ArrayList<>();
                     for (Map stage : stages) {
-                        i++;
                         Map stageMap = new HashMap<>();
                         stageMap.put("lastBuildStatus", convertStatus((String)stage.get("status")));
                         stageMap.put("lastBuildDuration", String.valueOf(stage.get("durationMillis")));
                         stageMap.put("lastBuildTime", new Timestamp((Long) stage.get("startTimeMillis")));
+                        if(dbStageList.get(i) != null){
+                            stageMap.put("stageId", dbStageList.get(i).getId());
+                        }
+                        i++;
                         stageMap.put("stageOrder", i);
                         stageList.add(stageMap);
                         currentStatus.append(convertStatus((String)stage.get("status")));
                     }
                     while(stageList.size()<stageCount){
                         Map stageMap = new HashMap<>();
+                        if(dbStageList.get(i) != null){
+                            stageMap.put("stageId", dbStageList.get(i).getId());
+                        }
                         stageMap.put("lastBuildStatus", Constant.PIPELINE_STATUS_INPROGRESS.equals(jobStatus)?Constant.PIPELINE_STATUS_WAITING:Constant.PIPELINE_STATUS_NOTBUILT);
                         stageMap.put("stageOrder", stageList.size()+1);
                         stageList.add(stageMap);
                         currentStatus.append((String)stageMap.get("lastBuildStatus"));
+                        i++;
                     }
 
 
