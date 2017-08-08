@@ -389,7 +389,13 @@ public class TenantController {
     public ActionReturnUtil addUser(@RequestParam(value = "tenantid") String tenantid, @RequestParam(value = "username") String username, @RequestParam(value = "role") String role)
             throws Exception {
         logger.info("向tenant增加用户");
-        return this.tenantService.addTenantUser(tenantid, username, role);
+        String[] users = username.split(",");
+        if(users.length>=1){
+            for (String name : users) {
+                this.tenantService.addTenantUser(tenantid, name, role);
+            }
+        }
+        return ActionReturnUtil.returnSuccess();
     }
     /**
      * 向tenant移除用户
