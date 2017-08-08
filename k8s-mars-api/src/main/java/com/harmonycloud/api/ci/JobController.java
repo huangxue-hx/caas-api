@@ -105,9 +105,9 @@ public class JobController {
 
     @RequestMapping(value = "/build", method = RequestMethod.DELETE)
     @ResponseBody
-    public ActionReturnUtil deleteBuild(@RequestParam(value="name") String jobName, @RequestParam(value="tenant") String tenantName, @RequestParam(value="buildNum") String buildNum){
+    public ActionReturnUtil deleteBuild(@RequestParam(value="id") Integer id, @RequestParam(value="buildNum") String buildNum) throws Exception {
         logger.info("delete build.");
-        return jobService.deleteBuild(jobName, tenantName, buildNum);
+        return jobService.deleteBuild(id, buildNum);
     }
 
     @RequestMapping(value = "/credentialsValidate", method = RequestMethod.GET)

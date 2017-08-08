@@ -15,4 +15,6 @@ public interface StageBuildMapper {
     void updateWaitingStage(@Param("jobId")Integer jobId, @Param("buildNum")Integer buildNum);
 
     void updateByStageOrderAndBuildNum(@Param("stageBuild")StageBuild stageBuild);
+
+    void deleteByJobId(Integer id);
 }

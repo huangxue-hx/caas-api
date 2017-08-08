@@ -13,4 +13,6 @@ public interface JobBuildMapper {
     void insert(JobBuild jobBuild);
 
     void update(JobBuild jobBuild);
+
+    void deleteByJobId(Integer id);
 }

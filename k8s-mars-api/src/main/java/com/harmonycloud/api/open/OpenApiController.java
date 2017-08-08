@@ -126,6 +126,12 @@ public class OpenApiController {
 		}
 	}
 
+    @RequestMapping(value = "/cicd/preBuild", method = RequestMethod.GET)
+    public ResponseEntity preBuild(@RequestParam(value = "id")Integer id, @RequestParam(value = "buildNum")Integer buildNum, @RequestParam(value="dateTime")String dateTime){
+        jobService.preBuild(id, buildNum, dateTime);
+        return new ResponseEntity(HttpStatus.OK);
+    }
+
     @RequestMapping(value = "/cicd/postBuild", method = RequestMethod.GET)
     public ResponseEntity postBuild(@RequestParam(value = "id")Integer id, @RequestParam(value = "buildNum")Integer buildNum){
         jobService.postBuild(id, buildNum);
@@ -143,7 +149,7 @@ public class OpenApiController {
         try {
             jobService.deploy(stageId, buildNum);
         } catch (Exception e) {
-            return new ResponseEntity("fail",HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity(e.getMessage(),HttpStatus.INTERNAL_SERVER_ERROR);
         }
         return new ResponseEntity(HttpStatus.OK);
     }

@@ -34,6 +34,8 @@
         log = #{log}
         WHERE id = #{id}
     </update>
-
+    <delete id="deleteByJobId" parameterType="java.lang.Integer">
+        DELETE FROM cicd_job_build WHERE id=#{id}
+    </delete>
 
 </mapper>

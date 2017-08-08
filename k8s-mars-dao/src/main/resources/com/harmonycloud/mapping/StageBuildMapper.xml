@@ -37,6 +37,9 @@
         duration = #{stageBuild.duration},
         status = #{stageBuild.status},
         log = #{stageBuild.log}
+        <if test="stageBuild.image!=null and stageBuild.image !=''">
+        ,image=#{stageBuild.image}
+        </if>
         WHERE stage_order = #{stageBuild.stageOrder}
         AND build_num = #{stageBuild.buildNum}
     </update>
@@ -48,4 +51,9 @@
         AND build_num = #{buildNum}
         AND status = 'WAITING'
     </update>
+
+    <delete id="deleteByJobId" parameterType="java.lang.Integer">
+        DELETE FROM cicd_stage_build
+        WHERE job_id=#{id}
+    </delete>
 </mapper>

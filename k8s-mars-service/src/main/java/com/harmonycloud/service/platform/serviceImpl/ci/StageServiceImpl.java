@@ -82,10 +82,7 @@ public class StageServiceImpl implements StageService {
             dockerFileJobStage.setDockerFileId(stageDto.getDockerfileId());
             dockerFileJobStageMapper.insertDockerFileJobStage(dockerFileJobStage);
         }
-        Job job = jobMapper.queryById(stageDto.getJobId());
-        String jenkinsJobName = job.getTenant() + "_" + job.getName();
-        String body = generateJobBody(job);
-        ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
+        ActionReturnUtil result = updateJenkinsJob(stageDto.getJobId());
         if(!result.isSuccess()){
             throw new Exception("创建步骤失败。");
         }
@@ -115,10 +112,7 @@ public class StageServiceImpl implements StageService {
             dockerFileJobStage.setDockerFileId(stageDto.getDockerfileId());
             dockerFileJobStageMapper.insertDockerFileJobStage(dockerFileJobStage);
         }
-        Job job = jobMapper.queryById(stageDto.getJobId());
-        String jenkinsJobName = job.getTenant() + "_" + job.getName();
-        String body = generateJobBody(job);
-        ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
+        ActionReturnUtil result = updateJenkinsJob(stageDto.getJobId());
         return result;
     }
 
@@ -131,11 +125,7 @@ public class StageServiceImpl implements StageService {
         if(StageTemplateTypeEnum.CODECHECKOUT.ordinal() == stage.getStageTemplateType()) {
             deleteCredentials(stage);
         }
-        Job job = jobMapper.queryById(stage.getJobId());
-        String jenkinsJobName = job.getTenant() + "_" + job.getName();
-
-        String body = generateJobBody(job);
-        ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
+        ActionReturnUtil result = updateJenkinsJob(stage.getJobId());
         if(result.isSuccess()){
             return result;
         }else{
@@ -252,7 +242,11 @@ public class StageServiceImpl implements StageService {
         stageBuild.setBuildNum(buildNum);
         stageBuild.setStageOrder(stageOrder);
         stageBuild.setStatus(convertStatus((String) stageMap.get("status")));
-        stageBuild.setStartTime(new Timestamp((Long)stageMap.get("startTimeMillis")));
+        if(stageMap.get("startTimeMillis") instanceof  Integer){
+            stageBuild.setStartTime(new Timestamp(Long.valueOf((Integer)stageMap.get("startTimeMillis"))));
+        }else if(stageMap.get("startTimeMillis") instanceof  Long){
+            stageBuild.setStartTime(new Timestamp((Long)stageMap.get("startTimeMillis")));
+        }
         stageBuild.setDuration(String.valueOf(stageMap.get("durationMillis")));
         stageBuild.setLog(getStageBuildLogFromJenkins(job, buildNum, (String)stageMap.get("id")));
         stageBuildMapper.updateByStageOrderAndBuildNum(stageBuild);
@@ -292,6 +286,14 @@ public class StageServiceImpl implements StageService {
                 }
             }
         }
+    }
+
+    public ActionReturnUtil updateJenkinsJob(Integer id) throws Exception {
+        Job job = jobMapper.queryById(id);
+        String jenkinsJobName = job.getTenant() + "_" + job.getName();
+        String body = generateJobBody(job);
+        ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
+        return result;
     }
 
     private String getStageBuildLogFromJenkins(Job job, Integer buildNum, String stageNodeId){

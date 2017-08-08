@@ -14,7 +14,7 @@
                 <hudson.model.StringParameterDefinition>
                     <name>tag${stage.stageOrder}</name>
                     <description/>
-                    <defaultValue></defaultValue>
+                    <defaultValue><#if stage.imageTagType == '1'>${stage.imageBaseTag}<#elseif stage.imageTagType == '2'>${stage.imageTag}</#if></defaultValue>
                 </hudson.model.StringParameterDefinition>
                 </#if></#list>
             </parameterDefinitions>
