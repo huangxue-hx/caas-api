@@ -1,16 +1,28 @@
 package com.harmonycloud.dao.user;
 
-
-import org.springframework.stereotype.Repository;
-
 import com.harmonycloud.dao.user.bean.Role;
+import com.harmonycloud.dao.user.bean.RoleExample;
+import java.util.List;
+import org.apache.ibatis.annotations.Param;
 
-
-/**
- * Created by zsl on 16/10/25.
- */
-@Repository
 public interface RoleMapper {
+    int deleteByExample(RoleExample example);
 
-    Role findByName(String roleName);
+    int deleteByPrimaryKey(Integer id);
+
+    int insert(Role record);
+
+    int insertSelective(Role record);
+
+    List<Role> selectByExample(RoleExample example);
+
+    Role selectByPrimaryKey(Integer id);
+
+    int updateByExampleSelective(@Param("record") Role record, @Param("example") RoleExample example);
+
+    int updateByExample(@Param("record") Role record, @Param("example") RoleExample example);
+
+    int updateByPrimaryKeySelective(Role record);
+
+    int updateByPrimaryKey(Role record);
 }

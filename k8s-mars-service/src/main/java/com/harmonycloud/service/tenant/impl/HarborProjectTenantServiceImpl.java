@@ -8,8 +8,11 @@ import java.util.Map;
 
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.tenant.bean.UserTenant;
+import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.service.platform.bean.ProjectUserBinding;
 import com.harmonycloud.service.tenant.UserTenantService;
+import com.harmonycloud.service.user.UserService;
+
 import org.apache.http.HttpEntity;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -72,6 +75,8 @@ public class HarborProjectTenantServiceImpl implements HarborProjectTenantServic
     HarborProjectService harborProjectService;
     @Autowired
     HarborServiceImpl harborServiceImpl;
+    @Autowired
+    UserService userService;
 
     @Value("#{propertiesReader['image.url']}")
     private String harborUrl;
@@ -520,7 +525,8 @@ public class HarborProjectTenantServiceImpl implements HarborProjectTenantServic
         }
         return returnRes;
     }
-    public ActionReturnUtil addProjctsToUser(String username,String tenantid) throws Exception{
+    @Override
+    public ActionReturnUtil addProjectsToUser(String username,String tenantid) throws Exception{
         List<HarborProjectTenant> harborProjectTenantList =new ArrayList<>();
         ProjectUserBinding projectUserBinding = new ProjectUserBinding();
         HarborProjectTenant projectTenant =new HarborProjectTenant();
@@ -535,6 +541,26 @@ public class HarborProjectTenantServiceImpl implements HarborProjectTenantServic
         projectUserBinding.setUserName(username);
         projectUserBinding.setProjects(projectList);
         ActionReturnUtil returnUtil =harborProjectService.bindingUserProjects(projectUserBinding);
+        return returnUtil;
+    }
+    @Override
+    public ActionReturnUtil deleteUserFromProjects(String username,String tenantid) throws Exception{
+        List<HarborProjectTenant> harborProjectTenantList =new ArrayList<>();
+        ProjectUserBinding projectUserBinding = new ProjectUserBinding();
+        HarborProjectTenant projectTenant =new HarborProjectTenant();
+        projectTenant.setIsPublic(0);
+        projectTenant.setTenantId(tenantid);
+        harborProjectTenantList = harborProjectTenantMapper.getByTenantIdPrivate(projectTenant);
+        List<String>projectList = new ArrayList<>();
+        for (HarborProjectTenant harborProjectTenant : harborProjectTenantList) {
+            String project = harborProjectTenant.getHarborProjectId().toString();
+            projectList.add(project);
+        }
+        User user = userService.getUser(username);
+        projectUserBinding.setUserId(Integer.valueOf(user.getId().toString()));
+        projectUserBinding.setUserName(username);
+        projectUserBinding.setProjects(projectList);
+        ActionReturnUtil returnUtil =harborProjectService.unBindingUserProjects(projectUserBinding);
         return returnUtil;
     }
 }

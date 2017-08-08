@@ -18,6 +18,8 @@ public interface HarborProjectService {
 	public ActionReturnUtil getStatistcsByNamespace(String namespace) throws Exception;
 
 	public ActionReturnUtil bindingUserProjects(ProjectUserBinding projectUserBinding)throws Exception;
+	
+	public ActionReturnUtil unBindingUserProjects(ProjectUserBinding projectUserBinding)throws Exception;
 
 	public ActionReturnUtil bindingProjectUsers(UserProjectBiding userProjectBinding)throws Exception;
 

@@ -400,7 +400,39 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		//return ActionReturnUtil.returnSuccess();
 		return returnUil;
 	}
+	@Override
+    public ActionReturnUtil unBindingUserProjects(ProjectUserBinding projectUserBinding)throws Exception {
+        List<String> projects = projectUserBinding.getProjects();
+        ActionReturnUtil returnUil = ActionReturnUtil.returnSuccess();
+        // 获取对象
+        for (int i = 0; i < projects.size(); i++) {
+            String projectID = projects.get(i);
+            Integer userId = projectUserBinding.getUserId();
+            returnUil = unBindingProjectUser(userId,projectID);
+            /*
+            Map<String, Object> bodys = new HashMap<>();
+            Map<String, Object> header = new HashMap<>();
+            header.put("Content-type", "application/json");
 
+            String username = projectUserBinding.getUserName();
+
+            String role = "harbor_project_admin";
+            List<Integer> roleType = new ArrayList<Integer>();
+            if (role.equals(Constant.HARBORPROJECTROLE_ADMIN)) {
+                roleType.add(1);
+            }
+            HarborRole harborRole = new HarborRole();
+            harborRole.setUsername(username);
+            harborRole.setRoleList(roleType);
+            final ActionReturnUtil role1 = harborMemberService.createRole(Integer.valueOf(projectID), harborRole);
+            if((boolean)role1.get("success")==false){
+                return role1;
+            }
+            */
+        }
+        //return ActionReturnUtil.returnSuccess();
+        return returnUil;
+    }
 	@Override
 	public ActionReturnUtil bindingProjectUsers(UserProjectBiding userProjectBinding)throws Exception {
 		// TODO 如果有则增加用户
@@ -449,10 +481,20 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		harborRole.setUsername(username);
 		harborRole.setRoleList(roleType);
 		ActionReturnUtil role1= harborMemberService.createRole(Integer.valueOf(projectID), harborRole);
-		if((boolean)role1.get("success")==false){
-			returnUil=role1;
+		if((boolean)role1.get("success")==false&&role1.get("data")!=null&&"user is ready in project".equals(role1.get("data").toString().trim())){
+		    return returnUil;
+		}else{
+		    returnUil=role1;
 		}
 		return returnUil;
 	}
-
+	//解除用户绑定到harbor的仓库project
+    public ActionReturnUtil unBindingProjectUser(Integer userId,String projectID) throws Exception{
+        ActionReturnUtil returnUil = ActionReturnUtil.returnSuccess();
+        ActionReturnUtil role1= harborMemberService.deleteRole(Integer.valueOf(projectID), userId);
+        if((boolean)role1.get("success")==false){
+            returnUil=role1;
+        }
+        return returnUil;
+    }
 }

@@ -8,7 +8,16 @@ import java.util.List;
 public class ProjectUserBinding {
 
     private String userName;
+    private Integer userId;
     private List<String> projects;
+
+    public Integer getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Integer userId) {
+        this.userId = userId;
+    }
 
     public String getUserName() {
         return userName;

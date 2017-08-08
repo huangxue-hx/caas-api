@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.TenantUtils;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
@@ -15,6 +16,7 @@ import com.harmonycloud.dao.tenant.UserTenantMapper;
 import com.harmonycloud.dao.tenant.bean.UserTenant;
 import com.harmonycloud.dao.tenant.bean.UserTenantExample;
 import com.harmonycloud.dao.tenant.customs.CustomUserTenantMapper;
+import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.customs.CustomUserMapper;
 import com.harmonycloud.dto.tenant.show.UserShowDto;
@@ -88,7 +90,9 @@ public class UserTenantServiceImpl implements UserTenantService {
 
     @Override
     public void deleteByTenantid(String tenantid) throws Exception {
-        userTenantMapper.deleteByTenantid(tenantid);
+        UserTenantExample example = new UserTenantExample();
+        example.createCriteria().andTenantidEqualTo(tenantid);
+        userTenantMapper.deleteByExample(example);
     }
 
     @Override
@@ -137,6 +141,17 @@ public class UserTenantServiceImpl implements UserTenantService {
     public List<UserTenant> getTenantCount(String username) throws Exception {
         List<UserTenant> tenantCount = customUserTenantMapper.getTenantCountByUsername(username);
         return tenantCount;
+    }
+
+    @Override
+    public String findRoleByName(String username, String tenantid) throws Exception {
+        UserTenantExample example = new UserTenantExample();
+        example.createCriteria().andUsernameEqualTo(username).andTenantidEqualTo(tenantid);
+        List<UserTenant> selectByExample = userTenantMapper.selectByExample(example);
+        if(selectByExample==null || selectByExample.size() != 1){
+            throw new MarsRuntimeException("用户："+username+"不在租户id："+tenantid+"里面请检查！");
+        }
+        return selectByExample.get(0).getRole();
     }
     
 }

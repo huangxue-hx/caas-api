@@ -3,6 +3,7 @@ package com.harmonycloud.service.tenant;
 import java.util.List;
 
 import com.harmonycloud.dao.tenant.bean.UserTenant;
+import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.dto.tenant.show.UserShowDto;
 
 
@@ -89,5 +90,12 @@ public interface UserTenantService {
      * @throws Exception
      */
     public UserTenant getUserByUserNameAndTenantid(String userName,String tenantid) throws Exception;
+    /**
+     * 根据用户名和tenantid查询role
+     * 
+     * @param username，tenantid
+     * @return
+     */
+    public String findRoleByName(String username,String tenantid) throws Exception;
 
 }

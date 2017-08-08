@@ -24,6 +24,7 @@ import com.harmonycloud.dao.user.RoleMapper;
 import com.harmonycloud.dao.user.bean.InitClusterRole;
 import com.harmonycloud.dao.user.bean.InitClusterRoleEnum;
 import com.harmonycloud.dao.user.bean.Role;
+import com.harmonycloud.dao.user.bean.RoleExample;
 import com.harmonycloud.dao.user.bean.RoleResource;
 import com.harmonycloud.dto.user.ClusterRoleDetailDto;
 import com.harmonycloud.dto.user.ClusterRoleDto;
@@ -501,16 +502,6 @@ public class RoleService {
     }
 
     /**
-     * 根据用户名查询role
-     * 
-     * @param username
-     * @return
-     */
-    public Role findByName(String username) throws Exception {
-        return roleMapper.findByName(username);
-    }
-
-    /**
      * 初始化ClusterRole
      * 
      * @return
@@ -590,4 +581,5 @@ public class RoleService {
             return ActionReturnUtil.returnErrorWithMsg("删除失败");
         }
     }
+
 }

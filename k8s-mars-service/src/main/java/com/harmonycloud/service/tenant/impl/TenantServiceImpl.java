@@ -661,7 +661,7 @@ public class TenantServiceImpl implements TenantService {
             throw new K8sAuthException(Constant.HTTP_401);
         }
         //添加用户binding到harbor的镜像仓库
-        ActionReturnUtil addProjctsToUser = harborProjectTenantService.addProjctsToUser(username,tenantid);
+        ActionReturnUtil addProjctsToUser = harborProjectTenantService.addProjectsToUser(username,tenantid);
         if ((Boolean) addProjctsToUser.get(CommonConstant.SUCCESS) == CommonConstant.FALSE) {
             logger.error("添加用户："+username+"到harbor的镜像仓库失败，" + addProjctsToUser);
             return addProjctsToUser;
@@ -792,6 +792,12 @@ public class TenantServiceImpl implements TenantService {
             }
         } else if (tenantByTenantid.getK8sNamespaceList().size() > 0) {
             return ActionReturnUtil.returnErrorWithMsg("tenant：" + tenantByTenantid.getTenantName() + " 数据库中分区与k8s中的分区数据不一致");
+        }
+      //删除用户binding到harbor的镜像仓库
+        ActionReturnUtil deleteProjctsToUser = harborProjectTenantService.deleteUserFromProjects(username,tenantid);
+        if ((Boolean) deleteProjctsToUser.get(CommonConstant.SUCCESS) == CommonConstant.FALSE) {
+            logger.error("从harbor的镜像仓库失败删除用户："+username+"失败，" + deleteProjctsToUser);
+            return deleteProjctsToUser;
         }
         // 向数据库中同步数据
         ActionReturnUtil deleteusertodb = this.deleteusertodb(tenantid, username);

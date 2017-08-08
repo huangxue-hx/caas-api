@@ -188,7 +188,14 @@ public class CommonConstant {
      public static final String PAUSE = "pause";
      public static final String NORMAL = "normal";
 
-     
+   //用户权限模块
+     public static final String PRIVILEGE_TENANT = "tenant";
+     public static final String PRIVILEGE_MIRROR = "mirror";
+     public static final String PRIVILEGE_CLUSTER = "cluster";
+     public static final String PRIVILEGE_APPLICATION = "application";
+     public static final String PRIVILEGE_CICD = "cicd";
+     public static final String PRIVILEGE_STORAGE = "storage";
+     public static final String PRIVILEGE_CONFIG = "config";
      
      
      public static final String ERRMSG = "errMsg";

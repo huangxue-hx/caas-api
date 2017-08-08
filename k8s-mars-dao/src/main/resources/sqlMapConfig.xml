@@ -16,6 +16,7 @@
         <typeAlias alias="Network" type="com.harmonycloud.dao.network.bean.Network" />
         <typeAlias alias="Resource" type="com.harmonycloud.dao.user.bean.Resource" />
         <typeAlias alias="Role" type="com.harmonycloud.dao.user.bean.Role" />
+        <typeAlias alias="RoleExample" type="com.harmonycloud.dao.user.bean.RoleExample" />
         <typeAlias alias="Tenant" type="com.harmonycloud.dao.tenant.bean.Tenant" />
         <typeAlias alias="TenantBinding" type="com.harmonycloud.dao.tenant.bean.TenantBinding" />
         <typeAlias alias="TenantBindingExample" type="com.harmonycloud.dao.tenant.bean.TenantBindingExample" />

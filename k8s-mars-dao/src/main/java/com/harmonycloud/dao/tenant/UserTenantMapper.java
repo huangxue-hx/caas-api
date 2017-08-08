@@ -1,10 +1,9 @@
 package com.harmonycloud.dao.tenant;
 
-import java.util.List;
-
 import com.harmonycloud.dao.tenant.bean.UserTenant;
 import com.harmonycloud.dao.tenant.bean.UserTenantExample;
-
+import java.util.List;
+import org.apache.ibatis.annotations.Param;
 
 public interface UserTenantMapper {
     int deleteByExample(UserTenantExample example);
@@ -19,9 +18,11 @@ public interface UserTenantMapper {
 
     UserTenant selectByPrimaryKey(Integer id);
 
+    int updateByExampleSelective(@Param("record") UserTenant record, @Param("example") UserTenantExample example);
+
+    int updateByExample(@Param("record") UserTenant record, @Param("example") UserTenantExample example);
+
     int updateByPrimaryKeySelective(UserTenant record);
 
     int updateByPrimaryKey(UserTenant record);
-    
-    int deleteByTenantid(String tenantid);
 }

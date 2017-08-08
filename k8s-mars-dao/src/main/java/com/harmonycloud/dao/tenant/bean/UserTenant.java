@@ -12,16 +12,8 @@ public class UserTenant {
     private Date createTime;
 
     private Integer istm;
-    
-    private Integer userNum;
 
-    public Integer getUserNum() {
-        return userNum;
-    }
-
-    public void setUserNum(Integer userNum) {
-        this.userNum = userNum;
-    }
+    private String role;
 
     public Integer getId() {
         return id;
@@ -61,5 +53,13 @@ public class UserTenant {
 
     public void setIstm(Integer istm) {
         this.istm = istm;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role == null ? null : role.trim();
     }
 }

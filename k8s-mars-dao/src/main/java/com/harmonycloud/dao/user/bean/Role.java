@@ -1,31 +1,29 @@
 package com.harmonycloud.dao.user.bean;
 
-import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
+import java.util.Date;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
+public class Role {
+    private Integer id;
 
-/**
- * Created by zsl on 16/10/25.
- */
-public class Role implements Serializable{
-    /**
-	 * 
-	 */
-	private static final long serialVersionUID = 3747617463676917317L;
-	private Long id;                //编号
-    private String name;            //角色名称
-    private String description;     //角色描述
-    private List<Long> resourceIds; //拥有的资源
-    private Integer available;  //是否可用,如果不可用将不会添加给用户
+    private String name;
 
-    public Long getId() {
+    private String description;
+
+    private String resourceIds;
+
+    private Date createTime;
+
+    private Date updateTime;
+
+    private Boolean available;
+
+    private String secondResourceIds;
+
+    public Integer getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
@@ -34,7 +32,7 @@ public class Role implements Serializable{
     }
 
     public void setName(String name) {
-        this.name = name;
+        this.name = name == null ? null : name.trim();
     }
 
     public String getDescription() {
@@ -42,77 +40,51 @@ public class Role implements Serializable{
     }
 
     public void setDescription(String description) {
-        this.description = description;
+        this.description = description == null ? null : description.trim();
     }
 
-    public List<Long> getResourceIds() {
-        if(resourceIds == null) {
-            resourceIds = new ArrayList<Long>();
-        }
+    public String getResourceIds() {
         return resourceIds;
     }
-
-    public void setResourceIds(List<Long> resourceIds) {
-        this.resourceIds = resourceIds;
+    // public List<Long> getResourceIds() {
+    //     if(resourceIds == null) {
+    //         resourceIds = new ArrayList<Long>();
+    //     }
+    //     return resourceIds;
+    // }
+    public void setResourceIds(String resourceIds) {
+        this.resourceIds = resourceIds == null ? null : resourceIds.trim();
     }
 
-    public String getResourceIdsStr() {
-        if(CollectionUtils.isEmpty(resourceIds)) {
-            return "";
-        }
-        StringBuilder s = new StringBuilder();
-        for(Long resourceId : resourceIds) {
-            s.append(resourceId);
-            s.append(",");
-        }
-        String retVal = s.toString();
-        if (retVal.length() > 1){
-            retVal = retVal.substring(0, retVal.length()-1);
-        }
-        return retVal;
+    public Date getCreateTime() {
+        return createTime;
     }
 
-    public void setResourceIdsStr(String resourceIdsStr) {
-        if(StringUtils.isEmpty(resourceIdsStr)) {
-            return;
-        }
-        String[] resourceIdStrs = resourceIdsStr.split(",");
-        for(String resourceIdStr : resourceIdStrs) {
-            if(StringUtils.isEmpty(resourceIdStr)) {
-                continue;
-            }
-            getResourceIds().add(Long.valueOf(resourceIdStr));
-        }
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
     }
 
-    public Integer getAvailable() {
+    public Date getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(Date updateTime) {
+        this.updateTime = updateTime;
+    }
+
+    public Boolean getAvailable() {
         return available;
     }
 
-    public void setAvailable(Integer available) {
+    public void setAvailable(Boolean available) {
         this.available = available;
     }
 
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        Role role = (Role) o;
-
-        return !(id != null ? !id.equals(role.id) : role.id != null);
+    public String getSecondResourceIds() {
+        return secondResourceIds;
     }
 
-    public int hashCode() {
-        return id != null ? id.hashCode() : 0;
-    }
-
-    public String toString() {
-        return "Role{" +
-                "id=" + id +
-                ", name='" + name + '\'' +
-                ", description='" + description + '\'' +
-                ", resourceIds=" + resourceIds +
-                ", available=" + available +
-                '}';
+    public void setSecondResourceIds(String secondResourceIds) {
+        this.secondResourceIds = secondResourceIds == null ? null : secondResourceIds.trim();
     }
 }

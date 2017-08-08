@@ -30,32 +30,6 @@ public class MenuService {
     @Autowired
     ResourceService resourceService;
 
-    /**
-     * 根据用户名获取相应的菜单,没有返回null
-     * 
-     * @param rolename 角色名称 eg:pm
-     * @return
-     */
-    public ActionReturnUtil menuList(String rolename) throws Exception {
-        if (StringUtils.isEmpty(rolename)) {
-            return ActionReturnUtil.returnError();
-        }
-        List<MenuDto> menus = new ArrayList<MenuDto>();
-        Role role = roleService.findByName(rolename);
-        if (role != null) {
-            List<Long> resourceIds = role.getResourceIds();
-            if (resourceIds != null && !resourceIds.isEmpty()) {
-                Set<Long> resourceIdSets = new HashSet<Long>();
-                resourceIdSets.addAll(resourceIds);
-                List<Resource> resources = resourceService.findMenusByResourceIds(resourceIdSets);
-                if (resources != null && !resources.isEmpty()) {
-                    menus = MenuDto.convert(resources);
-                }
-            }
-        }
-        return ActionReturnUtil.returnSuccessWithData(menus);
-    }
-
     public void setWebhook(String webhook) {
         this.webhook = webhook;
     }

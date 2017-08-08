@@ -71,5 +71,13 @@ public interface HarborProjectTenantService {
       * @param tenantid
       * @return
       */
-     ActionReturnUtil addProjctsToUser(String username,String tenantid)throws  Exception;
+     ActionReturnUtil addProjectsToUser(String username,String tenantid)throws  Exception;
+     /**
+      * 从镜像仓库删除project用户
+      * @param username
+      * @param tenantid
+      * @return
+      * @throws Exception
+      */
+     ActionReturnUtil deleteUserFromProjects(String username,String tenantid)throws  Exception;
 }
