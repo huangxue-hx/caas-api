@@ -434,7 +434,10 @@ public class K8sResultConvert {
 		ObjectMeta meta = new ObjectMeta();
 		meta.setName(detail.getName());
 		Map<String, Object> lmMap = new HashMap<String, Object>();
-		lmMap.put("nephele/user", userName);
+		if (userName != null){
+			lmMap.put("nephele/user", userName);
+		}
+
 		meta.setLabels(lmMap);
 		Map<String, Object> anno = new HashMap<String, Object>();
 		String annotation=detail.getAnnotation();

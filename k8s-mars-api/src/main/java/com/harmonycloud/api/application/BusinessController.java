@@ -45,7 +45,38 @@ public class BusinessController {
         String userName = (String) session.getAttribute("username");
         return businessService.saveBusinessTemplate(businessTemplate, userName);
     }
-    
+
+
+    /**
+     *add service template to businessTemplate on 17/05/05 .
+     *
+     * @param businessTemplate
+     *
+     * @return ActionReturnUtil
+     */
+    @ResponseBody
+    @RequestMapping(value = "/yaml", method = RequestMethod.POST)
+    public ActionReturnUtil getBusinessTemplateYaml(@ModelAttribute BusinessTemplateDto businessTemplate)
+            throws Exception {
+        logger.info("add application template");
+        return businessService.getBusinessTemplateYaml(businessTemplate);
+    }
+
+//    /**
+//     * get application template by tenant and name or image on 17/05/05.
+//     *
+//     * @param businessTemplate
+//     *
+//     * @return ActionReturnUtil
+//     */
+//    @ResponseBody
+//    @RequestMapping(value = "/yaml", method = RequestMethod.POST)
+//    public ActionReturnUtil getBusinessTemplateYaml(@ModelAttribute BusinessTemplateDto businessTemplate) throws Exception {
+//        logger.info("get application template");
+//        return businessService.getBusinessTemplateYaml(businessTemplate);
+//    }
+
+
     /**
      * update application template on 17/05/05.
      * 

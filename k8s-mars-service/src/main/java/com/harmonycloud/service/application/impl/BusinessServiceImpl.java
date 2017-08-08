@@ -1,6 +1,7 @@
 package com.harmonycloud.service.application.impl;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.application.BusinessServiceMapper;
 import com.harmonycloud.dao.application.BusinessTemplatesMapper;
 import com.harmonycloud.dao.application.ServiceTemplatesMapper;
@@ -8,15 +9,14 @@ import com.harmonycloud.dao.application.bean.BusinessTemplates;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dao.network.TopologyMapper;
 import com.harmonycloud.dao.network.bean.Topology;
-import com.harmonycloud.dto.business.BusinessTemplateDto;
-import com.harmonycloud.dto.business.CreateContainerDto;
-import com.harmonycloud.dto.business.ServiceTemplateDto;
-import com.harmonycloud.dto.business.TopologysDto;
+import com.harmonycloud.dto.business.*;
+import com.harmonycloud.k8s.bean.Deployment;
 import com.harmonycloud.k8s.service.ReplicasetsService;
 import com.harmonycloud.service.application.BusinessService;
 import com.harmonycloud.service.application.BusinessServiceService;
 import com.harmonycloud.service.application.ServiceService;
 import com.harmonycloud.service.application.TopologyService;
+import com.harmonycloud.service.application.Util.TemplateToYamlUtil;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.tenant.TenantService;
 
@@ -27,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.yaml.snakeyaml.Yaml;
 
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -115,6 +116,7 @@ public class BusinessServiceImpl implements BusinessService {
             js.put("user", businessTemplates.getUser());
             js.put("createTime", dateToString(businessTemplates.getCreateTime()));
             JSONArray array = new JSONArray();
+            List<Object> deploymentListToyaml = new ArrayList<>();
             // select service Template
             List<com.harmonycloud.dao.application.bean.BusinessService> businessServiceList = businessServiceMapper.listBusinessServiceByBusinessTemplatesId(businessTemplates.getId());
             if (businessServiceList != null) {
@@ -135,6 +137,7 @@ public class BusinessServiceImpl implements BusinessService {
                         } else {
                             json.put("nodeSelector", "");
                         }
+
                         json.put("deployment", (serviceTemplates.getDeploymentContent() != null) ? serviceTemplates.getDeploymentContent().toString().replace("null", "\"\"") : "");
                         json.put("ingress", (serviceTemplates.getIngressContent() != null) ? serviceTemplates.getIngressContent().toString().replace("null", "\"\"") : "");
                         json.put("imageList", (serviceTemplates.getImageList() != null) ? serviceTemplates.getImageList() : "");
@@ -142,6 +145,15 @@ public class BusinessServiceImpl implements BusinessService {
                         json.put("tenant", (serviceTemplates.getTenant() != null) ? serviceTemplates.getTenant() : "");
                         json.put("details", (serviceTemplates.getDetails() != null) ? serviceTemplates.getDetails() : "");
                         array.add(json);
+                        if (serviceTemplates.getDeploymentContent() != null){
+                            String dep=json.getJSONArray("deployment").getJSONObject(0).toString().replaceAll(":\"\",", ":"+null+",").replaceAll(":\"\"", ":"+null+"");
+                            DeploymentDetailDto deployment = JsonUtil.jsonToPojo(dep, DeploymentDetailDto.class);
+
+                            Deployment deploymentToYaml =  TemplateToYamlUtil.templateToDeployment(deployment);
+                            com.harmonycloud.k8s.bean.Service serviceYaml = TemplateToYamlUtil.templateToService(deployment);
+                            deploymentListToyaml.add(serviceYaml);
+                            deploymentListToyaml.add(deploymentToYaml);
+                        }
                     }
                 }
             }
@@ -159,6 +171,11 @@ public class BusinessServiceImpl implements BusinessService {
                 }
             }
             js.put("topology", array);
+            Yaml yaml = new Yaml();
+            if (deploymentListToyaml != null){
+                js.put("yaml",yaml.dumpAsMap(deploymentListToyaml));
+            }
+
 //        } else {
 //            ActionReturnUtil.returnErrorWithMsg("buiness template is null");
         }
@@ -208,6 +225,23 @@ public class BusinessServiceImpl implements BusinessService {
             }
         }
         return ActionReturnUtil.returnSuccessWithData(array);
+    }
+
+    @Override
+    public ActionReturnUtil getBusinessTemplateYaml(BusinessTemplateDto businessTemplate) throws Exception {
+        List<Object> deploymentListToyaml = new ArrayList<>();
+        if (businessTemplate != null && businessTemplate.getServiceList() != null){
+            for(ServiceTemplateDto svcOne : businessTemplate.getServiceList()){
+                if (svcOne.getDeploymentDetail() != null){
+                    Deployment deploymentToYaml =  TemplateToYamlUtil.templateToDeployment(svcOne.getDeploymentDetail());
+                    com.harmonycloud.k8s.bean.Service serviceYaml = TemplateToYamlUtil.templateToService(svcOne.getDeploymentDetail());
+                    deploymentListToyaml.add(serviceYaml);
+                    deploymentListToyaml.add(deploymentToYaml);
+                }
+            }
+        }
+        Yaml yaml = new Yaml();
+        return ActionReturnUtil.returnSuccessWithData(yaml.dumpAsMap(deploymentListToyaml));
     }
 
     /**

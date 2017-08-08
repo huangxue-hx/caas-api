@@ -63,6 +63,10 @@ public interface BusinessService {
      */
     ActionReturnUtil listBusinessTemplateByTenant(String searchKey, String searchValue, String tenant) throws Exception;
 
+
+    ActionReturnUtil getBusinessTemplateYaml(BusinessTemplateDto businessTemplate) throws Exception;
+
+
     /**
      * delete application template by name and tenant service on 17/04/07.
      * 
