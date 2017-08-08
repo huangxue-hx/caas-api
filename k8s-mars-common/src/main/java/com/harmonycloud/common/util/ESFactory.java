@@ -16,7 +16,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.apache.commons.lang.StringUtils;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
@@ -27,7 +26,6 @@ import org.elasticsearch.client.Requests;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
-import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.query.BoolQueryBuilder;
@@ -38,8 +36,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
-import com.harmonycloud.common.Constant.CommonConstant;
 
 /**
  * Created by czm on 2017/3/28.
@@ -136,10 +132,14 @@ public class ESFactory {
 	 */
 	public static ActionReturnUtil searchFromIndex(BoolQueryBuilder query, String scrollId, int pageSize,
 			int currentPage) throws IOException {
-
-		// scrollid的分页,setSize中的5为分片数
+		
 		SearchResponse response;
-		if (StringUtils.isBlank(scrollId)) {
+		response = ESFactory.createES().prepareSearch(indexName).setTypes(type)
+				// .setScroll(new TimeValue(60000))
+				.setQuery(query).addSort("opTime", SortOrder.DESC).setFrom((currentPage - 1) * pageSize).setSize(pageSize).setExplain(true) // 这里需要修改整整分页之后
+				.get();
+		// scrollid的分页,setSize中的5为分片数
+		/*if (StringUtils.isBlank(scrollId)) {
 			response = ESFactory.createES().prepareSearch(indexName).setTypes(type)
 					.setSearchType(SearchType.QUERY_AND_FETCH).setScroll(new TimeValue(ES_SCROLL_TIMEOUT)).setQuery(query)
 					.addSort("opTime", SortOrder.DESC).setFrom(0).setSize(pageSize/CommonConstant.ES_SHARDS).setExplain(true) // 这里需要修改整整分页之后
@@ -148,7 +148,7 @@ public class ESFactory {
 		} else {
 			response = ESFactory.createES().prepareSearchScroll(scrollId).setScroll(new TimeValue(ES_SCROLL_TIMEOUT)).execute()
 					.actionGet();
-		}
+		}*/
 
 		Iterator<SearchHit> it = response.getHits().iterator();
 		List<SearchResult> searchResults = new ArrayList<>();
@@ -200,7 +200,7 @@ public class ESFactory {
 		Map<String, Object> data = new HashMap<>();
 
 		Collections.sort(searchResults);
-		data.put("scrollId", scrollId);
+		data.put("scrollId", response.getScrollId());
 		data.put("log", searchResults);
 
 		return ActionReturnUtil.returnSuccessWithData(data);
