@@ -1,4 +1,4 @@
-package com.harmonycloud.service.application.impl;
+ package com.harmonycloud.service.application.impl;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -257,6 +257,19 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 			List<FileUploadContainer> records = fileUploadContainerMapper.selectByExample(fucExample);
 			result.addAll(records);
 		}
+
+		//按照时间排序
+		result.sort((lrd, rrd) -> {
+	        if (lrd.getUpdateTime() != null && rrd.getUpdateTime() != null) {
+	            return rrd.getUpdateTime().compareTo(lrd.getUpdateTime());
+	        } else if (lrd.getUpdateTime() != null && rrd.getUpdateTime() == null){
+	            return rrd.getCreateTime().compareTo(lrd.getUpdateTime());
+	        } else if (lrd.getUpdateTime() == null && rrd.getUpdateTime() != null){
+	        	return rrd.getUpdateTime().compareTo(lrd.getCreateTime());
+	        } else {
+	        	return rrd.getCreateTime().compareTo(lrd.getCreateTime());
+	        }
+	    });
 
 		return ActionReturnUtil.returnSuccessWithData(result);
 	}
