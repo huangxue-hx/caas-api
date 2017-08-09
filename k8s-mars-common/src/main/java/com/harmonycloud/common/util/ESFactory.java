@@ -53,7 +53,7 @@ public class ESFactory {
 	public static String clusterName;
 	public static ExecutorService executor = Executors.newFixedThreadPool(20);
 	
-	private static final Integer ES_SCROLL_TIMEOUT = 60000;
+	//private static final Integer ES_SCROLL_TIMEOUT = 60000;
 
 	public static TransportClient createES() {
 		if (esClient == null) {
@@ -242,18 +242,19 @@ public class ESFactory {
 		ESFactory.esClient.admin().indices().prepareCreate(indices).execute().actionGet();
 		logger.debug("创建索引结束:" + indices);
 
-		XContentBuilder builder = jsonBuilder().startObject().startObject("properties").startObject("user")
-				.field("type", "string").field("index", "not_analyzed").endObject().startObject("tenant")
-				.field("type", "string").field("index", "not_analyzed").endObject().startObject("module")
-				.field("type", "string").field("index", "not_analyzed").endObject().startObject("opFun")
-				.field("type", "string").endObject().startObject("method").field("type", "string")
-				.field("index", "not_analyzed").endObject().startObject("opTime").field("type", "date")
-				.field("format", "yyyy-MM-dd' 'HH:mm:ss").field("index", "not_analyzed").endObject()
-				.startObject("requestParams").field("type", "string").endObject().startObject("path")
-				.field("type", "string").endObject().startObject("remoteIp").field("type", "string").endObject()
-				.startObject("response").field("type", "string").endObject().startObject("opStatus")
-				.field("type", "boolean").field("index", "not_analyzed").endObject().startObject("subject")
-				.field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject();
+		XContentBuilder builder = jsonBuilder().startObject().startObject("properties")
+				.startObject("user").field("type", "string").endObject()
+				.startObject("tenant").field("type", "string").endObject()
+				.startObject("module").field("type", "string").endObject()
+				.startObject("opFun").field("type", "string").endObject()
+				.startObject("method").field("type", "string").field("index", "not_analyzed").endObject()
+				.startObject("opTime").field("type", "date").field("format", "yyyy-MM-dd' 'HH:mm:ss").field("index", "not_analyzed").endObject()
+				.startObject("requestParams").field("type", "string").endObject()
+				.startObject("path").field("type", "string").endObject()
+				.startObject("remoteIp").field("type", "string").endObject()
+				.startObject("response").field("type", "string").endObject()
+				.startObject("opStatus").field("type", "boolean").field("index", "not_analyzed").endObject()
+				.startObject("subject").field("type", "string").endObject().endObject().endObject();
 
 		// 创建mapping
 		logger.debug("正在创建mapping:" + mappingType);
