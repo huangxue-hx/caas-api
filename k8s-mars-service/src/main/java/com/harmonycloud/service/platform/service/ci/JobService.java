@@ -26,7 +26,7 @@ public interface JobService {
 
     ActionReturnUtil stopBuild(String jobName, String tenantName, String buildNum);
 
-    ActionReturnUtil deleteBuild(String jobName, String tenantName, String buildNum);
+    ActionReturnUtil deleteBuild(Integer id, String buildNum) throws Exception;
 
     ActionReturnUtil credentialsValidate(String repositoryType, String repositoryUrl, String username, String password);
 
@@ -51,4 +51,6 @@ public interface JobService {
     void getJobLogWS(WebSocketSession session, Integer id, String buildNum);
 
     ActionReturnUtil getYaml(Integer id);
+
+    void preBuild(Integer id, Integer buildNum, String dateTime);
 }

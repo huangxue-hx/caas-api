@@ -2,7 +2,6 @@ package com.harmonycloud.service.platform.serviceImpl.ci;
 
 import com.harmonycloud.common.enumm.StageTemplateTypeEnum;
 import com.harmonycloud.common.util.*;
-import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.ci.*;
 import com.harmonycloud.dao.ci.bean.*;
@@ -334,6 +333,7 @@ public class JobServiceImpl implements JobService {
     public ActionReturnUtil getJobDetail(Integer id) throws Exception {
         Job dbJob = jobMapper.queryById(id);
         Map job = new HashMap();
+        job.put("id", id);
         job.put("jobName", dbJob.getName());
         job.put("tenant", dbJob.getTenant());
         String jenkinsJobName = dbJob.getTenant() + "_" + dbJob.getName();
@@ -345,14 +345,14 @@ public class JobServiceImpl implements JobService {
             if(false == (boolean)map.get("building")){
                 job.put("lastBuildStatus", map.get("result"));
             }else{
-                job.put("lastBuildStatus", "BUILDING");
+                job.put("lastBuildStatus", Constant.PIPELINE_STATUS_BUILDING);
             }
             job.put("lastBuildDuration", map.get("duration"));
             job.put("lastBuildTime", new Timestamp((Long)map.get("timestamp")));
             buildNum = (Integer)map.get("number");
             jenkinsStageMap = stageService.getStageBuildFromJenkins(dbJob, 0);
         }else{
-            job.put("lastBuildStatus", "NOTBUILT");
+            job.put("lastBuildStatus", Constant.PIPELINE_STATUS_NOTBUILT);
             job.put("lastBuildDuration", null);
             job.put("lastBuildTime", null);
         }
@@ -450,10 +450,10 @@ public class JobServiceImpl implements JobService {
                 stageMap.put("lastBuildTime", new Timestamp((Long)map.get("startTimeMillis")));
                 stageMap.put("lastBuildDuration", map.get("durationMillis"));
             }else{
-                if("BUILDING".equals(job.get("lastBuildStatus"))) {
-                    stageMap.put("lastBuildStatus", "WAITING");
+                if(Constant.PIPELINE_STATUS_BUILDING.equals(job.get("lastBuildStatus")) && stage.getStageOrder() == 1) {
+                    stageMap.put("lastBuildStatus", Constant.PIPELINE_STATUS_WAITING);
                 }else{
-                    stageMap.put("lastBuildStatus", "NOTBUILT");
+                    stageMap.put("lastBuildStatus", Constant.PIPELINE_STATUS_NOTBUILT);
                 }
                 stageMap.put("lastBuildTime", null);
                 stageMap.put("lastBuildDuration", null);
@@ -494,45 +494,39 @@ public class JobServiceImpl implements JobService {
     public ActionReturnUtil build(Integer id) throws Exception{
         Job job = jobMapper.queryById(id);
         String jenkinsJobName = job.getTenant() + "_" + job.getName();
-
+        Integer lastBuildNumber = null;
         Map<String, Object> params = new HashMap<>();
         List<Stage> stageList = stageMapper.queryByJobId(id);
         Map tagMap = new HashMap<>();
         for(Stage stage:stageList){
             if(StageTemplateTypeEnum.IMAGEBUILD.ordinal() == stage.getStageTemplateType()) {
-                String tag;
-                if ("0".equals(stage.getImageTagType())) {
-                    tag = DateUtil.DateToString(new Date(), DateStyle.YYMMDDHHMMSS);
-                } else if ("1".equals(stage.getImageTagType())) {
-                    tag = stage.getImageBaseTag();
+//                if ("0".equals(stage.getImageTagType())) {
+//                    tag = DateUtil.DateToString(new Date(), DateStyle.YYMMDDHHMMSS);
+                if ("1".equals(stage.getImageTagType())) {
                     stage.setImageBaseTag(generateTag(stage));
                     stageMapper.updateStage(stage);
-                } else if ("2".equals(stage.getImageTagType())) {
-                    tag = stage.getImageTag();
-                } else {
-                    continue;
+                    tagMap.put(stage.getHarborProject() + "/" + stage.getImageName(), stage.getImageBaseTag());
+                }else if ("2".equals(stage.getImageTagType())) {
+                    tagMap.put(stage.getHarborProject() + "/" + stage.getImageName(), stage.getImageTag());
                 }
-                tagMap.put(stage.getHarborProject() + "/" + stage.getImageName(), tag);
-                params.put("tag" + stage.getStageOrder(), tag);
+//                tagMap.put(stage.getHarborProject() + "/" + stage.getImageName(), tag);
+//                params.put("tag" + stage.getStageOrder(), tag);
             }
         }
-        params.put("delay", "0sec");
-        ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/buildWithParameters", null, params, null, null);
-        if (result.isSuccess()) {
+
+        //if (result.isSuccess()) {
             params = new HashMap<>();
-            params.put("tree","number,timestamp");
-            result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/lastBuild/api/xml", null, params, false);
+         //   params.put("tree","number,timestamp");
+          //  result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/lastBuild/api/xml", null, params, false);
+            ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/api/json", null, null, false);
             if(result.isSuccess()){
-                Map body = XmlUtil.parseXmlStringToMap((String) result.get("data"));
-                Map root = (Map)body.get("workflowRun");
-                Integer lastBuildNumber = Integer.valueOf((String) root.get("number"));
-                Date startTime = new Timestamp(Long.valueOf((String) root.get("timestamp")));
+                Map dataMap = JsonUtil.convertJsonToMap((String) result.get("data"));
+                lastBuildNumber = (Integer)dataMap.get("nextBuildNumber");
                 jobMapper.updateLastBuildNum(id, lastBuildNumber);
                 JobBuild jobBuild = new JobBuild();
                 jobBuild.setJobId(id);
                 jobBuild.setBuildNum(lastBuildNumber);
-                jobBuild.setStatus("BUILDING");
-                jobBuild.setStartTime(startTime);
+                jobBuild.setStatus(Constant.PIPELINE_STATUS_BUILDING);
                 jobBuild.setStartUser((String)session.getAttribute("username"));
                 jobBuildMapper.insert(jobBuild);
 
@@ -550,16 +544,62 @@ public class JobServiceImpl implements JobService {
                     stageBuild.setStageOrder(stage.getStageOrder());
                     stageBuild.setStageType(stageTypeMap.get(stage.getStageTypeId()));
                     stageBuild.setBuildNum(lastBuildNumber);
-                    stageBuild.setStatus("WAITING");
+                    stageBuild.setStatus(Constant.PIPELINE_STATUS_WAITING);
                     if(StageTemplateTypeEnum.DEPLOY.ordinal() == stage.getStageTemplateType()) {
                         stageBuild.setImage(stage.getImageName() + ":" + tagMap.get(stage.getImageName()));
                     }
                     stageBuildMapper.insert(stageBuild);
                 }
+
             }
-            return ActionReturnUtil.returnSuccess();
+//            if(result.isSuccess()){
+//                Map body = XmlUtil.parseXmlStringToMap((String) result.get("data"));
+//                Map root = (Map)body.get("workflowRun");
+//                Integer lastBuildNumber = Integer.valueOf((String) root.get("number"));
+//                Date startTime = new Timestamp(Long.valueOf((String) root.get("timestamp")));
+//                jobMapper.updateLastBuildNum(id, lastBuildNumber);
+//                JobBuild jobBuild = new JobBuild();
+//                jobBuild.setJobId(id);
+//                jobBuild.setBuildNum(lastBuildNumber);
+//                jobBuild.setStatus(Constant.PIPELINE_STATUS_BUILDING);
+//                jobBuild.setStartTime(startTime);
+//                jobBuild.setStartUser((String)session.getAttribute("username"));
+//                jobBuildMapper.insert(jobBuild);
+//
+//                Map<Integer, String> stageTypeMap = new HashMap<>();
+//                List<StageType> stageTypeList = stageTypeMapper.queryByTenant(job.getTenant());
+//                for(StageType stageType : stageTypeList){
+//                    stageTypeMap.put(stageType.getId(),stageType.getName());
+//                }
+//
+//                for(Stage stage : stageList){
+//                    StageBuild stageBuild = new StageBuild();
+//                    stageBuild.setJobId(id);
+//                    stageBuild.setStageId(stage.getId());
+//                    stageBuild.setStageName(stage.getStageName());
+//                    stageBuild.setStageOrder(stage.getStageOrder());
+//                    stageBuild.setStageType(stageTypeMap.get(stage.getStageTypeId()));
+//                    stageBuild.setBuildNum(lastBuildNumber);
+//                    stageBuild.setStatus(Constant.PIPELINE_STATUS_WAITING);
+//                    if(StageTemplateTypeEnum.DEPLOY.ordinal() == stage.getStageTemplateType()) {
+//                        stageBuild.setImage(stage.getImageName() + ":" + tagMap.get(stage.getImageName()));
+//                    }
+//                    stageBuildMapper.insert(stageBuild);
+//                }
+//                Map data = new HashMap<>();
+//                data.put("buildNum", lastBuildNumber);
+//                return ActionReturnUtil.returnSuccessWithData(data);
+//            }
+        //}
+        params.put("delay", "0sec");
+        result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/buildWithParameters", null, params, null, null);
+        if(result.isSuccess()){
+            Map data = new HashMap<>();
+            data.put("buildNum", lastBuildNumber);
+            return ActionReturnUtil.returnSuccessWithData(data);
+        }else{
+            throw new Exception("启动失败。");
         }
-        return ActionReturnUtil.returnError();
     }
 
 
@@ -574,13 +614,18 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
-    public ActionReturnUtil deleteBuild(String jobName, String tenantName, String buildNum) {
-        String jenkinsJobName = tenantName + "_" + jobName;
+    public ActionReturnUtil deleteBuild(Integer id, String buildNum) throws Exception {
+        Job job = jobMapper.queryById(id);
+        String jenkinsJobName = job.getTenant() + job.getName();
+        jobBuildMapper.deleteByJobId(id);
+        stageBuildMapper.deleteByJobId(id);
         ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/" + buildNum + "/doDelete", null, null, null, null);
         if (result.isSuccess()) {
             return ActionReturnUtil.returnSuccess();
+        }else{
+            throw new Exception("删除失败");
         }
-        return ActionReturnUtil.returnError();
+
     }
 
     @Override
@@ -787,11 +832,118 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
+    public void preBuild(Integer id, Integer buildNum, String dateTime){
+        Runnable worker = new Runnable() {
+            @Override
+            public void run() {
+                JobBuild jobbuild = new JobBuild();
+                jobbuild.setJobId(id);
+                jobbuild.setBuildNum(buildNum);
+                List<JobBuild> jobBuildList = jobBuildMapper.queryByObject(jobbuild);
+                if(jobBuildList == null || jobBuildList.size() == 0){
+                    Job job = jobMapper.queryById(id);
+                    String jenkinsJobName = job.getTenant()+"_"+job.getName();
+                    Map params = new HashMap<>();
+                    params.put("tree","number,timestamp");
+                    ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/lastBuild/api/xml", null, params, false);
+                    if(result.isSuccess()) {
+                        Map body = XmlUtil.parseXmlStringToMap((String) result.get("data"));
+                        Map root = (Map) body.get("workflowRun");
+                        Integer lastBuildNumber = Integer.valueOf((String) root.get("number"));
+                        Date startTime = new Timestamp(Long.valueOf((String) root.get("timestamp")));
+                        jobMapper.updateLastBuildNum(id, lastBuildNumber);
+                        JobBuild jobBuild = new JobBuild();
+                        jobBuild.setJobId(id);
+                        jobBuild.setBuildNum(lastBuildNumber);
+                        jobBuild.setStatus(Constant.PIPELINE_STATUS_BUILDING);
+                        jobBuild.setStartTime(startTime);
+                        jobBuild.setStartUser(null);
+                        jobBuildMapper.insert(jobBuild);
+
+                        Map<Integer, String> stageTypeMap = new HashMap<>();
+                        List<StageType> stageTypeList = stageTypeMapper.queryByTenant(job.getTenant());
+                        for(StageType stageType : stageTypeList){
+                            stageTypeMap.put(stageType.getId(),stageType.getName());
+                        }
+
+                        Map tagMap = new HashMap<>();
+                        result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/config.xml", null, null, false);
+                        if(result.isSuccess()){
+                            body = XmlUtil.parseXmlStringToMap((String) result.get("data"));
+                            Map definition = (Map)body.get("flow-definition");
+                            Object param = ((Map)((Map)((Map)definition.get("properties")).get("hudson.model.ParametersDefinitionProperty")).get("parameterDefinitions")).get("hudson.model.StringParameterDefinition");
+                            if(param instanceof List){
+                                for(Map map : (List<Map>)param){
+                                    tagMap.put(map.get("name"), map.get("defaultValue"));
+                                }
+                            }
+                        }
+
+                        List<Stage> stageList = stageMapper.queryByJobId(id);
+                        for(Stage stage:stageList){
+                            StageBuild stageBuild = new  StageBuild();
+                            stageBuild.setJobId(id);
+                            stageBuild.setStageId(stage.getId());
+                            stageBuild.setStageName(stage.getStageName());
+                            stageBuild.setStageOrder(stage.getStageOrder());
+                            stageBuild.setStageType(stageTypeMap.get(stage.getStageTypeId()));
+                            stageBuild.setBuildNum(lastBuildNumber);
+                            stageBuild.setStatus(Constant.PIPELINE_STATUS_WAITING);
+                            if(StageTemplateTypeEnum.IMAGEBUILD.ordinal() == stage.getStageTemplateType()){
+                                if("0".equals(stage.getImageTagType())){
+                                    tagMap.put(stage.getHarborProject() + "/" + stage.getImageName(), dateTime);
+                                }else {
+                                    tagMap.put(stage.getHarborProject() + "/" + stage.getImageName(), tagMap.get("tag" + stage.getStageOrder()));
+                                }
+                                if("1".equals(stage.getImageTagType())){
+                                    stage.setImageBaseTag(generateTag(stage));
+                                    stageMapper.updateStage(stage);
+                                }
+                            }
+                            if(StageTemplateTypeEnum.DEPLOY.ordinal() == stage.getStageTemplateType()){
+                                stageBuild.setImage(stage.getImageName() + ":" + tagMap.get(stage.getImageName()));
+                            }
+                            stageBuildMapper.insert(stageBuild);
+                        }
+                    }
+                }else{
+                    Map tagMap = new HashMap<>();
+                    List<Stage> stageList = stageMapper.queryByJobId(id);
+                    for(Stage stage:stageList){
+                        if(StageTemplateTypeEnum.IMAGEBUILD.ordinal() == stage.getStageTemplateType() && "0".equals(stage.getImageTagType())){
+
+                            tagMap.put(stage.getHarborProject() + "/" + stage.getImageName(), dateTime);
+                        }else if(StageTemplateTypeEnum.DEPLOY.ordinal() == stage.getStageTemplateType()){
+                            StageBuild stageBuild = new StageBuild();
+                            stageBuild.setStageId(stage.getId());
+                            stageBuild.setBuildNum(buildNum);
+                            List<StageBuild> stageBuildList = stageBuildMapper.queryByObject(stageBuild);
+                            if(stageBuildList != null && stageBuildList.size() == 1){
+                                StageBuild sBuild = stageBuildList.get(0);
+                                if(tagMap.get(stage.getImageName())!=null){
+                                    sBuild.setImage(stage.getImageName()+":"+tagMap.get(stage.getImageName()));
+                                    stageBuildMapper.updateByStageOrderAndBuildNum(sBuild);
+                                }
+                            }
+                        }
+                    }
+
+
+
+                }
+            }
+        };
+        NewCachedThreadPool threadPool = NewCachedThreadPool.init();
+        threadPool.execute(worker);
+    }
+
+    @Override
     public void postBuild(Integer id, Integer buildNum) {
         Runnable worker = new Runnable() {
             @Override
             public void run() {
                 try {
+                    stageService.updateJenkinsJob(id);
                     Thread.sleep(3000);
                     Job job = jobMapper.queryById(id);
                     jobStatusSync(job, buildNum);
@@ -829,7 +981,6 @@ public class JobServiceImpl implements JobService {
         Stage stage = stageMapper.queryById(stageId);
         Job job = jobMapper.queryById(stage.getJobId());
         Cluster cluster = null;
-        try {
             cluster = clusterService.findClusterByTenantId(job.getTenantId());
 
             HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
@@ -965,9 +1116,6 @@ public class JobServiceImpl implements JobService {
 
             versionControlService.canaryUpdate(canaryDeployment, dep.getSpec().getReplicas(), null, cluster);
 
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
 
     }
 
@@ -1009,7 +1157,11 @@ public class JobServiceImpl implements JobService {
                         if(dbStageList.get(i) != null){
                             stageMap.put("stageId", dbStageList.get(i).getId());
                         }
-                        stageMap.put("lastBuildStatus", Constant.PIPELINE_STATUS_INPROGRESS.equals(jobStatus)?Constant.PIPELINE_STATUS_WAITING:Constant.PIPELINE_STATUS_NOTBUILT);
+                        if(stageList.size() == 0){
+                            stageMap.put("lastBuildStatus", Constant.PIPELINE_STATUS_INPROGRESS.equals(jobStatus)?Constant.PIPELINE_STATUS_WAITING:Constant.PIPELINE_STATUS_NOTBUILT);
+                        }else {
+                            stageMap.put("lastBuildStatus", Constant.PIPELINE_STATUS_NOTBUILT);
+                        }
                         stageMap.put("stageOrder", stageList.size()+1);
                         stageList.add(stageMap);
                         currentStatus.append((String)stageMap.get("lastBuildStatus"));
@@ -1454,8 +1606,6 @@ public class JobServiceImpl implements JobService {
 
 
         //System.out.println(StageTemplateTypeEnum.DEPLOY.ordinal());
-
-
 
 
     }

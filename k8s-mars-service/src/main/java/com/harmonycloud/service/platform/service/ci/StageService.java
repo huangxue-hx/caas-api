@@ -39,4 +39,6 @@ public interface StageService {
     void stageBuildSync(Job job, Integer buildNum, Map stageMap, int stageOrder);
 
     void getStageLogWS(WebSocketSession session, Integer id, Integer buildNum);
+
+    ActionReturnUtil updateJenkinsJob(Integer id) throws Exception;
 }

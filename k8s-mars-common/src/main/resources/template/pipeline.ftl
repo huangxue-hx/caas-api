@@ -2,6 +2,7 @@ import static java.util.UUID.randomUUID
 import  org.csanchez.jenkins.plugins.kubernetes.pipeline.PodTemplateAction
 def uuid
 def label
+def dateTime = new Date().format('yyyyMMddHHmmss')
 
 @NonCPS
 def clearTemplateNames() {
@@ -13,6 +14,7 @@ def clearTemplateNames() {
 }
 
 try{
+httpRequest "${apiUrl!}/rest/openapi/cicd/preBuild?id=${job.id!}&amp;buildNum=${r'${currentBuild.number}'}&amp;dateTime=${r'${dateTime}'}"
 <#list stageList as stage>
 <#if stage.stageTemplateType == 0>
 <#assign checkout=true>
@@ -25,7 +27,7 @@ label = uuid.take(8)
 podTemplate(
     containers: [
         containerTemplate(
-            alwaysPullImage: true,
+            alwaysPullImage: false,
             args: '',
             command: '',
             envVars: [
@@ -69,7 +71,7 @@ podTemplate(
         </#list>
     </#if>
 </#if>
-        httpRequest "${apiUrl!}/rest/openapi/cicd/stageSync?id=${stage.id!}&amp;buildNum=${r'${currentBuild.number}'}"
+        httpRequest "${apiUrl!}/rest/openapi/cicd/stageSync?id=${stage.id!}&amp;buildNum=${r'${currentBuild.number}'}&amp;dateTime=${r'${dateTime}'}"
         stage('${stage.stageName}'){
 <#if stage.repositoryType! == "git">
             git url:'${stage.repositoryUrl}',credentialsId:'${stage.id}'<#if stage.repositoryBranch??>, branch:'${stage.repositoryBranch!}'</#if>
@@ -77,10 +79,15 @@ podTemplate(
             checkout([$class: 'SubversionSCM',  locations: [[credentialsId: '${stage.id}', depthOption: 'infinity', ignoreExternalsOption: true, local: '.', remote: '${stage.repositoryUrl}']]]) }
 </#if>
 <#if stage.stageTemplateType == 1>
-            withDockerRegistry([credentialsId: 'harbor', url: 'http://${harborHost!}']) {
-                sh 'docker build <#if stage.dockerfileType == 1> -f ./${stage.dockerFilePath}</#if><#if stage.dockerfileType == 2> -f <#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if> -t ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!} .'
-                sh 'docker push ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}'
-            }
+            <#if stage.imageTagType == '0'>
+            tag${stage.stageOrder!} = dateTime
+            </#if>
+            //withDockerRegistry([credentialsId: 'harbor', url: 'http://${harborHost!}']) {
+            withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harbor', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']])
+            { sh 'docker login ${harborHost!} --username=$USERNAME --password=$PASSWORD' }
+            sh "docker build <#if stage.dockerfileType == 1> -f ./${stage.dockerFilePath}</#if><#if stage.dockerfileType == 2> -f <#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if> -t ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!} ."
+            sh "docker push ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}"
+            //}
             //withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harbor', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']])
             //{ sh 'docker login ${harborHost!} --username=$USERNAME --password=$PASSWORD' }
             //docker.build('${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}<#if stage.dockerfileType == 1> -f ./${stage.dockerFilePath}</#if><#if stage.dockerfileType == 2> -f <#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if>').push()
@@ -88,6 +95,7 @@ podTemplate(
 <#if stage.stageTemplateType == 2>
             echo '开始升级'
             httpRequest "${apiUrl!}/rest/openapi/cicd/deploy?stageId=${stage.id!}&amp;buildNum=${r'${currentBuild.number}'}"
+            echo '升级结束'
 </#if>
 <#list stage.command as command>
             sh '${command}'
