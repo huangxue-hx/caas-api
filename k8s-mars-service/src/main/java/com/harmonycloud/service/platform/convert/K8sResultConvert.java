@@ -432,6 +432,8 @@ public class K8sResultConvert {
 	public static Deployment convertAppCreate(DeploymentDetailDto detail, String userName) throws Exception {
 		Deployment dep = new Deployment();
 		ObjectMeta meta = new ObjectMeta();
+		dep.setApiVersion("extensions/v1beta1");
+		dep.setKind("Deployment");
 		meta.setName(detail.getName());
 		Map<String, Object> lmMap = new HashMap<String, Object>();
 		if (userName != null){
@@ -842,6 +844,8 @@ public class K8sResultConvert {
 	
 	public static Service convertAppCreateOfService(DeploymentDetailDto detail) throws Exception {
 		Service service = new Service();
+		service.setApiVersion("v1");
+		service.setKind("Service");
 		ObjectMeta meta = new ObjectMeta();
 		meta.setName(detail.getName());
 		Map<String, Object> labels = new HashMap<String, Object>();
