@@ -11,6 +11,11 @@ import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.ConfigMapService;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 /**
@@ -30,4 +35,35 @@ public class ConfigMapServiceImpl implements ConfigMapService {
         ConfigMap configMap = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
         return ActionReturnUtil.returnSuccessWithData(configMap);
     }
+
+	@Override
+	public ActionReturnUtil listConfigMapByName(String namespace, String name, Cluster cluster) throws Exception {
+		if(StringUtils.isEmpty(namespace)){
+			return ActionReturnUtil.returnErrorWithMsg("namespace为空");
+		}
+		if(StringUtils.isEmpty(name)){
+			return ActionReturnUtil.returnErrorWithMsg("congfigmap名称为空");
+		}
+		List<String> names = new ArrayList<String>();
+		if(name.contains(",")){
+			String [] n = name.split(",");
+			names = java.util.Arrays.asList(n);
+		}else{
+			names.add(name);
+		}
+		ArrayList<ConfigMap> list = new ArrayList<ConfigMap>();
+		if(names != null && names.size() > 0){
+			for(String n : names){
+				K8SURL url = new K8SURL();
+		        url.setNamespace(namespace).setName(n).setResource(Resource.CONFIGMAP);
+		        K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET, null, null, cluster);
+		        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+		            return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+		        }
+		        ConfigMap configMap = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
+		        list.add(configMap);
+			}
+		}
+		return ActionReturnUtil.returnSuccessWithData(list);
+	}
 }

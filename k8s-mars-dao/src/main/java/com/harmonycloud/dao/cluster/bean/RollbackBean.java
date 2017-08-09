@@ -1,11 +1,6 @@
 package com.harmonycloud.dao.cluster.bean;
 
-import com.alibaba.fastjson.JSON;
-import com.harmonycloud.common.util.date.DateUtil;
-
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.util.List;
 
 /**
  * Created by czm on 2017/6/8.
@@ -16,7 +11,8 @@ public class RollbackBean implements Comparable<RollbackBean>{
     String podTemplete;
     String revisionTime;
     String name;
-    String current;
+    List<String> configmap;
+	String current;
 
     public String getRevision() {
         return revision;
@@ -66,7 +62,15 @@ public class RollbackBean implements Comparable<RollbackBean>{
         this.current = current;
     }
 
-    @Override
+    public List<String> getConfigmap() {
+		return configmap;
+	}
+
+	public void setConfigmap(List<String> configmap) {
+		this.configmap = configmap;
+	}
+
+	@Override
     public int compareTo(RollbackBean o) {
         return Integer.parseInt(this.getRevision())-Integer.parseInt(o.getRevision());
     }
