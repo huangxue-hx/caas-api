@@ -17,7 +17,17 @@ public interface ConfigCenterService {
      *            required
      * @return ActionReturnUtil
      */
-    ActionReturnUtil saveOrUpdateConfig(ConfigDetailDto configDetail, String userName) throws Exception;
+    ActionReturnUtil saveConfig(ConfigDetailDto configDetail, String userName) throws Exception;
+    
+    /**
+     * add config service on 17/03/24.
+     * 
+     * @author gurongyun
+     * @param configDetail
+     *            required
+     * @return ActionReturnUtil
+     */
+    ActionReturnUtil updateConfig(ConfigDetailDto configDetail, String userName) throws Exception;
 
     /**
      * delete config service on 17/03/24.

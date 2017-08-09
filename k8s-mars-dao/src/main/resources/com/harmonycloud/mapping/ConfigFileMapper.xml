@@ -93,4 +93,16 @@
 	<delete id="deleteConfigFileByTenant" parameterType="java.lang.String">
 		delete from configfile where tenant=#{tenant}
 	</delete>
+	<update id="updateConfig">
+    	update configfile
+    	<set>
+        	description = #{description},
+        	tenant = #{tenant},
+        	reponame = #{repoName},
+        	user = #{user},
+        	item = #{item},
+        	path = #{path}
+    	</set>
+    	where id = #{id}
+  </update>
 </mapper>

@@ -44,7 +44,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 	 * @return ActionReturnUtil
 	 */
 	@Override
-	public ActionReturnUtil saveOrUpdateConfig(ConfigDetailDto configDetail, String userName) throws Exception {
+	public ActionReturnUtil saveConfig(ConfigDetailDto configDetail, String userName) throws Exception {
 		// check params
 		if (configDetail == null || StringUtils.isEmpty(configDetail.getName()) || StringUtils.isEmpty(configDetail.getItems())) {
 			return ActionReturnUtil.returnErrorWithMsg("配置文件名称 或者配置内容为空");
@@ -69,26 +69,15 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 		configFile.setId(cfgid);
 		configFile.setName(configDetail.getName());
 		configFile.setCreateTime(DateUtil.timeFormat.format(new Date()));
-
 		configFile.setDescription(configDetail.getDescription());
 		configFile.setTenant(configDetail.getTenant());
 		configFile.setUser(userName);
 		configFile.setRepoName(configDetail.getRepoName());
 		configFile.setItem(configDetail.getItems());
 		configFile.setPath(configDetail.getPath());
-		boolean equals = false;
 		if (list != null && list.size() >0) {
 			// 存在版本号+0.1
 			tags = Double.valueOf(list.get(0).getTags()) + Constant.TEMPLATE_TAG_INCREMENT;
-			for(ConfigFile c : list){
-				equals = configFile.equals(c);
-				if(equals){
-					JSONObject resultJson = new JSONObject();
-					resultJson.put("filename", c.getName());
-					resultJson.put("tag", c.getTags());
-					return ActionReturnUtil.returnSuccessWithData(resultJson);
-				}
-			}
 		}
 		configFile.setTags(decimalFormat.format(tags) + "");
 		// 入库
@@ -96,6 +85,39 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 		JSONObject resultJson = new JSONObject();
 		resultJson.put("filename", configDetail.getName());
 		resultJson.put("tag", tags);
+		return ActionReturnUtil.returnSuccessWithData(resultJson);
+	}
+	
+	/**
+	 * update config serviceImpl on 17/03/24.
+	 * 
+	 * @author gurongyun
+	 * @param configDetail
+	 *            required
+	 * @return ActionReturnUtil
+	 */
+	@Override
+	public ActionReturnUtil updateConfig(ConfigDetailDto configDetail, String userName) throws Exception {
+		// check params
+		if (configDetail == null || StringUtils.isEmpty(configDetail.getName()) || StringUtils.isEmpty(configDetail.getItems())) {
+			return ActionReturnUtil.returnErrorWithMsg("配置文件名称 或者配置内容为空");
+		}
+
+		if (StringUtils.isEmpty(userName)) {
+			return ActionReturnUtil.returnErrorWithMsg("userName 为空");
+		}
+		ConfigFile configFile = new ConfigFile();
+		configFile.setId(configDetail.getId());
+		configFile.setDescription(configDetail.getDescription());
+		configFile.setTenant(configDetail.getTenant());
+		configFile.setUser(userName);
+		configFile.setRepoName(configDetail.getRepoName());
+		configFile.setItem(configDetail.getItems());
+		configFile.setPath(configDetail.getPath());
+		// 入库
+		configFileMapper.updateConfig(configFile);
+		JSONObject resultJson = new JSONObject();
+		resultJson.put("filename", configDetail.getName());
 		return ActionReturnUtil.returnSuccessWithData(resultJson);
 	}
 

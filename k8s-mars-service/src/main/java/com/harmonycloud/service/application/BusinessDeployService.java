@@ -146,7 +146,7 @@ public interface BusinessDeployService {
      *            cluster
      * @return ActionReturnUtil
      */
-    ActionReturnUtil deployBusinessTemplateByName(String name, String tag, String namespace, String userName, Cluster cluster) throws Exception;
+    ActionReturnUtil deployBusinessTemplateByName(String name, String businessame, String tag, String namespace, String userName, Cluster cluster) throws Exception;
     
     /**
      * and and deploy application service 已有的业务  on 17/04/11.

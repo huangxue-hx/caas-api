@@ -318,11 +318,23 @@ public class BusinessServiceImpl implements BusinessService {
         }
         // application template imagelist
         // add topology
-        if (businessTemplate.getTopologyList() != null) {
+        //添加拓扑图
+  		if(businessTemplate.getTopologyList() != null && businessTemplate.getTopologyList().size() > 0 ){
+  			for(TopologysDto topology : businessTemplate.getTopologyList()){
+  				if(topology.getSource() != null && topology.getSource().getName() != null && topology.getTarget()!= null && topology.getTarget().getName() != null ){
+  					int source = (int) maps.get(topology.getSource().getName());
+  					int target = (int) maps.get(topology.getTarget().getName());
+  					topology.getSource().setId(source+"");
+  					topology.getTarget().setId(target+"");
+  				}
+  			}
+  			saveTopology(businessTemplate.getTopologyList(), businessTemplatesId);
+  		}
+       /* if (businessTemplate.getTopologyList() != null) {
             if (!saveTopology(businessTemplate.getTopologyList(), businessTemplatesId)) {
                 return ActionReturnUtil.returnErrorWithMsg("add topology error");
             }
-        }
+        }*/
         idList.add(map);
         idList.add(maps);
         return ActionReturnUtil.returnSuccessWithData(idList);
@@ -434,43 +446,12 @@ public class BusinessServiceImpl implements BusinessService {
                 Topology topology = new Topology();
                 topology.setBusinessId(businessTemplatesId);
                 topology.setDetails(ts.getDesc());
-                if (!StringUtils.isEmpty(ts.getSource().getIsExternal()) && ts.getSource().getIsExternal() == Constant.EXTERNAL_SERVICE) {
-                    // external service
-                    ServiceTemplates externalservice = serviceTemplatesMapper.getExternalService(ts.getSource().getName());
-                    if (externalservice != null) {
-                        topology.setSource(externalservice.getId() + "");
-                    }
-                } else {
-                    // service
-//                    if (!StringUtils.isEmpty(ts.getSource().getId())) {
-//                        // service templates existed
-//                        topology.setSource(ts.getSource().getId());
-//                    } else {
-                        List<ServiceTemplates> maxtag = serviceTemplatesMapper.listServiceMaxTagByName(ts.getSource().getName());
-                        if (maxtag.size() > 0) {
-                            topology.setSource(maxtag.get(0).getId() + "");
-                        }
-//                    }
+                if(ts.getSource() != null && ts.getSource().getId() != null && ts.getTarget() != null && ts.getTarget().getId() != null){
+                	topology.setSource(ts.getSource().getId() + "");
+                    topology.setTarget(ts.getTarget().getId() + "");
+                    topologyMapper.insert(topology);
                 }
-                if (!StringUtils.isEmpty(ts.getTarget().getIsExternal()) && ts.getTarget().getIsExternal() == Constant.EXTERNAL_SERVICE) {
-                    // external service
-                    ServiceTemplates externalservice = serviceTemplatesMapper.getExternalService(ts.getTarget().getName());
-                    if (externalservice != null) {
-                        topology.setTarget(externalservice.getId() + "");
-                    }
-                } else {
-                    // service
-//                    if (!StringUtils.isEmpty(ts.getTarget().getId())) {
-//                        // service templates existed
-//                        topology.setTarget(ts.getTarget().getId());
-//                    } else {
-                        List<ServiceTemplates> maxtag = serviceTemplatesMapper.listServiceMaxTagByName(ts.getTarget().getName());
-                        if (maxtag.size() > 0) {
-                            topology.setTarget(maxtag.get(0).getId() + "");
-                        }
-//                    }
-                }
-                topologyMapper.insert(topology);
+                
             }
             boo = true;
         }
@@ -642,26 +623,16 @@ public class BusinessServiceImpl implements BusinessService {
             // save businessTemplate-serviceTemplate mapper
             saveBusinessService(businessTemplatesId, externalservice.getId(), Constant.TEMPLATE_STATUS_CREATE, Constant.EXTERNAL_SERVICE);
         } else {
-            // check flag  
-            if (serviceTemplate.getFlag() == null || serviceTemplate.getFlag() == SERVICE_SAVE) {
-            	//添加版本 
-                ActionReturnUtil res = serviceService.saveServiceTemplate(serviceTemplate, userName,1);
-                if(res.isSuccess()){
-                	JSONObject json = new JSONObject();
-                	json = (JSONObject) res.get("data");
-                	result.add(json);
-                	// add application - service template
-                    saveBusinessService(businessTemplatesId, Integer.parseInt(json.get(serviceTemplate.getName()).toString()), Constant.TEMPLATE_STATUS_CREATE, Constant.K8S_SERVICE);
-                }  
-            } else if (serviceTemplate.getFlag() == SERVICE_UPDATE) {
-                // service template existed update
-            	serviceService.updateServiceTemplata(serviceTemplate, userName, serviceTemplate.getTag());
-                // save businessTemplates-serviceTemplates mapper
-                saveBusinessService(businessTemplatesId, serviceTemplate.getId(), Constant.TEMPLATE_STATUS_CREATE, Constant.K8S_SERVICE);
-                JSONObject json = new JSONObject();
-                json.put(serviceTemplate.getName(), serviceTemplate.getId());
-                result.add(json);
-            }
+           
+        	//添加版本 
+            ActionReturnUtil res = serviceService.saveServiceTemplate(serviceTemplate, userName,1);
+            if(res.isSuccess()){
+            	JSONObject json = new JSONObject();
+            	json = (JSONObject) res.get("data");
+            	result.add(json);
+            	// add application - service template
+                saveBusinessService(businessTemplatesId, Integer.parseInt(json.get(serviceTemplate.getName()).toString()), Constant.TEMPLATE_STATUS_CREATE, Constant.K8S_SERVICE);
+            }  
             listImages(serviceTemplate.getDeploymentDetail().getContainers(), imageList);
         }
         result.add(imageList);
@@ -681,7 +652,7 @@ public class BusinessServiceImpl implements BusinessService {
         topologyService.deleteToplogy(businessTemplatesId);
         if (topologys != null && topologys.size() > 0 && (businessTemplatesId != null && businessTemplatesId != 0)) {
             for (TopologysDto ts : topologys) {
-            	if(ts != null && ts.getSource() != null && ts.getSource().getName() != null){
+            	if(ts != null && ts.getSource() != null && ts.getSource().getName() != null && ts.getTarget() != null && ts.getTarget().getName() != null){
             		Topology topology = new Topology();
                     topology.setBusinessId(businessTemplatesId);
                     topology.setDetails(ts.getDesc());
@@ -734,23 +705,30 @@ public class BusinessServiceImpl implements BusinessService {
 		
 		if(list !=null && list.size() > 0){
 			for( ServiceTemplateDto s : list){
-				if(s.getFlag() !=  null && s.getFlag() == 1){
-					serviceService.updateServiceTemplata(s, userName, "");
-					json.put(s.getName(), s.getId());
-				}else{
-					ActionReturnUtil serRes = serviceService.saveServiceTemplate(s, userName,1);
-					if(!serRes.isSuccess()){
-						return serRes;
-					}
-					JSONObject js = (JSONObject) serRes.get("data");
-					s.setId(js.getInt(s.getName()));
-					json.putAll(js);
+				ActionReturnUtil serRes = serviceService.saveServiceTemplate(s, userName,1);
+				if(!serRes.isSuccess()){
+					return serRes;
 				}
+				JSONObject js = (JSONObject) serRes.get("data");
+				s.setId(js.getInt(s.getName()));
+				json.putAll(js);
 				//添加业务模板和应用模板Mapper
 				saveBusinessService(businessTemplate.getId(), s.getId(), Constant.TEMPLATE_STATUS_CREATE, Constant.K8S_SERVICE);
 			}
 		}else{
 			return ActionReturnUtil.returnErrorWithMsg("应用模板为空");
+		}
+		//添加拓扑图
+		if(businessTemplate.getTopologyList() != null && businessTemplate.getTopologyList().size() > 0 ){
+			for(TopologysDto topology : businessTemplate.getTopologyList()){
+				if(topology.getSource() != null && topology.getSource().getName() != null && topology.getTarget()!= null && topology.getTarget().getName() != null ){
+					int source = json.getInt(topology.getSource().getName());
+					int target = json.getInt(topology.getTarget().getName());
+					topology.getSource().setId(source+"");
+					topology.getTarget().setId(target+"");
+				}
+			}
+			saveTopology(businessTemplate.getTopologyList(), businessTemplate.getBusinessId());
 		}
 		return ActionReturnUtil.returnSuccessWithData(json);
 	}

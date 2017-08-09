@@ -395,7 +395,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         String namespace = businessDeploy.getNamespace();
         Business business = new Business();
         // application info
-        business.setName(businessDeploy.getBusinessTemplate().getName());
+        business.setName(businessDeploy.getName());
         business.setTemplateId(businessDeploy.getBusinessTemplate().getId());
         business.setNamespaces(businessDeploy.getNamespace());
         business.setDetails(businessDeploy.getBusinessTemplate().getDesc());
@@ -1088,7 +1088,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 	}
 
 	@Override
-	public ActionReturnUtil deployBusinessTemplateByName(String name, String tag, String namespace, String userName, Cluster cluster)
+	public ActionReturnUtil deployBusinessTemplateByName(String name, String businessame, String tag, String namespace, String userName, Cluster cluster)
 			throws Exception {
 		if(!StringUtils.isEmpty(name) && !StringUtils.isEmpty(tag) && !StringUtils.isEmpty(namespace)){
 			//根据name和tag获取模板信息
@@ -1098,6 +1098,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 			}
 			JSONObject json = (JSONObject) btresponse.get("data");
 			BusinessDeployDto businessDeploy = new BusinessDeployDto();
+			businessDeploy.setName(businessame);
 			businessDeploy.setNamespace(namespace);
 			BusinessTemplateDto businessTemplate = new BusinessTemplateDto();
 			businessTemplate.setDesc(json.getString("desc"));

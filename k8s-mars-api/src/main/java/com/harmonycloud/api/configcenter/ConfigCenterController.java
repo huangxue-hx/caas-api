@@ -44,7 +44,7 @@ public class ConfigCenterController {
 	public ActionReturnUtil saveConfig(@ModelAttribute ConfigDetailDto configDetail) throws Exception {
 		logger.info("新增配置文件");
 		String userName = (String) session.getAttribute("username");
-		return configCenterService.saveOrUpdateConfig(configDetail, userName);
+		return configCenterService.saveConfig(configDetail, userName);
 	}
 
 	/**
@@ -60,7 +60,7 @@ public class ConfigCenterController {
 	public ActionReturnUtil updateConfig(@ModelAttribute ConfigDetailDto configDetail) throws Exception {
 		logger.info("修改配置文件");
 		String userName = (String) session.getAttribute("username");
-		return configCenterService.saveOrUpdateConfig(configDetail, userName);
+		return configCenterService.updateConfig(configDetail, userName);
 	}
 
 	/**

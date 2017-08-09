@@ -81,7 +81,7 @@
   </select>
 
   <select id="getServiceTemplatesByID" parameterType="java.lang.Integer" resultMap="BaseResultMap">
-    SELECT * FROM service_templates WHERE id = #{ID} AND (status=0 or status is null)
+    SELECT * FROM service_templates WHERE id = #{ID}
   </select>
 
   <select id="listServiceTemplate" parameterType="java.lang.String" resultMap="BaseResultMap">
