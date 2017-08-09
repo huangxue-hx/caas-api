@@ -29,6 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.yaml.snakeyaml.Yaml;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -151,7 +155,9 @@ public class BusinessServiceImpl implements BusinessService {
 
                             Deployment deploymentToYaml =  TemplateToYamlUtil.templateToDeployment(deployment);
                             com.harmonycloud.k8s.bean.Service serviceYaml = TemplateToYamlUtil.templateToService(deployment);
+
                             deploymentListToyaml.add(serviceYaml);
+
                             deploymentListToyaml.add(deploymentToYaml);
                         }
                     }
@@ -173,7 +179,10 @@ public class BusinessServiceImpl implements BusinessService {
             js.put("topology", array);
             Yaml yaml = new Yaml();
             if (deploymentListToyaml != null){
-                js.put("yaml",yaml.dumpAsMap(deploymentListToyaml));
+
+                String yamlc = convertYaml(yaml.dumpAsMap(deploymentListToyaml));
+
+                js.put("yaml",yamlc);
             }
 
 //        } else {
@@ -241,7 +250,11 @@ public class BusinessServiceImpl implements BusinessService {
             }
         }
         Yaml yaml = new Yaml();
-        return ActionReturnUtil.returnSuccessWithData(yaml.dumpAsMap(deploymentListToyaml));
+        String yamlc = "";
+        if (yaml.dumpAsMap(deploymentListToyaml) != null){
+            yamlc = convertYaml(yaml.dumpAsMap(deploymentListToyaml));
+        }
+        return ActionReturnUtil.returnSuccessWithData(yamlc);
     }
 
     /**
@@ -754,4 +767,29 @@ public class BusinessServiceImpl implements BusinessService {
 		}
 		return ActionReturnUtil.returnSuccess();
 	}
+
+	public String convertYaml(String yaml){
+
+        ByteArrayInputStream is=new ByteArrayInputStream(yaml.getBytes());
+        BufferedReader br=new BufferedReader(new InputStreamReader(is));
+        StringBuffer sb = new StringBuffer();
+        String line = "";
+        try {
+            while((line = br.readLine())!=null){
+                if (line != null && !line.contains("!!") && !line.contains("null")){
+                    if (line.length() > 2){
+                        String lineNew = line.substring(2, line.length());
+                        sb.append(lineNew + "\n");
+                    } else {
+                        sb.append(line + "\n");
+                    }
+
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return sb.toString();
+    }
 }
