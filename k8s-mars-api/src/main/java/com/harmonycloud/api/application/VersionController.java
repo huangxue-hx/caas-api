@@ -158,7 +158,16 @@ public class VersionController {
         return  configMapService.getConfigMapByName(namespace,name,null,cluster);
     }
 
-
+    @ResponseBody
+    @RequestMapping(value = "/configmap/list", method = RequestMethod.GET)
+    public ActionReturnUtil listconfigmap(String namespace, String name) throws Exception {
+    	String userName = (String) session.getAttribute("username");
+        if(userName == null){
+			throw new K8sAuthException(Constant.HTTP_401);
+		}
+		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+        return  configMapService.listConfigMapByName(namespace,name,cluster);
+    }
 
 
 

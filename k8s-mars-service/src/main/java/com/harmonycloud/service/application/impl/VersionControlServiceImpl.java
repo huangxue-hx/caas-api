@@ -492,8 +492,6 @@ public class VersionControlServiceImpl implements VersionControlService {
 
         Map<String, Object> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
-
-        Map<String, Object> res = new HashedMap();
         //通过获得Deployment的RS来显示版本信息
         //查询出来Deployment
         K8SClientResponse dp = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET,cluster);
@@ -502,7 +500,7 @@ public class VersionControlServiceImpl implements VersionControlService {
 
         Map<String, Object> query = dep.getSpec().getSelector().getMatchLabels();
 
-        Map<String, Object> body = new HashedMap();
+        Map<String, Object> body = new HashMap<String, Object>();
         body.put("labelSelector", "app=" + query.get("app"));
 
         K8SClientResponse rsRes = rsService.doRsByNamespace(namespace, headers, body, HTTPMethod.GET,cluster);
@@ -518,6 +516,18 @@ public class VersionControlServiceImpl implements VersionControlService {
             rollbackBean.setName(rs.getMetadata().getName());
             rollbackBean.setRevisionTime(rs.getMetadata().getCreationTimestamp());
             rollbackBean.setPodTemplete(JSON.toJSONString(rs.getSpec().getTemplate()));
+            if(rs.getSpec().getTemplate().getSpec().getVolumes() != null){
+            	List<Volume> volume = rs.getSpec().getTemplate().getSpec().getVolumes();
+            	if(volume != null && volume.size() > 0){
+            		List<String> cfgmap = new ArrayList<String>();
+            		for(Volume v : volume){
+            			if(v.getConfigMap() != null){
+            				cfgmap.add(v.getConfigMap().getName());
+            			}
+            		}
+            		rollbackBean.setConfigmap(cfgmap);
+            	}
+            }
             rollbackBean.setCurrent("false");
             rollbackBean.setRevision(reversion);
             if (reversion.equals(dep.getMetadata().getAnnotations().get("deployment.kubernetes.io/revision"))) {

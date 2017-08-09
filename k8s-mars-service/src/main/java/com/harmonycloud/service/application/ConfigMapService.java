@@ -9,5 +9,7 @@ import com.harmonycloud.dao.cluster.bean.Cluster;
 public interface ConfigMapService {
 
     public ActionReturnUtil getConfigMapByName(String namespace , String name, String method, Cluster cluster) throws Exception;
+    
+    public ActionReturnUtil listConfigMapByName(String namespace , String name, Cluster cluster) throws Exception;
 
 }
