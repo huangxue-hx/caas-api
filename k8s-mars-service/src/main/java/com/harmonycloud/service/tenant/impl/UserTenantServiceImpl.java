@@ -111,6 +111,7 @@ public class UserTenantServiceImpl implements UserTenantService {
                     u.setName(user.getUsername());
                     u.setNikeName(user.getRealName());
                     u.setEmail(user.getEmail());
+                    u.setPhone(user.getPhone());
                     u.setComment(user.getComment());
                     Date createTime = user.getCreateTime();
                     String date = DateUtil.DateToString(createTime, DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z);
