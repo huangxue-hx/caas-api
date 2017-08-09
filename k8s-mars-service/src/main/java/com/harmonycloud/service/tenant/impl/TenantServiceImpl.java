@@ -41,6 +41,7 @@ import com.harmonycloud.dao.network.NetworkCalicoMapper;
 import com.harmonycloud.dao.network.bean.NamespceBindSubnet;
 import com.harmonycloud.dao.network.bean.NetworkCalico;
 import com.harmonycloud.dao.network.bean.NetworkTopology;
+import com.harmonycloud.dao.tenant.HarborProjectTenantMapper;
 import com.harmonycloud.dao.tenant.TenantBindingMapper;
 import com.harmonycloud.dao.tenant.bean.HarborProjectTenant;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
@@ -137,6 +138,8 @@ public class TenantServiceImpl implements TenantService {
     private HttpSession session;
     @Autowired 
     HarborProjectTenantService harborProjectTenantService;
+    @Autowired
+    HarborProjectTenantMapper harborProjectTenantMapper;
     
 
     public static final String TENANTNAME = "tenantName";
@@ -159,6 +162,8 @@ public class TenantServiceImpl implements TenantService {
         if (listTenantBinding.isEmpty() || listTenantBinding.size() <= 0) {
             return ActionReturnUtil.returnSuccessWithData(data);
         }
+
+        List<HarborProjectTenant> byTenantIdPublic = harborProjectTenantMapper.getByTenantIdPublic(1);
         for (TenantBinding tenantBinding : listTenantBinding) {
             List<UserTenant> list = new ArrayList<UserTenant>();
             Map<String, Object> map = new HashMap<String, Object>();
@@ -177,7 +182,7 @@ public class TenantServiceImpl implements TenantService {
             map.put(CommonConstant.HARBORPROJECTS, harborProjectList);
             map.put(CommonConstant.K8SPVS, tenantBinding.getK8sPvList());
             map.put(CommonConstant.NAMESPACENUM, tenantBinding.getK8sNamespaceList().size());
-            map.put(CommonConstant.HARBORPERJECTNUM, "2");
+            map.put(CommonConstant.HARBORPUBLICPERJECTNUM, byTenantIdPublic.size());
             map.put(CommonConstant.TENANTUSERNUM, list.size());
             data.add(map);
         }
@@ -217,7 +222,7 @@ public class TenantServiceImpl implements TenantService {
                 map.put(CommonConstant.HARBORPROJECTS,harborProjectList);
                 map.put(CommonConstant.K8SPVS, listTenantBinding.get(0).getK8sPvList());
                 map.put(CommonConstant.NAMESPACENUM, listTenantBinding.get(0).getK8sNamespaceList().size());
-                map.put(CommonConstant.HARBORPERJECTNUM, "1");
+                map.put(CommonConstant.HARBORPUBLICPERJECTNUM, "1");
                 map.put(CommonConstant.TENANTUSERNUM, userByTenantid.size());
                 data.add(map);
             }

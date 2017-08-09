@@ -130,7 +130,7 @@ public class CommonConstant {
     public static final String HARBORPROJECTS = "harborProjects";
     public static final String K8SPVS = "k8sPvs";
     public static final String NAMESPACENUM = "namespaceNum";
-    public static final String HARBORPERJECTNUM = "harborPerjectNum";
+    public static final String HARBORPUBLICPERJECTNUM = "harborPublicPerjectNum";
     public static final String TENANTUSERNUM = "tenantUserNum";
     public static final String K8SNAMESPACES = "k8sNamespaces";
     public static final String CREATETIME = "createTime";
