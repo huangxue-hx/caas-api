@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
-import org.elasticsearch.common.util.concurrent.EsAbortPolicy;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.springframework.stereotype.Service;
@@ -50,7 +49,9 @@ public class UserAuditServiceImpl implements UserAuditService {
         }
 
         if (StringUtils.isNotBlank(keyWords)) {
-            query.must(QueryBuilders.multiMatchQuery(keyWords,"user","opFun"));
+        	query.must(QueryBuilders.queryStringQuery("*"+keyWords+"*").field("user")
+        			.field("opFun").field("tenant").field("module").field("path").field("subject").field("remoteIp"));
+            //query.must(QueryBuilders.multiMatchQuery(keyWords,"user","opFun", "tenant", "module", "path", "subject", "remoteIp"));
         }
 
         if (userLists != null && userLists.size() > 0) {
@@ -119,10 +120,7 @@ public class UserAuditServiceImpl implements UserAuditService {
         String moduleName = userAuditSearch.getModuleName();
         String keyWords = userAuditSearch.getKeyWords();
         String user = userAuditSearch.getUser();
-        String scrollId = userAuditSearch.getScrollId();
         List<String> userLists = userAuditSearch.getUserList();
-        Integer pageSize = userAuditSearch.getSize();
-        Integer pageNum = userAuditSearch.getPageNum();
 
         BoolQueryBuilder query = QueryBuilders.boolQuery();
 
@@ -139,7 +137,9 @@ public class UserAuditServiceImpl implements UserAuditService {
         }
 
         if (StringUtils.isNotBlank(keyWords)) {
-            query.must(QueryBuilders.multiMatchQuery(keyWords,"user","opFun"));
+            //query.must(QueryBuilders.multiMatchQuery(keyWords,"user","opFun", "tenant", "module", "path", "subject", "remoteIp"));
+        	query.must(QueryBuilders.queryStringQuery("*"+keyWords+"*").field("user")
+        			.field("opFun").field("tenant").field("module").field("path").field("subject").field("remoteIp"));
         }
 
         if (userLists != null && userLists.size() > 0) {
