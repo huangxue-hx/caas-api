@@ -29,7 +29,7 @@
         select
         id,harborProject_id,tenant_id,tenant_name,create_time,harbor_project_name,isPublic
         from harborProject_tenant
-        where tenant_id = #{tenantId}
+        where tenant_id = #{tenantId}  or isPublic = 1
     </select>
 
     <select id="getByTenantIdPrivate" resultMap="harborProjectTenantMap" parameterType="com.harmonycloud.dao.tenant.bean.HarborProjectTenant">

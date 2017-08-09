@@ -742,6 +742,13 @@ public class NodeServiceImpl implements NodeService {
                 if (nodeIp.equals(node.getMetadata().getName())) {
                     // 处理为页面需要的值
                     if (node != null) {
+                        Map<String, Object> labels = node.getMetadata().getLabels();
+                        if (labels.get(CommonConstant.MASTERNODELABEL) != null) {
+                            nodeDetailDto.setType(CommonConstant.MASTERNODE);
+                            nodeDetailDto.setNodeShareStatus("主控");
+                        } else {
+                            nodeDetailDto.setType(CommonConstant.DATANODE);
+                        }
                         if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) != null
                                 && node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
                             nodeDetailDto.setNodeShareStatus("闲置");
@@ -792,12 +799,7 @@ public class NodeServiceImpl implements NodeService {
                         nodeDetailDto.setName(node.getMetadata().getName());
                         nodeDetailDto.setOs(node.getStatus().getNodeInfo().getOperatingSystem());
                         nodeDetailDto.setPods(capacity.get("pods").toString());
-                        Map<String, Object> labels = node.getMetadata().getLabels();
-                        if (labels.get("master") != null && labels.get("master").equals("master")) {
-                            nodeDetailDto.setType("master");
-                        } else {
-                            nodeDetailDto.setType("slave");
-                        }
+
 
                     }
                 } else {
