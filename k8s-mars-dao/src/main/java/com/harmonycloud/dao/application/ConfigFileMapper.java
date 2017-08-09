@@ -150,6 +150,6 @@ public interface ConfigFileMapper {
      */
     void deleteConfigFileByTenant(@Param("tenant")String tenant);
 
-
+    void updateConfig(ConfigFile configFile);
 
 }

@@ -5,10 +5,10 @@ import java.io.Serializable;
 /**
  * Created by root on 4/10/17.
  */
-public class BusinessDeployDto implements Serializable {
+public class BusinessDeployDto {
     private String namespace;
 
-//    private String name;
+    private String name;
 //
 //    private String capacity;
 //
@@ -35,6 +35,14 @@ public class BusinessDeployDto implements Serializable {
 
 	public void setBusinessTemplate(BusinessTemplateDto businessTemplate) {
 		this.businessTemplate = businessTemplate;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
 	}
 
 //    public String getName() {
