@@ -34,8 +34,42 @@ public class User implements Serializable {
     private Date leftTime;
     private Date rightTime;
     private String phone;
-    
-	public String getTenantid() {
+
+    //完善功能dingwei
+    private String real_name;
+    private Date create_time;
+    private Date update_time;
+    private String groupname;
+    public String getReal_name() {
+        return real_name;
+    }
+    public void setReal_name(String real_name) {
+        this.real_name = real_name;
+    }
+    public Date getCreate_time() {
+        return create_time;
+    }
+    public void setCreate_time(Date create_time) {
+        this.create_time = create_time;
+    }
+
+    public Date getUpdate_time() {
+        return update_time;
+    }
+
+    public void setUpdate_time(Date update_time) {
+        this.update_time = update_time;
+    }
+    public String getGroupname() {
+        return groupname;
+    }
+    public void setGroupname(String groupname) {
+        this.groupname = groupname;
+    }
+    //完善结束dingwei
+
+
+    public String getTenantid() {
 		return tenantid;
 	}
 	public void setTenantid(String tenantid) {
@@ -184,4 +218,5 @@ public class User implements Serializable {
     public void setEmail(String email) {
         this.email = email;
     }
+
 }

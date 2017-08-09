@@ -791,6 +791,10 @@ public class UserService {
      */
     public List<User> getAllUserPausedList() throws Exception {
         List<User> pausedList = this.userMapper.getAllUserPausedList();
+        for(int dw=0;dw<pausedList.size();dw++){
+            User u = pausedList.get(dw);
+            u.setGroupname(userMapper.selectGroupNameByUserID(u.getUuid()));
+        }
         return pausedList;
     }
     /**
@@ -858,6 +862,10 @@ public class UserService {
         UserExample example = new UserExample();
         example.createCriteria().andIsadminEqualTo(true);
         List<User> adminUserList = userMapperNew.selectByExample(example);
+        for(int i=0;i<adminUserList.size();i++){
+            User u = adminUserList.get(i);
+            u.setGroupname(userMapper.selectGroupNameByUserID(u.getUuid()));
+        }
         return adminUserList;
     }
     /**
@@ -1043,7 +1051,7 @@ public class UserService {
                 }
             }
         }
-        return ActionReturnUtil.returnSuccessWithData(userNameList);
+        return ActionReturnUtil.returnSuccessWithDataAndCount(userNameList,userNameList.size());
     }
 
     public String getPassword(String userName) {

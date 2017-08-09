@@ -32,9 +32,13 @@
     </resultMap>
 
 
+    <select id="selectGroupNameByUserID" resultType="java.lang.String" parameterType="java.lang.Long">
+        select groupname from user_group where id=(SELECT groupid from user_group_relation where userid=#{userid})
+    </select>
+
     <select id="findByUsername" resultMap="userMap" parameterType="java.lang.String">
         select uuid, username, password, token, token_create,create_time,email,real_name,isAdmin,isMachine,comment,pause,phone
-        from user where username=#{username}
+        from user where username=#{username};
     </select>
 
     <insert id="addUser" parameterType="com.harmonycloud.dao.user.bean.User">
@@ -51,7 +55,7 @@
 	</update>
 
     <select id="findUserByEmail" parameterType="java.lang.String" resultType="com.harmonycloud.dao.user.bean.User">
-		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment,pause,phone from user where email = #{email}
+		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment,pause,phone from user where email = #{email};
 	</select>
 
     <select id="listUsers" resultMap="userTenantMap">
@@ -59,7 +63,7 @@
 	</select>
 
     <select id="findUserByToken" resultType="com.harmonycloud.dao.user.bean.User" parameterType="java.lang.String">
-		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment,pause,phone from user where token = #{token}
+		select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment,pause,phone from user where token = #{token};
 	</select>
 
     <select id="listMachineUsers" resultType="com.harmonycloud.dao.user.bean.User">
@@ -85,7 +89,8 @@
     </select>
 
     <select id="getUnauthorizedUserList" resultMap="userMap" >
-        SELECT uuid,username ,create_time, isAdmin,email,real_name,`comment` ,pause,phone FROM `user` LEFT JOIN  (SELECT username AS checkname FROM user_tenant GROUP BY username )as b ON `user`.username = b.checkname WHERE checkname is null AND isAdmin != 1 AND isMachine != 1;
+        SELECT uuid,username ,create_time, isAdmin,email,real_name,`comment` ,pause,phone FROM `user`
+        LEFT JOIN  (SELECT username AS checkname FROM user_tenant GROUP BY username )as b ON `user`.username = b.checkname WHERE checkname is null AND isAdmin != 1 AND isMachine != 1;
     </select>
     <select id="updateUser" parameterType="com.harmonycloud.dao.user.bean.User">
         update user
@@ -108,4 +113,6 @@
         </set>
         WHERE username=#{username}
     </select>
+
+
 </mapper>

@@ -116,4 +116,7 @@ public interface CustomUserMapper {
 	 */
 	List<String> listTenant();
 
+	//根据用户ID查询用户所属GroupName
+	String selectGroupNameByUserID(Long userid);
+
 }

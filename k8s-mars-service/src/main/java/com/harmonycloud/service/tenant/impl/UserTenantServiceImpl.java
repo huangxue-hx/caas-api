@@ -97,13 +97,15 @@ public class UserTenantServiceImpl implements UserTenantService {
 
     @Override
     public List<UserShowDto> getUserDetailsListByTenantid(String tenantid) throws Exception {
-
+        String groupName = "happy";
         List<UserTenant> userByTenantid = this.getUserByTenantid(tenantid);
         List<UserShowDto> uList = new ArrayList<UserShowDto>();
         if (userByTenantid.size() > 0) {
             for (UserTenant userTenant : userByTenantid) {
                 String username = userTenant.getUsername();
                 User user = userMapper.findByUsername(username);
+                System.out.println(user.getUuid());
+                groupName = userMapper.selectGroupNameByUserID(user.getId());
                 if(user!=null){
                     UserShowDto u = new UserShowDto();
                     u.setIsTm(userTenant.getIstm() == 1);
@@ -113,6 +115,7 @@ public class UserTenantServiceImpl implements UserTenantService {
                     u.setEmail(user.getEmail());
                     u.setPhone(user.getPhone());
                     u.setComment(user.getComment());
+                    u.setGroupName(groupName);
                     Date createTime = user.getCreateTime();
                     String date = DateUtil.DateToString(createTime, DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z);
                     u.setCreateTime(date);
