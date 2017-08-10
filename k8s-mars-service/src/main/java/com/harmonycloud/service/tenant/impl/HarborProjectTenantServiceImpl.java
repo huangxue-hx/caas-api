@@ -420,15 +420,15 @@ public class HarborProjectTenantServiceImpl implements HarborProjectTenantServic
     private static ActionReturnUtil getErrMsg(Integer statusCode) throws Exception {
         switch (statusCode) {
             case STATUSCODE400 :
-                return ActionReturnUtil.returnErrorWithMsg("Unsatisfied with constraints of the project creation.");
+                return ActionReturnUtil.returnErrorWithMsg("约束不正常");
             case STATUSCODE401 :
-                return ActionReturnUtil.returnErrorWithMsg("User need to log in first.");
+                return ActionReturnUtil.returnErrorWithMsg("未认证");
             case STATUSCODE409 :
-                return ActionReturnUtil.returnErrorWithMsg("Project name already exists.");
+                return ActionReturnUtil.returnErrorWithMsg("创建的仓库已经存在,请从新输入!");
             case STATUSCODE500 :
-                return ActionReturnUtil.returnErrorWithMsg("Unexpected internal errors.");
+                return ActionReturnUtil.returnErrorWithMsg("意外的内部错误");
             default :
-                return ActionReturnUtil.returnErrorWithMsg("Unknown error");
+                return ActionReturnUtil.returnErrorWithMsg("镜像仓库未知异常");
         }
     }
 
