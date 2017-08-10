@@ -49,7 +49,7 @@ public class ServiceController {
         if (serviceTemplate == null) {
             return ActionReturnUtil.returnErrorWithMsg("serviceTemplate is null");
         }
-        return serviceService.saveServiceTemplate(serviceTemplate, userName, 0);
+        return serviceService.saveServiceTemplate(serviceTemplate, userName, serviceTemplate.getType());
     }
 
     /**
@@ -207,7 +207,7 @@ public class ServiceController {
      */
     @ResponseBody
     @RequestMapping(value = "/deploy/name", method = RequestMethod.POST)
-    public ActionReturnUtil deployServiceTemplateByName(@RequestParam(value = "name", required = true) String name,
+    public ActionReturnUtil deployServiceTemplateByName(@RequestParam(value = "name", required = true) String name, @RequestParam(value = "app", required = true) String app, @RequestParam(value = "tenantId", required = true) String tenantId,
             @RequestParam(value = "namespace", required = true) String namespace, @RequestParam(value = "tag", required = true ) String tag) throws Exception {
         logger.info("deploy service template");
         String userName = (String) session.getAttribute("username");
@@ -215,7 +215,10 @@ public class ServiceController {
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
 		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-        return serviceService.deployServiceByname(name, tag, namespace, cluster, userName);
+		if(StringUtils.isEmpty(tenantId)){
+			tenantId = (String) session.getAttribute("tenantId");
+		}
+        return serviceService.deployServiceByname(app, tenantId, name, tag, namespace, cluster, userName);
     }
     
     /**

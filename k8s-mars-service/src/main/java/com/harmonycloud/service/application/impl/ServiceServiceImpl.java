@@ -7,7 +7,6 @@ import com.harmonycloud.dao.application.BusinessMapper;
 import com.harmonycloud.dao.application.BusinessServiceMapper;
 import com.harmonycloud.dao.application.ServiceMapper;
 import com.harmonycloud.dao.application.ServiceTemplatesMapper;
-import com.harmonycloud.dao.application.bean.BusinessTemplates;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.business.CreateContainerDto;
@@ -17,9 +16,11 @@ import com.harmonycloud.dto.business.DeploymentDetailDto;
 import com.harmonycloud.dto.business.HttpRuleDto;
 import com.harmonycloud.dto.business.IngressDto;
 import com.harmonycloud.dto.business.ParsedIngressListDto;
+import com.harmonycloud.dto.business.SelectorDto;
 import com.harmonycloud.dto.business.ServiceDeployDto;
 import com.harmonycloud.dto.business.ServiceNameNamespace;
 import com.harmonycloud.dto.business.ServiceTemplateDto;
+import com.harmonycloud.dto.business.SvcRouterDto;
 import com.harmonycloud.dto.business.TcpRuleDto;
 import com.harmonycloud.dto.svc.SvcTcpDto;
 import com.harmonycloud.k8s.bean.Deployment;
@@ -38,6 +39,8 @@ import com.harmonycloud.service.application.ServiceService;
 import com.harmonycloud.service.application.VolumeSerivce;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.tenant.PrivatePartitionService;
+
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,6 +84,9 @@ public class ServiceServiceImpl implements ServiceService {
 	
 	@Autowired
 	private VolumeSerivce volumeSerivce;
+	
+    @Autowired
+    PrivatePartitionService privatePartitionService;
 	
     @Value("#{propertiesReader['image.url']}")
     private String harborUrl;
@@ -329,6 +335,9 @@ public class ServiceServiceImpl implements ServiceService {
 				idAndTag.put("tag", serviceTemplatesList.get(i).getTag());
 				idAndTag.put("image", serviceTemplatesList.get(i).getImageList());
 				idAndTag.put("user", serviceTemplatesList.get(i).getUser());
+				String dep=JSONArray.fromObject(serviceTemplatesList.get(i).getDeploymentContent()).getJSONObject(0).toString().replaceAll(":\"\",", ":"+null+",").replaceAll(":\"\"", ":"+null+"");
+				DeploymentDetailDto deployment = JsonUtil.jsonToPojo(dep, DeploymentDetailDto.class);
+				idAndTag.put("name", deployment.getName());
 				tagArray.add(idAndTag);
 				json.put("createtime", dateToString(serviceTemplatesList.get(i).getCreateTime()));
 			}
@@ -366,7 +375,7 @@ public class ServiceServiceImpl implements ServiceService {
 			List<Integer> businessIdList = new ArrayList<>();
 			for (com.harmonycloud.dao.application.bean.Service service : svclist) {
 				boolean serviceFlag = true;
-				if(service.getBusinessId() != null ){
+				if(service != null && service.getBusinessId() != null ){
 					List<com.harmonycloud.dao.application.bean.Service> serviceID = serviceMapper.selectByBusinessId(service.getBusinessId());
 					if (serviceID.size() <= 1){
 						businessIdList.add(service.getBusinessId());
@@ -573,7 +582,7 @@ public class ServiceServiceImpl implements ServiceService {
 	}
 
 	@Override
-	public ActionReturnUtil deployServiceByname(String name, String tag, String namespace, Cluster cluster, String userName)
+	public ActionReturnUtil deployServiceByname(String app, String tenantId, String name, String tag, String namespace, Cluster cluster, String userName)
 			throws Exception {
 		if(StringUtils.isEmpty(name)){
 			return ActionReturnUtil.returnErrorWithMsg("应用模板名称为空");
@@ -584,6 +593,11 @@ public class ServiceServiceImpl implements ServiceService {
 		if(StringUtils.isEmpty(namespace)){
 			return ActionReturnUtil.returnErrorWithMsg("namespace为空");
 		}
+		ActionReturnUtil privatePartitionLabel = this.privatePartitionService.getPrivatePartitionLabel(tenantId, namespace);
+		if(!privatePartitionLabel.isSuccess()){
+			return privatePartitionLabel;
+		}
+		String nodeSelector = (String) privatePartitionLabel.get("data");
 		//获取模板信息
 		ServiceTemplates serviceTemplate = serviceTemplatesMapper.getSpecificService(name, tag);
 		if(serviceTemplate != null){
@@ -597,6 +611,21 @@ public class ServiceServiceImpl implements ServiceService {
 			String dep=JSONArray.fromObject(serviceTemplate.getDeploymentContent()).getJSONObject(0).toString().replaceAll(":\"\",", ":"+null+",").replaceAll(":\"\"", ":"+null+"");
 			DeploymentDetailDto deployment = JsonUtil.jsonToPojo(dep, DeploymentDetailDto.class);
 			deployment.setNamespace(namespace);
+			String oldName = deployment.getName();
+			deployment.setName(app);
+			deployment.setNodeSelector(nodeSelector);
+			List<CreateContainerDto> cons = deployment.getContainers();
+			if(cons != null && cons.size() > 0){
+				for(CreateContainerDto c : cons){
+					if(c.getStorage() != null && c.getStorage().size() > 0){
+						for(CreateVolumeDto v : c.getStorage()){
+							if(v.getPvcName() != null && v.getPvcName() != ""){
+								v.setPvcName(v.getPvcName().replace("-" + oldName, "-" + app));
+							}
+						}
+					}
+				}
+			}
 			serviceDto.setDeploymentDetail(deployment);
 			if(!StringUtils.isEmpty(serviceTemplate.getIngressContent())){
 				JSONArray jsarray = JSONArray.fromObject(serviceTemplate.getIngressContent());
@@ -605,16 +634,33 @@ public class ServiceServiceImpl implements ServiceService {
 					for(int j = 0; j < jsarray.size(); j++){
 						JSONObject ingressJson = jsarray.getJSONObject(j);
 						IngressDto ing = JsonUtil.jsonToPojo(ingressJson.toString().toString().replaceAll(":\"\",", ":"+null+",").replaceAll(":\"\"", ":"+null+""), IngressDto.class);
+						if(ing.getParsedIngressList() != null){
+							ParsedIngressListDto http = ing.getParsedIngressList();
+							http.setNamespace(namespace);
+							if(http.getRules() != null && http.getRules().size() > 0){
+								for(HttpRuleDto r : http.getRules()){
+									r.setService(app);
+								}
+							}
+						}
+						if(ing.getSvcRouter() != null){
+							SvcRouterDto tcp = ing.getSvcRouter();
+							tcp.setNamespace(namespace);
+							tcp.setApp(app);
+							SelectorDto selector =new SelectorDto();
+							selector.setApp(app);
+							tcp.setSelector(selector);
+						}
 						ingress.add(ing);
 					}
 				}
 				serviceDto.setIngress(ingress);
 			}
 			serviceDeploy.setServiceTemplate(serviceDto);
-/*			ActionReturnUtil res = checkService(serviceDto, cluster, namespace);
-			if(res.){
-				
-			}*/
+			ActionReturnUtil res = checkService(serviceDto, cluster, namespace);
+			if(!res.isSuccess()){
+				return res;
+			}
 			return deployService(serviceDeploy, cluster, userName);
 		}else{
 			return ActionReturnUtil.returnErrorWithMsg("不存在名称为"+ name +"，版本为"+tag+"模板");
@@ -628,6 +674,12 @@ public class ServiceServiceImpl implements ServiceService {
 		if(serviceDeploy == null && (serviceDeploy == null || StringUtils.isEmpty(serviceDeploy.getNamespace()))){
 			return ActionReturnUtil.returnErrorWithMsg("应用模板或者namespace为空");
 		}
+		ActionReturnUtil addRes = saveServiceTemplate(serviceDeploy.getServiceTemplate(), userName, 1);
+		if(!addRes.isSuccess()){
+			return addRes;
+		}
+		JSONObject js = (JSONObject) addRes.get("data");
+		int id = js.getInt(serviceDeploy.getServiceTemplate().getName());
 		List<String> pvcList = new ArrayList<>();
 		List<Map<String, Object>> message = new ArrayList<>();
 		String namespace = serviceDeploy.getNamespace();
@@ -635,6 +687,7 @@ public class ServiceServiceImpl implements ServiceService {
 		if (serviceDeploy.getServiceTemplate() != null
 				&& serviceDeploy.getServiceTemplate().getDeploymentDetail() != null) {
 			ServiceTemplateDto service = serviceDeploy.getServiceTemplate();
+			service.setId(id);
 			//check name
 			ActionReturnUtil res = checkService(service, cluster, namespace);
 			if(!res.isSuccess()){
@@ -667,40 +720,10 @@ public class ServiceServiceImpl implements ServiceService {
 				for (IngressDto ingress : service.getIngress()) {
 					if ("HTTP".equals(ingress.getType())
 							&& !StringUtils.isEmpty(ingress.getParsedIngressList().getName())) {
-						SvcTcpDto one = new SvcTcpDto();
-						com.harmonycloud.dto.svc.SelectorDto two = new com.harmonycloud.dto.svc.SelectorDto();
-						List<TcpRuleDto> th = new ArrayList<>();
-						TcpRuleDto httpsvc = new TcpRuleDto();
-
-						one.setName(ingress.getParsedIngressList().getName());
-						one.setNamespace(namespace);
-						two.setApp(service.getDeploymentDetail().getName());
-						one.setSelector(two);
-
-						httpsvc.setPort("80");
-						httpsvc.setProtocol("TCP");
-						if (ingress.getParsedIngressList().getRules().size() > 0) {
-							httpsvc.setTargetPort(ingress.getParsedIngressList().getRules().get(0).getPort());
-						} else {
-							httpsvc.setTargetPort("80");
-						}
-
-						th.add(httpsvc);
-						one.setRules(th);
-
-						ActionReturnUtil httpSvcRes = routerService.createhttpsvc(one);
-						if (!httpSvcRes.isSuccess()) {
-							Map<String, Object> map = new HashMap<String, Object>();
-							map.put("service:" + ingress.getParsedIngressList().getName(), httpSvcRes.get("data"));
-							message.add(map);
-						}else{
-							com.harmonycloud.k8s.bean.Service newService = (com.harmonycloud.k8s.bean.Service) httpSvcRes
-									.get("data");
-							for (HttpRuleDto rule : ingress.getParsedIngressList().getRules()) {
-								rule.setService(newService.getMetadata().getName());
-							}
-
-						}
+						Map<String, Object> labels = new HashMap<String, Object>();
+						labels.put("app", service.getDeploymentDetail().getName());
+						ingress.getParsedIngressList().setLabels(labels);
+						ingress.getParsedIngressList().setNamespace(namespace);
 						ActionReturnUtil httpIngRes = routerService.ingCreate(ingress.getParsedIngressList());
 						if (!httpIngRes.isSuccess()) {
 							Map<String, Object> map = new HashMap<String, Object>();
@@ -709,12 +732,12 @@ public class ServiceServiceImpl implements ServiceService {
 						}
 						ingresses.add(
 								"{\"type\":\"HTTP\",\"name\":\"" + ingress.getParsedIngressList().getName() + "\"}");
-
 					} else if ("TCP".equals(ingress.getType())
 							&& !StringUtils.isEmpty(ingress.getSvcRouter().getName())) {
 						Map<String, Object> labels = new HashMap<String, Object>();
                     	labels.put("app", service.getDeploymentDetail().getName());
                     	ingress.getSvcRouter().setLabels(labels);
+                    	ingress.getSvcRouter().setNamespace(namespace);
 						ActionReturnUtil tcpSvcRes = routerService.svcCreate(ingress.getSvcRouter());
 						if (!tcpSvcRes.isSuccess()) {
 							Map<String, Object> map = new HashMap<String, Object>();
@@ -750,9 +773,6 @@ public class ServiceServiceImpl implements ServiceService {
 				}
 				c.setImg(images);
 			}
-			// deploymentsService.createDeployment(service.getDeploymentDetail(),
-			// username, businessDeploy.getBusinessTemplate().getName() + "_"
-			// +businessDeploy.getBusinessTemplate().getTag());
 			ActionReturnUtil depRes = deploymentsService.createDeployment(service.getDeploymentDetail(), userName, null,
 					cluster);
 			if (!depRes.isSuccess()) {
@@ -810,7 +830,7 @@ public class ServiceServiceImpl implements ServiceService {
 		if(service.getDeploymentDetail() != null && deps != null && deps.size() > 0){
 			for(Deployment dep : deps){
 				if(service.getDeploymentDetail().getName().equals(dep.getMetadata().getName())){
-					msg.put(service.getDeploymentDetail().getName(), "名称重复");
+					msg.put("服务名称:"+service.getDeploymentDetail().getName(), "重复");
 					flag = false;
 				}
 			}
@@ -821,7 +841,7 @@ public class ServiceServiceImpl implements ServiceService {
 				if(ing.getType() != null && "HTTP".equals(ing.getType()) && httplist != null && httplist.size() > 0){
 					for(ParsedIngressListDto http : httplist){
 						if(ing.getParsedIngressList().getName().equals(http.getName())){
-							msg.put(ing.getParsedIngressList().getName(), "名称重复");
+							msg.put("Ingress(Http):"+ing.getParsedIngressList().getName(), "重复");
 							flag = false;
 						}
 					}
@@ -830,7 +850,7 @@ public class ServiceServiceImpl implements ServiceService {
 				if(ing.getType() != null && "TCP".equals(ing.getType()) && tcplist != null && tcplist.size() > 0){
 					for(RouterSvc tcp : tcplist){
 						if(("routersvc"+ing.getSvcRouter().getName()).equals(tcp.getName())){
-							msg.put(ing.getSvcRouter().getName(), "名称重复");
+							msg.put("Ingress(Tcp):"+ing.getSvcRouter().getName(), "重复");
 							flag = false;
 						}
 					}
@@ -840,7 +860,7 @@ public class ServiceServiceImpl implements ServiceService {
 		if(flag){
 			return ActionReturnUtil.returnSuccess();
 		}else{
-			return ActionReturnUtil.returnErrorWithMsg(msg.toString());
+			return ActionReturnUtil.returnErrorWithData(msg);
 		}
 	}
 

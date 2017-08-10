@@ -75,7 +75,7 @@ public interface BusinessDeployService {
      *            username
      * @return ActionReturnUtil
      */
-    ActionReturnUtil deployBusinessTemplate(BusinessDeployDto businessDeploy, String username, Cluster cluster) throws Exception;
+    ActionReturnUtil deployBusinessTemplate(BusinessDeployDto businessDeploy, String username, Cluster cluster, String tenantId) throws Exception;
 
     /**
      * delete application service on 17/04/11.
@@ -146,7 +146,7 @@ public interface BusinessDeployService {
      *            cluster
      * @return ActionReturnUtil
      */
-    ActionReturnUtil deployBusinessTemplateByName(String name, String businessame, String tag, String namespace, String userName, Cluster cluster) throws Exception;
+    ActionReturnUtil deployBusinessTemplateByName(String tenantId, String name, String businessame, String tag, String namespace, String userName, Cluster cluster) throws Exception;
     
     /**
      * and and deploy application service 已有的业务  on 17/04/11.
@@ -160,4 +160,17 @@ public interface BusinessDeployService {
      * @return ActionReturnUtil
      */
     ActionReturnUtil addAndDeployBusinessTemplate(BusinessDeployDto businessDeploy, String username, String tenantid, Cluster cluster)throws Exception;
+    
+    /**
+     * 检查 k8s 资源重复.
+     * 
+     * @author yanli
+     * 
+     * @param businessDeploy
+     *            BusinessDeploybean
+     * @param username
+     *            username
+     * @return ActionReturnUtil
+     */
+    ActionReturnUtil checkK8SName(BusinessDeployDto businessDeploy, Cluster cluster)throws Exception;
 }

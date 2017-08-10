@@ -39,7 +39,7 @@ public interface ServiceService {
     
     public ActionReturnUtil updateServicePvcByname(String name,String pvc, String namespace) throws Exception;
     
-    public ActionReturnUtil deployServiceByname(String name,String tag, String namespace, Cluster cluster, String userName) throws Exception;
+    public ActionReturnUtil deployServiceByname(String app, String tenantId, String name,String tag, String namespace, Cluster cluster, String userName) throws Exception;
     
     public ActionReturnUtil deployService(ServiceDeployDto serviceDeploy, Cluster cluster, String userName) throws Exception;
     

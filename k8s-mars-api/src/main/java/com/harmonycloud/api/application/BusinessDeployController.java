@@ -4,16 +4,25 @@ import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.service.application.BusinessDeployService;
+import com.harmonycloud.service.application.BusinessService;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.dto.business.BusinessDeployDto;
+import com.harmonycloud.dto.business.ServiceTemplateDto;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.service.platform.bean.BusinessList;
 import com.harmonycloud.service.platform.bean.UpdateDeployment;
+
+import io.swagger.models.auth.In;
+
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
 
 import javax.servlet.http.HttpSession;
 
@@ -29,6 +38,9 @@ public class BusinessDeployController {
 
     @Autowired
     DeploymentsService dpService;
+    
+    @Autowired
+    BusinessService businessService;
     
     @Autowired
     BusinessDeployService businessDeployService;
@@ -115,7 +127,31 @@ public class BusinessDeployController {
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
 		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-        return businessDeployService.deployBusinessTemplate(businessDeploy, userName, cluster);
+		String tenantId = (String) session.getAttribute("tenantId");
+		ActionReturnUtil checkRes = businessDeployService.checkK8SName(businessDeploy, cluster);
+		if(checkRes.isSuccess()){
+			ActionReturnUtil saveRes = businessService.saveBusinessTemplate(businessDeploy.getBusinessTemplate(), userName);
+			if(!saveRes.isSuccess()){
+				return saveRes;
+			}
+			@SuppressWarnings("unchecked")
+			List<Map<String, Object>> idList = (List<Map<String, Object>>) saveRes.get("data");
+			if(idList != null && idList.size() > 0){
+				Map<String, Object> busMap = idList.get(0);
+				businessDeploy.getBusinessTemplate().setId(Integer.parseInt(busMap.get(businessDeploy.getBusinessTemplate().getName()).toString()));
+				if(idList.get(1) != null){
+					Map<String, Object> svcMap = idList.get(1);
+					if(businessDeploy.getBusinessTemplate().getServiceList() != null && businessDeploy.getBusinessTemplate().getServiceList().size() >0 ){
+						for(ServiceTemplateDto s : businessDeploy.getBusinessTemplate().getServiceList()){
+							s.setId(Integer.parseInt(svcMap.get(s.getName()).toString()));
+						}
+					}
+				}
+			}
+			return businessDeployService.deployBusinessTemplate(businessDeploy, userName, cluster, tenantId);
+		}else{
+			return checkRes;
+		}
     }
 
     /**
@@ -239,15 +275,17 @@ public class BusinessDeployController {
      */
     @ResponseBody
     @RequestMapping(value = "/deploy/name", method = RequestMethod.POST)
-
-    public ActionReturnUtil deployDeploymentsById(@RequestParam(value = "name", required = true) String name, @RequestParam(value = "business", required = true) String businessame, @RequestParam(value = "tag", required = true) String tag, @RequestParam(value = "namespace", required = true) String namespace) throws Exception {
+    public ActionReturnUtil deployDeploymentsById(@RequestParam(value = "tenantId", required = false) String tenantId, @RequestParam(value = "name", required = true) String name, @RequestParam(value = "business", required = true) String businessame, @RequestParam(value = "tag", required = true) String tag, @RequestParam(value = "namespace", required = true) String namespace) throws Exception {
         logger.info("deploy business");
         String userName = (String) session.getAttribute("username");
         if(userName == null){
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
 		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-        return businessDeployService.deployBusinessTemplateByName(name, businessame, tag, namespace, userName, cluster);
+		if(StringUtils.isEmpty(tenantId)){
+			tenantId = (String) session.getAttribute("tenantId");
+		}
+        return businessDeployService.deployBusinessTemplateByName(tenantId, name, businessame, tag, namespace, userName, cluster);
     }
     
     /**

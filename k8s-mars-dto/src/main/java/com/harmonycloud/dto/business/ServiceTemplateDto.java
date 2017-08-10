@@ -24,6 +24,8 @@ public class ServiceTemplateDto {
     private DeploymentDetailDto deploymentDetail;
 
     private List<IngressDto> ingress;
+    
+    private int type;  //1保存为删除模式；0保存为用户模式
 
     private Integer flag;    //更新标记  0||null:后台需要save ;1:已存在 后台更新
 
@@ -105,5 +107,13 @@ public class ServiceTemplateDto {
 
 	public void setTag(String tag) {
 		this.tag = tag;
+	}
+
+	public int getType() {
+		return type;
+	}
+
+	public void setType(int type) {
+		this.type = type;
 	}
 }
