@@ -3,6 +3,8 @@ package com.harmonycloud.service.user.impl;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
 import org.elasticsearch.index.query.BoolQueryBuilder;
@@ -49,8 +51,22 @@ public class UserAuditServiceImpl implements UserAuditService {
         }
 
         if (StringUtils.isNotBlank(keyWords)) {
-        	query.must(QueryBuilders.queryStringQuery("*"+keyWords+"*").field("user")
-        			.field("opFun").field("tenant").field("module").field("path").field("subject").field("remoteIp"));
+        	//判断是不是中文
+        	String regex = "[\u4e00-\u9fa5]";
+        	Pattern pattern = Pattern.compile(regex);
+        	Matcher matcher = pattern.matcher(keyWords);
+            if (matcher.find()) {
+            	BoolQueryBuilder queryCh = QueryBuilders.boolQuery();
+            	queryCh.should(QueryBuilders.matchPhraseQuery("opFun", keyWords));
+            	queryCh.should(QueryBuilders.matchPhraseQuery("user", keyWords));
+            	queryCh.should(QueryBuilders.matchPhraseQuery("tenant", keyWords));
+            	queryCh.should(QueryBuilders.matchPhraseQuery("module", keyWords));
+            	queryCh.should(QueryBuilders.matchPhraseQuery("subject", keyWords));
+            	query.must(queryCh);
+            }else{  
+            	query.must(QueryBuilders.queryStringQuery("*"+keyWords+"*").field("user")
+            			.field("opFun").field("tenant").field("module").field("path").field("subject").field("remoteIp"));
+            }  
             //query.must(QueryBuilders.multiMatchQuery(keyWords,"user","opFun", "tenant", "module", "path", "subject", "remoteIp"));
         }
 

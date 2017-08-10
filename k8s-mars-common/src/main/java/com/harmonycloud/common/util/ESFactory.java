@@ -245,7 +245,7 @@ public class ESFactory {
 		XContentBuilder builder = jsonBuilder().startObject().startObject("properties")
 				.startObject("user").field("type", "string").endObject()
 				.startObject("tenant").field("type", "string").endObject()
-				.startObject("module").field("type", "string").endObject()
+				.startObject("module").field("type", "string").field("index", "not_analyzed").endObject()
 				.startObject("opFun").field("type", "string").endObject()
 				.startObject("method").field("type", "string").field("index", "not_analyzed").endObject()
 				.startObject("opTime").field("type", "date").field("format", "yyyy-MM-dd' 'HH:mm:ss").field("index", "not_analyzed").endObject()
