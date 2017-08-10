@@ -39,7 +39,16 @@ public class User implements Serializable {
     private String real_name;
     private Date create_time;
     private Date update_time;
-    private String groupname;
+    private String groupName;
+
+    public String getGroupName() {
+        return groupName;
+    }
+
+    public void setGroupName(String groupName) {
+        this.groupName = groupName;
+    }
+
     public String getReal_name() {
         return real_name;
     }
@@ -60,12 +69,8 @@ public class User implements Serializable {
     public void setUpdate_time(Date update_time) {
         this.update_time = update_time;
     }
-    public String getGroupname() {
-        return groupname;
-    }
-    public void setGroupname(String groupname) {
-        this.groupname = groupname;
-    }
+
+
     //完善结束dingwei
 
 

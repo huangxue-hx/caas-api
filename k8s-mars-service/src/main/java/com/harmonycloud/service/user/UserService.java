@@ -791,9 +791,10 @@ public class UserService {
      */
     public List<User> getAllUserPausedList() throws Exception {
         List<User> pausedList = this.userMapper.getAllUserPausedList();
-        for(int dw=0;dw<pausedList.size();dw++){
-            User u = pausedList.get(dw);
-            u.setGroupname(userMapper.selectGroupNameByUserID(u.getUuid()));
+        //添加组名信息
+        for(int i=0;i<pausedList.size();i++){
+            User u = pausedList.get(i);
+            u.setGroupName(userMapper.selectGroupNameByUserID(u.getUuid()));
         }
         return pausedList;
     }
@@ -804,6 +805,11 @@ public class UserService {
      */
     public List<User> getAllUserNormalList() throws Exception {
         List<User> normalList = this.userMapper.getAllUserNormalList();
+        //添加组名
+        for(int i =0;i<normalList.size();i++){
+            User user = normalList.get(i);
+            normalList.get(i).setGroupName(userMapper.selectGroupNameByUserID(user.getUuid()));
+        }
         return normalList;
     }
     /**
@@ -856,6 +862,11 @@ public class UserService {
      */
     public List<User> getUnauthorizedUserList() throws Exception {
         List<User> unauthorizedUserList = userMapper.getUnauthorizedUserList();
+        //增加群组信息
+        for(int i=1;i<unauthorizedUserList.size();i++){
+            User user = unauthorizedUserList.get(i);
+            user.setGroupName(userMapper.selectGroupNameByUserID(user.getUuid()));
+        }
         return unauthorizedUserList;
     }
     public List<User> getAdminUserList() throws Exception {
@@ -864,7 +875,7 @@ public class UserService {
         List<User> adminUserList = userMapperNew.selectByExample(example);
         for(int i=0;i<adminUserList.size();i++){
             User u = adminUserList.get(i);
-            u.setGroupname(userMapper.selectGroupNameByUserID(u.getUuid()));
+            u.setGroupName(userMapper.selectGroupNameByUserID(u.getUuid()));
         }
         return adminUserList;
     }
@@ -900,7 +911,7 @@ public class UserService {
         // 管理员用户
         su.setAdminList(adminUserList);
         su.setAdminSum(adminUserList.size());
-        su.setUserSum(allUserNormalList.size() + allUserPausedList.size());
+        su.setUserSum(allUserNormalList.size() + allUserPausedList.size()+adminUserList.size()+allUserNormalList.size());
         return su;
     }
     public SummaryUserInfo getSummaryByDepartmnet(Integer domain, String department) throws Exception {
