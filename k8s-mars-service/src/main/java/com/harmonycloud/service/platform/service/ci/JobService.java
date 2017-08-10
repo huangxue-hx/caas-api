@@ -30,7 +30,7 @@ public interface JobService {
 
     ActionReturnUtil credentialsValidate(String repositoryType, String repositoryUrl, String username, String password);
 
-    ActionReturnUtil getBuildList(Integer id) throws Exception;
+    ActionReturnUtil getBuildList(Integer id, Integer pageSize, Integer page) throws Exception;
 
     ActionReturnUtil getNotification(Integer id) throws Exception;
 
@@ -53,4 +53,8 @@ public interface JobService {
     ActionReturnUtil getYaml(Integer id);
 
     void preBuild(Integer id, Integer buildNum, String dateTime);
+
+    ActionReturnUtil getLastBuildLog(Integer id);
+
+    void getJobListWS(WebSocketSession session, String tenant);
 }

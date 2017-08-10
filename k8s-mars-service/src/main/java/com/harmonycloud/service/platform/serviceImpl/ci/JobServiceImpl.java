@@ -42,7 +42,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -68,6 +67,9 @@ import java.util.*;
 @Service
 @Transactional(rollbackFor = Exception.class)
 public class JobServiceImpl implements JobService {
+
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(JobServiceImpl.class);
+
     @Resource
     SystemWebSocketHandler systemWebSocketHandler;
 
@@ -638,12 +640,13 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
-    public ActionReturnUtil getBuildList(Integer id) throws Exception {
+    public ActionReturnUtil getBuildList(Integer id, Integer pageSize, Integer page) throws Exception {
         Job job = jobMapper.queryById(id);
         List<Map> buildList = new ArrayList<>();
         JobBuild jobBuildCondition = new JobBuild();
         jobBuildCondition.setJobId(id);
-        List<JobBuild> jobBuildList = jobBuildMapper.queryByObject(jobBuildCondition);
+        List<JobBuild> jobBuildList = jobBuildMapper.queryByObjectWithPagination(jobBuildCondition, (page - 1) * pageSize, pageSize);
+        int total = jobBuildMapper.countByObject(jobBuildCondition);
         List<Stage> stageList = stageMapper.queryByJobId(id);
         Map<Integer, Stage> stageMap = new HashMap<>();
         for(Stage stage: stageList){
@@ -662,7 +665,7 @@ public class JobServiceImpl implements JobService {
             buildMap.put("buildStatus", jobBuild.getStatus());
             buildMap.put("buildTime", jobBuild.getStartTime());
             buildMap.put("duration", jobBuild.getDuration());
-            buildMap.put("log", jobBuild.getLog().replaceAll("<[^>]*>",""));
+            buildMap.put("log", jobBuild.getLog());
             StageBuild stageBuildCondition = new StageBuild();
             stageBuildCondition.setJobId(id);
             stageBuildCondition.setBuildNum(jobBuild.getBuildNum());
@@ -704,7 +707,13 @@ public class JobServiceImpl implements JobService {
             buildMap.put("stageList",stageBuildMapList);
             buildList.add(buildMap);
         }
-        return ActionReturnUtil.returnSuccessWithData(buildList);
+        Map data = new HashMap<>();
+        data.put("total", total);
+        data.put("pageSize", pageSize);
+        data.put("page", page);
+        data.put("totalPage", Math.ceil(1.0 * total/pageSize));
+        data.put("buildList",buildList);
+        return ActionReturnUtil.returnSuccessWithData(data);
         /*
         String jenkinsJobName = job.getTenant() + "_" + job.getName();
         Map<String, Object> params = new HashMap<>();
@@ -952,6 +961,7 @@ public class JobServiceImpl implements JobService {
         threadPool.execute(worker);
     }
 
+
     @Override
     public void postBuild(Integer id, Integer buildNum) {
         Runnable worker = new Runnable() {
@@ -1135,7 +1145,6 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
-    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void jobStatusWS(WebSocketSession session, Integer id) {
         try {
             Job job = jobMapper.queryById(id);
@@ -1331,6 +1340,136 @@ public class JobServiceImpl implements JobService {
         return ActionReturnUtil.returnSuccessWithData(yaml.dumpAsMap(jobMap));
     }
 
+    @Override
+    public ActionReturnUtil getLastBuildLog(Integer id) {
+        Job job = jobMapper.queryById(id);
+        String jenkinsJobName = job.getTenant() + "_" + job.getName();
+        Map data = new HashMap();
+        ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/lastBuild/consoleText", null, null, false);
+        if(result.isSuccess()){
+            data.put("log", result.get("data"));
+        }else{
+            data.put("log", "");
+        }
+        return ActionReturnUtil.returnSuccessWithData(data);
+    }
+
+    @Override
+    public void getJobListWS(WebSocketSession session, String tenant) {
+        try {
+            StringBuilder lastStatus = new StringBuilder();
+            StringBuilder currentStatus;
+            Map<String, Object> params = new HashMap<>();
+            params.put("tree", "jobs[name,color,lastBuild[number,building,result,timestamp],builds[result]]");
+            params.put("wrapper", "root");
+            params.put("xpath", "//job/name[starts-with(text(),\"" + tenant + "_\")]/..");
+            ActionReturnUtil result;
+            while (session.isOpen()) {
+                currentStatus = new StringBuilder();
+                result = HttpJenkinsClientUtil.httpGetRequest("/view/all/api/xml", null, params, false);
+                if(result.isSuccess()) {
+                    String jenkinsJobName;
+                    List jobList = new ArrayList<>();
+                    Map jobMap;
+                    Map jenkinsDataMap = XmlUtil.parseXmlStringToMap((String) result.get("data"));
+                    if (jenkinsDataMap.get("root") instanceof String) {
+                        continue;
+                    }
+                    Map rootMap = (Map) jenkinsDataMap.get("root");
+                    List<Map> jenkinsJobList = new ArrayList<>();
+                    //List<Map> jenkinsBuildList;
+
+
+                    if (rootMap.get("job") instanceof Map) {
+                        jenkinsJobList.add((Map) rootMap.get("job"));
+                    } else if (rootMap.get("job") instanceof List) {
+                        jenkinsJobList.addAll((List) rootMap.get("job"));
+                    }
+                    for (Map jenkinsJob : jenkinsJobList) {
+                        jobMap = new HashMap();
+                        jenkinsJobName = (String) jenkinsJob.get("name");
+                        if (jenkinsJobName != null) {
+                            String[] name = jenkinsJobName.split("_", 2);
+                            if (name.length == 2) {
+                                jobMap.put("tenant", name[0]);
+                                jobMap.put("name", name[1]);
+                            }
+                        }
+                        Map lastBuildMap = (Map) jenkinsJob.get("lastBuild");
+                        if (lastBuildMap != null) {
+                            if ("false".equalsIgnoreCase((String) lastBuildMap.get("building"))) {
+                                jobMap.put("last_build_status", lastBuildMap.get("result"));
+                            } else {
+                                jobMap.put("last_build_status", "BUILDING");
+                            }
+                            if (lastBuildMap.get("timestamp") != null) {
+                                jobMap.put("last_build_time", df.format(new Timestamp(Long.valueOf((String) lastBuildMap.get("timestamp")))));
+                            }
+                            if (lastBuildMap.get("number") != null) {
+                                jobMap.put("last_build_number", lastBuildMap.get("number"));
+                            }
+                        } else {
+                            jobMap.put("last_build_status", "NOTBUILT");
+                            jobMap.put("last_build_time", "");
+                        }
+                        currentStatus.append(jobMap.get("last_build_status"));
+
+//                        jenkinsBuildList = new ArrayList<>();
+//                        int successNum = 0;
+//                        int failNum = 0;
+//                        if (jenkinsJob.get("build") instanceof Map) {
+//                            jenkinsBuildList.add((Map) jenkinsJob.get("build"));
+//                        } else if (jenkinsJob.get("build") instanceof List) {
+//                            jenkinsBuildList.addAll((List) jenkinsJob.get("build"));
+//                        }
+//                        for (Object jenkinsBuild : jenkinsBuildList) {
+//                            if (jenkinsBuild instanceof String) {
+//                                continue;
+//                            } else {
+//                                Map jenkinsBuildMap = (Map) jenkinsBuild;
+//                                if (jenkinsBuildMap.get("result") != null) {
+//                                    if ("SUCCESS".equalsIgnoreCase((String) jenkinsBuildMap.get("result"))) {
+//                                        successNum++;
+//                                    } else if ("Failure".equalsIgnoreCase((String) jenkinsBuildMap.get("result"))) {
+//                                        failNum++;
+//                                    }
+//                                }
+//                            }
+//                        }
+//                        jobMap.put("success_num", successNum);
+//                        jobMap.put("fail_num", failNum);
+
+
+                        List<Job> dbJobList = jobMapper.select(tenant, (String) jobMap.get("name"), null);
+                        if (dbJobList != null && dbJobList.size() == 1) {
+                            Job dbJob = dbJobList.get(0);
+                            jobMap.put("id", dbJob.getId());
+                        } else {
+                            continue;
+                        }
+
+                        jobList.add(jobMap);
+                    }
+                    if(!currentStatus.toString().equals(lastStatus.toString())){
+                        session.sendMessage(new TextMessage(JsonUtil.convertToJson(ActionReturnUtil.returnSuccessWithData(jobList))));
+                    }
+                    lastStatus = currentStatus;
+                }
+                Thread.sleep(2000);
+            }
+        } catch (Exception e) {
+            logger.error("get job list error", e);
+        } finally {
+            try {
+                if(session.isOpen()) {
+                    session.close();
+                }
+            } catch (IOException e) {
+                logger.error("websocket close error", e);
+            }
+        }
+    }
+
 
     private boolean createView(String username) {
         String viewName = username + "_view";
@@ -1446,7 +1585,8 @@ public class JobServiceImpl implements JobService {
         Map<String, Object> params = new HashMap<>();
         params.put("tree", "building,timestamp,result,duration,number");
         ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + buildNum + "/api/xml", null, params, false);
-        ActionReturnUtil logResult = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + buildNum + "/logText/progressiveHtml", null, null, false);
+        //ActionReturnUtil logResult = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + buildNum + "/logText/progressiveHtml", null, null, false);
+        ActionReturnUtil logResult = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + buildNum + "/consoleText", null, null, false);
         if (result.isSuccess()) {
             Map jenkinsDataMap = XmlUtil.parseXmlStringToMap((String) result.get("data"));
             Map build = new HashMap();
@@ -1604,77 +1744,9 @@ public class JobServiceImpl implements JobService {
         }
     }
 
-    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(JobServiceImpl.class);
+
     public static void main(String[] args) throws Exception {
-        /*Config config = new ConfigBuilder().withMasterUrl("https://10.10.101.143:6443").withTrustCerts(true).withOauthToken("330957b867a3462ea457bec41410624b1").build();
-        KubernetesClient client = new DefaultKubernetesClient(config);
-//        List<Namespace> nameSpaceList =client.namespaces().list().getItems();
-//
-//        Namespace ns = nameSpaceList.get(0);
-//
-//        System.out.println(ns.getMetadata().getName());
-        Container c = new Container();
-        Map m=new HashMap();
-       m.put("cpu","0");
-        m.put("memory","500Mi");
 
-        c.setImage("nginx");
-        c.setName("slave");
-        c.setResources(new ResourceRequirementsBuilder().withLimits(m).build());
-        Pod p = new PodBuilder().withNewMetadata().withName("slave").withNamespace("gywtesttenant-ping").endMetadata()
-                .withNewSpec().withContainers(c).endSpec().build();
-        client.pods().create(p);*/
-//        //client.pods().delete(p);
-//
-//        ExecutorService executorService = Executors.newSingleThreadExecutor();
-//
-//        ExecWatch w = client.pods().inNamespace("tenanta-aaaaaa").withName("slave").readingInput(System.in)
-//                .writingOutput(System.out)
-//                .writingError(System.err).withTTY().usingListener(new SimpleListener())
-//                .exec();
-//        InputStreamPumper pump = new InputStreamPumper(w.getOutput(), new SystemOutCallback());
-//        try{ executorService.submit(pump);
-//
-//        w.getInput().write("ls -al\n".getBytes());
-//        } catch (Exception e) {
-//            throw KubernetesClientException.launderThrowable(e);
-//        } finally {
-//            executorService.shutdownNow();
-//            w.close();
-//            pump.close();
-//        }
-
-//        Job job = new Job();
-//        job.setId(2);
-//        job.setName("test");
-//        job.setTenant("test");
-//        job.setNotification(true);
-//        job.setFailNotification(true);
-//        job.setMail("['kaiyunzhang@harmonycloud.cn']");
-//        new JobServiceImpl().notification(job, 70);
-
-        //new JobServiceImpl().addStage(stage);
-        List<Integer> a = new ArrayList<>();
-        a.add(1);
-        a.add(2);
-        a.add(3);
-        for(int i=2;i<4;i++){
-            System.out.println(i);
-            for(int ss:a){
-                if(ss==i){
-                    a.remove(a.indexOf(ss));
-                    for(int xx:a){
-                        System.out.print(xx);
-                    }
-                    break;
-                }
-            }
-        }
-
-
-
-
-        //System.out.println(StageTemplateTypeEnum.DEPLOY.ordinal());
 
 
     }

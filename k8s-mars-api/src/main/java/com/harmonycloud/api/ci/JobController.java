@@ -80,9 +80,9 @@ public class JobController {
 
     @RequestMapping(value = "/buildList", method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil getBuildDetail(@RequestParam(value="id") Integer id) throws Exception {
+    public ActionReturnUtil getBuildDetail(@RequestParam(value="id") Integer id, @RequestParam(value="pageSize", required = false, defaultValue = "10") Integer pageSize, @RequestParam(value="page", required = false, defaultValue = "1") Integer page) throws Exception {
         logger.info("get build detail.");
-        return jobService.getBuildList(id);
+        return jobService.getBuildList(id, pageSize, page);
     }
 
     @RequestMapping(value = "/build", method = RequestMethod.POST)
@@ -158,6 +158,12 @@ public class JobController {
         } catch (Exception e) {
             return ActionReturnUtil.returnErrorWithMsg(e.getMessage());
         }
+    }
+
+    @RequestMapping(value = "/lastBuildLog", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getLastBuildLog(@RequestParam(value="id")Integer id) throws Exception {
+        return jobService.getLastBuildLog(id);
     }
 
 }

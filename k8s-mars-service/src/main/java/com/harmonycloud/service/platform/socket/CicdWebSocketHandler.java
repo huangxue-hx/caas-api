@@ -80,6 +80,13 @@ public class CicdWebSocketHandler implements WebSocketHandler{
                     stageService.getStageLogWS(session, new Integer(session.getAttributes().get("id").toString()), new Integer((String)session.getAttributes().get("buildNum")));
                 }
             };
+        }else if("/rest/cicd/job/jobList".equals(path)){
+            worker = new Runnable() {
+                @Override
+                public void run() {
+                    jobService.getJobListWS(session, (String)session.getAttributes().get("tenant"));
+                }
+            };
         }
 
 

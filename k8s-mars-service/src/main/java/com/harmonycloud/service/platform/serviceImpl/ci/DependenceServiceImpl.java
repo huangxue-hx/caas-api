@@ -89,7 +89,7 @@ public class DependenceServiceImpl implements DependenceService {
                     pvDto.put("type", CommonConstant.NFS);
                     pvDto.put("server", server);
                     pvDto.put("serverPath", path + "/" + pv.getMetadata().getName());
-                    pvDto.put("common", true);
+                    pvDto.put("common", false);
                     pvDtos.add(pvDto);
                 }
 

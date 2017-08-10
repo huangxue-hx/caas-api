@@ -25,6 +25,8 @@ public class WebSocketConfig extends WebMvcConfigurerAdapter implements WebSocke
 		//registry.addHandler(systemWebSocketHandler(), "/notification").addInterceptors(webSocketInterceptor())
 		//		.setAllowedOrigins("*").withSockJS();
 
+
+
         registry.addHandler(cicdWebSocketHandler(), "/cicd/job/log").addInterceptors(webSocketInterceptor())
                 .setAllowedOrigins("*");
 
@@ -41,6 +43,12 @@ public class WebSocketConfig extends WebMvcConfigurerAdapter implements WebSocke
                 .setAllowedOrigins("*");
 
         registry.addHandler(cicdWebSocketHandler(), "/cicd/stage/status").addInterceptors(webSocketInterceptor())
+                .setAllowedOrigins("*").withSockJS();
+
+        registry.addHandler(cicdWebSocketHandler(), "/cicd/job/jobList").addInterceptors(webSocketInterceptor())
+                .setAllowedOrigins("*");
+
+        registry.addHandler(cicdWebSocketHandler(), "/cicd/job/jobList").addInterceptors(webSocketInterceptor())
                 .setAllowedOrigins("*").withSockJS();
 
 	}
