@@ -34,11 +34,11 @@ public interface JobService {
 
     ActionReturnUtil getNotification(Integer id) throws Exception;
 
-    ActionReturnUtil updateNotification(JobDto job);
+    ActionReturnUtil updateNotification(JobDto job) throws Exception;
 
     ActionReturnUtil getTrigger(Integer id) throws Exception;
 
-    ActionReturnUtil updateTrigger(Job jobDto);
+    ActionReturnUtil updateTrigger(JobDto jobDto);
 
     void postBuild(Integer id, Integer buildNum);
 

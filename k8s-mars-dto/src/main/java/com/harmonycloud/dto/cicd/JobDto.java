@@ -22,6 +22,10 @@ public class JobDto {
     private boolean trigger;
     private boolean pollScm;
     private String cronExpForPollScm;
+    private String dayOfMonth;
+    private String dayOfWeek;
+    private String hour;
+    private String minute;
     private String createUser;
     private String updateUser;
     private Date createTime;
@@ -119,6 +123,38 @@ public class JobDto {
         this.cronExpForPollScm = cronExpForPollScm;
     }
 
+    public String getDayOfMonth() {
+        return dayOfMonth;
+    }
+
+    public void setDayOfMonth(String dayOfMonth) {
+        this.dayOfMonth = dayOfMonth;
+    }
+
+    public String getDayOfWeek() {
+        return dayOfWeek;
+    }
+
+    public void setDayOfWeek(String dayOfWeek) {
+        this.dayOfWeek = dayOfWeek;
+    }
+
+    public String getHour() {
+        return hour;
+    }
+
+    public void setHour(String hour) {
+        this.hour = hour;
+    }
+
+    public String getMinute() {
+        return minute;
+    }
+
+    public void setMinute(String minute) {
+        this.minute = minute;
+    }
+
     public void setCreateUser(String createUser) {
         this.createUser = createUser;
     }
@@ -150,7 +186,9 @@ public class JobDto {
     public Job convertToBean(){
         Job job = new Job();
         BeanUtils.copyProperties(this, job);
-        job.setMail(JsonUtil.convertToJson(this.mail));
+        if(this.mail != null){
+            job.setMail(JsonUtil.convertToJson(this.mail));
+        }
         return job;
     }
 

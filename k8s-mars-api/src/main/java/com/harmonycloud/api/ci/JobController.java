@@ -130,13 +130,13 @@ public class JobController {
 
     @RequestMapping(value = "/notification", method = RequestMethod.PUT)
     @ResponseBody
-    public ActionReturnUtil updateNotification(@RequestBody JobDto jobDto){
+    public ActionReturnUtil updateNotification(@RequestBody JobDto jobDto) throws Exception {
         return jobService.updateNotification(jobDto);
     }
 
     @RequestMapping(value = "/trigger", method = RequestMethod.PUT)
     @ResponseBody
-    public ActionReturnUtil updateTrigger(@RequestBody Job job){
+    public ActionReturnUtil updateTrigger(@RequestBody JobDto job){
         return jobService.updateTrigger(job);
     }
 
