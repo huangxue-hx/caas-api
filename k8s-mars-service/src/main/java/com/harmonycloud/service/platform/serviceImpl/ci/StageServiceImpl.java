@@ -174,11 +174,12 @@ public class StageServiceImpl implements StageService {
     }
 
     @Override
-    public ActionReturnUtil getBuildList(Integer id) {
+    public ActionReturnUtil getBuildList(Integer id, Integer pageSize, Integer page) {
         List stageBuildMapList = new ArrayList<>();
         StageBuild stageBuildCondition = new StageBuild();
         stageBuildCondition.setStageId(id);
-        List<StageBuild> stageBuildList = stageBuildMapper.queryByObject(stageBuildCondition);
+        int total = stageBuildMapper.countByObject(stageBuildCondition);
+        List<StageBuild> stageBuildList = stageBuildMapper.queryByObjectWithPagination(stageBuildCondition, pageSize*(page-1), pageSize);
         for(StageBuild stageBuild:stageBuildList) {
             Map stageBuildMap = new HashMap<>();
             stageBuildMap.put("name", stageBuild.getStageName());
@@ -189,7 +190,13 @@ public class StageServiceImpl implements StageService {
             stageBuildMap.put("log", stageBuild.getLog());
             stageBuildMapList.add(stageBuildMap);
         }
-        return ActionReturnUtil.returnSuccessWithData(stageBuildMapList);
+        Map data = new HashMap<>();
+        data.put("total", total);
+        data.put("pageSize", pageSize);
+        data.put("page", page);
+        data.put("totalPage", Math.ceil(1.0 * total/pageSize));
+        data.put("buildList",stageBuildMapList);
+        return ActionReturnUtil.returnSuccessWithData(data);
     }
 
     @Override

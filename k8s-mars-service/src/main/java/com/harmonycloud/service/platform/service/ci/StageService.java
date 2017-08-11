@@ -27,7 +27,7 @@ public interface StageService {
 
     ActionReturnUtil deleteStageType(Integer id) throws Exception;
 
-    ActionReturnUtil getBuildList(Integer id);
+    ActionReturnUtil getBuildList(Integer id, Integer pageSize, Integer page);
 
     ActionReturnUtil listBuildEnvironemnt();
 

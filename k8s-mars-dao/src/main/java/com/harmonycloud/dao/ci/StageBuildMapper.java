@@ -17,4 +17,9 @@ public interface StageBuildMapper {
     void updateByStageOrderAndBuildNum(@Param("stageBuild")StageBuild stageBuild);
 
     void deleteByJobId(Integer id);
+
+    int countByObject(StageBuild stageBuildCondition);
+
+    List<StageBuild> queryByObjectWithPagination(@Param("stageBuild")StageBuild stageBuild, @Param("offset")Integer offset, @Param("rows") Integer rows);
+
 }
