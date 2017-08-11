@@ -39,9 +39,17 @@ public class TenantBinding {
     private Date updateTime;
 
     private String annotation;
+    
+    private String role;
 
     private Integer clusterId;
 
+    public String getRole() {
+        return role;
+    }
+    public void setRole(String role) {
+        this.role = role;
+    }
     public List<String> getTmUsernameList() {
         if(tmUsernameList == null) {
             tmUsernameList = new ArrayList<String>();

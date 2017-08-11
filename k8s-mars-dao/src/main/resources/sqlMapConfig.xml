@@ -15,8 +15,11 @@
         <typeAlias alias="NamespceBindSubnetExample" type="com.harmonycloud.dao.network.bean.NamespceBindSubnetExample" />
         <typeAlias alias="Network" type="com.harmonycloud.dao.network.bean.Network" />
         <typeAlias alias="Resource" type="com.harmonycloud.dao.user.bean.Resource" />
+        <typeAlias alias="ResourceCustom" type="com.harmonycloud.dao.user.bean.ResourceCustom" />
         <typeAlias alias="Role" type="com.harmonycloud.dao.user.bean.Role" />
         <typeAlias alias="RoleExample" type="com.harmonycloud.dao.user.bean.RoleExample" />
+        <typeAlias alias="RolePrivilege" type="com.harmonycloud.dao.tenant.bean.RolePrivilege" />
+        <typeAlias alias="RolePrivilegeExample" type="com.harmonycloud.dao.tenant.bean.RolePrivilegeExample" />
         <typeAlias alias="Tenant" type="com.harmonycloud.dao.tenant.bean.Tenant" />
         <typeAlias alias="TenantBinding" type="com.harmonycloud.dao.tenant.bean.TenantBinding" />
         <typeAlias alias="TenantBindingExample" type="com.harmonycloud.dao.tenant.bean.TenantBindingExample" />
@@ -58,7 +61,9 @@
         <mapper resource="com/harmonycloud/mapping/HarborProjectTenantMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/NamespceBindSubnetMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/ResourceMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/ResourceCustomMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/RoleMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/RolePrivilegeMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/TenantBindingMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/UserMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/UserGroupMapper.xml" />

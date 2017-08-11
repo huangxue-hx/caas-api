@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.harmonycloud.dao.tenant.RolePrivilegeMapper" >
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.tenant.bean.RolePrivilege" >
+    <id column="id" property="id" jdbcType="INTEGER" />
+    <result column="role" property="role" jdbcType="VARCHAR" />
+    <result column="privilege" property="privilege" jdbcType="VARCHAR" />
+    <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
+    <result column="first_module" property="firstModule" jdbcType="VARCHAR" />
+    <result column="second_module" property="secondModule" jdbcType="VARCHAR" />
+    <result column="third_module" property="thirdModule" jdbcType="VARCHAR" />
+    <result column="status" property="status" jdbcType="BIT" />
+    <result column="mark" property="mark" jdbcType="VARCHAR" />
+    <result column="parentid" property="parentid" jdbcType="INTEGER" />
+    <result column="isParent" property="isparent" jdbcType="BIT" />
+  </resultMap>
+  <sql id="Example_Where_Clause" >
+    <where >
+      <foreach collection="oredCriteria" item="criteria" separator="or" >
+        <if test="criteria.valid" >
+          <trim prefix="(" suffix=")" prefixOverrides="and" >
+            <foreach collection="criteria.criteria" item="criterion" >
+              <choose >
+                <when test="criterion.noValue" >
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue" >
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue" >
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue" >
+                  and ${criterion.condition}
+                  <foreach collection="criterion.value" item="listItem" open="(" close=")" separator="," >
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Update_By_Example_Where_Clause" >
+    <where >
+      <foreach collection="example.oredCriteria" item="criteria" separator="or" >
+        <if test="criteria.valid" >
+          <trim prefix="(" suffix=")" prefixOverrides="and" >
+            <foreach collection="criteria.criteria" item="criterion" >
+              <choose >
+                <when test="criterion.noValue" >
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue" >
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue" >
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue" >
+                  and ${criterion.condition}
+                  <foreach collection="criterion.value" item="listItem" open="(" close=")" separator="," >
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List" >
+    id, role, privilege, update_time, first_module, second_module, third_module, status, 
+    mark, parentid, isParent
+  </sql>
+  <select id="selectByExample" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilegeExample" >
+    select
+    <if test="distinct" >
+      distinct
+    </if>
+    'false' as QUERYID,
+    <include refid="Base_Column_List" />
+    from role_privilege
+    <if test="_parameter != null" >
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null" >
+      order by ${orderByClause}
+    </if>
+  </select>
+  <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="java.lang.Integer" >
+    select 
+    <include refid="Base_Column_List" />
+    from role_privilege
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer" >
+    delete from role_privilege
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <delete id="deleteByExample" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilegeExample" >
+    delete from role_privilege
+    <if test="_parameter != null" >
+      <include refid="Example_Where_Clause" />
+    </if>
+  </delete>
+  <insert id="insert" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilege" >
+    insert into role_privilege (id, role, privilege, 
+      update_time, first_module, second_module, 
+      third_module, status, mark, 
+      parentid, isParent)
+    values (#{id,jdbcType=INTEGER}, #{role,jdbcType=VARCHAR}, #{privilege,jdbcType=VARCHAR}, 
+      #{updateTime,jdbcType=TIMESTAMP}, #{firstModule,jdbcType=VARCHAR}, #{secondModule,jdbcType=VARCHAR}, 
+      #{thirdModule,jdbcType=VARCHAR}, #{status,jdbcType=BIT}, #{mark,jdbcType=VARCHAR}, 
+      #{parentid,jdbcType=INTEGER}, #{isparent,jdbcType=BIT})
+  </insert>
+  <insert id="insertSelective" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilege" >
+    insert into role_privilege
+    <trim prefix="(" suffix=")" suffixOverrides="," >
+      <if test="id != null" >
+        id,
+      </if>
+      <if test="role != null" >
+        role,
+      </if>
+      <if test="privilege != null" >
+        privilege,
+      </if>
+      <if test="updateTime != null" >
+        update_time,
+      </if>
+      <if test="firstModule != null" >
+        first_module,
+      </if>
+      <if test="secondModule != null" >
+        second_module,
+      </if>
+      <if test="thirdModule != null" >
+        third_module,
+      </if>
+      <if test="status != null" >
+        status,
+      </if>
+      <if test="mark != null" >
+        mark,
+      </if>
+      <if test="parentid != null" >
+        parentid,
+      </if>
+      <if test="isparent != null" >
+        isParent,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides="," >
+      <if test="id != null" >
+        #{id,jdbcType=INTEGER},
+      </if>
+      <if test="role != null" >
+        #{role,jdbcType=VARCHAR},
+      </if>
+      <if test="privilege != null" >
+        #{privilege,jdbcType=VARCHAR},
+      </if>
+      <if test="updateTime != null" >
+        #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="firstModule != null" >
+        #{firstModule,jdbcType=VARCHAR},
+      </if>
+      <if test="secondModule != null" >
+        #{secondModule,jdbcType=VARCHAR},
+      </if>
+      <if test="thirdModule != null" >
+        #{thirdModule,jdbcType=VARCHAR},
+      </if>
+      <if test="status != null" >
+        #{status,jdbcType=BIT},
+      </if>
+      <if test="mark != null" >
+        #{mark,jdbcType=VARCHAR},
+      </if>
+      <if test="parentid != null" >
+        #{parentid,jdbcType=INTEGER},
+      </if>
+      <if test="isparent != null" >
+        #{isparent,jdbcType=BIT},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByExampleSelective" parameterType="map" >
+    update role_privilege
+    <set >
+      <if test="record.id != null" >
+        id = #{record.id,jdbcType=INTEGER},
+      </if>
+      <if test="record.role != null" >
+        role = #{record.role,jdbcType=VARCHAR},
+      </if>
+      <if test="record.privilege != null" >
+        privilege = #{record.privilege,jdbcType=VARCHAR},
+      </if>
+      <if test="record.updateTime != null" >
+        update_time = #{record.updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.firstModule != null" >
+        first_module = #{record.firstModule,jdbcType=VARCHAR},
+      </if>
+      <if test="record.secondModule != null" >
+        second_module = #{record.secondModule,jdbcType=VARCHAR},
+      </if>
+      <if test="record.thirdModule != null" >
+        third_module = #{record.thirdModule,jdbcType=VARCHAR},
+      </if>
+      <if test="record.status != null" >
+        status = #{record.status,jdbcType=BIT},
+      </if>
+      <if test="record.mark != null" >
+        mark = #{record.mark,jdbcType=VARCHAR},
+      </if>
+      <if test="record.parentid != null" >
+        parentid = #{record.parentid,jdbcType=INTEGER},
+      </if>
+      <if test="record.isparent != null" >
+        isParent = #{record.isparent,jdbcType=BIT},
+      </if>
+    </set>
+    <if test="_parameter != null" >
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByExample" parameterType="map" >
+    update role_privilege
+    set id = #{record.id,jdbcType=INTEGER},
+      role = #{record.role,jdbcType=VARCHAR},
+      privilege = #{record.privilege,jdbcType=VARCHAR},
+      update_time = #{record.updateTime,jdbcType=TIMESTAMP},
+      first_module = #{record.firstModule,jdbcType=VARCHAR},
+      second_module = #{record.secondModule,jdbcType=VARCHAR},
+      third_module = #{record.thirdModule,jdbcType=VARCHAR},
+      status = #{record.status,jdbcType=BIT},
+      mark = #{record.mark,jdbcType=VARCHAR},
+      parentid = #{record.parentid,jdbcType=INTEGER},
+      isParent = #{record.isparent,jdbcType=BIT}
+    <if test="_parameter != null" >
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilege" >
+    update role_privilege
+    <set >
+      <if test="role != null" >
+        role = #{role,jdbcType=VARCHAR},
+      </if>
+      <if test="privilege != null" >
+        privilege = #{privilege,jdbcType=VARCHAR},
+      </if>
+      <if test="updateTime != null" >
+        update_time = #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="firstModule != null" >
+        first_module = #{firstModule,jdbcType=VARCHAR},
+      </if>
+      <if test="secondModule != null" >
+        second_module = #{secondModule,jdbcType=VARCHAR},
+      </if>
+      <if test="thirdModule != null" >
+        third_module = #{thirdModule,jdbcType=VARCHAR},
+      </if>
+      <if test="status != null" >
+        status = #{status,jdbcType=BIT},
+      </if>
+      <if test="mark != null" >
+        mark = #{mark,jdbcType=VARCHAR},
+      </if>
+      <if test="parentid != null" >
+        parentid = #{parentid,jdbcType=INTEGER},
+      </if>
+      <if test="isparent != null" >
+        isParent = #{isparent,jdbcType=BIT},
+      </if>
+    </set>
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilege" >
+    update role_privilege
+    set role = #{role,jdbcType=VARCHAR},
+      privilege = #{privilege,jdbcType=VARCHAR},
+      update_time = #{updateTime,jdbcType=TIMESTAMP},
+      first_module = #{firstModule,jdbcType=VARCHAR},
+      second_module = #{secondModule,jdbcType=VARCHAR},
+      third_module = #{thirdModule,jdbcType=VARCHAR},
+      status = #{status,jdbcType=BIT},
+      mark = #{mark,jdbcType=VARCHAR},
+      parentid = #{parentid,jdbcType=INTEGER},
+      isParent = #{isparent,jdbcType=BIT}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+</mapper>

@@ -3,6 +3,7 @@ package com.harmonycloud.dao.user;
 import com.harmonycloud.dao.user.bean.Resource;
 import com.harmonycloud.dao.user.bean.ResourceExample;
 import java.util.List;
+import org.apache.ibatis.annotations.Param;
 
 public interface ResourceMapper {
     int deleteByExample(ResourceExample example);
@@ -17,9 +18,11 @@ public interface ResourceMapper {
 
     Resource selectByPrimaryKey(Integer id);
 
+    int updateByExampleSelective(@Param("record") Resource record, @Param("example") ResourceExample example);
+
+    int updateByExample(@Param("record") Resource record, @Param("example") ResourceExample example);
+
     int updateByPrimaryKeySelective(Resource record);
 
     int updateByPrimaryKey(Resource record);
-
-    List<Resource> findAll();
 }

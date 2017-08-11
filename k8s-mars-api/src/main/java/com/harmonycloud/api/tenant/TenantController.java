@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.service.tenant.HarborProjectTenantService;
 import com.harmonycloud.service.tenant.NamespaceService;
+import com.harmonycloud.service.tenant.RolePrivilegeService;
 import com.harmonycloud.service.tenant.TenantBindingService;
 import com.harmonycloud.service.tenant.TenantService;
 
@@ -40,6 +41,8 @@ public class TenantController {
     HarborProjectTenantService harborProjectTenantService;
     @Autowired
     NamespaceService namespaceService;
+    @Autowired
+    RolePrivilegeService rolePrivilegeService;
 
     @Autowired
     private HttpSession session;
@@ -549,5 +552,11 @@ public class TenantController {
     @ResponseBody
     public ActionReturnUtil isAdmin(@RequestParam(value = "tenantid") String tenantid, String username) throws Exception {
         return ActionReturnUtil.returnSuccessWithData(tenantService.isAdmin(tenantid,username));
+    }
+    @RequestMapping(value = "/user/getRolePrivilege", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getRolePrivilege(String roleName) throws Exception {
+        Map<String, Object> privilegeByRole = rolePrivilegeService.getPrivilegeByRole(roleName);
+        return ActionReturnUtil.returnSuccessWithData(privilegeByRole);
     }
 }

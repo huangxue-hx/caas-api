@@ -8,7 +8,7 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.user.bean.Resource;
 
 public interface ResourceService {
-    public List<Resource> findMenusByResourceIds(Set<Long> resourceIds) throws Exception;
+//    public List<Resource> findMenusByResourceIds(Set<Long> resourceIds) throws Exception;
     public boolean checkByResourceIds(Set<Long> resourceIds, Resource resource) throws Exception;
     /**
      * 获取所有api资源列表
@@ -20,16 +20,16 @@ public interface ResourceService {
      * @return
      */
     public ActionReturnUtil listNoneResource() throws Exception;
+//    /**
+//     * 获取admin角色菜单
+//     * @return
+//     * @throws Exception
+//     */
+//    public List<Map<String, Object>> listAdminMenu() throws Exception;
     /**
-     * 获取admin角色菜单
+     * 获取角色菜单
      * @return
      * @throws Exception
      */
-    public List<Map<String, Object>> listAdminMenu() throws Exception;
-    /**
-     * 获取dev角色菜单
-     * @return
-     * @throws Exception
-     */
-    public List<Map<String, Object>> listDevMenu() throws Exception;
+    public List<Map<String, Object>> listMenuByRole(String roleName) throws Exception;
 }

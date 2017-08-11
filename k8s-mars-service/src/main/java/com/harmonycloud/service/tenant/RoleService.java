@@ -5,7 +5,7 @@ import java.util.List;
 import com.harmonycloud.dao.user.bean.Role;
 
 /**
- * Created by zsl on 16/10/25.
+ * Created by zgl on 17/8/9.
  */
 public interface RoleService {
     /**
@@ -51,4 +51,12 @@ public interface RoleService {
      * @throws Exception
      */
     public void updateRole(Role role) throws Exception;
+    /**
+     * 根据用户名和tenantid获取角色
+     * @param userName
+     * @param tenantid
+     * @return
+     * @throws Exception
+     */
+    public Role getRoleByUserNameAndTenant(String userName,String tenantid) throws Exception;
 }

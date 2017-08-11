@@ -30,22 +30,7 @@ public class MenuDto implements Serializable{
         this.url = url;
     }
 
-    /**
-     * 将资源列表转换为前端显示的菜单
-     * @param resources
-     * @return
-     */
-    public static List<MenuDto> convert(List<com.harmonycloud.dao.user.bean.Resource> resources){
-        List<MenuDto> menuVoList = new ArrayList<MenuDto>();
-        for (com.harmonycloud.dao.user.bean.Resource rs1 : resources) {
-            if (rs1.isFirstLevelNode()){
-                MenuDto vo = new MenuDto(rs1.getId(), rs1.getName(), rs1.getTransName(), rs1.getIconName(), rs1.getUrl());
-                menuVoList.add(vo);
-                addSubMenu(resources, vo);
-            }
-        }
-        return menuVoList;
-    }
+
 
     /**
      * 用递归完成菜单树状结构

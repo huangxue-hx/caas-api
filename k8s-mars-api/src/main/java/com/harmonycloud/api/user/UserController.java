@@ -30,6 +30,7 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.bean.UserGroup;
 import com.harmonycloud.dto.user.SummaryUserInfo;
@@ -40,7 +41,8 @@ import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.tenant.UserTenantService;
 import com.harmonycloud.service.user.MessageService;
 import com.harmonycloud.service.user.ResourceService;
-import com.harmonycloud.service.user.RoleService;
+import com.harmonycloud.service.tenant.RolePrivilegeService;
+import com.harmonycloud.service.tenant.RoleService;
 import com.harmonycloud.service.user.UserService;
 
 @Controller
@@ -73,6 +75,8 @@ public class UserController {
 
     @Autowired
     ClusterService clusterService;
+    @Autowired
+    RolePrivilegeService rolePrivilegeService;
 
     /**
      * 新增用户
@@ -286,27 +290,28 @@ public class UserController {
         }
     }
 
-    @ResponseBody
-    @RequestMapping(value = "/currentNamespaces", method = RequestMethod.GET)
-    public ActionReturnUtil getCurrentNamespace(@RequestParam(value = "tenantid") final String tenantId) {
-        try {
-            logger.info("获取在特定的tenantid下的namespaces");
-            Object name = session.getAttribute("username");
-            if (name == null) {
-                throw new K8sAuthException(Constant.HTTP_401);
-            }
-            String userName = name.toString();
-            String isAdmin = session.getAttribute("isAdmin").toString();
-            if (userName.equals(superAdmin) || "1".equals(isAdmin)) {
-                return tenantService.tenantdetail(tenantId);
-            } else {
-                return roleService.getRoleBindingWithNamespace(userName, tenantId);
-            }
-        } catch (Exception e) {
-            logger.error("获取在特定的tenantid下的namespaces错误，tenantId=" + tenantId + ", e:" + e.getMessage());
-            return ActionReturnUtil.returnError();
-        }
-    }
+//    @ResponseBody
+//    @RequestMapping(value = "/currentNamespaces", method = RequestMethod.GET)
+//    public ActionReturnUtil getCurrentNamespace(@RequestParam(value = "tenantid") final String tenantId) {
+//        try {
+////            logger.info("获取在特定的tenantid下的namespaces");
+////            Object name = session.getAttribute("username");
+////            if (name == null) {
+////                throw new K8sAuthException(Constant.HTTP_401);
+////            }
+////            String userName = name.toString();
+////            String isAdmin = session.getAttribute("isAdmin").toString();
+////            if (userName.equals(superAdmin) || "1".equals(isAdmin)) {
+////                return tenantService.tenantdetail(tenantId);
+////            } else {
+////                return roleService.getRoleBindingWithNamespace(userName, tenantId);
+////            }
+//            return ActionReturnUtil.returnSuccess();
+//        } catch (Exception e) {
+//            logger.error("获取在特定的tenantid下的namespaces错误，tenantId=" + tenantId + ", e:" + e.getMessage());
+//            return ActionReturnUtil.returnError();
+//        }
+//    }
 
     /**
      * 在session中设置当前租户的租户和集群信息
@@ -320,12 +325,16 @@ public class UserController {
         if (session.getAttribute("username") == null) {
             throw new K8sAuthException(Constant.HTTP_401);
         }
-
+        String userName = session.getAttribute("username").toString();
+        Role role = roleService.getRoleByUserNameAndTenant(userName, tenantid);
+        Map<String, Object> privilegeByRole = rolePrivilegeService.getPrivilegeByRole(role.getName());
         session.setAttribute("tenantId", tenantid);
+        session.setAttribute("role", role.getName());
+        session.setAttribute("privilege", privilegeByRole);
         Cluster cluster = this.tenantService.getClusterByTenantid(tenantid);
         session.setAttribute("currentCluster", cluster);
 
-        return ActionReturnUtil.returnSuccess();
+        return ActionReturnUtil.returnSuccessWithData(privilegeByRole);
 
     }
     @RequestMapping(value = "/user/getMenu", method = RequestMethod.GET)
@@ -338,9 +347,9 @@ public class UserController {
         User user = userService.getUser(userName);
         List<Map<String, Object>> menu = new ArrayList<>();
         if (user.getIsAdmin() == 1) {
-            menu = resourceService.listAdminMenu();
+            menu = resourceService.listMenuByRole("admin");
         } else {
-            menu = resourceService.listDevMenu();
+            menu = resourceService.listMenuByRole("dev");
         }
 
         return ActionReturnUtil.returnSuccessWithData(menu);

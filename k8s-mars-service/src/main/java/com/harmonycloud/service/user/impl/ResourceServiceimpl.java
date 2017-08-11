@@ -28,26 +28,26 @@ public class ResourceServiceimpl implements ResourceService{
     @Autowired
     private APIResourceService aPIResourceService;
     
-    @Override
-    public List<Resource> findMenusByResourceIds(Set<Long> resourceIds) throws Exception {
-        List<Resource> allResources = resourceMapper.findAll();
-        List<Resource> menus = new ArrayList<Resource>();
-        for (Resource resource : allResources) {
-            if (null != resource) {
-                if (resource.isRootNode()) {
-                    continue;
-                }
-                if (!CommonConstant.MENU.equals(resource.getType())) {
-                    continue;
-                }
-                if (!checkByResourceIds(resourceIds, resource)) {
-                    continue;
-                }
-                menus.add(resource);
-            }
-        }
-        return menus;
-    }
+//    @Override
+//    public List<Resource> findMenusByResourceIds(Set<Long> resourceIds) throws Exception {
+//        List<Resource> allResources = resourceMapper.findAll();
+//        List<Resource> menus = new ArrayList<Resource>();
+//        for (Resource resource : allResources) {
+//            if (null != resource) {
+//                if (resource.isRootNode()) {
+//                    continue;
+//                }
+//                if (!CommonConstant.MENU.equals(resource.getType())) {
+//                    continue;
+//                }
+//                if (!checkByResourceIds(resourceIds, resource)) {
+//                    continue;
+//                }
+//                menus.add(resource);
+//            }
+//        }
+//        return menus;
+//    }
     @Override
     public boolean checkByResourceIds(Set<Long> resourceIds, Resource resource) throws Exception {
         for (Long resourceId : resourceIds) {
@@ -114,38 +114,11 @@ public class ResourceServiceimpl implements ResourceService{
         return ActionReturnUtil.returnSuccessWithData(resources);
     }
     @Override
-    public List<Map<String, Object>> listAdminMenu() throws Exception {
+    public List<Map<String, Object>> listMenuByRole(String roleName) throws Exception {
         List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
         ResourceExample example = new ResourceExample ();
-        example.createCriteria().andIdBetween(2, 999);
-        List<Resource> list = this.resourceMapper.selectByExample(example);
-        if(list==null||list.size()<=0){
-            return null;
-        }
-        for (Resource resource : list) {
-            if(StringUtils.isEmpty(resource.getParentIds())){
-                Map<String, Object> map = new HashMap<>();
-                map.put(CommonConstant.ID,  resource.getId());
-                map.put(CommonConstant.NAME,  resource.getName());
-                map.put(CommonConstant.URL,  resource.getUrl());
-                map.put(CommonConstant.ICONNAME,  resource.getIconName());
-                ResourceExample example1 = new ResourceExample ();
-                example1.createCriteria().andParentIdEqualTo(resource.getId());
-                List<Resource> list2 = this.resourceMapper.selectByExample(example1);
-                
-                if(list2!=null&&list2.size()>0){
-                    map.put(CommonConstant.SUBMENU,list2);
-                }
-                result.add(map);
-            }
-        }
-        return result;
-    }
-    @Override
-    public List<Map<String, Object>> listDevMenu() throws Exception {
-        List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
-        ResourceExample example = new ResourceExample ();
-        example.createCriteria().andIdBetween(500, 2000);
+        example.setOrderByClause("`weight` ASC,id ASC");
+        example.createCriteria().andRoleEqualTo(roleName).andAvailableEqualTo(Boolean.TRUE);
         List<Resource> list = this.resourceMapper.selectByExample(example);
         if(list==null||list.size()<=0){
             return null;

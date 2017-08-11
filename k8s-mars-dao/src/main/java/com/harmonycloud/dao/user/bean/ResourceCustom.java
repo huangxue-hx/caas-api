@@ -2,7 +2,7 @@ package com.harmonycloud.dao.user.bean;
 
 import java.util.Date;
 
-public class Resource {
+public class ResourceCustom {
     private Integer id;
 
     private String name;

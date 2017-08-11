@@ -196,6 +196,7 @@ public class CommonConstant {
      public static final String PRIVILEGE_CICD = "cicd";
      public static final String PRIVILEGE_STORAGE = "storage";
      public static final String PRIVILEGE_CONFIG = "config";
+     public static final String PRIVILEGE = "privlege";
      
      
      public static final String ERRMSG = "errMsg";
