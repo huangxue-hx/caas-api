@@ -70,6 +70,9 @@ public class VersionControlServiceImpl implements VersionControlService {
     @Autowired
     ReplicasetsService rsService;
 
+    @Autowired
+    private PvService pvService;
+
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Value("#{propertiesReader['image.url']}")
@@ -124,6 +127,57 @@ public class VersionControlServiceImpl implements VersionControlService {
                                 }
                             }
                         }
+                        for(int i=0 ; i < pvclist.size(); i++){
+                            boolean flag =  true;
+                            for(UpdateVolume pv : container.getStorage()){
+                                String pvc = (String) pvclist.get(i);
+                                if(pvc.equals(pv.getPvcName())){
+                                    flag = false;
+                                }
+                            }
+                            if (flag){
+                                //volumeSerivce.deleteVolume(detail.getNamespace(),(String) pvclist.get(i));
+
+                                String pvc = (String) pvclist.get(i);
+                                K8SURL url = new K8SURL();
+                                url.setName((String) pvclist.get(i)).setNamespace(detail.getNamespace()).setResource(Resource.PERSISTENTVOLUMECLAIM);
+                                Map<String, Object> headers = new HashMap<>();
+                                headers.put("Content-Type", "application/json");
+                                Map<String, Object> bodys = new HashMap<>();
+                                bodys.put("gracePeriodSeconds", 1);
+                                K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE, headers, bodys,cluster);
+                                if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                                    // update pv
+                                    if (pvc.contains(Constant.PVC_BREAK)) {
+                                        String [] str=pvc.split(Constant.PVC_BREAK);
+                                        String pvname = str[0];
+                                        PersistentVolume pv = pvService.getPvByName(pvname,null);
+                                        if (pv != null) {
+                                            Map<String, Object> bodysPV = new HashMap<String, Object>();
+                                            Map<String, Object> metadata = new HashMap<String, Object>();
+                                            metadata.put("name", pv.getMetadata().getName());
+                                            metadata.put("labels", pv.getMetadata().getLabels());
+                                            bodysPV.put("metadata", metadata);
+                                            Map<String, Object> spec = new HashMap<String, Object>();
+                                            spec.put("capacity", pv.getSpec().getCapacity());
+                                            spec.put("nfs", pv.getSpec().getNfs());
+                                            spec.put("accessModes", pv.getSpec().getAccessModes());
+                                            bodysPV.put("spec", spec);
+                                            K8SURL urlPV = new K8SURL();
+                                            urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
+                                            Map<String, Object> headersPV = new HashMap<>();
+                                            headersPV.put("Content-Type", "application/json");
+                                            K8SClientResponse responsePV = new K8SClient().doit(urlPV, HTTPMethod.PUT, headersPV, bodysPV,cluster);
+                                            if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus()) && responsePV.getStatus() != Constant.HTTP_404) {
+
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+
                     }
                 }
             }
