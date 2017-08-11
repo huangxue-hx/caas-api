@@ -405,7 +405,8 @@ public class RouterServiceImpl implements RouterService {
 		K8SClientResponse response = sService.doServiceByNamespace(svcRouter.getNamespace(), head, bodys,
 				HTTPMethod.POST);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+			UnversionedStatus sataus = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+			return ActionReturnUtil.returnErrorWithMsg(sataus.getMessage());
 		}
 		com.harmonycloud.k8s.bean.Service newService = JsonUtil.jsonToPojo(response.getBody(),
 				com.harmonycloud.k8s.bean.Service.class);

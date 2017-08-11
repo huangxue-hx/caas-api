@@ -298,7 +298,7 @@ public class BusinessDeployController {
     @ResponseBody
     @RequestMapping(value = "/deploy/service", method = RequestMethod.POST)
 
-    public ActionReturnUtil deplotDeployments(@ModelAttribute BusinessDeployDto businessDeploy) throws Exception {
+    public ActionReturnUtil deployDeployments(@ModelAttribute BusinessDeployDto businessDeploy) throws Exception {
         logger.info("deploy business");
         String userName = (String) session.getAttribute("username");
         if(userName == null){

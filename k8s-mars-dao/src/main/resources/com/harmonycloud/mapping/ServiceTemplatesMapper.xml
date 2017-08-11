@@ -33,7 +33,7 @@
       name like concat(concat('%',#{name}),'%') AND
     </if>
     <if test="tenant != null" >
-      tenant = #{tenant} AND
+      (tenant = #{tenant} or tenant = 'all') AND
     </if>
      status=0 and flag=0
   </select>
@@ -102,7 +102,7 @@
     	and image_list LIKE concat(concat('%',#{image}),'%')
     </if>
     <if test="tenant != null" >
-        and tenant = #{tenant}
+        and (tenant = #{tenant} or tenant = 'all')
     </if>
   </select>
   
@@ -112,7 +112,7 @@
     	and name LIKE concat(concat('%',#{name}),'%')
     </if>
     <if test="tenant != null" >
-        and tenant = #{tenant}
+        and (tenant = #{tenant} or tenant = 'all')
     </if>
   </select>
   

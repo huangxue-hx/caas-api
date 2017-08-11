@@ -26,6 +26,7 @@ import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.BusinessDeployService;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.RouterService;
+import com.harmonycloud.service.application.ServiceService;
 import com.harmonycloud.service.application.VolumeSerivce;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.BusinessList;
@@ -101,6 +102,9 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
     
     @Autowired
     PrivatePartitionService privatePartitionService;
+    
+    @Autowired
+    ServiceService serviceService;
 
     public static final String ABNORMAL = "0";
 
@@ -1200,6 +1204,16 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         if (StringUtils.isEmpty(username) || businessDeploy == null || businessDeploy.getBusinessTemplate().getServiceList().size() <= 0) {
             return ActionReturnUtil.returnErrorWithMsg("username , application deploy or service is null");
         }
+        //保存数据库
+        for( ServiceTemplateDto s: businessDeploy.getBusinessTemplate().getServiceList()){
+        	ActionReturnUtil res = serviceService.saveServiceTemplate(s, username, 1);
+        	if(!res.isSuccess()){
+        		return res;
+        	}
+        	JSONObject js = (JSONObject) res.get("data");
+        	int id = js.getInt(s.getName());
+        	s.setId(id);
+        }
         //获取k8s同namespace相关的资源
 		//获取 Deployment name
         JSONObject msg= new JSONObject();
@@ -1262,7 +1276,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 					}
 					if(ing.getType() != null && "TCP".equals(ing.getType()) && tcplist != null && tcplist.size() > 0){
 						for(RouterSvc tcp : tcplist){
-							if(ing.getSvcRouter().getName().equals(tcp.getName())){
+							if(("routersvc"+ing.getSvcRouter().getName()).equals(tcp.getName())){
 								msg.put("Ingress(Tcp):"+ing.getSvcRouter().getName(), "重复");
 								flag = false;
 							}
@@ -1388,7 +1402,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 	            return ActionReturnUtil.returnErrorWithData(message);
 	        }
 		}else{
-			return ActionReturnUtil.returnErrorWithMsg(msg.toString());
+			return ActionReturnUtil.returnErrorWithData(msg);
 		}
         return ActionReturnUtil.returnSuccess();
 	}
@@ -1452,7 +1466,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 					}
 					if(ing.getType() != null && "TCP".equals(ing.getType()) && tcplist != null && tcplist.size() > 0){
 						for(RouterSvc tcp : tcplist){
-							if(ing.getSvcRouter().getName().equals(tcp.getName())){
+							if(("routersvc"+ing.getSvcRouter().getName()).equals(tcp.getName())){
 								msg.put("Ingress(Tcp):"+ing.getSvcRouter().getName(), "重复");
 								flag = false;
 							}
@@ -1464,7 +1478,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 		if(flag){
 			return ActionReturnUtil.returnSuccess();
 		}else{
-			return ActionReturnUtil.returnErrorWithMsg(msg.toString());
+			return ActionReturnUtil.returnErrorWithData(msg);
 		}
 	 }
 }

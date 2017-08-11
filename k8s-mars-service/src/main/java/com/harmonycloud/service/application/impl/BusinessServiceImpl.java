@@ -211,7 +211,7 @@ public class BusinessServiceImpl implements BusinessService {
             // search value is null
             List<BusinessTemplates> businessTemplatesList = businessTemplatesMapper.listNameByTenant(tenant);
             for (int i = 0; i < businessTemplatesList.size(); i++) {
-                List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByName(businessTemplatesList.get(i).getName(), tenant);
+                List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByName(businessTemplatesList.get(i).getName(), businessTemplatesList.get(i).getTenant());
                 array.add(getBusinessTemplates(list));
             }
         } else {
@@ -219,14 +219,14 @@ public class BusinessServiceImpl implements BusinessService {
                 // search by name
                 List<BusinessTemplates> businessTemplatesList = businessTemplatesMapper.listNameByName("%" + searchValue + "%", tenant);
                 for (int i = 0; i < businessTemplatesList.size(); i++) {
-                    List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByName(businessTemplatesList.get(i).getName(), tenant);
+                    List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByName(businessTemplatesList.get(i).getName(), businessTemplatesList.get(i).getTenant());
                     array.add(getBusinessTemplates(list));
                 }
             } else if (searchKey.equals("image")) {
                 // search by image
                 List<BusinessTemplates> businessTemplatesList = businessTemplatesMapper.listNameByImage(searchValue, tenant);
                 for (int i = 0; i < businessTemplatesList.size(); i++) {
-                    List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByNameAndImage(businessTemplatesList.get(i).getName(), searchValue, tenant);
+                    List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByNameAndImage(businessTemplatesList.get(i).getName(), searchValue, businessTemplatesList.get(i).getTenant());
                     array.add(getBusinessTemplates(list));
                 }
             } else {
@@ -499,6 +499,11 @@ public class BusinessServiceImpl implements BusinessService {
         JSONObject json = new JSONObject();
         if (businessTemplatesList != null && businessTemplatesList.size() > 0) {
             json.put("name", businessTemplatesList.get(0).getName());
+            if("all".equals(businessTemplatesList.get(0).getTenant())){
+            	json.put("public",true);
+            }else{
+            	json.put("public",false);
+            }
             JSONArray tagArray = new JSONArray();
             for (int i = 0; i < businessTemplatesList.size(); i++) {
             	JSONObject idAndTag=new JSONObject();

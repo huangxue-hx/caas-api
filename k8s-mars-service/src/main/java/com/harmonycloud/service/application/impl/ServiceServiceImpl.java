@@ -328,6 +328,11 @@ public class ServiceServiceImpl implements ServiceService {
 		JSONObject json = new JSONObject();
 		if (serviceTemplatesList != null && serviceTemplatesList.size() > 0) {
 			json.put("name", serviceTemplatesList.get(0).getName());
+			if("all".equals(serviceTemplatesList.get(0).getTenant())){
+				json.put("public", true);
+			}else{
+				json.put("public", false);
+			}
 			JSONArray tagArray = new JSONArray();
 			for (int i = 0; i < serviceTemplatesList.size(); i++) {
 				JSONObject idAndTag = new JSONObject();

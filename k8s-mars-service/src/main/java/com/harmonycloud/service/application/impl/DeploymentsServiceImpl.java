@@ -1,5 +1,6 @@
 package com.harmonycloud.service.application.impl;
 
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.cluster.ClusterMapper;
 import com.harmonycloud.dao.cluster.bean.Cluster;
@@ -712,6 +713,14 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 				if (configMaps != null&&configMaps.size()>0) {
 					K8SURL url = new K8SURL();
 					url.setNamespace(detail.getNamespace()).setResource(Resource.CONFIGMAP);
+					K8SURL url1 = new K8SURL();
+					url1.setNamespace(detail.getNamespace()).setResource(Resource.CONFIGMAP).setName(detail.getName() + c.getName());
+					K8SClientResponse responses = new K8SClient().doit(url1, HTTPMethod.GET, null, null, cluster);
+					Map<String, Object> convertJsonToMap = JsonUtil.convertJsonToMap(responses.getBody());
+			        String metadata = convertJsonToMap.get(CommonConstant.METADATA).toString();
+			        if (!CommonConstant.EMPTYMETADATA.equals(metadata)) {
+			            return ActionReturnUtil.returnErrorWithMsg("configmap=" + detail.getName() + c.getName() + " 已经存在");
+			        }
 					Map<String, Object> bodys = new HashMap<String, Object>();
 					Map<String, Object> meta = new HashMap<String, Object>();
 					meta.put("namespace", detail.getNamespace());
@@ -863,8 +872,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		cUrl.setNamespace(namespace).setResource(Resource.CONFIGMAP);
 		Map<String, Object> queryP = new HashMap<>();
 		queryP.put("labelSelector", "app=" + name);
-		cUrl.setQueryParams(queryP);
-		K8SClientResponse conRes = new K8SClient().doit(cUrl, HTTPMethod.DELETE, null, null,null);
+		K8SClientResponse conRes = new K8SClient().doit(cUrl, HTTPMethod.DELETE, null, queryP,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(conRes.getStatus()) && conRes.getStatus() != Constant.HTTP_404) {
 			UnversionedStatus status = JsonUtil.jsonToPojo(conRes.getBody(), UnversionedStatus.class);
 			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
@@ -873,7 +881,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		// 删除hpa
 		K8SURL hUrl = new K8SURL();
 		hUrl.setName(name + "-hpa").setNamespace(namespace).setResource(Resource.HORIZONTALPODAUTOSCALER);
-		K8SClientResponse hpaRes = new K8SClient().doit(hUrl, HTTPMethod.DELETE, null, null,null);
+		K8SClientResponse hpaRes = new K8SClient().doit(hUrl, HTTPMethod.DELETE, null, null,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(hpaRes.getStatus()) && hpaRes.getStatus() != Constant.HTTP_404) {
 			UnversionedStatus status = JsonUtil.jsonToPojo(hpaRes.getBody(), UnversionedStatus.class);
 			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
@@ -919,7 +927,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
 			// 删除ingress
 			cUrl.setResource(Resource.INGRESS);
-			K8SClientResponse ingRes = new K8SClient().doit(cUrl, HTTPMethod.DELETE, null, null,null);
+			K8SClientResponse ingRes = new K8SClient().doit(cUrl, HTTPMethod.DELETE, null, null,cluster);
 			if (!HttpStatusUtil.isSuccessStatus(ingRes.getStatus()) && ingRes.getStatus() != Constant.HTTP_404) {
 				UnversionedStatus sta = JsonUtil.jsonToPojo(ingRes.getBody(), UnversionedStatus.class);
 				return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
