@@ -111,6 +111,9 @@
     <select id="getAllUserNormalList" resultMap="user_Base_Map" >
          select uuid,username,real_name,email,isAdmin,isMachine,comment,pause,phone,token_create,create_time,update_time from user where pause = 'normal' AND username in (select username  from user_tenant) AND isAdmin!=1 ;
     </select>
+    <select id="findAthorizeByUsername" resultType="com.harmonycloud.dao.user.bean.User" parameterType="java.lang.String">
+        select uuid,username,password,token,create_time,token_create,isAdmin,update_time,email,real_name,isMachine,comment,pause,phone from user where pause = 'normal' AND username in (select username  from user_tenant) AND isAdmin!=1 AND username=#{username};
+    </select>
 
     <select id="updateUser" parameterType="com.harmonycloud.dao.user.bean.User">
         update user

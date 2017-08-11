@@ -1,8 +1,5 @@
 package com.harmonycloud.service.user;
 
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -15,12 +12,14 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
+import javax.mail.internet.MimeMessage;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.io.FileUtils;
+import com.alibaba.fastjson.JSONObject;
+import com.harmonycloud.common.util.*;
+import com.harmonycloud.k8s.bean.MailRecord;
 import org.apache.http.Header;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.poi.hssf.usermodel.HSSFCell;
@@ -28,26 +27,22 @@ import org.apache.poi.hssf.usermodel.HSSFRow;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.util.SystemOutLogger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.HarborUtil;
-import com.harmonycloud.common.util.HttpClientResponse;
-import com.harmonycloud.common.util.HttpClientUtil;
-import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.common.util.StringUtil;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.application.bean.HarborUser;
@@ -72,11 +67,7 @@ import com.harmonycloud.dto.user.ExcelUtil;
 import com.harmonycloud.dto.user.SummaryUserInfo;
 import com.harmonycloud.dto.user.UserDetailDto;
 import com.harmonycloud.dto.user.UserGroupDto;
-import com.harmonycloud.k8s.bean.RoleBinding;
-import com.harmonycloud.k8s.bean.RoleBindingList;
-import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.service.RoleBindingService;
-import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.tenant.UserTenantService;
 
 @Service
@@ -124,6 +115,12 @@ public class UserService {
     private String harborTimeout;
     @Autowired
     private HarborUtil harborUtil;
+
+
+    /**
+     * 向用户发送提示邮箱
+     *
+     */
 
     /**
      * 向k8s和harbor中新增用户
@@ -217,6 +214,69 @@ public class UserService {
             throw e;
         }
 
+    }
+    /**
+     * 修改k8s中电话号码
+     *
+     * @param phone
+     * @param userName
+     * @return
+     */
+    public ActionReturnUtil changePhone(String userName, String phone) throws Exception {
+        if (StringUtils.isEmpty(userName)) {
+            return ActionReturnUtil.returnErrorWithMsg("用户名不能为空!");
+        }
+        if (StringUtils.isEmpty(phone)) {
+            return ActionReturnUtil.returnErrorWithMsg("电话号码不能为空!");
+        }
+        Date date = new Date();// 获得系统时间.
+        SimpleDateFormat sdf = new SimpleDateFormat(" yyyy-MM-dd HH:mm:ss ");
+        String nowTime = sdf.format(date);
+        Date time = sdf.parse(nowTime);
+        User user = new User();
+        user.setPhone(phone);
+        user.setUsername(userName);
+        user.setUpdateTime(time);
+        String oldPhone = userMapper.findByUsername(userName).getPhone();
+        userMapper.updateUser(user);
+        // 修改harbor
+        try {
+            String userPath = "http://" + harborIP + ":" + harborPort + "/api/users?username=" + userName;
+            String cookie = harborUtil.checkCookieTimeout();
+            Map<String, Object> header = new HashMap<String, Object>();
+            header.put("Cookie", cookie);
+            HttpClientResponse httpClientResponse = HttpClientUtil.doGet(userPath, null, header);
+            List<Map<String, Object>> result = JsonUtil.JsonToMapList(httpClientResponse.getBody());
+            if (result != null && result.size() > 0) {
+                Map<String, Object> harboruser = result.get(0);
+                String userId = harboruser.get("user_id").toString();
+                Map<String, Object> params = new HashMap<String, Object>();
+                params.put("phone", phone);
+                params.put("email", harboruser.get("email").toString());
+                params.put("comment", harboruser.get("comment").toString());
+                String updateUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + userId;
+                String dlCookie = harborUtil.checkCookieTimeout();
+                Map<String, Object> headers = new HashMap<String, Object>();
+                headers.put("Cookie", dlCookie);
+                HttpClientResponse putRes = HttpClientUtil.doPut(updateUrl, params, headers);
+                // 根据返回code判断状态
+                if (HttpStatusUtil.isSuccessStatus(putRes.getStatus())) {
+                    return ActionReturnUtil.returnSuccess();
+                } else {
+                    // 回滚数据库操作
+                    user.setRealName(oldPhone);
+                    userMapper.updateUser(user);
+                    return ActionReturnUtil.returnErrorWithMsg(putRes.getBody());
+                }
+            } else {
+                return ActionReturnUtil.returnError();
+            }
+        } catch (Exception e) {
+            user.setRealName(oldPhone);
+            userMapper.updateUser(user);
+            // 如果是harbor请求异常需要回滚数据库
+            throw e;
+        }
     }
 
     /**
@@ -431,10 +491,10 @@ public class UserService {
      */
     public ActionReturnUtil userReset(String userName, String newPassword) throws Exception {
         if (StringUtils.isEmpty(userName)) {
-            return ActionReturnUtil.returnErrorWithMsg("userName cannot be null!");
+            return ActionReturnUtil.returnErrorWithMsg("用户名不能为空!");
         }
         if (StringUtils.isEmpty(newPassword)) {
-            return ActionReturnUtil.returnErrorWithMsg("newPassword cannot be null!");
+            return ActionReturnUtil.returnErrorWithMsg("新密码不能为空!");
         }
         try {
             // 查询旧密码
@@ -443,15 +503,21 @@ public class UserService {
              * userMapper.findByUsername(userName).getPassword(); String
              * oldPassword = StringUtil.convertToMD5(MD5oldPassword);
              */
-            String MD5oldPassword = userMapper.findByUsername(userName).getPassword();
+            User userEmail = userMapper.findByUsername(userName);
+            String MD5oldPassword = userEmail.getPassword();
             HarborUser harbor = harboruserMapper.findByUsername(userName);
             String oldPassword = harbor.getPassword();
             if (newPassword.equals(oldPassword)) {
+                //this.sendEmail("1250394994@qq.com",userName);
+                //this.sendEmail(userEmail.getEmail(),userName);
                 return ActionReturnUtil.returnSuccess();
             }
             // 更新k8s用户密码
             String MD5newPassword = StringUtil.convertToMD5(newPassword);
             userMapper.updatePassword(userName, MD5newPassword);
+            //this.sendEmail(userEmail .getEmail(),userName);
+
+            //发送邮箱
             harboruserMapper.updatePassword(userName, newPassword);
 
             // 更新harbor账户密码
@@ -809,6 +875,7 @@ public class UserService {
         for(int i =0;i<normalList.size();i++){
             User user = normalList.get(i);
             normalList.get(i).setGroupName(userMapper.selectGroupNameByUserID(user.getUuid()));
+            normalList.get(i).setIsAuthorize(1);
         }
         return normalList;
     }
@@ -866,6 +933,7 @@ public class UserService {
         for(int i=1;i<unauthorizedUserList.size();i++){
             User user = unauthorizedUserList.get(i);
             user.setGroupName(userMapper.selectGroupNameByUserID(user.getUuid()));
+            user.setIsAuthorize(0);
         }
         return unauthorizedUserList;
     }
@@ -911,7 +979,7 @@ public class UserService {
         // 管理员用户
         su.setAdminList(adminUserList);
         su.setAdminSum(adminUserList.size());
-        su.setUserSum(allUserNormalList.size() + allUserPausedList.size()+adminUserList.size()+allUserNormalList.size());
+        su.setUserSum(allUserNormalList.size() + allUserPausedList.size()+adminUserList.size()+unauthorizedUserList.size());
         return su;
     }
     public SummaryUserInfo getSummaryByDepartmnet(Integer domain, String department) throws Exception {
@@ -1048,6 +1116,13 @@ public class UserService {
                     u.setComment(user.getComment());
                     u.setPause(user.getPause());
                     u.setPhone(user.getPhone());
+                    User user1 = userMapper.findAthorizeByUsername(user.getUsername());
+                    if(user1!=null){
+                        u.setIsAuthorize(1);
+                    }else{
+                        u.setIsAuthorize(0);
+                    }
+
                     Date createTime = user.getCreateTime();
                     String date = DateUtil.DateToString(createTime, DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z);
                     u.setCreateTime(date);
@@ -1612,6 +1687,11 @@ public class UserService {
             UserExample example = new UserExample();
             example.createCriteria().andUuidEqualTo(ls.get(i).getUserid());
             user = userMapperNew.selectByExample(example).get(0);
+            if(userMapper.findAthorizeByUsername(user.getUsername())!=null){
+                user.setIsAuthorize(1);
+            }else {
+                user.setIsAuthorize(0);
+            }
             users.add(user);
         }
         return users;

@@ -28,7 +28,15 @@ public class UserShowDto {
     private String pause;
 
     private String phone;
+    private Integer isAuthorize;
 
+    public Integer getIsAuthorize() {
+        return isAuthorize;
+    }
+
+    public void setIsAuthorize(Integer isAuthorize) {
+        this.isAuthorize = isAuthorize;
+    }
 
     private String groupName;
 

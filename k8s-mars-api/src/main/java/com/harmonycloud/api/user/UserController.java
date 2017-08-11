@@ -10,6 +10,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import com.harmonycloud.common.util.HttpClientUtil;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.UserTenant;
@@ -101,6 +102,20 @@ public class UserController {
     public ActionReturnUtil changePwd(@RequestParam(value = "newPassword") final String newPassword, @RequestParam(value = "oldPassword") final String oldPassword,
             @RequestParam(value = "userName") final String userName) throws Exception {
         return userService.changePwd(userName, oldPassword, newPassword);
+    }
+
+    /**
+     * 修改用phone
+     *
+     * @param userName
+     * @param phone
+     * @return
+     * @throws Exception
+     */
+    @ResponseBody
+    @RequestMapping(value = "/user/changePhone", method = RequestMethod.PUT)
+    public ActionReturnUtil changePhone(@RequestParam(value = "phone") final String phone, @RequestParam(value = "userName") final String userName) throws Exception {
+        return userService.changePhone(userName, phone);
     }
 
     /**

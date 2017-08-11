@@ -339,7 +339,7 @@ public class HttpClientUtil {
 			}
 		} catch (ClientProtocolException e) {
 			e.printStackTrace();
-		} catch (IOException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
 			try {

@@ -119,4 +119,7 @@ public interface CustomUserMapper {
 	//根据用户ID查询用户所属GroupName
 	String selectGroupNameByUserID(Long userid);
 
+	//判断用户是否授权
+	User findAthorizeByUsername(String username);
+
 }

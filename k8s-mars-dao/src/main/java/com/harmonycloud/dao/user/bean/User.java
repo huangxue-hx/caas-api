@@ -40,6 +40,15 @@ public class User implements Serializable {
     private Date create_time;
     private Date update_time;
     private String groupName;
+    private Integer isAuthorize;
+
+    public Integer getIsAuthorize() {
+        return isAuthorize;
+    }
+
+    public void setIsAuthorize(Integer isAuthorize) {
+        this.isAuthorize = isAuthorize;
+    }
 
     public String getGroupName() {
         return groupName;
