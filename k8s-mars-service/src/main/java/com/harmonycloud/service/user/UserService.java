@@ -30,6 +30,7 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -115,12 +116,40 @@ public class UserService {
     private String harborTimeout;
     @Autowired
     private HarborUtil harborUtil;
+    private UserService userService;
 
 
     /**
      * 向用户发送提示邮箱
      *
      */
+    public void sendEmail(String email,String userName) throws Exception{
+        MimeMessage mimeMessage = MailUtil.getJavaMailSender().createMimeMessage();
+        try {
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            helper.setFrom("k8sdev@harmonycloud.cn");
+            helper.setTo(email);
+            helper.setSubject("密码重置通知");
+            Map dataModel = new HashMap<>();
+            Date date = new Date();
+            dataModel.put("time",date);
+            dataModel.put("userName",userName);
+
+            //设置图标
+            ClassLoader classLoader = MailUtil.class.getClassLoader();
+            InputStream inputStream = classLoader.getResourceAsStream("icon-info.png");
+            byte[] bytes = MailUtil.stream2byte(inputStream);
+            helper.addInline("icon-info", new ByteArrayResource(bytes), "image/png");
+            inputStream = classLoader.getResourceAsStream("icon-status.png");
+            bytes = MailUtil.stream2byte(inputStream);
+            helper.addInline("icon-status", new ByteArrayResource(bytes), "image/png");
+            //helper.setText("测试一下");
+            helper.setText(TemplateUtil.generate("passWordRest.ftl",dataModel), true);
+            //System.out.println(TemplateUtil.generate("passWordRest.ftl",dataModel));
+        }catch(Exception e){
+        }
+        MailUtil.sendMimeMessage(mimeMessage);
+    }
 
     /**
      * 向k8s和harbor中新增用户
@@ -134,20 +163,20 @@ public class UserService {
         String regex1 = "^[\u4E00-\u9FA5A-Za-z0-9]+$";
         boolean matches = user.getPassword().matches(regex);
         if (!matches) {
-            return ActionReturnUtil.returnErrorWithMsg("The password must be letters and numbers, and the length should not be less than 7");
+            return ActionReturnUtil.returnErrorWithMsg("密码格式为7-12位数字和字母的组合！");
         }
         // 用户名非重
         if (this.checkUserName(user.getUsername())) {
-            return ActionReturnUtil.returnErrorWithMsg("User name already exists");
+            return ActionReturnUtil.returnErrorWithMsg("用户名已存在！");
         }
         // 邮箱非重
         if (this.checkEmail(user.getEmail())) {
-            return ActionReturnUtil.returnErrorWithMsg("email already exists");
+            return ActionReturnUtil.returnErrorWithMsg("邮箱已存在！");
         }
         // 真实用户名判断，过滤特殊符号
         boolean matchrealname = user.getRealName().matches(regex1);
         if (!matchrealname) {
-            return ActionReturnUtil.returnErrorWithMsg("Illegal positive real user name");
+            return ActionReturnUtil.returnErrorWithMsg("真实姓名格式不正确！");
         }
         HarborUser harbor = new HarborUser();
         harbor.setUsername(user.getUsername());
@@ -191,10 +220,10 @@ public class UserService {
                         }
                         return ActionReturnUtil.returnSuccess();
                     } else {
-                        return ActionReturnUtil.returnErrorWithMsg("Create failed");
+                        return ActionReturnUtil.returnErrorWithMsg("创建失败！");
                     }
                 } else {
-                    return ActionReturnUtil.returnErrorWithMsg("harbor Create failed");
+                    return ActionReturnUtil.returnErrorWithMsg("创建harbor失败！");
                 }
             } catch (Exception e) {
                 if (e instanceof SQLException) {
@@ -291,13 +320,13 @@ public class UserService {
         String regex = "^[\u4E00-\u9FA5A-Za-z0-9]+$";
         boolean matchrealname = realName.matches(regex);
         if (!matchrealname) {
-            return ActionReturnUtil.returnErrorWithMsg("Illegal positive real user name");
+            return ActionReturnUtil.returnErrorWithMsg("真实姓名格式不正确！");
         }
         if (StringUtils.isEmpty(userName)) {
-            return ActionReturnUtil.returnErrorWithMsg("userName cannot be null!");
+            return ActionReturnUtil.returnErrorWithMsg("用户名不能为空!");
         }
         if (StringUtils.isEmpty(realName)) {
-            return ActionReturnUtil.returnErrorWithMsg("realName cannot be null!");
+            return ActionReturnUtil.returnErrorWithMsg("真实姓名不能为空!");
         }
         Date date = new Date();// 获得系统时间.
         SimpleDateFormat sdf = new SimpleDateFormat(" yyyy-MM-dd HH:mm:ss ");
@@ -360,13 +389,13 @@ public class UserService {
         String regex = "^\\s*\\w+(?:\\.{0,1}[\\w-]+)*@[a-zA-Z0-9]+(?:[-.][a-zA-Z0-9]+)*\\.[a-zA-Z]+\\s*$";
         boolean matches = email.matches(regex);
         if (!matches) {
-            return ActionReturnUtil.returnErrorWithMsg("The mailbox is malformed");
+            return ActionReturnUtil.returnErrorWithMsg("邮箱格式不对！");
         }
         if (StringUtils.isEmpty(userName)) {
-            return ActionReturnUtil.returnErrorWithMsg("userName cannot be null!");
+            return ActionReturnUtil.returnErrorWithMsg("用户名不能为空!");
         }
         if (StringUtils.isEmpty(email)) {
-            return ActionReturnUtil.returnErrorWithMsg("email cannot be null!");
+            return ActionReturnUtil.returnErrorWithMsg("邮箱不能为空！");
         }
         Date date = new Date();// 获得系统时间.
         SimpleDateFormat sdf = new SimpleDateFormat(" yyyy-MM-dd HH:mm:ss ");
@@ -429,22 +458,22 @@ public class UserService {
      */
     public ActionReturnUtil changePwd(String userName, String oldPassword, String newPassword) throws Exception {
         if (StringUtils.isEmpty(newPassword)) {
-            return ActionReturnUtil.returnErrorWithMsg("newPassword cannot be null!");
+            return ActionReturnUtil.returnErrorWithMsg("新密码不能为空!");
         }
         if (newPassword.equals(oldPassword)) {
-            return ActionReturnUtil.returnErrorWithMsg("The old password cannot be the same as the new password!");
+            return ActionReturnUtil.returnErrorWithMsg("新密码不能和原始密码相同!");
         }
         String regex = "^(?![0-9]+$)(?![a-zA-Z]+$)[0-9A-Za-z]{7,12}$";
         boolean matches = newPassword.matches(regex);
         if (!matches) {
-            return ActionReturnUtil.returnErrorWithMsg("The password must be letters and numbers, and the length should not be less than 7");
+            return ActionReturnUtil.returnErrorWithMsg("密码必须是7-12位数字和字母的组合！");
         }
         try {
             // 判断旧密码的正确性
             String MD5oldPassword = StringUtil.convertToMD5(oldPassword);
             User userDb = userMapper.findByUsername(userName);
             if (!userDb.getPassword().equals(MD5oldPassword)) {
-                return ActionReturnUtil.returnErrorWithMsg("old password is not correct");
+                return ActionReturnUtil.returnErrorWithMsg("原始密码不正确！");
             }
             // 更新k8s用户密码
             String MD5newPassword = StringUtil.convertToMD5(newPassword);
@@ -508,19 +537,17 @@ public class UserService {
             HarborUser harbor = harboruserMapper.findByUsername(userName);
             String oldPassword = harbor.getPassword();
             if (newPassword.equals(oldPassword)) {
-                //this.sendEmail("1250394994@qq.com",userName);
-                //this.sendEmail(userEmail.getEmail(),userName);
+                userService.sendEmail(userEmail.getEmail(),userName);
                 return ActionReturnUtil.returnSuccess();
             }
             // 更新k8s用户密码
+            // 更新harbor账户密码
             String MD5newPassword = StringUtil.convertToMD5(newPassword);
             userMapper.updatePassword(userName, MD5newPassword);
-            //this.sendEmail(userEmail .getEmail(),userName);
-
-            //发送邮箱
             harboruserMapper.updatePassword(userName, newPassword);
+            userService.sendEmail(userEmail.getEmail(),userName);
 
-            // 更新harbor账户密码
+
             // 根据用户名查询用户id
             try {
                 String userPath = "http://" + harborIP + ":" + harborPort + "/api/users?username=" + userName;
@@ -574,18 +601,18 @@ public class UserService {
      */
     public ActionReturnUtil adminReset(String userName, String oldPassword, String newPassword) throws Exception {
         if (StringUtils.isEmpty(userName)) {
-            return ActionReturnUtil.returnErrorWithMsg("userName cannot be null!");
+            return ActionReturnUtil.returnErrorWithMsg("用户名不能为空!");
         }
         if (StringUtils.isEmpty(newPassword)) {
-            return ActionReturnUtil.returnErrorWithMsg("newPassword cannot be null!");
+            return ActionReturnUtil.returnErrorWithMsg("新密码不能为空!");
         }
         if (newPassword.equals(oldPassword)) {
-            return ActionReturnUtil.returnErrorWithMsg("The old password cannot be the same as the new password!");
+            return ActionReturnUtil.returnErrorWithMsg("新密码和原始密码不能相同!");
         }
         String regex = "^(?![0-9]+$)(?![a-zA-Z]+$)[0-9A-Za-z]{6,12}$";
         boolean matches = newPassword.matches(regex);
         if (!matches) {
-            return ActionReturnUtil.returnErrorWithMsg("The password must be letters and numbers, and the length should not be less than 6");
+            return ActionReturnUtil.returnErrorWithMsg("密码必须是7-12位字母和数字的组合！");
         }
 
         try {
@@ -593,7 +620,7 @@ public class UserService {
             String MD5oldPassword = StringUtil.convertToMD5(oldPassword);
             User userDb = userMapper.findByUsername(userName);
             if (!userDb.getPassword().equals(MD5oldPassword)) {
-                return ActionReturnUtil.returnErrorWithMsg("old password is not correct");
+                return ActionReturnUtil.returnErrorWithMsg("原始密码不正确！");
             }
             // 更新k8s用户密码
             String MD5newPassword = StringUtil.convertToMD5(newPassword);
@@ -614,7 +641,7 @@ public class UserService {
      */
     public ActionReturnUtil deleteUser(String userName) throws Exception {
         if (StringUtils.isEmpty(userName)) {
-            return ActionReturnUtil.returnErrorWithMsg("userName cannot be null!");
+            return ActionReturnUtil.returnErrorWithMsg("用户名不能为空!");
         }
         try {
             // 先查询该用户是否有绑定信息,如果有则不能删除
@@ -1815,7 +1842,7 @@ public class UserService {
         String[] title = {"平台账号", "密码", "用户邮箱", "姓名", "手机号", "备注"};
         List<String> list = new ArrayList<String>();
         List<List<Object>> listob = ExcelUtil.getUserListByExcel(in, file.getOriginalFilename());
-        if (listob == null && listob.size() <= 0) {
+        if (listob == null || listob.size()<=0) {
             return ActionReturnUtil.returnErrorWithMsg("文件不能为空!");
         }
         // 遍历listob数据，把数据放到List中
@@ -1823,42 +1850,89 @@ public class UserService {
             for (int i = 0; i < listob.size(); i++) {
                 List<Object> ob = listob.get(i);
                 User user = new User();
-                if (ob.size() < 5 || (ob.get(0) == null || ob.get(0).toString().trim().isEmpty()) && (ob.get(1) == null || ob.get(1).toString().trim().isEmpty())
+                if(ob.size()<=5&&(ob.get(0) == null || ob.get(0).toString().trim().isEmpty()) || (ob.get(1) == null || ob.get(1).toString().trim().isEmpty())
+                        || (ob.get(2) == null || ob.get(2).toString().trim().isEmpty()) || (ob.get(3) == null || ob.get(3).toString().trim().isEmpty())
+                        || (ob.get(4) == null || ob.get(4).toString().trim().isEmpty())){
+                    return ActionReturnUtil.returnErrorWithMsg("第"+(i+1)+"行，缺少数据项");
+                }
+                if ((ob.get(0) == null || ob.get(0).toString().trim().isEmpty()) && (ob.get(1) == null || ob.get(1).toString().trim().isEmpty())
                         && (ob.get(2) == null || ob.get(2).toString().trim().isEmpty()) && (ob.get(3) == null || ob.get(3).toString().trim().isEmpty())
                         && (ob.get(4) == null || ob.get(4).toString().trim().isEmpty())) {
-                    // 跳过空行
-                    break;
+                    //如果是第一行则直接返回
+                    if(i==0){
+                        return ActionReturnUtil.returnErrorWithMsg("文件不能为空！");
+                    }else {
+                        // 跳过空行
+                        break;
+                    }
                 }
                 // 通过遍历获取每一列用户数据
-                if (ob.get(0) != null && !ob.get(0).toString().trim().isEmpty()) {
-                    user.setUsername(String.valueOf(ob.get(0)));
-                } else {
+                if(ob.get(0).toString().trim().isEmpty()||ob.get(0) == null){
                     return ActionReturnUtil.returnErrorWithMsg("第" + (i + 1) + "行,用户名不能为空");
+                }else if(ob.get(0) != null && !ob.get(0).toString().trim().isEmpty()){
+                    User userUsable = userMapper.findByUsername(String.valueOf(ob.get(0)));
+                    if(userUsable!=null){
+                        return ActionReturnUtil.returnErrorWithMsg("第" + (i + 1) + "行,用户名已存在");
+                    }else{
+                        user.setUsername(String.valueOf(ob.get(0)).trim());
+                    }
                 }
-                if (ob.get(1) != null && !ob.get(1).toString().trim().isEmpty()) {
-                    user.setPassword(String.valueOf(ob.get(1)).trim());
-                } else {
+
+                if (ob.get(1) == null || ob.get(1).toString().trim().isEmpty()) {
                     return ActionReturnUtil.returnErrorWithMsg("第" + (i + 1) + "行,密码不能为空");
+                } else if(ob.get(1) != null && !ob.get(1).toString().trim().isEmpty()){
+                    String regex = "^(?![0-9]+$)(?![a-zA-Z]+$)[0-9A-Za-z]{7,12}$";
+                    String passWord = String.valueOf(ob.get(1)).trim();
+                    boolean matches = passWord.matches(regex);
+                    if (!matches) {
+                        return ActionReturnUtil.returnErrorWithMsg("第" + (i + 1) + "行，密码必须是7-12位数字和字母的组合！");
+                    }else {
+                        user.setPassword(String.valueOf(ob.get(1)).trim());
+                    }
                 }
-                if (ob.get(2) != null && !ob.get(2).toString().trim().isEmpty()) {
-                    user.setEmail(String.valueOf(ob.get(2)).trim());
-                } else {
+
+
+                if(ob.get(2) == null || ob.get(2).toString().trim().isEmpty()){
                     return ActionReturnUtil.returnErrorWithMsg("第" + (i + 1) + "行,用户邮箱不能为空");
                 }
-                if (ob.get(3) != null && !ob.get(3).toString().trim().isEmpty()) {
-                    user.setRealName(String.valueOf(ob.get(3)).trim());
-                } else {
-                    return ActionReturnUtil.returnErrorWithMsg("第" + (i + 1) + "行,真实姓名不能为空");
+                else if (ob.get(2) != null && !ob.get(2).toString().trim().isEmpty()) {
+                    String regex = "^\\s*\\w+(?:\\.{0,1}[\\w-]+)*@[a-zA-Z0-9]+(?:[-.][a-zA-Z0-9]+)*\\.[a-zA-Z]+\\s*$";
+                    boolean matches = String.valueOf(ob.get(2)).trim().matches(regex);
+                    if (!matches) {
+                        return ActionReturnUtil.returnErrorWithMsg("邮箱格式错误！");
+                    }else {
+                        User userUserableEmail = userMapper.findUserByEmail(ob.get(2).toString().trim());
+                        if(userUserableEmail!=null){
+                            return ActionReturnUtil.returnErrorWithMsg("第"+(i+1)+"行，用户邮箱已经注册！");
+                        }
+                        user.setEmail(String.valueOf(ob.get(2)).trim());
+                    }
                 }
-                if (ob.get(4) != null && !ob.get(4).toString().trim().isEmpty()) {
-                    user.setPhone(String.valueOf(ob.get(4)).trim());
+
+                if (ob.get(3) == null || ob.get(3).toString().trim().isEmpty()) {
+                    System.out.println(ob.get(3).toString().trim().isEmpty());
+                    return ActionReturnUtil.returnErrorWithMsg("第" + (i + 1) + "行,真实姓名不能为空");
                 } else {
+                    user.setRealName(String.valueOf(ob.get(3)).trim());
+                }
+
+                if (ob.get(4) == null || ob.get(4).toString().trim().isEmpty()) {
                     return ActionReturnUtil.returnErrorWithMsg("第" + (i + 1) + "行,手机号不能为空");
+                } else if (ob.get(4) != null && !ob.get(4).toString().trim().isEmpty()){
+                    String str = String.valueOf(ob.get(4)).trim();
+                    if (str.length()!=11){
+                        return ActionReturnUtil.returnErrorWithMsg("第" + (i + 1) + "行,手机号格式错误");
+                    }else{
+                        user.setPhone(String.valueOf(ob.get(4)).trim());
+                    }
+
                 }
                 if (ob.size() > 5 && ob.get(5) != null && !ob.get(5).toString().trim().isEmpty()) {
                     user.setComment(String.valueOf(ob.get(5)).trim());
                 }
-                list.add(String.valueOf(ob.get(0)));
+
+                System.out.println(user.getUsername()+"---"+user.getPassword()+"------"+user.getEmail()+"-----"+user.getPhone()+"====="+user.getComment());
+                list.add(String.valueOf(ob.get(0)).trim());
                 // 为了避免用户提交产生错误数据，所以一个个插入,
                 excelAddUser(user, i + 1, list);
             }

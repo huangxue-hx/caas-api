@@ -175,11 +175,11 @@
 <body>
 <div class="box-content">
     <div class="header-tip">Confidential - Internal Use Only</div>
-    <div class="info-top"><img src='icon-info.png'/>密码重置通知</div>
+    <div class="info-top"><img src='cid:icon-info.png'/>密码重置通知</div>
     <div class="info-wrap">
         <div class="tips">
-            <p>尊敬的用户：</p>
-            <p>您已经成功重置您的观云台账户密码，重置后密码为Ab123456。请您牢记您的密码并尽快删除该邮件，以防账户被他人盗用。</p>
+            <p>尊敬的用户${userName}：</p>
+            <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;您已经成功重置您的观云台账户密码，重置后密码为Ab123456。请您牢记您的密码并尽快删除该邮件，以防账户被他人盗用。</p>
         </div>
         <div class="time">${time?string('yyyy-MM-dd HH:mm:ss')}</div>
 
