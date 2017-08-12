@@ -88,14 +88,16 @@ public class VersionControlServiceImpl implements VersionControlService {
         K8SClientResponse depRes = dpService.doSpecifyDeployment(detail.getNamespace(), detail.getName(), null, null,
                 HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
-            return ActionReturnUtil.returnErrorWithMsg(depRes.getBody());
+        	UnversionedStatus status = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
         }
         Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
 
         K8SClientResponse rsRes = sService.doSepcifyService(detail.getNamespace(),
                 detail.getName(), null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus())) {
-            return ActionReturnUtil.returnErrorWithMsg(rsRes.getBody());
+        	UnversionedStatus status = JsonUtil.jsonToPojo(rsRes.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
         }
 
         com.harmonycloud.k8s.bean.Service service = JsonUtil.jsonToPojo(rsRes.getBody(), com.harmonycloud.k8s.bean.Service.class);
@@ -121,8 +123,11 @@ public class VersionControlServiceImpl implements VersionControlService {
                                     }
                                 }
                                 if (flag){
-                                    volumeSerivce.createVolume(detail.getNamespace(), pv.getPvcName(), pv.getPvcCapacity(), pv.getPvcTenantid(), pv.getReadOnly(), pv.getPvcBindOne(),
+                                	ActionReturnUtil pvRes = volumeSerivce.createVolume(detail.getNamespace(), pv.getPvcName(), pv.getPvcCapacity(), pv.getPvcTenantid(), pv.getReadOnly(), pv.getPvcBindOne(),
                                             pv.getName());
+                                	if(!pvRes.isSuccess()){
+                                		return pvRes;
+                                	}
                                     pvclistnew.add(pv.getPvcName());
                                 }
                             }
@@ -169,10 +174,14 @@ public class VersionControlServiceImpl implements VersionControlService {
                                             headersPV.put("Content-Type", "application/json");
                                             K8SClientResponse responsePV = new K8SClient().doit(urlPV, HTTPMethod.PUT, headersPV, bodysPV,cluster);
                                             if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus()) && responsePV.getStatus() != Constant.HTTP_404) {
-
+                                            	UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
+                                            	return ActionReturnUtil.returnSuccessWithMsg(status.getMessage());
                                             }
                                         }
                                     }
+                                }else{
+                                	UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+                                	return ActionReturnUtil.returnSuccessWithMsg(status.getMessage());
                                 }
                             }
                         }
@@ -295,7 +304,8 @@ public class VersionControlServiceImpl implements VersionControlService {
                 bodys, HTTPMethod.PUT, cluster);
         if (!HttpStatusUtil.isSuccessStatus(putRes.getStatus())) {
             logger.error("触发灰度升级失败");
-            return ActionReturnUtil.returnErrorWithMsg(putRes.getBody());
+            UnversionedStatus status = JsonUtil.jsonToPojo(putRes.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
         }
 
         //在这里阻塞线程，等待子线程唤醒
@@ -385,14 +395,16 @@ public class VersionControlServiceImpl implements VersionControlService {
         K8SClientResponse dpPut = dpService.doSpecifyDeployment(namespace, name, headers, bodys, HTTPMethod.PUT, cluster);
         if (!HttpStatusUtil.isSuccessStatus(dpPut.getStatus())) {
             logger.error("恢复灰度升级,更新Deployment出错");
-            return ActionReturnUtil.returnErrorWithMsg(dpPut.getBody());
+            UnversionedStatus status = JsonUtil.jsonToPojo(dpPut.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
         }
 
         K8SClientResponse dpUpdated = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
 
         if (!HttpStatusUtil.isSuccessStatus(dpUpdated.getStatus())) {
             logger.error("恢复灰度升级,获得Deployment出错");
-            return ActionReturnUtil.returnErrorWithMsg(dpUpdated.getBody());
+            UnversionedStatus status = JsonUtil.jsonToPojo(dpUpdated.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
         }
         Deployment depUpdated = JsonUtil.jsonToPojo(dpUpdated.getBody(), Deployment.class);
 
@@ -409,7 +421,8 @@ public class VersionControlServiceImpl implements VersionControlService {
         K8SClientResponse dp = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(dp.getStatus())) {
             logger.error("暂停灰度升级,获取Deployment出错");
-            return ActionReturnUtil.returnErrorWithMsg(dp.getBody());
+            UnversionedStatus status = JsonUtil.jsonToPojo(dp.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
         }
 
         Deployment dep = JsonUtil.jsonToPojo(dp.getBody(), Deployment.class);
@@ -419,7 +432,8 @@ public class VersionControlServiceImpl implements VersionControlService {
         K8SClientResponse dpUpdated = dpService.doSpecifyDeployment(namespace, name, headers, bodys, HTTPMethod.PUT,cluster);
         if (!HttpStatusUtil.isSuccessStatus(dpUpdated.getStatus())) {
             logger.error("暂停灰度升级,更新Deployment出错");
-            return ActionReturnUtil.returnErrorWithMsg(dpUpdated.getBody());
+            UnversionedStatus status = JsonUtil.jsonToPojo(dpUpdated.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
         }
         return ActionReturnUtil.returnSuccess();
 
@@ -805,10 +819,10 @@ public class VersionControlServiceImpl implements VersionControlService {
                     for (CreateConfigMapDto configMap : configMaps) {
                         if (configMap != null && !StringUtils.isEmpty(configMap.getPath())) {
                             if (StringUtils.isEmpty(configMap.getFile())) {
-                                data.put("config.json", configMap.getValue());
+                                data.put("config.json", configMap.getValue().toString());
                                 System.out.println();
                             } else {
-                                data.put(configMap.getFile()+"v"+configMap.getTag(), configMap.getValue());
+                                data.put(configMap.getFile()+"v"+configMap.getTag(), configMap.getValue().toString());
                             }
                         }
                     }

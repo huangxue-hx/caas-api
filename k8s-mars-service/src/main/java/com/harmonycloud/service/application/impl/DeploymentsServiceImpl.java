@@ -736,9 +736,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 					for (CreateConfigMapDto configMap : configMaps) {
 						if (configMap != null && !StringUtils.isEmpty(configMap.getPath())) {
 							if (StringUtils.isEmpty(configMap.getFile())) {
-								data.put("config.json", configMap.getValue());
+								data.put("config.json", configMap.getValue().toString());
 							} else {
-								data.put(configMap.getFile()+"v"+configMap.getTag(), configMap.getValue());
+								data.put(configMap.getFile()+"v"+configMap.getTag(), configMap.getValue().toString());
 							}
 						}
 					}
