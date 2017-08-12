@@ -848,7 +848,10 @@ public class JobServiceImpl implements JobService {
         String username = (String)session.getAttribute("username");
         jobDto.setUpdateUser(username);
         jobDto.setUpdateTime(new Date());
-        String cron = jobDto.getMinute() + " " + jobDto.getHour() + " " + jobDto.getDayOfMonth() + " * " + jobDto.getDayOfWeek();
+        String cron = null;
+        if(StringUtils.isNotBlank(jobDto.getDayOfMonth()) && StringUtils.isNotBlank(jobDto.getDayOfWeek()) && StringUtils.isNotBlank(jobDto.getHour()) && StringUtils.isNotBlank(jobDto.getMinute())){
+            cron = jobDto.getMinute() + " " + jobDto.getHour() + " " + jobDto.getDayOfMonth() + " * " + jobDto.getDayOfWeek();
+        }
         jobDto.setCronExpForPollScm(cron);
         Job job = jobDto.convertToBean();
         jobMapper.updateTrigger(job);
