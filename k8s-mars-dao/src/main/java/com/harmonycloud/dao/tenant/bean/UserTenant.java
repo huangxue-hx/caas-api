@@ -1,8 +1,9 @@
 package com.harmonycloud.dao.tenant.bean;
 
+import java.io.Serializable;
 import java.util.Date;
 
-public class UserTenant {
+public class UserTenant  implements Serializable{
     private Integer id;
 
     private String tenantid;

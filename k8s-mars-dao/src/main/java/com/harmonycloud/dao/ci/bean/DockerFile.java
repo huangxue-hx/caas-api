@@ -1,8 +1,9 @@
 package com.harmonycloud.dao.ci.bean;
 
+import java.io.Serializable;
 import java.util.Date;
 
-public class DockerFile {
+public class DockerFile  implements Serializable{
 
     private Integer id;
 

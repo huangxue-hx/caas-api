@@ -1,6 +1,8 @@
 package com.harmonycloud.dao.ci.bean;
 
-public class Depends {
+import java.io.Serializable;
+
+public class Depends  implements Serializable{
 
     private Integer jobId;
 

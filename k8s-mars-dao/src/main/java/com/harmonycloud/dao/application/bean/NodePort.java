@@ -1,6 +1,8 @@
 package com.harmonycloud.dao.application.bean;
 
-public class NodePort {
+import java.io.Serializable;
+
+public class NodePort  implements Serializable{
 
 	    private static final long serialVersionUID = 405310782098940013L;
 	    //ID

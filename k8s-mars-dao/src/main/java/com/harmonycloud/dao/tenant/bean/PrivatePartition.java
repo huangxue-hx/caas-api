@@ -1,6 +1,8 @@
 package com.harmonycloud.dao.tenant.bean;
 
-public class PrivatePartition {
+import java.io.Serializable;
+
+public class PrivatePartition  implements Serializable{
     private Integer id;
 
     private String tenantId;

@@ -1,6 +1,8 @@
 package com.harmonycloud.dao.cluster.bean;
 
-public class NodeInstallProgress {
+import java.io.Serializable;
+
+public class NodeInstallProgress  implements Serializable{
     private Integer id;
 
     private String name;

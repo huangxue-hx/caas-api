@@ -1,6 +1,8 @@
 package com.harmonycloud.dao.user.bean;
 
-public class UserAuditParams {
+import java.io.Serializable;
+
+public class UserAuditParams  implements Serializable{
 	private String name;
 	private String value;
 

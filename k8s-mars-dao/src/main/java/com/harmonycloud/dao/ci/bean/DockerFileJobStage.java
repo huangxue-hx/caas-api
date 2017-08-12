@@ -1,6 +1,8 @@
 package com.harmonycloud.dao.ci.bean;
 
-public class DockerFileJobStage {
+import java.io.Serializable;
+
+public class DockerFileJobStage  implements Serializable{
 
     private Integer id;
 

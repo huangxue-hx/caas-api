@@ -1,6 +1,8 @@
 package com.harmonycloud.dao.application.bean;
 
-public class NodePortCluster {
+import java.io.Serializable;
+
+public class NodePortCluster  implements Serializable{
 	private Integer unodeport;
 	
     private Integer nodeportid;

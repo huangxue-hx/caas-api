@@ -1,12 +1,14 @@
 package com.harmonycloud.dao.ci.bean;
 
+import java.io.Serializable;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Created by anson on 17/7/13.
  */
-public class StageType {
+public class StageType  implements Serializable{
 
     private Integer id;
     private String name;

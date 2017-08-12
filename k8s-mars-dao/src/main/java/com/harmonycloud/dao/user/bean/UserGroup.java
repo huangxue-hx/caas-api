@@ -1,8 +1,9 @@
 package com.harmonycloud.dao.user.bean;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class UserGroup {
+public class UserGroup  implements Serializable{
     private Integer id;
 
     private String groupname;

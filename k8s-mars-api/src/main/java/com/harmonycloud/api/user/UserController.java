@@ -348,8 +348,10 @@ public class UserController {
         session.setAttribute("privilege", privilegeByRole);
         Cluster cluster = this.tenantService.getClusterByTenantid(tenantid);
         session.setAttribute("currentCluster", cluster);
-
-        return ActionReturnUtil.returnSuccessWithData(privilegeByRole);
+        Map<String, Object> result = new HashMap<>();
+        result.put("role", role.getName());
+        result.put("privilege", privilegeByRole);
+        return ActionReturnUtil.returnSuccessWithData(result);
 
     }
     @RequestMapping(value = "/user/getMenu", method = RequestMethod.GET)

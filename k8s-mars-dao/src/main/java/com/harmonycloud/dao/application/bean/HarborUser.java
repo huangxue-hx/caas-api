@@ -1,6 +1,8 @@
 package com.harmonycloud.dao.application.bean;
 
-public class HarborUser {
+import java.io.Serializable;
+
+public class HarborUser  implements Serializable{
 	
     	private Integer id;
 

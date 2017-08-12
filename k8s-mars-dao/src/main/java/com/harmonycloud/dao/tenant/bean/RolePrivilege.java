@@ -1,8 +1,9 @@
 package com.harmonycloud.dao.tenant.bean;
 
+import java.io.Serializable;
 import java.util.Date;
 
-public class RolePrivilege {
+public class RolePrivilege implements Serializable{
     private Integer id;
 
     private String role;

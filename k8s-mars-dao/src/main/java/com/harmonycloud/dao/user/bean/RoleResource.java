@@ -1,5 +1,6 @@
 package com.harmonycloud.dao.user.bean;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -7,7 +8,7 @@ import java.util.List;
  * @author yj
  * @date 2017年1月6日
  */
-public class RoleResource {
+public class RoleResource  implements Serializable{
 	
 	private String name;
 	// 资源对应的操作

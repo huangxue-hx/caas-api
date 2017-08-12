@@ -1,6 +1,8 @@
 package com.harmonycloud.dao.cluster.bean;
 
-public class ClusterDomain {
+import java.io.Serializable;
+
+public class ClusterDomain  implements Serializable{
 	
 	public Integer getId() {
 		return id;

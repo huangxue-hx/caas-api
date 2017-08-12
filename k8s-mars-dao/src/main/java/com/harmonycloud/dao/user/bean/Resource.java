@@ -1,8 +1,9 @@
 package com.harmonycloud.dao.user.bean;
 
+import java.io.Serializable;
 import java.util.Date;
 
-public class Resource {
+public class Resource  implements Serializable{
     private Integer id;
 
     private String name;

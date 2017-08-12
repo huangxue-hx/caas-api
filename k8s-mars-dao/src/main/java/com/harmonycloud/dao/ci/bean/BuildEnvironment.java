@@ -1,9 +1,11 @@
 package com.harmonycloud.dao.ci.bean;
 
+import java.io.Serializable;
+
 /**
  * Created by anson on 17/7/25.
  */
-public class BuildEnvironment {
+public class BuildEnvironment  implements Serializable{
     Integer id;
     String name;
     String image;

@@ -1,11 +1,12 @@
 package com.harmonycloud.dao.ci.bean;
 
+import java.io.Serializable;
 import java.util.Date;
 
 /**
  * Created by anson on 17/7/11.
  */
-public class Stage {
+public class Stage  implements Serializable{
     private Integer id;
     private String tenant;
     private String jobName;
