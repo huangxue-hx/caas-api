@@ -68,9 +68,9 @@ public class StageController {
 
     @RequestMapping(value = "/buildList", method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil listStageBuildList(@RequestParam(value="id") Integer id){
+    public ActionReturnUtil listStageBuildList(@RequestParam(value="id") Integer id, @RequestParam(value="pageSize", required = false, defaultValue = "10") Integer pageSize, @RequestParam(value="page", required = false, defaultValue = "1") Integer page){
         try{
-            return stageService.getBuildList(id);
+            return stageService.getBuildList(id, pageSize, page);
         }catch(Exception e){
             return ActionReturnUtil.returnError();
         }
