@@ -536,8 +536,9 @@ public class UserService {
             String MD5oldPassword = userEmail.getPassword();
             HarborUser harbor = harboruserMapper.findByUsername(userName);
             String oldPassword = harbor.getPassword();
+            System.out.println(userEmail.getEmail());
             if (newPassword.equals(oldPassword)) {
-                userService.sendEmail(userEmail.getEmail(),userName);
+                this.sendEmail(userEmail.getEmail(),userName);
                 return ActionReturnUtil.returnSuccess();
             }
             // 更新k8s用户密码
@@ -545,7 +546,7 @@ public class UserService {
             String MD5newPassword = StringUtil.convertToMD5(newPassword);
             userMapper.updatePassword(userName, MD5newPassword);
             harboruserMapper.updatePassword(userName, newPassword);
-            userService.sendEmail(userEmail.getEmail(),userName);
+            this.sendEmail(userEmail.getEmail(),userName);
 
 
             // 根据用户名查询用户id
@@ -957,7 +958,7 @@ public class UserService {
     public List<User> getUnauthorizedUserList() throws Exception {
         List<User> unauthorizedUserList = userMapper.getUnauthorizedUserList();
         //增加群组信息
-        for(int i=1;i<unauthorizedUserList.size();i++){
+        for(int i=0;i<unauthorizedUserList.size();i++){
             User user = unauthorizedUserList.get(i);
             user.setGroupName(userMapper.selectGroupNameByUserID(user.getUuid()));
             user.setIsAuthorize(0);
