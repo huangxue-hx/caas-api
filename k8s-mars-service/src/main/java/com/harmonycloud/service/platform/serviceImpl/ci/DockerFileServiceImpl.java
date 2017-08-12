@@ -37,7 +37,7 @@ public class DockerFileServiceImpl implements DockerFileService {
         if(dockerFiles!=null && dockerFiles.size()>0){
             for(DockerFilePage dockerFilePage: dockerFiles){
                 if(StringUtils.isNotBlank(dockerFilePage.getJobNames()) && StringUtils.isNotBlank(dockerFilePage.getStageNames())){
-                    String[] jobIds = dockerFilePage.getJobIds().split("g,");
+                    String[] jobIds = dockerFilePage.getJobIds().split(",");
                     String[] jobNames = dockerFilePage.getJobNames().split(",");
                     String[] stageIds = dockerFilePage.getStageIds().split(",");
                     String[] stageNames = dockerFilePage.getStageNames().split(",");

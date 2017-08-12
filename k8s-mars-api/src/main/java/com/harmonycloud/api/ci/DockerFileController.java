@@ -60,6 +60,8 @@ public class DockerFileController {
                 }
             }
         }
+        dockerFile.setCreateTime(new Date());
+        dockerFile.setUpdateTime(new Date());
     dockerFileService.insertDockerFile(dockerFile);
     return ActionReturnUtil.returnSuccessWithData(dockerFile.getId());
     }
@@ -79,6 +81,7 @@ public class DockerFileController {
             }
         }
         }
+        dockerFile.setUpdateTime(new Date());
         dockerFileService.updateDockerFile(dockerFile);
         return ActionReturnUtil.returnSuccessWithData(dockerFile.getId());
     }

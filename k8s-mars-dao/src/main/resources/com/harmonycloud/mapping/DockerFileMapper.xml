@@ -51,12 +51,12 @@
     <insert id="insertDockerFile" parameterType="DockerFile" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO cicd_docker_file
         (name,tenant,content,create_time,update_time)
-        VALUE (#{name},#{tenant},#{content},now(),now())
+        VALUE (#{name},#{tenant},#{content},#{createTime},#{updateTime})
     </insert>
     <update id="updateDockerFile" parameterType="DockerFile">
         UPDATE cicd_docker_file
         <trim prefix="set" suffixOverrides=",">
-            update_time = now(),
+            update_time = updateTime,
             <if test="name!=null and name!=''">
                 name = #{name},
             </if>
