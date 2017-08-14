@@ -1046,21 +1046,21 @@ public class VersionControlServiceImpl implements VersionControlService {
         /*List<String> pvcList = createPVC(newDep, dep);*/
 
         List<UpdateContainer> newContainers = newDep.getContainers();
-        Map<String, Container> ct = new HashMap<String, Container>();
+       /* Map<String, Container> ct = new HashMap<String, Container>();
         //查询到原先的Deployment对应的container
         List<Container> containers = dep.getSpec().getTemplate().getSpec().getContainers();
         for (Container c : containers) {
             ct.put(c.getName(), c);
-        }
-        Map<String, Object> vtemp = new HashMap<String, Object>();
+        }*/
+        //Map<String, Object> vtemp = new HashMap<String, Object>();
         List<Volume> volumes = new ArrayList<Volume>();         //修改后的volume
         List<ServicePort> ports = new ArrayList<ServicePort>(); //修改后的端口
         List<Container> newC = new ArrayList<Container>(); //修改后的容器
         //遍历更新的container参数
         for (UpdateContainer cc : newContainers) {//cc是新的
             //拿到需要修改的container,设置成修改后的参数
-            Container container = ct.get(cc.getName());
-
+            Container container = new Container();
+            container.setName(cc.getName());
             //set image
             String[] hou;
             String[] qian;
@@ -1091,8 +1091,9 @@ public class VersionControlServiceImpl implements VersionControlService {
                     Matcher mm = p.matcher(cc.getResource().getMemory());
                     String resultm = mm.replaceAll("").trim();
                     res.put("memory", resultm + "Mi");
-
-                    container.getResources().setLimits(res);
+                    ResourceRequirements rr = new ResourceRequirements();
+                    rr.setLimits(res);
+                    container.setResources(rr);
                 }
             }
             if (!cc.getPorts().isEmpty()) { //如果端口有更新

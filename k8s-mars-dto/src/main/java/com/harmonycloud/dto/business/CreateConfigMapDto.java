@@ -17,7 +17,7 @@ public class CreateConfigMapDto implements Serializable{
 	
 	private String tag;
 	
-	private String value;
+	private Object value;
 
 	public String getPath() {
 		return path;
@@ -35,14 +35,6 @@ public class CreateConfigMapDto implements Serializable{
 		this.file = file;
 	}
 
-	public String getValue() {
-		return value;
-	}
-
-	public void setValue(String value) {
-		this.value = value;
-	}
-
     public String getTag() {
         return tag;
     }
@@ -50,5 +42,13 @@ public class CreateConfigMapDto implements Serializable{
     public void setTag(String tag) {
         this.tag = tag;
     }
+
+	public Object getValue() {
+		return value;
+	}
+
+	public void setValue(Object value) {
+		this.value = value;
+	}
 
 }
