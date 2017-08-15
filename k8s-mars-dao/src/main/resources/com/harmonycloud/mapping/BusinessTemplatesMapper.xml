@@ -37,7 +37,7 @@
   <select id="listNameByTenant" parameterType="java.lang.String" resultMap="BaseResultMap">
     select distinct name, tenant from business_templates where status = 0  
     <if test="tenant!=null and tenant!='' ">
-      and (tenant =#{tenant} or tenant = 'all')
+      and tenant =#{tenant}
     </if>
   </select>
   
@@ -56,14 +56,14 @@
   <select id="listNameByName" parameterType="java.lang.String" resultMap="BaseResultMap">
     select distinct name, tenant from business_templates where status = 0  and name like #{name}
     <if test="tenant!=null and tenant!='' ">
-      and (tenant=#{tenant} or tenant = 'all')
+      and tenant=#{tenant}
     </if>
   </select>
   
   <select id="listNameByImage" parameterType="java.lang.String" resultMap="BaseResultMap">
     select distinct name, tenant from business_templates where status = 0  and image_list like concat(concat('%',#{imageList}),'%')
     <if test="tenant!=null and tenant!='' ">
-      and (tenant=#{tenant} or tenant = 'all')
+      and tenant=#{tenant}
     </if>
   </select>
   
@@ -113,4 +113,7 @@
     </set>
     where id = #{id}
   </update>
+  <select id="listPublic" resultMap="BaseResultMap">
+    select distinct name, tenant from business_templates where status = 0  and tenant = 'all'
+  </select>
 </mapper>

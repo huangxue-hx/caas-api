@@ -145,4 +145,6 @@ public interface BusinessTemplatesMapper {
     
     void updateBusinessTemplate(BusinessTemplates businessTemplate);
     
+    List<BusinessTemplates> listPublic();
+    
 }

@@ -797,4 +797,15 @@ public class BusinessServiceImpl implements BusinessService {
 
         return sb.toString();
     }
+
+	@Override
+	public ActionReturnUtil listServiceTemplatePublic() throws Exception {
+		JSONArray array = new JSONArray();
+		List<BusinessTemplates> businessTemplatesList = businessTemplatesMapper.listPublic();
+		for (int i = 0; i < businessTemplatesList.size(); i++) {
+            List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByName(businessTemplatesList.get(i).getName(), businessTemplatesList.get(i).getTenant());
+            array.add(getBusinessTemplates(list));
+        }
+		return ActionReturnUtil.returnSuccessWithData(array);
+	}
 }

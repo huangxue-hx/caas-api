@@ -139,4 +139,17 @@ public interface BusinessService {
      * @return ActionReturnUtil
      */
     ActionReturnUtil updateServiceTemplateByName(BusinessTemplateDto businessTemplate, String userName) throws Exception;
+    
+    /**
+     * 获取应用商店  on 17/04/07.
+     * 
+     * @author gurongyun
+     * 
+     * @param name
+     * 
+     * @param tenant
+     * 
+     * @return ActionReturnUtil
+     */
+    ActionReturnUtil listServiceTemplatePublic() throws Exception;
 }

@@ -187,4 +187,21 @@ public class BusinessController {
         String userName = (String) session.getAttribute("username");
         return businessService.updateServiceTemplateByName(businessTemplate, userName);
     }
+    
+    /**
+     * get application template by tenant and name or image on 17/05/05.
+     * 
+     * @param searchkey
+     * 
+     * @param searchValue
+     * 
+     * @param tenant
+     *            required
+     * @return ActionReturnUtil
+     */
+    @ResponseBody
+    @RequestMapping(value = "/public", method = RequestMethod.GET)
+    public ActionReturnUtil listBusinessTemplate() throws Exception {
+        return businessService.listServiceTemplatePublic();
+    }
 } 
