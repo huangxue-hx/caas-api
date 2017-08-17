@@ -76,7 +76,7 @@ podTemplate(
 <#if stage.repositoryType! == "git">
             git url:'${stage.repositoryUrl}',credentialsId:'${stage.id}'<#if stage.repositoryBranch??>, branch:'${stage.repositoryBranch!}'</#if>
 <#elseif stage.repositoryType! == "svn">
-            checkout([$class: 'SubversionSCM',  locations: [[credentialsId: '${stage.id}', depthOption: 'infinity', ignoreExternalsOption: true, local: '.', remote: '${stage.repositoryUrl}']]]) }
+            checkout([$class: 'SubversionSCM',  locations: [[credentialsId: '${stage.id}', depthOption: 'infinity', ignoreExternalsOption: true, local: '.', remote: '${stage.repositoryUrl}']]])
 </#if>
 <#if stage.stageTemplateType == 1>
             <#if stage.imageTagType == '0'>
