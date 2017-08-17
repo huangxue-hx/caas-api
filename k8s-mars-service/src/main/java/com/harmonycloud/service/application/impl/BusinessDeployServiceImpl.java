@@ -654,7 +654,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                                             urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
                                             Map<String, Object> headersPV = new HashMap<>();
                                             headersPV.put("Content-Type", "application/json");
-                                            K8SClientResponse responsePV = new K8SClient().doit(urlPV, HTTPMethod.PUT, headersPV, bodysPV,cluster);
+                                            K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT, headersPV, bodysPV,cluster);
                                             if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
                                                 errorMessage.add(responsePV.getBody());
                                             }

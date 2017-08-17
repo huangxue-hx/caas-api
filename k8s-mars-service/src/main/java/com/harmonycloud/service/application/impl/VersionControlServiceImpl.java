@@ -6,6 +6,7 @@ import com.harmonycloud.dao.cluster.bean.RollbackBean;
 import com.harmonycloud.dto.business.*;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.*;
@@ -172,7 +173,7 @@ public class VersionControlServiceImpl implements VersionControlService {
                                             urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
                                             Map<String, Object> headersPV = new HashMap<>();
                                             headersPV.put("Content-Type", "application/json");
-                                            K8SClientResponse responsePV = new K8SClient().doit(urlPV, HTTPMethod.PUT, headersPV, bodysPV,cluster);
+                                            K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT, headersPV, bodysPV,cluster);
                                             if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus()) && responsePV.getStatus() != Constant.HTTP_404) {
                                             	UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
                                             	return ActionReturnUtil.returnSuccessWithMsg(status.getMessage());
