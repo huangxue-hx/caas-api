@@ -285,7 +285,7 @@ public class TenantServiceImpl implements TenantService {
         Map<String, Object> map = new HashMap<String, Object>();
         List<Object> namespaceData = (List<Object>) namespaceService.getNamespaceListByTenantid(tenantid).get("data");
         
-
+        Boolean isTm = this.isTm(tenantid);
         // harborData.add(harborProjectList);
         // 查询user信息
         List<UserShowDto> userDetailsList = userTenantService.getUserDetailsListByTenantid(tenantid);
@@ -293,6 +293,7 @@ public class TenantServiceImpl implements TenantService {
         tenant.put(CommonConstant.TENANTID, tenantid);
         tenant.put(CommonConstant.TENANTNAME, tenantBinding.getTenantName());
         tenant.put(CommonConstant.ADMIN, tenantBinding.getTmUsernameList());
+        tenant.put(CommonConstant.TM, isTm);
         map.put(CommonConstant.NAMESPACEDATA, namespaceData);
 
         map.put(CommonConstant.USERDATA, userDetailsList);
@@ -758,6 +759,23 @@ public class TenantServiceImpl implements TenantService {
     }
 
     @Override
+	public Boolean isTm(String tenantid) throws Exception {
+    	Object currentUser = session.getAttribute("username");
+        if(currentUser == null){
+            throw new K8sAuthException(Constant.HTTP_401);
+        }
+        String currentUserName = currentUser.toString();
+        List<UserTenant> tmByTenantid = userTenantService.getTMByTenantid(tenantid);
+        if(tmByTenantid!=null&&tmByTenantid.size()>0){
+            for (UserTenant userTenant : tmByTenantid) {
+                if(currentUserName.equals(userTenant.getUsername())){
+                    return true;
+                }
+            }
+        }
+        return false;
+	}
+	@Override
     public ActionReturnUtil listTenantTm(String tenantid) throws Exception {
         // 初始化判断1
         if (StringUtils.isEmpty(tenantid)) {

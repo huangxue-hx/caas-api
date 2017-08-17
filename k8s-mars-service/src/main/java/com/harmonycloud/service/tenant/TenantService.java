@@ -104,6 +104,13 @@ public interface TenantService {
      */
     public ActionReturnUtil listTenantTm(String tenantid) throws Exception;
     /**
+     * 查询是否为tm
+     * @param tenantid
+     * @return
+     * @throws Exception
+     */
+    public Boolean isTm(String tenantid) throws Exception;
+    /**
      * 根据租户name查询租户
      * @param tenantName
      * @return

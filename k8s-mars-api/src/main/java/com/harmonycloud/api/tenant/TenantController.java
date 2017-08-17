@@ -382,6 +382,13 @@ public class TenantController {
         logger.info("查询tenant下的所有tm用户");
         return this.tenantService.listTenantTm(tenantid);
     }
+    @RequestMapping(value = "/isTm", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil isTm(@RequestParam(value = "tenantid") String tenantid) throws Exception {
+        logger.info("查询用户是否为租户管理员用户");
+        Boolean isTm = this.tenantService.isTm(tenantid);
+        return ActionReturnUtil.returnSuccessWithData(isTm);
+    }
     /**
      * 向tenant增加用户
      * 
@@ -553,6 +560,7 @@ public class TenantController {
     public ActionReturnUtil isAdmin(@RequestParam(value = "tenantid") String tenantid, String username) throws Exception {
         return ActionReturnUtil.returnSuccessWithData(tenantService.isAdmin(tenantid,username));
     }
+    
     @RequestMapping(value = "/user/getRolePrivilege", method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil getRolePrivilege(String roleName) throws Exception {
