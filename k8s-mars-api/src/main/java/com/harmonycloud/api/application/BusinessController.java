@@ -3,9 +3,10 @@ package com.harmonycloud.api.application;
 import com.harmonycloud.common.util.ActionReturnUtil;
 
 import com.harmonycloud.service.application.BusinessService;
-
+import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.dto.business.BusinessTemplateDto;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +27,9 @@ public class BusinessController {
 
     @Autowired
     BusinessService businessService;
+    
+    @Autowired
+    TenantService tenantService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -121,10 +125,14 @@ public class BusinessController {
      */
     @ResponseBody
     @RequestMapping(value = "/list", method = RequestMethod.GET)
-    public ActionReturnUtil getBusinessTemplate(@RequestParam(value = "name", required = true) String name, @RequestParam(value = "tag", required = true) String tag)
+    public ActionReturnUtil getBusinessTemplate(@RequestParam(value = "name", required = true) String name, @RequestParam(value = "tag", required = true) String tag, @RequestParam(value = "tenant", required = false) String tenant)
             throws Exception {
         logger.info("get application template");
-        return businessService.getBusinessTemplate(name, tag);
+        if(StringUtils.isEmpty(tenant)){
+        	String id = (String) session.getAttribute("tenantId");
+        	tenant = tenantService.getTenantByTenantid(id).getTenantName();
+        }
+        return businessService.getBusinessTemplate(name, tag, tenant);
     }
 
     /**

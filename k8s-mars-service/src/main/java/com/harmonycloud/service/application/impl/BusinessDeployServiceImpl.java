@@ -988,9 +988,8 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
     		K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
 			if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
 					&& depRes.getStatus() != Constant.HTTP_404 ) {
-				JSONObject js = JSONObject.fromObject(depRes.getBody());
-				K8sResponseBody k8sresbody = (K8sResponseBody) JSONObject.toBean(js, K8sResponseBody.class);
-				return (JSONObject) json.put("获取k8sDeployment错误", k8sresbody.getMessage());
+				UnversionedStatus status = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+				return (JSONObject) json.put("获取k8sDeployment错误", status.getMessage());
 			}
 			DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
 			if(deplist != null && deplist.getItems() != null ){
@@ -1069,8 +1068,9 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 	public ActionReturnUtil deployBusinessTemplateByName(String tenantId, String name, String businessame, String tag, String namespace, String userName, Cluster cluster)
 			throws Exception {
 		if(!StringUtils.isEmpty(name) && !StringUtils.isEmpty(tag) && !StringUtils.isEmpty(namespace)){
+			TenantBinding t = tenantService.getTenantByTenantid(tenantId);
 			//根据name和tag获取模板信息
-			ActionReturnUtil btresponse = businessService.getBusinessTemplate(name, tag);
+			ActionReturnUtil btresponse = businessService.getBusinessTemplate(name, tag, t.getTenantName());
 			if(!btresponse.isSuccess()){
 				return ActionReturnUtil.returnErrorWithMsg("业务模板获取失败");
 			}
@@ -1087,7 +1087,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 			businessTemplate.setDesc(json.getString("desc"));
 			businessTemplate.setId(json.getInt("id"));
 			businessTemplate.setName(json.getString("name"));
-			businessTemplate.setTenant(json.getString("tenant"));
+			businessTemplate.setTenant(t.getTenantName());
 			//应用模板list
 			JSONArray stList = json.getJSONArray("servicelist");
 			List<ServiceTemplateDto> servicelist = new LinkedList<ServiceTemplateDto>();
@@ -1099,6 +1099,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 					serviceTemplate.setName(js.getString("name"));
 					serviceTemplate.setTag(js.getString("tag"));
 					serviceTemplate.setDesc(js.getString("details"));
+					serviceTemplate.setTenant(t.getTenantName());
 					serviceTemplate.setExternal(js.getInt("isExternal"));
 					if(js.getInt("isExternal") == Constant.K8S_SERVICE){
 						String dep=js.getJSONArray("deployment").getJSONObject(0).toString().replaceAll(":\"\",", ":"+null+",").replaceAll(":\"\"", ":"+null+"");

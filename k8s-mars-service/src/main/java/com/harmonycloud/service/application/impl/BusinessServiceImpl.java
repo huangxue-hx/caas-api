@@ -102,13 +102,13 @@ public class BusinessServiceImpl implements BusinessService {
      * 
      * @return {@link ActionReturnUtil}*/
     @Override
-    public ActionReturnUtil getBusinessTemplate(String name, String tag) throws Exception {
+    public ActionReturnUtil getBusinessTemplate(String name, String tag, String tenant) throws Exception {
         // check params
         if (StringUtils.isEmpty(name) || StringUtils.isEmpty(tag)) {
             return ActionReturnUtil.returnErrorWithMsg("name or tag is null");
         }
         // select a application Template
-        BusinessTemplates businessTemplates = businessTemplatesMapper.getBusinessTemplatesByNameAndTag(name, tag);
+        BusinessTemplates businessTemplates = businessTemplatesMapper.getBusinessTemplatesByNameAndTag(name, tag,tenant);
         JSONObject js = new JSONObject();
         if (businessTemplates != null) {
             js.put("name", businessTemplates.getName());

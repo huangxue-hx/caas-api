@@ -22,11 +22,11 @@
   </insert>
   
   <select id="listBusinessTempaltesMaxTagByName" parameterType="java.lang.String" resultMap="BaseResultMap">
-    SELECT * FROM business_templates where tag = (SELECT  max(tag) FROM business_templates where name = #{name} AND status = 0 ) AND name = #{name} AND status = 0  
+    SELECT * FROM business_templates where tag = (SELECT  max(tag) FROM business_templates where name = #{name} AND status = 0 AND tenant != 'all') AND name = #{name} AND status = 0 AND tenant != 'all' 
   </select>
   
   <select id="getBusinessTemplatesByNameAndTag" parameterType="java.lang.String" resultMap="BaseResultMap">
-    SELECT * FROM business_templates where status = 0  AND tag=#{tag} And name=#{name}    
+    SELECT * FROM business_templates where status = 0  AND tag=#{tag} And name=#{name}  And tenant = #{tenant}   
   </select>
   
   <!-- 删除根据name,tenantt删除 -->
@@ -50,7 +50,7 @@
   </select>
   
   <select id="getBusinessTemplatesByName" parameterType="java.lang.String" resultMap="BaseResultMap">
-    select distinct tenant from business_templates where name=#{name} and status = 0
+    select distinct tenant from business_templates where name=#{name} and status = 0 and tenant != 'all'
   </select>
   
   <select id="listNameByName" parameterType="java.lang.String" resultMap="BaseResultMap">

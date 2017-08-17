@@ -32,7 +32,7 @@ public interface BusinessTemplatesMapper {
      * 
      * @description find a Business Templates
      */
-    BusinessTemplates getBusinessTemplatesByNameAndTag(@Param("name")String name,@Param("tag")String tag);
+    BusinessTemplates getBusinessTemplatesByNameAndTag(@Param("name")String name,@Param("tag")String tag,@Param("tenant")String tenant);
     
     /**
      * delete Business Templates  on 17/04/07.

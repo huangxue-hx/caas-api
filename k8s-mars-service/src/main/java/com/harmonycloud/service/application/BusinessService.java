@@ -46,7 +46,7 @@ public interface BusinessService {
      * 
      * @return ActionReturnUtil
      */
-    ActionReturnUtil getBusinessTemplate(String name, String tag) throws Exception;
+    ActionReturnUtil getBusinessTemplate(String name, String tag, String tenant) throws Exception;
 
     /**
      * get application template by name or iamge and tenant service on 17/04/07.
