@@ -152,6 +152,24 @@ public class UserService {
     }
 
     /**
+     * 判断是否为管理员
+     *
+     * @param userName
+     * @return
+     */
+    public ActionReturnUtil isSystemAdmin(String userName){
+        User user = userMapper.findByUsername(userName);
+        String isAdmin = "1";
+        String notAdmin = "0";
+        if(user.getIsAdmin()==1){
+            return ActionReturnUtil.returnSuccessWithMap("isSystemAdmin",isAdmin);
+        }else {
+            return ActionReturnUtil.returnSuccessWithMap("isSystemAdmin",notAdmin);
+        }
+    }
+
+
+    /**
      * 向k8s和harbor中新增用户
      * 
      * @param user

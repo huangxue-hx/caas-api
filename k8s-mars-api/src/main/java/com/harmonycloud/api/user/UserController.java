@@ -79,6 +79,20 @@ public class UserController {
     @Autowired
     RolePrivilegeService rolePrivilegeService;
 
+
+    /**
+     * 是否为系统管理员
+     *
+     * @param userName
+     * @return
+     * @throws Exception
+     */
+    @ResponseBody
+    @RequestMapping(value = "/user/isSystemAdmin", method = RequestMethod.GET)
+    public ActionReturnUtil isSystemAdmin(@RequestParam(value = "userName") final String userName) throws Exception {
+        return userService.isSystemAdmin(userName);
+    }
+
     /**
      * 新增用户
      * 
@@ -107,6 +121,8 @@ public class UserController {
             @RequestParam(value = "userName") final String userName) throws Exception {
         return userService.changePwd(userName, oldPassword, newPassword);
     }
+
+
 
     /**
      * 修改用phone
