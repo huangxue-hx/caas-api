@@ -51,7 +51,7 @@ public class UserTenantServiceImpl implements UserTenantService {
     }
 
     @Override
-    public void setUserByTenantid(String tenantid, List<String> username, boolean isTm) throws Exception {
+    public void setUserByTenantid(String tenantid, List<String> username, boolean isTm,String role) throws Exception {
         for (String user : username) {
             UserTenant record = new UserTenant();
             record.setIstm(isTm == true ? 1 : 0);
@@ -59,6 +59,7 @@ public class UserTenantServiceImpl implements UserTenantService {
             Date date = TenantUtils.getUtctime();
             record.setCreateTime(date);
             record.setUsername(user);
+            record.setRole(role);
             userTenantMapper.insertSelective(record);
         }
 

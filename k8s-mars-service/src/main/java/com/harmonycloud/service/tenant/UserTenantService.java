@@ -48,7 +48,7 @@ public interface UserTenantService {
      * @return
      * @throws Exception
      */
-    public void setUserByTenantid(String tenantid, List<String> username, boolean isTm) throws Exception;
+    public void setUserByTenantid(String tenantid, List<String> username, boolean isTm,String role) throws Exception;
     /**
      * 根据tenantid删除usertenant
      * 

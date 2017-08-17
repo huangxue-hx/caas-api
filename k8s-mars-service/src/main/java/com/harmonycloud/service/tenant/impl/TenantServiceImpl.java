@@ -608,7 +608,7 @@ public class TenantServiceImpl implements TenantService {
         tenantBindingMapper.insertSelective(record);
 
         // 拆分
-        ActionReturnUtil addusertodb = addusertodb(tenantid, user, CommonConstant.TRUE);
+        ActionReturnUtil addusertodb = addusertodb(tenantid, user, CommonConstant.TRUE,"tm");
         if ((Boolean) addusertodb.get(CommonConstant.SUCCESS) == CommonConstant.FALSE) {
             logger.error("租户向数据库插入用户失败,tenantId=" + tenantid);
             return addusertodb;
@@ -695,7 +695,7 @@ public class TenantServiceImpl implements TenantService {
         }
         // 向数据库中同步数据
         ActionReturnUtil addusertodb = this.addusertodb(tenantid, username,
-                CommonConstant.TM.equalsIgnoreCase(role) == CommonConstant.TRUE ? CommonConstant.TRUE : CommonConstant.FALSE);
+                CommonConstant.TM.equalsIgnoreCase(role) == CommonConstant.TRUE ? CommonConstant.TRUE : CommonConstant.FALSE,role);
         if ((Boolean) addusertodb.get(CommonConstant.SUCCESS) == CommonConstant.FALSE) {
             logger.error("租户向数据库插入用户失败,tenantid=" + tenantid);
             return addusertodb;
@@ -703,14 +703,14 @@ public class TenantServiceImpl implements TenantService {
         return ActionReturnUtil.returnSuccessWithData("添加成功");
     }
 
-    public ActionReturnUtil addusertodb(String tenantid, String username, boolean isTm) throws Exception {
+    public ActionReturnUtil addusertodb(String tenantid, String username, boolean isTm,String role) throws Exception {
         String[] user = username.split(CommonConstant.COMMA);
         List<String> userlist = new ArrayList<String>();
         for (String string : user) {
             userlist.add(string);
         }
         try {
-            userTenantService.setUserByTenantid(tenantid, userlist, isTm);
+            userTenantService.setUserByTenantid(tenantid, userlist, isTm,role);
         } catch (Exception e) {
             return ActionReturnUtil.returnErrorWithMsg("插入用户失败：" + e.getMessage());
         }
