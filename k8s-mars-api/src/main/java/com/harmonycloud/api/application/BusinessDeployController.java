@@ -275,7 +275,7 @@ public class BusinessDeployController {
      */
     @ResponseBody
     @RequestMapping(value = "/deploy/name", method = RequestMethod.POST)
-    public ActionReturnUtil deployDeploymentsById(@RequestParam(value = "tenantId", required = false) String tenantId, @RequestParam(value = "name", required = true) String name, @RequestParam(value = "business", required = true) String businessame, @RequestParam(value = "tag", required = true) String tag, @RequestParam(value = "namespace", required = true) String namespace) throws Exception {
+    public ActionReturnUtil deployDeploymentsById(@RequestParam(value = "tenantId", required = false) String tenantId, @RequestParam(value = "name", required = true) String name, @RequestParam(value = "business", required = true) String businessame, @RequestParam(value = "tag", required = true) String tag, @RequestParam(value = "namespace", required = true) String namespace, @RequestParam(value = "pub", required = true) String pub) throws Exception {
         logger.info("deploy business");
         String userName = (String) session.getAttribute("username");
         if(userName == null){
@@ -285,7 +285,7 @@ public class BusinessDeployController {
 		if(StringUtils.isEmpty(tenantId)){
 			tenantId = (String) session.getAttribute("tenantId");
 		}
-        return businessDeployService.deployBusinessTemplateByName(tenantId, name, businessame, tag, namespace, userName, cluster);
+        return businessDeployService.deployBusinessTemplateByName(tenantId, name, businessame, tag, namespace, userName, cluster, pub);
     }
     
     /**

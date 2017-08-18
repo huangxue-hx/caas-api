@@ -673,7 +673,7 @@ public class TenantServiceImpl implements TenantService {
             return addProjctsToUser;
         }
         String currentUserName = currentUser.toString();
-        if(!currentUserName.equals("admin")&&!tenantByTenantid.getTmUsernames().contains(currentUserName)){
+        if(!this.isAdmin(tenantid, currentUserName)){
             return ActionReturnUtil.returnErrorWithMsg("用户:" + username + "不为管理员或者租户管理员，不能添加用户操作");
         }
         Cluster cluster = this.getClusterByTenantid(tenantid);
@@ -799,7 +799,7 @@ public class TenantServiceImpl implements TenantService {
             throw new K8sAuthException(Constant.HTTP_401);
         }
         String currentUserName = currentUser.toString();
-        if(!currentUserName.equals("admin")&&!tenantByTenantid.getTmUsernames().contains(currentUserName)){
+        if(!this.isAdmin(tenantid, currentUserName)){
             return ActionReturnUtil.returnErrorWithMsg("用户:" + username + "不为管理员或者租户管理员，不能删除用户操作");
         }
         NamespaceList namespaceList = this.namespaceService1.getNamespacesListbyLabelSelector(label, cluster);
@@ -972,10 +972,12 @@ public class TenantServiceImpl implements TenantService {
         for (NetworkTopology networkTopology : trustNetworkTopologyList) {
             NetworkCalico getnetworkbyNetworkid = networkService.getnetworkbyNetworkid(networkTopology.getNetId());
             // 组装白名单tenant
-            TenantDto tenant = new TenantDto();
-            tenant.setName(getnetworkbyNetworkid.getTenantname());
-            tenant.setTenantId(getnetworkbyNetworkid.getTenantid());
-            list.add(tenant);
+            if(getnetworkbyNetworkid != null){
+            	TenantDto tenant = new TenantDto();
+                tenant.setName(getnetworkbyNetworkid.getTenantname());
+                tenant.setTenantId(getnetworkbyNetworkid.getTenantid());
+                list.add(tenant);
+            }
         }
         return list;
     }

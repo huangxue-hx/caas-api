@@ -1065,12 +1065,17 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 	}
 
 	@Override
-	public ActionReturnUtil deployBusinessTemplateByName(String tenantId, String name, String businessame, String tag, String namespace, String userName, Cluster cluster)
+	public ActionReturnUtil deployBusinessTemplateByName(String tenantId, String name, String businessame, String tag, String namespace, String userName, Cluster cluster, String pub)
 			throws Exception {
 		if(!StringUtils.isEmpty(name) && !StringUtils.isEmpty(tag) && !StringUtils.isEmpty(namespace)){
 			TenantBinding t = tenantService.getTenantByTenantid(tenantId);
+			ActionReturnUtil btresponse=null;
 			//根据name和tag获取模板信息
-			ActionReturnUtil btresponse = businessService.getBusinessTemplate(name, tag, t.getTenantName());
+			if("true".equals(pub)){
+				btresponse = businessService.getBusinessTemplate(name, tag, "all");
+			}else{
+				btresponse = businessService.getBusinessTemplate(name, tag, t.getTenantName());
+			}
 			if(!btresponse.isSuccess()){
 				return ActionReturnUtil.returnErrorWithMsg("业务模板获取失败");
 			}
