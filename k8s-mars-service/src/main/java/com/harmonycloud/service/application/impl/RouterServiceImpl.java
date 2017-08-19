@@ -373,7 +373,8 @@ public class RouterServiceImpl implements RouterService {
 				ServicePort servicePort = new ServicePort();
 				servicePort.setName(svcRouter.getName() + "-port" + i);
 				servicePort.setProtocol(rule.getProtocol());
-				servicePort.setPort(Integer.valueOf((String) getPort(tenantID).get("msg")));
+				String port = (String) getPort(tenantID).get("msg");
+				servicePort.setPort(Integer.valueOf(port));
 				servicePort.setTargetPort(Integer.valueOf(rule.getTargetPort()));
 				ports.add(servicePort);
 			}
@@ -663,8 +664,7 @@ public class RouterServiceImpl implements RouterService {
 			for (Integer port : ports) {
 				int nodeport = nodePortMapper.getidbynodeport(port);
 				NodePortClusterExample example = new NodePortClusterExample();
-				example.createCriteria().andClusteridEqualTo(clusterId).andNodeportidEqualTo(nodeport)
-						.andStatusEqualTo(2);
+				example.createCriteria().andClusteridEqualTo(clusterId).andNodeportidEqualTo(nodeport);
 				npcMapper.deleteByExample(example);
 			}
 		}
