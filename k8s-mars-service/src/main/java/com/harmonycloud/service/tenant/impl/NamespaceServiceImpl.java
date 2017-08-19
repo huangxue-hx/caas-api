@@ -161,10 +161,12 @@ public class NamespaceServiceImpl implements NamespaceService {
         } else {
             canCpu = Double.parseDouble(namespaceDto.getQuota().getCpu()) - Double.parseDouble(namespaceDto.getLastlastcpu());
         }
-        if (cpu != null && canCpu > 0 && (Double.parseDouble(cpu) - canCpu - cpuUse) <= 0) {
+        if (cpu != null && canCpu > 0 && (Double.parseDouble(cpu) - canCpu - cpuUse) < 0) {
             return ActionReturnUtil.returnErrorWithMsg("cpu配额超过集群可使用配额,集群可使用配额为:" + (Double.parseDouble(cpu) - cpuUse) + "核");
         }
-
+        NumberFormat nf = NumberFormat.getNumberInstance();
+        // 保留两位小数
+        nf.setMaximumFractionDigits(2); 
         if (memory != null) {
             double canMemory = 0.0;
             if (namespaceDto.getQuota().getMemory().contains(CommonConstant.MI)) {
@@ -174,8 +176,8 @@ public class NamespaceServiceImpl implements NamespaceService {
                 } else {
                     canMemory = (Double.parseDouble(splitMemory[0]) - Double.parseDouble(namespaceDto.getLastlastmemory())) * 1024;
                 }
-                if (canMemory > 0 && (Double.parseDouble(memory) - canMemory - memoryUse) <= 0) {
-                    return ActionReturnUtil.returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + (Double.parseDouble(memory) / 1024 - memoryUse) / 1024 + "MB");
+                if (canMemory > 0 && (Double.parseDouble(memory) - canMemory - memoryUse) < 0) {
+                    return ActionReturnUtil.returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((Double.parseDouble(memory) - memoryUse) / 1024) + "MB");
                 }
             } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.GI)) {
                 String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.GI);
@@ -184,8 +186,8 @@ public class NamespaceServiceImpl implements NamespaceService {
                 } else {
                     canMemory = (Double.parseDouble(splitMemory[0]) - Double.parseDouble(namespaceDto.getLastlastmemory())) * 1024 * 1024;
                 }
-                if (canMemory > 0 && (Double.parseDouble(memory) - canMemory - memoryUse) <= 0) {
-                    return ActionReturnUtil.returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + (Double.parseDouble(memory) / 1024 / 1024 - memoryUse) / (1024 * 1024) + "GB");
+                if (canMemory > 0 && (Double.parseDouble(memory) - canMemory - memoryUse) < 0) {
+                    return ActionReturnUtil.returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((Double.parseDouble(memory) - memoryUse) / (1024 * 1024)) + "GB");
                 }
             } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.TI)) {
                 String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.TI);
@@ -194,9 +196,9 @@ public class NamespaceServiceImpl implements NamespaceService {
                 } else {
                     canMemory = (Double.parseDouble(splitMemory[0]) - Double.parseDouble(namespaceDto.getLastlastmemory())) * 1024 * 1024 * 1024;
                 }
-                if (canMemory > 0 && (Double.parseDouble(memory) - canMemory - memoryUse) <= 0) {
+                if (canMemory > 0 && (Double.parseDouble(memory) - canMemory - memoryUse) < 0) {
                     return ActionReturnUtil
-                            .returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + (Double.parseDouble(memory) / 1024 / 1024 / 1024 - memoryUse) / (1024 * 1024 * 1024) + "TB");
+                            .returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((Double.parseDouble(memory) - memoryUse) / (1024 * 1024 * 1024)) + "TB");
                 }
             } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.PI)) {
                 String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.PI);
@@ -205,9 +207,9 @@ public class NamespaceServiceImpl implements NamespaceService {
                 } else {
                     canMemory = (Double.parseDouble(splitMemory[0]) - Double.parseDouble(namespaceDto.getLastlastmemory())) * 1024 * 1024 * 1024 * 1024;
                 }
-                if (canMemory > 0 && (Double.parseDouble(memory) - canMemory - memoryUse) <= 0) {
+                if (canMemory > 0 && (Double.parseDouble(memory) - canMemory - memoryUse) < 0) {
                     return ActionReturnUtil.returnErrorWithMsg(
-                            "memory配额超过集群可使用配额,集群可使用配额为:" + (Double.parseDouble(memory) / 1024 / 1024 / 1024 / 1024 - memoryUse) / (1024 * 1024 * 1024 * 1024) + "PB");
+                            "memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((Double.parseDouble(memory) / 1024 / 1024 / 1024 / 1024 - memoryUse) / (1024 * 1024 * 1024 * 1024)) + "PB");
                 }
             }
         }
@@ -252,10 +254,13 @@ public class NamespaceServiceImpl implements NamespaceService {
         }
         // Map<String, Object> clusterInfo =
         // dashboardService.getInfraInfo(cluster);
-        ActionReturnUtil checkQuota = checkQuota(cluster, namespaceDto);
-        if ((Boolean) checkQuota.get(CommonConstant.SUCCESS) == false) {
-            return checkQuota;
+        if(!namespaceDto.isPrivate()){
+            ActionReturnUtil checkQuota = checkQuota(cluster, namespaceDto);
+            if ((Boolean) checkQuota.get(CommonConstant.SUCCESS) == false) {
+                return checkQuota;
+            }
         }
+        
         List<NetworkCalico> networkList = networkService.getnetworkbyTenantid(namespaceDto.getTenantid());
         if (networkList.size() != 1) {
             return ActionReturnUtil.returnErrorWithMsg("租户信息有错，请检查");
