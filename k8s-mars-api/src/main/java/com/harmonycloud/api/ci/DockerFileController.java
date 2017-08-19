@@ -87,7 +87,7 @@ public class DockerFileController {
     }
 
     @RequestMapping(value = "/{id}",method = RequestMethod.DELETE)
-    public ActionReturnUtil deleteDockerFile(@PathVariable Integer id,@RequestBody DockerFile dockerFile){
+    public ActionReturnUtil deleteDockerFile(@PathVariable Integer id,@RequestBody DockerFile dockerFile) throws Exception {
         logger.info("dockerfile deleteDockerFile.");
         dockerFile.setId(id);
         dockerFileService.deleteDockerFile(dockerFile);

@@ -228,7 +228,7 @@ public class StageServiceImpl implements StageService {
     public List<Map> getStageBuildFromJenkins(Job job, Integer buildNum) throws Exception {
         String jenkinsJobName = job.getTenant() + "_" + job.getName();
         ActionReturnUtil result;
-        if(buildNum == 0){
+        if(buildNum == null || buildNum == 0){
             result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/lastBuild/wfapi/describe", null, null, false);
         }else{
             result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + buildNum + "/wfapi/describe", null, null, false);

@@ -2,22 +2,37 @@ package com.harmonycloud.service.platform.serviceImpl.ci;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import com.harmonycloud.common.util.StringUtil;
+import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.HttpStatusUtil;
+import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.ci.DockerFileMapper;
 import com.harmonycloud.dao.ci.bean.Depends;
 import com.harmonycloud.dao.ci.bean.DockerFile;
 import com.harmonycloud.dao.ci.bean.DockerFilePage;
+import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.cicd.DockerFileDto;
+import com.harmonycloud.k8s.bean.UnversionedStatus;
+import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.constant.Resource;
+import com.harmonycloud.k8s.util.K8SClientResponse;
+import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.platform.service.ci.DockerFileService;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.servlet.http.HttpSession;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class DockerFileServiceImpl implements DockerFileService {
+
+    @Autowired
+    HttpSession session;
 
     @Autowired
     private DockerFileMapper dockerFileMapper;
@@ -64,18 +79,22 @@ public class DockerFileServiceImpl implements DockerFileService {
     }
 
     @Override
-    public void insertDockerFile(DockerFile dockerFile) {
+    public void insertDockerFile(DockerFile dockerFile) throws Exception {
         dockerFileMapper.insertDockerFile(dockerFile);
+        createConfigMap(dockerFile);
+
     }
 
     @Override
-    public void updateDockerFile(DockerFile dockerFile) {
+    public void updateDockerFile(DockerFile dockerFile) throws Exception {
         dockerFileMapper.updateDockerFile(dockerFile);
+        updateConfigMap(dockerFile);
     }
 
     @Override
-    public void deleteDockerFile(DockerFile dockerFile) {
+    public void deleteDockerFile(DockerFile dockerFile) throws Exception {
         dockerFileMapper.deleteDockerFile(dockerFile);
+        deleteConfigMap(dockerFile);
     }
 
     @Override
@@ -87,4 +106,68 @@ public class DockerFileServiceImpl implements DockerFileService {
     public List<DockerFile> selectNameAndTenant(DockerFile dockerFile) {
         return dockerFileMapper.selectNameAndTenant(dockerFile);
     }
+
+    private ActionReturnUtil createConfigMap(DockerFile dockerFile) throws Exception{
+        K8SURL url = new K8SURL();
+        url.setNamespace("default").setResource(Resource.CONFIGMAP);
+        Map<String, Object> bodys = new HashMap<String, Object>();
+        Map<String, Object> meta = new HashMap<String, Object>();
+        meta.put("namespace", "default");
+        meta.put("name", String.valueOf(dockerFile.getId()));
+        bodys.put("metadata", meta);
+        Map<String, Object> data = new HashMap<String, Object>();
+        data.put(dockerFile.getName(), dockerFile.getContent());
+        bodys.put("data", data);
+        Map<String, Object> headers = new HashMap<String, Object>();
+        headers.put("Content-type", "application/json");
+        Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+        K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.POST, headers, bodys, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    private ActionReturnUtil updateConfigMap(DockerFile dockerFile) throws Exception{
+        K8SURL url = new K8SURL();
+        url.setNamespace("default").setResource(Resource.CONFIGMAP).setName(String.valueOf(dockerFile.getId()));
+        Map<String, Object> bodys = new HashMap<String, Object>();
+        Map<String, Object> meta = new HashMap<String, Object>();
+        meta.put("namespace", "default");
+        meta.put("name", String.valueOf(dockerFile.getId()));
+        bodys.put("metadata", meta);
+        Map<String, Object> data = new HashMap<String, Object>();
+        data.put(dockerFile.getName(), dockerFile.getContent());
+        bodys.put("data", data);
+        Map<String, Object> headers = new HashMap<String, Object>();
+        headers.put("Content-type", "application/json");
+        Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+        K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.PUT, headers, bodys, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    private ActionReturnUtil deleteConfigMap(DockerFile dockerFile) throws Exception{
+        K8SURL url = new K8SURL();
+        url.setNamespace("default").setResource(Resource.CONFIGMAP).setName(String.valueOf(dockerFile.getId()));
+        Map<String, Object> bodys = new HashMap<String, Object>();
+        Map<String, Object> meta = new HashMap<String, Object>();
+        meta.put("namespace", "default");
+        meta.put("name", String.valueOf(dockerFile.getId()));
+        bodys.put("metadata", meta);
+        Map<String, Object> headers = new HashMap<String, Object>();
+        headers.put("Content-type", "application/json");
+        Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+        K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE, headers, bodys, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
+
 }

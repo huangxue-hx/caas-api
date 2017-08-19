@@ -50,6 +50,8 @@ podTemplate(
     nodeSelector: '',
     serviceAccount: '',
     volumes: [
+    <#list stageList as tmpStage><#if tmpStage.stageTemplateType == 1 && tmpStage.dockerfileType ==2>
+        configMapVolume(configMapName: '${tmpStage.dockerfileId}', mountPath: '/opt/dockerfile')</#if></#list><#if (stage.dependences?size>0)>,</#if>
     <#list stage.dependences as dependence>
         nfsVolume(mountPath: '${dependence.mountPath!}', readOnly: true, serverAddress: '${dependence.server!}', serverPath: '${dependence.serverPath!}')<#if dependence_has_next>,</#if>
     </#list>
@@ -61,15 +63,6 @@ podTemplate(
 ) {
 
     node("build-${r'${label}'}"){
-</#if>
-<#if stage.stageTemplateType == 1>
-    <#if stage.dockerfileType == 2>
-        <#list dockerFileMap as key, value>
-            <#if key == stage.stageOrder>
-        sh 'echo -e "${value.content}">${value.name}'
-            </#if>
-        </#list>
-    </#if>
 </#if>
         httpRequest "${apiUrl!}/rest/openapi/cicd/stageSync?id=${stage.id!}&amp;buildNum=${r'${currentBuild.number}'}&amp;dateTime=${r'${dateTime}'}"
         stage('${stage.stageName}'){
@@ -85,7 +78,10 @@ podTemplate(
             //withDockerRegistry([credentialsId: 'harbor', url: 'http://${harborHost!}']) {
             withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harbor', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']])
             { sh 'docker login ${harborHost!} --username=$USERNAME --password=$PASSWORD' }
-            sh "docker build <#if stage.dockerfileType == 1> -f ./${stage.dockerFilePath}</#if><#if stage.dockerfileType == 2> -f <#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if> -t ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!} ."
+            <#if stage.dockerfileType == 2>
+            sh "cp -r /opt/dockerfile ./dockerfile@tmp"
+            </#if>
+            sh "docker build <#if stage.dockerfileType == 1> -f ./${stage.dockerFilePath}</#if><#if stage.dockerfileType == 2> -f dockerfile@tmp/<#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if> -t ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!} ."
             sh "docker push ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}"
             //}
             //withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harbor', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']])

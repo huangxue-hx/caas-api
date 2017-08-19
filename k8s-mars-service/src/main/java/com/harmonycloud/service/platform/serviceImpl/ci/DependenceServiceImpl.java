@@ -141,8 +141,17 @@ public class DependenceServiceImpl implements DependenceService {
         persistentVolume.setApiVersion("v1");
         persistentVolume.setKind(CommonConstant.PERSISTENTVOLUME);
         Cluster cluster = tenantService.getClusterByTenantid(dependenceDto.getTenantid());
-        ActionReturnUtil addPv = pvService.addPv(persistentVolume, cluster);
-        return addPv;
+        try {
+            ActionReturnUtil addPv = pvService.addPv(persistentVolume, cluster);
+        }catch(Exception e){
+            if(e.getMessage().contains("already exists")){
+                return ActionReturnUtil.returnErrorWithMsg("依赖\""+dependenceDto.getName()+"\"已存在，请重新输入");
+            }else{
+                return ActionReturnUtil.returnErrorWithMsg("创建依赖失败");
+            }
+        }
+
+        return ActionReturnUtil.returnSuccess();
 
     }
 

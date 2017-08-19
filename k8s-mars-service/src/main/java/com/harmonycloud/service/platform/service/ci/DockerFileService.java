@@ -26,19 +26,19 @@ public interface DockerFileService {
      * 添加dockerfile
      * @param dockerFile
      */
-    void insertDockerFile(DockerFile dockerFile);
+    void insertDockerFile(DockerFile dockerFile) throws Exception;
 
     /**
      * 修改dockerfile
       * @param dockerFile
      */
-    void updateDockerFile(DockerFile dockerFile);
+    void updateDockerFile(DockerFile dockerFile) throws Exception;
 
     /**
      * 根据编号和租户删除dockerfile
      * @param dockerFile
      */
-    void deleteDockerFile(DockerFile dockerFile);
+    void deleteDockerFile(DockerFile dockerFile) throws Exception;
 
     /**
      * 查询dockerfile
