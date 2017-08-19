@@ -1,6 +1,7 @@
 package com.harmonycloud.service.platform.serviceImpl.k8s;
 
 import java.math.BigDecimal;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -312,9 +313,15 @@ public class DashboardServiceImpl implements DashboardService {
 			String configValue = byId.getConfigValue();
 			Double superSaleRate;
 			superSaleRate = superSaleService.addSuperSaleRate(Double.parseDouble(configValue));
-			res.put("cpu", cpu * superSaleRate);
-			res.put("memory", mem * superSaleRate);
-			res.put("memoryGb", memGb * superSaleRate);
+
+
+			NumberFormat nf = NumberFormat.getNumberInstance();
+			// 保留两位小数
+			nf.setMaximumFractionDigits(2);
+
+			res.put("cpu", (cpu * superSaleRate)%1==0?(cpu * superSaleRate):nf.format(cpu * superSaleRate));
+			res.put("memory", (mem * superSaleRate)%1==0?(mem * superSaleRate):nf.format(mem * superSaleRate));
+			res.put("memoryGb", (memGb * superSaleRate)%1==0?(memGb * superSaleRate):nf.format(memGb * superSaleRate));
 		}
 		return res;
 	}

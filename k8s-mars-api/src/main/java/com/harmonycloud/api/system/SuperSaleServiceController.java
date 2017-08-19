@@ -27,8 +27,8 @@ public class SuperSaleServiceController {
 
 	@ResponseBody
 	@RequestMapping(value = "/addSuperSaleRate", method = RequestMethod.POST)
-	public ActionReturnUtil addSuperSaleRate(@RequestParam(value = "rate") Double rate) throws Exception {
-
+	public ActionReturnUtil addSuperSaleRate(@RequestParam(value = "rate" ,required=false) String rate1) throws Exception {
+        Double rate = Double.parseDouble(rate1);
 		//rate = 1.5;
 		if (rate == null && rate < 1.0){
 			ActionReturnUtil.returnErrorWithMsg("请输入正确的超卖系数!");
@@ -38,5 +38,13 @@ public class SuperSaleServiceController {
 		systemConfigService.updateSystemConfig(byId);
 		superSaleService.addSuperSaleRate(rate);
 		return ActionReturnUtil.returnSuccess();
+	}
+
+	@ResponseBody
+	@RequestMapping(value = "/getSuperSaleRate", method = RequestMethod.GET)
+	public ActionReturnUtil getSuperSaleRate() throws Exception {
+
+		SystemConfig byId = systemConfigService.findById("40");
+		return ActionReturnUtil.returnSuccessWithData(byId.getConfigValue());
 	}
 }
