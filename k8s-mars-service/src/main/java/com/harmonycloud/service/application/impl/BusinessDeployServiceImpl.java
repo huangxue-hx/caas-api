@@ -44,6 +44,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import javax.servlet.http.HttpSession;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -102,6 +103,9 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
     
     @Autowired
     PrivatePartitionService privatePartitionService;
+
+    @Autowired
+    HttpSession session;
     
     @Autowired
     ServiceService serviceService;
@@ -568,14 +572,6 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                             idList.add(service.getId());
                             continue;
                         }
-                        // delete config map & deploy service deployment
-                        ActionReturnUtil deleteDeployReturn = deploymentsService.deleteDeployment(service.getName(), business.getNamespaces(), username, cluster);
-                        if (!deleteDeployReturn.isSuccess()) {
-                            serviceFlag = false;
-                            businessFlag = false;
-                            errorMessage.add(business.getName() + "." + service.getName());
-                        }
-
 
                         //todo sooooooooooooooooooooooo bad
                         // delete ingress
@@ -592,25 +588,24 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                                     routerService.ingDelete(business.getNamespaces(), svcone.getName());
                                     routerService.svcDelete(business.getNamespaces(), svcone.getName());
                                 } else if ("TCP".equals(svcone.getLabels().get("type"))) {
-                                    routerService.svcDelete(business.getNamespaces(), svcone.getName());
+                                    List<Integer> ports = new ArrayList<>();
+                                    for (ServicePort port: svcone.getRules()){
+                                        if (port.getPort() != null){
+                                            ports.add(port.getPort());
+                                        }
+                                    }
+                                    routerService.deleteTcpSvc(business.getNamespaces(), svcone.getName(),ports,(String) session.getAttribute("tenantId"));
                                 }
                             }
                         }
-                        if (service.getIngress() != null) {
-                            JSONArray jsStr = JSONArray.fromObject(service.getIngress());
-                            if (jsStr.size() > 0) {
-                                for (int i = 0; i < jsStr.size(); i++) {
-                                    JSONObject ingress = jsStr.getJSONObject(i);
-                                    String type = ingress.get("type").toString();
-                                    String name = ingress.get("name").toString();
-                                    if ("HTTP".equals(type)) {
-                                        routerService.ingDelete(business.getNamespaces(), name);
-                                        routerService.svcDelete(business.getNamespaces(), "routersvc" + name);
-                                    } else if ("TCP".equals(type)) {
-                                        routerService.svcDelete(business.getNamespaces(), "routersvc" + name);
-                                    }
-                                }
-                            }
+
+
+                        // delete config map & deploy service deployment
+                        ActionReturnUtil deleteDeployReturn = deploymentsService.deleteDeployment(service.getName(), business.getNamespaces(), username, cluster);
+                        if (!deleteDeployReturn.isSuccess()) {
+                            serviceFlag = false;
+                            businessFlag = false;
+                            errorMessage.add(business.getName() + "." + service.getName());
                         }
 
 
