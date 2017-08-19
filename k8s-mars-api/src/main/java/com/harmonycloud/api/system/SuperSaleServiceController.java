@@ -29,7 +29,7 @@ public class SuperSaleServiceController {
 	@RequestMapping(value = "/addSuperSaleRate", method = RequestMethod.POST)
 	public ActionReturnUtil addSuperSaleRate(@RequestParam(value = "rate") Double rate) throws Exception {
 
-		rate = 1.5;
+		//rate = 1.5;
 		if (rate == null && rate < 1.0){
 			ActionReturnUtil.returnErrorWithMsg("请输入正确的超卖系数!");
 		}
