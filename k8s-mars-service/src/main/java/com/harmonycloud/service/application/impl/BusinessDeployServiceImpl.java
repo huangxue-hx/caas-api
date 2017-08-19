@@ -980,7 +980,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         	total = services.size();
         	K8SURL url = new K8SURL();
         	url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
-    		K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+    		K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
 			if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
 					&& depRes.getStatus() != Constant.HTTP_404 ) {
 				UnversionedStatus status = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);

@@ -1405,7 +1405,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         ObjectMeta meta = new ObjectMeta();
         meta.setName(name);
         meta.setAnnotations(namespace.getMetadata().getAnnotations());
-        String key = new StringBuffer("nephele_topology_").append(networkNames[0]).append(CommonConstant.UNDER_LINE).append(networkNames[1]).toString();
+        String key = new StringBuffer("nephele_topology_").append(networkNames[0]).append(CommonConstant.UNDER_LINE).append(networkNames[1]).append(CommonConstant.UNDER_LINE).append(networkNames[2]).append(CommonConstant.UNDER_LINE).append(networkNames[3]).toString();
         Map<String, Object> labels = namespace.getMetadata().getLabels();
         // 更新label
         if (labels == null) {
