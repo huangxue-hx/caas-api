@@ -7,15 +7,11 @@ import java.util.List;
 import java.util.Map;
 
 import com.harmonycloud.common.Constant.CommonConstant;
-import com.harmonycloud.dao.cluster.bean.Cluster;
-
-//import com.harmonycloud.k8s.util.HttpK8SClientUtil;
-//import com.harmonycloud.k8s.util.KubernatesHost;
-import org.springframework.stereotype.Service;
-
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.k8s.bean.Event;
 import com.harmonycloud.k8s.bean.EventList;
 import com.harmonycloud.k8s.bean.Node;
@@ -28,7 +24,14 @@ import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.platform.bean.EventDetail;
 import com.harmonycloud.service.platform.service.DashboardService;
-import com.harmonycloud.service.platform.bean.NodeLicense;
+import com.harmonycloud.service.system.SuperSaleService;
+import com.harmonycloud.service.system.SystemConfigService;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+//import com.harmonycloud.k8s.util.HttpK8SClientUtil;
+//import com.harmonycloud.k8s.util.KubernatesHost;
 
 /**
  * 需要用机器账号去获取
@@ -39,10 +42,16 @@ import com.harmonycloud.service.platform.bean.NodeLicense;
 @Service
 public class DashboardServiceImpl implements DashboardService {
 
+	@Autowired
+	SystemConfigService systemConfigService;
+
+	@Autowired
+	SuperSaleService superSaleService;
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public ActionReturnUtil getPodInfo() throws Exception {
-		
+
 		// 获取pod
 		K8SURL url = new K8SURL();
 		url.setNamespace(null).setResource(Resource.POD);
@@ -52,7 +61,7 @@ public class DashboardServiceImpl implements DashboardService {
 		}
 		System.out.println(podRes.getBody());
 		PodList podList = JsonUtil.jsonToPojo(podRes.getBody(), PodList.class);
-		
+
 		// 获取node
 		url.setResource(Resource.NODE);
 		K8SClientResponse nodeRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null);
@@ -83,7 +92,7 @@ public class DashboardServiceImpl implements DashboardService {
 		Map<String, Object> res = new HashMap<String, Object>();
 		this.getInfraInfo(null);
 		return ActionReturnUtil.returnSuccessWithData(res);
-		                      
+
 //		// 获取node
 //		K8SURL url = new K8SURL();
 //		url.setResource(Resource.NODE);
@@ -188,7 +197,7 @@ public class DashboardServiceImpl implements DashboardService {
 
 	@Override
 	public ActionReturnUtil getWarningInfo(String namespace) throws Exception {
-		
+
 		//获取警告事件
 		K8SURL url = new K8SURL();
 		url.setResource(Resource.EVENT).setNamespace(namespace);
@@ -298,9 +307,14 @@ public class DashboardServiceImpl implements DashboardService {
 				}
 			}
 			cpu = new BigDecimal(cpu).setScale(0, BigDecimal.ROUND_HALF_UP).doubleValue();
-			res.put("cpu", cpu);
-			res.put("memory", mem);
-			res.put("memoryGb", memGb);
+
+			SystemConfig byId = systemConfigService.findById("40");
+			String configValue = byId.getConfigValue();
+			Double superSaleRate;
+			superSaleRate = superSaleService.addSuperSaleRate(Double.parseDouble(configValue));
+			res.put("cpu", cpu * superSaleRate);
+			res.put("memory", mem * superSaleRate);
+			res.put("memoryGb", memGb * superSaleRate);
 		}
 		return res;
 	}
