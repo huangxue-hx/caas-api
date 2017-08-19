@@ -16,13 +16,13 @@ public class PVCService {
 	public K8SClientResponse doSepcifyPVC(String namespace , Map<String, Object> query, String method, Cluster cluster) throws Exception {
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.PERSISTENTVOLUMECLAIM);
-        K8SClientResponse response = new K8SClient().doit(url, method,null, query,cluster);
+        K8SClientResponse response = new K8sMachineClient().exec(url, method,null, query,cluster);
         return response;
     }
 	public K8SClientResponse doSepcifyPVC(String namespace , Map<String, Object> headers, Map<String, Object> bodys, String method, Cluster cluster) throws Exception {
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.PERSISTENTVOLUMECLAIM);
-        K8SClientResponse response = new K8SClient().doit(url, method,headers, bodys,cluster);
+        K8SClientResponse response = new K8sMachineClient().exec(url, method,headers, bodys,cluster);
         return response;
     }
 }

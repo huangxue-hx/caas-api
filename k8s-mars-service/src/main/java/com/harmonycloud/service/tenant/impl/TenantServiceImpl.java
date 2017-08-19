@@ -68,6 +68,7 @@ import com.harmonycloud.k8s.bean.RoleBinding;
 import com.harmonycloud.k8s.bean.RoleBindingList;
 import com.harmonycloud.k8s.bean.Subjects;
 import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.service.NetworkPolicyService;
@@ -473,7 +474,7 @@ public class TenantServiceImpl implements TenantService {
         // 根据lable查询pv
         K8SURL url = new K8SURL();
         url.setResource(com.harmonycloud.k8s.constant.Resource.PERSISTENTVOLUME);
-        K8SClientResponse k8SClientResponse = new K8SClient().doit(url, HTTPMethod.DELETE, null, bodys, null);
+        K8SClientResponse k8SClientResponse = new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, bodys, null);
         if (!HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
             logger.error("调用k8s接口删除pv失败", k8SClientResponse.getBody());
             return ActionReturnUtil.returnErrorWithMsg("k8s接口删除pv失败!  errMsg: " + k8SClientResponse.getBody());

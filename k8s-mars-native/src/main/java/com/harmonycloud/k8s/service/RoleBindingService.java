@@ -40,7 +40,7 @@ public class RoleBindingService {
 									Map<String, Object> bodys,Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.ROLEBINDING);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.POST, header, bodys,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, header, bodys,cluster);
 		return response;
 
 	}
@@ -68,7 +68,7 @@ public class RoleBindingService {
 	public K8SClientResponse getSpecifiedRolebindings(String namespace, String RoleBindingName,Cluster cluster) throws Exception{
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.ROLEBINDING).setSubpath(RoleBindingName);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
 		return response;
 	}
 
@@ -100,7 +100,7 @@ public class RoleBindingService {
 		bodys.put("labelSelector", lable);
 		K8SURL url = new K8SURL();
 		url.setResource(Resource.ROLEBINDING);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET, null, bodys);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys);
 		return response;*/
 		Map<String, Object> bodys = new HashMap<>();
 		bodys.put("labelSelector", lable);
@@ -189,7 +189,7 @@ public class RoleBindingService {
 			String namespace, String rolebinding,Cluster cluster) throws Exception{
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.ROLEBINDING);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET, header, bodys,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, header, bodys,cluster);
 		return response;
 	}
 
@@ -263,7 +263,7 @@ public class RoleBindingService {
 	public K8SClientResponse listClusterRole(String roleName,Cluster cluster) throws Exception{
 		K8SURL url = new K8SURL();
 		url.setResource(Resource.CLUSTERROLE).setSubpath(roleName);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
 		return response;
 	}
 

@@ -151,7 +151,7 @@ public class VersionControlServiceImpl implements VersionControlService {
                                 headers.put("Content-Type", "application/json");
                                 Map<String, Object> bodys = new HashMap<>();
                                 bodys.put("gracePeriodSeconds", 1);
-                                K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE, headers, bodys,cluster);
+                                K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys,cluster);
                                 if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
                                     // update pv
                                     if (pvc.contains(Constant.PVC_BREAK)) {
@@ -701,7 +701,7 @@ public class VersionControlServiceImpl implements VersionControlService {
 //                headers.put("Content-Type", "application/json");
 //                Map<String, Object> bodys = new HashMap<>();
 //                bodys.put("gracePeriodSeconds", 1);
-//                K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE, headers, bodys, null);
+//                K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys, null);
 //                if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
 //                    logger.error("灰度升级删除pvc" + response.getBody());
 //                }
@@ -726,7 +726,7 @@ public class VersionControlServiceImpl implements VersionControlService {
 //                        urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
 //                        Map<String, Object> headersPV = new HashMap<>();
 //                        headersPV.put("Content-Type", "application/json");
-//                        K8SClientResponse responsePV = new K8SClient().doit(urlPV, HTTPMethod.PUT, headersPV, bodysPV, null);
+//                        K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT, headersPV, bodysPV, null);
 //                        if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
 //                            logger.error("灰度升级更新pv" + responsePV.getBody());
 //                        }
@@ -830,7 +830,7 @@ public class VersionControlServiceImpl implements VersionControlService {
                     bodys.put("data", data);
                     Map<String, Object> headers = new HashMap<String, Object>();
                     headers.put("Content-type", "application/json");
-                    K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.POST, headers, bodys, cluster);
+                    K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
                     System.out.println();
                     if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
                         throw new RuntimeException();
@@ -907,7 +907,7 @@ public class VersionControlServiceImpl implements VersionControlService {
         bodys.put("watch", "true");
         bodys.put("timeoutSeconds", 3);
 
-        K8SClientResponse rs = new K8SClient().doit(rsUrl, HTTPMethod.GET, headers, bodys, cluster);
+        K8SClientResponse rs = new K8sMachineClient().exec(rsUrl, HTTPMethod.GET, headers, bodys, cluster);
         if (!HttpStatusUtil.isSuccessStatus(rs.getStatus())) {
             return;
         }

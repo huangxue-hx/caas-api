@@ -6,6 +6,7 @@ import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.k8s.bean.ConfigMap;
 import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
@@ -28,7 +29,7 @@ public class ConfigMapServiceImpl implements ConfigMapService {
     public ActionReturnUtil getConfigMapByName(String namespace, String name, String method, Cluster cluster) throws Exception {
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setName(name).setResource(Resource.CONFIGMAP);
-        K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET, null, null, cluster);
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null, cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             return ActionReturnUtil.returnErrorWithMsg(response.getBody());
         }
@@ -56,7 +57,7 @@ public class ConfigMapServiceImpl implements ConfigMapService {
 			for(String n : names){
 				K8SURL url = new K8SURL();
 		        url.setNamespace(namespace).setName(n).setResource(Resource.CONFIGMAP);
-		        K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET, null, null, cluster);
+		        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null, cluster);
 		        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 		            return ActionReturnUtil.returnErrorWithMsg(response.getBody());
 		        }

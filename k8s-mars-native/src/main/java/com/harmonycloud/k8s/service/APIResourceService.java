@@ -9,6 +9,7 @@ import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.k8s.bean.APIResourceList;
 import com.harmonycloud.k8s.bean.Resource;
 import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
@@ -23,13 +24,13 @@ public class APIResourceService {
 		K8SURL url = new K8SURL();
 		url.setName("apis/extensions/v1beta1");
 		//APIResourceList
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,null,null);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,null,null);
 		APIResourceList apiResourceList = K8SClient.converToBean(response, APIResourceList.class);
 		List<Resource> resources = apiResourceList.getResources();
 		//APIResourceList
 		K8SURL url2 = new K8SURL();
 		url2.setName("api/v1");
-		K8SClientResponse response2 = new K8SClient().doit(url2, HTTPMethod.GET,null,null,null);
+		K8SClientResponse response2 = new K8sMachineClient().exec(url2, HTTPMethod.GET,null,null,null);
 		APIResourceList apiResourceList2 = K8SClient.converToBean(response2, APIResourceList.class);
 		List<Resource> resources2 = apiResourceList2.getResources();
 		//获取两个APIResourceList并集

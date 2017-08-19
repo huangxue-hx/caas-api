@@ -10,6 +10,7 @@ import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.TenantBindingExample;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.DeploymentService;
@@ -208,7 +209,7 @@ public class VolumeServiceImpl implements VolumeSerivce {
 		Map<String, Object> bodys = CollectionUtil.transBean2Map(pVolumeClaim);
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.PERSISTENTVOLUMECLAIM);;
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.POST, headers, bodys);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
 			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
@@ -254,7 +255,7 @@ public class VolumeServiceImpl implements VolumeSerivce {
 		Map<String, Object> bodys = CollectionUtil.transBean2Map(pVolumeClaim);
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.PERSISTENTVOLUMECLAIM);;
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.POST, headers, bodys);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
 		}
@@ -269,7 +270,7 @@ public class VolumeServiceImpl implements VolumeSerivce {
 		headers.put("Content-Type", "application/json");
 		Map<String, Object> bodys = new HashMap<>();
 		bodys.put("gracePeriodSeconds", 1);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE, headers, bodys);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
 		}
@@ -364,7 +365,7 @@ public class VolumeServiceImpl implements VolumeSerivce {
 	public ActionReturnUtil listProvider() throws Exception {
 		K8SURL url = new K8SURL();
 		url.setResource(Resource.VOLUMEPROVIDER);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET, null, null);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
 		}

@@ -98,7 +98,7 @@ public class PvService {
 	public PersistentVolumeClaim getPvc(String name,String namespace,Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setResource(Resource.PERSISTENTVOLUMECLAIM).setSubpath(name).setNamespace(namespace);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,null,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,null,cluster);
 		if(HttpStatusUtil.isSuccessStatus(response.getStatus())){
 			return K8SClient.converToBean(response, PersistentVolumeClaim.class);
 		}
@@ -114,7 +114,7 @@ public class PvService {
 	public K8SClientResponse listPvc(String namespace,Cluster cluster) throws Exception{
 		K8SURL url = new K8SURL();
 		url.setResource(Resource.PERSISTENTVOLUMECLAIM).setNamespace(namespace);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,null,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,null,cluster);
 		return response;
 	}
 	

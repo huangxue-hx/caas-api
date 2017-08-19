@@ -13,6 +13,7 @@ import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.cicd.DockerFileDto;
 import com.harmonycloud.k8s.bean.UnversionedStatus;
 import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
@@ -121,7 +122,7 @@ public class DockerFileServiceImpl implements DockerFileService {
         Map<String, Object> headers = new HashMap<String, Object>();
         headers.put("Content-type", "application/json");
         Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-        K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.POST, headers, bodys, cluster);
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
@@ -143,7 +144,7 @@ public class DockerFileServiceImpl implements DockerFileService {
         Map<String, Object> headers = new HashMap<String, Object>();
         headers.put("Content-type", "application/json");
         Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-        K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.PUT, headers, bodys, cluster);
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, headers, bodys, cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
@@ -162,7 +163,7 @@ public class DockerFileServiceImpl implements DockerFileService {
         Map<String, Object> headers = new HashMap<String, Object>();
         headers.put("Content-type", "application/json");
         Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-        K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE, headers, bodys, cluster);
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys, cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());

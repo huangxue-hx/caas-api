@@ -41,6 +41,7 @@ import com.harmonycloud.k8s.bean.RoleBinding;
 import com.harmonycloud.k8s.bean.RoleBindingList;
 import com.harmonycloud.service.platform.bean.UserProjectBiding;
 import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
@@ -440,7 +441,7 @@ public class HarborProjectTenantServiceImpl implements HarborProjectTenantServic
         k8SURL.setResource(Resource.ROLEBINDING);
         bodys.put("labelSelector", "nephele_tenant_" + tenantname + "=" + tenantname);
 
-        K8SClientResponse k8SClientResponse = new K8SClient().doit(k8SURL, HTTPMethod.GET, null, bodys);
+        K8SClientResponse k8SClientResponse = new K8sMachineClient().exec(k8SURL, HTTPMethod.GET, null, bodys);
 
         if (HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
             if (StringUtils.isEmpty(k8SClientResponse.getBody())) {

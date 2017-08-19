@@ -78,7 +78,7 @@ public class RouterServiceImpl implements RouterService {
 		// 找到URL进行调用
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.INGRESS);// 资源类型怎么判断
-		K8SClientResponse k = new K8SClient().doit(url, HTTPMethod.GET, /* "330957b867a3462ea457bec41410624b", */null,
+		K8SClientResponse k = new K8sMachineClient().exec(url, HTTPMethod.GET, /* "330957b867a3462ea457bec41410624b", */null,
 				null, null);
 		IngressList ingressList = K8SClient.converToBean(k, IngressList.class);
 
@@ -170,7 +170,7 @@ public class RouterServiceImpl implements RouterService {
 		String namespace = parsedIngressList.getNamespace();
 		url.setNamespace(namespace).setResource(Resource.INGRESS);
 		// String s = JsonUtil.convertToJsonNonNull(body);
-		K8SClientResponse k = new K8SClient().doit(url, HTTPMethod.POST, head, body, null);
+		K8SClientResponse k = new K8sMachineClient().exec(url, HTTPMethod.POST, head, body, null);
 		if (!HttpStatusUtil.isSuccessStatus(k.getStatus())) {
 			UnversionedStatus status = JsonUtil.jsonToPojo(k.getBody(), UnversionedStatus.class);
 			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
@@ -188,7 +188,7 @@ public class RouterServiceImpl implements RouterService {
 		url.setNamespace(namespace).setResource(Resource.INGRESS).setName(name);
 		Map<String, Object> head = new HashMap<String, Object>();
 		head.put("Content-Type", "application/json");
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE, head, null, null);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, head, null, null);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
 			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
 		}
@@ -573,7 +573,7 @@ public class RouterServiceImpl implements RouterService {
 				.setSubpath(svcRouterUpdate.getName());
 		Map<String, Object> head = new HashMap<String, Object>();
 		head.put("Content-Type", "application/json");
-		K8SClientResponse serivceResponse = new K8SClient().doit(url1, HTTPMethod.GET, head, null, null);
+		K8SClientResponse serivceResponse = new K8sMachineClient().exec(url1, HTTPMethod.GET, head, null, null);
 		com.harmonycloud.k8s.bean.Service service = K8SClient.converToBean(serivceResponse,
 				com.harmonycloud.k8s.bean.Service.class);
 		String apiVersion = service.getApiVersion();
@@ -628,7 +628,7 @@ public class RouterServiceImpl implements RouterService {
 		url.setNamespace(svcRouterUpdate.getNamespace()).setResource(Resource.SERVICE)
 				.setSubpath(svcRouterUpdate.getName());
 		head.put("Content-Type", "application/json");
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.PUT, head, body, null);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, head, body, null);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
 		}
@@ -740,7 +740,7 @@ public class RouterServiceImpl implements RouterService {
 		spec.setRules(listRule);
 		body.put("metadata", metadata);
 		body.put("spec", spec);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.PUT, head, body);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, head, body);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
 		}
@@ -1012,7 +1012,7 @@ public class RouterServiceImpl implements RouterService {
 			url.setNamespace(namespace).setResource(Resource.INGRESS);// 资源类型怎么判断
 			Map<String, Object> bodys = new HashMap<String, Object>();
 			bodys.put("labelSelector", "app=" + name);
-			K8SClientResponse k = new K8SClient().doit(url, HTTPMethod.GET, null, bodys, cluster);
+			K8SClientResponse k = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
 			if (k.getStatus() == Constant.HTTP_404) {
 				return ActionReturnUtil.returnSuccess();
 			}

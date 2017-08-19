@@ -27,21 +27,21 @@ public class PodService {
 	public K8SClientResponse getSpecifyPod(String namespace,String name, Map<String, Object> headers, Map<String, Object> bodys, String method,Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.POD).setName(name);
-		K8SClientResponse response = new K8SClient().doit(url, method, headers, bodys,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, method, headers, bodys,cluster);
 		return response;
 	}
 	
 	public K8SClientResponse getPodByNamespace(String namespace, Map<String, Object> headers, Map<String, Object> bodys, String method,Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.POD);
-		K8SClientResponse response = new K8SClient().doit(url, method, headers, bodys,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, method, headers, bodys,cluster);
 		return response;
 	}
 	
 	public K8SClientResponse getPodLogByNamespace(String namespace, String name, String subPath, Map<String, Object> headers, Map<String, Object> bodys, String method,Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.POD).setName(name).setSubpath(subPath);
-		K8SClientResponse response = new K8SClient().doit(url, method, headers, bodys,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, method, headers, bodys,cluster);
 		return response;
 	}
 	

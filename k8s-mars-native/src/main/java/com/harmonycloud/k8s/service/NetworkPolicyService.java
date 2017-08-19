@@ -21,13 +21,13 @@ public class NetworkPolicyService {
     public K8SClientResponse create(Map<String, Object> headers, Map<String, Object> bodys, String namespace,Cluster cluster) throws Exception {
         K8SURL k8SURL = new K8SURL();
         k8SURL.setResource(Resource.NETWORKPOLICY).setNamespace(namespace);
-        K8SClientResponse response = new K8SClient().doit(k8SURL, HTTPMethod.POST, headers, bodys,cluster);
+        K8SClientResponse response = new K8sMachineClient().exec(k8SURL, HTTPMethod.POST, headers, bodys,cluster);
         return response;
     }
     public K8SClientResponse delete(Map<String, Object> headers, Map<String, Object> bodys, String namespace,String name,Cluster cluster) throws Exception {
         K8SURL k8SURL = new K8SURL();
         k8SURL.setResource(Resource.NETWORKPOLICY).setNamespace(namespace).setName(name);
-        K8SClientResponse response = new K8SClient().doit(k8SURL, HTTPMethod.DELETE, headers, null,cluster);
+        K8SClientResponse response = new K8sMachineClient().exec(k8SURL, HTTPMethod.DELETE, headers, null,cluster);
         return response;
     }
 }

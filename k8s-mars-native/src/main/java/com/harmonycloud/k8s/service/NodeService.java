@@ -27,7 +27,7 @@ public class NodeService {
 			Map<String, Object> bodys, String method) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.NODE).setName(name);
-		K8SClientResponse response = new K8SClient().doit(url, method, headers, bodys,null);
+		K8SClientResponse response = new K8sMachineClient().exec(url, method, headers, bodys,null);
 		return response;
 	}
 
@@ -35,7 +35,7 @@ public class NodeService {
 			Map<String, Object> bodys, String method) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.NODE);
-		K8SClientResponse response = new K8SClient().doit(url, method, headers, bodys,null);
+		K8SClientResponse response = new K8sMachineClient().exec(url, method, headers, bodys,null);
 		return response;
 	}
 

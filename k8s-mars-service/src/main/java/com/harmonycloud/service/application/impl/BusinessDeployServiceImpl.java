@@ -622,7 +622,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                                     headers.put("Content-Type", "application/json");
                                     Map<String, Object> bodys = new HashMap<>();
                                     bodys.put("gracePeriodSeconds", 1);
-                                    K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE, headers, bodys,cluster);
+                                    K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys,cluster);
                                     if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
                                         serviceFlag = false;
                                         businessFlag = false;
@@ -1132,7 +1132,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 			//service name
 			K8SURL url = new K8SURL();
         	url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
-    		K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+    		K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
 			if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
 					&& depRes.getStatus() != Constant.HTTP_404 ) {
 				JSONObject js = JSONObject.fromObject(depRes.getBody());
@@ -1224,7 +1224,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         String namespace = businessDeploy.getNamespace();
 		K8SURL url = new K8SURL();
     	url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
-		K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+		K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
 				&& depRes.getStatus() != Constant.HTTP_404 ) {
 			JSONObject js = JSONObject.fromObject(depRes.getBody());
@@ -1419,7 +1419,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         String namespace = businessDeploy.getNamespace();
 		K8SURL url = new K8SURL();
     	url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
-		K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+		K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
 				&& depRes.getStatus() != Constant.HTTP_404 ) {
 			JSONObject js = JSONObject.fromObject(depRes.getBody());

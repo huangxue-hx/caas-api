@@ -10,6 +10,7 @@ import com.harmonycloud.dto.business.CreateVolumeDto;
 import com.harmonycloud.dto.business.JobsDetailDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.ConfigmapService;
@@ -656,7 +657,7 @@ public class JobsServiceImpl implements JobsService{
 			bodys.put("data", data);
 			Map<String, Object> headers = new HashMap<String, Object>();
 			headers.put("Content-type", "application/json");
-			K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.POST, headers, bodys, cluster);
+			K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
 			if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 				UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
 				return ActionReturnUtil.returnErrorWithMsg(status.getMessage());

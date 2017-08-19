@@ -179,7 +179,7 @@ public class ExternalServiceImpl implements ExternalService {
         url1.setNamespace(Resource.EXTERNALNAMESPACE).setResource(Resource.SERVICE).setSubpath(externalServiceBean.getName());
         Map<String, Object> head = new HashMap<String, Object>();
         head.put("Content-Type", "application/json");
-        //new K8SClient().doit   
+        //new K8sMachineClient().exec   
         Cluster cluster = tenantService.getClusterByTenantid(externalServiceBean.getTenantid());
         K8SClientResponse serivceResponse = new K8sMachineClient().exec(url1, HTTPMethod.GET, head, null,cluster);
         com.harmonycloud.k8s.bean.Service service = K8SClient.converToBean(serivceResponse, com.harmonycloud.k8s.bean.Service.class);

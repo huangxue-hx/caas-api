@@ -10,6 +10,7 @@ import com.harmonycloud.dto.business.DeploymentDetailDto;
 import com.harmonycloud.dto.business.ParsedIngressListDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.*;
@@ -93,7 +94,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			 for (int i = 0; i < ns.length; i++){
 			 	if (ns[i] != null && !StringUtils.isEmpty(ns[i])){
 					url.setNamespace(ns[i]);
-					K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, bodys,cluster);
+					K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys,cluster);
 					if(!HttpStatusUtil.isSuccessStatus(depRes.getStatus()) && depRes.getStatus() != Constant.HTTP_404){
 						UnversionedStatus sta = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
 						return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
@@ -682,7 +683,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		bodys.put("watch", "true");
 		bodys.put("timeoutSeconds", 3);
 
-		K8SClientResponse rs = new K8SClient().doit(rsUrl, HTTPMethod.GET, headers, bodys,cluster);
+		K8SClientResponse rs = new K8sMachineClient().exec(rsUrl, HTTPMethod.GET, headers, bodys,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(rs.getStatus())) {
 			return;
 		}
@@ -715,7 +716,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 					url.setNamespace(detail.getNamespace()).setResource(Resource.CONFIGMAP);
 					K8SURL url1 = new K8SURL();
 					url1.setNamespace(detail.getNamespace()).setResource(Resource.CONFIGMAP).setName(detail.getName() + c.getName());
-					K8SClientResponse responses = new K8SClient().doit(url1, HTTPMethod.GET, null, null, cluster);
+					K8SClientResponse responses = new K8sMachineClient().exec(url1, HTTPMethod.GET, null, null, cluster);
 					Map<String, Object> convertJsonToMap = JsonUtil.convertJsonToMap(responses.getBody());
 			        String metadata = convertJsonToMap.get(CommonConstant.METADATA).toString();
 			        if (!CommonConstant.EMPTYMETADATA.equals(metadata)) {
@@ -745,7 +746,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 					bodys.put("data", data);  
 					Map<String, Object> headers = new HashMap<String, Object>();
 					headers.put("Content-type", "application/json");
-					K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.POST, headers, bodys, cluster);
+					K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
 					if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 						UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
 						return ActionReturnUtil.returnErrorWithData(status.getMessage());
@@ -765,7 +766,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			headers.put("Content-type", "application/json");
 			Map<String, Object> bodys = new HashMap<String, Object>();
 			bodys = CollectionUtil.transBean2Map(dep);
-			K8SClientResponse response = new K8SClient().doit(k8surl, HTTPMethod.POST, headers, bodys, cluster);
+			K8SClientResponse response = new K8sMachineClient().exec(k8surl, HTTPMethod.POST, headers, bodys, cluster);
 			if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 				UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
 				return ActionReturnUtil.returnErrorWithData(status.getMessage());
@@ -775,7 +776,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			k8surl.setNamespace(detail.getNamespace()).setResource(Resource.SERVICE);
 			bodys.clear();
 			bodys = CollectionUtil.transBean2Map(service);
-			K8SClientResponse sResponse = new K8SClient().doit(k8surl, HTTPMethod.POST, headers, bodys, cluster);
+			K8SClientResponse sResponse = new K8sMachineClient().exec(k8surl, HTTPMethod.POST, headers, bodys, cluster);
 			if (!HttpStatusUtil.isSuccessStatus(sResponse.getStatus())) {
 				UnversionedStatus status = JsonUtil.jsonToPojo(sResponse.getBody(), UnversionedStatus.class);
 				return ActionReturnUtil.returnErrorWithData(status.getMessage());
@@ -808,7 +809,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			headers.put("Content-type", "application/json");
 			Map<String, Object> bodys = new HashMap<String, Object>();
 			bodys = CollectionUtil.transBean2Map(dep);
-			K8SClientResponse response = new K8SClient().doit(k8surl, HTTPMethod.POST, headers, bodys,cluster);
+			K8SClientResponse response = new K8sMachineClient().exec(k8surl, HTTPMethod.POST, headers, bodys,cluster);
 			if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 				UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
 				return ActionReturnUtil.returnErrorWithData(status.getMessage());
@@ -818,7 +819,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			k8surl.setNamespace(detail.getNamespace()).setResource(Resource.SERVICE);
 			bodys.clear();
 			bodys = CollectionUtil.transBean2Map(service);
-			K8SClientResponse sResponse = new K8SClient().doit(k8surl, HTTPMethod.POST, headers, bodys,cluster);
+			K8SClientResponse sResponse = new K8sMachineClient().exec(k8surl, HTTPMethod.POST, headers, bodys,cluster);
 			if (!HttpStatusUtil.isSuccessStatus(sResponse.getStatus())) {
 				UnversionedStatus status = JsonUtil.jsonToPojo(sResponse.getBody(), UnversionedStatus.class);
 				return ActionReturnUtil.returnErrorWithData(status.getMessage());
@@ -873,7 +874,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		cUrl.setNamespace(namespace).setResource(Resource.CONFIGMAP);
 		Map<String, Object> queryP = new HashMap<>();
 		queryP.put("labelSelector", "app=" + name);
-		K8SClientResponse conRes = new K8SClient().doit(cUrl, HTTPMethod.DELETE, null, queryP,cluster);
+		K8SClientResponse conRes = new K8sMachineClient().exec(cUrl, HTTPMethod.DELETE, null, queryP,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(conRes.getStatus()) && conRes.getStatus() != Constant.HTTP_404) {
 			UnversionedStatus status = JsonUtil.jsonToPojo(conRes.getBody(), UnversionedStatus.class);
 			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
@@ -882,7 +883,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		// 删除hpa
 		K8SURL hUrl = new K8SURL();
 		hUrl.setName(name + "-hpa").setNamespace(namespace).setResource(Resource.HORIZONTALPODAUTOSCALER);
-		K8SClientResponse hpaRes = new K8SClient().doit(hUrl, HTTPMethod.DELETE, null, null,cluster);
+		K8SClientResponse hpaRes = new K8sMachineClient().exec(hUrl, HTTPMethod.DELETE, null, null,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(hpaRes.getStatus()) && hpaRes.getStatus() != Constant.HTTP_404) {
 			UnversionedStatus status = JsonUtil.jsonToPojo(hpaRes.getBody(), UnversionedStatus.class);
 			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
@@ -928,7 +929,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
 			// 删除ingress
 			cUrl.setResource(Resource.INGRESS);
-			K8SClientResponse ingRes = new K8SClient().doit(cUrl, HTTPMethod.DELETE, null, null,cluster);
+			K8SClientResponse ingRes = new K8sMachineClient().exec(cUrl, HTTPMethod.DELETE, null, null,cluster);
 			if (!HttpStatusUtil.isSuccessStatus(ingRes.getStatus()) && ingRes.getStatus() != Constant.HTTP_404) {
 				UnversionedStatus sta = JsonUtil.jsonToPojo(ingRes.getBody(), UnversionedStatus.class);
 				return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
@@ -960,7 +961,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		for (int i = 0; i < svc.size(); i++) {
 			String lrv = watchService.getLatestVersion(namespace, null, cluster);
 			svcUrl.setName(svc.get(i).getMetadata().getName());
-			K8SClientResponse serviceRes = new K8SClient().doit(svcUrl, HTTPMethod.DELETE, null, null, cluster);
+			K8SClientResponse serviceRes = new K8sMachineClient().exec(svcUrl, HTTPMethod.DELETE, null, null, cluster);
 			if (!HttpStatusUtil.isSuccessStatus(serviceRes.getStatus()) && serviceRes.getStatus() != Constant.HTTP_404) {
 				UnversionedStatus sta = JsonUtil.jsonToPojo(serviceRes.getBody(), UnversionedStatus.class);
 				return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());

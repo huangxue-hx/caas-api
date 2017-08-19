@@ -251,7 +251,7 @@ public class PersistenVolumeServiceImpl implements PersistentVolumeService{
         K8SURL url = new K8SURL();
         Cluster cluster = tenantService.getClusterByTenantid(tenantid);
         url.setResource(com.harmonycloud.k8s.constant.Resource.PERSISTENTVOLUME);
-        K8SClientResponse k8SClientResponse = new K8SClient().doit(url, HTTPMethod.GET, null, bodys,cluster);
+        K8SClientResponse k8SClientResponse = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys,cluster);
 
         if (HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
             if (StringUtils.isEmpty(k8SClientResponse.getBody())) {

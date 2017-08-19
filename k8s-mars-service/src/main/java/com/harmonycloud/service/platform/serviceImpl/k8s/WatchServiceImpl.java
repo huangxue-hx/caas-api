@@ -16,6 +16,7 @@ import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.k8s.bean.Event;
 import com.harmonycloud.k8s.bean.PodList;
 import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.EventService;
@@ -96,7 +97,7 @@ public class WatchServiceImpl implements WatchService{
 		url.setNamespace(namespace).setResource(Resource.POD);
 		
 		//请求k8sclient
-		PodList podList = K8SClient.converToBean(new K8SClient().doit(url, HTTPMethod.GET, header, null, cluster), PodList.class);
+		PodList podList = K8SClient.converToBean(new K8sMachineClient().exec(url, HTTPMethod.GET, header, null, cluster), PodList.class);
 		return podList.getMetadata().getResourceVersion();
 	}
 	

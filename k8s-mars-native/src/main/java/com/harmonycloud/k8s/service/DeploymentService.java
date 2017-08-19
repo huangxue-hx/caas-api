@@ -15,6 +15,7 @@ import com.harmonycloud.k8s.bean.DeploymentList;
 import com.harmonycloud.k8s.bean.DeploymentRollback;
 import com.harmonycloud.k8s.bean.UnversionedStatus;
 import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
@@ -62,7 +63,7 @@ public class DeploymentService {
 	public K8SClientResponse doDeploymentsByNamespace(String namespace, Map<String, Object> headers, Map<String, Object> bodys, String method, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
-		K8SClientResponse response = new K8SClient().doit(url, method, headers, bodys, cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, method, headers, bodys, cluster);
 		return response;
 	}
 
@@ -128,7 +129,7 @@ public class DeploymentService {
 		}else {
 			url.setNamespace(namespace).setResource(Resource.DEPLOYMENT).setName(name);
 		}
-		K8SClientResponse response = new K8SClient().doit(url, method, headers, bodys, cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, method, headers, bodys, cluster);
 		return response;
 	}
 	

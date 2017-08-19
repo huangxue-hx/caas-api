@@ -13,6 +13,7 @@ import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.k8s.bean.CronJob;
 import com.harmonycloud.k8s.bean.UnversionedStatus;
 import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.APIGroup;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
@@ -37,7 +38,7 @@ public class CronJobService {
 		bodys.put("spec", cronJob.getSpec());
 		Map<String, Object> headers = new HashMap<>();
 		headers.put("Content-Type", "application/json");
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.POST,headers,bodys,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST,headers,bodys,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithMsg(us.getMessage());
@@ -55,7 +56,7 @@ public class CronJobService {
 	public ActionReturnUtil delCronJobByName(String name, String namespace, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.CRONJOB).setSubpath(name);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE,null,null,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE,null,null,cluster);
 		if(HttpStatusUtil.isSuccessStatus(response.getStatus())){
 			return ActionReturnUtil.returnSuccess();
 		}
@@ -73,7 +74,7 @@ public class CronJobService {
 	public ActionReturnUtil delJobs(String namespace, Map<String, Object> queryParams, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.CRONJOB).setQueryParams(queryParams);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE,null,queryParams,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE,null,queryParams,cluster);
 		if(HttpStatusUtil.isSuccessStatus(response.getStatus())){
 			return ActionReturnUtil.returnSuccess();
 		}
@@ -97,7 +98,7 @@ public class CronJobService {
 		bodys.put("spec", cronJob.getSpec());
 		Map<String, Object> headers = new HashMap<>();
 		headers.put("Content-Type", "application/json");
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.PUT,headers,bodys,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT,headers,bodys,cluster);
 		if(!HttpStatusUtil.isSuccessStatus(response.getStatus())){
 			UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
 	        return ActionReturnUtil.returnErrorWithMsg(us.getMessage());
@@ -116,7 +117,7 @@ public class CronJobService {
 	public K8SClientResponse getCronJob(String namespace, String name, Map<String, Object> queryParams, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.CRONJOB).setSubpath(name);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,queryParams,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,queryParams,cluster);
 		return response;
 	}
 	
@@ -133,7 +134,7 @@ public class CronJobService {
 		if(StringUtils.isEmpty(namespace)){
 			url.setNamespace(namespace);
 		}
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,queryParams,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,queryParams,cluster);
 		return response;
 	}
 	
@@ -148,7 +149,7 @@ public class CronJobService {
 	public K8SClientResponse watchCronJob(String namespace, String name, Map<String, Object> queryParams, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.CRONJOB).setSubpath(name).setWatch(APIGroup.WATCH);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,queryParams,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,queryParams,cluster);
 		return response;
 	}
 	
@@ -170,7 +171,7 @@ public class CronJobService {
 		if(queryParams != null){
 			url.setQueryParams(queryParams);
 		}
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,null,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,null,cluster);
 		return response;
 	}
 }
