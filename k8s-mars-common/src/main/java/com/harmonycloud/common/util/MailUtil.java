@@ -81,11 +81,11 @@ public class MailUtil {
         if( StringUtils.isBlank(smtp)){
             logger.error("邮箱初始化失败, 无法获取邮箱设置信息");
         }
-        if(javaMailSender == null || !testConnection()){
-            throw new MessagingException("邮箱连接失败， 请在系统设置里设置邮箱服务");
-        }
         //如果邮箱发送器已经创建 并且邮箱设置信息没有变更，不需要重新初始化
         if(javaMailSender!= null && !isEmailConfigChanged()){
+            if(javaMailSender == null || !testConnection()){
+                throw new MessagingException("邮箱连接失败， 请在系统设置里设置邮箱服务");
+            }
             return;
         }
 //        logger.info("邮箱服务器设置，alertEmailConfig：{}",JSONObject.toJSONString(alertEmailConfig));
@@ -109,6 +109,9 @@ public class MailUtil {
         props.setProperty("mail.smtp.timeout", CONNECTION_TIMEOUT);
         javaMailSender.setJavaMailProperties(props);
         //javaMailSender = javaMailSender;
+        if(javaMailSender == null || !testConnection()){
+            throw new MessagingException("邮箱连接失败， 请在系统设置里设置邮箱服务");
+        }
     }
 
     private static void getEmailConfig(){
@@ -136,8 +139,7 @@ public class MailUtil {
             javaMailSender.testConnection();
             return true;
         }catch (Exception e){
-            //logger.error("邮箱初始化,连接失败,javaMailSender:{}",
-            //        JSONObject.toJSONString(javaMailSender), e);
+            logger.error("邮箱初始化,连接失败,javaMailSender:{}", "host:"+javaMailSender.getHost() +",username:"+ javaMailSender.getUsername(), e);
             return false;
         }
     }
