@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
