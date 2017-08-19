@@ -183,7 +183,7 @@ public class UserController {
         if (user == null) {
             throw new K8sAuthException(Constant.HTTP_401);
         }
-        if (!CommonConstant.ADMIN.equals(user.toString())) {
+        if ("0".equals(this.isSystemAdmin(user.toString()))) {
             ActionReturnUtil.returnErrorWithMsg("管理员才能重置密码");
         }
         return userService.adminReset(userName, oldPassword, newPassword);
