@@ -673,7 +673,7 @@ public class JobServiceImpl implements JobService {
             List stageBuildMapList = new ArrayList<>();
             for(StageBuild stageBuild : stageBuildList){
                 Map stageBuildMap = new HashMap<>();
-                if(!Constant.PIPELINE_STATUS_BUILDING.equals(jobBuild.getStatus()) && Constant.PIPELINE_STATUS_WAITING.equals(stageBuild.getStatus())){
+                if(!Constant.PIPELINE_STATUS_BUILDING.equals(jobBuild.getStatus()) && (Constant.PIPELINE_STATUS_WAITING.equals(stageBuild.getStatus()) || Constant.PIPELINE_STATUS_BUILDING.equals(stageBuild.getStatus()))){
                     allStageStatusSync(job, jobBuild.getBuildNum());
                     stageBuildMapper.updateWaitingStage(job.getId(), jobBuild.getBuildNum());
                     stageBuildList = stageBuildMapper.queryByObject(stageBuildCondition);

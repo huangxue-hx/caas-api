@@ -81,12 +81,12 @@ podTemplate(
             <#if stage.dockerfileType == 2>
             sh "cp -r /opt/dockerfile ./dockerfile@tmp"
             </#if>
-            sh "docker build <#if stage.dockerfileType == 1> -f ./${stage.dockerFilePath}</#if><#if stage.dockerfileType == 2> -f dockerfile@tmp/<#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if> -t ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!} ."
+            sh "docker build <#if stage.dockerfileType == 1> -f ./${stage.dockerfilePath}</#if><#if stage.dockerfileType == 2> -f dockerfile@tmp/<#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if> -t ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!} ."
             sh "docker push ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}"
             //}
             //withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harbor', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']])
             //{ sh 'docker login ${harborHost!} --username=$USERNAME --password=$PASSWORD' }
-            //docker.build('${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}<#if stage.dockerfileType == 1> -f ./${stage.dockerFilePath}</#if><#if stage.dockerfileType == 2> -f <#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if>').push()
+            //docker.build('${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}<#if stage.dockerfileType == 1> -f ./${stage.dockerfilePath}</#if><#if stage.dockerfileType == 2> -f <#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if>').push()
 </#if>
 <#if stage.stageTemplateType == 2>
             echo '开始升级'
