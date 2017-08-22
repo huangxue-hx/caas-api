@@ -673,7 +673,8 @@ public class RouterServiceImpl implements RouterService {
 		url.setResource(Resource.SERVICE).setNamespace(namespace).setSubpath(name);
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, null, cluster);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
-			return ActionReturnUtil.returnErrorWithMsg("删除出错");
+			UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
 		}
 		return ActionReturnUtil.returnSuccess();
 	}

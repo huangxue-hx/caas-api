@@ -949,7 +949,10 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 						ports.add(onerouterSvcs.getRules().get(i).getPort());
 
 					}
-					routerService.deleteTcpSvc(namespace,onerouterSvcs.getName(),ports,tenantID);
+					ActionReturnUtil tcpRes = routerService.deleteTcpSvc(namespace,onerouterSvcs.getName(),ports,tenantID);
+					if(!tcpRes.isSuccess()){
+						return tcpRes;
+					}
 				}
 			}
 		}

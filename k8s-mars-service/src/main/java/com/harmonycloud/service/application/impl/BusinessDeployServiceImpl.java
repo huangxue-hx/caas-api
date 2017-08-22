@@ -594,7 +594,12 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                                             ports.add(port.getPort());
                                         }
                                     }
-                                    routerService.deleteTcpSvc(business.getNamespaces(), svcone.getName(),ports,(String) session.getAttribute("tenantId"));
+                                    ActionReturnUtil tcpRes = routerService.deleteTcpSvc(business.getNamespaces(), svcone.getName(),ports,(String) session.getAttribute("tenantId"));
+                                    if(!tcpRes.isSuccess()){
+                                    	serviceFlag = false;
+                                        businessFlag = false;
+                                        errorMessage.add(tcpRes.get("data").toString());
+                                    }
                                 }
                             }
                         }
@@ -605,7 +610,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                         if (!deleteDeployReturn.isSuccess()) {
                             serviceFlag = false;
                             businessFlag = false;
-                            errorMessage.add(business.getName() + "." + service.getName());
+                            errorMessage.add(deleteDeployReturn.get("data").toString());
                         }
 
 
@@ -626,7 +631,8 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                                     if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
                                         serviceFlag = false;
                                         businessFlag = false;
-                                        errorMessage.add(response.getBody());
+                                        UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+                                        errorMessage.add(status.getMessage());
                                     }
 
                                     // update pv
@@ -651,7 +657,8 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                                             headersPV.put("Content-Type", "application/json");
                                             K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT, headersPV, bodysPV,cluster);
                                             if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
-                                                errorMessage.add(responsePV.getBody());
+                                            	UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
+                                                errorMessage.add(status.getMessage());
                                             }
                                         }
                                     }
