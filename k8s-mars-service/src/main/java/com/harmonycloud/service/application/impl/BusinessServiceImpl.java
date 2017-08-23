@@ -793,8 +793,14 @@ public class BusinessServiceImpl implements BusinessService {
             }
         } catch (IOException e) {
             e.printStackTrace();
+        } finally { 
+        	try {
+				br.close();
+				is.close(); 
+			} catch (IOException e) {
+			} 
+        	
         }
-
         return sb.toString();
     }
 

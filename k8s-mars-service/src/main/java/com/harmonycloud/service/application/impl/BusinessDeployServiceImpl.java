@@ -585,8 +585,13 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                         if (routerSvcs !=null && routerSvcs.size() > 0){
                             for (RouterSvc svcone:routerSvcs){
                                 if ("HTTP".equals(svcone.getLabels().get("type"))) {
-                                    routerService.ingDelete(business.getNamespaces(), svcone.getName());
-                                    routerService.svcDelete(business.getNamespaces(), svcone.getName());
+                                    ActionReturnUtil httpRes = routerService.ingDelete(business.getNamespaces(), svcone.getName());
+                                    if(!httpRes.isSuccess()){
+                                    	serviceFlag = false;
+                                        businessFlag = false;
+                                        errorMessage.add(httpRes.get("data").toString());
+                                    }
+                                    //routerService.svcDelete(business.getNamespaces(), svcone.getName());
                                 } else if ("TCP".equals(svcone.getLabels().get("type"))) {
                                     List<Integer> ports = new ArrayList<>();
                                     for (ServicePort port: svcone.getRules()){

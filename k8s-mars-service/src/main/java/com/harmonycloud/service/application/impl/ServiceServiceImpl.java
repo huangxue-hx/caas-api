@@ -27,6 +27,8 @@ import com.harmonycloud.k8s.bean.Deployment;
 import com.harmonycloud.k8s.bean.DeploymentList;
 import com.harmonycloud.k8s.bean.K8sResponseBody;
 import com.harmonycloud.k8s.bean.PersistentVolume;
+import com.harmonycloud.k8s.bean.PersistentVolumeClaim;
+import com.harmonycloud.k8s.bean.PersistentVolumeClaimList;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
@@ -41,6 +43,7 @@ import com.harmonycloud.service.application.VolumeSerivce;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.tenant.PrivatePartitionService;
+import com.squareup.moshi.Json;
 
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -373,7 +376,81 @@ public class ServiceServiceImpl implements ServiceService {
 		List<com.harmonycloud.dao.application.bean.Service> svclist =  new ArrayList<>();
 		for(ServiceNameNamespace nn : deployedServiceNamesDto.getServiceList()){
 			com.harmonycloud.dao.application.bean.Service ser = serviceMapper.selectServiceByName(nn.getName(), nn.getNamespace());
-			svclist.add(ser);
+			if(ser != null){
+				svclist.add(ser);
+			}else{
+				ActionReturnUtil delRes = deploymentsService.deleteDeployment(nn.getName(), nn.getNamespace(), userName, cluster);
+				if(!delRes.isSuccess()){
+					errorMessage.add(delRes.get("data").toString());
+				}
+				// delete ingress
+				Map<String, Object> labelMap = new HashMap<String, Object>();
+				ParsedIngressListDto parsedIngressListDto = new ParsedIngressListDto();
+				parsedIngressListDto.setNamespace(nn.getNamespace());
+				labelMap.put("app",nn.getName());
+				parsedIngressListDto.setLabels(labelMap);
+				List<RouterSvc> routerSvcs = new ArrayList<RouterSvc>();
+				routerSvcs = routerService.listIngressByName(parsedIngressListDto);
+				if (routerSvcs !=null && routerSvcs.size() > 0){
+					for (RouterSvc svcone:routerSvcs){
+						if ("HTTP".equals(svcone.getLabels().get("type"))) {
+							routerService.ingDelete(nn.getNamespace(), svcone.getName());
+							//routerService.svcDelete(nn.getNamespace(), svcone.getName());
+						} else if ("TCP".equals(svcone.getLabels().get("type"))) {
+							routerService.svcDelete(nn.getNamespace(), svcone.getName());
+						}
+					}
+				}
+				// delete pvc 
+				K8SURL url = new K8SURL();
+				url.setNamespace(nn.getNamespace()).setResource(Resource.PERSISTENTVOLUMECLAIM);
+				Map<String, Object> headers = new HashMap<>();
+				headers.put("Content-Type", "application/json");
+				Map<String, Object> bodys = new HashMap<>();
+				bodys.put("labelSelector", "app=" + nn.getName());
+				K8SClientResponse getResponse = new K8sMachineClient().exec(url, HTTPMethod.GET, headers, bodys, cluster);
+				if(HttpStatusUtil.isSuccessStatus(getResponse.getStatus())){
+					PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(getResponse.getBody(), PersistentVolumeClaimList.class);
+					if(pvcList != null && pvcList.getItems() != null && pvcList.getItems().size() > 0){
+						List<PersistentVolumeClaim> pvcs = pvcList.getItems();
+						if(pvcs != null && pvcs.size() > 0){
+							for(PersistentVolumeClaim pvc : pvcs){
+								//update PV
+								if( pvc.getSpec() != null && pvc.getSpec().getVolumeName() != null){
+									String pvname = pvc.getSpec().getVolumeName();
+									PersistentVolume pv = pvService.getPvByName(pvname,null);
+									if (pv != null) {
+										Map<String, Object> bodysPV = new HashMap<String, Object>();
+										Map<String, Object> metadata = new HashMap<String, Object>();
+										metadata.put("name", pv.getMetadata().getName());
+										metadata.put("labels", pv.getMetadata().getLabels());
+										bodysPV.put("metadata", metadata);
+										Map<String, Object> spec = new HashMap<String, Object>();
+										spec.put("capacity", pv.getSpec().getCapacity());
+										spec.put("nfs", pv.getSpec().getNfs());
+										spec.put("accessModes", pv.getSpec().getAccessModes());
+										bodysPV.put("spec", spec);
+										K8SURL urlPV = new K8SURL();
+										urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
+										Map<String, Object> headersPV = new HashMap<>();
+										headersPV.put("Content-Type", "application/json");
+										K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT,
+												headersPV, bodysPV);
+										if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
+											errorMessage.add(responsePV.getBody());
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+				K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys, cluster);
+				if (!HttpStatusUtil.isSuccessStatus(response.getStatus())
+						&& response.getStatus() != Constant.HTTP_404) {
+					errorMessage.add(response.getBody());
+				}
+			}
 		}
 
 		if (svclist != null && svclist.size() > 0) {
@@ -416,7 +493,7 @@ public class ServiceServiceImpl implements ServiceService {
 					for (RouterSvc svcone:routerSvcs){
 						if ("HTTP".equals(svcone.getLabels().get("type"))) {
 							routerService.ingDelete(namespace, svcone.getName());
-							routerService.svcDelete(namespace, svcone.getName());
+							//routerService.svcDelete(namespace, svcone.getName());
 						} else if ("TCP".equals(svcone.getLabels().get("type"))) {
 							routerService.svcDelete(namespace, svcone.getName());
 						}
@@ -431,7 +508,7 @@ public class ServiceServiceImpl implements ServiceService {
 							String name = ingress.get("name").toString();
 							if ("HTTP".equals(type)) {
 								routerService.ingDelete(namespace, name);
-								routerService.svcDelete(namespace, "routersvc" + name);
+								//routerService.svcDelete(namespace, "routersvc" + name);
 							} else if ("TCP".equals(type)) {
 								routerService.svcDelete(namespace, "routersvc" + name);
 							}
