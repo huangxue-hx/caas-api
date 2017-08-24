@@ -552,8 +552,12 @@ public class HarborServiceImpl implements HarborService {
                 List<HarborProjectTenant> harborProjectTenants = harborProjectTenantService.harborProjectList();
                 for(HarborProjectTenant projectTenant : harborProjectTenants){
                     try{
-                        getRepositoryDetailByProjectId(
+                        ActionReturnUtil result = getRepositoryDetailByProjectId(
                                 Integer.parseInt(String.valueOf(projectTenant.getHarborProjectId())));
+                        if(!result.isSuccess()){
+                            LOGGER.error("刷新缓存中的repository失败,:projectName:{},message{}",
+                                    projectTenant.getHarborProjectName(), result.get("data"));
+                        }
                     }catch (Exception e){
                         LOGGER.error("刷新缓存中的repository失败,project:{}",
                                 JSONObject.toJSONString(projectTenant), e);
