@@ -419,10 +419,10 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
             // is external service
             if (service.getExternal() == Constant.EXTERNAL_SERVICE) {
                 svc.setBusinessId(business.getId());
-                ServiceTemplates externalservice=serviceTemplatesMapper.getExternalService(service.getName());
-                if(externalservice!=null){
-                    svc.setServiceTemplateId(externalservice.getId());
-                }
+                /*ServiceTemplates externalservice=serviceTemplatesMapper.getExternalService(service.getName());*/
+                /*if(externalservice!=null){*/
+                    svc.setServiceTemplateId(service.getId());
+                /*}*/
                 svc.setIsExternal(Constant.EXTERNAL_SERVICE);
                 //svc.setName(service.getDeploymentDetaile().getName());
                 svc.setName(service.getName());
@@ -1306,10 +1306,10 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 	            // is external service
 	            if (service.getExternal() == Constant.EXTERNAL_SERVICE) {
 	                svc.setBusinessId(businessDeploy.getBusinessTemplate().getBusinessId());
-	                ServiceTemplates externalservice=serviceTemplatesMapper.getExternalService(service.getName());
-	                if(externalservice!=null){
-	                    svc.setServiceTemplateId(externalservice.getId());
-	                }
+	                /*ServiceTemplates externalservice=serviceTemplatesMapper.getExternalService(service.getName());
+	                if(externalservice!=null){*/
+	                    svc.setServiceTemplateId(service.getId());
+	                /*}*/
 	                svc.setIsExternal(Constant.EXTERNAL_SERVICE);
 	                svc.setNamespace(businessDeploy.getNamespace());
 	                svc.setName(service.getName());

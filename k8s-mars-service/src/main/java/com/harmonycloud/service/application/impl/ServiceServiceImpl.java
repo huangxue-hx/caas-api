@@ -161,7 +161,7 @@ public class ServiceServiceImpl implements ServiceService {
 		serviceTemplateDB.setTenant(serviceTemplate.getTenant());
 		serviceTemplateDB.setUser(userName);
 		serviceTemplateDB.setCreateTime(new Date());
-		serviceTemplateDB.setFlag(Constant.K8S_SERVICE);
+		serviceTemplateDB.setFlag(serviceTemplate.getExternal());
 		if (serviceTemplate.getDeploymentDetail() != null) {
 			serviceTemplateDB.setNodeSelector(serviceTemplate.getDeploymentDetail().getNodeSelector());
 		}
