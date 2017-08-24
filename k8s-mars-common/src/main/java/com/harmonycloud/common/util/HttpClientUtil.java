@@ -89,7 +89,7 @@ public class HttpClientUtil {
 				if (HttpStatusUtil.isSuccessStatus(statusCode)) {
 					return ActionReturnUtil.returnSuccessWithData(result);
 				} else {
-					return ActionReturnUtil.returnErrorWithMsg(result);
+					return ActionReturnUtil.returnErrorWithData(result);
 				}
 			}
 		} catch (Exception e) {

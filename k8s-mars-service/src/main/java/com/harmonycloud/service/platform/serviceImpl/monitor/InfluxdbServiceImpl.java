@@ -108,9 +108,9 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 			type = CommonConstant.MONIT_NETWORK_TYPE;
 		}
 		if (!checkParamNUll(container)) {
-			sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"container_name\""+" = "+"\'"+container+"\'"+" AND "+"\"type\""+" = "+"\'"+type+"\'"+" AND "+"\"pod_name\""+" = "+"\'"+pod+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+"),"+"\"container_name\""+" fill(0)";
+			sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"container_name\""+" = "+"\'"+container+"\'"+" AND "+"\"type\""+" = "+"\'"+type+"\'"+" AND "+"\"pod_name\""+" = "+"\'"+pod+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+"),"+"\"container_name\""+" fill(null)";
 		} else {
-			sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"type\""+" = "+"\'"+type+"\'"+" AND "+"\"pod_name\""+" = "+"\'"+pod+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+") fill(0)";
+			sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"type\""+" = "+"\'"+type+"\'"+" AND "+"\"pod_name\""+" = "+"\'"+pod+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+") fill(null)";
 		}
 		InfluxdbClient influxdbClient = new InfluxdbClient(cluster);
 		String influxServer = influxdbClient.getInfluxServer() + "?db="+influxdbClient.getDbName();
