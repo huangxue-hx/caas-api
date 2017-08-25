@@ -13,7 +13,7 @@ public class ContainerImage {
 
 	private List<String> names;
 	
-	private Integer sizeBytes;
+	private Long sizeBytes;
 
 	public List<String> getNames() {
 		return names;
@@ -23,11 +23,11 @@ public class ContainerImage {
 		this.names = names;
 	}
 
-	public Integer getSizeBytes() {
+	public Long getSizeBytes() {
 		return sizeBytes;
 	}
 
-	public void setSizeBytes(Integer sizeBytes) {
+	public void setSizeBytes(Long sizeBytes) {
 		this.sizeBytes = sizeBytes;
 	}
 	
