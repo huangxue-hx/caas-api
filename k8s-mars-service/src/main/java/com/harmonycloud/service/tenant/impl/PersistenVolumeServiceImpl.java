@@ -85,7 +85,7 @@ public class PersistenVolumeServiceImpl implements PersistentVolumeService{
         Map<String, Object> cap = new HashMap<>();
         cap.put(CommonConstant.STORAGE, persistentVolumedto.getCapacity() + "Mi");
         spec.setCapacity(cap);
-        spec.setPersistentVolumeReclaimPolicy(CommonConstant.RECYCLE);
+//        spec.setPersistentVolumeReclaimPolicy(CommonConstant.RECYCLE);
         NFSVolumeSource nfs = new NFSVolumeSource();
         // 设置nfs地址
         nfs.setPath(persistentVolumedto.getPath()+"/"+persistentVolumedto.getName());
