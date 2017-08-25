@@ -51,9 +51,9 @@ podTemplate(
     serviceAccount: '',
     volumes: [
     <#list stageList as tmpStage><#if tmpStage.stageTemplateType == 1 && tmpStage.dockerfileType ==2>
-        configMapVolume(configMapName: '${tmpStage.dockerfileId}', mountPath: '/opt/dockerfile')</#if></#list><#if (stage.dependences?size>0)>,</#if>
+    configMapVolume(configMapName: '${tmpStage.dockerfileId}', mountPath: '/opt/dockerfile')<#if (stage.dependences?size>0)>,</#if></#if></#list>
     <#list stage.dependences as dependence>
-        nfsVolume(mountPath: '${dependence.mountPath!}', readOnly: true, serverAddress: '${dependence.server!}', serverPath: '${dependence.serverPath!}')<#if dependence_has_next>,</#if>
+        nfsVolume(mountPath: '${dependence.mountPath!}', readOnly: false, serverAddress: '${dependence.server!}', serverPath: '${dependence.serverPath!}')<#if dependence_has_next>,</#if>
     </#list>
         //nfsVolume(mountPath: '/root/.m2', readOnly: false, serverAddress: '10.10.101.147', serverPath: '/nfs/m2-pv'),
         //nfsVolume(mountPath: '/var/lib/docker', readOnly: false, serverAddress: '10.10.101.147', serverPath: '/nfs/docker')
