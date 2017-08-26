@@ -2,6 +2,7 @@ package com.harmonycloud.service.platform.service.ci;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.ci.bean.Job;
+import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.cicd.JobDto;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -57,4 +58,6 @@ public interface JobService {
     ActionReturnUtil getLastBuildLog(Integer id);
 
     void getJobListWS(WebSocketSession session, String tenant);
+
+    void destroyCicdPod(Cluster cluster);
 }

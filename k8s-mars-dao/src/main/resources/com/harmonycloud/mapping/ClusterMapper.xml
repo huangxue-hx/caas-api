@@ -69,4 +69,12 @@
 	WHERE host=#{host}
 	</select>
 
+    <select id="findClusterByTenantId" resultMap="clusterMap">
+        select c.id,c.name,c.host,c.protocol,c.auth_type,c.username,c.password,c.machine_token,c.port,c.entry_point,c.haproxy_version,c.influxdb_url,c.influxdb_db,c.influxdb_version,c.es_host,c.es_port,c.es_cluster_name,c.es_version,c.create_time
+        from cluster c
+        join tenant_binding on c.id=tenant_binding.cluster_id
+        WHERE tenant_binding.tenant_id=#{tenantId}
+    </select>
+
+
 </mapper>

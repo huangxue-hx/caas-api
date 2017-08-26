@@ -223,4 +223,6 @@ public class CommonConstant {
     public static final String CONFIG_TYPE_FILE = "file";
     
     public static final Integer ES_SHARDS = 5;
+
+    public static final String CICD_NAMESPACE = "default";
 }

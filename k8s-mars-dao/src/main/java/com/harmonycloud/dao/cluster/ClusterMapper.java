@@ -40,4 +40,6 @@ public interface ClusterMapper {
 	 * @return
 	 */
 	List<Cluster> listClusters();
+
+    Cluster findClusterByTenantId(String tenantId);
 }

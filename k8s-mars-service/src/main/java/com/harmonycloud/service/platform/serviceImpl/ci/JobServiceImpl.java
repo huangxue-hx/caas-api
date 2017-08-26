@@ -1,10 +1,13 @@
 package com.harmonycloud.service.platform.serviceImpl.ci;
 
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.StageTemplateTypeEnum;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.ci.*;
 import com.harmonycloud.dao.ci.bean.*;
+import com.harmonycloud.dao.ci.bean.Job;
+import com.harmonycloud.dao.cluster.ClusterMapper;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.business.CreateConfigMapDto;
 import com.harmonycloud.dto.business.CreateEnvDto;
@@ -12,14 +15,14 @@ import com.harmonycloud.dto.business.CreatePortDto;
 import com.harmonycloud.dto.business.CreateResourceDto;
 import com.harmonycloud.dto.cicd.JobDto;
 import com.harmonycloud.dto.cicd.StageDto;
-import com.harmonycloud.k8s.bean.ConfigMap;
-import com.harmonycloud.k8s.bean.ContainerPort;
-import com.harmonycloud.k8s.bean.Deployment;
-import com.harmonycloud.k8s.bean.EnvVar;
+import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
+import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.BusinessDeployService;
 import com.harmonycloud.service.application.ConfigMapService;
 import com.harmonycloud.service.application.DeploymentsService;
@@ -31,7 +34,6 @@ import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.platform.service.ci.StageService;
-import com.harmonycloud.service.platform.socket.SystemWebSocketHandler;
 import com.harmonycloud.service.tenant.TenantService;
 import net.sf.json.JSONArray;
 import org.apache.commons.lang.StringUtils;
@@ -49,7 +51,6 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.yaml.snakeyaml.Yaml;
 
-import javax.annotation.Resource;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeUtility;
 import javax.servlet.http.HttpServletRequest;
@@ -69,9 +70,6 @@ import java.util.*;
 public class JobServiceImpl implements JobService {
 
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(JobServiceImpl.class);
-
-    @Resource
-    SystemWebSocketHandler systemWebSocketHandler;
 
     @Autowired
     HarborClient harborClient;
@@ -124,6 +122,9 @@ public class JobServiceImpl implements JobService {
 
     @Autowired
     BuildEnvironmentMapper buildEnvironmentMapper;
+
+    @Autowired
+    ClusterMapper clusterMapper;
 
     @Value("#{propertiesReader['web.url']}")
     private String webUrl;
@@ -863,12 +864,14 @@ public class JobServiceImpl implements JobService {
         Runnable worker = new Runnable() {
             @Override
             public void run() {
+                Job job = jobMapper.queryById(id);
+                Cluster cluster = clusterMapper.findClusterByTenantId(job.getTenantId());
+                destroyCicdPod(cluster);
                 JobBuild jobbuild = new JobBuild();
                 jobbuild.setJobId(id);
                 jobbuild.setBuildNum(buildNum);
                 List<JobBuild> jobBuildList = jobBuildMapper.queryByObject(jobbuild);
                 if(jobBuildList == null || jobBuildList.size() == 0){
-                    Job job = jobMapper.queryById(id);
                     String jenkinsJobName = job.getTenant()+"_"+job.getName();
                     Map params = new HashMap<>();
                     params.put("tree","number,timestamp");
@@ -954,9 +957,6 @@ public class JobServiceImpl implements JobService {
                             }
                         }
                     }
-
-
-
                 }
             }
         };
@@ -1471,6 +1471,51 @@ public class JobServiceImpl implements JobService {
                 }
             } catch (IOException e) {
                 logger.error("websocket close error", e);
+            }
+        }
+    }
+
+    @Override
+    public void destroyCicdPod(Cluster cluster) {
+        List jenkinsPodList = new ArrayList<>();
+        ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/computer/api/json", null, null, false);
+        if(result.isSuccess()){
+            Map dataMap = JsonUtil.convertJsonToMap((String)result.get("data"));
+            List<Map> computerList = new ArrayList<>();
+            if(dataMap.get("computer") instanceof List){
+                computerList.addAll((List<Map>)dataMap.get("computer"));
+            }else{
+                computerList.add((Map)dataMap.get("computer"));
+            }
+            for(Map computer : computerList){
+                if(StringUtils.contains((String)computer.get("_class"), "kubernetes")){
+                    jenkinsPodList.add(computer.get("displayName"));
+                }
+            }
+        }
+
+        K8SURL k8SURL = new K8SURL();
+        k8SURL.setResource(Resource.POD);
+        k8SURL.setNamespace(CommonConstant.CICD_NAMESPACE);
+        Map<String, Object> labels = new HashMap<>();
+        labels.put("labelSelector", "jenkins=slave");
+        List<Cluster> clusterList = new ArrayList<>();
+        if(cluster == null){
+            clusterList = clusterMapper.listClusters();
+        }else{
+            clusterList.add(cluster);
+        }
+        for(Cluster c : clusterList){
+            K8SClientResponse response = new K8sMachineClient().exec(k8SURL, HTTPMethod.GET, null, labels, c);
+            if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                PodList podList = JsonUtil.jsonToPojo(response.getBody(), PodList.class);
+                for (Pod pod : podList.getItems()) {
+                    System.out.println(pod.getStatus().getPhase());
+                    if(!jenkinsPodList.contains(pod.getMetadata().getName()) && !"Running".equals(pod.getStatus())){
+                        k8SURL.setName(pod.getMetadata().getName());
+                        new K8sMachineClient().exec(k8SURL, HTTPMethod.DELETE, null, null, c);
+                    }
+                }
             }
         }
     }

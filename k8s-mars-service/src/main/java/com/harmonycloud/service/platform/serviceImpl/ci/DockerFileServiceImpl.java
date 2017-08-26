@@ -2,6 +2,7 @@ package com.harmonycloud.service.platform.serviceImpl.ci;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
@@ -12,7 +13,6 @@ import com.harmonycloud.dao.ci.bean.DockerFilePage;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.cicd.DockerFileDto;
 import com.harmonycloud.k8s.bean.UnversionedStatus;
-import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
@@ -110,10 +110,10 @@ public class DockerFileServiceImpl implements DockerFileService {
 
     private ActionReturnUtil createConfigMap(DockerFile dockerFile) throws Exception{
         K8SURL url = new K8SURL();
-        url.setNamespace("default").setResource(Resource.CONFIGMAP);
+        url.setNamespace(CommonConstant.CICD_NAMESPACE).setResource(Resource.CONFIGMAP);
         Map<String, Object> bodys = new HashMap<String, Object>();
         Map<String, Object> meta = new HashMap<String, Object>();
-        meta.put("namespace", "default");
+        meta.put("namespace", CommonConstant.CICD_NAMESPACE);
         meta.put("name", String.valueOf(dockerFile.getId()));
         bodys.put("metadata", meta);
         Map<String, Object> data = new HashMap<String, Object>();
@@ -132,10 +132,10 @@ public class DockerFileServiceImpl implements DockerFileService {
 
     private ActionReturnUtil updateConfigMap(DockerFile dockerFile) throws Exception{
         K8SURL url = new K8SURL();
-        url.setNamespace("default").setResource(Resource.CONFIGMAP).setName(String.valueOf(dockerFile.getId()));
+        url.setNamespace(CommonConstant.CICD_NAMESPACE).setResource(Resource.CONFIGMAP).setName(String.valueOf(dockerFile.getId()));
         Map<String, Object> bodys = new HashMap<String, Object>();
         Map<String, Object> meta = new HashMap<String, Object>();
-        meta.put("namespace", "default");
+        meta.put("namespace", CommonConstant.CICD_NAMESPACE);
         meta.put("name", String.valueOf(dockerFile.getId()));
         bodys.put("metadata", meta);
         Map<String, Object> data = new HashMap<String, Object>();
@@ -154,10 +154,10 @@ public class DockerFileServiceImpl implements DockerFileService {
 
     private ActionReturnUtil deleteConfigMap(DockerFile dockerFile) throws Exception{
         K8SURL url = new K8SURL();
-        url.setNamespace("default").setResource(Resource.CONFIGMAP).setName(String.valueOf(dockerFile.getId()));
+        url.setNamespace(CommonConstant.CICD_NAMESPACE).setResource(Resource.CONFIGMAP).setName(String.valueOf(dockerFile.getId()));
         Map<String, Object> bodys = new HashMap<String, Object>();
         Map<String, Object> meta = new HashMap<String, Object>();
-        meta.put("namespace", "default");
+        meta.put("namespace", CommonConstant.CICD_NAMESPACE);
         meta.put("name", String.valueOf(dockerFile.getId()));
         bodys.put("metadata", meta);
         Map<String, Object> headers = new HashMap<String, Object>();
