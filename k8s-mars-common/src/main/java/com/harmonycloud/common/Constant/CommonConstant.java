@@ -218,6 +218,8 @@ public class CommonConstant {
     public static final String LDAP_PASSWORD = "ldap_password";
     public static final String LDAP_IS_ON = "ldap_is_on";
     public static final String CONFIG_TYPE_LDAP = "ldap";
+
+    public static final String TRIAL_TIME = "trial_time";
     
     public static final String FILE_MAX_SIZE = "file_maxsize";
     public static final String CONFIG_TYPE_FILE = "file";
