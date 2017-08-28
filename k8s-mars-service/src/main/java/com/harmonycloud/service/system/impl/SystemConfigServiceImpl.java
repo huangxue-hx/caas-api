@@ -194,4 +194,9 @@ public class SystemConfigServiceImpl implements SystemConfigService {
         }
         return ldapConfigDto;
     }
+
+    @Override
+    public SystemConfig findByConfigName(String configName) {
+        return this.systemConfigMapper.findByConfigName(configName);
+    }
 }

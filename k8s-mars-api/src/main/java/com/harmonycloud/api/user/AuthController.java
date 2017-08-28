@@ -10,6 +10,7 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
+import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dao.tenant.bean.UserTenant;
 
 import com.harmonycloud.dto.user.LdapConfigDto;
@@ -94,6 +95,13 @@ public class AuthController {
     @ResponseBody
     @RequestMapping(value = "/login",method = RequestMethod.POST)
     public ActionReturnUtil Login(@RequestParam(value = "username") final String username, @RequestParam(value = "password") final String password) throws Exception {
+        SystemConfig trialConfig = this.systemConfigService.findByConfigName(CommonConstant.TRIAL_TIME);
+        if(trialConfig != null) {
+            int v = Integer.parseInt(trialConfig.getConfigValue());
+            if (v <= 0) {
+                return ActionReturnUtil.returnErrorWithMsg("试用已结束，请联系管理员");
+            }
+        }
         LdapConfigDto ldapConfigDto = this.systemConfigService.findByConfigType(CommonConstant.CONFIG_TYPE_LDAP);
         String res = null;
         if(ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1) {

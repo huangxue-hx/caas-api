@@ -19,4 +19,6 @@ public interface SystemConfigService {
     void addLdapConfig(LdapConfigDto ldapConfigDto);
 
     LdapConfigDto findByConfigType(String configType);
+
+    SystemConfig findByConfigName(String configName);
 }
