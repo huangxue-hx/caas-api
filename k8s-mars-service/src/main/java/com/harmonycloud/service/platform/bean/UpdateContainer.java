@@ -9,9 +9,10 @@ import com.harmonycloud.dto.business.CreateConfigMapDto;
 import com.harmonycloud.dto.business.CreateEnvDto;
 import com.harmonycloud.dto.business.CreatePortDto;
 import com.harmonycloud.dto.business.CreateResourceDto;
+import com.harmonycloud.dto.business.SecurityContextDto;
 import com.harmonycloud.k8s.bean.Probe;
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class UpdateContainer implements Serializable {
+public class UpdateContainer{
 
 	private String name;
 
@@ -40,6 +41,8 @@ public class UpdateContainer implements Serializable {
 	private List<CreateEnvDto> env;
 
 	private List<UpdateVolume> storage;
+	
+	private SecurityContextDto securityContext;
 
 	public String getName() {
 		return name;
@@ -160,6 +163,14 @@ public class UpdateContainer implements Serializable {
 
 	public void setStorage(List<UpdateVolume> storage) {
 		this.storage = storage;
+	}
+
+	public SecurityContextDto getSecurityContext() {
+		return securityContext;
+	}
+
+	public void setSecurityContext(SecurityContextDto securityContext) {
+		this.securityContext = securityContext;
 	}
 
 

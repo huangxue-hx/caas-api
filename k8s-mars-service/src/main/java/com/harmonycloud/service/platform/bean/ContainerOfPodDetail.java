@@ -3,9 +3,11 @@ package com.harmonycloud.service.platform.bean;
 import java.util.List;
 import java.util.Map;
 
+import com.harmonycloud.dto.business.SecurityContextDto;
 import com.harmonycloud.k8s.bean.ContainerPort;
 import com.harmonycloud.k8s.bean.EnvVar;
 import com.harmonycloud.k8s.bean.Probe;
+import com.harmonycloud.k8s.bean.SecurityContext;
 
 public class ContainerOfPodDetail {
 	
@@ -34,6 +36,8 @@ public class ContainerOfPodDetail {
 	private Map<String, Object> configmap;
 	
 	private String restartCount;
+	
+	private SecurityContextDto securityContext;
 
 	public ContainerOfPodDetail() {
 		
@@ -153,6 +157,14 @@ public class ContainerOfPodDetail {
 
 	public void setRestartCount(String restartCount) {
 		this.restartCount = restartCount;
+	}
+
+	public SecurityContextDto getSecurityContext() {
+		return securityContext;
+	}
+
+	public void setSecurityContext(SecurityContextDto securityContext) {
+		this.securityContext = securityContext;
 	}
 
 }

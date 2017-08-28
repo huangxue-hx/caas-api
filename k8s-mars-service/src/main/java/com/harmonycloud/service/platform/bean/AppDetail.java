@@ -52,6 +52,10 @@ public class AppDetail {
 	private String restartPolicy;
 	
 	private List<Event> autoScalingHistory;
+	
+	private boolean hostIPC;
+	
+	private boolean hostPID;
 
 	public String getClusterIP() {
 		return clusterIP;
@@ -211,5 +215,21 @@ public class AppDetail {
 
 	public void setRestartPolicy(String restartPolicy) {
 		this.restartPolicy = restartPolicy;
+	}
+
+	public boolean isHostIPC() {
+		return hostIPC;
+	}
+
+	public void setHostIPC(boolean hostIPC) {
+		this.hostIPC = hostIPC;
+	}
+
+	public boolean isHostPID() {
+		return hostPID;
+	}
+
+	public void setHostPID(boolean hostPID) {
+		this.hostPID = hostPID;
 	}
 }

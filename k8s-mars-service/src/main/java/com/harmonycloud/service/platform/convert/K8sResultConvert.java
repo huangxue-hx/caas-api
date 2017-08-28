@@ -39,6 +39,8 @@ public class K8sResultConvert {
 		appDetail.setOwner(meta.getLabels().get("nephele/user").toString());
 		appDetail.setHostName(dep.getSpec().getTemplate().getSpec().getHostname());
 		appDetail.setRestartPolicy(dep.getSpec().getTemplate().getSpec().getRestartPolicy());
+		appDetail.setHostIPC(dep.getSpec().getTemplate().getSpec().isHostIPC());
+		appDetail.setHostPID(dep.getSpec().getTemplate().getSpec().isHostPID());
 		Map<String, Object> labels = new HashMap<String, Object>();
 		for (Map.Entry<String, Object> m : meta.getLabels().entrySet()) {
 			if (m.getKey().indexOf("nephele/") > 0) {
@@ -283,6 +285,29 @@ public class K8sResultConvert {
 						ct.getLivenessProbe(), ct.getReadinessProbe(), ct.getPorts(), ct.getArgs(), ct.getEnv(),
 						ct.getCommand());
 				cOfPodDetail.setDeploymentName(deployment.getMetadata().getName());
+				//SecurityContext
+				if(ct.getSecurityContext() != null){
+					SecurityContextDto newsc = new SecurityContextDto();
+					SecurityContext sc = ct.getSecurityContext();
+					boolean flag = false;
+					newsc.setPrivileged(sc.isPrivileged());
+					if(sc.isPrivileged()){
+						flag = true;
+					}
+					if(sc.getCapabilities() != null){
+						if(sc.getCapabilities().getAdd() != null && sc.getCapabilities().getAdd().size() > 0 ){
+							flag = true;
+							newsc.setAdd(sc.getCapabilities().getAdd());
+						}
+						if(sc.getCapabilities().getDrop() != null && sc.getCapabilities().getDrop().size() > 0 ){
+							flag = true;
+							newsc.setDrop(sc.getCapabilities().getDrop());
+						}
+					}
+					newsc.setSecurity(flag);
+					cOfPodDetail.setSecurityContext(newsc);
+					
+				}
 				if (ct.getResources().getLimits() != null) {
 					String pattern = ".*m.*";
 					Pattern r = Pattern.compile(pattern);
@@ -466,6 +491,21 @@ public class K8sResultConvert {
 		if (!containers.isEmpty()) {
 			for (CreateContainerDto c : containers) {
 				Container container = new Container();
+				if(c.getSecurityContext() != null  && c.getSecurityContext().isSecurity()){
+					SecurityContext securityContext = new SecurityContext();
+					if(c.getSecurityContext().isPrivileged() == true){
+						securityContext.setPrivileged(c.getSecurityContext().isPrivileged());
+					}
+					Capabilities capabilities = new Capabilities();
+					if(c.getSecurityContext().getAdd() != null && c.getSecurityContext().getAdd().size() > 0){
+						capabilities.setAdd(c.getSecurityContext().getAdd());
+					}
+					if(c.getSecurityContext().getDrop() != null && c.getSecurityContext().getDrop().size() > 0){
+						capabilities.setDrop(c.getSecurityContext().getDrop());
+					}
+					securityContext.setCapabilities(capabilities);
+					container.setSecurityContext(securityContext);
+				}
 				container.setName(c.getName());
 				if (StringUtils.isEmpty(c.getTag())) {
 					container.setImage(c.getImg());
@@ -766,6 +806,9 @@ public class K8sResultConvert {
             }
         }
         podSpec.setNodeSelector(nodeselector);
+        //hostIPC hostPID
+        podSpec.setHostIPC(detail.isHostIPC());
+        podSpec.setHostPID(detail.isHostPID());
         List<LocalObjectReference> imagePullSecrets = new ArrayList<>();
         LocalObjectReference e = new LocalObjectReference();
         e.setName(userName+"-secret");

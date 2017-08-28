@@ -38,6 +38,8 @@ public class CreateContainerDto implements Serializable{
 	private List<CreateEnvDto> env;
 	
 	private List<CreateVolumeDto> storage;
+	
+	private SecurityContextDto securityContext;
 
 	public String getName() {
 		return name;
@@ -135,22 +137,20 @@ public class CreateContainerDto implements Serializable{
 		this.readinessProbe = readinessProbe;
 	}
 
-
-
-
-
 	public List<CreateConfigMapDto> getConfigmap() {
 		return configmap;
 	}
 
-
-
-
-
 	public void setConfigmap(List<CreateConfigMapDto> configmap) {
 		this.configmap = configmap;
 	}
-	
-	
+
+	public SecurityContextDto getSecurityContext() {
+		return securityContext;
+	}
+
+	public void setSecurityContext(SecurityContextDto securityContext) {
+		this.securityContext = securityContext;
+	}	
 
 }
