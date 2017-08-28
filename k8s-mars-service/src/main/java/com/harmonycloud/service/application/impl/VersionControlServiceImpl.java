@@ -1061,6 +1061,21 @@ public class VersionControlServiceImpl implements VersionControlService {
         for (UpdateContainer cc : newContainers) {//cc是新的
             //拿到需要修改的container,设置成修改后的参数
             Container container = new Container();
+            if(cc.getSecurityContext() != null  && cc.getSecurityContext().isSecurity()){
+				SecurityContext securityContext = new SecurityContext();
+				if(cc.getSecurityContext().isPrivileged() == true){
+					securityContext.setPrivileged(cc.getSecurityContext().isPrivileged());
+				}
+				Capabilities capabilities = new Capabilities();
+				if(cc.getSecurityContext().getAdd() != null && cc.getSecurityContext().getAdd().size() > 0){
+					capabilities.setAdd(cc.getSecurityContext().getAdd());
+				}
+				if(cc.getSecurityContext().getDrop() != null && cc.getSecurityContext().getDrop().size() > 0){
+					capabilities.setDrop(cc.getSecurityContext().getDrop());
+				}
+				securityContext.setCapabilities(capabilities);
+				container.setSecurityContext(securityContext);
+			}
             container.setName(cc.getName());
             //set image
             String[] hou;

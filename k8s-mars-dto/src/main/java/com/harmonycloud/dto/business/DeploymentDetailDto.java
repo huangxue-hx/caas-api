@@ -29,6 +29,10 @@ public class DeploymentDetailDto {
 	private String logService;
 
 	private String logPath;
+	
+	private boolean hostIPC;
+	
+	private boolean hostPID;
 
 	public String getNamespace() {
 		return namespace;
@@ -132,6 +136,22 @@ public class DeploymentDetailDto {
 
 	public void setRestartPolicy(String restartPolicy) {
 		this.restartPolicy = restartPolicy;
+	}
+
+	public boolean isHostIPC() {
+		return hostIPC;
+	}
+
+	public void setHostIPC(boolean hostIPC) {
+		this.hostIPC = hostIPC;
+	}
+
+	public boolean isHostPID() {
+		return hostPID;
+	}
+
+	public void setHostPID(boolean hostPID) {
+		this.hostPID = hostPID;
 	}
 
 }
