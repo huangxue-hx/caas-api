@@ -210,6 +210,18 @@ public class UserController {
     }
 
     /**
+     * 重置用户密码后发送邮箱
+     *
+     * @param userName
+     * @return
+     * @throws Exception
+     */
+    @ResponseBody
+    @RequestMapping(value = "/user/userResetSendEmail", method = RequestMethod.PUT)
+    public ActionReturnUtil userReset(@RequestParam(value = "userName") final String userName) throws Exception {
+        return userService.sendEmail(userName);
+    }
+    /**
      * 删除用户
      * 
      * @param userName
