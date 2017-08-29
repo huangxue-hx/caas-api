@@ -19,7 +19,7 @@ public class Constant {
 
 	public final static String SERVICE_STARTING = "starting";
 	
-	public final static String JOB_SUCCEEDED = "succeeded";
+	public final static String JOB_SUCCEED = "succeed";
 	
 	public final static String JOB_FAILED = "failed";
 	

@@ -144,7 +144,7 @@ public class JobsServiceImpl implements JobsService{
     				}else if(Constant.RUNNING.equals(status) && Constant.RUNNING.equals(sta)){
     					//运行
     					array.add(json);
-    				}else if(Constant.JOB_SUCCEEDED.equals(status) && Constant.JOB_SUCCEEDED.equals(sta)){
+    				}else if(Constant.JOB_SUCCEED.equals(status) && Constant.JOB_SUCCEED.equals(sta)){
     					//成功
     					array.add(json);
     				}else if(Constant.JOB_FAILED.equals(status) && Constant.JOB_FAILED.equals(sta)){
@@ -508,6 +508,9 @@ public class JobsServiceImpl implements JobsService{
     		paramboo = false;
     		sb.append("分区、");
     	}
+		int restart = 0;
+		int succeed = 0;
+		int failed = 0;
     	if(paramboo){
     		//根据name、namespace获取job
     		K8SClientResponse jobRes = jobService.getJob(namespace, name, null, cluster);
@@ -548,13 +551,45 @@ public class JobsServiceImpl implements JobsService{
     			if(!delRes.isSuccess()){
     				return delRes;
     			}
+				String sta = getJobDetail(job);
+				//获取重启次数
+				restart++;
     			//更改状态
     			if(job.getMetadata().getAnnotations() != null){
     				Map<String, Object> anno = (Map<String, Object>) job.getMetadata().getAnnotations();
-						anno.put("nephele/status", Constant.STARTING);
-						job.getMetadata().setAnnotations(anno);
+					if(job.getMetadata().getAnnotations().containsKey("nephele/restart")){
+						restart = Integer.parseInt(job.getMetadata().getAnnotations().get("nephele/restart").toString());
+					}
+					if(job.getMetadata().getAnnotations().containsKey("nephele/succeed")){
+						succeed = Integer.parseInt(job.getMetadata().getAnnotations().get("nephele/succeed").toString());
+					}
+					if(job.getMetadata().getAnnotations().containsKey("nephele/failed")){
+						failed = Integer.parseInt(job.getMetadata().getAnnotations().get("nephele/failed").toString());
+					}
+					if(Constant.JOB_SUCCEED.equals(sta)){
+						//成功次数
+						succeed++;
+					}else{
+						//失败次数
+						failed++;
+					}
+					anno.put("nephele/status", Constant.STARTING);
+					anno.put("nephele/restart", restart);
+					anno.put("nephele/succeed", succeed);
+					anno.put("nephele/failed", failed);
+					job.getMetadata().setAnnotations(anno);
     			}else{
     				Map<String, Object> anno = new HashMap<String, Object>();
+					if(Constant.JOB_SUCCEED.equals(sta)){
+						//成功次数
+						succeed++;
+					}else{
+						//失败次数
+						failed++;
+					}
+					anno.put("nephele/restart", restart);
+					anno.put("nephele/succeed", succeed);
+					anno.put("nephele/failed", failed);
     				anno.put("nephele/user", userName);
     				anno.put("nephele/status", Constant.STARTING);
     				anno.put("nephele/parallelism", job.getSpec().getParallelism());
@@ -763,7 +798,7 @@ public class JobsServiceImpl implements JobsService{
 			switch (Integer.valueOf(status)) {
 			case 3:
 				if (job.getStatus().getSucceeded() != null&&job.getStatus().getSucceeded() > 0) {
-					status = Constant.JOB_SUCCEEDED;
+					status = Constant.JOB_SUCCEED;
 				} else if (job.getStatus().getActive() != null && job.getStatus().getActive() >0){
 					status = Constant.RUNNING;
 				}else if(job.getStatus().getFailed() != null && job.getStatus().getFailed() >0){
@@ -782,7 +817,7 @@ public class JobsServiceImpl implements JobsService{
 				break;
 			default:
 				if (job.getStatus().getSucceeded() != null&&job.getStatus().getSucceeded() > 0) {
-					status = Constant.JOB_SUCCEEDED;
+					status = Constant.JOB_SUCCEED;
 				} else if (job.getStatus().getActive() != null && job.getStatus().getActive() >0){
 					status = Constant.RUNNING;
 				}else if(job.getStatus().getFailed() != null && job.getStatus().getFailed() >0){
@@ -792,7 +827,7 @@ public class JobsServiceImpl implements JobsService{
 			}
 		} else {
 			if (job.getStatus().getSucceeded() != null&&job.getStatus().getSucceeded() > 0) {
-				status = Constant.JOB_SUCCEEDED;
+				status = Constant.JOB_SUCCEED;
 			} else if (job.getStatus().getActive() != null && job.getStatus().getActive() >0){
 				status = Constant.RUNNING;
 			}else if(job.getStatus().getFailed() != null && job.getStatus().getFailed() >0){
