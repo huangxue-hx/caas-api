@@ -1,13 +1,16 @@
 package com.harmonycloud.k8s.service;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
+import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpK8SClientUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.Job;
 import com.harmonycloud.k8s.bean.Pod;
 import com.harmonycloud.k8s.bean.PodList;
 import com.harmonycloud.k8s.bean.UnversionedStatus;
@@ -220,6 +223,55 @@ public class PodService {
 			e.printStackTrace();
 		}
 		return null;
+	}
+	
+	/**
+	 * 创建Pod
+	 * @param pod 
+	 * @param cluster
+	 * @return Job
+	 */
+	public ActionReturnUtil addPod(String namespace, Pod pod, Cluster cluster) throws Exception {
+		K8SURL url = new K8SURL();
+		url.setNamespace(namespace).setResource(Resource.POD);
+		Map<String, Object> bodys = new HashMap<>();
+		bodys.put("metadata", pod.getMetadata());
+		bodys.put("kind", pod.getKind());
+		bodys.put("spec", pod.getSpec());
+		Map<String, Object> headers = new HashMap<>();
+		headers.put("Content-Type", "application/json");
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST,headers,bodys,cluster);
+		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+			UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(us.getMessage());
+        }
+		return ActionReturnUtil.returnSuccess();
+	}
+	
+	/**
+	 * getPod
+	 * @param name 
+	 * @param cluster
+	 * @return Job
+	 */
+	public K8SClientResponse getPod(String namespace, String name, Cluster cluster) throws Exception {
+		K8SURL url = new K8SURL();
+		url.setNamespace(namespace).setResource(Resource.POD).setName(name);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,null,cluster);
+		return response;
+	}
+	
+	/**
+	 * 删除Pod
+	 * @param name 
+	 * @param cluster
+	 * @return Job
+	 */
+	public K8SClientResponse deletePod(String namespace, String name, Cluster cluster) throws Exception {
+		K8SURL url = new K8SURL();
+		url.setNamespace(namespace).setResource(Resource.POD).setName(name);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE,null,null,cluster);
+		return response;
 	}
 	
 }

@@ -800,7 +800,7 @@ public class VersionControlServiceImpl implements VersionControlService {
         Map<String, String> containerToConfigmapMap = new HashedMap();
         List<UpdateContainer> containers = detail.getContainers();
         List<ConfigMap> cms = new ArrayList<ConfigMap>();
-        if (!containers.isEmpty()) {
+        if (containers != null && !containers.isEmpty()) {
             for (UpdateContainer c : containers) {
 
                 List<CreateConfigMapDto> configMaps = c.getConfigmap();
@@ -1112,7 +1112,7 @@ public class VersionControlServiceImpl implements VersionControlService {
                     container.setResources(rr);
                 }
             }
-            if (!cc.getPorts().isEmpty()) { //如果端口有更新
+            if (cc.getPorts() != null && !cc.getPorts().isEmpty()) { //如果端口有更新
                 List<ContainerPort> ps = new ArrayList<ContainerPort>();
 
                 for (CreatePortDto p : cc.getPorts()) {

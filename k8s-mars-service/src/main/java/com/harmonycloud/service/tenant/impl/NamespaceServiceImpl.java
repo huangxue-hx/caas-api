@@ -653,7 +653,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         if (privatePartition) {
             // 获取当前私有分区node
             List<String> availableNodeList = nodeService.getPrivateNamespaceNodeList(namespace, cluster);
-            if (availableNodeList.isEmpty()) {
+            if (availableNodeList != null && availableNodeList.isEmpty()) {
                 return ActionReturnUtil.returnErrorWithMsg("警告：已经删除当前分区，但是当前分区为私有分区，所属独占节点属性被修改，导致独占节点不存在，请不要随意更改节点私有属性，以免发生冲突，如果在接下来的操作中遇到其它问题，请联系管理员!");
             }
             Map<String, Map<String, String>> oldStatusLabels = new HashMap<String, Map<String, String>>();
@@ -702,7 +702,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         }
         Map<String, Object> tenantBinding = new HashMap<>();
         List<Map<String, Object>> tenantData = (List<Map<String, Object>>) tenantBindingResult.get(CommonConstant.DATA);
-        if (!tenantData.isEmpty() && !tenantname.equals(tenantData.get(0).get(CommonConstant.NAME))) {
+        if (tenantData != null && !tenantData.isEmpty() && !tenantname.equals(tenantData.get(0).get(CommonConstant.NAME))) {
             logger.error("查询租户绑定信息失败,tenantId=" + tenantid);
             return ActionReturnUtil.returnSuccessWithMsg("租户tenantId=" + tenantid + "与租户名=tenantname" + tenantname + "不一致");
         }
@@ -714,7 +714,7 @@ public class NamespaceServiceImpl implements NamespaceService {
             return listResult;
         }
         NamespaceList list = (NamespaceList) listResult.get(CommonConstant.DATA);
-        if (list.getItems().isEmpty()) {
+        if (list.getItems() != null && list.getItems().isEmpty()) {
             return ActionReturnUtil.returnSuccessWithData(null);
         }
 

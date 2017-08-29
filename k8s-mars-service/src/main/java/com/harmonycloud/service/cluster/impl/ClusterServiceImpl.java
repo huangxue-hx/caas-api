@@ -122,7 +122,7 @@ public class ClusterServiceImpl implements ClusterService {
             List<Object> tenantlistR = new ArrayList<>();
             ActionReturnUtil tenantList = tenantService.tenantList(null,Integer.valueOf(map.get("id").toString()));
             List<Map<String, Object>> list = (List<Map<String, Object>>)tenantList.get(CommonConstant.DATA);
-            if(!list.isEmpty()||list.size() > 0){
+            if(list != null && !list.isEmpty()){
                 for (Map<String, Object> map2 : list) {
                     Map<String, Object> tenantQuota = tenantService.listTenantQuota(map2.get(CommonConstant.TENANTID).toString());
                     tenantlistR.add(tenantQuota);
@@ -166,7 +166,7 @@ public class ClusterServiceImpl implements ClusterService {
         List<Map> tenantlistR = new ArrayList<>();
         ActionReturnUtil tenantList = tenantService.tenantList(null,Integer.valueOf(clusterId));
         List<Map<String, Object>> list = (List<Map<String, Object>>)tenantList.get(CommonConstant.DATA);
-        if(!list.isEmpty()||list.size() > 0){
+        if(list != null && !list.isEmpty()){
             for (Map<String, Object> map2 : list) {
                 Map<String, Object> tenantQuota = tenantService.listTenantQuota(map2.get(CommonConstant.TENANTID).toString());
                 tenantlistR.add(tenantQuota);

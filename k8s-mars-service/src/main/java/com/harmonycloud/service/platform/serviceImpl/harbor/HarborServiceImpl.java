@@ -749,9 +749,9 @@ public class HarborServiceImpl implements HarborService {
         tagDetail.setVulnerabilityNum(0);
         if (tagDetail.getVulnerabilitySummary().get("vulnerability") != null) {
             Map<String, Object> vulMap = (Map<String, Object>) (tagDetail.getVulnerabilitySummary().get("vulnerability"));
-            if (!vulMap.isEmpty()) {
+            if (vulMap != null && !vulMap.isEmpty()) {
                 Map<String, Object> vulMapSec = (Map<String, Object>) (vulMap.get("vulnerability-suminfo"));
-                if (!vulMapSec.isEmpty()) {
+                if (vulMapSec != null && !vulMapSec.isEmpty()) {
                     tagDetail.setVulnerabilityNum((Integer) (vulMapSec.get("vulnerability-sum")));
                 }
             }

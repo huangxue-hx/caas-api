@@ -708,7 +708,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
 		List<CreateContainerDto> containers = detail.getContainers();
 		List<ConfigMap> cms = new ArrayList<ConfigMap>();
-		if (!containers.isEmpty()) {
+		if (containers != null && !containers.isEmpty()) {
 			for (CreateContainerDto c : containers) {
 				List<CreateConfigMapDto> configMaps = c.getConfigmap();
 				if (configMaps != null&&configMaps.size()>0) {

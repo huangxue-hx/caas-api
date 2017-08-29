@@ -160,7 +160,7 @@ public class TenantServiceImpl implements TenantService {
             exampleuser.createCriteria().andClusterIdEqualTo(clusterId);
         }
         listTenantBinding = tenantBindingMapper.selectByExample(exampleuser);
-        if (listTenantBinding.isEmpty() || listTenantBinding.size() <= 0) {
+        if (listTenantBinding != null && listTenantBinding.isEmpty()) {
             return ActionReturnUtil.returnSuccessWithData(data);
         }
 
@@ -548,7 +548,7 @@ public class TenantServiceImpl implements TenantService {
             return simpleNamespaceListByTenant;
         }
         NamespaceList list = (NamespaceList) simpleNamespaceListByTenant.get("data");
-        if (list.getItems().isEmpty()) {
+        if (list.getItems() != null && list.getItems().isEmpty()) {
             return ActionReturnUtil.returnSuccessWithData(CommonConstant.FALSE);
         }
         for (Namespace namespace : list.getItems()) {
@@ -1211,7 +1211,7 @@ public class TenantServiceImpl implements TenantService {
         double totalMemory = 0;
         ActionReturnUtil tenantList = this.tenantList(null, Integer.valueOf(clusterId));
         List<Map<String, Object>> list = (List<Map<String, Object>>) tenantList.get(CommonConstant.DATA);
-        if (!list.isEmpty() || list.size() > 0) {
+        if (list != null && !list.isEmpty()) {
             for (Map<String, Object> map2 : list) {
                 Map<String, Object> tenantQuota = this.listTenantQuota(map2.get(CommonConstant.TENANTID).toString());
                 List<Object> memory = (List<Object>) tenantQuota.get(CommonConstant.MEMORY);

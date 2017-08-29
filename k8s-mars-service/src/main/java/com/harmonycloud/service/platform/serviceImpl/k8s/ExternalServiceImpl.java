@@ -265,7 +265,7 @@ public class ExternalServiceImpl implements ExternalService {
         // item为实际service list的metadata，spec，status
         List<com.harmonycloud.k8s.bean.Service> services = svList.getItems();
         List<ExternalSvc> externalSvcs = new ArrayList<ExternalSvc>();
-        if (!services.isEmpty() || services.size() > 0) {
+        if (services != null && !services.isEmpty()) {
             for (int i = 0; i < services.size(); i++) {
                 ExternalSvc externalSvc = new ExternalSvc();
                 com.harmonycloud.k8s.bean.Service svc = services.get(i);
@@ -312,7 +312,7 @@ public class ExternalServiceImpl implements ExternalService {
         // item为实际service list的metadata，spec，status
         List<com.harmonycloud.k8s.bean.Service> services = svList.getItems();
         List<ExternalSvc> externalSvcs = new ArrayList<ExternalSvc>();
-        if (!services.isEmpty() || services.size() > 0) {
+        if (services != null && !services.isEmpty()) {
             for (int i = 0; i < services.size(); i++) {
                 Map<String, Object> label = services.get(i).getMetadata().getLabels();
                 ExternalSvc externalSvc = new ExternalSvc();
@@ -358,7 +358,7 @@ public class ExternalServiceImpl implements ExternalService {
         // item为实际service list的metadata，spec，status
         List<com.harmonycloud.k8s.bean.Service> services = svList.getItems();
         List<ExternalSvc> externalSvcs = new ArrayList<ExternalSvc>();
-        if (!services.isEmpty() || services.size() > 0) {
+        if (services != null && !services.isEmpty()) {
             for (int i = 0; i < services.size(); i++) {
                 String serviceName = services.get(i).getMetadata().getName();
                 ExternalSvc externalSvc = new ExternalSvc();

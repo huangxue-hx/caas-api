@@ -208,10 +208,9 @@ public class K8sResultConvert {
 		return res;
 	}
 
-	@SuppressWarnings("null")
 	public static String convertExpression(Deployment dep, String name) throws Exception {
 		Map<String, Object> selector = dep.getSpec().getSelector().getMatchLabels();
-		if (selector == null && selector.isEmpty()) {
+		if (selector == null || selector.isEmpty()) {
 			selector.put("app", name);
 		}
 
@@ -377,7 +376,7 @@ public class K8sResultConvert {
 	public static List<Map<String, Object>> convertAppList(DeploymentList depList) throws Exception {
 		List<Deployment> deps = depList.getItems();
 		List<Map<String, Object>> res = new ArrayList<Map<String, Object>>();
-		if (!deps.isEmpty()) {
+		if (deps != null && !deps.isEmpty()) {
 			for (int i = 0; i < deps.size(); i++) {
 				Deployment dep = deps.get(i);
 				Map<String, Object> tMap = new HashMap<String, Object>();
@@ -488,7 +487,7 @@ public class K8sResultConvert {
 		List<CreateContainerDto> containers = detail.getContainers();
 		List<Container> cs = new ArrayList<Container>();
 		List<Volume> volumes = new ArrayList<Volume>();
-		if (!containers.isEmpty()) {
+		if (containers != null && !containers.isEmpty()) {
 			for (CreateContainerDto c : containers) {
 				Container container = new Container();
 				if(c.getSecurityContext() != null  && c.getSecurityContext().isSecurity()){
@@ -902,7 +901,7 @@ public class K8sResultConvert {
 			ss.setClusterIP(detail.getClusterIP());
 		}
 		List<CreateContainerDto> containers = detail.getContainers();
-		if (!containers.isEmpty()) {
+		if (containers != null && !containers.isEmpty()) {
 			List<ServicePort> spList = new ArrayList<ServicePort>();
 			for (CreateContainerDto c : containers) {
 				 for (int i =0 ; i<c.getPorts().size();i++) {
@@ -944,7 +943,7 @@ public class K8sResultConvert {
 				res.put("memory", cc.getResource().getMemory());
 				container.getResources().setLimits(res);
 			}
-			if (!cc.getPorts().isEmpty()) {
+			if (cc.getPorts() != null && !cc.getPorts().isEmpty()) {
 				List<ContainerPort> ps = new ArrayList<ContainerPort>();
 				for (CreatePortDto p : cc.getPorts()) {
 					ContainerPort port = new ContainerPort();

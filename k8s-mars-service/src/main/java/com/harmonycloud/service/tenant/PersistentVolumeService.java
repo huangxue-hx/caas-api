@@ -1,14 +1,7 @@
 package com.harmonycloud.service.tenant;
 
-import java.util.List;
-import java.util.Map;
-
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.cluster.bean.Cluster;
-import com.harmonycloud.dao.network.bean.NamespceBindSubnet;
-import com.harmonycloud.dao.network.bean.NetworkCalico;
-import com.harmonycloud.dao.network.bean.NetworkTopology;
-import com.harmonycloud.dto.tenant.CreateNetwork;
 import com.harmonycloud.dto.tenant.PersistentVolumeDto;
 
 
@@ -75,5 +68,13 @@ public interface PersistentVolumeService {
      * @throws Exception
      */
     public ActionReturnUtil updatePvByName(String name,String capacity,Boolean readOnly,Boolean multiple) throws Exception;
+    
+    /**
+     * 根据name清空数据
+     * @param name
+     * @return
+     * @throws Exception
+     */
+    public ActionReturnUtil recyclePvByName(String name, Cluster cluster) throws Exception;
 
 }

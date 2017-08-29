@@ -312,7 +312,7 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 		fucExample.createCriteria().andNamespaceEqualTo(containerFileUpload.getNamespace())
 				.andDeploymentEqualTo(containerFileUpload.getDeployment()).andUserIdEqualTo(userId);
 		List<FileUploadContainer> deleteList = fileUploadContainerMapper.selectByExample(fucExample);
-		if (!deleteList.isEmpty()) {
+		if ( deleteList != null && !deleteList.isEmpty()) {
 			// 删除文件
 			for (FileUploadContainer filec : deleteList) {
 				String path = uploadPath + containerFileUpload.getNamespace() + "/" + filec.getFileName();

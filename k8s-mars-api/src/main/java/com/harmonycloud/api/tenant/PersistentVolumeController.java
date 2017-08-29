@@ -1,24 +1,17 @@
 package com.harmonycloud.api.tenant;
 
-import java.util.List;
-import java.util.Map;
-
 import javax.servlet.http.HttpSession;
 
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dto.tenant.NamespaceDto;
+import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.tenant.PersistentVolumeDto;
-import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.PersistentVolumeService;
 
 
@@ -28,11 +21,11 @@ public class PersistentVolumeController {
 
     @Autowired
     PersistentVolumeService persistentvolumeService;
+
     @Autowired
-    private HttpSession session;
+    HttpSession session;
 
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
-
+    
     /**
      * 获取存储类型及服务提供地址
      * 
@@ -121,5 +114,22 @@ public class PersistentVolumeController {
             return ActionReturnUtil.returnErrorWithMsg("pv名字 不能为空");
         }
         return persistentvolumeService.getPVByName(name);
+    }
+    
+    /**
+     * 根据name回收数据pv
+     * @param name
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/pv/recyclePvByName", method = RequestMethod.PUT)
+    @ResponseBody
+    public ActionReturnUtil recyclePvByName(@RequestParam(value = "name", required = true) String name) throws Exception {
+
+        if(StringUtils.isBlank(name)){
+            return ActionReturnUtil.returnErrorWithMsg("pv名字不能为空");
+        }
+        Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+        return persistentvolumeService.recyclePvByName(name, cluster);
     }
 }

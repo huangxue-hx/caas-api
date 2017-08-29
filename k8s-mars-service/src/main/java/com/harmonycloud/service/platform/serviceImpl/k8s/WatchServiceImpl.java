@@ -105,7 +105,7 @@ public class WatchServiceImpl implements WatchService{
 	private boolean checkDuplicate(String name, String namespace, String kind) throws Exception {
 		String str = kind + name + namespace;
 		Long time = 0L;
-		if (!watchList.isEmpty()) {
+		if (watchList != null && !watchList.isEmpty()) {
 			 time = watchList.get(str)==null ? 0l : watchList.get(str);
 		}
 		Long now = new Date().getTime();

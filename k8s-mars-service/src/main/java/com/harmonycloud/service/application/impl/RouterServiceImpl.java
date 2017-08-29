@@ -204,11 +204,11 @@ public class RouterServiceImpl implements RouterService {
 		ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
 		List<com.harmonycloud.k8s.bean.Service> services = svList.getItems();
 		List<RouterSvc> routerSvcs = new ArrayList<RouterSvc>();
-		if (!services.isEmpty() || services.size() > 0) {
+		if (services != null && !services.isEmpty()) {
 			for (int i = 0; i < services.size(); i++) {
 				boolean flag = false;
 				Map<String, Object> labels = services.get(i).getMetadata().getLabels();
-				if (!labels.isEmpty()) {
+				if (labels != null && !labels.isEmpty()) {
 					for (Map.Entry<String, Object> m : labels.entrySet()) {
 						if (m.getKey().indexOf("nephele") > -1) {
 							flag = true;
@@ -266,11 +266,11 @@ public class RouterServiceImpl implements RouterService {
 		ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
 		List<com.harmonycloud.k8s.bean.Service> services = svList.getItems();
 		List<RouterSvc> routerSvcs = new ArrayList<RouterSvc>();
-		if (!services.isEmpty() || services.size() > 0) {
+		if ( services != null && !services.isEmpty()) {
 			for (int i = 0; i < services.size(); i++) {
 				boolean flag = false;
 				Map<String, Object> labels = services.get(i).getMetadata().getLabels();
-				if (!labels.isEmpty()) {
+				if (labels != null && !labels.isEmpty()) {
 					for (Map.Entry<String, Object> m : labels.entrySet()) {
 						if (m.getKey().indexOf("nephele") > -1) {
 							flag = true;
@@ -761,7 +761,7 @@ public class RouterServiceImpl implements RouterService {
 		}
 		PodList podList = JsonUtil.jsonToPojo(response.getBody(), PodList.class);
 		List<Pod> pods = podList.getItems();
-		if (!pods.isEmpty() && pods.size() > 0) {
+		if (pods != null && !pods.isEmpty()) {
 			for (Pod pod : pods) {
 				if (!StringUtils.isEmpty(pod.getSpec().getNodeName())) {
 					return ActionReturnUtil.returnSuccessWithData(pod.getSpec().getNodeName());
@@ -922,11 +922,11 @@ public class RouterServiceImpl implements RouterService {
 		ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
 		List<com.harmonycloud.k8s.bean.Service> services = svList.getItems();
 
-		if (!services.isEmpty() || services.size() > 0) {
+		if (services != null && !services.isEmpty()) {
 			for (int i = 0; i < services.size(); i++) {
 				boolean flag = false;
 				Map<String, Object> labels = services.get(i).getMetadata().getLabels();
-				if (!labels.isEmpty()) {
+				if (labels != null && !labels.isEmpty()) {
 					for (Map.Entry<String, Object> m : labels.entrySet()) {
 						if (m.getKey().indexOf("nephele") > -1) {
 							flag = true;

@@ -227,4 +227,17 @@ public class CommonConstant {
     public static final Integer ES_SHARDS = 5;
 
     public static final String CICD_NAMESPACE = "default";
+    
+    public static final String PV_RETAIN = "Retain";
+    
+    public static final String PV_RECYCLE = "Recycle";
+    
+    public static final String PV_DELETE = "Delete";
+    
+    public static final String PV_STATUS_RELEASED= "Released";
+    
+    public static final String PV_RECYCLE_POD_NAME= "pv-recycler-";
+    
+    public static final String RESTARTPOLICY_NEVER= "Never";
+    
 }

@@ -453,7 +453,7 @@ public class NodeServiceImpl implements NodeService {
         bodys.put(CommonConstant.LABELSELECTOR, CommonConstant.HARMONYCLOUD_STATUS + "=" + CommonConstant.LABEL_STATUS_D);
         NodeList nodeList = nodeService.listNodeByLabel(headers, bodys);
         List<String> nodeDtoList = new ArrayList<>();
-        if (nodeList != null && !nodeList.getItems().isEmpty()) {
+        if (nodeList != null && nodeList.getItems() != null && !nodeList.getItems().isEmpty()) {
             // 处理成为页面需要的值
             List<Node> items = nodeList.getItems();
             for (Node node : items) {
@@ -481,7 +481,7 @@ public class NodeServiceImpl implements NodeService {
         bodys.put("labelSelector", CommonConstant.HARMONYCLOUD_STATUS + "=" + CommonConstant.LABEL_STATUS_D);
         NodeList nodeList = nodeService.listNodeByLabel(headers, bodys);
         List<NodeDto> nodeDtoList = new ArrayList<>();
-        if (nodeList != null && !nodeList.getItems().isEmpty()) {
+        if (nodeList != null && nodeList.getItems() != null && !nodeList.getItems().isEmpty()) {
             // 处理成为页面需要的值
             List<Node> items = nodeList.getItems();
             for (Node node : items) {
@@ -515,7 +515,7 @@ public class NodeServiceImpl implements NodeService {
         bodys.put("labelSelector", CommonConstant.HARMONYCLOUD_STATUS + "=" + CommonConstant.LABEL_STATUS_D);
         NodeList nodeList = nodeService.listNodeByLabel(headers, bodys);
         List<NodeDto> nodeDtoList = new ArrayList<>();
-        if (nodeList != null && !nodeList.getItems().isEmpty()) {
+        if (nodeList != null && nodeList.getItems() != null && !nodeList.getItems().isEmpty()) {
             // 处理成为页面需要的值
             List<Node> items = nodeList.getItems();
             for (Node node : items) {
@@ -549,7 +549,7 @@ public class NodeServiceImpl implements NodeService {
         bodys.put(CommonConstant.LABELSELECTOR, CommonConstant.HARMONYCLOUD_STATUS + "=" + CommonConstant.LABEL_STATUS_C);
         NodeList nodeList = nodeService.listNodeByLabel(headers, bodys);
         List<String> nodeDtoList = new ArrayList<>();
-        if (nodeList != null && !nodeList.getItems().isEmpty()) {
+        if (nodeList != null && nodeList.getItems() != null && !nodeList.getItems().isEmpty()) {
             // 处理成为页面需要的值
             List<Node> items = nodeList.getItems();
             for (Node node : items) {
@@ -571,7 +571,7 @@ public class NodeServiceImpl implements NodeService {
         bodys.put(CommonConstant.LABELSELECTOR, CommonConstant.HARMONYCLOUD_STATUS + "=" + CommonConstant.LABEL_STATUS_B);
         NodeList nodeList = nodeService.listNodeByLabel(headers, bodys);
         List<String> nodeDtoList = new ArrayList<>();
-        if (nodeList != null && !nodeList.getItems().isEmpty()) {
+        if (nodeList != null && nodeList.getItems() != null && !nodeList.getItems().isEmpty()) {
             // 处理成为页面需要的值
             List<Node> items = nodeList.getItems();
             for (Node node : items) {
