@@ -46,7 +46,7 @@ public class LogController {
 
     @ResponseBody
     @RequestMapping(value="/logfile/search", method = RequestMethod.POST)
-    public ActionReturnUtil searchContainerLog(@RequestBody LogQueryDto logQueryDto) throws Exception {
+    public ActionReturnUtil searchContainerLog(@RequestBody LogQueryDto logQueryDto){
         try {
             logger.info("根据日志路径获取container日志, params: " + logQueryDto.toString());
             return esService.fileLog(this.transLogQuery(logQueryDto));
@@ -56,7 +56,7 @@ public class LogController {
         }catch (Exception e) {
             logger.error("根据日志路径获取container日志失败：logQueryDto:{}",
                     logQueryDto.toString(), e.getMessage());
-            return ActionReturnUtil.returnError();
+            return ActionReturnUtil.returnErrorWithData("未知异常");
         }
 
     }
@@ -84,7 +84,7 @@ public class LogController {
                                          @RequestParam(value="container", required=false) String container,
                                          @RequestParam(value="recentTimeNum", required=false) Integer recentTimeNum,
                                          @RequestParam(value="recentTimeUnit", required=false) String recentTimeUnit,
-                                         @RequestParam(value="clusterId", required=false) String clusterId) throws Exception{
+                                         @RequestParam(value="clusterId", required=false) String clusterId){
         try {
             Integer sinceSeconds = this.getSinceSeconds(recentTimeNum, recentTimeUnit);
             return deploymentService.getPodAppLog(namespace, container, pod, sinceSeconds, clusterId);
@@ -96,7 +96,7 @@ public class LogController {
             return ActionReturnUtil.returnErrorWithData(e.getMessage());
         }catch (Exception e) {
             logger.error("获取pod的应用日志失败",e);
-            return ActionReturnUtil.returnErrorWithMsg(e.getMessage());
+            return ActionReturnUtil.returnErrorWithData("未知异常");
         }
     }
 
