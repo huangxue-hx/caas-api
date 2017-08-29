@@ -641,32 +641,32 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                                     }
 
                                     // update pv
-//                                    if (response.getStatus() != Constant.HTTP_404 && pvc.contains(Constant.PVC_BREAK)) {
-//                                        String [] str=pvc.split(Constant.PVC_BREAK);
-//                                        String pvname = str[0];
-//                                        PersistentVolume pv = pvService.getPvByName(pvname,null);
-//                                        if (pv != null) {
-//                                            Map<String, Object> bodysPV = new HashMap<String, Object>();
-//                                            Map<String, Object> metadata = new HashMap<String, Object>();
-//                                            metadata.put("name", pv.getMetadata().getName());
-//                                            metadata.put("labels", pv.getMetadata().getLabels());
-//                                            bodysPV.put("metadata", metadata);
-//                                            Map<String, Object> spec = new HashMap<String, Object>();
-//                                            spec.put("capacity", pv.getSpec().getCapacity());
-//                                            spec.put("nfs", pv.getSpec().getNfs());
-//                                            spec.put("accessModes", pv.getSpec().getAccessModes());
-//                                            bodysPV.put("spec", spec);
-//                                            K8SURL urlPV = new K8SURL();
-//                                            urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
-//                                            Map<String, Object> headersPV = new HashMap<>();
-//                                            headersPV.put("Content-Type", "application/json");
-//                                            K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT, headersPV, bodysPV,cluster);
-//                                            if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
-//                                            	UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
-//                                                errorMessage.add(status.getMessage());
-//                                            }
-//                                        }
-//                                    }
+                                    if (response.getStatus() != Constant.HTTP_404 && pvc.contains(Constant.PVC_BREAK)) {
+                                        String [] str=pvc.split(Constant.PVC_BREAK);
+                                        String pvname = str[0];
+                                        PersistentVolume pv = pvService.getPvByName(pvname,null);
+                                        if (pv != null) {
+                                            Map<String, Object> bodysPV = new HashMap<String, Object>();
+                                            Map<String, Object> metadata = new HashMap<String, Object>();
+                                            metadata.put("name", pv.getMetadata().getName());
+                                            metadata.put("labels", pv.getMetadata().getLabels());
+                                            bodysPV.put("metadata", metadata);
+                                            Map<String, Object> spec = new HashMap<String, Object>();
+                                            spec.put("capacity", pv.getSpec().getCapacity());
+                                            spec.put("nfs", pv.getSpec().getNfs());
+                                            spec.put("accessModes", pv.getSpec().getAccessModes());
+                                            bodysPV.put("spec", spec);
+                                            K8SURL urlPV = new K8SURL();
+                                            urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
+                                            Map<String, Object> headersPV = new HashMap<>();
+                                            headersPV.put("Content-Type", "application/json");
+                                            K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT, headersPV, bodysPV,cluster);
+                                            if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
+                                            	UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
+                                                errorMessage.add(status.getMessage());
+                                            }
+                                        }
+                                    }
 
                                 }
                             }
