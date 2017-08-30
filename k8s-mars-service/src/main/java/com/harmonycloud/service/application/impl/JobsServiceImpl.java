@@ -130,6 +130,11 @@ public class JobsServiceImpl implements JobsService{
     				json.put("completions", job.getSpec().getCompletions());
     				json.put("parallelism", job.getSpec().getParallelism());
     				json.put("createTime", job.getMetadata().getCreationTimestamp());
+    				long diff = 0;
+    			    if(job.getStatus() != null && job.getStatus().getCompletionTime() != null){
+    			      diff = (job.getStatus().getCompletionTime().getTime() - job.getStatus().getStartTime().getTime())/1000;
+    			    }
+    			    json.put("executionTime", diff);
     				json.put("selector", job.getSpec().getSelector());
     				String sta = getJobDetail(job);
     				json.put("status", sta);
@@ -270,6 +275,11 @@ public class JobsServiceImpl implements JobsService{
 		jobjs.put("completions", job.getSpec().getCompletions());
 		jobjs.put("parallelism", job.getSpec().getParallelism());
 		jobjs.put("createTime", job.getMetadata().getCreationTimestamp());
+		long diff = 0;
+	    if(job.getStatus() != null && job.getStatus().getCompletionTime() != null){
+	      diff = (job.getStatus().getCompletionTime().getTime() - job.getStatus().getStartTime().getTime())/1000;
+	    }
+	    jobjs.put("executionTime", diff);
 		jobjs.put("selector", job.getSpec().getSelector());
 		jobjs.put("restartPolicy", job.getSpec().getTemplate().getSpec().getRestartPolicy());
 		String sta = getJobDetail(job);

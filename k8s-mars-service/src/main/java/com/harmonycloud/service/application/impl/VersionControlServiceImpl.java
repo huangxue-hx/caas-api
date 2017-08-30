@@ -359,13 +359,16 @@ public class VersionControlServiceImpl implements VersionControlService {
         		counts.add(updateCounts);
         		counts.add(0);
         	}else{
-        		int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
-        		updateCounts = dep.getSpec().getReplicas() - unavailableReplicas;
-        		if(updateCounts < 0){
-        			updateCounts = 0;
+        		if(dep.getStatus().getUnavailableReplicas() != null ){
+        			int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
+            		updateCounts = dep.getSpec().getReplicas() - unavailableReplicas;
+            		if(updateCounts < 0){
+            			updateCounts = 0;
+            		}
+            		counts.add(updateCounts);
+            		counts.add(0);
         		}
-        		counts.add(updateCounts);
-        		counts.add(0);
+        		
         	}
         	/*Integer updateCounts = dep.getStatus().getUpdatedReplicas();
         	counts.add(updateCounts);

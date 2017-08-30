@@ -1,5 +1,6 @@
 package com.harmonycloud.k8s.bean;
 
+import java.util.Date;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -9,13 +10,13 @@ public class JobStatus {
 	
 	private Integer active;
 	
-	private String completionTime;
+	private Date completionTime;
 	
 	private List<JobCondition> conditions;
 	
 	private Integer failed;
 	
-	private String startTime;
+	private Date startTime;
 	
 	private Integer succeeded; 
 
@@ -25,14 +26,6 @@ public class JobStatus {
 
 	public void setActive(Integer active) {
 		this.active = active;
-	}
-
-	public String getCompletionTime() {
-		return completionTime;
-	}
-
-	public void setCompletionTime(String completionTime) {
-		this.completionTime = completionTime;
 	}
 
 	public List<JobCondition> getConditions() {
@@ -51,19 +44,27 @@ public class JobStatus {
 		this.failed = failed;
 	}
 
-	public String getStartTime() {
-		return startTime;
-	}
-
-	public void setStartTime(String startTime) {
-		this.startTime = startTime;
-	}
-
 	public Integer getSucceeded() {
 		return succeeded;
 	}
 
 	public void setSucceeded(Integer succeeded) {
 		this.succeeded = succeeded;
+	}
+
+	public Date getStartTime() {
+		return startTime;
+	}
+
+	public void setStartTime(Date startTime) {
+		this.startTime = startTime;
+	}
+
+	public Date getCompletionTime() {
+		return completionTime;
+	}
+
+	public void setCompletionTime(Date completionTime) {
+		this.completionTime = completionTime;
 	}
 }

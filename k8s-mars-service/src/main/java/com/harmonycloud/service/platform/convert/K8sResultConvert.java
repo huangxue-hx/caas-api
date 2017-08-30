@@ -39,8 +39,17 @@ public class K8sResultConvert {
 		appDetail.setOwner(meta.getLabels().get("nephele/user").toString());
 		appDetail.setHostName(dep.getSpec().getTemplate().getSpec().getHostname());
 		appDetail.setRestartPolicy(dep.getSpec().getTemplate().getSpec().getRestartPolicy());
-		appDetail.setHostIPC(dep.getSpec().getTemplate().getSpec().isHostIPC());
-		appDetail.setHostPID(dep.getSpec().getTemplate().getSpec().isHostPID());
+		if(dep.getSpec().getTemplate().getSpec().isHostIPC() != null){
+			appDetail.setHostIPC(dep.getSpec().getTemplate().getSpec().isHostIPC());
+		}else{
+			appDetail.setHostIPC(false);
+		}
+		if(dep.getSpec().getTemplate().getSpec().isHostPID() != null){
+			appDetail.setHostPID(dep.getSpec().getTemplate().getSpec().isHostPID());
+		}else{
+			appDetail.setHostPID(false);
+		}
+		
 		Map<String, Object> labels = new HashMap<String, Object>();
 		for (Map.Entry<String, Object> m : meta.getLabels().entrySet()) {
 			if (m.getKey().indexOf("nephele/") > 0) {
