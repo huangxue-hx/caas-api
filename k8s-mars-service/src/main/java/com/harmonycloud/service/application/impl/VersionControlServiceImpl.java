@@ -133,15 +133,8 @@ public class VersionControlServiceImpl implements VersionControlService {
                                 }
                             }
                         }
+                    } else {
                         for(int i=0 ; i < pvclist.size(); i++){
-                            boolean flag =  true;
-                            for(UpdateVolume pv : container.getStorage()){
-                                String pvc = (String) pvclist.get(i);
-                                if(pvc.equals(pv.getPvcName())){
-                                    flag = false;
-                                }
-                            }
-                            if (flag){
                                 //volumeSerivce.deleteVolume(detail.getNamespace(),(String) pvclist.get(i));
 
                                 String pvc = (String) pvclist.get(i);
@@ -175,19 +168,17 @@ public class VersionControlServiceImpl implements VersionControlService {
                                             headersPV.put("Content-Type", "application/json");
                                             K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT, headersPV, bodysPV,cluster);
                                             if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus()) && responsePV.getStatus() != Constant.HTTP_404) {
-                                            	UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
-                                            	return ActionReturnUtil.returnSuccessWithMsg(status.getMessage());
+                                                UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
+                                                return ActionReturnUtil.returnSuccessWithMsg(status.getMessage());
                                             }
                                         }
                                     }
                                 }else{
-                                	UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-                                	return ActionReturnUtil.returnSuccessWithMsg(status.getMessage());
+                                    UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+                                    return ActionReturnUtil.returnSuccessWithMsg(status.getMessage());
                                 }
-                            }
+
                         }
-
-
                     }
                 }
             }
