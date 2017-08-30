@@ -218,7 +218,7 @@ public class UserController {
      */
     @ResponseBody
     @RequestMapping(value = "/user/userResetSendEmail", method = RequestMethod.PUT)
-    public ActionReturnUtil userReset(@RequestParam(value = "userName") final String userName) throws Exception {
+    public ActionReturnUtil userResetSendEmail(@RequestParam(value = "userName") final String userName) throws Exception {
         return userService.sendEmail(userName);
     }
     /**
