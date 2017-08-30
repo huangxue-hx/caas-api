@@ -6,12 +6,7 @@ import java.io.OutputStream;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import javax.mail.internet.MimeMessage;
 import javax.servlet.http.HttpServletRequest;
@@ -118,12 +113,38 @@ public class UserService {
     private HarborUtil harborUtil;
     private UserService userService;
 
+    /**
+     * 生成随机密码
+     *
+     */
+    public String generatePassWord() {
+        String newPassWord = new String();
+        String Base = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        //System.out.println(Base.length());
+        Random random = new Random();
+        String regex = "^(?![0-9]+$)(?![a-zA-Z]+$)[0-9A-Za-z]{7,12}$";
+        boolean matche = newPassWord.matches(regex);
+        while(!matche) {
+            int length = (int) (7 + Math.random() * (12 - 7 + 1));
+            newPassWord="";
+            for (int i = 0; i < 7; i++) {
+                int number = random.nextInt(Base.length());
+                newPassWord += Base.charAt(number);
+                matche = newPassWord.matches(regex);
+            }
+        }
+        return newPassWord;
+    }
 
     /**
      * 向用户发送提示邮箱
      *
      */
-    public void sendEmail(String email,String userName) throws Exception{
+    public ActionReturnUtil sendEmail(String userName) throws Exception{
+        User userEmail = userMapper.findByUsername(userName);
+        String email = userEmail.getEmail();
+        String newPassWord = generatePassWord();
+
         MimeMessage mimeMessage = MailUtil.getJavaMailSender().createMimeMessage();
         try {
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
@@ -134,6 +155,7 @@ public class UserService {
             Date date = new Date();
             dataModel.put("time",date);
             dataModel.put("userName",userName);
+            dataModel.put("newPassWord",newPassWord);
 
             //设置图标
             ClassLoader classLoader = MailUtil.class.getClassLoader();
@@ -143,12 +165,16 @@ public class UserService {
             inputStream = classLoader.getResourceAsStream("icon-status.png");
             bytes = MailUtil.stream2byte(inputStream);
             helper.addInline("icon-status", new ByteArrayResource(bytes), "image/png");
-            //helper.setText("测试一下");
             helper.setText(TemplateUtil.generate("passWordRest.ftl",dataModel), true);
-            //System.out.println(TemplateUtil.generate("passWordRest.ftl",dataModel));
         }catch(Exception e){
+            throw e;
         }
-        MailUtil.sendMimeMessage(mimeMessage);
+        try {
+            MailUtil.sendMimeMessage(mimeMessage);
+            return ActionReturnUtil.returnSuccessWithMsg("邮件通知发送成功！");
+        }catch (Exception e){
+            return ActionReturnUtil.returnSuccessWithMsg("邮件发送失败！");
+        }
     }
 
     /**
@@ -537,10 +563,11 @@ public class UserService {
      * @return
      */
     public ActionReturnUtil userReset(String userName, String newPassword) throws Exception {
+        String newPassWord = generatePassWord();
         if (StringUtils.isEmpty(userName)) {
             return ActionReturnUtil.returnErrorWithMsg("用户名不能为空!");
         }
-        if (StringUtils.isEmpty(newPassword)) {
+        if (StringUtils.isEmpty(newPassWord)) {
             return ActionReturnUtil.returnErrorWithMsg("新密码不能为空!");
         }
         try {
@@ -554,18 +581,24 @@ public class UserService {
             String MD5oldPassword = userEmail.getPassword();
             HarborUser harbor = harboruserMapper.findByUsername(userName);
             String oldPassword = harbor.getPassword();
-            System.out.println(userEmail.getEmail());
-            if (newPassword.equals(oldPassword)) {
-                this.sendEmail(userEmail.getEmail(),userName);
-                return ActionReturnUtil.returnSuccess();
-            }
+//            System.out.println(userEmail.getEmail());
+//            if (newPassWord.equals(oldPassword)) {
+//                try{
+//                    String sendEmailCheck = this.sendEmail(userEmail.getEmail(),userName,newPassWord);
+//                    if(sendEmailCheck.equals("success")){
+//                        return ActionReturnUtil.returnSuccessWithMsg("新密码为"+newPassWord+"并且已通过邮件发送至相关用户的邮箱！");
+//                    }else {
+//                        return ActionReturnUtil.returnSuccessWithMsg("该用户新密码为"+newPassWord+"由于没有用邮件通知用户，请及时通知用户登录系统修改密码！");
+//                    }
+//                }catch (Exception e){
+//                    return ActionReturnUtil.returnSuccessWithMsg("该用户新密码为"+newPassWord+"由于没有用邮件通知用户，请及时通知用户登录系统修改密码！");
+//                }
+//            }
             // 更新k8s用户密码
             // 更新harbor账户密码
-            String MD5newPassword = StringUtil.convertToMD5(newPassword);
+            String MD5newPassword = StringUtil.convertToMD5(newPassWord);
             userMapper.updatePassword(userName, MD5newPassword);
-            harboruserMapper.updatePassword(userName, newPassword);
-            this.sendEmail(userEmail.getEmail(),userName);
-
+            harboruserMapper.updatePassword(userName, newPassWord);
 
             // 根据用户名查询用户id
             try {
@@ -575,7 +608,7 @@ public class UserService {
                 header.put("Cookie", cookie);
                 Map<String, Object> params = new HashMap<String, Object>();
                 params.put("old_password", oldPassword);
-                params.put("new_password", newPassword);
+                params.put("new_password", newPassWord);
                 HttpClientResponse httpClientResponse = HttpClientUtil.doGet(userPath, null, header);
                 List<Map<String, Object>> result = JsonUtil.JsonToMapList(httpClientResponse.getBody());
                 if (result != null && result.size() > 0) {
@@ -588,7 +621,17 @@ public class UserService {
                     HttpClientResponse putRes = HttpClientUtil.doPut(updateUrl, params, headers);
                     // 根据返回code判断状态
                     if (HttpStatusUtil.isSuccessStatus(putRes.getStatus())) {
-                        return ActionReturnUtil.returnSuccess();
+                        return ActionReturnUtil.returnSuccessWithMap("newPassWord",newPassWord);
+//                        try{
+//                            String sendEmailCheck = this.sendEmail(userEmail.getEmail(),userName,newPassWord);
+//                            if(sendEmailCheck.equals("success")){
+//                                return ActionReturnUtil.returnSuccessWithMsg("新密码为"+newPassWord+"并且已通过邮件发送至相关用户的邮箱！");
+//                            }else {
+//                                return ActionReturnUtil.returnSuccessWithMsg("该用户新密码为"+newPassWord+"由于没有用邮件通知用户，请及时通知用户登录系统修改密码！");
+//                            }
+//                        }catch (Exception e){
+//                            return ActionReturnUtil.returnSuccessWithMsg("该用户新密码为"+newPassWord+"由于没有用邮件通知用户，请及时通知用户登录系统修改密码！");
+//                        }
                     } else {
                         // 回滚数据库操作
                         userMapper.updatePassword(userName, MD5oldPassword);
