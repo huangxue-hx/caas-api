@@ -113,6 +113,7 @@ public class UserService {
     private HarborUtil harborUtil;
     private UserService userService;
 
+    private String newPassWord;
     /**
      * 生成随机密码
      *
@@ -143,7 +144,7 @@ public class UserService {
     public ActionReturnUtil sendEmail(String userName) throws Exception{
         User userEmail = userMapper.findByUsername(userName);
         String email = userEmail.getEmail();
-        String newPassWord = generatePassWord();
+        String newPassWord = this.getNewPassWord();
 
         MimeMessage mimeMessage = MailUtil.getJavaMailSender().createMimeMessage();
         try {
@@ -564,6 +565,7 @@ public class UserService {
      */
     public ActionReturnUtil userReset(String userName, String newPassword) throws Exception {
         String newPassWord = generatePassWord();
+        this.setNewPassWord(newPassWord);
         if (StringUtils.isEmpty(userName)) {
             return ActionReturnUtil.returnErrorWithMsg("用户名不能为空!");
         }
@@ -2254,5 +2256,13 @@ public class UserService {
 
     public void setHarborTimeout(String harborTimeout) {
         this.harborTimeout = harborTimeout;
+    }
+
+    public String getNewPassWord() {
+        return newPassWord;
+    }
+
+    public void setNewPassWord(String newPassWord) {
+        this.newPassWord = newPassWord;
     }
 }
