@@ -414,7 +414,6 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 		List<Map<String, Object>> message = new ArrayList<>();
         // loop businessTemplate
         for (ServiceTemplateDto service : businessDeploy.getBusinessTemplate().getServiceList()) {
-        	service.getDeploymentDetail().setNodeSelector((String)labRes.get("data"));
             com.harmonycloud.dao.application.bean.Service svc = new com.harmonycloud.dao.application.bean.Service();
             // is external service
             if (service.getExternal() == Constant.EXTERNAL_SERVICE) {
@@ -431,6 +430,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                 continue;
             }
             // todo retry and rollback
+            service.getDeploymentDetail().setNodeSelector((String)labRes.get("data"));
             List<String> pvcList = new ArrayList<>();
             // creat pvc
             for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
