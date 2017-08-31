@@ -3,6 +3,7 @@ package com.harmonycloud.service.platform.bean;
 import java.util.List;
 import java.util.Map;
 
+import com.harmonycloud.dto.scale.AutoScaleDto;
 import com.harmonycloud.k8s.bean.Event;
 import com.harmonycloud.k8s.bean.ServicePort;
 
@@ -48,6 +49,8 @@ public class AppDetail {
 	private List<EventDetail> events;
 	
 	private Object autoScaling;
+
+	private AutoScaleDto autoScale;
 	
 	private String restartPolicy;
 	
@@ -231,5 +234,13 @@ public class AppDetail {
 
 	public void setHostPID(boolean hostPID) {
 		this.hostPID = hostPID;
+	}
+
+	public AutoScaleDto getAutoScale() {
+		return autoScale;
+	}
+
+	public void setAutoScale(AutoScaleDto autoScale) {
+		this.autoScale = autoScale;
 	}
 }

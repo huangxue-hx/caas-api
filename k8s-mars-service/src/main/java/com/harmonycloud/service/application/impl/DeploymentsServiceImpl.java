@@ -16,6 +16,7 @@ import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
+import com.harmonycloud.service.application.AutoScaleService;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.RouterService;
 import com.harmonycloud.service.platform.bean.*;
@@ -54,6 +55,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
 	@Autowired
 	HorizontalPodAutoscalerService hpaService;
+
+	@Autowired
+	AutoScaleService autoScaleService;
 
 	@Autowired
 	PodService podService;
@@ -416,24 +420,14 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		}
 		EventList eventList = JsonUtil.jsonToPojo(deResponse.getBody(), EventList.class);
 
-		// 获取hpaEvents
+		// 获取cpaEvents
 		bodys.clear();
-		bodys.put("fieldSelector", "involvedObject.name=" + name + "-hpa");
+		bodys.put("fieldSelector", "involvedObject.name=" + name + "-cpa");
 		K8SClientResponse hpaeRes = eventService.doEventByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
 		if (!HttpStatusUtil.isSuccessStatus(hpaeRes.getStatus())) {
 			return ActionReturnUtil.returnErrorWithMsg(hpaeRes.getBody());
 		}
 		EventList hapEve = JsonUtil.jsonToPojo(hpaeRes.getBody(), EventList.class);
-
-		// 获取hascaler
-		bodys.clear();
-		bodys.put("labelSelector", "app=" + name);
-		K8SClientResponse hpaResponse = hpaService.doHpautoscalerByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
-		if (!HttpStatusUtil.isSuccessStatus(hpaResponse.getStatus())) {
-			return ActionReturnUtil.returnErrorWithMsg(hpaResponse.getBody());
-		}
-		HorizontalPodAutoscalerList hpaList = JsonUtil.jsonToPojo(hpaResponse.getBody(),
-				HorizontalPodAutoscalerList.class);
 
 		// 获取pod
 		bodys.clear();
@@ -443,7 +437,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			return ActionReturnUtil.returnErrorWithMsg(podRes.getBody());
 		}
 		PodList podList = JsonUtil.jsonToPojo(podRes.getBody(), PodList.class);
-		AppDetail res = K8sResultConvert.convertAppDetail(dep, serviceList, eventList, hapEve, hpaList, podList);
+		AppDetail res = K8sResultConvert.convertAppDetail(dep, serviceList, eventList, hapEve, podList);
+		res.setAutoScale(autoScaleService.get(namespace, name, cluster));
+		res.setAutoScaling(false);
 		return ActionReturnUtil.returnSuccessWithData(res);
 	}
 
@@ -514,9 +510,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			}
 		}
 
-		// hpaEvents
+		// cpaEvents
 		bodys.clear();
-		bodys.put("fieldSelector", "involvedObject.name=" + name + "-hpa");
+		bodys.put("fieldSelector", "involvedObject.name=" + name + "-cpa");
 		K8SClientResponse hpaevRes = eventService.doEventByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
 		if (!HttpStatusUtil.isSuccessStatus(hpaevRes.getStatus())) {
 			return ActionReturnUtil.returnErrorWithMsg(hpaevRes.getBody());
@@ -640,6 +636,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			LOGGER.error("getPodAppLog failed. message:{}", response.getBody().toString());
 			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+		}
+		if(StringUtils.isBlank(response.getBody())){
+			return ActionReturnUtil.returnSuccessWithData("无");
 		}
 		return ActionReturnUtil.returnSuccessWithData(response.getBody());
 	}
@@ -847,7 +846,11 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 	
 	@Override
 	public ActionReturnUtil deleteDeployment(String name, String namespace, String userName, Cluster cluster) throws Exception {
-
+        //先删除自动伸缩控制
+		boolean scaleDeleted = autoScaleService.delete(namespace, name, cluster);
+		if(!scaleDeleted){
+			return ActionReturnUtil.returnErrorWithMsg("删除自动伸缩失败");
+		}
 		// 将实例数变成0
 		ActionReturnUtil sReturn = scaleDeployment(namespace, name, 0,userName, cluster);
 		if (!sReturn.isSuccess() && (Constant.HTTP_404.toString()).equals(sReturn.get("msg").toString())) {
@@ -877,15 +880,6 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		K8SClientResponse conRes = new K8sMachineClient().exec(cUrl, HTTPMethod.DELETE, null, queryP,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(conRes.getStatus()) && conRes.getStatus() != Constant.HTTP_404) {
 			UnversionedStatus status = JsonUtil.jsonToPojo(conRes.getBody(), UnversionedStatus.class);
-			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
-		}
-
-		// 删除hpa
-		K8SURL hUrl = new K8SURL();
-		hUrl.setName(name + "-hpa").setNamespace(namespace).setResource(Resource.HORIZONTALPODAUTOSCALER);
-		K8SClientResponse hpaRes = new K8sMachineClient().exec(hUrl, HTTPMethod.DELETE, null, null,cluster);
-		if (!HttpStatusUtil.isSuccessStatus(hpaRes.getStatus()) && hpaRes.getStatus() != Constant.HTTP_404) {
-			UnversionedStatus status = JsonUtil.jsonToPojo(hpaRes.getBody(), UnversionedStatus.class);
 			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
 		}
 

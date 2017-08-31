@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
 public class K8sResultConvert {
 
 	public static AppDetail convertAppDetail(Deployment dep, ServiceList serviceList, EventList eventList,
-			EventList hapEve, HorizontalPodAutoscalerList hpaList, PodList podList) throws Exception {
+			EventList hapEve, PodList podList) throws Exception {
 		AppDetail appDetail = new AppDetail();
 
 		// 封装返回值
@@ -120,31 +120,6 @@ public class K8sResultConvert {
 		}
 
 		appDetail.setAutoScalingHistory(hapEve.getItems());
-
-		if (hpaList.getItems().size() == 0) {
-			appDetail.setAutoScaling(false);
-		} else {
-			HorizontalPodAutoscaler hAutoscaler = hpaList.getItems().get(0);
-			List<Integer> range = new ArrayList<Integer>();
-
-			// 接口版本有改动 targetCpu：targetCPUUtilizationPercentage
-			Integer targetCpu = hAutoscaler.getSpec().getTargetCPUUtilizationPercentage();
-			range.add(hAutoscaler.getSpec().getMinReplicas());
-			range.add(hAutoscaler.getSpec().getMaxReplicas());
-			if (targetCpu != null) {
-				HpAutoScaling autoScaling = new HpAutoScaling(targetCpu, range,
-						hAutoscaler.getStatus().getCurrentCPUUtilizationPercentage(),
-						hAutoscaler.getStatus().getLastScaleTime());
-				appDetail.setAutoScaling(autoScaling);
-			} else {
-				HpAutoScaling autoScaling = new HpAutoScaling(
-						hAutoscaler.getSpec().getCpuUtilization().getTargetPercentage(), range,
-						hAutoscaler.getStatus().getCurrentCPUUtilizationPercentage(),
-						hAutoscaler.getStatus().getLastScaleTime());
-				appDetail.setAutoScaling(autoScaling);
-			}
-
-		}
 
 		List<PodDetail> pods = new ArrayList<PodDetail>();
 		for (int i = 0; i < podList.getItems().size(); i++) {

@@ -555,7 +555,7 @@ public class HarborServiceImpl implements HarborService {
                         ActionReturnUtil result = getRepositoryDetailByProjectId(
                                 Integer.parseInt(String.valueOf(projectTenant.getHarborProjectId())));
                         if(!result.isSuccess()){
-                            LOGGER.error("刷新缓存中的repository失败,:projectName:{},message{}",
+                            LOGGER.error("刷新缓存中的repository失败,:projectName:{},message:{}",
                                     projectTenant.getHarborProjectName(), result.get("data"));
                         }
                     }catch (Exception e){

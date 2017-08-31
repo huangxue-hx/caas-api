@@ -71,6 +71,7 @@ public class Constant {
 	
 	public final static String DEPLOYMENT = "Deployment";
 
+	public final static String DEPLOYMENT_API_VERSION = "apps/v1beta1";
 
 	//application
 	public final static double TEMPLATE_TAG = 1;

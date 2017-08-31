@@ -35,6 +35,8 @@ public class Resource {
 	public final static String RESOURCEQUOTA = "resourcequotas";
 	
 	public final static String HORIZONTALPODAUTOSCALER = "horizontalpodautoscalers";
+
+	public final static String COMPLEXPODSCALER = "complexpodscales";
 	
 	public final static String INGRESS = "ingresses";
 	
@@ -98,6 +100,9 @@ public class Resource {
 			break;
 		case com.harmonycloud.k8s.constant.Resource.HORIZONTALPODAUTOSCALER:
 			group = APIGroup.APIS_AUTOSCALING_VERSION;
+			break;
+		case Resource.COMPLEXPODSCALER:
+			group = APIGroup.APIS_HARMONYCLOUD;
 			break;
 		case com.harmonycloud.k8s.constant.Resource.VOLUMEPROVIDER:
 			group = APIGroup.APIS_HARMONYCLOUD;
