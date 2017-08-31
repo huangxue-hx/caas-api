@@ -1291,7 +1291,7 @@ public class K8sResultConvert {
 	
 	/**
 	 * 组装 pod template*/
-	public static PodTemplateSpec convertPodTemplate(String name, List<CreateContainerDto> containers, String label, String annotation, String userName, String type, String nodeSelector, String restartPolicy)throws Exception {
+	public static PodTemplateSpec convertPodTemplate(String name, List<CreateContainerDto> containers, String label, String annotation, String userName, String type, String nodeSelector, String restartPolicy, String namespace)throws Exception {
 		//组装pod tempate
 		PodTemplateSpec podTemplate = new PodTemplateSpec();
 		
@@ -1300,43 +1300,15 @@ public class K8sResultConvert {
 		Map<String, Object> labels = new HashMap<>();
 	    labels.put(type, name);
 	    if (!StringUtils.isEmpty(label)) {
-	    	String[] ls ={};
-	    	if(label.contains(",")){
-				ls = label.split(",");
-	    	}else{
-	    		ls[0] = label;
-	    	}
+	    	String[] ls = label.split(",");
 	    	for (String lab : ls) {
 				String[] tmp = lab.split("=");
 				labels.put(tmp[0], tmp[1]);
 			}
 	    }
 	    metadata.setLabels(labels);
-	    //annotations-QOS
-	    Map<String, Object> metadataanno = new HashMap<>();
-	    if(annotation!=null){
-			if (annotation.contains(",")) {
-				String[] qos = annotation.split(",");
-				if (qos != null && qos.length > 0) {
-					for (String s : qos) {
-						if (s.contains("ingress") && s.contains("=")) {
-							metadataanno.put("kubernetes.io/ingress-bandwidth", s.split("=")[1]);
-						}
-						if (s.contains("egress") && s.contains("=")) {
-							metadataanno.put("kubernetes.io/egress-bandwidth", s.split("=")[1]);
-						}
-					}
-				}
-			} else {
-				if (annotation.contains("ingress") && annotation.contains("=")) {
-					metadataanno.put("kubernetes.io/ingress-bandwidth", annotation.split("=")[1]);
-				}
-				if (annotation.contains("egress") && annotation.contains("=")) {
-					metadataanno.put("kubernetes.io/egress-bandwidth", annotation.split("=")[1]);
-				}
-			}
-	    }
-	    metadata.setAnnotations(metadataanno);
+	    metadata.setName(name);
+	    metadata.setNamespace(namespace);
 		podTemplate.setMetadata(metadata);
 		//podSpec
 		PodSpec podSpec = new PodSpec();

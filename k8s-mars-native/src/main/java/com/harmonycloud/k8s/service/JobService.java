@@ -11,9 +11,7 @@ import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.k8s.bean.Job;
-import com.harmonycloud.k8s.bean.PersistentVolume;
 import com.harmonycloud.k8s.bean.UnversionedStatus;
-import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.APIGroup;
 import com.harmonycloud.k8s.constant.HTTPMethod;
@@ -30,9 +28,9 @@ public class JobService {
 	 * @param cluster
 	 * @return Job
 	 */
-	public ActionReturnUtil addJob(Job job, Cluster cluster) throws Exception {
+	public ActionReturnUtil addJob(String namespace, Job job, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
-		url.setResource(Resource.JOB);
+		url.setResource(Resource.JOB).setNamespace(namespace);
 		Map<String, Object> bodys = new HashMap<>();
 		bodys.put("metadata", job.getMetadata());
 		bodys.put("kind", job.getKind());

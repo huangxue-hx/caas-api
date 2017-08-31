@@ -90,7 +90,7 @@ public class JobsServiceImpl implements JobsService{
     	}
     	//组装job
     	Job job = convertJob(detail, userName);
-    	return jobService.addJob(job, cluster);
+    	return jobService.addJob(detail.getNamespace(), job, cluster);
     }
 
     @Override
@@ -652,7 +652,7 @@ public class JobsServiceImpl implements JobsService{
         			}
     			}
     			//创建job
-    			jobService.addJob(job, cluster);
+    			jobService.addJob(namespace, job, cluster);
     		}else{
     			return ActionReturnUtil.returnErrorWithMsg("job:name已不存在");
     		}
@@ -739,11 +739,12 @@ public class JobsServiceImpl implements JobsService{
 		meta.setAnnotations(anno);
 		job.setMetadata(meta);
 		JobSpec jobSpec = new JobSpec();
-		if(detail.getActiveDeadlineSeconds() != 0){
+		if(detail.getActiveDeadlineSeconds() != null && detail.getActiveDeadlineSeconds() != 0){
 			jobSpec.setActiveDeadlineSeconds(detail.getActiveDeadlineSeconds());
 		}
 		jobSpec.setCompletions(detail.getCompletions() == 0 ? 1 : detail.getCompletions());
-		PodTemplateSpec template = K8sResultConvert.convertPodTemplate(detail.getName(), detail.getContainers(), detail.getLabels(), detail.getAnnotation(), userName, Constant.TYPE_JOB, detail.getNodeSelector(), detail.getRestartPolicy());
+		jobSpec.setParallelism(detail.getParallelism() == 0 ? 1 : detail.getParallelism());
+		PodTemplateSpec template = K8sResultConvert.convertPodTemplate(detail.getName(), detail.getContainers(), detail.getLabels(), detail.getAnnotation(), userName, Constant.TYPE_JOB, detail.getNodeSelector(), detail.getRestartPolicy(), detail.getNamespace());
 		jobSpec.setTemplate(template);
 		job.setSpec(jobSpec);
     	return job ;
@@ -783,7 +784,7 @@ public class JobsServiceImpl implements JobsService{
 			jobSpec.setActiveDeadlineSeconds(detail.getActiveDeadlineSeconds());
 		}
 		jobSpec.setCompletions(detail.getCompletions() == 0 ? 1 : detail.getCompletions());
-		PodTemplateSpec template = K8sResultConvert.convertPodTemplate(detail.getName(), detail.getContainers(), detail.getLabels(), detail.getAnnotation(), userName, Constant.TYPE_JOB, detail.getNodeSelector(), detail.getRestartPolicy());
+		PodTemplateSpec template = K8sResultConvert.convertPodTemplate(detail.getName(), detail.getContainers(), detail.getLabels(), detail.getAnnotation(), userName, Constant.TYPE_JOB, detail.getNodeSelector(), detail.getRestartPolicy(), detail.getNamespace());
 		jobSpec.setTemplate(template);
 		job.setSpec(jobSpec);
     	return job ;
