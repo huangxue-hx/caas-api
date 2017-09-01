@@ -267,7 +267,7 @@ CREATE TABLE `external_type` (
 
 LOCK TABLES `external_type` WRITE;
 /*!40000 ALTER TABLE `external_type` DISABLE KEYS */;
-INSERT INTO `external_type` VALUES (1,'all'),(2,'mysql'),(3,'oracle'),(4,'zookeeper'),(5,'storm'),(6,'flume'),(7,'redis'),(8,'memcached'),(9,'kafka'),(10,'other');
+INSERT INTO `external_type` VALUES (1,'全部'),(2,'mysql'),(3,'oracle'),(4,'zookeeper'),(5,'storm'),(6,'flume'),(7,'redis'),(8,'memcached'),(9,'kafka'),(10,'other');
 /*!40000 ALTER TABLE `external_type` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -515,7 +515,7 @@ CREATE TABLE `resource` (
 -- ----------------------------
 -- Records of resource
 -- ----------------------------
-INSERT INTO `resource` VALUES ('1', 'ALL', 'menu', '', '0', '0', '0', null, null, '1', null, null);
+INSERT INTO `resource` VALUES ('1', '全部', 'menu', '', '0', '0', '0', null, null, '1', null, null);
 INSERT INTO `resource` VALUES ('2', '总览', 'menu', 'overview', '1', null, '0', null, null, '1', null, 'menu-icon mi-overview');
 INSERT INTO `resource` VALUES ('3', '集群', 'menu', 'cluster', '1', null, '0', null, null, '1', null, 'menu-icon mi-cluster');
 INSERT INTO `resource` VALUES ('4', '租户管理', 'menu', 'tenant', '1', null, '0', null, null, '1', null, 'menu-icon mi-tenant');
