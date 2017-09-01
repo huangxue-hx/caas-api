@@ -355,11 +355,21 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                         }
                         // get image
                         List<String> img = new ArrayList<String>();
+                        List<String> cpu = new ArrayList<String>();
+                        List<String> memory = new ArrayList<String>();
                         List<Container> containers = dep.getSpec().getTemplate().getSpec().getContainers();
                         for (Container container : containers) {
                             img.add(container.getImage());
+                            if(container.getResources() != null && container.getResources().getLimits() != null){
+                            	@SuppressWarnings("unchecked")
+								Map<String, String> res = (Map<String, String>) container.getResources().getLimits();
+                            	cpu.add(res.get("cpu"));
+                            	memory.add(res.get("memory"));
+                            }
                         }
                         json.put("img", img);
+                        json.put("cpu", cpu);
+                        json.put("memory", memory);
                         json.put("instance", dep.getSpec().getReplicas());
                         json.put("createTime", dep.getMetadata().getCreationTimestamp());
                         json.put("namespace", dep.getMetadata().getNamespace());

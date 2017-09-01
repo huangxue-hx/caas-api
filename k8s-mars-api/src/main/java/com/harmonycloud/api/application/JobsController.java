@@ -61,10 +61,10 @@ public class JobsController {
      */
     @ResponseBody
     @RequestMapping(method = RequestMethod.GET)
-    public ActionReturnUtil listJob(@RequestParam(value = "namespace", required = false) String namespace,@RequestParam(value = "labels", required = false) String labels, @RequestParam(value = "status", required = false) String status) throws Exception {
+    public ActionReturnUtil listJob(@RequestParam(value = "tenantId", required = false) String tenantId, @RequestParam(value = "namespace", required = false) String namespace, @RequestParam(value = "labels", required = false) String labels, @RequestParam(value = "status", required = false) String status) throws Exception {
 		logger.info("获取job列表");
 		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-		ActionReturnUtil result = jobsService.listJob(namespace, labels, status, cluster);
+		ActionReturnUtil result = jobsService.listJob(tenantId, namespace, labels, status, cluster);
 		return result;
     }
 

@@ -129,10 +129,7 @@ public class JobService {
 	 */
 	public K8SClientResponse listJob(String namespace, Map<String, Object> queryParams, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
-		url.setResource(Resource.JOB);
-		if(StringUtils.isEmpty(namespace)){
-			url.setNamespace(namespace);
-		}
+		url.setResource(Resource.JOB).setNamespace(namespace);
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,queryParams,cluster);
 		return response;
 	}

@@ -29,6 +29,7 @@ import com.harmonycloud.k8s.bean.K8sResponseBody;
 import com.harmonycloud.k8s.bean.PersistentVolume;
 import com.harmonycloud.k8s.bean.PersistentVolumeClaim;
 import com.harmonycloud.k8s.bean.PersistentVolumeClaimList;
+import com.harmonycloud.k8s.bean.UnversionedStatus;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
@@ -437,7 +438,8 @@ public class ServiceServiceImpl implements ServiceService {
 										K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT,
 												headersPV, bodysPV);
 										if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
-											errorMessage.add(responsePV.getBody());
+											UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
+	                                        errorMessage.add(status.getMessage());
 										}
 									}
 								}
@@ -448,7 +450,8 @@ public class ServiceServiceImpl implements ServiceService {
 				K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys, cluster);
 				if (!HttpStatusUtil.isSuccessStatus(response.getStatus())
 						&& response.getStatus() != Constant.HTTP_404) {
-					errorMessage.add(response.getBody());
+					UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+                    errorMessage.add(status.getMessage());
 				}
 			}
 		}
@@ -476,7 +479,7 @@ public class ServiceServiceImpl implements ServiceService {
 						userName, cluster);
 				if (!deleteDeployReturn.isSuccess()) {
 					serviceFlag = false;
-					errorMessage.add(service.getName());
+					errorMessage.add(deleteDeployReturn.get("data").toString());
 				}
 
 
@@ -534,7 +537,8 @@ public class ServiceServiceImpl implements ServiceService {
 							if (!HttpStatusUtil.isSuccessStatus(response.getStatus())
 									&& response.getStatus() != Constant.HTTP_404) {
 								serviceFlag = false;
-								errorMessage.add(response.getBody());
+								UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+			                    errorMessage.add(status.getMessage());
 							}
 
 							// update pv
@@ -560,7 +564,8 @@ public class ServiceServiceImpl implements ServiceService {
 									K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT,
 											headersPV, bodysPV);
 									if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
-										errorMessage.add(responsePV.getBody());
+										UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
+					                    errorMessage.add(status.getMessage());
 									}
 								}
 							}
@@ -891,9 +896,8 @@ public class ServiceServiceImpl implements ServiceService {
 		K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
 				&& depRes.getStatus() != Constant.HTTP_404 ) {
-			JSONObject js = JSONObject.fromObject(depRes.getBody());
-			K8sResponseBody k8sresbody = (K8sResponseBody) JSONObject.toBean(js, K8sResponseBody.class);
-			return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
+			UnversionedStatus status = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
 		}
 		DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
 		List<Deployment> deps = new ArrayList<Deployment>();
