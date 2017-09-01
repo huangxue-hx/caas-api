@@ -274,4 +274,30 @@ public class PodService {
 		return response;
 	}
 	
+	/**
+	 * getPod
+	 * @param name 
+	 * @param cluster
+	 * @return Job
+	 */
+	public K8SClientResponse getPods(String namespace, Map<String,Object> bodys, Cluster cluster) throws Exception {
+		K8SURL url = new K8SURL();
+		url.setNamespace(namespace).setResource(Resource.POD);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,bodys,cluster);
+		return response;
+	}
+	
+	/**
+	 * 删除Pod
+	 * @param name 
+	 * @param cluster
+	 * @return Job
+	 */
+	public K8SClientResponse deletePods(String namespace, Map<String,Object> bodys, Cluster cluster) throws Exception {
+		K8SURL url = new K8SURL();
+		url.setNamespace(namespace).setResource(Resource.POD);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE,null,bodys,cluster);
+		return response;
+	}
+	
 }
