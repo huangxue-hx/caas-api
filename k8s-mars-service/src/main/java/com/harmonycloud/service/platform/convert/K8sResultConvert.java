@@ -447,10 +447,21 @@ public class K8sResultConvert {
 					tMap.put("version", "v" + dep.getMetadata().getAnnotations().get("deployment.kubernetes.io/revision"));
 				}
 				List<String> img = new ArrayList<String>();
+				List<String> cpu = new ArrayList<String>();
+				List<String> memory = new ArrayList<String>();
 				List<Container> containers = dep.getSpec().getTemplate().getSpec().getContainers();
 				for (Container container : containers) {
 					img.add(container.getImage());
+					if(container.getResources() != null && container.getResources().getLimits() != null){
+						@SuppressWarnings("unchecked")
+						Map<String, String> res1 = (Map<String, String>) container.getResources().getLimits();
+						cpu.add(res1.get("cpu"));
+						memory.add(res1.get("memory"));
+					}
+
 				}
+				tMap.put("cpu", cpu);
+				tMap.put("memory", memory);
 				tMap.put("img", img);
 				tMap.put("instance", dep.getSpec().getReplicas());
 				tMap.put("createTime", dep.getMetadata().getCreationTimestamp());

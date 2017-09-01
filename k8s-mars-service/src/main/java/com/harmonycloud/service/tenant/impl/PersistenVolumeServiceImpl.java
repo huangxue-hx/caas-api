@@ -91,10 +91,11 @@ public class PersistenVolumeServiceImpl implements PersistentVolumeService{
 
     @Override
     public ActionReturnUtil createPv(PersistentVolumeDto persistentVolumedto) throws Exception {
+        String tenant = tenantService.getTenantByTenantid(persistentVolumedto.getTenantid()).getTenantName();
         PersistentVolume persistentVolume = new PersistentVolume();
         // 设置metadata
         ObjectMeta metadata = new ObjectMeta();
-        metadata.setName(persistentVolumedto.getName());
+        metadata.setName(tenant +"."+persistentVolumedto.getName());
         Map<String, Object> labels = new HashMap<>();
         labels.put("nephele_tenantid", persistentVolumedto.getTenantid());
         metadata.setLabels(labels);
@@ -106,7 +107,7 @@ public class PersistenVolumeServiceImpl implements PersistentVolumeService{
 //        spec.setPersistentVolumeReclaimPolicy(CommonConstant.RECYCLE);
         NFSVolumeSource nfs = new NFSVolumeSource();
         // 设置nfs地址
-        nfs.setPath(persistentVolumedto.getPath()+"/"+persistentVolumedto.getName());
+        nfs.setPath(persistentVolumedto.getPath() + "/" + tenant + "/" + persistentVolumedto.getName());
         nfs.setServer(persistentVolumedto.getNfsServer());
         spec.setNfs(nfs);
         List<String> accessModes = new ArrayList<>();
