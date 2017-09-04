@@ -15,6 +15,9 @@
     <result column="trans_name" property="transName" jdbcType="VARCHAR" />
     <result column="icon_name" property="iconName" jdbcType="VARCHAR" />
     <result column="role" property="role" jdbcType="VARCHAR" />
+    <result column="isParent" property="isParent" jdbcType="INTEGER"/>
+    <result column="parent_rpid" property="parent_rpid" jdbcType="INTEGER"/>
+    <result column="rpid" property="rpid" jdbcType="INTEGER"/>
   </resultMap>
   <sql id="Example_Where_Clause" >
     <where >
@@ -76,7 +79,7 @@
   </sql>
   <sql id="Base_Column_List" >
     id, name, type, url, parent_id, parent_ids, weight, create_time, update_time, available, 
-    trans_name, icon_name, role
+    trans_name, icon_name, role, isParent, parent_rpid, rpid, isParent, parent_rpid, rpid
   </sql>
   <select id="selectByExample" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.user.bean.ResourceExample" >
     select
@@ -114,12 +117,13 @@
       url, parent_id, parent_ids, 
       weight, create_time, update_time, 
       available, trans_name, icon_name, 
-      role)
+      role, isParent, parent_rpid, rpid)
     values (#{id,jdbcType=INTEGER}, #{name,jdbcType=VARCHAR}, #{type,jdbcType=VARCHAR}, 
       #{url,jdbcType=VARCHAR}, #{parentId,jdbcType=INTEGER}, #{parentIds,jdbcType=VARCHAR}, 
       #{weight,jdbcType=INTEGER}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, 
       #{available,jdbcType=BIT}, #{transName,jdbcType=VARCHAR}, #{iconName,jdbcType=VARCHAR}, 
-      #{role,jdbcType=VARCHAR})
+      #{role,jdbcType=VARCHAR},#{isParent,jdbcType=INTEGER},#{parent_rpid,jdbcType=INTEGER},
+      #{rpid,jdbcType=INTEGER})
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.user.bean.Resource" >
     insert into resource

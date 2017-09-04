@@ -368,15 +368,20 @@ public class UserController {
         if (session.getAttribute("username") == null) {
             throw new K8sAuthException(Constant.HTTP_401);
         }
+        Map<String, Object> result = new HashMap<>();
         String userName = session.getAttribute("username").toString();
+        String isAdmin = session.getAttribute("isAdmin").toString();
+        System.out.println(isAdmin);
+        if(isAdmin.equals("1")){
+            return ActionReturnUtil.returnSuccessWithData(result);
+        }
         Role role = roleService.getRoleByUserNameAndTenant(userName, tenantid);
-        Map<String, Object> privilegeByRole = rolePrivilegeService.getPrivilegeByRole(role.getName());
+        Map<String, Object> privilegeByRole = rolePrivilegeService.getPrivilegeByRole(CommonConstant.ROLE_TM.equals(role.getName())?CommonConstant.ROLE_DEV:role.getName());
         session.setAttribute("tenantId", tenantid);
         session.setAttribute("role", role.getName());
         session.setAttribute("privilege", privilegeByRole);
         Cluster cluster = this.tenantService.getClusterByTenantid(tenantid);
         session.setAttribute("currentCluster", cluster);
-        Map<String, Object> result = new HashMap<>();
         result.put("role", role.getName());
         result.put("privilege", privilegeByRole);
         return ActionReturnUtil.returnSuccessWithData(result);
@@ -394,9 +399,11 @@ public class UserController {
         if (user.getIsAdmin() == 1) {
             menu = resourceService.listMenuByRole("admin");
         } else {
-            menu = resourceService.listMenuByRole("dev");
+            Object Id = session.getAttribute("tenantId");
+            String tenantId = Id.toString();
+            String role = userTenantService.findRoleByName(userName,tenantId);
+            menu = resourceService.listMenuByRole(role);
         }
-
         return ActionReturnUtil.returnSuccessWithData(menu);
 
     }

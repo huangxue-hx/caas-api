@@ -30,6 +30,26 @@ public class UserShowDto {
     private String phone;
     private Integer isAuthorize;
 
+    private String roleName;
+
+    private String roleDiscription;
+
+    public String getRoleDiscription() {
+        return roleDiscription;
+    }
+
+    public void setRoleDiscription(String roleDiscription) {
+        this.roleDiscription = roleDiscription;
+    }
+
+    public String getRoleName() {
+        return roleName;
+    }
+
+    public void setRoleName(String roleName) {
+        this.roleName = roleName;
+    }
+
     public Integer getIsAuthorize() {
         return isAuthorize;
     }

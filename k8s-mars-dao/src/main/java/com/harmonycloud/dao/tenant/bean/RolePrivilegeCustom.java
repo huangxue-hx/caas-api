@@ -1,9 +1,8 @@
 package com.harmonycloud.dao.tenant.bean;
 
-import java.io.Serializable;
 import java.util.Date;
 
-public class RolePrivilege implements Serializable{
+public class RolePrivilegeCustom {
     private Integer id;
 
     private String role;
@@ -22,29 +21,11 @@ public class RolePrivilege implements Serializable{
 
     private String mark;
 
-    private Integer parentid;
-
     private Integer parentRpid;
 
     private Boolean isparent;
 
     private Integer rpid;
-
-    public Integer getParentRpid() {
-        return parentRpid;
-    }
-
-    public void setParentRpid(Integer parentRpid) {
-        this.parentRpid = parentRpid;
-    }
-
-    public Integer getRpid() {
-        return rpid;
-    }
-
-    public void setRpid(Integer rpid) {
-        this.rpid = rpid;
-    }
 
     public Integer getId() {
         return id;
@@ -118,12 +99,12 @@ public class RolePrivilege implements Serializable{
         this.mark = mark == null ? null : mark.trim();
     }
 
-    public Integer getParentid() {
-        return parentid;
+    public Integer getParentRpid() {
+        return parentRpid;
     }
 
-    public void setParentid(Integer parentid) {
-        this.parentid = parentid;
+    public void setParentRpid(Integer parentRpid) {
+        this.parentRpid = parentRpid;
     }
 
     public Boolean getIsparent() {
@@ -132,5 +113,13 @@ public class RolePrivilege implements Serializable{
 
     public void setIsparent(Boolean isparent) {
         this.isparent = isparent;
+    }
+
+    public Integer getRpid() {
+        return rpid;
+    }
+
+    public void setRpid(Integer rpid) {
+        this.rpid = rpid;
     }
 }

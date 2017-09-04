@@ -1,23 +1,26 @@
 package com.harmonycloud.service.tenant.impl;
 
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.dao.tenant.bean.RolePrivilege;
 import com.harmonycloud.dao.tenant.bean.UserTenant;
 import com.harmonycloud.dao.user.RoleMapper;
 import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.dao.user.bean.RoleExample;
 import com.harmonycloud.dao.user.bean.User;
+import com.harmonycloud.service.tenant.RolePrivilegeService;
 import com.harmonycloud.service.tenant.RoleService;
 import com.harmonycloud.service.tenant.UserTenantService;
 import com.harmonycloud.service.user.UserService;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
+import javax.servlet.http.HttpSession;
 
 /**
  * Created by zsl on 16/10/25.
@@ -32,7 +35,62 @@ public class RoleServiceImpl implements RoleService {
     private UserTenantService userTenantService;
     @Autowired
     private UserService userService;
+    @Autowired
+    private HttpSession session;
+    @Autowired
+    private RolePrivilegeService rolePrivilegeService;
 
+    /**
+     * 禁用角色
+     * @param roleName
+     * @throws Exception
+     */
+    public void disableRoleByRoleName(String roleName) throws Exception {
+        RoleExample example = new RoleExample();
+        example.createCriteria().andNameEqualTo(roleName);
+        List<Role> list = roleMapper.selectByExample(example);
+        if(list == null && list.size() <= 0){
+            throw new MarsRuntimeException("禁用的角色不存在");
+        }
+        Role role = list.get(0);
+        List<UserTenant> findUserByRoleName = userTenantService.findUserByRoleName(roleName);
+        if(findUserByRoleName != null && findUserByRoleName.size() > 0){
+            throw new MarsRuntimeException("角色:"+roleName+",还有用户绑定,请先解除绑定后再操作!");
+        }
+        role.setSecondResourceIds("pause");
+        roleMapper.updateByPrimaryKey(role);
+    }
+
+    public void resetRole() throws Exception {
+        RoleExample example = new RoleExample();
+        example.createCriteria().andIdBetween(1, 5);
+        Role record = new Role();
+        record.setAvailable(Boolean.TRUE);
+        roleMapper.updateByExampleSelective(record, example);
+        RoleExample example1 = new RoleExample();
+        example1.createCriteria().andIdGreaterThan(5);
+        roleMapper.deleteByExample(example1);
+        List<Role> roleList = this.getRoleList();
+        for (Role role : roleList) {
+            rolePrivilegeService.resetRolePrivilegeByRoleName(role.getName());
+        }
+    }
+    /**
+     * 启用角色
+     * @param roleName
+     * @throws Exception
+     */
+    public void enableRoleByRoleName(String roleName) throws Exception {
+        RoleExample example = new RoleExample();
+        example.createCriteria().andNameEqualTo(roleName);
+        List<Role> list = roleMapper.selectByExample(example);
+        if(list == null && list.size() <= 0){
+            throw new MarsRuntimeException("启用的角色不存在");
+        }
+        Role role = list.get(0);
+        role.setSecondResourceIds(null);
+        roleMapper.updateByPrimaryKey(role);
+    }
     /**
      * 获取role列表
      * @return
@@ -69,7 +127,6 @@ public class RoleServiceImpl implements RoleService {
         roleMapper.updateByPrimaryKey(role);
     }
 
-    @Override
     public void DisableRoleByRoleName(String roleName) throws Exception {
         RoleExample example = new RoleExample();
         example.createCriteria().andNameEqualTo(roleName);
@@ -84,8 +141,49 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public void addRole(Role role) throws Exception {
-        roleMapper.insertSelective(role);
+    public void addRole(Role role,List<Map<String, Object>> rolePrivilegeList) throws Exception {
+        Integer isAdmin = (Integer)session.getAttribute("isAdmin");
+        if(isAdmin!=1){
+            throw new MarsRuntimeException("管理员才能添加角色");
+        }
+        String roleName = role.getName();
+        RoleExample example = new RoleExample();
+        example.createCriteria().andNameEqualTo(roleName);
+        List<Role> list = roleMapper.selectByExample(example);
+        if(list != null && list.size() > 0 && list.get(0).getAvailable() == Boolean.FALSE){
+            Role role2 = list.get(0);
+            role2.setAvailable(role.getAvailable());
+            role2.setUpdateTime(role.getUpdateTime());
+            role2.setDescription(role.getDescription());
+            roleMapper.updateByPrimaryKeySelective(role2);
+        }else{
+            roleMapper.insertSelective(role);
+        }
+        List<RolePrivilege> rolePrivilegeByRoleName = this.rolePrivilegeService.getRolePrivilegeByRoleName(CommonConstant.DEFAULT);
+        if(rolePrivilegeList==null || rolePrivilegeList.isEmpty()){
+            //没有初始权限，使用default权限
+            for (RolePrivilege rolePrivilege : rolePrivilegeByRoleName) {
+                rolePrivilege.setId(null);
+                rolePrivilege.setRole(roleName);
+                rolePrivilege.setUpdateTime(new Date());
+                this.rolePrivilegeService.addModule(rolePrivilege);
+            }
+        }else{
+            //有初始权限，更新初始权限
+            HashMap<Integer, Boolean> newPrivilege = new HashMap<>();
+            for (Map<String, Object> rolePrivilege : rolePrivilegeList) {
+                newPrivilege.put((Integer) rolePrivilege.get("rpid"), (Boolean) rolePrivilege.get("status"));
+            }
+            for (RolePrivilege rolePrivilege : rolePrivilegeByRoleName) {
+                rolePrivilege.setId(null);
+                rolePrivilege.setRole(roleName);
+                rolePrivilege.setUpdateTime(new Date());
+                if(newPrivilege.get(rolePrivilege.getRpid()) != null){
+                    rolePrivilege.setStatus(newPrivilege.get(rolePrivilege.getRpid()));
+                }
+                this.rolePrivilegeService.addModule(rolePrivilege);
+            }
+        }
     }
 
     @Override

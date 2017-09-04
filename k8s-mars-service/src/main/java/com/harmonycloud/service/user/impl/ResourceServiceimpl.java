@@ -1,11 +1,8 @@
 package com.harmonycloud.service.user.impl;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
+import com.harmonycloud.dao.tenant.bean.RolePrivilege;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +45,13 @@ public class ResourceServiceimpl implements ResourceService{
 //        }
 //        return menus;
 //    }
+@Override
+public void updateRoleMenuResource(Integer id, Boolean status) throws Exception {
+    Resource resource2 = this.resourceMapper.selectByPrimaryKey(id);
+    resource2.setAvailable(status);
+    resource2.setUpdateTime(new Date());
+    this.resourceMapper.updateByPrimaryKeySelective(resource2);
+}
     @Override
     public boolean checkByResourceIds(Set<Long> resourceIds, Resource resource) throws Exception {
         for (Long resourceId : resourceIds) {
@@ -57,7 +61,16 @@ public class ResourceServiceimpl implements ResourceService{
         }
         return false;
     }
-    
+
+    @Override
+    public RolePrivilege updateRoleMenuPrivilegeWight(Integer id, Integer weight) throws Exception {
+        Resource resource2 = this.resourceMapper.selectByPrimaryKey(id);
+        resource2.setWeight(weight);
+        resource2.setUpdateTime(new Date());
+        this.resourceMapper.updateByPrimaryKeySelective(resource2);
+        return null;
+    }
+
     /**
      * 获取所有api资源列表
      * @return APIResourceList
@@ -129,9 +142,10 @@ public class ResourceServiceimpl implements ResourceService{
                 map.put(CommonConstant.ID,  resource.getId());
                 map.put(CommonConstant.NAME,  resource.getName());
                 map.put(CommonConstant.URL,  resource.getUrl());
+                map.put("weight",resource.getWeight());
                 map.put(CommonConstant.ICONNAME,  resource.getIconName());
                 ResourceExample example1 = new ResourceExample ();
-                example1.createCriteria().andParentIdEqualTo(resource.getId());
+                example1.createCriteria().andRoleEqualTo(roleName).andAvailableEqualTo(Boolean.TRUE).andParentIdEqualTo(resource.getRpid());
                 List<Resource> list2 = this.resourceMapper.selectByExample(example1);
                 
                 if(list2!=null&&list2.size()>0){

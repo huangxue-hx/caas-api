@@ -98,4 +98,12 @@ public interface UserTenantService {
      */
     public String findRoleByName(String username,String tenantid) throws Exception;
 
+    /**
+     * 根据roleName获取用户
+     * @param roleName
+     * @return
+     * @throws Exception
+     */
+    public List<UserTenant> findUserByRoleName(String roleName) throws Exception;
+
 }
