@@ -4,14 +4,14 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-public class RolePrivilegeExample {
+public class RolePrivilegeCustomExample {
     protected String orderByClause;
 
     protected boolean distinct;
 
     protected List<Criteria> oredCriteria;
 
-    public RolePrivilegeExample() {
+    public RolePrivilegeCustomExample() {
         oredCriteria = new ArrayList<Criteria>();
     }
 
@@ -884,77 +884,6 @@ public class RolePrivilegeExample {
             addCriterion("rpid not between", value1, value2, "rpid");
             return (Criteria) this;
         }
-
-        public Criteria andParentidLessThanOrEqualTo(Integer value) {
-            addCriterion("parentid <=", value, "parentid");
-            return (Criteria) this;
-        }
-
-        public Criteria andParentidIn(List<Integer> values) {
-            addCriterion("parentid in", values, "parentid");
-            return (Criteria) this;
-        }
-
-        public Criteria andParentidNotIn(List<Integer> values) {
-            addCriterion("parentid not in", values, "parentid");
-            return (Criteria) this;
-        }
-
-        public Criteria andParentidBetween(Integer value1, Integer value2) {
-            addCriterion("parentid between", value1, value2, "parentid");
-            return (Criteria) this;
-        }
-
-        public Criteria andParentidNotBetween(Integer value1, Integer value2) {
-            addCriterion("parentid not between", value1, value2, "parentid");
-            return (Criteria) this;
-        }
-
-        public Criteria andParentidIsNull() {
-            addCriterion("parentid is null");
-            return (Criteria) this;
-        }
-
-        public Criteria andParentidIsNotNull() {
-            addCriterion("parentid is not null");
-            return (Criteria) this;
-        }
-
-        public Criteria andParentidEqualTo(Integer value) {
-            addCriterion("parentid =", value, "parentid");
-            return (Criteria) this;
-        }
-
-        public Criteria andParentidNotEqualTo(Integer value) {
-            addCriterion("parentid <>", value, "parentid");
-            return (Criteria) this;
-        }
-
-        public Criteria andParentidGreaterThan(Integer value) {
-            addCriterion("parentid >", value, "parentid");
-            return (Criteria) this;
-        }
-
-        public Criteria andParentidGreaterThanOrEqualTo(Integer value) {
-            addCriterion("parentid >=", value, "parentid");
-            return (Criteria) this;
-        }
-
-        public Criteria andParentidLessThan(Integer value) {
-            addCriterion("parentid <", value, "parentid");
-            return (Criteria) this;
-        }
-
-
-
-
-
-
-
-
-
-
-
     }
 
     public static class Criteria extends GeneratedCriteria {

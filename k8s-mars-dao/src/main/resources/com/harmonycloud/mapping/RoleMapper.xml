@@ -72,6 +72,9 @@
   <sql id="Base_Column_List" >
     id, name, description, resource_ids, create_time, update_time, available, second_resource_ids
   </sql>
+  <select id="selectDescriptionByRoleName" parameterType="java.lang.String" resultType="java.lang.String">
+    select description from role where name=#{roleName};
+  </select>
   <select id="selectByExample" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.user.bean.RoleExample" >
     select
     <if test="distinct" >

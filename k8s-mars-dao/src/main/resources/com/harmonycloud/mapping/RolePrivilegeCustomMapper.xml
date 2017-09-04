@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
-<mapper namespace="com.harmonycloud.dao.tenant.RolePrivilegeMapper" >
-  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.tenant.bean.RolePrivilege" >
+<mapper namespace="com.harmonycloud.dao.tenant.RolePrivilegeCustomMapper" >
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.tenant.bean.RolePrivilegeCustom" >
     <id column="id" property="id" jdbcType="INTEGER" />
     <result column="role" property="role" jdbcType="VARCHAR" />
     <result column="privilege" property="privilege" jdbcType="VARCHAR" />
@@ -11,8 +11,8 @@
     <result column="third_module" property="thirdModule" jdbcType="VARCHAR" />
     <result column="status" property="status" jdbcType="BIT" />
     <result column="mark" property="mark" jdbcType="VARCHAR" />
-    <result column="isParent" property="isparent" jdbcType="BIT" />
     <result column="parent_rpid" property="parentRpid" jdbcType="INTEGER" />
+    <result column="isParent" property="isparent" jdbcType="BIT" />
     <result column="rpid" property="rpid" jdbcType="INTEGER" />
   </resultMap>
   <sql id="Example_Where_Clause" >
@@ -75,16 +75,16 @@
   </sql>
   <sql id="Base_Column_List" >
     id, role, privilege, update_time, first_module, second_module, third_module, status, 
-    mark, parentid, isParent, parent_rpid, rpid
+    mark, parent_rpid, isParent, rpid
   </sql>
-  <select id="selectByExample" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilegeExample" >
+  <select id="selectByExample" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilegeCustomExample" >
     select
     <if test="distinct" >
       distinct
     </if>
     'false' as QUERYID,
     <include refid="Base_Column_List" />
-    from role_privilege
+    from role_privilege_custom
     <if test="_parameter != null" >
       <include refid="Example_Where_Clause" />
     </if>
@@ -95,31 +95,33 @@
   <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="java.lang.Integer" >
     select 
     <include refid="Base_Column_List" />
-    from role_privilege
+    from role_privilege_custom
     where id = #{id,jdbcType=INTEGER}
   </select>
   <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer" >
-    delete from role_privilege
+    delete from role_privilege_custom
     where id = #{id,jdbcType=INTEGER}
   </delete>
-  <delete id="deleteByExample" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilegeExample" >
-    delete from role_privilege
+  <delete id="deleteByExample" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilegeCustomExample" >
+    delete from role_privilege_custom
     <if test="_parameter != null" >
       <include refid="Example_Where_Clause" />
     </if>
   </delete>
-  <insert id="insert" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilege" >
-    insert into role_privilege (id, role, privilege, 
+  <insert id="insert" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilegeCustom" >
+    insert into role_privilege_custom (id, role, privilege, 
       update_time, first_module, second_module, 
       third_module, status, mark, 
-      parentid, isParent)
+      parent_rpid, isParent, rpid
+      )
     values (#{id,jdbcType=INTEGER}, #{role,jdbcType=VARCHAR}, #{privilege,jdbcType=VARCHAR}, 
       #{updateTime,jdbcType=TIMESTAMP}, #{firstModule,jdbcType=VARCHAR}, #{secondModule,jdbcType=VARCHAR}, 
       #{thirdModule,jdbcType=VARCHAR}, #{status,jdbcType=BIT}, #{mark,jdbcType=VARCHAR}, 
-      #{parentid,jdbcType=INTEGER}, #{isparent,jdbcType=BIT})
+      #{parentRpid,jdbcType=INTEGER}, #{isparent,jdbcType=BIT}, #{rpid,jdbcType=INTEGER}
+      )
   </insert>
-  <insert id="insertSelective" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilege" >
-    insert into role_privilege
+  <insert id="insertSelective" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilegeCustom" >
+    insert into role_privilege_custom
     <trim prefix="(" suffix=")" suffixOverrides="," >
       <if test="id != null" >
         id,
@@ -148,11 +150,14 @@
       <if test="mark != null" >
         mark,
       </if>
-      <if test="parentid != null" >
-        parentid,
+      <if test="parentRpid != null" >
+        parent_rpid,
       </if>
       <if test="isparent != null" >
         isParent,
+      </if>
+      <if test="rpid != null" >
+        rpid,
       </if>
     </trim>
     <trim prefix="values (" suffix=")" suffixOverrides="," >
@@ -183,16 +188,19 @@
       <if test="mark != null" >
         #{mark,jdbcType=VARCHAR},
       </if>
-      <if test="parentid != null" >
-        #{parentid,jdbcType=INTEGER},
+      <if test="parentRpid != null" >
+        #{parentRpid,jdbcType=INTEGER},
       </if>
       <if test="isparent != null" >
         #{isparent,jdbcType=BIT},
       </if>
+      <if test="rpid != null" >
+        #{rpid,jdbcType=INTEGER},
+      </if>
     </trim>
   </insert>
   <update id="updateByExampleSelective" parameterType="map" >
-    update role_privilege
+    update role_privilege_custom
     <set >
       <if test="record.id != null" >
         id = #{record.id,jdbcType=INTEGER},
@@ -221,11 +229,14 @@
       <if test="record.mark != null" >
         mark = #{record.mark,jdbcType=VARCHAR},
       </if>
-      <if test="record.parentid != null" >
-        parentid = #{record.parentid,jdbcType=INTEGER},
+      <if test="record.parentRpid != null" >
+        parent_rpid = #{record.parentRpid,jdbcType=INTEGER},
       </if>
       <if test="record.isparent != null" >
         isParent = #{record.isparent,jdbcType=BIT},
+      </if>
+      <if test="record.rpid != null" >
+        rpid = #{record.rpid,jdbcType=INTEGER},
       </if>
     </set>
     <if test="_parameter != null" >
@@ -233,7 +244,7 @@
     </if>
   </update>
   <update id="updateByExample" parameterType="map" >
-    update role_privilege
+    update role_privilege_custom
     set id = #{record.id,jdbcType=INTEGER},
       role = #{record.role,jdbcType=VARCHAR},
       privilege = #{record.privilege,jdbcType=VARCHAR},
@@ -243,14 +254,15 @@
       third_module = #{record.thirdModule,jdbcType=VARCHAR},
       status = #{record.status,jdbcType=BIT},
       mark = #{record.mark,jdbcType=VARCHAR},
-      parentid = #{record.parentid,jdbcType=INTEGER},
-      isParent = #{record.isparent,jdbcType=BIT}
+      parent_rpid = #{record.parentRpid,jdbcType=INTEGER},
+      isParent = #{record.isparent,jdbcType=BIT},
+      rpid = #{record.rpid,jdbcType=INTEGER}
     <if test="_parameter != null" >
       <include refid="Update_By_Example_Where_Clause" />
     </if>
   </update>
-  <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilege" >
-    update role_privilege
+  <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilegeCustom" >
+    update role_privilege_custom
     <set >
       <if test="role != null" >
         role = #{role,jdbcType=VARCHAR},
@@ -276,17 +288,20 @@
       <if test="mark != null" >
         mark = #{mark,jdbcType=VARCHAR},
       </if>
-      <if test="parentid != null" >
-        parentid = #{parentid,jdbcType=INTEGER},
+      <if test="parentRpid != null" >
+        parent_rpid = #{parentRpid,jdbcType=INTEGER},
       </if>
       <if test="isparent != null" >
         isParent = #{isparent,jdbcType=BIT},
       </if>
+      <if test="rpid != null" >
+        rpid = #{rpid,jdbcType=INTEGER},
+      </if>
     </set>
     where id = #{id,jdbcType=INTEGER}
   </update>
-  <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilege" >
-    update role_privilege
+  <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilegeCustom" >
+    update role_privilege_custom
     set role = #{role,jdbcType=VARCHAR},
       privilege = #{privilege,jdbcType=VARCHAR},
       update_time = #{updateTime,jdbcType=TIMESTAMP},
@@ -295,8 +310,9 @@
       third_module = #{thirdModule,jdbcType=VARCHAR},
       status = #{status,jdbcType=BIT},
       mark = #{mark,jdbcType=VARCHAR},
-      parentid = #{parentid,jdbcType=INTEGER},
-      isParent = #{isparent,jdbcType=BIT}
+      parent_rpid = #{parentRpid,jdbcType=INTEGER},
+      isParent = #{isparent,jdbcType=BIT},
+      rpid = #{rpid,jdbcType=INTEGER}
     where id = #{id,jdbcType=INTEGER}
   </update>
 </mapper>

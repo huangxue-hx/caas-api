@@ -17,7 +17,13 @@ public class CommonConstant {
     public static String UNDER_LINE = "_";
     // 下划线
     public static String EMPTYSTRING = "";
+    public static final String RPID = "rpid";
 
+    public static final String DEFAULT = "default";
+
+    public static final String ROLE_TM = "tm";
+
+    public static final String ROLE_DEV = "dev";
     // harbor project
     public static String HARBOR_PROJECT = "/api/projects";
 
@@ -135,7 +141,7 @@ public class CommonConstant {
     public static final String K8SNAMESPACES = "k8sNamespaces";
     public static final String CREATETIME = "createTime";
     public static final String ITEMS = "items";
-    
+
     public static final String HARBOR = "harbor";
     public static final String COOKIE = "Cookie";
     public static final String PROJECT_ID = "project_id";
@@ -156,7 +162,7 @@ public class CommonConstant {
     public static final String NETWORKPOLICY = "NetworkPolicy";
     public static final String HAPOLICY = "hapolicy";
     public static final String MATCHLABELS = "matchLabels";
-    
+
     public static final String PVC = "persistentvolumeclaims";
     public static final String RC = "replicationcontrollers";
     public static final String PERSISTENTVOLUME = "PersistentVolume";
@@ -169,40 +175,40 @@ public class CommonConstant {
     public static final String ROLEBINDING = "RoleBinding";
     public static final String APIVERSION = "apiVersion";
     public static final String SUBJECTS = "subjects";
-    public static final String ROLEREF = "roleRef"; 
-    public static final String MASTERNODE = "masterNode"; 
-    public static final String DATANODE = "dataNode"; 
-    public static final String MASTERNODELABEL = "node-role.kubernetes.io/master"; 
-     public static final String HARMONYCLOUD_TENANTNAME_NS = "HarmonyCloud_TenantName";
-     //node节点状态
-     public static final String HARMONYCLOUD_STATUS = "HarmonyCloud_Status";
-     //begin节点上线开始状态，done节点上线结束状态
-     public static final String BEGIN = "begin";
-     public static final String DONE = "done";
-     //A 表示关键组件布置的节点,B 表示闲置状态,C 表示共享状态,D 私有状态，可以供私有分区独占使用
-     public static final String LABEL_STATUS_A = "A";
-     public static final String LABEL_STATUS_B = "B";
-     public static final String LABEL_STATUS_C = "C";
-     public static final String LABEL_STATUS_D = "D";
-     public static final String FROM = "from";
-     public static final String PAUSE = "pause";
-     public static final String NORMAL = "normal";
+    public static final String ROLEREF = "roleRef";
+    public static final String MASTERNODE = "masterNode";
+    public static final String DATANODE = "dataNode";
+    public static final String MASTERNODELABEL = "node-role.kubernetes.io/master";
+    public static final String HARMONYCLOUD_TENANTNAME_NS = "HarmonyCloud_TenantName";
+    //node节点状态
+    public static final String HARMONYCLOUD_STATUS = "HarmonyCloud_Status";
+    //begin节点上线开始状态，done节点上线结束状态
+    public static final String BEGIN = "begin";
+    public static final String DONE = "done";
+    //A 表示关键组件布置的节点,B 表示闲置状态,C 表示共享状态,D 私有状态，可以供私有分区独占使用
+    public static final String LABEL_STATUS_A = "A";
+    public static final String LABEL_STATUS_B = "B";
+    public static final String LABEL_STATUS_C = "C";
+    public static final String LABEL_STATUS_D = "D";
+    public static final String FROM = "from";
+    public static final String PAUSE = "pause";
+    public static final String NORMAL = "normal";
 
-   //用户权限模块
-     public static final String PRIVILEGE_TENANT = "tenant";
-     public static final String PRIVILEGE_MIRROR = "mirror";
-     public static final String PRIVILEGE_CLUSTER = "cluster";
-     public static final String PRIVILEGE_APPLICATION = "application";
-     public static final String PRIVILEGE_CICD = "cicd";
-     public static final String PRIVILEGE_STORAGE = "storage";
-     public static final String PRIVILEGE_CONFIG = "config";
-     public static final String PRIVILEGE = "privlege";
-     
-     
-     public static final String ERRMSG = "errMsg";
-     public static final String NEPHELE_TENANT_NETWORK = "nephele_tenant_network";
-   public static final String USERID = "userId";
-//   public static final String NETWORKNAMETO = "networknameto";
+    //用户权限模块
+    public static final String PRIVILEGE_TENANT = "tenant";
+    public static final String PRIVILEGE_MIRROR = "mirror";
+    public static final String PRIVILEGE_CLUSTER = "cluster";
+    public static final String PRIVILEGE_APPLICATION = "application";
+    public static final String PRIVILEGE_CICD = "cicd";
+    public static final String PRIVILEGE_STORAGE = "storage";
+    public static final String PRIVILEGE_CONFIG = "config";
+    public static final String PRIVILEGE = "privlege";
+
+
+    public static final String ERRMSG = "errMsg";
+    public static final String NEPHELE_TENANT_NETWORK = "nephele_tenant_network";
+    public static final String USERID = "userId";
+    //   public static final String NETWORKNAMETO = "networknameto";
     public static final Boolean FALSE = false;
     public static final Boolean TRUE = true;
 
@@ -220,24 +226,24 @@ public class CommonConstant {
     public static final String CONFIG_TYPE_LDAP = "ldap";
 
     public static final String TRIAL_TIME = "trial_time";
-    
+
     public static final String FILE_MAX_SIZE = "file_maxsize";
     public static final String CONFIG_TYPE_FILE = "file";
-    
+
     public static final Integer ES_SHARDS = 5;
 
     public static final String CICD_NAMESPACE = "default";
-    
+
     public static final String PV_RETAIN = "Retain";
-    
+
     public static final String PV_RECYCLE = "Recycle";
-    
+
     public static final String PV_DELETE = "Delete";
-    
+
     public static final String PV_STATUS_RELEASED= "Released";
-    
+
     public static final String PV_RECYCLE_POD_NAME= "pv-recycler-";
-    
+
     public static final String RESTARTPOLICY_NEVER= "Never";
-    
+
 }

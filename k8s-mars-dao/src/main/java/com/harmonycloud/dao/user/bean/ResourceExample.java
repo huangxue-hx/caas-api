@@ -386,7 +386,7 @@ public class ResourceExample {
         }
 
         public Criteria andParentIdEqualTo(Integer value) {
-            addCriterion("parent_id =", value, "parentId");
+            addCriterion("parent_rpid =", value, "parent_rpid");
             return (Criteria) this;
         }
 

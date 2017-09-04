@@ -30,6 +30,37 @@ public class Resource  implements Serializable{
 
     private String role;
 
+    private Integer isParent;
+
+    private Integer parent_rpid;
+
+    private Integer rpid;
+
+
+    public Integer getIsParent() {
+        return isParent;
+    }
+
+    public void setIsParent(Integer isParent) {
+        this.isParent = isParent;
+    }
+
+    public Integer getParent_rpid() {
+        return parent_rpid;
+    }
+
+    public void setParent_rpid(Integer parent_rpid) {
+        this.parent_rpid = parent_rpid;
+    }
+
+    public Integer getRpid() {
+        return rpid;
+    }
+
+    public void setRpid(Integer rpid) {
+        this.rpid = rpid;
+    }
+
     public Integer getId() {
         return id;
     }

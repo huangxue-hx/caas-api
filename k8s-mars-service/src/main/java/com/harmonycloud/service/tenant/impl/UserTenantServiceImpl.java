@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import com.harmonycloud.dao.user.RoleMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +33,8 @@ public class UserTenantServiceImpl implements UserTenantService {
     private CustomUserTenantMapper customUserTenantMapper;
     @Autowired
     private CustomUserMapper userMapper;
+    @Autowired
+    private RoleMapper roleMapper;
 
     @Override
     public List<UserTenant> getUserByTenantid(String tenantid) throws Exception {
@@ -105,7 +108,11 @@ public class UserTenantServiceImpl implements UserTenantService {
             for (UserTenant userTenant : userByTenantid) {
                 String username = userTenant.getUsername();
                 User user = userMapper.findByUsername(username);
-                System.out.println(user.getUuid());
+                //String role = userTenantMapper.selectRoleByUserNameAndTenantId(username,tenantid);
+                String roleName = this.findRoleByName(username,tenantid);
+                String roleDiscription = roleMapper.selectDescriptionByRoleName(roleName);
+                //Role role =
+                //System.out.println(user.getUuid());
                 groupName = userMapper.selectGroupNameByUserID(user.getId());
                 if(user!=null){
                     UserShowDto u = new UserShowDto();
@@ -114,6 +121,8 @@ public class UserTenantServiceImpl implements UserTenantService {
                     u.setName(user.getUsername());
                     u.setNikeName(user.getRealName());
                     u.setEmail(user.getEmail());
+                    u.setRoleName(roleName);
+                    u.setRoleDiscription(roleDiscription);
                     u.setPhone(user.getPhone());
                     u.setComment(user.getComment());
                     u.setGroupName(groupName);
@@ -157,6 +166,14 @@ public class UserTenantServiceImpl implements UserTenantService {
             throw new MarsRuntimeException("用户："+username+"不在租户id："+tenantid+"里面请检查！");
         }
         return selectByExample.get(0).getRole();
+    }
+
+    @Override
+    public List<UserTenant> findUserByRoleName(String roleName) throws Exception {
+        UserTenantExample example = new UserTenantExample();
+        example.createCriteria().andRoleEqualTo(roleName);
+        List<UserTenant> selectByExample = userTenantMapper.selectByExample(example);
+        return selectByExample;
     }
     
 }

@@ -1,7 +1,9 @@
 package com.harmonycloud.service.tenant;
 
 import java.util.List;
+import java.util.Map;
 
+import com.harmonycloud.dao.tenant.bean.RolePrivilege;
 import com.harmonycloud.dao.user.bean.Role;
 
 /**
@@ -38,7 +40,7 @@ public interface RoleService {
      * @param role
      * @throws Exception
      */
-    public void addRole(Role role) throws Exception;
+    public void addRole(Role role,List<Map<String, Object>> rolePrivilegeList) throws Exception;
     /**
      * 根据角色名删除角色
      * @param roleName
@@ -59,4 +61,12 @@ public interface RoleService {
      * @throws Exception
      */
     public Role getRoleByUserNameAndTenant(String userName,String tenantid) throws Exception;
+
+    /**
+     * 重置角色(保留1-5纪录)
+     * @return
+     * @throws Exception
+     */
+    public void resetRole() throws Exception;
+
 }
