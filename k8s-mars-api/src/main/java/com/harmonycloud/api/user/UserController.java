@@ -371,7 +371,8 @@ public class UserController {
         Map<String, Object> result = new HashMap<>();
         String userName = session.getAttribute("username").toString();
         String isAdmin = session.getAttribute("isAdmin").toString();
-        System.out.println(isAdmin);
+        Cluster cluster = this.tenantService.getClusterByTenantid(tenantid);
+        session.setAttribute("currentCluster", cluster);
         if(isAdmin.equals("1")){
             return ActionReturnUtil.returnSuccessWithData(result);
         }
@@ -380,8 +381,7 @@ public class UserController {
         session.setAttribute("tenantId", tenantid);
         session.setAttribute("role", role.getName());
         session.setAttribute("privilege", privilegeByRole);
-        Cluster cluster = this.tenantService.getClusterByTenantid(tenantid);
-        session.setAttribute("currentCluster", cluster);
+
         result.put("role", role.getName());
         result.put("privilege", privilegeByRole);
         return ActionReturnUtil.returnSuccessWithData(result);
