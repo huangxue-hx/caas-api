@@ -179,7 +179,7 @@ public class JobsController {
     }
 
     /**
-     * 删除job
+     * 重启job
      * @param name
      * @param namespace
      * @return
@@ -198,5 +198,24 @@ public class JobsController {
 		return jobsService.reRunJob(name, namespace, userName, cluster);
     }
 
+    /**
+     * 更新job 并行数
+     * @param name
+     * @param namespace
+     * @return
+     * @throws Exception 
+     */
+    @ResponseBody
+    @RequestMapping(value = "/parallelism",method = RequestMethod.PUT)
+    public ActionReturnUtil updateJobParallelism(@RequestParam(value = "name", required = true) String name,
+                                              @RequestParam(value = "namespace", required = true) String namespace, @RequestParam(value = "parallelism", required = true) int parallelism) throws Exception {
+		logger.info("reRun job");
+		String userName = (String) session.getAttribute("username");
+		if (userName == null) {
+			throw new K8sAuthException(Constant.HTTP_401);
+		}
+		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+		return jobsService.updateJobParallelism(name, namespace, parallelism, cluster);
+    }
 
 }

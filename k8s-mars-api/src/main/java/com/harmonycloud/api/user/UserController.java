@@ -372,13 +372,13 @@ public class UserController {
         String userName = session.getAttribute("username").toString();
         String isAdmin = session.getAttribute("isAdmin").toString();
         Cluster cluster = this.tenantService.getClusterByTenantid(tenantid);
+        session.setAttribute("tenantId", tenantid);
         session.setAttribute("currentCluster", cluster);
         if(isAdmin.equals("1")){
             return ActionReturnUtil.returnSuccessWithData(result);
         }
         Role role = roleService.getRoleByUserNameAndTenant(userName, tenantid);
         Map<String, Object> privilegeByRole = rolePrivilegeService.getPrivilegeByRole(CommonConstant.ROLE_TM.equals(role.getName())?CommonConstant.ROLE_DEV:role.getName());
-        session.setAttribute("tenantId", tenantid);
         session.setAttribute("role", role.getName());
         session.setAttribute("privilege", privilegeByRole);
 

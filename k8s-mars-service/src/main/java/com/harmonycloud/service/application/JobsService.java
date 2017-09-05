@@ -13,7 +13,7 @@ import com.harmonycloud.dto.business.JobsDetailDto;
 public interface JobsService {
 
     /**
-     * 创建deployment
+     * 创建job
      * @param detail
      * @param userName
      * @return
@@ -100,4 +100,15 @@ public interface JobsService {
      * @throws Exception
      */
     public ActionReturnUtil createConfigMap(List<CreateConfigMapDto> configMaps, String namespace, String containerName, String name, Cluster cluster, String type, String businessName) throws Exception;
+    
+    /**
+     * 更新job 
+     * @param name
+     * @param namespace
+     * @param userName
+     * @return
+     * @throws Exception
+     */
+    public ActionReturnUtil updateJobParallelism(String name, String namespace, int parallelism, Cluster cluster) throws Exception;
+
 }

@@ -172,7 +172,7 @@ public class JobsServiceImpl implements JobsService{
         				json.put("img", img);
         				json.put("owner", job.getMetadata().getLabels().get("nephele/user").toString());
         				json.put("completions", job.getSpec().getCompletions());
-        				json.put("parallelism", job.getSpec().getParallelism());
+        				json.put("parallelism", job.getSpec().getParallelism() == 0 ? job.getMetadata().getAnnotations().get("nephele/parallelism").toString() : job.getSpec().getParallelism());
         				json.put("createTime", job.getMetadata().getCreationTimestamp());
         				long diff = 0;
         			    if(job.getStatus() != null && job.getStatus().getCompletionTime() != null){
@@ -333,7 +333,7 @@ public class JobsServiceImpl implements JobsService{
 		jobjs.put("img", img);
 		jobjs.put("owner", job.getMetadata().getLabels().get("nephele/user").toString());
 		jobjs.put("completions", job.getSpec().getCompletions());
-		jobjs.put("parallelism", job.getSpec().getParallelism());
+		jobjs.put("parallelism", job.getSpec().getParallelism() == 0 ? job.getMetadata().getAnnotations().get("nephele/parallelism").toString() : job.getSpec().getParallelism());
 		jobjs.put("createTime", job.getMetadata().getCreationTimestamp());
 		long diff = 0;
 	    if(job.getStatus() != null && job.getStatus().getCompletionTime() != null){
@@ -410,7 +410,7 @@ public class JobsServiceImpl implements JobsService{
     						String status = anno.get("nephele/status").toString();
     						if (status.equals(Constant.STARTING)) {
     							return ActionReturnUtil
-    									.returnErrorWithMsg("job " + name + " is already started");
+    									.returnErrorWithMsg("job " + name + " 已经启动了");
     						} else {
     							if (anno.get("nephele/parallelism") != null){
     								para = Integer.valueOf(anno.get("nephele/parallelism").toString());
@@ -436,7 +436,7 @@ public class JobsServiceImpl implements JobsService{
     					}
     				}
     				job.getSpec().setParallelism(para);
-    				job.getSpec().setCompletions(com);
+    				//job.getSpec().setCompletions(com);
     			}
     		}
     		//更新
@@ -470,7 +470,7 @@ public class JobsServiceImpl implements JobsService{
     		if(job != null){
     			if(job.getMetadata() != null && job.getSpec() != null){
     				if(job.getStatus() != null && job.getStatus() != null){
-    					if(job.getStatus().getActive() != null && job.getStatus().getActive() == job.getSpec().getParallelism()){
+    					if(job.getStatus().getActive() != null){
     						int para = 1;
     						int com = 1;
     	    				para = job.getSpec().getParallelism();
@@ -481,7 +481,7 @@ public class JobsServiceImpl implements JobsService{
     	    						String status = anno.get("nephele/status").toString();
     	    						if (status.equals(Constant.STOPPING)) {
     	    							return ActionReturnUtil
-    	    									.returnErrorWithMsg("job " + name + " is already stoped");
+    	    									.returnErrorWithMsg("job " + name + " 已经停止");
     	    						} else {
     	    							if (anno.get("nephele/parallelism") == null){
     	    								anno.put("nephele/parallelism",para+"");
@@ -502,15 +502,15 @@ public class JobsServiceImpl implements JobsService{
     	    						if (anno.get("nephele/completions") != null){
     	    							anno.put("nephele/completions", anno.get("nephele/completions"));
     	    						} else {
-    	    							anno.put("nephele/completions", para+"");
+    	    							anno.put("nephele/completions", com+"");
     	    						}
     	    					}
     	    				}
-    	    				/*job.getSpec().setParallelism(para);
-    	    				job.getSpec().setParallelism(para);*/
+    	    				job.getSpec().setParallelism(0);
+    	    				//job.getSpec().setCompletions(com);
     					}else{
     						return ActionReturnUtil
-									.returnErrorWithMsg("job " + name + " is already completed or Failed");
+									.returnErrorWithMsg("job " + name + " 已经完成或者失败了");
     					}
     				}
     			}
@@ -659,11 +659,11 @@ public class JobsServiceImpl implements JobsService{
     	StringBuffer sb = new StringBuffer();
     	if(StringUtils.isEmpty(name)){
     		paramboo = false;
-    		sb.append("job名称、");
+    		sb.append("job名称");
     	}
     	if(StringUtils.isEmpty(namespace)){
     		paramboo = false;
-    		sb.append("分区、");
+    		sb.append("分区");
     	}
 		int restart = 0;
 		int succeed = 0;
@@ -858,7 +858,7 @@ public class JobsServiceImpl implements JobsService{
     			return ActionReturnUtil.returnErrorWithMsg("job:name已不存在");
     		}
     	}else{
-    		return ActionReturnUtil.returnErrorWithMsg(sb.toString());
+    		return ActionReturnUtil.returnErrorWithMsg(sb.toString()+"为空");
     	}
         return ActionReturnUtil.returnSuccess();
     }
@@ -956,9 +956,9 @@ public class JobsServiceImpl implements JobsService{
     }
     
     private Job convertJob(Job job, JobsDetailDto detail, String userName) throws Exception{
-    	ObjectMeta meta = new ObjectMeta();
+    	ObjectMeta meta = job.getMetadata();
 		meta.setName(detail.getName());
-		Map<String, Object> lmMap = new HashMap<String, Object>();
+		Map<String, Object> lmMap = meta.getLabels();
 		lmMap.put("nephele/user", userName);
 		lmMap.put(Constant.TYPE_JOB, detail.getName());
 		if (!StringUtils.isEmpty(detail.getLabels())) {
@@ -1042,4 +1042,52 @@ public class JobsServiceImpl implements JobsService{
 		}
     	return status;
     }
+
+	@Override
+	public ActionReturnUtil updateJobParallelism(String name, String namespace, int parallelism, Cluster cluster)
+			throws Exception {
+		boolean boo = true;
+		StringBuffer sb = new StringBuffer();
+		if(StringUtils.isEmpty(name)) {
+			boo = false;
+			sb.append("job名称");
+		}
+		if(StringUtils.isEmpty(name)) {
+			boo = false;
+			sb.append("分区");
+		}
+		if(parallelism == 0) {
+			boo = false;
+			sb.append("并行数");
+		}
+		if(boo) {
+			//根据name、namespace获取job
+    		K8SClientResponse jobRes = jobService.getJob(namespace, name, null, cluster);
+    		if(!HttpStatusUtil.isSuccessStatus(jobRes.getStatus())){
+    			UnversionedStatus status = JsonUtil.jsonToPojo(jobRes.getBody(),UnversionedStatus.class);
+    			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+    		}
+    		Job job = JsonUtil.jsonToPojo(jobRes.getBody(),Job.class);
+    		if(job != null) {
+    			if(job.getMetadata() != null && job.getMetadata().getAnnotations() != null) {
+    				Map<String, Object> anno = job.getMetadata().getAnnotations();
+    				anno.put("nephele/parallelism", parallelism+"");
+    			}else {
+    				Map<String, Object> anno = new HashMap<String, Object>();
+    				anno.put("nephele/parallelism", parallelism+"");
+    				job.getMetadata().setAnnotations(anno);
+    			}
+    			if(job.getSpec() != null && job.getSpec().getParallelism() != null) {
+    				if(job.getSpec().getParallelism() != 0) {
+    					job.getSpec().setParallelism(parallelism);
+    				}
+    			}
+    			return jobService.updateJob(namespace, name, job, cluster);
+    		}else {
+    			return ActionReturnUtil.returnErrorWithMsg("job不存在");
+    		}
+		}else {
+			return ActionReturnUtil.returnErrorWithMsg(sb.toString()+"为空");
+		}
+	}
 }

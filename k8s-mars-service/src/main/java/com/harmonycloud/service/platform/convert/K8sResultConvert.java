@@ -1617,6 +1617,9 @@ public class K8sResultConvert {
 		//metadata
 		ObjectMeta metadata = podTemplate.getMetadata();
 		Map<String, Object> labels = podTemplate.getMetadata().getLabels();
+		/*if(labels.containsKey("controller-uid")) {
+			labels.remove("controller-uid");
+		}*/
 	    labels.put(type, job.getMetadata().getName());
 	    if (!StringUtils.isEmpty(label)) {
 	    	String[] ls = label.split(",");
