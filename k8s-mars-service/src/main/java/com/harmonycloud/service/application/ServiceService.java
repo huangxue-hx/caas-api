@@ -35,10 +35,6 @@ public interface ServiceService {
     
     public ActionReturnUtil deleteServiceByTenant(String [] tenant) throws Exception;
     
-    public com.harmonycloud.dao.application.bean.Service getServiceByname(String name, String namespace) throws Exception;
-    
-    public ActionReturnUtil updateServicePvcByname(String name,String pvc, String namespace) throws Exception;
-    
     public ActionReturnUtil deployServiceByname(String app, String tenantId, String name,String tag, String namespace, Cluster cluster, String userName) throws Exception;
     
     public ActionReturnUtil deployService(ServiceDeployDto serviceDeploy, Cluster cluster, String userName) throws Exception;

@@ -104,18 +104,21 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 						return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
 					}
 					DeploymentList deployment = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
-					if(deployment != null){
+					if(deployment != null && deployment.getItems().size() > 0){
 						items.addAll(deployment.getItems());
+						deployments.setItems(items);
 					}
 				}
 			 }
-			deployments.setItems(items);
 		}
 		else {
 			return ActionReturnUtil.returnErrorWithMsg("namespase 为空");
 		}
-
-		return ActionReturnUtil.returnSuccessWithData(K8sResultConvert.convertAppList(deployments));
+		if(deployments.getItems() != null && deployments.getItems().size() >0){
+			return ActionReturnUtil.returnSuccessWithData(K8sResultConvert.convertAppList(deployments));
+		}else{
+			return ActionReturnUtil.returnSuccess();
+		}
 	}
 
 	public ActionReturnUtil startDeployments(String name, String namespace, String userName, Cluster cluster) throws Exception {
@@ -174,7 +177,8 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			headers.put("Content-type", "application/json");
 			K8SClientResponse newRes = dpService.doSpecifyDeployment(namespace, name, headers, bodys, HTTPMethod.PUT, cluster);
 			if (!HttpStatusUtil.isSuccessStatus(newRes.getStatus())) {
-				return ActionReturnUtil.returnErrorWithMsg(newRes.getBody());
+				UnversionedStatus status = JsonUtil.jsonToPojo(newRes.getBody(), UnversionedStatus.class);
+				return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
 			}
 
 			new Thread() {
@@ -758,7 +762,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
 		if (cms.size() == 0) {
 			String lrv = watchService.getLatestVersion(detail.getNamespace(), null, cluster);
-			Deployment dep = K8sResultConvert.convertAppCreate(detail, userName);
+			Deployment dep = K8sResultConvert.convertAppCreate(detail, userName,business, session.getAttribute("tenantId").toString());
 			K8SURL k8surl = new K8SURL();
 			k8surl.setNamespace(detail.getNamespace()).setResource(Resource.DEPLOYMENT);
 			Map<String, Object> headers = new HashMap<String, Object>();
@@ -771,7 +775,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 				return ActionReturnUtil.returnErrorWithData(status.getMessage());
 			}
 			Deployment resD = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
-			com.harmonycloud.k8s.bean.Service service = K8sResultConvert.convertAppCreateOfService(detail);
+			com.harmonycloud.k8s.bean.Service service = K8sResultConvert.convertAppCreateOfService(detail,business,session.getAttribute("tenantId").toString());
 			k8surl.setNamespace(detail.getNamespace()).setResource(Resource.SERVICE);
 			bodys.clear();
 			bodys = CollectionUtil.transBean2Map(service);
@@ -801,7 +805,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			return ActionReturnUtil.returnSuccessWithData(resMap);
 		} else {
 			String lrv = watchService.getLatestVersion(detail.getNamespace(), null, cluster);
-			Deployment dep = K8sResultConvert.convertAppCreate(detail, userName);
+			Deployment dep = K8sResultConvert.convertAppCreate(detail, userName,business, session.getAttribute("tenantId").toString());
 			K8SURL k8surl = new K8SURL();
 			k8surl.setNamespace(detail.getNamespace()).setResource(Resource.DEPLOYMENT);
 			Map<String, Object> headers = new HashMap<String, Object>();
@@ -814,7 +818,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 				return ActionReturnUtil.returnErrorWithData(status.getMessage());
 			}
 			Deployment resD = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
-			com.harmonycloud.k8s.bean.Service service = K8sResultConvert.convertAppCreateOfService(detail);
+			com.harmonycloud.k8s.bean.Service service = K8sResultConvert.convertAppCreateOfService(detail,business,session.getAttribute("tenantId").toString());
 			k8surl.setNamespace(detail.getNamespace()).setResource(Resource.SERVICE);
 			bodys.clear();
 			bodys = CollectionUtil.transBean2Map(service);

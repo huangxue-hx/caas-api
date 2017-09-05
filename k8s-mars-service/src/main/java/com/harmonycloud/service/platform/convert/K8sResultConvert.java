@@ -448,7 +448,7 @@ public class K8sResultConvert {
 		return res;
 	}
 
-	public static Deployment convertAppCreate(DeploymentDetailDto detail, String userName) throws Exception {
+	public static Deployment convertAppCreate(DeploymentDetailDto detail, String userName, String applicationName, String tenantID) throws Exception {
 		Deployment dep = new Deployment();
 		ObjectMeta meta = new ObjectMeta();
 		dep.setApiVersion("extensions/v1beta1");
@@ -457,6 +457,11 @@ public class K8sResultConvert {
 		Map<String, Object> lmMap = new HashMap<String, Object>();
 		if (userName != null){
 			lmMap.put("nephele/user", userName);
+		}
+		if (!StringUtils.isEmpty(applicationName)) {
+
+			lmMap.put("topo-" + tenantID + "-" + applicationName, detail.getNamespace());
+
 		}
 
 		meta.setLabels(lmMap);
@@ -879,7 +884,7 @@ public class K8sResultConvert {
 		return dep;
 	}
 	
-	public static Service convertAppCreateOfService(DeploymentDetailDto detail) throws Exception {
+	public static Service convertAppCreateOfService(DeploymentDetailDto detail,String application, String tenantID) throws Exception {
 		Service service = new Service();
 		service.setApiVersion("v1");
 		service.setKind("Service");
@@ -887,6 +892,9 @@ public class K8sResultConvert {
 		meta.setName(detail.getName());
 		Map<String, Object> labels = new HashMap<String, Object>();
 		labels.put("app", detail.getName());
+		if (!StringUtils.isEmpty(application)) {
+			labels.put("topo-" + tenantID + "-" + application, detail.getNamespace());
+		}
 		meta.setLabels(labels);
 		ServiceSpec ss = new ServiceSpec();
 		Map<String, Object> selector = new HashMap<String, Object>();

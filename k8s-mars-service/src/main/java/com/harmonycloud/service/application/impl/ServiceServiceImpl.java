@@ -3,9 +3,7 @@ package com.harmonycloud.service.application.impl;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.dao.application.BusinessMapper;
 import com.harmonycloud.dao.application.BusinessServiceMapper;
-import com.harmonycloud.dao.application.ServiceMapper;
 import com.harmonycloud.dao.application.ServiceTemplatesMapper;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dao.cluster.bean.Cluster;
@@ -23,17 +21,12 @@ import com.harmonycloud.dto.business.ServiceTemplateDto;
 import com.harmonycloud.dto.business.SvcRouterDto;
 import com.harmonycloud.dto.business.TcpRuleDto;
 import com.harmonycloud.dto.svc.SvcTcpDto;
-import com.harmonycloud.k8s.bean.Deployment;
-import com.harmonycloud.k8s.bean.DeploymentList;
-import com.harmonycloud.k8s.bean.K8sResponseBody;
-import com.harmonycloud.k8s.bean.PersistentVolume;
-import com.harmonycloud.k8s.bean.PersistentVolumeClaim;
-import com.harmonycloud.k8s.bean.PersistentVolumeClaimList;
-import com.harmonycloud.k8s.bean.UnversionedStatus;
+import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
+import com.harmonycloud.k8s.service.PVCService;
 import com.harmonycloud.k8s.service.PvService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
@@ -44,7 +37,6 @@ import com.harmonycloud.service.application.VolumeSerivce;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.tenant.PrivatePartitionService;
-import com.squareup.moshi.Json;
 
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -67,16 +59,10 @@ import java.util.*;
 public class ServiceServiceImpl implements ServiceService {
 
 	@Autowired
-    private ServiceTemplatesMapper serviceTemplatesMapper;
+	private ServiceTemplatesMapper serviceTemplatesMapper;
 
-    @Autowired
+	@Autowired
 	private BusinessServiceMapper businessServiceMapper;
-
-	@Autowired
-	private ServiceMapper serviceMapper;
-
-	@Autowired
-	private BusinessMapper businessMapper;
 
 	@Autowired
 	private PvService pvService;
@@ -86,15 +72,18 @@ public class ServiceServiceImpl implements ServiceService {
 
 	@Autowired
 	private DeploymentsService deploymentsService;
-	
+
 	@Autowired
 	private VolumeSerivce volumeSerivce;
-	
-    @Autowired
-    PrivatePartitionService privatePartitionService;
-	
-    @Value("#{propertiesReader['image.url']}")
-    private String harborUrl;
+
+	@Autowired
+	private PVCService pvcService;
+
+	@Autowired
+	PrivatePartitionService privatePartitionService;
+
+	@Value("#{propertiesReader['image.url']}")
+	private String harborUrl;
 
 	DecimalFormat decimalFormat = new DecimalFormat("######0.0");
 
@@ -137,11 +126,11 @@ public class ServiceServiceImpl implements ServiceService {
 				tag = Double.valueOf(list.get(0).getTag()) + Constant.TEMPLATE_TAG_INCREMENT;
 			}
 		}
-		
+
 		// create and insert into db
 		ServiceTemplates serviceTemplateDB = new ServiceTemplates();
 		serviceTemplateDB.setName(serviceTemplate.getName());
-		
+
 		serviceTemplateDB.setDetails(serviceTemplate.getDesc());
 
 		if (serviceTemplate.getDeploymentDetail() != null) {
@@ -324,9 +313,9 @@ public class ServiceServiceImpl implements ServiceService {
 
 	/**
 	 * get ServiceTemplate overview on 17/05/05.
-	 * 
-	 * @param BusinessTemplatesList
-	 * 
+	 *
+	 * @param serviceTemplatesList
+	 *
 	 * @return {@link JSONObject}
 	 */
 	private JSONObject getServiceTemplates(List<ServiceTemplates> serviceTemplatesList) throws Exception {
@@ -372,13 +361,29 @@ public class ServiceServiceImpl implements ServiceService {
 		if (deployedServiceNamesDto == null || deployedServiceNamesDto.getServiceList().size() <= 0) {
 			return ActionReturnUtil.returnErrorWithMsg("deployedService is null");
 		}
+
+
 		List<String> errorMessage = new ArrayList<>();
 		//获取serviceList
-		List<com.harmonycloud.dao.application.bean.Service> svclist =  new ArrayList<>();
+		List<Deployment> items = new ArrayList<>();
+
 		for(ServiceNameNamespace nn : deployedServiceNamesDto.getServiceList()){
-			com.harmonycloud.dao.application.bean.Service ser = serviceMapper.selectServiceByName(nn.getName(), nn.getNamespace());
-			if(ser != null){
-				svclist.add(ser);
+			K8SURL url = new K8SURL();
+			url.setResource(Resource.DEPLOYMENT);
+			DeploymentList deployments = new DeploymentList();
+
+			//labels
+			Map<String, Object> bodys = new HashMap<String, Object>();
+			url.setNamespace(nn.getNamespace());
+			url.setName(nn.getName());
+			K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys,cluster);
+			if(!HttpStatusUtil.isSuccessStatus(depRes.getStatus()) && depRes.getStatus() != Constant.HTTP_404){
+				UnversionedStatus sta = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+				return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
+			}
+			Deployment deployment = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+			if(deployment != null){
+				items.add(deployment);
 			}else{
 				ActionReturnUtil delRes = deploymentsService.deleteDeployment(nn.getName(), nn.getNamespace(), userName, cluster);
 				if(!delRes.isSuccess()){
@@ -402,14 +407,14 @@ public class ServiceServiceImpl implements ServiceService {
 						}
 					}
 				}
-				// delete pvc 
-				K8SURL url = new K8SURL();
-				url.setNamespace(nn.getNamespace()).setResource(Resource.PERSISTENTVOLUMECLAIM);
+				// delete pvc
+				K8SURL url1 = new K8SURL();
+				url1.setNamespace(nn.getNamespace()).setResource(Resource.PERSISTENTVOLUMECLAIM);
 				Map<String, Object> headers = new HashMap<>();
 				headers.put("Content-Type", "application/json");
-				Map<String, Object> bodys = new HashMap<>();
-				bodys.put("labelSelector", "app=" + nn.getName());
-				K8SClientResponse getResponse = new K8sMachineClient().exec(url, HTTPMethod.GET, headers, bodys, cluster);
+				Map<String, Object> bodys1 = new HashMap<>();
+				bodys1.put("labelSelector", "app=" + nn.getName());
+				K8SClientResponse getResponse = new K8sMachineClient().exec(url1, HTTPMethod.GET, headers, bodys1, cluster);
 				if(HttpStatusUtil.isSuccessStatus(getResponse.getStatus())){
 					PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(getResponse.getBody(), PersistentVolumeClaimList.class);
 					if(pvcList != null && pvcList.getItems() != null && pvcList.getItems().size() > 0){
@@ -439,7 +444,7 @@ public class ServiceServiceImpl implements ServiceService {
 												headersPV, bodysPV);
 										if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
 											UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
-	                                        errorMessage.add(status.getMessage());
+											errorMessage.add(status.getMessage());
 										}
 									}
 								}
@@ -447,38 +452,28 @@ public class ServiceServiceImpl implements ServiceService {
 						}
 					}
 				}
-				K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys, cluster);
+				K8SClientResponse response = new K8sMachineClient().exec(url1, HTTPMethod.DELETE, headers, bodys1, cluster);
 				if (!HttpStatusUtil.isSuccessStatus(response.getStatus())
 						&& response.getStatus() != Constant.HTTP_404) {
 					UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-                    errorMessage.add(status.getMessage());
+					errorMessage.add(status.getMessage());
 				}
 			}
 		}
 
-		if (svclist != null && svclist.size() > 0) {
+		if (items.size() > 0) {
+
 			List<Integer> idList = new ArrayList<>();
 			List<Integer> businessIdList = new ArrayList<>();
-			for (com.harmonycloud.dao.application.bean.Service service : svclist) {
-				boolean serviceFlag = true;
-				if(service != null && service.getBusinessId() != null ){
-					List<com.harmonycloud.dao.application.bean.Service> serviceID = serviceMapper.selectByBusinessId(service.getBusinessId());
-					if (serviceID.size() <= 1){
-						businessIdList.add(service.getBusinessId());
-					}
-				}
-				// is external service
-				if (service.getIsExternal() == 1) {
-					// delete service db
-					idList.add(service.getId());
-					continue;
-				}
-				String namespace = service.getNamespace();
+			for (Deployment dev : items) {
+
+				String namespace = dev.getMetadata().getNamespace();
+				String devName = dev.getMetadata().getName();
+
 				// delete config map & deploy service deployment
-				ActionReturnUtil deleteDeployReturn = deploymentsService.deleteDeployment(service.getName(), namespace,
+				ActionReturnUtil deleteDeployReturn = deploymentsService.deleteDeployment(devName, namespace,
 						userName, cluster);
 				if (!deleteDeployReturn.isSuccess()) {
-					serviceFlag = false;
 					errorMessage.add(deleteDeployReturn.get("data").toString());
 				}
 
@@ -488,7 +483,7 @@ public class ServiceServiceImpl implements ServiceService {
 				Map<String, Object> labelMap = new HashMap<String, Object>();
 				ParsedIngressListDto parsedIngressListDto = new ParsedIngressListDto();
 				parsedIngressListDto.setNamespace(namespace);
-				labelMap.put("app",service.getName());
+				labelMap.put("app",devName);
 				parsedIngressListDto.setLabels(labelMap);
 				List<RouterSvc> routerSvcs = new ArrayList<RouterSvc>();
 				routerSvcs = routerService.listIngressByName(parsedIngressListDto);
@@ -496,99 +491,69 @@ public class ServiceServiceImpl implements ServiceService {
 					for (RouterSvc svcone:routerSvcs){
 						if ("HTTP".equals(svcone.getLabels().get("type"))) {
 							routerService.ingDelete(namespace, svcone.getName());
-							//routerService.svcDelete(namespace, svcone.getName());
 						} else if ("TCP".equals(svcone.getLabels().get("type"))) {
 							routerService.svcDelete(namespace, svcone.getName());
 						}
 					}
 				}
-				if (service.getIngress() != null) {
-					JSONArray jsStr = JSONArray.fromObject(service.getIngress());
-					if (jsStr.size() > 0) {
-						for (int i = 0; i < jsStr.size(); i++) {
-							JSONObject ingress = jsStr.getJSONObject(i);
-							String type = ingress.get("type").toString();
-							String name = ingress.get("name").toString();
-							if ("HTTP".equals(type)) {
-								routerService.ingDelete(namespace, name);
-								//routerService.svcDelete(namespace, "routersvc" + name);
-							} else if ("TCP".equals(type)) {
-								routerService.svcDelete(namespace, "routersvc" + name);
-							}
-						}
-					}
-				}
-
 
 
 				// delete pvc
-				if (service.getPvc() != null) {
-					JSONArray js = JSONArray.fromObject(service.getPvc());
-					if (js.size() > 0) {
-						for (int i = 0; i < js.size(); i++) {
-							String pvc = (String) js.get(i);
-							K8SURL url = new K8SURL();
-							url.setName(pvc).setNamespace(namespace).setResource(Resource.PERSISTENTVOLUMECLAIM);
-							Map<String, Object> headers = new HashMap<>();
-							headers.put("Content-Type", "application/json");
-							Map<String, Object> bodys = new HashMap<>();
-							bodys.put("gracePeriodSeconds", 1);
-							K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys);
-							if (!HttpStatusUtil.isSuccessStatus(response.getStatus())
-									&& response.getStatus() != Constant.HTTP_404) {
-								serviceFlag = false;
-								UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-			                    errorMessage.add(status.getMessage());
-							}
+				// delete pvc
+				Map<String, Object> pvclabel = new HashMap<String, Object>();
+				pvclabel.put("labelSelector", "app=" + devName);
 
-							// update pv
-							if (response.getStatus() != Constant.HTTP_404 && pvc.contains(Constant.PVC_BREAK)) {
-								String[] str = pvc.split(Constant.PVC_BREAK);
-								String pvname = str[0];
-								PersistentVolume pv = pvService.getPvByName(pvname,null);
-								if (pv != null) {
-									Map<String, Object> bodysPV = new HashMap<String, Object>();
-									Map<String, Object> metadata = new HashMap<String, Object>();
-									metadata.put("name", pv.getMetadata().getName());
-									metadata.put("labels", pv.getMetadata().getLabels());
-									bodysPV.put("metadata", metadata);
-									Map<String, Object> spec = new HashMap<String, Object>();
-									spec.put("capacity", pv.getSpec().getCapacity());
-									spec.put("nfs", pv.getSpec().getNfs());
-									spec.put("accessModes", pv.getSpec().getAccessModes());
-									bodysPV.put("spec", spec);
-									K8SURL urlPV = new K8SURL();
-									urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
-									Map<String, Object> headersPV = new HashMap<>();
-									headersPV.put("Content-Type", "application/json");
-									K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT,
-											headersPV, bodysPV);
-									if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
-										UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
-					                    errorMessage.add(status.getMessage());
-									}
+				K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, pvclabel, HTTPMethod.GET, cluster);
+				if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
+					return ActionReturnUtil.returnErrorWithMsg(pvcRes.getBody());
+				}
+
+				PersistentVolumeClaimList persistentVolumeList = K8SClient.converToBean(pvcRes, PersistentVolumeClaimList.class);
+
+
+				if (persistentVolumeList != null && persistentVolumeList.getItems() != null) {
+
+					for (PersistentVolumeClaim onePvc : persistentVolumeList.getItems()) {
+						K8SURL url = new K8SURL();
+						url.setName(onePvc.getMetadata().getName()).setNamespace(namespace).setResource(Resource.PERSISTENTVOLUMECLAIM);
+						Map<String, Object> headers = new HashMap<>();
+						headers.put("Content-Type", "application/json");
+						Map<String, Object> bodys = new HashMap<>();
+						bodys.put("gracePeriodSeconds", 1);
+						K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys, cluster);
+						if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
+							UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+							errorMessage.add(status.getMessage());
+						}
+
+						// update pv
+						if (response.getStatus() != Constant.HTTP_404 && onePvc.getMetadata().getName().contains(Constant.PVC_BREAK)) {
+							String[] str = onePvc.getMetadata().getName().split(Constant.PVC_BREAK);
+							String pvname = str[0];
+							PersistentVolume pv = pvService.getPvByName(pvname, null);
+							if (pv != null) {
+								Map<String, Object> bodysPV = new HashMap<String, Object>();
+								Map<String, Object> metadata = new HashMap<String, Object>();
+								metadata.put("name", pv.getMetadata().getName());
+								metadata.put("labels", pv.getMetadata().getLabels());
+								bodysPV.put("metadata", metadata);
+								Map<String, Object> spec = new HashMap<String, Object>();
+								spec.put("capacity", pv.getSpec().getCapacity());
+								spec.put("nfs", pv.getSpec().getNfs());
+								spec.put("accessModes", pv.getSpec().getAccessModes());
+								bodysPV.put("spec", spec);
+								K8SURL urlPV = new K8SURL();
+								urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
+								Map<String, Object> headersPV = new HashMap<>();
+								headersPV.put("Content-Type", "application/json");
+								K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT, headersPV, bodysPV, cluster);
+								if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
+									UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
+									errorMessage.add(status.getMessage());
 								}
 							}
-
 						}
 					}
-				}
-
-				// add service
-				if (serviceFlag) {
-					idList.add(service.getId());
-				}
-			}
-
-			// delete service list
-			if (idList.size() > 0) {
-				serviceMapper.deleteSerivceByID(idList);
-			}
-
-			// delete business list
-			if (businessIdList.size() > 0) {
-				for (Integer id : businessIdList) {
-					businessMapper.deleteBusinessById(id);
 				}
 			}
 		}
@@ -609,12 +574,12 @@ public class ServiceServiceImpl implements ServiceService {
 		List<ServiceTemplates> serviceBytenant=null;
 		if(!StringUtils.isEmpty(searchKey)){
 			if (searchKey.equals("name")) {
-                // search by name
+				// search by name
 				serviceBytenant = serviceTemplatesMapper.listSearchByName(searchvalue,tenant);
-            } else if (searchKey.equals("image")) {
-                // search by image
-            	serviceBytenant = serviceTemplatesMapper.listSearchByImage(searchvalue,tenant);
-            }
+			} else if (searchKey.equals("image")) {
+				// search by image
+				serviceBytenant = serviceTemplatesMapper.listSearchByImage(searchvalue,tenant);
+			}
 		}else{
 			serviceBytenant = serviceTemplatesMapper.listNameByTenant(null,tenant);
 		}
@@ -632,7 +597,6 @@ public class ServiceServiceImpl implements ServiceService {
 	@Override
 	public ActionReturnUtil deleteServiceByNamespace(String namespace) throws Exception {
 		if(!StringUtils.isEmpty(namespace)){
-			serviceMapper.deleteSerivceByNamespace(namespace);
 			return ActionReturnUtil.returnSuccess();
 		}else{
 			return ActionReturnUtil.returnErrorWithMsg("namespace为空");
@@ -647,26 +611,6 @@ public class ServiceServiceImpl implements ServiceService {
 		}else{
 			return ActionReturnUtil.returnErrorWithMsg("tenant 不能为空");
 		}
-	}
-
-	@Override
-	public com.harmonycloud.dao.application.bean.Service getServiceByname(String name, String namespace) throws Exception {
-		if(StringUtils.isEmpty(name)){
-			return null;
-		}else{
-			return serviceMapper.selectServiceByName(name, namespace);
-		}
-	}
-
-	@Override
-	public ActionReturnUtil updateServicePvcByname(String name, String pvc, String namespace) throws Exception {
-		if(StringUtils.isEmpty(name)){
-			return ActionReturnUtil.returnErrorWithMsg("name 为空");
-		}else{
-			serviceMapper.updateServicePVC(name, pvc, namespace);
-			return ActionReturnUtil.returnSuccess();
-		}
-		
 	}
 
 	@Override
@@ -753,8 +697,8 @@ public class ServiceServiceImpl implements ServiceService {
 		}else{
 			return ActionReturnUtil.returnErrorWithMsg("不存在名称为"+ name +"，版本为"+tag+"模板");
 		}
-		
-		
+
+
 	}
 
 	@Override
@@ -771,7 +715,7 @@ public class ServiceServiceImpl implements ServiceService {
 		List<String> pvcList = new ArrayList<>();
 		List<Map<String, Object>> message = new ArrayList<>();
 		String namespace = serviceDeploy.getNamespace();
-		com.harmonycloud.dao.application.bean.Service svc = new com.harmonycloud.dao.application.bean.Service();
+
 		if (serviceDeploy.getServiceTemplate() != null
 				&& serviceDeploy.getServiceTemplate().getDeploymentDetail() != null) {
 			ServiceTemplateDto service = serviceDeploy.getServiceTemplate();
@@ -791,7 +735,7 @@ public class ServiceServiceImpl implements ServiceService {
 							}
 							ActionReturnUtil pvcres = volumeSerivce.createVolume(namespace, pvc.getPvcName(),
 									pvc.getPvcCapacity(), pvc.getPvcTenantid(), pvc.getReadOnly(), pvc.getPvcBindOne(),
-									pvc.getVolume());
+									pvc.getVolume(),serviceDeploy.getServiceTemplate().getDeploymentDetail().getName());
 							pvcList.add(pvc.getPvcName());
 							if (!pvcres.isSuccess()) {
 								Map<String, Object> map = new HashMap<String, Object>();
@@ -802,7 +746,6 @@ public class ServiceServiceImpl implements ServiceService {
 					}
 				}
 			}
-			List<String> ingresses = new ArrayList<>();
 			// creat ingress
 			if (service.getIngress() != null) {
 				for (IngressDto ingress : service.getIngress()) {
@@ -818,29 +761,22 @@ public class ServiceServiceImpl implements ServiceService {
 							map.put("ingress:" + ingress.getParsedIngressList().getName(), httpIngRes.get("data"));
 							message.add(map);
 						}
-						ingresses.add(
-								"{\"type\":\"HTTP\",\"name\":\"" + ingress.getParsedIngressList().getName() + "\"}");
 					} else if ("TCP".equals(ingress.getType())
 							&& !StringUtils.isEmpty(ingress.getSvcRouter().getName())) {
 						Map<String, Object> labels = new HashMap<String, Object>();
-                    	labels.put("app", service.getDeploymentDetail().getName());
-                    	ingress.getSvcRouter().setLabels(labels);
-                    	ingress.getSvcRouter().setNamespace(namespace);
+						labels.put("app", service.getDeploymentDetail().getName());
+						ingress.getSvcRouter().setLabels(labels);
+						ingress.getSvcRouter().setNamespace(namespace);
 						ActionReturnUtil tcpSvcRes = routerService.svcCreate(ingress.getSvcRouter());
 						if (!tcpSvcRes.isSuccess()) {
 							Map<String, Object> map = new HashMap<String, Object>();
 							map.put("ingress:" + ingress.getParsedIngressList().getName(), tcpSvcRes.get("data"));
 							message.add(map);
 						}
-						ingresses.add("{\"type\":\"TCP\",\"name\":\"" + ingress.getSvcRouter().getName() + "\"}");
 					}
 				}
 			}
-	        // insert into service
-	        if (ingresses.size() > 0) {
-	            JSONArray jsonArray = JSONArray.fromObject(ingresses);
-	            svc.setIngress(jsonArray.toString());
-	        }
+
 
 
 			// creat config map & deploy service deployment & get node label by
@@ -868,21 +804,11 @@ public class ServiceServiceImpl implements ServiceService {
 				map.put(service.getName(), depRes.get("data"));
 				message.add(map);
 			}
-
-	        if (pvcList.size() > 0) {
-	            JSONArray jsonArraypvc = JSONArray.fromObject(pvcList);
-	            svc.setPvc(jsonArraypvc.toString());
-	        }
-	        svc.setName(service.getDeploymentDetail().getName());
-	        svc.setServiceTemplateId(service.getId());
-	        svc.setNamespace(namespace);
-	        svc.setIsExternal(0);
-	        serviceMapper.insertService(svc);
 		}
 		if (message.size() > 0) {
-            return ActionReturnUtil.returnErrorWithData(message);
-        }
-        return ActionReturnUtil.returnSuccess();
+			return ActionReturnUtil.returnErrorWithData(message);
+		}
+		return ActionReturnUtil.returnSuccess();
 	}
 
 	/**
@@ -892,7 +818,7 @@ public class ServiceServiceImpl implements ServiceService {
 		//check name
 		//service name
 		K8SURL url = new K8SURL();
-    	url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
+		url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
 		K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
 				&& depRes.getStatus() != Constant.HTTP_404 ) {
@@ -932,7 +858,7 @@ public class ServiceServiceImpl implements ServiceService {
 							flag = false;
 						}
 					}
-					
+
 				}
 				if(ing.getType() != null && "TCP".equals(ing.getType()) && tcplist != null && tcplist.size() > 0){
 					for(RouterSvc tcp : tcplist){

@@ -116,4 +116,5 @@ public class Constant {
     public final static String PIPELINE_STATUS_WAITING = "WAITING";
     public final static String PIPELINE_STATUS_NOTBUILT = "NOTBUILT";
     public final static String PIPELINE_STATUS_NOTEXECUTED = "NOT_EXECUTED";
+	public final static String EXTERNAL_SERVICE_NAMESPACE = "external";
 }

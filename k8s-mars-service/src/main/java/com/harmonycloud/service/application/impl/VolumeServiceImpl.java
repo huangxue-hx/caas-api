@@ -174,7 +174,7 @@ public class VolumeServiceImpl implements VolumeSerivce {
 
 	@Override
 	public ActionReturnUtil createVolume(String namespace, String name, String capacity, String tenantid,
-			String readonly, String bindOne,String PVname) throws Exception {
+			String readonly, String bindOne,String PVname, String svcName) throws Exception {
 		PersistentVolumeClaim pVolumeClaim = new PersistentVolumeClaim();
 		ObjectMeta meta = new ObjectMeta();
 		meta.setName(name);
@@ -191,6 +191,7 @@ public class VolumeServiceImpl implements VolumeSerivce {
 		LabelSelector labelSelector = new LabelSelector();
 		Map<String, Object> labels = new HashMap<String, Object>();
 		labels.put("nephele_tenantid_"+tenantid, tenantid);
+		labels.put("app",svcName);
 		labelSelector.setMatchLabels(labels);
 		pvSpec.setSelector(labelSelector);
 		Map<String, Object> limits = new HashMap<String, Object>();

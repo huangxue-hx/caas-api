@@ -29,7 +29,6 @@ import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.SearchResult;
 import com.harmonycloud.common.util.TenantUtils;
 import com.harmonycloud.common.util.date.DateUtil;
-import com.harmonycloud.dao.application.BusinessMapper;
 import com.harmonycloud.dao.application.bean.Business;
 import com.harmonycloud.dao.tenant.HarborProjectTenantMapper;
 import com.harmonycloud.dao.tenant.TenantBindingMapper;
@@ -51,9 +50,7 @@ public class AuditControllerAspect {
 	
 	@Autowired
 	private TenantBindingMapper tenantBindingMapper;
-	
-	@Autowired
-	private BusinessMapper businessMapper;
+
 	
 	@Autowired
 	private HarborProjectTenantMapper hpTenantMapper;
@@ -135,8 +132,15 @@ public class AuditControllerAspect {
                 }
                 if (moduleName.equals("业务模块")) {
                     if (opFunKey.equals("rest_business_deploy_DELETE") || opFunKey.equals("rest_business_deploy_stop_POST") || opFunKey.equals("rest_business_deploy_start_POST")){
-                		Business business = businessMapper.selectByPrimaryKey(Integer.valueOf(values.get(0)));
-                    	subject = business.getName();
+						if (values.get(0).toString().contains("=") && values.get(0).toString().contains("-")){
+							String[] sign = values.get(0).toString().split("=");
+							if (sign != null){
+								String[] buiness = sign[0].split("-");
+								if (buiness.length >= 3){
+									subject = buiness[2].toString();
+								}
+							}
+						}
                 	} else {
                 		subject = values.get(0);
                 	}

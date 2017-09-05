@@ -17,7 +17,7 @@ public interface VolumeSerivce {
 
 	public ActionReturnUtil listVolume(String namespace , Cluster cluster) throws Exception;
 
-	public ActionReturnUtil createVolume(String namespace, String name, String capacity, String tenantid, String readonly, String bindOne, String PVname) throws Exception;
+	public ActionReturnUtil createVolume(String namespace, String name, String capacity, String tenantid, String readonly, String bindOne, String PVname, String svcName) throws Exception;
 	
 	public ActionReturnUtil createVolume(String namespace, String pvcname, String capacity, String tenantid, String readonly, String bindOne, String PVname, String type, String name) throws Exception;
 	

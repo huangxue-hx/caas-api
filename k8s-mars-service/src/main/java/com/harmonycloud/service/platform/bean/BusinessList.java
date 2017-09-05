@@ -11,14 +11,14 @@ public class BusinessList implements Serializable {
      * 
      */
     private static final long serialVersionUID = -2530377623004360744L;
-    private List<Integer> idList;
+    private List<String> idList;
     private String tenantId;
 
-    public List<Integer> getIdList() {
+    public List<String> getIdList() {
         return idList;
     }
 
-    public void setIdList(List<Integer> idList) {
+    public void setIdList(List<String> idList) {
         this.idList = idList;
     }
 

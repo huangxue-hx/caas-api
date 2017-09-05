@@ -13,7 +13,7 @@ public class TemplateToYamlUtil {
     public static Deployment templateToDeployment(DeploymentDetailDto deploymentDetailDto){
         Deployment deployment = new Deployment();
         try {
-            deployment = K8sResultConvert.convertAppCreate(deploymentDetailDto,null);
+            deployment = K8sResultConvert.convertAppCreate(deploymentDetailDto,null,null,null);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -24,7 +24,7 @@ public class TemplateToYamlUtil {
     public static Service templateToService(DeploymentDetailDto deploymentDetailDto){
         Service service = new Service();
         try {
-            service = K8sResultConvert.convertAppCreateOfService(deploymentDetailDto);
+            service = K8sResultConvert.convertAppCreateOfService(deploymentDetailDto,null,null);
         } catch (Exception e) {
             e.printStackTrace();
         }

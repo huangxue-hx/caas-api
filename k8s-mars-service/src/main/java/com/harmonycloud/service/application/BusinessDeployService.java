@@ -36,7 +36,7 @@ public interface BusinessDeployService {
      *            application id
      * @return ActionReturnUtil
      */
-    ActionReturnUtil selectBusinessById(int id, Cluster cluster) throws Exception;
+    ActionReturnUtil selectBusinessById(String id, Cluster cluster) throws Exception;
 
     /**
      * get application by id service on 17/04/11.
@@ -173,4 +173,9 @@ public interface BusinessDeployService {
      * @return ActionReturnUtil
      */
     ActionReturnUtil checkK8SName(BusinessDeployDto businessDeploy, Cluster cluster)throws Exception;
+
+    ActionReturnUtil unbindBusiness(String businessname, String tenantId, String name, String namespace, Cluster cluster)throws Exception;
+
+    ActionReturnUtil bindBusiness(String businessname, String tenantId, String name, String namespace, Cluster cluster)throws Exception;
+
 }

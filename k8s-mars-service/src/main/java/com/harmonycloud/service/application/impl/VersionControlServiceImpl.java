@@ -72,6 +72,9 @@ public class VersionControlServiceImpl implements VersionControlService {
     ReplicasetsService rsService;
 
     @Autowired
+    PVCService pvcService;
+
+    @Autowired
     private PvService pvService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -89,7 +92,7 @@ public class VersionControlServiceImpl implements VersionControlService {
         K8SClientResponse depRes = dpService.doSpecifyDeployment(detail.getNamespace(), detail.getName(), null, null,
                 HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
-        	UnversionedStatus status = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+            UnversionedStatus status = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
         }
         Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
@@ -97,60 +100,65 @@ public class VersionControlServiceImpl implements VersionControlService {
         K8SClientResponse rsRes = sService.doSepcifyService(detail.getNamespace(),
                 detail.getName(), null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus())) {
-        	UnversionedStatus status = JsonUtil.jsonToPojo(rsRes.getBody(), UnversionedStatus.class);
+            UnversionedStatus status = JsonUtil.jsonToPojo(rsRes.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
         }
 
         com.harmonycloud.k8s.bean.Service service = JsonUtil.jsonToPojo(rsRes.getBody(), com.harmonycloud.k8s.bean.Service.class);
 
         //从数据库获取service的pvc信息
-        com.harmonycloud.dao.application.bean.Service svc = serviceService.getServiceByname(detail.getName(), detail.getNamespace());
-        JSONArray pvclist =new JSONArray();
-        if(svc != null && svc.getPvc() != null){
-            pvclist = JSONArray.fromObject(svc.getPvc());
+        Map<String, Object> label = new HashMap<String, Object>();
+        label.put("labelSelector", "app=" + detail.getName());
+        K8SClientResponse pvcRes = pvcService.doSepcifyPVC(detail.getNamespace(), label, HTTPMethod.GET, cluster);
+        if(!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404){
+            UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(),UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
         }
+        PersistentVolumeClaimList pvclist = JsonUtil.jsonToPojo(pvcRes.getBody(), com.harmonycloud.k8s.bean.PersistentVolumeClaimList.class);
+
+
         JSONArray pvclistnew=JSONArray.fromObject(pvclist);
-        if(pvclist != null && !pvclist.isEmpty()){
+        if(pvclist != null && pvclist.getItems() != null){
             if(detail.getContainers() != null){
                 for(UpdateContainer container : detail.getContainers()){
-                    if(container.getStorage() !=null && container.getStorage().size() > 0){
-                        for(UpdateVolume pv : container.getStorage()){
-                            if(Constant.VOLUME_TYPE_PV.equals(pv.getType())){
+                    if(container.getStorage() !=null && container.getStorage().size() > 0) {
+                        for (UpdateVolume pv : container.getStorage()) {
+                            if (Constant.VOLUME_TYPE_PV.equals(pv.getType())) {
                                 boolean flag = true;
-                                for(int i=0 ; i < pvclist.size(); i++){
-                                    String pvc = (String) pvclist.get(i);
-                                    if(pvc.equals(pv.getPvcName())){
+                                for (PersistentVolumeClaim onePvc : pvclist.getItems()) {
+                                    String pvc = onePvc.getMetadata().getName();
+                                    if (pvc.equals(pv.getPvcName())) {
                                         flag = false;
                                     }
                                 }
-                                if (flag){
-                                	ActionReturnUtil pvRes = volumeSerivce.createVolume(detail.getNamespace(), pv.getPvcName(), pv.getPvcCapacity(), pv.getPvcTenantid(), pv.getReadOnly(), pv.getPvcBindOne(),
-                                            pv.getName());
-                                	if(!pvRes.isSuccess()){
-                                		return pvRes;
-                                	}
+                                if (flag) {
+                                    ActionReturnUtil pvRes = volumeSerivce.createVolume(detail.getNamespace(), pv.getPvcName(), pv.getPvcCapacity(), pv.getPvcTenantid(), pv.getReadOnly(), pv.getPvcBindOne(),
+                                            pv.getName(), detail.getName());
+                                    if (!pvRes.isSuccess()) {
+                                        return pvRes;
+                                    }
                                     pvclistnew.add(pv.getPvcName());
                                 }
                             }
                         }
                     } else {
-                        for(int i=0 ; i < pvclist.size(); i++){
+                        for (PersistentVolumeClaim onePvc : pvclist.getItems()) {
                                 //volumeSerivce.deleteVolume(detail.getNamespace(),(String) pvclist.get(i));
 
-                                String pvc = (String) pvclist.get(i);
+                                String pvc = onePvc.getMetadata().getName();
                                 K8SURL url = new K8SURL();
-                                url.setName((String) pvclist.get(i)).setNamespace(detail.getNamespace()).setResource(Resource.PERSISTENTVOLUMECLAIM);
+                                url.setName(onePvc.getMetadata().getName()).setNamespace(detail.getNamespace()).setResource(Resource.PERSISTENTVOLUMECLAIM);
                                 Map<String, Object> headers = new HashMap<>();
                                 headers.put("Content-Type", "application/json");
                                 Map<String, Object> bodys = new HashMap<>();
                                 bodys.put("gracePeriodSeconds", 1);
-                                K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys,cluster);
+                                K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys, cluster);
                                 if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
                                     // update pv
                                     if (pvc.contains(Constant.PVC_BREAK)) {
-                                        String [] str=pvc.split(Constant.PVC_BREAK);
+                                        String[] str = pvc.split(Constant.PVC_BREAK);
                                         String pvname = str[0];
-                                        PersistentVolume pv = pvService.getPvByName(pvname,null);
+                                        PersistentVolume pv = pvService.getPvByName(pvname, null);
                                         if (pv != null) {
                                             Map<String, Object> bodysPV = new HashMap<String, Object>();
                                             Map<String, Object> metadata = new HashMap<String, Object>();
@@ -166,19 +174,19 @@ public class VersionControlServiceImpl implements VersionControlService {
                                             urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
                                             Map<String, Object> headersPV = new HashMap<>();
                                             headersPV.put("Content-Type", "application/json");
-                                            K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT, headersPV, bodysPV,cluster);
+                                            K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT, headersPV, bodysPV, cluster);
                                             if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus()) && responsePV.getStatus() != Constant.HTTP_404) {
                                                 UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
                                                 return ActionReturnUtil.returnSuccessWithMsg(status.getMessage());
                                             }
                                         }
                                     }
-                                }else{
+                                } else {
                                     UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
                                     return ActionReturnUtil.returnSuccessWithMsg(status.getMessage());
                                 }
+                            }
 
-                        }
                     }
                 }
             }
@@ -189,7 +197,7 @@ public class VersionControlServiceImpl implements VersionControlService {
                         for (UpdateVolume pv : container.getStorage()) {
                             if (Constant.VOLUME_TYPE_PV.equals(pv.getType())) {
                                 volumeSerivce.createVolume(detail.getNamespace(), pv.getPvcName(), pv.getPvcCapacity(),
-                                        pv.getPvcTenantid(), pv.getReadOnly(), pv.getPvcBindOne(), pv.getName());
+                                        pv.getPvcTenantid(), pv.getReadOnly(), pv.getPvcBindOne(), pv.getName(),detail.getName());
                                 pvclistnew = new JSONArray();
                                 pvclistnew.add(pv.getPvcName());
                             }
@@ -198,7 +206,6 @@ public class VersionControlServiceImpl implements VersionControlService {
                 }
             }
         }
-        serviceService.updateServicePvcByname(detail.getName(), pvclistnew.toString(), detail.getNamespace());
 
         //在这里创建configmap,在convertAppPut当中增加Deployment的注解,返回的是容器和configmap之间的映射关系列表
         Map<String, String> containerToConfigMap = createConfigmaps(detail, cluster);
@@ -218,10 +225,10 @@ public class VersionControlServiceImpl implements VersionControlService {
             }
             RollingUpdateDeployment ru =new RollingUpdateDeployment();
             if(detail.getMaxSurge() == 0 && detail.getMaxUnavailable() == 0){
-            	ru.setMaxSurge(1);
+                ru.setMaxSurge(1);
                 ru.setMaxUnavailable(0);
             }else{
-            	ru.setMaxSurge(detail.getMaxSurge());
+                ru.setMaxSurge(detail.getMaxSurge());
                 ru.setMaxUnavailable(detail.getMaxUnavailable());
             }
             strategy.setRollingUpdate(ru);
@@ -280,7 +287,7 @@ public class VersionControlServiceImpl implements VersionControlService {
                             }
                             break;
                         }else if(dep1.getStatus() != null && dep1.getStatus().getReplicas() != null && dep1.getStatus().getReplicas() == instances){
-                        	break;
+                            break;
                         }
                     }
                     mCountDownLatch.countDown();
@@ -325,42 +332,41 @@ public class VersionControlServiceImpl implements VersionControlService {
         JSONObject json = new JSONObject();
         List<Integer> counts = new ArrayList<>();
         if("RollingUpdate".equals(dep.getSpec().getStrategy().getType())){
-        	Integer updateCounts = 0;
-        	if(dep.getStatus().getUpdatedReplicas() != null && dep.getStatus().getUpdatedReplicas() != 0){
-        		updateCounts = dep.getStatus().getUpdatedReplicas();
-        		counts.add(updateCounts);
-        		counts.add(dep.getSpec().getReplicas() - updateCounts);
-        	}else{
-        		int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
-        		updateCounts = dep.getSpec().getReplicas() - unavailableReplicas;
-        		if(updateCounts < 0){
-        			updateCounts = 0;
-        		}
-        		counts.add(updateCounts);
-        		counts.add(unavailableReplicas);
-        	}
+            Integer updateCounts = 0;
+            if(dep.getStatus().getUpdatedReplicas() != null && dep.getStatus().getUpdatedReplicas() != 0){
+                updateCounts = dep.getStatus().getUpdatedReplicas();
+                counts.add(updateCounts);
+                counts.add(dep.getSpec().getReplicas() - updateCounts);
+            }else{
+                int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
+                updateCounts = dep.getSpec().getReplicas() - unavailableReplicas;
+                if(updateCounts < 0){
+                    updateCounts = 0;
+                }
+                counts.add(updateCounts);
+                counts.add(unavailableReplicas);
+            }
         	/*Integer updateCounts = dep.getStatus().getUpdatedReplicas();
             updateCounts = updateCounts == null ? 0 : updateCounts;*/
-            
+
             //counts.add(dep.getSpec().getReplicas() - updateCounts);
         }else{
-        	Integer updateCounts = 0;
-        	if(dep.getStatus().getUpdatedReplicas() != null && dep.getStatus().getUpdatedReplicas() != 0){
-        		updateCounts = dep.getStatus().getUpdatedReplicas();
-        		counts.add(updateCounts);
-        		counts.add(0);
-        	}else{
-        		if(dep.getStatus().getUnavailableReplicas() != null ){
-        			int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
-            		updateCounts = dep.getSpec().getReplicas() - unavailableReplicas;
-            		if(updateCounts < 0){
-            			updateCounts = 0;
-            		}
-            		counts.add(updateCounts);
-            		counts.add(0);
-        		}
-        		
-        	}
+            Integer updateCounts = 0;
+            if(dep.getStatus().getUpdatedReplicas() != null && dep.getStatus().getUpdatedReplicas() != 0){
+                updateCounts = dep.getStatus().getUpdatedReplicas();
+                counts.add(updateCounts);
+                counts.add(0);
+            }else{
+                if(dep.getStatus().getUnavailableReplicas() != null ) {
+                    int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
+                    updateCounts = dep.getSpec().getReplicas() - unavailableReplicas;
+                    if (updateCounts < 0) {
+                        updateCounts = 0;
+                    }
+                    counts.add(updateCounts);
+                    counts.add(0);
+                }
+            }
         	/*Integer updateCounts = dep.getStatus().getUpdatedReplicas();
         	counts.add(updateCounts);
             counts.add(0);*/
@@ -580,16 +586,16 @@ public class VersionControlServiceImpl implements VersionControlService {
             rollbackBean.setRevisionTime(rs.getMetadata().getCreationTimestamp());
             rollbackBean.setPodTemplete(JSON.toJSONString(rs.getSpec().getTemplate()));
             if(rs.getSpec().getTemplate().getSpec().getVolumes() != null){
-            	List<Volume> volume = rs.getSpec().getTemplate().getSpec().getVolumes();
-            	if(volume != null && volume.size() > 0){
-            		List<String> cfgmap = new ArrayList<String>();
-            		for(Volume v : volume){
-            			if(v.getConfigMap() != null){
-            				cfgmap.add(v.getConfigMap().getName());
-            			}
-            		}
-            		rollbackBean.setConfigmap(cfgmap);
-            	}
+                List<Volume> volume = rs.getSpec().getTemplate().getSpec().getVolumes();
+                if(volume != null && volume.size() > 0){
+                    List<String> cfgmap = new ArrayList<String>();
+                    for(Volume v : volume){
+                        if(v.getConfigMap() != null){
+                            cfgmap.add(v.getConfigMap().getName());
+                        }
+                    }
+                    rollbackBean.setConfigmap(cfgmap);
+                }
             }
             rollbackBean.setCurrent("false");
             rollbackBean.setRevision(reversion);
@@ -695,7 +701,7 @@ public class VersionControlServiceImpl implements VersionControlService {
 //                headers.put("Content-Type", "application/json");
 //                Map<String, Object> bodys = new HashMap<>();
 //                bodys.put("gracePeriodSeconds", 1);
-//                K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys, null);
+//                K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE, headers, bodys, null);
 //                if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
 //                    logger.error("灰度升级删除pvc" + response.getBody());
 //                }
@@ -720,7 +726,7 @@ public class VersionControlServiceImpl implements VersionControlService {
 //                        urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
 //                        Map<String, Object> headersPV = new HashMap<>();
 //                        headersPV.put("Content-Type", "application/json");
-//                        K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT, headersPV, bodysPV, null);
+//                        K8SClientResponse responsePV = new K8SClient().doit(urlPV, HTTPMethod.PUT, headersPV, bodysPV, null);
 //                        if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
 //                            logger.error("灰度升级更新pv" + responsePV.getBody());
 //                        }
@@ -748,7 +754,7 @@ public class VersionControlServiceImpl implements VersionControlService {
                 }
                 try {
                     volumeSerivce.createVolume(dep.getNamespace(), newVol.getPvcName(), "500", newVol.getPvcTenantid(), newVol.getReadOnly(), newVol.getPvcBindOne(),
-                            newVol.getName());
+                            newVol.getName(),dep.getName());
 
                 } catch (Exception e) {
                     logger.error("灰度升级创建pvc失败");
@@ -1056,20 +1062,20 @@ public class VersionControlServiceImpl implements VersionControlService {
             //拿到需要修改的container,设置成修改后的参数
             Container container = new Container();
             if(cc.getSecurityContext() != null  && cc.getSecurityContext().isSecurity()){
-				SecurityContext securityContext = new SecurityContext();
-				if(cc.getSecurityContext().isPrivileged() == true){
-					securityContext.setPrivileged(cc.getSecurityContext().isPrivileged());
-				}
-				Capabilities capabilities = new Capabilities();
-				if(cc.getSecurityContext().getAdd() != null && cc.getSecurityContext().getAdd().size() > 0){
-					capabilities.setAdd(cc.getSecurityContext().getAdd());
-				}
-				if(cc.getSecurityContext().getDrop() != null && cc.getSecurityContext().getDrop().size() > 0){
-					capabilities.setDrop(cc.getSecurityContext().getDrop());
-				}
-				securityContext.setCapabilities(capabilities);
-				container.setSecurityContext(securityContext);
-			}
+                SecurityContext securityContext = new SecurityContext();
+                if(cc.getSecurityContext().isPrivileged() == true){
+                    securityContext.setPrivileged(cc.getSecurityContext().isPrivileged());
+                }
+                Capabilities capabilities = new Capabilities();
+                if(cc.getSecurityContext().getAdd() != null && cc.getSecurityContext().getAdd().size() > 0){
+                    capabilities.setAdd(cc.getSecurityContext().getAdd());
+                }
+                if(cc.getSecurityContext().getDrop() != null && cc.getSecurityContext().getDrop().size() > 0){
+                    capabilities.setDrop(cc.getSecurityContext().getDrop());
+                }
+                securityContext.setCapabilities(capabilities);
+                container.setSecurityContext(securityContext);
+            }
             container.setName(cc.getName());
             //set image
             String[] hou;

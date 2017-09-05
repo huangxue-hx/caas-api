@@ -74,12 +74,10 @@
         <mapper resource="com/harmonycloud/mapping/NetworkTopologyMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/PrivatePartitionMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/NetworkTopologyMapper.xml" />
-        <mapper resource="com/harmonycloud/mapping/BusinessMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/BusinessTemplatesMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/ServiceTemplatesMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/TopologyMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/BusinessServiceMapper.xml" />
-        <mapper resource="com/harmonycloud/mapping/ServiceMapper.xml" />
 
         <mapper resource="com/harmonycloud/mapping/ExternalTypeMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/NodePortMapper.xml" />

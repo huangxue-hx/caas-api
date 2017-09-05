@@ -61,6 +61,8 @@ public class Resource {
 	public final static String CRONJOB = "cronjobs";
 	
 	public final static String JOB = "jobs";
+
+	public final static String APP = "appapps";
 	
 	/**
 	 * 根据resource获取apigroup
@@ -117,7 +119,12 @@ public class Resource {
 		case com.harmonycloud.k8s.constant.Resource.JOB:
 			group = APIGroup.APIS_BATCH_V1_VERSION;
 			break;
-		default:
+
+			case com.harmonycloud.k8s.constant.Resource.APP:
+				group = APIGroup.APIS_HARMONYCLOUD;
+				break;
+
+			default:
 			break;
 		}
 		return group;

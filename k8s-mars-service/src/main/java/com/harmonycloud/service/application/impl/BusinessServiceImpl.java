@@ -454,7 +454,7 @@ public class BusinessServiceImpl implements BusinessService {
      */
     public boolean saveTopology(List<TopologysDto> topologys, Integer businessTemplatesId) throws Exception {
         boolean boo = false;
-        if (topologys != null && topologys.size() > 0 && (businessTemplatesId != null && businessTemplatesId != 0)) {
+        if (topologys != null && topologys.size() > 0 && (businessTemplatesId != null && StringUtils.isEmpty(businessTemplatesId))) {
             for (TopologysDto ts : topologys) {
                 Topology topology = new Topology();
                 topology.setBusinessId(businessTemplatesId);

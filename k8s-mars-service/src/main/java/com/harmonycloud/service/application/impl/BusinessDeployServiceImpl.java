@@ -1,6 +1,7 @@
 package com.harmonycloud.service.application.impl;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.application.*;
@@ -18,9 +19,7 @@ import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
-import com.harmonycloud.k8s.service.DeploymentService;
-import com.harmonycloud.k8s.service.PvService;
-import com.harmonycloud.k8s.service.ServicesService;
+import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.BusinessDeployService;
@@ -38,6 +37,7 @@ import com.harmonycloud.service.tenant.PrivatePartitionService;
 import com.harmonycloud.service.tenant.TenantService;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
+import org.apache.commons.collections.map.HashedMap;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -57,19 +57,10 @@ import java.util.*;
 public class BusinessDeployServiceImpl implements BusinessDeployService {
 
     @Autowired
-    private BusinessMapper businessMapper;
-
-    @Autowired
-    private TopologyMapper topologyMapper;
-
-    @Autowired
     private TenantService tenantService;
-    
+
     @Autowired
     private ClusterService clusterService;
-    
-    @Autowired
-    private ServiceMapper serviceMapper;
 
     @Autowired
     private VolumeSerivce volumeSerivce;
@@ -82,7 +73,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
     @Autowired
     private RouterService routerService;
-    
+
     @Autowired
     private com.harmonycloud.service.application.BusinessService businessService;
 
@@ -93,39 +84,49 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
     private PvService pvService;
 
     @Autowired
+    private TprApplication tprApplication;
+
+    @Autowired
     private DeploymentService dpService;
-    
+
     @Autowired
     private ServiceTemplatesMapper serviceTemplatesMapper;
-    
+
     @Autowired
     NamespaceService namespaceService;
-    
+
     @Autowired
     PrivatePartitionService privatePartitionService;
 
     @Autowired
     HttpSession session;
-    
+
     @Autowired
     ServiceService serviceService;
 
-    public static final String ABNORMAL = "0";
+    @Autowired
+    private PVCService pvcService;
 
+    public static final String ABNORMAL = "0";
     public static final String NORMAL = "1";
+
+    private static final String SIGN = "-";
+    private static final String SIGN_EQUAL = "=";
+    private final static String TOPO = "topo";
+    private final static String CREATE = "creater";
 
     @Autowired
     private ServicesService sService;
-    
+
 
     @Value("#{propertiesReader['image.url']}")
     private String harborUrl;
 
     /**
      * get application by tenant namespace name status service implement
-     * 
+     *
      * @author gurongyun
-     * 
+     *
      * @param tenant
      *            tenant name
      * @param namespace
@@ -136,62 +137,74 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
      *            application running status 0:abnormal;1:normal
      * @return ActionReturnUtil
      */
-	@Override
+    @Override
     public ActionReturnUtil searchBusiness(String tenantId, String tenant, String namespace, String name, String status) throws Exception {
         JSONObject json = new JSONObject();
         // application list
         JSONArray array = new JSONArray();
-        List<Business> blist = null;
+        List<BaseResource> blist = new ArrayList<>();
+        Cluster	cluster=tenantService.getClusterByTenantid(tenantId);
         // search application
-        if(StringUtils.isEmpty(namespace)){
-        	String [] namespaces = new String[0];
-        	if(StringUtils.isEmpty(tenant)){
-        		String [] tenants= new String[0];
-        		blist = businessMapper.search(tenants, namespaces, name);
-            }else{
-            	String [] tenants = {tenant};
-                if( tenant.contains(",")){
-                	tenants=tenant.split(",");
+        if(StringUtils.isEmpty(namespace) && !StringUtils.isEmpty(tenantId)){
+
+            @SuppressWarnings("unchecked")
+            List<Object> namespaceData = (List<Object>) namespaceService.getNamespaceListByTenantid(tenantId).get("data");
+
+            for (Object oneNamespace : namespaceData ){
+                K8SClientResponse response = tprApplication.listApplicationByNamespace(oneNamespace.getClass().getName().toString(),null, null, HTTPMethod.GET, cluster);
+                if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                    BaseResourceList  tpr = JsonUtil.jsonToPojo(response.getBody(), BaseResourceList.class);
+                    if (tpr != null){
+                        blist.addAll(tpr.getItems());
+                    }
                 }
-                blist = businessMapper.search(tenants, namespaces, name);
             }
+
         }else{
-        	String [] namespaces = {namespace};
+            String [] namespaces = {namespace};
             if(namespace.contains(",")){
-            	namespaces=namespace.split(",");
+                namespaces=namespace.split(",");
             }
-        	if(StringUtils.isEmpty(tenant)){
-        		String [] tenants= new String[0];
-        		blist = businessMapper.search(tenants, namespaces, name);
-            }else{
-            	String [] tenants = {tenant};
-                if( tenant.contains(",")){
-                	tenants=tenant.split(",");
+
+            for (String oneNamespace: namespaces){
+                K8SClientResponse response = tprApplication.listApplicationByNamespace(oneNamespace,null, null, HTTPMethod.GET, cluster);
+                if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                    BaseResourceList  tpr = JsonUtil.jsonToPojo(response.getBody(), BaseResourceList.class);
+                    if (tpr != null){
+                        blist.addAll(tpr.getItems());
+                    }
                 }
-                blist = businessMapper.search(tenants, namespaces, name);
             }
         }
-
-
-        Cluster	cluster=tenantService.getClusterByTenantid(tenantId);
 
         // number of application
         int count = 0;
         if (blist != null && blist.size() > 0) {
             count = blist.size();
-            for (Business bs : blist) {
+            for (BaseResource bs : blist) {
                 JSONObject js = new JSONObject();
+                //Map<String,Object> appLable = new HashedMap();
+                String label = "";
+
+                for (Map.Entry<String, Object> vo : bs.getMetadata().getLabels().entrySet()) {
+
+                    if (vo.getKey().startsWith(TOPO)){
+                        //appLable.put(vo.getKey(),vo.getValue());
+                        label = vo.getKey() + "=" + vo.getValue();
+                    }
+
+                }
+
                 // put application info
-                js.put("name", bs.getName());
-                js.put("id", bs.getId());
-                js.put("desc", bs.getDetails());
-                js.put("namespace", bs.getNamespaces());
-                js.put("createTime", dateToString(bs.getCreateTime()));
-                js.put("businessTemplateId", bs.getTemplateId());
-                js.put("namespce", bs.getNamespaces());
-                js.put("tenant", bs.getTenant());
-                js.put("user", bs.getUser());
-                JSONObject servicejson = listServiceByBusinessId(bs.getId(), bs.getNamespaces(),cluster);
+                js.put("name", bs.getMetadata().getName());
+                js.put("id", label);
+                js.put("desc", bs.getMetadata().getAnnotations());
+                js.put("namespace", bs.getMetadata().getNamespace());
+                js.put("createTime", bs.getMetadata().getCreationTimestamp());
+                js.put("tenant", tenant);
+                js.put("user", bs.getMetadata().getLabels());
+
+                JSONObject servicejson = listServiceByBusinessId(label, bs.getMetadata().getNamespace(),cluster);
                 js.putAll(servicejson);
                 if (StringUtils.isEmpty(status)) {
                     array.add(js);
@@ -219,85 +232,79 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
     /**
      * get application by id service implement.
-     * 
+     *
      * @author gurongyun
      * @param id
      *            application id
      * @return ActionReturnUtil
      */
     @Override
-    public ActionReturnUtil selectBusinessById(int id, Cluster cluster) throws Exception {
-        if (id == 0) {
+    public ActionReturnUtil selectBusinessById(String id, Cluster cluster) throws Exception {
+        if (StringUtils.isEmpty(id)) {
             return ActionReturnUtil.returnErrorWithMsg("application id is null");
         }
         JSONObject js = new JSONObject();
         // get application
-        Business business = businessMapper.selectByPrimaryKey(id);
-        if (business != null) {
-            // put application info
-            js.put("id", business.getId());
-            js.put("name", business.getName());
-            js.put("createTime", dateToString(business.getCreateTime()));
-            js.put("desc", business.getDetails());
-            js.put("businessTemplateId", business.getTemplateId());
-            js.put("namespace", business.getNamespaces());
-            js.put("tenant", business.getTenant());
-            js.put("user", business.getUser());
-            // get topology
-            List<Topology> tolist = topologyMapper.selectByBusinessIdAndServiceTemplateId(business.getTemplateId(), business.getId());
-            JSONArray toarray = new JSONArray();
-            if (tolist != null && tolist.size() > 0) {
-                for (Topology to : tolist) {
-                    JSONObject js1 = new JSONObject();
-                    // topology info
-                    js1.put("id", to.getId());
-                    js1.put("businessTemplateId", to.getBusinessId());
-                    js1.put("detail", to.getDetails());
-                    js1.put("source", to.getSource());
-                    js1.put("target", to.getTarget());
-                    toarray.add(js1);
-                }
-            }
-            js.put("topologyList", toarray);
-            // getService
-            List<com.harmonycloud.dao.application.bean.Service> servicelist = serviceMapper.selectByBusinessId(id);
-            JSONArray serarray = new JSONArray();
-            if (servicelist != null && servicelist.size() > 0) {
-                for (com.harmonycloud.dao.application.bean.Service ser : servicelist) {
-                    JSONObject json = new JSONObject();
-                    // service info
-                    json.put("id", ser.getId());
-                    json.put("businessId", ser.getBusinessId());
-                    json.put("isExternal", ser.getIsExternal());
-                    json.put("name", ser.getName());
-                    json.put("serviceTemplateId", ser.getServiceTemplateId());
-                    if (ser.getIsExternal() == 1) {
-                        // external service always is running
-                        K8SClientResponse response = sService.doServiceByName(Resource.EXTERNALNAMESPACE, null, null, HTTPMethod.GET,ser.getName());
-                        if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
-                            return ActionReturnUtil.returnErrorWithMsg(response.getBody());
-                        }
-                        if (response.getStatus() != Constant.HTTP_404){
-                            com.harmonycloud.k8s.bean.Service svc = JsonUtil.jsonToPojo(response.getBody(), com.harmonycloud.k8s.bean.Service.class);
-                            json.put("ip",svc.getMetadata().getLabels().get("ip").toString());
-                            json.put("port",svc.getSpec().getPorts().get(0).getTargetPort());
-                            json.put("type",svc.getMetadata().getLabels().get("type").toString());
-                            json.put("createTime",svc.getMetadata().getCreationTimestamp());
-                        }
-                        json.put("status", Constant.SERVICE_START);
-                    } else {
-                        // get deployment by name
-                        K8SClientResponse depRes = dpService.doSpecifyDeployment(business.getNamespaces(), ser.getName(), null, null, HTTPMethod.GET,cluster);
-                        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus()) && depRes.getStatus() != Constant.HTTP_404) {
-                            return ActionReturnUtil.returnErrorWithMsg(depRes.getBody());
-                        }
-                        if (depRes.getStatus() == Constant.HTTP_404){
-                            continue;
-                        }
+        String[] namespace = {};
+        String[] other = {};
+        String appName = "";
 
-                        Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
-                        // get labels
+        if (id.contains(SIGN) && id.contains(SIGN_EQUAL)){
+            namespace = id.split(SIGN_EQUAL);
+
+            other = namespace[0].split(SIGN);
+            if (other.length >= 3){
+                appName = other[2];
+            }
+        }
+
+        BaseResource tpr = new BaseResource();
+        K8SClientResponse response = tprApplication.getApplicationByName(namespace[1], appName, null, null, HTTPMethod.GET, cluster);
+        if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            tpr = JsonUtil.jsonToPojo(response.getBody(), BaseResource.class);
+        }
+
+
+        if (tpr != null) {
+            // put application info
+            js.put("name", tpr.getMetadata().getName());
+            js.put("createTime", tpr.getMetadata().getCreationTimestamp());
+            String anno="";
+            if (tpr.getMetadata().getAnnotations() != null && tpr.getMetadata().getAnnotations().containsKey("nephele/annotation")) {
+                anno = tpr.getMetadata().getAnnotations().get("nephele/annotation").toString();
+            }
+            js.put("desc", anno);
+            js.put("namespace", tpr.getMetadata().getNamespace());
+            js.put("user", tpr.getMetadata().getLabels().get("creater"));
+            js.put("id",id);
+
+
+            Map<String, Object> bodys = new HashMap<>();
+            bodys.put("labelSelector", id);
+            JSONArray serarray = new JSONArray();
+
+            K8SURL url = new K8SURL();
+            url.setNamespace(namespace[1]).setResource(Resource.DEPLOYMENT);
+            K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
+                    && depRes.getStatus() != Constant.HTTP_404) {
+                JSONObject jsDev = JSONObject.fromObject(depRes.getBody());
+                K8sResponseBody k8sresbody = (K8sResponseBody) JSONObject.toBean(jsDev, K8sResponseBody.class);
+                return ActionReturnUtil.returnErrorWithMsg("获取k8sDeployment错误:" + k8sresbody.getMessage());
+            }
+            DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+            if (deplist != null && deplist.getItems() != null) {
+
+                List<Deployment> deps = deplist.getItems();
+                if (deps != null && deps.size() > 0) {
+
+                    for (Deployment dep : deps) {
+                        JSONObject json = new JSONObject();
                         JSONObject labeljson = new JSONObject();
+
+                        json.put("isExternal", "0");
+                        json.put("name", dep.getMetadata().getName());
+
                         String labels = null;
                         if (dep.getMetadata().getAnnotations() != null && dep.getMetadata().getAnnotations().containsKey("nephele/labels")) {
                             labels = dep.getMetadata().getAnnotations().get("nephele/labels").toString();
@@ -319,7 +326,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
                         if (!StringUtils.isEmpty(status)) {
                             switch (status) {
-                                case Constant.STARTING :
+                                case Constant.STARTING:
                                     if (dep.getStatus().getReplicas() != null && dep.getStatus().getReplicas() > 0
                                             && (dep.getStatus().getAvailableReplicas() == dep.getStatus().getReplicas())) {
                                         json.put("status", Constant.SERVICE_START);
@@ -327,14 +334,14 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                                         json.put("status", Constant.SERVICE_STARTING);
                                     }
                                     break;
-                                case Constant.STOPPING :
+                                case Constant.STOPPING:
                                     if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
                                         json.put("status", Constant.SERVICE_STOPPING);
                                     } else {
                                         json.put("status", Constant.SERVICE_STOP);
                                     }
                                     break;
-                                default :
+                                default:
                                     if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
                                         json.put("status", Constant.SERVICE_START);
                                     } else {
@@ -361,10 +368,10 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                         for (Container container : containers) {
                             img.add(container.getImage());
                             if(container.getResources() != null && container.getResources().getLimits() != null){
-                            	@SuppressWarnings("unchecked")
-								Map<String, String> res = (Map<String, String>) container.getResources().getLimits();
-                            	cpu.add(res.get("cpu"));
-                            	memory.add(res.get("memory"));
+                                @SuppressWarnings("unchecked")
+                                Map<String, String> res = (Map<String, String>) container.getResources().getLimits();
+                                cpu.add(res.get("cpu"));
+                                memory.add(res.get("memory"));
                             }
                         }
                         json.put("img", img);
@@ -374,13 +381,47 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                         json.put("createTime", dep.getMetadata().getCreationTimestamp());
                         json.put("namespace", dep.getMetadata().getNamespace());
                         json.put("selector", dep.getSpec().getSelector());
+
+                        serarray.add(json);
+
                     }
-                    serarray.add(json);
                 }
-                js.put("serviceList", serarray);
-            } else {
-                return ActionReturnUtil.returnErrorWithMsg("service is null");
             }
+
+            //get external service by label
+            K8SURL urlExternal = new K8SURL();
+            urlExternal.setNamespace(Resource.EXTERNALNAMESPACE).setResource(Resource.SERVICE);
+            K8SClientResponse serviceRe = new K8sMachineClient().exec(urlExternal, HTTPMethod.GET, null, bodys, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(serviceRe.getStatus())
+                    && serviceRe.getStatus() != Constant.HTTP_404) {
+                JSONObject jsExter = JSONObject.fromObject(serviceRe.getBody());
+                K8sResponseBody k8sresbody = (K8sResponseBody) JSONObject.toBean(jsExter, K8sResponseBody.class);
+                return ActionReturnUtil.returnErrorWithMsg("获取external service错误:" + k8sresbody.getMessage());
+            }
+            ServiceList svclist = JsonUtil.jsonToPojo(serviceRe.getBody(), ServiceList.class);
+            if (svclist != null && svclist.getItems() != null) {
+                List<com.harmonycloud.k8s.bean.Service> svcs = svclist.getItems();
+                if (svcs != null && svcs.size() > 0) {
+
+                    for (com.harmonycloud.k8s.bean.Service svc : svcs) {
+                        JSONObject json = new JSONObject();
+                        // service info
+                        json.put("isExternal", "1");
+                        json.put("name", svc.getMetadata().getName());
+                        json.put("ip", svc.getMetadata().getLabels().get("ip").toString());
+                        json.put("port", svc.getSpec().getPorts().get(0).getTargetPort());
+                        json.put("type", svc.getMetadata().getLabels().get("type").toString());
+                        json.put("createTime", svc.getMetadata().getCreationTimestamp());
+                        json.put("status", Constant.SERVICE_START);
+
+                        serarray.add(json);
+                    }
+                }
+
+            }
+
+            js.put("serviceList", serarray);
+
         } else {
             return ActionReturnUtil.returnSuccessWithData(null);
         }
@@ -389,9 +430,9 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
     /**
      * deployment application service implement.
-     * 
+     *
      * @author yanli
-     * 
+     *
      * @param businessDeploy
      *            BusinessDeployBean
      * @param username
@@ -406,137 +447,144 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         }
         String namespace = businessDeploy.getNamespace();
         //获取nodeslector
-		ActionReturnUtil labRes = namespaceService.getPrivatePartitionLabel(tenantId, namespace);
-		if(!labRes.isSuccess()){
-			return labRes;
-		}
-        Business business = new Business();
-        // application info
-        business.setName(businessDeploy.getName());
-        business.setTemplateId(businessDeploy.getBusinessTemplate().getId());
-        business.setNamespaces(businessDeploy.getNamespace());
-        business.setDetails(businessDeploy.getBusinessTemplate().getDesc());
-        business.setCreateTime(new Date());
-        business.setUser(username);
-        business.setTenant(businessDeploy.getBusinessTemplate().getTenant());
-        // insert into application
-        businessMapper.insert(business);
-		List<Map<String, Object>> message = new ArrayList<>();
+        ActionReturnUtil labRes = namespaceService.getPrivatePartitionLabel(tenantId, namespace);
+        if(!labRes.isSuccess()){
+            return labRes;
+        }
+
+        String topoLabel = TOPO + SIGN + tenantId + SIGN + businessDeploy.getName();
+        String namespaceLabel = businessDeploy.getNamespace();
+
+        BaseResource base = new BaseResource();
+        ObjectMeta mate = new ObjectMeta();
+        mate.setNamespace(businessDeploy.getNamespace());
+        mate.setName(businessDeploy.getName());
+
+        Map<String, Object> anno = new HashMap<String, Object>();
+        anno.put("nephele/annotation",businessDeploy.getBusinessTemplate().getDesc());
+        mate.setAnnotations(anno);
+
+        Map<String, Object> appLabels = new HashMap<String, Object>();
+        appLabels.put(topoLabel,namespaceLabel);
+        appLabels.put(CREATE ,username);
+        mate.setLabels(appLabels);
+
+        base.setMetadata(mate);
+        ActionReturnUtil result = tprApplication.createApplication(base,cluster);
+
+        if (!result.isSuccess()){
+            return  result;
+        }
+
+
+        List<Map<String, Object>> message = new ArrayList<>();
         // loop businessTemplate
-        for (ServiceTemplateDto service : businessDeploy.getBusinessTemplate().getServiceList()) {
-            com.harmonycloud.dao.application.bean.Service svc = new com.harmonycloud.dao.application.bean.Service();
-            // is external service
-            if (service.getExternal() == Constant.EXTERNAL_SERVICE) {
-                svc.setBusinessId(business.getId());
-                /*ServiceTemplates externalservice=serviceTemplatesMapper.getExternalService(service.getName());*/
-                /*if(externalservice!=null){*/
-                    svc.setServiceTemplateId(service.getId());
-                /*}*/
-                svc.setIsExternal(Constant.EXTERNAL_SERVICE);
-                //svc.setName(service.getDeploymentDetaile().getName());
-                svc.setName(service.getName());
-                svc.setNamespace(namespace);
-                serviceMapper.insertService(svc);
-                continue;
-            }
-            // todo retry and rollback
-            service.getDeploymentDetail().setNodeSelector((String)labRes.get("data"));
-            List<String> pvcList = new ArrayList<>();
-            // creat pvc
-            for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
-                if (c.getStorage() != null) {
-                    for (CreateVolumeDto pvc : c.getStorage()) {
-                    	if(pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())){
-                    		if (pvc.getPvcName() == "" || pvc.getPvcName() == null) {
-                                continue;
+        if (businessDeploy.getBusinessTemplate() != null && businessDeploy.getBusinessTemplate().getServiceList().size() > 0) {
+            for (ServiceTemplateDto svcTemplate : businessDeploy.getBusinessTemplate().getServiceList()) {
+
+                com.harmonycloud.dao.application.bean.Service svc = new com.harmonycloud.dao.application.bean.Service();
+                // is external service
+                if (svcTemplate.getExternal() == Constant.EXTERNAL_SERVICE) {
+                    Map<String, Object> headers = new HashMap<>();
+                    headers.put("Content-Type", "application/json");
+                    K8SClientResponse rsRes = sService.doSepcifyService(Constant.EXTERNAL_SERVICE_NAMESPACE, svcTemplate.getDeploymentDetail().getName(), null, null, HTTPMethod.GET, cluster);
+                    if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus())) {
+                        UnversionedStatus sta = JsonUtil.jsonToPojo(rsRes.getBody(), UnversionedStatus.class);
+                        return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
+                    }
+                    com.harmonycloud.k8s.bean.Service service = JsonUtil.jsonToPojo(rsRes.getBody(), com.harmonycloud.k8s.bean.Service.class);
+                    Map<String, Object> labels = service.getMetadata().getLabels();
+                    labels.put(topoLabel,namespaceLabel);
+                    service.getMetadata().setLabels(labels);
+                    Map<String, Object> bodys = CollectionUtil.transBean2Map(service);
+                    K8SClientResponse res = sService.doSepcifyService(Constant.EXTERNAL_SERVICE_NAMESPACE, service.getMetadata().getName(), headers, bodys, HTTPMethod.PUT, cluster);
+                    if (!HttpStatusUtil.isSuccessStatus(res.getStatus())) {
+                        UnversionedStatus sta = JsonUtil.jsonToPojo(res.getBody(), UnversionedStatus.class);
+                        Map<String, Object> map = new HashMap<String, Object>();
+                        map.put("externalService:" + service.getMetadata().getName(), sta.getMessage());
+                        message.add(map);
+                    }
+
+                } else {
+                    svcTemplate.getDeploymentDetail().setNodeSelector((String) labRes.get("data"));
+                    // creat pvc
+                    for (CreateContainerDto c : svcTemplate.getDeploymentDetail().getContainers()) {
+                        if (c.getStorage() != null) {
+                            for (CreateVolumeDto pvc : c.getStorage()) {
+                                if (pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())) {
+                                    if (StringUtils.isEmpty(pvc)) {
+                                        continue;
+                                    }
+
+                                    ActionReturnUtil pvcres = volumeSerivce.createVolume(namespace, pvc.getPvcName(),
+                                            pvc.getPvcCapacity(), pvc.getPvcTenantid(), pvc.getReadOnly(), pvc.getPvcBindOne(),
+                                            pvc.getVolume(),svcTemplate.getDeploymentDetail().getName());
+                                    if (!pvcres.isSuccess()) {
+                                        Map<String, Object> map = new HashMap<String, Object>();
+                                        map.put(pvc.getPvcName(), pvcres.get("data"));
+                                        message.add(map);
+                                    }
+                                }
                             }
-                        	ActionReturnUtil pvcres = volumeSerivce.createVolume(namespace, pvc.getPvcName(),
-									pvc.getPvcCapacity(), pvc.getPvcTenantid(), pvc.getReadOnly(), pvc.getPvcBindOne(),
-									pvc.getVolume());
-							pvcList.add(pvc.getPvcName());
-							if (!pvcres.isSuccess()) {
-								Map<String, Object> map = new HashMap<String, Object>();
-								map.put(pvc.getPvcName(), pvcres.get("data"));
-								message.add(map);
-							}
-                    	}
+                        }
                     }
-                }
-            }
-            List<String> ingresses = new ArrayList<>();
-            // creat ingress
-            if (service.getIngress() != null) {
-                for (IngressDto ingress : service.getIngress()) {
-                    if ("HTTP".equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getParsedIngressList().getName())) {
-                    	Map<String, Object> labels = new HashMap<String, Object>();
-						labels.put("app", service.getDeploymentDetail().getName());
-						ingress.getParsedIngressList().setLabels(labels);
-						ingress.getParsedIngressList().setNamespace(namespace);
-                        ActionReturnUtil httpIngRes = routerService.ingCreate(ingress.getParsedIngressList());
-						if (!httpIngRes.isSuccess()) {
-							Map<String, Object> map = new HashMap<String, Object>();
-							map.put("ingress:" + ingress.getParsedIngressList().getName(), httpIngRes.get("data"));
-							message.add(map);
-						}
-                        ingresses.add("{\"type\":\"HTTP\",\"name\":\"" + ingress.getParsedIngressList().getName() + "\"}");
-                    } else if ("TCP".equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getSvcRouter().getName())) {
-                    	Map<String, Object> labels = new HashMap<String, Object>();
-                    	labels.put("app", service.getDeploymentDetail().getName());
-                    	ingress.getSvcRouter().setLabels(labels);
-                    	ingress.getSvcRouter().setNamespace(namespace);
-                    	ActionReturnUtil tcpSvcRes = routerService.svcCreate(ingress.getSvcRouter());
-						if (!tcpSvcRes.isSuccess()) {
-							Map<String, Object> map = new HashMap<String, Object>();
-							map.put("ingress:" + ingress.getParsedIngressList().getName(), tcpSvcRes.get("data"));
-							message.add(map);
-						}
-                        ingresses.add("{\"type\":\"TCP\",\"name\":\"" + ingress.getSvcRouter().getName() + "\"}");
+                    // creat ingress
+                    if (svcTemplate.getIngress() != null) {
+                        for (IngressDto ingress : svcTemplate.getIngress()) {
+                            if ("HTTP".equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getParsedIngressList().getName())) {
+                                Map<String, Object> labels = new HashMap<String, Object>();
+                                labels.put("app", svcTemplate.getDeploymentDetail().getName());
+                                ingress.getParsedIngressList().setLabels(labels);
+                                ingress.getParsedIngressList().setNamespace(namespace);
+                                ActionReturnUtil httpIngRes = routerService.ingCreate(ingress.getParsedIngressList());
+                                if (!httpIngRes.isSuccess()) {
+                                    Map<String, Object> map = new HashMap<String, Object>();
+                                    map.put("ingress:" + ingress.getParsedIngressList().getName(), httpIngRes.get("data"));
+                                    message.add(map);
+                                }
+                            } else if ("TCP".equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getSvcRouter().getName())) {
+                                Map<String, Object> labels = new HashMap<String, Object>();
+                                labels.put("app", svcTemplate.getDeploymentDetail().getName());
+                                ingress.getSvcRouter().setLabels(labels);
+                                ingress.getSvcRouter().setNamespace(namespace);
+                                ActionReturnUtil tcpSvcRes = routerService.svcCreate(ingress.getSvcRouter());
+                                if (!tcpSvcRes.isSuccess()) {
+                                    Map<String, Object> map = new HashMap<String, Object>();
+                                    map.put("ingress:" + ingress.getParsedIngressList().getName(), tcpSvcRes.get("data"));
+                                    message.add(map);
+                                }
+                            }
+                        }
                     }
+
+                    // creat config map & deploy service deployment & get node label by
+                    // namespace
+                    svcTemplate.getDeploymentDetail().setNamespace(namespace);
+                    for (CreateContainerDto c : svcTemplate.getDeploymentDetail().getContainers()) {
+                        String[] hou;
+                        String[] qian;
+                        String images;
+
+                        if (harborUrl.contains("//") && harborUrl.contains(":")) {
+                            hou = harborUrl.split("//");
+                            qian = hou[1].split(":");
+                            images = qian[0] + "/" + c.getImg();
+                        } else {
+                            images = harborUrl;
+                        }
+                        c.setImg(images);
+                    }
+                    ActionReturnUtil depRes = deploymentsService.createDeployment(svcTemplate.getDeploymentDetail(), username, businessDeploy.getName(),
+                            cluster);
+                    if (!depRes.isSuccess()) {
+                        Map<String, Object> map = new HashMap<String, Object>();
+                        map.put(svcTemplate.getName(), depRes.get("data"));
+                        message.add(map);
+                    }
+
                 }
+
             }
-            // insert into service
-            if (ingresses.size() > 0) {
-                JSONArray jsonArray = JSONArray.fromObject(ingresses);
-                svc.setIngress(jsonArray.toString());
-            }
-
-
-            // creat config map & deploy service deployment & get node label by
-            // namespace
-            service.getDeploymentDetail().setNamespace(namespace);
-			for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
-				String[] hou;
-				String[] qian;
-				String images;
-
-				if (harborUrl.contains("//") && harborUrl.contains(":")) {
-					hou = harborUrl.split("//");
-					qian = hou[1].split(":");
-					images = qian[0] + "/" + c.getImg();
-				} else {
-					images = harborUrl;
-				}
-				c.setImg(images);
-			}
-			ActionReturnUtil depRes = deploymentsService.createDeployment(service.getDeploymentDetail(), username, null,
-					cluster);
-			if (!depRes.isSuccess()) {
-				Map<String, Object> map = new HashMap<String, Object>();
-				map.put(service.getName(), depRes.get("data"));
-				message.add(map);
-			}
-
-            if (pvcList.size() > 0) {
-                JSONArray jsonArraypvc = JSONArray.fromObject(pvcList);
-                svc.setPvc(jsonArraypvc.toString());
-            }
-            svc.setName(service.getDeploymentDetail().getName());
-            svc.setServiceTemplateId(service.getId());
-            svc.setBusinessId(business.getId());
-            svc.setNamespace(namespace);
-            svc.setIsExternal(0);
-
-            serviceMapper.insertService(svc);
         }
         // update application template isdeploy
         businessTemplatesMapper.updateDeployById(businessDeploy.getBusinessTemplate().getId());
@@ -549,9 +597,9 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
     /**
      * delete application service implement
-     * 
+     *
      * @author yanli
-     * 
+     *
      * @param businessList
      *            application id list
      * @param username
@@ -566,136 +614,242 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         }
         List<String> errorMessage = new ArrayList<>();
         Cluster cluster = tenantService.getClusterByTenantid(businessList.getTenantId());
-        // loop businessTemplate
-        for (int id : businessList.getIdList()) {
-            boolean businessFlag = true;
-            Business business = businessMapper.selectByPrimaryKey(id);
-            if (business != null) {
-                List<com.harmonycloud.dao.application.bean.Service> services = serviceMapper.selectByBusinessId(business.getId());
-                if (services != null) {
-                    List<Integer> idList = new ArrayList<>();
-                    for (com.harmonycloud.dao.application.bean.Service service : services) {
-                        boolean serviceFlag = true;
-                        // is external service
-                        if (service.getIsExternal() == 1) {
-                            // delete service db
-                            idList.add(service.getId());
-                            continue;
-                        }
 
-                        //todo sooooooooooooooooooooooo bad
-                        // delete ingress
-                        Map<String, Object> labelMap = new HashMap<String, Object>();
-                        ParsedIngressListDto parsedIngressListDto = new ParsedIngressListDto();
-                        parsedIngressListDto.setNamespace(business.getNamespaces());
-                        labelMap.put("app",service.getName());
-                        parsedIngressListDto.setLabels(labelMap);
-                        List<RouterSvc> routerSvcs = new ArrayList<RouterSvc>();
-                        routerSvcs = routerService.listIngressByName(parsedIngressListDto);
-                        if (routerSvcs !=null && routerSvcs.size() > 0){
-                            for (RouterSvc svcone:routerSvcs){
-                                if ("HTTP".equals(svcone.getLabels().get("type"))) {
-                                    ActionReturnUtil httpRes = routerService.ingDelete(business.getNamespaces(), svcone.getName());
-                                    if(!httpRes.isSuccess()){
-                                    	serviceFlag = false;
-                                        businessFlag = false;
-                                        errorMessage.add(httpRes.get("data").toString());
-                                    }
-                                    //routerService.svcDelete(business.getNamespaces(), svcone.getName());
-                                } else if ("TCP".equals(svcone.getLabels().get("type"))) {
-                                    List<Integer> ports = new ArrayList<>();
-                                    for (ServicePort port: svcone.getRules()){
-                                        if (port.getPort() != null){
-                                            ports.add(port.getPort());
-                                        }
-                                    }
-                                    ActionReturnUtil tcpRes = routerService.deleteTcpSvc(business.getNamespaces(), svcone.getName(),ports,(String) session.getAttribute("tenantId"));
-                                    if(!tcpRes.isSuccess()){
-                                    	serviceFlag = false;
-                                        businessFlag = false;
-                                        errorMessage.add(tcpRes.get("data").toString());
-                                    }
+        // loop businessTemplate
+        for (String label : businessList.getIdList()) {
+            String namespace = "";
+            String svcName = "";
+            Map<String,Object> appBodys = new HashMap<String,Object>();
+            appBodys.put("labelSelector", label);
+            if (label != null && label.contains(SIGN_EQUAL)){
+                String[] value = label.split(SIGN_EQUAL);
+                if (value != null){
+                    namespace = value[1];
+                }
+            }
+            String business = "";
+            if (label != null && label.contains(SIGN)){
+                String[] value = label.split(SIGN);
+                if (value != null){
+                    business = value[2];
+                }
+            }
+
+            K8SClientResponse appResponse = tprApplication.listApplicationByNamespace(namespace,null,appBodys,HTTPMethod.GET,cluster);
+            if (!HttpStatusUtil.isSuccessStatus(appResponse.getStatus())) {
+                UnversionedStatus sta = JsonUtil.jsonToPojo(appResponse.getBody(), UnversionedStatus.class);
+                return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
+            }
+            BaseResourceList  tpr = JsonUtil.jsonToPojo(appResponse.getBody(), BaseResourceList.class);
+
+            //check topo if have two unbind, if have one delete
+            if (tpr != null && tpr.getItems() != null && tpr.getItems().size() > 0) {
+                for(BaseResource br : tpr.getItems()){
+                    if(br != null && br.getMetadata() != null && br.getMetadata().getName() != null){
+                        boolean businessFlag = true;
+                        List<Deployment> items = new ArrayList<>();
+                        @SuppressWarnings("unchecked")
+                        List<Map<String, Object>> namespaceData = (List<Map<String, Object>>) namespaceService.getNamespaceListByTenantid(businessList.getTenantId()).get("data");
+
+                        if (namespaceData != null && namespaceData.size() > 0){
+                            for (Map<String, Object> oneNamespace : namespaceData ){
+
+                                K8SURL url = new K8SURL();
+                                url.setResource(Resource.DEPLOYMENT);
+                                //labels
+                                Map<String, Object> bodys = new HashMap<String, Object>();
+                                bodys.put("labelSelector", label);
+                                String n = oneNamespace.get("name").toString();
+                                url.setNamespace(n).setResource(Resource.DEPLOYMENT);
+                                K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, bodys,cluster);
+                                if(!HttpStatusUtil.isSuccessStatus(depRes.getStatus()) && depRes.getStatus() != Constant.HTTP_404){
+                                    UnversionedStatus sta = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+                                    return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
+                                }
+                                DeploymentList deployment = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+                                if(deployment != null){
+                                    items.addAll(deployment.getItems());
                                 }
                             }
                         }
 
-
-                        // delete config map & deploy service deployment
-                        ActionReturnUtil deleteDeployReturn = deploymentsService.deleteDeployment(service.getName(), business.getNamespaces(), username, cluster);
-                        if (!deleteDeployReturn.isSuccess()) {
-                            serviceFlag = false;
-                            businessFlag = false;
-                            errorMessage.add(deleteDeployReturn.get("data").toString());
-                        }
-
-
-
-                        // delete pvc
-                        if (service.getPvc() != null) {
-                            JSONArray js = JSONArray.fromObject(service.getPvc());
-                            if (js.size() > 0) {
-                                for (int i = 0; i < js.size(); i++) {
-                                    String pvc = (String) js.get(i);
-                                    K8SURL url = new K8SURL();
-                                    url.setName(pvc).setNamespace(business.getNamespaces()).setResource(Resource.PERSISTENTVOLUMECLAIM);
-                                    Map<String, Object> headers = new HashMap<>();
-                                    headers.put("Content-Type", "application/json");
-                                    Map<String, Object> bodys = new HashMap<>();
-                                    bodys.put("gracePeriodSeconds", 1);
-                                    K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys,cluster);
-                                    if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
-                                        serviceFlag = false;
-                                        businessFlag = false;
-                                        UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-                                        errorMessage.add(status.getMessage());
+                        if (items != null && items.size() > 0 ) {
+                            for (Deployment dev : items) {
+                                if(dev != null && dev.getMetadata() != null && !StringUtils.isEmpty(dev.getMetadata().getName())){
+                                    Map<String, Object> devLabe = dev.getMetadata().getLabels();
+                                    int topoSum = 0;
+                                    for (String key : devLabe.keySet()) {
+                                        if(key.startsWith(TOPO)) {
+                                            topoSum ++;
+                                        }
                                     }
 
-                                    // update pv
-                                    if (response.getStatus() != Constant.HTTP_404 && pvc.contains(Constant.PVC_BREAK)) {
-                                        String [] str=pvc.split(Constant.PVC_BREAK);
-                                        String pvname = str[0];
-                                        PersistentVolume pv = pvService.getPvByName(pvname,null);
-                                        if (pv != null) {
-                                            Map<String, Object> bodysPV = new HashMap<String, Object>();
-                                            Map<String, Object> metadata = new HashMap<String, Object>();
-                                            metadata.put("name", pv.getMetadata().getName());
-                                            metadata.put("labels", pv.getMetadata().getLabels());
-                                            bodysPV.put("metadata", metadata);
-                                            Map<String, Object> spec = new HashMap<String, Object>();
-                                            spec.put("capacity", pv.getSpec().getCapacity());
-                                            spec.put("nfs", pv.getSpec().getNfs());
-                                            spec.put("accessModes", pv.getSpec().getAccessModes());
-                                            bodysPV.put("spec", spec);
-                                            K8SURL urlPV = new K8SURL();
-                                            urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
-                                            Map<String, Object> headersPV = new HashMap<>();
-                                            headersPV.put("Content-Type", "application/json");
-                                            K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT, headersPV, bodysPV,cluster);
-                                            if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
-                                            	UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
-                                                errorMessage.add(status.getMessage());
+                                    if (topoSum > 1){
+                                        //todo unbind deployemnt,service
+                                        ActionReturnUtil res = unbindBusiness(business, businessList.getTenantId(), dev.getMetadata().getName(), namespace, cluster);
+                                        if(!res.isSuccess()){
+                                            businessFlag = false;
+                                            errorMessage.add(res.get("data").toString());
+                                        }
+                                        continue;
+                                    } else {
+                                        //delete deployment
+                                        // delete config map & deploy service deployment
+                                        ActionReturnUtil deleteDeployReturn = deploymentsService.deleteDeployment(dev.getMetadata().getName(), dev.getMetadata().getNamespace(), username, cluster);
+                                        if (!deleteDeployReturn.isSuccess()) {
+                                            businessFlag = false;
+                                            errorMessage.add(deleteDeployReturn.get("data").toString());
+                                        }
+                                        //todo sooooooooooooooooooooooo bad
+                                        // delete ingress
+                                        Map<String, Object> labelMap = new HashMap<String, Object>();
+                                        ParsedIngressListDto parsedIngressListDto = new ParsedIngressListDto();
+                                        parsedIngressListDto.setNamespace(dev.getMetadata().getNamespace());
+                                        labelMap.put("app",dev.getMetadata().getName());
+                                        parsedIngressListDto.setLabels(labelMap);
+                                        List<RouterSvc> routerSvcs = new ArrayList<RouterSvc>();
+                                        routerSvcs = routerService.listIngressByName(parsedIngressListDto);
+                                        if (routerSvcs !=null && routerSvcs.size() > 0){
+                                            for (RouterSvc svcone:routerSvcs){
+                                                if ("HTTP".equals(svcone.getLabels().get("type"))) {
+                                                    ActionReturnUtil httpRes = routerService.ingDelete(dev.getMetadata().getNamespace(), svcone.getName());
+                                                    if(!httpRes.isSuccess()){
+                                                        businessFlag = false;
+                                                        errorMessage.add(httpRes.get("data").toString());
+                                                    }
+                                                    //routerService.svcDelete(dev.getMetadata().getNamespace(), svcone.getName());
+                                                } else if ("TCP".equals(svcone.getLabels().get("type"))) {
+                                                    List<Integer> ports = new ArrayList<>();
+                                                    for (ServicePort port: svcone.getRules()){
+                                                        if (port.getPort() != null){
+                                                            ports.add(port.getPort());
+                                                        }
+                                                    }
+                                                    ActionReturnUtil tcpRes = routerService.deleteTcpSvc(dev.getMetadata().getNamespace(), svcone.getName(),ports,(String) session.getAttribute("tenantId"));
+                                                    if(!tcpRes.isSuccess()){
+                                                        businessFlag = false;
+                                                        errorMessage.add(tcpRes.get("data").toString());
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // delete pvc
+                                        Map<String, Object> pvclabel = new HashMap<String, Object>();
+                                        pvclabel.put("labelSelector", label);
+
+                                        K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, pvclabel, HTTPMethod.GET, cluster);
+                                        if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
+                                            UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
+                                            errorMessage.add(status.getMessage());
+                                            businessFlag = false;
+                                        }
+
+                                        PersistentVolumeClaimList persistentVolumeList = K8SClient.converToBean(pvcRes, PersistentVolumeClaimList.class);
+
+
+                                        if (persistentVolumeList != null && persistentVolumeList.getItems() != null) {
+
+                                            for (PersistentVolumeClaim onePvc : persistentVolumeList.getItems()) {
+                                                K8SURL url = new K8SURL();
+                                                url.setName(onePvc.getMetadata().getName()).setNamespace(namespace).setResource(Resource.PERSISTENTVOLUMECLAIM);
+                                                Map<String, Object> headers = new HashMap<>();
+                                                headers.put("Content-Type", "application/json");
+                                                Map<String, Object> bodys = new HashMap<>();
+                                                bodys.put("gracePeriodSeconds", 1);
+                                                K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE, headers, bodys, cluster);
+                                                if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
+                                                    errorMessage.add(response.getBody());
+                                                    businessFlag = false;
+                                                }
+
+                                                // update pv
+                                                if (response.getStatus() != Constant.HTTP_404 && onePvc.getMetadata().getName().contains(Constant.PVC_BREAK)) {
+                                                    String[] str = onePvc.getMetadata().getName().split(Constant.PVC_BREAK);
+                                                    String pvname = str[0];
+                                                    PersistentVolume pv = pvService.getPvByName(pvname, null);
+                                                    if (pv != null) {
+                                                        Map<String, Object> bodysPV = new HashMap<String, Object>();
+                                                        Map<String, Object> metadata = new HashMap<String, Object>();
+                                                        metadata.put("name", pv.getMetadata().getName());
+                                                        metadata.put("labels", pv.getMetadata().getLabels());
+                                                        bodysPV.put("metadata", metadata);
+                                                        Map<String, Object> spec = new HashMap<String, Object>();
+                                                        spec.put("capacity", pv.getSpec().getCapacity());
+                                                        spec.put("nfs", pv.getSpec().getNfs());
+                                                        spec.put("accessModes", pv.getSpec().getAccessModes());
+                                                        bodysPV.put("spec", spec);
+                                                        K8SURL urlPV = new K8SURL();
+                                                        urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
+                                                        Map<String, Object> headersPV = new HashMap<>();
+                                                        headersPV.put("Content-Type", "application/json");
+                                                        K8SClientResponse responsePV = new K8SClient().doit(urlPV, HTTPMethod.PUT, headersPV, bodysPV, cluster);
+                                                        if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
+                                                            errorMessage.add(responsePV.getBody());
+                                                            businessFlag = false;
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
-
                                 }
                             }
                         }
-
-                        // add service
-                        if (serviceFlag) {
-                            idList.add(service.getId());
+                        //get external service by label
+                        Map<String, Object> bodys = new HashMap<>();
+                        bodys.put("labelSelector", label);
+                        K8SURL urlExternal = new K8SURL();
+                        urlExternal.setNamespace(Resource.EXTERNALNAMESPACE).setResource(Resource.SERVICE);
+                        K8SClientResponse serviceRe = new K8SClient().doit(urlExternal, HTTPMethod.GET, null, bodys,cluster);
+                        if (!HttpStatusUtil.isSuccessStatus(serviceRe.getStatus())
+                                && serviceRe.getStatus() != Constant.HTTP_404 ) {
+                            errorMessage.add("获取external service错误");
+                            businessFlag = false;
+                        } else {
+                            ServiceList svclist = JsonUtil.jsonToPojo(serviceRe.getBody(), ServiceList.class);
+                            if (svclist != null && svclist.getItems() != null){
+                                for (com.harmonycloud.k8s.bean.Service oneSvc: svclist.getItems()){
+                                    if(oneSvc != null && oneSvc.getMetadata() != null && !StringUtils.isEmpty(oneSvc.getMetadata().getName())){
+                                        Map<String, Object> body = new HashMap<>();
+                                        Map<String, Object> head = new HashMap<String, Object>();
+                                        String[] splitLabel = label.split("=");
+                                        Map<String,Object> newLabel = new HashMap<String,Object>();
+                                        if (splitLabel.length > 2){
+                                            for (Map.Entry<String,Object> oneLabel : oneSvc.getMetadata().getLabels().entrySet()){
+                                                if (!oneLabel.getKey().equals(splitLabel[0])){
+                                                    newLabel.put(oneLabel.getKey(),oneLabel.getValue());
+                                                }
+                                            }
+                                            oneSvc.getMetadata().setLabels(newLabel);
+                                        }
+                                        body.put("metadata", oneSvc.getMetadata());
+                                        body.put("spec", oneSvc.getSpec());
+                                        body.put("kind", oneSvc.getKind());
+                                        body.put("apiVersion", oneSvc.getApiVersion());
+                                        K8SURL url = new K8SURL();
+                                        url.setNamespace(Resource.EXTERNALNAMESPACE).setResource(Resource.SERVICE).setSubpath(oneSvc.getMetadata().getName());
+                                        head.put("Content-Type", "application/json");
+                                        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, head, body,cluster);
+                                        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())
+                                                && response.getStatus() != Constant.HTTP_404 ) {
+                                            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+                                            errorMessage.add(status.getMessage());
+                                            businessFlag = false;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // delete application
+                        if (businessFlag) {
+                            ActionReturnUtil tprDelete = tprApplication.delApplicationByName(br.getMetadata().getName(),br.getMetadata().getNamespace(),cluster);
+                            if (!tprDelete.isSuccess()){
+                                return tprDelete;
+                            }
                         }
                     }
 
-                    // delete service list
-                    if (idList.size() > 0) {
-                        serviceMapper.deleteSerivceByID(idList);
-                    }
-                }
-                // delete application db
-                if (businessFlag) {
-                    businessMapper.deleteBusinessById(business.getId());
                 }
             }
 
@@ -710,9 +864,9 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
     /**
      * stop application service implement
-     * 
+     *
      * @author yanli
-     * 
+     *
      * @param businessList
      *            BusinessListBean application id list
      * @param username
@@ -729,17 +883,28 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         List<String> errorMessage = new ArrayList<>();
 
         // loop every service
-        for (int id : businessList.getIdList()) {
-            Business business = businessMapper.selectByPrimaryKey(id);
-            List<com.harmonycloud.dao.application.bean.Service> services = serviceMapper.selectByBusinessId(business.getId());
-            if (services != null && services.size() > 0) {
-                for (com.harmonycloud.dao.application.bean.Service service : services) {
-                    if (service.getIsExternal() == 1) {
-                        continue;
-                    }
-                    ActionReturnUtil stopDeployReturn = deploymentsService.stopDeployments(service.getName(), business.getNamespaces(), username, cluster);
-                    if (!stopDeployReturn.isSuccess()) {
-                        errorMessage.add(business.getName() + "." + service.getName());
+        for (String id : businessList.getIdList()) {
+            String namespace = "";
+
+            if (id != null && id.contains(SIGN_EQUAL)){
+                String[] value = id.split(SIGN_EQUAL);
+                if (value != null){
+                    namespace = value[1];
+                }
+            }
+            ActionReturnUtil deploymentsRes = deploymentsService.listDeployments(businessList.getTenantId(), null, namespace, id, null);
+            if(!deploymentsRes.isSuccess()){
+                return deploymentsRes;
+            }
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> deployments = (List<Map<String, Object>>) deploymentsRes.get("data");
+            if (deployments != null && deployments.size() > 0) {
+                for (Map<String, Object> oneDeployment : deployments) {
+                    if(oneDeployment != null && oneDeployment.containsKey("name") ){
+                        ActionReturnUtil stopDeployReturn = deploymentsService.stopDeployments(oneDeployment.get("name").toString(), oneDeployment.get("namespace").toString(), username, cluster);
+                        if (!stopDeployReturn.isSuccess()) {
+                            errorMessage.add(stopDeployReturn.toString());
+                        }
                     }
                 }
             }
@@ -753,9 +918,9 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
     /**
      * start application service on 17/04/11.
-     * 
+     *
      * @author yanli
-     * 
+     *
      * @param businessList
      *            BusinessListBean application id list
      * @param username
@@ -772,21 +937,34 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         List<String> errorMessage = new ArrayList<>();
 
         // loop every service
-        for (int id : businessList.getIdList()) {
-            Business business = businessMapper.selectByPrimaryKey(id);
-            List<com.harmonycloud.dao.application.bean.Service> services = serviceMapper.selectByBusinessId(business.getId());
-            if (services != null && services.size() > 0) {
-                for (com.harmonycloud.dao.application.bean.Service service : services) {
-                    if (service.getIsExternal() == 1) {
-                        continue;
+        for (String id : businessList.getIdList()) {
+            String namespace = "";
+
+            if (id != null && id.contains(SIGN_EQUAL)){
+                String[] value = id.split(SIGN_EQUAL);
+                if (value != null){
+                    namespace = value[1];
+                }
+            }
+            ActionReturnUtil deploymentsRes = deploymentsService.listDeployments(businessList.getTenantId(), null, namespace, id, null);
+            if(!deploymentsRes.isSuccess()){
+                return deploymentsRes;
+            }
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> deployments = (List<Map<String, Object>>) deploymentsRes.get("data");
+            if (deployments != null && deployments.size() > 0) {
+                for (Map<String, Object> oneDeployment : deployments) {
+                    if(oneDeployment != null && oneDeployment.containsKey("name") ){
+                        ActionReturnUtil stopDeployReturn = deploymentsService.startDeployments(oneDeployment.get("name").toString(), oneDeployment.get("namespace").toString(), username, cluster);
+                        if (!stopDeployReturn.isSuccess()) {
+                            errorMessage.add(stopDeployReturn.toString());
+                        }
                     }
-                    ActionReturnUtil startDeployReturn = deploymentsService.startDeployments(service.getName(), business.getNamespaces(), username, cluster);
-                    if (!startDeployReturn.isSuccess()) {
-                        errorMessage.add(business.getName() + "." + service.getName());
-                    }
+
                 }
             }
         }
+
 
         if (errorMessage.size() > 0) {
             return ActionReturnUtil.returnErrorWithData(errorMessage);
@@ -910,36 +1088,73 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
     /**
      * get application by id service implement.
-     * 
+     *
      * @author gurongyun
-     * 
+     *
      * @param tenant
      *            tenant name
      * @return ActionReturnUtil
      */
+    @SuppressWarnings("unchecked")
     @Override
     public ActionReturnUtil searchSumBusiness(String [] tenant, String clusterId) throws Exception {
         JSONObject json = new JSONObject();
-        // search application
-        String [] namespace=new String[0];
-        List<Business> blist = businessMapper.search(tenant, namespace, null);
         // number of application
         int count = 0;
         // number of application 正常
         int normal = 0;
         // number of application 异常
         int abnormal = 0;
+
+        // search application
+        String [] namespace=new String[0];
+        List<BaseResource> blist = new ArrayList<>();
+
         Cluster cluster=clusterService.findClusterById(clusterId);
+        List<Object> namespaceData = new ArrayList<Object>();
+
+        for (String tentantOne:tenant){
+            if (namespaceService.getNamespaceListByTenantid(tentantOne).get("data") != null){
+                namespaceData.addAll((List<Object>) namespaceService.getNamespaceListByTenantid(tentantOne).get("data"));
+            }
+        }
+
+        for (Object oneNamespace : namespaceData ){
+            K8SClientResponse response = tprApplication.listApplicationByNamespace(oneNamespace.getClass().getName().toString(),null, null, HTTPMethod.GET, cluster);
+            if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+            }
+            BaseResource  tpr = JsonUtil.jsonToPojo(response.getBody(), BaseResource.class);
+            if (tpr.getMetadata().getName() != null){
+                blist.add(tpr);
+            }
+        }
+
+
         if (blist != null && blist.size() > 0) {
             count = blist.size();
-            for (Business bs : blist) {
-            	JSONObject servicejson=listServiceByBusinessId(bs.getId(), bs.getNamespaces(), cluster);
-            	if(NORMAL.equals(servicejson.get("status"))){
-            		normal ++ ;
-            	}else{
-            		abnormal ++ ;
-            	}
-            	
+            for (BaseResource bs : blist) {
+
+                Map<String,Object> appLable = new HashedMap();
+                String label = "";
+
+                for (Map.Entry<String, Object> vo : bs.getMetadata().getLabels().entrySet()) {
+
+                    if (vo.getKey().startsWith(TOPO)){
+                        appLable.put(vo.getKey(),vo.getValue());
+                        label = vo.getKey() + SIGN_EQUAL + vo.getValue();
+                    }
+
+                }
+
+                JSONObject servicejson=listServiceByBusinessId(label, bs.getMetadata().getNamespace(), cluster);
+
+                if(NORMAL.equals(servicejson.get("status"))){
+                    normal ++ ;
+                }else{
+                    abnormal ++ ;
+                }
+
             }
         } else {
             return ActionReturnUtil.returnSuccessWithData(null);
@@ -950,15 +1165,15 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         return ActionReturnUtil.returnSuccessWithData(json);
     }
 
-/*    private static Date stringToDate(String strTime)
-            throws Exception {
-        String formatType = "yyyy-MM-dd";
-        SimpleDateFormat formatter = new SimpleDateFormat(formatType);
-        Date date = null;
-        date = formatter.parse(strTime);
-        return date;
-    }
-*/
+    /*    private static Date stringToDate(String strTime)
+                throws Exception {
+            String formatType = "yyyy-MM-dd";
+            SimpleDateFormat formatter = new SimpleDateFormat(formatType);
+            Date date = null;
+            date = formatter.parse(strTime);
+            return date;
+        }
+    */
     private static String dateToString(Date time){
         SimpleDateFormat formatter;
         formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -967,82 +1182,117 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         return ctime;
     }
 
-	@Override
-	public ActionReturnUtil deleteBusinessByNamespace(String namespace) throws Exception {
-		if(!StringUtils.isEmpty(namespace)){
-			businessMapper.deleteBusinessByNamespace(namespace);
-			return ActionReturnUtil.returnSuccess();
-		}else{
-			return ActionReturnUtil.returnErrorWithMsg("namespace为空");
-		}
-		
-	}
+    @Override
+    public ActionReturnUtil deleteBusinessByNamespace(String namespace) throws Exception {
+        if(!StringUtils.isEmpty(namespace)){
+            return ActionReturnUtil.returnSuccess();
+        }else{
+            return ActionReturnUtil.returnErrorWithMsg("namespace为空");
+        }
 
-	@Override
-	public ActionReturnUtil searchSum(String[] tenant) throws Exception {
+    }
+
+    @Override
+    public ActionReturnUtil searchSum(String[] tenant) throws Exception {
         // search application
-		String [] namespace=new String[0];
-        List<Business> blist = businessMapper.search(tenant, namespace, null);
+        List<BaseResource> blist = new ArrayList<>();
+
+        String tenantID = (String) session.getAttribute("tenantId");
+        Cluster cluster = tenantService.getClusterByTenantid(tenantID);
+        List<Object> namespaceData = new ArrayList<Object>();
+
+        for (String tentantOne:tenant){
+            if (namespaceService.getNamespaceListByTenantid(tentantOne).get("data") != null){
+                namespaceData.addAll((List<Object>) namespaceService.getNamespaceListByTenantid(tentantOne).get("data"));
+            }
+        }
+
+        for (Object oneNamespace : namespaceData ){
+            K8SClientResponse response = tprApplication.listApplicationByNamespace(oneNamespace.getClass().getName().toString(),null, null, HTTPMethod.GET, cluster);
+            if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+            }
+            BaseResource  tpr = JsonUtil.jsonToPojo(response.getBody(), BaseResource.class);
+            if (tpr.getMetadata().getName() != null){
+                if (tpr.getMetadata().getName() != null){
+                    blist.add(tpr);
+                }
+            }
+        }
+
         // number of application
         int count = 0;
         if (blist != null && blist.size() > 0) {
             count = blist.size();
         }
-		return ActionReturnUtil.returnSuccessWithData(count);
-	}
-	
-	private JSONObject listServiceByBusinessId(int businessId, String namespace, Cluster cluster) throws Exception {
-		JSONObject json = new JSONObject();
+        return ActionReturnUtil.returnSuccessWithData(count);
+    }
+
+    private JSONObject listServiceByBusinessId(String label, String namespace, Cluster cluster) throws Exception {
+        JSONObject json = new JSONObject();
         // number of application running
         int start = 0;
         // number of deploment
         int total = 0;
-		List<com.harmonycloud.dao.application.bean.Service> services = serviceMapper.selectByBusinessId(businessId);
-        if (services != null && services.size() > 0) {
-        	total = services.size();
-        	K8SURL url = new K8SURL();
-        	url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
-    		K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
-			if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
-					&& depRes.getStatus() != Constant.HTTP_404 ) {
-				UnversionedStatus status = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
-				return (JSONObject) json.put("获取k8sDeployment错误", status.getMessage());
-			}
-			DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
-			if(deplist != null && deplist.getItems() != null ){
-				List<Deployment> deps = deplist.getItems();
-				if(deps != null && deps.size() > 0){
-					for (com.harmonycloud.dao.application.bean.Service service : services) {
-		                if (service.getIsExternal() == 1) {
-		                	start++;
-		                }else{
-		                	for(Deployment dep : deps){
-		                		if (dep != null && service.getName().equals(dep.getMetadata().getName())) {
-									String status = getDeploymentStatus(dep);
-									if (Constant.START.equals(status)) {
-										start++;
-									}
-								}
-		                	}
-		                }
-		                
-		            }
-				}
-			}
+
+        //get deployment by label
+        Map<String, Object> bodys = new HashMap<>();
+        bodys.put("labelSelector", label);
+
+        K8SURL url = new K8SURL();
+        url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
+        K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys,cluster);
+        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
+                && depRes.getStatus() != Constant.HTTP_404 ) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+            return (JSONObject) json.put("获取k8sDeployment错误", status.getMessage());
         }
+        DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+        if (deplist != null && deplist.getItems() != null) {
+            total = deplist.getItems().size();
+            List<Deployment> deps = deplist.getItems();
+            if (deps != null && deps.size() > 0) {
+
+                for (Deployment dep : deps) {
+                    String status = getDeploymentStatus(dep);
+                    if (Constant.START.equals(status)) {
+                        start++;
+                    }
+                }
+            }
+        }
+
+
+        //get external service by label
+        K8SURL urlExternal = new K8SURL();
+        urlExternal.setNamespace(Resource.EXTERNALNAMESPACE).setResource(Resource.SERVICE);
+        K8SClientResponse serviceRe = new K8sMachineClient().exec(urlExternal, HTTPMethod.GET, null, bodys,cluster);
+        if (!HttpStatusUtil.isSuccessStatus(serviceRe.getStatus())
+                && serviceRe.getStatus() != Constant.HTTP_404 ) {
+            JSONObject js = JSONObject.fromObject(serviceRe.getBody());
+            UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+            return (JSONObject) json.put("获取external service错误", k8sresbody.getMessage());
+        }
+        ServiceList svclist = JsonUtil.jsonToPojo(serviceRe.getBody(), ServiceList.class);
+        if (svclist != null && svclist.getItems() != null){
+            start = start + svclist.getItems().size();
+            total = total + svclist.getItems().size();
+        }
+
+
         if (start == total && total != 0) {
-        	json.put("status", NORMAL);
+            json.put("status", NORMAL);
         } else {
-        	json.put("status", ABNORMAL);
+            json.put("status", ABNORMAL);
         }
         json.put("start", start);
         json.put("total", total);
-		return json;
-		
-	}
-	private String getDeploymentStatus(Deployment dep) throws Exception {
-		String status = null;
-		String flag = Constant.START;
+        return json;
+    }
+
+    private String getDeploymentStatus(Deployment dep) throws Exception {
+        String status = null;
+        String flag = Constant.START;
         if (dep.getMetadata().getAnnotations() != null && dep.getMetadata().getAnnotations().containsKey("nephele/status")) {
             status = dep.getMetadata().getAnnotations().get("nephele/status").toString();
         }
@@ -1052,456 +1302,604 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                     if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getReplicas() > 0 && (dep.getStatus().getAvailableReplicas() == dep.getStatus().getReplicas())) {
                         flag = Constant.START;
                     } else {
-                    	flag = status;
+                        flag = status;
                     }
                     break;
                 case Constant.STOPPING :
                     if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
-                    	flag = status;
+                        flag = status;
                     } else {
-                    	flag = Constant.STOP;
+                        flag = Constant.STOP;
                     }
                     break;
                 default :
                     if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
-                    	flag = Constant.START;
+                        flag = Constant.START;
                     } else {
-                    	flag = Constant.STOP;
+                        flag = Constant.STOP;
                     }
                     break;
             }
         } else {
             if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
-            	flag = Constant.START;
+                flag = Constant.START;
             } else {
-            	flag = Constant.STOP;
+                flag = Constant.STOP;
             }
         }
-		return flag;
-		
-	}
+        return flag;
 
-	@Override
-	public ActionReturnUtil deployBusinessTemplateByName(String tenantId, String name, String businessame, String tag, String namespace, String userName, Cluster cluster, String pub)
-			throws Exception {
-		if(!StringUtils.isEmpty(name) && !StringUtils.isEmpty(tag) && !StringUtils.isEmpty(namespace)){
-			TenantBinding t = tenantService.getTenantByTenantid(tenantId);
-			ActionReturnUtil btresponse=null;
-			//根据name和tag获取模板信息
-			if("true".equals(pub)){
-				btresponse = businessService.getBusinessTemplate(name, tag, "all");
-			}else{
-				btresponse = businessService.getBusinessTemplate(name, tag, t.getTenantName());
-			}
-			if(!btresponse.isSuccess()){
-				return ActionReturnUtil.returnErrorWithMsg("业务模板获取失败");
-			}
-			JSONObject json = (JSONObject) btresponse.get("data");
+    }
+
+    @Override
+    public ActionReturnUtil deployBusinessTemplateByName(String tenantId, String name, String businessame, String tag, String namespace, String userName, Cluster cluster, String pub)
+            throws Exception {
+        if(!StringUtils.isEmpty(name) && !StringUtils.isEmpty(tag) && !StringUtils.isEmpty(namespace)){
+            TenantBinding t = tenantService.getTenantByTenantid(tenantId);
+            ActionReturnUtil btresponse=null;
+            //根据name和tag获取模板信息
+            if("true".equals(pub)){
+                btresponse = businessService.getBusinessTemplate(name, tag, "all");
+            }else{
+                btresponse = businessService.getBusinessTemplate(name, tag, t.getTenantName());
+            }
+            if(!btresponse.isSuccess()){
+                return ActionReturnUtil.returnErrorWithMsg("业务模板获取失败");
+            }
+            JSONObject json = (JSONObject) btresponse.get("data");
 			/*ActionReturnUtil privatePartitionLabel = this.privatePartitionService.getPrivatePartitionLabel(tenantId, namespace);
 			if(!privatePartitionLabel.isSuccess()){
 				return privatePartitionLabel;
 			}
 			String nodeSelector = (String) privatePartitionLabel.get("data");*/
-			BusinessDeployDto businessDeploy = new BusinessDeployDto();
-			businessDeploy.setName(businessame);
-			businessDeploy.setNamespace(namespace);
-			BusinessTemplateDto businessTemplate = new BusinessTemplateDto();
-			businessTemplate.setDesc(json.getString("desc"));
-			businessTemplate.setId(json.getInt("id"));
-			businessTemplate.setName(json.getString("name"));
-			businessTemplate.setTenant(t.getTenantName());
-			//应用模板list
-			JSONArray stList = json.getJSONArray("servicelist");
-			List<ServiceTemplateDto> servicelist = new LinkedList<ServiceTemplateDto>();
-			if(stList != null && stList.size() > 0){
-				for(int i=0; i < stList.size(); i++){
-					ServiceTemplateDto serviceTemplate = new ServiceTemplateDto();
-					JSONObject js = stList.getJSONObject(i);
-					serviceTemplate.setId(js.getInt("id"));
-					serviceTemplate.setName(js.getString("name"));
-					serviceTemplate.setTag(js.getString("tag"));
-					serviceTemplate.setDesc(js.getString("details"));
-					serviceTemplate.setTenant(t.getTenantName());
-					serviceTemplate.setExternal(js.getInt("isExternal"));
-					if(js.getInt("isExternal") == Constant.K8S_SERVICE){
-						String dep=js.getJSONArray("deployment").getJSONObject(0).toString().replaceAll(":\"\",", ":"+null+",").replaceAll(":\"\"", ":"+null+"");
-						DeploymentDetailDto deployment = JsonUtil.jsonToPojo(dep, DeploymentDetailDto.class);
-						deployment.setNamespace(namespace);
+            BusinessDeployDto businessDeploy = new BusinessDeployDto();
+            businessDeploy.setName(businessame);
+            businessDeploy.setNamespace(namespace);
+            BusinessTemplateDto businessTemplate = new BusinessTemplateDto();
+            businessTemplate.setDesc(json.getString("desc"));
+            businessTemplate.setId(json.getInt("id"));
+            businessTemplate.setName(json.getString("name"));
+            businessTemplate.setTenant(json.getString("tenant"));
+            businessTemplate.setTenant(t.getTenantName());
+            //应用模板list
+            JSONArray stList = json.getJSONArray("servicelist");
+            List<ServiceTemplateDto> servicelist = new LinkedList<ServiceTemplateDto>();
+            if(stList != null && stList.size() > 0){
+                for(int i=0; i < stList.size(); i++){
+                    ServiceTemplateDto serviceTemplate = new ServiceTemplateDto();
+                    JSONObject js = stList.getJSONObject(i);
+                    serviceTemplate.setId(js.getInt("id"));
+                    serviceTemplate.setName(js.getString("name"));
+                    serviceTemplate.setTag(js.getString("tag"));
+                    serviceTemplate.setDesc(js.getString("details"));
+                    serviceTemplate.setTenant(t.getTenantName());
+                    serviceTemplate.setExternal(js.getInt("isExternal"));
+                    if(js.getInt("isExternal") == Constant.K8S_SERVICE){
+                        String dep=js.getJSONArray("deployment").getJSONObject(0).toString().replaceAll(":\"\",", ":"+null+",").replaceAll(":\"\"", ":"+null+"");
+                        DeploymentDetailDto deployment = JsonUtil.jsonToPojo(dep, DeploymentDetailDto.class);
+                        deployment.setNamespace(namespace);
 						/*deployment.setNodeSelector(nodeSelector);*/
-						serviceTemplate.setDeploymentDetail(deployment);
-					}
-					if(!StringUtils.isEmpty(js.getString("ingress"))){
-						JSONArray jsarray = js.getJSONArray("ingress");
-						List<IngressDto> ingress = new LinkedList<IngressDto>();
-						if(jsarray != null && jsarray.size() > 0 ){
-							for(int j = 0; j < jsarray.size(); j++){
-								JSONObject ingressJson = jsarray.getJSONObject(j);
-								IngressDto ing = JsonUtil.jsonToPojo(ingressJson.toString().toString().replaceAll(":\"\",", ":"+null+",").replaceAll(":\"\"", ":"+null+""), IngressDto.class);
-								ingress.add(ing);
-							}
-						}
-						serviceTemplate.setIngress(ingress);
-					}
-					servicelist.add(serviceTemplate);
-				}
-			}else{
-				return ActionReturnUtil.returnErrorWithMsg("该业务模板没有应用模板");
-			}
-			businessTemplate.setServiceList(servicelist);
-			businessDeploy.setBusinessTemplate(businessTemplate);
-			JSONObject msg= new JSONObject();
-			//check name
-			//service name
-			K8SURL url = new K8SURL();
-        	url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
-    		K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
-			if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
-					&& depRes.getStatus() != Constant.HTTP_404 ) {
-				JSONObject js = JSONObject.fromObject(depRes.getBody());
-				K8sResponseBody k8sresbody = (K8sResponseBody) JSONObject.toBean(js, K8sResponseBody.class);
-				return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
-			}
-			DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
-			List<Deployment> deps = new ArrayList<Deployment>();
-			if(deplist != null && deplist.getItems() != null ){
-				deps = deplist.getItems();
-			}
-			//ingress http
-			List<ParsedIngressListDto> httplist = routerService.ingList(namespace);
-			//ingress tcp
-			ActionReturnUtil tcpRes = routerService.svcList(namespace);
-			if(!tcpRes.isSuccess()){
-				return tcpRes;
-			}
-			@SuppressWarnings("unchecked")
-			List<RouterSvc> tcplist = (List<RouterSvc>) tcpRes.get("data");
-			boolean flag = true ;
-			for(ServiceTemplateDto std : servicelist){
-				//check service name
-				if(std.getDeploymentDetail() != null && deps != null && deps.size() > 0){
-					for(Deployment dep : deps){
-						if(std.getDeploymentDetail().getName().equals(dep.getMetadata().getName())){
-							msg.put("服务名称:"+std.getDeploymentDetail().getName(), "重复");
-							flag = false;
-						}
-					}
-				}
-				//check ingress
-				if(std.getIngress() != null && std.getIngress().size() > 0){
-					for(IngressDto ing : std.getIngress()){
-						if(ing.getType() != null && "HTTP".equals(ing.getType()) && httplist != null && httplist.size() > 0){
-							for(ParsedIngressListDto http : httplist){
-								if(ing.getParsedIngressList().getName().equals(http.getName())){
-									msg.put("Ingress(Http):"+ing.getParsedIngressList().getName(), "重复");
-									flag = false;
-								}
-							}
-							
-						}
-						if(ing.getType() != null && "TCP".equals(ing.getType()) && tcplist != null && tcplist.size() > 0){
-							for(RouterSvc tcp : tcplist){
-								if(("routersvc"+ing.getSvcRouter().getName()).equals(tcp.getName())){
-									msg.put("Ingress(Tcp):"+ing.getSvcRouter().getName(), "重复");
-									flag = false;
-								}
-							}
-						}
-					}
-				}
-			}
-			if(flag){
-				//发布
-				return deployBusinessTemplate(businessDeploy, userName, cluster, tenantId);
-			}else{
-				return ActionReturnUtil.returnErrorWithData(msg);
-			}
-		}else{
-			return ActionReturnUtil.returnErrorWithMsg("业务模板名称或者版本号或者分区为空");
-		}
-	}
+                        serviceTemplate.setDeploymentDetail(deployment);
+                    }
+                    if(!StringUtils.isEmpty(js.getString("ingress"))){
+                        JSONArray jsarray = js.getJSONArray("ingress");
+                        List<IngressDto> ingress = new LinkedList<IngressDto>();
+                        if(jsarray != null && jsarray.size() > 0 ){
+                            for(int j = 0; j < jsarray.size(); j++){
+                                JSONObject ingressJson = jsarray.getJSONObject(j);
+                                IngressDto ing = JsonUtil.jsonToPojo(ingressJson.toString().toString().replaceAll(":\"\",", ":"+null+",").replaceAll(":\"\"", ":"+null+""), IngressDto.class);
+                                ingress.add(ing);
+                            }
+                        }
+                        serviceTemplate.setIngress(ingress);
+                    }
+                    servicelist.add(serviceTemplate);
+                }
+            }else{
+                return ActionReturnUtil.returnErrorWithMsg("该业务模板没有应用模板");
+            }
+            businessTemplate.setServiceList(servicelist);
+            businessDeploy.setBusinessTemplate(businessTemplate);
+            JSONObject msg= new JSONObject();
+            //check name
+            //service name
+            K8SURL url = new K8SURL();
+            url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
+            K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
+            if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
+                    && depRes.getStatus() != Constant.HTTP_404 ) {
+                JSONObject js = JSONObject.fromObject(depRes.getBody());
+                UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+                return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
+            }
+            DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+            List<Deployment> deps = new ArrayList<Deployment>();
+            if(deplist != null && deplist.getItems() != null ){
+                deps = deplist.getItems();
+            }
+            //ingress http
+            List<ParsedIngressListDto> httplist = routerService.ingList(namespace);
+            //ingress tcp
+            ActionReturnUtil tcpRes = routerService.svcList(namespace);
+            if(!tcpRes.isSuccess()){
+                return tcpRes;
+            }
+            @SuppressWarnings("unchecked")
+            List<RouterSvc> tcplist = (List<RouterSvc>) tcpRes.get("data");
+            boolean flag = true ;
+            for(ServiceTemplateDto std : servicelist){
+                //check service name
+                if(std.getDeploymentDetail() != null && deps != null && deps.size() > 0){
+                    for(Deployment dep : deps){
+                        if(std.getDeploymentDetail().getName().equals(dep.getMetadata().getName())){
+                            msg.put("服务名称:"+std.getDeploymentDetail().getName(), "重复");
+                            flag = false;
+                        }
+                    }
+                }
+                //check ingress
+                if(std.getIngress() != null && std.getIngress().size() > 0){
+                    for(IngressDto ing : std.getIngress()){
+                        if(ing.getType() != null && "HTTP".equals(ing.getType()) && httplist != null && httplist.size() > 0){
+                            for(ParsedIngressListDto http : httplist){
+                                if(ing.getParsedIngressList().getName().equals(http.getName())){
+                                    msg.put("Ingress(Http):"+ing.getParsedIngressList().getName(), "重复");
+                                    flag = false;
+                                }
+                            }
 
-	@Override
-	public ActionReturnUtil addAndDeployBusinessTemplate(BusinessDeployDto businessDeploy, String username, String tenantid,
-			Cluster cluster) throws Exception {
-		// check value
+                        }
+                        if(ing.getType() != null && "TCP".equals(ing.getType()) && tcplist != null && tcplist.size() > 0){
+                            for(RouterSvc tcp : tcplist){
+                                if(("routersvc"+ing.getSvcRouter().getName()).equals(tcp.getName())){
+                                    msg.put("Ingress(Tcp):"+ing.getSvcRouter().getName(), "重复");
+                                    flag = false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if(flag){
+                //发布
+                return deployBusinessTemplate(businessDeploy, userName, cluster, tenantId);
+            }else{
+                return ActionReturnUtil.returnErrorWithData(msg);
+            }
+        }else{
+            return ActionReturnUtil.returnErrorWithMsg("业务模板名称或者版本号或者分区为空");
+        }
+    }
+
+    @Override
+    public ActionReturnUtil addAndDeployBusinessTemplate(BusinessDeployDto businessDeploy, String username, String tenantid,
+                                                         Cluster cluster) throws Exception {
+        // check value
         if (StringUtils.isEmpty(username) || businessDeploy == null || businessDeploy.getBusinessTemplate().getServiceList().size() <= 0) {
             return ActionReturnUtil.returnErrorWithMsg("username , application deploy or service is null");
         }
         //保存数据库
         for( ServiceTemplateDto s: businessDeploy.getBusinessTemplate().getServiceList()){
-        	ActionReturnUtil res = serviceService.saveServiceTemplate(s, username, 1);
-        	if(!res.isSuccess()){
-        		return res;
-        	}
-        	JSONObject js = (JSONObject) res.get("data");
-        	int id = js.getInt(s.getName());
-        	s.setId(id);
+            ActionReturnUtil res = serviceService.saveServiceTemplate(s, username, 1);
+            if(!res.isSuccess()){
+                return res;
+            }
+            JSONObject js = (JSONObject) res.get("data");
+            int id = js.getInt(s.getName());
+            s.setId(id);
         }
         //获取k8s同namespace相关的资源
-		//获取 Deployment name
+        //获取 Deployment name
         JSONObject msg= new JSONObject();
         if(StringUtils.isEmpty(businessDeploy.getNamespace())){
-        	return ActionReturnUtil.returnErrorWithMsg("namespace为空");
+            return ActionReturnUtil.returnErrorWithMsg("namespace为空");
         }
         String namespace = businessDeploy.getNamespace();
-		K8SURL url = new K8SURL();
-    	url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
-		K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
-		if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
-				&& depRes.getStatus() != Constant.HTTP_404 ) {
-			JSONObject js = JSONObject.fromObject(depRes.getBody());
-			K8sResponseBody k8sresbody = (K8sResponseBody) JSONObject.toBean(js, K8sResponseBody.class);
-			return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
-		}
-		DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
-		List<Deployment> deps = new ArrayList<Deployment>();
-		if(deplist != null && deplist.getItems() != null ){
-			deps = deplist.getItems();
-		}
-		//ingress http
-		List<ParsedIngressListDto> httplist = routerService.ingList(namespace);
-		//ingress tcp
-		ActionReturnUtil tcpRes = routerService.svcList(namespace);
-		if(!tcpRes.isSuccess()){
-			return tcpRes;
-		}
-		@SuppressWarnings("unchecked")
-		List<RouterSvc> tcplist = (List<RouterSvc>) tcpRes.get("data");
-		boolean flag = true ;
-		//获取nodeslector
-		ActionReturnUtil labRes = namespaceService.getPrivatePartitionLabel(tenantid, namespace);
-		if(!labRes.isSuccess()){
-			return labRes;
-		}
-		for(ServiceTemplateDto std : businessDeploy.getBusinessTemplate().getServiceList()){
-			//check service name
-			if(std.getDeploymentDetail() != null && deps != null && deps.size() > 0){
-				std.getDeploymentDetail().setNamespace(namespace);
-				std.getDeploymentDetail().setNodeSelector((String)labRes.get("data"));
-				for(Deployment dep : deps){
-					if(std.getDeploymentDetail().getName().equals(dep.getMetadata().getName())){
-						msg.put("服务名称:"+std.getDeploymentDetail().getName(), "重复");
-						flag = false;
-					}
-				}
-			}
-			//check ingress
-			if(std.getIngress() != null && std.getIngress().size() > 0){
-				for(IngressDto ing : std.getIngress()){
-					if(ing.getType() != null && "HTTP".equals(ing.getType()) && httplist != null && httplist.size() > 0){
-						for(ParsedIngressListDto http : httplist){
-							if(ing.getParsedIngressList().getName().equals(http.getName())){
-								msg.put("Ingress(Http):"+ing.getParsedIngressList().getName(), "重复");
-								flag = false;
-							}
-						}
-						
-					}
-					if(ing.getType() != null && "TCP".equals(ing.getType()) && tcplist != null && tcplist.size() > 0){
-						for(RouterSvc tcp : tcplist){
-							if(("routersvc"+ing.getSvcRouter().getName()).equals(tcp.getName())){
-								msg.put("Ingress(Tcp):"+ing.getSvcRouter().getName(), "重复");
-								flag = false;
-							}
-						}
-					}
-				}
-			}
-		}
-		
-		if(flag){
-			List<Map<String, Object>> message = new ArrayList<>();
-			for (ServiceTemplateDto service : businessDeploy.getBusinessTemplate().getServiceList()) {
-				com.harmonycloud.dao.application.bean.Service svc = new com.harmonycloud.dao.application.bean.Service();
-	            // is external service
-	            if (service.getExternal() == Constant.EXTERNAL_SERVICE) {
-	                svc.setBusinessId(businessDeploy.getBusinessTemplate().getBusinessId());
-	                /*ServiceTemplates externalservice=serviceTemplatesMapper.getExternalService(service.getName());
-	                if(externalservice!=null){*/
-	                    svc.setServiceTemplateId(service.getId());
-	                /*}*/
-	                svc.setIsExternal(Constant.EXTERNAL_SERVICE);
-	                svc.setNamespace(businessDeploy.getNamespace());
-	                svc.setName(service.getName());
-	                serviceMapper.insertService(svc);
-	                continue;
-	            }
-	            // todo retry and rollback
-	            List<String> pvcList = new ArrayList<>();
-	            // creat pvc
-	            for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
-	                if (c.getStorage() != null) {
-	                    for (CreateVolumeDto pvc : c.getStorage()) {
-	                    	if(pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())){
-	                    		if (pvc.getPvcName() == "" || pvc.getPvcName() == null) {
-	                                continue;
-	                            }
-	                    		ActionReturnUtil pvcres = volumeSerivce.createVolume(namespace, pvc.getPvcName(),
-										pvc.getPvcCapacity(), pvc.getPvcTenantid(), pvc.getReadOnly(), pvc.getPvcBindOne(),
-										pvc.getVolume());
-								pvcList.add(pvc.getPvcName());
-								if (!pvcres.isSuccess()) {
-									Map<String, Object> map = new HashMap<String, Object>();
-									map.put(pvc.getPvcName(), pvcres.get("data"));
-									message.add(map);
-								}
-	                    	}
-	                    }
-	                }
-	            }
-	            List<String> ingresses = new ArrayList<>();
-	            // creat ingress
-	            if (service.getIngress() != null) {
-	                for (IngressDto ingress : service.getIngress()) {
-	                    if ("HTTP".equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getParsedIngressList().getName())) {
-                        	Map<String, Object> labels = new HashMap<String, Object>();
-    						labels.put("app", service.getDeploymentDetail().getName());
-    						ingress.getParsedIngressList().setLabels(labels);
+        K8SURL url = new K8SURL();
+        url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
+        K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
+        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
+                && depRes.getStatus() != Constant.HTTP_404 ) {
+            JSONObject js = JSONObject.fromObject(depRes.getBody());
+            UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
+        }
+        DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+        List<Deployment> deps = new ArrayList<Deployment>();
+        if(deplist != null && deplist.getItems() != null ){
+            deps = deplist.getItems();
+        }
+        //ingress http
+        List<ParsedIngressListDto> httplist = routerService.ingList(namespace);
+        //ingress tcp
+        ActionReturnUtil tcpRes = routerService.svcList(namespace);
+        if(!tcpRes.isSuccess()){
+            return tcpRes;
+        }
+        @SuppressWarnings("unchecked")
+        List<RouterSvc> tcplist = (List<RouterSvc>) tcpRes.get("data");
+        boolean flag = true ;
+        //获取nodeslector
+        ActionReturnUtil labRes = namespaceService.getPrivatePartitionLabel(tenantid, namespace);
+        if(!labRes.isSuccess()){
+            return labRes;
+        }
+        for(ServiceTemplateDto std : businessDeploy.getBusinessTemplate().getServiceList()){
+            //check service name
+            if(std.getDeploymentDetail() != null && deps != null && deps.size() > 0){
+                std.getDeploymentDetail().setNamespace(namespace);
+                std.getDeploymentDetail().setNodeSelector((String)labRes.get("data"));
+                for(Deployment dep : deps){
+                    if(std.getDeploymentDetail().getName().equals(dep.getMetadata().getName())){
+                        msg.put("服务名称:"+std.getDeploymentDetail().getName(), "重复");
+                        flag = false;
+                    }
+                }
+            }
+            //check ingress
+            if(std.getIngress() != null && std.getIngress().size() > 0){
+                for(IngressDto ing : std.getIngress()){
+                    if(ing.getType() != null && "HTTP".equals(ing.getType()) && httplist != null && httplist.size() > 0){
+                        for(ParsedIngressListDto http : httplist){
+                            if(ing.getParsedIngressList().getName().equals(http.getName())){
+                                msg.put("Ingress(Http):"+ing.getParsedIngressList().getName(), "重复");
+                                flag = false;
+                            }
+                        }
+
+                    }
+                    if(ing.getType() != null && "TCP".equals(ing.getType()) && tcplist != null && tcplist.size() > 0){
+                        for(RouterSvc tcp : tcplist){
+                            if(("routersvc"+ing.getSvcRouter().getName()).equals(tcp.getName())){
+                                msg.put("Ingress(Tcp):"+ing.getSvcRouter().getName(), "重复");
+                                flag = false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if(flag){
+            List<Map<String, Object>> message = new ArrayList<>();
+            for (ServiceTemplateDto service : businessDeploy.getBusinessTemplate().getServiceList()) {
+                // is external service
+                if (service.getExternal() == Constant.EXTERNAL_SERVICE) {
+                    Map<String, Object> headers = new HashMap<>();
+                    headers.put("Content-Type", "application/json");
+                    K8SClientResponse rsRes = sService.doSepcifyService(businessDeploy.getNamespace() ,service.getDeploymentDetail().getName(), null, null, HTTPMethod.GET, cluster);
+                    if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus())) {
+                        return ActionReturnUtil.returnErrorWithMsg(rsRes.getBody());
+                    }
+                    com.harmonycloud.k8s.bean.Service serviceE = JsonUtil.jsonToPojo(rsRes.getBody(), com.harmonycloud.k8s.bean.Service.class);
+                    Map<String,Object> labels = serviceE.getMetadata().getLabels();
+                    labels.put(TOPO + "-" + businessDeploy.getNamespace() + "-" + businessDeploy.getBusinessTemplate().getName(),businessDeploy.getBusinessTemplate().getName());
+                    serviceE.getMetadata().setLabels(labels);
+                    Map<String, Object> bodys = CollectionUtil.transBean2Map(serviceE);
+                    K8SClientResponse res = sService.doSepcifyService(serviceE.getMetadata().getNamespace(), serviceE.getMetadata().getName(), headers, bodys, HTTPMethod.PUT, cluster);
+                    if (!HttpStatusUtil.isSuccessStatus(res.getStatus())) {
+                        Map<String, Object> map = new HashMap<String, Object>();
+                        map.put(serviceE.getMetadata().getName(), res.getBody());
+                        message.add(map);
+                    }
+                }
+                // todo retry and rollback
+                List<String> pvcList = new ArrayList<>();
+                // creat pvc
+                for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
+                    if (c.getStorage() != null) {
+                        for (CreateVolumeDto pvc : c.getStorage()) {
+                            if(pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())){
+                                if (pvc.getPvcName() == "" || pvc.getPvcName() == null) {
+                                    continue;
+                                }
+                                ActionReturnUtil pvcres = volumeSerivce.createVolume(namespace, pvc.getPvcName(),
+                                        pvc.getPvcCapacity(), pvc.getPvcTenantid(), pvc.getReadOnly(), pvc.getPvcBindOne(),
+                                        pvc.getVolume(),service.getDeploymentDetail().getName());
+                                pvcList.add(pvc.getPvcName());
+                                if (!pvcres.isSuccess()) {
+                                    Map<String, Object> map = new HashMap<String, Object>();
+                                    map.put(pvc.getPvcName(), pvcres.get("data"));
+                                    message.add(map);
+                                }
+                            }
+                        }
+                    }
+                }
+                List<String> ingresses = new ArrayList<>();
+                // creat ingress
+                if (service.getIngress() != null) {
+                    for (IngressDto ingress : service.getIngress()) {
+                        if ("HTTP".equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getParsedIngressList().getName())) {
+                            Map<String, Object> labels = new HashMap<String, Object>();
+                            labels.put("app", service.getDeploymentDetail().getName());
+                            ingress.getParsedIngressList().setLabels(labels);
                             ingress.getParsedIngressList().setNamespace(namespace);
-    						ActionReturnUtil httpIngRes = routerService.ingCreate(ingress.getParsedIngressList());
-    						if (!httpIngRes.isSuccess()) {
-    							Map<String, Object> map = new HashMap<String, Object>();
-    							map.put("ingress:" + ingress.getParsedIngressList().getName(), httpIngRes.get("data"));
-    							message.add(map);
-    						}
-    						ingresses.add(
-    								"{\"type\":\"HTTP\",\"name\":\"" + ingress.getParsedIngressList().getName() + "\"}");
-	                    } else if ("TCP".equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getSvcRouter().getName())) {
-                        	Map<String, Object> labels = new HashMap<String, Object>();
-                        	labels.put("app", service.getDeploymentDetail().getName());
-                        	ingress.getSvcRouter().setLabels(labels);
-                        	ingress.getSvcRouter().setNamespace(namespace);
-                        	ActionReturnUtil tcpSvcRes = routerService.svcCreate(ingress.getSvcRouter());
-    						if (!tcpSvcRes.isSuccess()) {
-    							Map<String, Object> map = new HashMap<String, Object>();
-    							map.put("ingress:" + ingress.getParsedIngressList().getName(), tcpSvcRes.get("data"));
-    							message.add(map);
-    						}
-    						ingresses.add("{\"type\":\"TCP\",\"name\":\"" + ingress.getSvcRouter().getName() + "\"}");
-	                    }
-	                }
-	            }
-	            // insert into service
-	            if (ingresses.size() > 0) {
-	                JSONArray jsonArray = JSONArray.fromObject(ingresses);
-	                svc.setIngress(jsonArray.toString());
-	            }
-	            // creat config map & deploy service deployment & get node label by
-	            // namespace
-	            try {
-	                //todo so bad
-	                service.getDeploymentDetail().setNamespace(namespace);
-	                for (CreateContainerDto c:service.getDeploymentDetail().getContainers()){
-	                    String[] hou;
-	                    String[] qian;
-	                    String images;
+                            ActionReturnUtil httpIngRes = routerService.ingCreate(ingress.getParsedIngressList());
+                            if (!httpIngRes.isSuccess()) {
+                                Map<String, Object> map = new HashMap<String, Object>();
+                                map.put("ingress:" + ingress.getParsedIngressList().getName(), httpIngRes.get("data"));
+                                message.add(map);
+                            }
+                            ingresses.add(
+                                    "{\"type\":\"HTTP\",\"name\":\"" + ingress.getParsedIngressList().getName() + "\"}");
+                        } else if ("TCP".equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getSvcRouter().getName())) {
+                            Map<String, Object> labels = new HashMap<String, Object>();
+                            labels.put("app", service.getDeploymentDetail().getName());
+                            ingress.getSvcRouter().setLabels(labels);
+                            ingress.getSvcRouter().setNamespace(namespace);
+                            ActionReturnUtil tcpSvcRes = routerService.svcCreate(ingress.getSvcRouter());
+                            if (!tcpSvcRes.isSuccess()) {
+                                Map<String, Object> map = new HashMap<String, Object>();
+                                map.put("ingress:" + ingress.getParsedIngressList().getName(), tcpSvcRes.get("data"));
+                                message.add(map);
+                            }
+                            ingresses.add("{\"type\":\"TCP\",\"name\":\"" + ingress.getSvcRouter().getName() + "\"}");
+                        }
+                    }
+                }
 
-	                    if (harborUrl.contains("//") && harborUrl.contains(":")) {
-	                        hou = harborUrl.split("//");
-	                        qian = hou[1].split(":");
-	                        images = qian[0]+"/" + c.getImg();
-	                    } else {
-	                        images = harborUrl;
-	                    }
-	                    c.setImg(images);
-	                }
-	                deploymentsService.createDeployment(service.getDeploymentDetail(), username, businessDeploy.getBusinessTemplate().getName(), cluster);
-	            } catch (Exception e) {
-	            	msg.put("Deployment:", service.getDeploymentDetail().getName());
-	            }
+                // creat config map & deploy service deployment & get node label by
+                // namespace
+                try {
+                    //todo so bad
+                    service.getDeploymentDetail().setNamespace(namespace);
+                    for (CreateContainerDto c:service.getDeploymentDetail().getContainers()){
+                        String[] hou;
+                        String[] qian;
+                        String images;
 
-	            if (pvcList.size() > 0) {
-	                JSONArray jsonArraypvc = JSONArray.fromObject(pvcList);
-	                svc.setPvc(jsonArraypvc.toString());
-	            }
-	            svc.setName(service.getDeploymentDetail().getName());
-	            svc.setServiceTemplateId(service.getId());
-	            svc.setNamespace(namespace);
-	            svc.setBusinessId(businessDeploy.getBusinessTemplate().getBusinessId());
-	            svc.setIsExternal(0);
-	            serviceMapper.insertService(svc);
-			}
-			if (message.size() > 0) {
-	            return ActionReturnUtil.returnErrorWithData(message);
-	        }
-		}else{
-			return ActionReturnUtil.returnErrorWithData(msg);
-		}
+                        if (harborUrl.contains("//") && harborUrl.contains(":")) {
+                            hou = harborUrl.split("//");
+                            qian = hou[1].split(":");
+                            images = qian[0]+"/" + c.getImg();
+                        } else {
+                            images = harborUrl;
+                        }
+                        c.setImg(images);
+                    }
+                    deploymentsService.createDeployment(service.getDeploymentDetail(), username, businessDeploy.getBusinessTemplate().getName(), cluster);
+                } catch (Exception e) {
+                    msg.put("Deployment:", service.getDeploymentDetail().getName());
+                }
+            }
+            if (message.size() > 0) {
+                return ActionReturnUtil.returnErrorWithData(message);
+            }
+        }else{
+            return ActionReturnUtil.returnErrorWithData(msg);
+        }
         return ActionReturnUtil.returnSuccess();
-	}
-	
-	@Override
-	public ActionReturnUtil checkK8SName(BusinessDeployDto businessDeploy, Cluster cluster)throws Exception {
-		//获取k8s同namespace相关的资源
-		//获取 Deployment name
+    }
+
+    @Override
+    public ActionReturnUtil checkK8SName(BusinessDeployDto businessDeploy, Cluster cluster)throws Exception {
+        //获取k8s同namespace相关的资源
+        //获取 Deployment name
         JSONObject msg= new JSONObject();
         if(StringUtils.isEmpty(businessDeploy.getNamespace())){
-        	return ActionReturnUtil.returnErrorWithMsg("namespace为空");
+            return ActionReturnUtil.returnErrorWithMsg("namespace为空");
         }
         String namespace = businessDeploy.getNamespace();
-		K8SURL url = new K8SURL();
-    	url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
-		K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
-		if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
-				&& depRes.getStatus() != Constant.HTTP_404 ) {
-			JSONObject js = JSONObject.fromObject(depRes.getBody());
-			K8sResponseBody k8sresbody = (K8sResponseBody) JSONObject.toBean(js, K8sResponseBody.class);
-			return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
-		}
-		DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
-		List<Deployment> deps = new ArrayList<Deployment>();
-		if(deplist != null && deplist.getItems() != null ){
-			deps = deplist.getItems();
-		}
-		//ingress http
-		List<ParsedIngressListDto> httplist = routerService.ingList(namespace);
-		//ingress tcp
-		ActionReturnUtil tcpRes = routerService.svcList(namespace);
-		if(!tcpRes.isSuccess()){
-			return tcpRes;
-		}
-		@SuppressWarnings("unchecked")
-		List<RouterSvc> tcplist = (List<RouterSvc>) tcpRes.get("data");
-		boolean flag = true ;
-		
-		for(ServiceTemplateDto std : businessDeploy.getBusinessTemplate().getServiceList()){
-			//check service name
-			if(std.getDeploymentDetail() != null && deps != null && deps.size() > 0){
-				std.getDeploymentDetail().setNamespace(namespace);
-				for(Deployment dep : deps){
-					if(std.getDeploymentDetail().getName().equals(dep.getMetadata().getName())){
-						msg.put("服务名称:"+std.getDeploymentDetail().getName(), "重复");
-						flag = false;
-					}
-				}
-			}
-			//check ingress
-			if(std.getIngress() != null && std.getIngress().size() > 0){
-				for(IngressDto ing : std.getIngress()){
-					if(ing.getType() != null && "HTTP".equals(ing.getType()) && httplist != null && httplist.size() > 0){
-						for(ParsedIngressListDto http : httplist){
-							if(ing.getParsedIngressList().getName().equals(http.getName())){
-								msg.put("Ingress(Http):"+ing.getParsedIngressList().getName(), "重复");
-								flag = false;
-							}
-						}
-						
-					}
-					if(ing.getType() != null && "TCP".equals(ing.getType()) && tcplist != null && tcplist.size() > 0){
-						for(RouterSvc tcp : tcplist){
-							if(("routersvc"+ing.getSvcRouter().getName()).equals(tcp.getName())){
-								msg.put("Ingress(Tcp):"+ing.getSvcRouter().getName(), "重复");
-								flag = false;
-							}
-						}
-					}
-				}
-			}
-		}
-		if(flag){
-			return ActionReturnUtil.returnSuccess();
-		}else{
-			return ActionReturnUtil.returnErrorWithData(msg);
-		}
-	 }
+        K8SURL url = new K8SURL();
+        url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
+        K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
+        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
+                && depRes.getStatus() != Constant.HTTP_404 ) {
+            JSONObject js = JSONObject.fromObject(depRes.getBody());
+            UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
+        }
+        DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+        List<Deployment> deps = new ArrayList<Deployment>();
+        if(deplist != null && deplist.getItems() != null ){
+            deps = deplist.getItems();
+        }
+        //ingress http
+        List<ParsedIngressListDto> httplist = routerService.ingList(namespace);
+        //ingress tcp
+        ActionReturnUtil tcpRes = routerService.svcList(namespace);
+        if(!tcpRes.isSuccess()){
+            return tcpRes;
+        }
+        @SuppressWarnings("unchecked")
+        List<RouterSvc> tcplist = (List<RouterSvc>) tcpRes.get("data");
+        boolean flag = true ;
+
+        for(ServiceTemplateDto std : businessDeploy.getBusinessTemplate().getServiceList()){
+            //check service name
+            if(std.getDeploymentDetail() != null && deps != null && deps.size() > 0){
+                std.getDeploymentDetail().setNamespace(namespace);
+                for(Deployment dep : deps){
+                    if(std.getDeploymentDetail().getName().equals(dep.getMetadata().getName())){
+                        msg.put("服务名称:"+std.getDeploymentDetail().getName(), "重复");
+                        flag = false;
+                    }
+                }
+            }
+            //check ingress
+            if(std.getIngress() != null && std.getIngress().size() > 0){
+                for(IngressDto ing : std.getIngress()){
+                    if(ing.getType() != null && "HTTP".equals(ing.getType()) && httplist != null && httplist.size() > 0){
+                        for(ParsedIngressListDto http : httplist){
+                            if(ing.getParsedIngressList().getName().equals(http.getName())){
+                                msg.put("Ingress(Http):"+ing.getParsedIngressList().getName(), "重复");
+                                flag = false;
+                            }
+                        }
+
+                    }
+                    if(ing.getType() != null && "TCP".equals(ing.getType()) && tcplist != null && tcplist.size() > 0){
+                        for(RouterSvc tcp : tcplist){
+                            if(("routersvc"+ing.getSvcRouter().getName()).equals(tcp.getName())){
+                                msg.put("Ingress(Tcp):"+ing.getSvcRouter().getName(), "重复");
+                                flag = false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        List<BaseResource> blist = new ArrayList<>();
+        //list namespace by tenantid
+        List<Object> namespaceData = (List<Object>) namespaceService.getNamespaceListByTenantid(session.getAttribute("tenantId").toString()).get("data");
+        //loop namespaces get application
+        for (Object oneNamespace : namespaceData ){
+            K8SClientResponse response = tprApplication.getApplicationByName(oneNamespace.getClass().getName().toString(),businessDeploy.getName(), null,null, HTTPMethod.GET, cluster);
+            if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                msg.put("Application:"+businessDeploy.getName(), "重复");
+                flag = false;
+                break;
+            }
+        }
+
+        if(flag){
+            return ActionReturnUtil.returnSuccess();
+        }else{
+            return ActionReturnUtil.returnErrorWithData(msg);
+        }
+    }
+
+    public ActionReturnUtil unbindBusiness(String businessname, String tenantId, String name, String namespace, Cluster cluster)throws Exception {
+        String labelKey = TOPO + SIGN + tenantId + SIGN + businessname;
+        //更新Deployment label
+        K8SURL url = new K8SURL();
+        url.setNamespace(namespace).setResource(Resource.DEPLOYMENT).setName(name);
+        K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
+                && depRes.getStatus() != Constant.HTTP_404 ) {
+            UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
+        }
+        DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+        List<Deployment> deps = new ArrayList<Deployment>();
+        if(deplist != null && deplist.getItems() != null ){
+            deps = deplist.getItems();
+            if(deps != null && deps.size() > 0){
+                for(Deployment dep : deps){
+                    if(dep != null && dep.getMetadata() != null && dep.getMetadata().getLabels() != null){
+                        Map<String, Object> labels = new HashMap<String, Object>();
+                        labels = dep.getMetadata().getLabels();
+                        labels.remove(labelKey);
+                        dep.getMetadata().setLabels(labels);
+                        Map<String, Object> bodys = new HashMap<String, Object>();
+                        bodys = CollectionUtil.transBean2Map(dep);
+                        Map<String, Object> headers = new HashMap<String, Object>();
+                        headers.put("Content-type", "application/json");
+                        K8SClientResponse newRes = dpService.doSpecifyDeployment(namespace, name, headers, bodys, HTTPMethod.PUT, cluster);
+                        if(!HttpStatusUtil.isSuccessStatus(newRes.getStatus())){
+                            UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(newRes.getBody(), UnversionedStatus.class);
+                            return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
+                        }
+                    }
+                }
+            }
+        }
+        //更新service
+        url = new K8SURL();
+        url.setNamespace(namespace).setResource(Resource.SERVICE).setName(name);
+        K8SClientResponse serRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+        if (!HttpStatusUtil.isSuccessStatus(serRes.getStatus())
+                && depRes.getStatus() != Constant.HTTP_404 ) {
+            UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(serRes.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
+        }
+        ServiceList svclist = JsonUtil.jsonToPojo(depRes.getBody(), ServiceList.class);
+        List<com.harmonycloud.k8s.bean.Service> svcs = new ArrayList<com.harmonycloud.k8s.bean.Service>();
+        if(deplist != null && deplist.getItems() != null ){
+            svcs = svclist.getItems();
+            if(svcs != null && svcs.size() > 0){
+                for(com.harmonycloud.k8s.bean.Service svc : svcs){
+                    if(svc != null && svc.getMetadata() != null && svc.getMetadata().getLabels() != null){
+                        Map<String, Object> labels = new HashMap<String, Object>();
+                        labels = svc.getMetadata().getLabels();
+                        labels.remove(labelKey);
+                        svc.getMetadata().setLabels(labels);
+                        Map<String, Object> bodys = new HashMap<String, Object>();
+                        bodys = CollectionUtil.transBean2Map(svc);
+                        Map<String, Object> headers = new HashMap<String, Object>();
+                        headers.put("Content-type", "application/json");
+                        K8SClientResponse newRes = new K8SClient().doit(url, HTTPMethod.PUT, headers, bodys, cluster);
+                        if(!HttpStatusUtil.isSuccessStatus(newRes.getStatus())){
+                            UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(newRes.getBody(), UnversionedStatus.class);
+                            return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
+                        }
+                    }
+                }
+            }
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    public ActionReturnUtil bindBusiness(String businessname, String tenantId, String name, String namespace, Cluster cluster)throws Exception {
+        String labelKey = TOPO + SIGN + tenantId + SIGN + businessname;
+        //更新Deployment label
+        K8SURL url = new K8SURL();
+        url.setNamespace(namespace).setResource(Resource.DEPLOYMENT).setName(name);
+        K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
+                && depRes.getStatus() != Constant.HTTP_404 ) {
+            UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
+        }
+        DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+        List<Deployment> deps = new ArrayList<Deployment>();
+        if(deplist != null && deplist.getItems() != null ){
+            deps = deplist.getItems();
+            if(deps != null && deps.size() > 0){
+                for(Deployment dep : deps){
+                    if(dep != null && dep.getMetadata() != null && dep.getMetadata().getLabels() != null){
+                        Map<String, Object> labels = new HashMap<String, Object>();
+                        labels = dep.getMetadata().getLabels();
+                        labels.put(labelKey, namespace);
+                        dep.getMetadata().setLabels(labels);
+                        Map<String, Object> bodys = new HashMap<String, Object>();
+                        bodys = CollectionUtil.transBean2Map(dep);
+                        Map<String, Object> headers = new HashMap<String, Object>();
+                        headers.put("Content-type", "application/json");
+                        K8SClientResponse newRes = dpService.doSpecifyDeployment(namespace, name, headers, bodys, HTTPMethod.PUT, cluster);
+                        if(!HttpStatusUtil.isSuccessStatus(newRes.getStatus())){
+                            UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(newRes.getBody(), UnversionedStatus.class);
+                            return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
+                        }
+                    }
+                }
+            }
+        }
+        //更新service
+        url = new K8SURL();
+        url.setNamespace(namespace).setResource(Resource.SERVICE).setName(name);
+        K8SClientResponse serRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+        if (!HttpStatusUtil.isSuccessStatus(serRes.getStatus())
+                && depRes.getStatus() != Constant.HTTP_404 ) {
+            UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(serRes.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
+        }
+        ServiceList svclist = JsonUtil.jsonToPojo(depRes.getBody(), ServiceList.class);
+        List<com.harmonycloud.k8s.bean.Service> svcs = new ArrayList<com.harmonycloud.k8s.bean.Service>();
+        if(deplist != null && deplist.getItems() != null ){
+            svcs = svclist.getItems();
+            if(svcs != null && svcs.size() > 0){
+                for(com.harmonycloud.k8s.bean.Service svc : svcs){
+                    if(svc != null && svc.getMetadata() != null && svc.getMetadata().getLabels() != null){
+                        Map<String, Object> labels = new HashMap<String, Object>();
+                        labels = svc.getMetadata().getLabels();
+                        labels.put(labelKey, namespace);
+                        svc.getMetadata().setLabels(labels);
+                        Map<String, Object> bodys = new HashMap<String, Object>();
+                        bodys = CollectionUtil.transBean2Map(svc);
+                        Map<String, Object> headers = new HashMap<String, Object>();
+                        headers.put("Content-type", "application/json");
+                        K8SClientResponse newRes = new K8SClient().doit(url, HTTPMethod.PUT, headers, bodys, cluster);
+                        if(!HttpStatusUtil.isSuccessStatus(newRes.getStatus())){
+                            UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(newRes.getBody(), UnversionedStatus.class);
+                            return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
+                        }
+                    }
+                }
+            }
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
 }
