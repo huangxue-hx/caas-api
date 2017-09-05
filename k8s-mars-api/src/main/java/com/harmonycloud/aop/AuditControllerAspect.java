@@ -21,7 +21,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import com.fasterxml.jackson.annotation.JsonFormat.Value;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.DicUtil;
 import com.harmonycloud.common.util.ESFactory;
@@ -190,6 +189,9 @@ public class AuditControllerAspect {
 					String opStatus = "true";
 					if (reString.lastIndexOf("success") > -1) {
 						opStatus = reString.substring(reString.lastIndexOf("success") + 9, reString.length() - 1);
+						if (opStatus.indexOf(",") > -1) {
+							opStatus = opStatus.substring(0,opStatus.indexOf(","));
+						}
 					}
 					audit.setOpStatus(opStatus);
 					result.remove();
