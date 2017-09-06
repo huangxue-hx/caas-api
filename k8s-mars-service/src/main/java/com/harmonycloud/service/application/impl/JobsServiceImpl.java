@@ -277,6 +277,11 @@ public class JobsServiceImpl implements JobsService{
 			js.put("env", container.getEnv());
 			js.put("command", container.getCommand());
 			js.put("args", container.getArgs());
+			if(container.getImagePullPolicy() != null) {
+				js.put("imagePullPolicy", container.getImagePullPolicy());
+			}else {
+				js.put("imagePullPolicy", "");
+			}
 			/*js.put("livenessProbe", container.getLivenessProbe());
 			js.put("readinessProbe", container.getReadinessProbe());*/
 			js.put("ports", container.getPorts());

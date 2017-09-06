@@ -40,6 +40,8 @@ public class CreateContainerDto implements Serializable{
 	private List<CreateVolumeDto> storage;
 	
 	private SecurityContextDto securityContext;
+	
+	private String imagePullPolicy;
 
 	public String getName() {
 		return name;
@@ -151,6 +153,18 @@ public class CreateContainerDto implements Serializable{
 
 	public void setSecurityContext(SecurityContextDto securityContext) {
 		this.securityContext = securityContext;
+	}
+
+	public String getImagePullPolicy() {
+		return imagePullPolicy;
+	}
+
+	public void setImagePullPolicy(String imagePullPolicy) {
+		this.imagePullPolicy = imagePullPolicy;
+	}
+
+	public static long getSerialversionuid() {
+		return serialVersionUID;
 	}	
 
 }

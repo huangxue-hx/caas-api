@@ -43,6 +43,8 @@ public class UpdateContainer{
 	private List<UpdateVolume> storage;
 	
 	private SecurityContextDto securityContext;
+	
+	private String imagePullPolicy;
 
 	public String getName() {
 		return name;
@@ -167,6 +169,14 @@ public class UpdateContainer{
 
 	public SecurityContextDto getSecurityContext() {
 		return securityContext;
+	}
+
+	public String getImagePullPolicy() {
+		return imagePullPolicy;
+	}
+
+	public void setImagePullPolicy(String imagePullPolicy) {
+		this.imagePullPolicy = imagePullPolicy;
 	}
 
 	public void setSecurityContext(SecurityContextDto securityContext) {

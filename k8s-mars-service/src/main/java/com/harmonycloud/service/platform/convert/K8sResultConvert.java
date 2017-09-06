@@ -267,6 +267,9 @@ public class K8sResultConvert {
 				ContainerOfPodDetail cOfPodDetail = new ContainerOfPodDetail(ct.getName(), ct.getImage(),
 						ct.getLivenessProbe(), ct.getReadinessProbe(), ct.getPorts(), ct.getArgs(), ct.getEnv(),
 						ct.getCommand());
+				if(ct.getImagePullPolicy() != null) {
+					cOfPodDetail.setImagePullPolicy(ct.getImagePullPolicy());
+				}
 				cOfPodDetail.setDeploymentName(deployment.getMetadata().getName());
 				//SecurityContext
 				if(ct.getSecurityContext() != null){
@@ -777,6 +780,9 @@ public class K8sResultConvert {
 					volm.setMountPath(detail.getLogPath());
 					volumeMounts.add(volm);
 					container.setVolumeMounts(volumeMounts);
+				}
+				if(c.getImagePullPolicy() != null) {
+					container.setImagePullPolicy(c.getImagePullPolicy() );
 				}
 				cs.add(container);
 			}
@@ -1568,6 +1574,9 @@ public class K8sResultConvert {
 	                  container.setVolumeMounts(volumeMounts);
 	                }
 	              }
+	            }
+	            if(c.getImagePullPolicy() != null) {
+	            	container.setImagePullPolicy(c.getImagePullPolicy());
 	            }
 	            cs.add(container);
 	    	}

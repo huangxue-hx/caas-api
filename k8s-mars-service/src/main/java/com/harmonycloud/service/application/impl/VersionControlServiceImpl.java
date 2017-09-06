@@ -1271,6 +1271,9 @@ public class VersionControlServiceImpl implements VersionControlService {
                     }
                 }
             }
+            if(cc.getImagePullPolicy() != null) {
+            	container.setImagePullPolicy(cc.getImagePullPolicy() );
+            }
             container.setVolumeMounts(volumeMounts);
             container.setCommand(cc.getCommand());
             container.setArgs(cc.getArgs());

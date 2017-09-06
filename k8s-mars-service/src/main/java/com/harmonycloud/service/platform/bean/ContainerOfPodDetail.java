@@ -38,6 +38,8 @@ public class ContainerOfPodDetail {
 	private String restartCount;
 	
 	private SecurityContextDto securityContext;
+	
+	private String imagePullPolicy;
 
 	public ContainerOfPodDetail() {
 		
@@ -165,6 +167,14 @@ public class ContainerOfPodDetail {
 
 	public void setSecurityContext(SecurityContextDto securityContext) {
 		this.securityContext = securityContext;
+	}
+
+	public String getImagePullPolicy() {
+		return imagePullPolicy;
+	}
+
+	public void setImagePullPolicy(String imagePullPolicy) {
+		this.imagePullPolicy = imagePullPolicy;
 	}
 
 }
