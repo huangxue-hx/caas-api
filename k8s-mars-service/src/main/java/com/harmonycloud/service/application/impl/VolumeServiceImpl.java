@@ -193,6 +193,7 @@ public class VolumeServiceImpl implements VolumeSerivce {
 		labels.put("nephele_tenantid_"+tenantid, tenantid);
 		labels.put("app",svcName);
 		labelSelector.setMatchLabels(labels);
+		meta.setLabels(labels);
 		pvSpec.setSelector(labelSelector);
 		Map<String, Object> limits = new HashMap<String, Object>();
 		if(capacity.contains("Mi") ||capacity.contains("Gi")){

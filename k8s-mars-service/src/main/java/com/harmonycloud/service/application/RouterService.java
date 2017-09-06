@@ -7,6 +7,7 @@ import com.harmonycloud.dto.business.ParsedIngressListUpdateDto;
 import com.harmonycloud.dto.business.SvcRouterDto;
 import com.harmonycloud.dto.business.SvcRouterUpdateDto;
 import com.harmonycloud.dto.svc.SvcTcpDto;
+import com.harmonycloud.k8s.bean.IngressList;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 
 import java.util.List;
@@ -62,5 +63,7 @@ public interface RouterService {
     List<RouterSvc> listIngressByName(ParsedIngressListDto parsedIngressListDto) throws Exception;
     
     public ActionReturnUtil listIngressByName(String namespace, String nameList, Cluster cluster) throws Exception;
-    
+
+    public ActionReturnUtil listRoutHttp(String name,String namespace, Cluster cluster) throws Exception;
+
 }

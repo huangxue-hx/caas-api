@@ -384,87 +384,11 @@ public class ServiceServiceImpl implements ServiceService {
 			Deployment deployment = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
 			if(deployment != null){
 				items.add(deployment);
-			}else{
-				ActionReturnUtil delRes = deploymentsService.deleteDeployment(nn.getName(), nn.getNamespace(), userName, cluster);
-				if(!delRes.isSuccess()){
-					errorMessage.add(delRes.get("data").toString());
-				}
-				// delete ingress
-				Map<String, Object> labelMap = new HashMap<String, Object>();
-				ParsedIngressListDto parsedIngressListDto = new ParsedIngressListDto();
-				parsedIngressListDto.setNamespace(nn.getNamespace());
-				labelMap.put("app",nn.getName());
-				parsedIngressListDto.setLabels(labelMap);
-				List<RouterSvc> routerSvcs = new ArrayList<RouterSvc>();
-				routerSvcs = routerService.listIngressByName(parsedIngressListDto);
-				if (routerSvcs !=null && routerSvcs.size() > 0){
-					for (RouterSvc svcone:routerSvcs){
-						if ("HTTP".equals(svcone.getLabels().get("type"))) {
-							routerService.ingDelete(nn.getNamespace(), svcone.getName());
-							//routerService.svcDelete(nn.getNamespace(), svcone.getName());
-						} else if ("TCP".equals(svcone.getLabels().get("type"))) {
-							routerService.svcDelete(nn.getNamespace(), svcone.getName());
-						}
-					}
-				}
-				// delete pvc
-				K8SURL url1 = new K8SURL();
-				url1.setNamespace(nn.getNamespace()).setResource(Resource.PERSISTENTVOLUMECLAIM);
-				Map<String, Object> headers = new HashMap<>();
-				headers.put("Content-Type", "application/json");
-				Map<String, Object> bodys1 = new HashMap<>();
-				bodys1.put("labelSelector", "app=" + nn.getName());
-				K8SClientResponse getResponse = new K8sMachineClient().exec(url1, HTTPMethod.GET, headers, bodys1, cluster);
-				if(HttpStatusUtil.isSuccessStatus(getResponse.getStatus())){
-					PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(getResponse.getBody(), PersistentVolumeClaimList.class);
-					if(pvcList != null && pvcList.getItems() != null && pvcList.getItems().size() > 0){
-						List<PersistentVolumeClaim> pvcs = pvcList.getItems();
-						if(pvcs != null && pvcs.size() > 0){
-							for(PersistentVolumeClaim pvc : pvcs){
-								//update PV
-								if( pvc.getSpec() != null && pvc.getSpec().getVolumeName() != null){
-									String pvname = pvc.getSpec().getVolumeName();
-									PersistentVolume pv = pvService.getPvByName(pvname,null);
-									if (pv != null) {
-										Map<String, Object> bodysPV = new HashMap<String, Object>();
-										Map<String, Object> metadata = new HashMap<String, Object>();
-										metadata.put("name", pv.getMetadata().getName());
-										metadata.put("labels", pv.getMetadata().getLabels());
-										bodysPV.put("metadata", metadata);
-										Map<String, Object> spec = new HashMap<String, Object>();
-										spec.put("capacity", pv.getSpec().getCapacity());
-										spec.put("nfs", pv.getSpec().getNfs());
-										spec.put("accessModes", pv.getSpec().getAccessModes());
-										bodysPV.put("spec", spec);
-										K8SURL urlPV = new K8SURL();
-										urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
-										Map<String, Object> headersPV = new HashMap<>();
-										headersPV.put("Content-Type", "application/json");
-										K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT,
-												headersPV, bodysPV);
-										if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
-											UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
-											errorMessage.add(status.getMessage());
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-				K8SClientResponse response = new K8sMachineClient().exec(url1, HTTPMethod.DELETE, headers, bodys1, cluster);
-				if (!HttpStatusUtil.isSuccessStatus(response.getStatus())
-						&& response.getStatus() != Constant.HTTP_404) {
-					UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-					errorMessage.add(status.getMessage());
-				}
 			}
 		}
 
 		if (items.size() > 0) {
 
-			List<Integer> idList = new ArrayList<>();
-			List<Integer> businessIdList = new ArrayList<>();
 			for (Deployment dev : items) {
 
 				String namespace = dev.getMetadata().getNamespace();
@@ -498,7 +422,6 @@ public class ServiceServiceImpl implements ServiceService {
 				}
 
 
-				// delete pvc
 				// delete pvc
 				Map<String, Object> pvclabel = new HashMap<String, Object>();
 				pvclabel.put("labelSelector", "app=" + devName);

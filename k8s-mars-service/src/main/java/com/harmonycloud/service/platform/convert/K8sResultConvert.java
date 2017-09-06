@@ -654,11 +654,11 @@ public class K8sResultConvert {
 									pvClaim.setClaimName(vm.getPvcName());
 									Volume vol = new Volume();
 									vol.setPersistentVolumeClaim(pvClaim);
-									vol.setName(vm.getPvcName());
+									vol.setName(vm.getPvcName().replace(".","-"));
 									volumes.add(vol);
 								}
 								VolumeMount volm = new VolumeMount();
-								volm.setName(vm.getPvcName());
+								volm.setName(vm.getPvcName().replace(".","-"));
 								volm.setReadOnly(Boolean.parseBoolean(vm.getReadOnly()));
 								volm.setMountPath(vm.getPath());
 								volumeMounts.add(volm);

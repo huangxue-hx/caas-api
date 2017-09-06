@@ -702,30 +702,40 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                                         }
                                         //todo sooooooooooooooooooooooo bad
                                         // delete ingress
-                                        Map<String, Object> labelMap = new HashMap<String, Object>();
-                                        ParsedIngressListDto parsedIngressListDto = new ParsedIngressListDto();
-                                        parsedIngressListDto.setNamespace(dev.getMetadata().getNamespace());
-                                        labelMap.put("app",dev.getMetadata().getName());
-                                        parsedIngressListDto.setLabels(labelMap);
-                                        List<RouterSvc> routerSvcs = new ArrayList<RouterSvc>();
-                                        routerSvcs = routerService.listIngressByName(parsedIngressListDto);
-                                        if (routerSvcs !=null && routerSvcs.size() > 0){
-                                            for (RouterSvc svcone:routerSvcs){
-                                                if ("HTTP".equals(svcone.getLabels().get("type"))) {
-                                                    ActionReturnUtil httpRes = routerService.ingDelete(dev.getMetadata().getNamespace(), svcone.getName());
+                                        //delete http
+                                        ActionReturnUtil httpR = routerService.listRoutHttp(dev.getMetadata().getName(),dev.getMetadata().getNamespace(),cluster);
+                                        if(!httpR.isSuccess()){
+                                            businessFlag = false;
+                                            errorMessage.add(httpR.get("data").toString());
+                                        } else {
+                                            IngressList httpList = (IngressList)httpR.get("data");
+                                            if (httpList != null && httpList.getItems() != null && httpList.getItems().size() >0){
+                                                for (Ingress one: httpList.getItems()){
+                                                    ActionReturnUtil httpRes = routerService.ingDelete(dev.getMetadata().getNamespace(), one.getMetadata().getName());
                                                     if(!httpRes.isSuccess()){
                                                         businessFlag = false;
                                                         errorMessage.add(httpRes.get("data").toString());
                                                     }
-                                                    //routerService.svcDelete(dev.getMetadata().getNamespace(), svcone.getName());
-                                                } else if ("TCP".equals(svcone.getLabels().get("type"))) {
+                                                }
+                                            }
+                                        }
+
+                                        //delete tcp
+                                        ActionReturnUtil tcpR = routerService.svcList(dev.getMetadata().getNamespace());
+                                        if(!tcpR.isSuccess()){
+                                            businessFlag = false;
+                                            errorMessage.add(tcpR.get("data").toString());
+                                        } else {
+                                            List<RouterSvc> tcpList = (List<RouterSvc>)tcpR.get("data");
+                                            if (tcpList != null && tcpList.size()>0){
+                                                for (RouterSvc one: tcpList){
                                                     List<Integer> ports = new ArrayList<>();
-                                                    for (ServicePort port: svcone.getRules()){
+                                                    for (ServicePort port: one.getRules()){
                                                         if (port.getPort() != null){
                                                             ports.add(port.getPort());
                                                         }
                                                     }
-                                                    ActionReturnUtil tcpRes = routerService.deleteTcpSvc(dev.getMetadata().getNamespace(), svcone.getName(),ports,(String) session.getAttribute("tenantId"));
+                                                    ActionReturnUtil tcpRes = routerService.deleteTcpSvc(dev.getMetadata().getNamespace(), one.getName(),ports,(String) session.getAttribute("tenantId"));
                                                     if(!tcpRes.isSuccess()){
                                                         businessFlag = false;
                                                         errorMessage.add(tcpRes.get("data").toString());
@@ -736,7 +746,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
                                         // delete pvc
                                         Map<String, Object> pvclabel = new HashMap<String, Object>();
-                                        pvclabel.put("labelSelector", label);
+                                        pvclabel.put("labelSelector", "app="+dev.getMetadata().getName());
 
                                         K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, pvclabel, HTTPMethod.GET, cluster);
                                         if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
@@ -800,7 +810,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                         bodys.put("labelSelector", label);
                         K8SURL urlExternal = new K8SURL();
                         urlExternal.setNamespace(Resource.EXTERNALNAMESPACE).setResource(Resource.SERVICE);
-                        K8SClientResponse serviceRe = new K8SClient().doit(urlExternal, HTTPMethod.GET, null, bodys,cluster);
+                        K8SClientResponse serviceRe = new K8sMachineClient().exec(urlExternal, HTTPMethod.GET, null, bodys,cluster);
                         if (!HttpStatusUtil.isSuccessStatus(serviceRe.getStatus())
                                 && serviceRe.getStatus() != Constant.HTTP_404 ) {
                             errorMessage.add("获取external service错误");

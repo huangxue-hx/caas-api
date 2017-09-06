@@ -1100,4 +1100,24 @@ public class RouterServiceImpl implements RouterService {
 		return ActionReturnUtil.returnSuccessWithData(array);
 	}
 
+	@Override
+	public ActionReturnUtil listRoutHttp(String name,String namespace, Cluster cluster) throws Exception {
+		K8SURL url = new K8SURL();
+		url.setNamespace(namespace).setResource(Resource.INGRESS);// 资源类型怎么判断
+		Map<String, Object> bodys = new HashMap<String, Object>();
+		bodys.put("labelSelector", "app=" + name);
+		K8SClientResponse k = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
+		if (k.getStatus() == Constant.HTTP_404) {
+			return ActionReturnUtil.returnSuccess();
+		}
+		if (!HttpStatusUtil.isSuccessStatus(k.getStatus()) && k.getStatus() != Constant.HTTP_404) {
+			UnversionedStatus status = JsonUtil.jsonToPojo(k.getBody(), UnversionedStatus.class);
+			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+		}
+		IngressList ingressList = JsonUtil.jsonToPojo(k.getBody(), IngressList.class);
+		if (ingressList != null) {
+			return ActionReturnUtil.returnSuccessWithData(ingressList);
+		}
+		return ActionReturnUtil.returnError();
+	}
 }
