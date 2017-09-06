@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.harmonycloud.dao.cluster.ClusterLoadbalanceMapper" >
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.cluster.bean.ClusterLoadbalance" >
+    <id column="lb_id" property="lbId" jdbcType="INTEGER" />
+    <result column="cluster_id" property="clusterId" jdbcType="INTEGER" />
+    <result column="loadbalance_name" property="loadbalanceName" jdbcType="VARCHAR" />
+    <result column="loadbalance_ip" property="loadbalanceIp" jdbcType="VARCHAR" />
+    <result column="loadbalance_port" property="loadbalancePort" jdbcType="VARCHAR" />
+  </resultMap>
+  <sql id="Example_Where_Clause" >
+    <where >
+      <foreach collection="oredCriteria" item="criteria" separator="or" >
+        <if test="criteria.valid" >
+          <trim prefix="(" suffix=")" prefixOverrides="and" >
+            <foreach collection="criteria.criteria" item="criterion" >
+              <choose >
+                <when test="criterion.noValue" >
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue" >
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue" >
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue" >
+                  and ${criterion.condition}
+                  <foreach collection="criterion.value" item="listItem" open="(" close=")" separator="," >
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Update_By_Example_Where_Clause" >
+    <where >
+      <foreach collection="example.oredCriteria" item="criteria" separator="or" >
+        <if test="criteria.valid" >
+          <trim prefix="(" suffix=")" prefixOverrides="and" >
+            <foreach collection="criteria.criteria" item="criterion" >
+              <choose >
+                <when test="criterion.noValue" >
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue" >
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue" >
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue" >
+                  and ${criterion.condition}
+                  <foreach collection="criterion.value" item="listItem" open="(" close=")" separator="," >
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List" >
+    lb_id, cluster_id, loadbalance_name, loadbalance_ip, loadbalance_port
+  </sql>
+  <select id="selectByExample" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.cluster.bean.ClusterLoadbalanceExample" >
+    select
+    <if test="distinct" >
+      distinct
+    </if>
+    <include refid="Base_Column_List" />
+    from cluster_loadbalance
+    <if test="_parameter != null" >
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null" >
+      order by ${orderByClause}
+    </if>
+  </select>
+  <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="java.lang.Integer" >
+    select 
+    <include refid="Base_Column_List" />
+    from cluster_loadbalance
+    where lb_id = #{lbId,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer" >
+    delete from cluster_loadbalance
+    where lb_id = #{lbId,jdbcType=INTEGER}
+  </delete>
+  <delete id="deleteByExample" parameterType="com.harmonycloud.dao.cluster.bean.ClusterLoadbalanceExample" >
+    delete from cluster_loadbalance
+    <if test="_parameter != null" >
+      <include refid="Example_Where_Clause" />
+    </if>
+  </delete>
+  <insert id="insert" parameterType="com.harmonycloud.dao.cluster.bean.ClusterLoadbalance" >
+    insert into cluster_loadbalance (lb_id, cluster_id, loadbalance_name, 
+      loadbalance_ip, loadbalance_port)
+    values (#{lbId,jdbcType=INTEGER}, #{clusterId,jdbcType=INTEGER}, #{loadbalanceName,jdbcType=VARCHAR}, 
+      #{loadbalanceIp,jdbcType=VARCHAR}, #{loadbalancePort,jdbcType=VARCHAR})
+  </insert>
+  <insert id="insertSelective" parameterType="com.harmonycloud.dao.cluster.bean.ClusterLoadbalance" >
+    insert into cluster_loadbalance
+    <trim prefix="(" suffix=")" suffixOverrides="," >
+      <if test="lbId != null" >
+        lb_id,
+      </if>
+      <if test="clusterId != null" >
+        cluster_id,
+      </if>
+      <if test="loadbalanceName != null" >
+        loadbalance_name,
+      </if>
+      <if test="loadbalanceIp != null" >
+        loadbalance_ip,
+      </if>
+      <if test="loadbalancePort != null" >
+        loadbalance_port,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides="," >
+      <if test="lbId != null" >
+        #{lbId,jdbcType=INTEGER},
+      </if>
+      <if test="clusterId != null" >
+        #{clusterId,jdbcType=INTEGER},
+      </if>
+      <if test="loadbalanceName != null" >
+        #{loadbalanceName,jdbcType=VARCHAR},
+      </if>
+      <if test="loadbalanceIp != null" >
+        #{loadbalanceIp,jdbcType=VARCHAR},
+      </if>
+      <if test="loadbalancePort != null" >
+        #{loadbalancePort,jdbcType=VARCHAR},
+      </if>
+    </trim>
+  </insert>
+  <select id="countByExample" parameterType="com.harmonycloud.dao.cluster.bean.ClusterLoadbalanceExample" resultType="java.lang.Integer" >
+    select count(*) from cluster_loadbalance
+    <if test="_parameter != null" >
+      <include refid="Example_Where_Clause" />
+    </if>
+  </select>
+  <update id="updateByExampleSelective" parameterType="map" >
+    update cluster_loadbalance
+    <set >
+      <if test="record.lbId != null" >
+        lb_id = #{record.lbId,jdbcType=INTEGER},
+      </if>
+      <if test="record.clusterId != null" >
+        cluster_id = #{record.clusterId,jdbcType=INTEGER},
+      </if>
+      <if test="record.loadbalanceName != null" >
+        loadbalance_name = #{record.loadbalanceName,jdbcType=VARCHAR},
+      </if>
+      <if test="record.loadbalanceIp != null" >
+        loadbalance_ip = #{record.loadbalanceIp,jdbcType=VARCHAR},
+      </if>
+      <if test="record.loadbalancePort != null" >
+        loadbalance_port = #{record.loadbalancePort,jdbcType=VARCHAR},
+      </if>
+    </set>
+    <if test="_parameter != null" >
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByExample" parameterType="map" >
+    update cluster_loadbalance
+    set lb_id = #{record.lbId,jdbcType=INTEGER},
+      cluster_id = #{record.clusterId,jdbcType=INTEGER},
+      loadbalance_name = #{record.loadbalanceName,jdbcType=VARCHAR},
+      loadbalance_ip = #{record.loadbalanceIp,jdbcType=VARCHAR},
+      loadbalance_port = #{record.loadbalancePort,jdbcType=VARCHAR}
+    <if test="_parameter != null" >
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.cluster.bean.ClusterLoadbalance" >
+    update cluster_loadbalance
+    <set >
+      <if test="clusterId != null" >
+        cluster_id = #{clusterId,jdbcType=INTEGER},
+      </if>
+      <if test="loadbalanceName != null" >
+        loadbalance_name = #{loadbalanceName,jdbcType=VARCHAR},
+      </if>
+      <if test="loadbalanceIp != null" >
+        loadbalance_ip = #{loadbalanceIp,jdbcType=VARCHAR},
+      </if>
+      <if test="loadbalancePort != null" >
+        loadbalance_port = #{loadbalancePort,jdbcType=VARCHAR},
+      </if>
+    </set>
+    where lb_id = #{lbId,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.cluster.bean.ClusterLoadbalance" >
+    update cluster_loadbalance
+    set cluster_id = #{clusterId,jdbcType=INTEGER},
+      loadbalance_name = #{loadbalanceName,jdbcType=VARCHAR},
+      loadbalance_ip = #{loadbalanceIp,jdbcType=VARCHAR},
+      loadbalance_port = #{loadbalancePort,jdbcType=VARCHAR}
+    where lb_id = #{lbId,jdbcType=INTEGER}
+  </update>
+</mapper>
