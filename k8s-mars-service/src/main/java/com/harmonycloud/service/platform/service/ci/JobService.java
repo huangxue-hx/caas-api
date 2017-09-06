@@ -39,7 +39,7 @@ public interface JobService {
 
     ActionReturnUtil getTrigger(Integer id) throws Exception;
 
-    ActionReturnUtil updateTrigger(JobDto jobDto);
+    ActionReturnUtil updateTrigger(JobDto jobDto) throws Exception;
 
     void postBuild(Integer id, Integer buildNum);
 
