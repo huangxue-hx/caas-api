@@ -3,7 +3,7 @@ package com.harmonycloud.dao.user.bean;
 import java.io.Serializable;
 import java.util.Date;
 
-public class Resource  implements Serializable{
+public class Resource implements Serializable{
     private Integer id;
 
     private String name;
@@ -30,36 +30,11 @@ public class Resource  implements Serializable{
 
     private String role;
 
-    private Integer isParent;
+    private Integer isparent;
 
-    private Integer parent_rpid;
+    private Integer parentRpid;
 
     private Integer rpid;
-
-
-    public Integer getIsParent() {
-        return isParent;
-    }
-
-    public void setIsParent(Integer isParent) {
-        this.isParent = isParent;
-    }
-
-    public Integer getParent_rpid() {
-        return parent_rpid;
-    }
-
-    public void setParent_rpid(Integer parent_rpid) {
-        this.parent_rpid = parent_rpid;
-    }
-
-    public Integer getRpid() {
-        return rpid;
-    }
-
-    public void setRpid(Integer rpid) {
-        this.rpid = rpid;
-    }
 
     public Integer getId() {
         return id;
@@ -163,5 +138,29 @@ public class Resource  implements Serializable{
 
     public void setRole(String role) {
         this.role = role == null ? null : role.trim();
+    }
+
+    public Integer getIsparent() {
+        return isparent;
+    }
+
+    public void setIsparent(Integer isparent) {
+        this.isparent = isparent;
+    }
+
+    public Integer getParentRpid() {
+        return parentRpid;
+    }
+
+    public void setParentRpid(Integer parentRpid) {
+        this.parentRpid = parentRpid;
+    }
+
+    public Integer getRpid() {
+        return rpid;
+    }
+
+    public void setRpid(Integer rpid) {
+        this.rpid = rpid;
     }
 }

@@ -2,15 +2,21 @@ package com.harmonycloud.service.tenant.impl;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.dao.tenant.RolePrivilegeMapper;
 import com.harmonycloud.dao.tenant.bean.RolePrivilege;
+import com.harmonycloud.dao.tenant.bean.RolePrivilegeExample;
 import com.harmonycloud.dao.tenant.bean.UserTenant;
+import com.harmonycloud.dao.user.ResourceMapper;
 import com.harmonycloud.dao.user.RoleMapper;
 import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.dao.user.bean.RoleExample;
 import com.harmonycloud.dao.user.bean.User;
+import com.harmonycloud.dao.user.bean.Resource;
+import com.harmonycloud.dao.user.bean.ResourceExample;
 import com.harmonycloud.service.tenant.RolePrivilegeService;
 import com.harmonycloud.service.tenant.RoleService;
 import com.harmonycloud.service.tenant.UserTenantService;
+import com.harmonycloud.service.user.ResourceService;
 import com.harmonycloud.service.user.UserService;
 
 import java.util.*;
@@ -39,6 +45,13 @@ public class RoleServiceImpl implements RoleService {
     private HttpSession session;
     @Autowired
     private RolePrivilegeService rolePrivilegeService;
+    @Autowired
+    private ResourceService resourceService;
+    @Autowired
+    private ResourceMapper resourceMapper;
+    @Autowired
+    private RolePrivilegeMapper rolePrivilegeMapper;
+
 
     /**
      * 禁用角色
@@ -63,12 +76,21 @@ public class RoleServiceImpl implements RoleService {
 
     public void resetRole() throws Exception {
         RoleExample example = new RoleExample();
-        example.createCriteria().andIdBetween(1, 5);
+        example.createCriteria().andIdBetween(2, 5);
         Role record = new Role();
         record.setAvailable(Boolean.TRUE);
         roleMapper.updateByExampleSelective(record, example);
         RoleExample example1 = new RoleExample();
         example1.createCriteria().andIdGreaterThan(5);
+        List<Role> deleteList = roleMapper.selectByExample(example1);
+        for(Role role:deleteList){
+            ResourceExample resourceExample = new ResourceExample();
+            resourceExample.createCriteria().andRoleEqualTo(role.getName());
+            resourceMapper.deleteByExample(resourceExample);
+            RolePrivilegeExample rolePrivilegeExample = new RolePrivilegeExample();
+            rolePrivilegeExample.createCriteria().andRoleEqualTo(role.getName());
+            rolePrivilegeMapper.deleteByExample(rolePrivilegeExample);
+        }
         roleMapper.deleteByExample(example1);
         List<Role> roleList = this.getRoleList();
         for (Role role : roleList) {
@@ -135,9 +157,8 @@ public class RoleServiceImpl implements RoleService {
             throw new MarsRuntimeException("禁用的角色不存在");
         }
         Role role = list.get(0);
-        role.setAvailable(false);
+        role.setSecondResourceIds("pause");
         roleMapper.updateByPrimaryKey(role);
-        
     }
 
     @Override
@@ -159,6 +180,7 @@ public class RoleServiceImpl implements RoleService {
         }else{
             roleMapper.insertSelective(role);
         }
+        resourceService.addNewRoleMenu(role.getName());
         List<RolePrivilege> rolePrivilegeByRoleName = this.rolePrivilegeService.getRolePrivilegeByRoleName(CommonConstant.DEFAULT);
         if(rolePrivilegeList==null || rolePrivilegeList.isEmpty()){
             //没有初始权限，使用default权限
@@ -183,6 +205,7 @@ public class RoleServiceImpl implements RoleService {
                 }
                 this.rolePrivilegeService.addModule(rolePrivilege);
             }
+            rolePrivilegeService.updateRoleMenu(roleName);
         }
     }
 

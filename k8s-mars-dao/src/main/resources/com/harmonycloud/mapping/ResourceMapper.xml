@@ -15,9 +15,9 @@
     <result column="trans_name" property="transName" jdbcType="VARCHAR" />
     <result column="icon_name" property="iconName" jdbcType="VARCHAR" />
     <result column="role" property="role" jdbcType="VARCHAR" />
-    <result column="isParent" property="isParent" jdbcType="INTEGER"/>
-    <result column="parent_rpid" property="parent_rpid" jdbcType="INTEGER"/>
-    <result column="rpid" property="rpid" jdbcType="INTEGER"/>
+    <result column="isParent" property="isparent" jdbcType="INTEGER" />
+    <result column="parent_rpid" property="parentRpid" jdbcType="INTEGER" />
+    <result column="rpid" property="rpid" jdbcType="INTEGER" />
   </resultMap>
   <sql id="Example_Where_Clause" >
     <where >
@@ -78,8 +78,8 @@
     </where>
   </sql>
   <sql id="Base_Column_List" >
-    id, name, type, url, parent_id, parent_ids, weight, create_time, update_time, available, 
-    trans_name, icon_name, role, isParent, parent_rpid, rpid, isParent, parent_rpid, rpid
+    id, name, type, url, parent_id, parent_ids, weight, create_time, update_time, available,
+    trans_name, icon_name, role, isParent, parent_rpid, rpid
   </sql>
   <select id="selectByExample" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.user.bean.ResourceExample" >
     select
@@ -97,7 +97,7 @@
     </if>
   </select>
   <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="java.lang.Integer" >
-    select 
+    select
     <include refid="Base_Column_List" />
     from resource
     where id = #{id,jdbcType=INTEGER}
@@ -113,17 +113,18 @@
     </if>
   </delete>
   <insert id="insert" parameterType="com.harmonycloud.dao.user.bean.Resource" >
-    insert into resource (id, name, type, 
-      url, parent_id, parent_ids, 
-      weight, create_time, update_time, 
-      available, trans_name, icon_name, 
-      role, isParent, parent_rpid, rpid)
-    values (#{id,jdbcType=INTEGER}, #{name,jdbcType=VARCHAR}, #{type,jdbcType=VARCHAR}, 
-      #{url,jdbcType=VARCHAR}, #{parentId,jdbcType=INTEGER}, #{parentIds,jdbcType=VARCHAR}, 
-      #{weight,jdbcType=INTEGER}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, 
-      #{available,jdbcType=BIT}, #{transName,jdbcType=VARCHAR}, #{iconName,jdbcType=VARCHAR}, 
-      #{role,jdbcType=VARCHAR},#{isParent,jdbcType=INTEGER},#{parent_rpid,jdbcType=INTEGER},
-      #{rpid,jdbcType=INTEGER})
+    insert into resource (id, name, type,
+    url, parent_id, parent_ids,
+    weight, create_time, update_time,
+    available, trans_name, icon_name,
+    role, isParent, parent_rpid,
+    rpid)
+    values (#{id,jdbcType=INTEGER}, #{name,jdbcType=VARCHAR}, #{type,jdbcType=VARCHAR},
+    #{url,jdbcType=VARCHAR}, #{parentId,jdbcType=INTEGER}, #{parentIds,jdbcType=VARCHAR},
+    #{weight,jdbcType=INTEGER}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP},
+    #{available,jdbcType=BIT}, #{transName,jdbcType=VARCHAR}, #{iconName,jdbcType=VARCHAR},
+    #{role,jdbcType=VARCHAR}, #{isparent,jdbcType=INTEGER}, #{parentRpid,jdbcType=INTEGER},
+    #{rpid,jdbcType=INTEGER})
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.user.bean.Resource" >
     insert into resource
@@ -167,6 +168,15 @@
       <if test="role != null" >
         role,
       </if>
+      <if test="isparent != null" >
+        isParent,
+      </if>
+      <if test="parentRpid != null" >
+        parent_rpid,
+      </if>
+      <if test="rpid != null" >
+        rpid,
+      </if>
     </trim>
     <trim prefix="values (" suffix=")" suffixOverrides="," >
       <if test="id != null" >
@@ -207,6 +217,15 @@
       </if>
       <if test="role != null" >
         #{role,jdbcType=VARCHAR},
+      </if>
+      <if test="isparent != null" >
+        #{isparent,jdbcType=INTEGER},
+      </if>
+      <if test="parentRpid != null" >
+        #{parentRpid,jdbcType=INTEGER},
+      </if>
+      <if test="rpid != null" >
+        #{rpid,jdbcType=INTEGER},
       </if>
     </trim>
   </insert>
@@ -252,6 +271,15 @@
       <if test="record.role != null" >
         role = #{record.role,jdbcType=VARCHAR},
       </if>
+      <if test="record.isparent != null" >
+        isParent = #{record.isparent,jdbcType=INTEGER},
+      </if>
+      <if test="record.parentRpid != null" >
+        parent_rpid = #{record.parentRpid,jdbcType=INTEGER},
+      </if>
+      <if test="record.rpid != null" >
+        rpid = #{record.rpid,jdbcType=INTEGER},
+      </if>
     </set>
     <if test="_parameter != null" >
       <include refid="Update_By_Example_Where_Clause" />
@@ -260,18 +288,21 @@
   <update id="updateByExample" parameterType="map" >
     update resource
     set id = #{record.id,jdbcType=INTEGER},
-      name = #{record.name,jdbcType=VARCHAR},
-      type = #{record.type,jdbcType=VARCHAR},
-      url = #{record.url,jdbcType=VARCHAR},
-      parent_id = #{record.parentId,jdbcType=INTEGER},
-      parent_ids = #{record.parentIds,jdbcType=VARCHAR},
-      weight = #{record.weight,jdbcType=INTEGER},
-      create_time = #{record.createTime,jdbcType=TIMESTAMP},
-      update_time = #{record.updateTime,jdbcType=TIMESTAMP},
-      available = #{record.available,jdbcType=BIT},
-      trans_name = #{record.transName,jdbcType=VARCHAR},
-      icon_name = #{record.iconName,jdbcType=VARCHAR},
-      role = #{record.role,jdbcType=VARCHAR}
+    name = #{record.name,jdbcType=VARCHAR},
+    type = #{record.type,jdbcType=VARCHAR},
+    url = #{record.url,jdbcType=VARCHAR},
+    parent_id = #{record.parentId,jdbcType=INTEGER},
+    parent_ids = #{record.parentIds,jdbcType=VARCHAR},
+    weight = #{record.weight,jdbcType=INTEGER},
+    create_time = #{record.createTime,jdbcType=TIMESTAMP},
+    update_time = #{record.updateTime,jdbcType=TIMESTAMP},
+    available = #{record.available,jdbcType=BIT},
+    trans_name = #{record.transName,jdbcType=VARCHAR},
+    icon_name = #{record.iconName,jdbcType=VARCHAR},
+    role = #{record.role,jdbcType=VARCHAR},
+    isParent = #{record.isparent,jdbcType=INTEGER},
+    parent_rpid = #{record.parentRpid,jdbcType=INTEGER},
+    rpid = #{record.rpid,jdbcType=INTEGER}
     <if test="_parameter != null" >
       <include refid="Update_By_Example_Where_Clause" />
     </if>
@@ -315,6 +346,15 @@
       <if test="role != null" >
         role = #{role,jdbcType=VARCHAR},
       </if>
+      <if test="isparent != null" >
+        isParent = #{isparent,jdbcType=INTEGER},
+      </if>
+      <if test="parentRpid != null" >
+        parent_rpid = #{parentRpid,jdbcType=INTEGER},
+      </if>
+      <if test="rpid != null" >
+        rpid = #{rpid,jdbcType=INTEGER},
+      </if>
     </set>
     where id = #{id,jdbcType=INTEGER}
   </update>
@@ -331,7 +371,10 @@
       available = #{available,jdbcType=BIT},
       trans_name = #{transName,jdbcType=VARCHAR},
       icon_name = #{iconName,jdbcType=VARCHAR},
-      role = #{role,jdbcType=VARCHAR}
+      role = #{role,jdbcType=VARCHAR},
+      isParent = #{isparent,jdbcType=INTEGER},
+      parent_rpid = #{parentRpid,jdbcType=INTEGER},
+      rpid = #{rpid,jdbcType=INTEGER}
     where id = #{id,jdbcType=INTEGER}
   </update>
 </mapper>

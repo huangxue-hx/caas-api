@@ -20,6 +20,8 @@
         <typeAlias alias="RoleExample" type="com.harmonycloud.dao.user.bean.RoleExample" />
         <typeAlias alias="RolePrivilege" type="com.harmonycloud.dao.tenant.bean.RolePrivilege" />
         <typeAlias alias="RolePrivilegeExample" type="com.harmonycloud.dao.tenant.bean.RolePrivilegeExample" />
+        <typeAlias alias="RolePrivilegeCustom" type="com.harmonycloud.dao.tenant.bean.RolePrivilegeCustom"/>
+        <typeAlias alias="RolePrivilegeCustomExample" type="com.harmonycloud.dao.tenant.bean.RolePrivilegeCustomExample"/>
         <typeAlias alias="Tenant" type="com.harmonycloud.dao.tenant.bean.Tenant" />
         <typeAlias alias="TenantBinding" type="com.harmonycloud.dao.tenant.bean.TenantBinding" />
         <typeAlias alias="TenantBindingExample" type="com.harmonycloud.dao.tenant.bean.TenantBindingExample" />
@@ -78,6 +80,10 @@
         <mapper resource="com/harmonycloud/mapping/ServiceTemplatesMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/TopologyMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/BusinessServiceMapper.xml" />
+
+        <!--<mapper resource="com/harmonycloud/mapping/ServiceMapper.xml" />-->
+        <mapper resource="com/harmonycloud/mapping/RolePrivilegeCustomMapper.xml" />
+
 
         <mapper resource="com/harmonycloud/mapping/ExternalTypeMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/NodePortMapper.xml" />
