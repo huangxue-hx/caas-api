@@ -1372,6 +1372,24 @@ LOCK TABLES `user_tenant` WRITE;
 /*!40000 ALTER TABLE `user_tenant` DISABLE KEYS */;
 /*!40000 ALTER TABLE `user_tenant` ENABLE KEYS */;
 UNLOCK TABLES;
+
+-- ----------------------------
+-- Table structure for cluster_loadbalance
+-- ----------------------------
+DROP TABLE IF EXISTS `cluster_loadbalance`;
+CREATE TABLE `cluster_loadbalance` (
+  `lb_id` int(11) NOT NULL AUTO_INCREMENT,
+  `cluster_id` int(11) DEFAULT NULL,
+  `loadbalance_name` varchar(255) DEFAULT NULL,
+  `loadbalance_ip` varchar(255) DEFAULT NULL,
+  `loadbalance_port` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`lb_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
+
+-- ----------------------------
+-- Records of cluster_loadbalance
+-- ----------------------------
+INSERT INTO `cluster_loadbalance` VALUES ('1', '188', 'haproxy', '10.10.101.143', '30200');
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

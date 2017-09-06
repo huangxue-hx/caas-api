@@ -9,6 +9,7 @@ import com.harmonycloud.k8s.bean.Event;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.EventService;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.cluster.LoadbalanceService;
 import com.harmonycloud.service.platform.bean.ContainerOfPodDetail;
 import com.harmonycloud.service.platform.bean.KubeModuleStatus;
 import com.harmonycloud.service.platform.service.PodService;
@@ -50,6 +51,9 @@ public class OpenApiController {
 	PodService podService;
     @Autowired
     JobService jobService;
+    
+    @Autowired
+    LoadbalanceService loadbalanceService;
 
 	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -152,6 +156,16 @@ public class OpenApiController {
             return new ResponseEntity(e.getMessage(),HttpStatus.INTERNAL_SERVER_ERROR);
         }
         return new ResponseEntity(HttpStatus.OK);
+    }
+    
+    @RequestMapping(value="/app/stats", method = RequestMethod.GET)
+    public ResponseEntity getStatsOfService(@RequestParam(value = "app") String app, @RequestParam(value = "namespace") String namespace) {
+    	try {
+			return new ResponseEntity(loadbalanceService.getStatsByService(app, namespace),HttpStatus.OK);
+		}catch(Exception e){
+			logger.error("获取应用的访问指标失败,", e);
+			return new ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
     }
 
 }
