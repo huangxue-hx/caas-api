@@ -86,8 +86,6 @@ public class Constant {
 
 	public final static Integer K8S_SERVICE = 0;
 
-	//pvc
-	public final static String PVC_BREAK = "-";
 
 	public final static String STATUS_NORMAL = "0";
 	public final static String STATUS_ABNORMAL = "1";

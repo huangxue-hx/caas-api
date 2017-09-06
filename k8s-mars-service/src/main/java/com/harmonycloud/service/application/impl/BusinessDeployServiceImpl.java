@@ -487,7 +487,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                 if (svcTemplate.getExternal() == Constant.EXTERNAL_SERVICE) {
                     Map<String, Object> headers = new HashMap<>();
                     headers.put("Content-Type", "application/json");
-                    K8SClientResponse rsRes = sService.doSepcifyService(Constant.EXTERNAL_SERVICE_NAMESPACE, svcTemplate.getDeploymentDetail().getName(), null, null, HTTPMethod.GET, cluster);
+                    K8SClientResponse rsRes = sService.doSepcifyService(Constant.EXTERNAL_SERVICE_NAMESPACE, svcTemplate.getName(), null, null, HTTPMethod.GET, cluster);
                     if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus())) {
                         UnversionedStatus sta = JsonUtil.jsonToPojo(rsRes.getBody(), UnversionedStatus.class);
                         return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
@@ -764,9 +764,8 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                                                 }
 
                                                 // update pv
-                                                if (response.getStatus() != Constant.HTTP_404 && onePvc.getMetadata().getName().contains(Constant.PVC_BREAK)) {
-                                                    String[] str = onePvc.getMetadata().getName().split(Constant.PVC_BREAK);
-                                                    String pvname = str[0];
+                                                if (response.getStatus() != Constant.HTTP_404 && onePvc.getSpec() != null && onePvc.getSpec().getVolumeName() != null) {
+                                                    String pvname = onePvc.getSpec().getVolumeName();
                                                     PersistentVolume pv = pvService.getPvByName(pvname, null);
                                                     if (pv != null) {
                                                         Map<String, Object> bodysPV = new HashMap<String, Object>();

@@ -527,9 +527,8 @@ public class ServiceServiceImpl implements ServiceService {
 						}
 
 						// update pv
-						if (response.getStatus() != Constant.HTTP_404 && onePvc.getMetadata().getName().contains(Constant.PVC_BREAK)) {
-							String[] str = onePvc.getMetadata().getName().split(Constant.PVC_BREAK);
-							String pvname = str[0];
+						if (response.getStatus() != Constant.HTTP_404 && onePvc.getSpec() != null && onePvc.getSpec().getVolumeName() != null) {
+							String pvname = onePvc.getSpec().getVolumeName();
 							PersistentVolume pv = pvService.getPvByName(pvname, null);
 							if (pv != null) {
 								Map<String, Object> bodysPV = new HashMap<String, Object>();

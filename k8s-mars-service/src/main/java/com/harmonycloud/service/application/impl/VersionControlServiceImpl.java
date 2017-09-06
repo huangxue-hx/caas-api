@@ -144,8 +144,6 @@ public class VersionControlServiceImpl implements VersionControlService {
                     } else {
                         for (PersistentVolumeClaim onePvc : pvclist.getItems()) {
                                 //volumeSerivce.deleteVolume(detail.getNamespace(),(String) pvclist.get(i));
-
-                                String pvc = onePvc.getMetadata().getName();
                                 K8SURL url = new K8SURL();
                                 url.setName(onePvc.getMetadata().getName()).setNamespace(detail.getNamespace()).setResource(Resource.PERSISTENTVOLUMECLAIM);
                                 Map<String, Object> headers = new HashMap<>();
@@ -153,11 +151,9 @@ public class VersionControlServiceImpl implements VersionControlService {
                                 Map<String, Object> bodys = new HashMap<>();
                                 bodys.put("gracePeriodSeconds", 1);
                                 K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys, cluster);
-                                if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                                if (HttpStatusUtil.isSuccessStatus(response.getStatus()) && onePvc.getSpec() != null && onePvc.getSpec().getVolumeName() != null) {
                                     // update pv
-                                    if (pvc.contains(Constant.PVC_BREAK)) {
-                                        String[] str = pvc.split(Constant.PVC_BREAK);
-                                        String pvname = str[0];
+                                        String pvname = onePvc.getSpec().getVolumeName();
                                         PersistentVolume pv = pvService.getPvByName(pvname, null);
                                         if (pv != null) {
                                             Map<String, Object> bodysPV = new HashMap<String, Object>();
@@ -180,7 +176,7 @@ public class VersionControlServiceImpl implements VersionControlService {
                                                 return ActionReturnUtil.returnSuccessWithMsg(status.getMessage());
                                             }
                                         }
-                                    }
+
                                 } else {
                                     UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
                                     return ActionReturnUtil.returnSuccessWithMsg(status.getMessage());

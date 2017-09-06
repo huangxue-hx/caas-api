@@ -1095,6 +1095,7 @@ public class JobServiceImpl implements JobService {
                                     JSONArray array = (JSONArray) result.get("data");
                                     List<PvDto> pvDtoList = JsonUtil.jsonToList(array.toString(), PvDto.class);
                                     for (PvDto pvDto : pvDtoList) {
+                                        //todo -------------
                                         if (volumeMountExt.getName().split("-")[0].equals(pvDto.getName())) {
                                             updateVolume.setPvcCapacity(pvDto.getCapacity());
                                             break;
