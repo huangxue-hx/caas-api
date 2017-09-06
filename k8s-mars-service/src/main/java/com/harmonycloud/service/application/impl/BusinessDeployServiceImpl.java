@@ -1476,9 +1476,9 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                                                          Cluster cluster) throws Exception {
         // check value
         if (StringUtils.isEmpty(username) || businessDeploy == null || businessDeploy.getBusinessTemplate().getServiceList().size() <= 0) {
-            return ActionReturnUtil.returnErrorWithMsg("username , application deploy or service is null");
+            return ActionReturnUtil.returnErrorWithMsg("username , application deploy or service 为空");
         }
-        //保存数据库
+/*        //保存数据库
         for( ServiceTemplateDto s: businessDeploy.getBusinessTemplate().getServiceList()){
             ActionReturnUtil res = serviceService.saveServiceTemplate(s, username, 1);
             if(!res.isSuccess()){
@@ -1487,7 +1487,8 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
             JSONObject js = (JSONObject) res.get("data");
             int id = js.getInt(s.getName());
             s.setId(id);
-        }
+        }*/
+        //check name
         //获取k8s同namespace相关的资源
         //获取 Deployment name
         JSONObject msg= new JSONObject();
@@ -1500,7 +1501,6 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
                 && depRes.getStatus() != Constant.HTTP_404 ) {
-            JSONObject js = JSONObject.fromObject(depRes.getBody());
             UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
         }
@@ -1567,13 +1567,13 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                 if (service.getExternal() == Constant.EXTERNAL_SERVICE) {
                     Map<String, Object> headers = new HashMap<>();
                     headers.put("Content-Type", "application/json");
-                    K8SClientResponse rsRes = sService.doSepcifyService(businessDeploy.getNamespace() ,service.getDeploymentDetail().getName(), null, null, HTTPMethod.GET, cluster);
+                    K8SClientResponse rsRes = sService.doSepcifyService(Constant.EXTERNAL_SERVICE_NAMESPACE, service.getName(), null, null, HTTPMethod.GET, cluster);
                     if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus())) {
                         return ActionReturnUtil.returnErrorWithMsg(rsRes.getBody());
                     }
                     com.harmonycloud.k8s.bean.Service serviceE = JsonUtil.jsonToPojo(rsRes.getBody(), com.harmonycloud.k8s.bean.Service.class);
                     Map<String,Object> labels = serviceE.getMetadata().getLabels();
-                    labels.put(TOPO + "-" + businessDeploy.getNamespace() + "-" + businessDeploy.getBusinessTemplate().getName(),businessDeploy.getBusinessTemplate().getName());
+                    labels.put(TOPO + "-" + tenantid+ "-" + businessDeploy.getName(), businessDeploy.getNamespace());
                     serviceE.getMetadata().setLabels(labels);
                     Map<String, Object> bodys = CollectionUtil.transBean2Map(serviceE);
                     K8SClientResponse res = sService.doSepcifyService(serviceE.getMetadata().getNamespace(), serviceE.getMetadata().getName(), headers, bodys, HTTPMethod.PUT, cluster);
@@ -1582,85 +1582,86 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                         map.put(serviceE.getMetadata().getName(), res.getBody());
                         message.add(map);
                     }
-                }
-                // todo retry and rollback
-                List<String> pvcList = new ArrayList<>();
-                // creat pvc
-                for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
-                    if (c.getStorage() != null) {
-                        for (CreateVolumeDto pvc : c.getStorage()) {
-                            if(pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())){
-                                if (pvc.getPvcName() == "" || pvc.getPvcName() == null) {
-                                    continue;
+                }else {
+                	 // todo retry and rollback
+                    List<String> pvcList = new ArrayList<>();
+                    // creat pvc
+                    for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
+                        if (c.getStorage() != null) {
+                            for (CreateVolumeDto pvc : c.getStorage()) {
+                                if(pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())){
+                                    if (pvc.getPvcName() == "" || pvc.getPvcName() == null) {
+                                        continue;
+                                    }
+                                    ActionReturnUtil pvcres = volumeSerivce.createVolume(namespace, pvc.getPvcName(),
+                                            pvc.getPvcCapacity(), pvc.getPvcTenantid(), pvc.getReadOnly(), pvc.getPvcBindOne(),
+                                            pvc.getVolume(),service.getDeploymentDetail().getName());
+                                    pvcList.add(pvc.getPvcName());
+                                    if (!pvcres.isSuccess()) {
+                                        Map<String, Object> map = new HashMap<String, Object>();
+                                        map.put(pvc.getPvcName(), pvcres.get("data"));
+                                        message.add(map);
+                                    }
                                 }
-                                ActionReturnUtil pvcres = volumeSerivce.createVolume(namespace, pvc.getPvcName(),
-                                        pvc.getPvcCapacity(), pvc.getPvcTenantid(), pvc.getReadOnly(), pvc.getPvcBindOne(),
-                                        pvc.getVolume(),service.getDeploymentDetail().getName());
-                                pvcList.add(pvc.getPvcName());
-                                if (!pvcres.isSuccess()) {
+                            }
+                        }
+                    }
+                    List<String> ingresses = new ArrayList<>();
+                    // creat ingress
+                    if (service.getIngress() != null) {
+                        for (IngressDto ingress : service.getIngress()) {
+                            if ("HTTP".equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getParsedIngressList().getName())) {
+                                Map<String, Object> labels = new HashMap<String, Object>();
+                                labels.put("app", service.getDeploymentDetail().getName());
+                                ingress.getParsedIngressList().setLabels(labels);
+                                ingress.getParsedIngressList().setNamespace(namespace);
+                                ActionReturnUtil httpIngRes = routerService.ingCreate(ingress.getParsedIngressList());
+                                if (!httpIngRes.isSuccess()) {
                                     Map<String, Object> map = new HashMap<String, Object>();
-                                    map.put(pvc.getPvcName(), pvcres.get("data"));
+                                    map.put("ingress:" + ingress.getParsedIngressList().getName(), httpIngRes.get("data"));
                                     message.add(map);
                                 }
+                                ingresses.add(
+                                        "{\"type\":\"HTTP\",\"name\":\"" + ingress.getParsedIngressList().getName() + "\"}");
+                            } else if ("TCP".equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getSvcRouter().getName())) {
+                                Map<String, Object> labels = new HashMap<String, Object>();
+                                labels.put("app", service.getDeploymentDetail().getName());
+                                ingress.getSvcRouter().setLabels(labels);
+                                ingress.getSvcRouter().setNamespace(namespace);
+                                ActionReturnUtil tcpSvcRes = routerService.svcCreate(ingress.getSvcRouter());
+                                if (!tcpSvcRes.isSuccess()) {
+                                    Map<String, Object> map = new HashMap<String, Object>();
+                                    map.put("ingress:" + ingress.getParsedIngressList().getName(), tcpSvcRes.get("data"));
+                                    message.add(map);
+                                }
+                                ingresses.add("{\"type\":\"TCP\",\"name\":\"" + ingress.getSvcRouter().getName() + "\"}");
                             }
                         }
                     }
-                }
-                List<String> ingresses = new ArrayList<>();
-                // creat ingress
-                if (service.getIngress() != null) {
-                    for (IngressDto ingress : service.getIngress()) {
-                        if ("HTTP".equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getParsedIngressList().getName())) {
-                            Map<String, Object> labels = new HashMap<String, Object>();
-                            labels.put("app", service.getDeploymentDetail().getName());
-                            ingress.getParsedIngressList().setLabels(labels);
-                            ingress.getParsedIngressList().setNamespace(namespace);
-                            ActionReturnUtil httpIngRes = routerService.ingCreate(ingress.getParsedIngressList());
-                            if (!httpIngRes.isSuccess()) {
-                                Map<String, Object> map = new HashMap<String, Object>();
-                                map.put("ingress:" + ingress.getParsedIngressList().getName(), httpIngRes.get("data"));
-                                message.add(map);
-                            }
-                            ingresses.add(
-                                    "{\"type\":\"HTTP\",\"name\":\"" + ingress.getParsedIngressList().getName() + "\"}");
-                        } else if ("TCP".equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getSvcRouter().getName())) {
-                            Map<String, Object> labels = new HashMap<String, Object>();
-                            labels.put("app", service.getDeploymentDetail().getName());
-                            ingress.getSvcRouter().setLabels(labels);
-                            ingress.getSvcRouter().setNamespace(namespace);
-                            ActionReturnUtil tcpSvcRes = routerService.svcCreate(ingress.getSvcRouter());
-                            if (!tcpSvcRes.isSuccess()) {
-                                Map<String, Object> map = new HashMap<String, Object>();
-                                map.put("ingress:" + ingress.getParsedIngressList().getName(), tcpSvcRes.get("data"));
-                                message.add(map);
-                            }
-                            ingresses.add("{\"type\":\"TCP\",\"name\":\"" + ingress.getSvcRouter().getName() + "\"}");
-                        }
-                    }
-                }
 
-                // creat config map & deploy service deployment & get node label by
-                // namespace
-                try {
-                    //todo so bad
-                    service.getDeploymentDetail().setNamespace(namespace);
-                    for (CreateContainerDto c:service.getDeploymentDetail().getContainers()){
-                        String[] hou;
-                        String[] qian;
-                        String images;
+                    // creat config map & deploy service deployment & get node label by
+                    // namespace
+                    try {
+                        //todo so bad
+                        service.getDeploymentDetail().setNamespace(namespace);
+                        for (CreateContainerDto c:service.getDeploymentDetail().getContainers()){
+                            String[] hou;
+                            String[] qian;
+                            String images;
 
-                        if (harborUrl.contains("//") && harborUrl.contains(":")) {
-                            hou = harborUrl.split("//");
-                            qian = hou[1].split(":");
-                            images = qian[0]+"/" + c.getImg();
-                        } else {
-                            images = harborUrl;
+                            if (harborUrl.contains("//") && harborUrl.contains(":")) {
+                                hou = harborUrl.split("//");
+                                qian = hou[1].split(":");
+                                images = qian[0]+"/" + c.getImg();
+                            } else {
+                                images = harborUrl;
+                            }
+                            c.setImg(images);
                         }
-                        c.setImg(images);
+                        deploymentsService.createDeployment(service.getDeploymentDetail(), username, businessDeploy.getName(), cluster);
+                    } catch (Exception e) {
+                        msg.put("Deployment:", service.getDeploymentDetail().getName());
                     }
-                    deploymentsService.createDeployment(service.getDeploymentDetail(), username, businessDeploy.getBusinessTemplate().getName(), cluster);
-                } catch (Exception e) {
-                    msg.put("Deployment:", service.getDeploymentDetail().getName());
                 }
             }
             if (message.size() > 0) {
