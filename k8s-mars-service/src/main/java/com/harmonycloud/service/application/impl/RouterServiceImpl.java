@@ -66,6 +66,12 @@ public class RouterServiceImpl implements RouterService {
 	@Value("#{propertiesReader['kube.haProxyVersion']}")
 	private String haProxyVersion;
 
+	final static String START_PORT = "30101";
+
+	final static Integer START_PORT_INT = 30101;
+
+	final static Integer PORT_SIZE = 200;
+
 	/**
 	 * 查询router列表
 	 *
@@ -813,15 +819,15 @@ public class RouterServiceImpl implements RouterService {
 			npCluster.setNodeportid(1);
 			npCluster.setStatus(1);
 			npcMapper.insert(npCluster);
-			return ActionReturnUtil.returnSuccessWithMsg("30000");
+			return ActionReturnUtil.returnSuccessWithMsg(START_PORT);
 		} else {
 			for (int i = 0; i < list.size(); i++) {
 				nlist.add(nodePortMapper.getnodeportbyid(list.get(i).getNodeportid()));
 			}
 			// 生成分配 端口,增加同步
 			int nodePort = 0;
-			for (int j = 0; j <= 50; j++) {
-				nodePort = 30000 + j;
+			for (int j = 0; j <= PORT_SIZE; j++) {
+				nodePort = START_PORT_INT + j;
 				if (!nlist.contains(nodePort)) {
 					NodePortCluster npCluster = new NodePortCluster();
 					npCluster.setClusterid(clusterId);

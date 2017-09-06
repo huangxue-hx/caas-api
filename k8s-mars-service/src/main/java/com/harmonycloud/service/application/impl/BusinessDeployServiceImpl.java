@@ -1119,13 +1119,14 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         }
 
         for (Object oneNamespace : namespaceData ){
-            K8SClientResponse response = tprApplication.listApplicationByNamespace(oneNamespace.getClass().getName().toString(),null, null, HTTPMethod.GET, cluster);
-            if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            Map namespaceMap = (Map) oneNamespace;
+            K8SClientResponse response = tprApplication.listApplicationByNamespace(namespaceMap.get("name").toString(),null, null, HTTPMethod.GET, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
                 return ActionReturnUtil.returnErrorWithMsg(response.getBody());
             }
-            BaseResource  tpr = JsonUtil.jsonToPojo(response.getBody(), BaseResource.class);
-            if (tpr.getMetadata().getName() != null){
-                blist.add(tpr);
+            BaseResourceList  tpr = JsonUtil.jsonToPojo(response.getBody(), BaseResourceList.class);
+            if (tpr != null && tpr.getItems() != null && tpr.getItems().size() > 0){
+                blist.addAll(tpr.getItems());
             }
         }
 
