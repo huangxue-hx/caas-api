@@ -176,7 +176,7 @@ CREATE TABLE `cicd_docker_file` (
   `create_time` datetime NOT NULL COMMENT '创建时间',
   `update_time` datetime NOT NULL COMMENT '修改时间',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -201,7 +201,7 @@ CREATE TABLE `cicd_docker_file_job_stage` (
   `job_id` int(11) DEFAULT NULL,
   `stage_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -231,6 +231,7 @@ CREATE TABLE `cicd_job` (
   `mail` varchar(1000) DEFAULT NULL,
   `trigger` int(1) DEFAULT NULL,
   `poll_scm` int(1) DEFAULT NULL,
+  `poll_scm_customize` int(1) DEFAULT NULL,
   `cron_exp_for_poll_scm` varchar(255) DEFAULT NULL,
   `create_user` varchar(100) DEFAULT NULL,
   `update_user` varchar(100) DEFAULT NULL,
@@ -238,7 +239,7 @@ CREATE TABLE `cicd_job` (
   `update_time` datetime DEFAULT NULL,
   `last_build_num` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=65 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -267,7 +268,7 @@ CREATE TABLE `cicd_job_build` (
   `start_user` varchar(20) DEFAULT NULL,
   `log` longtext,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=546 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -319,7 +320,7 @@ CREATE TABLE `cicd_stage` (
   `create_time` datetime DEFAULT NULL,
   `update_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=179 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -353,7 +354,7 @@ CREATE TABLE `cicd_stage_build` (
   `stage_type` varchar(255) DEFAULT NULL,
   `image` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=660 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -646,41 +647,6 @@ LOCK TABLES `installprogress_installprogress` WRITE;
 /*!40000 ALTER TABLE `installprogress_installprogress` ENABLE KEYS */;
 UNLOCK TABLES;
 
---
--- Table structure for table `job`
---
-
-DROP TABLE IF EXISTS `job`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `job` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `job_name` varchar(50) DEFAULT NULL,
-  `tenant` varchar(50) DEFAULT NULL,
-  `project_type` varchar(10) DEFAULT NULL,
-  `build_type` varchar(10) DEFAULT NULL,
-  `repository_type` varchar(10) DEFAULT NULL,
-  `repository_url` varchar(250) DEFAULT NULL,
-  `repository_branch` varchar(50) DEFAULT NULL,
-  `credentials_username` varchar(50) DEFAULT NULL,
-  `credentials_password` varchar(50) DEFAULT NULL,
-  `base_image` varchar(50) DEFAULT NULL,
-  `image_name` varchar(50) DEFAULT NULL,
-  `image_tag` varchar(20) DEFAULT NULL,
-  `harbor_project` varchar(20) DEFAULT NULL,
-  `create_user` varchar(20) DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=104 DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `job`
---
-
-LOCK TABLES `job` WRITE;
-/*!40000 ALTER TABLE `job` DISABLE KEYS */;
-/*!40000 ALTER TABLE `job` ENABLE KEYS */;
-UNLOCK TABLES;
 
 --
 -- Table structure for table `ldap_config`

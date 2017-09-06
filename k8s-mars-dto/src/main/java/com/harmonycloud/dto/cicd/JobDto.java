@@ -21,11 +21,9 @@ public class JobDto {
     private boolean successNotification;
     private boolean trigger;
     private boolean pollScm;
+    private boolean pollScmCustomize;
     private String cronExpForPollScm;
-    private String dayOfMonth;
-    private String dayOfWeek;
-    private String hour;
-    private String minute;
+    private List<TimeRule> pollScmTimeRule;
     private String createUser;
     private String updateUser;
     private Date createTime;
@@ -115,6 +113,14 @@ public class JobDto {
         this.pollScm = pollScm;
     }
 
+    public boolean isPollScmCustomize() {
+        return pollScmCustomize;
+    }
+
+    public void setPollScmCustomize(boolean pollScmCustomize) {
+        this.pollScmCustomize = pollScmCustomize;
+    }
+
     public String getCronExpForPollScm() {
         return cronExpForPollScm;
     }
@@ -123,36 +129,12 @@ public class JobDto {
         this.cronExpForPollScm = cronExpForPollScm;
     }
 
-    public String getDayOfMonth() {
-        return dayOfMonth;
+    public List<TimeRule> getPollScmTimeRule() {
+        return pollScmTimeRule;
     }
 
-    public void setDayOfMonth(String dayOfMonth) {
-        this.dayOfMonth = dayOfMonth;
-    }
-
-    public String getDayOfWeek() {
-        return dayOfWeek;
-    }
-
-    public void setDayOfWeek(String dayOfWeek) {
-        this.dayOfWeek = dayOfWeek;
-    }
-
-    public String getHour() {
-        return hour;
-    }
-
-    public void setHour(String hour) {
-        this.hour = hour;
-    }
-
-    public String getMinute() {
-        return minute;
-    }
-
-    public void setMinute(String minute) {
-        this.minute = minute;
+    public void setPollScmTimeRule(List<TimeRule> pollScmTimeRule) {
+        this.pollScmTimeRule = pollScmTimeRule;
     }
 
     public void setCreateUser(String createUser) {
@@ -195,5 +177,44 @@ public class JobDto {
     public void convertFromBean(Job job){
         BeanUtils.copyProperties(job, this);
         this.setMail(JsonUtil.jsonToList(job.getMail(), String.class));
+    }
+
+    public static class TimeRule{
+        private String dayOfMonth;
+        private String dayOfWeek;
+        private String hour;
+        private String minute;
+
+        public String getDayOfMonth() {
+            return dayOfMonth;
+        }
+
+        public void setDayOfMonth(String dayOfMonth) {
+            this.dayOfMonth = dayOfMonth;
+        }
+
+        public String getDayOfWeek() {
+            return dayOfWeek;
+        }
+
+        public void setDayOfWeek(String dayOfWeek) {
+            this.dayOfWeek = dayOfWeek;
+        }
+
+        public String getHour() {
+            return hour;
+        }
+
+        public void setHour(String hour) {
+            this.hour = hour;
+        }
+
+        public String getMinute() {
+            return minute;
+        }
+
+        public void setMinute(String minute) {
+            this.minute = minute;
+        }
     }
 }

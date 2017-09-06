@@ -17,6 +17,7 @@ public class Job  implements Serializable{
     private boolean successNotification;
     private boolean trigger;
     private boolean pollScm;
+    private boolean pollScmCustomize;
     private String cronExpForPollScm;
     private String createUser;
     private String updateUser;
@@ -106,6 +107,14 @@ public class Job  implements Serializable{
 
     public void setPollScm(boolean pollScm) {
         this.pollScm = pollScm;
+    }
+
+    public boolean isPollScmCustomize() {
+        return pollScmCustomize;
+    }
+
+    public void setPollScmCustomize(boolean pollScmCustomize) {
+        this.pollScmCustomize = pollScmCustomize;
     }
 
     public String getCronExpForPollScm() {

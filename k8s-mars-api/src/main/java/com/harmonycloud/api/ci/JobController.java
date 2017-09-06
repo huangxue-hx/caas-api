@@ -136,8 +136,12 @@ public class JobController {
 
     @RequestMapping(value = "/trigger", method = RequestMethod.PUT)
     @ResponseBody
-    public ActionReturnUtil updateTrigger(@RequestBody JobDto job){
-        return jobService.updateTrigger(job);
+    public ActionReturnUtil updateTrigger(@RequestBody JobDto job) throws Exception {
+        try {
+            return jobService.updateTrigger(job);
+        } catch (Exception e) {
+            return ActionReturnUtil.returnErrorWithMsg("更新持续集成规则失败。");
+        }
     }
 
     @RequestMapping(value = "/trigger", method = RequestMethod.GET)

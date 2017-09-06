@@ -13,6 +13,7 @@
         <result column="mail" property="mail" jdbcType="VARCHAR" />
         <result column="trigger" property="trigger" jdbcType="BOOLEAN" />
         <result column="poll_scm" property="pollScm" jdbcType="BOOLEAN" />
+        <result column="poll_scm_customize" property="pollScmCustomize" jdbcType="BOOLEAN" />
         <result column="cron_exp_for_poll_scm" property="cronExpForPollScm" jdbcType="VARCHAR" />
         <result column="create_user" property="createUser" jdbcType="VARCHAR" />
         <result column="update_user" property="updateUser" jdbcType="VARCHAR" />
@@ -31,7 +32,7 @@
     </select>
 
     <select id="queryById" resultMap="BaseResultMap" parameterType="java.lang.Integer">
-        SELECT id,name,tenant,tenant_id,notification,success_notification,fail_notification,mail,`trigger`,poll_scm,cron_exp_for_poll_scm,create_user,last_build_num
+        SELECT id,name,tenant,tenant_id,notification,success_notification,fail_notification,mail,`trigger`,poll_scm,poll_scm_customize,cron_exp_for_poll_scm,create_user,last_build_num
         FROM cicd_job
         WHERE id = #{id}
     </select>
@@ -55,6 +56,7 @@
         UPDATE cicd_job
         SET `trigger` = #{trigger},
         poll_scm = #{pollScm},
+        poll_scm_customize = #{pollScmCustomize},
         cron_exp_for_poll_scm = #{cronExpForPollScm},
         update_user = #{updateUser},
         update_time = #{updateTime}

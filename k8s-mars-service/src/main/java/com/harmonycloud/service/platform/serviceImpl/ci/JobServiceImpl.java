@@ -833,29 +833,47 @@ public class JobServiceImpl implements JobService {
         Map triggerMap = new HashMap();
         triggerMap.put("trigger", job.isTrigger());
         triggerMap.put("pollScm", job.isPollScm());
-        if(StringUtils.isNotBlank(job.getCronExpForPollScm())){
-            String cron = job.getCronExpForPollScm();
-            String[] part = cron.split(" ");
-            triggerMap.put("dayOfMonth", part[2]);
-            triggerMap.put("dayOfWeek", part[4]);
-            triggerMap.put("hour", part[1]);
-            triggerMap.put("minute", part[0]);
+        triggerMap.put("pollScmCustomize", job.isPollScmCustomize());
+        if(job.isPollScmCustomize()){
+            triggerMap.put("cronExpForPollScm",job.getCronExpForPollScm());
+        }else{
+            List<JobDto.TimeRule> timeRuleList = new ArrayList<>();
+            if(StringUtils.isNotBlank(job.getCronExpForPollScm()));
+            String[] cronArray = job.getCronExpForPollScm().split("\n");
+            for(String cron: cronArray){
+                JobDto.TimeRule timeRule = new JobDto.TimeRule();
+                String[] part = cron.split(" ");
+                timeRule.setDayOfMonth(part[2]);
+                timeRule.setDayOfWeek(part[4]);
+                timeRule.setHour(part[1]);
+                timeRule.setMinute(part[0]);
+                timeRuleList.add(timeRule);
+            }
+            triggerMap.put("pollScmTimeRule", timeRuleList);
         }
         return ActionReturnUtil.returnSuccessWithData(triggerMap);
     }
 
     @Override
-    public ActionReturnUtil updateTrigger(JobDto jobDto) {
+    public ActionReturnUtil updateTrigger(JobDto jobDto) throws Exception {
         String username = (String)session.getAttribute("username");
         jobDto.setUpdateUser(username);
         jobDto.setUpdateTime(new Date());
         String cron = null;
-        if(StringUtils.isNotBlank(jobDto.getDayOfMonth()) && StringUtils.isNotBlank(jobDto.getDayOfWeek()) && StringUtils.isNotBlank(jobDto.getHour()) && StringUtils.isNotBlank(jobDto.getMinute())){
-            cron = jobDto.getMinute() + " " + jobDto.getHour() + " " + jobDto.getDayOfMonth() + " * " + jobDto.getDayOfWeek();
+        List cronList = new ArrayList<>();
+        if(!jobDto.isPollScmCustomize()){
+            for(JobDto.TimeRule timeRule:jobDto.getPollScmTimeRule()){
+                cron = null;
+                if(StringUtils.isNotBlank(timeRule.getDayOfMonth()) && StringUtils.isNotBlank(timeRule.getDayOfWeek()) && StringUtils.isNotBlank(timeRule.getHour()) && StringUtils.isNotBlank(timeRule.getMinute())){
+                    cron = timeRule.getMinute() + " " + timeRule.getHour() + " " + timeRule.getDayOfMonth() + " * " + timeRule.getDayOfWeek();
+                }
+                cronList.add(cron);
+            }
+            jobDto.setCronExpForPollScm(String.join("\n", cronList));
         }
-        jobDto.setCronExpForPollScm(cron);
         Job job = jobDto.convertToBean();
         jobMapper.updateTrigger(job);
+        stageService.updateJenkinsJob(jobDto.getId());
         return ActionReturnUtil.returnSuccess();
     }
 
