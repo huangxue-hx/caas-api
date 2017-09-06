@@ -11,9 +11,10 @@
     <result column="third_module" property="thirdModule" jdbcType="VARCHAR" />
     <result column="status" property="status" jdbcType="BIT" />
     <result column="mark" property="mark" jdbcType="VARCHAR" />
-    <result column="isParent" property="isparent" jdbcType="BIT" />
     <result column="parent_rpid" property="parentRpid" jdbcType="INTEGER" />
+    <result column="isParent" property="isparent" jdbcType="BIT" />
     <result column="rpid" property="rpid" jdbcType="INTEGER" />
+    <result column="parentid" property="parentid" jdbcType="INTEGER" />
   </resultMap>
   <sql id="Example_Where_Clause" >
     <where >
@@ -74,8 +75,8 @@
     </where>
   </sql>
   <sql id="Base_Column_List" >
-    id, role, privilege, update_time, first_module, second_module, third_module, status, 
-    mark, parentid, isParent, parent_rpid, rpid
+    id, role, privilege, update_time, first_module, second_module, third_module, status,
+    mark, parent_rpid, isParent, rpid, parentid
   </sql>
   <select id="selectByExample" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilegeExample" >
     select
@@ -93,7 +94,7 @@
     </if>
   </select>
   <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="java.lang.Integer" >
-    select 
+    select
     <include refid="Base_Column_List" />
     from role_privilege
     where id = #{id,jdbcType=INTEGER}
@@ -109,14 +110,16 @@
     </if>
   </delete>
   <insert id="insert" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilege" >
-    insert into role_privilege (id, role, privilege, 
-      update_time, first_module, second_module, 
-      third_module, status, mark, 
-      parentid, isParent)
-    values (#{id,jdbcType=INTEGER}, #{role,jdbcType=VARCHAR}, #{privilege,jdbcType=VARCHAR}, 
-      #{updateTime,jdbcType=TIMESTAMP}, #{firstModule,jdbcType=VARCHAR}, #{secondModule,jdbcType=VARCHAR}, 
-      #{thirdModule,jdbcType=VARCHAR}, #{status,jdbcType=BIT}, #{mark,jdbcType=VARCHAR}, 
-      #{parentid,jdbcType=INTEGER}, #{isparent,jdbcType=BIT})
+    insert into role_privilege (id, role, privilege,
+    update_time, first_module, second_module,
+    third_module, status, mark,
+    parent_rpid, isParent, rpid,
+    parentid)
+    values (#{id,jdbcType=INTEGER}, #{role,jdbcType=VARCHAR}, #{privilege,jdbcType=VARCHAR},
+    #{updateTime,jdbcType=TIMESTAMP}, #{firstModule,jdbcType=VARCHAR}, #{secondModule,jdbcType=VARCHAR},
+    #{thirdModule,jdbcType=VARCHAR}, #{status,jdbcType=BIT}, #{mark,jdbcType=VARCHAR},
+    #{parentRpid,jdbcType=INTEGER}, #{isparent,jdbcType=BIT}, #{rpid,jdbcType=INTEGER},
+    #{parentid,jdbcType=INTEGER})
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.tenant.bean.RolePrivilege" >
     insert into role_privilege
@@ -148,11 +151,17 @@
       <if test="mark != null" >
         mark,
       </if>
-      <if test="parentid != null" >
-        parentid,
+      <if test="parentRpid != null" >
+        parent_rpid,
       </if>
       <if test="isparent != null" >
         isParent,
+      </if>
+      <if test="rpid != null" >
+        rpid,
+      </if>
+      <if test="parentid != null" >
+        parentid,
       </if>
     </trim>
     <trim prefix="values (" suffix=")" suffixOverrides="," >
@@ -183,11 +192,17 @@
       <if test="mark != null" >
         #{mark,jdbcType=VARCHAR},
       </if>
-      <if test="parentid != null" >
-        #{parentid,jdbcType=INTEGER},
+      <if test="parentRpid != null" >
+        #{parentRpid,jdbcType=INTEGER},
       </if>
       <if test="isparent != null" >
         #{isparent,jdbcType=BIT},
+      </if>
+      <if test="rpid != null" >
+        #{rpid,jdbcType=INTEGER},
+      </if>
+      <if test="parentid != null" >
+        #{parentid,jdbcType=INTEGER},
       </if>
     </trim>
   </insert>
@@ -221,11 +236,17 @@
       <if test="record.mark != null" >
         mark = #{record.mark,jdbcType=VARCHAR},
       </if>
-      <if test="record.parentid != null" >
-        parentid = #{record.parentid,jdbcType=INTEGER},
+      <if test="record.parentRpid != null" >
+        parent_rpid = #{record.parentRpid,jdbcType=INTEGER},
       </if>
       <if test="record.isparent != null" >
         isParent = #{record.isparent,jdbcType=BIT},
+      </if>
+      <if test="record.rpid != null" >
+        rpid = #{record.rpid,jdbcType=INTEGER},
+      </if>
+      <if test="record.parentid != null" >
+        parentid = #{record.parentid,jdbcType=INTEGER},
       </if>
     </set>
     <if test="_parameter != null" >
@@ -235,16 +256,18 @@
   <update id="updateByExample" parameterType="map" >
     update role_privilege
     set id = #{record.id,jdbcType=INTEGER},
-      role = #{record.role,jdbcType=VARCHAR},
-      privilege = #{record.privilege,jdbcType=VARCHAR},
-      update_time = #{record.updateTime,jdbcType=TIMESTAMP},
-      first_module = #{record.firstModule,jdbcType=VARCHAR},
-      second_module = #{record.secondModule,jdbcType=VARCHAR},
-      third_module = #{record.thirdModule,jdbcType=VARCHAR},
-      status = #{record.status,jdbcType=BIT},
-      mark = #{record.mark,jdbcType=VARCHAR},
-      parentid = #{record.parentid,jdbcType=INTEGER},
-      isParent = #{record.isparent,jdbcType=BIT}
+    role = #{record.role,jdbcType=VARCHAR},
+    privilege = #{record.privilege,jdbcType=VARCHAR},
+    update_time = #{record.updateTime,jdbcType=TIMESTAMP},
+    first_module = #{record.firstModule,jdbcType=VARCHAR},
+    second_module = #{record.secondModule,jdbcType=VARCHAR},
+    third_module = #{record.thirdModule,jdbcType=VARCHAR},
+    status = #{record.status,jdbcType=BIT},
+    mark = #{record.mark,jdbcType=VARCHAR},
+    parent_rpid = #{record.parentRpid,jdbcType=INTEGER},
+    isParent = #{record.isparent,jdbcType=BIT},
+    rpid = #{record.rpid,jdbcType=INTEGER},
+    parentid = #{record.parentid,jdbcType=INTEGER}
     <if test="_parameter != null" >
       <include refid="Update_By_Example_Where_Clause" />
     </if>
@@ -276,11 +299,17 @@
       <if test="mark != null" >
         mark = #{mark,jdbcType=VARCHAR},
       </if>
-      <if test="parentid != null" >
-        parentid = #{parentid,jdbcType=INTEGER},
+      <if test="parentRpid != null" >
+        parent_rpid = #{parentRpid,jdbcType=INTEGER},
       </if>
       <if test="isparent != null" >
         isParent = #{isparent,jdbcType=BIT},
+      </if>
+      <if test="rpid != null" >
+        rpid = #{rpid,jdbcType=INTEGER},
+      </if>
+      <if test="parentid != null" >
+        parentid = #{parentid,jdbcType=INTEGER},
       </if>
     </set>
     where id = #{id,jdbcType=INTEGER}
@@ -295,8 +324,10 @@
       third_module = #{thirdModule,jdbcType=VARCHAR},
       status = #{status,jdbcType=BIT},
       mark = #{mark,jdbcType=VARCHAR},
-      parentid = #{parentid,jdbcType=INTEGER},
-      isParent = #{isparent,jdbcType=BIT}
+      parent_rpid = #{parentRpid,jdbcType=INTEGER},
+      isParent = #{isparent,jdbcType=BIT},
+      rpid = #{rpid,jdbcType=INTEGER},
+      parentid = #{parentid,jdbcType=INTEGER}
     where id = #{id,jdbcType=INTEGER}
   </update>
 </mapper>

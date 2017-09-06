@@ -386,7 +386,7 @@ public class ResourceExample {
         }
 
         public Criteria andParentIdEqualTo(Integer value) {
-            addCriterion("parent_rpid =", value, "parent_rpid");
+            addCriterion("parent_id =", value, "parentId");
             return (Criteria) this;
         }
 
@@ -952,6 +952,186 @@ public class ResourceExample {
 
         public Criteria andRoleNotBetween(String value1, String value2) {
             addCriterion("role not between", value1, value2, "role");
+            return (Criteria) this;
+        }
+
+        public Criteria andIsparentIsNull() {
+            addCriterion("isParent is null");
+            return (Criteria) this;
+        }
+
+        public Criteria andIsparentIsNotNull() {
+            addCriterion("isParent is not null");
+            return (Criteria) this;
+        }
+
+        public Criteria andIsparentEqualTo(Integer value) {
+            addCriterion("isParent =", value, "isparent");
+            return (Criteria) this;
+        }
+
+        public Criteria andIsparentNotEqualTo(Integer value) {
+            addCriterion("isParent <>", value, "isparent");
+            return (Criteria) this;
+        }
+
+        public Criteria andIsparentGreaterThan(Integer value) {
+            addCriterion("isParent >", value, "isparent");
+            return (Criteria) this;
+        }
+
+        public Criteria andIsparentGreaterThanOrEqualTo(Integer value) {
+            addCriterion("isParent >=", value, "isparent");
+            return (Criteria) this;
+        }
+
+        public Criteria andIsparentLessThan(Integer value) {
+            addCriterion("isParent <", value, "isparent");
+            return (Criteria) this;
+        }
+
+        public Criteria andIsparentLessThanOrEqualTo(Integer value) {
+            addCriterion("isParent <=", value, "isparent");
+            return (Criteria) this;
+        }
+
+        public Criteria andIsparentIn(List<Integer> values) {
+            addCriterion("isParent in", values, "isparent");
+            return (Criteria) this;
+        }
+
+        public Criteria andIsparentNotIn(List<Integer> values) {
+            addCriterion("isParent not in", values, "isparent");
+            return (Criteria) this;
+        }
+
+        public Criteria andIsparentBetween(Integer value1, Integer value2) {
+            addCriterion("isParent between", value1, value2, "isparent");
+            return (Criteria) this;
+        }
+
+        public Criteria andIsparentNotBetween(Integer value1, Integer value2) {
+            addCriterion("isParent not between", value1, value2, "isparent");
+            return (Criteria) this;
+        }
+
+        public Criteria andParentRpidIsNull() {
+            addCriterion("parent_rpid is null");
+            return (Criteria) this;
+        }
+
+        public Criteria andParentRpidIsNotNull() {
+            addCriterion("parent_rpid is not null");
+            return (Criteria) this;
+        }
+
+        public Criteria andParentRpidEqualTo(Integer value) {
+            addCriterion("parent_rpid =", value, "parentRpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andParentRpidNotEqualTo(Integer value) {
+            addCriterion("parent_rpid <>", value, "parentRpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andParentRpidGreaterThan(Integer value) {
+            addCriterion("parent_rpid >", value, "parentRpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andParentRpidGreaterThanOrEqualTo(Integer value) {
+            addCriterion("parent_rpid >=", value, "parentRpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andParentRpidLessThan(Integer value) {
+            addCriterion("parent_rpid <", value, "parentRpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andParentRpidLessThanOrEqualTo(Integer value) {
+            addCriterion("parent_rpid <=", value, "parentRpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andParentRpidIn(List<Integer> values) {
+            addCriterion("parent_rpid in", values, "parentRpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andParentRpidNotIn(List<Integer> values) {
+            addCriterion("parent_rpid not in", values, "parentRpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andParentRpidBetween(Integer value1, Integer value2) {
+            addCriterion("parent_rpid between", value1, value2, "parentRpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andParentRpidNotBetween(Integer value1, Integer value2) {
+            addCriterion("parent_rpid not between", value1, value2, "parentRpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andRpidIsNull() {
+            addCriterion("rpid is null");
+            return (Criteria) this;
+        }
+
+        public Criteria andRpidIsNotNull() {
+            addCriterion("rpid is not null");
+            return (Criteria) this;
+        }
+
+        public Criteria andRpidEqualTo(Integer value) {
+            addCriterion("rpid =", value, "rpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andRpidNotEqualTo(Integer value) {
+            addCriterion("rpid <>", value, "rpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andRpidGreaterThan(Integer value) {
+            addCriterion("rpid >", value, "rpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andRpidGreaterThanOrEqualTo(Integer value) {
+            addCriterion("rpid >=", value, "rpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andRpidLessThan(Integer value) {
+            addCriterion("rpid <", value, "rpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andRpidLessThanOrEqualTo(Integer value) {
+            addCriterion("rpid <=", value, "rpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andRpidIn(List<Integer> values) {
+            addCriterion("rpid in", values, "rpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andRpidNotIn(List<Integer> values) {
+            addCriterion("rpid not in", values, "rpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andRpidBetween(Integer value1, Integer value2) {
+            addCriterion("rpid between", value1, value2, "rpid");
+            return (Criteria) this;
+        }
+
+        public Criteria andRpidNotBetween(Integer value1, Integer value2) {
+            addCriterion("rpid not between", value1, value2, "rpid");
             return (Criteria) this;
         }
     }

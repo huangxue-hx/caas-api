@@ -2,9 +2,8 @@ package com.harmonycloud.dao.tenant;
 
 import com.harmonycloud.dao.tenant.bean.RolePrivilegeCustom;
 import com.harmonycloud.dao.tenant.bean.RolePrivilegeCustomExample;
-import org.apache.ibatis.annotations.Param;
-
 import java.util.List;
+import org.apache.ibatis.annotations.Param;
 
 public interface RolePrivilegeCustomMapper {
     int deleteByExample(RolePrivilegeCustomExample example);

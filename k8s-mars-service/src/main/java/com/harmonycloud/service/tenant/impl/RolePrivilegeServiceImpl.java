@@ -79,7 +79,7 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
                 throw new MarsRuntimeException("系统异常,权限数据格式错误,请联系管理员");
             }
             Boolean status = map.getStatus();
-            if((!status) && resource.getAvailable()){
+            if(status ^ resource.getAvailable()){
                 this.resourceService.updateRoleMenuResource(resource.getId(), status);
             }
             List<RolePrivilege> moduleByParentIdSecond = this.getAllStatusModuleByParentId(map.getId(), roleName);
@@ -87,7 +87,7 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
                 Resource resourceSecond = this.getRolePrivateByMark(rolePrivilegeSecond.getMark(),roleName);
                 if(resourceSecond != null){
                     Boolean statusSecond = rolePrivilegeSecond.getStatus();
-                    if((!statusSecond) && resource.getAvailable()){
+                    if(statusSecond ^ resource.getAvailable()){
                         this.resourceService.updateRoleMenuResource(resourceSecond.getId(), status);
                     }
                 }
@@ -114,7 +114,7 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
 
     @Override
     public void resetRolePrivilegeByRoleName(String roleName) throws Exception {
-        RolePrivilegeCustomExample example = new RolePrivilegeCustomExample ();
+        RolePrivilegeCustomExample example = new RolePrivilegeCustomExample();
         example.createCriteria().andRoleEqualTo(roleName);
         List<RolePrivilegeCustom> selectByExample = rolePrivilegeCustomMapper.selectByExample(example);
         if(selectByExample.isEmpty()){
@@ -133,6 +133,7 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
             rolePrivilege.setUpdateTime(new Date());
             this.updateModule(rolePrivilege);
         }
+        updateRoleMenu(roleName);
 
     }
 
@@ -155,9 +156,10 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
         }
         List<RolePrivilege> list = null;
         if(isMenu){
-            list = this.getAllStatusModuleByParentId(0,roleName);
-            if(list.size()<=0){
+            if(roleName==null||roleName.isEmpty()){
                 list = this.getAllStatusModuleByParentId(0,CommonConstant.DEFAULT);
+            }else{
+                list = this.getAllStatusModuleByParentId(0,roleName);
             }
         }else{
             list = this.getModuleByParentId(0,roleName);

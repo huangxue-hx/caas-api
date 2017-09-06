@@ -156,5 +156,25 @@ public void updateRoleMenuResource(Integer id, Boolean status) throws Exception 
         }
         return result;
     }
-    
+
+    public void addNewRoleMenu(String roleName) throws Exception{
+        List<Resource> resourceList = this.getRoleResourceList(CommonConstant.DEFAULT);
+        for(Resource resource:resourceList){
+            resource.setId(null);
+            resource.setCreateTime(new Date());
+            resource.setUpdateTime(new Date());
+            resource.setRole(roleName);
+            this.addMoudle(resource);
+        }
+    }
+
+    @Override
+    public List<Resource> getRoleResourceList(String roleName) throws Exception {
+        ResourceExample example = new ResourceExample();
+        example.createCriteria().andRoleEqualTo(roleName);
+        return resourceMapper.selectByExample(example);
+    }
+    private void addMoudle(Resource resource) throws Exception{
+        resourceMapper.insertSelective(resource);
+    }
 }

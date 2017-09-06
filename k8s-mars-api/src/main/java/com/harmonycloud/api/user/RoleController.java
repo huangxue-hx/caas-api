@@ -6,6 +6,7 @@ import java.util.Map;
 
 import com.harmonycloud.dao.tenant.bean.RolePrivilege;
 import com.harmonycloud.dao.user.bean.Role;
+import com.harmonycloud.dao.user.bean.RoleExample;
 import com.harmonycloud.service.tenant.RolePrivilegeService;
 import com.harmonycloud.service.tenant.impl.RoleServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,9 +46,20 @@ public class RoleController {
 	public ActionReturnUtil updateRolePrivilege(@RequestBody Map<String, Object> map) throws Exception {
 		List<Map<String, Object>> list = (List<Map<String, Object>>)map.get("rolePrivilegeList");
 		String roleName = (String)map.get("roleName");
+		Role role = roleService.getRoleByRoleName(roleName);
+		String description = (String)map.get("description");
+		if(description!=null&&!description.isEmpty()&&!description.equals(role.getDescription())){
+			role.setUpdateTime(new Date());
+			role.setDescription(description);
+			roleService.updateRole(role);
+		}
 //	        rolePrivilegeList
-		rolePrivilegeService.updateRolePrivilege(roleName,list);
-		return ActionReturnUtil.returnSuccess();
+		if(list==null||list.size()==0){
+			return ActionReturnUtil.returnSuccess();
+		}else {
+			rolePrivilegeService.updateRolePrivilege(roleName, list);
+			return ActionReturnUtil.returnSuccess();
+		}
 	}
 	/**
 	 * 根据角色名获取所有可用权限菜单列表
@@ -84,6 +96,19 @@ public class RoleController {
 	@ResponseBody
 	public ActionReturnUtil resetRole() throws Exception {
 		roleService.resetRole();
+		return ActionReturnUtil.returnSuccess();
+	}
+	/**
+	 * 重置对应角色权限
+	 * @param roleName
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/role/resetPrivilegeByRoleName", method = RequestMethod.PUT)
+	@ResponseBody
+	public ActionReturnUtil resetPrivilegeByRoleName(String roleName) throws Exception {
+		//TODO
+		rolePrivilegeService.resetRolePrivilegeByRoleName(roleName);
 		return ActionReturnUtil.returnSuccess();
 	}
 
@@ -140,16 +165,24 @@ public class RoleController {
 	 */
 	@RequestMapping(value = "/role/addRole", method = RequestMethod.POST)
 	@ResponseBody
-	public ActionReturnUtil addRole(Role role,Map<String, Object> map) throws Exception {
-		List<Map<String, Object>> rolePrivilegeList = (List<Map<String, Object>>)map.get("rolePrivilegeList");
-		Role roleByRoleName = roleService.getRoleByRoleName(role.getName());
-		if(roleByRoleName != null  && roleByRoleName.getAvailable() == Boolean.TRUE){
-			throw new MarshalException("创建的角色："+role.getName() + "已经存在,请重新输入!");
+	public ActionReturnUtil addRole(@RequestBody Map<String, Object> map) throws Exception {
+		List<Map<String, Object>> NewRolePrivilegeList = (List<Map<String, Object>>)map.get("rolePrivilegeList");
+		String roleName = (String)map.get("name");
+		String description = (String)map.get("description");
+		if(description==null||description.isEmpty()){
+			description=roleName;
 		}
+		Role roleByRoleName = roleService.getRoleByRoleName(roleName);
+		if(roleByRoleName != null  && roleByRoleName.getAvailable() == Boolean.TRUE){
+			throw new MarshalException("创建的角色："+ roleName + "已经存在,请重新输入!");
+		}
+		Role role = new Role();
+		role.setName(roleName);
+		role.setDescription(description);
 		role.setAvailable(Boolean.TRUE);
 		role.setCreateTime(new Date());
 		role.setUpdateTime(new Date());
-		roleService.addRole(role,rolePrivilegeList);
+		roleService.addRole(role,NewRolePrivilegeList);
 		return ActionReturnUtil.returnSuccess();
 	}
 	/**

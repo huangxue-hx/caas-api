@@ -50,4 +50,17 @@ public interface ResourceService {
      * @throws Exception
      */
     public List<Map<String, Object>> listMenuByRole(String roleName) throws Exception;
+
+    /**
+     * 添加新角色菜单
+     * @return
+     * @throws Exception
+     */
+    public void addNewRoleMenu(String roleName) throws Exception;
+    /**
+     * 添加新角色菜单List
+     * @return
+     * @throws Exception
+     */
+    public List<Resource> getRoleResourceList(String roleName) throws Exception;
 }

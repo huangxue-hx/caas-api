@@ -885,31 +885,6 @@ public class RolePrivilegeExample {
             return (Criteria) this;
         }
 
-        public Criteria andParentidLessThanOrEqualTo(Integer value) {
-            addCriterion("parentid <=", value, "parentid");
-            return (Criteria) this;
-        }
-
-        public Criteria andParentidIn(List<Integer> values) {
-            addCriterion("parentid in", values, "parentid");
-            return (Criteria) this;
-        }
-
-        public Criteria andParentidNotIn(List<Integer> values) {
-            addCriterion("parentid not in", values, "parentid");
-            return (Criteria) this;
-        }
-
-        public Criteria andParentidBetween(Integer value1, Integer value2) {
-            addCriterion("parentid between", value1, value2, "parentid");
-            return (Criteria) this;
-        }
-
-        public Criteria andParentidNotBetween(Integer value1, Integer value2) {
-            addCriterion("parentid not between", value1, value2, "parentid");
-            return (Criteria) this;
-        }
-
         public Criteria andParentidIsNull() {
             addCriterion("parentid is null");
             return (Criteria) this;
@@ -945,16 +920,30 @@ public class RolePrivilegeExample {
             return (Criteria) this;
         }
 
+        public Criteria andParentidLessThanOrEqualTo(Integer value) {
+            addCriterion("parentid <=", value, "parentid");
+            return (Criteria) this;
+        }
 
+        public Criteria andParentidIn(List<Integer> values) {
+            addCriterion("parentid in", values, "parentid");
+            return (Criteria) this;
+        }
 
+        public Criteria andParentidNotIn(List<Integer> values) {
+            addCriterion("parentid not in", values, "parentid");
+            return (Criteria) this;
+        }
 
+        public Criteria andParentidBetween(Integer value1, Integer value2) {
+            addCriterion("parentid between", value1, value2, "parentid");
+            return (Criteria) this;
+        }
 
-
-
-
-
-
-
+        public Criteria andParentidNotBetween(Integer value1, Integer value2) {
+            addCriterion("parentid not between", value1, value2, "parentid");
+            return (Criteria) this;
+        }
     }
 
     public static class Criteria extends GeneratedCriteria {
