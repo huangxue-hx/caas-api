@@ -801,8 +801,12 @@ public class TenantServiceImpl implements TenantService {
         }
         String currentUserName = currentUser.toString();
         if(!this.isAdmin(tenantid, currentUserName)){
-            return ActionReturnUtil.returnErrorWithMsg("用户:" + username + "不为管理员或者租户管理员，不能删除用户操作");
+            return ActionReturnUtil.returnErrorWithMsg("用户:" + currentUserName + "不为管理员或者租户管理员，不能删除用户操作");
         }
+        List<UserTenant> userByTenantid = userTenantService.getUserByTenantid(tenantid);
+//        if(userByTenantid.size() <= 1){
+//            return ActionReturnUtil.returnErrorWithMsg("当前租户只有一个用户，不能执行移除用户操作");
+//        }
         NamespaceList namespaceList = this.namespaceService1.getNamespacesListbyLabelSelector(label, cluster);
         List<Namespace> items = namespaceList.getItems();
         if (items.size() >= 1) {

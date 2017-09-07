@@ -234,14 +234,24 @@ public class NamespaceServiceImpl implements NamespaceService {
         // 查询namespace详情
         Cluster cluster = this.getClusterByTenantid(namespaceDto.getTenantid());
         if (namespaceDto.isPrivate()) {
-            Map node = nodeService.getNode(namespaceDto.getNodename(), cluster);
-            NodeDetailDto nodeDetail = (NodeDetailDto) node.get(CommonConstant.DATA);
-            if (nodeDetail == null) {
-                return ActionReturnUtil.returnErrorWithMsg("获取node:" + namespaceDto.getNodename() + "信息错误");
-            }
             QuotaDto quota2 = namespaceDto.getQuota();
-            quota2.setCpu(nodeDetail.getCpu());
-            quota2.setMemory(nodeDetail.getMemory() + CommonConstant.GI);
+            String nodename = namespaceDto.getNodename();
+            if(StringUtils.isEmpty(nodename)){
+                return ActionReturnUtil.returnErrorWithMsg("nodename不能为空!");
+            }
+            String[] nodenames = nodename.split(CommonConstant.COMMA);
+            for (String name : nodenames) {
+                Map node = nodeService.getNode(name, cluster);
+                NodeDetailDto nodeDetail = (NodeDetailDto) node.get(CommonConstant.DATA);
+                if (nodeDetail == null && StringUtils.isEmpty(nodeDetail.getCpu())) {
+                    return ActionReturnUtil.returnErrorWithMsg("获取node:" + name + "信息错误");
+                }
+                Double oldCpuValue = quota2.getCpu()==null?0d:(quota2.getCpu().contains(CommonConstant.SMALLM)?(Double.parseDouble(quota2.getCpu().split(CommonConstant.SMALLM)[0])/1000):Double.parseDouble(quota2.getCpu()));
+                quota2.setCpu(oldCpuValue + (nodeDetail.getCpu().contains(CommonConstant.SMALLM)?(Double.parseDouble(nodeDetail.getCpu().split(CommonConstant.SMALLM)[0])/1000):Double.parseDouble(nodeDetail.getCpu()))+"");
+                Double oldMemoryValue = quota2.getMemory()==null?0d:Double.parseDouble(quota2.getMemory().split(CommonConstant.GI)[0]);
+                quota2.setMemory((Double.parseDouble(nodeDetail.getMemory()) + oldMemoryValue)+ CommonConstant.GI);
+            }
+            
             namespaceDto.setQuota(quota2);
         }
 
@@ -1068,10 +1078,6 @@ public class NamespaceServiceImpl implements NamespaceService {
 
         List<UserTenant> userByTenantid = userTenantService.getUserByTenantid(namespaceDto.getTenantid());
         if (null == userByTenantid || userByTenantid.size() <= 0) {
-            logger.error("查询租户绑定信息失败,tenantId=" + namespaceDto.getTenantid());
-            return ActionReturnUtil.returnErrorWithMsg("查询租户绑定信息失败,tenantId=" + namespaceDto.getTenantid());
-        }
-        if (userByTenantid.size() <= 0) {
             return ActionReturnUtil.returnSuccess();
         }
         for (UserTenant userTenant : userByTenantid) {
