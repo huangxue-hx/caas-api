@@ -855,11 +855,11 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		if(!scaleDeleted){
 			return ActionReturnUtil.returnErrorWithMsg("删除自动伸缩失败");
 		}
-		// 将实例数变成0
-		ActionReturnUtil sReturn = scaleDeployment(namespace, name, 0,userName, cluster);
-		if (!sReturn.isSuccess() && (Constant.HTTP_404.toString()).equals(sReturn.get("msg").toString())) {
-			return ActionReturnUtil.returnSuccess();
-		}
+//		// 将实例数变成0
+//		ActionReturnUtil sReturn = scaleDeployment(namespace, name, 0,userName, cluster);
+//		if (!sReturn.isSuccess() && (Constant.HTTP_404.toString()).equals(sReturn.get("msg").toString())) {
+//			return ActionReturnUtil.returnSuccess();
+//		}
 
 		// 获取deployment
 		K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);

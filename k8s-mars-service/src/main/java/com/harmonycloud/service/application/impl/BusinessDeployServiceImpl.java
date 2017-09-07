@@ -254,7 +254,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
             other = namespace[0].split(SIGN);
             if (other.length >= 3){
-                appName = other[2];
+                appName = id.substring(id.indexOf(SIGN,id.indexOf(SIGN)+1 )+1,id.indexOf(SIGN_EQUAL));
             }
         }
 
