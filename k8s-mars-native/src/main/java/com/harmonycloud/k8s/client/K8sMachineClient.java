@@ -58,7 +58,6 @@ public class K8sMachineClient {
 		k8surl.setProtocol(cluster.getProtocol());
 
 		String url = getUrl(k8surl);
-		System.out.println(url);
 		K8SClientResponse kr = new K8SClientResponse();
 
 		if (headers == null) {

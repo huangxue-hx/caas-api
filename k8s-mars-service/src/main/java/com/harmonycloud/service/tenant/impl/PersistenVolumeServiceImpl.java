@@ -162,7 +162,13 @@ public class PersistenVolumeServiceImpl implements PersistentVolumeService{
                         pvDto.setUsage("false");
                     } else {
                         // 设置usage
-                        pvDto.setUsage(pv.getSpec().getClaimRef().getName());
+                        Map<String,Object> l = pv.getMetadata().getLabels();
+                        if (l != null && l.get("app") != null){
+                            pvDto.setUsage(l.get("app").toString());
+                        } else {
+                            //兼容 上一版本
+                            pvDto.setUsage(pv.getSpec().getClaimRef().getName());
+                        }
                     }
                     // 设置容量
                     @SuppressWarnings("unchecked")

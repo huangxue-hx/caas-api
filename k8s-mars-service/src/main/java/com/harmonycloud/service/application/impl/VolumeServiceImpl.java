@@ -24,6 +24,7 @@ import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.servlet.http.HttpSession;
 import java.util.*;
 
 @Service
@@ -37,6 +38,10 @@ public class VolumeServiceImpl implements VolumeSerivce {
 	
 	@Autowired
 	private DeploymentService depService;
+
+	@Autowired
+	HttpSession session;
+
 
 	@SuppressWarnings("unchecked")
 	@Override
@@ -176,6 +181,36 @@ public class VolumeServiceImpl implements VolumeSerivce {
 	public ActionReturnUtil createVolume(String namespace, String name, String capacity, String tenantid,
 			String readonly, String bindOne,String PVname, String svcName) throws Exception {
 		PersistentVolumeClaim pVolumeClaim = new PersistentVolumeClaim();
+
+		//update pv :get deployment name by pv
+		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+		PersistentVolume pv = pvService.getPvByName(PVname, null);
+		if (pv != null) {
+			Map<String, Object> bodysPV = new HashMap<String, Object>();
+			Map<String, Object> metadata = new HashMap<String, Object>();
+			metadata.put("name", pv.getMetadata().getName());
+			Map<String, Object> labelsPV = new HashMap<String, Object>();
+			labelsPV = pv.getMetadata().getLabels();
+			labelsPV.put("app",svcName);
+			metadata.put("labels", labelsPV);
+			bodysPV.put("metadata", metadata);
+			Map<String, Object> spec = new HashMap<String, Object>();
+			spec.put("capacity", pv.getSpec().getCapacity());
+			spec.put("nfs", pv.getSpec().getNfs());
+			spec.put("accessModes", pv.getSpec().getAccessModes());
+			bodysPV.put("spec", spec);
+			K8SURL urlPV = new K8SURL();
+			urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(PVname);
+			Map<String, Object> headersPV = new HashMap<>();
+			headersPV.put("Content-Type", "application/json");
+			K8SClientResponse responsePV = new K8SClient().doit(urlPV, HTTPMethod.PUT, headersPV, bodysPV, cluster);
+			if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
+				UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
+				return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+			}
+		}
+
+
 		ObjectMeta meta = new ObjectMeta();
 		meta.setName(name);
 		PersistentVolumeClaimSpec pvSpec = new PersistentVolumeClaimSpec();
