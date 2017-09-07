@@ -14,7 +14,10 @@ import javax.servlet.http.HttpServletResponse;
 
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.util.*;
+import com.harmonycloud.dao.tenant.UserTenantMapper;
+import com.harmonycloud.dao.tenant.bean.UserTenantExample;
 import com.harmonycloud.k8s.bean.MailRecord;
+import com.harmonycloud.service.tenant.TenantService;
 import org.apache.http.Header;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.poi.hssf.usermodel.HSSFCell;
@@ -96,6 +99,10 @@ public class UserService {
 
     @Autowired
     UserTenantService userTenantService;
+
+    @Autowired
+    TenantService tenantService;
+
 
     @Value("#{propertiesReader['webhook.host']}")
     private String webhook;
@@ -718,43 +725,58 @@ public class UserService {
             // K8SClient.converToBean(response, RoleBindingList.class);
             // items = roleBindingList.getItems();
             // }
+//            List<UserTenant> list = userTenantService.getUserByUserName(userName);
+//            if (list == null || list.size() == 0) {
+            //删除租户下信息
+            // 删除数据库中k8s账户
+            User userDb = userMapper.findByUsername(userName);
+            HarborUser harbor = harboruserMapper.findByUsername(userName);
             List<UserTenant> list = userTenantService.getUserByUserName(userName);
-            if (list == null || list.size() == 0) {
-
-                // 删除数据库中k8s账户
-                User userDb = userMapper.findByUsername(userName);
-                HarborUser harbor = harboruserMapper.findByUsername(userName);
-                // 删除harbor账户
-                // 先查询用户Id
-                try {
-                    String userId = userDb.getId().toString();
-                    String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + userId;
-                    String dlCookie = harborUtil.checkCookieTimeout();
-                    Map<String, Object> headers = new HashMap<String, Object>();
-                    headers.put("Cookie", dlCookie);
-                    HttpClientResponse deleteRes = HttpClientUtil.doDelete(deleteUrl, null, headers);
-                    // 根据返回code判断状态
-                    if (HttpStatusUtil.isSuccessStatus(deleteRes.getStatus())) {
-                        userMapper.deleteUserByName(userName);
-                        harboruserMapper.deleteUserByName(userName);
-                        return ActionReturnUtil.returnSuccess();
-                    } else {
-                        return ActionReturnUtil.returnErrorWithMsg(deleteRes.getBody());
+            // 删除harbor账户
+            // 先查询用户Id
+            try {
+                if(list!=null&&list.size()>0) {
+                    for(UserTenant userTenant:list) {
+                        tenantService.removeTenantUser(userTenant.getTenantid(), userTenant.getUsername());
                     }
-                } catch (Exception e) {
-                    // 回滚数据库
-                    userMapper.addUser(userDb);
-                    HarborUser harborUser2 = harboruserMapper.findByUsername(userDb.getUsername());
-                    if (harborUser2 == null) {
-                        harboruserMapper.addUser(harbor);
-                    } else {
-                        harboruserMapper.updatePassword(harbor.getUsername(), harbor.getPassword());
-                    }
-                    throw e;
                 }
-            } else {
-                return ActionReturnUtil.returnErrorWithMsg("请删除" + userName + "用户绑定信息");
+                String userId = userDb.getId().toString();
+                String deleteUrl = "http://" + harborIP + ":" + harborPort + "/api/users/" + userId;
+                String dlCookie = harborUtil.checkCookieTimeout();
+                Map<String, Object> headers = new HashMap<String, Object>();
+                headers.put("Cookie", dlCookie);
+                HttpClientResponse deleteRes = HttpClientUtil.doDelete(deleteUrl, null, headers);
+                // 根据返回code判断状态
+                if (HttpStatusUtil.isSuccessStatus(deleteRes.getStatus())) {
+                    userMapper.deleteUserByName(userName);
+                    harboruserMapper.deleteUserByName(userName);
+                    return ActionReturnUtil.returnSuccess();
+                } else {
+                    return ActionReturnUtil.returnErrorWithMsg(deleteRes.getBody());
+                }
+            } catch (Exception e) {
+                // 回滚数据库
+                User user4 = userMapper.findByUsername(userDb.getUsername());
+                if(user4==null) {
+                    userMapper.addUser(userDb);
+                }
+                HarborUser harborUser2 = harboruserMapper.findByUsername(userDb.getUsername());
+                if (harborUser2 == null) {
+                    harboruserMapper.addUser(harbor);
+                } else {
+                    harboruserMapper.updatePassword(harbor.getUsername(), harbor.getPassword());
+                }
+                for(UserTenant userTenant:list){
+                    UserTenant userTenant1 = userTenantService.getUserByUserNameAndTenantid(userTenant.getUsername(),userTenant.getTenantid());
+                    if(userTenant1==null) {
+                        tenantService.addTenantUser(userTenant.getTenantid(), userTenant.getUsername(), userTenant.getRole());
+                    }
+                }
+                throw e;
             }
+//            } else {
+//                return ActionReturnUtil.returnErrorWithMsg("请删除" + userName + "用户绑定信息");
+//            }
         } catch (Exception e) {
             throw e;
         }

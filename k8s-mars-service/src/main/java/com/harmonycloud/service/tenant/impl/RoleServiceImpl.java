@@ -214,6 +214,12 @@ public class RoleServiceImpl implements RoleService {
         RoleExample example = new RoleExample();
         example.createCriteria().andNameEqualTo(roleName);
         roleMapper.deleteByExample(example);
+        RolePrivilegeExample rolePrivilegeExample = new RolePrivilegeExample();
+        rolePrivilegeExample.createCriteria().andRoleEqualTo(roleName);
+        rolePrivilegeMapper.deleteByExample(rolePrivilegeExample);
+        ResourceExample resourceExample = new ResourceExample();
+        resourceExample.createCriteria().andRoleEqualTo(roleName);
+        resourceMapper.deleteByExample(resourceExample);
     }
 
     @Override
