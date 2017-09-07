@@ -1,5 +1,10 @@
 package com.harmonycloud.dto.scale;
 
+import org.hibernate.validator.constraints.NotBlank;
+
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
 import java.util.List;
 
 /**
@@ -7,12 +12,21 @@ import java.util.List;
  */
 public class AutoScaleDto {
 
-    private String namespace;
+	@NotBlank(message="分区不能为空")
+	private String namespace;
+	@NotBlank(message="服务名不能为空")
 	private String deploymentName;
+	@NotNull(message="最小实例数不能为空")
+	@Min(value=1, message="最小实例数不能小于1")
 	private Integer minPods;
+	@NotNull(message="最大实例数不能为空")
+	@Min(value=2, message="最大实例数不能小于2")
 	private Integer maxPods;
+	@Min(value=1, message="CPU使用率不能小于1%")
+	@Max(value=99, message="CPU使用率不能大于99%")
 	private Integer targetCpuUsage;
 	private Integer currentCpuUsage;
+	@Min(value=1, message="每秒请求数不能小于1")
 	private Long targetTps;
 	private Long currentTps;
 	private String lastScaleTime;

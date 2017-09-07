@@ -443,7 +443,6 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		PodList podList = JsonUtil.jsonToPojo(podRes.getBody(), PodList.class);
 		AppDetail res = K8sResultConvert.convertAppDetail(dep, serviceList, eventList, hapEve, podList);
 		res.setAutoScale(autoScaleService.get(namespace, name, cluster));
-		res.setAutoScaling(false);
 		return ActionReturnUtil.returnSuccessWithData(res);
 	}
 
@@ -639,7 +638,10 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 				pod, "log", null, bodys, HTTPMethod.GET,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			LOGGER.error("getPodAppLog failed. message:{}", response.getBody().toString());
-			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+			if(response.getBody() != null && response.getBody().indexOf("ContainerCreating") > 0){
+				return ActionReturnUtil.returnErrorWithData("服务正在启动，请稍后查询");
+			}
+			return ActionReturnUtil.returnErrorWithData("查询失败");
 		}
 		if(StringUtils.isBlank(response.getBody())){
 			return ActionReturnUtil.returnSuccessWithData("无");

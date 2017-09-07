@@ -13,7 +13,7 @@ public class ResourceMetricStatus {
 	
 	private Integer currentAverageUtilization;
 
-	private Integer currentAverageValue;
+	private String currentAverageValue;
 
 
 	public String getName() {
@@ -32,11 +32,11 @@ public class ResourceMetricStatus {
 		this.currentAverageUtilization = currentAverageUtilization;
 	}
 
-	public Integer getCurrentAverageValue() {
+	public String getCurrentAverageValue() {
 		return currentAverageValue;
 	}
 
-	public void setCurrentAverageValue(Integer currentAverageValue) {
+	public void setCurrentAverageValue(String currentAverageValue) {
 		this.currentAverageValue = currentAverageValue;
 	}
 }

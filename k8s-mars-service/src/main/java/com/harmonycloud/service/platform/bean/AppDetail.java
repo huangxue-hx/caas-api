@@ -47,8 +47,6 @@ public class AppDetail {
 	private List<PodDetail> podList;
 	
 	private List<EventDetail> events;
-	
-	private Object autoScaling;
 
 	private AutoScaleDto autoScale;
 	
@@ -186,14 +184,6 @@ public class AppDetail {
 
 	public void setEvents(List<EventDetail> events) {
 		this.events = events;
-	}
-
-	public Object getAutoScaling() {
-		return autoScaling;
-	}
-
-	public void setAutoScaling(Object autoScaling) {
-		this.autoScaling = autoScaling;
 	}
 
 	public List<Event> getAutoScalingHistory() {

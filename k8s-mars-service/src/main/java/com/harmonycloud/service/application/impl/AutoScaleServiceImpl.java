@@ -3,6 +3,7 @@ package com.harmonycloud.service.application.impl;
 
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.cluster.bean.Cluster;
@@ -18,10 +19,12 @@ import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.AutoScaleService;
+import com.harmonycloud.service.application.RouterService;
 import com.harmonycloud.service.platform.constant.Constant;
+import net.sf.json.JSONArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,14 +47,18 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 	public static final String METRIC_SOURCE_TYPE_TIME = "Time";
 	public static final String METRIC_SOURCE_TYPE_CUSTOM = "Custom";
 	public static final String METRIC_NAME_TPS = "TPS";
+	public static final String TPS_METRIC_URL = "/openapi/app/stats";
 
 	private static Logger LOGGER = LoggerFactory.getLogger(AutoScaleServiceImpl.class);
 
-	@Value("#{propertiesReader['haproxy.metric.url']}")
-	private String haproxyMetricUrl;
+	@Autowired
+	RouterService routerService;
 
 	@Override
 	public boolean create(AutoScaleDto autoScaleDto, Cluster cluster) throws Exception {
+		if(autoScaleDto.getTargetTps() != null){
+			checkDeploymentCreatedService(autoScaleDto.getNamespace(), autoScaleDto.getDeploymentName(), cluster);
+		}
 		Map<String, Object> headers = new HashMap<String, Object>();
 		headers.put("Content-Type", "application/json");
 		Map<String, Object> body = new HashMap<String, Object>();
@@ -59,16 +66,19 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		K8SURL url = new K8SURL();
 		url.setNamespace(autoScaleDto.getNamespace()).setResource(Resource.COMPLEXPODSCALER);
 		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.POST, headers, body,cluster);
-		if(response.getStatus() == HttpStatus.OK.value()){
+		if(response.getStatus() == HttpStatus.OK.value() || response.getStatus() == HttpStatus.CREATED.value()){
 			return true;
 		}else{
-			LOGGER.error("创建自动伸缩失败，",JSONObject.toJSONString(response));
+			LOGGER.error("创建自动伸缩失败，message:{}",JSONObject.toJSONString(response));
 			return false;
 		}
 	}
 
 	@Override
 	public boolean update(AutoScaleDto autoScaleDto, Cluster cluster) throws Exception {
+		if(autoScaleDto.getTargetTps() != null){
+			checkDeploymentCreatedService(autoScaleDto.getNamespace(), autoScaleDto.getDeploymentName(), cluster);
+		}
 		Map<String, Object> headers = new HashMap<String, Object>();
 		headers.put("Content-Type", "application/json");
 		Map<String, Object> body = new HashMap<String, Object>();
@@ -161,8 +171,8 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		}
 		//tps伸缩 转为自定义指标伸缩类型
 		if(autoScaleDto.getTargetTps() != null && autoScaleDto.getTargetTps() > 0){
-			CustomMetricSource customMetricSource = new CustomMetricSource(METRIC_NAME_TPS, haproxyMetricUrl
-					+ "?namespace="+autoScaleDto.getNamespace()+"&service="+autoScaleDto.getDeploymentName(),
+			CustomMetricSource customMetricSource = new CustomMetricSource(METRIC_NAME_TPS, TPS_METRIC_URL
+					+ "?namespace="+autoScaleDto.getNamespace()+"&app="+autoScaleDto.getDeploymentName(),
 					autoScaleDto.getTargetTps());
 			MetricSpec metricSpec = new MetricSpec(METRIC_SOURCE_TYPE_CUSTOM);
 			metricSpec.setCustom(customMetricSource);
@@ -179,6 +189,9 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		}
 		if(!CollectionUtils.isEmpty(autoScaleDto.getCustomMetricScales())) {
 			for (CustomMetricScaleDto customMetricScale : autoScaleDto.getCustomMetricScales()) {
+				if(customMetricScale.getMetricName().equalsIgnoreCase(METRIC_NAME_TPS)){
+					throw new MarsRuntimeException("自定义指标名称TPS为保留字，请修改名称");
+				}
 				CustomMetricSource customMetricSource = new CustomMetricSource(customMetricScale.getMetricName(),
 						customMetricScale.getMetricApi(), customMetricScale.getTargetValue());
 				MetricSpec metricSpec = new MetricSpec();
@@ -274,6 +287,19 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		autoScaleDto.setTimeMetricScales(timeMetricScales);
 		autoScaleDto.setCustomMetricScales(customMetricScales);
 		return autoScaleDto;
+	}
+
+	private void checkDeploymentCreatedService(String namespace, String deploymentName, Cluster cluster) throws Exception{
+		ActionReturnUtil result = routerService.listIngressByName(namespace, deploymentName, cluster);
+		if(result.isSuccess()){
+			JSONArray array = (JSONArray)result.get("data");
+			if(array == null || array.size() == 0){
+				throw new MarsRuntimeException("该应用未对外创建服务，不能根据TPS指标伸缩");
+			}
+		}else{
+			LOGGER.error("查询应用是否对外创建服务失败, data:{}", JSONObject.toJSONString(result.get("data")));
+			throw new MarsRuntimeException("查询应用是否对外创建服务失败");
+		}
 	}
 
 	private String getScaleName(String deploymentName){
