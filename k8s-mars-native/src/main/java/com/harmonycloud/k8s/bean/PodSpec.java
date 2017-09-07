@@ -44,6 +44,28 @@ public class PodSpec {
 	
 	private String subdomain;
 
+	private Affinity affinity;
+
+	public Boolean getHostNetwork() {
+		return hostNetwork;
+	}
+
+	public Boolean getHostPID() {
+		return hostPID;
+	}
+
+	public Boolean getHostIPC() {
+		return hostIPC;
+	}
+
+	public Affinity getAffinity() {
+		return affinity;
+	}
+
+	public void setAffinity(Affinity affinity) {
+		this.affinity = affinity;
+	}
+
 	public Integer getTerminationGracePeriodSeconds() {
 		return terminationGracePeriodSeconds;
 	}
