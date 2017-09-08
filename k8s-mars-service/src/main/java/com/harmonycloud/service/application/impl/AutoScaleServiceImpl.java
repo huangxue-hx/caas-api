@@ -42,7 +42,7 @@ import static com.harmonycloud.service.platform.constant.Constant.DEPLOYMENT_API
 public class AutoScaleServiceImpl implements AutoScaleService {
 
 	public static final String AUTO_SCALE_API_VERSION = "harmonycloud.cn/v1";
-	public static final String AUTO_SCALE_TPR_KIND = "ComplexPodScale";
+	public static final String AUTO_SCALE_TPR_KIND = "Complexpodscale";
 	public static final String METRIC_SOURCE_TYPE_RESOURCE = "Resource";
 	public static final String METRIC_SOURCE_TYPE_TIME = "Time";
 	public static final String METRIC_SOURCE_TYPE_CUSTOM = "Custom";

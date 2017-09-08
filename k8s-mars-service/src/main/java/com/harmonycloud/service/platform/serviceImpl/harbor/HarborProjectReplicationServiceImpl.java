@@ -525,6 +525,9 @@ public class HarborProjectReplicationServiceImpl implements HarborProjectReplica
 				if ((boolean) pingResponse.get("success") == true) {
 					return createTarget(harborReplicationTarget);
 				}else{
+					if(pingResponse.get("data").equals("Unauthorized")){
+						return ActionReturnUtil.returnErrorWithData("认证未通过, 请检查用户名或密码是否正确");
+					}
 					return pingResponse;
 				}
             //alreaday has a target;若已经存在target
