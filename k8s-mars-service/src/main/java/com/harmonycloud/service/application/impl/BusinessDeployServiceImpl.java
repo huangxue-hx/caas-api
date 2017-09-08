@@ -701,48 +701,51 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                                             errorMessage.add(deleteDeployReturn.get("data").toString());
                                         }
                                         //todo sooooooooooooooooooooooo bad
-                                        // delete ingress
-                                        //delete http
-                                        ActionReturnUtil httpR = routerService.listRoutHttp(dev.getMetadata().getName(),dev.getMetadata().getNamespace(),cluster);
-                                        if(!httpR.isSuccess()){
-                                            businessFlag = false;
-                                            errorMessage.add(httpR.get("data").toString());
-                                        } else {
-                                            IngressList httpList = (IngressList)httpR.get("data");
-                                            if (httpList != null && httpList.getItems() != null && httpList.getItems().size() >0){
-                                                for (Ingress one: httpList.getItems()){
-                                                    ActionReturnUtil httpRes = routerService.ingDelete(dev.getMetadata().getNamespace(), one.getMetadata().getName());
-                                                    if(!httpRes.isSuccess()){
-                                                        businessFlag = false;
-                                                        errorMessage.add(httpRes.get("data").toString());
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        //delete tcp
-                                        ActionReturnUtil tcpR = routerService.svcList(dev.getMetadata().getNamespace());
-                                        if(!tcpR.isSuccess()){
-                                            businessFlag = false;
-                                            errorMessage.add(tcpR.get("data").toString());
-                                        } else {
-                                            List<RouterSvc> tcpList = (List<RouterSvc>)tcpR.get("data");
-                                            if (tcpList != null && tcpList.size()>0){
-                                                for (RouterSvc one: tcpList){
-                                                    List<Integer> ports = new ArrayList<>();
-                                                    for (ServicePort port: one.getRules()){
-                                                        if (port.getPort() != null){
-                                                            ports.add(port.getPort());
-                                                        }
-                                                    }
-                                                    ActionReturnUtil tcpRes = routerService.deleteTcpSvc(dev.getMetadata().getNamespace(), one.getName(),ports,(String) session.getAttribute("tenantId"));
-                                                    if(!tcpRes.isSuccess()){
-                                                        businessFlag = false;
-                                                        errorMessage.add(tcpRes.get("data").toString());
-                                                    }
-                                                }
-                                            }
-                                        }
+//                                        // delete ingress
+//                                        //delete http
+//                                        ActionReturnUtil httpR = routerService.listRoutHttp(dev.getMetadata().getName(),dev.getMetadata().getNamespace(),cluster);
+//                                        if(!httpR.isSuccess()){
+//                                            businessFlag = false;
+//                                            errorMessage.add(httpR.get("data").toString());
+//                                        } else {
+//                                            IngressList httpList = (IngressList)httpR.get("data");
+//                                            if (httpList != null && httpList.getItems() != null && httpList.getItems().size() >0){
+//                                                for (Ingress one: httpList.getItems()){
+//                                                    ActionReturnUtil httpRes = routerService.ingDelete(dev.getMetadata().getNamespace(), one.getMetadata().getName());
+//                                                    if(!httpRes.isSuccess()){
+//                                                        businessFlag = false;
+//                                                        errorMessage.add(httpRes.get("data").toString());
+//                                                    }
+//                                                }
+//                                            }
+//                                        }
+//
+//                                        //delete tcp
+//                                        ActionReturnUtil tcpR = routerService.svcList(dev.getMetadata().getNamespace());
+//                                        if(!tcpR.isSuccess()){
+//                                            businessFlag = false;
+//                                            errorMessage.add(tcpR.get("data").toString());
+//                                        } else {
+//                                            List<RouterSvc> tcpList = (List<RouterSvc>)tcpR.get("data");
+//                                            if (tcpList != null && tcpList.size()>0){
+//                                                for (RouterSvc one: tcpList){
+//                                                    String aa = one.getLabels().get("app").toString();
+//                                                    if (one.getLabels() != null && one.getLabels().get("app") != null && dev.getMetadata().getName().equals(one.getLabels().get("app").toString())){
+//                                                        List<Integer> ports = new ArrayList<>();
+//                                                        for (ServicePort port: one.getRules()){
+//                                                            if (port.getPort() != null){
+//                                                                ports.add(port.getPort());
+//                                                            }
+//                                                        }
+//                                                        ActionReturnUtil tcpRes = routerService.deleteTcpSvc(dev.getMetadata().getNamespace(), one.getName(),ports,(String) session.getAttribute("tenantId"));
+//                                                        if(!tcpRes.isSuccess()){
+//                                                            businessFlag = false;
+//                                                            errorMessage.add(tcpRes.get("data").toString());
+//                                                        }
+//                                                    }
+//                                                }
+//                                            }
+//                                        }
 
                                         // delete pvc
                                         Map<String, Object> pvclabel = new HashMap<String, Object>();
