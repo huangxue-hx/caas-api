@@ -208,7 +208,7 @@ public class ServiceController {
     @ResponseBody
     @RequestMapping(value = "/deploy/name", method = RequestMethod.POST)
     public ActionReturnUtil deployServiceTemplateByName(@RequestParam(value = "name", required = true) String name, @RequestParam(value = "app", required = true) String app, @RequestParam(value = "tenantId", required = true) String tenantId,
-            @RequestParam(value = "namespace", required = true) String namespace, @RequestParam(value = "tag", required = true ) String tag) throws Exception {
+            @RequestParam(value = "namespace", required = true) String namespace, @RequestParam(value = "tag", required = true ) String tag, @RequestParam(value = "nodeSelector", required = false ) String nodeSelector) throws Exception {
         logger.info("deploy service template");
         String userName = (String) session.getAttribute("username");
         if(userName == null){
@@ -218,7 +218,7 @@ public class ServiceController {
 		if(StringUtils.isEmpty(tenantId)){
 			tenantId = (String) session.getAttribute("tenantId");
 		}
-        return serviceService.deployServiceByname(app, tenantId, name, tag, namespace, cluster, userName);
+        return serviceService.deployServiceByname(app, tenantId, name, tag, namespace, cluster, userName, nodeSelector);
     }
     
     /**
