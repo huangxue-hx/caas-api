@@ -1786,12 +1786,8 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
             UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
         }
-        DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
-        List<Deployment> deps = new ArrayList<Deployment>();
-        if(deplist != null && deplist.getItems() != null ){
-            deps = deplist.getItems();
-            if(deps != null && deps.size() > 0){
-                for(Deployment dep : deps){
+        Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+        if(dep != null){
                     if(dep != null && dep.getMetadata() != null && dep.getMetadata().getLabels() != null){
                         Map<String, Object> labels = new HashMap<String, Object>();
                         labels = dep.getMetadata().getLabels();
@@ -1807,24 +1803,18 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                             return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
                         }
                     }
-                }
-            }
         }
         //更新service
         url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.SERVICE).setName(name);
         K8SClientResponse serRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
         if (!HttpStatusUtil.isSuccessStatus(serRes.getStatus())
-                && depRes.getStatus() != Constant.HTTP_404 ) {
+                && serRes.getStatus() != Constant.HTTP_404 ) {
             UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(serRes.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
         }
-        ServiceList svclist = JsonUtil.jsonToPojo(depRes.getBody(), ServiceList.class);
-        List<com.harmonycloud.k8s.bean.Service> svcs = new ArrayList<com.harmonycloud.k8s.bean.Service>();
-        if(deplist != null && deplist.getItems() != null ){
-            svcs = svclist.getItems();
-            if(svcs != null && svcs.size() > 0){
-                for(com.harmonycloud.k8s.bean.Service svc : svcs){
+        com.harmonycloud.k8s.bean.Service svc = JsonUtil.jsonToPojo(depRes.getBody(), com.harmonycloud.k8s.bean.Service.class);
+            if(svc != null ){
                     if(svc != null && svc.getMetadata() != null && svc.getMetadata().getLabels() != null){
                         Map<String, Object> labels = new HashMap<String, Object>();
                         labels = svc.getMetadata().getLabels();
@@ -1841,8 +1831,6 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                         }
                     }
                 }
-            }
-        }
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -1857,12 +1845,8 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
             UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
         }
-        DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
-        List<Deployment> deps = new ArrayList<Deployment>();
-        if(deplist != null && deplist.getItems() != null ){
-            deps = deplist.getItems();
-            if(deps != null && deps.size() > 0){
-                for(Deployment dep : deps){
+        Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+            if(dep != null ){
                     if(dep != null && dep.getMetadata() != null && dep.getMetadata().getLabels() != null){
                         Map<String, Object> labels = new HashMap<String, Object>();
                         labels = dep.getMetadata().getLabels();
@@ -1878,24 +1862,18 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                             return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
                         }
                     }
-                }
-            }
         }
         //更新service
         url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.SERVICE).setName(name);
         K8SClientResponse serRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
         if (!HttpStatusUtil.isSuccessStatus(serRes.getStatus())
-                && depRes.getStatus() != Constant.HTTP_404 ) {
+                && serRes.getStatus() != Constant.HTTP_404 ) {
             UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(serRes.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
         }
-        ServiceList svclist = JsonUtil.jsonToPojo(depRes.getBody(), ServiceList.class);
-        List<com.harmonycloud.k8s.bean.Service> svcs = new ArrayList<com.harmonycloud.k8s.bean.Service>();
-        if(deplist != null && deplist.getItems() != null ){
-            svcs = svclist.getItems();
-            if(svcs != null && svcs.size() > 0){
-                for(com.harmonycloud.k8s.bean.Service svc : svcs){
+        com.harmonycloud.k8s.bean.Service svc = JsonUtil.jsonToPojo(depRes.getBody(), com.harmonycloud.k8s.bean.Service.class);
+        if(svc != null  ){
                     if(svc != null && svc.getMetadata() != null && svc.getMetadata().getLabels() != null){
                         Map<String, Object> labels = new HashMap<String, Object>();
                         labels = svc.getMetadata().getLabels();
@@ -1911,8 +1889,6 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                             return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
                         }
                     }
-                }
-            }
         }
         return ActionReturnUtil.returnSuccess();
     }
