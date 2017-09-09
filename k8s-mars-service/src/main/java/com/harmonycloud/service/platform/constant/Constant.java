@@ -115,4 +115,10 @@ public class Constant {
     public final static String PIPELINE_STATUS_NOTBUILT = "NOTBUILT";
     public final static String PIPELINE_STATUS_NOTEXECUTED = "NOT_EXECUTED";
 	public final static String EXTERNAL_SERVICE_NAMESPACE = "external";
+	
+	public final static String NODESELECTOR_LABELS_PRE = "harmonycloud.cn/";
+	
+	public final static String AFFINITY_WEIGHT = "weight";
+	
+	public final static String AFFINITY_TOPOLOGYKEY = "kubernetes.io/hostname";
 }
