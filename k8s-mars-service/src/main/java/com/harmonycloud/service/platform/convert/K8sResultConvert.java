@@ -811,6 +811,104 @@ public class K8sResultConvert {
             }
         }
         podSpec.setNodeSelector(nodeselector);
+        //Affinity
+        //podAffinity
+        Affinity affinity = new Affinity();
+        if(detail.getNodeAffinity() != null && detail.getNodeAffinity().size() > 0) {
+        	NodeAffinity na = new NodeAffinity();
+        	List<PreferredSchedulingTerm> pstList = new ArrayList<PreferredSchedulingTerm>();
+        	NodeSelector ns = new NodeSelector();
+        	for(NodeAffinityDto n :  detail.getNodeAffinity()) {
+        		if(n != null) {
+        			if(n.getType() != null && Constant.AFFINITY_WEIGHT.equals(n.getType())) {
+        				//权重
+        				PreferredSchedulingTerm p = new PreferredSchedulingTerm();
+        				p.setWeight(n.getWeight());
+        				NodeSelectorTerm preference = new NodeSelectorTerm();
+        				List<NodeSelectorRequirement> matchExpressions = new ArrayList<NodeSelectorRequirement>();
+        				if(n.getNst() != null && n.getNst().size() > 0) {
+        					for(NodeSelectorTermDto m : n.getNst()) {
+        						if(m != null) {
+        							NodeSelectorRequirement  nsr = new NodeSelectorRequirement();
+        							nsr.setKey(m.getKey());
+        							nsr.setOperator(m.getOperator());
+        							nsr.setValues(m.getValues());
+        							matchExpressions.add(nsr);
+        						}	
+        					}
+        				}
+        				preference.setMatchExpressions(matchExpressions);
+        				p.setPreference(preference);
+        				pstList.add(p);
+        			}else {
+        				List<NodeSelectorTerm> nstlist = new ArrayList<NodeSelectorTerm>();
+        				NodeSelectorTerm nodeSelectorTerms = new NodeSelectorTerm();
+        				List<NodeSelectorRequirement> matchExpressions = new ArrayList<NodeSelectorRequirement>();
+        				if(n.getNst() != null && n.getNst().size() > 0) {
+        					for(NodeSelectorTermDto m : n.getNst()) {
+        						if(m != null) {
+        							NodeSelectorRequirement  nsr = new NodeSelectorRequirement();
+        							nsr.setKey(m.getKey());
+        							nsr.setOperator(m.getOperator());
+        							nsr.setValues(m.getValues());
+        							matchExpressions.add(nsr);
+        						}
+    						}	
+    					}
+        				nodeSelectorTerms.setMatchExpressions(matchExpressions);
+        				nstlist.add(nodeSelectorTerms);
+        				ns.setNodeSelectorTerms(nstlist);
+        			}
+        		}
+        	}
+        	na.setPreferredDuringSchedulingIgnoredDuringExecution(pstList);
+			na.setRequiredDuringSchedulingIgnoredDuringExecution(ns);
+			affinity.setNodeAffinity(na);
+			podSpec.setAffinity(affinity);
+        }
+        //TODO PodAffinity(暂时不做)
+        if(detail.getPodAffinity() != null) {
+        	
+        }
+        //PodAntiAffinity（只做权重）
+        if(detail.getPodAntiAffinity() != null && detail.getPodAntiAffinity().size() > 0) {
+        	PodAntiAffinity podAntiAffinity = new PodAntiAffinity();
+        	List<WeightedPodAffinityTerm> preferredDuringSchedulingIgnoredDuringExecution  = new ArrayList<WeightedPodAffinityTerm>();
+        	List<PodAffinityTerm> requiredDuringSchedulingIgnoredDuringExecution = new ArrayList<PodAffinityTerm>();
+        	for(PodAffinityDto pa : detail.getPodAntiAffinity()) {
+        		if(pa != null) {
+        			if(pa.getType() != null && Constant.AFFINITY_WEIGHT.equals(pa.getType())) {
+        				WeightedPodAffinityTerm podAffinityTerm  = new WeightedPodAffinityTerm();
+        				podAffinityTerm.setWeight(pa.getWeight());
+        				PodAffinityTerm pat = new PodAffinityTerm();
+        				LabelSelector lb = new LabelSelector();
+        				if(pa.getLabelSelector() != null && pa.getLabelSelector().size() > 0 ) {
+        					List<LabelSelectorRequirement> matchExpressions = new ArrayList<LabelSelectorRequirement>();
+        					for(NodeSelectorTermDto nst : pa.getLabelSelector()) {
+        						if(nst != null) {
+        							LabelSelectorRequirement lsr = new LabelSelectorRequirement();
+        							lsr.setKey(nst.getKey());
+        							lsr.setOperator(nst.getOperator());
+        							lsr.setValues(nst.getValues());
+        							matchExpressions.add(lsr);
+        						}
+        					}
+        					lb.setMatchExpressions(matchExpressions);
+        				}
+        				pat.setLabelSelector(lb);
+        				pat.setTopologyKey(Constant.AFFINITY_TOPOLOGYKEY);
+        				podAffinityTerm.setPodAffinityTerm(pat);
+        				preferredDuringSchedulingIgnoredDuringExecution.add(podAffinityTerm);
+        			}else {
+        				//TODO 非权重
+        			}
+        		}
+        	}
+        	podAntiAffinity.setPreferredDuringSchedulingIgnoredDuringExecution(preferredDuringSchedulingIgnoredDuringExecution);
+        	podAntiAffinity.setRequiredDuringSchedulingIgnoredDuringExecution(requiredDuringSchedulingIgnoredDuringExecution);
+			affinity.setPodAntiAffinity(podAntiAffinity);
+			podSpec.setAffinity(affinity);
+        }
         //hostIPC hostPID
         podSpec.setHostIPC(detail.isHostIPC());
         podSpec.setHostPID(detail.isHostPID());

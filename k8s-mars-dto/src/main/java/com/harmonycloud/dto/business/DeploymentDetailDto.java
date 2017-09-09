@@ -33,6 +33,12 @@ public class DeploymentDetailDto {
 	private boolean hostIPC;
 	
 	private boolean hostPID;
+	
+	private List<NodeAffinityDto> nodeAffinity;
+	
+	private List<PodAffinityDto> podAffinity;
+	
+	private List<PodAffinityDto> podAntiAffinity ;
 
 	public String getNamespace() {
 		return namespace;
@@ -152,6 +158,30 @@ public class DeploymentDetailDto {
 
 	public void setHostPID(boolean hostPID) {
 		this.hostPID = hostPID;
+	}
+
+	public List<NodeAffinityDto> getNodeAffinity() {
+		return nodeAffinity;
+	}
+
+	public void setNodeAffinity(List<NodeAffinityDto> nodeAffinity) {
+		this.nodeAffinity = nodeAffinity;
+	}
+
+	public List<PodAffinityDto> getPodAffinity() {
+		return podAffinity;
+	}
+
+	public void setPodAffinity(List<PodAffinityDto> podAffinity) {
+		this.podAffinity = podAffinity;
+	}
+
+	public List<PodAffinityDto> getPodAntiAffinity() {
+		return podAntiAffinity;
+	}
+
+	public void setPodAntiAffinity(List<PodAffinityDto> podAntiAffinity) {
+		this.podAntiAffinity = podAntiAffinity;
 	}
 
 }

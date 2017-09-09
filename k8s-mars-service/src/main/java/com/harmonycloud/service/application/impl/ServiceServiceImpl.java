@@ -36,6 +36,7 @@ import com.harmonycloud.service.application.ServiceService;
 import com.harmonycloud.service.application.VolumeSerivce;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.PrivatePartitionService;
 
 import net.sf.json.JSONArray;
@@ -49,6 +50,8 @@ import org.springframework.util.StringUtils;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+
+import javax.servlet.http.HttpSession;
 
 /**
  * Created by root on 3/29/17.
@@ -81,6 +84,12 @@ public class ServiceServiceImpl implements ServiceService {
 
 	@Autowired
 	PrivatePartitionService privatePartitionService;
+	
+	@Autowired
+	NamespaceService namespaceService;
+	
+    @Autowired
+    HttpSession session;
 
 	@Value("#{propertiesReader['image.url']}")
 	private String harborUrl;
@@ -152,9 +161,13 @@ public class ServiceServiceImpl implements ServiceService {
 		serviceTemplateDB.setUser(userName);
 		serviceTemplateDB.setCreateTime(new Date());
 		serviceTemplateDB.setFlag(serviceTemplate.getExternal());
-		if (serviceTemplate.getDeploymentDetail() != null) {
-			serviceTemplateDB.setNodeSelector(serviceTemplate.getDeploymentDetail().getNodeSelector());
-		}
+		/*if (serviceTemplate.getDeploymentDetail() != null) {
+			if(serviceTemplate.getDeploymentDetail().getNodeSelector() !=null  && !"".equals(serviceTemplate.getDeploymentDetail().getNodeSelector())) {
+				serviceTemplateDB.setNodeSelector(serviceTemplate.getDeploymentDetail().getNodeSelector());
+			}else {
+				namespaceService.getPrivatePartitionLabel(tenantid, namespace);
+			}
+		}*/
 		serviceTemplateDB.setTag(decimalFormat.format(tag));
 		serviceTemplatesMapper.insert(serviceTemplateDB);
 		JSONObject json = new JSONObject();
@@ -718,6 +731,20 @@ public class ServiceServiceImpl implements ServiceService {
 					images = harborUrl;
 				}
 				c.setImg(images);
+			}
+			// set nodeselector
+			if (service.getDeploymentDetail() != null) {
+				if(service.getDeploymentDetail().getNodeSelector() !=null  && !"".equals(service.getDeploymentDetail().getNodeSelector())) {
+					service.getDeploymentDetail().setNodeSelector(Constant.NODESELECTOR_LABELS_PRE+service.getDeploymentDetail().getNodeSelector());
+				}else {
+					String tenantid = (String) session.getAttribute("tenantId");
+					ActionReturnUtil l = namespaceService.getPrivatePartitionLabel(tenantid, namespace);
+					if(!l.isSuccess()) {
+						return l;
+					}
+					String lal = (String) l.get("data");
+					service.getDeploymentDetail().setNodeSelector(lal);
+				}
 			}
 			ActionReturnUtil depRes = deploymentsService.createDeployment(service.getDeploymentDetail(), userName, null,
 					cluster);

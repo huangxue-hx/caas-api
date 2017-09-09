@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.servlet.http.HttpSession;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
@@ -13,9 +15,11 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dao.cluster.bean.NodeInstallProgress;
+import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.NodeLabel;
 import com.harmonycloud.service.platform.service.NodeService;
@@ -31,6 +35,9 @@ public class NodeController {
     private PodService podService;
     @Autowired
     private ClusterService clusterService;
+    
+    @Autowired
+    HttpSession session;
 
 
     /**
@@ -227,5 +234,20 @@ public class NodeController {
     public ActionReturnUtil cancelAddNode(Integer id) throws Exception {
         ActionReturnUtil updateShareToNode = this.nodeService.cancelAddNode(id);
         return  ActionReturnUtil.returnSuccessWithData(updateShareToNode);
+    }
+    
+    /**
+     * node 所有的label
+     * 
+     * @return
+     */
+    @RequestMapping(value = "/infrastructure/nodelist/labels")
+    @ResponseBody
+    public ActionReturnUtil listNodeLabels() throws Exception {
+        Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+        if(cluster == null){
+            throw new K8sAuthException(Constant.HTTP_401);
+        }
+        return nodeService.listNodeLabels(cluster);
     }
 }

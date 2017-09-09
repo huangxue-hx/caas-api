@@ -978,4 +978,30 @@ public class NodeServiceImpl implements NodeService {
         return ActionReturnUtil.returnSuccess();
     }
 
+	@Override
+	public ActionReturnUtil listNodeLabels(Cluster cluster) throws Exception {
+		//获取node list
+		ActionReturnUtil nodeRes = listNode(cluster.getId().toString());
+		if(!nodeRes.isSuccess()) {
+			return nodeRes;
+		}
+		@SuppressWarnings("unchecked")
+		List<NodeDto> nodeList = (List<NodeDto>) nodeRes.get("data");
+		if(nodeList != null && nodeList.size() > 0) {
+			List<Object> list = new ArrayList<Object>();
+			for(NodeDto no : nodeList) {
+				ActionReturnUtil res= listNodeLabels(no.getName(), cluster);
+				if(!res.isSuccess()) {
+					return res;
+				}
+				@SuppressWarnings("unchecked")
+				List<Object> ll = (List<Object>) res.get("data");
+				list.addAll(ll);
+			}
+			return ActionReturnUtil.returnSuccessWithData(list);
+		}else {
+			return ActionReturnUtil.returnErrorWithMsg("该集群没有节点");
+		}
+	}
+
 }

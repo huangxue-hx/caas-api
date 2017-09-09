@@ -142,4 +142,12 @@ public interface NodeService {
      * @throws Exception
      */
     public ActionReturnUtil cancelAddNode(Integer id) throws Exception;
+    
+    /**
+     * 获取集群的所有node的label
+     * @param id
+     * @return
+     * @throws Exception
+     */
+    public ActionReturnUtil listNodeLabels(Cluster cluster) throws Exception;
 }
