@@ -35,7 +35,7 @@ public interface ServiceService {
     
     public ActionReturnUtil deleteServiceByTenant(String [] tenant) throws Exception;
     
-    public ActionReturnUtil deployServiceByname(String app, String tenantId, String name,String tag, String namespace, Cluster cluster, String userName) throws Exception;
+    public ActionReturnUtil deployServiceByname(String app, String tenantId, String name,String tag, String namespace, Cluster cluster, String userName, String nodeSelector) throws Exception;
     
     public ActionReturnUtil deployService(ServiceDeployDto serviceDeploy, Cluster cluster, String userName) throws Exception;
     

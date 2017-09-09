@@ -549,7 +549,7 @@ public class ServiceServiceImpl implements ServiceService {
 	}
 
 	@Override
-	public ActionReturnUtil deployServiceByname(String app, String tenantId, String name, String tag, String namespace, Cluster cluster, String userName)
+	public ActionReturnUtil deployServiceByname(String app, String tenantId, String name, String tag, String namespace, Cluster cluster, String userName, String nodeSelector)
 			throws Exception {
 		if(StringUtils.isEmpty(name)){
 			return ActionReturnUtil.returnErrorWithMsg("应用模板名称为空");
@@ -560,11 +560,6 @@ public class ServiceServiceImpl implements ServiceService {
 		if(StringUtils.isEmpty(namespace)){
 			return ActionReturnUtil.returnErrorWithMsg("namespace为空");
 		}
-		ActionReturnUtil privatePartitionLabel = this.privatePartitionService.getPrivatePartitionLabel(tenantId, namespace);
-		if(!privatePartitionLabel.isSuccess()){
-			return privatePartitionLabel;
-		}
-		String nodeSelector = (String) privatePartitionLabel.get("data");
 		//获取模板信息
 		ServiceTemplates serviceTemplate = serviceTemplatesMapper.getSpecificService(name, tag);
 		if(serviceTemplate != null){
