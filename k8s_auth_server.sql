@@ -592,7 +592,7 @@ CREATE TABLE `harborProject_tenant` (
 
 LOCK TABLES `harborProject_tenant` WRITE;
 /*!40000 ALTER TABLE `harborProject_tenant` DISABLE KEYS */;
-INSERT INTO `harborProject_tenant` VALUES (26,1,'1234',NULL,NULL,'library',1),(108,2,'99999999','2017-06-16 12:18:10',NULL,'k8s-deploy',1);
+INSERT INTO `harborProject_tenant` VALUES (1,3,'1234',NULL,NULL,'onlineshop',1),(108,2,'99999999','2017-06-16 12:18:10',NULL,'k8s-deploy',0);
 /*!40000 ALTER TABLE `harborProject_tenant` ENABLE KEYS */;
 UNLOCK TABLES;
 
