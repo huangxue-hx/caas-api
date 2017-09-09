@@ -986,25 +986,33 @@ public class HarborServiceImpl implements HarborService {
             return ActionReturnUtil.returnSuccessWithData(Collections.emptyList());
         }
         List<HarborProjectInfo> projectRepoList = new ArrayList<>();
-        if(StringUtils.isBlank(projectName)){
-            projectName = harborProjectTenantList.get(0).getHarborProjectName();
-        }
+        List<HarborProjectInfo> projectNonRepoList = new ArrayList<>();
+        boolean hasSetRepo = false;
         for(int i=0; i<harborProjectTenantList.size(); i++) {
             HarborProjectTenant harborProjectTenant = harborProjectTenantList.get(i);
             HarborProjectInfo projectInfo = new HarborProjectInfo();
             projectInfo.setProject_name(harborProjectTenant.getHarborProjectName());
-            projectRepoList.add(projectInfo);
-            //只查询具体某一个project的镜像信息，如果查询条件projectName不为空，则使用参数，否则默认取第一条
-            if (!projectName.equalsIgnoreCase(harborProjectTenant.getHarborProjectName())) {
+            //只查询具体某一个project的镜像信息，非该project的不查询repo信息
+            if (StringUtils.isNotBlank(projectName) &&
+                    !projectName.equalsIgnoreCase(harborProjectTenant.getHarborProjectName())) {
+                projectRepoList.add(projectInfo);
+                continue;
+            }
+            //已经查到有repo的project， 其他project不再继续查询project下面的repo
+            if(hasSetRepo){
+                projectRepoList.add(projectInfo);
                 continue;
             }
             ActionReturnUtil repoResponse = repoListById(Integer.parseInt(harborProjectTenant.getHarborProjectId().toString()));
             if ((boolean) repoResponse.get("success") == true) {
                 List<String> repoList = JsonUtil.jsonToList(repoResponse.get("data").toString(), String.class);
                 if (CollectionUtils.isEmpty(repoList)) {
-                    return ActionReturnUtil.returnSuccessWithData(Collections.emptyList());
+                    projectNonRepoList.add(projectInfo);
+                    continue;
                 }
+                projectRepoList.add(projectInfo);
                 List<HarborRepositoryMessage> repositoryMessagesList = new ArrayList<>();
+                //如果查询参数没有指定某个具体的repo镜像名，则查询第一个repo的tag信息，其他repo的不查询tag信息
                 if(StringUtils.isBlank(repoName)){
                     repoName = repoList.get(0);
                 }
@@ -1026,6 +1034,7 @@ public class HarborServiceImpl implements HarborService {
                                     repositoryName, JSONObject.toJSONString(tagResponse));
                             return tagResponse;
                         }
+                        hasSetRepo = true;
                     }
                     repositoryMessagesList.add(harborRepository);
                 }
@@ -1036,6 +1045,8 @@ public class HarborServiceImpl implements HarborService {
                 return repoResponse;
             }
         }
+        //将没有repo的project放在project列表的下面
+        projectRepoList.addAll(projectNonRepoList);
         return ActionReturnUtil.returnSuccessWithData(projectRepoList);
     }
 
