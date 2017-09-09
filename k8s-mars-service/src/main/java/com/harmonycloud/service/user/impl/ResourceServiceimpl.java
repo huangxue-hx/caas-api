@@ -137,7 +137,7 @@ public void updateRoleMenuResource(Integer id, Boolean status) throws Exception 
             return null;
         }
         for (Resource resource : list) {
-            if(StringUtils.isEmpty(resource.getParentIds())){
+            if(resource.getParentRpid()==0){
                 Map<String, Object> map = new HashMap<>();
                 map.put(CommonConstant.ID,  resource.getId());
                 map.put(CommonConstant.NAME,  resource.getName());
@@ -145,7 +145,7 @@ public void updateRoleMenuResource(Integer id, Boolean status) throws Exception 
                 map.put("weight",resource.getWeight());
                 map.put(CommonConstant.ICONNAME,  resource.getIconName());
                 ResourceExample example1 = new ResourceExample ();
-                example1.createCriteria().andRoleEqualTo(roleName).andAvailableEqualTo(Boolean.TRUE).andParentIdEqualTo(resource.getRpid());
+                example1.createCriteria().andRoleEqualTo(roleName).andAvailableEqualTo(Boolean.TRUE).andParentRpidEqualTo(resource.getRpid());
                 List<Resource> list2 = this.resourceMapper.selectByExample(example1);
                 
                 if(list2!=null&&list2.size()>0){
