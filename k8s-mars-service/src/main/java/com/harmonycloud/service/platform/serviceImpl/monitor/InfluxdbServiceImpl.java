@@ -68,8 +68,8 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 			//如果创建时间在30天内，就用目前固定的几种时间查询类型，超过30天，以100个点作为最大的点数显示
 			if(timeInterval <= EnumMonitorQuery.THIRTY_DAY.getMillisecond()){
 				String newRangeType;
-				if(timeInterval <= EnumMonitorQuery.FIVE_MINUTE.getMillisecond()){
-					newRangeType = EnumMonitorQuery.FIVE_MINUTE.getCode();
+				if(timeInterval <= EnumMonitorQuery.TEN_MINUTE.getMillisecond()){
+					newRangeType = EnumMonitorQuery.TEN_MINUTE.getCode();
 				}else if(timeInterval <= EnumMonitorQuery.SIX_HOUR.getMillisecond()){
 					newRangeType = EnumMonitorQuery.SIX_HOUR.getCode();
 				}else if(timeInterval <= EnumMonitorQuery.ONE_DAY.getMillisecond()){
