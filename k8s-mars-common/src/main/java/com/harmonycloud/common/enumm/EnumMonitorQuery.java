@@ -17,7 +17,7 @@ public enum EnumMonitorQuery {
 
 	THIRTY_MINUTE("0","30m", "1m", 1800000L), SIX_HOUR("1","6h", "18m", 21600000L), ONE_DAY("2","24h", "1h", 86400000L),
 	SEVEN_DAY("3","7d", "8h", 604800000L), THIRTY_DAY("4","30d", "8h", 2592000000L),
-	FIVE_MINUTE("6","5m", "20s", 300000L);
+	TEN_MINUTE("6","10m", "30s", 600000L);
     private String code;
 	private String range;
 	private String interval;

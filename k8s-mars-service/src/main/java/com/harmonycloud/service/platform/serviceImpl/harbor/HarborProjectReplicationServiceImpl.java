@@ -196,8 +196,13 @@ public class HarborProjectReplicationServiceImpl implements HarborProjectReplica
 	      Map<String, Object> headers = new HashMap<>();
 	      headers.put("cookie", harborUtil.checkCookieTimeout());
 
-	      return HttpClientUtil.httpDoDelete(url, null, headers);
-	   }
+		 ActionReturnUtil result =  HttpClientUtil.httpDoDelete(url, null, headers);
+		 if ((boolean) result.get("success") != true
+				 && result.get("data").toString().contains("plicy is enabled")) {
+			 return ActionReturnUtil.returnErrorWithData("请先停止同步规则");
+		 }
+		 return result;
+	 }
 	 /**
 	   * 列举指定project跨harbor同步任务
 	   * @return
@@ -513,46 +518,32 @@ public class HarborProjectReplicationServiceImpl implements HarborProjectReplica
 		if (harborReplicationTarget == null) {
 			return ActionReturnUtil.returnErrorWithMsg("parameter cannot be null");
 		}
-		String targetID =harborReplicationTarget.getEndpoint();
+		//先检查设置的镜像服务器连接是否成功
+		ActionReturnUtil pingResult = pingTarget(harborReplicationTarget);
+		if((boolean) pingResult.get("success") != true){
+			return pingResult;
+		}
 		//check target检测是否已经有target存在
 		ActionReturnUtil targetResponse = listTargets();
-		if ((boolean) targetResponse.get("success") == true) {
-			List<Map<String, Object>> mapList = JsonUtil.JsonToMapList(targetResponse.get("data").toString());
-			//the first time to create target;若没有target存在直接创建
-			if (CollectionUtils.isEmpty(mapList)) {
-				//test ping;检测创建的target是否有效
-				ActionReturnUtil pingResponse = pingEndpoint(harborReplicationTarget.getEndpoint(),harborReplicationTarget.getUsername(),harborReplicationTarget.getPassword());
-				if ((boolean) pingResponse.get("success") == true) {
-					return createTarget(harborReplicationTarget);
-				}else{
-					if(pingResponse.get("data").equals("Unauthorized")){
-						return ActionReturnUtil.returnErrorWithData("认证未通过, 请检查用户名或密码是否正确");
-					}
-					return pingResponse;
-				}
-            //alreaday has a target;若已经存在target
-			}else{
-				//only one map in harbor,so get the first one;
-				Map<String, Object>targetMap = mapList.get(0);
-				Integer targetCurrent = (Integer)targetMap.get("id");
-				//delete the current target;删除已经存在的target
-				ActionReturnUtil targetDeleResponse = deleteTarget(targetCurrent);
-				if ((boolean) targetDeleResponse.get("success") == true) {
-					//test ping;检测创建的target是否有效
-					ActionReturnUtil pingResponse = pingEndpoint(harborReplicationTarget.getEndpoint(),harborReplicationTarget.getUsername(),harborReplicationTarget.getPassword());
-					if ((boolean) pingResponse.get("success") == true) {
-						//create target;创建target
-						return createTarget(harborReplicationTarget);
-					}else{
-						return pingResponse;
-					}
-				}else{
-					return targetDeleResponse;
-				}
-			}
-		} else {
+		if ((boolean) targetResponse.get("success") != true) {
 			return targetResponse;
 		}
+		List<Map<String, Object>> mapList = JsonUtil.JsonToMapList(targetResponse.get("data").toString());
+		//如果已经存在target，先删除
+		if (!CollectionUtils.isEmpty(mapList)) {
+			Map<String, Object> targetMap = mapList.get(0);
+			Integer targetCurrent = (Integer)targetMap.get("id");
+			//delete the current target;删除已经存在的target
+			ActionReturnUtil targetDeleResponse = deleteTarget(targetCurrent);
+			if ((boolean) targetDeleResponse.get("success") != true) {
+				if(targetDeleResponse.get("data").toString().contains("used by policies")){
+					return ActionReturnUtil.returnErrorWithData("请先停止并删除同步规则");
+				}
+				return targetDeleResponse;
+			}
+		}
+		//create target;创建target
+		return createTarget(harborReplicationTarget);
 	}
 
 	/**
@@ -570,6 +561,24 @@ public class HarborProjectReplicationServiceImpl implements HarborProjectReplica
 		headers.put("cookie", harborUtil.checkCookieTimeout());
 		return HttpClientUtil.httpPostRequestForHarbor(url, headers, harborReplicationPolicy);
 
+	}
+
+	private ActionReturnUtil pingTarget(HarborReplicationTarget harborReplicationTarget) throws Exception{
+		ActionReturnUtil pingResponse = pingEndpoint(harborReplicationTarget.getEndpoint(),harborReplicationTarget.getUsername(),harborReplicationTarget.getPassword());
+		if ((boolean) pingResponse.get("success") == true) {
+			return pingResponse;
+		}else{
+			if(pingResponse.get("data").toString().contains("Timeout")){
+				return ActionReturnUtil.returnErrorWithData("服务器连接超时");
+			}
+			if(pingResponse.get("data").toString().contains("no route to host")){
+				return ActionReturnUtil.returnErrorWithData("服务器连接失败");
+			}
+			if(pingResponse.get("data").equals("Unauthorized")){
+				return ActionReturnUtil.returnErrorWithData("认证未通过, 请检查用户名或密码是否正确");
+			}
+			return pingResponse;
+		}
 	}
 
 }
