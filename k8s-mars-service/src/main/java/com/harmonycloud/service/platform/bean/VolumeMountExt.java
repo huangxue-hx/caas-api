@@ -27,6 +27,8 @@ public class VolumeMountExt {
 	
 	private String configMapName;
 	
+	private String pvcname;
+	
 	public VolumeMountExt() {
 		
 	}
@@ -116,6 +118,14 @@ public class VolumeMountExt {
 
 	public void setEmptyDir(String emptyDir) {
 		this.emptyDir = emptyDir;
+	}
+
+	public String getPvcname() {
+		return pvcname;
+	}
+
+	public void setPvcname(String pvcname) {
+		this.pvcname = pvcname;
 	}
 
 }

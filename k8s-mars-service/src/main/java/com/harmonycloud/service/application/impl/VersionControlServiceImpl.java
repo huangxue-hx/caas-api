@@ -23,7 +23,6 @@ import com.harmonycloud.service.platform.dto.ReplicaSetDto;
 import com.harmonycloud.service.platform.service.WatchService;
 
 import com.alibaba.fastjson.JSON;
-import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 import org.apache.commons.collections.map.HashedMap;
@@ -106,7 +105,7 @@ public class VersionControlServiceImpl implements VersionControlService {
 
         com.harmonycloud.k8s.bean.Service service = JsonUtil.jsonToPojo(rsRes.getBody(), com.harmonycloud.k8s.bean.Service.class);
 
-        //从数据库获取service的pvc信息
+        //获取service的pvc信息
         Map<String, Object> label = new HashMap<String, Object>();
         label.put("labelSelector", "app=" + detail.getName());
         K8SClientResponse pvcRes = pvcService.doSepcifyPVC(detail.getNamespace(), label, HTTPMethod.GET, cluster);
@@ -115,10 +114,7 @@ public class VersionControlServiceImpl implements VersionControlService {
             return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
         }
         PersistentVolumeClaimList pvclist = JsonUtil.jsonToPojo(pvcRes.getBody(), com.harmonycloud.k8s.bean.PersistentVolumeClaimList.class);
-
-
-        JSONArray pvclistnew=JSONArray.fromObject(pvclist);
-        if(pvclist != null && pvclist.getItems() != null){
+        if(pvclist != null && pvclist.getItems() != null && pvclist.getItems().size() > 0){
             if(detail.getContainers() != null){
                 for(UpdateContainer container : detail.getContainers()){
                     if(container.getStorage() !=null && container.getStorage().size() > 0) {
@@ -137,53 +133,67 @@ public class VersionControlServiceImpl implements VersionControlService {
                                     if (!pvRes.isSuccess()) {
                                         return pvRes;
                                     }
-                                    pvclistnew.add(pv.getPvcName());
                                 }
                             }
                         }
-                    } else {
-                        for (PersistentVolumeClaim onePvc : pvclist.getItems()) {
-                                //volumeSerivce.deleteVolume(detail.getNamespace(),(String) pvclist.get(i));
-                                K8SURL url = new K8SURL();
-                                url.setName(onePvc.getMetadata().getName()).setNamespace(detail.getNamespace()).setResource(Resource.PERSISTENTVOLUMECLAIM);
-                                Map<String, Object> headers = new HashMap<>();
-                                headers.put("Content-Type", "application/json");
-                                Map<String, Object> bodys = new HashMap<>();
-                                bodys.put("gracePeriodSeconds", 1);
-                                K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys, cluster);
-                                if (HttpStatusUtil.isSuccessStatus(response.getStatus()) && onePvc.getSpec() != null && onePvc.getSpec().getVolumeName() != null) {
-                                    // update pv
-                                        String pvname = onePvc.getSpec().getVolumeName();
-                                        PersistentVolume pv = pvService.getPvByName(pvname, null);
-                                        if (pv != null) {
-                                            Map<String, Object> bodysPV = new HashMap<String, Object>();
-                                            Map<String, Object> metadata = new HashMap<String, Object>();
-                                            metadata.put("name", pv.getMetadata().getName());
-                                            metadata.put("labels", pv.getMetadata().getLabels());
-                                            bodysPV.put("metadata", metadata);
-                                            Map<String, Object> spec = new HashMap<String, Object>();
-                                            spec.put("capacity", pv.getSpec().getCapacity());
-                                            spec.put("nfs", pv.getSpec().getNfs());
-                                            spec.put("accessModes", pv.getSpec().getAccessModes());
-                                            bodysPV.put("spec", spec);
-                                            K8SURL urlPV = new K8SURL();
-                                            urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
-                                            Map<String, Object> headersPV = new HashMap<>();
-                                            headersPV.put("Content-Type", "application/json");
-                                            K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT, headersPV, bodysPV, cluster);
-                                            if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus()) && responsePV.getStatus() != Constant.HTTP_404) {
-                                                UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
-                                                return ActionReturnUtil.returnSuccessWithMsg(status.getMessage());
-                                            }
-                                        }
-
-                                } else {
-                                    UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-                                    return ActionReturnUtil.returnSuccessWithMsg(status.getMessage());
+                    } 
+                }
+            }
+            //比较两个pvc删除多的pvc
+            for(PersistentVolumeClaim onePvc : pvclist.getItems()) {
+                String pvc = onePvc.getMetadata().getName();
+                boolean boo = true;
+                if(detail.getContainers() != null  && detail.getContainers().size() > 0) {
+                	for(UpdateContainer container : detail.getContainers()){
+                        if(container.getStorage() !=null && container.getStorage().size() > 0) {
+                            for (UpdateVolume pv : container.getStorage()) {
+                                if (Constant.VOLUME_TYPE_PV.equals(pv.getType())) {
+                                	if (pvc.equals(pv.getPvcName())) {
+                                		boo = false;
+                                    }
                                 }
                             }
+                        }
+                	}
+                }
+                if (boo) {
+                	 K8SURL url = new K8SURL();
+                     url.setName(onePvc.getMetadata().getName()).setNamespace(detail.getNamespace()).setResource(Resource.PERSISTENTVOLUMECLAIM);
+                     Map<String, Object> headers = new HashMap<>();
+                     headers.put("Content-Type", "application/json");
+                     Map<String, Object> bodys = new HashMap<>();
+                     bodys.put("gracePeriodSeconds", 1);
+                     K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys, cluster);
+                     if (HttpStatusUtil.isSuccessStatus(response.getStatus()) && onePvc.getSpec() != null && onePvc.getSpec().getVolumeName() != null) {
+                         // update pv
+                             String pvname = onePvc.getSpec().getVolumeName();
+                             PersistentVolume pv = pvService.getPvByName(pvname, null);
+                             if (pv != null) {
+                                 Map<String, Object> bodysPV = new HashMap<String, Object>();
+                                 Map<String, Object> metadata = new HashMap<String, Object>();
+                                 metadata.put("name", pv.getMetadata().getName());
+                                 metadata.put("labels", pv.getMetadata().getLabels());
+                                 bodysPV.put("metadata", metadata);
+                                 Map<String, Object> spec = new HashMap<String, Object>();
+                                 spec.put("capacity", pv.getSpec().getCapacity());
+                                 spec.put("nfs", pv.getSpec().getNfs());
+                                 spec.put("accessModes", pv.getSpec().getAccessModes());
+                                 bodysPV.put("spec", spec);
+                                 K8SURL urlPV = new K8SURL();
+                                 urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
+                                 Map<String, Object> headersPV = new HashMap<>();
+                                 headersPV.put("Content-Type", "application/json");
+                                 K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT, headersPV, bodysPV, cluster);
+                                 if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus()) && responsePV.getStatus() != Constant.HTTP_404) {
+                                     UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
+                                     return ActionReturnUtil.returnSuccessWithMsg(status.getMessage());
+                                 }
+                             }
 
-                    }
+                     } else {
+                         UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+                         return ActionReturnUtil.returnSuccessWithMsg(status.getMessage());
+                     }
                 }
             }
         }else{
@@ -194,8 +204,6 @@ public class VersionControlServiceImpl implements VersionControlService {
                             if (Constant.VOLUME_TYPE_PV.equals(pv.getType())) {
                                 volumeSerivce.createVolume(detail.getNamespace(), pv.getPvcName(), pv.getPvcCapacity(),
                                         pv.getPvcTenantid(), pv.getReadOnly(), pv.getPvcBindOne(), pv.getName(),detail.getName());
-                                pvclistnew = new JSONArray();
-                                pvclistnew.add(pv.getPvcName());
                             }
                         }
                     }
@@ -1200,11 +1208,11 @@ public class VersionControlServiceImpl implements VersionControlService {
                                 pvClaim.setClaimName(vol.getPvcName());
                                 Volume vole = new Volume();
                                 vole.setPersistentVolumeClaim(pvClaim);
-                                vole.setName(vol.getPvcName());
+                                vole.setName(vol.getPvcName().replace(".", "-"));
                                 volumes.add(vole);
                             }
                             VolumeMount volm = new VolumeMount();
-                            volm.setName(vol.getPvcName());
+                            volm.setName(vol.getPvcName().replace(".", "-"));
                             volm.setReadOnly(Boolean.parseBoolean(vol.getReadOnly()));
                             volm.setMountPath(vol.getMountPath());
                             volumeMounts.add(volm);

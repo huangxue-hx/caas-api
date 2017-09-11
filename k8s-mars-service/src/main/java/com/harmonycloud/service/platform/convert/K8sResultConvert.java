@@ -320,6 +320,7 @@ public class K8sResultConvert {
 									vmExt.setType("secret");
 								} else if (volume.getPersistentVolumeClaim() != null) {
 									vmExt.setType("nfs");
+									vmExt.setPvcname(volume.getPersistentVolumeClaim().getClaimName());
 								} else if (volume.getEmptyDir() != null) {
 									vmExt.setType("emptyDir");
 									if(volume.getEmptyDir() != null){
