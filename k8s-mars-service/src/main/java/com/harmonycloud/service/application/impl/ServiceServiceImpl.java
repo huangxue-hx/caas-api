@@ -19,8 +19,6 @@ import com.harmonycloud.dto.business.ServiceDeployDto;
 import com.harmonycloud.dto.business.ServiceNameNamespace;
 import com.harmonycloud.dto.business.ServiceTemplateDto;
 import com.harmonycloud.dto.business.SvcRouterDto;
-import com.harmonycloud.dto.business.TcpRuleDto;
-import com.harmonycloud.dto.svc.SvcTcpDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
@@ -383,7 +381,6 @@ public class ServiceServiceImpl implements ServiceService {
 		for(ServiceNameNamespace nn : deployedServiceNamesDto.getServiceList()){
 			K8SURL url = new K8SURL();
 			url.setResource(Resource.DEPLOYMENT);
-			DeploymentList deployments = new DeploymentList();
 
 			//labels
 			Map<String, Object> bodys = new HashMap<String, Object>();
@@ -726,20 +723,6 @@ public class ServiceServiceImpl implements ServiceService {
 					images = harborUrl;
 				}
 				c.setImg(images);
-			}
-			// set nodeselector
-			if (service.getDeploymentDetail() != null) {
-				if(service.getDeploymentDetail().getNodeSelector() !=null  && !"".equals(service.getDeploymentDetail().getNodeSelector())) {
-					service.getDeploymentDetail().setNodeSelector(Constant.NODESELECTOR_LABELS_PRE+service.getDeploymentDetail().getNodeSelector());
-				}else {
-					String tenantid = (String) session.getAttribute("tenantId");
-					ActionReturnUtil l = namespaceService.getPrivatePartitionLabel(tenantid, namespace);
-					if(!l.isSuccess()) {
-						return l;
-					}
-					String lal = (String) l.get("data");
-					service.getDeploymentDetail().setNodeSelector(lal);
-				}
 			}
 			ActionReturnUtil depRes = deploymentsService.createDeployment(service.getDeploymentDetail(), userName, null,
 					cluster);

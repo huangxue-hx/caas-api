@@ -5,11 +5,7 @@ import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.application.*;
-import com.harmonycloud.dao.application.bean.Business;
-import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dao.cluster.bean.Cluster;
-import com.harmonycloud.dao.network.TopologyMapper;
-import com.harmonycloud.dao.network.bean.Topology;
 import com.harmonycloud.dao.tenant.TenantBindingMapper;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.TenantBindingExample;
@@ -88,9 +84,6 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
     @Autowired
     private DeploymentService dpService;
-
-    @Autowired
-    private ServiceTemplatesMapper serviceTemplatesMapper;
 
     @Autowired
     NamespaceService namespaceService;
@@ -446,11 +439,6 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
             return ActionReturnUtil.returnErrorWithMsg("username , application deploy or service is null");
         }
         String namespace = businessDeploy.getNamespace();
-        //获取nodeslector
-        ActionReturnUtil labRes = namespaceService.getPrivatePartitionLabel(tenantId, namespace);
-        if(!labRes.isSuccess()){
-            return labRes;
-        }
 
         String topoLabel = TOPO + SIGN + tenantId + SIGN + businessDeploy.getName();
         String namespaceLabel = businessDeploy.getNamespace();
@@ -481,8 +469,6 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         // loop businessTemplate
         if (businessDeploy.getBusinessTemplate() != null && businessDeploy.getBusinessTemplate().getServiceList().size() > 0) {
             for (ServiceTemplateDto svcTemplate : businessDeploy.getBusinessTemplate().getServiceList()) {
-
-                com.harmonycloud.dao.application.bean.Service svc = new com.harmonycloud.dao.application.bean.Service();
                 // is external service
                 if (svcTemplate.getExternal() == Constant.EXTERNAL_SERVICE) {
                     Map<String, Object> headers = new HashMap<>();
@@ -506,7 +492,6 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                     }
 
                 } else {
-                    svcTemplate.getDeploymentDetail().setNodeSelector((String) labRes.get("data"));
                     // creat pvc
                     for (CreateContainerDto c : svcTemplate.getDeploymentDetail().getContainers()) {
                         if (c.getStorage() != null) {
@@ -581,9 +566,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                         map.put(svcTemplate.getName(), depRes.get("data"));
                         message.add(map);
                     }
-
                 }
-
             }
         }
         // update application template isdeploy
@@ -618,7 +601,6 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         // loop businessTemplate
         for (String label : businessList.getIdList()) {
             String namespace = "";
-            String svcName = "";
             Map<String,Object> appBodys = new HashMap<String,Object>();
             appBodys.put("labelSelector", label);
             if (label != null && label.contains(SIGN_EQUAL)){
@@ -1119,7 +1101,6 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         int abnormal = 0;
 
         // search application
-        String [] namespace=new String[0];
         List<BaseResource> blist = new ArrayList<>();
 
         Cluster cluster=clusterService.findClusterById(clusterId);
@@ -1132,7 +1113,8 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         }
 
         for (Object oneNamespace : namespaceData ){
-            Map namespaceMap = (Map) oneNamespace;
+            @SuppressWarnings("rawtypes")
+			Map namespaceMap = (Map) oneNamespace;
             K8SClientResponse response = tprApplication.listApplicationByNamespace(namespaceMap.get("name").toString(),null, null, HTTPMethod.GET, cluster);
             if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
                 return ActionReturnUtil.returnErrorWithMsg(response.getBody());
@@ -1187,7 +1169,8 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
             return date;
         }
     */
-    private static String dateToString(Date time){
+    @SuppressWarnings("unused")
+	private static String dateToString(Date time){
         SimpleDateFormat formatter;
         formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         String ctime = formatter.format(time);
@@ -1205,7 +1188,8 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
     }
 
-    @Override
+    @SuppressWarnings("unchecked")
+	@Override
     public ActionReturnUtil searchSum(String[] tenant) throws Exception {
         // search application
         List<BaseResource> blist = new ArrayList<>();
@@ -1282,7 +1266,6 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         K8SClientResponse serviceRe = new K8sMachineClient().exec(urlExternal, HTTPMethod.GET, null, bodys,cluster);
         if (!HttpStatusUtil.isSuccessStatus(serviceRe.getStatus())
                 && serviceRe.getStatus() != Constant.HTTP_404 ) {
-            JSONObject js = JSONObject.fromObject(serviceRe.getBody());
             UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
             return (JSONObject) json.put("获取external service错误", k8sresbody.getMessage());
         }
@@ -1421,7 +1404,6 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
             K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
             if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
                     && depRes.getStatus() != Constant.HTTP_404 ) {
-                JSONObject js = JSONObject.fromObject(depRes.getBody());
                 UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
                 return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
             }
@@ -1532,16 +1514,16 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         @SuppressWarnings("unchecked")
         List<RouterSvc> tcplist = (List<RouterSvc>) tcpRes.get("data");
         boolean flag = true ;
-        //获取nodeslector
+/*        //获取nodeslector
         ActionReturnUtil labRes = namespaceService.getPrivatePartitionLabel(tenantid, namespace);
         if(!labRes.isSuccess()){
             return labRes;
-        }
+        }*/
         for(ServiceTemplateDto std : businessDeploy.getBusinessTemplate().getServiceList()){
             //check service name
             if(std.getDeploymentDetail() != null && deps != null && deps.size() > 0){
                 std.getDeploymentDetail().setNamespace(namespace);
-                std.getDeploymentDetail().setNodeSelector((String)labRes.get("data"));
+                /*std.getDeploymentDetail().setNodeSelector((String)labRes.get("data"));*/
                 for(Deployment dep : deps){
                     if(std.getDeploymentDetail().getName().equals(dep.getMetadata().getName())){
                         msg.put("服务名称:"+std.getDeploymentDetail().getName(), "重复");
@@ -1700,7 +1682,6 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
                 && depRes.getStatus() != Constant.HTTP_404 ) {
-            JSONObject js = JSONObject.fromObject(depRes.getBody());
             UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
         }
@@ -1754,10 +1735,9 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                 }
             }
         }
-
-        List<BaseResource> blist = new ArrayList<>();
         //list namespace by tenantid
-        List<Object> namespaceData = (List<Object>) namespaceService.getNamespaceListByTenantid(session.getAttribute("tenantId").toString()).get("data");
+        @SuppressWarnings("unchecked")
+		List<Object> namespaceData = (List<Object>) namespaceService.getNamespaceListByTenantid(session.getAttribute("tenantId").toString()).get("data");
         //loop namespaces get application
         for (Object oneNamespace : namespaceData ){
             K8SClientResponse response = tprApplication.getApplicationByName(oneNamespace.getClass().getName().toString(),businessDeploy.getName(), null,null, HTTPMethod.GET, cluster);
