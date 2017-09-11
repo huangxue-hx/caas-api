@@ -1328,7 +1328,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
     }
 
     @Override
-    public ActionReturnUtil deployBusinessTemplateByName(String tenantId, String name, String businessame, String tag, String namespace, String userName, Cluster cluster, String pub)
+    public ActionReturnUtil deployBusinessTemplateByName(String tenantId, String name, String businessame, String tag, String namespace, String userName, Cluster cluster, String pub, String nodeselector)
             throws Exception {
         if(!StringUtils.isEmpty(name) && !StringUtils.isEmpty(tag) && !StringUtils.isEmpty(namespace)){
             TenantBinding t = tenantService.getTenantByTenantid(tenantId);
@@ -1374,6 +1374,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                         String dep=js.getJSONArray("deployment").getJSONObject(0).toString().replaceAll(":\"\",", ":"+null+",").replaceAll(":\"\"", ":"+null+"");
                         DeploymentDetailDto deployment = JsonUtil.jsonToPojo(dep, DeploymentDetailDto.class);
                         deployment.setNamespace(namespace);
+                        deployment.setNodeSelector(nodeselector);
 						/*deployment.setNodeSelector(nodeSelector);*/
                         serviceTemplate.setDeploymentDetail(deployment);
                     }
