@@ -18,6 +18,7 @@ import com.harmonycloud.service.application.ServiceService;
 import com.harmonycloud.service.application.TopologyService;
 import com.harmonycloud.service.application.Util.TemplateToYamlUtil;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.TenantService;
 
 import net.sf.json.JSONArray;
@@ -29,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.yaml.snakeyaml.Yaml;
 
+import javax.servlet.http.HttpSession;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -74,6 +76,12 @@ public class BusinessServiceImpl implements BusinessService {
 	ReplicasetsService rsService;
     @Autowired
     TenantService tenantService;
+
+    @Autowired
+    NamespaceService namespaceService;
+
+    @Autowired
+    HttpSession session;
 
     /**
      * remove businessTemplate on 17/04/07.
@@ -152,6 +160,21 @@ public class BusinessServiceImpl implements BusinessService {
                         if (serviceTemplates.getDeploymentContent() != null){
                             String dep=json.getJSONArray("deployment").getJSONObject(0).toString().replaceAll(":\"\",", ":"+null+",").replaceAll(":\"\"", ":"+null+"");
                             DeploymentDetailDto deployment = JsonUtil.jsonToPojo(dep, DeploymentDetailDto.class);
+
+//                            // set nodeselector
+//                            if (deployment != null) {
+//                                if(deployment.getNodeSelector() !=null  && !"".equals(deployment.getNodeSelector())) {
+//                                    deployment.setNodeSelector(Constant.NODESELECTOR_LABELS_PRE+deployment.getNodeSelector());
+//                                }else {
+//                                    String tenantid = (String) session.getAttribute("tenantId");
+//                                    ActionReturnUtil l = namespaceService.getPrivatePartitionLabel(tenantid, deployment.getNamespace());
+//                                    if(!l.isSuccess()) {
+//                                        return l;
+//                                    }
+//                                    String lal = (String) l.get("data");
+//                                    deployment.setNodeSelector(lal);
+//                                }
+//                            }
 
                             Deployment deploymentToYaml =  TemplateToYamlUtil.templateToDeployment(deployment);
                             com.harmonycloud.k8s.bean.Service serviceYaml = TemplateToYamlUtil.templateToService(deployment);
@@ -242,6 +265,21 @@ public class BusinessServiceImpl implements BusinessService {
         if (businessTemplate != null && businessTemplate.getServiceList() != null){
             for(ServiceTemplateDto svcOne : businessTemplate.getServiceList()){
                 if (svcOne.getDeploymentDetail() != null){
+//                    // set nodeselector
+//                    if (svcOne.getDeploymentDetail() != null) {
+//                        if(svcOne.getDeploymentDetail().getNodeSelector() !=null  && !"".equals(svcOne.getDeploymentDetail().getNodeSelector())) {
+//                            svcOne.getDeploymentDetail().setNodeSelector(Constant.NODESELECTOR_LABELS_PRE+svcOne.getDeploymentDetail().getNodeSelector());
+//                        }else {
+//                            String tenantid = (String) session.getAttribute("tenantId");
+//                            ActionReturnUtil l = namespaceService.getPrivatePartitionLabel(tenantid, svcOne.getDeploymentDetail().getNamespace());
+//                            if(!l.isSuccess()) {
+//                                return l;
+//                            }
+//                            String lal = (String) l.get("data");
+//                            svcOne.getDeploymentDetail().setNodeSelector(lal);
+//                        }
+//                    }
+
                     Deployment deploymentToYaml =  TemplateToYamlUtil.templateToDeployment(svcOne.getDeploymentDetail());
                     com.harmonycloud.k8s.bean.Service serviceYaml = TemplateToYamlUtil.templateToService(svcOne.getDeploymentDetail());
                     deploymentListToyaml.add(serviceYaml);

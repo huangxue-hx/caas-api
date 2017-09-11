@@ -82,7 +82,7 @@ public class K8SClient {
 			default:
 				break;
 			}
-			
+
 		} catch (Exception e) {
 			throw e;
 		}
