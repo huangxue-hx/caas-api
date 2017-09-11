@@ -7,6 +7,7 @@ import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.k8s.bean.BaseResource;
 import com.harmonycloud.k8s.bean.UnversionedStatus;
 import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
@@ -35,7 +36,7 @@ public class TprApplication {
         bodys.put("metadata", application.getMetadata());
         Map<String, Object> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
-        K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.POST,headers,bodys,cluster);
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST,headers,bodys,cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithMsg(us.getMessage());
@@ -53,7 +54,7 @@ public class TprApplication {
     public ActionReturnUtil delApplicationByName(String name, String namespace, Cluster cluster) throws Exception {
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.APP).setSubpath(name);
-        K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE,null,null,cluster);
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE,null,null,cluster);
         if(HttpStatusUtil.isSuccessStatus(response.getStatus())){
             return ActionReturnUtil.returnSuccess();
         }
@@ -79,7 +80,7 @@ public class TprApplication {
         bodys.put("kind", application.getKind());
         Map<String, Object> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
-        K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.PUT,headers,bodys,cluster);
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT,headers,bodys,cluster);
         if(!HttpStatusUtil.isSuccessStatus(response.getStatus())){
             UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithMsg(us.getMessage());
@@ -95,7 +96,7 @@ public class TprApplication {
     public K8SClientResponse listApplicationByNamespace(String namespace, Map<String, Object> headers, Map<String, Object> bodys, String method, Cluster cluster) throws Exception {
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.APP);
-        K8SClientResponse response = new K8SClient().doit(url, method, headers, bodys, cluster);
+        K8SClientResponse response = new K8sMachineClient().exec(url, method, headers, bodys, cluster);
         return response;
     }
 
@@ -108,7 +109,7 @@ public class TprApplication {
     public K8SClientResponse getApplicationByName(String namespace, String name,Map<String, Object> headers, Map<String, Object> bodys, String method, Cluster cluster) throws Exception {
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.APP).setName(name);
-        K8SClientResponse response = new K8SClient().doit(url, method, headers, bodys, cluster);
+        K8SClientResponse response = new K8sMachineClient().exec(url, method, headers, bodys, cluster);
         return response;
     }
 

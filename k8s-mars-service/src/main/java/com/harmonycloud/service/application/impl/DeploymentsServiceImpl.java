@@ -25,6 +25,7 @@ import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.platform.dto.PodDto;
 import com.harmonycloud.service.platform.dto.ReplicaSetDto;
 import com.harmonycloud.service.platform.service.WatchService;
+import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.TenantService;
 
 import org.apache.commons.lang3.StringUtils;
@@ -79,6 +80,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
 	@Autowired
 	ClusterMapper clusterMapper;
+
+	@Autowired
+	NamespaceService namespaceService;
 
 	public ActionReturnUtil listDeployments(String tenantId, String name, String namespace, String labels, String status) throws Exception {
 		K8SURL url = new K8SURL();
@@ -762,6 +766,20 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 			}
 		}
 
+		// set nodeselector
+		if (detail != null) {
+			if(detail.getNodeSelector() !=null  && !"".equals(detail.getNodeSelector())) {
+				detail.setNodeSelector(Constant.NODESELECTOR_LABELS_PRE+detail.getNodeSelector());
+			}else {
+				String tenantid = (String) session.getAttribute("tenantId");
+				ActionReturnUtil l = namespaceService.getPrivatePartitionLabel(tenantid, detail.getNamespace());
+				if(!l.isSuccess()) {
+					return l;
+				}
+				String lal = (String) l.get("data");
+				detail.setNodeSelector(lal);
+			}
+		}
 		if (cms.size() == 0) {
 			String lrv = watchService.getLatestVersion(detail.getNamespace(), null, cluster);
 			Deployment dep = K8sResultConvert.convertAppCreate(detail, userName,business, session.getAttribute("tenantId").toString());

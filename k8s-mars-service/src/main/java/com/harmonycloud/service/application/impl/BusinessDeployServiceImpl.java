@@ -661,7 +661,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                                 bodys.put("labelSelector", label);
                                 String n = oneNamespace.get("name").toString();
                                 url.setNamespace(n).setResource(Resource.DEPLOYMENT);
-                                K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, bodys,cluster);
+                                K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys,cluster);
                                 if(!HttpStatusUtil.isSuccessStatus(depRes.getStatus()) && depRes.getStatus() != Constant.HTTP_404){
                                     UnversionedStatus sta = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
                                     return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
@@ -770,7 +770,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                                                 headers.put("Content-Type", "application/json");
                                                 Map<String, Object> bodys = new HashMap<>();
                                                 bodys.put("gracePeriodSeconds", 1);
-                                                K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE, headers, bodys, cluster);
+                                                K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys, cluster);
                                                 if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
                                                     errorMessage.add(response.getBody());
                                                     businessFlag = false;
@@ -795,7 +795,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                                                         urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
                                                         Map<String, Object> headersPV = new HashMap<>();
                                                         headersPV.put("Content-Type", "application/json");
-                                                        K8SClientResponse responsePV = new K8SClient().doit(urlPV, HTTPMethod.PUT, headersPV, bodysPV, cluster);
+                                                        K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT, headersPV, bodysPV, cluster);
                                                         if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
                                                             errorMessage.add(responsePV.getBody());
                                                             businessFlag = false;
@@ -1780,7 +1780,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         //更新Deployment label
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.DEPLOYMENT).setName(name);
-        K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+        K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
                 && depRes.getStatus() != Constant.HTTP_404 ) {
             UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
@@ -1807,7 +1807,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         //更新service
         url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.SERVICE).setName(name);
-        K8SClientResponse serRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+        K8SClientResponse serRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
         if (!HttpStatusUtil.isSuccessStatus(serRes.getStatus())
                 && serRes.getStatus() != Constant.HTTP_404 ) {
             UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(serRes.getBody(), UnversionedStatus.class);
@@ -1824,7 +1824,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                         bodys = CollectionUtil.transBean2Map(svc);
                         Map<String, Object> headers = new HashMap<String, Object>();
                         headers.put("Content-type", "application/json");
-                        K8SClientResponse newRes = new K8SClient().doit(url, HTTPMethod.PUT, headers, bodys, cluster);
+                        K8SClientResponse newRes = new K8sMachineClient().exec(url, HTTPMethod.PUT, headers, bodys, cluster);
                         if(!HttpStatusUtil.isSuccessStatus(newRes.getStatus())){
                             UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(newRes.getBody(), UnversionedStatus.class);
                             return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
@@ -1839,7 +1839,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         //更新Deployment label
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.DEPLOYMENT).setName(name);
-        K8SClientResponse depRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+        K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
                 && depRes.getStatus() != Constant.HTTP_404 ) {
             UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
@@ -1866,7 +1866,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         //更新service
         url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.SERVICE).setName(name);
-        K8SClientResponse serRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+        K8SClientResponse serRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
         if (!HttpStatusUtil.isSuccessStatus(serRes.getStatus())
                 && serRes.getStatus() != Constant.HTTP_404 ) {
             UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(serRes.getBody(), UnversionedStatus.class);
@@ -1883,7 +1883,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                         bodys = CollectionUtil.transBean2Map(svc);
                         Map<String, Object> headers = new HashMap<String, Object>();
                         headers.put("Content-type", "application/json");
-                        K8SClientResponse newRes = new K8SClient().doit(url, HTTPMethod.PUT, headers, bodys, cluster);
+                        K8SClientResponse newRes = new K8sMachineClient().exec(url, HTTPMethod.PUT, headers, bodys, cluster);
                         if(!HttpStatusUtil.isSuccessStatus(newRes.getStatus())){
                             UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(newRes.getBody(), UnversionedStatus.class);
                             return ActionReturnUtil.returnErrorWithMsg(k8sresbody.getMessage());
