@@ -162,7 +162,7 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
                 list = this.getAllStatusModuleByParentId(0,roleName);
             }
         }else{
-            list = this.getModuleByParentId(0,roleName);
+            list = this.getModuleByParentRpId(0,roleName);
         }
 //        if(list.size()<=0){
 //            throw new MarsRuntimeException("默认角色权限数据异常,请联系管理员！");
@@ -200,7 +200,7 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
                 list = this.getAllStatusModuleByParentId(rolePrivilege.getRpid(),CommonConstant.DEFAULT);
             }
         }else{
-            list = this.getModuleByParentId(rolePrivilege.getId(),rolePrivilege.getRole());
+            list = this.getModuleByParentRpId(rolePrivilege.getId(),rolePrivilege.getRole());
         }
         Map<String, Object> sonMap = new HashMap<>();
         result.put(rolePrivilege.getFirstModule(), sonMap);
@@ -226,9 +226,9 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
     }
 
     @Override
-    public List<RolePrivilege> getModuleByParentId(Integer parentId,String roleName) throws Exception {
+    public List<RolePrivilege> getModuleByParentRpId(Integer parentRpId,String roleName) throws Exception {
         RolePrivilegeExample example = new RolePrivilegeExample ();
-        example.createCriteria().andParentidEqualTo(parentId).andRoleEqualTo(roleName);
+        example.createCriteria().andParentRpidEqualTo(parentRpId).andRoleEqualTo(roleName);
         List<RolePrivilege> list = rolePrivilegeMapper.selectByExample(example);
         return list;
     }
@@ -258,7 +258,7 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
             throw new MarsRuntimeException("角色名:"+roleName+"不存在！");
         }
         Map<String, Object> result = new HashMap<>();
-        List<RolePrivilege> list = this.getModuleByParentId(0,roleName);
+        List<RolePrivilege> list = this.getModuleByParentRpId(0,roleName);
         if(list.size()<=0){
             return result;
         }
@@ -283,7 +283,7 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
             
             return result;
         }
-        List<RolePrivilege> moduleByParentId = this.getModuleByParentId(rolePrivilege.getId(),rolePrivilege.getRole());
+        List<RolePrivilege> moduleByParentId = this.getModuleByParentRpId(rolePrivilege.getId(),rolePrivilege.getRole());
         Map<String, Object> sonMap = new HashMap<>();
         result.put(rolePrivilege.getFirstModule(), sonMap);
         for (RolePrivilege rolePrivilege2 : moduleByParentId) {

@@ -71,7 +71,7 @@ public interface RolePrivilegeService {
      * @return
      * @throws Exception
      */
-    public List<RolePrivilege> getModuleByParentId(Integer parentId,String roleName) throws Exception;
+    public List<RolePrivilege> getModuleByParentRpId(Integer parentRpId,String roleName) throws Exception;
     /**
      * 添加rolePrivilege
      * @param rolePrivilege
