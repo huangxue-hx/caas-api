@@ -830,7 +830,7 @@ public class K8sResultConvert {
         					for(NodeSelectorTermDto m : n.getNst()) {
         						if(m != null) {
         							NodeSelectorRequirement  nsr = new NodeSelectorRequirement();
-        							nsr.setKey(m.getKey());
+        							nsr.setKey(Constant.NODESELECTOR_LABELS_PRE + m.getKey());
         							nsr.setOperator(m.getOperator());
         							nsr.setValues(m.getValues());
         							matchExpressions.add(nsr);
@@ -848,7 +848,7 @@ public class K8sResultConvert {
         					for(NodeSelectorTermDto m : n.getNst()) {
         						if(m != null) {
         							NodeSelectorRequirement  nsr = new NodeSelectorRequirement();
-        							nsr.setKey(m.getKey());
+        							nsr.setKey(Constant.NODESELECTOR_LABELS_PRE + m.getKey());
         							nsr.setOperator(m.getOperator());
         							nsr.setValues(m.getValues());
         							matchExpressions.add(nsr);
