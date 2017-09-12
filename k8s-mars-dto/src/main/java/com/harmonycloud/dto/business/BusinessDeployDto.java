@@ -9,6 +9,8 @@ public class BusinessDeployDto {
     private String namespace;
 
     private String name;
+
+    private String nodeSelector;
 //
 //    private String capacity;
 //
@@ -45,7 +47,15 @@ public class BusinessDeployDto {
 		this.name = name;
 	}
 
-//    public String getName() {
+	public String getNodeSelector() {
+		return nodeSelector;
+	}
+
+	public void setNodeSelector(String nodeSelector) {
+		this.nodeSelector = nodeSelector;
+	}
+
+	//    public String getName() {
 //        return name;
 //    }
 //

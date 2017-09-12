@@ -151,6 +151,11 @@ public class BusinessDeployController {
                     }
                 }
             }
+            if (businessDeploy.getNodeSelector() != null && !StringUtils.isEmpty(businessDeploy.getNodeSelector())){
+                for (ServiceTemplateDto svc:businessDeploy.getBusinessTemplate().getServiceList()){
+                    svc.getDeploymentDetail().setNodeSelector(businessDeploy.getNodeSelector());
+                }
+            }
             return businessDeployService.deployBusinessTemplate(businessDeploy, userName, cluster, tenantId);
         }else{
             return checkRes;
