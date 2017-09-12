@@ -423,7 +423,7 @@ public class PersistenVolumeServiceImpl implements PersistentVolumeService{
 	                        Pod pod = JsonUtil.jsonToPojo(dp.getBody(), Pod.class);
 	                        if(pod != null && pod.getMetadata() != null && pod.getMetadata().getName() != null){
 	                        	if(pod.getStatus() != null && pod.getStatus().getPhase() != null){
-	                        		if( !"Running".equals(pod.getStatus().getPhase())){
+	                        		if( !"Running".equals(pod.getStatus().getPhase()) && !"Pending".equals(pod.getStatus().getPhase())){
 	                        			podService.deletePod(CommonConstant.CICD_NAMESPACE, CommonConstant.PV_RECYCLE_POD_NAME + name, cluster);
 	                        			break;
 	                        		}
