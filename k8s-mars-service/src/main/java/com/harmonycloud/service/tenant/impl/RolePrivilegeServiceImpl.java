@@ -82,13 +82,13 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
             if(status ^ resource.getAvailable()){
                 this.resourceService.updateRoleMenuResource(resource.getId(), status);
             }
-            List<RolePrivilege> moduleByParentIdSecond = this.getAllStatusModuleByParentId(map.getId(), roleName);
+            List<RolePrivilege> moduleByParentIdSecond = this.getAllStatusModuleByParentId(map.getRpid(), roleName);
             for (RolePrivilege rolePrivilegeSecond : moduleByParentIdSecond) {
-                Resource resourceSecond = this.getRolePrivateByMark(rolePrivilegeSecond.getMark(),roleName);
+                Resource resourceSecond = this.getRolePrivateByMark(rolePrivilegeSecond.getMark().equals("租户管理")?"我的租户":map.getMark(),roleName);
                 if(resourceSecond != null){
                     Boolean statusSecond = rolePrivilegeSecond.getStatus();
                     if(statusSecond ^ resource.getAvailable()){
-                        this.resourceService.updateRoleMenuResource(resourceSecond.getId(), status);
+                        this.resourceService.updateRoleMenuResource(resourceSecond.getId(), statusSecond);
                     }
                 }
             }
@@ -114,6 +114,9 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
 
     @Override
     public void resetRolePrivilegeByRoleName(String roleName) throws Exception {
+        if(CommonConstant.ADMIN.equals(roleName)){
+            return;
+        }
         RolePrivilegeCustomExample example = new RolePrivilegeCustomExample();
         example.createCriteria().andRoleEqualTo(roleName);
         List<RolePrivilegeCustom> selectByExample = rolePrivilegeCustomMapper.selectByExample(example);
@@ -228,7 +231,7 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
     @Override
     public List<RolePrivilege> getModuleByParentRpId(Integer parentRpId,String roleName) throws Exception {
         RolePrivilegeExample example = new RolePrivilegeExample ();
-        example.createCriteria().andParentRpidEqualTo(parentRpId).andRoleEqualTo(roleName);
+        example.createCriteria().andParentRpidEqualTo(parentRpId).andRoleEqualTo(roleName).andStatusEqualTo(Boolean.TRUE);
         List<RolePrivilege> list = rolePrivilegeMapper.selectByExample(example);
         return list;
     }
@@ -283,7 +286,7 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
             
             return result;
         }
-        List<RolePrivilege> moduleByParentId = this.getModuleByParentRpId(rolePrivilege.getId(),rolePrivilege.getRole());
+        List<RolePrivilege> moduleByParentId = this.getModuleByParentRpId(rolePrivilege.getRpid(),rolePrivilege.getRole());
         Map<String, Object> sonMap = new HashMap<>();
         result.put(rolePrivilege.getFirstModule(), sonMap);
         for (RolePrivilege rolePrivilege2 : moduleByParentId) {

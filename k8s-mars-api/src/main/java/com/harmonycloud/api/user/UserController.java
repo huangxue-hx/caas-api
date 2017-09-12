@@ -378,7 +378,13 @@ public class UserController {
             return ActionReturnUtil.returnSuccessWithData(result);
         }
         Role role = roleService.getRoleByUserNameAndTenant(userName, tenantid);
-        Map<String, Object> privilegeByRole = rolePrivilegeService.getPrivilegeByRole(CommonConstant.ROLE_TM.equals(role.getName())?CommonConstant.ROLE_DEV:role.getName());
+        if(role!=null&&"pause".equals(role.getSecondResourceIds())){
+            ActionReturnUtil.returnErrorWithMsg("当前用户所属角色被停用,请联系管理员");
+        }
+        Map<String, Object> privilegeByRole = rolePrivilegeService.getPrivilegeByRole(role.getName());
+        if(privilegeByRole==null || privilegeByRole.isEmpty()){
+            ActionReturnUtil.returnErrorWithMsg("当前用户所属角色未分配权限,请联系管理员");
+        }
         session.setAttribute("role", role.getName());
         session.setAttribute("privilege", privilegeByRole);
 

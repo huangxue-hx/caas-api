@@ -146,6 +146,7 @@ public class RoleServiceImpl implements RoleService {
         }
         Role role = list.get(0);
         role.setAvailable(true);
+        role.setSecondResourceIds(null);
         roleMapper.updateByPrimaryKey(role);
     }
 
