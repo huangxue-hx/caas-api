@@ -228,7 +228,7 @@ public class YamlServiceImpl implements YamlService{
                 mes.put("数据" +i+ ":","数据不合法"+ "\n");
             }
         }
-        if (mes!= null && mes.keySet() != null){
+        if (mes!= null && mes.keySet() != null && mes.keySet().size() > 0){
             return ActionReturnUtil.returnErrorWithData(mes);
         }
         return ActionReturnUtil.returnSuccess();
