@@ -134,6 +134,8 @@ public class PersistenVolumeServiceImpl implements PersistentVolumeService{
         String label = "nephele_tenantid ="+tenantid;
         Cluster cluster = tenantService.getClusterByTenantid(tenantid);
         K8SClientResponse response = pvService.listPvBylabel(label,cluster);
+        TenantBinding tenantByTenantid = tenantService.getTenantByTenantid(tenantid);
+        String tenantName = tenantByTenantid.getTenantName();
         List<PvDto> pvDtos = new ArrayList<>();
         if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             PersistentVolumeList persistentVolumeList = K8SClient.converToBean(response, PersistentVolumeList.class);
@@ -181,37 +183,12 @@ public class PersistenVolumeServiceImpl implements PersistentVolumeService{
                     // 设置type
                     pvDto.setType(CommonConstant.NFS);
                     pvDto.setBind(pv.getSpec().getClaimRef());
-                    // 设置tenantid
-                    Map<String, Object> labels = pv.getMetadata().getLabels();
-                    Collection<Object> values = labels.values();
-                    String min = null;
-                    for (Object object : values) {
-                        if (min == null) {
-                            min = object.toString();
-                        }
-                        if (object.toString().length() < min.length()) {
-                            min = object.toString();
-                        }
-                    }
                     // 设置tenant
                     PvDto.Tenant tenant = pvDto.new Tenant();
-                    tenant.setTenantid(min);
+                    tenant.setTenantid(tenantid);
                     pvDto.setTenant(tenant);
-                    pvDto.setTenantid(min);
-                    if (pv.getSpec().getClaimRef() != null) {
-                        String namespace = pv.getSpec().getClaimRef().getNamespace();
-                        // 将namespace处理为tenantname
-                        String[] split = namespace.split("-");
-                        tenant.setTenantname(split[1]);
-                    } else {
-                        // 根据tenantId查询tenantName
-                        TenantBindingExample example = new TenantBindingExample();
-                        example.createCriteria().andTenantIdEqualTo(min);
-                        List<TenantBinding> list = tenantBindingMapper.selectByExample(example);
-                        if (list != null && list.size() > 0) {
-                            tenant.setTenantname(list.get(0).getTenantName());
-                        }
-                    }
+                    pvDto.setTenantid(tenantid);
+                    tenant.setTenantname(tenantName);
                     pvDtos.add(pvDto);
             }
             }

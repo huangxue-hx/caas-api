@@ -43,6 +43,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Created by root on 7/9/17.
@@ -212,7 +214,8 @@ public class JobsServiceImpl implements JobsService{
         return ActionReturnUtil.returnSuccessWithData(array);
     }
 
-    @Override
+    @SuppressWarnings("unchecked")
+	@Override
     public ActionReturnUtil getJobDetail(String namespace, String name, Cluster cluster) throws Exception {
         // 获取job
         Map<String, Object> bodys = new HashMap<String, Object>();
@@ -273,7 +276,19 @@ public class JobsServiceImpl implements JobsService{
 			JSONObject js = new JSONObject();
 			js.put("name", container.getName());
 			js.put("image", container.getImage());
-			js.put("resource", container.getResources().getLimits());
+			if (container.getResources().getLimits() != null) {
+				String pattern = ".*m.*";
+				Pattern r = Pattern.compile(pattern);
+				String cpu = ((Map<Object, Object>) container.getResources().getLimits()).get("cpu").toString();
+				Matcher m = r.matcher(cpu);
+				if (!m.find()) {
+					((Map<Object, Object>) container.getResources().getLimits()).put("cpu",
+							Integer.valueOf(cpu) * 1000 + "m");
+				}
+				js.put("resource", container.getResources().getLimits());
+			} else {
+				js.put("resource", "");
+			}
 			js.put("env", container.getEnv());
 			js.put("command", container.getCommand());
 			js.put("args", container.getArgs());
@@ -474,49 +489,45 @@ public class JobsServiceImpl implements JobsService{
     		Job job = JsonUtil.jsonToPojo(jobRes.getBody(),Job.class);
     		if(job != null){
     			if(job.getMetadata() != null && job.getSpec() != null){
-    				if(job.getStatus() != null && job.getStatus() != null){
-    					if(job.getStatus().getActive() != null){
-    						int para = 1;
-    						int com = 1;
-    	    				para = job.getSpec().getParallelism();
-    	    				com = job.getSpec().getCompletions();
-    	    				if(job.getMetadata().getAnnotations() != null){
-    	    					Map<String, Object> anno = ((Map<String, Object>) job.getMetadata().getAnnotations());
-    	    					if (anno.containsKey("nephele/status") && anno.get("nephele/status") != null) {
-    	    						String status = anno.get("nephele/status").toString();
-    	    						if (status.equals(Constant.STOPPING)) {
-    	    							return ActionReturnUtil
-    	    									.returnErrorWithMsg("job " + name + " 已经停止");
-    	    						} else {
-    	    							if (anno.get("nephele/parallelism") == null){
-    	    								anno.put("nephele/parallelism",para+"");
-    	    							}
-    	    							if (anno.get("nephele/completions") == null){
-    	    								anno.put("nephele/completions",com+"");
-    	    							}
-
-    	    							anno.put("nephele/status", Constant.STOPPING);
-    	    						}
-    	    					} else {
-    	    						anno.put("nephele/status", Constant.STOPPING);
-    	    						if (anno.get("nephele/parallelism") != null){
-    	    							anno.put("nephele/parallelism", anno.get("nephele/parallelism"));
-    	    						} else {
-    	    							anno.put("nephele/parallelism", para+"");
-    	    						}
-    	    						if (anno.get("nephele/completions") != null){
-    	    							anno.put("nephele/completions", anno.get("nephele/completions"));
-    	    						} else {
-    	    							anno.put("nephele/completions", com+"");
-    	    						}
-    	    					}
-    	    				}
-    	    				job.getSpec().setParallelism(0);
-    	    				//job.getSpec().setCompletions(com);
-    					}else{
-    						return ActionReturnUtil
-									.returnErrorWithMsg("job " + name + " 已经完成或者失败了");
-    					}
+    				if(job.getSpec().getParallelism() != 0) {
+        				int para = 1;
+						int com = 1;
+						para = job.getSpec().getParallelism();
+						com = job.getSpec().getCompletions();
+						if(job.getMetadata().getAnnotations() != null){
+							Map<String, Object> anno = ((Map<String, Object>) job.getMetadata().getAnnotations());
+							if (anno.containsKey("nephele/status") && anno.get("nephele/status") != null) {
+								String status = anno.get("nephele/status").toString();
+								if (status.equals(Constant.STOPPING)) {
+									return ActionReturnUtil
+											.returnErrorWithMsg("job " + name + " 已经停止");
+								} else {
+									if (anno.get("nephele/parallelism") == null){
+										anno.put("nephele/parallelism",para+"");
+									}
+									if (anno.get("nephele/completions") == null){
+										anno.put("nephele/completions",com+"");
+									}
+		
+									anno.put("nephele/status", Constant.STOPPING);
+								}
+							} else {
+								anno.put("nephele/status", Constant.STOPPING);
+								if (anno.get("nephele/parallelism") != null){
+									anno.put("nephele/parallelism", anno.get("nephele/parallelism"));
+								} else {
+									anno.put("nephele/parallelism", para+"");
+								}
+								if (anno.get("nephele/completions") != null){
+									anno.put("nephele/completions", anno.get("nephele/completions"));
+								} else {
+									anno.put("nephele/completions", com+"");
+								}
+							}
+						}
+        	    		job.getSpec().setParallelism(0);
+    				}else {
+    					return ActionReturnUtil.returnErrorWithMsg("job " + name + " 已经完成或者失败了");
     				}
     			}
     		}
