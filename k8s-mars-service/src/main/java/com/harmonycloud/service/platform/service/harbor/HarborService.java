@@ -4,7 +4,9 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.service.platform.bean.HarborLog;
 import com.harmonycloud.service.platform.bean.HarborProject;
 import com.harmonycloud.service.platform.bean.HarborProjectQuota;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.util.List;
 
 /**
@@ -155,5 +157,12 @@ public interface HarborService {
 
     List<HarborLog> projectOperationLogs(Integer projectId, Integer begin, Integer end,
                                          String keywords) throws Exception;
+
+
+    ActionReturnUtil uploadImage(MultipartFile file,  String imageName);
+
+    boolean removeImage(String imageName) throws Exception;
+
+    InputStream downloadImage(String imageName) throws Exception;
 
 }

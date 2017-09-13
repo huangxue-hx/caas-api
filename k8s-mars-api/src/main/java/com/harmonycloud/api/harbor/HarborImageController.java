@@ -1,5 +1,7 @@
 package com.harmonycloud.api.harbor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
@@ -12,10 +14,16 @@ import com.harmonycloud.service.platform.integrationService.HarborIntegrationSer
 import com.harmonycloud.service.platform.service.harbor.HarborMemberService;
 import com.harmonycloud.service.platform.service.harbor.HarborService;
 import com.harmonycloud.service.user.RoleService;
+import org.springframework.web.multipart.MultipartFile;
+import javax.servlet.http.HttpServletResponse;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 @Controller
 //@RequestMapping(value = "")
 public class HarborImageController {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(HarborImageController.class);
 
 	@Autowired
 	private HarborService harborService;
@@ -172,5 +180,42 @@ public class HarborImageController {
 		return null;
 	}
 
+	@ResponseBody
+	@RequestMapping(value = "/image/upload", method = RequestMethod.POST)
+	public ActionReturnUtil fileUpload(@RequestParam(value="file") MultipartFile file,
+									   @RequestParam("imageFullName") String imageName) {
+		if(file.isEmpty()){
+			return ActionReturnUtil.returnErrorWithData("文件内容不能为空");
+		}
+		if(!file.getName().endsWith(".tar")){
+			return ActionReturnUtil.returnErrorWithData("只支持tar文件上传");
+		}
+		return harborService.uploadImage(file, imageName);
+	}
 
+	@RequestMapping(value="/image/download",method=RequestMethod.GET) //匹配的是href中的download请求
+	public void download(@RequestParam("imageName") String imageName, HttpServletResponse response){
+		OutputStream outputStream = null;
+		InputStream inputStream = null;
+        try {
+			String fileName = imageName.substring(imageName.lastIndexOf("/")+1) + ".tar";
+			fileName = fileName.replace(":", "_");
+			response.setContentType("multipart/form-data");
+			response.setHeader("Content-Disposition", "attachment;fileName=" + fileName);
+			outputStream = response.getOutputStream();
+			inputStream =  harborService.downloadImage(imageName);
+			//循环写入输出流
+			byte[] b = new byte[2048];
+			int length;
+			while ((length = inputStream.read(b)) > 0) {
+				outputStream.write(b, 0, length);
+			}
+			outputStream.flush();
+			outputStream.close();
+			inputStream.close();
+			harborService.removeImage(imageName);
+		}catch (Exception e){
+			LOGGER.error("下载镜像失败", e);
+		}
+	}
 }
