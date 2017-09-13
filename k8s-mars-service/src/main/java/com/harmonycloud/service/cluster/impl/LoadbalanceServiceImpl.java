@@ -75,46 +75,51 @@ public class LoadbalanceServiceImpl implements LoadbalanceService {
 		List<PodDetail> pods = (List<PodDetail>) podList.get("data");
 		podCount = pods.size();
 		if (podCount > 0) {
+			Integer tps = 0;
+			Integer sessions = 0;
+			Map<String, Integer> resMap = new HashMap<String, Integer>();
+			
 			// 从数据库中查询负载均衡的地址
 			String slbUrl = null;
 			ClusterLoadbalanceExample lbExample = new ClusterLoadbalanceExample();
 			lbExample.createCriteria().andClusterIdEqualTo(clusterId);
 			List<ClusterLoadbalance> clusterLoadbalances = clusterLbMapper.selectByExample(lbExample);
 			if (clusterLoadbalances != null && !clusterLoadbalances.isEmpty()) {
-				slbUrl = "http://" + clusterLoadbalances.get(0).getLoadbalanceIp() + ":"
-						+ clusterLoadbalances.get(0).getLoadbalancePort();
-				String url = slbUrl + "/stats;csv;norefresh";
-				HttpClientResponse response = HttpClientUtil.doGet(url, null, null);
-				if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-					String res = response.getBody();
-					res = res.substring(res.indexOf("#") + 2);
-					String[] content = res.split("\n");
-					CsvUtil csvUtil = new CsvUtil(content);
-					int row = csvUtil.getRowNum();
-					csvUtil.getContent();
-					Map<String, Integer> resMap = new HashMap<String, Integer>();
-					Integer tps = 0;
-					Integer sessions = 0;
-					// 对pods循环，根据podIp来筛选
-					for (PodDetail podDetail : pods) {
-						for (int i = 1; i < row; i++) {
-							Map<String, Object> tMap = csvUtil.rowToJson(i);
-							String svName = tMap.get("svname").toString();
-							if (svName.indexOf(":") > -1) {
-								String ip = svName.substring(0, svName.indexOf(":"));
-								if (ip.equals(podDetail.getIp())) {
-									tps = tps + Integer.valueOf((String) tMap.get("rate"));
-									sessions = sessions + Integer.valueOf((String) tMap.get("stot"));
+				
+				//多个haproxy，需查询每一个
+				for (ClusterLoadbalance lb : clusterLoadbalances) { 
+					slbUrl = "http://" + lb.getLoadbalanceIp() + ":" + lb.getLoadbalancePort();
+					String url = slbUrl + "/stats;csv;norefresh";
+					HttpClientResponse response = HttpClientUtil.doGet(url, null, null);
+					if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+						String res = response.getBody();
+						res = res.substring(res.indexOf("#") + 2);
+						String[] content = res.split("\n");
+						CsvUtil csvUtil = new CsvUtil(content);
+						int row = csvUtil.getRowNum();
+						csvUtil.getContent();
+						
+						// 对pods循环，根据podIp来筛选
+						for (PodDetail podDetail : pods) {
+							for (int i = 1; i < row; i++) {
+								Map<String, Object> tMap = csvUtil.rowToJson(i);
+								String svName = tMap.get("svname").toString();
+								if (svName.indexOf(":") > -1) {
+									String ip = svName.substring(0, svName.indexOf(":"));
+									if (ip.equals(podDetail.getIp())) {
+										tps = tps + Integer.valueOf((String) tMap.get("rate"));
+										sessions = sessions + Integer.valueOf((String) tMap.get("stot"));
+									}
 								}
 							}
 						}
+					} else {
+						return ActionReturnUtil.returnErrorWithMsg(response.getBody());
 					}
-					resMap.put("tps", tps/podCount);
-					resMap.put("sessions", sessions/podCount);
-					return ActionReturnUtil.returnSuccessWithData(resMap);
-				} else {
-					return ActionReturnUtil.returnErrorWithMsg(response.getBody());
 				}
+				resMap.put("tps", tps/podCount);
+				resMap.put("sessions", sessions/podCount);
+				return ActionReturnUtil.returnSuccessWithData(resMap);
 			}
 		}
 
