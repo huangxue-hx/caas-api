@@ -38,7 +38,7 @@ public class YamlController {
      */
     @ResponseBody
     @RequestMapping(method = RequestMethod.POST)
-    public ActionReturnUtil getBusinessTemplateYaml(@ModelAttribute YamlDto yamlDto)
+    public ActionReturnUtil deployYaml(@ModelAttribute YamlDto yamlDto)
             throws Exception {
         logger.info("deploy application template by yaml!");
         return yamlService.deployYaml(yamlDto);
