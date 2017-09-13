@@ -172,13 +172,22 @@ public class RoleServiceImpl implements RoleService {
         RoleExample example = new RoleExample();
         example.createCriteria().andNameEqualTo(roleName);
         List<Role> list = roleMapper.selectByExample(example);
+        if(list != null && list.size() > 0 && list.get(0).getAvailable() == Boolean.TRUE){
+            throw new MarsRuntimeException("角色"+role.getName()+"已经存在");
+        }
+        RoleExample preexample2 = new RoleExample();
+        preexample2.createCriteria().andDescriptionEqualTo(role.getDescription());
+        List<Role> prelist2 = roleMapper.selectByExample(preexample2);
+        if(prelist2 != null && prelist2.size() > 0 && prelist2.get(0).getAvailable() == Boolean.TRUE){
+            throw new MarsRuntimeException("角色名"+role.getDescription()+"已经存在");
+        }
         if(list != null && list.size() > 0 && list.get(0).getAvailable() == Boolean.FALSE){
             Role role2 = list.get(0);
             role2.setAvailable(role.getAvailable());
             role2.setUpdateTime(role.getUpdateTime());
             role2.setDescription(role.getDescription());
             roleMapper.updateByPrimaryKeySelective(role2);
-        }else{
+        }else {
             roleMapper.insertSelective(role);
         }
         resourceService.addNewRoleMenu(role.getName());

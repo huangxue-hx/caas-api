@@ -84,10 +84,10 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
             }
             List<RolePrivilege> moduleByParentIdSecond = this.getAllStatusModuleByParentId(map.getRpid(), roleName);
             for (RolePrivilege rolePrivilegeSecond : moduleByParentIdSecond) {
-                Resource resourceSecond = this.getRolePrivateByMark(rolePrivilegeSecond.getMark().equals("租户管理")?"我的租户":map.getMark(),roleName);
+                Resource resourceSecond = this.getRolePrivateByMark(rolePrivilegeSecond.getMark().equals("租户管理")?"我的租户":rolePrivilegeSecond.getMark(),roleName);
                 if(resourceSecond != null){
                     Boolean statusSecond = rolePrivilegeSecond.getStatus();
-                    if(statusSecond ^ resource.getAvailable()){
+                    if(statusSecond ^ resourceSecond.getAvailable()){
                         this.resourceService.updateRoleMenuResource(resourceSecond.getId(), statusSecond);
                     }
                 }
