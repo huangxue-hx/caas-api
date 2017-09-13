@@ -1,11 +1,17 @@
 package com.harmonycloud.service.platform.serviceImpl.harbor;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.net.URI;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import com.alibaba.fastjson.JSONObject;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
@@ -16,9 +22,16 @@ import com.harmonycloud.service.tenant.TenantService;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.service.platform.bean.*;
+import com.spotify.docker.client.DefaultDockerClient;
+import com.spotify.docker.client.DockerCertificates;
+import com.spotify.docker.client.DockerClient;
+import com.spotify.docker.client.messages.RegistryAuth;
+import com.spotify.docker.client.messages.RemovedImage;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -38,7 +51,7 @@ import com.harmonycloud.service.platform.integrationService.HarborIntegrationSer
 import com.harmonycloud.dao.tenant.HarborProjectTenantMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.springframework.web.multipart.MultipartFile;
 import static com.harmonycloud.service.platform.constant.Constant.DEFAULT_PAGE_SIZE;
 import static com.harmonycloud.service.platform.constant.Constant.TIME_ZONE_UTC;
 
@@ -65,8 +78,18 @@ public class HarborServiceImpl implements HarborService {
     private HarborProjectTenantService harborProjectTenantService;
 
     private static ConcurrentHashMap<String,HarborRepositoryMessage> harborRepositoryMap = new ConcurrentHashMap<>();
+    private static DockerClient docker;
 
     private static String SPLIT = "#@#";
+
+    @Value("#{propertiesReader['upload.path']}")
+    private String uploadPath;
+
+    @Value("#{propertiesReader['docker.host']}")
+    private String dockerHost;
+
+    @Value("#{propertiesReader['docker.cert.path']}")
+    private String dockerCertPath;
 
     /**
      * harbor 登录接口
@@ -510,6 +533,124 @@ public class HarborServiceImpl implements HarborService {
         }
         return harborLogs;
     }
+
+    @Override
+    public ActionReturnUtil uploadImage(MultipartFile file, String imageName) {
+        File imageFile = null;
+        String imageFullName = harborUtil.getHarborIP() + "/" + imageName;
+        String[] imageNamePart = imageFullName.split(":");
+        if(imageNamePart.length != 2){
+            return ActionReturnUtil.returnErrorWithData("镜像名称格式不正确，应包含标签");
+        }
+        String filePath = uploadPath + File.separator + "image-upload" + File.separator + imageNamePart[0]
+                + File.separator + imageNamePart[1] + File.separator;
+        File dir = new File(filePath);
+        try {
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+            // 转存文件
+            String fileName = file.getOriginalFilename();
+            imageFile = new File(filePath + fileName);
+            if(imageFile.exists()){
+                return ActionReturnUtil.returnErrorWithData("镜像 " + imageFullName + " 正在上传仓库中...");
+            }
+            file.transferTo(imageFile);
+            pushImage(imageFile, imageFullName);
+        } catch (Exception e) {
+            LOGGER.error("上传镜像失败",e);
+            return ActionReturnUtil.returnErrorWithData("上传镜像失败");
+        } finally{
+            if(imageFile != null && imageFile.exists()){
+                imageFile.delete();
+            }
+            if(dir.exists()){
+                dir.delete();
+            }
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    @Override
+    public InputStream downloadImage(String imageName) throws Exception{
+        String imageFullName = harborUtil.getHarborIP() + "/" + imageName;
+        DockerClient docker = this.getDockerClient();
+        docker.pull(imageFullName);
+        return docker.save(imageFullName);
+    }
+
+    @Override
+    public boolean removeImage(String imageName) throws Exception{
+        String imageFullName = harborUtil.getHarborIP() + "/" + imageName;
+        DockerClient docker = this.getDockerClient();
+        List<RemovedImage> removedImages = docker.removeImage(imageFullName);
+        if(removedImages.size() == 1){
+            return true;
+        }
+        return false;
+    }
+
+    private void pushImage(File imageFile, String imageFullName) throws Exception{
+        DockerClient docker = this.getDockerClient();
+        Set<String> loadedImages = docker.load(new FileInputStream(imageFile));
+        if(loadedImages.size() == 0){
+            throw new MarsRuntimeException("从文件中加载镜像失败");
+        }
+        if(loadedImages.size() > 1){
+            throw new MarsRuntimeException("只支持单个镜像上传");
+        }
+        String tarFileImage = "";
+        for (String loadedImage : loadedImages) {
+            tarFileImage = loadedImage;
+        }
+        docker.tag(tarFileImage, imageFullName);
+        docker.push(imageFullName);
+        LOGGER.info("{}镜像上传完成" ,imageFullName);
+        List<RemovedImage> removedImages = docker.removeImage(tarFileImage);
+        removedImages.addAll(docker.removeImage(imageFullName));
+        removedImages.stream().forEach( image-> LOGGER.info("删除镜像：{}" ,image.imageId()));
+    }
+
+    /**
+     * 获取docker client
+     * @return
+     * @throws Exception
+     */
+    public DockerClient getDockerClient() throws Exception {
+        if(docker != null){
+            return docker;
+        }
+        String osName = (String)System.getProperties().get("os.name");
+        if(osName.toLowerCase().contains("windows")){
+            docker = DefaultDockerClient.builder()
+                    .uri(URI.create(dockerHost))
+                    .dockerCertificates(new DockerCertificates(Paths.get(dockerCertPath)))
+                    .build();
+        }else {
+            File dockerFile = new File("/var/run/docker.sock");
+            if(dockerFile.exists()) {
+                docker = new DefaultDockerClient("unix:///var/run/docker.sock");
+            }else if(StringUtils.isNotBlank(dockerHost)){
+                docker = DefaultDockerClient.builder()
+                        .uri(URI.create(dockerHost))
+                        .dockerCertificates(new DockerCertificates(Paths.get(dockerCertPath)))
+                        .build();
+            }else{
+                throw new MarsRuntimeException("未设置docker连接方式");
+            }
+        }
+        final RegistryAuth registryAuth = RegistryAuth.builder()
+                .serverAddress("http://" + harborUtil.getHarborIP())
+                .username(harborUtil.getHarborUser())
+                .password(harborUtil.getHarborPassword())
+                .build();
+        final int statusCode = docker.auth(registryAuth);
+        if(statusCode  != HttpStatus.OK.value()){
+            throw new MarsRuntimeException("harbor验证失败，statusCode: " + statusCode);
+        }
+        return docker;
+    }
+
 
     /**
      * 根据harbor项目下镜像的操作日志更新操作过的镜像信息

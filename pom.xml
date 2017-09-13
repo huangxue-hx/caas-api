@@ -53,7 +53,7 @@
 		<!--<jackson.version>2.7.0</jackson.version> -->
 		<jackson.version>2.6.5</jackson.version>
 		<c3p0.version>0.9.1.1</c3p0.version>
-		<httpclient.version>4.3.5</httpclient.version>
+		<httpclient.version>4.5.2</httpclient.version>
 		<servlet.version>3.1.0</servlet.version>
 		<es.version>2.4.1</es.version>
 		<json-lib.version>2.4</json-lib.version>
