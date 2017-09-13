@@ -3,6 +3,8 @@ package com.harmonycloud.service.platform.bean;
 import java.util.List;
 import java.util.Map;
 
+import com.harmonycloud.dto.business.NodeAffinityDto;
+import com.harmonycloud.dto.business.PodAffinityDto;
 import com.harmonycloud.dto.scale.AutoScaleDto;
 import com.harmonycloud.k8s.bean.Event;
 import com.harmonycloud.k8s.bean.ServicePort;
@@ -57,6 +59,12 @@ public class AppDetail {
 	private boolean hostIPC;
 	
 	private boolean hostPID;
+	
+	private List<NodeAffinityDto> nodeAffinity;
+	
+	private List<PodAffinityDto> podAntiAffinity ;
+	
+	private String nodeSelector;
 
 	public String getClusterIP() {
 		return clusterIP;
@@ -232,5 +240,29 @@ public class AppDetail {
 
 	public void setAutoScale(AutoScaleDto autoScale) {
 		this.autoScale = autoScale;
+	}
+
+	public List<NodeAffinityDto> getNodeAffinity() {
+		return nodeAffinity;
+	}
+
+	public void setNodeAffinity(List<NodeAffinityDto> nodeAffinity) {
+		this.nodeAffinity = nodeAffinity;
+	}
+
+	public List<PodAffinityDto> getPodAntiAffinity() {
+		return podAntiAffinity;
+	}
+
+	public void setPodAntiAffinity(List<PodAffinityDto> podAntiAffinity) {
+		this.podAntiAffinity = podAntiAffinity;
+	}
+
+	public String getNodeSelector() {
+		return nodeSelector;
+	}
+
+	public void setNodeSelector(String nodeSelector) {
+		this.nodeSelector = nodeSelector;
 	}
 }

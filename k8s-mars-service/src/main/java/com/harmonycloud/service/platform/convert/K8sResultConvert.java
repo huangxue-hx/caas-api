@@ -49,7 +49,96 @@ public class K8sResultConvert {
 		}else{
 			appDetail.setHostPID(false);
 		}
-		
+		//亲和度
+		if(dep.getSpec().getTemplate().getSpec().getAffinity() != null) {
+			//node 亲和度
+			if(dep.getSpec().getTemplate().getSpec().getAffinity().getNodeAffinity() != null) {
+				List<NodeAffinityDto> nas = new ArrayList<NodeAffinityDto>();
+				if(dep.getSpec().getTemplate().getSpec().getAffinity().getNodeAffinity().getPreferredDuringSchedulingIgnoredDuringExecution() != null && dep.getSpec().getTemplate().getSpec().getAffinity().getNodeAffinity().getPreferredDuringSchedulingIgnoredDuringExecution().size() > 0) {
+					List<PreferredSchedulingTerm> psts = dep.getSpec().getTemplate().getSpec().getAffinity().getNodeAffinity().getPreferredDuringSchedulingIgnoredDuringExecution();
+					for(PreferredSchedulingTerm pst : psts) {
+						NodeAffinityDto na = new NodeAffinityDto();
+						na.setType("weight");
+						na.setWeight(pst.getWeight());
+						List<NodeSelectorTermDto> nst =new ArrayList<NodeSelectorTermDto>();
+						List<NodeSelectorRequirement> nsqs =pst.getPreference().getMatchExpressions();
+						if(nsqs != null && nsqs.size() > 0) {
+							for(NodeSelectorRequirement nsq : nsqs ) {
+								if(nsq != null ) {
+									NodeSelectorTermDto ns = new NodeSelectorTermDto();
+									ns.setKey(nsq.getKey());
+									ns.setOperator(nsq.getOperator());
+									ns.setValues(nsq.getValues());
+									nst.add(ns);
+								}
+							}
+						}
+						na.setNst(nst);
+						nas.add(na);
+					}
+				}
+				if(dep.getSpec().getTemplate().getSpec().getAffinity().getNodeAffinity().getRequiredDuringSchedulingIgnoredDuringExecution() != null ) {
+					NodeSelector r = dep.getSpec().getTemplate().getSpec().getAffinity().getNodeAffinity().getRequiredDuringSchedulingIgnoredDuringExecution();
+					if(r.getNodeSelectorTerms() != null && r.getNodeSelectorTerms().size() > 0) {
+						NodeAffinityDto na = new NodeAffinityDto();
+						na.setType("");
+						for(NodeSelectorTerm  nst : r.getNodeSelectorTerms()) {
+							if(nst != null && nst.getMatchExpressions() != null && nst.getMatchExpressions().size() >0) {
+								List<NodeSelectorTermDto> nstds =new ArrayList<NodeSelectorTermDto>();
+								List<NodeSelectorRequirement> nsr = nst.getMatchExpressions();
+								for(NodeSelectorRequirement ns : nsr) {
+									NodeSelectorTermDto nstd = new NodeSelectorTermDto();
+									nstd.setKey(ns.getKey());
+									nstd.setOperator(ns.getOperator());
+									nstd.setValues(ns.getValues());
+									nstds.add(nstd);
+								}
+								na.setNst(nstds);
+							}
+						}
+						nas.add(na);
+					}
+				}
+				appDetail.setNodeAffinity(nas);
+			}
+			if(dep.getSpec().getTemplate().getSpec().getAffinity().getPodAntiAffinity() != null) {
+				List<PodAffinityDto> paaa = new ArrayList<PodAffinityDto>();
+				PodAntiAffinity pa = dep.getSpec().getTemplate().getSpec().getAffinity().getPodAntiAffinity();
+				if(pa.getPreferredDuringSchedulingIgnoredDuringExecution() != null  && pa.getPreferredDuringSchedulingIgnoredDuringExecution().size() > 0) {
+					//权重
+					for(WeightedPodAffinityTerm wpat : pa.getPreferredDuringSchedulingIgnoredDuringExecution()) {
+						PodAffinityDto pad = new PodAffinityDto();
+						pad.setWeight(wpat.getWeight());
+						if(wpat.getPodAffinityTerm() != null && wpat.getPodAffinityTerm().getLabelSelector() != null && wpat.getPodAffinityTerm().getLabelSelector().getMatchExpressions() != null && wpat.getPodAffinityTerm().getLabelSelector().getMatchExpressions().size() > 0) {
+							List<NodeSelectorTermDto> nsts = new ArrayList<NodeSelectorTermDto>();
+							for(LabelSelectorRequirement lsq : wpat.getPodAffinityTerm().getLabelSelector().getMatchExpressions()) {
+								NodeSelectorTermDto nst = new NodeSelectorTermDto();
+								nst.setKey(lsq.getKey());
+								nst.setOperator(lsq.getOperator());
+								nst.setValues(lsq.getValues());
+								nsts.add(nst);
+							}
+							pad.setLabelSelector(nsts);
+							paaa.add(pad);
+						}
+					}
+				}
+				if(pa.getRequiredDuringSchedulingIgnoredDuringExecution() != null && pa.getRequiredDuringSchedulingIgnoredDuringExecution().size() > 0) {
+					//TODO 非权重
+				}
+				//TODO podAntiAffinity
+				appDetail.setPodAntiAffinity(paaa);
+			}
+		}
+		// nodeselector
+		if(dep.getSpec().getTemplate().getSpec().getNodeSelector() != null) {
+			Map<String, Object> ns = dep.getSpec().getTemplate().getSpec().getNodeSelector();
+			String nodeSelector = null;
+			for(Map.Entry<String, Object> entry : ns.entrySet()) {
+				nodeSelector = entry.getKey()+"="+entry.getValue();
+			}
+			appDetail.setNodeSelector(nodeSelector);
+		}
 		Map<String, Object> labels = new HashMap<String, Object>();
 		for (Map.Entry<String, Object> m : meta.getLabels().entrySet()) {
 			if (m.getKey().indexOf("nephele/") > 0) {

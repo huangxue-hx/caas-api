@@ -8,19 +8,16 @@ import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.business.YamlDto;
 import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
 import com.harmonycloud.k8s.bean.*;
-import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.k8s.service.TprApplication;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
-import com.harmonycloud.service.application.BusinessDeployService;
 import com.harmonycloud.service.application.YamlService;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.tenant.NamespaceService;
-import net.sf.json.JSONObject;
-import org.apache.commons.collections.map.HashedMap;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,7 +64,7 @@ public class YamlServiceImpl implements YamlService{
     final static String MAP_NAME = "name";
 
     private static final String SIGN = "-";
-    private static final String SIGN_EQUAL = "=";
+   // private static final String SIGN_EQUAL = "=";
     private final static String TOPO = "topo";
     private final static String CREATE = "creater";
 
@@ -83,9 +80,10 @@ public class YamlServiceImpl implements YamlService{
         if(!namespacesrep.isSuccess()){
             return ActionReturnUtil.returnErrorWithMsg("namespace获取失败");
         }
-        List<NamespaceShowDto> namespaceList = (List<NamespaceShowDto>) namespacesrep.get("data");
+        @SuppressWarnings("unchecked")
+		List<NamespaceShowDto> namespaceList = (List<NamespaceShowDto>) namespacesrep.get("data");
         Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-        Map<String,String> mes = new HashedMap();
+        Map<String,String> mes = new HashMap<String,String>();
         String tenantId = session.getAttribute("tenantId").toString();
         String username = session.getAttribute("username").toString();
 
@@ -150,8 +148,10 @@ public class YamlServiceImpl implements YamlService{
                         url.setNamespace(namesp).setResource(kind);
                         Map<String, Object> headers = new HashMap<String, Object>();
                         headers.put("Content-type", "application/json");
-                        Map bodys = (Map) yaml.load(oneData.get(MAP_DATA).toString());
-                        K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.POST, headers, bodys, cluster);
+                        @SuppressWarnings("rawtypes")
+						Map bodys = (Map) yaml.load(oneData.get(MAP_DATA).toString());
+                        @SuppressWarnings("unchecked")
+						K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
                         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
                             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
                             mes.put("数据" +i+ "创建失败:",status.getMessage()+ "\n");
@@ -161,7 +161,7 @@ public class YamlServiceImpl implements YamlService{
                             if ("services".equals(kind)){
                                 url = new K8SURL();
                                 url.setNamespace(namesp).setResource(Resource.SERVICE).setName(devName);
-                                K8SClientResponse serRes = new K8SClient().doit(url, HTTPMethod.GET, null, null,cluster);
+                                K8SClientResponse serRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
                                 if (!HttpStatusUtil.isSuccessStatus(serRes.getStatus())
                                         && serRes.getStatus() != Constant.HTTP_404 ) {
                                     UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(serRes.getBody(), UnversionedStatus.class);
@@ -178,7 +178,7 @@ public class YamlServiceImpl implements YamlService{
                                                 bodyss = CollectionUtil.transBean2Map(svc);
                                                 Map<String, Object> headerss = new HashMap<String, Object>();
                                                 headerss.put("Content-type", "application/json");
-                                                K8SClientResponse newRes = new K8SClient().doit(url, HTTPMethod.PUT, headerss, bodyss, cluster);
+                                                K8SClientResponse newRes = new K8sMachineClient().exec(url, HTTPMethod.PUT, headerss, bodyss, cluster);
                                                 if(!HttpStatusUtil.isSuccessStatus(newRes.getStatus())){
                                                     UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(newRes.getBody(), UnversionedStatus.class);
                                                     mes.put("数据" +i+ "更新失败:",k8sresbody.getMessage()+ "\n");
@@ -190,7 +190,7 @@ public class YamlServiceImpl implements YamlService{
                                 //更新Deployment label
                                 K8SURL urld = new K8SURL();
                                 urld.setNamespace(namesp).setResource(Resource.DEPLOYMENT).setName(devName);
-                                K8SClientResponse depRes = new K8SClient().doit(urld, HTTPMethod.GET, null, null,cluster);
+                                K8SClientResponse depRes = new K8sMachineClient().exec(urld, HTTPMethod.GET, null, null,cluster);
                                 if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
                                         && depRes.getStatus() != Constant.HTTP_404 ) {
                                     UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
@@ -237,15 +237,11 @@ public class YamlServiceImpl implements YamlService{
 
 
     private List<Map<String,Object>> convertYaml(String yaml) throws Exception {
-
-        String[] instance = yaml.split(SPLIT);
-
-
         ByteArrayInputStream is=new ByteArrayInputStream(yaml.getBytes());
         BufferedReader br=new BufferedReader(new InputStreamReader(is));
         StringBuffer sb = new StringBuffer();
         String line = "";
-        Map<String,Object> convertBody = new HashedMap();
+        Map<String,Object> convertBody = new HashMap<String,Object>();
         List<Map<String,Object>> allData = new ArrayList<>();
         try {
             while((line = br.readLine())!=null){
@@ -272,7 +268,7 @@ public class YamlServiceImpl implements YamlService{
 
                 if (line.startsWith(SPLIT)){
                     convertBody.put(MAP_DATA,sb.toString());
-                    Map<String,Object> newConvertBody = new HashedMap();
+                    Map<String,Object> newConvertBody = new HashMap<String,Object>();
 
                     if (convertBody.get(MAP_NAME) != null){
                         newConvertBody.put(MAP_NAME,convertBody.get(MAP_NAME));
