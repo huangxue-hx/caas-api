@@ -705,6 +705,33 @@ public class TenantServiceImpl implements TenantService {
         return ActionReturnUtil.returnSuccessWithData("添加成功");
     }
 
+    @Override
+    public ActionReturnUtil updateTenantUser(String tenantid, String username, String role) throws Exception {
+        // 初始化判断1
+        if (StringUtils.isEmpty(tenantid) || StringUtils.isEmpty(username) || StringUtils.isEmpty(role)) {
+            return ActionReturnUtil.returnErrorWithMsg("租户id，用户名，用户角色不能为空");
+        }
+        Object currentUser = session.getAttribute("username");
+        if(currentUser == null){
+            throw new K8sAuthException(Constant.HTTP_401);
+        }
+        String currentUserName = currentUser.toString();
+        if(!this.isAdmin(tenantid, currentUserName)){
+            return ActionReturnUtil.returnErrorWithMsg("用户:" + currentUserName + "不为管理员或者租户管理员，不能修改用户角色操作");
+        }
+        if(currentUserName.equals(username)){
+            return ActionReturnUtil.returnErrorWithMsg("租户管理员:" + currentUserName + "不能修改自己的角色");
+        }
+        ActionReturnUtil removeTenantUser = this.removeTenantUser(tenantid, username);
+        if ((Boolean) removeTenantUser.get(CommonConstant.SUCCESS) == CommonConstant.FALSE) {
+            return removeTenantUser;
+        }
+        ActionReturnUtil addTenantUser = this.addTenantUser(tenantid, username, role);
+        if ((Boolean) addTenantUser.get(CommonConstant.SUCCESS) == CommonConstant.FALSE) {
+            return addTenantUser;
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
     public ActionReturnUtil addusertodb(String tenantid, String username, boolean isTm,String role) throws Exception {
         String[] user = username.split(CommonConstant.COMMA);
         List<String> userlist = new ArrayList<String>();
@@ -802,6 +829,9 @@ public class TenantServiceImpl implements TenantService {
         String currentUserName = currentUser.toString();
         if(!this.isAdmin(tenantid, currentUserName)){
             return ActionReturnUtil.returnErrorWithMsg("用户:" + currentUserName + "不为管理员或者租户管理员，不能删除用户操作");
+        }
+        if(currentUserName.equals(username)){
+            return ActionReturnUtil.returnErrorWithMsg("租户管理员:" + currentUserName + "不能删除自己");
         }
         List<UserTenant> userByTenantid = userTenantService.getUserByTenantid(tenantid);
 //        if(userByTenantid.size() <= 1){

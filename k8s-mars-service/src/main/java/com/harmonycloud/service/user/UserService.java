@@ -1252,7 +1252,74 @@ public class UserService {
         }
         return ActionReturnUtil.returnSuccessWithDataAndCount(userNameList,userNameList.size());
     }
+    /**
+     * 用户列表
+     * 
+     * @throws Exception
+     */
+    public ActionReturnUtil listCommonUsers() throws Exception {
 
+        // 查询harbor用户
+        String cookie = harborUtil.checkCookieTimeout();
+        Map<String, Object> header = new HashMap<String, Object>();
+        List<Map<String, Object>> result = null;
+        header.put("Cookie", cookie);
+        String userPath = "http://" + harborIP + ":" + harborPort + "/api/users";
+        HttpClientResponse httpClientResponse = HttpClientUtil.doGet(userPath, null, header);
+        if (org.apache.commons.lang3.StringUtils.isNotBlank(httpClientResponse.getBody())) {
+            result = JsonUtil.JsonToMapList(httpClientResponse.getBody());
+        }
+        // 查询k8s用户
+        List<UserShowDto> userNameList = new ArrayList<UserShowDto>();
+        List<User> users = userMapper.listUsers();
+        // 取k8s和harbor用户交集
+        for (Map<String, Object> harborMap : result) {
+            String harbor = (String) harborMap.get("username");
+            for (User user : users) {
+                Integer isadmin = user.getIsAdmin();
+                if(isadmin == 1){
+                    continue;
+                }
+                String k8s = user.getUsername();
+                if (harbor.equals(k8s)) {
+                    UserGroupRelationExample ugr = new UserGroupRelationExample();
+                    ugr.createCriteria().andUseridEqualTo(user.getId());
+                    UserShowDto u = new UserShowDto();
+                    if(null != usergrouprelationMapper.selectByExample(ugr) && usergrouprelationMapper.selectByExample(ugr).size()>0){
+                        int groupid = usergrouprelationMapper.selectByExample(ugr).get(0).getGroupid();
+                        String groupname = usergroupMapper.selectByPrimaryKey(groupid).getGroupname();
+                        u.setGroupName(groupname);
+                    }
+                    u.setIsTm(user.getIsAdmin() == 1);
+                    u.setName(user.getUsername());
+                    u.setNikeName(user.getRealName());
+                    u.setEmail(user.getEmail());
+                    u.setComment(user.getComment());
+                    u.setPause(user.getPause());
+                    u.setPhone(user.getPhone());
+                    User user1 = userMapper.findAthorizeByUsername(user.getUsername());
+                    if(user1!=null){
+                        u.setIsAuthorize(1);
+                    }else{
+                        u.setIsAuthorize(0);
+                    }
+
+                    Date createTime = user.getCreateTime();
+                    String date = DateUtil.DateToString(createTime, DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z);
+                    u.setCreateTime(date);
+                    if (user.getUpdateTime() == null) {
+                        u.setUpdateTime("");
+                    } else {
+                        Date updateTime = user.getUpdateTime();
+                        u.setUpdateTime(DateUtil.DateToString(updateTime, DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z));
+                    }
+                    userNameList.add(u);
+                    break;
+                }
+            }
+        }
+        return ActionReturnUtil.returnSuccessWithDataAndCount(userNameList,userNameList.size());
+    }
     public String getPassword(String userName) {
         AuthUserExample example = new AuthUserExample();
         example.createCriteria().andNameEqualTo(userName);

@@ -127,6 +127,15 @@ public interface TenantService {
      */
     public ActionReturnUtil addTenantUser(String tenantid, String username,String role) throws Exception;
     /**
+     * 修改tenant用户角色
+     * @param tenantid
+     * @param username
+     * @param role
+     * @return
+     * @throws Exception
+     */
+    public ActionReturnUtil updateTenantUser(String tenantid, String username,String role) throws Exception;
+    /**
      * 向租户下移除user
      * @param tenantid
      * @param username

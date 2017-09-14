@@ -285,7 +285,16 @@ public class UserController {
     public ActionReturnUtil userList() throws Exception {
         return userService.listUsers();
     }
-
+    /**
+     * 获取普通用户
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/listCommonUsers", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil listCommonUsers() throws Exception {
+        return userService.listCommonUsers();
+    }
     /**
      * 获取当前用户
      * 
@@ -375,6 +384,7 @@ public class UserController {
         session.setAttribute("tenantId", tenantid);
         session.setAttribute("currentCluster", cluster);
         if(isAdmin.equals("1")){
+            session.setAttribute("role", CommonConstant.ADMIN);
             return ActionReturnUtil.returnSuccessWithData(result);
         }
         Role role = roleService.getRoleByUserNameAndTenant(userName, tenantid);

@@ -408,6 +408,19 @@ public class TenantController {
         return ActionReturnUtil.returnSuccess();
     }
     /**
+     * 修改tenant用户角色
+     * 
+     * @return
+     */
+    @RequestMapping(value = "/updateUser", method = RequestMethod.POST)
+    @ResponseBody
+    public ActionReturnUtil updateTenantUser(@RequestParam(value = "tenantid") String tenantid, @RequestParam(value = "username") String username, @RequestParam(value = "role") String role)
+            throws Exception {
+        logger.info("向tenant增加用户");
+        this.tenantService.updateTenantUser(tenantid, username, role);
+        return ActionReturnUtil.returnSuccess();
+    }
+    /**
      * 向tenant移除用户
      * 
      * @return
