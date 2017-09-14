@@ -112,6 +112,20 @@ public class ComplexAutoscaleController {
         }
     }
 
+    @ResponseBody
+    @RequestMapping(method = RequestMethod.GET)
+    public ActionReturnUtil queryAutoScale(@RequestParam(value = "deploymentName") String deploymentName,
+                                            @RequestParam(value = "namespace") String namespace) throws Exception {
+        try {
+            Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+            AutoScaleDto autoScaleDto = autoScaleService.get(namespace, deploymentName, cluster);
+            return ActionReturnUtil.returnSuccessWithData(autoScaleDto);
+        }catch (Exception e) {
+            logger.error("查询自动伸缩失败， deploymentName:{}", deploymentName, e);
+            return ActionReturnUtil.returnError();
+        }
+    }
+
     private String checkParams( AutoScaleDto autoScale){
         if(autoScale == null){
             return "请求参数不能为空";
