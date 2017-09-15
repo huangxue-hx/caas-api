@@ -11,7 +11,7 @@
     <result column="ingress_content" jdbcType="VARCHAR" property="ingressContent" />
     <result column="status" jdbcType="INTEGER" property="status" />
     <result column="tenant" jdbcType="VARCHAR" property="tenant" />
-    <result column="user" jdbcType="VARCHAR" property="user" />
+    <result column="create_user" jdbcType="VARCHAR" property="user" />
     <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
     <result column="flag" jdbcType="INTEGER" property="flag" />
     <result column="node_selector" property="nodeSelector" jdbcType="VARCHAR" />
@@ -19,7 +19,7 @@
 
 
   <insert id="insert" parameterType="com.harmonycloud.dao.application.bean.ServiceTemplates" useGeneratedKeys="true" keyProperty="id">
-    insert into service_templates (name, tag, details, image_list, ingress_content, status, tenant, user, create_time, flag, deployment_content, node_selector)
+    insert into service_templates (name, tag, details, image_list, ingress_content, status, tenant, create_user, create_time, flag, deployment_content, node_selector)
     values (#{name}, #{tag}, #{details}, #{imageList}, #{ingressContent}, #{status}, #{tenant}, #{user}, #{createTime}, #{flag}, #{deploymentContent}, #{nodeSelector})
   </insert>
 
@@ -134,7 +134,7 @@
         deployment_content = #{deploymentContent},
       </if>
       <if test="user != null">
-        user = #{user},
+        create_user = #{user},
       </if>
       <if test="imageList != null">
         image_list = #{imageList},
