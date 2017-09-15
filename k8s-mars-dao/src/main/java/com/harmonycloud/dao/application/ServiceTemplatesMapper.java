@@ -20,7 +20,8 @@ public interface ServiceTemplatesMapper {
     
     List<ServiceTemplates> listNameByImage(@Param("name") String name, @Param("image") String image, @Param("tenant") String tenant);
     
-
+    List<ServiceTemplates> listServiceLikeImage(@Param("name") String name, @Param("image") String image, @Param("tenant") String tenant);
+    
     List<ServiceTemplates> listServiceMaxTagByName(String name);
 
     List<ServiceTemplates> listServiceTemplate(@Param("name") String name, @Param("tag") String tag);

@@ -146,7 +146,9 @@ public class ServiceServiceImpl implements ServiceService {
 			List<CreateContainerDto> containers = serviceTemplate.getDeploymentDetail().getContainers();
 			String images = "";
 			for (CreateContainerDto c : containers) {
-				images = images + c.getImg() + ",";
+				if(!images.contains(c.getImg())) {
+					images = images + c.getImg() + ",";
+				}
 			}
 			serviceTemplateDB.setImageList(images.substring(0, images.length() - 1));
 		}
@@ -159,13 +161,6 @@ public class ServiceServiceImpl implements ServiceService {
 		serviceTemplateDB.setUser(userName);
 		serviceTemplateDB.setCreateTime(new Date());
 		serviceTemplateDB.setFlag(serviceTemplate.getExternal());
-		/*if (serviceTemplate.getDeploymentDetail() != null) {
-			if(serviceTemplate.getDeploymentDetail().getNodeSelector() !=null  && !"".equals(serviceTemplate.getDeploymentDetail().getNodeSelector())) {
-				serviceTemplateDB.setNodeSelector(serviceTemplate.getDeploymentDetail().getNodeSelector());
-			}else {
-				namespaceService.getPrivatePartitionLabel(tenantid, namespace);
-			}
-		}*/
 		serviceTemplateDB.setTag(decimalFormat.format(tag));
 		serviceTemplatesMapper.insert(serviceTemplateDB);
 		JSONObject json = new JSONObject();
@@ -221,8 +216,8 @@ public class ServiceServiceImpl implements ServiceService {
 		List<ServiceTemplates> serviceBytenant = serviceTemplatesMapper.listNameByImage(name, image, tenant);
 		if (serviceBytenant != null && serviceBytenant.size() > 0) {
 			for (ServiceTemplates serviceTemplates : serviceBytenant) {
-				List<ServiceTemplates> serviceList = serviceTemplatesMapper.listServiceByImage(
-						serviceTemplates.getName(), serviceTemplates.getImageList(), serviceTemplates.getTenant());
+				List<ServiceTemplates> serviceList = serviceTemplatesMapper.listServiceLikeImage(
+						serviceTemplates.getName(), image, serviceTemplates.getTenant());
 				array.add(getServiceTemplates(serviceList));
 			}
 		}
