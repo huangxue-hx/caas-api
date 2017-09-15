@@ -39,7 +39,7 @@
   </select>
 
   <select id="listNameByImage" parameterType="java.lang.String" resultMap="BaseResultMap">
-    select distinct name , image_list,tenant FROM service_templates WHERE
+    select distinct name , tenant FROM service_templates WHERE
     <if test="name != null" >
       name like concat(concat('%',#{name}),'%') AND
     </if>
@@ -53,6 +53,12 @@
     select * FROM service_templates WHERE 
       name =#{name} AND 
       tenant = #{tenant} AND image_list =#{image} AND status=0 and flag=0
+  </select> 
+  
+  <select id="listServiceLikeImage" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select * FROM service_templates WHERE 
+      name =#{name} AND 
+      tenant = #{tenant} AND image_list LIKE concat(concat('%',#{image}),'%') AND status=0 and flag=0
   </select> 
 
   <select id="listServiceMaxTagByName" parameterType="java.lang.String" resultMap="BaseResultMap">
@@ -97,7 +103,7 @@
   </select>
   
   <select id="listSearchByImage" parameterType="java.lang.String" resultMap="BaseResultMap">
-    SELECT * FROM service_templates WHERE status=0 and flag=0
+    SELECT DISTINCT tenant, name, image_list FROM service_templates WHERE status=0 and flag=0
     <if test="image != null and image != ''">
     	and image_list LIKE concat(concat('%',#{image}),'%')
     </if>
