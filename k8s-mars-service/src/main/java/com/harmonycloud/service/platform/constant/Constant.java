@@ -121,4 +121,6 @@ public class Constant {
 	public final static String AFFINITY_WEIGHT = "weight";
 	
 	public final static String AFFINITY_TOPOLOGYKEY = "kubernetes.io/hostname";
+	
+	public final static String SPACE_TRANS = "%20";
 }
