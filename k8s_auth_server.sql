@@ -341,7 +341,7 @@ CREATE TABLE `cicd_stage_build` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `job_id` int(11) DEFAULT NULL,
   `stage_id` int(11) DEFAULT NULL,
-  `build_num` varchar(20) DEFAULT NULL,
+  `build_num` int(11) DEFAULT NULL,
   `status` varchar(20) DEFAULT NULL,
   `start_time` datetime DEFAULT NULL,
   `duration` varchar(20) DEFAULT NULL,
