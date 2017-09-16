@@ -85,7 +85,7 @@ CREATE TABLE `business_service` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `business_id` int(11) NOT NULL,
   `service_id` int(11) NOT NULL,
-  `status` int(11) DEFAULT NULL,
+  `status` int(1) DEFAULT NULL,
   `is_external` int(1) DEFAULT '0',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -113,12 +113,12 @@ CREATE TABLE `business_templates` (
   `name` varchar(45) CHARACTER SET latin1 DEFAULT NULL,
   `tag` varchar(45) CHARACTER SET latin1 DEFAULT NULL,
   `details` varchar(512) DEFAULT NULL,
-  `status` int(11) DEFAULT NULL,
+  `status` int(1) DEFAULT NULL,
   `tenant` varchar(45) CHARACTER SET latin1 DEFAULT NULL,
   `create_user` varchar(45) CHARACTER SET latin1 DEFAULT NULL,
   `create_time` timestamp NULL DEFAULT NULL,
   `update_time` timestamp NULL DEFAULT NULL,
-  `is_deploy` int(11) DEFAULT NULL,
+  `is_deploy` int(1) DEFAULT NULL,
   `image_list` varchar(2048) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -492,7 +492,7 @@ CREATE TABLE `configfile` (
   `create_time` varchar(255) DEFAULT NULL,
   `tenant` varchar(255) DEFAULT NULL,
   `reponame` varchar(255) DEFAULT NULL,
-  `user` varchar(255) DEFAULT NULL,
+  `creator` varchar(255) DEFAULT NULL,
   `item` text,
   `path` varchar(512) DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -2814,11 +2814,11 @@ CREATE TABLE `service_templates` (
   `deployment_content` longtext,
   `image_list` varchar(512) CHARACTER SET latin1 DEFAULT NULL,
   `ingress_content` text CHARACTER SET latin1,
-  `status` int(11) DEFAULT NULL,
+  `status` int(1) DEFAULT NULL,
   `tenant` varchar(45) CHARACTER SET latin1 DEFAULT NULL,
   `create_user` varchar(45) CHARACTER SET latin1 DEFAULT NULL,
   `create_time` timestamp NULL DEFAULT NULL,
-  `flag` int(11) DEFAULT '0',
+  `flag` int(1) DEFAULT '0',
   `node_selector` varchar(225) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
