@@ -35,6 +35,7 @@ import com.harmonycloud.dto.business.ContainerFileUploadDto;
 import com.harmonycloud.dto.business.PodContainerDto;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.service.application.FileUploadToContainerService;
+import com.harmonycloud.service.platform.constant.Constant;
 
 /**
  * 
@@ -69,7 +70,13 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 		String fileName = file.getOriginalFilename();
 		String path = uploadPath + containerFileUpload.getNamespace();
 		File dirFile = new File(path);
-		File newFile = new File(path + "/" + fileName);
+		String newFileName = fileName;
+		
+		//对含有空格的文件名进行字符替换
+		if (fileName.indexOf(" ") != -1) {
+			newFileName = fileName.replaceAll(" ", Constant.SPACE_TRANS);
+		}
+		File newFile = new File(path + "/" + newFileName);
 		logger.info("newFilepath:" + newFile.getPath());
 		Long userId = Long.valueOf(session.getAttribute("userId").toString());
 		List<Integer> uploadIds = new ArrayList<Integer>();
@@ -81,7 +88,7 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 			fUploadContainer.setContainerFilePath(containerFileUpload.getContainerFilePath());
 			fUploadContainer.setNamespace(containerFileUpload.getNamespace());
 			fUploadContainer.setDeployment(containerFileUpload.getDeployment());
-			fUploadContainer.setFileName(fileName);
+			fUploadContainer.setFileName(newFileName);
 			fUploadContainer.setPhase(1);
 			fUploadContainer.setPod(pDto.getName());
 			fUploadContainer.setUserId(userId);
@@ -95,7 +102,7 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 							.andUserIdEqualTo(userId).andDeploymentEqualTo(containerFileUpload.getDeployment())
 							.andPodEqualTo(pDto.getName())
 							.andContainerFilePathEqualTo(containerFileUpload.getContainerFilePath())
-							.andFileNameEqualTo(fileName).andContainerEqualTo(c);
+							.andFileNameEqualTo(newFileName).andContainerEqualTo(c);
 					List<FileUploadContainer> uploadList = fileUploadContainerMapper.selectByExample(example);
 					if (uploadList != null && uploadList.size() > 0) {
 						FileUploadContainer tmp = uploadList.get(0);
@@ -118,7 +125,7 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 						.andUserIdEqualTo(userId).andDeploymentEqualTo(containerFileUpload.getDeployment())
 						.andPodEqualTo(pDto.getName())
 						.andContainerFilePathEqualTo(containerFileUpload.getContainerFilePath())
-						.andFileNameEqualTo(fileName);
+						.andFileNameEqualTo(newFileName);
 				List<FileUploadContainer> uploadList = fileUploadContainerMapper.selectByExample(example);
 				if (uploadList != null && uploadList.size() > 0) {
 					FileUploadContainer tmp = uploadList.get(0);
@@ -255,6 +262,15 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 					.andDeploymentEqualTo(containerFileUpload.getDeployment()).andUserIdEqualTo(userId)
 					.andPodEqualTo(pContainerDto.getName());
 			List<FileUploadContainer> records = fileUploadContainerMapper.selectByExample(fucExample);
+			
+			//将带有空格的文件名称
+			for (FileUploadContainer fContainer : records) {
+				if (fContainer.getFileName().indexOf(Constant.SPACE_TRANS) != -1) {
+					String fileName = fContainer.getFileName().replaceAll(Constant.SPACE_TRANS, " ");
+					fContainer.setFileName(fileName);
+				}
+			}
+			
 			result.addAll(records);
 		}
 
@@ -292,6 +308,11 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 		BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
 		while ((res = stdInput.readLine()) != null) {
 			Map<String, String> file = new HashMap<String, String>();
+			
+			//将替换的字符重新转成空格
+			if (res.indexOf(Constant.SPACE_TRANS) != -1) {
+				res = res.replaceAll(Constant.SPACE_TRANS, " ");
+			}
 			file.put("name", res);
 			files.add(file);
 			logger.debug("文件名：" + res);
