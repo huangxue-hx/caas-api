@@ -10,7 +10,7 @@
         <result property="description" column="description" />
         <result property="tags" column="tags"/>
         <result property="createTime" column="create_time"/>
-        <result property="user" column="user"/>
+        <result property="user" column="creator"/>
         <result property="repoName" column="reponame"/>
         <result property="item" column="item"/>
         <result property="path" column="path"/>
@@ -74,7 +74,7 @@
     
     <!-- 添加ConfigFile -->
     <insert id="saveConfigFile" parameterType="com.harmonycloud.dao.application.bean.ConfigFile">
-        insert into configfile(id,name,tenant,description,tags,create_time,user,reponame,item,path)
+        insert into configfile(id,name,tenant,description,tags,create_time,creator,reponame,item,path)
         values(#{id},#{name},#{tenant},#{description},#{tags},#{createTime},#{user},#{repoName},#{item},#{path})
     </insert>
 
@@ -99,7 +99,7 @@
         	description = #{description},
         	tenant = #{tenant},
         	reponame = #{repoName},
-        	user = #{user},
+        	creator = #{user},
         	item = #{item},
         	path = #{path}
     	</set>

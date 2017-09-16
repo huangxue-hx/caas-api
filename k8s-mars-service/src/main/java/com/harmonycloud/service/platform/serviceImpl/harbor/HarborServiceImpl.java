@@ -1241,9 +1241,7 @@ public class HarborServiceImpl implements HarborService {
                 projectInfo.setProject_name(harborProjectTenant.getHarborProjectName());
                 projectInfo.setHarborRepositoryMessagesList(repositoryMessagesList);
                 projectRepoList.add(projectInfo);
-            } else {
-                return repoResponse;
-            }
+            } 
         }
        return ActionReturnUtil.returnSuccessWithData(projectRepoList);
     }
