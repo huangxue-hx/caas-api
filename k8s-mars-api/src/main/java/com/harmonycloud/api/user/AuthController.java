@@ -98,7 +98,7 @@ public class AuthController {
         SystemConfig trialConfig = this.systemConfigService.findByConfigName(CommonConstant.TRIAL_TIME);
         if(trialConfig != null) {
             int v = Integer.parseInt(trialConfig.getConfigValue());
-            if (v <= 0) {
+            if (v == 0) {
                 return ActionReturnUtil.returnErrorWithMsg("试用已结束，请联系管理员");
             }
         }

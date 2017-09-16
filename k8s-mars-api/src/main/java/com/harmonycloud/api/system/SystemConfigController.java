@@ -73,4 +73,28 @@ public class SystemConfigController {
 		}
 	}
 
+	@ResponseBody
+	@RequestMapping(value = "/trialTime", method = RequestMethod.GET)
+	public ActionReturnUtil  trialTime(){
+		try {
+			SystemConfig systemConfig = this.systemConfigService.findByConfigName(CommonConstant.TRIAL_TIME);
+			if (StringUtils.isEmpty(systemConfig)) {
+				systemConfig = new SystemConfig();
+				systemConfig.setConfigName("trial_time");
+				systemConfig.setConfigValue("-1");
+				systemConfig.setConfigType("system");
+				return ActionReturnUtil.returnSuccessWithData(systemConfig);
+			}
+			if(Integer.parseInt(systemConfig.getConfigValue()) != -1) {
+				systemConfig.setConfigValue(String.format("%.0f", Double.parseDouble(systemConfig.getConfigValue()) / 24));
+			}
+
+			return ActionReturnUtil.returnSuccessWithData(systemConfig);
+		} catch (Exception e) {
+			logger.error("Failed to get Trial time", e);
+			return ActionReturnUtil.returnSuccessWithData("获取试用时间失败");
+		}
+	}
+
+
 }
