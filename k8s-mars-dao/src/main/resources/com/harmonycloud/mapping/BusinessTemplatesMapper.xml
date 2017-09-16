@@ -8,7 +8,7 @@
     <result column="details" property="details" jdbcType="VARCHAR" />
     <result column="status" property="status" jdbcType="INTEGER" />
     <result column="tenant" property="tenant" jdbcType="VARCHAR" />
-    <result column="user" property="user" jdbcType="VARCHAR" />
+    <result column="create_user" property="user" jdbcType="VARCHAR" />
     <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
     <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
     <result column="is_deploy" property="isDeploy" jdbcType="INTEGER" />
@@ -17,7 +17,7 @@
 
   
    <insert id="saveBusinessTemplates" parameterType="com.harmonycloud.dao.application.bean.BusinessTemplates" useGeneratedKeys="true" keyProperty="id">
-    insert into business_templates (name, tag, details, status, tenant, user, create_time,image_list)
+    insert into business_templates (name, tag, details, status, tenant, create_user, create_time,image_list)
     values (#{name}, #{tag}, #{details}, #{status}, #{tenant}, #{user}, #{createTime},#{imageList})
   </insert>
   
@@ -102,7 +102,7 @@
         status = #{status},
       </if>
       <if test="user != null">
-        user = #{user},
+        create_user = #{user},
       </if>
       <if test="updateTime != null">
         update_time = #{updateTime},
