@@ -111,5 +111,6 @@
          <mapper resource="com/harmonycloud/mapping/SystemConfigMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/BuildEnvironmentMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/ClusterLoadbalanceMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/StageSonarMapper.xml" />
     </mappers>
 </configuration>

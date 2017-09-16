@@ -42,3 +42,9 @@ jenkins.username=admin
 jenkins.password=admin
 
 api.access.allow.origin=http://10.10.101.143:30088,http://127.0.0.1:8887
+
+sonar.url=http://10.10.101.98:9000
+sonar.key=edc2dc794bcb180423cf77164b5039536e635d02
+sonar.username=admin
+sonar.password=admin
+sonar.timeout=3000

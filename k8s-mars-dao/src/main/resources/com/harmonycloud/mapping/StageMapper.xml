@@ -198,4 +198,19 @@
         DELETE FROM cicd_stage where job_id = #{id}
     </delete>
 
+    <select id="querySonarByJobId" parameterType="java.util.Map" resultMap="BaseResultMap">
+        <include refid="selectAllColumns"/>
+        WHERE cicd_stage_type.template_type = #{stageTemplateType}
+
+        <if test="op!=null and op!=''">
+            <if test="op == 'LT'">
+                <![CDATA[ AND s.stage_order < #{stageOrder} ]]>
+            </if>
+            <if test="op == 'GT'">
+                <![CDATA[ AND s.stage_order > #{stageOrder} ]]>
+            </if>
+        </if>
+        AND s.job_id = #{jobId} ORDER BY s.stage_order
+    </select>
+
 </mapper>
