@@ -4,6 +4,7 @@ import com.harmonycloud.dao.ci.bean.Stage;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by anson on 17/7/12.
@@ -22,4 +23,5 @@ public interface StageMapper {
 
     Stage queryById(Integer id);
     List<Stage> queryByStageTypeId(@Param("stageTypeId") Integer stageTypeId);
+    List<Stage> querySonarByJobId(Map<String,String> map);
 }

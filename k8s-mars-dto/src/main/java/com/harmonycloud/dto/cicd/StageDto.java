@@ -2,6 +2,7 @@ package com.harmonycloud.dto.cicd;
 
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.ci.bean.Stage;
+import com.harmonycloud.dto.cicd.sonar.ConditionDto;
 import org.springframework.beans.BeanUtils;
 
 import java.util.ArrayList;
@@ -47,6 +48,9 @@ public class StageDto {
     private List command;
     private Date createTime;
     private Date updateTime;
+
+    private List<ConditionDto> conditionDtos;
+    private String sonarProperty;
 
     public Integer getId() {
         return id;
@@ -318,6 +322,22 @@ public class StageDto {
 
     public void setUpdateTime(Date updateTime) {
         this.updateTime = updateTime;
+    }
+
+    public List<ConditionDto> getConditionDtos() {
+        return conditionDtos;
+    }
+
+    public void setConditionDtos(List<ConditionDto> conditionDtos) {
+        this.conditionDtos = conditionDtos;
+    }
+
+    public String getSonarProperty() {
+        return sonarProperty;
+    }
+
+    public void setSonarProperty(String sonarProperty) {
+        this.sonarProperty = sonarProperty;
     }
 
     public Stage convertToBean(){

@@ -1,15 +1,22 @@
 package com.harmonycloud.service.platform.serviceImpl.ci;
 
 import com.harmonycloud.common.enumm.DockerfileTypeEnum;
+import com.harmonycloud.common.enumm.RepositoryTypeEnum;
 import com.harmonycloud.common.enumm.StageTemplateTypeEnum;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.ci.*;
 import com.harmonycloud.dao.ci.bean.*;
 import com.harmonycloud.dto.cicd.StageDto;
+import com.harmonycloud.dto.cicd.sonar.ConditionDto;
 import com.harmonycloud.service.platform.client.HarborClient;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.platform.service.ci.StageService;
+import com.harmonycloud.sonarqube.webapi.client.SonarProjectService;
+import com.harmonycloud.sonarqube.webapi.client.SonarQualitygatesService;
+import com.harmonycloud.sonarqube.webapi.model.project.ProjectInfo;
+import com.harmonycloud.sonarqube.webapi.model.qualitygates.Condition;
+import com.harmonycloud.sonarqube.webapi.model.qualitygates.Qualitygates;
 import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
@@ -58,8 +65,23 @@ public class StageServiceImpl implements StageService {
     @Autowired
     DockerFileJobStageMapper dockerFileJobStageMapper;
 
+    @Autowired
+    private SonarProjectService sonarProjectService;
+
+    @Autowired
+    private SonarQualitygatesService sonarQualitygatesService;
+
+    @Autowired
+    private StageSonarMapper stageSonarMapper;
+
     @Value("#{propertiesReader['api.url']}")
     private String apiUrl;
+
+    @Value("${sonar.url}")
+    private String sonarUrl;
+
+    @Value("${sonar.key}")
+    private String sonarKey;
 
 
     @Override
@@ -81,6 +103,9 @@ public class StageServiceImpl implements StageService {
             dockerFileJobStage.setJobId(stage.getJobId());
             dockerFileJobStage.setDockerFileId(stageDto.getDockerfileId());
             dockerFileJobStageMapper.insertDockerFileJobStage(dockerFileJobStage);
+        }
+        if(StageTemplateTypeEnum.CODESCANNER.ordinal() == stageDto.getStageTemplateType()){
+            generateCodeScanner(stage,stageDto,true);
         }
         ActionReturnUtil result = updateJenkinsJob(stageDto.getJobId());
         if(!result.isSuccess()){
@@ -111,6 +136,9 @@ public class StageServiceImpl implements StageService {
             dockerFileJobStage.setJobId(stage.getJobId());
             dockerFileJobStage.setDockerFileId(stageDto.getDockerfileId());
             dockerFileJobStageMapper.insertDockerFileJobStage(dockerFileJobStage);
+        }
+        if(StageTemplateTypeEnum.CODESCANNER.ordinal() == stageDto.getStageTemplateType()){
+            generateCodeScanner(stage,stageDto,false);
         }
         ActionReturnUtil result = updateJenkinsJob(stageDto.getJobId());
         return result;
@@ -436,6 +464,97 @@ public class StageServiceImpl implements StageService {
         }
     }
 
+    private String getProjectName(String repositoryUrl,String repositoryType){
+        if(RepositoryTypeEnum.SVN.getType().equalsIgnoreCase(repositoryType)){
+            return repositoryUrl.substring(repositoryUrl.lastIndexOf("/")+1);
+        }else if(RepositoryTypeEnum.GIT.getType().equalsIgnoreCase(repositoryType)){
+            return repositoryUrl.substring(repositoryUrl.lastIndexOf("/")+1,repositoryUrl.lastIndexOf("."));
+        }else{
+            return "";
+        }
+    }
 
+    private String generateSonarCommand(String projectKey,String sonarProperty){
+        return "[\"sonar-scanner -Dsonar.host.url="+sonarUrl+" -Dsonar.login="+sonarKey+" -Dsonar.projectKey="+projectKey+" -Dsonar.sources=src -Dsonar.java.binaries=target\"]";
+
+    }
+
+    private void generateCodeScanner(Stage stage,StageDto stageDto,boolean isAdd) throws Exception{
+        Map<String,String> params = new HashMap<>();
+        params.put("jobId",stage.getJobId()+"");
+        params.put("stageTemplateType",StageTemplateTypeEnum.CODECHECKOUT.ordinal()+"");
+        params.put("stageOrder",stage.getStageOrder()+"");
+        params.put("op","LT");
+
+        List<Stage> stages = stageMapper.querySonarByJobId(params);
+        if(stages!=null && stages.size()>0){
+            Stage tmp = stages.get(stages.size()-1);
+            String projectName = getProjectName(tmp.getRepositoryUrl(),tmp.getRepositoryType());
+            String projectKey = projectName+":"+tmp.getRepositoryBranch();
+            ProjectInfo projectInfo = sonarProjectService.getProjectByKey(projectKey);
+            if(projectInfo==null){
+                sonarProjectService.createProject(projectName,projectName,tmp.getRepositoryBranch());
+            }
+            if(!isAdd){
+                StageSonar sonar = stageSonarMapper.queryByStageId(stage.getId());
+                if(sonar!=null && sonar.getQualitygatesId()!=null){
+                    sonarQualitygatesService.delete(sonar.getQualitygatesId());
+                }
+            }
+            String qualitygatesName = stage.getStageName()+"_"+stage.getId();
+            Qualitygates qualitygates = null;
+            if(stageDto.getConditionDtos()!=null && stageDto.getConditionDtos().size()>0){
+                qualitygates = sonarQualitygatesService.create(qualitygatesName);
+                for(ConditionDto conditionDto: stageDto.getConditionDtos()){
+                    Condition condition = new Condition();
+                    condition.setError(conditionDto.getError());
+                    condition.setGateId(qualitygates.getId());
+                    condition.setMetric(conditionDto.getMetric());
+                    condition.setOp(conditionDto.getOp());
+                    if(conditionDto.getPeriod()!=null){
+                        condition.setPeriod(conditionDto.getPeriod());
+                    }
+                    condition.setWarning(conditionDto.getWarning());
+                    sonarQualitygatesService.createCondition(condition);
+                }
+                sonarQualitygatesService.select(qualitygates.getId(),projectKey);
+            }
+
+            stage.setCommand(generateSonarCommand(projectKey,stageDto.getSonarProperty()));
+            stageMapper.updateStage(stage);
+            if(isAdd){
+                StageSonar stageSonar = new StageSonar();
+                stageSonar.setProjectKey(projectKey);
+                stageSonar.setProjectName(projectName);
+                if(qualitygates!=null){
+                    stageSonar.setQualitygatesId(qualitygates.getId());
+                }
+                stageSonar.setStageId(stage.getId());
+                stageSonar.setSonarProperty(stageDto.getSonarProperty());
+                stageSonarMapper.insertStageSonar(stageSonar);
+            }else{
+                StageSonar stageSonar = stageSonarMapper.queryByStageId(stage.getId());
+                if(stageSonar!=null){
+                    stageSonar.setProjectKey(projectKey);
+                    stageSonar.setProjectName(projectName);
+                    if(qualitygates!=null){
+                        stageSonar.setQualitygatesId(qualitygates.getId());
+                    }else{
+                        stageSonar.setQualitygatesId(null);
+                    }
+                    stageSonar.setSonarProperty(stageDto.getSonarProperty());
+                    stageSonarMapper.updateStageSonar(stageSonar);
+
+                }
+            }
+        }else{
+            if(!isAdd){
+                stage.setCommand("[]");
+                stageMapper.updateStage(stage);
+            }else {
+                throw new Exception("创建步骤失败。该步骤前面必须存在代码检出／编译步骤");
+            }
+        }
+    }
 
 }
