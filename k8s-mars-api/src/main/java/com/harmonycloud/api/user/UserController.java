@@ -405,6 +405,7 @@ public class UserController {
     }
     @RequestMapping(value = "/user/getMenu", method = RequestMethod.GET)
     public @ResponseBody ActionReturnUtil getMenu() throws Exception {
+    	long startTime=System.currentTimeMillis();   //获取开始时间
         Object name = session.getAttribute("username");
         if (name == null) {
             throw new K8sAuthException(Constant.HTTP_401);
@@ -420,6 +421,9 @@ public class UserController {
             String role = userTenantService.findRoleByName(userName,tenantId);
             menu = resourceService.listMenuByRole(role);
         }
+        
+		long endTime=System.currentTimeMillis(); //获取结束时间
+		System.out.println("程序运行时间： "+(endTime-startTime)+"ms");
         return ActionReturnUtil.returnSuccessWithData(menu);
 
     }

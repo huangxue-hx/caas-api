@@ -673,10 +673,10 @@ public class TenantServiceImpl implements TenantService {
             logger.error("添加用户："+username+"到harbor的镜像仓库失败，" + addProjctsToUser);
             return addProjctsToUser;
         }
-        String currentUserName = currentUser.toString();
-        if(!this.isAdmin(tenantid, currentUserName)){
-            return ActionReturnUtil.returnErrorWithMsg("用户:" + username + "不为管理员或者租户管理员，不能添加用户操作");
-        }
+//        String currentUserName = currentUser.toString();
+//        if(!this.isAdmin(tenantid, currentUserName)){
+//            return ActionReturnUtil.returnErrorWithMsg("用户:" + username + "不为管理员或者租户管理员，不能添加用户操作");
+//        }
         Cluster cluster = this.getClusterByTenantid(tenantid);
         NamespaceList namespaceList = this.namespaceService1.getNamespacesListbyLabelSelector(label, cluster);
         List<Namespace> items = namespaceList.getItems();
@@ -827,16 +827,13 @@ public class TenantServiceImpl implements TenantService {
             throw new K8sAuthException(Constant.HTTP_401);
         }
         String currentUserName = currentUser.toString();
-        if(!this.isAdmin(tenantid, currentUserName)){
-            return ActionReturnUtil.returnErrorWithMsg("用户:" + currentUserName + "不为管理员或者租户管理员，不能删除用户操作");
-        }
+//        if(!this.isAdmin(tenantid, currentUserName)){
+//            return ActionReturnUtil.returnErrorWithMsg("用户:" + currentUserName + "不为管理员或者租户管理员，不能删除用户操作");
+//        }
         if(currentUserName.equals(username)){
             return ActionReturnUtil.returnErrorWithMsg("租户管理员:" + currentUserName + "不能删除自己");
         }
         List<UserTenant> userByTenantid = userTenantService.getUserByTenantid(tenantid);
-//        if(userByTenantid.size() <= 1){
-//            return ActionReturnUtil.returnErrorWithMsg("当前租户只有一个用户，不能执行移除用户操作");
-//        }
         NamespaceList namespaceList = this.namespaceService1.getNamespacesListbyLabelSelector(label, cluster);
         List<Namespace> items = namespaceList.getItems();
         if (items.size() >= 1) {

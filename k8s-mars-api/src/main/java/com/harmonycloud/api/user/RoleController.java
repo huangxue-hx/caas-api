@@ -70,7 +70,10 @@ public class RoleController {
 	@RequestMapping(value = "/role/getRolePrivilegeMenu", method = RequestMethod.GET)
 	@ResponseBody
 	public ActionReturnUtil getRolePrivilegeMenu(String roleName) throws Exception {
+		long startTime=System.currentTimeMillis();   //获取开始时间
 		Map<String, Object> privilegeByRole = rolePrivilegeService.getAllStatusPrivilegeMenuByRoleName(roleName);
+		long endTime=System.currentTimeMillis(); //获取结束时间
+		System.out.println("程序运行时间： "+(endTime-startTime)+"ms");
 		return ActionReturnUtil.returnSuccessWithData(privilegeByRole);
 	}
 
