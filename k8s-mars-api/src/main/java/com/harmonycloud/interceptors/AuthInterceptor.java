@@ -17,7 +17,7 @@ import java.util.List;
 
 public class AuthInterceptor extends HandlerInterceptorAdapter {
     private static final List<String> WHITE_URL_LIST = Arrays.asList(new String[]{"login","validation",
-            "getToken","namespace/listByTenantid","clusters/list","clusters/getClusterBytenantId","clusters"});
+            "getToken","namespace/listByTenantid","clusters/list","clusters/getClusterBytenantId","clusters","systemConfig/trialTime"});
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthInterceptor.class);
     @Value("#{propertiesReader['api.access.allow.origin']}")
     private String allowOrigin;
