@@ -1106,20 +1106,23 @@ DROP TABLE IF EXISTS `resource_custom`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `resource_custom` (
-  `id` int(10) NOT NULL COMMENT '序号',
-  `name` varchar(100) NOT NULL COMMENT '资源名称',
-  `type` varchar(10) NOT NULL DEFAULT 'menu' COMMENT '类型',
-  `url` varchar(100) NOT NULL COMMENT '资源路径',
-  `parent_id` int(10) DEFAULT '0' COMMENT '父节点',
-  `parent_ids` varchar(100) DEFAULT NULL COMMENT '父节点字符串',
-  `weight` int(100) DEFAULT '0' COMMENT '权重',
-  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
-  `update_time` datetime DEFAULT NULL COMMENT '更新时间',
-  `available` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否可用 1可用 0不可用',
-  `trans_name` varchar(45) DEFAULT NULL COMMENT '译名',
-  `icon_name` varchar(45) DEFAULT NULL COMMENT '图标名',
-  `role` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  `id` int(10) NOT NULL AUTO_INCREMENT COMMENT '序号',
+  `name` varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT '资源名称',
+  `type` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'menu' COMMENT '类型',
+  `url` varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT '资源路径',
+  `parent_id` int(10) DEFAULT 0 COMMENT '父节点',
+  `parent_ids` varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL COMMENT '父节点字符串',
+  `weight` int(100) DEFAULT 0 COMMENT '权重',
+  `create_time` datetime(0) DEFAULT NULL COMMENT '创建时间',
+  `update_time` datetime(0) DEFAULT NULL COMMENT '更新时间',
+  `available` tinyint(1) NOT NULL DEFAULT 1 COMMENT '是否可用 1可用 0不可用',
+  `trans_name` varchar(45) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL COMMENT '译名',
+  `icon_name` varchar(45) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL COMMENT '图标名',
+  `role` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `isParent` int(1) DEFAULT NULL,
+  `parent_rpid` int(100) DEFAULT NULL,
+  `rpid` int(100) DEFAULT NULL,
+  PRIMARY KEY (`id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -2069,7 +2072,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ----------------------------
 DROP TABLE IF EXISTS `role_privilege_custom`;
 CREATE TABLE `role_privilege_custom`  (
-  `id` int(10) NOT NULL AUTO_INCREMENT,
+   `id` int(10) NOT NULL AUTO_INCREMENT,
   `role` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT '角色名',
   `privilege` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT '' COMMENT '权限',
   `update_time` timestamp(0) DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
@@ -2082,7 +2085,10 @@ CREATE TABLE `role_privilege_custom`  (
   `isParent` tinyint(1) DEFAULT 0 COMMENT '是否是父节点 0 子节点 1 父节点',
   `rpid` int(10) DEFAULT NULL,
   `parentid` int(10) DEFAULT NULL,
-  PRIMARY KEY (`id`) USING BTREE
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `parent_rpid`(`parent_rpid`) USING BTREE,
+  INDEX `rpid`(`rpid`) USING BTREE,
+  INDEX `role`(`role`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1353 CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Compact;
 
 -- ----------------------------
