@@ -658,6 +658,7 @@ public class JobServiceImpl implements JobService {
             jobBuildMap.put(jobBuild.getBuildNum(),jobBuild);
         }
         for(JobBuild jobBuild:jobBuildList){
+            Integer jobDuration = 0;
             Map buildMap = new HashMap();
             if(Constant.PIPELINE_STATUS_BUILDING.equals(jobBuild.getStatus())){
                 jobBuild = jobStatusSync(job, jobBuild.getBuildNum());
@@ -690,6 +691,9 @@ public class JobServiceImpl implements JobService {
                         stageBuildMap.put("duration", newStageBuild.getDuration());
                         stageBuildMap.put("log", newStageBuild.getLog());
                         stageBuildMapList.add(stageBuildMap);
+                        if(StringUtils.isNumeric((String)newStageBuild.getDuration())){
+                            jobDuration += Integer.valueOf((String)newStageBuild.getDuration());
+                        }
                     }
                     break;
                 }
@@ -703,8 +707,11 @@ public class JobServiceImpl implements JobService {
                 stageBuildMap.put("duration", stageBuild.getDuration());
                 stageBuildMap.put("log", stageBuild.getLog());
                 stageBuildMapList.add(stageBuildMap);
+                if(StringUtils.isNumeric((String)stageBuild.getDuration())){
+                    jobDuration += Integer.valueOf((String)stageBuild.getDuration());
+                }
             }
-
+            buildMap.put("duration", jobDuration);
             buildMap.put("stageList",stageBuildMapList);
             buildList.add(buildMap);
         }
