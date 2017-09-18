@@ -716,9 +716,9 @@ public class TenantServiceImpl implements TenantService {
             throw new K8sAuthException(Constant.HTTP_401);
         }
         String currentUserName = currentUser.toString();
-        if(!this.isAdmin(tenantid, currentUserName)){
-            return ActionReturnUtil.returnErrorWithMsg("用户:" + currentUserName + "不为管理员或者租户管理员，不能修改用户角色操作");
-        }
+//        if(!this.isAdmin(tenantid, currentUserName)){
+//            return ActionReturnUtil.returnErrorWithMsg("用户:" + currentUserName + "不为管理员或者租户管理员，不能修改用户角色操作");
+//        }
         if(currentUserName.equals(username)){
             return ActionReturnUtil.returnErrorWithMsg("租户管理员:" + currentUserName + "不能修改自己的角色");
         }
