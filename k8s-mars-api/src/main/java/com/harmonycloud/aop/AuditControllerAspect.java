@@ -62,7 +62,7 @@ public class AuditControllerAspect {
 	@SuppressWarnings("unchecked")
 	@Before("auditController()")
 	public void doBefore(JoinPoint joinPoint){
-		Date date = TenantUtils.getUtctime();
+		Date date = DateUtil.getCurrentUtcTime();
 		date = new Date(date.getTime() + 8 * 60 * 60 * 1000L);
 
 		String opDate = DateUtil.timeFormat.format(date.getTime());

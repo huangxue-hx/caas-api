@@ -10,14 +10,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.TenantUtils;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.tenant.UserTenantMapper;
 import com.harmonycloud.dao.tenant.bean.UserTenant;
 import com.harmonycloud.dao.tenant.bean.UserTenantExample;
 import com.harmonycloud.dao.tenant.customs.CustomUserTenantMapper;
-import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.customs.CustomUserMapper;
 import com.harmonycloud.dto.tenant.show.UserShowDto;
@@ -59,7 +57,7 @@ public class UserTenantServiceImpl implements UserTenantService {
             UserTenant record = new UserTenant();
             record.setIstm(isTm == true ? 1 : 0);
             record.setTenantid(tenantid);
-            Date date = TenantUtils.getUtctime();
+            Date date = DateUtil.getCurrentUtcTime();
             record.setCreateTime(date);
             record.setUsername(user);
             record.setRole(role);

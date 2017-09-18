@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.harmonycloud.common.util.date.DateUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
@@ -173,7 +174,7 @@ public class NetworkController {
         if (topology2 != null) {
             return ActionReturnUtil.returnErrorWithMsg("network " + networknamefrom + " to " + networknameto + " Topology was existed!");
         }
-        Date date = TenantUtils.getUtctime();
+        Date date = DateUtil.getCurrentUtcTime();
         NetworkTopology topology = new NetworkTopology();
         topology.setCreatetime(date);
         topology.setNetId(networkidfrom);

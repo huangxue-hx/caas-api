@@ -59,7 +59,7 @@ public class SimpleWrappedFilter implements Filter {
             if (StringUtils.isNotBlank(opFun)) {
                 opType = req.getMethod();
 //                opDate = DateUtil.timeFormat.format(new Date());
-                  Date date = TenantUtils.getUtctime();
+                  Date date = DateUtil.getCurrentUtcTime();
                 date = new Date(date.getTime() +  8 * 60 * 60 * 1000L);
 //                System.out.println("审计时间data.getTime():加上8之后"+date);
 

@@ -422,6 +422,7 @@ public class HarborProjectReplicationServiceImpl implements HarborProjectReplica
 			List<HarborPolicyDetail> harborPolicyDetailList = new ArrayList<>();
 			if (!CollectionUtils.isEmpty(policyDetailList)) {
 				for (HarborPolicyDetail policy : policyDetailList) {
+					harborPolicyDetailList.add(policy);
 					//HarborPolicyDetail harborPolicyDetail = new HarborPolicyDetail();
 					ActionReturnUtil policyResponse = policyStatus(policy.getPolicy_id());
 					if ((boolean) policyResponse.get("success") == true) {
@@ -434,7 +435,6 @@ public class HarborProjectReplicationServiceImpl implements HarborProjectReplica
 						//	harborPolicyDetail.setPolicy_name(policy.getPolicy_name());
 						//	harborPolicyDetail.setProject_name(policy.getProject_name());
 							policy.setHarborPolicyStatus(harborPolicyStatus);
-							harborPolicyDetailList.add(policy);
 						}
 					}
 

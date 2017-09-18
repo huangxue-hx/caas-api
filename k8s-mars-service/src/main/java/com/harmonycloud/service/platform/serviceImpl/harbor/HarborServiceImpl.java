@@ -965,7 +965,9 @@ public class HarborServiceImpl implements HarborService {
         for (HarborProjectTenant harborProjectTenant : harborProjectTenantList) {
             projectList.add(harborProjectTenant.getHarborProjectName());
         }
+        Long begin = System.currentTimeMillis();
         ActionReturnUtil repoResponse = getFuzzySearch(query);
+        LOGGER.info("search harbor cost:" + (System.currentTimeMillis()-begin));
         // Map<String,List<String>>repoMap= new HashMap<>();
         if ((boolean) repoResponse.get("success") == true) {
             Map<String, List<String>> map = getRepositoryList(repoResponse.get("data").toString());
@@ -1004,7 +1006,7 @@ public class HarborServiceImpl implements HarborService {
                 projectInfo.setHarborRepositoryMessagesList(repositoryMessagesList);
                 projectRepoList.add(projectInfo);
             }
-
+            LOGGER.info("search image total cost:" + (System.currentTimeMillis()-begin));
             return ActionReturnUtil.returnSuccessWithData(projectRepoList);
 
         } else {
