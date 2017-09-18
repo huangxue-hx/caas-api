@@ -222,6 +222,9 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 			List<MetricStatus> metricStatuses = status.getCurrentMetrics();
 			if(!CollectionUtils.isEmpty(metricStatuses)) {
 				for (MetricStatus metricStatus : metricStatuses) {
+					if(metricStatus.getType() == null){
+						continue;
+					}
 					switch (metricStatus.getType()) {
 						case METRIC_SOURCE_TYPE_RESOURCE:
 							statusMap.put(METRIC_SOURCE_TYPE_RESOURCE + "-" + metricStatus.getResource().getName(),

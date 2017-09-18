@@ -136,7 +136,7 @@ public class HarborServiceImpl implements HarborService {
     @Override
     public ActionReturnUtil projectList(Integer page, Integer pageSize) throws Exception {
         page = (page == null || page < 1) ? 1 : page;
-        pageSize = (pageSize == null || pageSize < 1) ? 100 : pageSize;
+        pageSize = (pageSize == null || pageSize < 1) ? DEFAULT_PAGE_SIZE : pageSize;
 
         String url = HarborClient.getPrefix() + "/api/projects";
 
@@ -191,7 +191,7 @@ public class HarborServiceImpl implements HarborService {
 
         Map<String, Object> params = new HashMap<>();
         params.put("project_id", projectId);
-
+        params.put("page_size", DEFAULT_PAGE_SIZE);
         return HttpClientUtil.httpGetRequest(url, headers, params);
     }
 

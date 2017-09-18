@@ -30,8 +30,8 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
             String origin = allowOrigin;
             String requestOrigin = request.getHeader("Origin");
             if (StringUtils.isNotBlank(requestOrigin)
-                    && allowOrigin.indexOf(requestOrigin) > -1) {
-                origin = request.getHeader("Origin");
+                    && (allowOrigin.equals("*") || allowOrigin.indexOf(requestOrigin) > -1)) {
+                origin = requestOrigin;
             }
             response.setHeader("Access-Control-Allow-Origin", origin);
             response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT");
