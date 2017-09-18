@@ -18,9 +18,9 @@ public class ScheduledTasks {
     TrialtimeTask trialtimeTask;
 
     /**
-     * 1小时更新一次试用时间
+     * 24小时更新一次试用时间
      */
-    @Scheduled(fixedRate = 60000*60)
+    @Scheduled(fixedRate = 60000*60*24)
     public void emailAlert() {
         long startTime = System.currentTimeMillis();
         System.out.println(new Date());
