@@ -12,11 +12,7 @@ import javax.mail.internet.MimeMessage;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.util.*;
-import com.harmonycloud.dao.tenant.UserTenantMapper;
-import com.harmonycloud.dao.tenant.bean.UserTenantExample;
-import com.harmonycloud.k8s.bean.MailRecord;
 import com.harmonycloud.service.tenant.TenantService;
 import org.apache.http.Header;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -29,15 +25,10 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.harmonycloud.common.Constant.CommonConstant;
@@ -261,7 +252,7 @@ public class UserService {
                         user.setPassword(MD5password);
                         user.setId(Long.valueOf(harborUId));
                         user.setUuid(Long.valueOf(harborUId));
-                        user.setCreateTime(new Date());
+                        user.setCreateTime(DateUtil.getCurrentUtcTime());
                         user.setPause(CommonConstant.NORMAL);
                         userMapper.addUser(user);
                         HarborUser harborUser2 = harboruserMapper.findByUsername(user.getUsername());

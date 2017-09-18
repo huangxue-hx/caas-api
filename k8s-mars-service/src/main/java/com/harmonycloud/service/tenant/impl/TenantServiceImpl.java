@@ -33,7 +33,6 @@ import com.harmonycloud.common.util.HttpClientResponse;
 import com.harmonycloud.common.util.HttpClientUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.common.util.TenantUtils;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.cluster.bean.Cluster;
@@ -47,7 +46,6 @@ import com.harmonycloud.dao.tenant.bean.HarborProjectTenant;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.TenantBindingExample;
 import com.harmonycloud.dao.tenant.bean.UserTenant;
-import com.harmonycloud.dao.tenant.bean.UserTenantExample;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.customs.CustomUserMapper;
 import com.harmonycloud.dto.tenant.CreateNetwork;
@@ -59,21 +57,14 @@ import com.harmonycloud.dto.tenant.show.UserShowDto;
 import com.harmonycloud.k8s.bean.Namespace;
 import com.harmonycloud.k8s.bean.NamespaceList;
 import com.harmonycloud.k8s.bean.PersistentVolume;
-import com.harmonycloud.k8s.bean.PersistentVolumeList;
-import com.harmonycloud.k8s.bean.ResourceQuota;
-import com.harmonycloud.k8s.bean.ResourceQuotaList;
-import com.harmonycloud.k8s.bean.ResourceQuotaSpec;
-import com.harmonycloud.k8s.bean.ResourceQuotaStatus;
 import com.harmonycloud.k8s.bean.RoleBinding;
 import com.harmonycloud.k8s.bean.RoleBindingList;
 import com.harmonycloud.k8s.bean.Subjects;
-import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.service.NetworkPolicyService;
 import com.harmonycloud.k8s.service.PersistentvolumeService;
-import com.harmonycloud.k8s.service.PvService;
 import com.harmonycloud.k8s.service.RoleBindingService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
@@ -599,7 +590,7 @@ public class TenantServiceImpl implements TenantService {
 
         // 组装tmUsers
         String user = generateTmUsers(userStr);
-        Date date = TenantUtils.getUtctime();
+        Date date = DateUtil.getCurrentUtcTime();
         TenantBinding record = new TenantBinding();
         record.setAnnotation(annotation);
         record.setTenantId(tenantid);
@@ -891,7 +882,7 @@ public class TenantServiceImpl implements TenantService {
         if (topology2 != null) {
             return ActionReturnUtil.returnErrorWithMsg("network " + networknamefrom + " to " + networknameto + " Topology was existed!");
         }
-        Date date = TenantUtils.getUtctime();
+        Date date = DateUtil.getCurrentUtcTime();
         NetworkTopology topology = new NetworkTopology();
         topology.setCreatetime(date);
         topology.setNetId(networkidfrom);

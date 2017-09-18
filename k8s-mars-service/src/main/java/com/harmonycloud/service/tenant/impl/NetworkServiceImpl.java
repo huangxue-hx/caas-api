@@ -8,6 +8,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import com.harmonycloud.common.util.date.DateUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -125,7 +126,7 @@ public class NetworkServiceImpl implements NetworkService {
             return ActionReturnUtil.returnErrorWithMsg("networkName,tenantName or tenantid can not be null");
         }
         String networkid = TenantUtils.getuuid();
-        Date date = TenantUtils.getUtctime();
+        Date date = DateUtil.getCurrentUtcTime();
         NetworkCalico record = new NetworkCalico();
         record.setAnnotation(annotation);
         record.setNetworkname(networkName);
@@ -230,7 +231,7 @@ public class NetworkServiceImpl implements NetworkService {
         if (getsubnetbySubnetname != null) {
             return ActionReturnUtil.returnErrorWithMsg("subnetname " + subnetname + " was existed in network!");
         }
-        Date date = TenantUtils.getUtctime();
+        Date date = DateUtil.getCurrentUtcTime();
 
         // insert subnets
         String subnetId = TenantUtils.getuuid();
@@ -246,7 +247,7 @@ public class NetworkServiceImpl implements NetworkService {
 
     @Override
     public ActionReturnUtil subnetworkupdatebinding(String subnetid, String namespace) throws Exception {
-        Date date = TenantUtils.getUtctime();
+        Date date = DateUtil.getCurrentUtcTime();
         NamespceBindSubnet subnet = this.getsubnetbySubnetid(subnetid);
         if (subnet == null) {
             return ActionReturnUtil.returnErrorWithMsg("subnetid can not be found");
@@ -276,7 +277,7 @@ public class NetworkServiceImpl implements NetworkService {
 
     @Override
     public ActionReturnUtil subnetRemoveBing(String namespace) {
-        Date date = TenantUtils.getUtctime();
+        Date date = DateUtil.getCurrentUtcTime();
         // update subnets
         NamespceBindSubnetExample example = new NamespceBindSubnetExample();
         example.createCriteria().andNamespaceEqualTo(namespace);
