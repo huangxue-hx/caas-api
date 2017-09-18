@@ -85,9 +85,9 @@ public class SystemConfigController {
 				systemConfig.setConfigType("system");
 				return ActionReturnUtil.returnSuccessWithData(systemConfig);
 			}
-			if(Integer.parseInt(systemConfig.getConfigValue()) != -1) {
-				systemConfig.setConfigValue(String.format("%.0f", Double.parseDouble(systemConfig.getConfigValue()) / 24));
-			}
+//			if(Integer.parseInt(systemConfig.getConfigValue()) != -1) {
+//				systemConfig.setConfigValue(String.format("%.0f", Double.parseDouble(systemConfig.getConfigValue()) / 24));
+//			}
 
 			return ActionReturnUtil.returnSuccessWithData(systemConfig);
 		} catch (Exception e) {
