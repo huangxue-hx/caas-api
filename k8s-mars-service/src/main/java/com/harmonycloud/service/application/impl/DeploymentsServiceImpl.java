@@ -947,7 +947,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
 			// 删除ingress
 			cUrl.setResource(Resource.INGRESS);
-			K8SClientResponse ingRes = new K8sMachineClient().exec(cUrl, HTTPMethod.DELETE, null, null,cluster);
+			K8SClientResponse ingRes = new K8sMachineClient().exec(cUrl, HTTPMethod.DELETE, null, queryP,cluster);
 			if (!HttpStatusUtil.isSuccessStatus(ingRes.getStatus()) && ingRes.getStatus() != Constant.HTTP_404) {
 				UnversionedStatus sta = JsonUtil.jsonToPojo(ingRes.getBody(), UnversionedStatus.class);
 				return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
