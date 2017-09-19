@@ -39,6 +39,9 @@ public class TprApplication {
         K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST,headers,bodys,cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
+            if (us != null && us.getMessage() != null && us.getMessage().contains("already exists")){
+                return ActionReturnUtil.returnErrorWithMsg("应用" + application.getMetadata().getName() + "已经存在！");
+            }
             return ActionReturnUtil.returnErrorWithMsg(us.getMessage());
         }
         return ActionReturnUtil.returnSuccess();

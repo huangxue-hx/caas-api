@@ -436,7 +436,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
     public synchronized ActionReturnUtil deployBusinessTemplate(BusinessDeployDto businessDeploy, String username, Cluster cluster, String tenantId) throws Exception {
         // check value
         if (StringUtils.isEmpty(username) || businessDeploy == null || businessDeploy.getBusinessTemplate().getServiceList().size() <= 0) {
-            return ActionReturnUtil.returnErrorWithMsg("username , application deploy or service is null");
+            return ActionReturnUtil.returnErrorWithMsg("用户名 , 应用或者服务为空！");
         }
         String namespace = businessDeploy.getNamespace();
 
@@ -593,7 +593,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
     public ActionReturnUtil deleteBusinessTemplate(BusinessList businessList, String username) throws Exception {
         // check value
         if (businessList == null || businessList.getIdList().size() <= 0) {
-            return ActionReturnUtil.returnErrorWithMsg("businessList is null");
+            return ActionReturnUtil.returnErrorWithMsg("应用列表为空！");
         }
         List<String> errorMessage = new ArrayList<>();
         Cluster cluster = tenantService.getClusterByTenantid(businessList.getTenantId());
@@ -1474,7 +1474,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                                                          Cluster cluster) throws Exception {
         // check value
         if (StringUtils.isEmpty(username) || businessDeploy == null || businessDeploy.getBusinessTemplate().getServiceList().size() <= 0) {
-            return ActionReturnUtil.returnErrorWithMsg("username , application deploy or service 为空");
+            return ActionReturnUtil.returnErrorWithMsg("用户名 , 应用或者服务名称为空！");
         }
 
         //获取k8s同namespace相关的资源
