@@ -3,9 +3,11 @@ package com.harmonycloud.service.cluster.impl;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.cluster.ClusterDomainMapper;
+import com.harmonycloud.dao.cluster.ClusterLoadbalanceMapper;
 import com.harmonycloud.dao.cluster.ClusterMapper;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dao.cluster.bean.ClusterDomain;
+import com.harmonycloud.dao.cluster.bean.ClusterLoadbalance;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.tenant.TenantService;
@@ -34,6 +36,9 @@ public class ClusterServiceImpl implements ClusterService {
 
     @Autowired
     private HttpSession session;
+    
+    @Autowired
+    private ClusterLoadbalanceMapper clbMapper;
 
     /**
      * 新增集群
@@ -44,9 +49,13 @@ public class ClusterServiceImpl implements ClusterService {
     public ActionReturnUtil addCluster(Cluster cluster) throws Exception {
         try {
             Cluster cluster2 = clusterMapper.findClusterByHost(cluster.getHost());
+            Long clusterId = 0L;
+            String clusterIp = null;
             if(cluster2 != null) {
                 cluster2.setUpdateTime(new Date());
                 clusterMapper.updateCluster(cluster2);
+                clusterId = cluster2.getId();
+                clusterIp = cluster2.getHost();
             } else {
                 if(null == cluster.getName()) {
                     SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd-HH-mm-SS");
@@ -57,6 +66,8 @@ public class ClusterServiceImpl implements ClusterService {
                 }
 
                 clusterMapper.addCluster(cluster);
+                clusterId = cluster.getId();
+                clusterIp = cluster.getHost();
                 List<Cluster> list = clusterMapper.listClusters();
                 Map<String, Cluster> clusterMap = new HashMap<>();
                 for(Cluster c : list) {
@@ -64,6 +75,14 @@ public class ClusterServiceImpl implements ClusterService {
                 }
 //                InitialDataUtil.setClusterMap(clusterMap);
 
+            }
+            
+            //更新集群内的负载均衡信息
+            ClusterLoadbalance clusterLb = clbMapper.selectByPrimaryKey(1);
+            if (clusterLb != null) {
+            	clusterLb.setClusterId(clusterId.intValue());
+            	clusterLb.setLoadbalanceIp(clusterIp);
+            	clbMapper.updateByPrimaryKeySelective(clusterLb);
             }
             return ActionReturnUtil.returnSuccess();
         } catch (Exception e) {

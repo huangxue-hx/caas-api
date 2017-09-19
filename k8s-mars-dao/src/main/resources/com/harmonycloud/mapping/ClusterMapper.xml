@@ -26,7 +26,7 @@
 		<result property="updateTime" column="update_time" jdbcType="TIMESTAMP" javaType="java.util.Date"/>
     </resultMap>
 
-	<insert id="addCluster" parameterType="com.harmonycloud.dao.cluster.bean.Cluster">
+	<insert id="addCluster" parameterType="com.harmonycloud.dao.cluster.bean.Cluster" keyProperty="id">
 		insert into cluster(id,name,host,protocol,auth_type,username,password,machine_token,port,entry_point,haproxy_version,influxdb_url,influxdb_db,influxdb_version,es_host,es_port,es_cluster_name,es_version,create_time)
 		values(#{id},#{name},#{host},#{protocol},#{authType},#{username},#{password},#{machineToken},#{port},#{entryPoint},#{haproxyVersion},#{influxdbUrl},#{influxdbDb},#{influxdbVersion},#{esHost},#{esPort},#{esClusterName},#{esVersion},#{createTime})
 	</insert>

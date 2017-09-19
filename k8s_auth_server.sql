@@ -3091,7 +3091,7 @@ CREATE TABLE `cluster_loadbalance` (
 -- ----------------------------
 -- Records of cluster_loadbalance
 -- ----------------------------
-INSERT INTO `cluster_loadbalance` VALUES ('1', '188', 'haproxy', '10.10.101.143', '30200');
+INSERT INTO `cluster_loadbalance` VALUES ('1', '188', 'haproxy', '10.10.101.143', '30094');
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
