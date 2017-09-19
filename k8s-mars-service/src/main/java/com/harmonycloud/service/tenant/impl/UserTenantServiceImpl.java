@@ -177,6 +177,7 @@ public class UserTenantServiceImpl implements UserTenantService {
 	@Override
 	public void deleteUserByRoleName(String roleName) throws Exception {
 		UserTenantExample example = new UserTenantExample();
+		example.createCriteria().andRoleEqualTo(roleName);
 		userTenantMapper.deleteByExample(example);
 	}
     

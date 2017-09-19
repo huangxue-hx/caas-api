@@ -389,15 +389,17 @@ public class UserController {
         }
         Role role = roleService.getRoleByUserNameAndTenant(userName, tenantid);
         if(role!=null&&"pause".equals(role.getSecondResourceIds())){
+        	  session.setAttribute("getMenu", Boolean.FALSE);
             ActionReturnUtil.returnErrorWithMsg("当前用户所属角色被停用,请联系管理员");
         }
         Map<String, Object> privilegeByRole = rolePrivilegeService.getPrivilegeByRole(role.getName());
         if(privilegeByRole==null || privilegeByRole.isEmpty()){
+        	  session.setAttribute("getMenu", Boolean.FALSE);
             ActionReturnUtil.returnErrorWithMsg("当前用户所属角色未分配权限,请联系管理员");
         }
         session.setAttribute("role", role.getName());
         session.setAttribute("privilege", privilegeByRole);
-
+        session.setAttribute("getMenu", Boolean.TRUE);
         result.put("role", role.getName());
         result.put("privilege", privilegeByRole);
         return ActionReturnUtil.returnSuccessWithData(result);
@@ -410,6 +412,10 @@ public class UserController {
         if (name == null) {
             throw new K8sAuthException(Constant.HTTP_401);
         }
+        Boolean getMenu =(Boolean) session.getAttribute("getMenu");
+        if(getMenu!=null  &&  !getMenu) {
+        		return ActionReturnUtil.returnSuccess();
+        	}
         String userName = name.toString();
         User user = userService.getUser(userName);
         List<Map<String, Object>> menu = new ArrayList<>();
@@ -417,9 +423,11 @@ public class UserController {
             menu = resourceService.listMenuByRole("admin");
         } else {
             Object Id = session.getAttribute("tenantId");
-            String tenantId = Id.toString();
-            String role = userTenantService.findRoleByName(userName,tenantId);
-            menu = resourceService.listMenuByRole(role);
+          if(Id != null) {
+        	    String tenantId = Id.toString();
+              String role = userTenantService.findRoleByName(userName,tenantId);
+              menu = resourceService.listMenuByRole(role);
+          }
         }
         
 		long endTime=System.currentTimeMillis(); //获取结束时间
