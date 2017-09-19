@@ -35,7 +35,7 @@ public class ClusterRoleService {
 	public K8SClientResponse getSpecifiedClusterRoles(String name) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setResource(Resource.CLUSTERROLE).setSubpath(name);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,null,null);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,null,null);
 		return response;
 	}
 	
@@ -53,7 +53,7 @@ public class ClusterRoleService {
 		header.put("Content-Type", "application/json");
 		bodys.put("metadata", clusterRole.getMetadata());
 		bodys.put("rules", clusterRole.getRules());
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.POST, header, bodys,null);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, header, bodys,null);
 		return response;
 	}
 	
@@ -65,7 +65,7 @@ public class ClusterRoleService {
 	public K8SClientResponse deleteClusterRole(String clusterRoleName) throws Exception{
 		K8SURL url = new K8SURL();
 		url.setResource(Resource.CLUSTERROLE).setSubpath(clusterRoleName);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE, null, null,null);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, null,null);
 		return response;
 	}
 	
@@ -79,7 +79,7 @@ public class ClusterRoleService {
 		bodys.put("labelSelector", lable);
 		K8SURL url = new K8SURL();
 		url.setResource(Resource.CLUSTERROLE);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET, null, bodys,null);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys,null);
 		return response;
 	}
 	

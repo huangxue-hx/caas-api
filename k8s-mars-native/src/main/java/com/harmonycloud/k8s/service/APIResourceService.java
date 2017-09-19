@@ -57,7 +57,7 @@ public class APIResourceService {
 		List<Resource> resources = new ArrayList<>();
 		List<Resource> resources2 = new ArrayList<>();
 		//APIResourceList
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET,null,null,null);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,null,null);
 		if(HttpStatusUtil.isSuccessStatus(response.getStatus())){
 			APIResourceList apiResourceList = K8SClient.converToBean(response, APIResourceList.class);
 			resources = apiResourceList.getResources();
@@ -65,7 +65,7 @@ public class APIResourceService {
 		//APIResourceList
 		K8SURL url2 = new K8SURL();
 		url2.setName("api/v1");
-		K8SClientResponse response2 = new K8SClient().doit(url2, HTTPMethod.GET,null,null,null);
+		K8SClientResponse response2 = new K8sMachineClient().exec(url2, HTTPMethod.GET,null,null,null);
 		if(HttpStatusUtil.isSuccessStatus(response2.getStatus())){
 			APIResourceList apiResourceList2 = K8SClient.converToBean(response2, APIResourceList.class);
 			resources2 = apiResourceList2.getResources();

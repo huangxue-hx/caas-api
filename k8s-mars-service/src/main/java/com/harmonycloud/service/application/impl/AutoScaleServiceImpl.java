@@ -14,6 +14,7 @@ import com.harmonycloud.k8s.bean.CrossVersionObjectReference;
 import com.harmonycloud.k8s.bean.ObjectMeta;
 import com.harmonycloud.k8s.bean.scale.*;
 import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
@@ -65,7 +66,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		body = CollectionUtil.transBean2Map(this.convertCpa(autoScaleDto));
 		K8SURL url = new K8SURL();
 		url.setNamespace(autoScaleDto.getNamespace()).setResource(Resource.COMPLEXPODSCALER);
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.POST, headers, body,cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, body,cluster);
 		if(response.getStatus() == HttpStatus.OK.value() || response.getStatus() == HttpStatus.CREATED.value()){
 			return true;
 		}else{
@@ -88,7 +89,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		if (body != null && (body.get("metadata")) != null){
 			url.setName(((ObjectMeta) body.get("metadata")).getName());
 		}
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.PUT, headers, body, cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, headers, body, cluster);
 		if(response.getStatus() == HttpStatus.OK.value()){
 			return true;
 		}else{
@@ -106,7 +107,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		}
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.COMPLEXPODSCALER).setName(getScaleName(deploymentName));
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.DELETE, null, null, cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, null, cluster);
 		if(response.getStatus() == HttpStatus.OK.value()){
 			return true;
 		}else{
@@ -121,7 +122,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		bodys.put("labelSelector", "app=" + deploymentName);
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.COMPLEXPODSCALER).setName(getScaleName(deploymentName));
-		K8SClientResponse response = new K8SClient().doit(url, HTTPMethod.GET, null, bodys, cluster);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
 		if(response.getStatus() == HttpStatus.OK.value()){
 			ComplexPodScale complexPodScale = JsonUtil.jsonToPojo(response.getBody(),
 					ComplexPodScale.class);
