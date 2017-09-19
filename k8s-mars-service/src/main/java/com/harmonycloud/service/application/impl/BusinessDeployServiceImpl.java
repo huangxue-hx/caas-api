@@ -281,9 +281,8 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
             K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
             if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
                     && depRes.getStatus() != Constant.HTTP_404) {
-                JSONObject jsDev = JSONObject.fromObject(depRes.getBody());
-                K8sResponseBody k8sresbody = (K8sResponseBody) JSONObject.toBean(jsDev, K8sResponseBody.class);
-                return ActionReturnUtil.returnErrorWithMsg("获取k8sDeployment错误:" + k8sresbody.getMessage());
+            	UnversionedStatus sta = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+                return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
             }
             DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
             if (deplist != null && deplist.getItems() != null) {
@@ -387,9 +386,8 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
             K8SClientResponse serviceRe = new K8sMachineClient().exec(urlExternal, HTTPMethod.GET, null, bodys, cluster);
             if (!HttpStatusUtil.isSuccessStatus(serviceRe.getStatus())
                     && serviceRe.getStatus() != Constant.HTTP_404) {
-                JSONObject jsExter = JSONObject.fromObject(serviceRe.getBody());
-                K8sResponseBody k8sresbody = (K8sResponseBody) JSONObject.toBean(jsExter, K8sResponseBody.class);
-                return ActionReturnUtil.returnErrorWithMsg("获取external service错误:" + k8sresbody.getMessage());
+                UnversionedStatus sta = JsonUtil.jsonToPojo(serviceRe.getBody(), UnversionedStatus.class);
+                return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
             }
             ServiceList svclist = JsonUtil.jsonToPojo(serviceRe.getBody(), ServiceList.class);
             if (svclist != null && svclist.getItems() != null) {

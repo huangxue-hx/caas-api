@@ -10,6 +10,7 @@ import com.harmonycloud.k8s.bean.ObjectMeta;
 import com.harmonycloud.k8s.bean.ServiceList;
 import com.harmonycloud.k8s.bean.ServicePort;
 import com.harmonycloud.k8s.bean.ServiceSpec;
+import com.harmonycloud.k8s.bean.UnversionedStatus;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
@@ -82,7 +83,8 @@ public class ExternalServiceImpl implements ExternalService {
         head.put("Content-Type", "application/json");
         K8SClientResponse response = sService.doServiceByNamespace(Resource.EXTERNALNAMESPACE, head, bodys, HTTPMethod.POST);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+        	UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
         }
 
         // 创建endpoint
@@ -111,7 +113,8 @@ public class ExternalServiceImpl implements ExternalService {
         eptbodys = CollectionUtil.transBean2Map(endpoint);
         K8SClientResponse eptresponse = eService.doEndpointByNamespace(Resource.EXTERNALNAMESPACE, head, eptbodys, HTTPMethod.POST);
         if (!HttpStatusUtil.isSuccessStatus(eptresponse.getStatus())) {
-            return ActionReturnUtil.returnErrorWithMsg(eptresponse.getBody());
+        	UnversionedStatus sta = JsonUtil.jsonToPojo(eptresponse.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
         }
         com.harmonycloud.k8s.bean.Service newService = JsonUtil.jsonToPojo(response.getBody(), com.harmonycloud.k8s.bean.Service.class);
         return ActionReturnUtil.returnSuccessWithData(newService);
@@ -128,7 +131,8 @@ public class ExternalServiceImpl implements ExternalService {
         url.setResource(Resource.SERVICE).setNamespace(Resource.EXTERNALNAMESPACE).setSubpath(name);
         K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, null);
         if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            return ActionReturnUtil.returnSuccessWithData(response.getBody());
+        	UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
         }
         return ActionReturnUtil.returnErrorWithMsg("删除出错");
     }
@@ -147,7 +151,8 @@ public class ExternalServiceImpl implements ExternalService {
         bodys.put("labelSelector", "name" + "=" + tenantName);
         K8SClientResponse response = sService.doServiceByNamespace(Resource.EXTERNALNAMESPACE, null, bodys, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+        	UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
         }
         ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
         // item为实际service list的metadata，spec，status
@@ -160,7 +165,8 @@ public class ExternalServiceImpl implements ExternalService {
                 url.setResource(Resource.SERVICE).setNamespace(Resource.EXTERNALNAMESPACE).setSubpath(name);
                 K8SClientResponse responsed = new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, null);
                 if (!HttpStatusUtil.isSuccessStatus(responsed.getStatus())) {
-                    return ActionReturnUtil.returnErrorWithMsg(responsed.getBody());
+                	UnversionedStatus sta = JsonUtil.jsonToPojo(responsed.getBody(), UnversionedStatus.class);
+                    return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
                 }
             }
         }
@@ -209,7 +215,7 @@ public class ExternalServiceImpl implements ExternalService {
         K8SURL url = new K8SURL();
         url.setNamespace(Resource.EXTERNALNAMESPACE).setResource(Resource.SERVICE).setSubpath(externalServiceBean.getName());
         head.put("Content-Type", "application/json");
-        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, head, body,cluster);
+        //K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, head, body,cluster);
 
         // 更新endpoint
         List<Subsets> sbt = new ArrayList<Subsets>();
@@ -241,7 +247,8 @@ public class ExternalServiceImpl implements ExternalService {
         K8SClientResponse eresponse = new K8sMachineClient().exec(eurl, HTTPMethod.PUT, head, ebody,cluster);
 
         if (!HttpStatusUtil.isSuccessStatus(eresponse.getStatus())) {
-            return ActionReturnUtil.returnErrorWithMsg(eresponse.getBody());
+        	UnversionedStatus sta = JsonUtil.jsonToPojo(eresponse.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
         }
         return ActionReturnUtil.returnSuccessWithData(eresponse.getBody());
     }
@@ -259,7 +266,8 @@ public class ExternalServiceImpl implements ExternalService {
         bodys.put("labelSelector", "name" + "=" + tenant);
         K8SClientResponse response = sService.doServiceByNamespace(Resource.EXTERNALNAMESPACE, null, bodys, HTTPMethod.GET,cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+        	UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
         }
         ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
         // item为实际service list的metadata，spec，status
@@ -306,7 +314,8 @@ public class ExternalServiceImpl implements ExternalService {
         // 获取serviceList
         K8SClientResponse response = sService.doServiceByNamespace(Resource.EXTERNALNAMESPACE, null, null, HTTPMethod.GET);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+        	UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
         }
         ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
         // item为实际service list的metadata，spec，status
@@ -352,7 +361,8 @@ public class ExternalServiceImpl implements ExternalService {
         // 获取serviceList
         K8SClientResponse response = sService.doServiceByNamespace(Resource.EXTERNALNAMESPACE, null, null, HTTPMethod.GET);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+        	UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
         }
         ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
         // item为实际service list的metadata，spec，status

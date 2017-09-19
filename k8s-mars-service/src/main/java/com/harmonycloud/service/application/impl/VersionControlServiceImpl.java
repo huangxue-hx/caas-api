@@ -801,74 +801,55 @@ public class VersionControlServiceImpl implements VersionControlService {
 
 
     private Map<String, String> createConfigmaps(CanaryDeployment detail, Cluster cluster) throws Exception {
-        Map<String, String> containerToConfigmapMap = new HashedMap();
+        Map<String, String> containerToConfigmapMap = new HashMap<String, String>();
         List<UpdateContainer> containers = detail.getContainers();
-        List<ConfigMap> cms = new ArrayList<ConfigMap>();
         if (containers != null && !containers.isEmpty()) {
             for (UpdateContainer c : containers) {
-
-                List<CreateConfigMapDto> configMaps = c.getConfigmap();
-                if (configMaps != null && configMaps.size() > 0) {
-                    K8SURL url = new K8SURL();
-                    url.setNamespace(detail.getNamespace()).setResource(Resource.CONFIGMAP);
-                    Map<String, Object> bodys = new HashMap<String, Object>();
-                    Map<String, Object> meta = new HashMap<String, Object>();
-                    meta.put("namespace", detail.getNamespace());
-                    String configmaName = detail.getName() + c.getName() + UUID.randomUUID().toString();
-                    meta.put("name", configmaName);
-                    Map<String, Object> label = new HashMap<String, Object>();
-                    label.put("app", detail.getName());
-                    meta.put("labels", label);
-                    bodys.put("metadata", meta);
-                    Map<String, Object> data = new HashMap<String, Object>();
-                    for (CreateConfigMapDto configMap : configMaps) {
-                        if (configMap != null && !StringUtils.isEmpty(configMap.getPath())) {
-                            if (StringUtils.isEmpty(configMap.getFile())) {
-                                data.put("config.json", configMap.getValue().toString());
-                                System.out.println();
-                            } else {
-                                data.put(configMap.getFile()+"v"+configMap.getTag(), configMap.getValue().toString());
+            	if(c.getConfigmap() != null ) {
+                    List<CreateConfigMapDto> configMaps = c.getConfigmap();
+                    if (configMaps != null && configMaps.size() > 0) {
+                        K8SURL url = new K8SURL();
+                        url.setNamespace(detail.getNamespace()).setResource(Resource.CONFIGMAP);
+                        Map<String, Object> bodys = new HashMap<String, Object>();
+                        Map<String, Object> meta = new HashMap<String, Object>();
+                        meta.put("namespace", detail.getNamespace());
+                        String configmaName = detail.getName() + c.getName() + UUID.randomUUID().toString();
+                        meta.put("name", configmaName);
+                        Map<String, Object> label = new HashMap<String, Object>();
+                        label.put("app", detail.getName());
+                        meta.put("labels", label);
+                        bodys.put("metadata", meta);
+                        Map<String, Object> data = new HashMap<String, Object>();
+                        for (CreateConfigMapDto configMap : configMaps) {
+                            if (configMap != null && !StringUtils.isEmpty(configMap.getPath())) {
+                                if (StringUtils.isEmpty(configMap.getFile())) {
+                                    data.put("config.json", configMap.getValue().toString());
+                                    System.out.println();
+                                } else {
+                                	if(configMap.getValue() != null ) {
+                                		data.put(configMap.getFile()+"v"+configMap.getTag(), configMap.getValue().toString());
+                                	}else {
+                                		data.put(configMap.getFile()+"v"+configMap.getTag(),"");
+                                	}
+                                }
                             }
                         }
-                    }
-                    bodys.put("data", data);
-                    Map<String, Object> headers = new HashMap<String, Object>();
-                    headers.put("Content-type", "application/json");
-                    K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
-                    System.out.println();
-                    if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                        throw new RuntimeException();
-                    }
+                        bodys.put("data", data);
+                        Map<String, Object> headers = new HashMap<String, Object>();
+                        headers.put("Content-type", "application/json");
+                        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
+                        System.out.println();
+                        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                            throw new RuntimeException();
+                        }
 
-                    containerToConfigmapMap.put(c.getName(), configmaName);
-                }
+                        containerToConfigmapMap.put(c.getName(), configmaName);
+                    }
+            	}
             }
         }
         return containerToConfigmapMap;
     }
-
-//    private void createPVCFor(Deployment dep) {
-//        List<String> pvcList = new ArrayList<>();
-//        // creat pvc
-//        for (Volume pvc : dep.getSpec().getTemplate().getSpec().getVolumes()) {
-//            if (pvc.getName() == "" || pvc.getName() == null) {
-//                continue;
-//            }
-//
-//
-//            String pvcName = pvc.getName();
-//
-//            try {
-//                volumeSerivce.createVolume(dep.getMetadata().getNamespace(), pvc.getName(), "500", pvc.getPvcTenantid(), pvc.getReadOnly(), pvc.getPvcBindOne(),
-//                        pvc.getName());
-//
-//            } catch (Exception e) {
-//                logger.error("灰度升级创建pvc失败");
-//                e.printStackTrace();
-//            }
-//        }
-//
-//    }
 
 
     @SuppressWarnings("unused")
