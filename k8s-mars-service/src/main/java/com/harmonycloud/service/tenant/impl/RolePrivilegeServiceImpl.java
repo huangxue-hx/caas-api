@@ -127,16 +127,17 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
         if(selectByExample.isEmpty()){
             throw new MarsRuntimeException("系统异常,权限数据备份格式错误,请联系管理员");
         }
-        HashMap<Integer, Boolean> oldPrivilege = new HashMap<>();
+        HashMap<Integer, RolePrivilegeCustom> oldPrivilege = new HashMap<>();
         for (RolePrivilegeCustom rolePrivilegeCustom : selectByExample) {
-            oldPrivilege.put(rolePrivilegeCustom.getRpid(), rolePrivilegeCustom.getStatus());
+            oldPrivilege.put(rolePrivilegeCustom.getRpid(), rolePrivilegeCustom);
         }
         RolePrivilegeExample example1 = new RolePrivilegeExample ();
         example.createCriteria().andRoleEqualTo(roleName);
         List<RolePrivilege> selectByExample2 = rolePrivilegeMapper.selectByExample(example1);
         for (RolePrivilege rolePrivilege : selectByExample2) {
-            rolePrivilege.setStatus(oldPrivilege.get(rolePrivilege.getRpid()));
+            rolePrivilege.setStatus(oldPrivilege.get(rolePrivilege.getRpid()).getStatus());
             rolePrivilege.setUpdateTime(new Date());
+            rolePrivilege.setParentRpid(oldPrivilege.get(rolePrivilege.getRpid()).getParentRpid());
             this.updateModule(rolePrivilege);
         }
         updateRoleMenu(roleName);
