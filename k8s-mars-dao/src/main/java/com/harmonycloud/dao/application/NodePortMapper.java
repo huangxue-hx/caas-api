@@ -25,18 +25,18 @@ public interface NodePortMapper {
 	 * 根据nodePort查询是否存在
 	 * @param id
 	 */
-    int getnodeport(Integer nodePort);
+    Integer getnodeport(Integer nodePort);
     
     /**
    	 * 根据id查询nodeport
    	 * @param id
    	 */
-     int getnodeportbyid(Integer id);
+     Integer getnodeportbyid(Integer id);
        
        /**
      	 * 根据nodePort查询id
      	 * @param nodePort
      	 */
-    int getidbynodeport(Integer nodePort);
+    Integer getidbynodeport(Integer nodePort);
 	    
 }

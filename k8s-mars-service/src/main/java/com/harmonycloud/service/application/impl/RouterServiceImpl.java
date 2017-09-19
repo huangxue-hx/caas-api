@@ -433,7 +433,7 @@ public class RouterServiceImpl implements RouterService {
 		// 修改nodeport_cluster中间表的status
 		for (int i = 0; i < svcTcpDto.getRules().size(); i++) {
 			int nodeport = Integer.valueOf(svcTcpDto.getRules().get(i).getPort());
-			int nodeportId = nodePortMapper.getidbynodeport(nodeport);
+			Integer nodeportId = nodePortMapper.getidbynodeport(nodeport);
 			NodePortCluster npc = new NodePortCluster();
 			npc.setClusterid(clusterId);
 			npc.setNodeportid(nodeportId);
@@ -488,7 +488,7 @@ public class RouterServiceImpl implements RouterService {
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			for (int i = 0; i < svcTcpDto.getRules().size(); i++) {
 				int nodeport = Integer.valueOf(svcTcpDto.getRules().get(i).getPort());
-				int nodeportId = nodePortMapper.getidbynodeport(nodeport);
+				Integer nodeportId = nodePortMapper.getidbynodeport(nodeport);
 				NodePortClusterExample example = new NodePortClusterExample();
 				// 创建tcp失败释放端口
 				example.createCriteria().andClusteridEqualTo(clusterId).andNodeportidEqualTo(nodeportId)
@@ -668,7 +668,7 @@ public class RouterServiceImpl implements RouterService {
 		// 查询port并释放
 		if (ports != null && ports.size() > 0) {
 			for (Integer port : ports) {
-				int nodeport = nodePortMapper.getidbynodeport(port);
+				Integer nodeport = nodePortMapper.getidbynodeport(port);
 				NodePortClusterExample example = new NodePortClusterExample();
 				example.createCriteria().andClusteridEqualTo(clusterId).andNodeportidEqualTo(nodeport);
 				npcMapper.deleteByExample(example);
@@ -867,7 +867,7 @@ public class RouterServiceImpl implements RouterService {
 	public ActionReturnUtil checkPort(String port, String tenantId) throws Exception {
 		int clusterId = tService.getClusterByTenantid(tenantId).getId().intValue();
 		int nodeport = Integer.valueOf(port);
-		int nodeportId = nodePortMapper.getidbynodeport(nodeport);
+		Integer nodeportId = nodePortMapper.getidbynodeport(nodeport);
 		NodePortClusterExample example = new NodePortClusterExample();
 		example.createCriteria().andClusteridEqualTo(clusterId).andNodeportidEqualTo(nodeportId);
 		List<NodePortCluster> list = npcMapper.selectByExample(example);
@@ -881,9 +881,9 @@ public class RouterServiceImpl implements RouterService {
 	public ActionReturnUtil updatePort(String oldport, String nowport, String tenantId) throws Exception {
 		int clusterId = tService.getClusterByTenantid(tenantId).getId().intValue();
 		int oldnodeport = Integer.valueOf(oldport);
-		int oldnodeportId = nodePortMapper.getidbynodeport(oldnodeport);
+		Integer oldnodeportId = nodePortMapper.getidbynodeport(oldnodeport);
 		int nownodeport = Integer.valueOf(nowport);
-		int nownodeportId = nodePortMapper.getidbynodeport(nownodeport);
+		Integer nownodeportId = nodePortMapper.getidbynodeport(nownodeport);
 		NodePortCluster npc = new NodePortCluster();
 		npc.setClusterid(clusterId);
 		npc.setNodeportid(oldnodeportId);
@@ -904,7 +904,7 @@ public class RouterServiceImpl implements RouterService {
 		// 根据tenantId获取clusterId
 		int clusterId = tService.getClusterByTenantid(tenantId).getId().intValue();
 		int nodeport = Integer.valueOf(port);
-		int nodeportId = nodePortMapper.getidbynodeport(nodeport);
+		Integer nodeportId = nodePortMapper.getidbynodeport(nodeport);
 		NodePortClusterExample example = new NodePortClusterExample();
 		example.createCriteria().andClusteridEqualTo(clusterId).andNodeportidEqualTo(nodeportId).andStatusEqualTo(1);
 		npcMapper.deleteByExample(example);
