@@ -145,7 +145,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 				String status = anno.get("nephele/status").toString();
 				if (status.equals(Constant.STARTING)) {
 					return ActionReturnUtil
-							.returnErrorWithMsg("service " + dep.getMetadata().getName() + " is already started");
+							.returnErrorWithMsg("服务 " + dep.getMetadata().getName() + " 已经启动！");
 				} else {
 					Integer.valueOf(anno.get("nephele/status").toString());
 
@@ -247,7 +247,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 				String status = anno.get("nephele/status").toString();
 				if (status.equals(Constant.STOPPING)) {
 					return ActionReturnUtil
-							.returnErrorWithMsg("service " + dep.getMetadata().getName() + " is already stopped");
+							.returnErrorWithMsg("服务 " + dep.getMetadata().getName() + " 已经停止！");
 				} else {
 					anno.put("nephele/status", Constant.STOPPING);
 					dep.getSpec().setReplicas(0);
@@ -1098,7 +1098,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
     @Override
     public ActionReturnUtil updateBusinessDeployment(UpdateDeployment deploymentDetail, String userName, Cluster cluster) throws Exception {
         if (deploymentDetail != null && StringUtils.isEmpty(deploymentDetail.getNamespace()) && StringUtils.isEmpty(deploymentDetail.getName())) {
-            return ActionReturnUtil.returnErrorWithMsg("deploymentDetail is null");
+            return ActionReturnUtil.returnErrorWithMsg("服务详情为空！");
         }
 
         String namespace = deploymentDetail.getNamespace();
