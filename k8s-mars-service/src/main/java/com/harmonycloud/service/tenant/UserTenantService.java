@@ -105,5 +105,12 @@ public interface UserTenantService {
      * @throws Exception
      */
     public List<UserTenant> findUserByRoleName(String roleName) throws Exception;
+    /**
+     * 根据roleName删除用户
+     * @param roleName
+     * @return
+     * @throws Exception
+     */
+    public void deleteUserByRoleName(String roleName) throws Exception;
 
 }

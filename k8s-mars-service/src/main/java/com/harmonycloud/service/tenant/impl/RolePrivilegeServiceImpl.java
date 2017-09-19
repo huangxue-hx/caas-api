@@ -117,13 +117,16 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
         if(CommonConstant.ADMIN.equals(roleName)){
             return;
         }
+        Role roleByRoleName = roleService.getRoleByRoleName(roleName);
+        roleByRoleName.setAvailable(Boolean.TRUE);
+        roleByRoleName.setSecondResourceIds(null);
+        roleService.updateRole(roleByRoleName);
         RolePrivilegeCustomExample example = new RolePrivilegeCustomExample();
         example.createCriteria().andRoleEqualTo(roleName);
         List<RolePrivilegeCustom> selectByExample = rolePrivilegeCustomMapper.selectByExample(example);
         if(selectByExample.isEmpty()){
             throw new MarsRuntimeException("系统异常,权限数据备份格式错误,请联系管理员");
         }
-
         HashMap<Integer, Boolean> oldPrivilege = new HashMap<>();
         for (RolePrivilegeCustom rolePrivilegeCustom : selectByExample) {
             oldPrivilege.put(rolePrivilegeCustom.getRpid(), rolePrivilegeCustom.getStatus());

@@ -79,6 +79,7 @@ public class RoleServiceImpl implements RoleService {
         example.createCriteria().andIdBetween(2, 5);
         Role record = new Role();
         record.setAvailable(Boolean.TRUE);
+        record.setSecondResourceIds(null);
         roleMapper.updateByExampleSelective(record, example);
         RoleExample example1 = new RoleExample();
         example1.createCriteria().andIdGreaterThan(5);
@@ -221,6 +222,7 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     public void deleteRole(String roleName) throws Exception {
+    	   userTenantService.deleteUserByRoleName(roleName);
         RoleExample example = new RoleExample();
         example.createCriteria().andNameEqualTo(roleName);
         roleMapper.deleteByExample(example);

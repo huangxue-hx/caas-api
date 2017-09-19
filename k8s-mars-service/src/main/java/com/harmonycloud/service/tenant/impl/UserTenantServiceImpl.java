@@ -173,5 +173,11 @@ public class UserTenantServiceImpl implements UserTenantService {
         List<UserTenant> selectByExample = userTenantMapper.selectByExample(example);
         return selectByExample;
     }
+
+	@Override
+	public void deleteUserByRoleName(String roleName) throws Exception {
+		UserTenantExample example = new UserTenantExample();
+		userTenantMapper.deleteByExample(example);
+	}
     
 }
