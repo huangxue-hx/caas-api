@@ -360,7 +360,7 @@ public class RouterServiceImpl implements RouterService {
 					servicePort.setPort(Integer.valueOf(rule.getPort()));
 					NodePortCluster npCluster = new NodePortCluster();
 					npCluster.setClusterid(Integer.valueOf((cluster.getId().toString())));
-					npCluster.setNodeportid(Integer.valueOf(rule.getPort()) - 29999);
+					npCluster.setNodeportid(Integer.valueOf(rule.getPort()) - 30100);
 					npCluster.setStatus(2);
 					npcMapper.insert(npCluster);
 					servicePort.setTargetPort(Integer.valueOf(rule.getTargetPort()));
