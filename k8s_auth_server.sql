@@ -278,6 +278,31 @@ LOCK TABLES `cicd_job_build` WRITE;
 /*!40000 ALTER TABLE `cicd_job_build` ENABLE KEYS */;
 UNLOCK TABLES;
 
+
+--
+-- Table structure for table `cicd_sonar_config`
+--
+
+DROP TABLE IF EXISTS `cicd_sonar_config`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `cicd_sonar_config` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(60) NOT NULL,
+  `token` varchar(60) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `cicd_sonar_config`
+--
+
+LOCK TABLES `cicd_sonar_config` WRITE;
+/*!40000 ALTER TABLE `cicd_sonar_config` DISABLE KEYS */;
+/*!40000 ALTER TABLE `cicd_sonar_config` ENABLE KEYS */;
+UNLOCK TABLES;
+
 --
 -- Table structure for table `cicd_stage`
 --

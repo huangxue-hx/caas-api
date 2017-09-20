@@ -14,9 +14,11 @@ import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.platform.service.ci.StageService;
 import com.harmonycloud.sonarqube.webapi.client.SonarProjectService;
 import com.harmonycloud.sonarqube.webapi.client.SonarQualitygatesService;
+import com.harmonycloud.sonarqube.webapi.client.SonarUserTokensService;
 import com.harmonycloud.sonarqube.webapi.model.project.ProjectInfo;
 import com.harmonycloud.sonarqube.webapi.model.qualitygates.Condition;
 import com.harmonycloud.sonarqube.webapi.model.qualitygates.Qualitygates;
+import com.harmonycloud.sonarqube.webapi.model.usertokens.UserToken;
 import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
@@ -74,14 +76,18 @@ public class StageServiceImpl implements StageService {
     @Autowired
     private StageSonarMapper stageSonarMapper;
 
+    @Autowired
+    private SonarConfigMapper sonarConfigMapper;
+
+    @Autowired
+    private SonarUserTokensService sonarUserTokensService;
+
     @Value("#{propertiesReader['api.url']}")
     private String apiUrl;
 
     @Value("${sonar.url}")
     private String sonarUrl;
 
-    @Value("${sonar.key}")
-    private String sonarKey;
 
 
     @Override
@@ -474,8 +480,9 @@ public class StageServiceImpl implements StageService {
         }
     }
 
-    private String generateSonarCommand(String projectKey,String sonarProperty){
-        return "[\"sonar-scanner -Dsonar.host.url="+sonarUrl+" -Dsonar.login="+sonarKey+" -Dsonar.projectKey="+projectKey+" -Dsonar.sources=src -Dsonar.java.binaries=target\"]";
+    private String generateSonarCommand(String projectKey,String sonarProperty) throws Exception {
+        String sonarKey = generateSonarToken();
+        return "[\"sonar-scanner -Dsonar.host.url="+sonarUrl+" -Dsonar.login="+sonarKey+" -Dsonar.projectKey="+projectKey+" "+sonarProperty+"\"]";
 
     }
 
@@ -556,5 +563,21 @@ public class StageServiceImpl implements StageService {
             }
         }
     }
-
+    private String generateSonarToken() throws Exception {
+        List<SonarConfig> sonarConfigs = sonarConfigMapper.queryByAll();
+        if(sonarConfigs!=null && sonarConfigs.size()>0){
+            return sonarConfigs.get(0).getToken();
+        }else {
+            UserToken userToken = sonarUserTokensService.generate("admin","admin_token_"+System.currentTimeMillis());
+            if(userToken!=null){
+                SonarConfig sonarConfig = new SonarConfig();
+                sonarConfig.setName(userToken.getName());
+                sonarConfig.setToken(userToken.getToken());
+                sonarConfigMapper.insertSonarConfig(sonarConfig);
+                return userToken.getToken();
+            }else {
+                throw new Exception("生成token失败");
+            }
+        }
+    }
 }
