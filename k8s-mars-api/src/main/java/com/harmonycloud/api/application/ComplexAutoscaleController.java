@@ -59,7 +59,7 @@ public class ComplexAutoscaleController {
             if(result){
                 return ActionReturnUtil.returnSuccess();
             }else{
-                return ActionReturnUtil.returnError();
+                return ActionReturnUtil.returnErrorWithData("创建失败");
             }
         } catch (MarsRuntimeException mre){
             logger.error("创建自动伸缩失败，autoScaleDto:{}", JSONObject.toJSONString(autoScaleDto), mre);

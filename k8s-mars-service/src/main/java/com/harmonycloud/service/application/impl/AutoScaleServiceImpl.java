@@ -131,8 +131,11 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 			}
 			AutoScaleDto autoScaleDto = this.convertScale(complexPodScale);
 			return autoScaleDto;
+		}else if(response.getStatus() == HttpStatus.NOT_FOUND.value()){
+			LOGGER.info("{}/{}未设置自动伸缩",namespace,deploymentName);
+			return null;
 		}else{
-			LOGGER.error("查询自动伸缩失败，",JSONObject.toJSONString(response));
+			LOGGER.error("查询自动伸缩失败，response:{}",JSONObject.toJSONString(response));
 			return null;
 		}
 	}
