@@ -130,7 +130,7 @@ CREATE TABLE `business_templates` (
 
 LOCK TABLES `business_templates` WRITE;
 /*!40000 ALTER TABLE `business_templates` DISABLE KEYS */;
-INSERT INTO `business_templates` (`id`,`name`,`tag`,`details`,`status`,`tenant`,`create_user`,`create_time`,`update_time`,`is_deploy`,`image_list`) VALUES (1,'Tomcat','8.0',NULL,0,'all','admin','2017-08-11 14:18:36',NULL,1,'onlineshop/tomcat'),(2,'Redis','3.2-alpine',NULL,0,'all','admin','2017-08-11 14:44:14',NULL,1,'onlineshop/redis'),(3,'WordPress','4.8.0-php7.1-fpm-alpine',NULL,0,'all','admin','2017-08-11 15:31:54',NULL,1,'onlineshop/wordpress'),(4,'InfluxDB','v1.3.0',NULL,0,'all','admin','2017-08-11 16:12:19',NULL,1,'onlineshop/influxdb'),(5,'MySQL','v1',NULL,0,'all','admin','2017-08-11 18:03:10',NULL,1,'onlineshop/mysqls'),(6,'Webhook','2.6.5',NULL,0,'all','admin','2017-08-12 15:54:52',NULL,NULL,'onlineshop/webhook'),(7,'Mongodb','v3.5',NULL,0,'all','admin','2017-09-05 17:02:28',NULL,NULL,'onlineshop/mongodb'),(8,'Rabbitmq','3.6.11',NULL,0,'all','admin','2017-09-05 17:03:30',NULL,NULL,'onlineshop/rabbitmq'),(9,'Nginx','latest',NULL,0,'all','admin','2017-09-05 17:05:19',NULL,NULL,'onlineshop/nginx'),(10,'Websphere','8.5.5.9-install',NULL,0,'all','admin','2017-09-05 17:06:07',NULL,NULL,'onlineshop/websphere'),(11,'Elasticsearch','v2.4.1-1',NULL,0,'all','admin','2017-09-05 17:07:25',NULL,NULL,'onlineshop/elasticsearch'),(13,'Fabric0.6','0.6',NULL,0,'all','admin','2017-08-18 14:44:42',NULL,1,'onlineshop/fabric-peer,onlineshop/fabric-membersrvc');
+INSERT INTO `business_templates` (`id`,`name`,`tag`,`details`,`status`,`tenant`,`create_user`,`create_time`,`update_time`,`is_deploy`,`image_list`) VALUES (1,'Tomcat','8.0',NULL,0,'all','admin','2017-08-11 14:18:36',NULL,1,'onlineshop/tomcat'),(2,'Redis','3.2-alpine',NULL,0,'all','admin','2017-08-11 14:44:14',NULL,1,'onlineshop/redis'),(3,'WordPress','4.8.0-php7.1-fpm-alpine',NULL,0,'all','admin','2017-08-11 15:31:54',NULL,1,'onlineshop/wordpress'),(4,'InfluxDB','v1.3.0',NULL,0,'all','admin','2017-08-11 16:12:19',NULL,1,'onlineshop/influxdb'),(5,'MySQL','v1',NULL,0,'all','admin','2017-08-11 18:03:10',NULL,1,'onlineshop/mysqls'),(7,'Mongodb','v3.5',NULL,0,'all','admin','2017-09-05 17:02:28',NULL,NULL,'onlineshop/mongodb'),(8,'Rabbitmq','3.6.11',NULL,0,'all','admin','2017-09-05 17:03:30',NULL,NULL,'onlineshop/rabbitmq'),(9,'Nginx','latest',NULL,0,'all','admin','2017-09-05 17:05:19',NULL,NULL,'onlineshop/nginx'),(10,'Websphere','8.5.5.9-install',NULL,0,'all','admin','2017-09-05 17:06:07',NULL,NULL,'onlineshop/websphere'),(11,'Elasticsearch','v2.4.1-1',NULL,0,'all','admin','2017-09-05 17:07:25',NULL,NULL,'onlineshop/elasticsearch'),(13,'Fabric0.6','0.6',NULL,0,'all','admin','2017-08-18 14:44:42',NULL,1,'onlineshop/fabric-peer,onlineshop/fabric-membersrvc');
 /*!40000 ALTER TABLE `business_templates` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -617,7 +617,7 @@ CREATE TABLE `harborProject_tenant` (
 
 LOCK TABLES `harborProject_tenant` WRITE;
 /*!40000 ALTER TABLE `harborProject_tenant` DISABLE KEYS */;
-INSERT INTO `harborProject_tenant` VALUES (1,3,'1234',NULL,NULL,'onlineshop',1),(108,2,'99999999','2017-06-16 12:18:10',NULL,'k8s-deploy',0);
+INSERT INTO `harborProject_tenant` VALUES (1,3,'99999999',NULL,NULL,'onlineshop',0),(2,1,'99999999',NULL,NULL,'library',1),(108,2,'99999999','2017-06-16 12:18:10',NULL,'k8s-deploy',0);
 /*!40000 ALTER TABLE `harborProject_tenant` ENABLE KEYS */;
 UNLOCK TABLES;
 
