@@ -45,34 +45,8 @@ LOCK TABLES `auth_user` WRITE;
 /*!40000 ALTER TABLE `auth_user` DISABLE KEYS */;
 INSERT INTO `auth_user` VALUES (1,'testaaa','123456','330','admin');
 /*!40000 ALTER TABLE `auth_user` ENABLE KEYS */;
---
--- Table structure for table `business`
---
-
-DROP TABLE IF EXISTS `business`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `business` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `template_id` int(11) DEFAULT NULL,
-  `name` varchar(45) CHARACTER SET latin1 DEFAULT NULL,
-  `details` varchar(250) DEFAULT NULL,
-  `namespaces` varchar(45) CHARACTER SET latin1 DEFAULT NULL,
-  `user` varchar(45) CHARACTER SET latin1 DEFAULT NULL,
-  `create_time` timestamp NULL DEFAULT NULL,
-  `tenant` varchar(45) CHARACTER SET latin1 DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `business`
---
-
-LOCK TABLES `business` WRITE;
-/*!40000 ALTER TABLE `business` DISABLE KEYS */;
-/*!40000 ALTER TABLE `business` ENABLE KEYS */;
 UNLOCK TABLES;
+
 
 --
 -- Table structure for table `business_service`
@@ -2812,34 +2786,7 @@ INSERT INTO `k8s_auth_server`.`role_privilege_custom`(`id`, `role`, `privilege`,
 INSERT INTO `k8s_auth_server`.`role_privilege_custom`(`id`, `role`, `privilege`, `update_time`, `first_module`, `second_module`, `third_module`, `status`, `mark`, `parent_rpid`, `isParent`, `rpid`, `parentid`) VALUES (1357, 'default', 'create', '2017-09-19 10:56:36', 'basic', NULL, NULL, 1, '应用模板创建', 249, 0, 1897, NULL);
 
 SET FOREIGN_KEY_CHECKS = 1;
---
--- Table structure for table `service`
---
 
-DROP TABLE IF EXISTS `service`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `service` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(45) CHARACTER SET latin1 DEFAULT NULL,
-  `business_id` int(11) DEFAULT NULL,
-  `service_template_id` int(11) DEFAULT NULL,
-  `is_external` int(11) DEFAULT '0',
-  `pvc` varchar(512) CHARACTER SET latin1 DEFAULT NULL,
-  `ingress` varchar(512) CHARACTER SET latin1 DEFAULT NULL,
-  `namespace` varchar(512) DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `service`
---
-
-LOCK TABLES `service` WRITE;
-/*!40000 ALTER TABLE `service` DISABLE KEYS */;
-/*!40000 ALTER TABLE `service` ENABLE KEYS */;
-UNLOCK TABLES;
 
 --
 -- Table structure for table `service_templates`
