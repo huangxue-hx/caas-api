@@ -1361,7 +1361,7 @@ CREATE TABLE `role_privilege`  (
   INDEX `parent_rpid`(`parent_rpid`) USING BTREE,
   INDEX `rpid`(`rpid`) USING BTREE,
   INDEX `role`(`role`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 1357 CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Compact;
+) ENGINE = InnoDB AUTO_INCREMENT = 1499 CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Compact;
 
 -- ----------------------------
 -- Records of role_privilege
