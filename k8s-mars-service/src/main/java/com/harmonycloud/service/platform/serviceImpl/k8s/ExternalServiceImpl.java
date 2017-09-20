@@ -131,8 +131,7 @@ public class ExternalServiceImpl implements ExternalService {
         url.setResource(Resource.SERVICE).setNamespace(Resource.EXTERNALNAMESPACE).setSubpath(name);
         K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, null);
         if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-        	UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
+            return ActionReturnUtil.returnSuccess();
         }
         return ActionReturnUtil.returnErrorWithMsg("删除出错");
     }
@@ -215,8 +214,11 @@ public class ExternalServiceImpl implements ExternalService {
         K8SURL url = new K8SURL();
         url.setNamespace(Resource.EXTERNALNAMESPACE).setResource(Resource.SERVICE).setSubpath(externalServiceBean.getName());
         head.put("Content-Type", "application/json");
-        //K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, head, body,cluster);
-
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, head, body,cluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+        	UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
+        }
         // 更新endpoint
         List<Subsets> sbt = new ArrayList<Subsets>();
         Subsets subset = new Subsets();
@@ -250,7 +252,7 @@ public class ExternalServiceImpl implements ExternalService {
         	UnversionedStatus sta = JsonUtil.jsonToPojo(eresponse.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
         }
-        return ActionReturnUtil.returnSuccessWithData(eresponse.getBody());
+        return ActionReturnUtil.returnSuccess();
     }
     /**
      * 获取外部服务tenantName
