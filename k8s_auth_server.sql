@@ -378,7 +378,7 @@ CREATE TABLE `cicd_stage_type` (
   `tenant_id` varchar(255) DEFAULT NULL,
   `template_type` int(2) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=８ DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -387,7 +387,7 @@ CREATE TABLE `cicd_stage_type` (
 
 LOCK TABLES `cicd_stage_type` WRITE;
 /*!40000 ALTER TABLE `cicd_stage_type` DISABLE KEYS */;
-INSERT INTO `cicd_stage_type` VALUES (1,'代码检出/编译',0,NULL,0),(2,'单元测试',0,NULL,4),(3,'镜像构建',0,NULL,1),(4,'应用部署',0,NULL,2),(5,'集成测试',0,NULL,4),(6,'自定义',0,NULL,3),(7,'代码扫描',0,NULL,５);
+INSERT INTO `cicd_stage_type` VALUES (1,'代码检出/编译',0,NULL,0),(2,'单元测试',0,NULL,4),(3,'镜像构建',0,NULL,1),(4,'应用部署',0,NULL,2),(5,'集成测试',0,NULL,4),(6,'自定义',0,NULL,3),(7,'代码扫描',0,NULL,5);
 /*!40000 ALTER TABLE `cicd_stage_type` ENABLE KEYS */;
 UNLOCK TABLES;
 
