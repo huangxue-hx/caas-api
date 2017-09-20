@@ -153,9 +153,9 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
     private Map<String, Object> getPrivilegeByRole(String roleName,Boolean isMenu) throws Exception {
         Map<String, Object> result = new HashMap<>();
         if(!StringUtils.isEmpty(roleName)){
-            if(roleName.equals(CommonConstant.ADMIN)){
-                return result;
-            }
+//            if(roleName.equals(CommonConstant.ADMIN)){
+//                return result;
+//            }
             Role role = roleService.getRoleByRoleName(roleName);
             if(role == null){
                 throw new MarsRuntimeException("角色名:"+roleName+"不存在！");
