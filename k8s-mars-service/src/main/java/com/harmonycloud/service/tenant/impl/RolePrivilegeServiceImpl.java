@@ -132,7 +132,7 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
             oldPrivilege.put(rolePrivilegeCustom.getRpid(), rolePrivilegeCustom);
         }
         RolePrivilegeExample example1 = new RolePrivilegeExample ();
-        example.createCriteria().andRoleEqualTo(roleName);
+        example1.createCriteria().andRoleEqualTo(roleName);
         List<RolePrivilege> selectByExample2 = rolePrivilegeMapper.selectByExample(example1);
         for (RolePrivilege rolePrivilege : selectByExample2) {
             rolePrivilege.setStatus(oldPrivilege.get(rolePrivilege.getRpid()).getStatus());
