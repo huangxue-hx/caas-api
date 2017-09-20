@@ -81,6 +81,11 @@ public class RoleServiceImpl implements RoleService {
         record.setAvailable(Boolean.TRUE);
         record.setSecondResourceIds(null);
         roleMapper.updateByExampleSelective(record, example);
+        List<Role> selectByExample = roleMapper.selectByExample(example);
+      for (Role role : selectByExample) {
+        	    //reset privilege
+			rolePrivilegeService.resetRolePrivilegeByRoleName(role.getName());
+       }
         RoleExample example1 = new RoleExample();
         example1.createCriteria().andIdGreaterThan(5);
         List<Role> deleteList = roleMapper.selectByExample(example1);
