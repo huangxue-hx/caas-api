@@ -573,6 +573,7 @@ public class StageServiceImpl implements StageService {
                 SonarConfig sonarConfig = new SonarConfig();
                 sonarConfig.setName(userToken.getName());
                 sonarConfig.setToken(userToken.getToken());
+                sonarConfig.setUrl(sonarUrl);
                 sonarConfigMapper.insertSonarConfig(sonarConfig);
                 return userToken.getToken();
             }else {

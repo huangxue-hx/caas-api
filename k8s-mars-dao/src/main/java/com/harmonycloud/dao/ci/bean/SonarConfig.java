@@ -9,6 +9,7 @@ public class SonarConfig implements Serializable{
     private Integer id;
     private String name;
     private String token;
+    private String url;
 
     public Integer getId() {
         return id;
@@ -32,5 +33,13 @@ public class SonarConfig implements Serializable{
 
     public void setToken(String token) {
         this.token = token;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
     }
 }

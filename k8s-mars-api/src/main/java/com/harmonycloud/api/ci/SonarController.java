@@ -1,6 +1,7 @@
 package com.harmonycloud.api.ci;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.service.platform.service.ci.SonarConfigService;
 import com.harmonycloud.service.platform.service.ci.StageSonarService;
 import com.harmonycloud.sonarqube.webapi.client.SonarQualitygatesService;
 import com.harmonycloud.sonarqube.webapi.model.qualitygates.Condition;
@@ -25,6 +26,9 @@ public class SonarController {
 
     @Autowired
     private StageSonarService stageSonarService;
+
+    @Autowired
+    private SonarConfigService sonarConfigService;
 
     @RequestMapping(value = "/createCondition", method = RequestMethod.GET)
     public ActionReturnUtil createCondition(@RequestBody Condition condition){
@@ -90,6 +94,17 @@ public class SonarController {
         logger.info("sonar getStageSonar.");
         try {
             return stageSonarService.getStageSonar(stageId);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ActionReturnUtil.returnError();
+        }
+    }
+
+    @RequestMapping(value = "/getSonarConfig", method = RequestMethod.GET)
+    public ActionReturnUtil getSonarConfig(){
+        logger.info("sonar getSonarConfig.");
+        try {
+            return sonarConfigService.getSonarConfig();
         } catch (Exception e) {
             e.printStackTrace();
             return ActionReturnUtil.returnError();

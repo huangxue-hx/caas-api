@@ -5,20 +5,23 @@
         <id column="id" jdbcType="INTEGER" property="id" />
         <result column="name" jdbcType="VARCHAR" property="name" />
         <result column="token" jdbcType="VARCHAR" property="token" />
+        <result column="url" jdbcType="VARCHAR" property="url" />
     </resultMap>
 
     <sql id="selectAllColumns">
-        id,name,token
+        id,name,token,url
     </sql>
 
     <insert id="insertSonarConfig" parameterType="com.harmonycloud.dao.ci.bean.SonarConfig" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO cicd_sonar_config(
         name,
-        token
+        token,
+        url
         )
         VALUES(
         #{name},
-        #{token}
+        #{token},
+        #{url}
         )
     </insert>
 
