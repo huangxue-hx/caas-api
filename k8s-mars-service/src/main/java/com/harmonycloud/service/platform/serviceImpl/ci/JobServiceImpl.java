@@ -681,11 +681,16 @@ public class JobServiceImpl implements JobService {
                     stageBuildList = stageBuildMapper.queryByObject(stageBuildCondition);
                     stageBuildMapList = new ArrayList<>();
                     for(StageBuild newStageBuild : stageBuildList){
+                        stageBuildMap = new HashMap<>();
                         stageBuildMap.put("stageId", newStageBuild.getStageId());
                         stageBuildMap.put("stageName", newStageBuild.getStageName());
                         stageBuildMap.put("stageOrder", newStageBuild.getStageOrder());
                         stageBuildMap.put("stageType", newStageBuild.getStageType());
-                        stageBuildMap.put("buildStatus", newStageBuild.getStatus());
+                        if(Constant.PIPELINE_STATUS_WAITING.equals(newStageBuild.getStatus())){
+                            stageBuildMap.put("buildStatus", Constant.PIPELINE_STATUS_NOTBUILT);
+                        }else {
+                            stageBuildMap.put("buildStatus", newStageBuild.getStatus());
+                        }
                         stageBuildMap.put("buildNum", newStageBuild.getBuildNum());
                         stageBuildMap.put("buildTime", newStageBuild.getStartTime());
                         stageBuildMap.put("duration", newStageBuild.getDuration());
