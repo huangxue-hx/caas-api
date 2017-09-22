@@ -65,6 +65,10 @@ public class NodeServiceImpl implements NodeService {
 
     @Value("#{propertiesReader['image.domain']}")
     private String harborUrl;
+    @Value("#{propertiesReader['kube.high-availability']}")
+    private String highAvailability;
+    @Value("#{propertiesReader['kube.vip']}")
+    private String vipUrl;
     /**
      * Node列表
      */
@@ -626,7 +630,12 @@ public class NodeServiceImpl implements NodeService {
         params.put("host", host);
         params.put("user", user);
         params.put("passwd", passwd);
-        params.put("masterIp", masterIp);
+        if ("yes".equalsIgnoreCase(highAvailability)){
+            params.put("masterIp", vipUrl);
+        }else {
+            params.put("masterIp", masterIp);
+        }
+
         params.put("harborIp", harborUrl);
         if (StringUtils.isEmpty(host) || StringUtils.isEmpty(user) || StringUtils.isEmpty(passwd) || StringUtils.isEmpty(masterIp) || StringUtils.isEmpty(harborIp)
                 || StringUtils.isEmpty(clusterId)) {
@@ -662,8 +671,15 @@ public class NodeServiceImpl implements NodeService {
                 ActionReturnUtil flag = new ActionReturnUtil();
                 try {
                     Cluster cluster = null;
-                    cluster = clusterService.findClusterById(clusterId);
-                    ActionReturnUtil httpGetRequest = HttpClientUtil.httpGetRequest("http://" + cluster.getHost() + ":9999/installnode", null, params);
+                    String clusterHost = "";
+                    if ("yes".equalsIgnoreCase(highAvailability)){
+                        clusterHost = vipUrl;
+                    }else {
+                        cluster = clusterService.findClusterById(clusterId);
+                        clusterHost = cluster.getHost();
+                    }
+
+                    ActionReturnUtil httpGetRequest = HttpClientUtil.httpGetRequest("http://" + clusterHost + ":9999/installnode", null, params);
                     if ((Boolean) httpGetRequest.get(CommonConstant.SUCCESS) != CommonConstant.FALSE) {
                         Object object = httpGetRequest.get(CommonConstant.DATA);
                         String ad = object == null ? "" : object.toString();
@@ -713,9 +729,18 @@ public class NodeServiceImpl implements NodeService {
         params.put("host", host);
         params.put("user", user);
         params.put("passwd", passwd);
-        params.put("masterIp", cluster.getHost());
+
         params.put("token", cluster.getMachineToken());
-        ActionReturnUtil httpGetRequest = HttpClientUtil.httpGetRequest("http://" + cluster.getHost() + ":9999/uninstallnode", null, params);
+        String clusterHost = null;
+        if ("yes".equalsIgnoreCase(highAvailability)){
+            clusterHost = vipUrl;
+            params.put("masterIp", vipUrl);
+        }else {
+            clusterHost = cluster.getHost();
+            params.put("masterIp", cluster.getHost());
+        }
+
+        ActionReturnUtil httpGetRequest = HttpClientUtil.httpGetRequest("http://" + clusterHost + ":9999/uninstallnode", null, params);
         if ((Boolean) httpGetRequest.get(CommonConstant.SUCCESS) == CommonConstant.FALSE) {
             return httpGetRequest;
         } else {
