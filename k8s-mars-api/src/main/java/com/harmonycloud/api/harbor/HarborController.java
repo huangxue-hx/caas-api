@@ -4,6 +4,7 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.service.platform.integrationService.HarborIntegrationService;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import com.harmonycloud.service.platform.bean.HarborProjectQuota;
@@ -21,6 +22,9 @@ public class HarborController {
     private HarborIntegrationService harborIntegrationService;
     @Autowired
     private HarborServiceImpl harborServiceImpl;
+
+    @Value("#{propertiesReader['image.domain']}")
+    private String harborDomain;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -40,6 +44,22 @@ public class HarborController {
             return harborIntegrationService.clairStatistcsOfProject(name);
         } catch (Exception e) {
         	throw e;
+        }
+    }
+
+    /**
+     * 镜像脆弱性分析 - project纬度
+     *
+     * @param name project name
+     * @return
+     */
+    @RequestMapping(value = "/harborProject/url", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getHarborUrl() throws Exception{
+        try {
+            return ActionReturnUtil.returnSuccessWithData(harborDomain);
+        } catch (Exception e) {
+            throw e;
         }
     }
 
