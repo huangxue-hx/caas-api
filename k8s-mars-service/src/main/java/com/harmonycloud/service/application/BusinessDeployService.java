@@ -178,4 +178,6 @@ public interface BusinessDeployService {
 
     ActionReturnUtil bindBusiness(String businessname, String tenantId, String name, String namespace, Cluster cluster)throws Exception;
 
+    ActionReturnUtil getTopo(String id)throws Exception;
+
 }

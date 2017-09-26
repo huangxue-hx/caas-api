@@ -1,9 +1,6 @@
 package com.harmonycloud.service.application.impl;
 
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.CollectionUtil;
-import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.application.*;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dao.tenant.TenantBindingMapper;
@@ -99,6 +96,9 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
     @Autowired
     private PVCService pvcService;
+
+    @Autowired
+    private HarborUtil harborUtil;
 
     public static final String ABNORMAL = "0";
     public static final String NORMAL = "1";
@@ -1799,5 +1799,25 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                     }
         }
         return ActionReturnUtil.returnSuccess();
+    }
+
+    @Override
+    public ActionReturnUtil getTopo(String id) throws Exception {
+
+        if (StringUtils.isEmpty(id)) {
+            return ActionReturnUtil.returnErrorWithMsg("id 不能为空！");
+        }
+
+        String url = "http://kube-topo:8000/topo";
+        //String url = "http://10.10.101.75:8000/topo";
+
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("cookie", harborUtil.checkCookieTimeout());
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("topoSelector", id);
+
+        return HttpClientUtil.httpGetRequest(url, headers, params);
+
     }
 }
