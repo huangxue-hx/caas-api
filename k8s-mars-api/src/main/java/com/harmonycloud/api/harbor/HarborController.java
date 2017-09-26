@@ -216,13 +216,13 @@ public class HarborController {
      */
     @RequestMapping(value = "/harborProject/search", method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil getFuzzySearchResult(@RequestParam(value = "query") String query,@RequestParam(value="tenantID") String tenantID)throws Exception{
+    public ActionReturnUtil getFuzzySearchResult(@RequestParam(value = "query") String query,@RequestParam(value="tenantID") String tenantID ,@RequestParam(value="isPublic") String isPublic)throws Exception{
         if (StringUtils.isEmpty(query)) {
             return ActionReturnUtil.returnSuccess();
         }
         try {
             logger.info("模糊查询");
-            return this.harborServiceImpl.getRepoFuzzySearch(query,tenantID);
+            return this.harborServiceImpl.getRepoFuzzySearch(query,tenantID,isPublic);
         } catch (Exception e) {
             logger.info("模糊查询失败:tenantID="+tenantID);
             throw e;

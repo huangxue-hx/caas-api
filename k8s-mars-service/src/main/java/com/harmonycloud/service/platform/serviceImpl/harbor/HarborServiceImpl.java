@@ -954,7 +954,7 @@ public class HarborServiceImpl implements HarborService {
      * @return
      * @throws Exception
      */
-    public ActionReturnUtil getRepoFuzzySearch(String query, String tenantID) throws Exception {
+    public ActionReturnUtil getRepoFuzzySearch(String query, String tenantID, String isPublic) throws Exception {
         // 1.查询租户详情
         TenantBinding tenantBinding = tenantService.getTenantByTenantid(tenantID);
         if (null == tenantBinding) {
@@ -963,7 +963,9 @@ public class HarborServiceImpl implements HarborService {
         List<HarborProjectTenant> harborProjectTenantList = harborProjectTenantMapper.getByTenantId(tenantID);
         List<String> projectList = new ArrayList<>();
         for (HarborProjectTenant harborProjectTenant : harborProjectTenantList) {
-            projectList.add(harborProjectTenant.getHarborProjectName());
+        	if(harborProjectTenant.getIsPublic() == Integer.parseInt(isPublic)) {
+        		projectList.add(harborProjectTenant.getHarborProjectName());
+        	}
         }
         Long begin = System.currentTimeMillis();
         ActionReturnUtil repoResponse = getFuzzySearch(query);
@@ -1038,11 +1040,11 @@ public class HarborServiceImpl implements HarborService {
         if (StringUtils.isNotEmpty(dataJson)) {
             //key值为project的name*id;
             Map<String, List<String>> queryResult = new HashMap<>();
-
             Map<String, Object> queryMap = JsonUtil.jsonToMap(dataJson);
             if (queryMap.get("repository") != null) {
                 //List<Map<String, Object>> mapList = JsonUtil.JsonToMapList((queryMap.get("repository").toString()));
-                List<Map<String, Object>> mapList = (List<Map<String, Object>>) queryMap.get("repository");
+                @SuppressWarnings("unchecked")
+				List<Map<String, Object>> mapList = (List<Map<String, Object>>) queryMap.get("repository");
                 if (!CollectionUtils.isEmpty(mapList)) {
                     for (Map<String, Object> map : mapList) {
                         if (map.get("project_name") != null) {

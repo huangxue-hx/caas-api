@@ -145,7 +145,7 @@ public interface HarborService {
      * @return
      * @throws Exception
      */
-    ActionReturnUtil getRepoFuzzySearch(String query,String tenantID) throws Exception;
+    ActionReturnUtil getRepoFuzzySearch(String query,String tenantID, String isPublic) throws Exception;
     /**
      * 查询指定租户的镜像
      * @return
