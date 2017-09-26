@@ -1,5 +1,6 @@
 package com.harmonycloud.service.platform.serviceImpl.ci;
 
+import com.alibaba.druid.pool.DruidDataSource;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.StageTemplateTypeEnum;
 import com.harmonycloud.common.util.*;
@@ -42,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,6 +59,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.InputStream;
+import java.sql.Connection;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -131,6 +134,10 @@ public class JobServiceImpl implements JobService {
 
     @Value("#{propertiesReader['api.url']}")
     private String apiUrl;
+
+    @Autowired
+    private DruidDataSource dataSource;
+
 
     DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     @Override
@@ -770,6 +777,8 @@ public class JobServiceImpl implements JobService {
         String start = "0";
         String moreData = "";
         try {
+            Connection conn = DataSourceUtils.getConnection(dataSource);
+            conn.close();//手动关闭连接，防止长时间连接导致连接数达上限
             while (moreData != null && session.isOpen()) {
                 moreData = null;
                 Map params = new HashMap<>();
@@ -1279,6 +1288,9 @@ public class JobServiceImpl implements JobService {
                 }
                 lastStatus = currentStatus;
 
+                Connection conn = DataSourceUtils.getConnection(dataSource);
+                conn.close();//手动关闭连接，防止长时间连接导致连接数达上限
+
                 Thread.sleep(2000);
             }
         } catch (Exception e) {
@@ -1491,6 +1503,10 @@ public class JobServiceImpl implements JobService {
                     }
                     lastStatus = currentStatus;
                 }
+
+                Connection conn = DataSourceUtils.getConnection(dataSource);
+                conn.close();//手动关闭连接，防止长时间连接导致连接数达上限
+
                 Thread.sleep(2000);
             }
         } catch (Exception e) {

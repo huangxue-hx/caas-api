@@ -1,5 +1,6 @@
 package com.harmonycloud.service.platform.serviceImpl.ci;
 
+import com.alibaba.druid.pool.DruidDataSource;
 import com.harmonycloud.common.enumm.DockerfileTypeEnum;
 import com.harmonycloud.common.enumm.RepositoryTypeEnum;
 import com.harmonycloud.common.enumm.StageTemplateTypeEnum;
@@ -24,12 +25,14 @@ import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
+import java.sql.Connection;
 import java.sql.Timestamp;
 import java.util.*;
 
@@ -88,7 +91,8 @@ public class StageServiceImpl implements StageService {
     @Value("${sonar.url}")
     private String sonarUrl;
 
-
+    @Autowired
+    private DruidDataSource dataSource;
 
     @Override
     public ActionReturnUtil addStage(StageDto stageDto) throws Exception{
@@ -300,6 +304,8 @@ public class StageServiceImpl implements StageService {
         Stage stage = stageMapper.queryById(id);
         Job job = jobMapper.queryById(stage.getJobId());
         try {
+            Connection conn = DataSourceUtils.getConnection(dataSource);
+            conn.close();//手动关闭连接，防止长时间连接导致连接数达上限
             while(session.isOpen()) {
                 List<Map> stageMapList = getStageBuildFromJenkins(job, buildNum);
                 if(stageMapList.size() >= stage.getStageOrder()) {
