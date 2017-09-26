@@ -15,6 +15,7 @@ import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.UserTenant;
 import com.harmonycloud.service.cluster.ClusterService;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -406,7 +407,7 @@ public class UserController {
 
     }
     @RequestMapping(value = "/user/getMenu", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil getMenu() throws Exception {
+    public @ResponseBody ActionReturnUtil getMenu(String roleName) throws Exception {
     	long startTime=System.currentTimeMillis();   //获取开始时间
         Object name = session.getAttribute("username");
         if (name == null) {
@@ -415,19 +416,24 @@ public class UserController {
         Boolean getMenu =(Boolean) session.getAttribute("getMenu");
         if(getMenu!=null  &&  !getMenu) {
         		return ActionReturnUtil.returnSuccess();
-        	}
-        String userName = name.toString();
-        User user = userService.getUser(userName);
+        }
         List<Map<String, Object>> menu = new ArrayList<>();
-        if (user.getIsAdmin() == 1) {
-            menu = resourceService.listMenuByRole("admin");
-        } else {
-            Object Id = session.getAttribute("tenantId");
-          if(Id != null) {
-        	    String tenantId = Id.toString();
-              String role = userTenantService.findRoleByName(userName,tenantId);
-              menu = resourceService.listMenuByRole(role);
-          }
+
+        if (StringUtils.isEmpty(roleName)){
+            String userName = name.toString();
+            User user = userService.getUser(userName);
+            if (user.getIsAdmin() == 1) {
+                menu = resourceService.listMenuByRole("admin");
+            } else {
+                Object Id = session.getAttribute("tenantId");
+                if(Id != null) {
+                    String tenantId = Id.toString();
+                    String role = userTenantService.findRoleByName(userName,tenantId);
+                    menu = resourceService.listMenuByRole(role);
+                }
+            }
+        }else {
+            menu = resourceService.listAllMenuByRole(roleName);
         }
         
 		long endTime=System.currentTimeMillis(); //获取结束时间

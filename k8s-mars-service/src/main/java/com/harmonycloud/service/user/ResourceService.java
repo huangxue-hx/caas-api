@@ -50,6 +50,12 @@ public interface ResourceService {
      * @throws Exception
      */
     public List<Map<String, Object>> listMenuByRole(String roleName) throws Exception;
+    /**
+     * 获取角色所有可能的菜单
+     * @return
+     * @throws Exception
+     */
+    public List<Map<String, Object>> listAllMenuByRole(String roleName) throws Exception;
 
     /**
      * 添加新角色菜单

@@ -126,6 +126,7 @@ public void updateRoleMenuResource(Integer id, Boolean status) throws Exception 
         resources.add(resource);
         return ActionReturnUtil.returnSuccessWithData(resources);
     }
+
     @Override
     public List<Map<String, Object>> listMenuByRole(String roleName) throws Exception {
         List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
@@ -148,6 +149,37 @@ public void updateRoleMenuResource(Integer id, Boolean status) throws Exception 
                 example1.createCriteria().andRoleEqualTo(roleName).andAvailableEqualTo(Boolean.TRUE).andParentRpidEqualTo(resource.getRpid());
                 List<Resource> list2 = this.resourceMapper.selectByExample(example1);
                 
+                if(list2!=null&&list2.size()>0){
+                    map.put(CommonConstant.SUBMENU,list2);
+                }
+                result.add(map);
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public List<Map<String, Object>> listAllMenuByRole(String roleName) throws Exception {
+        List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
+        ResourceExample example = new ResourceExample ();
+        example.setOrderByClause("`weight` ASC,id ASC");
+        example.createCriteria().andRoleEqualTo(roleName);
+        List<Resource> list = this.resourceMapper.selectByExample(example);
+        if(list==null||list.size()<=0){
+            return null;
+        }
+        for (Resource resource : list) {
+            if(resource.getParentRpid()==0){
+                Map<String, Object> map = new HashMap<>();
+                map.put(CommonConstant.ID,  resource.getId());
+                map.put(CommonConstant.NAME,  resource.getName());
+                map.put(CommonConstant.URL,  resource.getUrl());
+                map.put("weight",resource.getWeight());
+                map.put(CommonConstant.ICONNAME,  resource.getIconName());
+                ResourceExample example1 = new ResourceExample ();
+                example1.createCriteria().andRoleEqualTo(roleName).andAvailableEqualTo(Boolean.TRUE).andParentRpidEqualTo(resource.getRpid());
+                List<Resource> list2 = this.resourceMapper.selectByExample(example1);
+
                 if(list2!=null&&list2.size()>0){
                     map.put(CommonConstant.SUBMENU,list2);
                 }

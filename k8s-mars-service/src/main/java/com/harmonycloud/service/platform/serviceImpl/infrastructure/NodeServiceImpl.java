@@ -624,6 +624,7 @@ public class NodeServiceImpl implements NodeService {
             nodeInstall.setProgress(0);
             nodeInstall.setInstallStatus(CommonConstant.BEGIN);
             nodeInstall.setClusterId(Integer.parseInt(clusterId));
+            nodeInstall.setErrorMsg(null);
             nodeInstallProgressService.updateNodeInLineInfo(nodeInstall);
         }
         Map<String, Object> params = new HashMap<>();
