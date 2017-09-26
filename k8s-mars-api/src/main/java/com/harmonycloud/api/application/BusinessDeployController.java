@@ -318,4 +318,21 @@ public class BusinessDeployController {
         Cluster cluster = (Cluster) session.getAttribute("currentCluster");
         return businessDeployService.addAndDeployBusinessTemplate(businessDeploy, userName, tenantid, cluster);
     }
+
+    /**
+     * get application topo
+     *
+     * @param id
+     * @return ActionReturnUtil
+     */
+    @ResponseBody
+    @RequestMapping(value = "/topo", method = RequestMethod.GET)
+    public ActionReturnUtil getTopo(@RequestParam(value = "id", required = true) String id) throws Exception {
+        logger.info("get application topo");
+        if (id != null) {
+            return businessDeployService.getTopo(id);
+        } else {
+            return ActionReturnUtil.returnErrorWithMsg("id不能为空");
+        }
+    }
 }
