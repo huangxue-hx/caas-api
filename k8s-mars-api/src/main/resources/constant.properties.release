@@ -20,7 +20,7 @@ clusterHost.hostname=harmonycloud.cn
 superadmin.username=admin
 network.version=0.1
 network.networkFlag=c
-druid.url=jdbc:mysql://api-mysql-service:3306/k8s_auth_server?useUnicode=true&amp;characterEncoding=UTF-8
+druid.url=jdbc:mysql://api-mysql-service-upgrade:3306/k8s_auth_server?useUnicode=true&amp;characterEncoding=UTF-8
 druid.user=root
 druid.password=123456
 druid.driverClass=com.mysql.jdbc.Driver
