@@ -539,6 +539,9 @@ public class HarborProjectReplicationServiceImpl implements HarborProjectReplica
 				if(targetDeleResponse.get("data").toString().contains("used by policies")){
 					return ActionReturnUtil.returnErrorWithData("请先停止并删除同步规则");
 				}
+				if(targetDeleResponse.get("data").toString().contains("running/retrying/pending jobs")){
+					return ActionReturnUtil.returnErrorWithData("同步任务未结束，请稍后重试");
+				}
 				return targetDeleResponse;
 			}
 		}
