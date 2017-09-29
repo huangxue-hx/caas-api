@@ -25,6 +25,8 @@ public class BusinessTemplates implements Serializable {
     private Integer isDeploy;
     
     private String imageList;
+    
+    private boolean isPublic;
 
     private static final long serialVersionUID = 1L;
 
@@ -160,4 +162,12 @@ public class BusinessTemplates implements Serializable {
     public static long getSerialVersionUID() {
         return serialVersionUID;
     }
+
+	public boolean isPublic() {
+		return isPublic;
+	}
+
+	public void setPublic(boolean isPublic) {
+		this.isPublic = isPublic;
+	}
 }

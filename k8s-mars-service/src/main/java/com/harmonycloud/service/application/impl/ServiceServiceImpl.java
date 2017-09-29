@@ -162,6 +162,7 @@ public class ServiceServiceImpl implements ServiceService {
 		serviceTemplateDB.setCreateTime(new Date());
 		serviceTemplateDB.setFlag(serviceTemplate.getExternal());
 		serviceTemplateDB.setTag(decimalFormat.format(tag));
+		serviceTemplateDB.setPublic(serviceTemplate.isPublic());
 		serviceTemplatesMapper.insert(serviceTemplateDB);
 		JSONObject json = new JSONObject();
 		json.put(serviceTemplateDB.getName(), serviceTemplateDB.getId());
@@ -177,17 +178,17 @@ public class ServiceServiceImpl implements ServiceService {
 	 * @throws Exception
 	 */
 	@Override
-	public ActionReturnUtil listTemplateByTenat(String name, String tenant) throws Exception {
+	public ActionReturnUtil listTemplateByTenat(String name, String tenant, boolean isPublic) throws Exception {
 		JSONArray array = new JSONArray();
 		// check value null
 
 		// list
-		List<ServiceTemplates> serviceBytenant = serviceTemplatesMapper.listNameByTenant(name, tenant);
+		List<ServiceTemplates> serviceBytenant = serviceTemplatesMapper.listNameByTenant(name, tenant, isPublic);
 
 		if (serviceBytenant != null && serviceBytenant.size() > 0) {
 			for (ServiceTemplates serviceTemplates : serviceBytenant) {
 				List<ServiceTemplates> serviceList = serviceTemplatesMapper.listServiceByImage(
-						serviceTemplates.getName(), serviceTemplates.getImageList(), serviceTemplates.getTenant());
+						serviceTemplates.getName(), serviceTemplates.getImageList(), serviceTemplates.getTenant(), isPublic);
 				array.add(getServiceTemplates(serviceList));
 			}
 		}
@@ -493,34 +494,65 @@ public class ServiceServiceImpl implements ServiceService {
 	}
 
 	@Override
-	public ActionReturnUtil listServiceTemplate(String searchKey, String searchvalue, String tenant) throws Exception {
+	public ActionReturnUtil listServiceTemplate(String searchKey, String searchvalue, String tenant, boolean isPublic) throws Exception {
 		JSONArray array = new JSONArray();
-		// check value null
-
-		// list
 		List<ServiceTemplates> serviceBytenant=null;
-		if(!StringUtils.isEmpty(searchKey)){
-			if (searchKey.equals("name")) {
-				// search by name
-				serviceBytenant = serviceTemplatesMapper.listSearchByName(searchvalue,tenant);
-			} else if (searchKey.equals("image")) {
-				// search by image
-				serviceBytenant = serviceTemplatesMapper.listSearchByImage(searchvalue,tenant);
-			}
-		}else{
-			serviceBytenant = serviceTemplatesMapper.listNameByTenant(null,tenant);
+		//公私有模板
+		if(isPublic) {
+			//公有模板
+			serviceBytenant = listPublicServiceTemplate(searchKey, searchvalue);
+		}else {
+			//私有模板
+			serviceBytenant = listPrivateServiceTemplate(searchKey, searchvalue, tenant);
 		}
 		if (serviceBytenant != null && serviceBytenant.size() > 0) {
 			for (ServiceTemplates serviceTemplates : serviceBytenant) {
 				List<ServiceTemplates> serviceList = serviceTemplatesMapper.listServiceByImage(
-						serviceTemplates.getName(), serviceTemplates.getImageList(), serviceTemplates.getTenant());
+						serviceTemplates.getName(), serviceTemplates.getImageList(), serviceTemplates.getTenant(), isPublic);
 				array.add(getServiceTemplates(serviceList));
 			}
 		}
-
 		return ActionReturnUtil.returnSuccessWithData(array);
 	}
-
+	
+	/**
+	 * 公有模板*/
+	private List<ServiceTemplates> listPublicServiceTemplate(String searchKey, String searchvalue) throws Exception {
+		List<ServiceTemplates> serviceBytenant=null;
+		if (!StringUtils.isEmpty(searchKey)) {
+			if (searchKey.equals("name")) {
+				// search by name
+				serviceBytenant = serviceTemplatesMapper.listPublicSearchByName(searchvalue, true);
+			} else if (searchKey.equals("image")) {
+				// search by image
+				serviceBytenant = serviceTemplatesMapper.listPublicSearchByImage(searchvalue, true);
+			}
+		} else {
+			serviceBytenant = serviceTemplatesMapper.listPublicNameByTenant(null, true);
+		}
+		return serviceBytenant;
+	}
+	
+	/**
+	 * 私有模板*/
+	private List<ServiceTemplates> listPrivateServiceTemplate(String searchKey, String searchvalue, String tenant) throws Exception {
+		// check value null
+		// list
+		List<ServiceTemplates> serviceBytenant = null;
+		if (!StringUtils.isEmpty(searchKey)) {
+			if (searchKey.equals("name")) {
+				// search by name
+				serviceBytenant = serviceTemplatesMapper.listSearchByName(searchvalue, tenant, false);
+			} else if (searchKey.equals("image")) {
+				// search by image
+				serviceBytenant = serviceTemplatesMapper.listSearchByImage(searchvalue, tenant, false);
+			}
+		} else {
+			serviceBytenant = serviceTemplatesMapper.listNameByTenant(null, tenant, false);
+		}
+		return serviceBytenant;
+	}
+	
 	@Override
 	public ActionReturnUtil deleteServiceByNamespace(String namespace) throws Exception {
 		if(!StringUtils.isEmpty(namespace)){
@@ -833,5 +865,15 @@ public class ServiceServiceImpl implements ServiceService {
 		}else{
 			return ActionReturnUtil.returnErrorWithMsg("模板id为空");
 		}
+	}
+
+	@Override
+	public ActionReturnUtil switchPub(String name, boolean isPublic) throws Exception {
+		// TODO Auto-generated method stub
+		if(StringUtils.isEmpty(name)) {
+			return ActionReturnUtil.returnErrorWithMsg("服务模板名称为空");
+		}
+		serviceTemplatesMapper.updateServiceTemplatePublic(name, isPublic);
+		return null;
 	}
 }

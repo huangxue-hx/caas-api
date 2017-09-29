@@ -34,6 +34,8 @@ public class DeploymentDetailDto {
 	
 	private boolean hostPID;
 	
+	private boolean hostNetwork;
+	
 	private List<NodeAffinityDto> nodeAffinity;
 	
 	private List<PodAffinityDto> podAffinity;
@@ -182,6 +184,14 @@ public class DeploymentDetailDto {
 
 	public void setPodAntiAffinity(List<PodAffinityDto> podAntiAffinity) {
 		this.podAntiAffinity = podAntiAffinity;
+	}
+
+	public boolean isHostNetwork() {
+		return hostNetwork;
+	}
+
+	public void setHostNetwork(boolean hostNetwork) {
+		this.hostNetwork = hostNetwork;
 	}
 
 }

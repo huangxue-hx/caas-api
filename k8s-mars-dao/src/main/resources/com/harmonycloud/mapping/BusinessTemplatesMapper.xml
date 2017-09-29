@@ -13,12 +13,13 @@
     <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
     <result column="is_deploy" property="isDeploy" jdbcType="INTEGER" />
     <result column="image_list" property="imageList" jdbcType="VARCHAR" />
+    <result column="is_public" property="isPublic" jdbcType="BOOLEAN" />
   </resultMap>
 
   
    <insert id="saveBusinessTemplates" parameterType="com.harmonycloud.dao.application.bean.BusinessTemplates" useGeneratedKeys="true" keyProperty="id">
-    insert into business_templates (name, tag, details, status, tenant, create_user, create_time,image_list)
-    values (#{name}, #{tag}, #{details}, #{status}, #{tenant}, #{user}, #{createTime},#{imageList})
+    insert into business_templates (name, tag, details, status, tenant, create_user, create_time,image_list, is_public)
+    values (#{name}, #{tag}, #{details}, #{status}, #{tenant}, #{user}, #{createTime},#{imageList}, #{isPublic})
   </insert>
   
   <select id="listBusinessTempaltesMaxTagByName" parameterType="java.lang.String" resultMap="BaseResultMap">
@@ -35,7 +36,7 @@
   </update>
   
   <select id="listNameByTenant" parameterType="java.lang.String" resultMap="BaseResultMap">
-    select distinct name, tenant from business_templates where status = 0  
+    select distinct name, tenant from business_templates where status = 0  and is_public = false
     <if test="tenant!=null and tenant!='' ">
       and tenant =#{tenant}
     </if>
@@ -46,7 +47,7 @@
     <if test="tenant!=null and tenant!='' ">
       and tenant=#{tenant}
     </if> 
-      and status = 0 order by tag
+      and status = 0 and is_public = #{isPublic} order by tag
   </select>
   
   <select id="getBusinessTemplatesByName" parameterType="java.lang.String" resultMap="BaseResultMap">
@@ -54,21 +55,21 @@
   </select>
   
   <select id="listNameByName" parameterType="java.lang.String" resultMap="BaseResultMap">
-    select distinct name, tenant from business_templates where status = 0  and name like #{name}
+    select distinct name, tenant from business_templates where status = 0  and name like #{name} and is_public = false 
     <if test="tenant!=null and tenant!='' ">
       and tenant=#{tenant}
     </if>
   </select>
   
   <select id="listNameByImage" parameterType="java.lang.String" resultMap="BaseResultMap">
-    select distinct name, tenant from business_templates where status = 0  and image_list like concat(concat('%',#{imageList}),'%')
+    select distinct name, tenant from business_templates where status = 0 and is_public = false and image_list like concat(concat('%',#{imageList}),'%')
     <if test="tenant!=null and tenant!='' ">
       and tenant=#{tenant}
     </if>
   </select>
   
   <select id="listBusinessTemplatesByNameAndImage" parameterType="java.lang.String" resultMap="BaseResultMap">
-    select * from business_templates where status = 0 and name=#{name} and image_list like concat(concat('%',#{imageList}),'%')
+    select * from business_templates where status = 0 and is_public = false and name=#{name} and image_list like concat(concat('%',#{imageList}),'%')
     <if test="tenant!=null and tenant!='' ">
       and tenant =#{tenant}
     </if>
@@ -116,4 +117,21 @@
   <select id="listPublic" resultMap="BaseResultMap">
     select distinct name, tenant from business_templates where status = 0  and tenant = 'all'
   </select>
+  <select id="listPublicTemplate" resultMap="BaseResultMap">
+  	select distinct name, tenant from business_templates where status = 0  and is_public = true
+  </select>
+    <select id="listPublicNameByName" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select distinct name, tenant from business_templates where status = 0  and name like #{name} and is_public = true 
+  </select>
+    <select id="listPublicNameByImage" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select distinct name, tenant from business_templates where status = 0 and is_public = true and image_list like concat(concat('%',#{imageList}),'%')
+  </select>
+  
+  <update id="updateBusinessTemplatePublic">
+    update business_templates
+    <set>
+        is_public = #{isPublic},
+    </set>
+    where name = #{name} and status=0
+  </update>
 </mapper>

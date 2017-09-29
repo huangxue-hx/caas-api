@@ -17,7 +17,7 @@ public interface ServiceService {
      */
     public ActionReturnUtil saveServiceTemplate(ServiceTemplateDto serviceTemplate, String username, int type) throws Exception;
 
-    public ActionReturnUtil listTemplateByTenat(String name, String tenat) throws Exception;
+    public ActionReturnUtil listTemplateByTenat(String name, String tenat, boolean isPublic) throws Exception;
 
     public ActionReturnUtil listTemplateByImage(String name, String tenant, String image) throws Exception;
 
@@ -29,7 +29,7 @@ public interface ServiceService {
 
     public ActionReturnUtil deleteDeployedService(DeployedServiceNamesDto deployedServiceNamesDto, String userName, Cluster cluster) throws Exception;
     
-    public ActionReturnUtil listServiceTemplate(String searchKey, String searchvalue, String tenant) throws Exception;
+    public ActionReturnUtil listServiceTemplate(String searchKey, String searchvalue, String tenant, boolean isPublic) throws Exception;
     
     public ActionReturnUtil deleteServiceByNamespace(String namespace) throws Exception;
     
@@ -42,4 +42,6 @@ public interface ServiceService {
     public ActionReturnUtil listTemplateTagsByName(String name, String tenant) throws Exception;
     
     public ActionReturnUtil delById(int id)throws Exception;
+    
+    public ActionReturnUtil switchPub(String name, boolean isPublic) throws Exception;
 }

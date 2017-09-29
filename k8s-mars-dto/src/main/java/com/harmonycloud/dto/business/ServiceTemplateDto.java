@@ -28,6 +28,8 @@ public class ServiceTemplateDto {
     private int type;  //1保存为删除模式；0保存为用户模式
 
     private Integer flag;    //更新标记  0||null:后台需要save ;1:已存在 后台更新
+    
+    private boolean isPublic;
 
     public String getBusinessTemplate() {
         return businessTemplate;
@@ -115,5 +117,13 @@ public class ServiceTemplateDto {
 
 	public void setType(int type) {
 		this.type = type;
+	}
+
+	public boolean isPublic() {
+		return isPublic;
+	}
+
+	public void setPublic(boolean isPublic) {
+		this.isPublic = isPublic;
 	}
 }

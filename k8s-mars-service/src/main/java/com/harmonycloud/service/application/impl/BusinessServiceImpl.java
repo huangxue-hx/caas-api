@@ -161,21 +161,6 @@ public class BusinessServiceImpl implements BusinessService {
                             String dep=json.getJSONArray("deployment").getJSONObject(0).toString().replaceAll(":\"\",", ":"+null+",").replaceAll(":\"\"", ":"+null+"");
                             DeploymentDetailDto deployment = JsonUtil.jsonToPojo(dep, DeploymentDetailDto.class);
 
-//                            // set nodeselector
-//                            if (deployment != null) {
-//                                if(deployment.getNodeSelector() !=null  && !"".equals(deployment.getNodeSelector())) {
-//                                    deployment.setNodeSelector(Constant.NODESELECTOR_LABELS_PRE+deployment.getNodeSelector());
-//                                }else {
-//                                    String tenantid = (String) session.getAttribute("tenantId");
-//                                    ActionReturnUtil l = namespaceService.getPrivatePartitionLabel(tenantid, deployment.getNamespace());
-//                                    if(!l.isSuccess()) {
-//                                        return l;
-//                                    }
-//                                    String lal = (String) l.get("data");
-//                                    deployment.setNodeSelector(lal);
-//                                }
-//                            }
-
                             Deployment deploymentToYaml =  TemplateToYamlUtil.templateToDeployment(deployment);
                             com.harmonycloud.k8s.bean.Service serviceYaml = TemplateToYamlUtil.templateToService(deployment);
 
@@ -228,13 +213,59 @@ public class BusinessServiceImpl implements BusinessService {
      * @return ActionReturnUtil
      */
     @Override
-    public ActionReturnUtil listBusinessTemplateByTenant(String searchKey, String searchValue, String tenant) throws Exception {
-        JSONArray array = new JSONArray();
-        if (StringUtils.isEmpty(searchValue)) {
+    public ActionReturnUtil listBusinessTemplateByTenant(String searchKey, String searchValue, String tenant, boolean isPublic) throws Exception {
+        //公私模板
+        if(isPublic) {
+        	//公有模板
+        	return listPublicBusinessTemplate(searchKey, searchValue);
+        }else {
+        	//私有模板
+        	return listPrivateBusinessTemplate(searchKey, searchValue, tenant);
+        }
+    }
+    /**
+     * 公有模板*/
+    private ActionReturnUtil listPublicBusinessTemplate(String searchKey, String searchValue)throws Exception{
+    	JSONArray array = new JSONArray();
+    	if (StringUtils.isEmpty(searchValue)) {
+            // search value is null
+            List<BusinessTemplates> businessTemplatesList = businessTemplatesMapper.listPublicTemplate();
+            for (int i = 0; i < businessTemplatesList.size(); i++) {
+                List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByName(businessTemplatesList.get(i).getName(), businessTemplatesList.get(i).getTenant(), true);
+                array.add(getBusinessTemplates(list));
+            }
+        } else {
+            if (searchKey.equals("name")) {
+                // search by name
+                List<BusinessTemplates> businessTemplatesList = businessTemplatesMapper.listPublicNameByName("%" + searchValue + "%");
+                for (int i = 0; i < businessTemplatesList.size(); i++) {
+                    List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByName(businessTemplatesList.get(i).getName(), businessTemplatesList.get(i).getTenant(), true);
+                    array.add(getBusinessTemplates(list));
+                }
+            } else if (searchKey.equals("image")) {
+                // search by image
+                List<BusinessTemplates> businessTemplatesList = businessTemplatesMapper.listPublicNameByImage(searchValue);
+                for (int i = 0; i < businessTemplatesList.size(); i++) {
+                    List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByNameAndImage(businessTemplatesList.get(i).getName(), searchValue, businessTemplatesList.get(i).getTenant());
+                    array.add(getBusinessTemplates(list));
+                }
+            } else {
+                return ActionReturnUtil.returnErrorWithMsg("searchkey error");
+            }
+        }
+        return ActionReturnUtil.returnSuccessWithData(array);
+    }
+    
+    /**
+     * 私有模板查询
+     * */
+    private ActionReturnUtil listPrivateBusinessTemplate(String searchKey, String searchValue, String tenant)throws Exception{
+    	JSONArray array = new JSONArray();
+    	if (StringUtils.isEmpty(searchValue)) {
             // search value is null
             List<BusinessTemplates> businessTemplatesList = businessTemplatesMapper.listNameByTenant(tenant);
             for (int i = 0; i < businessTemplatesList.size(); i++) {
-                List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByName(businessTemplatesList.get(i).getName(), businessTemplatesList.get(i).getTenant());
+                List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByName(businessTemplatesList.get(i).getName(), businessTemplatesList.get(i).getTenant(), false);
                 array.add(getBusinessTemplates(list));
             }
         } else {
@@ -242,7 +273,7 @@ public class BusinessServiceImpl implements BusinessService {
                 // search by name
                 List<BusinessTemplates> businessTemplatesList = businessTemplatesMapper.listNameByName("%" + searchValue + "%", tenant);
                 for (int i = 0; i < businessTemplatesList.size(); i++) {
-                    List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByName(businessTemplatesList.get(i).getName(), businessTemplatesList.get(i).getTenant());
+                    List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByName(businessTemplatesList.get(i).getName(), businessTemplatesList.get(i).getTenant(), false);
                     array.add(getBusinessTemplates(list));
                 }
             } else if (searchKey.equals("image")) {
@@ -258,7 +289,7 @@ public class BusinessServiceImpl implements BusinessService {
         }
         return ActionReturnUtil.returnSuccessWithData(array);
     }
-
+    
     @Override
     public ActionReturnUtil getBusinessTemplateYaml(BusinessTemplateDto businessTemplate) throws Exception {
         List<Object> deploymentListToyaml = new ArrayList<>();
@@ -340,6 +371,7 @@ public class BusinessServiceImpl implements BusinessService {
         businessTemplates.setCreateTime(new Date());
         businessTemplates.setTenant(businessTemplate.getTenant());
         businessTemplates.setDetails(businessTemplate.getDesc());
+        businessTemplates.setPublic(businessTemplate.isPublic());
         businessTemplatesMapper.saveBusinessTemplates(businessTemplates);
         Map<String, Object> map = new HashMap<String, Object>();
         Map<String, Object> maps = new HashMap<String, Object>();
@@ -723,14 +755,14 @@ public class BusinessServiceImpl implements BusinessService {
     }
 
 	@Override
-	public ActionReturnUtil getBusinessTemplateByName(String name, String tenant) throws Exception {
+	public ActionReturnUtil getBusinessTemplateByName(String name, String tenant, boolean isPublic) throws Exception {
 		if(StringUtils.isEmpty(name)){
 			return ActionReturnUtil.returnErrorWithMsg("模板名称为空");
 		}
 		if(StringUtils.isEmpty(tenant)){
 			return ActionReturnUtil.returnErrorWithMsg("租户为空");
 		}
-		List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByName(name, tenant);
+		List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByName(name, tenant, isPublic);
 		JSONObject json = new JSONObject();
 		if(list != null && list.size() > 0){
 			JSONArray array = new JSONArray();
@@ -847,9 +879,19 @@ public class BusinessServiceImpl implements BusinessService {
 		JSONArray array = new JSONArray();
 		List<BusinessTemplates> businessTemplatesList = businessTemplatesMapper.listPublic();
 		for (int i = 0; i < businessTemplatesList.size(); i++) {
-            List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByName(businessTemplatesList.get(i).getName(), businessTemplatesList.get(i).getTenant());
+            List<BusinessTemplates> list = businessTemplatesMapper.listBusinessTemplatesByName(businessTemplatesList.get(i).getName(), businessTemplatesList.get(i).getTenant(), false);
             array.add(getBusinessTemplates(list));
         }
 		return ActionReturnUtil.returnSuccessWithData(array);
+	}
+	
+	@Override
+	public ActionReturnUtil switchPub(String name, boolean isPublic) throws Exception {
+		// TODO Auto-generated method stub
+		if(StringUtils.isEmpty(name)) {
+			return ActionReturnUtil.returnErrorWithMsg("服务模板名称为空");
+		}
+		businessTemplatesMapper.updateBusinessTemplatePublic(name, isPublic);
+		return null;
 	}
 }

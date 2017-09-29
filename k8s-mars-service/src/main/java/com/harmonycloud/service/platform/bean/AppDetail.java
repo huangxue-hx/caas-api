@@ -60,6 +60,8 @@ public class AppDetail {
 	
 	private boolean hostPID;
 	
+	private boolean hostNetwork;
+	
 	private List<NodeAffinityDto> nodeAffinity;
 	
 	private List<PodAffinityDto> podAntiAffinity ;
@@ -264,5 +266,13 @@ public class AppDetail {
 
 	public void setNodeSelector(String nodeSelector) {
 		this.nodeSelector = nodeSelector;
+	}
+
+	public boolean isHostNetwork() {
+		return hostNetwork;
+	}
+
+	public void setHostNetwork(boolean hostNetwork) {
+		this.hostNetwork = hostNetwork;
 	}
 }
