@@ -33,6 +33,8 @@ public class ServiceTemplates implements Serializable {
     private String deploymentContent;
 
     private String nodeSelector;
+    
+    private boolean isPublic;
 
     public static long getSerialVersionUID() {
         return serialVersionUID;
@@ -184,5 +186,13 @@ public class ServiceTemplates implements Serializable {
     public void setNodeSelector(String nodeSelector) {
         this.nodeSelector = nodeSelector;
     }
+
+	public boolean isPublic() {
+		return isPublic;
+	}
+
+	public void setPublic(boolean isPublic) {
+		this.isPublic = isPublic;
+	}
 
 }

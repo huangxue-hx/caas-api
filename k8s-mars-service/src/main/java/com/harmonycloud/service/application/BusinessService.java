@@ -61,7 +61,7 @@ public interface BusinessService {
      * 
      * @return ActionReturnUtil
      */
-    ActionReturnUtil listBusinessTemplateByTenant(String searchKey, String searchValue, String tenant) throws Exception;
+    ActionReturnUtil listBusinessTemplateByTenant(String searchKey, String searchValue, String tenant, boolean isPublic) throws Exception;
 
 
     ActionReturnUtil getBusinessTemplateYaml(BusinessTemplateDto businessTemplate) throws Exception;
@@ -112,7 +112,7 @@ public interface BusinessService {
      * 
      * @return ActionReturnUtil
      */
-    ActionReturnUtil getBusinessTemplateByName(String name, String tenant) throws Exception;
+    ActionReturnUtil getBusinessTemplateByName(String name, String tenant, boolean isPublic) throws Exception;
     
     /**
      * add application template by name  on 17/04/07.
@@ -152,4 +152,6 @@ public interface BusinessService {
      * @return ActionReturnUtil
      */
     ActionReturnUtil listServiceTemplatePublic() throws Exception;
+    
+    public ActionReturnUtil switchPub(String name, boolean isPublic) throws Exception;
 }

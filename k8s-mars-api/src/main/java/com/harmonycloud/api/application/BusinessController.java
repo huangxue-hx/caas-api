@@ -111,9 +111,9 @@ public class BusinessController {
     @ResponseBody
     @RequestMapping(method = RequestMethod.GET)
     public ActionReturnUtil listBusinessTemplate(@RequestParam(value = "searchkey", required = false) String searchKey,
-            @RequestParam(value = "searchvalue", required = false) String searchValue, @RequestParam(value = "tenant", required = false) String tenant) throws Exception {
+            @RequestParam(value = "searchvalue", required = false) String searchValue, @RequestParam(value = "tenant", required = false) String tenant, @RequestParam(value = "isPublic", required = false) boolean isPublic) throws Exception {
         logger.info("get application template");
-        return businessService.listBusinessTemplateByTenant(searchKey, searchValue, tenant);
+        return businessService.listBusinessTemplateByTenant(searchKey, searchValue, tenant, isPublic);
     }
 
     /**
@@ -158,10 +158,10 @@ public class BusinessController {
      */
     @ResponseBody
     @RequestMapping(value = "/list/tag", method = RequestMethod.GET)
-    public ActionReturnUtil getBusinessTemplateByName(@RequestParam(value = "name", required = true) String name, @RequestParam(value = "tenant", required = true) String tenant)
+    public ActionReturnUtil getBusinessTemplateByName(@RequestParam(value = "name", required = true) String name, @RequestParam(value = "tenant", required = true) String tenant, @RequestParam(value = "isPublic", required = true) boolean isPublic)
             throws Exception {
         logger.info("get application template");
-        return businessService.getBusinessTemplateByName(name, tenant);
+        return businessService.getBusinessTemplateByName(name, tenant, isPublic);
     }
     
     /**
@@ -212,4 +212,25 @@ public class BusinessController {
     public ActionReturnUtil listBusinessTemplate() throws Exception {
         return businessService.listServiceTemplatePublic();
     }
+    
+    /**
+     * list template tags by name tenant on 17/05/05.
+     *
+     * @param name
+     * 
+     * @param tenant
+     * 
+     * @return
+     * 
+     * @throws Exception
+     * 
+     */
+    @ResponseBody
+    @RequestMapping(value = "/switch",method = RequestMethod.PUT)
+    public ActionReturnUtil switchPublic(@RequestParam(value = "name", required = false) String name, @RequestParam(value = "isPublic", required = false ) boolean isPublic)
+            throws Exception {
+        logger.info("get service template by tenant");
+        return businessService.switchPub(name, isPublic);
+    }
+    
 } 

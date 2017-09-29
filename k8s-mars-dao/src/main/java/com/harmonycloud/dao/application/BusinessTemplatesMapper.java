@@ -67,7 +67,7 @@ public interface BusinessTemplatesMapper {
      * 
      * @description find a Business Templates
      */
-    List<BusinessTemplates> listBusinessTemplatesByName(@Param("name")String name,@Param("tenant")String tenant);
+    List<BusinessTemplates> listBusinessTemplatesByName(@Param("name")String name,@Param("tenant")String tenant, @Param("isPublic")boolean isPublic);
     
     /**
      * check Business Templates name  on 17/04/07.
@@ -147,4 +147,34 @@ public interface BusinessTemplatesMapper {
     
     List<BusinessTemplates> listPublic();
     
+    /**
+     * 共有模板查询
+     * */
+    List<BusinessTemplates> listPublicTemplate();
+    
+    /**
+     * 共有模板查询
+     * find Business Templates like by name  on 17/04/07.
+     * 
+     * @author gurongyun
+     * 
+     * @param name
+     * 
+     * @description find a Business Templates like
+     */
+    List<BusinessTemplates> listPublicNameByName(@Param("name")String name);
+    
+    /**
+     * 公有模板
+     * find Business Templates like by image  on 17/04/07.
+     * 
+     * @author gurongyun
+     * 
+     * @param imageList 
+     * 
+     * @description find a Business Templates like
+     */
+    List<BusinessTemplates> listPublicNameByImage(@Param("imageList")String imageList);
+    
+    void updateBusinessTemplatePublic(@Param("name")String name,  @Param("isPublic")boolean isPublic);
 }

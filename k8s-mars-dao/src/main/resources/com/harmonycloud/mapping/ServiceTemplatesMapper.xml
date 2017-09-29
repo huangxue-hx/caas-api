@@ -15,12 +15,13 @@
     <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
     <result column="flag" jdbcType="INTEGER" property="flag" />
     <result column="node_selector" property="nodeSelector" jdbcType="VARCHAR" />
+    <result column="is_public" property="isPublic" jdbcType="BOOLEAN" />
   </resultMap>
 
 
   <insert id="insert" parameterType="com.harmonycloud.dao.application.bean.ServiceTemplates" useGeneratedKeys="true" keyProperty="id">
-    insert into service_templates (name, tag, details, image_list, ingress_content, status, tenant, create_user, create_time, flag, deployment_content, node_selector)
-    values (#{name}, #{tag}, #{details}, #{imageList}, #{ingressContent}, #{status}, #{tenant}, #{user}, #{createTime}, #{flag}, #{deploymentContent}, #{nodeSelector})
+    insert into service_templates (name, tag, details, image_list, ingress_content, status, tenant, create_user, create_time, flag, deployment_content, node_selector, is_public)
+    values (#{name}, #{tag}, #{details}, #{imageList}, #{ingressContent}, #{status}, #{tenant}, #{user}, #{createTime}, #{flag}, #{deploymentContent}, #{nodeSelector}, #{isPublic})
   </insert>
 
   <select id="listServiceByTenant" parameterType="java.lang.String" resultMap="BaseResultMap">
@@ -33,9 +34,9 @@
       name like concat(concat('%',#{name}),'%') AND
     </if>
     <if test="tenant != null" >
-      (tenant = #{tenant} or tenant = 'all') AND
+      (tenant = #{tenant}) AND
     </if>
-     status=0 and flag=0
+     status=0 and flag=0 and is_public=#{isPublic}
   </select>
 
   <select id="listNameByImage" parameterType="java.lang.String" resultMap="BaseResultMap">
@@ -52,7 +53,7 @@
    <select id="listServiceByImage" parameterType="java.lang.String" resultMap="BaseResultMap">
     select * FROM service_templates WHERE 
       name =#{name} AND 
-      tenant = #{tenant} AND image_list =#{image} AND status=0 and flag=0
+      tenant = #{tenant} AND image_list =#{image} AND status=0 and flag=0 and is_public=#{isPublic}
   </select> 
   
   <select id="listServiceLikeImage" parameterType="java.lang.String" resultMap="BaseResultMap">
@@ -103,22 +104,22 @@
   </select>
   
   <select id="listSearchByImage" parameterType="java.lang.String" resultMap="BaseResultMap">
-    SELECT DISTINCT tenant, name, image_list FROM service_templates WHERE status=0 and flag=0
+    SELECT DISTINCT tenant, name, image_list FROM service_templates WHERE status=0 and flag=0  and is_public=#{isPublic}
     <if test="image != null and image != ''">
     	and image_list LIKE concat(concat('%',#{image}),'%')
     </if>
     <if test="tenant != null" >
-        and (tenant = #{tenant} or tenant = 'all')
+        and (tenant = #{tenant})
     </if>
   </select>
   
   <select id="listSearchByName" parameterType="java.lang.String" resultMap="BaseResultMap">
-    SELECT * FROM service_templates WHERE status=0 and flag=0
+    SELECT distinct name, image_list, tenant FROM service_templates WHERE status=0 and flag=0 and is_public=#{isPublic}
     <if test="name != null and name != ''">
     	and name LIKE concat(concat('%',#{name}),'%')
     </if>
     <if test="tenant != null" >
-        and (tenant = #{tenant} or tenant = 'all')
+        and (tenant = #{tenant})
     </if>
   </select>
   
@@ -149,5 +150,35 @@
         node_selector = #{nodeSelector},
     </set>
     where id = #{id}
+  </update>
+  
+    <select id="listPublicSearchByName" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT DISTINCT tenant, name, image_list FROM service_templates WHERE status=0 and flag=0 and is_public=#{isPublic}
+    <if test="name != null and name != ''">
+    	and name LIKE concat(concat('%',#{name}),'%')
+    </if>
+  </select>
+  
+    <select id="listPublicSearchByImage" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT DISTINCT tenant, name, image_list FROM service_templates WHERE status=0 and flag=0  and is_public=#{isPublic}
+    <if test="image != null and image != ''">
+    	and image_list LIKE concat(concat('%',#{image}),'%')
+    </if>
+  </select>
+  
+    <select id="listPublicNameByTenant" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select distinct name , image_list,tenant FROM service_templates WHERE
+    <if test="name != null" >
+      name like concat(concat('%',#{name}),'%') AND
+    </if>
+     status=0 and flag=0 and is_public=#{isPublic}
+  </select>
+  
+  <update id="updateServiceTemplatePublic">
+    update service_templates
+    <set>
+        is_public = #{isPublic},
+    </set>
+    where name = #{name} and status=0 and flag=0
   </update>
 </mapper>

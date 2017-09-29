@@ -18,6 +18,7 @@ public class BusinessTemplateDto implements Serializable {
 	private List<ServiceTemplateDto> serviceList; // 应用模板list
 	private List<TopologysDto> topologyList; // 拓扑关系list
 	private int isDeploy;
+	private boolean isPublic;
 	public int getId() {
 		return id;
 	}
@@ -88,5 +89,13 @@ public class BusinessTemplateDto implements Serializable {
 
 	public void setIsDeploy(int isDeploy) {
 		this.isDeploy = isDeploy;
+	}
+
+	public boolean isPublic() {
+		return isPublic;
+	}
+
+	public void setPublic(boolean isPublic) {
+		this.isPublic = isPublic;
 	}
 }

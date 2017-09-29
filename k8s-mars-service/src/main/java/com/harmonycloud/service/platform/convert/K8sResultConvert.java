@@ -49,6 +49,11 @@ public class K8sResultConvert {
 		}else{
 			appDetail.setHostPID(false);
 		}
+		if(dep.getSpec().getTemplate().getSpec().isHostNetwork() != null){
+			appDetail.setHostNetwork(dep.getSpec().getTemplate().getSpec().isHostNetwork());
+		}else{
+			appDetail.setHostNetwork(false);
+		}
 		//亲和度
 		if(dep.getSpec().getTemplate().getSpec().getAffinity() != null) {
 			//node 亲和度
@@ -1002,6 +1007,7 @@ public class K8sResultConvert {
         //hostIPC hostPID
         podSpec.setHostIPC(detail.isHostIPC());
         podSpec.setHostPID(detail.isHostPID());
+        podSpec.setHostNetwork(detail.isHostNetwork());
         List<LocalObjectReference> imagePullSecrets = new ArrayList<>();
         LocalObjectReference e = new LocalObjectReference();
         e.setName(userName+"-secret");

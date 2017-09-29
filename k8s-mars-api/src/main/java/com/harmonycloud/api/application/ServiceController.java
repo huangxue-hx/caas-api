@@ -66,10 +66,10 @@ public class ServiceController {
      */
     @ResponseBody
     @RequestMapping(method = RequestMethod.GET)
-    public ActionReturnUtil listDeployments(@RequestParam(value = "name", required = false) String name, @RequestParam(value = "tenant", required = false) String tenant)
+    public ActionReturnUtil listDeployments(@RequestParam(value = "name", required = false) String name, @RequestParam(value = "tenant", required = false) String tenant, @RequestParam(value = "isPubilc", required = false) boolean isPublic)
             throws Exception {
         logger.info("get service template by tenant");
-        return serviceService.listTemplateByTenat(name, tenant);
+        return serviceService.listTemplateByTenat(name, tenant, isPublic);
     }
 
     /**
@@ -188,9 +188,9 @@ public class ServiceController {
     @ResponseBody
     @RequestMapping(value = "/list/search", method = RequestMethod.GET)
     public ActionReturnUtil listServiceTemplate(@RequestParam(value = "searchkey", required = false) String searchKey,
-            @RequestParam(value = "searchvalue", required = false) String searchValue, @RequestParam(value = "tenant", required = false) String tenant) throws Exception {
+            @RequestParam(value = "searchvalue", required = false) String searchValue, @RequestParam(value = "tenant", required = false) String tenant, @RequestParam(value = "isPubilc", required = false) boolean isPublic) throws Exception {
         logger.info("delete service template");
-        return serviceService.listServiceTemplate(searchKey, searchValue, tenant);
+        return serviceService.listServiceTemplate(searchKey, searchValue, tenant, isPublic);
     }
     
     /**
@@ -260,9 +260,30 @@ public class ServiceController {
      */
     @ResponseBody
     @RequestMapping(value = "/tags",method = RequestMethod.GET)
-    public ActionReturnUtil listTags(@RequestParam(value = "name", required = false) String name, @RequestParam(value = "tenant", required = false) String tenant)
+    public ActionReturnUtil listTags(@RequestParam(value = "name", required = false) String name, @RequestParam(value = "tenant", required = false ) String tenant)
             throws Exception {
         logger.info("get service template by tenant");
         return serviceService.listTemplateTagsByName(name, tenant);
     }
+    
+    /**
+     * list template tags by name tenant on 17/05/05.
+     *
+     * @param name
+     * 
+     * @param tenant
+     * 
+     * @return
+     * 
+     * @throws Exception
+     * 
+     */
+    @ResponseBody
+    @RequestMapping(value = "/switch",method = RequestMethod.PUT)
+    public ActionReturnUtil switchPublic(@RequestParam(value = "name", required = false) String name, @RequestParam(value = "isPublic", required = false ) boolean isPublic)
+            throws Exception {
+        logger.info("get service template by tenant");
+        return serviceService.switchPub(name, isPublic);
+    }
+    
 }

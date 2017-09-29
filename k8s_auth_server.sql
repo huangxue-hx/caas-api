@@ -94,6 +94,7 @@ CREATE TABLE `business_templates` (
   `update_time` timestamp NULL DEFAULT NULL,
   `is_deploy` int(1) DEFAULT NULL,
   `image_list` varchar(2048) CHARACTER SET latin1 DEFAULT NULL,
+  `is_public` TINYINT DEFAULT 0,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -3183,6 +3184,7 @@ CREATE TABLE `service_templates` (
   `create_time` timestamp NULL DEFAULT NULL,
   `flag` int(1) DEFAULT '0',
   `node_selector` varchar(225) CHARACTER SET latin1 DEFAULT NULL,
+  `is_public` TINYINT DEFAULT 0,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;

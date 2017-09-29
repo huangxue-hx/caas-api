@@ -14,9 +14,9 @@ public interface ServiceTemplatesMapper {
 
     List<ServiceTemplates> listServiceByTenant(@Param("name") String name, @Param("tenant") String tenant);
     
-    List<ServiceTemplates> listNameByTenant(@Param("name") String name, @Param("tenant") String tenant);
+    List<ServiceTemplates> listNameByTenant(@Param("name") String name, @Param("tenant") String tenant, @Param("isPublic") boolean isPublic);
 
-    List<ServiceTemplates> listServiceByImage(@Param("name") String name, @Param("image") String image, @Param("tenant") String tenant);
+    List<ServiceTemplates> listServiceByImage(@Param("name") String name, @Param("image") String image, @Param("tenant") String tenant, @Param("isPublic") boolean isPublic);
     
     List<ServiceTemplates> listNameByImage(@Param("name") String name, @Param("image") String image, @Param("tenant") String tenant);
     
@@ -40,9 +40,9 @@ public interface ServiceTemplatesMapper {
 
     ServiceTemplates getExternalService(@Param("name") String name);
     
-    List<ServiceTemplates> listSearchByImage(@Param("image") String image, @Param("tenant") String tenant);
+    List<ServiceTemplates> listSearchByImage(@Param("image") String image, @Param("tenant") String tenant, @Param("isPublic") boolean isPublic);
     
-    List<ServiceTemplates> listSearchByName(@Param("name") String name, @Param("tenant") String tenant);
+    List<ServiceTemplates> listSearchByName(@Param("name") String name, @Param("tenant") String tenant, @Param("isPublic") boolean isPublic);
     
     void deleteByTenant(@Param("tenant") String[] tenant);
     
@@ -51,4 +51,14 @@ public interface ServiceTemplatesMapper {
     void updateServiceTemplate(ServiceTemplates ServiceTemplates);
 
     void deleteById(@Param("id") int id);
+    
+    /**
+     * 公有模板查询*/
+    List<ServiceTemplates> listPublicSearchByName(@Param("name") String name, @Param("isPublic") boolean isPublic);
+    
+    List<ServiceTemplates> listPublicSearchByImage(@Param("image") String image, @Param("isPublic") boolean isPublic);
+    
+    List<ServiceTemplates> listPublicNameByTenant(@Param("name") String name, @Param("isPublic") boolean isPublic);
+    
+    void updateServiceTemplatePublic(@Param("name") String name, @Param("isPublic") boolean isPublic);
 }
