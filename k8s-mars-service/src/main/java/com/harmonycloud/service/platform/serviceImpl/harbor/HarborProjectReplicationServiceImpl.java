@@ -197,10 +197,15 @@ public class HarborProjectReplicationServiceImpl implements HarborProjectReplica
 	      headers.put("cookie", harborUtil.checkCookieTimeout());
 
 		 ActionReturnUtil result =  HttpClientUtil.httpDoDelete(url, null, headers);
-		 if ((boolean) result.get("success") != true
-				 && result.get("data").toString().contains("plicy is enabled")) {
-			 return ActionReturnUtil.returnErrorWithData("请先停止同步规则");
+		 if ((boolean) result.get("success") != true){
+			 if(result.get("data").toString().contains("plicy is enabled")) {
+				 return ActionReturnUtil.returnErrorWithData("请先停止同步规则");
+			 }
+			 if(result.get("data").toString().contains("running/retrying/pending jobs")){
+				 return ActionReturnUtil.returnErrorWithData("请等待正在进行的同步任务停止后再进行删除");
+			 }
 		 }
+
 		 return result;
 	 }
 	 /**
@@ -540,7 +545,7 @@ public class HarborProjectReplicationServiceImpl implements HarborProjectReplica
 					return ActionReturnUtil.returnErrorWithData("请先停止并删除同步规则");
 				}
 				if(targetDeleResponse.get("data").toString().contains("running/retrying/pending jobs")){
-					return ActionReturnUtil.returnErrorWithData("同步任务未结束，请稍后重试");
+					return ActionReturnUtil.returnErrorWithData("请等待正在进行的同步任务停止后再进行删除");
 				}
 				return targetDeleResponse;
 			}
