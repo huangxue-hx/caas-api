@@ -207,7 +207,7 @@ public class HarborProjectReplicationServiceImpl implements HarborProjectReplica
 				 return ActionReturnUtil.returnErrorWithData("请先停止同步规则");
 			 }
 			 if(result.get("data").toString().contains("running/retrying/pending jobs")){
-				 return ActionReturnUtil.returnErrorWithData("请等待正在进行的同步任务停止后再进行删除");
+				 return ActionReturnUtil.returnErrorWithData("停用同步规则后需要等待正在进行的同步任务停止，请稍后删除");
 			 }
 		 }
 
@@ -550,7 +550,7 @@ public class HarborProjectReplicationServiceImpl implements HarborProjectReplica
 					return ActionReturnUtil.returnErrorWithData("请先停止并删除同步规则");
 				}
 				if(targetDeleResponse.get("data").toString().contains("running/retrying/pending jobs")){
-					return ActionReturnUtil.returnErrorWithData("请等待正在进行的同步任务停止后再进行删除");
+					return ActionReturnUtil.returnErrorWithData("正在停止原同步规则的同步任务，请稍后再试");
 				}
 				return targetDeleResponse;
 			}

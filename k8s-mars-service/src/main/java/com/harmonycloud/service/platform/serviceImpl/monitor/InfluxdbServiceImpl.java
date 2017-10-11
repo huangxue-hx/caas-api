@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.dao.cluster.ClusterMapper;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import org.apache.commons.lang3.StringUtils;
@@ -32,8 +33,8 @@ import javax.servlet.http.HttpSession;
 
 /**
  * influxdb service:查询监控信息
- * 
- * 
+ *
+ *
  * @author jmi
  *
  */
@@ -61,7 +62,12 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 			if(StringUtils.isBlank(startTime)){
 				return ActionReturnUtil.returnErrorWithMsg("服务创建时间为空!");
 			}
-			SimpleDateFormat adf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+			SimpleDateFormat adf = null;
+			if(startTime.length()>20){
+				adf = new SimpleDateFormat(DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z_SSS.getValue());
+			}else {
+				adf = new SimpleDateFormat(DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
+			}
 			adf.setTimeZone(TimeZone.getTimeZone("UTC"));
             Date startDate = adf.parse(startTime);
 			Long timeInterval = System.currentTimeMillis() - startDate.getTime();
