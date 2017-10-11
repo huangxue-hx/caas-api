@@ -179,9 +179,14 @@ public class HarborProjectReplicationServiceImpl implements HarborProjectReplica
 	      headers.put("cookie", harborUtil.checkCookieTimeout());
 
 	      //return HttpClientUtil.httpPostRequestForHarborCreate(url, headers, convertHarborReplicationPolicy(harborReplicationPolicy));
-		 return HttpClientUtil.httpPostRequestForHarbor(url, headers, convertHarborReplicationPolicy(harborReplicationPolicy));
-			
-		}
+		 ActionReturnUtil result = HttpClientUtil.httpPostRequestForHarbor(url, headers, convertHarborReplicationPolicy(harborReplicationPolicy));
+		 if ((boolean) result.get("success") != true){
+			 if(result.get("data").toString().contains("policy already exists with the same project and target")) {
+				 return ActionReturnUtil.returnErrorWithData("仓库"+harborReplicationPolicy.getName()+"已创建同步规则");
+			 }
+		 }
+		 return result;
+	 }
 	 /**
 	     * 删除跨harbor同步任务
 	     * @return
