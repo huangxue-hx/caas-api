@@ -136,7 +136,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         // application list
         JSONArray array = new JSONArray();
         List<BaseResource> blist = new ArrayList<>();
-        Cluster	cluster=tenantService.getClusterByTenantid(tenantId);
+        Cluster cluster=tenantService.getClusterByTenantid(tenantId);
         // search application
         if(StringUtils.isEmpty(namespace) && !StringUtils.isEmpty(tenantId)){
 
@@ -193,7 +193,12 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                 js.put("id", label);
                 js.put("desc", bs.getMetadata().getAnnotations());
                 js.put("namespace", bs.getMetadata().getNamespace());
-                js.put("createTime", bs.getMetadata().getCreationTimestamp());
+                //获取最新更新时间
+                String updateTime = getDeploymentTime(label, bs.getMetadata().getNamespace(), cluster);
+                if(updateTime == null) {
+                	updateTime = bs.getMetadata().getCreationTimestamp();
+                }
+                js.put("createTime", updateTime);
                 js.put("tenant", tenant);
                 js.put("user", bs.getMetadata().getLabels());
 
@@ -222,7 +227,46 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         json.put("count", count);
         return ActionReturnUtil.returnSuccessWithData(json);
     }
-
+    /**
+     * 获取应用下的服务最新时间
+     * */
+    private String getDeploymentTime(String label, String namespace, Cluster cluster) throws Exception{
+    	Map<String, Object> bodys = new HashMap<String, Object>();
+		if (!checkParamNUll(label)) {
+			bodys.put("labelSelector", label);
+		}
+		K8SURL url = new K8SURL();
+		url.setResource(Resource.DEPLOYMENT).setNamespace(namespace);
+		K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys,cluster);
+		if(!HttpStatusUtil.isSuccessStatus(depRes.getStatus()) && depRes.getStatus() != Constant.HTTP_404){
+			return null;
+		}
+		DeploymentList deployment = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+		if(deployment != null && deployment.getItems().size() > 0){
+			List<Deployment> list = deployment.getItems();
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+			sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+			String max = null;
+			for(Deployment dep : list) {
+				if(max == null) {
+					max = dep.getMetadata().getCreationTimestamp();
+				}
+				int a = Long.valueOf(sdf.parse(max).getTime()).compareTo(Long.valueOf(sdf.parse(dep.getMetadata().getCreationTimestamp()).getTime()));
+				if(a == -1) {
+					max = dep.getMetadata().getCreationTimestamp();
+				}
+			}
+			return max;
+		}
+    	return null;
+    }
+    
+    private boolean checkParamNUll(String p) {
+		if (StringUtils.isEmpty(p)  || p == null) {
+			return true;
+		}
+		return false;
+	}
     /**
      * get application by id service implement.
      *
@@ -262,6 +306,12 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
             // put application info
             js.put("name", tpr.getMetadata().getName());
             js.put("createTime", tpr.getMetadata().getCreationTimestamp());
+          //获取最新更新时间
+            String updateTime = getDeploymentTime(id, tpr.getMetadata().getNamespace(), cluster);
+            if(updateTime == null) {
+            	updateTime = tpr.getMetadata().getCreationTimestamp();
+            }
+            js.put("updateTime", updateTime);
             String anno="";
             if (tpr.getMetadata().getAnnotations() != null && tpr.getMetadata().getAnnotations().containsKey("nephele/annotation")) {
                 anno = tpr.getMetadata().getAnnotations().get("nephele/annotation").toString();
