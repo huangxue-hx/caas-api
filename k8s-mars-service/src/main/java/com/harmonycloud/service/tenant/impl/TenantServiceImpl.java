@@ -1220,7 +1220,7 @@ public class TenantServiceImpl implements TenantService {
 
         if (tenants != null && tenants.size() > 0) {
             TenantBinding tb = new TenantBinding();
-            tb.setTenantName("all");
+            tb.setTenantName("全部");
             tenants.add(0, tb);
         }
 

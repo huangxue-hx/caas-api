@@ -21,6 +21,7 @@ import com.harmonycloud.service.application.RouterService;
 import com.harmonycloud.service.application.ServiceService;
 import com.harmonycloud.service.application.VolumeSerivce;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.cluster.LoadbalanceService;
 import com.harmonycloud.service.platform.bean.BusinessList;
 import com.harmonycloud.service.platform.bean.PvDto;
 import com.harmonycloud.service.platform.bean.RouterSvc;
@@ -99,6 +100,9 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 
     @Autowired
     private HarborUtil harborUtil;
+    
+    @Autowired
+    private LoadbalanceService loadbalanceService;
 
     public static final String ABNORMAL = "0";
     public static final String NORMAL = "1";
@@ -416,6 +420,16 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                                 memory.add(res.get("memory"));
                             }
                         }
+                        boolean isPV = false;
+                        if(dep.getSpec().getTemplate().getSpec().getVolumes() != null && dep.getSpec().getTemplate().getSpec().getVolumes().size() > 0) {
+        					for(Volume v : dep.getSpec().getTemplate().getSpec().getVolumes()) {
+        						if(v.getPersistentVolumeClaim() != null) {
+        							isPV = true;
+        							break;
+        						}
+        					}
+        				}
+                        json.put("isPV", isPV);
                         json.put("img", img);
                         json.put("cpu", cpu);
                         json.put("memory", memory);
@@ -1858,16 +1872,63 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
             return ActionReturnUtil.returnErrorWithMsg("id 不能为空！");
         }
 
-        String url = "http://kube-topo:8000/topo";
-        //String url = "http://10.10.101.75:8000/topo";
+        //String url = "http://kube-topo:8000/topo";
+        String url = "http://10.10.101.146:8000/topo";
 
         Map<String, Object> headers = new HashMap<>();
         headers.put("cookie", harborUtil.checkCookieTimeout());
 
         Map<String, Object> params = new HashMap<>();
         params.put("topoSelector", id);
-
-        return HttpClientUtil.httpGetRequest(url, headers, params);
-
+        
+        ActionReturnUtil res = HttpClientUtil.httpGetRequest(url, headers, params);
+        if(res.isSuccess()) {
+        	String s =  (String) res.get("data");
+        	if(s.contains("{")) {
+        		JSONObject a =  JSONObject.fromObject(s);
+        		JSONArray as = a.getJSONArray("links");
+            	//获取应用下所有应用的服务
+            	Map<String, Object> bodys = new HashMap<>();
+                bodys.put("labelSelector", id);
+                String[] namespace = {};
+                if (id.contains(SIGN) && id.contains(SIGN_EQUAL)){
+                    namespace = id.split(SIGN_EQUAL);
+                }
+                Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+                K8SURL url1 = new K8SURL();
+                url1.setNamespace(namespace[1]).setResource(Resource.DEPLOYMENT);
+                K8SClientResponse depRes = new K8sMachineClient().exec(url1, HTTPMethod.GET, null, bodys, cluster);
+                if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
+                        && depRes.getStatus() != Constant.HTTP_404) {
+                	UnversionedStatus sta = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+                    return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
+                } 
+                DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+                if (deplist != null && deplist.getItems() != null) {
+                    List<Deployment> deps = deplist.getItems();
+                    if (deps != null && deps.size() > 0) {
+                        for (Deployment dep : deps) {
+                        	ActionReturnUtil ress = routerService.listIngressByName(namespace[1], dep.getMetadata().getName(), cluster);
+                        	if(ress.isSuccess()) {
+                        		JSONArray has = (JSONArray) ress.get("data");
+                        		if(has.isArray() && has.size() > 0) {
+                        			ActionReturnUtil balanceRes = loadbalanceService.getStatsByService(dep.getMetadata().getName(), namespace[1]);
+                        			if(balanceRes.isSuccess()) {
+                        				@SuppressWarnings("unchecked")
+										Map<String, Object> map = (Map<String, Object>) balanceRes.get("data");
+                        				JSONObject balance = JSONObject.fromObject(map);
+                        				balance.put("srcSVC", "HAProxy");
+                        				balance.put("dstSVC", dep.getMetadata().getName());
+                        				as.add(balance);
+                        			}
+                        		}
+                        	}
+                        }
+                    }
+                }
+                return ActionReturnUtil.returnSuccessWithData(a);
+            }
+        } 
+        return res;
     }
 }

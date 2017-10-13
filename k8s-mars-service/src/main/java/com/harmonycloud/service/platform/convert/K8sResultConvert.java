@@ -523,6 +523,7 @@ public class K8sResultConvert {
 				List<String> cpu = new ArrayList<String>();
                 List<String> memory = new ArrayList<String>();
 				List<Container> containers = dep.getSpec().getTemplate().getSpec().getContainers();
+				boolean isPV=false;
 				for (Container container : containers) {
 					img.add(container.getImage());
 					if(container.getResources() != null && container.getResources().getLimits() != null){
@@ -531,8 +532,16 @@ public class K8sResultConvert {
                     	cpu.add(res1.get("cpu"));
                     	memory.add(res1.get("memory"));
                     }
-					
 				}
+				if(dep.getSpec().getTemplate().getSpec().getVolumes() != null && dep.getSpec().getTemplate().getSpec().getVolumes().size() > 0) {
+					for(Volume v : dep.getSpec().getTemplate().getSpec().getVolumes()) {
+						if(v.getPersistentVolumeClaim() != null) {
+							isPV = true;
+							break;
+						}
+					}
+				}
+				tMap.put("isPV", isPV);
 				tMap.put("cpu", cpu);
 				tMap.put("memory", memory);
 				tMap.put("img", img);

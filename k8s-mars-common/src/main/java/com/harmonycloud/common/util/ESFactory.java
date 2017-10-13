@@ -221,18 +221,19 @@ public class ESFactory {
 				.setSearchType(SearchType.QUERY_AND_FETCH).addFields("module").setQuery(query).setFrom(0).setSize(10000)
 				.setExplain(true).get();
 
-		Set<String> searchResults = new HashSet<String>();
+		List<String> searchResults = new ArrayList<String>();
 
+		if (response.getHits().getHits().length > 0) {
+			searchResults.add("全部");
+		}
+		Set<String> searchResults1 = new HashSet<String>();
 		for (SearchHit hit : response.getHits().getHits()) {
 			Set<Map.Entry<String, SearchHitField>> fieldEntry = hit.getFields().entrySet();
 			for (Map.Entry<String, SearchHitField> entry : fieldEntry) {
-				searchResults.add(entry.getValue().getValue().toString());
+				searchResults1.add(entry.getValue().getValue().toString());
 			}
 		}
-		if (response.getHits().getHits().length > 0) {
-			searchResults.add("all");
-		}
-
+		searchResults.addAll(searchResults1);
 		return ActionReturnUtil.returnSuccessWithData(searchResults);
 	}
 
