@@ -8,6 +8,7 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
 import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.springframework.stereotype.Service;
 
@@ -51,22 +52,7 @@ public class UserAuditServiceImpl implements UserAuditService {
         }
 
         if (StringUtils.isNotBlank(keyWords)) {
-        	//判断是不是中文
-        	String regex = "[\u4e00-\u9fa5]";
-        	Pattern pattern = Pattern.compile(regex);
-        	Matcher matcher = pattern.matcher(keyWords);
-            if (matcher.find()) {
-            	BoolQueryBuilder queryCh = QueryBuilders.boolQuery();
-            	queryCh.should(QueryBuilders.matchPhraseQuery("opFun", keyWords));
-            	queryCh.should(QueryBuilders.matchPhraseQuery("user", keyWords));
-            	queryCh.should(QueryBuilders.matchPhraseQuery("tenant", keyWords));
-            	queryCh.should(QueryBuilders.matchPhraseQuery("module", keyWords));
-            	queryCh.should(QueryBuilders.matchPhraseQuery("subject", keyWords));
-            	query.must(queryCh);
-            }else{  
-            	query.must(QueryBuilders.queryStringQuery("*"+keyWords+"*").field("user")
-            			.field("opFun").field("tenant").field("module").field("path").field("subject").field("remoteIp"));
-            }  
+        	query.must(getQueryBuildersByKeywords(keyWords));
             //query.must(QueryBuilders.multiMatchQuery(keyWords,"user","opFun", "tenant", "module", "path", "subject", "remoteIp"));
         }
 
@@ -153,9 +139,8 @@ public class UserAuditServiceImpl implements UserAuditService {
         }
 
         if (StringUtils.isNotBlank(keyWords)) {
+        	query.must(getQueryBuildersByKeywords(keyWords));
             //query.must(QueryBuilders.multiMatchQuery(keyWords,"user","opFun", "tenant", "module", "path", "subject", "remoteIp"));
-        	query.must(QueryBuilders.queryStringQuery("*"+keyWords+"*").field("user")
-        			.field("opFun").field("tenant").field("module").field("path").field("subject").field("remoteIp"));
         }
 
         if (userLists != null && userLists.size() > 0) {
@@ -166,6 +151,32 @@ public class UserAuditServiceImpl implements UserAuditService {
             query.must(QueryBuilders.matchQuery("user", user));
         }
 		return ESFactory.getTotalCounts(query);
+	}
+	
+	private BoolQueryBuilder getQueryBuildersByKeywords(String keyWords) throws Exception {
+		//判断是不是中文
+    	String regex = "[\u4e00-\u9fa5]";
+    	Pattern pattern = Pattern.compile(regex);
+    	Matcher matcher = pattern.matcher(keyWords);
+    	BoolQueryBuilder queryCh = QueryBuilders.boolQuery();
+        if (matcher.find()) {
+        	queryCh.should(QueryBuilders.matchPhraseQuery("opFun", keyWords));
+        	queryCh.should(QueryBuilders.matchPhraseQuery("user", keyWords));
+        	queryCh.should(QueryBuilders.matchPhraseQuery("tenant", keyWords));
+        	queryCh.should(QueryBuilders.matchPhraseQuery("module", keyWords));
+        	queryCh.should(QueryBuilders.matchPhraseQuery("subject", keyWords));
+        	return queryCh;
+        }else{
+        	//判断是否有斜杠
+        	Pattern slashPattern = Pattern.compile(".*/");
+        	Matcher slashMatcher = slashPattern.matcher(keyWords);
+        	if (slashMatcher.find()) {
+        		return queryCh.must(QueryBuilders.matchPhraseQuery("path", keyWords));
+        	} else {
+        		return queryCh.must(QueryBuilders.queryStringQuery("*"+keyWords+"*").field("user")
+            			.field("opFun").field("tenant").field("module").field("path").field("subject").field("remoteIp"));
+        	}
+        }  
 	}
 
 
