@@ -103,6 +103,9 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
     
     @Autowired
     private LoadbalanceService loadbalanceService;
+    
+    @Value("#{propertiesReader['kube.topo']}")
+    private String kubeTopo;
 
     public static final String ABNORMAL = "0";
     public static final String NORMAL = "1";
@@ -1873,7 +1876,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         }
 
         //String url = "http://kube-topo:8000/topo";
-        String url = "http://10.10.101.146:8000/topo";
+        //String url = "http://10.10.101.75:30988/topo";
 
         Map<String, Object> headers = new HashMap<>();
         headers.put("cookie", harborUtil.checkCookieTimeout());
@@ -1881,7 +1884,7 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
         Map<String, Object> params = new HashMap<>();
         params.put("topoSelector", id);
         
-        ActionReturnUtil res = HttpClientUtil.httpGetRequest(url, headers, params);
+        ActionReturnUtil res = HttpClientUtil.httpGetRequest(kubeTopo, headers, params);
         if(res.isSuccess()) {
         	String s =  (String) res.get("data");
         	if(s.contains("{")) {
