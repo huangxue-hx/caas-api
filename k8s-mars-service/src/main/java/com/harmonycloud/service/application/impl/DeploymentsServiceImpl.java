@@ -141,6 +141,11 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		// 先判断状态
 		if (dep != null && !dep.equals("")) {
 			Map<String, Object> anno = ((Map<String, Object>) dep.getMetadata().getAnnotations());
+			Date now = new Date();
+	        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+	        sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+	        String updateTime = sdf.format(now);
+			anno.put("updateTimestamp", updateTime);
 			if (anno.containsKey("nephele/status") && anno.get("nephele/status") != null) {
 				String status = anno.get("nephele/status").toString();
 				if (status.equals(Constant.STARTING)) {
@@ -243,6 +248,11 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 		Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
 		if (dep != null && !dep.equals("")) {
 			Map<String, Object> anno = ((Map<String, Object>) dep.getMetadata().getAnnotations());
+			Date now = new Date();
+	        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+	        sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+	        String updateTime = sdf.format(now);
+			anno.put("updateTimestamp", updateTime);
 			if (anno.containsKey("nephele/status")) {
 				String status = anno.get("nephele/status").toString();
 				if (status.equals(Constant.STOPPING)) {

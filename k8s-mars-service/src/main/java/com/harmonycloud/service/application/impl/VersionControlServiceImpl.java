@@ -648,6 +648,18 @@ public class VersionControlServiceImpl implements VersionControlService {
 
         Deployment depUpdated = JsonUtil.jsonToPojo(dpUpdated.getBody(), Deployment.class);
 
+        //update时间
+        Map<String, Object> anno = new HashMap<String, Object>();
+        if(depUpdated.getMetadata() != null && depUpdated.getMetadata().getAnnotations() != null) {
+        	anno = depUpdated.getMetadata().getAnnotations();
+        }
+        Date now = new Date();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+        String updateTime = sdf.format(now);
+		anno.put("updateTimestamp", updateTime);
+		depUpdated.getMetadata().setAnnotations(anno);
+        
         updateServiceByDeployment(depUpdated, cluster);
 
         return ActionReturnUtil.returnSuccess();
