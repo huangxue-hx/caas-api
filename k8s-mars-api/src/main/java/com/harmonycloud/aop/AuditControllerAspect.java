@@ -144,6 +144,10 @@ public class AuditControllerAspect {
                 		subject = values.get(0);
                 	}
                 }
+                if (opFunKey.equals("rest_harborProject_updatequota_POST")) {
+                	HarborProjectTenant hProjectTenant = hpTenantMapper.getByHarborProjectId(Long.valueOf(values.get(0)));
+            	    subject =  hProjectTenant.getHarborProjectName();
+                }
 				StringBuffer requestParams = new StringBuffer();
 				if (StringUtils.isNotBlank(reqParams.get("allParams").toString())) {
 					requestParams.append(reqParams.get("allParams"));
