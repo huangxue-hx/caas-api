@@ -258,9 +258,37 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
 				if(max == null) {
 					max = dep.getMetadata().getCreationTimestamp();
 				}
-				int a = Long.valueOf(sdf.parse(max).getTime()).compareTo(Long.valueOf(sdf.parse(dep.getMetadata().getCreationTimestamp()).getTime()));
+				String update = dep.getMetadata().getCreationTimestamp();
+				if(dep.getStatus() != null && dep.getStatus().getConditions() != null && dep.getStatus().getConditions().size() > 0) {
+					String maxc = null;
+					for(DeploymentCondition  c : dep.getStatus().getConditions()) {
+						if(maxc == null && c.getLastUpdateTime() != null) {
+							maxc = c.getLastUpdateTime();
+						}
+						if(c.getLastUpdateTime() != null) {
+							int b = Long.valueOf(sdf.parse(maxc).getTime()).compareTo(Long.valueOf(sdf.parse(c.getLastUpdateTime()).getTime()));
+							if(b == -1) {
+								maxc = c.getLastUpdateTime();
+							}
+						}
+					}
+					if(maxc != null) {
+						update = maxc;
+					}
+				}
+				if(dep.getMetadata() != null && dep.getMetadata().getAnnotations() != null) {
+					Map<String, Object> anno = dep.getMetadata().getAnnotations();
+					if(anno.containsKey("updateTimestamp") && anno.get("updateTimestamp") != null ) {
+						String  updateTime =(String) anno.get("updateTimestamp");
+						int c = Long.valueOf(sdf.parse(update).getTime()).compareTo(Long.valueOf(sdf.parse(updateTime).getTime()));
+						if(c == -1) {
+							update = updateTime;
+						}
+					}
+				}
+				int a = Long.valueOf(sdf.parse(max).getTime()).compareTo(Long.valueOf(sdf.parse(update).getTime()));
 				if(a == -1) {
-					max = dep.getMetadata().getCreationTimestamp();
+					max = update;
 				}
 			}
 			return max;
