@@ -887,7 +887,7 @@ public class HarborServiceImpl implements HarborService {
      */
     private HarborManifest getHarborManifestLite(ActionReturnUtil maniResponse) throws Exception {
         HarborManifest tagDetail = (HarborManifest) maniResponse.get("data");
-        tagDetail.setVulnerabilityNum(0);
+        tagDetail.setVulnerabilityNum(-1);
         if (tagDetail.getVulnerabilitySummary().get("vulnerability") != null) {
             Map<String, Object> vulMap = (Map<String, Object>) (tagDetail.getVulnerabilitySummary().get("vulnerability"));
             if (vulMap != null && !vulMap.isEmpty()) {
