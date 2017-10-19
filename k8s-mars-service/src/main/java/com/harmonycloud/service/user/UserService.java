@@ -193,7 +193,14 @@ public class UserService {
         }
     }
 
-
+    public boolean isAdmin(String userName){
+        User user = userMapper.findByUsername(userName);
+        if(user.getIsAdmin()==1){
+            return true;
+        }else {
+            return false;
+        }
+    }
     /**
      * 向k8s和harbor中新增用户
      * 
