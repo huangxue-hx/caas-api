@@ -21,6 +21,8 @@ public class HarborManifest implements Serializable {
     private Map<String, Object> vulnerabilitiesByPackage;
     private Map<String, Object> vulnerabilitySummary;
     private Integer vulnerabilityNum;
+    private boolean abnormal = false;
+    private boolean notSupported = false;
 
     public Integer getVulnerabilityNum() {
         return vulnerabilityNum;
@@ -67,5 +69,22 @@ public class HarborManifest implements Serializable {
 
     public void setVulnerabilitySummary(Map<String, Object> vulnerabilitySummary) {
         this.vulnerabilitySummary = vulnerabilitySummary;
+    }
+
+
+    public boolean getNotSupported() {
+        return notSupported;
+    }
+
+    public void setNotSupported(boolean notSupported) {
+        this.notSupported = notSupported;
+    }
+
+    public boolean getAbnormal() {
+        return abnormal;
+    }
+
+    public void setAbnormal(boolean abnormal) {
+        this.abnormal = abnormal;
     }
 }
