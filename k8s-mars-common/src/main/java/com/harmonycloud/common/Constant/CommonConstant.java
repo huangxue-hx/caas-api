@@ -246,4 +246,6 @@ public class CommonConstant {
 
     public static final String RESTARTPOLICY_NEVER= "Never";
 
+    public static final String IMAGEPULLPOLICY_ALWAYS= "Always";
+
 }

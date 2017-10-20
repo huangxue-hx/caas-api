@@ -1172,6 +1172,9 @@ public class JobServiceImpl implements JobService {
                 }else{
                     updateContainer.setImg(containerOfPodDetail.getImg());
                 }
+
+                updateContainer.setImagePullPolicy(CommonConstant.IMAGEPULLPOLICY_ALWAYS);
+
                 updateContainerList.add(updateContainer);
             }
 
