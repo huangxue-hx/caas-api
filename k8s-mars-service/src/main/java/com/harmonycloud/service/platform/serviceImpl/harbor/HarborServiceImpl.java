@@ -888,7 +888,13 @@ public class HarborServiceImpl implements HarborService {
     private HarborManifest getHarborManifestLite(ActionReturnUtil maniResponse) throws Exception {
         HarborManifest tagDetail = (HarborManifest) maniResponse.get("data");
         tagDetail.setVulnerabilityNum(-1);
-        if (tagDetail.getVulnerabilitySummary().get("vulnerability") != null) {
+        if(tagDetail.getVulnerabilitySummary().get("success") != null){
+            tagDetail.setVulnerabilityNum(0);
+        }else if(tagDetail.getVulnerabilitySummary().get("abnormal") != null){
+            tagDetail.setAbnormal(true);
+        }else if(tagDetail.getVulnerabilitySummary().get("notsupport") != null){
+            tagDetail.setNotSupported(true);
+        }else if (tagDetail.getVulnerabilitySummary().get("vulnerability") != null) {
             Map<String, Object> vulMap = (Map<String, Object>) (tagDetail.getVulnerabilitySummary().get("vulnerability"));
             if (vulMap != null && !vulMap.isEmpty()) {
                 Map<String, Object> vulMapSec = (Map<String, Object>) (vulMap.get("vulnerability-suminfo"));
@@ -901,12 +907,6 @@ public class HarborServiceImpl implements HarborService {
                     }
                 }
             }
-        }else if(tagDetail.getVulnerabilitySummary().get("success") != null){
-            tagDetail.setVulnerabilityNum(0);
-        }else if(tagDetail.getVulnerabilitySummary().get("abnormal") != null){
-            tagDetail.setAbnormal(true);
-        }else if(tagDetail.getVulnerabilitySummary().get("notsupport") != null){
-            tagDetail.setNotSupported(true);
         }
         tagDetail.setVulnerabilitySummary(null);
         tagDetail.setVulnerabilitiesByPackage(null);
