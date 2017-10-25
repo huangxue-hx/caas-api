@@ -224,7 +224,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         NumberFormat nf = NumberFormat.getNumberInstance();
         double fomatResource = new BigDecimal(resource).setScale(1, BigDecimal.ROUND_HALF_UP).doubleValue();
         if (resource!=null && can > 0 && (fomatResource - can - use) < 0) {
-            if (Double.parseDouble(resource) - can - use < -0.1){
+            if (Double.parseDouble(resource) - can - use > -0.1){
                 switch (type){
                     case CommonConstant.MI:
                         return ActionReturnUtil.returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((fomatResource - use) / 1024) + "MB");
