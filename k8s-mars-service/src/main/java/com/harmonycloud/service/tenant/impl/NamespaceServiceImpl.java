@@ -2,6 +2,7 @@ package com.harmonycloud.service.tenant.impl;
 
 import static com.harmonycloud.common.enumm.RolebindingsEnum.DEV_RB;
 
+import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -218,23 +219,25 @@ public class NamespaceServiceImpl implements NamespaceService {
         }
         return ActionReturnUtil.returnSuccess();
     }
+    //检查资源是否可用和主机资源保持算法一直
     private ActionReturnUtil checkResource(double can,String resource,double use,String type) throws Exception {
         NumberFormat nf = NumberFormat.getNumberInstance();
-        if (resource!=null && can > 0 && (Double.parseDouble(resource) - can - use) < 0) {
+        double fomatResource = new BigDecimal(resource).setScale(1, BigDecimal.ROUND_HALF_UP).doubleValue();
+        if (resource!=null && can > 0 && (fomatResource - can - use) < 0) {
             if (Double.parseDouble(resource) - can - use < -0.05){
                 switch (type){
                     case CommonConstant.MI:
-                        return ActionReturnUtil.returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((Double.parseDouble(resource) - use) / 1024) + "MB");
+                        return ActionReturnUtil.returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((fomatResource - use) / 1024) + "MB");
                     case CommonConstant.GI:
-                        return ActionReturnUtil.returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((Double.parseDouble(resource) - use) / (1024 * 1024)) + "GB");
+                        return ActionReturnUtil.returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((fomatResource - use) / (1024 * 1024)) + "GB");
                     case CommonConstant.TI:
                         return ActionReturnUtil
-                                .returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((Double.parseDouble(resource) - use) / (1024 * 1024 * 1024)) + "TB");
+                                .returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((fomatResource - use) / (1024 * 1024 * 1024)) + "TB");
                     case CommonConstant.PI:
                         return ActionReturnUtil.returnErrorWithMsg(
-                                "memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((Double.parseDouble(resource) / 1024 / 1024 / 1024 / 1024 - use) / (1024 * 1024 * 1024 * 1024)) + "PB");
+                                "memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((fomatResource / 1024 / 1024 / 1024 / 1024 - use) / (1024 * 1024 * 1024 * 1024)) + "PB");
                     default:
-                        return ActionReturnUtil.returnErrorWithMsg("cpu配额超过集群可使用配额,集群可使用配额为:" + (Double.parseDouble(resource) - use) + "核");
+                        return ActionReturnUtil.returnErrorWithMsg("cpu配额超过集群可使用配额,集群可使用配额为:" + (fomatResource - use) + "核");
                 }
 
             }
