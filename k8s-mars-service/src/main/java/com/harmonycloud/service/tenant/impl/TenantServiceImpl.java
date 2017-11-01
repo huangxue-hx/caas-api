@@ -565,7 +565,7 @@ public class TenantServiceImpl implements TenantService {
 
         return nameBuff.toString();
     }
-    @Transactional
+
     private ActionReturnUtil createTenant(String name, String annotation, String userStr, Integer cluster) throws Exception {
         TenantBindingExample exsit = new TenantBindingExample();
         exsit.createCriteria().andTenantNameEqualTo(name);
@@ -676,7 +676,7 @@ public class TenantServiceImpl implements TenantService {
             String[] user = username.split(CommonConstant.COMMA);
             for (String namespace : k8sNamespaceList) {
                 for (String u : user) {
-                    K8SClientResponse response = roleBindingService.addUserToRoleBinding(namespace, CommonConstant.DEV, u, cluster);
+                    K8SClientResponse response = roleBindingService.addUserToRoleBinding(namespace, role, u, cluster,tenantid);
                     if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
                         logger.info("namespace: " + namespace + "赋权失败！", response.getBody());
                         return ActionReturnUtil.returnErrorWithMsg("namespace: " + namespace + "赋权失败！错误消息：" + response.getBody());
@@ -828,10 +828,12 @@ public class TenantServiceImpl implements TenantService {
         List<String> k8sNamespaceList = tenantByTenantid.getK8sNamespaceList();
 //        NamespaceList namespaceList = this.namespaceService1.getNamespacesListbyLabelSelector(label, cluster);
 //        List<Namespace> items = namespaceList.getItems();
+        UserTenant userTenant = userTenantService.getUserByUserNameAndTenantid(username, tenantid);
+        String role = userTenant.getRole();
         if (k8sNamespaceList.size() >= 1) {
             for (String namespace : k8sNamespaceList) {
 //                String name = namespace.getMetadata().getName();
-                K8SClientResponse response = roleBindingService.deleteUserFormRoleBinding(namespace, CommonConstant.DEV, username, cluster);
+                K8SClientResponse response = roleBindingService.deleteUserFormRoleBinding(namespace, role, username, cluster);
                 if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
                     logger.error("namespace: " + namespace + "更新rolebinding失败！" + response.getBody());
                     return ActionReturnUtil.returnErrorWithMsg("namespace: " + namespace + "更新rolebinding失败！错误消息：" + response.getBody());

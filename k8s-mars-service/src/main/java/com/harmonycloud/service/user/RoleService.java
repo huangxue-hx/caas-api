@@ -194,7 +194,7 @@ public class RoleService {
      */
     public ActionReturnUtil rolebinding(String tenantname, String tenantid, String namespace, String role, String username) throws Exception {
         Cluster cluster = tenantService.getClusterByTenantid(tenantid);
-        K8SClientResponse response = roleBindingService.addUserToRoleBinding(namespace, role, username,cluster);
+        K8SClientResponse response = roleBindingService.addUserToRoleBinding(namespace, role, username,cluster,tenantid);
         if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             return ActionReturnUtil.returnSuccessWithData(K8SClient.converToBean(response, RoleBinding.class));
         } else {
@@ -244,7 +244,7 @@ public class RoleService {
         for (RoleBinding item : items) {
             if (item.getMetadata().getName().equals(RoleBindingService.ROLE_TM_RB)) {
                 // 增加用户到该namespace下的subjects中
-                roleBindingService.addUserToRoleBinding(item.getMetadata().getNamespace(), RoleBindingService.ROLE_TM_RB, username,cluster);
+                roleBindingService.addUserToRoleBinding(item.getMetadata().getNamespace(), RoleBindingService.ROLE_TM_RB, username,cluster,tenantid);
             }
         }
     }
@@ -526,7 +526,7 @@ public class RoleService {
      * @param clusterRole
      * @return
      */
-    private boolean createClusterRole(InitClusterRole clusterRole) throws Exception {
+    public boolean createClusterRole(InitClusterRole clusterRole) throws Exception {
 
         // 查询是否已经初始化,若未初始化,则初始化
         K8SClientResponse specifiedClusterRoles = clusterRoleService.getSpecifiedClusterRoles(clusterRole.getName());

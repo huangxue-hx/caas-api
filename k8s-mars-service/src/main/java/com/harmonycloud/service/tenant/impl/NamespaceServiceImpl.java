@@ -426,22 +426,22 @@ public class NamespaceServiceImpl implements NamespaceService {
         }
 
         // 7.创建rolebindings
-        try {
-            ActionReturnUtil createRBResult = this.createRolebindings(namespaceDto, cluster);
-            if ((Boolean) createRBResult.get(CommonConstant.SUCCESS) == false) {
-                // 失败回滚
-                this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-                return createRBResult;
-            }
-        } catch (Exception e) {
-            // 失败回滚
-            this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-            if (e instanceof K8sAuthException) {
-                throw e;
-            }
-            logger.error("创建分区下的rolebindings失败，错误原因：" + e.getMessage());
-            return ActionReturnUtil.returnErrorWithMsg("创建分区下的rolebindings失败，请检查");
-        }
+//        try {
+//            ActionReturnUtil createRBResult = this.createRolebindings(namespaceDto, cluster);
+//            if ((Boolean) createRBResult.get(CommonConstant.SUCCESS) == false) {
+//                // 失败回滚
+//                this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
+//                return createRBResult;
+//            }
+//        } catch (Exception e) {
+//            // 失败回滚
+//            this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
+//            if (e instanceof K8sAuthException) {
+//                throw e;
+//            }
+//            logger.error("创建分区下的rolebindings失败，错误原因：" + e.getMessage());
+//            return ActionReturnUtil.returnErrorWithMsg("创建分区下的rolebindings失败，请检查");
+//        }
 
         // 8.给namespace租户下的用户授予权限
         try {
@@ -1071,35 +1071,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         String tenantName = namespaceDto.getName().split(CommonConstant.LINE)[0];
 
         for (RolebindingsEnum rolebindingsEnum : RolebindingsEnum.values()) {
-
-            // 组装objectMeta
-            ObjectMeta objectMeta = new ObjectMeta();
-            objectMeta.setName(rolebindingsEnum.getName());
-            objectMeta.setNamespace(namespaceDto.getName());
-            objectMeta.setAnnotations(generateRoleBindingAnnotations(null, null, null));
-            objectMeta.setLabels(generateRolebindingLabels(null, tenantName, namespaceDto.getTenantid()));
-            // 组装objectReference
-            ObjectReference objectReference = new ObjectReference();
-            String roleName = rolebindingsEnum.getName().split(CommonConstant.LINE)[0];
-            objectReference.setName(roleName);
-            objectReference.setKind(CommonConstant.CLUSTERROLE);
-            objectReference.setApiVersion(Constant.API_VERSION);
-
-            // 组装rolebinding
-            Map<String, Object> bodys = new HashMap<>();
-            bodys.put(CommonConstant.KIND, CommonConstant.ROLEBINDING);
-            bodys.put(CommonConstant.APIVERSION, Constant.API_VERSION);
-            bodys.put(CommonConstant.METADATA, objectMeta);
-            bodys.put(CommonConstant.SUBJECTS, generateSubjects(null));
-            bodys.put(CommonConstant.ROLEREF, objectReference);
-            Map<String, Object> headers = new HashMap<>();
-            headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
-            // 调用k8s接口生成rolebinding
-            K8SClientResponse k8SClientResponse = roleBindingService.create(namespaceDto.getName(), headers, bodys, cluster);
-            if (!HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
-                logger.error("调用k8s接口创建rolebinding失败", k8SClientResponse.getBody());
-                return ActionReturnUtil.returnErrorWithMsg(k8SClientResponse.getBody());
-            }
+            roleBindingService.createRoleBinding(rolebindingsEnum.getName(),namespaceDto.getName(),namespaceDto.getTenantid(),tenantName,rolebindingsEnum.getName().split(CommonConstant.LINE)[0],cluster);
         }
         return ActionReturnUtil.returnSuccess();
     }
@@ -1114,7 +1086,7 @@ public class NamespaceServiceImpl implements NamespaceService {
             TenantBinding tenantBinding = tenantService.getTenantByTenantid(namespaceDto.getTenantid());
             String tenantName = tenantBinding.getTenantName();
             String userName = userTenant.getUsername();
-            ActionReturnUtil bindingResult = roleService.rolebinding(tenantName, namespaceDto.getTenantid(), namespaceDto.getName(), "dev", userName);
+            ActionReturnUtil bindingResult = roleService.rolebinding(tenantName, namespaceDto.getTenantid(), namespaceDto.getName(), userTenant.getRole(), userName);
             if ((Boolean) bindingResult.get(CommonConstant.SUCCESS) == false) {
                 logger.error("调用k8s接口向rolebinding绑定租户管理员失败,tenantName=" + tenantName + ",tenantid=" + namespaceDto.getTenantid() + ", namespace=" + namespaceDto.getName()
                         + ", userName=" + userName);
@@ -1246,61 +1218,9 @@ public class NamespaceServiceImpl implements NamespaceService {
         return ingress;
     }
 
-    private Map<String, Object> generateRolebindingLabels(List<String> users, String tenantName, String tenantId) throws Exception {
 
-        Map<String, Object> rolebindingLables = new HashMap<>();
 
-        if (null != users) {
-            for (String user : users) {
-                rolebindingLables.put("nephele_user_" + user, user);
-            }
-        }
-        rolebindingLables.put("nephele_tenant_" + tenantName, tenantName);
-        rolebindingLables.put("nephele_tenantid_" + tenantId, tenantId);
 
-        return rolebindingLables;
-    }
-
-    private Map<String, Object> generateRoleBindingAnnotations(String projectId, String role, String userId) throws Exception {
-
-        Map<String, Object> annotations = new HashMap<>();
-
-        // harbor projectId
-        if (!StringUtils.isEmpty(projectId)) {
-            annotations.put(CommonConstant.PROJECTID, projectId);
-        }
-
-        if (!StringUtils.isEmpty(role)) {
-
-            if (role.equals(HarborProjectRoleEnum.DEV.getRole())) {
-                annotations.put(CommonConstant.PROJECT, projectId);
-                annotations.put(CommonConstant.VERBS, 2);
-            }
-            if (role.equals(HarborProjectRoleEnum.WATCHER.getRole())) {
-                annotations.put(CommonConstant.PROJECT, projectId);
-                annotations.put(CommonConstant.VERBS, 3);
-            }
-        }
-
-        annotations.put(CommonConstant.USERID, userId == null ? "" : userId);
-        return annotations;
-
-    }
-
-    private List<Subjects> generateSubjects(List<String> users) throws Exception {
-        List<Subjects> subjectsList = new ArrayList<>();
-
-        if (null != users) {
-            for (String user : users) {
-                Subjects subjects = new Subjects();
-                subjects.setKind("User");
-                subjects.setName(user);
-                subjectsList.add(subjects);
-            }
-        }
-
-        return subjectsList;
-    }
 
     private Map<String, Object> getLables(NamespaceDto namespaceDto) throws Exception {
         Map<String, Object> lables = new HashMap<>();

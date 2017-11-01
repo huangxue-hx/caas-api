@@ -2,19 +2,20 @@ package com.harmonycloud.service.tenant.impl;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dao.tenant.RolePrivilegeMapper;
 import com.harmonycloud.dao.tenant.bean.RolePrivilege;
 import com.harmonycloud.dao.tenant.bean.RolePrivilegeExample;
+import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.UserTenant;
 import com.harmonycloud.dao.user.ResourceMapper;
 import com.harmonycloud.dao.user.RoleMapper;
-import com.harmonycloud.dao.user.bean.Role;
-import com.harmonycloud.dao.user.bean.RoleExample;
-import com.harmonycloud.dao.user.bean.User;
-import com.harmonycloud.dao.user.bean.Resource;
-import com.harmonycloud.dao.user.bean.ResourceExample;
+import com.harmonycloud.dao.user.bean.*;
+import com.harmonycloud.k8s.service.RoleBindingService;
 import com.harmonycloud.service.tenant.RolePrivilegeService;
 import com.harmonycloud.service.tenant.RoleService;
+import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.tenant.UserTenantService;
 import com.harmonycloud.service.user.ResourceService;
 import com.harmonycloud.service.user.UserService;
@@ -51,6 +52,12 @@ public class RoleServiceImpl implements RoleService {
     private ResourceMapper resourceMapper;
     @Autowired
     private RolePrivilegeMapper rolePrivilegeMapper;
+    @Autowired
+    private TenantService tenantService;
+    @Autowired
+    private RoleBindingService roleBindingService;
+    @Autowired
+    private com.harmonycloud.service.user.RoleService roleService;
 
 
     /**
@@ -187,6 +194,7 @@ public class RoleServiceImpl implements RoleService {
         if(prelist2 != null && prelist2.size() > 0 && prelist2.get(0).getAvailable() == Boolean.TRUE){
             throw new MarsRuntimeException("角色名"+role.getDescription()+"已经存在");
         }
+
         if(list != null && list.size() > 0 && list.get(0).getAvailable() == Boolean.FALSE){
             Role role2 = list.get(0);
             role2.setAvailable(role.getAvailable());
@@ -206,6 +214,10 @@ public class RoleServiceImpl implements RoleService {
                 rolePrivilege.setUpdateTime(new Date());
                 this.rolePrivilegeService.addModule(rolePrivilege);
             }
+            //TODO
+            InitClusterRole initClusterRole = JsonUtil.jsonToPojo(InitClusterRoleEnum.defaultRole.getJson(), InitClusterRole.class);
+            initClusterRole.setName(roleName);
+            roleService.createClusterRole(initClusterRole);
         }else{
             //有初始权限，更新初始权限
             HashMap<Integer, Boolean> newPrivilege = new HashMap<>();
@@ -222,21 +234,53 @@ public class RoleServiceImpl implements RoleService {
                 this.rolePrivilegeService.addModule(rolePrivilege);
             }
             rolePrivilegeService.updateRoleMenu(roleName);
+            //TODO
+            InitClusterRole initClusterRole = JsonUtil.jsonToPojo(InitClusterRoleEnum.defaultRole.getJson(), InitClusterRole.class);
+            initClusterRole.setName(roleName);
+            roleService.createClusterRole(initClusterRole);
         }
     }
 
     @Override
     public void deleteRole(String roleName) throws Exception {
-    	   userTenantService.deleteUserByRoleName(roleName);
+
+        //删除角色绑定　rolebinding
+        List<UserTenant> userByRoleName = userTenantService.findUserByRoleName(roleName);
+        Map<String,Object> map = new HashMap <String,Object>();
+        for (UserTenant userTenant : userByRoleName) {
+            Object o = map.get(userTenant.getTenantid());
+            if (o == null){
+                TenantBinding tenantByTenantid = tenantService.getTenantByTenantid(userTenant.getTenantid());
+                Cluster cluster = tenantService.getClusterByTenantid(userTenant.getTenantid());
+                tenantByTenantid.getK8sNamespaceList().forEach(item->{try {
+                    roleBindingService.deleteRolebings(item,roleName+"-rb",cluster);
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+                });
+            }
+        }
+
+        //删除用户角色关联
+        userTenantService.deleteUserByRoleName(roleName);
+
+        //删除角色
         RoleExample example = new RoleExample();
         example.createCriteria().andNameEqualTo(roleName);
         roleMapper.deleteByExample(example);
+
+        //删除角色权限
         RolePrivilegeExample rolePrivilegeExample = new RolePrivilegeExample();
         rolePrivilegeExample.createCriteria().andRoleEqualTo(roleName);
         rolePrivilegeMapper.deleteByExample(rolePrivilegeExample);
+
+        //删除角色菜单资源
         ResourceExample resourceExample = new ResourceExample();
         resourceExample.createCriteria().andRoleEqualTo(roleName);
         resourceMapper.deleteByExample(resourceExample);
+        roleService.deleteClusterrole(roleName);
+
+
     }
 
     @Override
