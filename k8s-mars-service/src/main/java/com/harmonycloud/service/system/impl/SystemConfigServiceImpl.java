@@ -167,9 +167,9 @@ public class SystemConfigServiceImpl implements SystemConfigService {
     }
 
     @Override
-    public LdapConfigDto findByConfigType(String configType) {
+    public LdapConfigDto findLdapConfig() {
         LdapConfigDto ldapConfigDto = new LdapConfigDto();
-        List<SystemConfig> list = this.systemConfigMapper.findByConfigType(configType);
+        List<SystemConfig> list = this.systemConfigMapper.findByConfigType(CommonConstant.CONFIG_TYPE_LDAP);
         if(list != null && list.size() > 0) {
             for(SystemConfig sc : list) {
                 if(sc.getConfigName().equals(CommonConstant.LDAP_IP)) {
@@ -193,6 +193,11 @@ public class SystemConfigServiceImpl implements SystemConfigService {
             }
         }
         return ldapConfigDto;
+    }
+
+    @Override
+    public List<SystemConfig> findByConfigType(String configType) {
+        return this.systemConfigMapper.findByConfigType(configType);
     }
 
     @Override

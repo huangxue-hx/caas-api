@@ -4,13 +4,13 @@ import com.harmonycloud.common.enumm.EnumLogSeverity;
 import com.harmonycloud.common.enumm.EnumMonitorQuery;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.BizUtil;
 import com.harmonycloud.dao.cluster.ClusterMapper;
 import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.EsService;
 import com.harmonycloud.service.platform.bean.ContainerOfPodDetail;
 import com.harmonycloud.service.platform.bean.LogQuery;
-import com.harmonycloud.service.platform.bean.PodDetail;
 import com.harmonycloud.service.platform.bean.ProviderPlugin;
 import com.harmonycloud.service.platform.client.EsClient;
 import com.harmonycloud.service.platform.constant.Constant;
@@ -24,9 +24,7 @@ import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
-import org.elasticsearch.search.aggregations.bucket.terms.StringTerms;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms.Bucket;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsBuilder;
@@ -36,7 +34,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
-import org.springframework.util.CollectionUtils;
 
 import javax.servlet.http.HttpSession;
 import java.text.SimpleDateFormat;
@@ -90,8 +87,7 @@ public class EsServiceImpl implements EsService {
 		}
 		for (SearchHit it : scrollResp.getHits().getHits()) {
 			String podName = it.getSource().get("pod_name").toString();
-			if(!checkPodNameByDeployment(podName, logQuery.getDeployment())){
-				LOGGER.warn("容器对应的pod名称" + podName + "前缀非服务名称， 不是同一个服务下的容器");
+			if(!BizUtil.isPodWithDeployment(podName, logQuery.getDeployment())){
 				continue;
 			}
 			log.append(it.getSource().get("message").toString() +"\n");
@@ -280,7 +276,7 @@ public class EsServiceImpl implements EsService {
 		List<Bucket> podBuckets = podTerms.getBuckets();
 		for (Bucket bucket : podBuckets) {
 			String bucketPodName = bucket.getKey().toString();
-			if(!checkPodNameByDeployment(bucketPodName, deployment)){
+			if(!BizUtil.isPodWithDeployment(bucketPodName, deployment)){
 				LOGGER.warn("容器对应的pod名称" + bucketPodName + "前缀非服务名称， 不是同一个服务下的容器");
 				continue;
 			}
@@ -289,7 +285,7 @@ public class EsServiceImpl implements EsService {
 			for (Bucket dirBucket : logDirBuckets) {
 				String logDir = dirBucket.getKey().toString();
 				if(withPodName){
-					logFileNames.add(podName + "/" + logDir);
+					logFileNames.add(bucketPodName + "/" + logDir);
 				}else {
 					logFileNames.add(logDir);
 				}
@@ -342,21 +338,4 @@ public class EsServiceImpl implements EsService {
 		return searchRequestBuilder;
 	}
 
-	private boolean checkPodNameByDeployment(String podName, String deployment) throws IllegalArgumentException{
-		String[] podNamePart = podName.split("-");
-		if(podNamePart.length <3){
-			LOGGER.error("pod name format is error for: " + podName);
-			throw new IllegalArgumentException("pod名称格式错误： " + podName);
-		}else{
-			//舍弃最后一个“-”后面的字符串
-			String deploymentByPodName = podName.substring(0, podName.lastIndexOf("-"));
-			//舍弃倒数第二个“-”后面的字符串，剩下的是deployment名称
-			deploymentByPodName = deploymentByPodName.substring(0, deploymentByPodName.lastIndexOf("-"));
-			//根据容器查询的判断pod名称前缀是不是服务名称deployment
-			if(!deployment.equals(deploymentByPodName)){
-				return false;
-			}
-			return true;
-		}
-	}
 }

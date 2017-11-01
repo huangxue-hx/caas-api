@@ -102,7 +102,7 @@ public class AuthController {
                 return ActionReturnUtil.returnErrorWithMsg("试用已结束，请联系管理员");
             }
         }
-        LdapConfigDto ldapConfigDto = this.systemConfigService.findByConfigType(CommonConstant.CONFIG_TYPE_LDAP);
+        LdapConfigDto ldapConfigDto = this.systemConfigService.findLdapConfig();
         String res = null;
         if(ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1) {
             res = this.authManager4Ldap.auth(username, password, ldapConfigDto);
