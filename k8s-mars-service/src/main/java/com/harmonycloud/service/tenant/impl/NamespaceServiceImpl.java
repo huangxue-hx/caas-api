@@ -2,6 +2,7 @@ package com.harmonycloud.service.tenant.impl;
 
 import static com.harmonycloud.common.enumm.RolebindingsEnum.DEV_RB;
 
+import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -161,8 +162,9 @@ public class NamespaceServiceImpl implements NamespaceService {
         } else {
             canCpu = Double.parseDouble(namespaceDto.getQuota().getCpu()) - Double.parseDouble(namespaceDto.getLastlastcpu());
         }
-        if (cpu != null && canCpu > 0 && (Double.parseDouble(cpu) - canCpu - cpuUse) < 0) {
-            return ActionReturnUtil.returnErrorWithMsg("cpu配额超过集群可使用配额,集群可使用配额为:" + (Double.parseDouble(cpu) - cpuUse) + "核");
+        ActionReturnUtil aDefault = checkResource(canCpu, cpu, cpuUse, "default");
+        if (aDefault != null){
+            return aDefault;
         }
         NumberFormat nf = NumberFormat.getNumberInstance();
         // 保留两位小数
@@ -176,8 +178,9 @@ public class NamespaceServiceImpl implements NamespaceService {
                 } else {
                     canMemory = (Double.parseDouble(splitMemory[0]) - Double.parseDouble(namespaceDto.getLastlastmemory())) * 1024;
                 }
-                if (canMemory > 0 && (Double.parseDouble(memory) - canMemory - memoryUse) < 0) {
-                    return ActionReturnUtil.returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((Double.parseDouble(memory) - memoryUse) / 1024) + "MB");
+                aDefault = checkResource(canMemory, memory, memoryUse, CommonConstant.MI);
+                if (aDefault != null){
+                    return aDefault;
                 }
             } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.GI)) {
                 String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.GI);
@@ -186,8 +189,9 @@ public class NamespaceServiceImpl implements NamespaceService {
                 } else {
                     canMemory = (Double.parseDouble(splitMemory[0]) - Double.parseDouble(namespaceDto.getLastlastmemory())) * 1024 * 1024;
                 }
-                if (canMemory > 0 && (Double.parseDouble(memory) - canMemory - memoryUse) < 0) {
-                    return ActionReturnUtil.returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((Double.parseDouble(memory) - memoryUse) / (1024 * 1024)) + "GB");
+                aDefault = checkResource(canMemory, memory, memoryUse, CommonConstant.GI);
+                if (aDefault != null){
+                    return aDefault;
                 }
             } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.TI)) {
                 String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.TI);
@@ -196,9 +200,9 @@ public class NamespaceServiceImpl implements NamespaceService {
                 } else {
                     canMemory = (Double.parseDouble(splitMemory[0]) - Double.parseDouble(namespaceDto.getLastlastmemory())) * 1024 * 1024 * 1024;
                 }
-                if (canMemory > 0 && (Double.parseDouble(memory) - canMemory - memoryUse) < 0) {
-                    return ActionReturnUtil
-                            .returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((Double.parseDouble(memory) - memoryUse) / (1024 * 1024 * 1024)) + "TB");
+                aDefault = checkResource(canMemory, memory, memoryUse, CommonConstant.TI);
+                if (aDefault != null){
+                    return aDefault;
                 }
             } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.PI)) {
                 String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.PI);
@@ -207,13 +211,39 @@ public class NamespaceServiceImpl implements NamespaceService {
                 } else {
                     canMemory = (Double.parseDouble(splitMemory[0]) - Double.parseDouble(namespaceDto.getLastlastmemory())) * 1024 * 1024 * 1024 * 1024;
                 }
-                if (canMemory > 0 && (Double.parseDouble(memory) - canMemory - memoryUse) < 0) {
-                    return ActionReturnUtil.returnErrorWithMsg(
-                            "memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((Double.parseDouble(memory) / 1024 / 1024 / 1024 / 1024 - memoryUse) / (1024 * 1024 * 1024 * 1024)) + "PB");
+                aDefault = checkResource(canMemory, memory, memoryUse, CommonConstant.PI);
+                if (aDefault != null){
+                    return aDefault;
                 }
             }
         }
         return ActionReturnUtil.returnSuccess();
+    }
+    //检查资源是否可用和主机资源保持算法一直
+    private ActionReturnUtil checkResource(double can,String resource,double use,String type) throws Exception {
+        NumberFormat nf = NumberFormat.getNumberInstance();
+        double fomatResource = new BigDecimal(resource).setScale(1, BigDecimal.ROUND_HALF_UP).doubleValue();
+        if (resource!=null && can > 0 && (fomatResource - can - use) < 0) {
+            if (Double.parseDouble(resource) - can - use > -0.1){
+                switch (type){
+                    case CommonConstant.MI:
+                        return ActionReturnUtil.returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((fomatResource - use) / 1024) + "MB");
+                    case CommonConstant.GI:
+                        return ActionReturnUtil.returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((fomatResource - use) / (1024 * 1024)) + "GB");
+                    case CommonConstant.TI:
+                        return ActionReturnUtil
+                                .returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((fomatResource - use) / (1024 * 1024 * 1024)) + "TB");
+                    case CommonConstant.PI:
+                        return ActionReturnUtil.returnErrorWithMsg(
+                                "memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((fomatResource / 1024 / 1024 / 1024 / 1024 - use) / (1024 * 1024 * 1024 * 1024)) + "PB");
+                    default:
+                        return ActionReturnUtil.returnErrorWithMsg("cpu配额超过集群可使用配额,集群可使用配额为:" + (fomatResource - use) + "核");
+                }
+
+            }
+
+        }
+        return null;
     }
     @Override
     public ActionReturnUtil createNamespace(NamespaceDto namespaceDto) throws Exception {

@@ -12,8 +12,10 @@ public class LogQuery{
     private String logDateStart;
     private String logDateEnd;
     private String namespace;
+    private String deployment;
     private String container;
     private String logDir;
+    private String pod;
     private String clusterId;
     /**
      * Elasticsearch分页id
@@ -108,5 +110,21 @@ public class LogQuery{
 
     public void setClusterId(String clusterId) {
         this.clusterId = clusterId;
+    }
+
+    public String getPod() {
+        return pod;
+    }
+
+    public void setPod(String pod) {
+        this.pod = pod;
+    }
+
+    public String getDeployment() {
+        return deployment;
+    }
+
+    public void setDeployment(String deployment) {
+        this.deployment = deployment;
     }
 }

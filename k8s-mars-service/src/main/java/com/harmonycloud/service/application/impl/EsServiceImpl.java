@@ -2,12 +2,15 @@ package com.harmonycloud.service.application.impl;
 
 import com.harmonycloud.common.enumm.EnumLogSeverity;
 import com.harmonycloud.common.enumm.EnumMonitorQuery;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.cluster.ClusterMapper;
 import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.EsService;
-import com.harmonycloud.service.platform.bean.ContainerLog;
+import com.harmonycloud.service.platform.bean.ContainerOfPodDetail;
 import com.harmonycloud.service.platform.bean.LogQuery;
+import com.harmonycloud.service.platform.bean.PodDetail;
 import com.harmonycloud.service.platform.bean.ProviderPlugin;
 import com.harmonycloud.service.platform.client.EsClient;
 import com.harmonycloud.service.platform.constant.Constant;
@@ -21,13 +24,19 @@ import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.bucket.terms.StringTerms;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms.Bucket;
+import org.elasticsearch.search.aggregations.bucket.terms.TermsBuilder;
 import org.elasticsearch.search.sort.SortOrder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
+import org.springframework.util.CollectionUtils;
 
 import javax.servlet.http.HttpSession;
 import java.text.SimpleDateFormat;
@@ -38,11 +47,17 @@ import java.util.*;
 public class EsServiceImpl implements EsService {
 
 	private static final int SEARCH_TIME = 60000;
+	private static Logger LOGGER = LoggerFactory.getLogger(EsServiceImpl.class);
 	@Autowired
 	private HttpSession session;
 
+	@Autowired
 	private ClusterMapper clusterMapper;
 
+	@Autowired
+	private DeploymentsService deploymentsService;
+
+	@Override
 	public ActionReturnUtil fileLog(LogQuery logQuery)
 			throws Exception {
 
@@ -60,9 +75,13 @@ public class EsServiceImpl implements EsService {
 		EsClient esClient = new EsClient(cluster);
 		TransportClient client = esClient.getEsClient();
 		if(StringUtils.isBlank(scrollId)){
-			Assert.hasText(logQuery.getContainer(),"container cannot be null");
-			Assert.hasText(logQuery.getNamespace(),"namespace cannot be null");
-			Assert.hasText(logQuery.getLogDir(),"logDir cannot be null");
+			if (StringUtils.isBlank(logQuery.getNamespace())) {
+				return ActionReturnUtil.returnErrorWithMsg("分区名不能为空");
+			}
+			if(StringUtils.isBlank(logQuery.getDeployment()) && StringUtils.isBlank(logQuery.getPod())
+					&& StringUtils.isBlank(logQuery.getContainer())){
+				return ActionReturnUtil.returnErrorWithData("服务名、pod名称和容器名称不能都为空");
+			}
 			SearchRequestBuilder searchRequestBuilder = this.getSearchRequestBuilder(client, logQuery);
 			scrollResp = searchRequestBuilder.setSize(logQuery.getPageSize()).execute().actionGet();
 			scrollId = scrollResp.getScrollId();
@@ -70,6 +89,11 @@ public class EsServiceImpl implements EsService {
 			scrollResp = client.prepareSearchScroll(scrollId).setScroll(new TimeValue(SEARCH_TIME)).execute().actionGet();
 		}
 		for (SearchHit it : scrollResp.getHits().getHits()) {
+			String podName = it.getSource().get("pod_name").toString();
+			if(!checkPodNameByDeployment(podName, logQuery.getDeployment())){
+				LOGGER.warn("容器对应的pod名称" + podName + "前缀非服务名称， 不是同一个服务下的容器");
+				continue;
+			}
 			log.append(it.getSource().get("message").toString() +"\n");
 		}
 		if(log.toString().length() == 0){
@@ -81,47 +105,42 @@ public class EsServiceImpl implements EsService {
 		data.put("totalHit", scrollResp.getHits().getTotalHits());
 	    return ActionReturnUtil.returnSuccessWithData(data);
 	}
-	
-	public ActionReturnUtil listfileName(String container, String namespace, String clusterId) throws Exception {
+
+	@Override
+	public ActionReturnUtil listfileName(String namespace, String deploymentName, String podName,
+										 String containerName, String clusterId) throws Exception {
 		TreeSet<String> logFileNames = new TreeSet<String>();
 		 //创建客户端
-		if (StringUtils.isEmpty(container)) {
-			return ActionReturnUtil.returnErrorWithMsg("container cannot be null");
+		if (StringUtils.isBlank(namespace)) {
+			return ActionReturnUtil.returnErrorWithMsg("分区名不能为空");
 		}
-
-		if (StringUtils.isEmpty(namespace)) {
-			return ActionReturnUtil.returnErrorWithMsg("namespace cannot be null");
+		if(StringUtils.isBlank(deploymentName) && StringUtils.isBlank(podName)
+				&& StringUtils.isBlank(containerName)){
+			return ActionReturnUtil.returnErrorWithData("服务名、pod名称和容器名称不能都为空");
 		}
-
 		Cluster cluster = null;
 		if(clusterId != null && !clusterId.equals("")) {
 			cluster = this.clusterMapper.findClusterById(clusterId);
 		} else {
 			cluster = (Cluster) session.getAttribute("currentCluster");
 		}
-
 		EsClient esClient = new EsClient(cluster);
 		Client client = esClient.getEsClient();
-		QueryBuilder queryBuilder = QueryBuilders.boolQuery().must(QueryBuilders.termQuery("container_name", container))
-									.must(QueryBuilders.termQuery("namespace_name", namespace));
-		SearchResponse scrollResp = null;
-
-		scrollResp = client.prepareSearch("logstash-*")
-			.addAggregation(AggregationBuilders.terms("logdir").field("logdir"))
-				.setScroll(new TimeValue(SEARCH_TIME))
-				.setQuery(queryBuilder).execute().actionGet();
-		if(scrollResp.getAggregations() == null){
-			return ActionReturnUtil.returnSuccessWithData(logFileNames);
-		}
-		Terms agg1 = scrollResp.getAggregations().get("logdir");
-		List<Bucket> buckets = agg1.getBuckets();
-		for (Bucket bucket : buckets) {
-			String name = bucket.getKey().toString();
-			logFileNames.add(name);
+		if(StringUtils.isBlank(containerName) && StringUtils.isBlank(podName)){
+			ActionReturnUtil containerRes = deploymentsService.deploymentContainer(namespace,deploymentName,cluster);
+			if(containerRes.isSuccess() && containerRes.get("data")!=null){
+				List<ContainerOfPodDetail> containers = (List<ContainerOfPodDetail>)containerRes.get("data");
+				for (ContainerOfPodDetail container : containers) {
+					logFileNames.addAll(this.listLogFileNames(namespace, deploymentName, null,container.getName(), client, true));
+				}
+			}
+		}else {
+			logFileNames.addAll(this.listLogFileNames(namespace, deploymentName, podName, containerName, client,false));
 		}
 		return ActionReturnUtil.returnSuccessWithData(logFileNames);
 	}
-	
+
+	@Override
 	public ActionReturnUtil getProcessLog(String rangeType, String processName, String node) throws Exception {
 		List<String> result = new ArrayList<String>();
 		try {
@@ -167,6 +186,121 @@ public class EsServiceImpl implements EsService {
 	}
 
 	/**
+	 * 查询指定pod或容器的日志文件名称列表
+	 * @param namespace
+	 * @param deployment
+	 * @param podName
+	 * @param containerName
+	 * @param client
+	 * @return
+	 * @throws MarsRuntimeException
+	 */
+	/*private TreeSet<String> listLogFileNames(String namespace, String deployment, String podName,
+											 String containerName, Client client){
+		if(StringUtils.isBlank(podName) && StringUtils.isBlank(containerName)){
+			throw new IllegalArgumentException("查询应用日志文件名称列表出错，pod名称和容器名称不能同时为空");
+		}
+		TreeSet<String> logFileNames = new TreeSet<String>();
+
+		BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery()
+				.must(QueryBuilders.termQuery("namespace_name", namespace));
+		if(StringUtils.isNotBlank(containerName)){
+			queryBuilder.must(QueryBuilders.termQuery("container_name", containerName));
+		}
+		if(StringUtils.isNotBlank(podName)){
+			queryBuilder.must(QueryBuilders.termQuery("pod_name", podName));
+		}else if(StringUtils.isNotBlank(deployment)){
+			queryBuilder.must(QueryBuilders.regexpQuery("pod_name", deployment + "-.*"));
+		}
+		SearchResponse scrollResp = null;
+		scrollResp = client.prepareSearch("logstash-*")
+				.addAggregation(AggregationBuilders.terms("logdir").field("logdir"))
+				.setScroll(new TimeValue(SEARCH_TIME))
+				.setQuery(queryBuilder).execute().actionGet();
+		if(scrollResp.getAggregations() == null){
+			return logFileNames;
+		}
+		Terms agg1 = scrollResp.getAggregations().get("logdir");
+		List<Bucket> buckets = agg1.getBuckets();
+		for (Bucket bucket : buckets) {
+			String name = bucket.getKey().toString();
+			logFileNames.add(name);
+		}
+		return logFileNames;
+	}*/
+
+
+	/**
+	 * 查询某个容器的日志文件名称列表，返回文件名称包含pod名称为前缀
+	 * @param namespace
+	 * @param deployment
+	 * @param containerName
+	 * @param client
+	 * @return
+	 */
+	private TreeSet<String> listLogFileNames(String namespace, String deployment, String podName,
+													String containerName, Client client, boolean withPodName){
+		TreeSet<String> logFileNames = new TreeSet<String>();
+		SearchResponse scrollResp = null;
+		BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery()
+				.must(QueryBuilders.termQuery("namespace_name", namespace));
+		if(StringUtils.isNotBlank(containerName)){
+			queryBuilder.must(QueryBuilders.termQuery("container_name", containerName));
+		}
+		if(StringUtils.isNotBlank(podName)){
+			queryBuilder.must(QueryBuilders.termQuery("pod_name", podName));
+			scrollResp = client.prepareSearch("logstash-*")
+					.addAggregation(AggregationBuilders.terms("logdir").field("logdir"))
+					.setScroll(new TimeValue(SEARCH_TIME))
+					.setQuery(queryBuilder).execute().actionGet();
+			if(scrollResp.getAggregations() == null){
+				return logFileNames;
+			}
+			Terms agg1 = scrollResp.getAggregations().get("logdir");
+			List<Bucket> buckets = agg1.getBuckets();
+			for (Bucket bucket : buckets) {
+				String name = bucket.getKey().toString();
+				logFileNames.add(name);
+			}
+			return logFileNames;
+		}
+		//pod名称为空，则容器名称不能为空
+		Assert.hasText(containerName);
+		TermsBuilder logDirTermsBuilder = AggregationBuilders.terms("logdir").field("logdir");
+		TermsBuilder podTermsBuilder = AggregationBuilders.terms("pod_name").field("pod_name");
+		podTermsBuilder.subAggregation(logDirTermsBuilder);
+		scrollResp = client.prepareSearch("logstash-*")
+				.addAggregation(podTermsBuilder)
+				.setScroll(new TimeValue(SEARCH_TIME))
+				.setQuery(queryBuilder).execute().actionGet();
+		if(scrollResp.getAggregations() == null){
+			return logFileNames;
+		}
+		Terms podTerms = scrollResp.getAggregations().get("pod_name");
+		List<Bucket> podBuckets = podTerms.getBuckets();
+		for (Bucket bucket : podBuckets) {
+			String bucketPodName = bucket.getKey().toString();
+			if(!checkPodNameByDeployment(bucketPodName, deployment)){
+				LOGGER.warn("容器对应的pod名称" + bucketPodName + "前缀非服务名称， 不是同一个服务下的容器");
+				continue;
+			}
+			Terms logDirTerms = bucket.getAggregations().get("logdir");
+			List<Bucket> logDirBuckets = logDirTerms.getBuckets();
+			for (Bucket dirBucket : logDirBuckets) {
+				String logDir = dirBucket.getKey().toString();
+				if(withPodName){
+					logFileNames.add(podName + "/" + logDir);
+				}else {
+					logFileNames.add(logDir);
+				}
+			}
+		}
+
+		return logFileNames;
+	}
+
+
+	/**
 	 * 根据查询条件设置SearchRequestBuilder
 	 * @param client
 	 * @param logQuery
@@ -178,10 +312,18 @@ public class EsServiceImpl implements EsService {
 				.to(logQuery.getLogDateEnd());
 		//日志时间范围查询设置
 		BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery()
-				.must(QueryBuilders.termQuery("container_name", logQuery.getContainer()))
-				.must(QueryBuilders.termQuery("namespace_name", logQuery.getNamespace()))
-				.must(QueryBuilders.termQuery("logdir", logQuery.getLogDir()));
-
+				.must(QueryBuilders.termQuery("namespace_name", logQuery.getNamespace()));
+		if(StringUtils.isNotBlank(logQuery.getContainer())){
+			queryBuilder.must(QueryBuilders.termQuery("container_name", logQuery.getContainer()));
+		}
+		if(StringUtils.isNotBlank(logQuery.getLogDir())){
+			queryBuilder.must(QueryBuilders.termQuery("logdir", logQuery.getLogDir()));
+		}
+		if(StringUtils.isNotBlank(logQuery.getPod())){
+			queryBuilder.must(QueryBuilders.termQuery("pod_name", logQuery.getPod()));
+		}else if(StringUtils.isNotBlank(logQuery.getDeployment())){
+			queryBuilder.must(QueryBuilders.regexpQuery("pod_name", logQuery.getDeployment() + "-.*"));
+		}
 		if(StringUtils.isNotBlank(logQuery.getSeverity()) && !logQuery.getSeverity().equalsIgnoreCase("All")){
 			//日志内容过滤 warn, error等信息
 			queryBuilder = queryBuilder.must(QueryBuilders.termQuery("message",
@@ -198,5 +340,23 @@ public class EsServiceImpl implements EsService {
 				.setPostFilter(postFilter)
 				.setQuery(queryBuilder);
 		return searchRequestBuilder;
+	}
+
+	private boolean checkPodNameByDeployment(String podName, String deployment) throws IllegalArgumentException{
+		String[] podNamePart = podName.split("-");
+		if(podNamePart.length <3){
+			LOGGER.error("pod name format is error for: " + podName);
+			throw new IllegalArgumentException("pod名称格式错误： " + podName);
+		}else{
+			//舍弃最后一个“-”后面的字符串
+			String deploymentByPodName = podName.substring(0, podName.lastIndexOf("-"));
+			//舍弃倒数第二个“-”后面的字符串，剩下的是deployment名称
+			deploymentByPodName = deploymentByPodName.substring(0, deploymentByPodName.lastIndexOf("-"));
+			//根据容器查询的判断pod名称前缀是不是服务名称deployment
+			if(!deployment.equals(deploymentByPodName)){
+				return false;
+			}
+			return true;
+		}
 	}
 }

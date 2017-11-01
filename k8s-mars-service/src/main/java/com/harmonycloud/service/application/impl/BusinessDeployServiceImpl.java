@@ -32,12 +32,11 @@ import com.harmonycloud.service.tenant.TenantService;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.collections.map.HashedMap;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
 import javax.servlet.http.HttpSession;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -151,7 +150,11 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
             List<Object> namespaceData = (List<Object>) namespaceService.getNamespaceListByTenantid(tenantId).get("data");
 
             for (Object oneNamespace : namespaceData ){
-                K8SClientResponse response = tprApplication.listApplicationByNamespace(oneNamespace.getClass().getName().toString(),null, null, HTTPMethod.GET, cluster);
+                String namespaceName = String.valueOf(((Map)oneNamespace).get("name"));
+                if(StringUtils.isBlank(namespaceName)){
+                    continue;
+                }
+                K8SClientResponse response = tprApplication.listApplicationByNamespace(namespaceName,null, null, HTTPMethod.GET, cluster);
                 if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
                     BaseResourceList  tpr = JsonUtil.jsonToPojo(response.getBody(), BaseResourceList.class);
                     if (tpr != null){
@@ -589,11 +592,10 @@ public class BusinessDeployServiceImpl implements BusinessDeployService {
                     for (CreateContainerDto c : svcTemplate.getDeploymentDetail().getContainers()) {
                         if (c.getStorage() != null) {
                             for (CreateVolumeDto pvc : c.getStorage()) {
+                                if(pvc == null){
+                                    continue;
+                                }
                                 if (pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())) {
-                                    if (StringUtils.isEmpty(pvc)) {
-                                        continue;
-                                    }
-
                                     ActionReturnUtil pvcres = volumeSerivce.createVolume(namespace, pvc.getPvcName(),
                                             pvc.getPvcCapacity(), pvc.getPvcTenantid(), pvc.getReadOnly(), pvc.getPvcBindOne(),
                                             pvc.getVolume(),svcTemplate.getDeploymentDetail().getName());

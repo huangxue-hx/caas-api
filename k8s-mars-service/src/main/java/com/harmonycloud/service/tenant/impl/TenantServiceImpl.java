@@ -669,17 +669,17 @@ public class TenantServiceImpl implements TenantService {
 //            return ActionReturnUtil.returnErrorWithMsg("用户:" + username + "不为管理员或者租户管理员，不能添加用户操作");
 //        }
         Cluster cluster = this.getClusterByTenantid(tenantid);
-        NamespaceList namespaceList = this.namespaceService1.getNamespacesListbyLabelSelector(label, cluster);
-        List<Namespace> items = namespaceList.getItems();
-        if (items.size() >= 1) {
+        List<String> k8sNamespaceList = tenantByTenantid.getK8sNamespaceList();
+//        NamespaceList namespaceList = this.namespaceService1.getNamespacesListbyLabelSelector(label, cluster);
+//        List<Namespace> items = namespaceList.getItems();
+        if (k8sNamespaceList.size() >= 1) {
             String[] user = username.split(CommonConstant.COMMA);
-            for (Namespace namespace : items) {
-                String name = namespace.getMetadata().getName();
+            for (String namespace : k8sNamespaceList) {
                 for (String u : user) {
-                    K8SClientResponse response = roleBindingService.addUserToRoleBinding(name, CommonConstant.DEV, u, cluster);
+                    K8SClientResponse response = roleBindingService.addUserToRoleBinding(namespace, CommonConstant.DEV, u, cluster);
                     if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                        logger.info("namespace: " + name + "赋权失败！", response.getBody());
-                        return ActionReturnUtil.returnErrorWithMsg("namespace: " + name + "赋权失败！错误消息：" + response.getBody());
+                        logger.info("namespace: " + namespace + "赋权失败！", response.getBody());
+                        return ActionReturnUtil.returnErrorWithMsg("namespace: " + namespace + "赋权失败！错误消息：" + response.getBody());
                     }
                 }
             }
@@ -824,16 +824,17 @@ public class TenantServiceImpl implements TenantService {
         if(currentUserName.equals(username)){
             return ActionReturnUtil.returnErrorWithMsg("租户管理员:" + currentUserName + "不能删除自己");
         }
-        List<UserTenant> userByTenantid = userTenantService.getUserByTenantid(tenantid);
-        NamespaceList namespaceList = this.namespaceService1.getNamespacesListbyLabelSelector(label, cluster);
-        List<Namespace> items = namespaceList.getItems();
-        if (items.size() >= 1) {
-            for (Namespace namespace : items) {
-                String name = namespace.getMetadata().getName();
-                K8SClientResponse response = roleBindingService.deleteUserFormRoleBinding(name, CommonConstant.DEV, username, cluster);
+//        List<UserTenant> userByTenantid = userTenantService.getUserByTenantid(tenantid);
+        List<String> k8sNamespaceList = tenantByTenantid.getK8sNamespaceList();
+//        NamespaceList namespaceList = this.namespaceService1.getNamespacesListbyLabelSelector(label, cluster);
+//        List<Namespace> items = namespaceList.getItems();
+        if (k8sNamespaceList.size() >= 1) {
+            for (String namespace : k8sNamespaceList) {
+//                String name = namespace.getMetadata().getName();
+                K8SClientResponse response = roleBindingService.deleteUserFormRoleBinding(namespace, CommonConstant.DEV, username, cluster);
                 if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                    logger.error("namespace: " + name + "更新rolebinding失败！" + response.getBody());
-                    return ActionReturnUtil.returnErrorWithMsg("namespace: " + name + "更新rolebinding失败！错误消息：" + response.getBody());
+                    logger.error("namespace: " + namespace + "更新rolebinding失败！" + response.getBody());
+                    return ActionReturnUtil.returnErrorWithMsg("namespace: " + namespace + "更新rolebinding失败！错误消息：" + response.getBody());
                 }
             }
         } else if (tenantByTenantid.getK8sNamespaceList().size() > 0) {

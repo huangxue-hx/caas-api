@@ -63,20 +63,32 @@ public class LogController {
 
     @ResponseBody
     @RequestMapping(value="/logfile/list", method= RequestMethod.GET)
-    public ActionReturnUtil listContainerFile(@RequestParam(value="container") String container,
-                                              @RequestParam(value="namespace", required=true) String namespace,
+    public ActionReturnUtil listDeploymentLogFile(@RequestParam(value="namespace") String namespace,
+                                              @RequestParam(value="deployment", required=false) String deploymentName,
+                                              @RequestParam(value="pod", required=false) String podName,
+                                              @RequestParam(value="container", required=false) String containerName,
                                               @RequestParam(value="clusterId", required=false) String clusterId) throws Exception{
 
         try {
-            logger.info("获取container的日志文件列表");
-            return esService.listfileName(container, namespace, clusterId);
+            logger.info("获取服务的日志文件列表");
+            return esService.listfileName(namespace,deploymentName,podName,containerName,clusterId);
         } catch (Exception e) {
-            logger.error("获取容器日志文件列表失败：namespace:{}", container,e);
+            logger.error("获取服务日志文件列表失败：deploymentName:{}", deploymentName, e);
             return ActionReturnUtil.returnErrorWithMsg(e.getMessage());
         }
 
     }
 
+    /**
+     * 调k8s api获取标准输出日志
+     * @param pod
+     * @param namespace
+     * @param container
+     * @param recentTimeNum
+     * @param recentTimeUnit
+     * @param clusterId
+     * @return
+     */
     @ResponseBody
     @RequestMapping(value="/container/logs", method= RequestMethod.GET)
     public ActionReturnUtil getPodAppLog(@RequestParam(value="pod") String pod,
@@ -111,14 +123,13 @@ public class LogController {
             logQuery.setScrollId(logQueryDto.getScrollId());
             return logQuery;
         }
-        Assert.notNull(logQueryDto,"query params cannot be null");
-        Assert.hasText(logQueryDto.getContainer(),"container cannot be null");
-        Assert.hasText(logQueryDto.getNamespace(),"namespace cannot be null");
-        Assert.hasText(logQueryDto.getLogDir(),"logDir cannot be null");
+        Assert.notNull(logQueryDto,"查询参数不能为空");
+        Assert.hasText(logQueryDto.getDeployment(),"服务名不能为空");
+        Assert.hasText(logQueryDto.getNamespace(),"分区不能为空");
         String fromDate = "";
         String toDate ="";
         if(logQueryDto.getRecentTimeNum() != null && logQueryDto.getRecentTimeNum() != 0){
-            Assert.hasText(logQueryDto.getRecentTimeUnit(),"recentTimeUnit cannot be null");
+            Assert.hasText(logQueryDto.getRecentTimeUnit(),"时间单位不能为空");
             SimpleDateFormat format = new SimpleDateFormat(DateStyle.YYYY_MM_DD_T_HH_MM_SS_0000.getValue());
             format.setTimeZone(TimeZone.getTimeZone("UTC"));
             Date current = new Date();
@@ -127,8 +138,8 @@ public class LogController {
             fromDate = format.format(from);
             toDate = format.format(current);
         }else {
-            Assert.hasText(logQueryDto.getLogTimeStart(),"LogTimeStart cannot be null");
-            Assert.hasText(logQueryDto.getLogTimeEnd(),"LogTimeEnd cannot be null");
+            Assert.hasText(logQueryDto.getLogTimeStart(),"查询时间开始时间不能为空");
+            Assert.hasText(logQueryDto.getLogTimeEnd(),"查询时间结束不能为空");
             //前端传过来的时间是标准时间UTC
             if(logQueryDto.getLogTimeStart().length()>20) {
                 fromDate = DateUtil.StringToString(logQueryDto.getLogTimeStart(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z_SSS,
@@ -142,6 +153,9 @@ public class LogController {
                 //cst时间
                 Date from = DateUtil.StringToDate(logQueryDto.getLogTimeStart(), DateStyle.YYYY_MM_DD_HH_MM_SS);
                 Date to = DateUtil.StringToDate(logQueryDto.getLogTimeEnd(), DateStyle.YYYY_MM_DD_HH_MM_SS);
+                if(from == null || to == null){
+                    throw new IllegalArgumentException("日期时间格式错误");
+                }
                 from = DateUtil.addHour(from, -8);
                 to = DateUtil.addHour(to, -8);
                 fromDate = DateUtil.DateToString(from, DateStyle.YYYY_MM_DD_T_HH_MM_SS_0000);

@@ -79,68 +79,114 @@ public class NodeServiceImpl implements NodeService {
         List<NodeDto> nodeDtoList = new ArrayList<>();
         if (nodeList != null && nodeList.getItems().size() > 0) {
             // 处理成为页面需要的值
-            List<Node> items = nodeList.getItems();
-            for (Node node : items) {
-                NodeDto nodeDto = new NodeDto();
-                nodeDto.setIp(node.getStatus().getAddresses().get(0).getAddress());
-                nodeDto.setName(node.getMetadata().getName());
-                nodeDto.setTime(node.getMetadata().getCreationTimestamp());
-                // if
-                // (node.getMetadata().getLabels().get(CommonConstant.CLUSTORROLE)
-                // != null) {
-                // nodeDto.setType("MasterNode");
-                // } else {
-                // nodeDto.setType("DataNode");
-                // }
+            List<Node> nodes = nodeList.getItems();
+            //对node进行排序　主机显示顺序： 主控-系统-共享-闲置
+            List<Node> items = new ArrayList<>();
+            List<Node> master = new ArrayList<>();
+            List<Node> system = new ArrayList<>();
+            List<Node> statusB = new ArrayList<>();
+            List<Node> statusC = new ArrayList<>();
+            List<Node> statusD = new ArrayList<>();
+
+            for (Node node : nodes) {
                 Map<String, Object> labels = node.getMetadata().getLabels();
+
                 if (labels.get(CommonConstant.MASTERNODELABEL) != null) {
-                    nodeDto.setType(CommonConstant.MASTERNODE);
-                    nodeDto.setNodeShareStatus("主控");
-                } else {
-                    nodeDto.setType(CommonConstant.DATANODE);
-                }
-                if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
-                    nodeDto.setNodeShareStatus("闲置");
-                } else if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
-                    nodeDto.setNodeShareStatus("共享");
-                } else if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_D)) {
-                    nodeDto.setNodeShareStatus("独占");
-                } else if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) != null
-                        && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_A)) {
-                    nodeDto.setNodeShareStatus("系统");
-                }
-                List<NodeCondition> conditions = node.getStatus().getConditions();
-                for (NodeCondition nodeCondition : conditions) {
-                    if (nodeCondition.getType().equals("Ready")) {
-                        nodeDto.setStatus(nodeCondition.getStatus());
-                        break;
-                    }
+                    master.add(node);
                 }
 
-                NodeDto dto = this.getHostUsege(node, nodeDto, cluster);
-                List<Object> list = new ArrayList<Object>();
-                // 显示主机标签
-                if (labels != null) {
-                    Set<Entry<String, Object>> entrySet = labels.entrySet();
-                    for (Entry<String, Object> entry : entrySet) {
-                        if (entry.getKey().contains("harmonycloud.cn")) {
-                            String key = entry.getKey();
-                            key = key.replaceAll("harmonycloud.cn/", "");
-                            if (list.size() > 0) {
-                                list.add("," + key + "=" + entry.getValue());
-                            } else {
-                                list.add(key + "=" + entry.getValue());
-                            }
-                        }
-                    }
+                if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
+                        && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_A)) {
+                    system.add(node);
                 }
-                dto.setCustomLabels(list);
-                nodeDtoList.add(dto);
+
+                if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
+                    statusB.add(node);
+                }
+
+                if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
+                    statusC.add(node);
+                }
+
+                if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_D)) {
+                    statusD.add(node);
+                }
+
             }
+            dealNodeStatus(master,cluster,nodeDtoList);
+            dealNodeStatus(system,cluster,nodeDtoList);
+            if (!statusB.isEmpty()){
+                dealNodeStatus(statusB,cluster,nodeDtoList);
+            }
+            if (!statusC.isEmpty()){
+                dealNodeStatus(statusC,cluster,nodeDtoList);
+            }
+            if (!statusD.isEmpty()){
+                dealNodeStatus(statusD,cluster,nodeDtoList);
+            }
+
         }
         return ActionReturnUtil.returnSuccessWithData(nodeDtoList);
     }
+    private  void dealNodeStatus(List<Node> items,Cluster cluster,List<NodeDto> nodeDtoList) throws Exception {
+        for (Node node : items) {
+            NodeDto nodeDto = new NodeDto();
+            nodeDto.setIp(node.getStatus().getAddresses().get(0).getAddress());
+            nodeDto.setName(node.getMetadata().getName());
+            nodeDto.setTime(node.getMetadata().getCreationTimestamp());
+            // if
+            // (node.getMetadata().getLabels().get(CommonConstant.CLUSTORROLE)
+            // != null) {
+            // nodeDto.setType("MasterNode");
+            // } else {
+            // nodeDto.setType("DataNode");
+            // }
+            Map<String, Object> labels = node.getMetadata().getLabels();
+            if (labels.get(CommonConstant.MASTERNODELABEL) != null) {
+                nodeDto.setType(CommonConstant.MASTERNODE);
+                nodeDto.setNodeShareStatus("主控");
+            } else {
+                nodeDto.setType(CommonConstant.DATANODE);
+            }
+            if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
+                nodeDto.setNodeShareStatus("闲置");
+            } else if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
+                nodeDto.setNodeShareStatus("共享");
+            } else if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_D)) {
+                nodeDto.setNodeShareStatus("独占");
+            } else if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) != null
+                    && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_A)) {
+                nodeDto.setNodeShareStatus("系统");
+            }
+            List<NodeCondition> conditions = node.getStatus().getConditions();
+            for (NodeCondition nodeCondition : conditions) {
+                if (nodeCondition.getType().equals("Ready")) {
+                    nodeDto.setStatus(nodeCondition.getStatus());
+                    break;
+                }
+            }
 
+            NodeDto dto = this.getHostUsege(node, nodeDto, cluster);
+            List<Object> list = new ArrayList<Object>();
+            // 显示主机标签
+            if (labels != null) {
+                Set<Entry<String, Object>> entrySet = labels.entrySet();
+                for (Entry<String, Object> entry : entrySet) {
+                    if (entry.getKey().contains("harmonycloud.cn")) {
+                        String key = entry.getKey();
+                        key = key.replaceAll("harmonycloud.cn/", "");
+                        if (list.size() > 0) {
+                            list.add("," + key + "=" + entry.getValue());
+                        } else {
+                            list.add(key + "=" + entry.getValue());
+                        }
+                    }
+                }
+            }
+            dto.setCustomLabels(list);
+            nodeDtoList.add(dto);
+        }
+    }
     @SuppressWarnings("unchecked")
     @Override
     public ActionReturnUtil getNodeDetail(String nodeName, Cluster cluster) throws Exception {

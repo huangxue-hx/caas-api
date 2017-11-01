@@ -61,7 +61,8 @@
         <if test="stageBuild.image!=null and stageBuild.image !=''">
         ,image=#{stageBuild.image}
         </if>
-        WHERE stage_order = #{stageBuild.stageOrder}
+        WHERE job_id = #{stageBuild.jobId}
+        AND stage_order = #{stageBuild.stageOrder}
         AND build_num = #{stageBuild.buildNum}
     </update>
 
