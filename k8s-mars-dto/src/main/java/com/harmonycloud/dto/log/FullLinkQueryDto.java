@@ -38,6 +38,8 @@ public class FullLinkQueryDto {
 
     private String url;
 
+    private String serverUrl;
+
     private String order;
 
     private String orderedField;
@@ -136,5 +138,13 @@ public class FullLinkQueryDto {
 
     public void setOrderedField(String orderedField) {
         this.orderedField = orderedField;
+    }
+
+    public String getServerUrl() {
+        return serverUrl;
+    }
+
+    public void setServerUrl(String serverUrl) {
+        this.serverUrl = serverUrl;
     }
 }

@@ -174,7 +174,9 @@ public class FullLinkLogServiceImpl implements FullLinkLogService{
 		params.put("top", queryDto.getTop()==null?DEFAULT_TRANSACTON_RECORD:queryDto.getTop());
 		if(StringUtils.isNotBlank(queryDto.getUrl())) {
 			params.put("url", queryDto.getUrl());
-			params.put("serverUrl", queryDto.getUrl());
+		}
+		if(StringUtils.isNotBlank(queryDto.getServerUrl())) {
+			params.put("serverUrl", queryDto.getServerUrl());
 		}
 		params.put("type","");
 		params.put("from",queryDto.getFromTime());

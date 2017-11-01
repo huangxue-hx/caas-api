@@ -89,7 +89,7 @@ public class FullLinkLogController {
     }
 
     @ResponseBody
-    @RequestMapping(value="/transactionTrace", method = RequestMethod.GET)
+    @RequestMapping(value="/transactionTrace", method = RequestMethod.POST)
     public ActionReturnUtil transactionTrace(@RequestParam(value="transactionId") String transactionId){
         try {
             return linkLogService.transactionTrace(transactionId);
@@ -102,7 +102,7 @@ public class FullLinkLogController {
     }
 
     @ResponseBody
-    @RequestMapping(value="/loginfo", method = RequestMethod.GET)
+    @RequestMapping(value="/loginfo", method = RequestMethod.POST)
     public ActionReturnUtil loginfo(
             @RequestParam(value="namespace") String namespace,
             @RequestParam(value="transactionId") String transactionId){

@@ -55,8 +55,10 @@ public class ApmHttpClient {
 
     public static boolean login() throws Exception {
 
+        if(httpClient != null){
+            httpClient.close();
+        }
         httpClient = HttpSslClientUtil.createHttpsClient();
-
         HttpPost httpPost = new HttpPost(loginUrl);
         Map<String, Object> params = new HashMap<String, Object>();
         params.put("userName", username);
