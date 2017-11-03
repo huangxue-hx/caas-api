@@ -5,6 +5,8 @@ import com.harmonycloud.dto.user.LdapConfigDto;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 
 @Service
 @Transactional(rollbackFor = Exception.class)
@@ -18,7 +20,9 @@ public interface SystemConfigService {
 
     void addLdapConfig(LdapConfigDto ldapConfigDto);
 
-    LdapConfigDto findByConfigType(String configType);
+    LdapConfigDto findLdapConfig();
+
+    List<SystemConfig> findByConfigType(String configType);
 
     SystemConfig findByConfigName(String configName);
 }

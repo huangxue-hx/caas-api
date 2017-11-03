@@ -61,7 +61,7 @@ public class SystemConfigController {
 	@RequestMapping(value = "/findLdap", method = RequestMethod.GET)
 	public ActionReturnUtil  findLdap(){
 		try {
-			LdapConfigDto ldapConfigDto = this.systemConfigService.findByConfigType(CommonConstant.CONFIG_TYPE_LDAP);
+			LdapConfigDto ldapConfigDto = this.systemConfigService.findLdapConfig();
 			if (StringUtils.isEmpty(ldapConfigDto)) {
 				return ActionReturnUtil.returnErrorWithMsg("获取Ldap配置失败");
 			}
