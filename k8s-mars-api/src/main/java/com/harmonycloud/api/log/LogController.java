@@ -55,7 +55,7 @@ public class LogController {
             return ActionReturnUtil.returnErrorWithData(ie.getMessage());
         }catch (Exception e) {
             logger.error("根据日志路径获取container日志失败：logQueryDto:{}",
-                    logQueryDto.toString(), e.getMessage());
+                    logQueryDto.toString(), e);
             return ActionReturnUtil.returnErrorWithData("未知异常");
         }
 
