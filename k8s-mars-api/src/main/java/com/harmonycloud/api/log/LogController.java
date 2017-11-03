@@ -49,7 +49,9 @@ public class LogController {
     public ActionReturnUtil searchContainerLog(@RequestBody LogQueryDto logQueryDto){
         try {
             logger.info("根据日志路径获取container日志, params: " + logQueryDto.toString());
-            return esService.fileLog(this.transLogQuery(logQueryDto));
+            LogQuery logQuery = this.transLogQuery(logQueryDto);
+            logQuery.setMathPhrase(true);
+            return esService.fileLog(logQuery);
         }catch (IllegalArgumentException ie) {
             logger.warn("根据日志路径获取container日志参数有误", ie);
             return ActionReturnUtil.returnErrorWithData(ie.getMessage());

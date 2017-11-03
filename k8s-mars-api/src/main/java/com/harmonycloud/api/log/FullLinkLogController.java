@@ -113,6 +113,7 @@ public class FullLinkLogController {
             LogQuery logQuery = new LogQuery();
             logQuery.setNamespace(namespace);
             logQuery.setPod(transactionId.substring(transactionId.indexOf("@")+1, transactionId.indexOf(":")));
+            logQuery.setMathPhrase(true);
             logQuery.setSearchWord(transactionId);
             ActionReturnUtil result = esService.fileLog(logQuery);
             return result;

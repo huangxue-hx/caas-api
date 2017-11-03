@@ -327,8 +327,13 @@ public class EsServiceImpl implements EsService {
 		}
 		if(StringUtils.isNotBlank(logQuery.getSearchWord())){
 			//日志内容关键字查询
-			queryBuilder = queryBuilder.must(QueryBuilders.matchQuery("message",
-					logQuery.getSearchWord()));
+			if(logQuery.isMathPhrase()){
+				queryBuilder = queryBuilder.must(QueryBuilders.matchPhraseQuery("message",
+						logQuery.getSearchWord()));
+			}else {
+				queryBuilder = queryBuilder.must(QueryBuilders.matchQuery("message",
+						logQuery.getSearchWord()));
+			}
 		}
 		SearchRequestBuilder searchRequestBuilder = client.prepareSearch("logstash-*")
 				.addSort("@timestamp", SortOrder.ASC)
