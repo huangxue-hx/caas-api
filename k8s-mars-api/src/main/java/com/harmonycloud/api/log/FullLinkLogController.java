@@ -107,6 +107,7 @@ public class FullLinkLogController {
             @RequestParam(value="namespace") String namespace,
             @RequestParam(value="deployment") String deployment,
             @RequestParam(value="size",required = false) Integer size,
+            @RequestParam(value="scrollId",required = false) String scrollId,
             @RequestParam(value="transactionId") String transactionId){
         try {
             if(transactionId.indexOf("@") == -1 || transactionId.indexOf(":") == -1){
@@ -119,6 +120,7 @@ public class FullLinkLogController {
             logQuery.setMathPhrase(true);
             logQuery.setSearchWord(transactionId);
             logQuery.setPageSize(size==null?20:size);
+            logQuery.setScrollId(scrollId);
             ActionReturnUtil result = esService.fileLog(logQuery);
             return result;
         }catch (Exception e) {

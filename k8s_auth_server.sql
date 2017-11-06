@@ -3249,10 +3249,10 @@ CREATE TABLE `system_config` (
 LOCK TABLES `system_config` WRITE;
 /*!40000 ALTER TABLE `system_config` DISABLE KEYS */;
 INSERT INTO `system_config` VALUES (40,'super_sale','1.0','system','admin','admin','2017-07-22 00:47:25','2017-08-12 14:48:03');
-INSERT INTO k8s_auth_server.`system_config`(config_name,config_value,config_type,create_user,update_user,create_time,update_time) VALUES ('apm_master_ip','','fulllink','admin','admin',now(),now());
-INSERT INTO k8s_auth_server.`system_config`(config_name,config_value,config_type,create_user,update_user,create_time,update_time) VALUES ('apm_http_url','https://apm.harmonycloud.cn','fulllink','admin','admin',now(),now());
-INSERT INTO k8s_auth_server.`system_config`(config_name,config_value,config_type,create_user,update_user,create_time,update_time) VALUES ('apm_username','hcapm','fulllink','admin','admin',now(),now());
-INSERT INTO k8s_auth_server.`system_config`(config_name,config_value,config_type,create_user,update_user,create_time,update_time) VALUES ('apm_password','1qaz@WSX','fulllink','admin','admin',now(),now());
+INSERT INTO k8s_auth_server.system_config(config_name, config_value,config_type,create_user,update_user,create_time,update_time) values('apm_master_ip', 'harmonycloud', 'fulllink', 'admin', 'admin', now(),now());
+INSERT INTO k8s_auth_server.system_config(config_name, config_value,config_type,create_user,update_user,create_time,update_time) values('apm_http_url', 'https://apm.harmonycloud.cn', 'fulllink', 'admin', 'admin', now(),now());
+INSERT INTO k8s_auth_server.system_config(config_name, config_value,config_type,create_user,update_user,create_time,update_time) values('apm_username', 'hcapm', 'fulllink', 'admin', 'admin', now(),now());
+INSERT INTO k8s_auth_server.system_config(config_name, config_value,config_type,create_user,update_user,create_time,update_time) values('apm_password', '1qaz@WSX', 'fulllink', 'admin', 'admin', now(),now());
 /*!40000 ALTER TABLE `system_config` ENABLE KEYS */;
 UNLOCK TABLES;
 
