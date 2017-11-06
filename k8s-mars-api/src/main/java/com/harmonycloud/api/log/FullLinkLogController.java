@@ -105,6 +105,8 @@ public class FullLinkLogController {
     @RequestMapping(value="/loginfo", method = RequestMethod.POST)
     public ActionReturnUtil loginfo(
             @RequestParam(value="namespace") String namespace,
+            @RequestParam(value="deployment") String deployment,
+            @RequestParam(value="size",required = false) Integer size,
             @RequestParam(value="transactionId") String transactionId){
         try {
             if(transactionId.indexOf("@") == -1 || transactionId.indexOf(":") == -1){
@@ -112,14 +114,16 @@ public class FullLinkLogController {
             }
             LogQuery logQuery = new LogQuery();
             logQuery.setNamespace(namespace);
+            logQuery.setDeployment(deployment);
             logQuery.setPod(transactionId.substring(transactionId.indexOf("@")+1, transactionId.indexOf(":")));
             logQuery.setMathPhrase(true);
             logQuery.setSearchWord(transactionId);
+            logQuery.setPageSize(size==null?20:size);
             ActionReturnUtil result = esService.fileLog(logQuery);
             return result;
         }catch (Exception e) {
             logger.error("获取全链路日志内容失败：transactionId:{}",
-                    transactionId, e.getMessage());
+                    transactionId, e);
             return ActionReturnUtil.returnErrorWithData("获取全链路日志内容失败");
         }
 

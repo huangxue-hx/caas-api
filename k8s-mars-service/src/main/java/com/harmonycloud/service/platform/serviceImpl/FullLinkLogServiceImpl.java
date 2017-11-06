@@ -88,18 +88,15 @@ public class FullLinkLogServiceImpl implements FullLinkLogService{
 						String name = podMap.get("name").toString();
 						if(name.indexOf("@") == -1 || name.indexOf(":") == -1){
 							LOGGER.error("agentId：{} 格式错误", name);
+							continue;
 						}
 						String podName = name.substring(name.indexOf("@")+1, name.indexOf(":"));
-						/*if(BizUtil.isPodWithDeployment(podName, queryDto.getDeployment())){
+						if(BizUtil.isPodWithDeployment(podName, queryDto.getDeployment())){
 							FullLinkPodDto podDto = new FullLinkPodDto();
 							podDto.setName(name);
 							podDto.setPodName(podName);
 							podListResult.add(podDto);
-						}*/
-						FullLinkPodDto fullLinkPodDto = new FullLinkPodDto();
-						fullLinkPodDto.setName(name);
-						fullLinkPodDto.setPodName(name);
-						podListResult.add(fullLinkPodDto);
+						}
 					}
 					return ActionReturnUtil.returnSuccessWithData(podListResult);
 				}
@@ -168,6 +165,7 @@ public class FullLinkLogServiceImpl implements FullLinkLogService{
 		if(StringUtils.isNotBlank(queryDto.getExceptionType())) {
 			params.put("exceptionType", queryDto.getExceptionType());
 		}
+		//params.put("exceptionType", "Exception");
 		if(queryDto.getStatusCode() != null) {
 			params.put("statusCode", queryDto.getStatusCode());
 		}
