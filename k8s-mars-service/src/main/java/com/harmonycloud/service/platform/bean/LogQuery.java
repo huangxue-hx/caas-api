@@ -32,6 +32,8 @@ public class LogQuery{
 
     private Integer pageSize;
 
+    private boolean mathPhrase;
+
     public String getNamespace() {
         return namespace;
     }
@@ -126,5 +128,13 @@ public class LogQuery{
 
     public void setDeployment(String deployment) {
         this.deployment = deployment;
+    }
+
+    public boolean isMathPhrase() {
+        return mathPhrase;
+    }
+
+    public void setMathPhrase(boolean mathPhrase) {
+        this.mathPhrase = mathPhrase;
     }
 }
