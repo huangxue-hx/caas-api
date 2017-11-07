@@ -91,6 +91,11 @@ public class FullLinkLogServiceImpl implements FullLinkLogService{
 							continue;
 						}
 						String podName = name.substring(name.indexOf("@")+1, name.indexOf(":"));
+						String[] podNamePart = podName.split("-");
+						if(podNamePart.length <3){
+							LOGGER.error("pod名称格式错误： " + podName);
+							continue;
+						}
 						if(BizUtil.isPodWithDeployment(podName, queryDto.getDeployment())){
 							FullLinkPodDto podDto = new FullLinkPodDto();
 							podDto.setName(name);
