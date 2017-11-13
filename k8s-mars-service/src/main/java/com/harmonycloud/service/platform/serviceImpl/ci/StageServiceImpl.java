@@ -379,6 +379,7 @@ public class StageServiceImpl implements StageService {
         Map dataModel = new HashMap();
         dataModel.put("harborHost", harborClient.getHost());
         List<StageDto> stageDtoList = new ArrayList<>();
+        List<StageDto> imageBuildStages = new ArrayList<>();
         Map<Integer, DockerFile> dockerFileMap = new HashedMap();
         for(Stage stage:stageList){
             StageDto newStageDto = new StageDto();
@@ -390,6 +391,8 @@ public class StageServiceImpl implements StageService {
                     DockerFile dockerFile = dockerFileMapper.selectDockerFile(dockerFileCondition);
                     dockerFile.setContent(StringEscapeUtils.escapeJava(dockerFile.getContent()));
                     dockerFileMap.put(stage.getStageOrder(), dockerFile);
+                    //把步骤类型为镜像构建的放到一个list里面
+                    imageBuildStages.add(newStageDto);
                 }
             }
             if(StageTemplateTypeEnum.CODECHECKOUT.ordinal() == newStageDto.getStageTemplateType()){
@@ -402,6 +405,7 @@ public class StageServiceImpl implements StageService {
         dataModel.put("job", job);
         dataModel.put("dockerFileMap", dockerFileMap);
         dataModel.put("stageList", stageDtoList);
+        dataModel.put("imageBuildStages", imageBuildStages);
         String script = null;
 
         try {
