@@ -774,7 +774,7 @@ public class RouterServiceImpl implements RouterService {
 				}
 			}
 		}
-		return ActionReturnUtil.returnSuccessWithData(false);
+		return ActionReturnUtil.returnErrorWithMsg("获取入口IP失败");
 	}
 
 	@Override
