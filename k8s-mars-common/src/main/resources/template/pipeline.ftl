@@ -50,8 +50,11 @@ podTemplate(
     nodeSelector: '',
     serviceAccount: '',
     volumes: [
-    <#list stageList as tmpStage><#if tmpStage.stageTemplateType == 1 && tmpStage.dockerfileType ==2>
-    configMapVolume(configMapName: '${tmpStage.dockerfileId}', mountPath: '/opt/dockerfile')<#if (stage.dependences?size>0)>,</#if></#if></#list>
+    <#if imageBuildStages?size !=0>
+        <#list imageBuildStages as tmpStage>
+        configMapVolume(configMapName: '${tmpStage.dockerfileId}', mountPath: '${"/opt/dockerfile"+tmpStage.id}')<#if (tmpStage_has_next || stage.dependences?size>0)>,</#if></#list>
+    </#if>
+
     <#list stage.dependences as dependence>
         nfsVolume(mountPath: '${dependence.mountPath!}', readOnly: false, serverAddress: '${dependence.server!}', serverPath: '${dependence.serverPath!}')<#if dependence_has_next>,</#if>
     </#list>
@@ -79,9 +82,9 @@ podTemplate(
             withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harbor', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']])
             { sh 'docker login ${harborHost!} --username=$USERNAME --password=$PASSWORD' }
             <#if stage.dockerfileType == 2>
-            sh "cp -r /opt/dockerfile ./dockerfile@tmp"
+            sh "cp -r ${'/opt/dockerfile'+stage.id} ./dockerfile@tmp${stage.id}"
             </#if>
-            sh "docker build <#if stage.dockerfileType == 1> -f ./${stage.dockerfilePath}</#if><#if stage.dockerfileType == 2> -f dockerfile@tmp/<#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if> -t ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!} ."
+            sh "docker build <#if stage.dockerfileType == 1> -f ./${stage.dockerfilePath}</#if><#if stage.dockerfileType == 2> -f dockerfile@tmp${stage.id}/<#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if> -t ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!} ."
             sh "docker push ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}"
             //}
             //withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harbor', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']])

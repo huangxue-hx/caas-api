@@ -172,7 +172,7 @@ public class RoleController {
 		List<Map<String, Object>> NewRolePrivilegeList = (List<Map<String, Object>>)map.get("rolePrivilegeList");
 		String roleName = (String)map.get("name");
 		String description = (String)map.get("description");
-		if(description==null||description.isEmpty()){
+		if(description == null || description.isEmpty()){
 			description=roleName;
 		}
 		Role roleByRoleName = roleService.getRoleByRoleName(roleName);

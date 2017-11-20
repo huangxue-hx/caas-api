@@ -5,10 +5,10 @@ package com.harmonycloud.common.enumm;
  */
 public enum RolebindingsEnum {
 
-    // TM_RB("tm-rb"),
-    // DEV_RB("dev-rb"),
-    // TESTER_RB("tester-rb"),;
-    DEV_RB("dev-rb");
+    TM_RB("tm-rb"),
+    DEV_RB("dev-rb"),
+    OPS_RB("ops-rb"),
+    TEST_RB("test-rb");
 
     private String name;
 

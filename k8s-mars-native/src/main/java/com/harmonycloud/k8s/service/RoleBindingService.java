@@ -5,6 +5,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.HarborProjectRoleEnum;
+import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.HttpStatusUtil;
+import com.harmonycloud.k8s.constant.Constant;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -127,7 +133,90 @@ public class RoleBindingService {
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys);
 		return response;
 	}
-	
+	public RoleBinding createRoleBinding(String name,String namespace,String tenantid,String tenantName,String role,Cluster cluster) throws Exception{
+		// 组装objectMeta
+		ObjectMeta objectMeta = new ObjectMeta();
+		objectMeta.setName(name);
+		objectMeta.setNamespace(namespace);
+		objectMeta.setAnnotations(generateRoleBindingAnnotations(null, null, null));
+		objectMeta.setLabels(generateRolebindingLabels(null, tenantName, tenantid));
+		// 组装objectReference
+		ObjectReference objectReference = new ObjectReference();
+		objectReference.setName(role);
+		objectReference.setKind(CommonConstant.CLUSTERROLE);
+		objectReference.setApiVersion(Constant.API_VERSION);
+
+		// 组装rolebinding
+		Map<String, Object> bodys = new HashMap<>();
+		bodys.put(CommonConstant.KIND, CommonConstant.ROLEBINDING);
+		bodys.put(CommonConstant.APIVERSION, Constant.API_VERSION);
+		bodys.put(CommonConstant.METADATA, objectMeta);
+		bodys.put(CommonConstant.SUBJECTS, generateSubjects(null));
+		bodys.put(CommonConstant.ROLEREF, objectReference);
+		Map<String, Object> headers = new HashMap<>();
+		headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
+		// 调用k8s接口生成rolebinding
+		K8SClientResponse k8SClientResponse = this.create(namespace, headers, bodys, cluster);
+		if (!HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
+			throw new MarsRuntimeException(k8SClientResponse.getBody());
+		}
+		RoleBinding r = K8SClient.converToBean(k8SClientResponse, RoleBinding.class);
+		return r;
+	}
+	private Map<String, Object> generateRolebindingLabels(List<String> users, String tenantName, String tenantId) throws Exception {
+
+		Map<String, Object> rolebindingLables = new HashMap<>();
+
+		if (null != users) {
+			for (String user : users) {
+				rolebindingLables.put("nephele_user_" + user, user);
+			}
+		}
+		rolebindingLables.put("nephele_tenant_" + tenantName, tenantName);
+		rolebindingLables.put("nephele_tenantid_" + tenantId, tenantId);
+
+		return rolebindingLables;
+	}
+	private Map<String, Object> generateRoleBindingAnnotations(String projectId, String role, String userId) throws Exception {
+
+		Map<String, Object> annotations = new HashMap<>();
+
+		// harbor projectId
+		if (!StringUtils.isEmpty(projectId)) {
+			annotations.put(CommonConstant.PROJECTID, projectId);
+		}
+
+		if (!StringUtils.isEmpty(role)) {
+
+			if (role.equals(HarborProjectRoleEnum.DEV.getRole())) {
+				annotations.put(CommonConstant.PROJECT, projectId);
+				annotations.put(CommonConstant.VERBS, 2);
+			}
+			if (role.equals(HarborProjectRoleEnum.WATCHER.getRole())) {
+				annotations.put(CommonConstant.PROJECT, projectId);
+				annotations.put(CommonConstant.VERBS, 3);
+			}
+		}
+
+		annotations.put(CommonConstant.USERID, userId == null ? "" : userId);
+		return annotations;
+
+	}
+
+	private List<Subjects> generateSubjects(List<String> users) throws Exception {
+		List<Subjects> subjectsList = new ArrayList<>();
+
+		if (null != users) {
+			for (String user : users) {
+				Subjects subjects = new Subjects();
+				subjects.setKind("User");
+				subjects.setName(user);
+				subjectsList.add(subjects);
+			}
+		}
+
+		return subjectsList;
+	}
 	/**
 	 * 新增用户到该namespace下的RoleBinding
 	 * 
@@ -135,15 +224,20 @@ public class RoleBindingService {
 	 * @param role
 	 *            eg:pm-rb
 	 * @param username
-	 *            用户名 eg:zhangsan
+	 *            用户名 eg:zgl
 	 * @return
 	 */
-	public K8SClientResponse addUserToRoleBinding(String namespace, String role, String username,Cluster cluster) throws Exception{
+	public K8SClientResponse addUserToRoleBinding(String namespace, String role, String username,Cluster cluster,String tenantid) throws Exception{
 		if (!role.endsWith("-rb")) {
-			role = role + "-rb";
+				role = role + "-rb";
 		}
 		// 查询该rolebinding
 		RoleBinding roleBinding = this.getNamespacesRolebindings(namespace, role,cluster);
+		// 为空是新角色,则重新创建
+		if (roleBinding == null){
+			String tenantname = namespace.split(CommonConstant.LINE)[0];
+			roleBinding = this.createRoleBinding(role, namespace, tenantid, tenantname, role.split("-rb")[0], cluster);
+		}
 		// 更新rolebinding
 		String apiVersion = roleBinding.getApiVersion();
 		ObjectMeta objectMeta = roleBinding.getMetadata();
@@ -223,6 +317,7 @@ public class RoleBindingService {
 				break;
 			}
 		}
+
 		Map<String, Object> bodys = new HashMap<>();
 		bodys.put("metadata", objectMeta);
 		bodys.put("roleRef", objectReference);
@@ -311,7 +406,13 @@ public class RoleBindingService {
 		}
 		return saveRoleBindings;
 	}
-	
+	//多集群使用
+	public K8SClientResponse deleteRolebings(String namespace, String name,Cluster cluster) throws Exception {
+		K8SURL url = new K8SURL();
+		url.setResource(Resource.ROLEBINDING).setName(name).setNamespace(namespace);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, null,cluster);
+		return response;
+	}
 	public K8SClientResponse deleteRolebings(String namespace, String name) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setResource(Resource.ROLEBINDING).setName(name).setNamespace(namespace);
