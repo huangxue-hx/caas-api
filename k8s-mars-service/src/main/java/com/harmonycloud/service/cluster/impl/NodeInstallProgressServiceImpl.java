@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.cluster.ClusterMapper;
 import com.harmonycloud.dao.cluster.NodeInstallProgressMapper;
 import com.harmonycloud.dao.cluster.bean.NodeInstallProgress;
 import com.harmonycloud.dao.cluster.bean.NodeInstallProgressExample;
@@ -25,7 +24,7 @@ public class NodeInstallProgressServiceImpl implements NodeInstallProgressServic
 
     @Override
     public ActionReturnUtil updateNodeInLineInfo(NodeInstallProgress nodeInstallProgress) throws Exception {
-        nodeInstallProgressMapper.updateByPrimaryKeySelective(nodeInstallProgress);
+        nodeInstallProgressMapper.updateByPrimaryKey(nodeInstallProgress);
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -51,7 +50,7 @@ public class NodeInstallProgressServiceImpl implements NodeInstallProgressServic
     @Override
     public List<NodeInstallProgress> getNodeInLineInfoByInstallStatusAndClusterId(String installStatus, String clusterId) throws Exception {
         NodeInstallProgressExample example = new NodeInstallProgressExample();
-        example.createCriteria().andInstallStatusEqualTo(installStatus).andClusterIdEqualTo(Integer.parseInt(clusterId));
+        example.createCriteria().andInstallStatusEqualTo(installStatus).andClusterIdEqualTo(clusterId);
         List<NodeInstallProgress> list = nodeInstallProgressMapper.selectByExample(example);
         return list;
     }

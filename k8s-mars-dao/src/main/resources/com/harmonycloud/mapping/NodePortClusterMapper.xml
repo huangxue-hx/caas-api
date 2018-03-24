@@ -3,7 +3,7 @@
 <mapper namespace="com.harmonycloud.dao.application.NodePortClusterMapper" >
   <resultMap id="BaseResultMap" type="com.harmonycloud.dao.application.bean.NodePortCluster" >
     <result column="nodeportId" property="nodeportid" jdbcType="INTEGER" />
-    <result column="clusterId" property="clusterid" jdbcType="INTEGER" />
+    <result column="clusterId" property="clusterId" jdbcType="VARCHAR" />
     <result column="status" property="status" jdbcType="INTEGER" />
   </resultMap>
   <sql id="Example_Where_Clause" >
@@ -62,7 +62,7 @@
   <insert id="insert" parameterType="com.harmonycloud.dao.application.bean.NodePortCluster" >
     insert into nodeport_cluster (nodeportId, clusterId, status
       )
-    values (#{nodeportid,jdbcType=INTEGER}, #{clusterid,jdbcType=INTEGER}, #{status,jdbcType=INTEGER}
+    values (#{nodeportid,jdbcType=INTEGER}, #{clusterId,jdbcType=VARCHAR}, #{status,jdbcType=INTEGER}
       )
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.application.bean.NodePortCluster" >
@@ -71,7 +71,7 @@
       <if test="nodeportid != null" >
         nodeportId,
       </if>
-      <if test="clusterid != null" >
+      <if test="clusterId != null" >
         clusterId,
       </if>
       <if test="status != null" >
@@ -82,8 +82,8 @@
       <if test="nodeportid != null" >
         #{nodeportid,jdbcType=INTEGER},
       </if>
-      <if test="clusterid != null" >
-        #{clusterid,jdbcType=INTEGER},
+      <if test="clusterId != null" >
+        #{clusterId,jdbcType=VARCHAR},
       </if>
       <if test="status != null" >
         #{status,jdbcType=INTEGER},
@@ -93,11 +93,11 @@
   <update id="updateNodePortCluster" parameterType="com.harmonycloud.dao.application.bean.NodePortCluster" >
     update nodeport_cluster
     set status = #{status,jdbcType=INTEGER}
-    where nodeportId = #{nodeportid,jdbcType=INTEGER} and clusterId = #{clusterid,jdbcType=INTEGER}
+    where nodeportId = #{nodeportid,jdbcType=INTEGER} and clusterId = #{clusterId,jdbcType=VARCHAR}
   </update>
   <update id="updateNodePortClusterbynodeportid" parameterType="com.harmonycloud.dao.application.bean.NodePortCluster" >
     update nodeport_cluster
     set nodeportId = #{unodeport,jdbcType=INTEGER}
-    where nodeportId = #{nodeportid,jdbcType=INTEGER} and clusterId = #{clusterid,jdbcType=INTEGER}
+    where nodeportId = #{nodeportid,jdbcType=INTEGER} and clusterId = #{clusterId,jdbcType=VARCHAR}
   </update>
 </mapper>

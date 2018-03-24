@@ -4,7 +4,7 @@ import javax.servlet.http.HttpSession;
 
 import org.apache.commons.fileupload.ProgressListener;
 
-import com.harmonycloud.dto.business.Progress;
+import com.harmonycloud.dto.application.Progress;
 
 public class FileUploadProgressListener implements ProgressListener {
 	

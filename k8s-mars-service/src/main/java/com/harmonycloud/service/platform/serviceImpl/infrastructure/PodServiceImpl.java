@@ -1,27 +1,32 @@
 package com.harmonycloud.service.platform.serviceImpl.infrastructure;
 
-import java.util.ArrayList;
-import java.util.List;
-
+import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
-import com.harmonycloud.k8s.bean.ContainerStatus;
+import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.k8s.bean.*;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
+import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
+import com.harmonycloud.k8s.service.EventService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.KubeModuleStatus;
+import com.harmonycloud.service.platform.bean.PodDto;
+import com.harmonycloud.service.platform.convert.K8sResultConvert;
+import com.harmonycloud.service.platform.service.PodService;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import com.harmonycloud.k8s.bean.Pod;
-import com.harmonycloud.k8s.bean.PodList;
-import com.harmonycloud.service.platform.bean.PodDto;
-import com.harmonycloud.service.platform.service.PodService;
 import org.springframework.util.CollectionUtils;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class PodServiceImpl implements PodService {
@@ -31,11 +36,14 @@ public class PodServiceImpl implements PodService {
 	@Autowired
 	ClusterService clusterService;
 
+	@Autowired
+	private EventService eventService;
+
 	@Override
-	public List<Object> PodList(String nodeName,Cluster cluster) {
-		PodList listPods = this.podService.listPods(cluster);
+	public List<PodDto> PodList(String nodeName,Cluster cluster) {
+		PodList listPods = this.podService.listPods(cluster,nodeName);
 		// 处理为页面需要的数据
-		List<Object> podDtos = new ArrayList<>();
+		List<PodDto> podDtos = new ArrayList<>();
 		if (listPods != null) {
 			List<Pod> items = listPods.getItems();
 			for (Pod pod : items) {
@@ -46,6 +54,9 @@ public class PodServiceImpl implements PodService {
 					podDto.setNamespace(pod.getMetadata().getNamespace());
 					podDto.setStartTime(pod.getMetadata().getCreationTimestamp());
 					podDto.setStatus(pod.getStatus().getPhase());
+					if(!CollectionUtils.isEmpty(pod.getMetadata().getOwnerReferences())){
+						podDto.setOwnerReferenceKind(pod.getMetadata().getOwnerReferences().get(0).getKind());
+					}
 					podDtos.add(podDto);
 				}
 			}
@@ -77,6 +88,9 @@ public class PodServiceImpl implements PodService {
 					podDto.setNamespace(pod.getMetadata().getNamespace());
 					podDto.setStartTime(pod.getMetadata().getCreationTimestamp());
 					podDto.setStatus(pod.getStatus().getPhase());
+					if (StringUtils.isNotBlank(pod.getMetadata().getDeletionTimestamp())) {
+						podDto.setStatus(com.harmonycloud.service.platform.constant.Constant.TERMINATED);
+					}
 					podDto.setNodeName(pod.getSpec().getNodeName());
 					podDtos.add(podDto);
 				}
@@ -102,6 +116,9 @@ public class PodServiceImpl implements PodService {
 				List<Pod> items = podList.getItems();
 				for (Pod pod : items) {
 					List<ContainerStatus> containerStatuses = pod.getStatus().getContainerStatuses();
+					if(containerStatuses == null){
+						continue;
+					}
 					for(ContainerStatus containerStatus : containerStatuses){
 						KubeModuleStatus kubeModuleStatus = new KubeModuleStatus();
 						kubeModuleStatus.setCluster(cluster.getName());
@@ -129,5 +146,24 @@ public class PodServiceImpl implements PodService {
 		return kubeModuleStatuses;
 	}
 
+	@Override
+	public  Map<String, Object> getPodDetail(String namespace, String name, Cluster cluster) throws Exception {
+		K8SClientResponse response = podService.getSpecifyPod(namespace, name, null, null, HTTPMethod.GET, cluster);
+		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+			return ActionReturnUtil.returnErrorWithData(response.getBody());
+		}
+		Pod pod = JsonUtil.jsonToPojo(response.getBody(), Pod.class);
+
+		// 获取事件
+		Map<String, Object> bodys = new HashMap<String, Object>();
+		bodys.put("fieldSelector", "involvedObject.uid=" + pod.getMetadata().getUid());
+		K8SClientResponse evResponse = eventService.doEventByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
+		if (!HttpStatusUtil.isSuccessStatus(evResponse.getStatus())) {
+			return ActionReturnUtil.returnErrorWithData(evResponse.getBody());
+		}
+		EventList eventList = JsonUtil.jsonToPojo(evResponse.getBody(), EventList.class);
+		List<Event> events = eventList.getItems();
+		return K8sResultConvert.convertAppPod(pod, events);
+	}
 
 }

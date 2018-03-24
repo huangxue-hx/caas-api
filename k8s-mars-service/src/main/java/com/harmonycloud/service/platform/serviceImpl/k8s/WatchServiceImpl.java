@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.Event;
 import com.harmonycloud.k8s.bean.PodList;
 import com.harmonycloud.k8s.client.K8SClient;
@@ -43,8 +43,9 @@ public class WatchServiceImpl implements WatchService{
 	public boolean watch(Map<String, String> field, String kind, String resourceVersion, String userName, Cluster cluster) throws Exception {
 		
 		//判断kind是否为空
+		String resourceKind = kind;
 		if (StringUtils.isEmpty(kind) && StringUtils.isBlank(kind)) {
-			kind = "events";
+			resourceKind = "events";
 		}
 		//获取token
 		String token = String.valueOf(K8SClient.tokenMap.get(userName));
@@ -53,7 +54,7 @@ public class WatchServiceImpl implements WatchService{
 		
 		String name = field.get("involvedObject.name");
 		String namespace = field.get("involvedObject.namespace");
-		if (checkDuplicate(name, namespace, kind)) {
+		if (checkDuplicate(name, namespace, resourceKind)) {
 			String rv = getLatestVersion(namespace,headers, cluster);
 			Map<String, Object> body = new HashMap<String, Object>();
 			String selector = "";

@@ -11,6 +11,10 @@ public class DockerFile  implements Serializable{
 
     private String tenant;
 
+    private String projectId;
+
+    private String clusterId;
+
     private String content;
 
     private Date createTime;
@@ -39,6 +43,22 @@ public class DockerFile  implements Serializable{
 
     public void setTenant(String tenant) {
         this.tenant = tenant;
+    }
+
+    public String getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
+    }
+
+    public String getClusterId() {
+        return clusterId;
+    }
+
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
     }
 
     public String getContent() {

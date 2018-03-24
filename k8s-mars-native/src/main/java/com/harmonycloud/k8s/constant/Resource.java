@@ -56,13 +56,23 @@ public class Resource {
 
 	public final static String ENDPOINT = "endpoints";
 
-	public final static String EXTERNALNAMESPACE = "external";
+//	public final static String EXTERNALNAMESPACE = "external";
 	
 	public final static String CRONJOB = "cronjobs";
 	
 	public final static String JOB = "jobs";
 
 	public final static String APP = "appapps";
+
+
+	public final static String DAEMONTSET = "daemonsets";
+
+	public final static String CLUSTER = "clusters";
+
+	public final static String CLUSTERTEMPLATE = "clustertemplates";
+
+	public final static String CLUSTERBASE = "clusterbases";
+
 	
 	/**
 	 * 根据resource获取apigroup
@@ -73,7 +83,7 @@ public class Resource {
 		String group = "";
 		switch (resource) {
 		case com.harmonycloud.k8s.constant.Resource.ENDPOINT:
-		case com.harmonycloud.k8s.constant.Resource.EXTERNALNAMESPACE:
+//		case com.harmonycloud.k8s.constant.Resource.EXTERNALNAMESPACE:
 		case com.harmonycloud.k8s.constant.Resource.POD:
 		case com.harmonycloud.k8s.constant.Resource.REPLICATIONCONTROLLER:
 		case com.harmonycloud.k8s.constant.Resource.SERVICE:
@@ -92,16 +102,21 @@ public class Resource {
 		case com.harmonycloud.k8s.constant.Resource.CLUSTERROLE:
 		case com.harmonycloud.k8s.constant.Resource.CLUSTERROLEBINDING:
 		case com.harmonycloud.k8s.constant.Resource.ROLEBINDING:
-			group = APIGroup.APIS_RBAC_VERSION_V1ALPHA1;
+			group = APIGroup.APIS_RBAC_VERSION_V1;
 			break;
 		case com.harmonycloud.k8s.constant.Resource.DEPLOYMENT:
-		case com.harmonycloud.k8s.constant.Resource.INGRESS:
-		case com.harmonycloud.k8s.constant.Resource.NETWORKPOLICY:	
+		case Resource.DAEMONTSET:
 		case com.harmonycloud.k8s.constant.Resource.REPLICASET:
-			group = APIGroup.APIS_EXTENTIONS_V1BETA1_VERSION;
+			group = APIGroup.APIS_APPS_V1;
+			break;
+		case com.harmonycloud.k8s.constant.Resource.INGRESS:
+			group= APIGroup.APIS_EXTENSIONS_V1BETA1_VERSION;
 			break;
 		case com.harmonycloud.k8s.constant.Resource.HORIZONTALPODAUTOSCALER:
 			group = APIGroup.APIS_AUTOSCALING_VERSION;
+			break;
+		case com.harmonycloud.k8s.constant.Resource.NETWORKPOLICY:
+			group = APIGroup.APIS_NETWORKING_VERSION;
 			break;
 		case Resource.COMPLEXPODSCALER:
 			group = APIGroup.APIS_HARMONYCLOUD;
@@ -120,7 +135,14 @@ public class Resource {
 			group = APIGroup.APIS_BATCH_V1_VERSION;
 			break;
 
-			case com.harmonycloud.k8s.constant.Resource.APP:
+		case Resource.CLUSTERBASE:
+		case com.harmonycloud.k8s.constant.Resource.APP:
+			group = APIGroup.APIS_HARMONYCLOUD;
+			break;
+			case Resource.CLUSTER:
+				group = APIGroup.APIS_HARMONYCLOUD;
+				break;
+			case Resource.CLUSTERTEMPLATE:
 				group = APIGroup.APIS_HARMONYCLOUD;
 				break;
 

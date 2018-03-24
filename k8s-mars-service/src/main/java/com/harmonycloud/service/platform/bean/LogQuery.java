@@ -34,6 +34,8 @@ public class LogQuery{
 
     private boolean mathPhrase;
 
+    private String[] indexes;
+
     public String getNamespace() {
         return namespace;
     }
@@ -136,5 +138,13 @@ public class LogQuery{
 
     public void setMathPhrase(boolean mathPhrase) {
         this.mathPhrase = mathPhrase;
+    }
+
+    public String[] getIndexes() {
+        return indexes;
+    }
+
+    public void setIndexes(String[] indexes) {
+        this.indexes = indexes;
     }
 }

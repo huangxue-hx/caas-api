@@ -2,6 +2,8 @@ package com.harmonycloud.k8s.bean;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+import java.util.List;
+
 /**
  * @author qg
  *
@@ -14,10 +16,21 @@ public class HorizontalPodAutoscalerSpec {
 	private Integer minReplicas;
 	
 	private Integer maxReplicas;
+
+	private List<MetricSpec> metrics;
 	
-	private CPUTargetUtilization cpuUtilization;
-	
-	private Integer targetCPUUtilizationPercentage;
+//	private CPUTargetUtilization cpuUtilization;
+//
+//	private Integer targetCPUUtilizationPercentage;
+
+
+	public CrossVersionObjectReference getScaleTargetRef() {
+		return scaleTargetRef;
+	}
+
+	public void setScaleTargetRef(CrossVersionObjectReference scaleTargetRef) {
+		this.scaleTargetRef = scaleTargetRef;
+	}
 
 	public Integer getMinReplicas() {
 		return minReplicas;
@@ -35,29 +48,11 @@ public class HorizontalPodAutoscalerSpec {
 		this.maxReplicas = maxReplicas;
 	}
 
-	public CPUTargetUtilization getCpuUtilization() {
-		return cpuUtilization;
+	public List<MetricSpec> getMetrics() {
+		return metrics;
 	}
 
-	public void setCpuUtilization(CPUTargetUtilization cpuUtilization) {
-		this.cpuUtilization = cpuUtilization;
+	public void setMetrics(List<MetricSpec> metrics) {
+		this.metrics = metrics;
 	}
-
-	public Integer getTargetCPUUtilizationPercentage() {
-		return targetCPUUtilizationPercentage;
-	}
-
-	public void setTargetCPUUtilizationPercentage(Integer targetCPUUtilizationPercentage) {
-		this.targetCPUUtilizationPercentage = targetCPUUtilizationPercentage;
-	}
-
-	public CrossVersionObjectReference getScaleTargetRef() {
-		return scaleTargetRef;
-	}
-
-	public void setScaleTargetRef(CrossVersionObjectReference scaleTargetRef) {
-		this.scaleTargetRef = scaleTargetRef;
-	}
-	
-	
 }

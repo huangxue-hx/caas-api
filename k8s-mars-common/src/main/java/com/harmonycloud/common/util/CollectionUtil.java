@@ -1,5 +1,7 @@
 package com.harmonycloud.common.util;
 
+import org.springframework.util.CollectionUtils;
+
 import java.beans.BeanInfo;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
@@ -62,4 +64,31 @@ public class CollectionUtil {
 		}
 		return map;
 	}
+
+	public static String listToString(List<String> lists){
+		if(CollectionUtils.isEmpty(lists)){
+			return null;
+		}
+		String result = "";
+		for(String str : lists){
+			result += str + ",";
+		}
+		return result.substring(0,result.length()-1);
+
+	}
+
+	/**
+	 * 返回指定长度的list
+	 * @return
+	 */
+	public static List limitCount(List list, int count){
+         if(CollectionUtils.isEmpty(list)){
+         	return list;
+		 }
+		 if(list.size() <= count){
+         	return list;
+		 }
+		 return list.subList(0,count);
+	}
+
 }

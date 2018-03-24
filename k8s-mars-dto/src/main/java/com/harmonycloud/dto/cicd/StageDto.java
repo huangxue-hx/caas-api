@@ -1,7 +1,9 @@
 package com.harmonycloud.dto.cicd;
 
+import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.ci.bean.Stage;
+import com.harmonycloud.dto.application.CreateConfigMapDto;
 import com.harmonycloud.dto.cicd.sonar.ConditionDto;
 import org.springframework.beans.BeanUtils;
 
@@ -28,6 +30,8 @@ public class StageDto {
     private String repositoryBranch;
     private String credentialsUsername;
     private String credentialsPassword;
+    private boolean environmentChange;
+    private Integer buildEnvironmentId;
     private String buildEnvironment;
     private List<Map<String, Object>> environmentVariables;
     private boolean useDependency;
@@ -36,16 +40,27 @@ public class StageDto {
     private String baseImage;
     private Integer dockerfileId;
     private String dockerfilePath;
+    private Integer imageType;
     private String imageName;
     private String imageTagType;
     private String imageBaseTag;
     private String imageIncreaseTag;
     private String imageTag;
     private String harborProject;
+    private String deployType;
     private String namespace;
+    private Integer originJobId;
+    private Integer originStageId;
+    private String serviceTemplateName;
+    private String serviceTemplateTag;
     private String serviceName;
     private String containerName;
+    private List<CreateConfigMapDto> configMaps;
+    private Integer maxSurge;
+    private Integer maxUnavailable;
+    private Integer instances;
     private List command;
+    private String suiteId;
     private Date createTime;
     private Date updateTime;
 
@@ -164,6 +179,22 @@ public class StageDto {
         this.credentialsPassword = credentialsPassword;
     }
 
+    public boolean isEnvironmentChange() {
+        return environmentChange;
+    }
+
+    public void setEnvironmentChange(boolean environmentChange) {
+        this.environmentChange = environmentChange;
+    }
+
+    public Integer getBuildEnvironmentId() {
+        return buildEnvironmentId;
+    }
+
+    public void setBuildEnvironmentId(Integer buildEnvironmentId) {
+        this.buildEnvironmentId = buildEnvironmentId;
+    }
+
     public String getBuildEnvironment() {
         return buildEnvironment;
     }
@@ -228,6 +259,14 @@ public class StageDto {
         this.dockerfilePath = dockerfilePath;
     }
 
+    public Integer getImageType() {
+        return imageType;
+    }
+
+    public void setImageType(Integer imageType) {
+        this.imageType = imageType;
+    }
+
     public String getImageName() {
         return imageName;
     }
@@ -276,12 +315,52 @@ public class StageDto {
         this.harborProject = harborProject;
     }
 
+    public String getDeployType() {
+        return deployType;
+    }
+
+    public void setDeployType(String deployType) {
+        this.deployType = deployType;
+    }
+
     public String getNamespace() {
         return namespace;
     }
 
     public void setNamespace(String namespace) {
         this.namespace = namespace;
+    }
+
+    public Integer getOriginJobId() {
+        return originJobId;
+    }
+
+    public void setOriginJobId(Integer originJobId) {
+        this.originJobId = originJobId;
+    }
+
+    public Integer getOriginStageId() {
+        return originStageId;
+    }
+
+    public void setOriginStageId(Integer originStageId) {
+        this.originStageId = originStageId;
+    }
+
+    public String getServiceTemplateName() {
+        return serviceTemplateName;
+    }
+
+    public void setServiceTemplateName(String serviceTemplateName) {
+        this.serviceTemplateName = serviceTemplateName;
+    }
+
+    public String getServiceTemplateTag() {
+        return serviceTemplateTag;
+    }
+
+    public void setServiceTemplateTag(String serviceTemplateTag) {
+        this.serviceTemplateTag = serviceTemplateTag;
     }
 
     public String getServiceName() {
@@ -300,12 +379,52 @@ public class StageDto {
         this.containerName = containerName;
     }
 
+    public List<CreateConfigMapDto> getConfigMaps() {
+        return configMaps;
+    }
+
+    public void setConfigMaps(List<CreateConfigMapDto> configMaps) {
+        this.configMaps = configMaps;
+    }
+
+    public Integer getMaxSurge() {
+        return maxSurge;
+    }
+
+    public void setMaxSurge(Integer maxSurge) {
+        this.maxSurge = maxSurge;
+    }
+
+    public Integer getMaxUnavailable() {
+        return maxUnavailable;
+    }
+
+    public void setMaxUnavailable(Integer maxUnavailable) {
+        this.maxUnavailable = maxUnavailable;
+    }
+
+    public Integer getInstances() {
+        return instances;
+    }
+
+    public void setInstances(Integer instances) {
+        this.instances = instances;
+    }
+
     public List getCommand() {
         return command;
     }
 
     public void setCommand(List command) {
         this.command = command;
+    }
+
+    public String getSuiteId() {
+        return suiteId;
+    }
+
+    public void setSuiteId(String suiteId) {
+        this.suiteId = suiteId;
     }
 
     public Date getCreateTime() {
@@ -343,17 +462,19 @@ public class StageDto {
     public Stage convertToBean(){
         Stage stage = new Stage();
         BeanUtils.copyProperties(this, stage);
-        stage.setCommand(JsonUtil.convertToJson(this.command==null?new ArrayList<>():this.command));
-        stage.setEnvironmentVariables(JsonUtil.convertToJson(this.environmentVariables == null ? new ArrayList<>() : this.environmentVariables));
-        stage.setDependences(JsonUtil.convertToJson(this.dependences == null ? new ArrayList<>() : this.dependences));
+        stage.setCommand(this.command==null ? null : JsonUtil.convertToJson(this.command));
+        stage.setEnvironmentVariables(this.environmentVariables == null ? null : JsonUtil.convertToJson(this.environmentVariables));
+        stage.setDependences(this.dependences == null ? null : JsonUtil.convertToJson(this.dependences));
+        stage.setConfiguration(this.configMaps == null ? null : JSONObject.toJSONString(this.configMaps));
         return stage;
     }
 
     public void convertFromBean(Stage stage){
         BeanUtils.copyProperties(stage, this);
-        this.setCommand(JsonUtil.jsonToList(stage.getCommand() == null ? "[]" : stage.getCommand(), String.class));
-        this.setEnvironmentVariables(JsonUtil.JsonToMapList(stage.getEnvironmentVariables()));
-        this.setDependences(JsonUtil.jsonToList(stage.getDependences() == null ? "[]" : stage.getDependences(), Dependence.class));
+        this.setCommand(stage.getCommand() == null ? null : JsonUtil.jsonToList(stage.getCommand(), String.class));
+        this.setEnvironmentVariables(stage.getEnvironmentVariables() == null ? null : JsonUtil.JsonToMapList(stage.getEnvironmentVariables()));
+        this.setDependences(stage.getDependences() == null ? null : JsonUtil.jsonToList(stage.getDependences(), Dependence.class));
+        this.setConfigMaps(stage.getConfiguration() == null ? null : JSONObject.parseArray(stage.getConfiguration(), CreateConfigMapDto.class));
     }
 
     public static class Dependence{
@@ -361,6 +482,8 @@ public class StageDto {
         private String server;
         private String serverPath;
         private String mountPath;
+        private String pvName;
+        private boolean common;
 
 
         public String getName() {
@@ -393,6 +516,22 @@ public class StageDto {
 
         public void setMountPath(String mountPath) {
             this.mountPath = mountPath;
+        }
+
+        public String getPvName() {
+            return pvName;
+        }
+
+        public void setPvName(String pvName) {
+            this.pvName = pvName;
+        }
+
+        public boolean isCommon() {
+            return common;
+        }
+
+        public void setCommon(boolean common) {
+            this.common = common;
         }
     }
 }

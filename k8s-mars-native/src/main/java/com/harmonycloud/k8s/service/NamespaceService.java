@@ -1,18 +1,14 @@
 package com.harmonycloud.k8s.service;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.Namespace;
 import com.harmonycloud.k8s.bean.NamespaceList;
-import com.harmonycloud.k8s.bean.RoleBinding;
-import com.harmonycloud.k8s.bean.RoleBindingList;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
@@ -126,7 +122,6 @@ public class NamespaceService {
 
 		K8SClientResponse k8SClientResponse = namespaceService.delete(null, bodys, HTTPMethod.DELETE, "hero-creater",null);
 
-		System.out.println(k8SClientResponse.getBody());
 
 	}
 }

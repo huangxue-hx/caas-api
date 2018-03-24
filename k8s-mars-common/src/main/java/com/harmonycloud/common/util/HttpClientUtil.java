@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
@@ -24,6 +25,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import com.harmonycloud.common.Constant.CommonConstant;
@@ -31,7 +33,7 @@ import com.harmonycloud.common.Constant.CommonConstant;
 
 public class HttpClientUtil {
 
-	private static int TIMEOUT = 6000000;
+	private static int TIMEOUT = 5000;
 
 	private static String UTF_8 = "UTF-8";
 
@@ -47,17 +49,16 @@ public class HttpClientUtil {
 	}
 
 	/**
-	 * 发起GET请求,如果没有header和params则设置为null
-	 * 
+	 * 发起GET请求,如果没有header和params则设置为null,如果不需要设置长时间timeout则传null
 	 * @param url
 	 * @param headers
-	 *            请求头
 	 * @param params
-	 *            参数
+	 * @param timeOut
 	 * @return
+	 * @throws Exception
 	 */
 	public static ActionReturnUtil httpGetRequest(String url, Map<String, Object> headers,
-			Map<String, Object> params) throws Exception{
+												  Map<String, Object> params,int timeOut) throws Exception{
 		HttpClientResponse httpClientResponse = new HttpClientResponse();
 		URIBuilder ub = new URIBuilder();
 		ub.setPath(url);
@@ -68,8 +69,8 @@ public class HttpClientUtil {
 		}
 		try {
 			// 设置请求和传输超时时间
-            RequestConfig requestConfig = RequestConfig.custom().setSocketTimeout(TIMEOUT).setConnectTimeout(TIMEOUT)
-                    .build();
+			RequestConfig requestConfig = RequestConfig.custom().setSocketTimeout(timeOut).setConnectTimeout(timeOut)
+					.build();
 			HttpGet httpGet = new HttpGet(ub.build());
 			httpGet.setConfig(requestConfig);
 			if (headers != null) {
@@ -94,7 +95,7 @@ public class HttpClientUtil {
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			ActionReturnUtil.returnErrorWithMsg("服务器连接异常:"+e.getMessage());
+			ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.CONNECT_FAIL,e.getMessage(),false);
 		} finally {
 			try {
 				if (httpClient != null)
@@ -104,6 +105,20 @@ public class HttpClientUtil {
 			}
 		}
 		return ActionReturnUtil.returnError();
+	}
+	/**
+	 * 发起GET请求,如果没有header和params则设置为null
+	 * 
+	 * @param url
+	 * @param headers
+	 *            请求头
+	 * @param params
+	 *            参数
+	 * @return
+	 */
+	public static ActionReturnUtil httpGetRequest(String url, Map<String, Object> headers,
+			Map<String, Object> params) throws Exception{
+		return httpGetRequest(url,headers,params,TIMEOUT);
 	}
 	
 	public static HttpClientResponse httpGetRequestNew(String url, Map<String, Object> headers,
@@ -721,43 +736,50 @@ public class HttpClientUtil {
 		}
 	}
 	
-	 public static CloseableHttpResponse doPostWithLogin(String url, Map<String, Object> params, Map<String, Object> headers) throws Exception {
-	        HttpPost httpPost = null;
-	        CloseableHttpClient httpClient = null;
-	        CloseableHttpResponse response = null;
-	        try {
-	            httpClient = HttpClients.createDefault();
+	public static CloseableHttpResponse doPostWithLogin(String url, Map<String, Object> params, Map<String, Object> headers) throws Exception {
+		HttpPost httpPost = null;
+		CloseableHttpClient httpClient = null;
+		CloseableHttpResponse response = null;
+		try {
+			httpClient = HttpClients.createDefault();
 
-	            // 设置请求和传输超时时间
-	            RequestConfig requestConfig = RequestConfig.custom().setSocketTimeout(TIMEOUT).setConnectTimeout(TIMEOUT)
-	                    .build();
-	            httpPost = new HttpPost(url);
-	            httpPost.setConfig(requestConfig);
-	            setHeader(httpPost, headers);
-	            List<NameValuePair> requestParams = new ArrayList<NameValuePair>();
-	            // 设置Http Post数据
-	            if (params != null) {
-	                for (Entry<String, Object> entry : params.entrySet()) {
-	                    requestParams.add(new BasicNameValuePair(entry.getKey(), String.valueOf(entry.getValue())));
-	                }
-	            }
-	            HttpEntity entity = new UrlEncodedFormEntity(requestParams, "utf-8");
-	            httpPost.setEntity(entity);
-	            response = httpClient.execute(httpPost);
-	            return response;
-	        } catch (Exception e) {
-	            throw e;
-	        } finally {
-	            httpPost.abort();
-	        }
-	    }
-	 
-	 private static void setHeader(HttpRequestBase method, Map<String, Object> headers) {
-	        if (headers == null) {
-	            return;
-	        }
-	        for (Map.Entry<String, Object> entry : headers.entrySet()) {
-	            method.addHeader(entry.getKey(), String.valueOf(entry.getValue()));
-	        }
-	    }
+			// 设置请求和传输超时时间
+			RequestConfig requestConfig = RequestConfig.custom().setSocketTimeout(TIMEOUT).setConnectTimeout(TIMEOUT)
+					.build();
+			httpPost = new HttpPost(url);
+			httpPost.setConfig(requestConfig);
+			setHeader(httpPost, headers);
+			List<NameValuePair> requestParams = new ArrayList<NameValuePair>();
+			// 设置Http Post数据
+			if (params != null) {
+				for (Entry<String, Object> entry : params.entrySet()) {
+					requestParams.add(new BasicNameValuePair(entry.getKey(), String.valueOf(entry.getValue())));
+				}
+			}
+			HttpEntity entity = new UrlEncodedFormEntity(requestParams, "utf-8");
+			httpPost.setEntity(entity);
+			response = httpClient.execute(httpPost);
+			return response;
+		} catch (Exception e) {
+			throw e;
+		} finally {
+			httpPost.abort();
+		}
+	}
+
+	public static String getHttpUrl(String protocol, String host, Integer port){
+		Assert.hasText(protocol);
+		Assert.hasText(host);
+		Assert.notNull(port);
+		return protocol + "://" + host + ":" + port;
+	}
+
+	private static void setHeader(HttpRequestBase method, Map<String, Object> headers) {
+		if (headers == null) {
+			return;
+		}
+		for (Map.Entry<String, Object> entry : headers.entrySet()) {
+			method.addHeader(entry.getKey(), String.valueOf(entry.getValue()));
+		}
+	}
 }

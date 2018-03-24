@@ -4,6 +4,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -12,9 +15,7 @@ import com.harmonycloud.common.util.CsvUtil;
 import com.harmonycloud.common.util.HttpClientResponse;
 import com.harmonycloud.common.util.HttpClientUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.dao.cluster.ClusterLoadbalanceMapper;
-import com.harmonycloud.dao.cluster.ClusterMapper;
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.cluster.bean.ClusterLoadbalance;
 import com.harmonycloud.dao.cluster.bean.ClusterLoadbalanceExample;
 import com.harmonycloud.dao.tenant.TenantBindingMapper;
@@ -29,9 +30,6 @@ import com.harmonycloud.service.platform.bean.PodDetail;
 public class LoadbalanceServiceImpl implements LoadbalanceService {
 
 	@Autowired
-	private ClusterMapper clusterMapper;
-
-	@Autowired
 	private TenantBindingMapper tenantBindingMapper;
 
 	@Autowired
@@ -41,7 +39,7 @@ public class LoadbalanceServiceImpl implements LoadbalanceService {
 	private DeploymentsService depsService;
 
 	@Autowired
-	private ClusterLoadbalanceMapper clusterLbMapper;
+	private NamespaceLocalService namespaceLocalService;
 
 	@SuppressWarnings("unchecked")
 	@Override
@@ -53,23 +51,21 @@ public class LoadbalanceServiceImpl implements LoadbalanceService {
 		if (namespace.lastIndexOf("-") > -1) {
 			tenant = namespace.substring(0, namespace.lastIndexOf("-"));
 		} else {
-			return ActionReturnUtil.returnErrorWithMsg("namespace名称不合法");
+			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.FORMAT_ERROR, DictEnum.NAMESPACE.phrase(),true);
 		}
 		example.createCriteria().andTenantNameEqualTo(tenant);
 		List<TenantBinding> tenantBindings = tenantBindingMapper.selectByExample(example);
 		if (tenantBindings == null) {
-			return ActionReturnUtil.returnErrorWithMsg("查询的租户没有所属的集群");
+			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NOT_FOUND, DictEnum.NAMESPACE.phrase(),true);
 		}
-		Integer clusterId = tenantBindings.get(0).getClusterId();
 
 		// 查询集群
-		Cluster cluster = clusterMapper.findClusterById(String.valueOf(clusterId));
-
-		ActionReturnUtil podList = depsService.podList(app, namespace, cluster);
+		Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+		ActionReturnUtil podList = depsService.podList(app, namespace);
 
 		Integer podCount = 0;
 		if (!(boolean) podList.get("success")) {
-			return ActionReturnUtil.returnErrorWithMsg("未查询到Pod");
+			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NOT_FOUND, DictEnum.POD.phrase(),true);
 		}
 
 		List<PodDetail> pods = (List<PodDetail>) podList.get("data");
@@ -82,8 +78,10 @@ public class LoadbalanceServiceImpl implements LoadbalanceService {
 			// 从数据库中查询负载均衡的地址
 			String slbUrl = null;
 			ClusterLoadbalanceExample lbExample = new ClusterLoadbalanceExample();
-			lbExample.createCriteria().andClusterIdEqualTo(clusterId);
-			List<ClusterLoadbalance> clusterLoadbalances = clusterLbMapper.selectByExample(lbExample);
+			lbExample.createCriteria().andClusterIdEqualTo(cluster.getId());
+			//原先haproxy的接口调用统计信息，现在不用haproxy负载均衡了
+			//List<ClusterLoadbalance> clusterLoadbalances = clusterLbMapper.selectByExample(lbExample);
+			List<ClusterLoadbalance> clusterLoadbalances = null;
 			if (clusterLoadbalances != null && !clusterLoadbalances.isEmpty()) {
 				
 				//多个haproxy，需查询每一个

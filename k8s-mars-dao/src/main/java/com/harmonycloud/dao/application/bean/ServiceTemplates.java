@@ -3,10 +3,12 @@ package com.harmonycloud.dao.application.bean;
 import java.io.Serializable;
 import java.util.Date;
 
-/**
- * Created by root on 3/29/17.
- */
 
+/**
+ * @Description 数据库服务模板表字段
+ * @Date Created by root on 3/29/17.
+ * @Modified
+ */
 public class ServiceTemplates implements Serializable {
     private Integer id;
 
@@ -35,6 +37,18 @@ public class ServiceTemplates implements Serializable {
     private String nodeSelector;
     
     private boolean isPublic;
+
+    private String projectId;
+
+    private String clusterId;
+
+    public String getClusterId() {
+        return clusterId;
+    }
+
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
+    }
 
     public static long getSerialVersionUID() {
         return serialVersionUID;
@@ -194,5 +208,13 @@ public class ServiceTemplates implements Serializable {
 	public void setPublic(boolean isPublic) {
 		this.isPublic = isPublic;
 	}
+
+    public String getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
+    }
 
 }

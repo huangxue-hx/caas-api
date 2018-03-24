@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.tenant.TenantClusterQuotaMapper">
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.tenant.bean.TenantClusterQuota">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="tenant_id" jdbcType="VARCHAR" property="tenantId" />
+    <result column="cluster_id" jdbcType="VARCHAR" property="clusterId" />
+    <result column="cpu_quota" jdbcType="DOUBLE" property="cpuQuota" />
+    <result column="memory_quota" jdbcType="DOUBLE" property="memoryQuota" />
+    <result column="pv_quota" jdbcType="DOUBLE" property="pvQuota" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="cluster_name" jdbcType="VARCHAR" property="clusterName" />
+    <result column="reserve1" jdbcType="VARCHAR" property="reserve1" />
+  </resultMap>
+  <sql id="Example_Where_Clause">
+    <where>
+      <foreach collection="oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List">
+    id, tenant_id, cluster_id, cpu_quota, memory_quota, pv_quota, update_time, create_time, 
+    cluster_name, reserve1
+  </sql>
+  <select id="selectByExample" parameterType="com.harmonycloud.dao.tenant.bean.TenantClusterQuotaExample" resultMap="BaseResultMap">
+    select
+    <if test="distinct">
+      distinct
+    </if>
+    'false' as QUERYID,
+    <include refid="Base_Column_List" />
+    from tenant_cluster_quota
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null">
+      order by ${orderByClause}
+    </if>
+    <if test="limit != null">
+      <if test="offset != null">
+        limit ${offset}, ${limit}
+      </if>
+      <if test="offset == null">
+        limit ${limit}
+      </if>
+    </if>
+  </select>
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from tenant_cluster_quota
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from tenant_cluster_quota
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <delete id="deleteByExample" parameterType="com.harmonycloud.dao.tenant.bean.TenantClusterQuotaExample">
+    delete from tenant_cluster_quota
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </delete>
+  <delete id="deleteByClusterId">
+    delete from tenant_cluster_quota where cluster_id = #{clusterId}
+  </delete>
+  <insert id="insert" parameterType="com.harmonycloud.dao.tenant.bean.TenantClusterQuota">
+    insert into tenant_cluster_quota (id, tenant_id, cluster_id, 
+      cpu_quota, memory_quota, pv_quota, 
+      update_time, create_time, cluster_name, 
+      reserve1)
+    values (#{id,jdbcType=INTEGER}, #{tenantId,jdbcType=VARCHAR}, #{clusterId,jdbcType=VARCHAR},
+      #{cpuQuota,jdbcType=DOUBLE}, #{memoryQuota,jdbcType=DOUBLE}, #{pvQuota,jdbcType=DOUBLE}, 
+      #{updateTime,jdbcType=TIMESTAMP}, #{createTime,jdbcType=TIMESTAMP}, #{clusterName,jdbcType=VARCHAR}, 
+      #{reserve1,jdbcType=VARCHAR})
+  </insert>
+  <insert id="insertSelective" parameterType="com.harmonycloud.dao.tenant.bean.TenantClusterQuota">
+    insert into tenant_cluster_quota
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        id,
+      </if>
+      <if test="tenantId != null">
+        tenant_id,
+      </if>
+      <if test="clusterId != null">
+        cluster_id,
+      </if>
+      <if test="cpuQuota != null">
+        cpu_quota,
+      </if>
+      <if test="memoryQuota != null">
+        memory_quota,
+      </if>
+      <if test="pvQuota != null">
+        pv_quota,
+      </if>
+      <if test="updateTime != null">
+        update_time,
+      </if>
+      <if test="createTime != null">
+        create_time,
+      </if>
+      <if test="clusterName != null">
+        cluster_name,
+      </if>
+      <if test="reserve1 != null">
+        reserve1,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        #{id,jdbcType=INTEGER},
+      </if>
+      <if test="tenantId != null">
+        #{tenantId,jdbcType=VARCHAR},
+      </if>
+      <if test="clusterId != null">
+        #{clusterId,jdbcType=VARCHAR},
+      </if>
+      <if test="cpuQuota != null">
+        #{cpuQuota,jdbcType=DOUBLE},
+      </if>
+      <if test="memoryQuota != null">
+        #{memoryQuota,jdbcType=DOUBLE},
+      </if>
+      <if test="pvQuota != null">
+        #{pvQuota,jdbcType=DOUBLE},
+      </if>
+      <if test="updateTime != null">
+        #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="createTime != null">
+        #{createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="clusterName != null">
+        #{clusterName,jdbcType=VARCHAR},
+      </if>
+      <if test="reserve1 != null">
+        #{reserve1,jdbcType=VARCHAR},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.tenant.bean.TenantClusterQuota">
+    update tenant_cluster_quota
+    <set>
+      <if test="tenantId != null">
+        tenant_id = #{tenantId,jdbcType=VARCHAR},
+      </if>
+      <if test="clusterId != null">
+        cluster_id = #{clusterId,jdbcType=VARCHAR},
+      </if>
+      <if test="cpuQuota != null">
+        cpu_quota = #{cpuQuota,jdbcType=DOUBLE},
+      </if>
+      <if test="memoryQuota != null">
+        memory_quota = #{memoryQuota,jdbcType=DOUBLE},
+      </if>
+      <if test="pvQuota != null">
+        pv_quota = #{pvQuota,jdbcType=DOUBLE},
+      </if>
+      <if test="updateTime != null">
+        update_time = #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="createTime != null">
+        create_time = #{createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="clusterName != null">
+        cluster_name = #{clusterName,jdbcType=VARCHAR},
+      </if>
+      <if test="reserve1 != null">
+        reserve1 = #{reserve1,jdbcType=VARCHAR},
+      </if>
+    </set>
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.tenant.bean.TenantClusterQuota">
+    update tenant_cluster_quota
+    set tenant_id = #{tenantId,jdbcType=VARCHAR},
+      cluster_id = #{clusterId,jdbcType=VARCHAR},
+      cpu_quota = #{cpuQuota,jdbcType=DOUBLE},
+      memory_quota = #{memoryQuota,jdbcType=DOUBLE},
+      pv_quota = #{pvQuota,jdbcType=DOUBLE},
+      update_time = #{updateTime,jdbcType=TIMESTAMP},
+      create_time = #{createTime,jdbcType=TIMESTAMP},
+      cluster_name = #{clusterName,jdbcType=VARCHAR},
+      reserve1 = #{reserve1,jdbcType=VARCHAR}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+</mapper>

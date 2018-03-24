@@ -7,14 +7,24 @@ public class TimeMetricScaleDto {
     private String weekday;
 	private String timeSection;
 	private Integer targetPods;
+	private Integer normalPods;
 
 	public TimeMetricScaleDto() {
 	}
 
-	public TimeMetricScaleDto(String weekday, String timeSection, Integer targetPods) {
+	public TimeMetricScaleDto(String weekday, String timeSection, Integer targetPods, Integer normalPods) {
 		this.weekday = weekday;
 		this.timeSection = timeSection;
 		this.targetPods = targetPods;
+		this.normalPods = normalPods;
+	}
+
+	public Integer getNormalPods() {
+		return normalPods;
+	}
+
+	public void setNormalPods(Integer normalPods) {
+		this.normalPods = normalPods;
 	}
 
 	public String getWeekday() {

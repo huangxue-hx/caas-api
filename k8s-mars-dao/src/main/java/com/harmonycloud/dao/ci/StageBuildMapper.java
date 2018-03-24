@@ -22,4 +22,7 @@ public interface StageBuildMapper {
 
     List<StageBuild> queryByObjectWithPagination(@Param("stageBuild")StageBuild stageBuild, @Param("offset")Integer offset, @Param("rows") Integer rows);
 
+    void updateByStageIdAndBuildNum(StageBuild stageBuild);
+
+    String queryLogByObject(StageBuild stageBuild);
 }

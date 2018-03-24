@@ -8,13 +8,12 @@ import java.util.Map;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.HarborProjectRoleEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.k8s.constant.Constant;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.ObjectMeta;
 import com.harmonycloud.k8s.bean.ObjectReference;
 import com.harmonycloud.k8s.bean.RoleBinding;
@@ -143,13 +142,13 @@ public class RoleBindingService {
 		// 组装objectReference
 		ObjectReference objectReference = new ObjectReference();
 		objectReference.setName(role);
-		objectReference.setKind(CommonConstant.CLUSTERROLE);
-		objectReference.setApiVersion(Constant.API_VERSION);
+		objectReference.setApiVersion(Constant.API_VERSION_RBAC_V1);
+		objectReference.setKind(CommonConstant.ROLE);
 
 		// 组装rolebinding
 		Map<String, Object> bodys = new HashMap<>();
 		bodys.put(CommonConstant.KIND, CommonConstant.ROLEBINDING);
-		bodys.put(CommonConstant.APIVERSION, Constant.API_VERSION);
+		bodys.put(CommonConstant.APIVERSION, Constant.API_VERSION_RBAC_V1);
 		bodys.put(CommonConstant.METADATA, objectMeta);
 		bodys.put(CommonConstant.SUBJECTS, generateSubjects(null));
 		bodys.put(CommonConstant.ROLEREF, objectReference);
@@ -249,10 +248,14 @@ public class RoleBindingService {
 		ObjectReference objectReference = roleBinding.getRoleRef();
 		String king = roleBinding.getKind();
 		List<Subjects> subjects = roleBinding.getSubjects();
+		if (subjects == null){
+			subjects =  new ArrayList<>();
+		}
 		//遍历subjects如果没有则增加用户
 		if(this.isInSubjects(subjects, username) == false){
 			Subjects subject = new Subjects();
 			subject.setName(username);
+			subject.setApiVersion(Constant.API_VERSION_RBAC_V1);
 			subject.setKind("User");
 			subjects.add(subject);
 		}
@@ -342,9 +345,11 @@ public class RoleBindingService {
 	 * @return
 	 */
 	private boolean isInSubjects(List<Subjects> subjects,String username) throws Exception{
-		for (Subjects subject : subjects) {
-			if(subject != null && subject.getName().equals(username)){
-				return true;
+		if (subjects != null && subjects.size() > 0){
+			for (Subjects subject : subjects) {
+				if(subject != null && subject.getName().equals(username)){
+					return true;
+				}
 			}
 		}
 		return false;

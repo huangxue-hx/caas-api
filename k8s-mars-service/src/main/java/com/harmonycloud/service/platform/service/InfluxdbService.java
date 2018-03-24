@@ -1,11 +1,10 @@
 package com.harmonycloud.service.platform.service;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
-import org.influxdb.dto.QueryResult;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.service.platform.bean.monitor.InfluxdbQuery;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * 和influxdb相关的监控接口
@@ -15,13 +14,11 @@ import java.util.Map;
  */
 public interface InfluxdbService {
 	
-	public ActionReturnUtil podMonit(String rangeType, String startTime, String pod, String container, String target, String clusterId) throws Exception;
+	public ActionReturnUtil podMonit(InfluxdbQuery query) throws Exception;
 	
-	public ActionReturnUtil nodeQuery(String type, String rangeType, String target, String name, String startTime, String processName) throws Exception;
+	public ActionReturnUtil nodeQuery(InfluxdbQuery query) throws Exception;
 	
-	public ActionReturnUtil getProcessStatus(String name, String processName) throws Exception;
-	
-	public ActionReturnUtil getProviderList() throws Exception;
+	public ActionReturnUtil getProcessStatus(String name, String processName, String clusterId) throws Exception;
 	
 	public ActionReturnUtil getAlarmList(String id) throws Exception;
 	

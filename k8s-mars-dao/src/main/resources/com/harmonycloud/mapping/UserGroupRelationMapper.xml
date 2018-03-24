@@ -81,11 +81,11 @@
       </if>
     </trim>
   </insert>
-  <insert id="addUserGroupRelation"  parameterType="java.util.List">  
-    insert into user_group_relation (userid,groupid)   
-    values  
-    <foreach collection="list" item="ugrs"  separator="," >  
-        (#{ugrs.userid},#{ugrs.groupid})  
-    </foreach>  
+  <insert id="addUserGroupRelation"  parameterType="java.util.List">
+  insert into user_group_relation (userid,groupid)
+  values
+  <foreach collection="list" item="ugrs"  separator="," >
+    (#{ugrs.userid},#{ugrs.groupid})
+  </foreach>
 </insert>
 </mapper>

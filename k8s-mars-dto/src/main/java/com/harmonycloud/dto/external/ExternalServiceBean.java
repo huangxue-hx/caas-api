@@ -1,5 +1,7 @@
 package com.harmonycloud.dto.external;
 
+import org.hibernate.validator.constraints.NotBlank;
+
 import java.io.Serializable;
 import java.util.Map;
 
@@ -8,103 +10,125 @@ import java.util.Map;
  * 外部服务bean
  */
 
-public class ExternalServiceBean  implements Serializable{
+public class ExternalServiceBean implements Serializable {
 
     /**
-         * 
-         */
-        private static final long serialVersionUID = 1L;
+     *
+     */
+    private static final long serialVersionUID = 1L;
 
-        private String name;
+    @NotBlank
+    private String name;
 
-        private String ip;
-        
-    	private String namespace ;
-    	
-    	private  Map<String,Object> labels;
-    	
-    	private String createTime;
-    	
-    	private String targetPort;
-    	
-    	private String protocol;
-    	
-    	private String port = "8080";
-    	
-    	private String tenantid;
+    private String ip;
 
-    	
-        public String getTenantid() {
-            return tenantid;
-        }
+    private String namespace;
 
-        public void setTenantid(String tenantid) {
-            this.tenantid = tenantid;
-        }
+    private Map<String, Object> labels;
 
-        public String getPort() {
-			return port;
-		}
+    private String createTime;
 
-		public void setPort(String port) {
-			this.port = port;
-		}
+    private String targetPort;
 
-		public String getIp() {
-                return ip;
-        }
+    private String protocol;
 
-        public void setIp(String ip) {
-                this.ip = ip;
-        }
+    private String port = "8080";
 
-        public String getName() {
-                return name;
-        }
+    private String tenantId;
 
-        public void setName(String name) {
-                this.name = name;
-        }
+    @NotBlank
+    private String projectId;
 
-        public String getNamespace() {
-                return namespace;
-        }
-        public void setNamespace(String namespace) {
-            this.namespace = namespace;
+    @NotBlank
+    private String clusterId;
+
+    public String getClusterId() {
+        return clusterId;
     }
 
-    public Map<String,Object> getLabels() {
-            return labels;
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
     }
 
-    public void setLabels(Map<String,Object> labels) {
-            this.labels = labels;
+    public String getPort() {
+        return port;
+    }
+
+    public void setPort(String port) {
+        this.port = port;
+    }
+
+    public String getIp() {
+        return ip;
+    }
+
+    public void setIp(String ip) {
+        this.ip = ip;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
+    }
+
+    public Map<String, Object> getLabels() {
+        return labels;
+    }
+
+    public void setLabels(Map<String, Object> labels) {
+        this.labels = labels;
     }
 
     public String getCreateTime() {
-            return createTime;
+        return createTime;
     }
 
     public void setCreateTime(String createTime) {
-            this.createTime = createTime;
+        this.createTime = createTime;
     }
 
     public String getTargetPort() {
-            return targetPort;
+        return targetPort;
     }
 
     public void setTargetPort(String targetPort) {
-            this.targetPort = targetPort;
+        this.targetPort = targetPort;
     }
 
     public String getProtocol() {
-            return protocol;
+        return protocol;
     }
 
     public void setProtocol(String protocol) {
-            this.protocol = protocol;
+        this.protocol = protocol;
     }
-	
+
+    public String getTenantId() {
+        return tenantId;
+    }
+
+    public void setTenantId(String tenantId) {
+        this.tenantId = tenantId;
+    }
+
+    public String getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
+    }
 }
 
 

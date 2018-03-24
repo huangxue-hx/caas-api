@@ -1,6 +1,8 @@
 package com.harmonycloud.interceptors;
 
 import com.harmonycloud.api.user.AuthController;
+import com.harmonycloud.common.util.DicUtil;
+import com.harmonycloud.common.util.SsoClient;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,9 +17,12 @@ import javax.servlet.http.HttpSession;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * 认证拦截器，
+ */
 public class AuthInterceptor extends HandlerInterceptorAdapter {
-    private static final List<String> WHITE_URL_LIST = Arrays.asList(new String[]{"login","validation",
-            "getToken","namespace/listByTenantid","clusters/list","clusters/getClusterBytenantId","clusters","systemConfig/trialTime"});
+    private static final List<String> WHITE_URL_LIST = Arrays.asList(new String[]{"users/auth/login","validation",
+            "getToken","/clusters","system/configs/trialtime","cicd/trigger/webhookTrigger","users/auth/token","/testcallback"});
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthInterceptor.class);
     @Value("#{propertiesReader['api.access.allow.origin']}")
     private String allowOrigin;
@@ -25,6 +30,10 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
     AuthController AuthController;
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        //判断是否开启sso，开启则不执行拦截器的逻辑
+        if(SsoClient.isOpen()){
+            return true;
+        }
         // 设置跨域访问header信息
         if(StringUtils.isNotBlank(allowOrigin)) {
             String origin = allowOrigin;
@@ -34,7 +43,7 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
                 origin = requestOrigin;
             }
             response.setHeader("Access-Control-Allow-Origin", origin);
-            response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT");
+            response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH");
             response.setHeader("Access-Control-Max-Age", "1200");
             response.setHeader("Access-Control-Allow-Headers", "X-Requested-With,Content-Type");
             response.setHeader("Access-Control-Allow-Credentials", "true");
@@ -45,7 +54,6 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         }
         // 获取请求的URL
         String url = request.getRequestURI();
-        LOGGER.info("url=" + url);
         //路径包含openapi的不需要验证是否登陆，oam task定时任务没有用户
         if(url.indexOf("/openapi/")>-1){
             return true;
@@ -58,9 +66,8 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         }
         // 获取Session
         HttpSession session = request.getSession();
-        LOGGER.info("sessionId=" + session.getId());
+//        this.AuthController.Login("admin","Ab123456",null);//仅供调试使用
         String username = (String) session.getAttribute("username");
-        LOGGER.info("username=" + username);
         if (username != null) {
             return true;
         }

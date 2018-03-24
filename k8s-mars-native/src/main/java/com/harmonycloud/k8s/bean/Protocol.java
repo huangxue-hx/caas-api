@@ -15,7 +15,7 @@ public class Protocol {
 	
 	private Integer partition;
 	
-	private Boolean readOnly;
+	private boolean readOnly;
 
 	public String getVolumeID() {
 		return volumeID;
@@ -41,13 +41,12 @@ public class Protocol {
 		this.partition = partition;
 	}
 
-	public Boolean getReadOnly() {
+	public boolean isReadOnly() {
 		return readOnly;
 	}
 
-	public void setReadOnly(Boolean readOnly) {
+	public void setReadOnly(boolean readOnly) {
 		this.readOnly = readOnly;
 	}
-	
 	
 }

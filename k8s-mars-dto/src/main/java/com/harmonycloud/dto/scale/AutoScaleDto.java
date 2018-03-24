@@ -12,6 +12,11 @@ import java.util.List;
  */
 public class AutoScaleDto {
 
+	/**
+	 * 伸缩控制器类型 hpa-k8s的水平自动伸缩控制器，cpa-自定义crd自动伸缩器
+	 */
+	private String uid;
+	private String controllerType;
 	@NotBlank(message="分区不能为空")
 	private String namespace;
 	@NotBlank(message="服务名不能为空")
@@ -26,6 +31,10 @@ public class AutoScaleDto {
 	@Max(value=99, message="CPU使用率不能大于99%")
 	private Integer targetCpuUsage;
 	private Integer currentCpuUsage;
+	@Min(value=1, message="内存使用率不能小于1%")
+	@Max(value=99, message="内存使用率不能大于99%")
+	private Integer targetMemoryUsage;
+	private Integer currentMemoryUsage;
 	@Min(value=1, message="每秒请求数不能小于1")
 	private Long targetTps;
 	private Long currentTps;
@@ -40,6 +49,14 @@ public class AutoScaleDto {
 
 	public void setCustomMetricScales(List<CustomMetricScaleDto> customMetricScales) {
 		this.customMetricScales = customMetricScales;
+	}
+
+	public String getUid() {
+		return uid;
+	}
+
+	public void setUid(String uid) {
+		this.uid = uid;
 	}
 
 	public String getNamespace() {
@@ -128,5 +145,29 @@ public class AutoScaleDto {
 
 	public void setCurrentTps(Long currentTps) {
 		this.currentTps = currentTps;
+	}
+
+	public Integer getTargetMemoryUsage() {
+		return targetMemoryUsage;
+	}
+
+	public void setTargetMemoryUsage(Integer targetMemoryUsage) {
+		this.targetMemoryUsage = targetMemoryUsage;
+	}
+
+	public Integer getCurrentMemoryUsage() {
+		return currentMemoryUsage;
+	}
+
+	public void setCurrentMemoryUsage(Integer currentMemoryUsage) {
+		this.currentMemoryUsage = currentMemoryUsage;
+	}
+
+	public String getControllerType() {
+		return controllerType;
+	}
+
+	public void setControllerType(String controllerType) {
+		this.controllerType = controllerType;
 	}
 }

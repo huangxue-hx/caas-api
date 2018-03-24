@@ -65,6 +65,17 @@
                 </includes>
                 <filtering>true</filtering>
             </resource>
+
+            <resource>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>**/*.so</include>
+                    <include>**/*.dylib</include>
+                    <include>**/*.dll</include>
+                    <include>**/*.exe</include>
+                </includes>
+                <filtering>false</filtering>
+            </resource>
         </resources>
         <plugins>
             <plugin>

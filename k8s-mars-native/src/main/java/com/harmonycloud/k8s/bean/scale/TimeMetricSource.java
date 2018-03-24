@@ -16,14 +16,25 @@ public class TimeMetricSource {
 
 	private Integer targetPods;
 
+	private Integer normalPods;
+
 	public TimeMetricSource() {
 		super();
 	}
 
-	public TimeMetricSource(String weekday, String timeSection, Integer targetPods) {
+	public TimeMetricSource(String weekday, String timeSection, Integer targetPods, Integer normalPods) {
 		this.weekday = weekday;
 		this.targetPods = targetPods;
 		this.timeSection = timeSection;
+		this.normalPods = normalPods;
+	}
+
+	public Integer getNormalPods() {
+		return normalPods;
+	}
+
+	public void setNormalPods(Integer normalPods) {
+		this.normalPods = normalPods;
 	}
 
 	public String getWeekday() {

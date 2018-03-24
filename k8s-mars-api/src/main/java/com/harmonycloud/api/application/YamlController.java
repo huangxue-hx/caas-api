@@ -1,7 +1,7 @@
 package com.harmonycloud.api.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dto.business.YamlDto;
+import com.harmonycloud.dto.application.YamlDto;
 import com.harmonycloud.service.application.YamlService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +17,7 @@ import javax.servlet.http.HttpSession;
 /**
  * Created by root on 8/11/17.
  */
-@RequestMapping("/yaml")
+@RequestMapping("/tenants/{tenantId}/projects/{projectId}/yaml")
 @Controller
 public class YamlController {
 
@@ -30,7 +30,7 @@ public class YamlController {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     /**
-     *add service template to businessTemplate on 17/05/05 .
+     *add service template to appTemplate on 17/05/05 .
      *
      * @param yamlDto
      *

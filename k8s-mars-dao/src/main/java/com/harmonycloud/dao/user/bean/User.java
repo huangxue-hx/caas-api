@@ -16,7 +16,6 @@ public class User implements Serializable {
 	 */
 	private Long id;
     private String tenantid;
-    private Long uuid;
     private String username;
     private String realName;
     private String email;
@@ -25,9 +24,7 @@ public class User implements Serializable {
     private Date createTime;
     private Date updateTime;
     private Integer isAdmin;
-    private Integer isadmin;
     private Integer isMachine;
-    private Integer ismachine;
     private String token;
     private String pause;
     private Date tokenCreate;
@@ -95,23 +92,11 @@ public class User implements Serializable {
 	public void setPhone(String phone) {
 		this.phone = phone;
 	}
-	public Long getUuid() {
-        return uuid;
+	public Long getId() {
+        return id;
     }
-    public void setUuid(Long uuid) {
-        this.uuid = uuid;
-    }
-    public Integer getIsadmin() {
-        return isadmin;
-    }
-    public void setIsadmin(Integer isadmin) {
-        this.isadmin = isadmin;
-    }
-    public Integer getIsmachine() {
-        return ismachine;
-    }
-    public void setIsmachine(Integer ismachine) {
-        this.ismachine = ismachine;
+    public void setId(Long id) {
+        this.id = id;
     }
     public Date getLeftTime() {
         return leftTime;
@@ -192,15 +177,6 @@ public class User implements Serializable {
 		this.password = password;
 	}
 
-	public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-
-    }
-
     public String getTanantid() {
         return tenantid;
     }
@@ -233,4 +209,30 @@ public class User implements Serializable {
         this.email = email;
     }
 
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", tenantid='" + tenantid + '\'' +
+                ", username='" + username + '\'' +
+                ", realName='" + realName + '\'' +
+                ", email='" + email + '\'' +
+                ", comment='" + comment + '\'' +
+                ", createTime=" + createTime +
+                ", updateTime=" + updateTime +
+                ", isAdmin=" + isAdmin +
+                ", isMachine=" + isMachine +
+                ", token='" + token + '\'' +
+                ", pause='" + pause + '\'' +
+                ", tokenCreate=" + tokenCreate +
+                ", leftTime=" + leftTime +
+                ", rightTime=" + rightTime +
+                ", phone='" + phone + '\'' +
+                ", real_name='" + real_name + '\'' +
+                ", create_time=" + create_time +
+                ", update_time=" + update_time +
+                ", groupName='" + groupName + '\'' +
+                ", isAuthorize=" + isAuthorize +
+                '}';
+    }
 }

@@ -1,8 +1,13 @@
 package com.harmonycloud.common.util;
 
+import com.offbytwo.jenkins.JenkinsServer;
+import org.elasticsearch.cluster.ClusterService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
+import javax.annotation.PostConstruct;
+import java.net.URI;
 import java.util.Base64;
 
 /**
@@ -10,6 +15,7 @@ import java.util.Base64;
  */
 @Component
 public class JenkinsClient {
+    private static final Logger logger = LoggerFactory.getLogger(JenkinsClient.class);
 
     private static String host;
 
@@ -19,11 +25,14 @@ public class JenkinsClient {
 
     private static String password;
 
+    private static JenkinsServer jenkinsServer;
+
+
     public static String getHost() {
         return host;
     }
 
-    @Value("#{propertiesReader['jenkins.host']}")
+//    @Value("#{propertiesReader['jenkins.host']}")
     public void setHost(String host) {
         this.host = host;
     }
@@ -32,7 +41,7 @@ public class JenkinsClient {
         return port;
     }
 
-    @Value("#{propertiesReader['jenkins.port']}")
+//    @Value("#{propertiesReader['jenkins.port']}")
     public void setPort(String port) {
         this.port = port;
     }
@@ -41,7 +50,7 @@ public class JenkinsClient {
         return username;
     }
 
-    @Value("#{propertiesReader['jenkins.username']}")
+//    @Value("#{propertiesReader['jenkins.username']}")
     public void setUsername(String username) {
         this.username = username;
     }
@@ -50,18 +59,37 @@ public class JenkinsClient {
         return password;
     }
 
-    @Value("#{propertiesReader['jenkins.password']}")
+//    @Value("#{propertiesReader['jenkins.password']}")
     public void setPassword(String password) {
         this.password = password;
     }
 
     public static String getUrl(){
-        return host + ":" + port;
+        return "http://"+host + ":" + port;
+    }
+
+    public static JenkinsServer getJenkinsServer() throws Exception {
+        if(jenkinsServer == null){
+            initJenkinsServer();
+        }
+        return jenkinsServer;
+    }
+
+    public static void setJenkinsServer(JenkinsServer jenkinsServer) {
+        JenkinsClient.jenkinsServer = jenkinsServer;
     }
 
     public static String getApiToken(){
         String src = username + ":" + password;
         return Base64.getEncoder().encodeToString(src.getBytes());
+    }
+
+//    @PostConstruct
+    public static void initJenkinsServer() throws Exception{
+        logger.info("初始化jenkinsServer");
+        if(jenkinsServer == null){
+            jenkinsServer = new JenkinsServer(new URI("http://"+host + ":" +port), username, password);
+        }
     }
 
 

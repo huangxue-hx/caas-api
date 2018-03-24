@@ -6,6 +6,10 @@ public class DockerFileDto {
 
     private String tenant;
 
+    private String projectId;
+
+    private String clusterId;
+
     private Integer currentPage;
 
     private Integer pageSize;
@@ -24,6 +28,22 @@ public class DockerFileDto {
 
     public void setTenant(String tenant) {
         this.tenant = tenant;
+    }
+
+    public String getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
+    }
+
+    public String getClusterId() {
+        return clusterId;
+    }
+
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
     }
 
     public Integer getCurrentPage() {

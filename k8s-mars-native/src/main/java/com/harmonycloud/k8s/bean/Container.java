@@ -3,11 +3,13 @@ package com.harmonycloud.k8s.bean;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
  * @author qg
  *
  */
+@JsonInclude(value=JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Container {
 
@@ -25,6 +27,8 @@ public class Container {
 	
 	private List<EnvVar> env;
 	
+	private List<EnvFromSource> envFrom;
+	
 	private ResourceRequirements resources;
 	
 	private List<VolumeMount> volumeMounts;
@@ -33,11 +37,11 @@ public class Container {
 	
 	private String imagePullPolicy;
 	
-	private Boolean stdin;
+	private boolean stdin;
 	
-	private Boolean stdinOnce;
+	private boolean stdinOnce;
 	
-	private Boolean tty;
+	private boolean tty;
 	
 	private Probe livenessProbe;
 	
@@ -46,6 +50,10 @@ public class Container {
 	private Lifecycle lifecycle;
 	
 	private SecurityContext securityContext;
+	
+	private String terminationMessagePolicy;
+	
+	private List<VolumeDevice> volumeDevices;
 
 	public String getWorkingDir() {
 		return workingDir;
@@ -77,30 +85,6 @@ public class Container {
 
 	public void setTerminationMessagePath(String terminationMessagePath) {
 		this.terminationMessagePath = terminationMessagePath;
-	}
-
-	public Boolean getStdin() {
-		return stdin;
-	}
-
-	public void setStdin(Boolean stdin) {
-		this.stdin = stdin;
-	}
-
-	public Boolean getStdinOnce() {
-		return stdinOnce;
-	}
-
-	public void setStdinOnce(Boolean stdinOnce) {
-		this.stdinOnce = stdinOnce;
-	}
-
-	public Boolean getTty() {
-		return tty;
-	}
-
-	public void setTty(Boolean tty) {
-		this.tty = tty;
 	}
 
 	public String getName() {
@@ -189,5 +173,53 @@ public class Container {
 
 	public void setLifecycle(Lifecycle lifecycle) {
 		this.lifecycle = lifecycle;
+	}
+
+	public List<EnvFromSource> getEnvFrom() {
+		return envFrom;
+	}
+
+	public void setEnvFrom(List<EnvFromSource> envFrom) {
+		this.envFrom = envFrom;
+	}
+
+	public String getTerminationMessagePolicy() {
+		return terminationMessagePolicy;
+	}
+
+	public void setTerminationMessagePolicy(String terminationMessagePolicy) {
+		this.terminationMessagePolicy = terminationMessagePolicy;
+	}
+
+	public List<VolumeDevice> getVolumeDevices() {
+		return volumeDevices;
+	}
+
+	public void setVolumeDevices(List<VolumeDevice> volumeDevices) {
+		this.volumeDevices = volumeDevices;
+	}
+
+	public boolean isStdin() {
+		return stdin;
+	}
+
+	public void setStdin(boolean stdin) {
+		this.stdin = stdin;
+	}
+
+	public boolean isStdinOnce() {
+		return stdinOnce;
+	}
+
+	public void setStdinOnce(boolean stdinOnce) {
+		this.stdinOnce = stdinOnce;
+	}
+
+	public boolean isTty() {
+		return tty;
+	}
+
+	public void setTty(boolean tty) {
+		this.tty = tty;
 	}
 }

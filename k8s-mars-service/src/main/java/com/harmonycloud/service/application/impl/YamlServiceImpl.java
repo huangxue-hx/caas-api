@@ -1,11 +1,12 @@
 package com.harmonycloud.service.application.impl;
 
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
-import com.harmonycloud.dto.business.YamlDto;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.dto.application.YamlDto;
 import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.client.K8sMachineClient;
@@ -17,6 +18,7 @@ import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.YamlService;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,10 +30,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by root on 8/11/17.
@@ -50,6 +49,9 @@ public class YamlServiceImpl implements YamlService{
 
     @Autowired
     private DeploymentService dpService;
+
+    @Autowired
+    private NamespaceLocalService namespaceLocalService;
 
     final static String SPLIT = "---";
     final static String COLON = ":";
@@ -73,16 +75,15 @@ public class YamlServiceImpl implements YamlService{
     public ActionReturnUtil deployYaml(YamlDto yamlDto) throws Exception {
 
         if (!(yamlDto != null && yamlDto.getYaml() != null && yamlDto.getAppName() != null)){
-            return ActionReturnUtil.returnErrorWithMsg("yaml 和 application 不能为空!");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
         }
 
-        ActionReturnUtil namespacesrep =  namespaceService.getNamespaceList(yamlDto.getTentantID(), yamlDto.getTentantName());
+        ActionReturnUtil namespacesrep =  namespaceService.getNamespaceList(yamlDto.getTentantID());
         if(!namespacesrep.isSuccess()){
-            return ActionReturnUtil.returnErrorWithMsg("namespace获取失败");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NAMESPACE_NOT_FOUND);
         }
         @SuppressWarnings("unchecked")
 		List<NamespaceShowDto> namespaceList = (List<NamespaceShowDto>) namespacesrep.get("data");
-        Cluster cluster = (Cluster) session.getAttribute("currentCluster");
         Map<String,String> mes = new HashMap<String,String>();
         String tenantId = session.getAttribute("tenantId").toString();
         String username = session.getAttribute("username").toString();
@@ -109,7 +110,8 @@ public class YamlServiceImpl implements YamlService{
                     namespaceLabel = oneData.get(MAP_NAMESPACE).toString().replace(" ", "");
                     BaseResource base = new BaseResource();
                     ObjectMeta mate = new ObjectMeta();
-                    mate.setNamespace(oneData.get(MAP_NAMESPACE).toString().replace(" ", ""));
+                    String namespace = oneData.get(MAP_NAMESPACE).toString().replace(" ", "");
+                    mate.setNamespace(namespace);
                     mate.setName(yamlDto.getAppName());
 
                     Map<String, Object> anno = new HashMap<String, Object>();
@@ -122,6 +124,11 @@ public class YamlServiceImpl implements YamlService{
                     mate.setLabels(appLabels);
 
                     base.setMetadata(mate);
+                    //获取集群
+                    Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+                    if (Objects.isNull(cluster)) {
+                        return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+                    }
                     ActionReturnUtil result = tprApplication.createApplication(base,cluster);
 
                     if (result.isSuccess()){
@@ -143,6 +150,11 @@ public class YamlServiceImpl implements YamlService{
                     if (flag){
                         K8SURL url = new K8SURL();
                         String namesp = oneData.get(MAP_NAMESPACE).toString().replace(" ", "");
+                        //获取集群
+                        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namesp);
+                        if (Objects.isNull(cluster)) {
+                            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+                        }
                         String kind = oneData.get(MAP_KIND).toString().replace(" ", "").toLowerCase()+"s";
                         // url.setNamespace(oneData.get(MAP_NAMESPACE).toString().replace(" ", "")).setResource(oneData.get(MAP_KIND).toString().replace(" ", "").toLowerCase()+"s");
                         url.setNamespace(namesp).setResource(kind);

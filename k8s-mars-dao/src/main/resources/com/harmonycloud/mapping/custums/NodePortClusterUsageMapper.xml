@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.cluster.NodePortClusterUsageMapper">
+
+    <resultMap id="nodeportClusterUsage" type="com.harmonycloud.dao.cluster.bean.NodePortClusterUsage">
+        <id column="nodeport" jdbcType="INTEGER" property="nodeport" />
+        <result column="cluster_id" jdbcType="VARCHAR" property="clusterId" />
+        <result column="status" jdbcType="INTEGER" property="status" />
+        <result column="create_time" jdbcType="TIMESTAMP"  property="createTime"/>
+    </resultMap>
+
+    <insert id="insertNodeportUsage" parameterType="com.harmonycloud.dao.cluster.bean.NodePortClusterUsage">
+        INSERT INTO nodeport_cluster_usage(nodeport, cluster_id, status, create_time) VALUES(#{nodeport}, #{clusterId}, #{status}, #{createTime})
+    </insert>
+    
+    <select id="selectPortUsageByClusterId" parameterType="java.lang.Integer" resultMap="nodeportClusterUsage">
+        SELECT * FROM nodeport_cluster_usage WHERE cluster_id = #{clusterId} ORDER BY nodeport DESC
+    </select>
+
+    <select id="selectPortUsageByPort" resultMap="nodeportClusterUsage" parameterType="java.lang.Integer">
+        SELECT * FROM nodeport_cluster_usage WHERE cluster_id = #{clusterId} and nodeport = #{port}
+    </select>
+
+    <delete id="deleteNodePortUsage" parameterType="java.lang.Integer">
+        DELETE FROM nodeport_cluster_usage WHERE cluster_id = #{clusterId} and nodeport = #{port}
+    </delete>
+
+    <delete id="deleteByClusterId">
+        delete from nodeport_cluster_usage where cluster_id = #{clusterId}
+    </delete>
+
+    <update id="updateNodePortUsage" parameterType="com.harmonycloud.dao.cluster.bean.NodePortClusterUsage" >
+        UPDATE nodeport_cluster_usage
+        SET status = #{status}
+        WHERE nodeport = #{nodeport} AND cluster_id = #{clusterId}
+    </update>
+</mapper>

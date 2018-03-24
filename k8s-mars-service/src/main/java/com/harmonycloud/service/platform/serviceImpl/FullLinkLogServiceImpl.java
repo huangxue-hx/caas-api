@@ -1,6 +1,7 @@
 package com.harmonycloud.service.platform.serviceImpl;
 
 import com.alibaba.fastjson.JSONObject;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dto.log.FullLinkPodDto;
@@ -109,7 +110,7 @@ public class FullLinkLogServiceImpl implements FullLinkLogService{
 			return response;
 		}catch (Exception e){
 			LOGGER.info("listapp error for：{}", master_ip, e);
-			return ActionReturnUtil.returnErrorWithData("查询失败");
+			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.QUERY_FAIL);
 		}
 
 	}
@@ -123,7 +124,7 @@ public class FullLinkLogServiceImpl implements FullLinkLogService{
 			return response;
 		}catch (Exception e){
 			LOGGER.info("errorAnalysis fail for query：{}", JSONObject.toJSONString(queryDto), e);
-			return ActionReturnUtil.returnErrorWithData("查询失败");
+			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.QUERY_FAIL);
 		}
 	}
 
@@ -137,7 +138,7 @@ public class FullLinkLogServiceImpl implements FullLinkLogService{
 			return response;
 		}catch (Exception e){
 			LOGGER.info("errorTransactions fail for query：{}", JSONObject.toJSONString(queryDto), e);
-			return ActionReturnUtil.returnErrorWithData("查询失败");
+			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.QUERY_FAIL);
 		}
 	}
 
@@ -155,7 +156,7 @@ public class FullLinkLogServiceImpl implements FullLinkLogService{
 			return response;
 		}catch (Exception e){
 			LOGGER.info("transactionTrace error for transactionId：{}", transactionId, e);
-			return ActionReturnUtil.returnErrorWithData("查询失败");
+			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.QUERY_FAIL);
 		}
 	}
 

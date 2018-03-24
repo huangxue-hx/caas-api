@@ -7,7 +7,7 @@ public class NodePortCluster  implements Serializable{
 	
     private Integer nodeportid;
 
-    private Integer clusterid;
+    private String clusterId;
 
     private Integer status;
 
@@ -27,12 +27,12 @@ public class NodePortCluster  implements Serializable{
         this.nodeportid = nodeportid;
     }
 
-    public Integer getClusterid() {
-        return clusterid;
+    public String getClusterId() {
+        return clusterId;
     }
 
-    public void setClusterid(Integer clusterid) {
-        this.clusterid = clusterid;
+    public void setClusterid(String clusterId) {
+        this.clusterId = clusterId;
     }
 
     public Integer getStatus() {

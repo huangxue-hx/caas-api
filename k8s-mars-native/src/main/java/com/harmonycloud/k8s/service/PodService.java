@@ -9,8 +9,7 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpK8SClientUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
-import com.harmonycloud.k8s.bean.Job;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.Pod;
 import com.harmonycloud.k8s.bean.PodList;
 import com.harmonycloud.k8s.bean.UnversionedStatus;
@@ -74,17 +73,19 @@ public class PodService {
 	 * 获取所有Pod
 	 * @return PodList
 	 */
-	public PodList listPods(Cluster cluster){
+	public PodList listPods(Cluster cluster,String nodeName){
 		K8SURL url = new K8SURL();
 		url.setResource(Resource.POD);
-		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
+		Map<String,Object> bodys = new HashMap<>();
+		bodys.put("fieldSelector", "spec.nodeName=" + nodeName);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys,cluster);
 		if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			PodList podList = K8SClient.converToBean(response, PodList.class);
 			return podList;
 		}
 		return null;
 	}
-	
+
 	/**
 	 * 获取所有特定Namespace下的所有pods
 	 * @param url
@@ -243,7 +244,7 @@ public class PodService {
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST,headers,bodys,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithMsg(us.getMessage());
+            return ActionReturnUtil.returnErrorWithData(us.getMessage());
         }
 		return ActionReturnUtil.returnSuccess();
 	}

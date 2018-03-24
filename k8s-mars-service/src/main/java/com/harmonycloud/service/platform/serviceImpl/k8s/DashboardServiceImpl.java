@@ -1,5 +1,26 @@
 package com.harmonycloud.service.platform.serviceImpl.k8s;
 
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.HttpStatusUtil;
+import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.k8s.bean.*;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.client.K8sMachineClient;
+import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.constant.Resource;
+import com.harmonycloud.k8s.util.K8SClientResponse;
+import com.harmonycloud.k8s.util.K8SURL;
+import com.harmonycloud.service.platform.bean.EventDetail;
+import com.harmonycloud.service.platform.bean.PodDto;
+import com.harmonycloud.service.platform.service.DashboardService;
+import com.harmonycloud.service.platform.service.PodService;
+import com.harmonycloud.service.system.SystemConfigService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
 import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -7,32 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.harmonycloud.common.Constant.CommonConstant;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
-import com.harmonycloud.dao.system.bean.SystemConfig;
-import com.harmonycloud.k8s.bean.Event;
-import com.harmonycloud.k8s.bean.EventList;
-import com.harmonycloud.k8s.bean.Node;
-import com.harmonycloud.k8s.bean.NodeList;
-import com.harmonycloud.k8s.bean.PodList;
-import com.harmonycloud.k8s.client.K8sMachineClient;
-import com.harmonycloud.k8s.constant.HTTPMethod;
-import com.harmonycloud.k8s.constant.Resource;
-import com.harmonycloud.k8s.util.K8SClientResponse;
-import com.harmonycloud.k8s.util.K8SURL;
-import com.harmonycloud.service.platform.bean.EventDetail;
-import com.harmonycloud.service.platform.service.DashboardService;
-import com.harmonycloud.service.system.SuperSaleService;
-import com.harmonycloud.service.system.SystemConfigService;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-//import com.harmonycloud.k8s.util.HttpK8SClientUtil;
-//import com.harmonycloud.k8s.util.KubernatesHost;
 
 /**
  * 需要用机器账号去获取
@@ -47,25 +42,24 @@ public class DashboardServiceImpl implements DashboardService {
 	SystemConfigService systemConfigService;
 
 	@Autowired
-	SuperSaleService superSaleService;
+	private PodService podService;
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public ActionReturnUtil getPodInfo() throws Exception {
+	public ActionReturnUtil getPodInfo(Cluster cluster) throws Exception {
 
 		// 获取pod
 		K8SURL url = new K8SURL();
 		url.setNamespace(null).setResource(Resource.POD);
-		K8SClientResponse podRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null);
+		K8SClientResponse podRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null, cluster);
 		if (!HttpStatusUtil.isSuccessStatus(podRes.getStatus())) {
 			return ActionReturnUtil.returnErrorWithMsg(podRes.getBody());
 		}
-		System.out.println(podRes.getBody());
 		PodList podList = JsonUtil.jsonToPojo(podRes.getBody(), PodList.class);
 
 		// 获取node
 		url.setResource(Resource.NODE);
-		K8SClientResponse nodeRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null);
+		K8SClientResponse nodeRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null, cluster);
 		if (!HttpStatusUtil.isSuccessStatus(nodeRes.getStatus())) {
 			return ActionReturnUtil.returnErrorWithMsg(nodeRes.getBody());
 		}
@@ -89,44 +83,7 @@ public class DashboardServiceImpl implements DashboardService {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public ActionReturnUtil getInfraInfo() throws Exception {
-		Map<String, Object> res = new HashMap<String, Object>();
-		this.getInfraInfo(null);
-		return ActionReturnUtil.returnSuccessWithData(res);
-
-//		// 获取node
-//		K8SURL url = new K8SURL();
-//		url.setResource(Resource.NODE);
-//		K8SClientResponse nodeRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null);
-//		if (!HttpStatusUtil.isSuccessStatus(nodeRes.getStatus())) {
-//			return ActionReturnUtil.returnErrorWithMsg(nodeRes.getBody());
-//		}
-//		NodeList nodeList = JsonUtil.jsonToPojo(nodeRes.getBody(), NodeList.class);
-//		List<Node> nodes = nodeList.getItems();
-//		Map<String, Object> res = new HashMap<String, Object>();
-//		res.put("hosts", nodeList.getItems().size());
-//		res.put("cpu", 0);
-//		res.put("memory", 0);
-//		if (nodes != null && nodes.size() > 0) {
-//			int cpu = 0;
-//			int mem = 0;
-//			for (Node node : nodes) {
-//				Object object = node.getStatus().getAllocatable();
-//				if (object != null) {
-//					cpu += Integer.valueOf(((Map<String, Object>) object).get("cpu").toString());
-//					String memory = ((Map<String, Object>) object).get("memory").toString();
-//					memory = memory.substring(0, memory.indexOf("Ki"));
-//					mem += Integer.valueOf(memory);
-//				}
-//			}
-//			res.put("cpu", cpu);
-//			res.put("memory", mem);
-//		}
-//		return ActionReturnUtil.returnSuccessWithData(res);
-	}
-
-	@Override
-	public Map<String, Object> getInfraInfo(Cluster cluster) throws Exception {
+	public ActionReturnUtil getInfraInfo(Cluster cluster) throws Exception {
 		// 获取node
 		K8SURL url = new K8SURL();
 		url.setResource(Resource.NODE);
@@ -155,9 +112,10 @@ public class DashboardServiceImpl implements DashboardService {
 			res.put("cpu", cpu);
 			res.put("memory", mem);
 		}
-		return res;
+		return ActionReturnUtil.returnSuccessWithData(res);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public Map<String, Object> getNodeInfo(Cluster cluster, String nodename) throws Exception {
 		// 获取node
@@ -197,14 +155,14 @@ public class DashboardServiceImpl implements DashboardService {
 	}
 
 	@Override
-	public ActionReturnUtil getWarningInfo(String namespace) throws Exception {
+	public ActionReturnUtil getWarningInfo(Cluster cluster, String namespace) throws Exception {
 
 		//获取警告事件
 		K8SURL url = new K8SURL();
 		url.setResource(Resource.EVENT).setNamespace(namespace);
 		Map<String, Object> bodys = new HashMap<String, Object>();
 		bodys.put("fieldSelector", "type=Warning");
-		K8SClientResponse evRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys);
+		K8SClientResponse evRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
 		if (!HttpStatusUtil.isSuccessStatus(evRes.getStatus())) {
 			return ActionReturnUtil.returnErrorWithMsg(evRes.getBody());
 		}
@@ -220,10 +178,10 @@ public class DashboardServiceImpl implements DashboardService {
 	}
 
 	@Override
-	public ActionReturnUtil getEventInfo(String namespace) throws Exception {
+	public ActionReturnUtil getEventInfo(Cluster cluster, String namespace) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setResource(Resource.EVENT).setNamespace(namespace);
-		K8SClientResponse evRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null);
+		K8SClientResponse evRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(evRes.getStatus())) {
 			return ActionReturnUtil.returnErrorWithMsg(evRes.getBody());
 		}
@@ -245,7 +203,7 @@ public class DashboardServiceImpl implements DashboardService {
 
 	//读取node的license
 	@Override
-	public ActionReturnUtil getＮodeLicense() throws Exception {
+	public ActionReturnUtil getNodeLicense() throws Exception {
 
 //		String url = KubernatesHost.getKubeHost()+ "/api/v1/nodeLicense";
 //
@@ -261,6 +219,7 @@ public class DashboardServiceImpl implements DashboardService {
 		return null;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public Map<String, Object> getInfraInfoWorkNode(Cluster cluster) throws Exception {
 		// 获取node
@@ -283,18 +242,14 @@ public class DashboardServiceImpl implements DashboardService {
 			Double memGb = 0.0;
 			for (Node node : nodes) {
 				Map<String, Object> labels = node.getMetadata().getLabels();
-				if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
-						&& node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_A)) {
+				//只累加共享节点的资源
+				if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) == null) {
 					continue;
 				}
-				if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
-						&& node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
+				if ( !labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)
+						&& !labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_E)) {
 					continue;
 				}
-				if (labels.get(CommonConstant.MASTERNODELABEL) != null) {
-					continue;
-				}
-
 				Object object = node.getStatus().getAllocatable();
 				if (object != null) {
 					cpu += Double.valueOf(((Map<String, Object>) object).get("cpu").toString());
@@ -303,27 +258,43 @@ public class DashboardServiceImpl implements DashboardService {
 					mem += Double.valueOf(memory);
 					double db = Double.valueOf(memory)/1024/1024;
 					memGb += new BigDecimal(db).setScale(1, BigDecimal.ROUND_HALF_UP).doubleValue();
-
-
 				}
 			}
 			cpu = new BigDecimal(cpu).setScale(0, BigDecimal.ROUND_HALF_UP).doubleValue();
-
-			SystemConfig byId = systemConfigService.findById("40");
-			String configValue = byId.getConfigValue();
-			Double superSaleRate;
-			superSaleRate = superSaleService.addSuperSaleRate(Double.parseDouble(configValue));
-
 
 			NumberFormat nf = NumberFormat.getNumberInstance();
 			// 保留两位小数
 			nf.setMaximumFractionDigits(2);
 
-			res.put("cpu", (cpu * superSaleRate)%1==0?(cpu * superSaleRate):nf.format(cpu * superSaleRate));
-			res.put("memory", (mem * superSaleRate)%1==0?(mem * superSaleRate):nf.format(mem * superSaleRate));
-			res.put("memoryGb", (memGb * superSaleRate)%1==0?(memGb * superSaleRate):nf.format(memGb * superSaleRate));
+			res.put("cpu", cpu %1==0?cpu :nf.format(cpu ));
+			res.put("memory", mem%1==0?mem :nf.format(mem));
+			res.put("memoryGb", memGb%1==0?memGb:nf.format(memGb ));
 		}
 		return res;
+	}
+
+	@Override
+	public ActionReturnUtil listK8sComponentPod(Cluster cluster, String podName, String namespace) throws Exception {
+		List<PodDto> podList = podService.getPodListByNamespace(cluster, namespace);
+		if (podList == null) {
+			throw new MarsRuntimeException(ErrorCodeMessage.POD_NOT_EXIST);
+		}
+		List<PodDto> resultList = new ArrayList<>();
+		for (PodDto pod : podList) {
+			String[] pArray = podName.split(",");
+			for (String p : pArray) {
+				if (pod.getName().startsWith(p)) {
+					resultList.add(pod);
+				}
+			}
+		}
+		return ActionReturnUtil.returnSuccessWithData(resultList);
+	}
+
+	@Override
+	public ActionReturnUtil getComponentPodDetail(Cluster cluster, String name, String namespace) throws Exception {
+		Map<String, Object> podDetail = podService.getPodDetail(namespace, name, cluster);
+		return ActionReturnUtil.returnSuccessWithData(podDetail);
 	}
 
 }

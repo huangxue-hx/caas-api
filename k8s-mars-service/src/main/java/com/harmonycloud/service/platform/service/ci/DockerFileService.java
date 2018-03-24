@@ -13,14 +13,14 @@ public interface DockerFileService {
      * 根据租户查询所有的dockerfile
      * @return
      */
-    List<DockerFile> findByAll(DockerFile dockerFile);
+    List<DockerFile> findByAll(DockerFile dockerFile) throws Exception;
 
     /**
-     * 根据租户和名称分页查询dockerfile
+     * 根据项目id和集群id分页查询dockerfile
      * @param dockerFileDTO
      * @return
      */
-    PageInfo<DockerFilePage> findByList(DockerFileDto dockerFileDTO);
+    PageInfo<DockerFilePage> findByList(DockerFileDto dockerFileDTO) throws Exception;
 
     /**
      * 添加dockerfile
@@ -35,17 +35,17 @@ public interface DockerFileService {
     void updateDockerFile(DockerFile dockerFile) throws Exception;
 
     /**
-     * 根据编号和租户删除dockerfile
-     * @param dockerFile
+     * 根据id删除dockerfile
+     * @param id
      */
-    void deleteDockerFile(DockerFile dockerFile) throws Exception;
+    void deleteDockerFile(Integer id) throws Exception;
 
     /**
      * 查询dockerfile
      * @param dockerFile
      * @return
      */
-    DockerFile selectDockerFile(DockerFile dockerFile);
+    List<DockerFile> selectDockerFile(DockerFile dockerFile);
 
     /**
      * 根据名称和租户查询dockerfile
@@ -53,4 +53,13 @@ public interface DockerFileService {
      * @return
      */
     List<DockerFile> selectNameAndTenant(DockerFile dockerFile);
+
+    /**
+     * 根据id查询dockerfile
+     * @param id
+     * @return
+     */
+    DockerFile selectDockerFileById(Integer id);
+
+    int deleteByClusterId(String clusterId);
 }

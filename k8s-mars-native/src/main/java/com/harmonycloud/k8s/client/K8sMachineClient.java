@@ -3,8 +3,7 @@ package com.harmonycloud.k8s.client;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.harmonycloud.dao.cluster.bean.Cluster;
-import org.springframework.beans.factory.annotation.Value;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import org.springframework.stereotype.Component;
 
 import com.harmonycloud.k8s.constant.Resource;
@@ -50,6 +49,10 @@ public class K8sMachineClient {
 			HttpSession session;
 			session = request.getSession();
 			cluster = (Cluster) session.getAttribute("currentCluster");
+		}
+
+		if (null == cluster) {
+			return new K8SClientResponse();
 		}
 
 		k8surl.setHost(cluster.getHost());

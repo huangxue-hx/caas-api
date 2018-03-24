@@ -1,39 +1,29 @@
 import static java.util.UUID.randomUUID
-import  org.csanchez.jenkins.plugins.kubernetes.pipeline.PodTemplateAction
 def uuid
 def label
 def dateTime = new Date().format('yyyyMMddHHmmss')
-
-@NonCPS
-def clearTemplateNames() {
-    def r = currentBuild.rawBuild
-    def action = r.getAction(PodTemplateAction.class);
-    if(action) {
-        action.names.clear()
-    }
-}
-
+<#assign buildInPod=false>
 try{
-httpRequest "${apiUrl!}/rest/openapi/cicd/preBuild?id=${job.id!}&amp;buildNum=${r'${currentBuild.number}'}&amp;dateTime=${r'${dateTime}'}"
+httpRequest url:"${apiUrl!}/rest/openapi/cicd/preBuild?id=${job.id!}&amp;buildNum=${r'${currentBuild.number}'}&amp;dateTime=${r'${dateTime}'}",quiet: true
 <#list stageList as stage>
-<#if stage.stageTemplateType == 0>
-<#assign checkout=true>
+<#if (stage.stageTemplateType == 0 ||((stage.stageTemplateType == 1 || stage.stageTemplateType == 6) && stage.environmentChange == true))>
 <#if stage.stageOrder != 1>
-    }
+    <#if buildInPod! == true>}</#if>
 }
 </#if>
+<#assign buildInPod=true>
 uuid = randomUUID() as String
 label = uuid.take(8)
 podTemplate(
     containers: [
         containerTemplate(
-            alwaysPullImage: false,
+            alwaysPullImage: true,
             args: '',
             command: '',
             envVars: [
-                containerEnvVar(key: 'DOCKER_DAEMON_ARGS', value: '--insecure-registry=${harborHost!}')<#list stage.environmentVariables as environmentVariable>,containerEnvVar(key: '${environmentVariable.key}', value: '${environmentVariable.value}')</#list>
+                containerEnvVar(key: 'DOCKER_DAEMON_ARGS', value: '--insecure-registry=${harborHost!}'),containerEnvVar(key: 'GIT_SSL_NO_VERIFY', value: 'true')<#list stage.environmentVariables! as environmentVariable>,containerEnvVar(key: '${environmentVariable.key}', value: '${environmentVariable.value}')</#list>
             ],
-            image: '${harborHost!}/${stage.buildEnvironment!}',
+            image: '${stage.buildEnvironment!}',
             name: 'jnlp',
             privileged: true,
             resourceLimitCpu: '',
@@ -41,36 +31,39 @@ podTemplate(
             resourceRequestCpu: '',
             resourceRequestMemory: '',
             ttyEnabled: true,
-            workingDir: '/home/build'
+            workingDir: '/home'
         )
     ],
     inheritFrom: '',
     label: "build-${r'${label}'}",
     name: "build-${r'${label}'}",
-    nodeSelector: '',
+    nodeSelector: 'HarmonyCloud_Status=E',
     serviceAccount: '',
     volumes: [
     <#if imageBuildStages?size !=0>
         <#list imageBuildStages as tmpStage>
-        configMapVolume(configMapName: '${tmpStage.dockerfileId}', mountPath: '${"/opt/dockerfile"+tmpStage.id}')<#if (tmpStage_has_next || stage.dependences?size>0)>,</#if></#list>
+        configMapVolume(configMapName: '${tmpStage.dockerfileId}', mountPath: '${"/opt/dockerfile"+tmpStage.id}')<#if (tmpStage_has_next || stage.dependences!?size>0)>,</#if></#list>
     </#if>
-
-    <#list stage.dependences as dependence>
-        nfsVolume(mountPath: '${dependence.mountPath!}', readOnly: false, serverAddress: '${dependence.server!}', serverPath: '${dependence.serverPath!}')<#if dependence_has_next>,</#if>
+    <#list stage.dependences! as dependence>
+        persistentVolumeClaim(claimName: '${dependence.pvName!}', mountPath: '${dependence.mountPath!}', readOnly: false)<#if dependence_has_next>,</#if>
     </#list>
-        //nfsVolume(mountPath: '/root/.m2', readOnly: false, serverAddress: '10.10.101.147', serverPath: '/nfs/m2-pv'),
-        //nfsVolume(mountPath: '/var/lib/docker', readOnly: false, serverAddress: '10.10.101.147', serverPath: '/nfs/docker')
+    <#if (imageBuildStages?size>0 || stage.dependences!?size>0)>,</#if>
+        hostPathVolume(hostPath: '/var/run/docker.sock', mountPath: '/var/run/docker.sock')
     ],
+    imagePullSecrets: ['${secret}'],
     workingDir: '/home/build',
     workspaceVolume: emptyDirWorkspaceVolume(false)
 ) {
 
     node("build-${r'${label}'}"){
 </#if>
-        httpRequest "${apiUrl!}/rest/openapi/cicd/stageSync?id=${stage.id!}&amp;buildNum=${r'${currentBuild.number}'}&amp;dateTime=${r'${dateTime}'}"
-        stage('${stage.stageName}'){
+        httpRequest url:"${apiUrl!}/rest/openapi/cicd/stageSync?id=${stage.id!}&amp;buildNum=${r'${currentBuild.number}'}&amp;dateTime=${r'${dateTime}'}",quiet: true
+    <#if (stageList?size>0 && stage.stageOrder == 1 && buildInPod! == false)>
+        node(){
+    </#if>
+        stage('${stage.stageName}-${stage.id}'){
 <#if stage.repositoryType! == "git">
-            git url:'${stage.repositoryUrl}',credentialsId:'${stage.id}'<#if stage.repositoryBranch??>, branch:'${stage.repositoryBranch!}'</#if>
+            checkout([$class: 'GitSCM', branches: [[name: '${stage.repositoryBranch!}']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '${stage.id}', url: '${stage.repositoryUrl}']]])
 <#elseif stage.repositoryType! == "svn">
             checkout([$class: 'SubversionSCM',  locations: [[credentialsId: '${stage.id}', depthOption: 'infinity', ignoreExternalsOption: true, local: '.', remote: '${stage.repositoryUrl}']]])
 </#if>
@@ -78,7 +71,6 @@ podTemplate(
             <#if stage.imageTagType == '0'>
             tag${stage.stageOrder!} = dateTime
             </#if>
-            //withDockerRegistry([credentialsId: 'harbor', url: 'http://${harborHost!}']) {
             withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harbor', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']])
             { sh 'docker login ${harborHost!} --username=$USERNAME --password=$PASSWORD' }
             <#if stage.dockerfileType == 2>
@@ -86,27 +78,27 @@ podTemplate(
             </#if>
             sh "docker build <#if stage.dockerfileType == 1> -f ./${stage.dockerfilePath}</#if><#if stage.dockerfileType == 2> -f dockerfile@tmp${stage.id}/<#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if> -t ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!} ."
             sh "docker push ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}"
-            //}
-            //withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harbor', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']])
-            //{ sh 'docker login ${harborHost!} --username=$USERNAME --password=$PASSWORD' }
-            //docker.build('${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}<#if stage.dockerfileType == 1> -f ./${stage.dockerfilePath}</#if><#if stage.dockerfileType == 2> -f <#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if>').push()
 </#if>
 <#if stage.stageTemplateType == 2>
-            echo '开始升级'
-            httpRequest "${apiUrl!}/rest/openapi/cicd/deploy?stageId=${stage.id!}&amp;buildNum=${r'${currentBuild.number}'}"
-            echo '升级结束'
+            httpRequest "${apiUrl!}/rest/openapi/cicdjobs/stages/${stage.id!}?buildNum=${r'${currentBuild.number}'}"
 </#if>
-<#list stage.command as command>
-            sh '${command}'
-</#list>
+<#if (stage.stageTemplateType == 7 || stage.stageTemplateType == 8)>
+            httpRequest "${apiUrl!}/rest/openapi/cicdjobs/stages/${stage.id!}?buildNum=${r'${currentBuild.number}'}"
+</#if>
+<#if (stage.command!?size>0)>
+    sh '''<#list stage.command! as command>
+    <![CDATA[${command}]]>
+    </#list>'''
+</#if>
+
         }
-        //httpRequest "${apiUrl!}/rest/openapi/cicd/stageSync?id=${stage.id!}&amp;buildNum=${r'${currentBuild.number}'}"
 </#list>
-<#if (stageList?size>0 && checkout??)>
+<#if (stageList?size>0 && buildInPod! == true)>
     }
 }
+<#elseif (stageList?size>0 && buildInPod! == false )>
+    }
 </#if>
 }finally{
-    clearTemplateNames()
-    httpRequest "${apiUrl!}/rest/openapi/cicd/postBuild?id=${job.id!}&amp;buildNum=${r'${currentBuild.number}'}"
+    httpRequest url:"${apiUrl!}/rest/openapi/cicd/postBuild?id=${job.id!}&amp;buildNum=${r'${currentBuild.number}'}",quiet: true
 }

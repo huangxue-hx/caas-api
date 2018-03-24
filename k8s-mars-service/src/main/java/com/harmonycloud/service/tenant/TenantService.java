@@ -2,86 +2,84 @@ package com.harmonycloud.service.tenant;
 
 import java.util.List;
 import java.util.Map;
-
-/**
- * Created by andy on 17-1-10.
- */
-
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
+import com.harmonycloud.dao.user.bean.User;
+import com.harmonycloud.dao.user.bean.UserRoleRelationship;
+import com.harmonycloud.dto.tenant.CDPUserDto;
+import com.harmonycloud.dto.tenant.ClusterQuotaDto;
 import com.harmonycloud.dto.tenant.TenantDto;
-
-import org.springframework.web.bind.annotation.RequestParam;
-
+import com.harmonycloud.service.platform.bean.NodeDto;
 
 /**
  * 租户业务接口
+ * Created by andy on 17-1-10.
  */
 public interface TenantService {
 
     /**
-     * 根据用户名查询租户列表
-     * @param username
+     * 查询当前用户（session里面）的租户列表(返回前台租户列表数据)
      * @return
+     * @throws Exception
      */
-    public ActionReturnUtil tenantList(String username ,Integer clusterId) throws Exception;
+    public List<TenantDto> tenantList() throws Exception;
+
     /**
-     * 根据clusterid查询租户列表
-     * @param username
+     * 切换租户
+     * @param tenantId
      * @return
+     * @throws Exception
      */
-    public ActionReturnUtil listTenantByClusterId(Integer clusterid) throws Exception;
+    public Map<String,Object> switchTenant(String tenantId) throws Exception;
     /**
-     * 查询所有租户列表
+     * 根据用户名查询租户列表(返回租户表数据)
      * @return
+     * @throws Exception
      */
-    public ActionReturnUtil tenantAlllist() throws Exception;
+    public List<TenantBinding> tenantListByUsernameInner(String username) throws Exception;
 
     /**
      * 根据id查询租户详情
      * @param tenantid
      * @return
      */
-    public ActionReturnUtil tenantdetail(String tenantid) throws Exception;
+    public TenantDto getTenantDetail(String tenantid) throws Exception;
 
     /**
      * 根据租户名称查询租户详情
      * @param tenantName
      * @return
      */
-    public ActionReturnUtil tenantdetailByName(String tenantName) throws Exception;
+    public TenantDto getTenantDetailByTenantName(String tenantName) throws Exception;
 
     /**
      * 创建租户
-     * @param name
-     * @param annotation
-     * @param user
      * @return
      */
-    public ActionReturnUtil tenantcreate(String name, String annotation, String user,Integer cluster) throws Exception;
+    public void createTenant(TenantDto tenantDto) throws Exception;
 
     /**
      * 根据id删除租户信息
      * @param tenantid
      * @return
      */
-    public ActionReturnUtil tenantdelete(String tenantid) throws Exception;
+    public void deleteTenantByTenantId(String tenantid) throws Exception;
 
     /**
-     * 查询namespace详情
-     * @param tenantid
-     * @return
+     * 修改租户在集群下的配额
+     * @param tenantId
+     * @param clusterQuota
+     * @throws Exception
      */
-    public ActionReturnUtil getSmplTenantDetail(String tenantid) throws Exception;
-
+    public void updateTenant(String tenantId,List<ClusterQuotaDto> clusterQuota) throws Exception;
     /**
-     * 查询namespace下用户列表
-     * @param tenantname
-     * @param namespace
-     * @return
+     * 修改租户
+     * @param tenantDto
+     * @throws Exception
      */
-    public ActionReturnUtil getNamespaceUserList(String tenantname, String namespace) throws Exception;
+    public void updateTenant(TenantDto tenantDto) throws Exception;
+    public List<NodeDto> getTenantPrivateNodeList(String tenantid,String namespace,String clusterId) throws Exception;
 
     /**
      * 根据租户id查询租户
@@ -89,20 +87,14 @@ public interface TenantService {
      * @return
      */
     public TenantBinding getTenantByTenantid(String tenantid) throws Exception;
-    
-    /**
-     * 查询tenant下所有用户
-     * @param tenantid
-     * @return
-     */
-    public ActionReturnUtil listTenantUsers(String tenantid) throws Exception;
+
     /**
      * 查询tenant下所有Tm用户
      * @param tenantid
      * @return
      * @throws Exception
      */
-    public ActionReturnUtil listTenantTm(String tenantid) throws Exception;
+    public List<UserRoleRelationship> listTenantTm(String tenantid) throws Exception;
     /**
      * 查询是否为tm
      * @param tenantid
@@ -116,62 +108,22 @@ public interface TenantService {
      * @return
      * @throws Exception
      */
-    public ActionReturnUtil listTenantBytenantName(String tenantName) throws Exception;
+    public TenantBinding getTenantBytenantName(String tenantName) throws Exception;
     /**
-     * 向租户下添加user
+     * 向租户下添加租户管理员
+     * @return
+     * @throws Exception
+     */
+    public void createTm(String tenantId, List<String> tmList) throws Exception;
+
+    /**
+     * 向租户下移除租户管理员
      * @param tenantid
      * @param username
-     * @param role
-     * @return
      * @throws Exception
      */
-    public ActionReturnUtil addTenantUser(String tenantid, String username,String role) throws Exception;
-    /**
-     * 修改tenant用户角色
-     * @param tenantid
-     * @param username
-     * @param role
-     * @return
-     * @throws Exception
-     */
-    public ActionReturnUtil updateTenantUser(String tenantid, String username,String role) throws Exception;
-    /**
-     * 向租户下移除user
-     * @param tenantid
-     * @param username
-     * @return
-     * @throws Exception
-     */
-    public ActionReturnUtil removeTenantUser(String tenantid, String username) throws Exception;
-    /**
-     * 添加信任白名单
-     * @param tenantid
-     * @param trustTenantid
-     * @return
-     * @throws Exception
-     */
-    public ActionReturnUtil addTrustmember(String tenantid, String trustTenantid) throws Exception;
-    /**
-     * 移除信任白名单
-     * @param tenantid
-     * @param trustTenantid
-     * @return
-     * @throws Exception
-     */
-    public ActionReturnUtil removeTrustmember(String tenantid, String trustTenantid) throws Exception;
-    /**
-     * 获取信任白名单列表
-     * @param tenantid
-     * @return
-     */
-    public List<TenantDto> listTrustmember(String tenantid)  throws Exception;
-    /**
-     * 查询可添加信任白名单租户列表
-     * @param tenantid
-     * @return
-     * @throws Exception
-     */
-    public List<TenantBinding> listAvailableTrustmemberTenantList(String tenantid)  throws Exception;
+    public void deleteTm(String tenantid, String username) throws Exception;
+
     /**
      * 列出tenan下面的资源使用情况
      * @param tenantid
@@ -179,6 +131,14 @@ public interface TenantService {
      * @throws Exception
      */
     public Map<String, Object> listTenantQuota(String tenantid)  throws Exception;
+
+    /**
+     * 根据namespaces列表获取分区资源使用量
+     * @param namespaceDataList
+     * @return
+     * @throws Exception
+     */
+    public Map<String, Object> getTotalQuotaByNamespaceDataList(List<Map<String, Object>> namespaceDataList) throws Exception;
 
 //    ActionReturnUtil listTenantUsers(String tenantname) throws Exception;
 
@@ -189,7 +149,7 @@ public interface TenantService {
      * @return
      * @throws Exception
      */
-    public List<String> findByTenantName(String tenantName)throws Exception;
+    public List<String> listUserByTenantName(String tenantName)throws Exception;
 
     /**
      * 根据用户名称获取该用户所属的所有租户
@@ -197,14 +157,15 @@ public interface TenantService {
      * @return
      * @throws Exception
      */
-    public ActionReturnUtil listTenantsByUserName(String userName, boolean isAdmin) throws Exception ;
+    public List<TenantBinding> listTenantsByUserName(String userName) throws Exception ;
+
     /**
-     * 根据tenantid获取集群
-     * @param tenantid
+     * 根据租户id获取租户成员
+     * @param tenantId
      * @return
      * @throws Exception
      */
-    public Cluster getClusterByTenantid(String tenantid) throws Exception;
+    public List<User> listTenantMember(String tenantId) throws Exception ;
 
     /**
      * 生成租户下拉列表专用
@@ -215,20 +176,60 @@ public interface TenantService {
      */
     public ActionReturnUtil listTenantsByUserNameForAudit(String userName, boolean isAdmin) throws Exception ;
     /**
-     * 根据clusterid获取已使用配额
+     * 获取所有租户列表
+     * @return
+     * @throws Exception
+     */
+    public List<TenantBinding> listAllTenant() throws Exception;
+
+    /**
+     *给新集群的添加租户配额
      * @param clusterId
      * @return
      * @throws Exception
      */
-    public Map getTenantQuotaByClusterId(String clusterId) throws Exception;
+    public void dealQuotaWithNewCluster(String clusterId) throws Exception;
+
     /**
-     * 根据用户名查询是否是admin或者租户管理员
-     * @param tenantid
-     * @param username
+     *  导入租户项目
+     * @param tenantDto
      * @return
      * @throws Exception
      */
-    public boolean isAdmin(String tenantid,String username) throws Exception;
+    public void importCdsSystem(TenantDto tenantDto) throws Exception;
+
+    /**
+     * 导入CDP用户
+     * @param cdpUserDto
+     * @return
+     * @throws Exception
+     */
+    public void importCdsUserAccount(CDPUserDto cdpUserDto) throws Exception;
+
+    /**
+     * 导入CDP项目用户关系
+     * @param cdpUserDto
+     * @return
+     * @throws Exception
+     */
+    public void importCdsUserRelationship(CDPUserDto cdpUserDto) throws Exception;
+
+    /**
+     * 删除CDP项目用户关系
+     * @param cdpUserDto
+     * @return
+     * @throws Exception
+     */
+    public void removeCdsUserRelationship(CDPUserDto cdpUserDto) throws Exception;
+
+    /**
+     * 添加租户成员
+     * @param tenantId
+     * @param addUsers
+     * @param deleteUsers
+     * @throws Exception
+     */
+    public void updateTenantMember(String tenantId, List <String> addUsers, List <String> deleteUsers) throws Exception;
     public List<TenantBinding> testTime(Integer domain) throws Exception;
 
 }

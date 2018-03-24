@@ -1,72 +1,121 @@
 package com.harmonycloud.service.platform.bean;
 
-import java.util.List;
-import java.util.Map;
-
-import com.harmonycloud.dto.business.NodeAffinityDto;
-import com.harmonycloud.dto.business.PodAffinityDto;
+import com.harmonycloud.dto.application.AffinityDto;
 import com.harmonycloud.dto.scale.AutoScaleDto;
 import com.harmonycloud.k8s.bean.Event;
 import com.harmonycloud.k8s.bean.ServicePort;
 
+import java.util.List;
+import java.util.Map;
+
 /**
- * 
+ *
  * @author jmi
  *
  */
 public class AppDetail {
-	
+
 	private String clusterIP;
-	
+
 	private String serviceAddress;
-	
+
 	private List<ServicePort> internalPorts;
-	
+
 	private String sessionAffinity;
-	
+
 	private String name;
-	
+
 	private String namespace;
-	
+
+	private String clusterId;
+
 	private String version;
-	
+
 	private String createTime;
-	
+
 	private String updateTime;
-	
+
 	private Integer instance;
-	
+
 	private String owner;
-	
+
 	private String hostName;
-	
+
 	private Map<String, Object> labels;
-	
+
 	private String status;
-	
+
 	private String annotation;
-	
+
 	private List<PodDetail> podList;
-	
+
 	private List<EventDetail> events;
 
 	private AutoScaleDto autoScale;
-	
+
 	private String restartPolicy;
-	
+
 	private List<Event> autoScalingHistory;
-	
+
 	private boolean hostIPC;
-	
+
 	private boolean hostPID;
-	
+
 	private boolean hostNetwork;
-	
-	private List<NodeAffinityDto> nodeAffinity;
-	
-	private List<PodAffinityDto> podAntiAffinity ;
-	
+
+	/**节点亲和*/
+	private List<AffinityDto> nodeAffinity;
+
+	/**pod 亲和*/
+	private AffinityDto podAffinity;
+
+	/**pod 反亲和*/
+	private AffinityDto podAntiAffinity;
+
+	/**pod 是否分散*/
+	private AffinityDto podDisperse;
+
 	private String nodeSelector;
+
+	private boolean isOperationable;
+
+	private boolean isMsf;
+
+	private String realName;
+
+	private String aliasNamespace;
+
+	public String getRealName() {
+		return realName;
+	}
+
+	public void setRealName(String realName) {
+		this.realName = realName;
+	}
+
+	public String getAliasNamespace() {
+		return aliasNamespace;
+	}
+
+	public void setAliasNamespace(String aliasNamespace) {
+		this.aliasNamespace = aliasNamespace;
+	}
+
+	public boolean isMsf() {
+		return isMsf;
+	}
+
+	public void setMsf(boolean msf) {
+		isMsf = msf;
+	}
+
+	public boolean isOperationable() {
+		return isOperationable;
+	}
+
+	public void setOperationable(boolean operationable) {
+		isOperationable = operationable;
+	}
 
 	public String getClusterIP() {
 		return clusterIP;
@@ -244,22 +293,6 @@ public class AppDetail {
 		this.autoScale = autoScale;
 	}
 
-	public List<NodeAffinityDto> getNodeAffinity() {
-		return nodeAffinity;
-	}
-
-	public void setNodeAffinity(List<NodeAffinityDto> nodeAffinity) {
-		this.nodeAffinity = nodeAffinity;
-	}
-
-	public List<PodAffinityDto> getPodAntiAffinity() {
-		return podAntiAffinity;
-	}
-
-	public void setPodAntiAffinity(List<PodAffinityDto> podAntiAffinity) {
-		this.podAntiAffinity = podAntiAffinity;
-	}
-
 	public String getNodeSelector() {
 		return nodeSelector;
 	}
@@ -274,5 +307,45 @@ public class AppDetail {
 
 	public void setHostNetwork(boolean hostNetwork) {
 		this.hostNetwork = hostNetwork;
+	}
+
+	public List<AffinityDto> getNodeAffinity() {
+		return nodeAffinity;
+	}
+
+	public void setNodeAffinity(List<AffinityDto> nodeAffinity) {
+		this.nodeAffinity = nodeAffinity;
+	}
+
+	public AffinityDto getPodAffinity() {
+		return podAffinity;
+	}
+
+	public void setPodAffinity(AffinityDto podAffinity) {
+		this.podAffinity = podAffinity;
+	}
+
+	public AffinityDto getPodAntiAffinity() {
+		return podAntiAffinity;
+	}
+
+	public void setPodAntiAffinity(AffinityDto podAntiAffinity) {
+		this.podAntiAffinity = podAntiAffinity;
+	}
+
+	public AffinityDto getPodDisperse() {
+		return podDisperse;
+	}
+
+	public void setPodDisperse(AffinityDto podDisperse) {
+		this.podDisperse = podDisperse;
+	}
+
+	public String getClusterId() {
+		return clusterId;
+	}
+
+	public void setClusterId(String clusterId) {
+		this.clusterId = clusterId;
 	}
 }

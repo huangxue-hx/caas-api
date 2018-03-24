@@ -1,7 +1,10 @@
 package com.harmonycloud.service.platform.service;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dao.application.bean.ConfigFile;
 import com.harmonycloud.dto.config.ConfigDetailDto;
+
+import java.util.List;
 
 
 /**
@@ -35,11 +38,11 @@ public interface ConfigCenterService {
      * @author gurongyun
      * @param id
      *            required
-     * @param tenant
+     * @param projectId
      *            required
      * @return ActionReturnUtil
      */
-    ActionReturnUtil removeConfig(String id, String tenant) throws Exception;
+    void deleteConfig(String id, String projectId) throws Exception;
 
     /**
      * delete configs service on 17/03/24.
@@ -47,35 +50,35 @@ public interface ConfigCenterService {
      * @author gurongyun
      * @param name
      *            required
-     * @param tenant
+     * @param projectId
      *            required
      * @param repoName
      *            required
      * @return ActionReturnUtil
      */
-    ActionReturnUtil deleteConfigs(String name, String tenant, String repoName) throws Exception;
+    ActionReturnUtil deleteConfigMap(String name, String projectId, String repoName) throws Exception;
 
     /**
      * find config lists for center service on 17/03/24.
      * 
      * @author gurongyun
-     * @param tenant
+     * @param projectId
      *            required
      * @return ActionReturnUtil
      */
-    ActionReturnUtil listConfigSearch(String tenant, String keyword) throws Exception;
+    ActionReturnUtil searchConfig(String projectId, String clusterId, String repoName, String keyword) throws Exception;
 
     /**
      * find config overview lists service on 17/03/24.
      * 
      * @author gurongyun
-     * @param tenant
+     * @param projectId
      *            required
      * @param repoName
      *            required
      * @return ActionReturnUtil
      */
-    ActionReturnUtil listConfigOverview(String tenant, String repoName) throws Exception;
+    ActionReturnUtil listConfig(String projectId, String repoName) throws Exception;
 
     /**
      * find configMap on 17/03/24.
@@ -88,26 +91,16 @@ public interface ConfigCenterService {
     ActionReturnUtil getConfigMap(String id) throws Exception;
 
     /**
-     * find a config by id service on 17/03/24.
-     * 
-     * @author gurongyun
-     * @param id
-     *            required
-     * @return ActionReturnUtil
-     */
-    ActionReturnUtil getById(String id) throws Exception;
-
-    /**
      * find a lastest config service on 17/03/24.
      * 
      * @author gurongyun
      * @param name
      *            required
-     * @param tenant
+     * @param projectId
      *            required
      * @return ActionReturnUtil
      */
-    ActionReturnUtil getConfigByName(String name, String tenant, String repoName) throws Exception;
+    ActionReturnUtil getLatestConfigMap(String name, String projectId, String repoName) throws Exception;
     
     /**
      * check service on 17/03/24.
@@ -115,11 +108,13 @@ public interface ConfigCenterService {
      * @author gurongyun
      * @param name
      *            required
-     * @param tenant
+     * @param projectId
      *            required
      * @return ActionReturnUtil
      */
-    ActionReturnUtil checkName(String name,String tenant) throws Exception;
+    ActionReturnUtil checkDuplicateName(String name,String projectId) throws Exception;
     
-    ActionReturnUtil deleteConfigsByTenant(String tenant) throws Exception;
+    ActionReturnUtil deleteConfigByProject(String projectId) throws Exception;
+
+    int deleteByClusterId(String clusterId);
 }

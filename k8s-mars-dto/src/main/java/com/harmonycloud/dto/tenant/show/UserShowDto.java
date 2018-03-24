@@ -21,11 +21,15 @@ public class UserShowDto {
 
     private String comment;
     
-    private Boolean isTm;
+    private Boolean isAdmin;
+
+    private Boolean isMachine;
 
     private String updateTime;
     
     private String pause;
+
+    private String realName;
 
     private String phone;
     private Integer isAuthorize;
@@ -33,6 +37,14 @@ public class UserShowDto {
     private String roleName;
 
     private String roleDiscription;
+
+    public String getRealName() {
+        return realName;
+    }
+
+    public void setRealName(String realName) {
+        this.realName = realName;
+    }
 
     public String getRoleDiscription() {
         return roleDiscription;
@@ -84,12 +96,12 @@ public class UserShowDto {
 		this.updateTime = updateTime;
 	}
 
-    public Boolean getIsTm() {
-        return isTm;
+    public Boolean getIsAdmin() {
+        return isAdmin;
     }
 
-    public void setIsTm(Boolean isTm) {
-        this.isTm = isTm;
+    public void setIsAdmin(Boolean isAdmin) {
+        this.isAdmin = isAdmin;
     }
 
     public String getName() {
@@ -146,5 +158,13 @@ public class UserShowDto {
 
     public void setGroupName(String groupName) {
         this.groupName = groupName;
+    }
+
+    public Boolean getIsMachine() {
+        return isMachine;
+    }
+
+    public void setIsMachine(Boolean machine) {
+        this.isMachine = machine;
     }
 }

@@ -57,6 +57,5 @@ public class ClusterRoleBindingService {
 	public static void main(String [] args){
 		Map<String, Object> headers = new HashMap<String, Object>();
 		headers.put("authorization", "Bearer 330957b867a3462ea457bec41410624b");
-		System.out.println(JsonUtil.convertToJsonNonNull((new ClusterRoleBindingService()).getAllClusterRolebindings("https://10.10.102.25:6443",headers,null)));
 	}
 }

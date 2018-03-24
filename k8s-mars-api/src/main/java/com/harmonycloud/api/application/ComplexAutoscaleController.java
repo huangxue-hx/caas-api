@@ -1,9 +1,9 @@
 package com.harmonycloud.api.application;
 
 import com.alibaba.fastjson.JSONObject;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dto.scale.AutoScaleDto;
 import com.harmonycloud.dto.scale.CustomMetricScaleDto;
 import com.harmonycloud.service.application.AutoScaleService;
@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 /**
  * Created by root on 5/22/17.
  */
-@RequestMapping("/complexautoscale")
+@RequestMapping("/tenants/{tenantId}/projects/{projectId}/deploys/{deployName}/autoscale")
 @Controller
 public class ComplexAutoscaleController {
 
@@ -54,13 +54,8 @@ public class ComplexAutoscaleController {
             return ActionReturnUtil.returnErrorWithData(checkParams(autoScaleDto));
         }
         try {
-            Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-            boolean result = autoScaleService.create(autoScaleDto, cluster);
-            if(result){
-                return ActionReturnUtil.returnSuccess();
-            }else{
-                return ActionReturnUtil.returnErrorWithData("创建失败");
-            }
+            return  autoScaleService.create(autoScaleDto);
+
         } catch (MarsRuntimeException mre){
             logger.error("创建自动伸缩失败，autoScaleDto:{}", JSONObject.toJSONString(autoScaleDto), mre);
             return ActionReturnUtil.returnErrorWithData(mre.getMessage());
@@ -77,13 +72,8 @@ public class ComplexAutoscaleController {
             return ActionReturnUtil.returnErrorWithData(checkParams(autoScaleDto));
         }
         try {
-			Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-            boolean result = autoScaleService.update(autoScaleDto, cluster);
-            if(result){
-                return ActionReturnUtil.returnSuccess();
-            }else{
-                return ActionReturnUtil.returnError();
-            }
+            return autoScaleService.update(autoScaleDto);
+
         }catch (MarsRuntimeException mre){
             logger.error("修改自动伸缩失败，autoScaleDto:{}", JSONObject.toJSONString(autoScaleDto), mre);
             return ActionReturnUtil.returnErrorWithData(mre.getMessage());
@@ -95,12 +85,11 @@ public class ComplexAutoscaleController {
 
     @ResponseBody
     @RequestMapping(method = RequestMethod.DELETE)
-    public ActionReturnUtil deleteAutoScale(@RequestParam(value = "deploymentName") String deploymentName,
+    public ActionReturnUtil deleteAutoScale(@PathVariable(value = "deployName") String deploymentName,
                                             @RequestParam(value = "namespace") String namespace) throws Exception {
         try {
             logger.info("删除应用自动伸缩，deploymentName:{},namespace:{}",deploymentName,namespace);
-            Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-            boolean result = autoScaleService.delete(namespace,deploymentName, cluster);
+            boolean result = autoScaleService.delete(namespace,deploymentName);
             if(result){
                 return ActionReturnUtil.returnSuccess();
             }else{
@@ -114,11 +103,10 @@ public class ComplexAutoscaleController {
 
     @ResponseBody
     @RequestMapping(method = RequestMethod.GET)
-    public ActionReturnUtil queryAutoScale(@RequestParam(value = "deploymentName") String deploymentName,
+    public ActionReturnUtil queryAutoScale(@PathVariable(value = "deployName") String deploymentName,
                                             @RequestParam(value = "namespace") String namespace) throws Exception {
         try {
-            Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-            AutoScaleDto autoScaleDto = autoScaleService.get(namespace, deploymentName, cluster);
+            AutoScaleDto autoScaleDto = autoScaleService.get(namespace, deploymentName);
             return ActionReturnUtil.returnSuccessWithData(autoScaleDto);
         }catch (Exception e) {
             logger.error("查询自动伸缩失败， deploymentName:{}", deploymentName, e);

@@ -3,7 +3,7 @@ package com.harmonycloud.service.application;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dto.business.ContainerFileUploadDto;
+import com.harmonycloud.dto.application.ContainerFileUploadDto;
 
 /**
  * created by 2017/7/13
@@ -12,7 +12,7 @@ import com.harmonycloud.dto.business.ContainerFileUploadDto;
  */
 public interface FileUploadToContainerService {
 	
-	ActionReturnUtil fileUploadToNode(ContainerFileUploadDto containerFileUpload, MultipartFile file) throws Exception;
+	ActionReturnUtil fileUploadToNode(String pods, String namespace, String deployment, String containerFilePath, MultipartFile file) throws Exception;
 	
 	ActionReturnUtil fileUploadToContainer(ContainerFileUploadDto containerFileUpload, String shellPath) throws Exception;
 	

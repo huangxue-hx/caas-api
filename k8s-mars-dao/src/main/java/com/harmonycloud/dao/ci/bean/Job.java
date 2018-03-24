@@ -8,17 +8,21 @@ import java.util.Date;
  */
 public class Job  implements Serializable{
     private Integer id;
+    private String uuid;
     private String name;
+    private String type;
     private String tenant;
     private String tenantId;
+    private String projectId;
+    private String clusterId;
     private boolean notification;
     private String mail;
     private boolean failNotification;
     private boolean successNotification;
-    private boolean trigger;
-    private boolean pollScm;
-    private boolean pollScmCustomize;
-    private String cronExpForPollScm;
+//    private boolean trigger;
+//    private boolean pollScm;
+//    private boolean pollScmCustomize;
+//    private String cronExpForPollScm;
     private String createUser;
     private String updateUser;
     private Date createTime;
@@ -33,12 +37,28 @@ public class Job  implements Serializable{
         this.id = id;
     }
 
+    public String getUuid() {
+        return uuid;
+    }
+
+    public void setUuid(String uuid) {
+        this.uuid = uuid;
+    }
+
     public String getName() {
         return name;
     }
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
     }
 
     public String getTenant() {
@@ -55,6 +75,22 @@ public class Job  implements Serializable{
 
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
+    }
+
+    public String getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
+    }
+
+    public String getClusterId() {
+        return clusterId;
+    }
+
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
     }
 
     public boolean isNotification() {
@@ -93,37 +129,37 @@ public class Job  implements Serializable{
         return createUser;
     }
 
-    public boolean isTrigger() {
-        return trigger;
-    }
-
-    public void setTrigger(boolean trigger) {
-        this.trigger = trigger;
-    }
-
-    public boolean isPollScm() {
-        return pollScm;
-    }
-
-    public void setPollScm(boolean pollScm) {
-        this.pollScm = pollScm;
-    }
-
-    public boolean isPollScmCustomize() {
-        return pollScmCustomize;
-    }
-
-    public void setPollScmCustomize(boolean pollScmCustomize) {
-        this.pollScmCustomize = pollScmCustomize;
-    }
-
-    public String getCronExpForPollScm() {
-        return cronExpForPollScm;
-    }
-
-    public void setCronExpForPollScm(String cronExpForPollScm) {
-        this.cronExpForPollScm = cronExpForPollScm;
-    }
+//    public boolean isTrigger() {
+//        return trigger;
+//    }
+//
+//    public void setTrigger(boolean trigger) {
+//        this.trigger = trigger;
+//    }
+//
+//    public boolean isPollScm() {
+//        return pollScm;
+//    }
+//
+//    public void setPollScm(boolean pollScm) {
+//        this.pollScm = pollScm;
+//    }
+//
+//    public boolean isPollScmCustomize() {
+//        return pollScmCustomize;
+//    }
+//
+//    public void setPollScmCustomize(boolean pollScmCustomize) {
+//        this.pollScmCustomize = pollScmCustomize;
+//    }
+//
+//    public String getCronExpForPollScm() {
+//        return cronExpForPollScm;
+//    }
+//
+//    public void setCronExpForPollScm(String cronExpForPollScm) {
+//        this.cronExpForPollScm = cronExpForPollScm;
+//    }
 
     public void setCreateUser(String createUser) {
         this.createUser = createUser;

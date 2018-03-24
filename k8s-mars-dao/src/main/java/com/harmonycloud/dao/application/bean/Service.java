@@ -13,8 +13,6 @@ public class Service implements Serializable {
 
     private String name;
 
-    private Integer businessId;
-
     private Integer serviceTemplateId;
 
     private Integer isExternal;
@@ -39,14 +37,6 @@ public class Service implements Serializable {
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public Integer getBusinessId() {
-        return businessId;
-    }
-
-    public void setBusinessId(Integer businessId) {
-        this.businessId = businessId;
     }
 
     public Integer getServiceTemplateId() {

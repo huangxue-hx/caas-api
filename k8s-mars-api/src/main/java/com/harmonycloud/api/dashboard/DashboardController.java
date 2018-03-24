@@ -1,13 +1,16 @@
 package com.harmonycloud.api.dashboard;
 
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.application.ApplicationDeployService;
+import com.harmonycloud.service.platform.bean.monitor.InfluxdbQuery;
+import com.harmonycloud.service.tenant.NamespaceService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.service.platform.service.DashboardService;
@@ -21,7 +24,7 @@ import com.harmonycloud.service.platform.service.InfluxdbService;
  */
 
 @Controller
-@RequestMapping(value = "/dashboard")
+@RequestMapping(value = "/dashboard/clusters/{clusterId}")
 public class DashboardController {
 	
 	@Autowired
@@ -29,16 +32,27 @@ public class DashboardController {
 	
 	@Autowired
 	InfluxdbService influxdbService;
+
+	@Autowired
+	ClusterService clusterService;
+    @Autowired
+	NamespaceService namespaceService;
+	@Autowired
+    ApplicationDeployService applicationDeployService;
 	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 	
 	@ResponseBody
-	@RequestMapping(value = "/podInfo", method = RequestMethod.GET)
-	public ActionReturnUtil getPodInfo() throws Exception{
+	@RequestMapping(value = "/pods", method = RequestMethod.GET)
+	public ActionReturnUtil getPodInfo(@PathVariable(value = "clusterId") String clusterId) throws Exception{
 		
 		try {
 			logger.info("dashboard获取pod信息");
-			return dashboardService.getPodInfo();
+			Cluster cluster = clusterService.findClusterById(clusterId);
+			if (null == cluster) {
+				return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+			}
+			return dashboardService.getPodInfo(cluster);
 		} catch (Exception e) {
 			logger.error("dashboard获取pod信息失败,e:"+e.getMessage());
 			throw e;
@@ -46,12 +60,17 @@ public class DashboardController {
 	}
 	
 	@ResponseBody
-	@RequestMapping(value = "/infraInfo", method = RequestMethod.GET)
-	public ActionReturnUtil getInfraInfo() throws Exception{
+	@RequestMapping(value = "/infras", method = RequestMethod.GET)
+	public ActionReturnUtil getInfraInfo(@PathVariable(value = "clusterId") String clusterId) throws Exception{
 		
 		try {
 			logger.info("dashboard获取机器信息");
-			return dashboardService.getInfraInfo();
+			Cluster cluster = clusterService.findClusterById(clusterId);
+			if (null == cluster) {
+				return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+			}
+
+			return dashboardService.getInfraInfo(cluster);
 		} catch (Exception e) {
 			logger.error("dashboard获取机器信息失败,e:"+e.getMessage());
 			throw e;
@@ -59,12 +78,16 @@ public class DashboardController {
 	}
 	
 	@ResponseBody
-	@RequestMapping(value = "/warningInfo", method = RequestMethod.GET)
-	public ActionReturnUtil getWarningInfo(@RequestParam(value = "namespace", required=false) String namespace) throws Exception{
+	@RequestMapping(value = "/alarms", method = RequestMethod.GET)
+	public ActionReturnUtil getWarningInfo(@PathVariable(value = "clusterId") String clusterId, @RequestParam(value = "namespace", required=false) String namespace) throws Exception{
 		
 		try {
 			logger.info("dashboard获取告警信息");
-			return dashboardService.getWarningInfo(namespace);
+			Cluster cluster = clusterService.findClusterById(clusterId);
+			if (null == cluster) {
+				return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+			}
+			return dashboardService.getWarningInfo(cluster, namespace);
 		} catch (Exception e) {
 			logger.error("dashboard获取告警信息失败, namspace="+namespace+", e="+e.getMessage());
 			throw e;
@@ -72,12 +95,16 @@ public class DashboardController {
 	}
 	
 	@ResponseBody
-	@RequestMapping(value = "/eventInfo" , method = RequestMethod.GET)
-	public ActionReturnUtil getEventInfo(@RequestParam(value = "namespace", required=false) String namespace) throws Exception{
+	@RequestMapping(value = "/events" , method = RequestMethod.GET)
+	public ActionReturnUtil getEventInfo(@PathVariable(value = "clusterId") String clusterId, @RequestParam(value = "namespace", required=false) String namespace) throws Exception{
 		
 		try {
 			logger.info("dashboard获取事件信息");
-			return dashboardService.getEventInfo(namespace);
+			Cluster cluster = clusterService.findClusterById(clusterId);
+			if (null == cluster) {
+				return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+			}
+			return dashboardService.getEventInfo(cluster, namespace);
 		} catch (Exception e) {
 			logger.error("dashboard获取事件信息失败, namspace="+namespace+", e="+e.getMessage());
 			throw e;
@@ -85,14 +112,20 @@ public class DashboardController {
 	}
 	
 	@ResponseBody
-	@RequestMapping(value = "/nodemonitor" , method = RequestMethod.GET)
+	@RequestMapping(value = "/monitors" , method = RequestMethod.GET)
 	public ActionReturnUtil nodeMonit(@RequestParam(value = "rangeType") String rangeType, 
 			@RequestParam(value = "target") String target,
-			@RequestParam(value = "type") String type) throws Exception{
+			@RequestParam(value = "type") String type,
+			@PathVariable(value = "clusterId") String clusterId) throws Exception{
 		
 		try {
 			logger.info("dashboard获取事件信息");
-			return influxdbService.nodeQuery(type, rangeType, target, null, null, null);
+			InfluxdbQuery influxdbQuery = new InfluxdbQuery();
+			influxdbQuery.setRangeType(rangeType);
+			influxdbQuery.setMeasurement(target);
+			influxdbQuery.setType(type);
+			influxdbQuery.setClusterId(clusterId);
+			return influxdbService.nodeQuery(influxdbQuery);
 		} catch (Exception e) {
 			logger.error("dashboard获取事件信息失败, rangeType="+rangeType+", target="+target+", type="+type+", e="+e.getMessage());
 			throw e;
@@ -100,15 +133,75 @@ public class DashboardController {
 	}
 
 	@ResponseBody
-	@RequestMapping(value = "/nodeLicense" , method = RequestMethod.GET)
+	@RequestMapping(value = "/nodeLicense", method = RequestMethod.GET)
 	public ActionReturnUtil getNodeLicense () throws Exception{
 		try {
 			logger.info("获取node license");
-			return dashboardService.getＮodeLicense();
+			return dashboardService.getNodeLicense();
 		} catch (Exception e) {
 			logger.error("获取node license失败");
 			throw e;
 		}
+	}
+
+	/**
+	 * 获取集群内所有应用
+	 *
+	 * @param clusterId
+	 * @return ActionReturnUtil
+	 */
+	@ResponseBody
+	@RequestMapping(value = "/sum", method = RequestMethod.GET)
+	public ActionReturnUtil getSumOfApplication(@PathVariable(value = "clusterId") String clusterId) throws Exception {
+		logger.info("get sum of application in projects");
+		return applicationDeployService.searchSumApplication(clusterId);
+	}
+
+	/**
+	 * 获取某个集群下的所有分区
+	 *
+	 * @param clusterId
+	 * @return ActionReturnUtil
+	 */
+	@ResponseBody
+	@RequestMapping(value = "/namespaces", method = RequestMethod.GET)
+	public ActionReturnUtil getNamespaces(@PathVariable(value = "clusterId") String clusterId) throws Exception {
+		return ActionReturnUtil.returnSuccessWithData(namespaceService.getNamespaceListByClusterId(clusterId));
+	}
+
+	/**
+	 * 组件pod 列表
+	 * @param clusterId
+	 * @param podName
+	 * @param namespace
+	 * @return ActionReturnUtil
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/component/pods", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil listK8sComponentPod(@PathVariable(value = "clusterId") String clusterId,
+									 @RequestParam(value = "podName") String podName,
+									 @RequestParam(value = "namespace") String namespace) throws Exception {
+		logger.info("获取k8s的组件pod列表");
+		Cluster cluster = clusterService.findClusterById(clusterId);
+		if (null == cluster) {
+			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+		}
+		return dashboardService.listK8sComponentPod(cluster, podName, namespace);
+	}
+
+	@RequestMapping(value = "/component/pods/{podName:.+}", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil getComponentPodDetail(@PathVariable(value = "clusterId") String clusterId,
+												  @PathVariable(value = "podName") String name,
+												  @RequestParam(value = "namespace") String namespace) throws Exception {
+
+		logger.info("获取k8s的组件pod详情");
+		Cluster cluster = clusterService.findClusterById(clusterId);
+		if (null == cluster) {
+			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+		}
+		return dashboardService.getComponentPodDetail(cluster, name, namespace);
 	}
 
 }

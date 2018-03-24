@@ -3,11 +3,13 @@ package com.harmonycloud.k8s.bean;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
  * @author qg
  *
  */
+@JsonInclude(value=JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class PodStatus {
 	
@@ -26,6 +28,10 @@ public class PodStatus {
 	private String startTime;
 	
 	private List<ContainerStatus> containerStatuses;
+	
+	private List<ContainerStatus> initContainerStatuses;
+	
+	private String qosClass;
 
 	public String getPhase() {
 		return phase;
@@ -89,6 +95,22 @@ public class PodStatus {
 
 	public void setContainerStatuses(List<ContainerStatus> containerStatuses) {
 		this.containerStatuses = containerStatuses;
+	}
+
+	public List<ContainerStatus> getInitContainerStatuses() {
+		return initContainerStatuses;
+	}
+
+	public void setInitContainerStatuses(List<ContainerStatus> initContainerStatuses) {
+		this.initContainerStatuses = initContainerStatuses;
+	}
+
+	public String getQosClass() {
+		return qosClass;
+	}
+
+	public void setQosClass(String qosClass) {
+		this.qosClass = qosClass;
 	}
 	
 	

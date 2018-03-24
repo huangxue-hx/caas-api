@@ -11,6 +11,10 @@ public class UserExample {
 
     protected List<Criteria> oredCriteria;
 
+    private Integer limit;
+
+    private Integer offset;
+
     public UserExample() {
         oredCriteria = new ArrayList<Criteria>();
     }
@@ -64,6 +68,22 @@ public class UserExample {
         distinct = false;
     }
 
+    public void setLimit(Integer limit) {
+        this.limit = limit;
+    }
+
+    public Integer getLimit() {
+        return limit;
+    }
+
+    public void setOffset(Integer offset) {
+        this.offset = offset;
+    }
+
+    public Integer getOffset() {
+        return offset;
+    }
+
     protected abstract static class GeneratedCriteria {
         protected List<Criterion> criteria;
 
@@ -105,63 +125,63 @@ public class UserExample {
             criteria.add(new Criterion(condition, value1, value2));
         }
 
-        public Criteria andUuidIsNull() {
-            addCriterion("uuid is null");
+        public Criteria andIdIsNull() {
+            addCriterion("id is null");
             return (Criteria) this;
         }
 
-        public Criteria andUuidIsNotNull() {
-            addCriterion("uuid is not null");
+        public Criteria andIdIsNotNull() {
+            addCriterion("id is not null");
             return (Criteria) this;
         }
 
-        public Criteria andUuidEqualTo(Long value) {
-            addCriterion("uuid =", value, "uuid");
+        public Criteria andIdEqualTo(Integer value) {
+            addCriterion("id =", value, "id");
             return (Criteria) this;
         }
 
-        public Criteria andUuidNotEqualTo(Long value) {
-            addCriterion("uuid <>", value, "uuid");
+        public Criteria andIdNotEqualTo(Integer value) {
+            addCriterion("id <>", value, "id");
             return (Criteria) this;
         }
 
-        public Criteria andUuidGreaterThan(Long value) {
-            addCriterion("uuid >", value, "uuid");
+        public Criteria andIdGreaterThan(Integer value) {
+            addCriterion("id >", value, "id");
             return (Criteria) this;
         }
 
-        public Criteria andUuidGreaterThanOrEqualTo(Long value) {
-            addCriterion("uuid >=", value, "uuid");
+        public Criteria andIdGreaterThanOrEqualTo(Integer value) {
+            addCriterion("id >=", value, "id");
             return (Criteria) this;
         }
 
-        public Criteria andUuidLessThan(Long value) {
-            addCriterion("uuid <", value, "uuid");
+        public Criteria andIdLessThan(Integer value) {
+            addCriterion("id <", value, "id");
             return (Criteria) this;
         }
 
-        public Criteria andUuidLessThanOrEqualTo(Long value) {
-            addCriterion("uuid <=", value, "uuid");
+        public Criteria andIdLessThanOrEqualTo(Integer value) {
+            addCriterion("id <=", value, "id");
             return (Criteria) this;
         }
 
-        public Criteria andUuidIn(List<Long> values) {
-            addCriterion("uuid in", values, "uuid");
+        public Criteria andIdIn(List<Integer> values) {
+            addCriterion("id in", values, "id");
             return (Criteria) this;
         }
 
-        public Criteria andUuidNotIn(List<Long> values) {
-            addCriterion("uuid not in", values, "uuid");
+        public Criteria andIdNotIn(List<Integer> values) {
+            addCriterion("id not in", values, "id");
             return (Criteria) this;
         }
 
-        public Criteria andUuidBetween(Long value1, Long value2) {
-            addCriterion("uuid between", value1, value2, "uuid");
+        public Criteria andIdBetween(Integer value1, Integer value2) {
+            addCriterion("id between", value1, value2, "id");
             return (Criteria) this;
         }
 
-        public Criteria andUuidNotBetween(Long value1, Long value2) {
-            addCriterion("uuid not between", value1, value2, "uuid");
+        public Criteria andIdNotBetween(Integer value1, Integer value2) {
+            addCriterion("id not between", value1, value2, "id");
             return (Criteria) this;
         }
 
@@ -495,63 +515,63 @@ public class UserExample {
             return (Criteria) this;
         }
 
-        public Criteria andIsadminIsNull() {
-            addCriterion("isAdmin is null");
+        public Criteria andIsAdminIsNull() {
+            addCriterion("is_admin is null");
             return (Criteria) this;
         }
 
-        public Criteria andIsadminIsNotNull() {
-            addCriterion("isAdmin is not null");
+        public Criteria andIsAdminIsNotNull() {
+            addCriterion("is_admin is not null");
             return (Criteria) this;
         }
 
-        public Criteria andIsadminEqualTo(Boolean value) {
-            addCriterion("isAdmin =", value, "isadmin");
+        public Criteria andIsAdminEqualTo(Boolean value) {
+            addCriterion("is_admin =", value, "isAdmin");
             return (Criteria) this;
         }
 
-        public Criteria andIsadminNotEqualTo(Boolean value) {
-            addCriterion("isAdmin <>", value, "isadmin");
+        public Criteria andIsAdminNotEqualTo(Boolean value) {
+            addCriterion("is_admin <>", value, "isAdmin");
             return (Criteria) this;
         }
 
-        public Criteria andIsadminGreaterThan(Boolean value) {
-            addCriterion("isAdmin >", value, "isadmin");
+        public Criteria andIsAdminGreaterThan(Boolean value) {
+            addCriterion("is_admin >", value, "isAdmin");
             return (Criteria) this;
         }
 
-        public Criteria andIsadminGreaterThanOrEqualTo(Boolean value) {
-            addCriterion("isAdmin >=", value, "isadmin");
+        public Criteria andIsAdminGreaterThanOrEqualTo(Boolean value) {
+            addCriterion("is_admin >=", value, "isAdmin");
             return (Criteria) this;
         }
 
-        public Criteria andIsadminLessThan(Boolean value) {
-            addCriterion("isAdmin <", value, "isadmin");
+        public Criteria andIsAdminLessThan(Boolean value) {
+            addCriterion("is_admin <", value, "isAdmin");
             return (Criteria) this;
         }
 
-        public Criteria andIsadminLessThanOrEqualTo(Boolean value) {
-            addCriterion("isAdmin <=", value, "isadmin");
+        public Criteria andIsAdminLessThanOrEqualTo(Boolean value) {
+            addCriterion("is_admin <=", value, "isAdmin");
             return (Criteria) this;
         }
 
-        public Criteria andIsadminIn(List<Boolean> values) {
-            addCriterion("isAdmin in", values, "isadmin");
+        public Criteria andIsAdminIn(List<Boolean> values) {
+            addCriterion("is_admin in", values, "isAdmin");
             return (Criteria) this;
         }
 
-        public Criteria andIsadminNotIn(List<Boolean> values) {
-            addCriterion("isAdmin not in", values, "isadmin");
+        public Criteria andIsAdminNotIn(List<Boolean> values) {
+            addCriterion("is_admin not in", values, "isAdmin");
             return (Criteria) this;
         }
 
-        public Criteria andIsadminBetween(Boolean value1, Boolean value2) {
-            addCriterion("isAdmin between", value1, value2, "isadmin");
+        public Criteria andIsAdminBetween(Boolean value1, Boolean value2) {
+            addCriterion("is_admin between", value1, value2, "isAdmin");
             return (Criteria) this;
         }
 
-        public Criteria andIsadminNotBetween(Boolean value1, Boolean value2) {
-            addCriterion("isAdmin not between", value1, value2, "isadmin");
+        public Criteria andIsAdminNotBetween(Boolean value1, Boolean value2) {
+            addCriterion("is_admin not between", value1, value2, "isAdmin");
             return (Criteria) this;
         }
 
@@ -755,63 +775,63 @@ public class UserExample {
             return (Criteria) this;
         }
 
-        public Criteria andIsmachineIsNull() {
-            addCriterion("isMachine is null");
+        public Criteria andIsMachineIsNull() {
+            addCriterion("is_machine is null");
             return (Criteria) this;
         }
 
-        public Criteria andIsmachineIsNotNull() {
-            addCriterion("isMachine is not null");
+        public Criteria andIsMachineIsNotNull() {
+            addCriterion("is_machine is not null");
             return (Criteria) this;
         }
 
-        public Criteria andIsmachineEqualTo(Boolean value) {
-            addCriterion("isMachine =", value, "ismachine");
+        public Criteria andIsMachineEqualTo(Boolean value) {
+            addCriterion("is_machine =", value, "isMachine");
             return (Criteria) this;
         }
 
-        public Criteria andIsmachineNotEqualTo(Boolean value) {
-            addCriterion("isMachine <>", value, "ismachine");
+        public Criteria andIsMachineNotEqualTo(Boolean value) {
+            addCriterion("is_machine <>", value, "isMachine");
             return (Criteria) this;
         }
 
-        public Criteria andIsmachineGreaterThan(Boolean value) {
-            addCriterion("isMachine >", value, "ismachine");
+        public Criteria andIsMachineGreaterThan(Boolean value) {
+            addCriterion("is_machine >", value, "isMachine");
             return (Criteria) this;
         }
 
-        public Criteria andIsmachineGreaterThanOrEqualTo(Boolean value) {
-            addCriterion("isMachine >=", value, "ismachine");
+        public Criteria andIsMachineGreaterThanOrEqualTo(Boolean value) {
+            addCriterion("is_machine >=", value, "isMachine");
             return (Criteria) this;
         }
 
-        public Criteria andIsmachineLessThan(Boolean value) {
-            addCriterion("isMachine <", value, "ismachine");
+        public Criteria andIsMachineLessThan(Boolean value) {
+            addCriterion("is_machine <", value, "isMachine");
             return (Criteria) this;
         }
 
-        public Criteria andIsmachineLessThanOrEqualTo(Boolean value) {
-            addCriterion("isMachine <=", value, "ismachine");
+        public Criteria andIsMachineLessThanOrEqualTo(Boolean value) {
+            addCriterion("is_machine <=", value, "isMachine");
             return (Criteria) this;
         }
 
-        public Criteria andIsmachineIn(List<Boolean> values) {
-            addCriterion("isMachine in", values, "ismachine");
+        public Criteria andIsMachineIn(List<Boolean> values) {
+            addCriterion("is_machine in", values, "isMachine");
             return (Criteria) this;
         }
 
-        public Criteria andIsmachineNotIn(List<Boolean> values) {
-            addCriterion("isMachine not in", values, "ismachine");
+        public Criteria andIsMachineNotIn(List<Boolean> values) {
+            addCriterion("is_machine not in", values, "isMachine");
             return (Criteria) this;
         }
 
-        public Criteria andIsmachineBetween(Boolean value1, Boolean value2) {
-            addCriterion("isMachine between", value1, value2, "ismachine");
+        public Criteria andIsMachineBetween(Boolean value1, Boolean value2) {
+            addCriterion("is_machine between", value1, value2, "isMachine");
             return (Criteria) this;
         }
 
-        public Criteria andIsmachineNotBetween(Boolean value1, Boolean value2) {
-            addCriterion("isMachine not between", value1, value2, "ismachine");
+        public Criteria andIsMachineNotBetween(Boolean value1, Boolean value2) {
+            addCriterion("is_machine not between", value1, value2, "isMachine");
             return (Criteria) this;
         }
 
@@ -1022,6 +1042,46 @@ public class UserExample {
 
         public Criteria andPhoneNotBetween(String value1, String value2) {
             addCriterion("phone not between", value1, value2, "phone");
+            return (Criteria) this;
+        }
+
+        public Criteria andUsernameLikeInsensitive(String value) {
+            addCriterion("upper(username) like", value.toUpperCase(), "username");
+            return (Criteria) this;
+        }
+
+        public Criteria andPasswordLikeInsensitive(String value) {
+            addCriterion("upper(password) like", value.toUpperCase(), "password");
+            return (Criteria) this;
+        }
+
+        public Criteria andTokenLikeInsensitive(String value) {
+            addCriterion("upper(token) like", value.toUpperCase(), "token");
+            return (Criteria) this;
+        }
+
+        public Criteria andEmailLikeInsensitive(String value) {
+            addCriterion("upper(email) like", value.toUpperCase(), "email");
+            return (Criteria) this;
+        }
+
+        public Criteria andRealNameLikeInsensitive(String value) {
+            addCriterion("upper(real_name) like", value.toUpperCase(), "realName");
+            return (Criteria) this;
+        }
+
+        public Criteria andCommentLikeInsensitive(String value) {
+            addCriterion("upper(comment) like", value.toUpperCase(), "comment");
+            return (Criteria) this;
+        }
+
+        public Criteria andPauseLikeInsensitive(String value) {
+            addCriterion("upper(pause) like", value.toUpperCase(), "pause");
+            return (Criteria) this;
+        }
+
+        public Criteria andPhoneLikeInsensitive(String value) {
+            addCriterion("upper(phone) like", value.toUpperCase(), "phone");
             return (Criteria) this;
         }
     }

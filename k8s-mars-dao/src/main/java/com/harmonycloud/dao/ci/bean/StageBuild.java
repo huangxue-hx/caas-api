@@ -12,13 +12,17 @@ public class StageBuild  implements Serializable{
     private Integer stageId;
     private String stageName;
     private Integer stageOrder;
+    private Integer stageTypeId;
     private String stageType;
+    private Integer stageTemplateTypeId;
     private Integer buildNum;
     private String status;
     private Date startTime;
     private String duration;
     private String log;
     private String image;
+    private String testResult;
+    private String testUrl;
 
     public Integer getId() {
         return id;
@@ -60,12 +64,28 @@ public class StageBuild  implements Serializable{
         this.stageOrder = stageOrder;
     }
 
+    public Integer getStageTypeId() {
+        return stageTypeId;
+    }
+
+    public void setStageTypeId(Integer stageTypeId) {
+        this.stageTypeId = stageTypeId;
+    }
+
     public String getStageType() {
         return stageType;
     }
 
     public void setStageType(String stageType) {
         this.stageType = stageType;
+    }
+
+    public Integer getStageTemplateTypeId() {
+        return stageTemplateTypeId;
+    }
+
+    public void setStageTemplateTypeId(Integer stageTemplateTypeId) {
+        this.stageTemplateTypeId = stageTemplateTypeId;
     }
 
     public Integer getBuildNum() {
@@ -114,5 +134,21 @@ public class StageBuild  implements Serializable{
 
     public void setImage(String image) {
         this.image = image;
+    }
+
+    public String getTestResult() {
+        return testResult;
+    }
+
+    public void setTestResult(String testResult) {
+        this.testResult = testResult;
+    }
+
+    public String getTestUrl() {
+        return testUrl;
+    }
+
+    public void setTestUrl(String testUrl) {
+        this.testUrl = testUrl;
     }
 }

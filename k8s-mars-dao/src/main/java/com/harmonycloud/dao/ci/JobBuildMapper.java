@@ -20,4 +20,8 @@ public interface JobBuildMapper {
     void update(JobBuild jobBuild);
 
     void deleteByJobId(Integer id);
+
+    String queryLogByObject(JobBuild jobBuild);
+
+    Integer queryLastBuildNumById(Integer jobId);
 }

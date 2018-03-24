@@ -14,7 +14,7 @@ public class K8SURL {
 
 	private  String host;
 
-	private  String port;
+	private  Integer port;
 
 	private  String machineToken;
 	
@@ -112,11 +112,11 @@ public class K8SURL {
 		this.host = host;
 	}
 
-	public String getPort() {
+	public Integer getPort() {
 		return port;
 	}
 
-	public void setPort(String port) {
+	public void setPort(Integer port) {
 		this.port = port;
 	}
 

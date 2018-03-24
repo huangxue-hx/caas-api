@@ -4,9 +4,12 @@
 <mapper namespace="com.harmonycloud.dao.ci.JobMapper">
     <resultMap id="BaseResultMap" type="com.harmonycloud.dao.ci.bean.Job" >
         <id column="id" property="id" jdbcType="INTEGER" />
+        <result column="uuid" property="uuid" jdbcType="VARCHAR" />
         <result column="name" property="name" jdbcType="VARCHAR" />
-        <result column="tenant" property="tenant" jdbcType="VARCHAR" />
+        <result column="type" property="type" jdbcType="VARCHAR" />
         <result column="tenant_id" property="tenantId" jdbcType="VARCHAR" />
+        <result column="cluster_id" property="clusterId" jdbcType="VARCHAR" />
+        <result column="project_id" property="projectId" jdbcType="VARCHAR" />
         <result column="notification" property="notification" jdbcType="BOOLEAN" />
         <result column="success_notification" property="successNotification" jdbcType="BOOLEAN" />
         <result column="fail_notification" property="failNotification" jdbcType="BOOLEAN" />
@@ -21,25 +24,33 @@
         <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
         <result column="last_build_num" property="lastBuildNum" jdbcType="INTEGER" />
     </resultMap>
+    <sql id="Base_Column_List" >
+        id,uuid,name,type,tenant_id,cluster_id,project_id,notification,success_notification,fail_notification,mail,create_user,last_build_num
+    </sql>
+
 
     <select id="select" resultMap="BaseResultMap" parameterType="java.lang.String">
-        SELECT id,name,tenant,create_user
+        SELECT
+        <include refid="Base_Column_List" />
         FROM cicd_job
-        WHERE 1=1
-        <if test="jobName!=null and jobName!=''"> AND name=#{jobName} </if>
-        <if test="tenant!=null and tenant!=''"> AND tenant=#{tenant} </if>
-        <if test="createUser!=null and createUser!=''"> AND createUser=#{create_user} </if>
+        <trim prefix="where" prefixOverrides="and">
+            <if test="jobName!=null and jobName!=''">AND name like CONCAT('%', #{jobName}, '%') </if>
+            <if test="projectId!=null">AND project_id=#{projectId} </if>
+            <if test="clusterId!=null and clusterId!=''">AND cluster_id=#{clusterId} </if>
+            <if test="createUser!=null and createUser!=''">AND createUser=#{create_user} </if>
+        </trim>
     </select>
 
     <select id="queryById" resultMap="BaseResultMap" parameterType="java.lang.Integer">
-        SELECT id,name,tenant,tenant_id,notification,success_notification,fail_notification,mail,`trigger`,poll_scm,poll_scm_customize,cron_exp_for_poll_scm,create_user,last_build_num
+        SELECT
+        <include refid="Base_Column_List" />
         FROM cicd_job
         WHERE id = #{id}
     </select>
 
     <insert id="insertJob" parameterType="com.harmonycloud.dao.ci.bean.Job" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO cicd_job (name,tenant,tenant_id,notification,success_notification,fail_notification,mail,create_user,create_time)
-        VALUE (#{name},#{tenant},#{tenantId},#{notification},#{successNotification},#{failNotification},#{mail},#{createUser},#{createTime})
+        INSERT INTO cicd_job (uuid,name,type,tenant_id,project_id,cluster_id,notification,success_notification,fail_notification,mail,create_user,create_time)
+        VALUE (#{uuid},#{name},#{type},#{tenantId},#{projectId},#{clusterId},#{notification},#{successNotification},#{failNotification},#{mail},#{createUser},#{createTime})
     </insert>
 
     <update id="updateNotification" parameterType="com.harmonycloud.dao.ci.bean.Job">
@@ -85,9 +96,20 @@
         DELETE FROM cicd_job WHERE id=#{id}
     </delete>
 
+    <delete id="deleteByClusterId">
+        delete from cicd_job where cluster_id = #{clusterId}
+    </delete>
+
     <update id="updateLastBuildNum" parameterType="java.lang.Integer">
         UPDATE cicd_job SET last_build_num = #{buildNum} WHERE id = #{id}
     </update>
+
+    <select id="queryByUuid" resultMap="BaseResultMap" parameterType="java.lang.Integer">
+        SELECT
+        <include refid="Base_Column_List" />
+        FROM cicd_job
+        WHERE uuid = #{uuid}
+    </select>
 
 
 </mapper>

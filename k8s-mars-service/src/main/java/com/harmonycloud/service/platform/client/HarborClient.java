@@ -1,64 +1,117 @@
 package com.harmonycloud.service.platform.client;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import com.alibaba.fastjson.JSONObject;
+import com.harmonycloud.common.util.HttpStatusUtil;
+import com.harmonycloud.common.util.HttpsClientUtil;
+import com.harmonycloud.k8s.bean.cluster.HarborServer;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import static com.harmonycloud.common.Constant.CommonConstant.COOKIE;
+import static com.harmonycloud.common.Constant.CommonConstant.CREATETIME;
 
 /**
  * Created by zsl on 2017/1/18.
  */
-@Component
 public class HarborClient {
 
-    private static String protocol;
+    private static final Logger LOGGER = LoggerFactory.getLogger(HarborClient.class);
 
-    private static String host;
+    //admin用户登录各个harbor服务器的cookie
+    public static Map<String,Map<String, String>> adminCookies = new ConcurrentHashMap<>();
 
-    private static String domain;
-    
-    private static String port;
-
-
-    public static String getPrefix() {
-        return protocol + "://" + host+":"+port;
+    public static String getHarborUrl(HarborServer harborServer) {
+        return harborServer.getHarborProtocol() + "://" + harborServer.getHarborHost()+":"+harborServer.getHarborPort();
     }
 
-    public String getProtocol() {
-        return protocol;
+    public static Map<String, Object> getAdminCookieHeader(HarborServer harborServer) throws Exception {
+        Map<String, Object> headers = new HashMap<String, Object>();
+        headers.put(COOKIE, checkHarborAdminCookie(harborServer));
+        return headers;
     }
 
-    @Value("#{propertiesReader['image.protocol']}")
-    public void setProtocol(String protocol) {
-        HarborClient.protocol = protocol;
+    public static void clearCookie(String harborHost) throws Exception {
+        adminCookies.remove(harborHost);
     }
 
-    public String getHost() {
-        return host;
+    /**
+     * 获取harbor admin 登录的cookie, 先检查harbor登录是否超时，如果超时重新登录获取最新cookie，没有超时获取上次登录的cookie
+     *
+     * @return
+     * @throws Exception
+     */
+    public static String checkHarborAdminCookie(HarborServer harborServer) throws Exception {
+        if(harborServer == null){
+            return null;
+        }
+        Map<String, String> cookieMap = adminCookies.get(harborServer.getHarborHost());
+        //不存在该集群对应的admin登录cookie信息，登录并记录cookie
+        if(cookieMap == null || cookieMap.get(COOKIE) == null){
+            String cookie = loginWithAdmin(harborServer);
+            Map<String, String> adminCookie = new HashMap<>();
+            adminCookie.put(COOKIE,cookie);
+            adminCookie.put(CREATETIME, String.valueOf(new Date(System.currentTimeMillis()).getTime()));
+            adminCookies.put(harborServer.getHarborHost(), adminCookie);
+            return cookie;
+        }
+        String createTime = cookieMap.get(CREATETIME);
+        long interval = createTime == null ? 0: new Date().getTime() - Long.valueOf(createTime);
+        //上次登录时间距今是否超过设置的harbor连接时间，超过重新登录
+        if (interval > harborServer.getHarborLoginTimeOut()) {
+            // 重新登陆
+            cookieMap.put(COOKIE,  loginWithAdmin(harborServer));
+            cookieMap.put(CREATETIME, String.valueOf(new Date(System.currentTimeMillis()).getTime()));
+        }
+        return cookieMap.get(COOKIE);
     }
 
-    @Value("#{propertiesReader['image.host']}")
-    public void setHost(String host) {
-        HarborClient.host = host;
+    public static String getHarborHost(String repoFullName){
+        if(StringUtils.isBlank(repoFullName)){
+            return null;
+        }
+        String[] repoPart = repoFullName.split("/");
+        if(repoPart.length >= 2){
+            return repoPart[0];
+        }
+        return null;
     }
 
-    public String getDomain() {
-        return domain;
+    public static String loginWithAdmin(HarborServer harborServer) throws Exception {
+        String url = getHarborUrl(harborServer) + "/login";
+        Map<String, Object> params = new HashMap<String, Object>();
+        params.put("principal", harborServer.getHarborAdminAccount());
+        params.put("password", harborServer.getHarborAdminPassword());
+        CloseableHttpResponse response = HttpsClientUtil.doPostWithLogin(url, params, null);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatusLine().getStatusCode())){
+            return null;
+        }
+        if(response.getHeaders("Set-Cookie") == null){
+            return null;
+        }
+        String cookie = response.getHeaders("Set-Cookie")[0].getValue();
+        return cookie.substring(0, cookie.indexOf(";"));
     }
 
-    @Value("#{propertiesReader['image.domain']}")
-    public void setDomain(String domain) {
-        HarborClient.domain = domain;
+    public static boolean checkHarborStatus(HarborServer harborServer){
+        try {
+            String cookie = HarborClient.loginWithAdmin(harborServer);
+            if(StringUtils.isNotBlank(cookie)){
+                return true;
+            }
+        }catch (Exception e){
+            LOGGER.error("harbor 登录失败,harborServer:{}", JSONObject.toJSONString(harborServer),e);
+        }
+        return false;
     }
 
-	public String getPort() {
-		return port;
-	}
 
-	@Value("#{propertiesReader['image.port']}")
-	public void setPort(String port) {
-		HarborClient.port = port;
-	}
-	
-	public static String getProvider() {
-		return host+":"+port;
-	}
+
+
 }

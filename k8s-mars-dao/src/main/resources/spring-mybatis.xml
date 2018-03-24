@@ -17,47 +17,56 @@
 	<context:property-placeholder location="classpath:constant.properties" ignore-unresolvable="true"/>
     <!-- 配置druid数据源 -->
 
-    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource"
-         init-method="init" destroy-method="close">
-        <property name="driverClassName" value="${druid.driverClass}" />
-        <property name="url" value="${druid.url}" />
-        <property name="username" value="${druid.user}" />
-        <property name="password" value="${druid.password}" />
+    <!--<bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource"-->
+         <!--init-method="init" destroy-method="close">-->
+        <!--<property name="driverClassName" value="${druid.driverClass}" />-->
+        <!--<property name="url" value="${druid.url}" />-->
+        <!--<property name="username" value="${druid.user}" />-->
+        <!--<property name="password" value="${druid.password}" />-->
 
-        <property name="initialSize" value="${druid.initialSize}" />
-        <property name="maxActive" value="${druid.maxActive}" />
-        <property name="minIdle" value="${druid.minIdle}" />
-        <property name="maxWait" value="${druid.maxWait}" />
-        <property name="filters" value="stat" />
-        <!-- 通过connectProperties属性来打开mergeSql功能 -->
-        <property name="connectionProperties" value="druid.stat.mergeSql=true druid.stat.slowSqlMillis=5000" />
-        <property name="removeAbandoned" value="true" />
-        <!-- 900秒，也就是15分钟 -->
-        <property name="removeAbandonedTimeout" value="900" />
-        <!-- 关闭abanded连接时输出错误日志 -->
-        <property name="logAbandoned" value="true" />
-    </bean>
+        <!--<property name="initialSize" value="${druid.initialSize}" />-->
+        <!--<property name="maxActive" value="${druid.maxActive}" />-->
+        <!--<property name="minIdle" value="${druid.minIdle}" />-->
+        <!--<property name="maxWait" value="${druid.maxWait}" />-->
+        <!--<property name="filters" value="stat" />-->
+        <!--&lt;!&ndash; 通过connectProperties属性来打开mergeSql功能 &ndash;&gt;-->
+        <!--<property name="connectionProperties" value="druid.stat.mergeSql=true druid.stat.slowSqlMillis=5000" />-->
+        <!--<property name="removeAbandoned" value="true" />-->
+        <!--&lt;!&ndash; 900秒，也就是15分钟 &ndash;&gt;-->
+        <!--<property name="removeAbandonedTimeout" value="900" />-->
+        <!--&lt;!&ndash; 关闭abanded连接时输出错误日志 &ndash;&gt;-->
+        <!--<property name="logAbandoned" value="true" />-->
+    <!--</bean>-->
 
-    <!-- spring和MyBatis完美整合，不需要mybatis的配置映射文件 -->
-    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
-        <property name="dataSource" ref="dataSource" />
-       <!--  自动扫描mapping.xml文件 -->
-        <property name="configLocation" value="classpath:sqlMapConfig.xml"/>
-    </bean>
+    <!--&lt;!&ndash; spring和MyBatis完美整合，不需要mybatis的配置映射文件 &ndash;&gt;-->
+    <!--<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">-->
+        <!--<property name="dataSource" ref="dataSource" />-->
+       <!--&lt;!&ndash;  自动扫描mapping.xml文件 &ndash;&gt;-->
+        <!--<property name="configLocation" value="classpath:sqlMapConfig.xml"/>-->
+        <!--<property name="plugins">-->
+            <!--<array>-->
+                <!--<bean class="com.github.pagehelper.PageHelper">-->
+                    <!--<property name="properties">-->
+                        <!--<value></value>-->
+                    <!--</property>-->
+                <!--</bean>-->
+            <!--</array>-->
+        <!--</property>-->
+    <!--</bean>-->
 
-    <!-- DAO接口所在包名，Spring会自动查找其下的类 -->
-    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
-        <property name="basePackage" value="com.harmonycloud.dao" />
-        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"></property>
-    </bean>
+    <!--&lt;!&ndash; DAO接口所在包名，Spring会自动查找其下的类 &ndash;&gt;-->
+    <!--<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">-->
+        <!--<property name="basePackage" value="com.harmonycloud.dao" />-->
+        <!--<property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"></property>-->
+    <!--</bean>-->
 
-    <!-- 事务配置 -->
-    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
-        <property name="dataSource" ref="dataSource" />
-    </bean>
+    <!--&lt;!&ndash; 事务配置 &ndash;&gt;-->
+    <!--<bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">-->
+        <!--<property name="dataSource" ref="dataSource" />-->
+    <!--</bean>-->
 
-    <!-- 使用annotation注解方式配置事务 -->
-    <tx:annotation-driven transaction-manager="transactionManager"/>
+    <!--&lt;!&ndash; 使用annotation注解方式配置事务 &ndash;&gt;-->
+    <!--<tx:annotation-driven transaction-manager="transactionManager"/>-->
 
 
 </beans>

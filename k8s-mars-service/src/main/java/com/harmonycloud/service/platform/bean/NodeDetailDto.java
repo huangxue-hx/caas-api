@@ -26,13 +26,23 @@ public class NodeDetailDto {
 	private String status;
 	private List<String> otherNodeList;
 	private String clusterId;
-	private List<Object> podlist;
+	private String tenantAliasName;
+	private List<PodDto> podlist;
+	private Boolean scheduable;
 
-	public List<Object> getPodlist() {
+	public String getTenantAliasName() {
+		return tenantAliasName;
+	}
+
+	public void setTenantAliasName(String tenantAliasName) {
+		this.tenantAliasName = tenantAliasName;
+	}
+
+	public List<PodDto> getPodlist() {
         return podlist;
     }
 
-    public void setPodlist(List<Object> podlist) {
+    public void setPodlist(List<PodDto> podlist) {
         this.podlist = podlist;
     }
 
@@ -194,6 +204,14 @@ public class NodeDetailDto {
 
 	public void setAddresses(List<NodeAddress> addresses) {
 		this.addresses = addresses;
+	}
+
+	public Boolean getScheduable() {
+		return scheduable;
+	}
+
+	public void setScheduable(Boolean scheduable) {
+		this.scheduable = scheduable;
 	}
 
 	public class Status {

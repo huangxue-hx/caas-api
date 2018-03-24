@@ -1,16 +1,15 @@
 package com.harmonycloud.service.platform.serviceImpl.k8s;
 
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.CollectionUtil;
-import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.alibaba.fastjson.JSONObject;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.*;
+import com.harmonycloud.dao.application.ExternalTypeMapper;
+import com.harmonycloud.dao.application.bean.ExternalTypeBean;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dto.external.*;
-import com.harmonycloud.k8s.bean.ObjectMeta;
-import com.harmonycloud.k8s.bean.ServiceList;
-import com.harmonycloud.k8s.bean.ServicePort;
-import com.harmonycloud.k8s.bean.ServiceSpec;
-import com.harmonycloud.k8s.bean.UnversionedStatus;
+import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
@@ -18,38 +17,44 @@ import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.ServicesService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
+import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.service.EndpointService;
 import com.harmonycloud.service.platform.service.ExternalService;
-import com.harmonycloud.service.tenant.TenantService;
-
+import com.harmonycloud.service.user.RoleLocalService;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
+import static com.harmonycloud.service.platform.constant.Constant.LABEL_PROJECT_ID;
+import static com.harmonycloud.service.platform.constant.Constant.LABEL_TYPE;
 
 @Service
 public class ExternalServiceImpl implements ExternalService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ExternalServiceImpl.class);
 
     @Autowired
     private ServicesService sService;
 
     @Autowired
     private EndpointService eService;
-
     @Autowired
-    private TenantService tenantService;
+    RoleLocalService roleLocalService;
+    @Autowired
+    private ClusterService clusterService;
+    @Autowired
+    private ExternalTypeMapper externalTypeMapper;
 
     /**
      * 增加外部服务
      */
     @Override
-    public ActionReturnUtil svcCreate(ExternalServiceBean externalServiceBean) throws Exception {
+    public ActionReturnUtil createExtService(ExternalServiceBean externalServiceBean) throws Exception {
         if (externalServiceBean == null) {
-            return ActionReturnUtil.returnErrorWithMsg("external service cannot be null!");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
         }
         // 创建svc service包含了创建所需的所有所需参数
         com.harmonycloud.k8s.bean.Service service = new com.harmonycloud.k8s.bean.Service();
@@ -61,7 +66,8 @@ public class ExternalServiceImpl implements ExternalService {
         if (externalServiceBean.getLabels() != null) {
             labels = externalServiceBean.getLabels();
         }
-        meta.setNamespace(Resource.EXTERNALNAMESPACE);
+        labels.put(LABEL_PROJECT_ID, externalServiceBean.getProjectId());
+        meta.setNamespace(externalServiceBean.getNamespace());
         meta.setLabels(labels);
         // 增加spec
         ServiceSpec serviceSpec = new ServiceSpec();
@@ -81,7 +87,8 @@ public class ExternalServiceImpl implements ExternalService {
         bodys = CollectionUtil.transBean2Map(service);
         Map<String, Object> head = new HashMap<String, Object>();
         head.put("Content-Type", "application/json");
-        K8SClientResponse response = sService.doServiceByNamespace(Resource.EXTERNALNAMESPACE, head, bodys, HTTPMethod.POST);
+        Cluster cluster = clusterService.findClusterById(externalServiceBean.getClusterId());
+        K8SClientResponse response = sService.doServiceByNamespace(externalServiceBean.getNamespace(), head, bodys, HTTPMethod.POST, cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
         	UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
@@ -92,7 +99,7 @@ public class ExternalServiceImpl implements ExternalService {
         com.harmonycloud.dto.external.Endpoint endpoint = new com.harmonycloud.dto.external.Endpoint();
         ObjectMeta metadate = new ObjectMeta();
         metadate.setName(meta.getName());
-        metadate.setNamespace(Resource.EXTERNALNAMESPACE);
+        metadate.setNamespace(externalServiceBean.getNamespace());
         List<Subsets> sbt = new ArrayList<Subsets>();
         Subsets subset = new Subsets();
         List<EndpointAddress> listEndpointAddress = new ArrayList<EndpointAddress>();
@@ -111,7 +118,7 @@ public class ExternalServiceImpl implements ExternalService {
         endpoint.setSubsets(sbt);
         Map<String, Object> eptbodys = new HashMap<String, Object>();
         eptbodys = CollectionUtil.transBean2Map(endpoint);
-        K8SClientResponse eptresponse = eService.doEndpointByNamespace(Resource.EXTERNALNAMESPACE, head, eptbodys, HTTPMethod.POST);
+        K8SClientResponse eptresponse = eService.doEndpointByNamespace(externalServiceBean.getNamespace(), head, eptbodys, HTTPMethod.POST, cluster);
         if (!HttpStatusUtil.isSuccessStatus(eptresponse.getStatus())) {
         	UnversionedStatus sta = JsonUtil.jsonToPojo(eptresponse.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
@@ -123,51 +130,59 @@ public class ExternalServiceImpl implements ExternalService {
      * 删除外部服务
      */
     @Override
-    public ActionReturnUtil deleteOutService(String name) throws Exception {
-        if (StringUtils.isEmpty(name)) {
-            return ActionReturnUtil.returnErrorWithMsg("name cannot be null!");
+    public ActionReturnUtil deleteExtService(String clusterId, String name, String namespace) throws Exception {
+        if (StringUtils.isBlank(name)) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
         }
+        Cluster cluster = clusterService.findClusterById(clusterId);
         K8SURL url = new K8SURL();
-        url.setResource(Resource.SERVICE).setNamespace(Resource.EXTERNALNAMESPACE).setSubpath(name);
-        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, null);
+        url.setResource(Resource.SERVICE).setNamespace(namespace).setSubpath(name);
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, null,cluster);
         if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             return ActionReturnUtil.returnSuccess();
         }
-        return ActionReturnUtil.returnErrorWithMsg("删除出错");
+        return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.DELETE_FAIL);
     }
     /**
-     * 根据tenant删除外部服务
+     * 删除某个项目下的所有外部服务
      */
     @Override
-    public ActionReturnUtil deleteOutServicebytenant(String tenantName, String tenantId) throws Exception {
-        if (StringUtils.isEmpty(tenantName) || StringUtils.isEmpty(tenantId)) {
-            return ActionReturnUtil.returnErrorWithMsg("tenantName 或者tenantid 不能为空!");
+    public ActionReturnUtil deleteExtServiceByProject(String projectId) throws Exception {
+        if (StringUtils.isBlank(projectId)) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
         }
-        // 根据tenantid获取cluster
-        Cluster cluster = tenantService.getClusterByTenantid(tenantId);
+        List<Cluster> clusters = clusterService.listCluster();
         // 获取serviceList
-        Map<String, Object> bodys = new HashMap<String, Object>();
-        bodys.put("labelSelector", "name" + "=" + tenantName);
-        K8SClientResponse response = sService.doServiceByNamespace(Resource.EXTERNALNAMESPACE, null, bodys, HTTPMethod.GET, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-        	UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
-        }
-        ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
-        // item为实际service list的metadata，spec，status
-        List<com.harmonycloud.k8s.bean.Service> services = svList.getItems();
-        if (services != null && services.size() > 0) {
-            for (int i = 0; i < services.size(); i++) {
-                com.harmonycloud.k8s.bean.Service svc = services.get(i);
-                String name = svc.getMetadata().getName();
-                K8SURL url = new K8SURL();
-                url.setResource(Resource.SERVICE).setNamespace(Resource.EXTERNALNAMESPACE).setSubpath(name);
-                K8SClientResponse responsed = new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, null);
-                if (!HttpStatusUtil.isSuccessStatus(responsed.getStatus())) {
-                	UnversionedStatus sta = JsonUtil.jsonToPojo(responsed.getBody(), UnversionedStatus.class);
-                    return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
+        Map<String, Object> bodys = new HashMap<>();
+        bodys.put("labelSelector", LABEL_PROJECT_ID + "=" + projectId);
+        String errorMessage = "";
+        for(Cluster cluster: clusters) {
+            K8SClientResponse response = sService.doServiceByNamespace(null, null, bodys, HTTPMethod.GET, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+                LOGGER.error("删除外部服务失败:projectId:{},cluster:{},res:{}",
+                        new String[]{projectId, cluster.getName(), JSONObject.toJSONString(sta)});
+                errorMessage += cluster.getName() + ", ";
+                continue;
+            }
+            ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
+            // item为实际service list的metadata，spec，status
+            List<com.harmonycloud.k8s.bean.Service> services = svList.getItems();
+            if (services != null && services.size() > 0) {
+                for (int i = 0; i < services.size(); i++) {
+                    com.harmonycloud.k8s.bean.Service svc = services.get(i);
+                    String name = svc.getMetadata().getName();
+                    K8SClientResponse responsed = this.sService.doSepcifyService(null,name,null,null,HTTPMethod.DELETE,cluster);
+                    if (!HttpStatusUtil.isSuccessStatus(responsed.getStatus())) {
+                        LOGGER.error("删除外部服务失败:projectId:{},cluster:{},service:{},res:{}",
+                                new String[]{projectId, cluster.getName(), name, JSONObject.toJSONString(responsed)});
+                        errorMessage += cluster.getName() + "." + name + ", ";
+                    }
                 }
             }
+        }
+        if(StringUtils.isNotBlank(errorMessage)){
+            throw new MarsRuntimeException(ErrorCodeMessage.EXT_SERVICE_DELETE_FAIL,errorMessage,Boolean.TRUE);
         }
         return ActionReturnUtil.returnSuccess();
     }
@@ -175,17 +190,16 @@ public class ExternalServiceImpl implements ExternalService {
      * 更新外部服务
      */
     @Override
-    public ActionReturnUtil updateOutService(ExternalServiceBean externalServiceBean) throws Exception {
-        if (externalServiceBean == null) {
-            return ActionReturnUtil.returnErrorWithMsg("external service cannot be null!");
+    public ActionReturnUtil updateExtService(ExternalServiceBean externalServiceBean) throws Exception {
+        if (StringUtils.isBlank(externalServiceBean.getClusterId())) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER,"clusterId",true);
         }
         // 查询
         K8SURL url1 = new K8SURL();
-        url1.setNamespace(Resource.EXTERNALNAMESPACE).setResource(Resource.SERVICE).setSubpath(externalServiceBean.getName());
+        url1.setNamespace(externalServiceBean.getNamespace()).setResource(Resource.SERVICE).setName(externalServiceBean.getName());
         Map<String, Object> head = new HashMap<String, Object>();
         head.put("Content-Type", "application/json");
-        //new K8sMachineClient().exec   
-        Cluster cluster = tenantService.getClusterByTenantid(externalServiceBean.getTenantid());
+        Cluster cluster = clusterService.findClusterById(externalServiceBean.getClusterId());
         K8SClientResponse serivceResponse = new K8sMachineClient().exec(url1, HTTPMethod.GET, head, null,cluster);
         com.harmonycloud.k8s.bean.Service service = K8SClient.converToBean(serivceResponse, com.harmonycloud.k8s.bean.Service.class);
         String apiVersion = service.getApiVersion();
@@ -193,6 +207,7 @@ public class ExternalServiceImpl implements ExternalService {
         ObjectMeta metadata = service.getMetadata();
         // 更新metadata
         Map<String, Object> labels = externalServiceBean.getLabels();
+        labels.put(LABEL_PROJECT_ID, externalServiceBean.getProjectId());
         metadata.setLabels(labels);
 
         ServiceSpec spec = service.getSpec();
@@ -212,7 +227,7 @@ public class ExternalServiceImpl implements ExternalService {
         body.put("kind", kind);
         body.put("apiVersion", apiVersion);
         K8SURL url = new K8SURL();
-        url.setNamespace(Resource.EXTERNALNAMESPACE).setResource(Resource.SERVICE).setSubpath(externalServiceBean.getName());
+        url.setNamespace(externalServiceBean.getNamespace()).setResource(Resource.SERVICE).setSubpath(externalServiceBean.getName());
         head.put("Content-Type", "application/json");
         K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, head, body,cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
@@ -229,7 +244,7 @@ public class ExternalServiceImpl implements ExternalService {
 
         ObjectMeta meta = new ObjectMeta();
         meta.setName(externalServiceBean.getName());
-        meta.setNamespace(Resource.EXTERNALNAMESPACE);
+        meta.setNamespace(externalServiceBean.getNamespace());
 
         List<EndpointPort> listEndpointPort = new ArrayList<EndpointPort>();
         EndpointPort endpointPort = new EndpointPort();
@@ -244,7 +259,7 @@ public class ExternalServiceImpl implements ExternalService {
         ebody.put("kind", "Endpoints");
         ebody.put("apiVersion", apiVersion);
         K8SURL eurl = new K8SURL();
-        eurl.setNamespace(Resource.EXTERNALNAMESPACE).setResource(Resource.ENDPOINT).setSubpath(externalServiceBean.getName());
+        eurl.setNamespace(externalServiceBean.getNamespace()).setResource(Resource.ENDPOINT).setSubpath(externalServiceBean.getName());
         head.put("Content-Type", "application/json");
         K8SClientResponse eresponse = new K8sMachineClient().exec(eurl, HTTPMethod.PUT, head, ebody,cluster);
 
@@ -258,93 +273,53 @@ public class ExternalServiceImpl implements ExternalService {
      * 获取外部服务tenantName
      */
     @Override
-    public ActionReturnUtil getListOutService(String tenant,String tenantId) throws Exception {
-        if (StringUtils.isEmpty(tenant)) {
-            return ActionReturnUtil.returnErrorWithMsg("tenant cannot be null!");
+    public ActionReturnUtil listExtService(String clusterId, String projectId, String serviceType) throws Exception {
+        if (StringUtils.isBlank(projectId)) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
         }
-        Cluster cluster = tenantService.getClusterByTenantid(tenantId);
+        List<Cluster> clusters = null;
+        if(StringUtils.isBlank(clusterId)){
+            clusters = roleLocalService.listCurrentUserRoleCluster();
+        }else{
+            clusters = new ArrayList<>();
+            clusters.add(clusterService.findClusterById(clusterId));
+        }
+        List<ExternalSvc> externalSvcs = new ArrayList<>();
         // 获取serviceList
-        Map<String, Object> bodys = new HashMap<String, Object>();
-        bodys.put("labelSelector", "name" + "=" + tenant);
-        K8SClientResponse response = sService.doServiceByNamespace(Resource.EXTERNALNAMESPACE, null, bodys, HTTPMethod.GET,cluster);
-        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-        	UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
+        Map<String, Object> bodys = new HashMap<>();
+        if(StringUtils.isBlank(serviceType)) {
+            bodys.put("labelSelector", LABEL_PROJECT_ID + "=" + projectId);
+        }else{
+            bodys.put("labelSelector", LABEL_PROJECT_ID + "=" + projectId + "," + LABEL_TYPE + "=" + serviceType);
         }
-        ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
-        // item为实际service list的metadata，spec，status
-        List<com.harmonycloud.k8s.bean.Service> services = svList.getItems();
-        List<ExternalSvc> externalSvcs = new ArrayList<ExternalSvc>();
-        if (services != null && !services.isEmpty()) {
-            for (int i = 0; i < services.size(); i++) {
-                ExternalSvc externalSvc = new ExternalSvc();
-                com.harmonycloud.k8s.bean.Service svc = services.get(i);
-                if (svc.getMetadata().getLabels() != null && svc.getMetadata().getLabels().get("name").toString().equals(tenant)) {
-                    // zgl 修改
-                    externalSvc.setServiceName(svc.getMetadata().getName());
-                    externalSvc.setPort(svc.getSpec().getPorts().get(0).getTargetPort());
-                    externalSvc.setTime(svc.getMetadata().getCreationTimestamp());
-                    externalSvc.setIp(svc.getMetadata().getLabels().get("ip") == null ? "" : svc.getMetadata().getLabels().get("ip").toString());
-                    externalSvc.setType(svc.getMetadata().getLabels().get("type") == null ? "" : svc.getMetadata().getLabels().get("type").toString());
-                    externalSvc.setName(svc.getMetadata().getLabels().get("name") == null ? "" : svc.getMetadata().getLabels().get("name").toString());
-                    externalSvcs.add(externalSvc);
+        for(Cluster cluster : clusters) {
+            K8SClientResponse response = sService.doServiceByNamespace(null, null, bodys, HTTPMethod.GET, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+                if (Objects.isNull(sta)){
+                    return ActionReturnUtil.returnErrorWithMsg(response.getBody());
                 }
-
+                return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
             }
-        }
-        return ActionReturnUtil.returnSuccessWithData(externalSvcs);
-    }
-
-    /**
-     * 根据label获取外部服务
-     */
-    @Override
-    public ActionReturnUtil getListOutServiceByLabel(String labels) throws Exception {
-        if (StringUtils.isEmpty(labels)) {
-            return ActionReturnUtil.returnErrorWithMsg("labels cannot be null!");
-        }
-        String tenantName = labels.substring(5, labels.indexOf("type="));
-        String type = labels.substring(labels.indexOf("type=") + 5);
-        if (StringUtils.isEmpty(tenantName)) {
-            return ActionReturnUtil.returnErrorWithMsg("tenantName cannot be null!");
-        }
-        if (StringUtils.isEmpty(type)) {
-            return ActionReturnUtil.returnErrorWithMsg("type cannot be null!");
-        }
-//        Map<String, Object> bodys = new HashMap<String, Object>();
-//        bodys.put("labelSelector", "name" + "=" + tenant);
-        // 获取serviceList
-        K8SClientResponse response = sService.doServiceByNamespace(Resource.EXTERNALNAMESPACE, null, null, HTTPMethod.GET);
-        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-        	UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
-        }
-        ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
-        // item为实际service list的metadata，spec，status
-        List<com.harmonycloud.k8s.bean.Service> services = svList.getItems();
-        List<ExternalSvc> externalSvcs = new ArrayList<ExternalSvc>();
-        if (services != null && !services.isEmpty()) {
-            for (int i = 0; i < services.size(); i++) {
-                Map<String, Object> label = services.get(i).getMetadata().getLabels();
-                ExternalSvc externalSvc = new ExternalSvc();
-                com.harmonycloud.k8s.bean.Service svc = services.get(i);
-                if (svc.getMetadata().getLabels() != null && tenantName.equals(label.get("name")) && type.equals(label.get("type"))) {
-                    // zgl 修改
+            ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
+            // item为实际service list的metadata，spec，status
+            List<com.harmonycloud.k8s.bean.Service> services = svList.getItems();
+            if (services != null && !services.isEmpty()) {
+                for (int i = 0; i < services.size(); i++) {
+                    ExternalSvc externalSvc = new ExternalSvc();
+                    externalSvc.setClusterName(cluster.getName());
+                    externalSvc.setClusterAliasName(cluster.getAliasName());
+                    externalSvc.setClusterId(cluster.getId());
+                    com.harmonycloud.k8s.bean.Service svc = services.get(i);                     // zgl 修改
                     externalSvc.setServiceName(svc.getMetadata().getName());
                     externalSvc.setPort(svc.getSpec().getPorts().get(0).getTargetPort());
                     externalSvc.setTime(svc.getMetadata().getCreationTimestamp());
                     externalSvc.setIp(svc.getMetadata().getLabels().get("ip") == null ? "" : svc.getMetadata().getLabels().get("ip").toString());
                     externalSvc.setType(svc.getMetadata().getLabels().get("type") == null ? "" : svc.getMetadata().getLabels().get("type").toString());
                     externalSvc.setName(svc.getMetadata().getLabels().get("name") == null ? "" : svc.getMetadata().getLabels().get("name").toString());
+                    externalSvc.setNamespace(svc.getMetadata().getNamespace());
                     externalSvcs.add(externalSvc);
-                    // externalSvc.setServiceName(svc.getMetadata().getName());
-                    // externalSvc.setIp(svc.getMetadata().getLabels().get("ip").toString());
-                    // externalSvc.setPort(svc.getSpec().getPorts().get(0).getTargetPort());
-                    // externalSvc.setType(svc.getMetadata().getLabels().get("type").toString());
-                    // externalSvc.setTime(svc.getMetadata().getCreationTimestamp());
-                    // externalSvc.setDescribe(svc.getMetadata().getLabels().get("describe").toString());
-                    // externalSvc.setName(svc.getMetadata().getLabels().get("name").toString());
-                    // externalSvcs.add(externalSvc);
+
                 }
             }
         }
@@ -355,13 +330,11 @@ public class ExternalServiceImpl implements ExternalService {
      * 根据name获取外部服务
      */
     @Override
-    public ActionReturnUtil getservicebyname(String name) throws Exception {
-
-        if (StringUtils.isEmpty(name)) {
-            return ActionReturnUtil.returnErrorWithMsg("name cannot be null!");
-        }
+    public ActionReturnUtil getExtService(String clusterId, String name,String namespace) throws Exception {
+        AssertUtil.notBlank(name, DictEnum.NAME);
         // 获取serviceList
-        K8SClientResponse response = sService.doServiceByNamespace(Resource.EXTERNALNAMESPACE, null, null, HTTPMethod.GET);
+        Cluster cluster = clusterService.findClusterById(clusterId);
+        K8SClientResponse response = sService.doServiceByNamespace(namespace, null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
         	UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
@@ -382,10 +355,16 @@ public class ExternalServiceImpl implements ExternalService {
                     externalSvc.setType(svc.getMetadata().getLabels().get("type").toString());
                     externalSvc.setTime(svc.getMetadata().getCreationTimestamp());
                     externalSvc.setName(svc.getMetadata().getLabels().get("name").toString());
+                    externalSvc.setNamespace(svc.getMetadata().getNamespace());
                     externalSvcs.add(externalSvc);
                 }
             }
         }
         return ActionReturnUtil.returnSuccessWithData(externalSvcs);
+    }
+
+    @Override
+    public List<ExternalTypeBean> listExtServiceType() throws Exception{
+        return externalTypeMapper.list();
     }
 }

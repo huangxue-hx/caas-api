@@ -1,8 +1,7 @@
 package com.harmonycloud.k8s.service;
 
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
-import com.harmonycloud.k8s.bean.ResourceQuota;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.ResourceQuotaList;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
@@ -25,10 +24,12 @@ public class ResourceQuotaService {
         return response;
     }
 
-    public K8SClientResponse update(String namespace, String name, Map<String, Object> headers, Map<String, Object> bodys, String method) {
+    public K8SClientResponse update(String namespace, String name, Map<String, Object> headers, Map<String, Object> bodys, String method,Cluster cluster) {
+        //k8s URL
         K8SURL k8SURL = new K8SURL();
+        //设置K8S资源数据
         k8SURL.setNamespace(namespace).setResource(Resource.RESOURCEQUOTA).setName(name);
-        K8SClientResponse response = new K8sMachineClient().exec(k8SURL, method, headers, bodys);
+        K8SClientResponse response = new K8sMachineClient().exec(k8SURL, method, headers, bodys,cluster);
         return response;
     }
 
@@ -46,6 +47,5 @@ public class ResourceQuotaService {
 
         ResourceQuotaList resourceQuota = JsonUtil.jsonToPojo(k8SClientResponse.getBody(), ResourceQuotaList.class);
 
-        System.out.println(k8SClientResponse.getBody());
     }
 }

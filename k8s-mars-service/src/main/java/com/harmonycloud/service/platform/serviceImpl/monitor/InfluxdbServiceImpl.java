@@ -4,9 +4,12 @@ import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.*;
+
+import com.harmonycloud.common.enumm.*;
 import com.harmonycloud.common.util.date.DateStyle;
-import com.harmonycloud.dao.cluster.ClusterMapper;
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.platform.bean.monitor.InfluxdbQuery;
 import org.apache.commons.lang3.StringUtils;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
@@ -16,17 +19,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.harmonycloud.common.Constant.CommonConstant;
-import com.harmonycloud.common.enumm.EnumMonitorQuery;
-import com.harmonycloud.common.enumm.EnumMonitorTarget;
-import com.harmonycloud.common.enumm.EnumMonitorType;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpClientResponse;
 import com.harmonycloud.common.util.HttpClientUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.service.platform.bean.ProviderPlugin;
-import com.harmonycloud.service.platform.client.InfluxdbClient;
-import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.InfluxdbService;
 
 import javax.servlet.http.HttpSession;
@@ -42,34 +39,29 @@ import javax.servlet.http.HttpSession;
 public class InfluxdbServiceImpl implements InfluxdbService{
 
 	@Autowired
-	private ClusterMapper clusterMapper;
+	private ClusterService clusterService;
 	@Autowired
 	HttpSession session;
 	//监控数据最大展示100个监控点
     private static final int MAX_MONITOR_POINT = 100;
 
 
-	public ActionReturnUtil podMonit(String rangeType, String startTime, String pod, String container, String target, String clusterId) throws Exception {
+	public ActionReturnUtil podMonit(InfluxdbQuery query) throws Exception {
 		String interval = "";
 		String range = "";
-		Cluster cluster = null;
-		if(clusterId != null && !clusterId.equals("")) {
-			cluster = this.clusterMapper.findClusterById(clusterId);
-		} else {
-			cluster = (Cluster) session.getAttribute("currentCluster");
-		}
-		if(rangeType.equals("5")){
-			if(StringUtils.isBlank(startTime)){
-				return ActionReturnUtil.returnErrorWithMsg("服务创建时间为空!");
+		Cluster cluster = clusterService.findClusterById(query.getClusterId());
+		if(query.getRangeType().equals(EnumMonitorQuery.FROM_START.getCode())){
+			if(StringUtils.isBlank(query.getStartTime())){
+				return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER, DictEnum.CREATE_TIME.phrase(), true);
 			}
 			SimpleDateFormat adf = null;
-			if(startTime.length()>20){
+			if(query.getStartTime().length()>20){
 				adf = new SimpleDateFormat(DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z_SSS.getValue());
 			}else {
 				adf = new SimpleDateFormat(DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
 			}
 			adf.setTimeZone(TimeZone.getTimeZone("UTC"));
-            Date startDate = adf.parse(startTime);
+            Date startDate = adf.parse(query.getStartTime());
 			Long timeInterval = System.currentTimeMillis() - startDate.getTime();
 			//如果创建时间在30天内，就用目前固定的几种时间查询类型，超过30天，以100个点作为最大的点数显示
 			if(timeInterval <= EnumMonitorQuery.THIRTY_DAY.getMillisecond()){
@@ -85,41 +77,40 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 				}else {
 					newRangeType = EnumMonitorQuery.THIRTY_DAY.getCode();
 				}
-				EnumMonitorQuery query = EnumMonitorQuery.getRangeData(newRangeType);
-				interval = query.getInterval();
-				range = query.getRange();
+				EnumMonitorQuery monitorQuery = EnumMonitorQuery.getRangeData(newRangeType);
+				interval = monitorQuery.getInterval();
+				range = monitorQuery.getRange();
 			}else{
 				Long timeIntervalInDays = timeInterval / (1000 * 60 * 60 * 24);
 				range = timeIntervalInDays +"d";
 				interval = (timeIntervalInDays/MAX_MONITOR_POINT + 1) + "d";
 			}
 		}else {
-			EnumMonitorQuery query = EnumMonitorQuery.getRangeData(rangeType);
-			if (query == null) {
-				return ActionReturnUtil.returnErrorWithMsg("无效的查询时间段类型!");
+			EnumMonitorQuery monitorQuery = EnumMonitorQuery.getRangeData(query.getRangeType());
+			if (monitorQuery == null) {
+				return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
 			}
-			interval = query.getInterval();
-			range = query.getRange();
+			interval = monitorQuery.getInterval();
+			range = monitorQuery.getRange();
 		}
 
-		EnumMonitorTarget mTarget = EnumMonitorTarget.getTargetData(target.toUpperCase());
+		EnumMonitorTarget mTarget = EnumMonitorTarget.getTargetData(query.getMeasurement().toUpperCase());
 		if (mTarget == null) {
-			return ActionReturnUtil.returnErrorWithMsg("params is null!");
+			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
 		}
-		target = mTarget.getTarget();
+		String target = mTarget.getTarget();
 		String sql = null;
 		String type = CommonConstant.MONIT_TYPE;
 		//判断是否是网络监控
 		if (target.indexOf(CommonConstant.MONIT_NETWORK) > -1) {
 			type = CommonConstant.MONIT_NETWORK_TYPE;
 		}
-		if (!checkParamNUll(container)) {
-			sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"container_name\""+" = "+"\'"+container+"\'"+" AND "+"\"type\""+" = "+"\'"+type+"\'"+" AND "+"\"pod_name\""+" = "+"\'"+pod+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+"),"+"\"container_name\""+" fill(null)";
+		if (!checkParamNUll(query.getContainer())) {
+			sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"container_name\""+" = "+"\'"+query.getContainer()+"\'"+" AND "+"\"type\""+" = "+"\'"+type+"\'"+" AND "+"\"pod_name\""+" = "+"\'"+query.getPod()+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+"),"+"\"container_name\""+" fill(null)";
 		} else {
-			sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"type\""+" = "+"\'"+type+"\'"+" AND "+"\"pod_name\""+" = "+"\'"+pod+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+") fill(null)";
+			sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"type\""+" = "+"\'"+type+"\'"+" AND "+"\"pod_name\""+" = "+"\'"+query.getPod()+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+") fill(null)";
 		}
-		InfluxdbClient influxdbClient = new InfluxdbClient(cluster);
-		String influxServer = influxdbClient.getInfluxServer() + "?db="+influxdbClient.getDbName();
+		String influxServer = cluster.getInfluxdbUrl() + "?db="+cluster.getInfluxdbDb();
 		influxServer = influxServer + "&&q="+URLEncoder.encode(sql, "UTF-8");
 		HttpClientResponse response = HttpClientUtil.doGet(influxServer, null, null);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
@@ -133,46 +124,41 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 	 * 
 	 * 获取node的监控数据
 	 * 
-	 * @param type
-	 * @param rangeType
-	 * @param target
-	 * @param name
-	 * @param startTime
-	 * @param processName
+	 * @param influxdbQuery 查询参数
 	 * @return
 	 * @throws Exception
 	 */
-	public ActionReturnUtil nodeQuery(String type, String rangeType, String target, String name, String startTime, String processName) throws Exception {
-		EnumMonitorQuery query = EnumMonitorQuery.getRangeData(rangeType);
+	public ActionReturnUtil nodeQuery(InfluxdbQuery influxdbQuery) throws Exception {
+		EnumMonitorQuery query = EnumMonitorQuery.getRangeData(influxdbQuery.getRangeType());
 		if (query == null) {
-			return ActionReturnUtil.returnErrorWithMsg("params is null!");
+			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
 		}
 		String interval = query.getInterval();
 		String range = query.getRange();
-		EnumMonitorTarget mTarget = EnumMonitorTarget.getTargetData(target.toUpperCase());
+		EnumMonitorTarget mTarget = EnumMonitorTarget.getTargetData(influxdbQuery.getMeasurement().toUpperCase());
 		if (mTarget == null) {
-			return ActionReturnUtil.returnErrorWithMsg("params is null!");
+			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
 		}
-		target = mTarget.getTarget();
-		EnumMonitorType mType = EnumMonitorType.getMonitType(type.toUpperCase());
+		String target = mTarget.getTarget();
+		EnumMonitorType mType = EnumMonitorType.getMonitType(influxdbQuery.getType().toUpperCase());
 		if (mType == null) {
-			return ActionReturnUtil.returnErrorWithMsg("params is null!");
+			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
 		}	
 		String sql = null;
 		switch (mType.getType()) {
 		    case "process":
-			    sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"container_name\""+" = "+"\'"+processName+"\'"+" AND "+"\"host_id\"" + " = "+"\'"+name+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+") fill(null)";
+			    sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"container_name\""+" = "+"\'"+influxdbQuery.getProcessName()+"\'"+" AND "+"\"host_id\"" + " = "+"\'"+influxdbQuery.getNode()+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+") fill(null)";
 			    break;
 		    case "node":
-		    	if (name == null) {
+		    	if (influxdbQuery.getNode() == null) {
 		    		sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"type\""+" = "+"\'"+mType.getType()+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+") fill(null)";
 		    	} else {
-		    		sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"nodename\""+" = "+"\'"+name+"\'"+" AND "+"\"type\"" + " = "+"\'"+mType.getType()+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+") ,"+"\"nodename\""+"fill(null)";
+		    		sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"nodename\""+" = "+"\'"+influxdbQuery.getNode()+"\'"+" AND "+"\"type\"" + " = "+"\'"+mType.getType()+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+") ,"+"\"nodename\""+"fill(null)";
 		    	}
 		    	break;
 		}
-		InfluxdbClient influxdbClient = new InfluxdbClient();
-		String influxServer = influxdbClient.getInfluxServer() + "?db="+influxdbClient.getDbName();
+		Cluster cluster = clusterService.findClusterById(influxdbQuery.getClusterId());
+		String influxServer = cluster.getInfluxdbUrl() + "?db="+cluster.getInfluxdbDb();
 		influxServer = influxServer + "&&q="+URLEncoder.encode(sql, "UTF-8");
 		HttpClientResponse response = HttpClientUtil.doGet(influxServer, null, null);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
@@ -181,7 +167,7 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 		return ActionReturnUtil.returnSuccessWithData(JsonUtil.convertJsonToMap(response.getBody()));
 	}
 	
-	public ActionReturnUtil getProcessStatus(String name, String processName) throws Exception {
+	public ActionReturnUtil getProcessStatus(String name, String processName, String clusterId) throws Exception {
 		String sql = null;
 		boolean nodeNameNull = checkParamNUll(name);
 		boolean pNameNull = checkParamNUll(processName);
@@ -202,25 +188,14 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 			}
 			break;
 		}
-		InfluxdbClient influxdbClient = new InfluxdbClient();
-		String influxServer = influxdbClient.getInfluxServer() + "?db="+influxdbClient.getDbName();
+		Cluster cluster = clusterService.findClusterById(clusterId);
+		String influxServer = cluster.getInfluxdbUrl() + "?db="+cluster.getInfluxdbDb();
 		influxServer = influxServer + "&&q="+URLEncoder.encode(sql, "UTF-8");
 		HttpClientResponse response = HttpClientUtil.doGet(influxServer, null, null);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
 		}
 		return ActionReturnUtil.returnSuccessWithData(JsonUtil.convertJsonToMap(response.getBody()));
-	}
-	
-	public ActionReturnUtil getProviderList() {
-		List<ProviderPlugin> provider = new ArrayList<ProviderPlugin>();
-		InfluxdbClient influxdbClient = new InfluxdbClient();
-		ProviderPlugin providerPlugin = new ProviderPlugin();
-		providerPlugin.setIp(influxdbClient.getInfluxServer());
-		providerPlugin.setName(Constant.INFLUXDB);
-		providerPlugin.setVersion(influxdbClient.getInfluxdbVersion());
-		provider.add(providerPlugin);
-		return ActionReturnUtil.returnSuccessWithData(provider);
 	}
 	
 	public ActionReturnUtil getAlarmList(String id) throws Exception {
@@ -289,7 +264,6 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 	}
 
 	public double getClusterResourceUsage(String type, String measurements, String groupBy, Cluster cluster, List<String> notWorkNode, String nodename) throws Exception {
-		InfluxdbClient influxdbClient = new InfluxdbClient(cluster);
         StringBuffer sb = new StringBuffer("SELECT mean(\"value\") FROM \""+measurements+"\" WHERE \"type\" = '"+type+"' ");
         if(null != nodename && !"".equals(nodename)) {
         	sb.append(" and nodename='"+nodename+"' ");
@@ -300,12 +274,10 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 				}
 			}
 		}
-		sb.append("  AND time > now() - 10m GROUP BY time(1m),"+groupBy+" order by time desc  limit 2");
+		sb.append("  AND time > now() - 10m GROUP BY time(1m),"+groupBy+" order by time desc  limit 5");
 
-        System.out.println("XXXXXXX--------------------------------->"+sb.toString());
 
-		String influxServer = influxdbClient.getInfluxServer() + "?db="+influxdbClient.getDbName();
-		InfluxDB influxDB = InfluxDBFactory.connect(influxdbClient.getInfluxServer()+"/", "root", "");
+		InfluxDB influxDB = InfluxDBFactory.connect(cluster.getInfluxdbUrl()+"/", "root", "");
 		Query query = new Query(sb.toString(), cluster.getInfluxdbDb());
 		QueryResult queryResult = influxDB.query(query);
 
@@ -325,7 +297,25 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 						result = Double.parseDouble(series.get(i).getValues().get(1).get(1).toString());
 					}
 				}
+	            
+	            if(result == 0.0) {
+					if(series.get(i)!=null&&series.get(i).getValues()!=null&&series.get(i).getValues().size()>0&&series.get(i).getValues().get(2).size()>0&&series.get(i).getValues().get(2).get(1)!=null){
+						result = Double.parseDouble(series.get(i).getValues().get(2).get(1).toString());
+					}
+				}
+	            
+	            if(result == 0.0) {
+					if(series.get(i)!=null&&series.get(i).getValues()!=null&&series.get(i).getValues().size()>0&&series.get(i).getValues().get(3).size()>0&&series.get(i).getValues().get(3).get(1)!=null){
+						result = Double.parseDouble(series.get(i).getValues().get(3).get(1).toString());
+					}
+				}
 
+	            if(result == 0.0) {
+					if(series.get(i)!=null&&series.get(i).getValues()!=null&&series.get(i).getValues().size()>0&&series.get(i).getValues().get(4).size()>0&&series.get(i).getValues().get(4).get(1)!=null){
+						result = Double.parseDouble(series.get(i).getValues().get(4).get(1).toString());
+					}
+				} 
+	            
 				result = new BigDecimal(result).setScale(1, BigDecimal.ROUND_HALF_UP).doubleValue();
 	            totailResult = totailResult + result;
 	        }
@@ -333,9 +323,7 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 //				totailResult = totailResult / series.size();
 //			}
 		}
-
 		return totailResult;
-
 	}
 
 
@@ -343,13 +331,12 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 
 	@Override
 	public double getClusterAllocatedResources(String type, String measurements, Cluster cluster) throws Exception {
-		InfluxdbClient influxdbClient = new InfluxdbClient(cluster);
+
 		String sql = "";
 
 		sql = "SELECT mean(\"value\") FROM \""+measurements+"\" WHERE \"type\" = '"+type+"'  AND time > now() - 30m GROUP BY time(1m) order by time desc  limit 2";
 
-		String influxServer = influxdbClient.getInfluxServer() + "?db="+influxdbClient.getDbName();
-		InfluxDB influxDB = InfluxDBFactory.connect(influxdbClient.getInfluxServer()+"/", "root", "");
+		InfluxDB influxDB = InfluxDBFactory.connect(cluster.getInfluxdbUrl()+"/", "root", "");
 		Query query = new Query(sql, cluster.getInfluxdbDb());
 		QueryResult queryResult = influxDB.query(query);
 

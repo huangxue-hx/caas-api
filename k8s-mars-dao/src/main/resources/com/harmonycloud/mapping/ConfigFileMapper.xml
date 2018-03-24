@@ -6,64 +6,87 @@
     <resultMap id="configfileMap" type="com.harmonycloud.dao.application.bean.ConfigFile">
         <id property="id" column="id" />
         <result property="name" column="name" />
-        <result property="tenant" column="tenant" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="projectId" column="project_id" />
+        <result property="clusterId" column="cluster_id" />
+        <result property="clusterName" column="cluster_name" />
         <result property="description" column="description" />
         <result property="tags" column="tags"/>
         <result property="createTime" column="create_time"/>
         <result property="user" column="creator"/>
         <result property="repoName" column="reponame"/>
-        <result property="item" column="item"/>
+        <result property="items" column="item"/>
         <result property="path" column="path"/>
     </resultMap>
-    
-    <!-- 根据配置文件名称，tenant,repo名称版本号最大的 -->
-    <select id="getConfigFile" parameterType="java.lang.String" resultMap="configfileMap">
-        SELECT * FROM configfile where tags = (SELECT  max(tags) FROM configfile where name=#{0} and tenant=#{1} and reponame=#{2}) AND name=#{0} and tenant=#{1} and reponame=#{2}
-    </select> 
-    
-    <delete id="removeConfigFileById" parameterType="java.lang.String">
-        delete from configfile where id=#{id}
-    </delete>
 
-    <!-- 根据租户、文件名称，repo名称查找安照版本号倒叙 -->
-    <select id="listConfigByName" parameterType="java.lang.String" resultMap="configfileMap">
-        select * from configfile where tenant=#{0} and name=#{1} and reponame=#{2} order by tags desc
-    </select>    
-    
-    <!-- 删除根据name,tent,reponame删除 -->
-    <delete id="deleteConfigFileByName" parameterType="java.lang.String">
-        delete from configfile where name=#{0} and tenant=#{1} and reponame=#{2}
-    </delete>
+    <!-- 添加ConfigFile -->
+    <insert id="saveConfigFile" parameterType="com.harmonycloud.dao.application.bean.ConfigFile">
+        insert into configfile(id,name,tenant_id,project_id,cluster_id,cluster_name,description,tags,create_time,creator,reponame,item,path)
+        values(#{id},#{name},#{tenantId},#{projectId},#{clusterId},#{clusterName},#{description},#{tags},#{createTime},#{user},#{repoName},#{items},#{path})
+    </insert>
+
+    <select id="getConfig" parameterType="java.lang.String" resultMap="configfileMap">
+        select * from configfile where id=#{id}
+    </select>
+
+    <!-- 根据项目、文件名称，repo名称查找安照时间倒叙  -->
+    <select id="getLatestConfig" parameterType="java.lang.String" resultMap="configfileMap">
+        select * from configfile where project_id=#{projectId} and name=#{name} and reponame=#{repoName} order by create_time desc limit 1
+    </select>
+
+    <!-- 根据配置文件名称，tenant,repo名称版本号最大的 -->
+    <select id="getLatestTagConfig" parameterType="java.lang.String" resultMap="configfileMap">
+        SELECT * FROM configfile where name=#{name} and project_id=#{projectId} and reponame=#{repoName} order by tags desc limit 1
+    </select>
+
+    <!-- 根据项目、文件名称，repo名称查找安照版本号倒叙 -->
+    <select id="listConfigByName" resultMap="configfileMap">
+        select * from configfile
+        where project_id=#{projectId}
+        and name=#{name}
+        <if test="repoName !=null  and repoName != ''  ">
+            and reponame=#{repoName}
+        </if>
+        order by tags desc
+    </select>
     
     <!-- 根据tenant keyword模糊查找 -->
-    <select id="listConfigSearch" parameterType="java.util.List" resultMap="configfileMap">
-        select distinct name ,reponame,tenant from configfile 
+    <select id="listConfigSearch" resultMap="configfileMap">
+        select distinct name ,reponame,project_id from configfile 
         <where>
-          <if test="tenant !=null  and tenant != ''  ">
-            tenant=#{tenant}
+          <if test="projectId !=null  and projectId != ''  ">
+            project_id=#{projectId}
+          </if>
+          <if test="repoName !=null  and repoName != ''  ">
+            and reponame=#{repoName}
           </if>
           <if test="keyword !=null  and keyword != ''  ">  
             and ( name like concat (concat('%',#{keyword}),'%') or reponame like concat (concat('%',#{keyword}),'%') )
-          </if> 
+          </if>
+          <if test="clusterIds != null ">
+            and cluster_id in
+            <foreach item="item" index="index" collection="clusterIds" open="(" separator="," close=")">
+                #{item}
+            </foreach>
+          </if>
         </where>
     </select>
-    
-    <!-- 根据租户、文件名称，repo名称查找安照时间倒叙  -->
-    <select id="listConfigByNameLatest" parameterType="java.lang.String" resultMap="configfileMap">
-        select * from configfile where tenant=#{tenant} and name=#{name} and reponame=#{repoName} order by create_time desc
-    </select>   
  
     <!-- 根据租户、文件名称，repo名称查找安照时间倒叙  -->
     <select id="listConfigByNameAsc" parameterType="java.lang.String" resultMap="configfileMap">
-        select * from configfile where tenant=#{tenant} and name=#{name} and reponame=#{repoName} order by create_time
+        select * from configfile where project_id=#{projectId} and name=#{name}
+        <if test="repoName !=null  and repoName != ''  ">
+          and reponame=#{repoName}
+        </if>
+        order by create_time
     </select>
  
     <!-- 根据tenant,reponame查找listsOverview -->
     <select id="listConfigOverview" parameterType="java.lang.String" resultMap="configfileMap">
-        select distinct name,tenant,reponame from configfile
+        select distinct name,project_id,reponame from configfile
         <where>
-          <if test="tenant != null and tenant !=''">
-            tenant=#{tenant}
+          <if test="projectId != null and projectId !=''">
+            project_id=#{projectId}
           </if>
           <if test="repoName != null and repoName !=''">
            and reponame=#{repoName}
@@ -71,36 +94,34 @@
         </where> 
         order by name
     </select>
-    
-    <!-- 添加ConfigFile -->
-    <insert id="saveConfigFile" parameterType="com.harmonycloud.dao.application.bean.ConfigFile">
-        insert into configfile(id,name,tenant,description,tags,create_time,creator,reponame,item,path)
-        values(#{id},#{name},#{tenant},#{description},#{tags},#{createTime},#{user},#{repoName},#{item},#{path})
-    </insert>
 
-    <select id="getId" parameterType="java.lang.String" resultType="java.lang.String">
-        select id from configfile where id=#{id}
-    </select>
+    <!-- 删除根据name,tent,reponame删除 -->
+    <delete id="deleteConfigByName" parameterType="java.lang.String">
+        delete from configfile where  project_id=#{projectId} and name=#{name}
+        <if test="clusterId !=null  and clusterId != ''  ">
+            and cluster_id=#{clusterId}
+        </if>
+    </delete>
 
-    <select id="getConfigFileById" parameterType="java.lang.String" resultMap="configfileMap">
-        select * from configfile where id=#{id}
-    </select>
+    <delete id="deleteConfig">
+        delete from configfile where id=#{id} and project_id = #{projectId}
+    </delete>
 
-	<select id="getTenantByName" parameterType="java.lang.String" resultMap="configfileMap">
-		select distinct tenant from configfile where name=#{name}
-	</select>
-
-	<delete id="deleteConfigFileByTenant" parameterType="java.lang.String">
-		delete from configfile where tenant=#{tenant}
+	<delete id="deleteConfigByProject" parameterType="java.lang.String">
+		delete from configfile where project_id=#{projectId}
 	</delete>
+
+    <delete id="deleteByClusterId">
+        delete from configfile where cluster_id = #{clusterId}
+    </delete>
+
 	<update id="updateConfig">
     	update configfile
     	<set>
         	description = #{description},
-        	tenant = #{tenant},
         	reponame = #{repoName},
         	creator = #{user},
-        	item = #{item},
+        	item = #{items},
         	path = #{path}
     	</set>
     	where id = #{id}

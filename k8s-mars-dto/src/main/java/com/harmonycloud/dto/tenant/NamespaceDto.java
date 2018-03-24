@@ -1,42 +1,100 @@
 package com.harmonycloud.dto.tenant;
 
+import java.util.List;
+
 /**
  * Created by andy on 17-1-20.
  */
 public class NamespaceDto {
-
+    //分区简称
     private String name;
-
-    private String tenantid;
-
+    //分区别名
+    private String aliasName;
+    //租户id
+    private String tenantId;
+    //备注
     private String annotation;
-    
-    private String nodename;
-    
-    private String lastlastmemory;
-
-    private String lastlastcpu;
-    
+    //节点名称
+    private String nodeName;
+    //上次内存
+    private String lastMemory;
+    //上次cpu
+    private String lastCpu;
+    //是否为私有
     private Boolean Private = false;
+    //是否更新
+    private Boolean update = false;
 
     private NetworkDto network;
-
+    //分区配额
     private QuotaDto quota;
+    //集群id
+    private String clusterId;
+    //主机名列表
+    private List<String> nodeList;
 
-    public String getLastlastmemory() {
-        return lastlastmemory;
+    public Boolean getUpdate() {
+        return update;
     }
 
-    public void setLastlastmemory(String lastlastmemory) {
-        this.lastlastmemory = lastlastmemory;
+    public void setUpdate(Boolean update) {
+        this.update = update;
     }
 
-    public String getLastlastcpu() {
-        return lastlastcpu;
+    public List<String> getNodeList() {
+        return nodeList;
     }
 
-    public void setLastlastcpu(String lastlastcpu) {
-        this.lastlastcpu = lastlastcpu;
+    public void setNodeList(List<String> nodeList) {
+        this.nodeList = nodeList;
+    }
+
+    public String getAliasName() {
+        return aliasName;
+    }
+
+    public void setAliasName(String aliasName) {
+        this.aliasName = aliasName;
+    }
+
+    public Boolean getPrivate() {
+        return Private;
+    }
+
+    public void setPrivate(Boolean aPrivate) {
+        Private = aPrivate;
+    }
+
+    public String getClusterId() {
+        return clusterId;
+    }
+
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
+    }
+
+    public String getNodeName() {
+        return nodeName;
+    }
+
+    public void setNodeName(String nodeName) {
+        this.nodeName = nodeName;
+    }
+
+    public String getLastMemory() {
+        return lastMemory;
+    }
+
+    public void setLastMemory(String lastMemory) {
+        this.lastMemory = lastMemory;
+    }
+
+    public String getLastCpu() {
+        return lastCpu;
+    }
+
+    public void setLastCpu(String lastCpu) {
+        this.lastCpu = lastCpu;
     }
 
     public String getName() {
@@ -47,12 +105,12 @@ public class NamespaceDto {
         this.name = name;
     }
 
-    public String getTenantid() {
-        return tenantid;
+    public String getTenantId() {
+        return tenantId;
     }
 
-    public void setTenantid(String tenantid) {
-        this.tenantid = tenantid;
+    public void setTenantId(String tenantId) {
+        this.tenantId = tenantId;
     }
 
     public String getAnnotation() {
@@ -86,11 +144,4 @@ public class NamespaceDto {
         Private = private1;
     }
 
-    public String getNodename() {
-        return nodename;
-    }
-
-    public void setNodename(String nodename) {
-        this.nodename = nodename;
-    }
 }

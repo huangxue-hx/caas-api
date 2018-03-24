@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.microservice.MicroServiceInstanceMapper">
+
+    <resultMap id="microServiceInstance" type="com.harmonycloud.dao.microservice.bean.MicroServiceInstance">
+        <id column="id" jdbcType="INTEGER" property="id" />
+        <result column="tenant_id" jdbcType="VARCHAR" property="tenantId" />
+        <result column="cluster_id" jdbcType="VARCHAR" property="clusterId" />
+        <result column="namespace_id" jdbcType="VARCHAR" property="namespaceId" />
+        <result column="instance_id" jdbcType="VARCHAR" property="instanceId" />
+        <result column="replicas" jdbcType="INTEGER" property="replicas" />
+        <result column="cpu" jdbcType="VARCHAR" property="cpu" />
+        <result column="memory" jdbcType="VARCHAR" property="memory" />
+        <result column="service_name" jdbcType="VARCHAR" property="serviceName" />
+        <result column="deployment_name" jdbcType="VARCHAR" property="deploymentName"/>
+        <result column="loadbalance_port" jdbcType="VARCHAR" property="loadbalancePort" />
+        <result column="task_id" jdbcType="VARCHAR" property="taskId" />
+        <result column="status" jdbcType="INTEGER" property="status" />
+        <result column="create_time" jdbcType="TIMESTAMP" javaType="java.util.Date" property="createTime"/>
+        <result column="update_time" jdbcType="TIMESTAMP" javaType="java.util.Date" property="updateTime"/>
+        <result column="content" jdbcType="VARCHAR" property="content" />
+    </resultMap>
+
+    <select id="findByInstanceId" resultMap="microServiceInstance" parameterType="java.lang.String">
+        select id, tenant_id, cluster_id, namespace_id, instance_id, replicas, cpu, memory, service_name,
+        deployment_name, loadbalance_port, task_id, create_time, update_time, content
+        from msf_instance where instance_id=#{instanceId}
+    </select>
+
+    <update id="updateMicroServiceInstance" parameterType="com.harmonycloud.dao.microservice.bean.MicroServiceInstance">
+        update msf_instance
+        <trim prefix="set" suffixOverrides=",">
+            <if test="id!=null">id=#{id},</if>
+            <if test="replicas!=null">replicas=#{replicas},</if>
+            <if test="cpu!=null">cpu=#{cpu},</if>
+            <if test="memory!=null">memory=#{memory},</if>
+            <if test="deploymentName!=null">deployment_name=#{deploymentName},</if>
+            <if test="serviceName!=null">service_name=#{serviceName},</if>
+            <if test="updateTime!=null">update_time=#{updateTime}</if>
+        </trim>
+        WHERE id=#{id}
+    </update>
+
+    <delete id="deleteMicroServiceInstance" parameterType="java.lang.String">
+        DELETE  FROM  msf_instance WHERE instance_id = #{instanceId} and namespace_id = #{namespaceId}
+    </delete>
+
+    <delete id="deleteByClusterId">
+        delete from msf_instance where cluster_id = #{clusterId}
+    </delete>
+
+    <insert id="insertMicroServiceInstance" parameterType="com.harmonycloud.dao.microservice.bean.MicroServiceInstance" useGeneratedKeys="true" keyProperty="id">
+        INSERT  INTO msf_instance(tenant_id, cluster_id, namespace_id, instance_id, replicas, cpu, memory, service_name, deployment_name,
+                  loadbalance_port, task_id, status, create_time, update_time, content)
+        VALUES (#{tenantId}, #{clusterId}, #{namespaceId}, #{instanceId}, #{replicas}, #{cpu}, #{memory}, #{serviceName},
+                 #{deploymentName}, #{loadbalancePort}, #{taskId}, #{status}, #{createTime}, #{updateTime}, #{content});
+    </insert>
+
+    <select id="getMsfInstancesByNamespaceId" resultMap="microServiceInstance" parameterType="java.lang.String">
+        SELECT * FROM msf_instance WHERE namespace_id = #{namespaceId}
+    </select>
+
+    <select id="queryByTaskId" parameterType="java.lang.String" resultMap="microServiceInstance">
+        SELECT * FROM msf_instance WHERE task_id = #{taskId}
+    </select>
+
+</mapper>

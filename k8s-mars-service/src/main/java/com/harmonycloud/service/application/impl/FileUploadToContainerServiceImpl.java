@@ -4,15 +4,15 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 
 import javax.servlet.http.HttpSession;
 
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,11 +28,11 @@ import com.harmonycloud.common.util.ESFactory;
 import com.harmonycloud.dao.application.FileUploadContainerMapper;
 import com.harmonycloud.dao.application.bean.FileUploadContainer;
 import com.harmonycloud.dao.application.bean.FileUploadContainerExample;
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.system.SystemConfigMapper;
 import com.harmonycloud.dao.system.bean.SystemConfig;
-import com.harmonycloud.dto.business.ContainerFileUploadDto;
-import com.harmonycloud.dto.business.PodContainerDto;
+import com.harmonycloud.dto.application.ContainerFileUploadDto;
+import com.harmonycloud.dto.application.PodContainerDto;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.service.application.FileUploadToContainerService;
 import com.harmonycloud.service.platform.constant.Constant;
@@ -57,16 +57,25 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 	@Autowired
     private SystemConfigMapper systemConfigMapper;
 
+	@Autowired
+	private NamespaceLocalService namespaceLocalService;
+
 	private final static Logger logger = LoggerFactory.getLogger(FileUploadToContainerServiceImpl.class);
 
 	@Override
 	@Transactional(rollbackFor = Exception.class)
-	public ActionReturnUtil fileUploadToNode(ContainerFileUploadDto containerFileUpload, MultipartFile file)
+	public ActionReturnUtil fileUploadToNode(String pods, String namespace, String deployment, String containerFilePath, MultipartFile file)
 			throws Exception {
-		List<PodContainerDto> podList = containerFileUpload.getPods();
-		if (podList == null) {
-			return ActionReturnUtil.returnErrorWithMsg("未选择pod");
+		if (StringUtils.isBlank(pods) || StringUtils.isBlank(namespace) || StringUtils.isBlank(deployment) || StringUtils.isBlank(containerFilePath)) {
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
 		}
+		ContainerFileUploadDto containerFileUpload = new ContainerFileUploadDto();
+		containerFileUpload.setNamespace(namespace);
+		containerFileUpload.setContainerFilePath(containerFilePath);
+		containerFileUpload.setDeployment(deployment);
+		List<PodContainerDto> podsDto = JsonUtil.jsonToList(pods, PodContainerDto.class);
+		containerFileUpload.setPods(podsDto);
+		List<PodContainerDto> podList = containerFileUpload.getPods();
 		String fileName = file.getOriginalFilename();
 		String path = uploadPath + containerFileUpload.getNamespace();
 		File dirFile = new File(path);
@@ -176,18 +185,26 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 	@Override
 	public ActionReturnUtil fileUploadToContainer(ContainerFileUploadDto containerFileUpload, String shellPath)
 			throws Exception {
+		if (Objects.isNull(containerFileUpload) || StringUtils.isBlank(containerFileUpload.getNamespace())) {
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		//获取集群
+		Cluster cluster = namespaceLocalService.getClusterByNamespaceName(containerFileUpload.getNamespace());
+		if (Objects.isNull(cluster)) {
+			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+		}
 		List<PodContainerDto> podList = containerFileUpload.getPods();
 		final List<Integer> uploadIds = containerFileUpload.getUploadIdList();
 		if (podList == null && uploadIds == null) {
-			return ActionReturnUtil.returnErrorWithMsg("未选择pod");
+			throw new MarsRuntimeException(ErrorCodeMessage.POD_IS_BLANK);
 		}
 		FileUploadContainer fileUpload = fileUploadContainerMapper.selectByPrimaryKey(uploadIds.get(0));
 		final String sPath = shellPath;
 		final String localPath = uploadPath + containerFileUpload.getNamespace();
 		final String fileAbsolutePath = localPath + "/" + fileUpload.getFileName();
 		String username = String.valueOf(session.getAttribute("username"));
-		final String token = String.valueOf(K8SClient.tokenMap.get(username));
-		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+		//获取token
+		final String token = cluster.getMachineToken();
 		final String server = cluster.getProtocol() + "://" + cluster.getHost() + ":" + cluster.getPort();
         final CountDownLatch begin = new CountDownLatch(uploadIds.size());
 		for (int i = 0; i < uploadIds.size(); i++) {
@@ -236,7 +253,7 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 		List<PodContainerDto> podList = containerFileUpload.getPods();
 		List<Integer> uploadIds = containerFileUpload.getUploadIdList();
 		if (podList == null && uploadIds == null) {
-			return ActionReturnUtil.returnErrorWithMsg("未选择pod");
+			throw new MarsRuntimeException(ErrorCodeMessage.POD_IS_BLANK);
 		}
 		List<FileUploadContainer> records = new ArrayList<FileUploadContainer>();
 		for (Integer id : uploadIds) {
@@ -253,7 +270,7 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 		Long userId = Long.valueOf(session.getAttribute("userId").toString());
 		List<PodContainerDto> podList = containerFileUpload.getPods();
 		if (podList == null) {
-			return ActionReturnUtil.returnErrorWithMsg("未接收到pod信息");
+			throw new MarsRuntimeException(ErrorCodeMessage.POD_IS_BLANK);
 		}
 		List<FileUploadContainer> result = new ArrayList<FileUploadContainer>();
 		for (PodContainerDto pContainerDto : podList) {
@@ -293,14 +310,22 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 	@Override
 	public ActionReturnUtil lsContainerFile(String namespace, String containerFilePath, String container, String pod,
 			String shellPath) throws Exception {
-		String username = String.valueOf(session.getAttribute("username"));
-		String token = String.valueOf(K8SClient.tokenMap.get(username));
-		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
+		if (StringUtils.isBlank(namespace) || StringUtils.isBlank(containerFilePath)) {
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		//获取集群
+		Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+		if (Objects.isNull(cluster)) {
+			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+		}
+		//获取token
+		String token = cluster.getMachineToken();
 		String server = cluster.getProtocol() + "://" + cluster.getHost() + ":" + cluster.getPort();
 		ProcessBuilder proc = new ProcessBuilder("bash", shellPath, pod, containerFilePath, namespace, token, server);
 		if (StringUtils.isNotBlank(container)) {
 			proc = new ProcessBuilder("bash", shellPath, pod, containerFilePath, namespace, token, server, container);
 		}
+		logger.info("执行命令参数：{}",proc.command());
 		Process p = proc.start();
 		String res = null;
 		List<Map<String, String>> files = new ArrayList<Map<String, String>>();
@@ -315,14 +340,14 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 			}
 			file.put("name", res);
 			files.add(file);
-			logger.debug("文件名：" + res);
+			logger.info("文件名：" + res);
 		}
 		while ((res = stdError.readLine()) != null) {
 			logger.error("执行容器文件目录脚本错误：" + res);
 			return ActionReturnUtil.returnErrorWithMsg(res);
 		}
 		int runningStatus = p.waitFor();
-		logger.debug("执行容器文件目录结果：" + runningStatus);
+		logger.info("执行容器文件目录结果：" + runningStatus);
 		return ActionReturnUtil.returnSuccessWithData(files);
 	}
 

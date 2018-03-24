@@ -1,8 +1,9 @@
 package com.harmonycloud.k8s.bean;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import io.swagger.models.auth.In;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
+@JsonInclude(value=JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class WeightedPodAffinityTerm {
     private Integer weight;

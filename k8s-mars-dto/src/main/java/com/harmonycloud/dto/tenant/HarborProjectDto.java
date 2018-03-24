@@ -26,6 +26,8 @@ public class HarborProjectDto implements Serializable {
 
     private Integer isPublic;
 
+    private String harborHost;
+
     public Integer getIsPublic() {
         return isPublic;
     }
@@ -96,5 +98,13 @@ public class HarborProjectDto implements Serializable {
 
     public void setTenant(TenantDto tenant) {
         this.tenant = tenant;
+    }
+
+    public String getHarborHost() {
+        return harborHost;
+    }
+
+    public void setHarborHost(String harborHost) {
+        this.harborHost = harborHost;
     }
 }

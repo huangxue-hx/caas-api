@@ -204,4 +204,13 @@ public class SystemConfigServiceImpl implements SystemConfigService {
     public SystemConfig findByConfigName(String configName) {
         return this.systemConfigMapper.findByConfigName(configName);
     }
+
+    @Override
+    public String findConfigValueByName(String configName) {
+        SystemConfig config = this.findByConfigName(configName);
+        if(config == null){
+            return null;
+        }
+        return config.getConfigValue();
+    }
 }

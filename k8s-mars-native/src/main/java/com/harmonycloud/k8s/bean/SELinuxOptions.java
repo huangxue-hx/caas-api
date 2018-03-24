@@ -1,10 +1,15 @@
 package com.harmonycloud.k8s.bean;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 /**
  * 
  * @author jmi
  *
  */
+@JsonInclude(value=JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SELinuxOptions {
 	
 	private String user;

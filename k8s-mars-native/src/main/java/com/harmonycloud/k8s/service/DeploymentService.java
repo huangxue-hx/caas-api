@@ -1,20 +1,21 @@
 package com.harmonycloud.k8s.service;
 
+import java.util.HashMap;
 import java.util.Map;
 
+import com.harmonycloud.k8s.constant.APIGroup;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import com.harmonycloud.common.util.HttpK8SClientUtil;
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.DeleteOptions;
 import com.harmonycloud.k8s.bean.Deployment;
 import com.harmonycloud.k8s.bean.DeploymentList;
 import com.harmonycloud.k8s.bean.DeploymentRollback;
 import com.harmonycloud.k8s.bean.UnversionedStatus;
-import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.k8s.constant.Resource;
@@ -206,45 +207,16 @@ public class DeploymentService {
 		}
 		return null;
 	}
-	
-	/*@SuppressWarnings("unchecked")
-	public ActionReturnUtil startSpecifiedDeployment(String name, String namespace) {
-		Deployment dep = getSpecifiedDeployment(namespace, name);
-		
-		//status code :0 stop 1:start 2:stopping 3:starting
-		//先判断状态
-		if (dep != null && !dep.equals("")) {
-			Map<String, Object> anno = ((Map<String, Object>)dep.getMetadata().getAnnotations());
-			String status = anno.get("nephele/status").toString();
-			if (status.equals(Constant.STARTING)) {
-				return ActionReturnUtil.returnErrorWithMsg("service " + dep.getMetadata().getName() +" is already started");
-			} else {
-				int rcs = Integer.valueOf(anno.get("nephele/status").toString());
-				anno.put("nephele/status", Constant.STARTING);
-				dep.getSpec().setReplicas(rcs == 0?1:rcs);
-				anno.put("nephele/replicas", anno.get("nephele/status").toString());
-			}
-			Deployment newDep = replaceSpecifiedDeployment(namespace, name, dep);
-			if (newDep != null && !newDep.equals("")) {
-				return ActionReturnUtil.returnSuccess();
-			}
-		}
-		return ActionReturnUtil.returnError();
+
+	public K8SClientResponse rollbackSpecifiedDeployment(DeploymentRollback deploymentRollback, String namespace,String name, Cluster cluster) throws Exception {
+		K8SURL url = new K8SURL();
+		url.setNamespace(namespace).setName(name).setResource(Resource.DEPLOYMENT).setSubpath("rollback").setApiGroup(APIGroup.APIS_APPS_V1BETA1);
+		Map<String, Object> bodys = new HashMap<>();
+		bodys.put("name", deploymentRollback.getName());
+		bodys.put("rollbackTo", deploymentRollback.getRollbackTo());
+		Map<String, Object> headers = new HashMap<>();
+		headers.put("Content-Type", "application/json");
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
+		return response;
 	}
-	
-	public ActionReturnUtil stopSpecifiedDeployment(String name, String namespace) {
-		
-		return ActionReturnUtil.returnError();
-	}*/
-
-	/*public static void main(String[] args) {
-		DeploymentService deploymentService = new DeploymentService();
-
-		K8SClientResponse k8SClientResponse = deploymentService.doDeploymentsByNamespace("zheng-fainall", null, null, HTTPMethod.GET);
-
-		DeploymentList DeploymentList = JsonUtil.jsonToPojo(k8SClientResponse.getBody(), DeploymentList.class);
-
-		System.out.println(k8SClientResponse.getBody());
-
-	}*/
 }

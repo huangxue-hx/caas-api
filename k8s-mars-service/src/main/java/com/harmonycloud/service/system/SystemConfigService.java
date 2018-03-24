@@ -25,4 +25,6 @@ public interface SystemConfigService {
     List<SystemConfig> findByConfigType(String configType);
 
     SystemConfig findByConfigName(String configName);
+
+    String findConfigValueByName(String configName);
 }

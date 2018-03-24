@@ -12,20 +12,17 @@ import org.springframework.transaction.annotation.Transactional;
 import com.harmonycloud.common.util.StringUtil;
 import com.harmonycloud.dao.user.UserMapper;
 import com.harmonycloud.dao.user.bean.User;
-import com.harmonycloud.dao.user.customs.CustomUserMapper;
 
 
 @Service
 @Transactional(rollbackFor = Exception.class)
 public class AuthService {
     @Autowired
-    private CustomUserMapper userMapper;
-    @Autowired
-    private UserMapper userMapperNew;
+    private UserMapper userMapper;
 	/**
 	 * 根据用户名密码,认证用户, 认证成功:返回用户对象, 认证失败:返回null
 	 * 
-	 * @param user
+	 * @param
 	 * @return
 	 */
 	public User AuthUser(String username, String password) throws Exception {
@@ -84,9 +81,8 @@ public class AuthService {
         // 将token存入数据库
         user.setToken(token);
         user.setTokenCreate(new Date());
-        user.setUuid(user.getId());
-        userMapperNew.updateByPrimaryKeySelective(user);
-//        userMapper.updateUser(user);
+        user.setId(user.getId());
+        userMapper.updateByPrimaryKeySelective(user);
 
         data.put("token", token);
         data.put("username", user.getUsername());

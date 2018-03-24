@@ -1,6 +1,6 @@
 package com.harmonycloud.service.application;
 
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.scale.AutoScaleDto;
 
 /**
@@ -10,11 +10,11 @@ import com.harmonycloud.dto.scale.AutoScaleDto;
  */
 public interface AutoScaleService {
 
-	boolean create(AutoScaleDto autoScaleDto, Cluster cluster) throws Exception;
+	ActionReturnUtil create(AutoScaleDto autoScaleDto) throws Exception;
 
-	boolean update(AutoScaleDto autoScaleDto, Cluster cluster) throws Exception;
+	ActionReturnUtil update(AutoScaleDto autoScaleDto) throws Exception;
 
-	boolean delete(String namespace, String deploymentName, Cluster cluster) throws Exception;
+	boolean delete(String namespace, String deploymentName) throws Exception;
 
-	AutoScaleDto get(String namespace, String deploymentName, Cluster cluster) throws Exception;
+	AutoScaleDto get(String namespace, String deploymentName) throws Exception;
 }

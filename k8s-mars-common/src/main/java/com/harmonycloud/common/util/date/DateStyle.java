@@ -4,7 +4,8 @@ public enum DateStyle {
 
 	MM_DD("MM-dd"), 
 	YYYY_MM("yyyy-MM"), 
-	YYYY_MM_DD("yyyy-MM-dd"), 
+	YYYY_MM_DD("yyyy-MM-dd"),
+	YYYYMMDD_DOT("yyyy.MM.dd"),
 	MM_DD_HH_MM("MM-dd HH:mm"), 
 	MM_DD_HH_MM_SS("MM-dd HH:mm:ss"), 
 	YYYY_MM_DD_HH_MM("yyyy-MM-dd HH:mm"), 
@@ -32,7 +33,7 @@ public enum DateStyle {
 	
 	YYYYMMDD("yyyyMMdd"),
 	YYYYMMDD_HH_MM_SS("yyyyMMdd HH:mm:ss"),
-	
+
 	YYMMDDHHMMSS("yyyyMMddHHmmss");
 
 	private String value;

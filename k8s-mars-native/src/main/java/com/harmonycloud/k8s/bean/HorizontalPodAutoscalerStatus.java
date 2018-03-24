@@ -1,6 +1,9 @@
 package com.harmonycloud.k8s.bean;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.harmonycloud.k8s.bean.scale.MetricStatus;
+
+import java.util.List;
 
 /**
  * @author qg
@@ -16,8 +19,10 @@ public class HorizontalPodAutoscalerStatus {
 	private Integer currentReplicas;
 	
 	private Integer desiredReplicas;
+
+	private List<HorizontalPodAutoscalerCondition> conditions;
 	
-	private Integer currentCPUUtilizationPercentage;
+	private List<HorizontalPodAutoscalerMetricStatus> currentMetrics;
 
 	public Integer getObservedGeneration() {
 		return observedGeneration;
@@ -51,13 +56,19 @@ public class HorizontalPodAutoscalerStatus {
 		this.desiredReplicas = desiredReplicas;
 	}
 
-	public Integer getCurrentCPUUtilizationPercentage() {
-		return currentCPUUtilizationPercentage;
+	public List<HorizontalPodAutoscalerCondition> getConditions() {
+		return conditions;
 	}
 
-	public void setCurrentCPUUtilizationPercentage(Integer currentCPUUtilizationPercentage) {
-		this.currentCPUUtilizationPercentage = currentCPUUtilizationPercentage;
+	public void setConditions(List<HorizontalPodAutoscalerCondition> conditions) {
+		this.conditions = conditions;
 	}
-	
-	
+
+	public List<HorizontalPodAutoscalerMetricStatus> getCurrentMetrics() {
+		return currentMetrics;
+	}
+
+	public void setCurrentMetrics(List<HorizontalPodAutoscalerMetricStatus> currentMetrics) {
+		this.currentMetrics = currentMetrics;
+	}
 }

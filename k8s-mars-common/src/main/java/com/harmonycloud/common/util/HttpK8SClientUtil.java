@@ -319,7 +319,6 @@ public class HttpK8SClientUtil {
 				HttpEntity entity = response.getEntity();
 				if(entity != null){
 					String result = EntityUtils.toString(entity);
-					System.out.println(result);
 				}
 
 
@@ -370,7 +369,6 @@ public class HttpK8SClientUtil {
 				HttpEntity entity = new StringEntity(
 						JsonUtil.objectToJson(params), "utf-8");
 				httpPut.setEntity(entity);
-				System.out.println(entity.toString());
 			}
 			httpClient = getHttpClient();
 			CloseableHttpResponse response = httpClient.execute(httpPut);

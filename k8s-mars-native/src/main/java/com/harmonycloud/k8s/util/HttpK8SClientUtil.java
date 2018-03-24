@@ -344,7 +344,6 @@ public class HttpK8SClientUtil {
 				HttpEntity entity = new StringEntity(
 						JsonUtil.objectToJson(params), "utf-8");
 				httpPut.setEntity(entity);
-				System.out.println(entity.toString());
 			}
 			httpClient = getHttpClient();
 			CloseableHttpResponse response = httpClient.execute(httpPut);

@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.tenant.bean.RolePrivilege;
+import com.harmonycloud.dao.user.bean.RolePrivilege;
 import com.harmonycloud.dao.user.bean.Resource;
 
 public interface ResourceService {
@@ -19,7 +19,7 @@ public interface ResourceService {
      * @return
      * @throws Exception
      */
-    public RolePrivilege updateRoleMenuPrivilegeWight(Integer id, Integer weight) throws Exception;
+    public RolePrivilege updateRoleMenuPrivilegeWight(Integer roleId,Integer id, Integer weight) throws Exception;
     /**
      * 获取所有api资源列表
      * @return APIResourceList

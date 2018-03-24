@@ -19,6 +19,8 @@ public class PodDetail {
 	private String tag;
 	
 	private List<ContainerWithStatus> containers;
+
+	private String deployment;
 	
 	public PodDetail() {
 		
@@ -97,4 +99,11 @@ public class PodDetail {
 		this.tag = tag;
 	}
 
+	public String getDeployment() {
+		return deployment;
+	}
+
+	public void setDeployment(String deployment) {
+		this.deployment = deployment;
+	}
 }

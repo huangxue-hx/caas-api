@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.cluster.NodePortClusterRangeMapper">
+
+    <resultMap id="nodePortClusterRange" type="com.harmonycloud.dao.cluster.bean.NodePortClusterRange">
+        <id column="id" jdbcType="INTEGER" property="id" />
+        <result column="start_port" jdbcType="INTEGER" property="startPort" />
+        <result column="end_port" jdbcType="INTEGER" property="endPort" />
+        <result column="cluster_id" jdbcType="VARCHAR" property="clusterId" />
+        <result column="repeat" jdbcType="BOOLEAN" property="repeat" />
+        <result column="create_time" jdbcType="TIMESTAMP"  property="createTime"/>
+    </resultMap>
+    
+    <select id="findByClusterId" resultMap="nodePortClusterRange" parameterType="java.lang.String">
+        SELECT * FROM nodeport_cluster_range WHERE cluster_id = #{clusterId}
+    </select>
+
+</mapper>

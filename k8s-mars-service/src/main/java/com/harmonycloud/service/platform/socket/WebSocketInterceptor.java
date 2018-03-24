@@ -1,5 +1,6 @@
 package com.harmonycloud.service.platform.socket;
 
+import com.harmonycloud.common.Constant.CommonConstant;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
@@ -29,11 +30,24 @@ public class WebSocketInterceptor implements HandshakeInterceptor{
 			ServletServerHttpRequest servletRequest = (ServletServerHttpRequest) request;
 			HttpSession session = servletRequest.getServletRequest().getSession();
 			if(session!=null){
-				//根据用户名区分区分socket连接以定向发送消息
-				map.put("userName", session.getAttribute("username"));
+				//根据用户名区分区分socket连接以定向发送消息\
+				map.put(CommonConstant.ROLEID, session.getAttribute(CommonConstant.ROLEID));
+				map.put(CommonConstant.USERNAME, session.getAttribute(CommonConstant.USERNAME));
             }
             HttpServletRequest httpServletRequest = servletRequest.getServletRequest();
             if(httpServletRequest!=null){
+				if(!StringUtils.isBlank(httpServletRequest.getParameter("projectId"))) {
+					map.put("projectId", httpServletRequest.getParameter("projectId"));
+				}
+				if(!StringUtils.isBlank(httpServletRequest.getParameter("clusterId"))) {
+					map.put("clusterId", httpServletRequest.getParameter("clusterId"));
+				}
+				if(!StringUtils.isBlank(httpServletRequest.getParameter("type"))) {
+					map.put("type", httpServletRequest.getParameter("type"));
+				}
+				if(!StringUtils.isBlank(httpServletRequest.getParameter("buildNum"))) {
+					map.put("buildNum", httpServletRequest.getParameter("buildNum"));
+				}
                 if(!StringUtils.isBlank(httpServletRequest.getParameter("buildNum"))) {
                     map.put("buildNum", httpServletRequest.getParameter("buildNum"));
                 }
@@ -43,6 +57,18 @@ public class WebSocketInterceptor implements HandshakeInterceptor{
                 if(!StringUtils.isBlank(httpServletRequest.getParameter("tenant"))) {
                     map.put("tenant", httpServletRequest.getParameter("tenant"));
                 }
+				if(!StringUtils.isBlank(httpServletRequest.getParameter("scriptType"))) {
+					map.put("scriptType", httpServletRequest.getParameter("scriptType"));
+				}
+				if(!StringUtils.isBlank(httpServletRequest.getParameter("container"))) {
+					map.put("container", httpServletRequest.getParameter("container"));
+				}
+				if(!StringUtils.isBlank(httpServletRequest.getParameter("pod"))) {
+					map.put("pod", httpServletRequest.getParameter("pod"));
+				}
+				if(!StringUtils.isBlank(httpServletRequest.getParameter("namespace"))) {
+					map.put("namespace", httpServletRequest.getParameter("namespace"));
+				}
             }
 
 		}

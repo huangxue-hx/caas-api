@@ -2,12 +2,10 @@ package com.harmonycloud.service.user.impl;
 
 import java.util.*;
 
-import com.harmonycloud.dao.tenant.bean.RolePrivilege;
+import com.harmonycloud.dao.user.bean.RolePrivilege;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.user.ResourceMapper;
@@ -63,8 +61,11 @@ public void updateRoleMenuResource(Integer id, Boolean status) throws Exception 
     }
 
     @Override
-    public RolePrivilege updateRoleMenuPrivilegeWight(Integer id, Integer weight) throws Exception {
+    public RolePrivilege updateRoleMenuPrivilegeWight(Integer roleId,Integer id, Integer weight) throws Exception {
         Resource resource2 = this.resourceMapper.selectByPrimaryKey(id);
+//        if (resource2.getRole()){
+//
+//        }
         resource2.setWeight(weight);
         resource2.setUpdateTime(new Date());
         this.resourceMapper.updateByPrimaryKeySelective(resource2);

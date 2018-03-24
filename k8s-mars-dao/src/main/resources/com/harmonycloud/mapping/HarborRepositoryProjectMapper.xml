@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace必须指向Dao接口 -->
+<mapper namespace="com.harmonycloud.dao.harbor.HarborRepositoryProjectMapper">
+
+    <resultMap id="harborRepositoryProjectMap" type="com.harmonycloud.dao.harbor.bean.HarborRepositoryProject">
+        <id property="id" column="id" />
+        <result property="harborProjectId" column="harbor_project_id" />
+        <result property="createdTime" column="created_time" />
+        <result property="harborProjectName" column="harbor_project_name" />
+        <result property="repositoryName" column="repository_name" />
+    </resultMap>
+
+    <select id="listByRepositoryName" parameterType="java.lang.String" resultMap="harborRepositoryProjectMap">
+        select
+        id,harbor_project_id,harbor_project_name,repository_name,created_time
+        from harbor_repository_project where repository_name = #{repositoryName}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" parameterType="com.harmonycloud.dao.harbor.bean.HarborRepositoryProject">
+        INSERT INTO harbor_repository_project (repository_name,harbor_project_id,harbor_project_name,created_time)
+        VALUES (#{repositoryName}, #{harborProjectId}, #{harborProjectName}, #{createdTime})
+    </insert>
+
+</mapper>

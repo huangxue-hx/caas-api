@@ -1,5 +1,7 @@
 package com.harmonycloud.service.platform.bean;
 
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+
 import java.util.List;
 import java.util.Map;
 
@@ -13,7 +15,29 @@ public class NodeDto {
     private String cpu;
     private String memory;
     private String disk;
+    private Boolean scheduable;
     private List<Object> customLabels;
+    private String clusterId;
+    /**
+     * 集群别名
+     */
+    private String aliasName;
+
+    public String getAliasName() {
+        return aliasName;
+    }
+
+    public void setAliasName(String aliasName) {
+        this.aliasName = aliasName;
+    }
+
+    public String getClusterId() {
+        return clusterId;
+    }
+
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
+    }
 
     public List<Object> getCustomLabels() {
         return customLabels;
@@ -95,4 +119,11 @@ public class NodeDto {
         this.type = type;
     }
 
+    public Boolean getScheduable() {
+        return scheduable;
+    }
+
+    public void setScheduable(Boolean scheduable) {
+        this.scheduable = scheduable;
+    }
 }

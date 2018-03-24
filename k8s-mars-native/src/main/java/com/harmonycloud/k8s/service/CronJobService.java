@@ -9,10 +9,9 @@ import org.springframework.util.StringUtils;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.CronJob;
 import com.harmonycloud.k8s.bean.UnversionedStatus;
-import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.APIGroup;
 import com.harmonycloud.k8s.constant.HTTPMethod;
@@ -41,7 +40,7 @@ public class CronJobService {
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST,headers,bodys,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithMsg(us.getMessage());
+            return ActionReturnUtil.returnErrorWithData(us.getMessage());
         }
 		return ActionReturnUtil.returnSuccess();
 	}
@@ -61,7 +60,7 @@ public class CronJobService {
 			return ActionReturnUtil.returnSuccess();
 		}
 		UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
-        return ActionReturnUtil.returnErrorWithMsg(us.getMessage());
+        return ActionReturnUtil.returnErrorWithData(us.getMessage());
 	}
 	
 	/**
@@ -79,7 +78,7 @@ public class CronJobService {
 			return ActionReturnUtil.returnSuccess();
 		}
 		UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
-        return ActionReturnUtil.returnErrorWithMsg(us.getMessage());
+        return ActionReturnUtil.returnErrorWithData(us.getMessage());
 	}
 	
 	/**
@@ -101,7 +100,7 @@ public class CronJobService {
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT,headers,bodys,cluster);
 		if(!HttpStatusUtil.isSuccessStatus(response.getStatus())){
 			UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
-	        return ActionReturnUtil.returnErrorWithMsg(us.getMessage());
+	        return ActionReturnUtil.returnErrorWithData(us.getMessage());
 		}
 		return  ActionReturnUtil.returnSuccess();
 	}

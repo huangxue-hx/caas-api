@@ -9,7 +9,7 @@ import java.util.List;
  * Created by anson on 17/6/9.
  */
 public interface JobMapper {
-    List<Job> select(@Param("tenant") String tenant, @Param("jobName") String jobName, @Param("createUser") String createUser);
+    List<Job> select(@Param("projectId") String projectId, @Param("clusterId") String clusterId, @Param("jobName") String jobName, @Param("createUser") String createUser);
 
     Job queryById(Integer id);
 
@@ -26,4 +26,8 @@ public interface JobMapper {
     void updateTrigger(Job job);
 
     void updateLastBuildNum(@Param("id") Integer id,  @Param("buildNum") Integer buildNum);
+
+    Job queryByUuid(String uuid);
+
+    int deleteByClusterId(@Param("clusterId")String clusterId);
 }

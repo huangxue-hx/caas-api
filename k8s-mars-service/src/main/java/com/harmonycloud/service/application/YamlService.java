@@ -1,7 +1,7 @@
 package com.harmonycloud.service.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dto.business.YamlDto;
+import com.harmonycloud.dto.application.YamlDto;
 
 /**
  * Created by root on 8/11/17.

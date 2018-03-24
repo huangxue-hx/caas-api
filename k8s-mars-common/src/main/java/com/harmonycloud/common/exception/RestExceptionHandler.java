@@ -2,6 +2,8 @@ package com.harmonycloud.common.exception;
 
 import javax.servlet.http.HttpSession;
 
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.MicroServiceCodeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,32 +21,60 @@ public class RestExceptionHandler{
 	@Autowired
 	private HttpSession session;
 	private  Logger logger = LoggerFactory.getLogger(this.getClass());
+	private static final int CODE_LENGTH = 6;
 	
     //运行时异常
     @ExceptionHandler(K8sAuthException.class)
     @ResponseBody
     @ResponseStatus(value=HttpStatus.UNAUTHORIZED)
-    public void authExceptionHandler(Exception e) {  
-    	 e.printStackTrace();
+    public void authExceptionHandler(Exception e) {
+        logger.error(e.getMessage(),e);
     	 session.invalidate();
     }  
     //平台运行时非严重异常
     @ExceptionHandler(MarsRuntimeException.class)  
     @ResponseBody  
     @ResponseStatus(value=HttpStatus.INTERNAL_SERVER_ERROR)
-    public ActionReturnUtil nullPointerExceptionHandler(Exception e) {  
-        logger.error(e.getMessage());
+    public ActionReturnUtil nullPointerExceptionHandler(Exception e) {
+        MarsRuntimeException exception =(MarsRuntimeException)e;
+        String errorMessage = exception.getErrorMessage() == null?(e.getMessage()):exception.getErrorMessage();
+        logger.warn(errorMessage,e);
+        return ActionReturnUtil.returnErrorWithData(errorMessage);
+    }
+
+
+    
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseBody
+    @ResponseStatus(value=HttpStatus.INTERNAL_SERVER_ERROR)
+    public ActionReturnUtil argumentExceptionHandler(Exception e) {
+        logger.warn("invalid param",e);
+        String errorMsg = e.getMessage();
+        if(errorMsg != null && errorMsg.startsWith("[")){
+            String code = errorMsg.substring(1,errorMsg.indexOf("]"));
+            if(code!= null && code.length() == CODE_LENGTH){
+                errorMsg = errorMsg.substring(errorMsg.indexOf("]")+1);
+                return ActionReturnUtil.returnErrorWithCodeAndMsg(errorMsg.trim(),Integer.parseInt(code));
+            }
+        }
         return ActionReturnUtil.returnErrorWithData(e.getMessage());
     }
-    
+
+    @ExceptionHandler(MsfException.class)
+    @ResponseBody
+    public ActionReturnUtil msfExceptionHandler(Exception e) throws Exception{
+        logger.error(e.getMessage(),e);
+        MsfException msfException = (MsfException) e;
+        return ActionReturnUtil.returnCodeAndMsg(MicroServiceCodeMessage.valueOf(msfException.getErrorName()), "", null);
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseBody
     @ResponseStatus(value=HttpStatus.INTERNAL_SERVER_ERROR)
-    public ActionReturnUtil exceptionHandler(Exception e) { 
-    	e.printStackTrace();
-        return ActionReturnUtil.returnErrorWithData(e.getMessage());
-      
-    }  
+    public ActionReturnUtil exceptionHandler(Exception e) {
+        logger.error(e.getMessage(),e);
+        return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.UNKNOWN);
+    }
     
    /* //空指针异常
     @ExceptionHandler(NullPointerException.class)  

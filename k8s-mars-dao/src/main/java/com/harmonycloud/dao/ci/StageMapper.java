@@ -24,4 +24,7 @@ public interface StageMapper {
     Stage queryById(Integer id);
     List<Stage> queryByStageTypeId(@Param("stageTypeId") Integer stageTypeId);
     List<Stage> querySonarByJobId(Map<String,String> map);
+
+    long countByExample(Stage stage);
+    List<Stage> selectByExample(Stage stage);
 }

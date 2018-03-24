@@ -1,11 +1,13 @@
 package com.harmonycloud.k8s.bean;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
  * @author qg
  *
  */
+@JsonInclude(value=JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class NodeSpec {
 
@@ -15,7 +17,7 @@ public class NodeSpec {
 	
 	private String providerID;
 	
-	private Boolean unschedulable;
+	private boolean unschedulable;
 
 	public String getPodCIDR() {
 		return podCIDR;
@@ -41,13 +43,14 @@ public class NodeSpec {
 		this.providerID = providerID;
 	}
 
-	public Boolean getUnschedulable() {
+	public boolean isUnschedulable() {
 		return unschedulable;
 	}
 
-	public void setUnschedulable(Boolean unschedulable) {
+	public void setUnschedulable(boolean unschedulable) {
 		this.unschedulable = unschedulable;
 	}
+
 	
 	
 }

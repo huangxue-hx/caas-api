@@ -1,31 +1,26 @@
 package com.harmonycloud.api.application;
 
-import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
 
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.dto.business.ContainerFileUploadDto;
-import com.harmonycloud.dto.business.PodContainerDto;
-import com.harmonycloud.dto.business.Progress;
+import com.harmonycloud.dto.application.ContainerFileUploadDto;
+import com.harmonycloud.dto.application.Progress;
 import com.harmonycloud.service.application.FileUploadToContainerService;
 /**
  *
  * @author jmi
  *
  */
-@RequestMapping("/container")
+@RequestMapping("/tenants/{tenantId}/projects/{projectId}/deploys/{deployName}/container")
 @Controller
 public class ContainerFileUploadController {
 
@@ -37,30 +32,24 @@ public class ContainerFileUploadController {
 	
 	private ClassLoader classLoader = this.getClass().getClassLoader();
 	
-	@RequestMapping(value="/file/uploadTonode", method = RequestMethod.POST)
+	@RequestMapping(value="/file/uploadToNode", method = RequestMethod.POST)
 	@ResponseBody
-	public ActionReturnUtil fileUploadToNode(
+	public ActionReturnUtil uploadFileToNode(
             @RequestParam(value="file") MultipartFile file,
             @RequestParam(value="pods") String pods,
             @RequestParam(value="namespace") String namespace,
-            @RequestParam(value="deployment") String deployment,
+            @PathVariable(value="deployName") String deployment,
             @RequestParam(value="containerFilePath") String containerFilePath) throws Exception {
-		ContainerFileUploadDto containerFileUploadDto = new ContainerFileUploadDto();
-		containerFileUploadDto.setNamespace(namespace);
-		containerFileUploadDto.setContainerFilePath(containerFilePath);
-		containerFileUploadDto.setDeployment(deployment);
-		List<PodContainerDto> podsDto = JsonUtil.jsonToList(pods, PodContainerDto.class);
-		containerFileUploadDto.setPods(podsDto);
-		return fileUploadToContainerService.fileUploadToNode(containerFileUploadDto, file);
+		return fileUploadToContainerService.fileUploadToNode(pods, namespace, deployment, containerFilePath, file);
 	}
 	
 	@RequestMapping(value="/file/upload", method = RequestMethod.POST)
 	@ResponseBody
-	public ActionReturnUtil fileUpload(@ModelAttribute ContainerFileUploadDto containerFileUploadDto) throws Exception {
+	public ActionReturnUtil uploadFile(@ModelAttribute ContainerFileUploadDto containerFileUploadDto) throws Exception {
 		String path = classLoader.getResource("shell/uploadFileToContainer.sh")
 				.getPath();
 		if (StringUtils.isBlank(path)) {
-			return ActionReturnUtil.returnErrorWithMsg("获取文件列表的脚本不存在！");
+			throw new MarsRuntimeException(ErrorCodeMessage.SCRIPT_NOT_EXIST);
 		}
 		return fileUploadToContainerService.fileUploadToContainer(containerFileUploadDto, path);
 	}
@@ -79,16 +68,16 @@ public class ContainerFileUploadController {
 		return fileUploadToContainerService.queryUploadHistory(containerFileUploadDto);
 	}
 	
-	@RequestMapping(value="/file/list", method = RequestMethod.GET)
+	@RequestMapping(value="/files", method = RequestMethod.GET)
 	@ResponseBody
-	public ActionReturnUtil fileListByPath(@RequestParam(value="namespace") String namespace, 
+	public ActionReturnUtil listFileByPath(@RequestParam(value="namespace") String namespace,
 			                               @RequestParam(value="containerFilePath") String containerFilePath,
 			                               @RequestParam(value="container", required=false) String container,
 			                               @RequestParam(value="pod") String pod) throws Exception {
 		String path = classLoader.getResource("shell/lsContainerFile.sh")
 				.getPath();
 		if (StringUtils.isBlank(path)) {
-			return ActionReturnUtil.returnErrorWithMsg("获取文件列表的脚本不存在！");
+			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.SCRIPT_NOT_EXIST);
 		}
 		return fileUploadToContainerService.lsContainerFile(namespace, containerFilePath, container, pod, path);
 	}
@@ -102,7 +91,7 @@ public class ContainerFileUploadController {
 	
 	@RequestMapping(value = "/file/upload/progress", method = RequestMethod.GET )
 	@ResponseBody
-	public ActionReturnUtil getUpFilePg(HttpServletRequest request) throws Exception {
+	public ActionReturnUtil getUploadFileProgress(HttpServletRequest request) throws Exception {
 		Progress status = (Progress) request.getSession().getAttribute("upload_ps");
 		return ActionReturnUtil.returnSuccessWithData(status);
 	}

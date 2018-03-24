@@ -3,13 +3,13 @@ package com.harmonycloud.k8s.service;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.Job;
 import com.harmonycloud.k8s.bean.UnversionedStatus;
 import com.harmonycloud.k8s.client.K8sMachineClient;
@@ -40,7 +40,7 @@ public class JobService {
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST,headers,bodys,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithMsg(us.getMessage());
+            return ActionReturnUtil.returnErrorWithData(us.getMessage());
         }
 		return ActionReturnUtil.returnSuccess();
 	}
@@ -60,7 +60,7 @@ public class JobService {
 			return ActionReturnUtil.returnSuccess();
 		}
 		UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
-        return ActionReturnUtil.returnErrorWithMsg(us.getMessage());
+        return ActionReturnUtil.returnErrorWithData(us.getMessage());
 	}
 	
 	/**
@@ -78,7 +78,7 @@ public class JobService {
 			return ActionReturnUtil.returnSuccess();
 		}
 		UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
-        return ActionReturnUtil.returnErrorWithMsg(us.getMessage());
+        return ActionReturnUtil.returnErrorWithData(us.getMessage());
 	}
 	
 	/**
@@ -100,7 +100,7 @@ public class JobService {
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT,headers,bodys,cluster);
 		if(!HttpStatusUtil.isSuccessStatus(response.getStatus())){
 			UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
-	        return ActionReturnUtil.returnErrorWithMsg(us.getMessage());
+	        return ActionReturnUtil.returnErrorWithData(us.getMessage());
 		}
 		return  ActionReturnUtil.returnSuccess();
 	}
@@ -129,7 +129,10 @@ public class JobService {
 	 */
 	public K8SClientResponse listJob(String namespace, Map<String, Object> queryParams, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
-		url.setResource(Resource.JOB).setNamespace(namespace);
+		url.setResource(Resource.JOB);
+		if(StringUtils.isNotBlank(namespace)){
+			url.setNamespace(namespace);
+		}
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,queryParams,cluster);
 		return response;
 	}
@@ -161,7 +164,7 @@ public class JobService {
 	public K8SClientResponse watchJob(String namespace, Map<String, Object> queryParams, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setResource(Resource.JOB).setWatch(APIGroup.WATCH);
-		if(StringUtils.isEmpty(namespace)){
+		if(StringUtils.isNotBlank(namespace)){
 			url.setNamespace(namespace);
 		}
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,queryParams,cluster);

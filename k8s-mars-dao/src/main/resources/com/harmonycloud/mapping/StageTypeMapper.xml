@@ -4,13 +4,14 @@
     <resultMap id="BaseResultMap" type="com.harmonycloud.dao.ci.bean.StageType">
         <id column="id" jdbcType="INTEGER" property="id" />
         <result column="name" jdbcType="VARCHAR" property="name" />
-        <result column="user_defined" jdbcType="BOOLEAN" property="userDefined" />
-        <result column="tenant_id" jdbcType="VARCHAR" property="tenantId" />
+        <result column="type" jdbcType="VARCHAR" property="type" />
+        <!--<result column="user_defined" jdbcType="BOOLEAN" property="userDefined" />-->
+        <!--<result column="tenant_id" jdbcType="VARCHAR" property="tenantId" />-->
         <result column="template_type" jdbcType="VARCHAR" property="templateType" />
     </resultMap>
 
     <sql id="selectAllColumns">
-        SELECT st.id,st.name,st.user_defined,st.template_type
+        SELECT st.id,st.name,st.type,st.template_type
         FROM cicd_stage_type st
     </sql>
 
@@ -40,4 +41,9 @@
     <delete id="deleteStageType" parameterType="java.lang.Integer">
       DELETE FROM cicd_stage_type WHERE id = #{id}
     </delete>
+
+    <select id="queryByType" resultMap="BaseResultMap">
+        <include refid="selectAllColumns"/>
+        WHERE type=#{type}
+    </select>
 </mapper>

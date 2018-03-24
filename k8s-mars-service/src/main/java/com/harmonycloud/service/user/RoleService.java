@@ -1,13 +1,13 @@
 package com.harmonycloud.service.user;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,15 +16,10 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.dao.tenant.TenantBindingMapper;
-import com.harmonycloud.dao.tenant.bean.TenantBinding;
-import com.harmonycloud.dao.tenant.bean.TenantBindingExample;
 import com.harmonycloud.dao.user.RoleMapper;
 import com.harmonycloud.dao.user.bean.InitClusterRole;
 import com.harmonycloud.dao.user.bean.InitClusterRoleEnum;
-import com.harmonycloud.dao.user.bean.Role;
-import com.harmonycloud.dao.user.bean.RoleExample;
 import com.harmonycloud.dao.user.bean.RoleResource;
 import com.harmonycloud.dto.user.ClusterRoleDetailDto;
 import com.harmonycloud.dto.user.ClusterRoleDto;
@@ -180,140 +175,140 @@ public class RoleService {
         }
         return ActionReturnUtil.returnErrorWithMsg(response.getBody());
     }
+//TODO 由于使用统一权限控制现在暂时不需要 代码暂时保留，后面如果需要与k8s进一步整合，可能会使用,建议后期调试完成后删除
+//    /**
+//     * 绑定该用户下该tenantname下该namespace的角色
+//     *
+//     * @param tenantname
+//     * @param tenantid
+//     * @param namespace
+//     * @param role
+//     *            绑定的角色
+//     * @param username
+//     *            绑定的用户
+//     */
+//    public ActionReturnUtil rolebinding(String tenantname, String tenantid, String namespace, String role, String username) throws Exception {
+//        Cluster cluster = tenantService.getClusterByTenantid(tenantid);
+//        K8SClientResponse response = roleBindingService.addUserToRoleBinding(namespace, role, username,cluster,tenantid);
+//        if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+//            return ActionReturnUtil.returnSuccessWithData(K8SClient.converToBean(response, RoleBinding.class));
+//        } else {
+//            return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+//        }
+//    }
 
-    /**
-     * 绑定该用户下该tenantname下该namespace的角色
-     * 
-     * @param tenantname
-     * @param tenantid
-     * @param namespace
-     * @param role
-     *            绑定的角色
-     * @param username
-     *            绑定的用户
-     */
-    public ActionReturnUtil rolebinding(String tenantname, String tenantid, String namespace, String role, String username) throws Exception {
-        Cluster cluster = tenantService.getClusterByTenantid(tenantid);
-        K8SClientResponse response = roleBindingService.addUserToRoleBinding(namespace, role, username,cluster,tenantid);
-        if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            return ActionReturnUtil.returnSuccessWithData(K8SClient.converToBean(response, RoleBinding.class));
-        } else {
-            return ActionReturnUtil.returnErrorWithMsg(response.getBody());
-        }
-    }
+//    /**
+//     * 绑定tm到该tenant下的所有namespace
+//     *
+//     * @param tenantid
+//     * @param username
+//     * @return
+//     */
+//    public void rolebindingTM(String tenantid, String username) throws Exception {
+//        String tmUsernames = null;
+//        Cluster cluster = tenantService.getClusterByTenantid(tenantid);
+//        TenantBindingExample example = new TenantBindingExample();
+//        example.createCriteria().andTenantIdEqualTo(tenantid);
+//        List<TenantBinding> list = tenantBindingMapper.selectByExample(example);
+//        if (list != null && list.size() > 0) {
+//            tmUsernames = list.get(0).getTmUsernames();
+//        }
+//        // 如果tmUsernames中没有username则插入数据库
+//        Boolean flag = false;
+//        if (org.apache.commons.lang3.StringUtils.isNotBlank(tmUsernames)) {
+//            String[] names = tmUsernames.split(",");
+//            for (String name : names) {
+//                if (name.equals(username)) {
+//                    flag = true;
+//                }
+//            }
+//        }
+//        if (!flag) {
+//            tmUsernames = tmUsernames == null ? username : tmUsernames + "," + username;
+//            TenantBinding tenantBinding = new TenantBinding();
+//            tenantBinding.setTenantId(tenantid);
+//            tenantBinding.setTmUsernames(tmUsernames);
+//            tenantBindingMapper.updateBytenantIdSelective(tenantBinding);
+//        }
+//
+//        // 该tenant下的所有namespace
+//        String lable = "nephele_tenantid_" + tenantid + "=" + tenantid;
+//        K8SClientResponse response = roleBindingService.getRolebindingListbyLabelSelector(lable);
+//        RoleBindingList roleBindingList = K8SClient.converToBean(response, RoleBindingList.class);
+//        List<RoleBinding> items = roleBindingList.getItems();
+//        for (RoleBinding item : items) {
+//            if (item.getMetadata().getName().equals(RoleBindingService.ROLE_TM_RB)) {
+//                // 增加用户到该namespace下的subjects中
+//                roleBindingService.addUserToRoleBinding(item.getMetadata().getNamespace(), RoleBindingService.ROLE_TM_RB, username,cluster,tenantid);
+//            }
+//        }
+//    }
 
-    /**
-     * 绑定tm到该tenant下的所有namespace
-     * 
-     * @param tenantid
-     * @param username
-     * @return
-     */
-    public void rolebindingTM(String tenantid, String username) throws Exception {
-        String tmUsernames = null;
-        Cluster cluster = tenantService.getClusterByTenantid(tenantid);
-        TenantBindingExample example = new TenantBindingExample();
-        example.createCriteria().andTenantIdEqualTo(tenantid);
-        List<TenantBinding> list = tenantBindingMapper.selectByExample(example);
-        if (list != null && list.size() > 0) {
-            tmUsernames = list.get(0).getTmUsernames();
-        }
-        // 如果tmUsernames中没有username则插入数据库
-        Boolean flag = false;
-        if (org.apache.commons.lang3.StringUtils.isNotBlank(tmUsernames)) {
-            String[] names = tmUsernames.split(",");
-            for (String name : names) {
-                if (name.equals(username)) {
-                    flag = true;
-                }
-            }
-        }
-        if (!flag) {
-            tmUsernames = tmUsernames == null ? username : tmUsernames + "," + username;
-            TenantBinding tenantBinding = new TenantBinding();
-            tenantBinding.setTenantId(tenantid);
-            tenantBinding.setTmUsernames(tmUsernames);
-            tenantBindingMapper.updateBytenantIdSelective(tenantBinding);
-        }
-
-        // 该tenant下的所有namespace
-        String lable = "nephele_tenantid_" + tenantid + "=" + tenantid;
-        K8SClientResponse response = roleBindingService.getRolebindingListbyLabelSelector(lable);
-        RoleBindingList roleBindingList = K8SClient.converToBean(response, RoleBindingList.class);
-        List<RoleBinding> items = roleBindingList.getItems();
-        for (RoleBinding item : items) {
-            if (item.getMetadata().getName().equals(RoleBindingService.ROLE_TM_RB)) {
-                // 增加用户到该namespace下的subjects中
-                roleBindingService.addUserToRoleBinding(item.getMetadata().getNamespace(), RoleBindingService.ROLE_TM_RB, username,cluster,tenantid);
-            }
-        }
-    }
-
-    /**
-     * 解绑tm在该tenant下的角色
-     * 
-     * @param tenantid
-     * @param username
-     * @return
-     */
-    public void roleUnbindingTM(String tenantid, String username) throws Exception {
-        // 该tenant下的所有namespace
-        String lable = "nephele_tenantid_" + tenantid + "=" + tenantid;
-        Cluster cluster = this.tenantService.getClusterByTenantid(tenantid);
-        K8SClientResponse response = roleBindingService.getRolebindingListbyLabelSelector(lable);
-        RoleBindingList roleBindingList = K8SClient.converToBean(response, RoleBindingList.class);
-        List<RoleBinding> items = roleBindingList.getItems();
-        for (RoleBinding item : items) {
-            if (item.getMetadata().getName().equals(RoleBindingService.ROLE_TM_RB)) {
-                // 删除用户从该namespace下的subjects中
-                roleBindingService.deleteUserFormRoleBinding(item.getMetadata().getNamespace(), RoleBindingService.ROLE_TM_RB, username,cluster);
-            }
-        }
-        String tmUsernames = null;
-        TenantBindingExample example = new TenantBindingExample();
-        example.createCriteria().andTenantIdEqualTo(tenantid);
-        List<TenantBinding> list = tenantBindingMapper.selectByExample(example);
-        if (list != null && list.size() > 0) {
-            tmUsernames = list.get(0).getTmUsernames();
-        }
-        // 如果tmUsernames中有username则删除该数据
-        String delUsers = "";
-        if (org.apache.commons.lang3.StringUtils.isNotBlank(tmUsernames)) {
-            String[] names = tmUsernames.split(",");
-            List<String> asList = Arrays.asList(names);
-            for (String name : asList) {
-                if (!name.equals(username)) {
-                    delUsers = delUsers + name + ",";
-                }
-            }
-            if (delUsers.length() > 0) {
-                delUsers = delUsers.substring(0, delUsers.length() - 1);
-            }
-            TenantBinding tenantBinding = new TenantBinding();
-            tenantBinding.setTenantId(tenantid);
-            tenantBinding.setTmUsernames(delUsers);
-            tenantBindingMapper.updateBytenantIdSelective(tenantBinding);
-        }
-    }
-
-    /**
-     * 解绑该用户下该tenantname下该namespace的角色
-     * 
-     * @param tenantname
-     * @param tenantid
-     * @param namespace
-     * @param role
-     * @param username
-     */
-    public ActionReturnUtil roleUnbind(String tenantname, String tenantid, String namespace, String role, String username) throws Exception {
-        Cluster cluster = this.tenantService.getClusterByTenantid(tenantid);
-        K8SClientResponse response = roleBindingService.deleteUserFormRoleBinding(namespace, role, username,cluster);
-        if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            return ActionReturnUtil.returnSuccessWithData(K8SClient.converToBean(response, RoleBinding.class));
-        } else {
-            return ActionReturnUtil.returnErrorWithMsg(response.getBody());
-        }
-    }
+//    /**
+//     * 解绑tm在该tenant下的角色
+//     *
+//     * @param tenantid
+//     * @param username
+//     * @return
+//     */
+//    public void roleUnbindingTM(String tenantid, String username) throws Exception {
+//        // 该tenant下的所有namespace
+//        String lable = "nephele_tenantid_" + tenantid + "=" + tenantid;
+//        Cluster cluster = this.tenantService.getClusterByTenantid(tenantid);
+//        K8SClientResponse response = roleBindingService.getRolebindingListbyLabelSelector(lable);
+//        RoleBindingList roleBindingList = K8SClient.converToBean(response, RoleBindingList.class);
+//        List<RoleBinding> items = roleBindingList.getItems();
+//        for (RoleBinding item : items) {
+//            if (item.getMetadata().getName().equals(RoleBindingService.ROLE_TM_RB)) {
+//                // 删除用户从该namespace下的subjects中
+//                roleBindingService.deleteUserFormRoleBinding(item.getMetadata().getNamespace(), RoleBindingService.ROLE_TM_RB, username,cluster);
+//            }
+//        }
+//        String tmUsernames = null;
+//        TenantBindingExample example = new TenantBindingExample();
+//        example.createCriteria().andTenantIdEqualTo(tenantid);
+//        List<TenantBinding> list = tenantBindingMapper.selectByExample(example);
+//        if (list != null && list.size() > 0) {
+//            tmUsernames = list.get(0).getTmUsernames();
+//        }
+//        // 如果tmUsernames中有username则删除该数据
+//        String delUsers = "";
+//        if (org.apache.commons.lang3.StringUtils.isNotBlank(tmUsernames)) {
+//            String[] names = tmUsernames.split(",");
+//            List<String> asList = Arrays.asList(names);
+//            for (String name : asList) {
+//                if (!name.equals(username)) {
+//                    delUsers = delUsers + name + ",";
+//                }
+//            }
+//            if (delUsers.length() > 0) {
+//                delUsers = delUsers.substring(0, delUsers.length() - 1);
+//            }
+//            TenantBinding tenantBinding = new TenantBinding();
+//            tenantBinding.setTenantId(tenantid);
+//            tenantBinding.setTmUsernames(delUsers);
+//            tenantBindingMapper.updateBytenantIdSelective(tenantBinding);
+//        }
+//    }
+//
+//    /**
+//     * 解绑该用户下该tenantname下该namespace的角色
+//     *
+//     * @param tenantname
+//     * @param tenantid
+//     * @param namespace
+//     * @param role
+//     * @param username
+//     */
+//    public ActionReturnUtil roleUnbind(String tenantname, String tenantid, String namespace, String role, String username) throws Exception {
+//        Cluster cluster = this.tenantService.getClusterByTenantid(tenantid);
+//        K8SClientResponse response = roleBindingService.deleteUserFormRoleBinding(namespace, role, username,cluster);
+//        if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+//            return ActionReturnUtil.returnSuccessWithData(K8SClient.converToBean(response, RoleBinding.class));
+//        } else {
+//            return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+//        }
+//    }
 
     /**
      * 根据用户名查询角色及所在租户
@@ -374,7 +369,7 @@ public class RoleService {
      * 查询该namespace下的rolebinding的明细
      * 
      * @param namespace
-     * @param RoleBinding
+     * @param
      * @return
      */
     public ActionReturnUtil getRoleBinding(String namespace, String roleBindingName) throws Exception {
@@ -578,7 +573,7 @@ public class RoleService {
         if (HttpStatusUtil.isSuccessStatus(deleteClusterRole.getStatus())) {
             return ActionReturnUtil.returnSuccess();
         } else {
-            return ActionReturnUtil.returnErrorWithMsg("删除失败");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.DELETE_FAIL);
         }
     }
 
