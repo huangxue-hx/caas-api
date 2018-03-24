@@ -307,9 +307,11 @@ public class UserServiceImpl implements UserService {
                 throw new K8sAuthException(com.harmonycloud.k8s.constant.Constant.HTTP_401);
             }
             String userName = user.toString();
+            User u = this.userMapper.findByUsername(userName);
             String userId = session.getAttribute("userId").toString();
             res.put("username", userName);
             res.put("userId", userId);
+            res.put("realName", u.getRealName());
             List<TenantDto> tenantDtos = tenantService.tenantList();
             if (org.springframework.util.CollectionUtils.isEmpty(tenantDtos)){
                 List<Role> roleList = this.roleLocalService.getRoleListByUsernameAndTenantIdAndProjectId(userName, null, null);
