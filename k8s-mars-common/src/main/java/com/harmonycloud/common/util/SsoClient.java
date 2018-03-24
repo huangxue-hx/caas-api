@@ -111,7 +111,7 @@ public class SsoClient {
             session.invalidate();
             SsoClient.clearToken(response);
         }else {
-            SsoClient.setRedirectResponse(response);
+            //SsoClient.setRedirectResponse(response);
             session.invalidate();
         }
     }

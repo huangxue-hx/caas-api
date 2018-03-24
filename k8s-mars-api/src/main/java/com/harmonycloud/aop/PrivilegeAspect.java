@@ -289,7 +289,7 @@ public class PrivilegeAspect {
 			SsoClient.clearToken(response);
 		}else {
 			HttpServletResponse response = attributes.getResponse();
-			SsoClient.setRedirectResponse(response);
+			//SsoClient.setRedirectResponse(response);
 			session.invalidate();
 		}
 	}
