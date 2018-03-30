@@ -265,6 +265,7 @@ public class DashboardServiceImpl implements DashboardService {
 			NumberFormat nf = NumberFormat.getNumberInstance();
 			// 保留两位小数
 			nf.setMaximumFractionDigits(2);
+			nf.setGroupingUsed(false);
 
 			res.put("cpu", cpu %1==0?cpu :nf.format(cpu ));
 			res.put("memory", mem%1==0?mem :nf.format(mem));
