@@ -28,7 +28,8 @@ public class NumUtil {
         if(divisor == null || dividend == null){
             return "";
         }
-        NumberFormat percent = NumberFormat.getPercentInstance();   
+        NumberFormat percent = NumberFormat.getPercentInstance();
+        percent.setGroupingUsed(false);
         //建立百分比格式化引用   
         percent.setMaximumFractionDigits(2);
         BigDecimal a = toBig(divisor);

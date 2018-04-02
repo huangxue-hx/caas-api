@@ -1107,6 +1107,7 @@ public class TenantServiceImpl implements TenantService {
         NumberFormat nf = NumberFormat.getNumberInstance();
         nf.setMaximumFractionDigits(2);
         nf.setRoundingMode(RoundingMode.UP);
+        nf.setGroupingUsed(false);
         List<Object> cpu = new LinkedList<>();
         List<Object> memory = new LinkedList<>();
         cpu.add(limitCpu % 1.0 == 0 ? (long) limitCpu : limitCpu);

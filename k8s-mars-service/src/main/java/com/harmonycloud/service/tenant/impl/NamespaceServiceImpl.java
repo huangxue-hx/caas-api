@@ -252,6 +252,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         NumberFormat nf = NumberFormat.getNumberInstance();
         nf.setMaximumFractionDigits(1);
         nf.setRoundingMode(RoundingMode.HALF_UP);
+        nf.setGroupingUsed(false);
 //        double fomatResource = new BigDecimal(resource).setScale(CommonConstant.NUM_ONE, BigDecimal.ROUND_HALF_UP).doubleValue();double pow = Math.pow(2, 10);Math.pow(CommonConstant.NUM_SIZE_MEMORY,CommonConstant.NUM_THREE)
         if (can < 0 ){
             throw new MarsRuntimeException(ErrorCodeMessage.RESOURCE_QUOTA_NOT_LESS_ZERO);
@@ -1657,6 +1658,7 @@ public class NamespaceServiceImpl implements NamespaceService {
                 NumberFormat nf = NumberFormat.getNumberInstance();
                 nf.setMaximumFractionDigits(CommonConstant.NUM_TWO);
                 nf.setRoundingMode(RoundingMode.UP);
+                nf.setGroupingUsed(false);
                 if (hard.get(CommonConstant.CPU).contains(CommonConstant.SMALLM)) {
                     String chard = hard.get(CommonConstant.CPU).split(CommonConstant.SMALLM)[0];
                     double hardMemory = Double.parseDouble(chard);
@@ -1998,6 +2000,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         NumberFormat nf = NumberFormat.getNumberInstance();
         nf.setMaximumFractionDigits(CommonConstant.NUM_TWO);
         nf.setRoundingMode(RoundingMode.UP);
+        nf.setGroupingUsed(false);
         QuotaDto quota = namespaceDto.getQuota();
         Double oldCpuValue = (quota.getCpu()==null)?0d:(quota.getCpu().contains(CommonConstant.SMALLM)?(Double.parseDouble(quota.getCpu().split(CommonConstant.SMALLM)[0])/1000):Double.parseDouble(quota.getCpu()));
         double cpuHard = oldCpuValue + cpu;

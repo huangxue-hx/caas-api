@@ -104,6 +104,7 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
             NumberFormat nf = NumberFormat.getNumberInstance();
             nf.setMaximumFractionDigits(CommonConstant.NUM_ONE);
             nf.setRoundingMode(RoundingMode.HALF_UP);
+            nf.setGroupingUsed(false);
             clusterQuotaDto.setMemoryQuota(Double.valueOf(nf.format(memoryQuota % CommonConstant.NUM_ONE_DOUBLE == 0 ? (long) memoryQuota : memoryQuota)));
             double cpuQuota = tenantClusterQuota.getCpuQuota();
             clusterQuotaDto.setCpuQuota(Double.valueOf(nf.format(cpuQuota % CommonConstant.NUM_ONE_DOUBLE == 0 ? (long) cpuQuota : cpuQuota)));
@@ -330,6 +331,7 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
         NumberFormat nf = NumberFormat.getNumberInstance();
         nf.setMaximumFractionDigits(1);
         nf.setRoundingMode(RoundingMode.UP);
+        nf.setGroupingUsed(false);
         result.put(CommonConstant.CPU,nf.format(cpu % 1.0 == 0 ? (long) cpu : cpu));
         result.put(CommonConstant.CPUTYPE,CommonConstant.CORE);
         result.put(CommonConstant.MEMORY,nf.format(mem % 1.0 == 0 ? (long) mem : mem));
