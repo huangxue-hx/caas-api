@@ -105,7 +105,7 @@ public class UserRoleRelationshipServiceImpl implements UserRoleRelationshipServ
         for (UserRoleRelationship userRoleRelationship: userRoleRelationships) {
             Integer roleId = userRoleRelationship.getRoleId();
             Role roleById = roleLocalService.getRoleById(roleId);
-            if (map.get(roleId.toString()) == null && roleById.getAvailable()){
+            if (!Objects.isNull(roleById) && map.get(roleId.toString()) == null && roleById.getAvailable()){
                 Map<String,Object> role = new HashMap<String,Object>();
                 role.put(CommonConstant.ROLEID,roleId);
                 role.put(CommonConstant.ROLENAME,roleById.getName());
@@ -431,6 +431,7 @@ public class UserRoleRelationshipServiceImpl implements UserRoleRelationshipServ
     @Override
     public List<UserRoleRelationship> listUserByProjectId(String projectId) throws Exception {
         UserRoleRelationshipExample example = this.getExample();
+        example.setOrderByClause("username asc");
         example.createCriteria().andProjectIdEqualTo(projectId);
         List<UserRoleRelationship> userRoleRelationships = this.userRoleRelationshipMapper.selectByExample(example);
         return userRoleRelationships;

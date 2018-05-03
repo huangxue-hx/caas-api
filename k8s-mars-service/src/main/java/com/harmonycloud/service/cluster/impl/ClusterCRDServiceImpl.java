@@ -1,5 +1,6 @@
 package com.harmonycloud.service.cluster.impl;
 
+import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ClusterLevelEnum;
 import com.harmonycloud.common.enumm.DictEnum;
@@ -185,7 +186,7 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
         clusterCRD = this.resourceObject(clusterCRD);
         ObjectMeta meta = new ObjectMeta();
         Map<String, Object> labels = new HashMap<>();
-        labels.put(TEMPLATE, ClusterLevelEnum.values()[clusterCRDDto.getTemplate()].name());
+        labels.put(TEMPLATE, ClusterLevelEnum.values()[clusterCRDDto.getTemplate()].name().toLowerCase());
         Map<String, Object> annos = new HashMap<>();
         annos.put("name",clusterCRDDto.getNickname());
         meta.setName(clusterCRDDto.getName());
@@ -252,6 +253,13 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
         if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             //更新集群需要重新初始化集群信息，并同时更新redis缓存
             clusterCacheManager.initClusterCache();
+            if (!Objects.isNull(nowClusterCDR.getMetadata())){
+                if (status) {
+                    this.tenantService.dealQuotaWithNormalCluster(k8sUtil.GetNamespaceName(nowClusterCDR.getMetadata()));
+                } else {
+                    this.tenantService.dealQuotaWithPauseCluster(k8sUtil.GetNamespaceName(nowClusterCDR.getMetadata()));
+                }
+            }
             return ActionReturnUtil.returnSuccessWithMsg(response.getBody());
         } else {
             return ActionReturnUtil.returnErrorWithMsg(response.getBody());
@@ -300,7 +308,7 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
             //如果更新了harborHost，则将老的harborHost的公共镜像仓库删除
             harborProjectService.deletePublicHarborProject(null);
             //修改harbor secret供构建环境镜像拉取
-            secretService.createHarborSecret(clusterCRDDto.getName(), CommonConstant.CICD_NAMESPACE, clusterCRDDto.getHarborAddress(),clusterCRDDto.getHarborAdminUser(), clusterCRDDto.getHarborAdminUser());
+            secretService.createHarborSecret(clusterCRDDto.getName(), CommonConstant.CICD_NAMESPACE, clusterCRDDto.getHarborAddress(),clusterCRDDto.getHarborAdminUser(), clusterCRDDto.getHarborAdminPwd());
             return ActionReturnUtil.returnSuccessWithMsg(response.getBody());
         } else {
             return ActionReturnUtil.returnErrorWithMsg(response.getBody());
@@ -356,6 +364,7 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
             }
             return false ;
         }catch(Exception e){
+            LOGGER.error("验证harbor信息错误，harbor:{}", JSONObject.toJSONString(harborServer), e);
             return false;
         }
     }
@@ -378,7 +387,7 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
 
         ObjectMeta meta = new ObjectMeta();
         Map<String, Object> labels = new HashMap<>();
-        labels.put(TEMPLATE, ClusterLevelEnum.values()[clusterCRDDto.getEnvLabel()].name());
+        labels.put(TEMPLATE, ClusterLevelEnum.values()[clusterCRDDto.getEnvLabel()].name().toLowerCase());
         Map<String, Object> annos = new HashMap<>();
         annos.put("name", clusterCRDDto.getNickname());
         meta.setName(clusterCRDDto.getName());

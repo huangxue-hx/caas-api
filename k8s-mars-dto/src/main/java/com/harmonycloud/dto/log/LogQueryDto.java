@@ -51,6 +51,8 @@ public class LogQueryDto{
 
     private String clusterId;
 
+    private String searchType;
+
     public String getNamespace() {
         return namespace;
     }
@@ -186,5 +188,13 @@ public class LogQueryDto{
 
     public void setClusterId(String clusterId) {
         this.clusterId = clusterId;
+    }
+
+    public String getSearchType() {
+        return searchType;
+    }
+
+    public void setSearchType(String searchType) {
+        this.searchType = searchType;
     }
 }

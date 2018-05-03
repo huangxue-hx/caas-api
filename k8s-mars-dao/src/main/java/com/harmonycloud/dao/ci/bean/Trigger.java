@@ -17,6 +17,8 @@ public class Trigger implements Serializable {
 
     private Integer triggerJobId;
 
+    private String triggerImage;
+
     private static final long serialVersionUID = 1L;
 
     public Integer getId() {
@@ -75,6 +77,14 @@ public class Trigger implements Serializable {
         this.triggerJobId = triggerJobId;
     }
 
+    public String getTriggerImage() {
+        return triggerImage;
+    }
+
+    public void setTriggerImage(String triggerImage) {
+        this.triggerImage = triggerImage;
+    }
+
     @Override
     public boolean equals(Object that) {
         if (this == that) {
@@ -93,7 +103,8 @@ public class Trigger implements Serializable {
             && (this.getType() == null ? other.getType() == null : this.getType().equals(other.getType()))
             && (this.getCustomised() == null ? other.getCustomised() == null : this.getCustomised().equals(other.getCustomised()))
             && (this.getCronExp() == null ? other.getCronExp() == null : this.getCronExp().equals(other.getCronExp()))
-            && (this.getTriggerJobId() == null ? other.getTriggerJobId() == null : this.getTriggerJobId().equals(other.getTriggerJobId()));
+            && (this.getTriggerJobId() == null ? other.getTriggerJobId() == null : this.getTriggerJobId().equals(other.getTriggerJobId()))
+            && (this.getTriggerImage() == null ? other.getTriggerImage() == null : this.getTriggerImage().equals(other.getTriggerImage()));
     }
 
     @Override
@@ -107,6 +118,7 @@ public class Trigger implements Serializable {
         result = prime * result + ((getCustomised() == null) ? 0 : getCustomised().hashCode());
         result = prime * result + ((getCronExp() == null) ? 0 : getCronExp().hashCode());
         result = prime * result + ((getTriggerJobId() == null) ? 0 : getTriggerJobId().hashCode());
+        result = prime * result + ((getTriggerImage() == null) ? 0 : getTriggerImage().hashCode());
         return result;
     }
 }

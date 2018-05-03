@@ -4,6 +4,7 @@ package com.harmonycloud.api.log;
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.EsSearchTypeEnum;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
@@ -128,7 +129,7 @@ public class FullLinkLogController {
             logQuery.setNamespace(namespace);
             logQuery.setDeployment(deployName);
             logQuery.setPod(pod);
-            logQuery.setMathPhrase(true);
+            logQuery.setSearchType(EsSearchTypeEnum.MATCH_PHRASE.getCode());
             logQuery.setSearchWord(transactionId);
             logQuery.setPageSize(size==null?DEFAULT_PAGE_SIZE_20:size);
             logQuery.setScrollId(scrollId);

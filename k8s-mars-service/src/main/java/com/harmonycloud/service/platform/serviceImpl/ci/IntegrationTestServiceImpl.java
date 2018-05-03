@@ -21,6 +21,8 @@ import com.harmonycloud.service.platform.service.ci.StageService;
 import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.tenant.TenantService;
 import org.apache.commons.collections.CollectionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
@@ -39,6 +41,7 @@ import java.util.Map;
  */
 @Service
 public class IntegrationTestServiceImpl implements IntegrationTestService{
+    private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
     TenantService tenantService;
@@ -71,6 +74,8 @@ public class IntegrationTestServiceImpl implements IntegrationTestService{
                 List<Map> suiteList = (List<Map>)resultMap.get("suiteList");
                 allSuiteList.addAll(suiteList);
             }
+        }else{
+            logger.error("获取测试套件失败:{}",map);
         }
         return allSuiteList;
     }
@@ -92,6 +97,12 @@ public class IntegrationTestServiceImpl implements IntegrationTestService{
         if(CtsCodeMessage.LAST_RUN_NOT_FINISHED.value() == testResult.getCode()){
             testResult.setMsg(CtsCodeMessage.LAST_RUN_NOT_FINISHED.getMessage());
         }
+        if(CtsClient.SUCCESS.equalsIgnoreCase(testResult.getResult())){
+            stageBuild.setStatus(Constant.PIPELINE_STATUS_SUCCESS);
+        }else if(CtsClient.FAILURE.equalsIgnoreCase(testResult.getResult())){
+            stageBuild.setStatus(Constant.PIPELINE_STATUS_FAILED);
+        }
+
         stageBuild.setTestResult(testResult.getResult()+"("+testResult.getMsg()+")");
         stageBuild.setTestUrl(testResult.getLink());
         stageBuildService.updateStageBuildByStageIdAndBuildNum(stageBuild);

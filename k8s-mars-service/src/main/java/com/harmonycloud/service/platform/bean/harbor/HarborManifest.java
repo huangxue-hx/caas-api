@@ -24,6 +24,7 @@ public class HarborManifest implements Serializable {
     private boolean abnormal = false;
     private boolean notSupported = false;
     private String pullStatus;
+    private String digest;
 
     public Integer getVulnerabilityNum() {
         return vulnerabilityNum;
@@ -95,5 +96,13 @@ public class HarborManifest implements Serializable {
 
     public void setPullStatus(String pullStatus) {
         this.pullStatus = pullStatus;
+    }
+
+    public String getDigest() {
+        return digest;
+    }
+
+    public void setDigest(String digest) {
+        this.digest = digest;
     }
 }

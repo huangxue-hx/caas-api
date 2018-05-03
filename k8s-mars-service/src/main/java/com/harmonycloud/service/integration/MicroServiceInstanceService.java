@@ -59,4 +59,11 @@ public interface MicroServiceInstanceService {
 
     int deleteByClusterId(String clusterId);
 
+    /**
+     * 删除分区时删除实例
+     * @param namespaceId
+     * @throws Exception
+     */
+    void deleteByNamespaceId(String namespaceId) throws Exception;
+
 }

@@ -33,7 +33,7 @@ public interface ApplicationWithServiceService {
      * @param name
      * @throws Exception
      */
-    void deleteApplicationService(String name) throws Exception;
+    void deleteApplicationService(String name, String projectId, String clusterId) throws Exception;
 
     /**
      * 根据应用模板Id获取应用与服务的对应关系

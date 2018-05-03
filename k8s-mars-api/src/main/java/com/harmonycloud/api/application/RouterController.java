@@ -57,7 +57,6 @@ public class RouterController {
 	@ResponseBody
 	@RequestMapping(value = "/ports", method = { RequestMethod.GET })
 	public ActionReturnUtil getPort(@RequestParam(value = "namespace") String namespace) throws Exception{
-		logger.info("自动获取一个对外端口");
 		return routerService.getPort(namespace);
 	}
 	
@@ -102,7 +101,6 @@ public class RouterController {
 	@RequestMapping(value = "/{deployName}/rules", method = RequestMethod.GET)
 	public ActionReturnUtil listSvc(@RequestParam(value = "namespace", required = true) String namespace) throws Exception{
 		try {
-			logger.info("获取svc路由（tcp）列表");
 			return routerService.svcList(namespace);
 		} catch (Exception e) {
 			logger.error("获取svc路由（tcp）列表错误，namespace="+namespace+",e="+e.getMessage());
@@ -145,7 +143,6 @@ public class RouterController {
 	@ResponseBody
 	@RequestMapping(value = "/ports/range", method = RequestMethod.GET)
 	public ActionReturnUtil getPortRange(@RequestParam(value = "namespace") String namespace) throws Exception {
-		logger.info("获取TCP/UDP端口范围");
 		return ActionReturnUtil.returnSuccessWithData(routerService.getPortRange(namespace, null));
 	}
 	

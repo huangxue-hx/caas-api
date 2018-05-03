@@ -29,6 +29,8 @@ import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.user.RoleLocalService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +41,7 @@ import java.util.*;
 @Service
 @Transactional(rollbackFor = Exception.class)
 public class DockerFileServiceImpl implements DockerFileService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DockerFileServiceImpl.class);
 
     @Autowired
     HttpSession session;
@@ -168,6 +171,9 @@ public class DockerFileServiceImpl implements DockerFileService {
 
     @Override
     public void deleteDockerFile(Integer id) throws Exception {
+        if(dockerFileMapper.selectDockerFileById(id) == null){
+            throw new MarsRuntimeException(ErrorCodeMessage.DOCKERFILE_NOT_EXIST);
+        }
         Stage stage = new Stage();
         stage.setDockerfileId(id);
         List stageList = stageService.selectByExample(stage);
@@ -196,6 +202,21 @@ public class DockerFileServiceImpl implements DockerFileService {
     @Override
     public int deleteByClusterId(String clusterId){
         return dockerFileMapper.deleteByClusterId(clusterId);
+    }
+
+    @Override
+    public void deleteDockerfileByProject(String projectId) {
+        DockerFile dockerfileCondition = new DockerFile();
+        dockerfileCondition.setProjectId(projectId);
+        List<DockerFile> dockerfileList = dockerFileMapper.findByAll(dockerfileCondition);
+        for(DockerFile dockerfile : dockerfileList){
+            try {
+                deleteConfigMap(dockerfile.getId());
+            } catch (Exception e) {
+                LOGGER.error("删除Dockerfile失败: id:{}, {}", dockerfile.getId(), e);
+            }
+        }
+        dockerFileMapper.deleteByProjectId(projectId);
     }
 
     private void createConfigMap(DockerFile dockerFile) throws Exception{

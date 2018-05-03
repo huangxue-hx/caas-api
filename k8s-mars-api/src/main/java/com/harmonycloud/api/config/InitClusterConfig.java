@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 
 public class InitClusterConfig {
 
-    static Logger LOGGER = LoggerFactory.getLogger(HttpSessionConfig.class);
+    static Logger LOGGER = LoggerFactory.getLogger(InitClusterConfig.class);
     static ClusterCRDServiceImpl impl = new ClusterCRDServiceImpl();
 
     private static ClusterCRDDto topCluster;

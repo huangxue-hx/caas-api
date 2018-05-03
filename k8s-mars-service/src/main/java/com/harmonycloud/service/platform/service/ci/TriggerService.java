@@ -48,5 +48,19 @@ public interface TriggerService {
      * @param uuid 流水线uuid
      * @throws Exception
      */
-    void triggerJob(String uuid) throws Exception;
+    void triggerJob(String uuid, String ref) throws Exception;
+
+    /**
+     * 根据流水线id删除触发规则
+     * @param id
+     */
+    void deleteByJobId(Integer id);
+
+    /**
+     *镜像更新触发流水线
+     * @param imageName
+     * @param imageTag
+     * @throws Exception
+     */
+    void triggerJobByImage(String imageName, String imageTag) throws Exception;
 }

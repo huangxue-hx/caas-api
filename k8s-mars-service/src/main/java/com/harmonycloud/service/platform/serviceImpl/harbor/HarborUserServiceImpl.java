@@ -10,6 +10,7 @@ import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.common.HarborHttpsClientUtil;
 import com.harmonycloud.service.platform.bean.ProjectUserBinding;
 import com.harmonycloud.service.platform.bean.UserProjectBiding;
 import com.harmonycloud.service.platform.bean.harbor.*;
@@ -84,7 +85,7 @@ public class HarborUserServiceImpl implements HarborUserService {
         header.put("Cookie", HarborClient.checkHarborAdminCookie(harborServer));
         header.put("Content-type", "application/json");
 
-        CloseableHttpResponse response = HttpsClientUtil.doBodyPost(createUserApiUrl, params, header);
+        CloseableHttpResponse response = HarborHttpsClientUtil.doBodyPost(createUserApiUrl, params, header);
         if (HttpStatusUtil.isSuccessStatus(response.getStatusLine().getStatusCode())) {
             Header[] headers = response.getHeaders("Location");
             if (headers.length > 0) {
@@ -112,7 +113,7 @@ public class HarborUserServiceImpl implements HarborUserService {
             return null;
         }
         String getUserApi = HarborClient.getHarborUrl(harborServer) + HARBOR_API_USERS + "?username=" + userName;
-        HttpClientResponse httpClientResponse = HttpsClientUtil.doGet(getUserApi, null, HarborClient.getAdminCookieHeader(harborServer));
+        HttpClientResponse httpClientResponse = HarborHttpsClientUtil.doGet(getUserApi, null, HarborClient.getAdminCookieHeader(harborServer));
         List<Map<String, Object>> result = JsonUtil.JsonToMapList(httpClientResponse.getBody());
         if (!CollectionUtils.isEmpty(result)) {
             Map<String, Object> userMap = result.get(0);
@@ -173,7 +174,7 @@ public class HarborUserServiceImpl implements HarborUserService {
             throw new MarsRuntimeException(ErrorCodeMessage.USER_UPDATE_INFO_ERROR);
         }
         String updateUrl = HarborClient.getHarborUrl(harborServer) + HARBOR_API_USERS + "/" + harborUser.getUserId();
-        HttpClientResponse putRes = HttpsClientUtil.doPut(updateUrl, params, HarborClient.getAdminCookieHeader(harborServer));
+        HttpClientResponse putRes = HarborHttpsClientUtil.doPut(updateUrl, params, HarborClient.getAdminCookieHeader(harborServer));
         // 根据返回code判断状态
         if (HttpStatusUtil.isSuccessStatus(putRes.getStatus())) {
             return true;
@@ -200,7 +201,7 @@ public class HarborUserServiceImpl implements HarborUserService {
                 Map<String, Object> params = new HashMap<>();
                 params.put("old_password", oldPassword);
                 params.put("new_password", newPassword);
-                HttpClientResponse putRes = HttpsClientUtil.doPut(updatePasswordApiUrl, params, HarborClient.getAdminCookieHeader(harborServer));
+                HttpClientResponse putRes = HarborHttpsClientUtil.doPut(updatePasswordApiUrl, params, HarborClient.getAdminCookieHeader(harborServer));
                 if (!HttpStatusUtil.isSuccessStatus(putRes.getStatus())) {
                     LOGGER.error("更新harbor用户密码失败, userName:{}, harborServer:{}", userName, JSONObject.toJSONString(harborServer));
                 }
@@ -250,7 +251,7 @@ public class HarborUserServiceImpl implements HarborUserService {
             return false;
         }
         String deleteUserApiUrl = HarborClient.getHarborUrl(harborServer)+ HARBOR_API_USERS + "/" + harborUserId;
-        HttpClientResponse deleteRes = HttpsClientUtil.doDelete(deleteUserApiUrl, null, HarborClient.getAdminCookieHeader(harborServer));
+        HttpClientResponse deleteRes = HarborHttpsClientUtil.doDelete(deleteUserApiUrl, null, HarborClient.getAdminCookieHeader(harborServer));
         if (HttpStatusUtil.isSuccessStatus(deleteRes.getStatus())) {
             return true;
         }
@@ -270,7 +271,7 @@ public class HarborUserServiceImpl implements HarborUserService {
         HarborServer harborServer = clusterService.findHarborByHost(harborHost);
         String url = HarborClient.getHarborUrl(harborServer) + "/api/projects/" + harborProjectId + "/members/";
         Map<String, Object>  headers = HarborClient.getAdminCookieHeader(harborServer);
-        ActionReturnUtil response = HttpsClientUtil.httpGetRequest(url, headers, null);
+        ActionReturnUtil response = HarborHttpsClientUtil.httpGetRequest(url, headers, null);
         if (response.isSuccess() && response.get("data") != null) {
             return getHarborUserResp(response.get("data").toString());
         }
@@ -296,7 +297,7 @@ public class HarborUserServiceImpl implements HarborUserService {
 
         Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 
-        ActionReturnUtil response = HttpsClientUtil.httpPostRequestForHarbor(url, headers, convertHarborRoleBeanToMap(harborRole));
+        ActionReturnUtil response = HarborHttpsClientUtil.httpPostRequestForHarbor(url, headers, convertHarborRoleBeanToMap(harborRole));
         if("user is ready in project".equalsIgnoreCase((String)response.get("data"))){
             return ActionReturnUtil.returnSuccess();
         }
@@ -322,7 +323,7 @@ public class HarborUserServiceImpl implements HarborUserService {
 
         Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 
-        return HttpsClientUtil.httpPutRequestForHarbor(url, headers, convertHarborRoleBeanToMap(harborRole));
+        return HarborHttpsClientUtil.httpPutRequestForHarbor(url, headers, convertHarborRoleBeanToMap(harborRole));
 
     }
 
@@ -343,7 +344,7 @@ public class HarborUserServiceImpl implements HarborUserService {
 
         Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 
-        return HttpsClientUtil.httpDoDelete(url, null, headers);
+        return HarborHttpsClientUtil.httpDoDelete(url, null, headers);
 
     }
 
@@ -352,7 +353,7 @@ public class HarborUserServiceImpl implements HarborUserService {
         AssertUtil.notBlank(username, DictEnum.USERNAME);
         AssertUtil.notBlank(projectId, DictEnum.PROJECT_ID);
         List<ImageRepository> imageRepositories = harborProjectService
-                .listRepositories(projectId, null, Boolean.FALSE);
+                .listRepositories(projectId, null, Boolean.FALSE,Boolean.TRUE);
         Map<String, List<ImageRepository>> repositoryMap = imageRepositories.stream()
                 .collect(Collectors.groupingBy(ImageRepository::getHarborHost));
         String failedHarbor = "";

@@ -1,5 +1,6 @@
 package com.harmonycloud.api.ci;
 
+import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.cicd.TriggerDto;
 import com.harmonycloud.service.platform.service.ci.TriggerService;
@@ -61,9 +62,10 @@ public class TriggerController {
      */
     @RequestMapping(value="/cicd/jobs/{uuid}/webhook", method = RequestMethod.POST)
     @ResponseBody
-    public ActionReturnUtil triggerByWebhook(@PathVariable("uuid") String uuid) throws Exception {
-        logger.info("webhook trigger job", uuid);
-        triggerService.triggerJob(uuid);
+    public ActionReturnUtil triggerByWebhook(@PathVariable("uuid") String uuid,@RequestBody JSONObject requestBody) throws Exception {
+//        logger.info("webhook trigger job", uuid);
+        String ref = (String)requestBody.get("ref");
+        triggerService.triggerJob(uuid, ref);
         return ActionReturnUtil.returnSuccess();
     }
 

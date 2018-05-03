@@ -70,7 +70,7 @@ public class ExternalServiceController {
         public ActionReturnUtil listExtService(@PathVariable("projectId") String projectId,
                                                @RequestParam(value = "serviceType", required = false) String serviceType,
                                                @RequestParam(value = "clusterId", required = false) String clusterId)throws Exception {
-                logger.info("获取外部服务列表,projectId：{}，serviceType：{}，clusterId：{}", new String[]{projectId, serviceType, clusterId});
+//                logger.info("获取外部服务列表,projectId：{}，serviceType：{}，clusterId：{}", new String[]{projectId, serviceType, clusterId});
                 return externalService.listExtService(clusterId,projectId,serviceType);
 
         }
@@ -86,7 +86,7 @@ public class ExternalServiceController {
         public ActionReturnUtil getExtService(@PathVariable("serviceName") String serviceName,
                                               @RequestParam(value = "clusterId", required = true) String clusterId,
                                               @RequestParam(value = "namespace", required = true) String namespace)throws Exception {
-                logger.info("获取外部服务详细信息,serviceName:{},clusterId:{}",serviceName,clusterId);
+//                logger.info("获取外部服务详细信息,serviceName:{},clusterId:{}",serviceName,clusterId);
                 return externalService.getExtService(clusterId, serviceName,namespace);
 
         }

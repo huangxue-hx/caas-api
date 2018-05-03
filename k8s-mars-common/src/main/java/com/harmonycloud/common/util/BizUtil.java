@@ -1,5 +1,10 @@
 package com.harmonycloud.common.util;
 
+import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.exception.MarsRuntimeException;
+import org.apache.commons.lang3.StringUtils;
+
 public class BizUtil {
 
     public static boolean isPodWithDeployment(String podName, String deployment) throws IllegalArgumentException{
@@ -17,6 +22,19 @@ public class BizUtil {
             }
             return true;
         }
+    }
+
+    public static String[] getImageInfoFromName(String imageFullName) throws MarsRuntimeException{
+        if(StringUtils.isBlank(imageFullName)){
+            return null;
+        }
+        if(imageFullName.indexOf("/") <0 || imageFullName.indexOf(":")<0){
+            throw new MarsRuntimeException(DictEnum.IMAGE_NAME.phrase(),ErrorCodeMessage.FORMAT_ERROR);
+        }
+        String harborHost = imageFullName.substring(0,imageFullName.indexOf("/"));
+        String repo = imageFullName.substring(imageFullName.indexOf("/")+1,imageFullName.indexOf(":"));
+        String tag = imageFullName.substring(imageFullName.indexOf(":")+1);
+        return new String[]{harborHost, repo,tag};
     }
 
 }

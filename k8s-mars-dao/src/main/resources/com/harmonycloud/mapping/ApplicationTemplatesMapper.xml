@@ -45,6 +45,12 @@
     <!-- 删除根据name,tenantt删除 -->
     <update id="deleteAppTemplate" parameterType="java.lang.String">
     update application_templates set status=1 where name=#{name} and status = 0
+        <if test="clusterId != null and clusterId != '' ">
+            and cluster_id = #{clusterId}
+        </if>
+        <if test="projectId != null and projectId != '' ">
+            and project_id = #{projectId}
+        </if>
   </update>
 
     <select id="listNameByProjectId" parameterType="java.lang.String" resultMap="BaseResultMap">
@@ -73,7 +79,7 @@
   </select>
 
     <select id="listNameByName" parameterType="java.lang.String" resultMap="BaseResultMap">
-        select distinct name, tenant from application_templates where status = 0 and name like #{name} and is_public =
+        select * from application_templates where status = 0 and name like #{name} and is_public =
         false
         <if test="clusterId != null and clusterId != '' ">
             and cluster_id = #{clusterId}
@@ -176,4 +182,8 @@
     <select id="selectByNamespaceId" parameterType="java.lang.String" resultMap="BaseResultMap">
         SELECT * FROM application_templates WHERE namespace_id = #{namespaceId} and status=0
     </select>
+
+    <update id="deleteApplicationTemplatesById" parameterType="java.lang.Integer">
+        update application_templates set status=1 where id=#{id} and status = 0
+    </update>
 </mapper>

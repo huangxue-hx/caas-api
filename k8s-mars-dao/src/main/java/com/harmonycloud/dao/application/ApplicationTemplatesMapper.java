@@ -48,7 +48,7 @@ public interface ApplicationTemplatesMapper {
      * 
      * @description delete app Templates
      */
-    void deleteAppTemplate(@Param("name")String name);
+    void deleteAppTemplate(@Param("name")String name, @Param("projectId")String projectId, @Param("clusterId")String clusterId);
     
     /**
      * find app Templates  on 17/04/07.
@@ -187,4 +187,6 @@ public interface ApplicationTemplatesMapper {
     void updateAppTemplatePublic(@Param("name")String name,  @Param("isPublic")boolean isPublic);
 
     ApplicationTemplates selectByNamespaceId(@Param("namespaceId") String namespaceId);
+
+    void deleteApplicationTemplatesById(@Param("id")Integer id);
 }

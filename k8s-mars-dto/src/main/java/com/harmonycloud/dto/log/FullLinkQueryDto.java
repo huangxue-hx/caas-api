@@ -26,7 +26,7 @@ public class FullLinkQueryDto {
     private String toTime;
 
 
-    private String businessId;
+    private String appId;
 
     private String agentId;
 
@@ -76,12 +76,12 @@ public class FullLinkQueryDto {
         this.toTime = toTime;
     }
 
-    public String getBusinessId() {
-        return businessId;
+    public String getAppId() {
+        return appId;
     }
 
-    public void setBusinessId(String businessId) {
-        this.businessId = businessId;
+    public void setAppId(String appId) {
+        this.appId = appId;
     }
 
     public String getAgentId() {

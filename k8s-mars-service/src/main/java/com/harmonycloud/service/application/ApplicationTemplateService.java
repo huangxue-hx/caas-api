@@ -57,7 +57,7 @@ public interface ApplicationTemplateService {
      * @param name 模板名称
      * @throws Exception
      */
-    void deleteApplicationTemplate(String name) throws Exception;
+    void deleteApplicationTemplate(String name, String projectId, String clusterId) throws Exception;
 
     /**
      * 根据项目Id获取模板列表
@@ -210,4 +210,6 @@ public interface ApplicationTemplateService {
      * @throws Exception
      */
     ApplicationTemplates selectByNamespaceId(String namespaceId) throws Exception;
+
+    void deleteAppTemplateById(Integer id) throws Exception;
 }

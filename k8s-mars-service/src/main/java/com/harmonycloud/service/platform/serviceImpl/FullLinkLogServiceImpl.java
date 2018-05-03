@@ -165,8 +165,8 @@ public class FullLinkLogServiceImpl implements FullLinkLogService{
 		if(StringUtils.isNotBlank(queryDto.getAgentId())) {
 			params.put("agentId", queryDto.getAgentId());
 		}
-		if(StringUtils.isNotBlank(queryDto.getBusinessId())) {
-			params.put("businessId", queryDto.getBusinessId());
+		if(StringUtils.isNotBlank(queryDto.getAppId())) {
+			params.put("appId", queryDto.getAppId());
 		}
 		if(StringUtils.isNotBlank(queryDto.getExceptionType())) {
 			params.put("exceptionType", queryDto.getExceptionType());

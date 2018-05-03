@@ -28,4 +28,5 @@ public interface FileUploadToContainerService {
 	
 	ActionReturnUtil getFileMaxSizeConfig() throws Exception;
 
+	void deleteUploadRecord(String namespace, String deployment) throws Exception;
 }

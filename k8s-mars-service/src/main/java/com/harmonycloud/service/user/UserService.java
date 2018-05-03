@@ -114,6 +114,12 @@ public interface UserService {
 
     ActionReturnUtil delete_group(List<String> groupnames) throws Exception;
 
+    /**
+     * 根据组id删除组内成员和组
+     * @param groupid
+     * @return
+     * @throws Exception
+     */
     ActionReturnUtil deleteGroupbyId(int groupid) throws Exception;
 
     ActionReturnUtil updateGroup(UserGroupDto usergroupdto) throws Exception;
@@ -202,7 +208,7 @@ public interface UserService {
      * 从session中获取当前用户集群列表
      * @return
      */
-    public Map<String, Cluster> getCurrentUserCluster();
+    public Map<String, Cluster> getCurrentUserCluster() throws Exception;
 
     /**
      * 从session中获取当前用户数据权限列表

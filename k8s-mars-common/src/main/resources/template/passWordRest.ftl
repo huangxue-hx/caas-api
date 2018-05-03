@@ -185,9 +185,6 @@
 
 
     </div>
-    <div class="footer-tip">
-        &#xA9; 2017 HarmonyCloud Systems, Inc. and/or its affiliated entities
-    </div>
 </div>
 </body>
 </html>

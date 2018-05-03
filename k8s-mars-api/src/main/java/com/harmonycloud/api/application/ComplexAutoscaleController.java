@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.MessageUtil;
 import com.harmonycloud.dto.scale.AutoScaleDto;
 import com.harmonycloud.dto.scale.CustomMetricScaleDto;
 import com.harmonycloud.service.application.AutoScaleService;
@@ -116,19 +117,19 @@ public class ComplexAutoscaleController {
 
     private String checkParams( AutoScaleDto autoScale){
         if(autoScale == null){
-            return "请求参数不能为空";
+            return MessageUtil.getMessage(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         if(autoScale.getTargetCpuUsage() == null && autoScale.getTargetTps() == null
                 && CollectionUtils.isEmpty(autoScale.getTimeMetricScales())
                 && CollectionUtils.isEmpty(autoScale.getCustomMetricScales())){
-            return "请至少设置一项伸缩指标";
+            return MessageUtil.getMessage(ErrorCodeMessage.INDICATOR);
         }
         List<CustomMetricScaleDto> customMetrics = autoScale.getCustomMetricScales();
         if(!CollectionUtils.isEmpty(customMetrics) && customMetrics.size()>1){
             Set<String> names = customMetrics.stream()
                     .map(CustomMetricScaleDto::getMetricName).collect(Collectors.toSet());
             if(names.size() != customMetrics.size()){
-                return "自定义指标名称不能重复";
+                return MessageUtil.getMessage(ErrorCodeMessage.NOT_REPEATE);
             }
         }
         return null;

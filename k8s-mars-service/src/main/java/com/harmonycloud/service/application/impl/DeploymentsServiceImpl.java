@@ -25,6 +25,7 @@ import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.AutoScaleService;
 import com.harmonycloud.service.application.DeploymentsService;
+import com.harmonycloud.service.application.FileUploadToContainerService;
 import com.harmonycloud.service.application.RouterService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.common.PrivilegeHelper;
@@ -131,6 +132,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
     @Autowired
     private RoleLocalService roleLocalService;
+
+    @Autowired
+    private FileUploadToContainerService fileUploadToContainerService;
 
     public ActionReturnUtil listDeployments(String tenantId, String name, String namespace, String labels, String projectId, String clusterId) throws Exception {
         //参数判空
@@ -241,8 +245,6 @@ public class DeploymentsServiceImpl implements DeploymentsService {
                             .returnErrorWithData(ErrorCodeMessage.STARTED,
                                     DictEnum.SERVICE.phrase() + dep.getMetadata().getName(), true);
                 } else {
-                    Integer.valueOf(anno.get("nephele/status").toString());
-
                     int rep = 1;
                     if (anno.get("nephele/replicas") != null) {
                         rep = Integer.valueOf(anno.get("nephele/replicas").toString());
@@ -556,7 +558,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         }
 
         // rs事件
-        if (rSetList.getItems() != null && rSetList.getItems().size() > 0) {
+        /*if (rSetList.getItems() != null && rSetList.getItems().size() > 0) {
             bodys.clear();
             bodys.put("fieldSelector", "involvedObject.uid=" + rSetList.getItems().get(0));
             K8SClientResponse hpaevRes = eventService.doEventByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
@@ -567,7 +569,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             if (hpaeventList.getItems() != null && hpaeventList.getItems().size() > 0) {
                 allEvents.addAll(K8sResultConvert.convertPodEvent(hpaeventList.getItems()));
             }
-        }
+        }*/
 
         // cpaEvents
         bodys.clear();
@@ -576,7 +578,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         if (!HttpStatusUtil.isSuccessStatus(hpaevRes.getStatus())) {
             return ActionReturnUtil.returnErrorWithData(hpaevRes.getBody());
         }
-        EventList hpaeventList = JsonUtil.jsonToPojo(evRes.getBody(), EventList.class);
+        EventList hpaeventList = JsonUtil.jsonToPojo(hpaevRes.getBody(), EventList.class);
         if (hpaeventList.getItems() != null && hpaeventList.getItems().size() > 0) {
             allEvents.addAll(K8sResultConvert.convertPodEvent(hpaeventList.getItems()));
         }
@@ -651,6 +653,19 @@ public class DeploymentsServiceImpl implements DeploymentsService {
     }
 
     @Override
+    public ActionReturnUtil deploymentContainer(String namespace, String name, Cluster cluster) throws Exception {
+        if (StringUtils.isEmpty(namespace) || cluster == null) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
+            return ActionReturnUtil.returnErrorWithData(depRes.getBody());
+        }
+        Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+        return ActionReturnUtil.returnSuccessWithData(K8sResultConvert.convertContainer(dep));
+    }
+
+    @Override
     public ActionReturnUtil namespaceContainer(String namespace) throws Exception {
         if (StringUtils.isBlank(namespace)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
@@ -708,7 +723,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.QUERY_FAIL);
         }
         if (StringUtils.isBlank(response.getBody())) {
-            return ActionReturnUtil.returnSuccessWithData("无");
+            return ActionReturnUtil.returnSuccessWithData(ErrorCodeMessage.LOG_NULL);
         }
         return ActionReturnUtil.returnSuccessWithData(response.getBody());
     }
@@ -790,9 +805,6 @@ public class DeploymentsServiceImpl implements DeploymentsService {
                     meta.put("name", detail.getName() + c.getName());
                     Map<String, Object> label = new HashMap<String, Object>();
                     label.put("app", detail.getName());
-                    if (!StringUtils.isEmpty(app)) {
-                        label.put("business", app);
-                    }
                     meta.put("labels", label);
                     bodys.put("metadata", meta);
                     Map<String, Object> data = new HashMap<String, Object>();
@@ -1006,7 +1018,8 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             }
         }
 
-
+        //删除文件上传到容器记录
+        fileUploadToContainerService.deleteUploadRecord(namespace, name);
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -1197,6 +1210,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         nodeAffinityList = setNamespaceLabelAffinity(namespace, nodeAffinityList);
         affinity = KubeAffinityConvert.convertAffinity(nodeAffinityList, deploymentDetail.getPodAffinity(), list);
         dep.getSpec().getTemplate().getSpec().setAffinity(affinity);
+        dep.getMetadata().getAnnotations().put("nephele/annotation", deploymentDetail.getAnnotation());
         Map<String, Object> bodys = CollectionUtil.transBean2Map(dep);
         Map<String, Object> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
@@ -1208,7 +1222,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
     }
 
     @Override
-    public ActionReturnUtil checkDeploymentName(String name, String namespace) throws Exception {
+    public ActionReturnUtil checkDeploymentName(String name, String namespace, boolean isTpl) throws Exception {
         //参数判空
         if (StringUtils.isBlank(name) || StringUtils.isBlank(namespace)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
@@ -1219,19 +1233,21 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         if (nameList.contains(name)) {
             return ActionReturnUtil.returnSuccessWithData(true);
         }
-        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
-        K8SClientResponse depRes = dpService.doDeploymentsByNamespace(namespace, null, null, HTTPMethod.GET, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus()) && depRes.getStatus() != Constant.HTTP_404) {
-            UnversionedStatus sta = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithData(sta.getMessage());
-        }
-        DeploymentList deployment = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
-        if (Objects.nonNull(deployment)) {
-            List<Deployment> deploymentList = deployment.getItems();
-            if (CollectionUtils.isNotEmpty(deploymentList)) {
-                for (Deployment dep : deploymentList) {
-                    if (name.equals(dep.getMetadata().getName())) {
-                        return ActionReturnUtil.returnSuccessWithData(true);
+        if (!isTpl) {
+            Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+            K8SClientResponse depRes = dpService.doDeploymentsByNamespace(namespace, null, null, HTTPMethod.GET, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus()) && depRes.getStatus() != Constant.HTTP_404) {
+                UnversionedStatus sta = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+                return ActionReturnUtil.returnErrorWithData(sta.getMessage());
+            }
+            DeploymentList deployment = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+            if (Objects.nonNull(deployment)) {
+                List<Deployment> deploymentList = deployment.getItems();
+                if (CollectionUtils.isNotEmpty(deploymentList)) {
+                    for (Deployment dep : deploymentList) {
+                        if (name.equals(dep.getMetadata().getName())) {
+                            return ActionReturnUtil.returnSuccessWithData(true);
+                        }
                     }
                 }
             }

@@ -119,6 +119,7 @@ public class Constant {
 	public final static String RESTARTPOLICY_ONFAILURE = "OnFailure";
 
 	public final static int DEFAULT_PAGE_SIZE = 100;
+	public final static int DEFAULT_PAGE_SIZE_1000 = 1000;
 	public final static String TIME_ZONE_UTC = "UTC";
 
     public final static String PIPELINE_STATUS_INPROGRESS = "IN_PROGRESS";
@@ -129,6 +130,7 @@ public class Constant {
     public final static String PIPELINE_STATUS_WAITING = "WAITING";
     public final static String PIPELINE_STATUS_NOTBUILT = "NOTBUILT";
     public final static String PIPELINE_STATUS_NOTEXECUTED = "NOT_EXECUTED";
+	public final static String PIPELINE_STATUS_ABORTED = "ABORTED";
 	public final static String EXTERNAL_SERVICE_NAMESPACE = "external";
 	
 	public final static String NODESELECTOR_LABELS_PRE = "harmonycloud.cn/";

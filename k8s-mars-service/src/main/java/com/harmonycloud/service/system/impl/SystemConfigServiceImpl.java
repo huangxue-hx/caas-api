@@ -1,10 +1,13 @@
 package com.harmonycloud.service.system.impl;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.system.SystemConfigMapper;
 import com.harmonycloud.dao.system.bean.SystemConfig;
+import com.harmonycloud.dto.cicd.CicdConfigDto;
 import com.harmonycloud.dto.user.LdapConfigDto;
 import com.harmonycloud.service.system.SystemConfigService;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -212,5 +215,72 @@ public class SystemConfigServiceImpl implements SystemConfigService {
             return null;
         }
         return config.getConfigValue();
+    }
+
+    @Override
+    public SystemConfig findMaintenanceStatus() {
+        SystemConfig config = systemConfigMapper.findByConfigName(CommonConstant.MAINTENANCE_STATUS);
+        if(config == null){
+            config = new SystemConfig();
+            config.setConfigName(CommonConstant.MAINTENANCE_STATUS);
+            config.setConfigType(CommonConstant.CONFIG_TYPE_MAINTENANCE);
+            config.setConfigValue(String.valueOf(CommonConstant.FALSE));
+            systemConfigMapper.addSystemConfig(config);
+        }
+        return config;
+    }
+
+    @Override
+    public void updateMaintenanceStatus(String status) {
+        SystemConfig config = systemConfigMapper.findByConfigName(CommonConstant.MAINTENANCE_STATUS);
+        String username = (String)session.getAttribute(CommonConstant.USERNAME);
+        if(config == null){
+            config = new SystemConfig();
+            config.setConfigName(CommonConstant.MAINTENANCE_STATUS);
+            config.setConfigType(CommonConstant.CONFIG_TYPE_MAINTENANCE);
+            config.setConfigValue(status);
+            config.setCreateUser(username);
+            config.setCreateTime(DateUtil.getCurrentUtcTime());
+            systemConfigMapper.addSystemConfig(config);
+        }else{
+            config.setConfigValue(status);
+            config.setUpdateUser(username);
+            config.setUpdateTime(DateUtil.getCurrentUtcTime());
+            systemConfigMapper.updateSystemConfig(config);
+        }
+    }
+
+    @Override
+    public CicdConfigDto getCicdConfig() {
+        CicdConfigDto cicdConfigDto = new CicdConfigDto();
+        List<SystemConfig> list = this.systemConfigMapper.findByConfigType(CommonConstant.CONFIG_TYPE_CICD);
+        if(list != null && list.size() > 0) {
+            for(SystemConfig sc : list) {
+                if (CommonConstant.CICD_RESULT_REMAIN_NUM.equals(sc.getConfigName())) {
+                    cicdConfigDto.setRemainNumber(StringUtils.isBlank(sc.getConfigValue()) ? null : Integer.valueOf(sc.getConfigValue()));
+                }
+            }
+        }
+        return cicdConfigDto;
+    }
+
+    @Override
+    public void updateCicdConfig(CicdConfigDto cicdConfigDto) {
+        String username = (String) session.getAttribute(CommonConstant.USERNAME);
+        SystemConfig cicdConfig  = this.systemConfigMapper.findByConfigName(CommonConstant.CICD_RESULT_REMAIN_NUM);
+        if(cicdConfig == null){
+            cicdConfig = new SystemConfig();
+            cicdConfig.setConfigName(CommonConstant.CICD_RESULT_REMAIN_NUM);
+            cicdConfig.setConfigType(CommonConstant.CONFIG_TYPE_CICD);
+            cicdConfig.setConfigValue(String.valueOf(cicdConfigDto.getRemainNumber()));
+            cicdConfig.setCreateTime(DateUtil.getCurrentUtcTime());
+            cicdConfig.setCreateUser(username);
+            systemConfigMapper.addSystemConfig(cicdConfig);
+        }else{
+            cicdConfig.setConfigValue(cicdConfigDto.getRemainNumber() == null ? null:String.valueOf(cicdConfigDto.getRemainNumber()));
+            cicdConfig.setUpdateUser(username);
+            cicdConfig.setUpdateTime(DateUtil.getCurrentUtcTime());
+            systemConfigMapper.updateSystemConfig(cicdConfig);
+        }
     }
 }

@@ -12,6 +12,8 @@ public class HarborLog implements Serializable {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
+	private Long logId;
+	private String harborHost;
     //项目id
 	private Integer projectId;
     //镜像仓库名称
@@ -21,9 +23,19 @@ public class HarborLog implements Serializable {
     //操作类型， push， pull， create， delete etc.
     private String operation;
     //操作时间
-    private String operationTime;
+    private Date operationTime;
     //操作用户名
     private String userName;
+
+    public HarborLog() {
+    }
+
+    public HarborLog(String harborHost, String repoName, String repoTag) {
+        this.harborHost = harborHost;
+        this.repoName = repoName;
+        this.repoTag = repoTag;
+        this.operationTime = new Date();
+    }
 
     public Integer getProjectId() {
         return projectId;
@@ -57,12 +69,17 @@ public class HarborLog implements Serializable {
         this.operation = operation;
     }
 
-    public String getOperationTime() {
-        return operationTime;
+    public Date getOperationTime() {
+        if(operationTime == null){
+            return null;
+        }
+        return (Date)operationTime.clone();
     }
 
-    public void setOperationTime(String operationTime) {
-        this.operationTime = operationTime;
+    public void setOperationTime(Date operationTime) {
+        if (operationTime != null) {
+            this.operationTime = (Date) operationTime.clone();
+        }
     }
 
     public String getUserName() {
@@ -72,4 +89,21 @@ public class HarborLog implements Serializable {
     public void setUserName(String userName) {
         this.userName = userName;
     }
+
+    public Long getLogId() {
+        return logId;
+    }
+
+    public void setLogId(Long logId) {
+        this.logId = logId;
+    }
+
+    public String getHarborHost() {
+        return harborHost;
+    }
+
+    public void setHarborHost(String harborHost) {
+        this.harborHost = harborHost;
+    }
+
 }

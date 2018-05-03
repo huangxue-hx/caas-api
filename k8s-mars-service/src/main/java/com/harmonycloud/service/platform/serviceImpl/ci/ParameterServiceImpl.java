@@ -59,6 +59,7 @@ public class ParameterServiceImpl implements ParameterService{
             parameterMap.put("name", parameter.getName());
             parameterMap.put("type", parameter.getType());
             parameterMap.put("value", parameter.getValue());
+            parameterMap.put("description", parameter.getDescription());
             parameters.add(parameterMap);
         }
         parameterDto.setParameters(parameters);
@@ -94,8 +95,16 @@ public class ParameterServiceImpl implements ParameterService{
                 parameter.setName((String)parameterMap.get("name"));
                 parameter.setType((Integer)parameterMap.get("type"));
                 parameter.setValue((String)parameterMap.get("value"));
+                parameter.setDescription(parameterMap.get("description") == null ? null : (String)parameterMap.get("description"));
                 parameterMapper.insert(parameter);
             }
         }
+    }
+
+    @Override
+    public void deleteByJobId(Integer id) {
+        ParameterExample example = new ParameterExample();
+        example.createCriteria().andJobIdEqualTo(id);
+        parameterMapper.deleteByExample(example);
     }
 }

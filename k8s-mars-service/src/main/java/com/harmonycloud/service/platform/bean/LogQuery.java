@@ -1,8 +1,6 @@
 package com.harmonycloud.service.platform.bean;
 
 
-import java.util.Date;
-
 /**
  * Created by zhangkui on 2017/3/31.
  * 日志查询参数对象
@@ -32,7 +30,7 @@ public class LogQuery{
 
     private Integer pageSize;
 
-    private boolean mathPhrase;
+    private String searchType;
 
     private String[] indexes;
 
@@ -132,19 +130,20 @@ public class LogQuery{
         this.deployment = deployment;
     }
 
-    public boolean isMathPhrase() {
-        return mathPhrase;
-    }
-
-    public void setMathPhrase(boolean mathPhrase) {
-        this.mathPhrase = mathPhrase;
-    }
-
     public String[] getIndexes() {
         return indexes;
     }
 
     public void setIndexes(String[] indexes) {
         this.indexes = indexes;
+    }
+
+
+    public String getSearchType() {
+        return searchType;
+    }
+
+    public void setSearchType(String searchType) {
+        this.searchType = searchType;
     }
 }

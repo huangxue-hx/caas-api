@@ -20,11 +20,10 @@ public interface NamespaceLocalService {
 
     /**
      * 删除namespace
-     * @param tenantId
-     * @param name
+     * @param namespaceLocal
      * @return
      */
-    public void deleteNamespace(String tenantId, String name) throws Exception;
+    public void deleteNamespace(NamespaceLocal namespaceLocal) throws Exception;
 
     /**
      * 根据id删除分区
@@ -62,11 +61,18 @@ public interface NamespaceLocalService {
     /**
      * 根据tenantId,clusterId查询namespace列表
      * @param tenantId
-     * @param clusterId
+     * @param clusterIds
      * @return
      * @throws Exception
      */
-    public List<NamespaceLocal> getNamespaceListByTenantIdAndClusterId(String tenantId, String clusterId) throws Exception;
+    public List<NamespaceLocal> getNamespaceListByTenantIdAndClusterId(String tenantId, List<String> clusterIds) throws Exception;
+
+    /**
+     * 根据镜像可以部署的分区列表
+     * @return
+     * @throws Exception
+     */
+    public List<NamespaceLocal> getNamespaceListByRepositoryId(String tenantId, Integer repositoryId) throws Exception;
 
     /**
      * 根据namespace id查询namespace
@@ -112,5 +118,7 @@ public interface NamespaceLocalService {
      */
     public List<NamespaceLocal> getPublicNamespaceListByClusterId(String clusterId) throws Exception;
     int deleteByClusterId(String clusterId);
+
+    NamespaceLocal getNamespaceByTenantIdAndName(String tenantId, String namespace) throws Exception;
 
 }

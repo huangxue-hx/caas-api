@@ -38,7 +38,7 @@
     </select>
 
     <select id="findPageByAll" resultType="com.harmonycloud.dao.ci.bean.DockerFilePage">
-        SELECT df.id id,df.name name, df.tenant tenant, df.project_id projectId, df.cluster_id clusterId,GROUP_CONCAT(cj.id) jobIds,GROUP_CONCAT(cj.name) jobNames,
+        SELECT df.id id,df.name name, df.tenant tenant, df.project_id projectId, df.cluster_id clusterId,GROUP_CONCAT(cj.id) jobIds,GROUP_CONCAT(cj.name order by cj.name) jobNames,
         GROUP_CONCAT(cs.id) stageIds,GROUP_CONCAT(cs.stage_name) stageNames,
         df.create_time createTime,df.update_time updateTime FROM cicd_docker_file df
         LEFT JOIN cicd_stage cs ON df.id=cs.dockerfile_id
@@ -128,6 +128,10 @@
 
     <delete id="deleteByClusterId">
         delete from cicd_docker_file where cluster_id = #{clusterId}
+    </delete>
+
+    <delete id="deleteByProjectId">
+        delete from cicd_docker_file where project_id = #{projectId}
     </delete>
 
 </mapper>

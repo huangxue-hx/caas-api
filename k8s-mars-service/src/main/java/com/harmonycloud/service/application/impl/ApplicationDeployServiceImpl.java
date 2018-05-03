@@ -1,9 +1,11 @@
 package com.harmonycloud.service.application.impl;
 
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
+import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
@@ -24,6 +26,7 @@ import com.harmonycloud.service.common.PrivilegeHelper;
 import com.harmonycloud.service.platform.bean.ApplicationList;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.tenant.*;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
@@ -42,6 +45,8 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.servlet.http.HttpSession;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 
@@ -147,22 +152,8 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
 
         //当projectId不为空,namespace为空
         if (StringUtils.isEmpty(namespace) && StringUtils.isNotEmpty(projectId)) {
-            List<NamespaceLocal> namespaceData = this.namespaceLocalService.getNamespaceListByTenantId(tenantId);
-            List<Cluster> clusterList = roleLocalService.listCurrentUserRoleCluster();
-            for (NamespaceLocal oneNamespace : namespaceData) {
-                String namespaceName = oneNamespace.getNamespaceName();
-                if (StringUtils.isBlank(namespaceName)) {
-                    continue;
-                }
-                //判断该namespace是否有权限
-                if (clusterList.stream().noneMatch((c) -> c.getId().equals(oneNamespace.getClusterId()))) {
-                    continue;
-                }
-                List<BaseResource> list = getApplicationList(namespaceName, bodys);
-                if (list != null && list.size() > 0) {
-                    appCrdList.addAll(list);
-                }
-            }
+            //获取用户可以使用的集群列表
+            this.getAllAppList(appCrdList,bodys);
         }
         if (StringUtils.isNotEmpty(namespace) && StringUtils.isNotEmpty(projectId)) {
             String[] namespaces = {namespace};
@@ -184,7 +175,28 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         //数据权限过滤
         return ActionReturnUtil.returnSuccessWithData(privilegeHelper.filter(array));
     }
-
+    private void getAllAppList(List<BaseResource> appCrdList,Map<String, Object> bodys)throws Exception{
+        final List<Cluster> clusterList = this.roleLocalService.listCurrentUserRoleCluster();
+        CountDownLatch countDownLatchApp = new CountDownLatch(clusterList.size());
+        for (Cluster cluster : clusterList) {
+            ThreadPoolExecutorFactory.executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        List<BaseResource> list = getApplicationList(null, bodys,cluster);
+                        if (list != null && list.size() > 0) {
+                            appCrdList.addAll(list);
+                        }
+                    } catch (Exception e) {
+                        LOGGER.error("获取应用错误", e);
+                    } finally {
+                        countDownLatchApp.countDown();
+                    }
+                }
+            });
+        }
+        countDownLatchApp.await();
+    }
     private List<BaseResource> getApplicationList(String namespace, Map<String, Object> bodys) throws Exception {
         Cluster cluster = this.namespaceLocalService.getClusterByNamespaceName(namespace);
         K8SClientResponse response = tprApplication.listApplicationByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
@@ -194,13 +206,70 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 return tpr.getItems();
             }
         }
-        LOGGER.error("getApplicationList error, namespace:{},response:{}",namespace,
+        LOGGER.error("getApplicationList error, namespace:{},response:{}", namespace,
                 com.alibaba.fastjson.JSONObject.toJSONString(response));
         return Collections.emptyList();
     }
-
+    private List<BaseResource> getApplicationList(String namespace, Map<String, Object> bodys,Cluster cluster) throws Exception {
+        K8SClientResponse response = tprApplication.listApplicationByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
+        if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            BaseResourceList tpr = JsonUtil.jsonToPojo(response.getBody(), BaseResourceList.class);
+            if (tpr != null) {
+                return tpr.getItems();
+            }
+        }
+        LOGGER.error("getApplicationList error, namespace:{},response:{}", namespace,
+                com.alibaba.fastjson.JSONObject.toJSONString(response));
+        return Collections.emptyList();
+    }
     private List<ApplicationDto> convertAppListData(List<BaseResource> appCrdList, String status) throws Exception {
         List<ApplicationDto> array = new ArrayList<>();
+        //获取可用集群
+        final List<Cluster> clusterList = this.roleLocalService.listCurrentUserRoleCluster();
+        if (CollectionUtils.isEmpty(clusterList)){
+            return array;
+        }
+        //转换为clusterMap
+        Map<String, Cluster> clusterMap = clusterList.stream().collect(Collectors.toMap(Cluster::getId,cluster -> cluster));
+        List<Deployment> deployments = new ArrayList<>();
+        //开启线程获取项目集群服务列表
+        CountDownLatch countDownLatchApp = new CountDownLatch(clusterList.size());
+        for (Cluster cluster : clusterList) {
+            ThreadPoolExecutorFactory.executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        K8SClientResponse responseDep = dpService.doDeploymentsByNamespace(null, null, null, HTTPMethod.GET, cluster);
+                        if (HttpStatusUtil.isSuccessStatus(responseDep.getStatus())) {
+                            DeploymentList deploymentList = JsonUtil.jsonToPojo(responseDep.getBody(), DeploymentList.class);
+                            if (deploymentList != null && !CollectionUtils.isEmpty(deploymentList.getItems())) {
+                                deployments.addAll(deploymentList.getItems());
+                            }
+                        }
+                    } catch (Exception e) {
+                        LOGGER.error("获取应用错误", e);
+                    } finally {
+                        countDownLatchApp.countDown();
+                    }
+                }
+            });
+        }
+        countDownLatchApp.await();
+//        for (Cluster cluster : clusterList) {
+//            try {
+//                K8SClientResponse responseDep = dpService.doDeploymentsByNamespace(null, null, null, HTTPMethod.GET, cluster);
+//                if (HttpStatusUtil.isSuccessStatus(responseDep.getStatus())) {
+//                    DeploymentList deploymentList = JsonUtil.jsonToPojo(responseDep.getBody(), DeploymentList.class);
+//                    if (deploymentList != null && !CollectionUtils.isEmpty(deploymentList.getItems())) {
+//                        deployments.addAll(deploymentList.getItems());
+//                    }
+//                }
+//            } catch (Exception e) {
+//                LOGGER.error("获取应用数量错误", e);
+//            }
+//        }
+        //转化为前端显示数据
+        Map<String, List<Deployment>> deploymentMap = this.groupByAppLabel(deployments);
         for (BaseResource bs : appCrdList) {
             ApplicationDto app = new ApplicationDto();
             String label = "";
@@ -230,13 +299,15 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 app.setDesc(bs.getMetadata().getAnnotations().get("nephele/annotation").toString());
             }
             app.setNamespace(bs.getMetadata().getNamespace());
-            app.setAliasNamespace(namespaceLocalService.getNamespaceByName(app.getNamespace()).getAliasName());
+            final NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByName(app.getNamespace());
+            app.setAliasNamespace(namespaceLocal.getAliasName());
             //获取创建时间
             app.setCreateTime(bs.getMetadata().getCreationTimestamp());
             app.setUser(user);
             app.setRealName(userService.getUser(user).getRealName());
-            Cluster cluster = this.namespaceLocalService.getClusterByNamespaceName(bs.getMetadata().getNamespace());
-            JSONObject serviceJson = listServiceByBusinessId(label, bs.getMetadata().getNamespace(), cluster);
+            Cluster cluster = clusterMap.get(namespaceLocal.getClusterId());
+//            JSONObject serviceJson = listServiceByApplicationId(label, bs.getMetadata().getNamespace(), cluster);
+            JSONObject serviceJson = this.getServiceStatus(deploymentMap.get(label));
             app.setClusterId(cluster.getId());
             app.setStatus(serviceJson.get("status").toString());
             app.setStart(Integer.valueOf(serviceJson.get("start").toString()));
@@ -341,7 +412,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         if (id.contains(SIGN) && id.contains(SIGN_EQUAL)) {
             namespaces = id.split(SIGN_EQUAL);
         }
-        String newNamespace = StringUtils.isBlank(namespace)? namespaces[1] : namespace;
+        String newNamespace = StringUtils.isBlank(namespace) ? namespaces[1] : namespace;
 
         BaseResource tpr = new BaseResource();
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(newNamespace);
@@ -426,48 +497,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                         }
                         // get status
                         // deploment status
-                        String status = null;
-                        if (dep.getMetadata().getAnnotations() != null && dep.getMetadata().getAnnotations().containsKey("nephele/status")) {
-                            status = dep.getMetadata().getAnnotations().get("nephele/status").toString();
-                        }
-
-                        if (!StringUtils.isEmpty(status)) {
-                            switch (status) {
-                                case Constant.STARTING:
-                                    if (dep.getStatus().getReadyReplicas() != null && dep.getStatus().getReadyReplicas() > 0
-                                            && (dep.getStatus().getAvailableReplicas() == dep.getStatus()
-                                            .getReadyReplicas())
-                                            && dep.getSpec().getReplicas() != null
-                                            && dep.getSpec().getReplicas() == dep.getStatus().getReadyReplicas()) {
-                                        json.put("status", Constant.SERVICE_START);
-                                    } else {
-                                        json.put("status", Constant.SERVICE_STARTING);
-                                    }
-                                    break;
-                                case Constant.STOPPING:
-                                    if (dep.getStatus().getAvailableReplicas() != null
-                                            && dep.getStatus().getAvailableReplicas() > 0) {
-                                        json.put("status", Constant.SERVICE_STOPPING);
-                                    } else {
-                                        json.put("status", Constant.SERVICE_STOP);
-                                    }
-                                    break;
-                                default:
-                                    if (dep.getStatus().getAvailableReplicas() != null
-                                            && dep.getStatus().getAvailableReplicas() > 0) {
-                                        json.put("status", Constant.SERVICE_START);
-                                    } else {
-                                        json.put("status", Constant.SERVICE_STOP);
-                                    }
-                                    break;
-                            }
-                        } else {
-                            if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
-                                json.put("status", Constant.SERVICE_START);
-                            } else {
-                                json.put("status", Constant.SERVICE_STOP);
-                            }
-                        }
+                        json.put("status", K8sResultConvert.getDeploymentStatus(dep));
                         // get version
                         if (dep.getMetadata().getAnnotations() != null && dep.getMetadata().getAnnotations().containsKey("deployment.kubernetes.io/revision")) {
                             json.put("version", "v" + dep.getMetadata().getAnnotations().get("deployment.kubernetes.io/revision"));
@@ -558,7 +588,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
      * deployment application service implement.
      *
      * @param appDeploy appDeployBean
-     * @param username       username
+     * @param username  username
      * @return ActionReturnUtil
      * @author yanli
      */
@@ -566,7 +596,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     public synchronized ActionReturnUtil deployApplicationTemplate(ApplicationDeployDto appDeploy, String username) throws Exception {
         //参数判空
         if (Objects.isNull(appDeploy) || StringUtils.isBlank(appDeploy.getAppName()) || StringUtils.isBlank(appDeploy.getProjectId())
-                || StringUtils.isBlank(appDeploy.getNamespace()) || Objects.isNull(appDeploy.getAppTemplate()) ) {
+                || StringUtils.isBlank(appDeploy.getNamespace()) || Objects.isNull(appDeploy.getAppTemplate())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
 
@@ -588,7 +618,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
      * delete application service implement
      *
      * @param applicationList application id list
-     * @param username     username
+     * @param username        username
      * @return ActionReturnUtil
      * @author yanli
      */
@@ -754,37 +784,45 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
      * stop application service implement
      *
      * @param applicationList appListBean application id list
-     * @param username     username
+     * @param username        username
      * @return ActionReturnUtil
      * @author yanli
      */
     @Override
-    public ActionReturnUtil stopApplicationTemplate(ApplicationList applicationList, String username, Cluster cluster) throws Exception {
+    public ActionReturnUtil stopApplication(ApplicationList applicationList, String username) throws Exception {
         AssertUtil.notNull(applicationList, DictEnum.APPLICATION);
         AssertUtil.notEmpty(applicationList.getIdList(), DictEnum.APPLICATION);
-
         List<String> errorMessage = new ArrayList<>();
 
-        // loop every service
+        //循环应用
         for (String id : applicationList.getIdList()) {
             String namespace = "";
-
             if (id != null && id.contains(SIGN_EQUAL)) {
                 String[] value = id.split(SIGN_EQUAL);
-                if (value != null) {
-                    namespace = value[1];
-                }
+                namespace = value != null ? value[CommonConstant.NUM_ONE] : "";
             }
-            ActionReturnUtil deploymentsRes = deploymentsService.listDeployments(applicationList.getTenantId(), null, namespace, id, null, null);
+            Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+            ActionReturnUtil deploymentsRes = deploymentsService.listDeployments(applicationList.getTenantId(), null, namespace, id, applicationList.getProjectId(), cluster.getId());
             if (!deploymentsRes.isSuccess()) {
                 return deploymentsRes;
             }
-            @SuppressWarnings("unchecked")
             List<Map<String, Object>> deployments = (List<Map<String, Object>>) deploymentsRes.get("data");
             if (deployments != null && deployments.size() > 0) {
                 for (Map<String, Object> oneDeployment : deployments) {
                     if (oneDeployment != null && oneDeployment.containsKey("name")) {
-                        ActionReturnUtil stopDeployReturn = deploymentsService.stopDeployments(oneDeployment.get("name").toString(), oneDeployment.get("namespace").toString(), username);
+                        String depName = oneDeployment.get("name").toString();
+                        //判断该服务是否处在蓝绿或灰度升级状态,即查看paused值
+                        K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, depName, null, null,
+                                HTTPMethod.GET, cluster);
+                        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
+                            UnversionedStatus status = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+                            throw new MarsRuntimeException(status.getMessage());
+                        }
+                        Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+                        if (dep.getSpec().isPaused()) {
+                            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.APPLICATION_CAN_NOT_STOP);
+                        }
+                        ActionReturnUtil stopDeployReturn = deploymentsService.stopDeployments(depName, oneDeployment.get("namespace").toString(), username);
                         if (!stopDeployReturn.isSuccess()) {
                             errorMessage.add(stopDeployReturn.toString());
                         }
@@ -792,43 +830,35 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 }
             }
         }
-
-        if (errorMessage.size() > 0) {
-            return ActionReturnUtil.returnErrorWithData(errorMessage);
-        }
-        return ActionReturnUtil.returnSuccess();
+        return (errorMessage.size() > 0) ? ActionReturnUtil.returnErrorWithData(errorMessage) : ActionReturnUtil.returnSuccess();
     }
 
     /**
      * start application service on 17/04/11.
      *
      * @param applicationList appListBean application id list
-     * @param username     username
+     * @param username        username
      * @return ActionReturnUtil
      * @author yanli
      */
     @Override
-    public ActionReturnUtil startApplicationTemplate(ApplicationList applicationList, String username, Cluster cluster) throws Exception {
+    public ActionReturnUtil startApplication(ApplicationList applicationList, String username) throws Exception {
         AssertUtil.notNull(applicationList, DictEnum.APPLICATION);
         AssertUtil.notEmpty(applicationList.getIdList(), DictEnum.APPLICATION);
-
         List<String> errorMessage = new ArrayList<>();
 
-        // loop every service
+        //循环应用
         for (String id : applicationList.getIdList()) {
             String namespace = "";
-
             if (id != null && id.contains(SIGN_EQUAL)) {
                 String[] value = id.split(SIGN_EQUAL);
-                if (value != null) {
-                    namespace = value[1];
-                }
+                namespace = value != null ? value[CommonConstant.NUM_ONE] : "";
             }
-            ActionReturnUtil deploymentsRes = deploymentsService.listDeployments(applicationList.getTenantId(), null, namespace, id, null, null);
+            Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+            ActionReturnUtil deploymentsRes = deploymentsService.listDeployments(applicationList.getTenantId(), null, namespace, id, applicationList.getProjectId(), cluster.getId());
             if (!deploymentsRes.isSuccess()) {
                 return deploymentsRes;
             }
-            @SuppressWarnings("unchecked")
             List<Map<String, Object>> deployments = (List<Map<String, Object>>) deploymentsRes.get("data");
             if (deployments != null && deployments.size() > 0) {
                 for (Map<String, Object> oneDeployment : deployments) {
@@ -838,16 +868,10 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                             errorMessage.add(stopDeployReturn.toString());
                         }
                     }
-
                 }
             }
         }
-
-
-        if (errorMessage.size() > 0) {
-            return ActionReturnUtil.returnErrorWithData(errorMessage);
-        }
-        return ActionReturnUtil.returnSuccess();
+        return (errorMessage.size() > 0) ? ActionReturnUtil.returnErrorWithData(errorMessage) : ActionReturnUtil.returnSuccess();
     }
 
     /**
@@ -861,39 +885,77 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     @Override
     public ActionReturnUtil searchSumApplication(String clusterId) throws Exception {
         JSONObject json = new JSONObject();
-        // number of application
-        int count = 0;
         // number of application 启动中
-        int starting = 0;
+        AtomicInteger starting = new AtomicInteger(0);
         // number of application 异常
-        int stop = 0;
-        int start = 0;
+        AtomicInteger stop = new AtomicInteger(0);
+        AtomicInteger start = new AtomicInteger(0);
+
+        //查询集群下所有分区下所有的服务
+        AtomicInteger allDeploymentInCluster = new AtomicInteger(0);
 
         // search application
         List<BaseResource> blist = new ArrayList<>();
-
+        List<Deployment> deployments = new ArrayList<>();
+        List<String> namespaces = new ArrayList<>();
         Cluster cluster = clusterService.findClusterById(clusterId);
         List<NamespaceLocal> namespaceList = namespaceLocalService.getNamespaceListByClusterId(clusterId);
         if (CollectionUtils.isEmpty(namespaceList)) {
             throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_NOT_FOUND);
         }
-        for (NamespaceLocal oneNamespace : namespaceList) {
-            @SuppressWarnings("rawtypes")
-            K8SClientResponse response = tprApplication.listApplicationByNamespace(oneNamespace.getNamespaceName(), null, null, HTTPMethod.GET, cluster);
-            if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-                return ActionReturnUtil.returnErrorWithData(status.getMessage());
+        namespaceList.stream().forEach(namespaceLocal -> namespaces.add(namespaceLocal.getNamespaceName()));
+        CountDownLatch countDownLatchApp = new CountDownLatch(CommonConstant.NUM_TWO);
+        ThreadPoolExecutorFactory.executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    K8SClientResponse response = tprApplication.listApplicationByNamespace(null, null, null, HTTPMethod.GET, cluster);
+                    if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                        throw new Exception(response.getBody());
+                    }
+                    BaseResourceList tpr = JsonUtil.jsonToPojo(response.getBody(), BaseResourceList.class);
+                    if (tpr != null && CollectionUtils.isNotEmpty(tpr.getItems())) {
+                        blist.addAll(tpr.getItems());
+                    }
+                } catch (Exception e) {
+                    LOGGER.error("获取应用数量错误", e);
+                } finally {
+                    countDownLatchApp.countDown();
+                }
             }
-            BaseResourceList tpr = JsonUtil.jsonToPojo(response.getBody(), BaseResourceList.class);
-            if (tpr != null && tpr.getItems() != null && tpr.getItems().size() > 0) {
-                blist.addAll(tpr.getItems());
+        });
+        ThreadPoolExecutorFactory.executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    K8SClientResponse responseDep = dpService.doDeploymentsByNamespace(null, null, null, HTTPMethod.GET, cluster);
+                    if (HttpStatusUtil.isSuccessStatus(responseDep.getStatus())) {
+                        DeploymentList deploymentList = JsonUtil.jsonToPojo(responseDep.getBody(), DeploymentList.class);
+                        if (deploymentList != null && !CollectionUtils.isEmpty(deploymentList.getItems())) {
+                            allDeploymentInCluster.addAndGet(deploymentList.getItems().size());
+                            deployments.addAll(deploymentList.getItems());
+                        }
+                    }
+                } catch (Exception e) {
+                    LOGGER.error("获取服务数量错误", e);
+                } finally {
+                    countDownLatchApp.countDown();
+                }
             }
-        }
-        int totalDeploymentCountInApp = 0;
-        int normalDeploymentCountInApp = 0;
+        });
+        countDownLatchApp.await();
+        AtomicInteger totalDeploymentCountInApp = new AtomicInteger(0);
+        AtomicInteger normalDeploymentCountInApp = new AtomicInteger(0);
+        //将服务列表根据应用的label标签进行分组,key为某个应用的标签，value为该应用下的服务列表
+        Map<String, List<Deployment>> deploymentMap = this.groupByAppLabel(deployments);
         if (blist != null && blist.size() > 0) {
-            count = blist.size();
-            for (BaseResource bs : blist) {
+            Iterator<BaseResource> iterator = blist.iterator();
+            while (iterator.hasNext()) {
+                BaseResource bs = iterator.next();
+                if (!namespaces.contains(bs.getMetadata().getNamespace())) {
+                    iterator.remove();
+                    continue;
+                }
                 Map<String, Object> appLable = new HashedMap();
                 String label = "";
                 for (Map.Entry<String, Object> vo : bs.getMetadata().getLabels().entrySet()) {
@@ -902,38 +964,27 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                         label = vo.getKey() + SIGN_EQUAL + vo.getValue();
                     }
                 }
-
-                JSONObject serviceJson = listServiceByBusinessId(label, bs.getMetadata().getNamespace(), cluster);
+                JSONObject serviceJson = this.getServiceStatus(deploymentMap.get(label));
                 if (Constant.START.equals(serviceJson.get("status").toString())) {
-                    start ++;
+                    start.incrementAndGet();
                 }
                 if (Constant.STARTING.equals(serviceJson.get("status").toString())) {
-                    starting ++;
+                    starting.incrementAndGet();
                 }
                 if (Constant.STOP.equals(serviceJson.get("status").toString())) {
-                    stop ++;
+                    stop.incrementAndGet();
                 }
-                totalDeploymentCountInApp += Integer.parseInt(serviceJson.get("total").toString());
-                normalDeploymentCountInApp += Integer.parseInt(serviceJson.get("start").toString());
-            }
-        }
-        //查询集群下所有分区下所有的服务
-        int allDeploymentInCluster = 0;
-        List<NamespaceLocal> namespaceLocalList = namespaceLocalService.getNamespaceListByClusterId(clusterId);
-        for (NamespaceLocal namespace : namespaceLocalList) {
-            K8SClientResponse response = dpService.doDeploymentsByNamespace(namespace.getNamespaceName(), null, null, HTTPMethod.GET, cluster);
-            if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                DeploymentList deploymentList = JsonUtil.jsonToPojo(response.getBody(), DeploymentList.class);
-                allDeploymentInCluster += deploymentList.getItems().size();
+                totalDeploymentCountInApp.addAndGet(Integer.parseInt(serviceJson.get("total").toString()));
+                normalDeploymentCountInApp.addAndGet(Integer.parseInt(serviceJson.get("start").toString()));
             }
         }
         json.put("deployments", allDeploymentInCluster);
         json.put("normal", start);
-        json.put("abnormal", starting + stop);
+        json.put("abnormal", starting.intValue() + stop.intValue());
         json.put("start", start);
         json.put("starting", starting);
         json.put("stop", stop);
-        json.put("count", count);
+        json.put("count", blist.size());
         json.put("totalDeploymentCount", totalDeploymentCountInApp);
         json.put("normalDeploymentCount", normalDeploymentCountInApp);
         return ActionReturnUtil.returnSuccessWithData(json);
@@ -941,7 +992,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
 
     @Override
     public ActionReturnUtil deleteApplicationByNamespace(String namespace) throws Exception {
-        AssertUtil.notBlank(namespace,  DictEnum.NAMESPACE);
+        AssertUtil.notBlank(namespace, DictEnum.NAMESPACE);
         //todo
         return ActionReturnUtil.returnSuccess();
 
@@ -983,15 +1034,43 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         return ActionReturnUtil.returnSuccessWithData(count);
     }
 
-    private JSONObject listServiceByBusinessId(String label, String namespace, Cluster cluster) throws Exception {
-        JSONObject json = new JSONObject();
-        // number of application running
-        int start = 0;
-        // number of deploment
-        int total = 0;
-        int starting = 0;
-        int stop = 0;
+    /**
+     * 将服务列表根据应用的label标签进行分区，标签名称以topo开头的
+     *
+     * @param deployments
+     * @return
+     */
+    private Map<String,List<Deployment>> groupByAppLabel(List<Deployment> deployments){
+        Map<String,List<Deployment>> deploymentMap = new HashMap<>();
+        if (CollectionUtils.isEmpty(deployments)){
+            return deploymentMap;
+        }
+        for(Deployment deployment : deployments){
+            if (Objects.isNull(deployment) || Objects.isNull(deployment.getMetadata())){
+                continue;
+            }
+            Map<String, Object> lables = deployment.getMetadata().getLabels();
+            if (lables == null || lables.size() == 0) {
+                continue;
+            }
+            for (String labelKey : lables.keySet()) {
+                String label = labelKey + SIGN_EQUAL + lables.get(labelKey).toString();
+                if (labelKey.startsWith(TOPO)) {
+                    if (deploymentMap.get(label) == null) {
+                        List<Deployment> deploys = new ArrayList<>();
+                        deploys.add(deployment);
+                        deploymentMap.put(label, deploys);
+                    } else {
+                        deploymentMap.get(label).add(deployment);
+                    }
+                }
+            }
+        }
+        return deploymentMap;
+    }
 
+    private JSONObject listServiceByApplicationId(String label, String namespace, Cluster cluster) throws Exception {
+        JSONObject json = new JSONObject();
         //get deployment by label
         Map<String, Object> bodys = new HashMap<>();
         bodys.put("labelSelector", label);
@@ -1004,26 +1083,41 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             throw new MarsRuntimeException(ErrorCodeMessage.DEPLOYMENT_GET_FAILURE);
         }
         DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
-        if (deplist != null && deplist.getItems() != null) {
-            total = deplist.getItems().size();
-            List<Deployment> deps = deplist.getItems();
-            if (deps != null && deps.size() > 0) {
+        if (deplist == null || CollectionUtils.isEmpty(deplist.getItems())) {
+            json.put("stop", 0);
+            json.put("starting", 0);
+            json.put("start", 0);
+            json.put("total", 0);
+            json.put("status", Constant.STOP);
+            return json;
+        }
+        return this.getServiceStatus(deplist.getItems());
 
-                for (Deployment dep : deps) {
-                    String status = getDeploymentStatus(dep);
-                    if (Constant.START.equals(status)) {
-                        start ++;
-                    }
-                    if (Constant.STARTING.equals(status)) {
-                        starting ++;
-                    }
-                    if (Constant.STOP.equals(status)) {
-                        stop ++;
-                    }
+    }
+
+    private JSONObject getServiceStatus(List<Deployment> deps) throws Exception {
+        JSONObject json = new JSONObject();
+        // number of application running
+        int start = 0;
+        // number of deploment
+        int total = 0;
+        int starting = 0;
+        int stop = 0;
+        if (deps != null && deps.size() > 0) {
+            total = deps.size();
+            for (Deployment dep : deps) {
+                String status = K8sResultConvert.getDeploymentStatus(dep);
+                if (Constant.SERVICE_START.equals(status)) {
+                    start++;
+                }
+                if (Constant.SERVICE_STARTING.equals(status)) {
+                    starting++;
+                }
+                if (Constant.SERVICE_STOP.equals(status)) {
+                    stop++;
                 }
             }
         }
-
         if (starting > 0) {
             json.put("status", Constant.STARTING);
         } else if (stop == total) {
@@ -1038,50 +1132,6 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         return json;
     }
 
-    private String getDeploymentStatus(Deployment dep) throws Exception {
-        String status = null;
-        String flag = Constant.START;
-        if (dep.getMetadata().getAnnotations() != null && dep.getMetadata().getAnnotations().containsKey("nephele/status")) {
-            status = dep.getMetadata().getAnnotations().get("nephele/status").toString();
-        }
-        if (!StringUtils.isEmpty(status)) {
-            switch (status) {
-                case Constant.STARTING:
-                    if (dep.getStatus().getReadyReplicas() != null && dep.getStatus().getReadyReplicas() > 0
-                            && (dep.getStatus().getAvailableReplicas() == dep.getStatus().getReadyReplicas())
-                            && dep.getSpec().getReplicas() != null
-                            && dep.getSpec().getReplicas() == dep.getStatus().getReadyReplicas()) {
-
-                        flag = Constant.START;
-                    } else {
-                        flag = status;
-                    }
-                    break;
-                case Constant.STOPPING:
-                    if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
-                        flag = status;
-                    } else {
-                        flag = Constant.STOP;
-                    }
-                    break;
-                default:
-                    if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
-                        flag = Constant.START;
-                    } else {
-                        flag = Constant.STOP;
-                    }
-                    break;
-            }
-        } else {
-            if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
-                flag = Constant.START;
-            } else {
-                flag = Constant.STOP;
-            }
-        }
-        return flag;
-
-    }
 
     @Override
     public ActionReturnUtil deployApplicationTemplateByName(String tenantId, String name, String appName, String tag, String namespace, String userName, String pub, String projectId) throws Exception {
@@ -1201,6 +1251,10 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                             }
                             pvc.setNamespace(namespace);
                             pvc.setServiceName(service.getDeploymentDetail().getName());
+                            pvc.setProjectId(appDeploy.getProjectId());
+                            if (StringUtils.isBlank(pvc.getVolumeName())) {
+                                pvc.setVolumeName(pvc.getPvcName());
+                            }
                             ActionReturnUtil pvcres = volumeSerivce.createVolume(pvc);
                             pvcList.add(pvc.getPvcName());
                             if (!pvcres.isSuccess()) {
@@ -1286,7 +1340,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             if (CollectionUtils.isNotEmpty(std.getIngress())) {
                 for (IngressDto ing : std.getIngress()) {
                     if (ing.getType() != null && "HTTP".equals(ing.getType())) {
-                        if(routerService.checkIngressName(cluster, ing.getParsedIngressList().getName())){
+                        if (routerService.checkIngressName(cluster, ing.getParsedIngressList().getName())) {
                             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.HTTP_INGRESS_NAME_DUPLICATE);
                         }
                     }
@@ -1516,7 +1570,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         JSONArray array = new JSONArray();
         int count = 0;
         List<NamespaceLocal> namespaces = namespaceService.listNamespaceNameByTenantid(tenantId);
-        if(CollectionUtils.isEmpty(namespaces)){
+        if (CollectionUtils.isEmpty(namespaces)) {
             return ActionReturnUtil.returnSuccess();
         }
         for (NamespaceLocal oneNamespace : namespaces) {
@@ -1584,7 +1638,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         mate.setName(appDeploy.getAppName());
 
         Map<String, Object> anno = new HashMap<String, Object>();
-        anno.put("nephele/annotation",appDeploy.getAppTemplate().getDesc() != null ? appDeploy.getAppTemplate().getDesc() : "");
+        anno.put("nephele/annotation", appDeploy.getAppTemplate().getDesc() != null ? appDeploy.getAppTemplate().getDesc() : "");
         mate.setAnnotations(anno);
 
         Map<String, Object> appLabels = new HashMap<String, Object>();
@@ -1612,6 +1666,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                                 pvc.setNamespace(appDeploy.getNamespace());
                                 pvc.setServiceName(svcTemplate.getDeploymentDetail().getName());
                                 pvc.setVolumeName(pvc.getPvcName());
+                                pvc.setProjectId(appDeploy.getProjectId());
                                 ActionReturnUtil pvcres = volumeSerivce.createVolume(pvc);
                                 if (!pvcres.isSuccess()) {
                                     Map<String, Object> map = new HashMap<String, Object>();
@@ -1664,28 +1719,17 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
 
     @Override
     public List<BaseResource> listApplicationByProject(String projectId) throws Exception {
-        Project project = this.projectService.getProjectByProjectId(projectId);
-        String tenantId = project.getTenantId();
-        List<NamespaceLocal> namespaceList = namespaceLocalService.getNamespaceListByTenantId(tenantId);
         List<BaseResource> resList = new ArrayList<>();
         Map<String, Object> bodys = new HashMap<>();
         String projectLabel = Constant.NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId;
         bodys.put("labelSelector", projectLabel);
-        if (CollectionUtils.isNotEmpty(namespaceList)) {
-            for (NamespaceLocal namespaceLocal : namespaceList) {
-                try {
-                    resList.addAll(getApplicationList(namespaceLocal.getNamespaceName(), bodys));
-                }catch (Exception e){
-                    LOGGER.error("查询应用列表失败，namespace：{}",namespaceLocal.getNamespaceName(),e);
-                }
-            }
-        }
+        this.getAllAppList(resList,bodys);
         return resList;
     }
 
     public void deleteProjectAppResource(String projectId) throws Exception {
         Project project = projectService.getProjectByProjectId(projectId);
-        if (Objects.isNull(project)){
+        if (Objects.isNull(project)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_NOT_EXIST);
         }
         String tenantId = project.getTenantId();
@@ -1714,7 +1758,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             }
             appList.setIdList(idList);
             appList.setTenantId(tenantId);
-            if (!org.springframework.util.CollectionUtils.isEmpty(appList.getIdList())){
+            if (!org.springframework.util.CollectionUtils.isEmpty(appList.getIdList())) {
                 this.deleteApplicationTemplate(appList, null);
             }
         }
@@ -1732,7 +1776,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             List<ApplicationDto> appList = convertAppListData(list, null);
             //分组
             Map<Boolean, List<ApplicationDto>> result = appList.stream()
-                    .collect(Collectors.groupingBy(ApplicationDto :: isMsf, Collectors.toList()));
+                    .collect(Collectors.groupingBy(ApplicationDto::isMsf, Collectors.toList()));
             if (Objects.nonNull(result)) {
                 appListMap.put("app", result.get(false));
                 //获取微服务应用
@@ -1752,5 +1796,24 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         //获取分区内剩下的资源
         Map<String, String> remainResource = namespaceService.getNamespaceResourceRemainQuota(namespace);
         return namespaceService.checkResourceInTemplateDeploy(appResource, remainResource);
+    }
+
+    @Override
+    public ActionReturnUtil updateApplication(String appName, String namespace, String desc) throws Exception {
+        AssertUtil.notBlank(namespace, DictEnum.PARAM);
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        K8SClientResponse response = tprApplication.getApplicationByName(namespace, appName, null, null, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            throw new MarsRuntimeException(response.getBody());
+        }
+        BaseResource appCrd = JsonUtil.jsonToPojo(response.getBody(), BaseResource.class);
+        Map<String, Object> annotation = appCrd.getMetadata().getAnnotations();
+        annotation.put("nephele/annotation", desc);
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+        String updateTime = sdf.format(new Date());
+        annotation.put("updateTimestamp", updateTime);
+        appCrd.getMetadata().setAnnotations(annotation);
+        return tprApplication.updateApplication(namespace, appName, appCrd, cluster);
     }
 }

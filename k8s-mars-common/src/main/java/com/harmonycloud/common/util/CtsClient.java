@@ -21,6 +21,7 @@ public class CtsClient {
     private static final Logger logger = LoggerFactory.getLogger(CtsClient.class);
     public static final String SUCCESS_CODE = "100";
     public static final String FAILURE = "failure";
+    public static final String SUCCESS = "success";
 
     private static String ctsUrl;
 

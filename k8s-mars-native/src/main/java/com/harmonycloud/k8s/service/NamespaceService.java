@@ -1,8 +1,14 @@
 package com.harmonycloud.k8s.service;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import com.alibaba.fastjson.JSONObject;
+import com.harmonycloud.common.util.HttpStatusUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.harmonycloud.common.util.JsonUtil;
@@ -15,13 +21,14 @@ import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
+import org.springframework.util.CollectionUtils;
 
 @Service
 public class NamespaceService {
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(NamespaceService.class);
 	/**
 	 * 获取所有Namespace
-	 * 
+	 *
 	 * @param k8sUrl
 	 * @param headers
 	 * @param bodys
@@ -81,6 +88,21 @@ public class NamespaceService {
 		K8SClientResponse response = new K8sMachineClient().exec(k8SURL, method, headers, bodys,cluster);
 		return response;
 	}
+
+	public List<Namespace> list(Cluster cluster){
+		List<Namespace> namespaces = new ArrayList<>();
+		K8SClientResponse k8SClientResponse = this.list(null, null, HTTPMethod.GET, cluster);
+		if (!HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
+			LOGGER.error("查询集群下分区列表失败，cluster：{}，response：{}",cluster.getId(), JSONObject.toJSONString(k8SClientResponse));
+			return namespaces;
+		}
+		NamespaceList namespaceList = JsonUtil.jsonToPojo(k8SClientResponse.getBody(), NamespaceList.class);
+		if(namespaceList != null && !CollectionUtils.isEmpty(namespaceList.getItems())){
+			namespaces.addAll(namespaceList.getItems());
+		}
+		return namespaces;
+	}
+
 
 	public K8SClientResponse list(Map<String, Object> headers, Map<String, Object> bodys, String method,Cluster cluster) {
 		K8SURL k8SURL = new K8SURL();

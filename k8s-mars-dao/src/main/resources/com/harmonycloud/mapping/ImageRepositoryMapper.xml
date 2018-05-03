@@ -81,6 +81,9 @@
         <if test="isPublic != null" >
             and is_public = #{isPublic}
         </if>
+        <if test="isNormal != null" >
+            and is_normal = #{isNormal}
+        </if>
         <if  test="harborHosts != null" >
             and harbor_host in
             <foreach item="item" index="index" collection="harborHosts" open="(" separator="," close=")">

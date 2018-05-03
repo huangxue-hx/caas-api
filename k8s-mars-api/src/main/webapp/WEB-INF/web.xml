@@ -85,15 +85,15 @@
     <servlet-name>spring</servlet-name>
     <url-pattern>/rest/*</url-pattern>
   </servlet-mapping>
-  <session-config>
-    <session-timeout>480</session-timeout>
-  </session-config>
   <listener>
     <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
   </listener>
   <listener>
     <listener-class>org.springframework.web.context.request.RequestContextListener</listener-class>
   </listener>
+  <session-config>
+    <session-timeout>480</session-timeout>
+  </session-config>
   <security-role>
     <role-name>r4devops</role-name>
   </security-role>

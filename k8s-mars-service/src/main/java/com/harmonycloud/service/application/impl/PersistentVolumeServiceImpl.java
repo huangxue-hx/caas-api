@@ -78,11 +78,11 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
     @Override
     public ClusterStorage getProvider(String clusterId, String type) throws Exception {
         List<ClusterStorage> providers = clusterService.findClusterById(clusterId).getStorages();
-        if(CollectionUtils.isEmpty(providers)){
+        if (CollectionUtils.isEmpty(providers)) {
             return null;
         }
-        for(ClusterStorage storage : providers){
-            if(storage.getName().equalsIgnoreCase(type)){
+        for (ClusterStorage storage : providers) {
+            if (storage.getName().equalsIgnoreCase(type)) {
                 return storage;
             }
         }
@@ -92,8 +92,8 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
     @Override
     public ClusterStorage getProvider(Cluster cluster, String type) throws Exception {
         List<ClusterStorage> providers = cluster.getStorages();
-        for(ClusterStorage storage : providers){
-            if(storage.getName().equalsIgnoreCase(type)){
+        for (ClusterStorage storage : providers) {
+            if (storage.getName().equalsIgnoreCase(type)) {
                 return storage;
             }
         }
@@ -101,7 +101,8 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
     }
 
     /**
-     *  deployments服务的pv和pvc创建
+     * deployments服务的pv和pvc创建
+     *
      * @param volume
      * @throws Exception
      */
@@ -118,16 +119,16 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         //判断是否已经创建pv，没有则创建pv
         PersistentVolume pv = pvService.getPvByName(volume.getVolumeName(), cluster);
         ActionReturnUtil pvRes = updatePV(pv, cluster);
-        if(!pvRes.isSuccess()){
-            return  pvRes;
+        if (!pvRes.isSuccess()) {
+            return pvRes;
         }
         if (pv == null) {
             ActionReturnUtil pvResponse = this.createPv(volume, cluster);
-            if(!pvResponse.isSuccess()){
+            if (!pvResponse.isSuccess()) {
                 return pvResponse;
             }
         }
-        return this.createPvc(volume,cluster);
+        return this.createPvc(volume, cluster);
     }
 
     /**
@@ -189,19 +190,19 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
 
     @Override
     public ActionReturnUtil createPv(PersistentVolumeDto volume, Cluster cluster) throws Exception {
-        PersistentVolume pvByName = this.pvService.getPvByName(volume.getVolumeName(),cluster);
-        if(pvByName != null){
-            LOGGER.info("创建pv失败，pv存储券已存在,pvname:{},clusterName:{}",volume.getVolumeName(),cluster.getName());
+        PersistentVolume pvByName = this.pvService.getPvByName(volume.getVolumeName(), cluster);
+        if (pvByName != null) {
+            LOGGER.info("创建pv失败，pv存储券已存在,pvname:{},clusterName:{}", volume.getVolumeName(), cluster.getName());
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NAME_EXIST, volume.getVolumeName() + " pv", true);
         }
         String projectName = projectService.getProjectByProjectId(volume.getProjectId()).getProjectName();
         PersistentVolume persistentVolume = new PersistentVolume();
         // 设置metadata
         ObjectMeta metadata = new ObjectMeta();
-        metadata.setName(projectName + CommonConstant.DOT +volume.getVolumeName());
+        metadata.setName(projectName + CommonConstant.DOT + volume.getVolumeName());
         Map<String, Object> labels = new HashMap<>();
         labels.put(LABEL_PROJECT_ID, volume.getProjectId());
-        if(StringUtils.isNotBlank(volume.getServiceName())) {
+        if (StringUtils.isNotBlank(volume.getServiceName())) {
             labels.put(LABEL_KEY_APP, volume.getServiceName());
         }
         metadata.setLabels(labels);
@@ -210,21 +211,34 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         Map<String, Object> cap = new HashMap<>();
         cap.put(CommonConstant.STORAGE, volume.getCapacity() + CommonConstant.GI);
         spec.setCapacity(cap);
-        ClusterStorage storage = this.getProvider(cluster.getId(),CommonConstant.NFS);
-        if(storage == null){
+        ClusterStorage storage = this.getProvider(cluster.getId(), CommonConstant.NFS);
+        if (storage == null) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PV_PROVIDER_NOT_EXIST, CommonConstant.NFS, true);
         }
         NFSVolumeSource nfs = new NFSVolumeSource();
         // 设置nfs地址
-        nfs.setPath(storage.getPath()+ "/" + projectName + "/" + volume.getVolumeName());
+        nfs.setPath(storage.getPath() + "/" + projectName + "/" + volume.getVolumeName());
         nfs.setServer(storage.getIp());
         spec.setNfs(nfs);
-        spec.setAccessModes(this.getAccessModes(volume.getReadOnly(),volume.getBindOne() ));
+        spec.setAccessModes(this.getAccessModes(volume.getReadOnly(), volume.getBindOne()));
         persistentVolume.setMetadata(metadata);
         persistentVolume.setSpec(spec);
         persistentVolume.setApiVersion(VERSION_V1);
         persistentVolume.setKind(CommonConstant.PERSISTENTVOLUME);
-        return pvService.addPv(persistentVolume, cluster);
+        ActionReturnUtil pvCreateRes = pvService.addPv(persistentVolume, cluster);
+        if (!pvCreateRes.isSuccess()) {
+            return pvCreateRes;
+        }
+        //新建pod创建nfs内的挂载目录
+        String podName = CommonConstant.PV_CREATE_POD_NAME + projectName + CommonConstant.DOT + volume.getVolumeName();
+        String command = "mkdir -p /scrub/"+ projectName + "/" + volume.getVolumeName();
+        NFSVolumeSource createPvNfs = new NFSVolumeSource();
+        createPvNfs.setPath(storage.getPath());
+        createPvNfs.setServer(storage.getIp());
+        Pod pod = createPod(podName, "pv-dir-create", command, createPvNfs);
+        ActionReturnUtil res = podService.addPod(CommonConstant.DEFAULT_NAMESPACE, pod, cluster);
+        startThreadDeletePod(podName, cluster);
+        return res;
     }
 
     @Override
@@ -233,17 +247,17 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         K8SURL url = new K8SURL();
         url.setResource(Resource.PERSISTENTVOLUME);
         Map<String, Object> bodys = null;
-        if(StringUtils.isNotBlank(projectId)){
+        if (StringUtils.isNotBlank(projectId)) {
             bodys = new HashMap<>();
             bodys.put("labelSelector", LABEL_PROJECT_ID + "=" + projectId);
         }
-        if (StringUtils.isNotBlank(clusterId)){
+        if (StringUtils.isNotBlank(clusterId)) {
             clusters.add(clusterService.findClusterById(clusterId));
-        }else{
+        } else {
             clusters = roleLocalService.listCurrentUserRoleCluster();
         }
         List<PvDto> pvDtos = new ArrayList<>();
-        for(Cluster cluster : clusters) {
+        for (Cluster cluster : clusters) {
             K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
             if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
                 PersistentVolumeList persistentVolumeList = K8SClient.converToBean(response, PersistentVolumeList.class);
@@ -251,28 +265,28 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
                 if (CollectionUtils.isEmpty(volumes)) {
                     continue;
                 }
-                Map<String,String> pvcAppMap = new HashMap<>();
-                K8SClientResponse pvcResponse = pvcService.doSepcifyPVC(null,null,HTTPMethod.GET,cluster);
-                if(HttpStatusUtil.isSuccessStatus(pvcResponse.getStatus())){
+                Map<String, String> pvcAppMap = new HashMap<>();
+                K8SClientResponse pvcResponse = pvcService.doSepcifyPVC(null, null, HTTPMethod.GET, cluster);
+                if (HttpStatusUtil.isSuccessStatus(pvcResponse.getStatus())) {
                     PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(pvcResponse.getBody(), PersistentVolumeClaimList.class);
                     List<PersistentVolumeClaim> pvcs = pvcList.getItems();
-                    for(PersistentVolumeClaim pvc : pvcs){
-                        if(pvc.getMetadata().getLabels() == null || pvc.getMetadata().getLabels().get(LABEL_KEY_APP) == null){
+                    for (PersistentVolumeClaim pvc : pvcs) {
+                        if (pvc.getMetadata().getLabels() == null || pvc.getMetadata().getLabels().get(LABEL_KEY_APP) == null) {
                             continue;
                         }
                         String app = pvc.getMetadata().getLabels().get(LABEL_KEY_APP).toString();
-                        pvcAppMap.put(pvc.getMetadata().getNamespace() + SLASH + pvc.getMetadata().getName(),app);
+                        pvcAppMap.put(pvc.getMetadata().getNamespace() + SLASH + pvc.getMetadata().getName(), app);
                     }
                 }
                 // 处理items返回页面需要的对象
                 for (PersistentVolume pv : volumes) {
-                    PvDto pvDto = this.convertPvDto(pv,pvcAppMap);
+                    PvDto pvDto = this.convertPvDto(pv, pvcAppMap);
                     //过滤 只返回isBind=true的数据
-                    if(isBind != null && isBind && !pvDto.getIsBind()){
+                    if (isBind != null && isBind && !pvDto.getIsBind()) {
                         continue;
                     }
                     //过滤 只返回isBind=false的数据
-                    if(isBind != null && !isBind && pvDto.getIsBind()){
+                    if (isBind != null && !isBind && pvDto.getIsBind()) {
                         continue;
                     }
                     // 设置读写权限
@@ -290,15 +304,43 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
 
     @Override
     public ActionReturnUtil deletePv(String name, String clusterId) throws Exception {
-        return pvService.delPvByName(name,clusterService.findClusterById(clusterId));
+        Cluster cluster = clusterService.findClusterById(clusterId);
+        PersistentVolume pvByName = this.pvService.getPvByName(name, cluster);
+        if (pvByName == null) {
+            LOGGER.info("pv存储券不存在,pvname:{},clusterName:{}", name, cluster.getName());
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PV_QUERY_FAIL);
+        }
+        if (pvByName.getStatus().getPhase().equals(PV_STATUS_BOUND)) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PV_CAN_NOT_DELETE);
+        }
+        ActionReturnUtil deletePvRes = pvService.delPvByName(name, cluster);
+        if (!deletePvRes.isSuccess()) {
+            return deletePvRes;
+        }
+        //新建pod删除nfs内的挂载目录
+        String podName = CommonConstant.PV_DELETE_POD_NAME + name;
+        String path = name.replaceFirst("\\.", "/");
+        String command = "rm -rf /scrub/"+ path;
+        //volumes
+        ClusterStorage storage = this.getProvider(cluster.getId(), CommonConstant.NFS);
+        if (storage == null) {
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PV_PROVIDER_NOT_EXIST, CommonConstant.NFS, true);
+        }
+        NFSVolumeSource pvNfs = new NFSVolumeSource();
+        pvNfs.setPath(storage.getPath());
+        pvNfs.setServer(storage.getIp());
+        Pod pod = createPod(podName, "pv-dir-delete", command, pvNfs);
+        ActionReturnUtil res = podService.addPod(CommonConstant.DEFAULT_NAMESPACE, pod, cluster);
+        startThreadDeletePod(podName, cluster);
+        return res;
     }
 
     @Override
     public ActionReturnUtil getPv(String name, String clusterId) throws Exception {
         Cluster cluster = clusterService.findClusterById(clusterId);
-        PersistentVolume pvByName = this.pvService.getPvByName(name,cluster);
-        if(pvByName == null){
-            LOGGER.info("pv存储券不存在,pvname:{},clusterName:{}",name,cluster.getName());
+        PersistentVolume pvByName = this.pvService.getPvByName(name, cluster);
+        if (pvByName == null) {
+            LOGGER.info("pv存储券不存在,pvname:{},clusterName:{}", name, cluster.getName());
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PV_QUERY_FAIL);
         }
         return ActionReturnUtil.returnSuccessWithData(this.convertPvDto(pvByName, new HashMap<>()));
@@ -310,16 +352,16 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         Assert.hasText(pvDto.getCapacity());
         Cluster cluster = clusterService.findClusterById(pvDto.getClusterId());
         PersistentVolume pvByName = this.pvService.getPvByName(pvDto.getName(), cluster);
-        if(pvByName == null){
-            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PV_QUERY_FAIL,pvDto.getName(),true);
+        if (pvByName == null) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PV_QUERY_FAIL, pvDto.getName(), true);
         }
         Map<String, Object> cap = new HashMap<>();
         cap.put(CommonConstant.STORAGE, pvDto.getCapacity() + CommonConstant.GI);
         pvByName.getSpec().setCapacity(cap);
         pvByName.getSpec().setAccessModes(this.getAccessModes(pvDto.isReadonly(), pvDto.getIsBindOne()));
-        K8SClientResponse updatePvByName = pvService.updatePvByName(pvByName,cluster);
-        if(!HttpStatusUtil.isSuccessStatus(updatePvByName.getStatus())){
-            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.UPDATE_FAIL, updatePvByName.getBody(),false);
+        K8SClientResponse updatePvByName = pvService.updatePvByName(pvByName, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(updatePvByName.getStatus())) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.UPDATE_FAIL, updatePvByName.getBody(), false);
         }
         return ActionReturnUtil.returnSuccess();
     }
@@ -337,94 +379,62 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
     }
 
     @Override
-    public ActionReturnUtil recyclePv(String name,  String clusterId) throws Exception {
+    public ActionReturnUtil recyclePv(String name, String clusterId) throws Exception {
         Cluster cluster = clusterService.findClusterById(clusterId);
         PersistentVolume pv = this.pvService.getPvByName(name, cluster);
-        if(pv == null){
-            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PV_QUERY_FAIL,name,true);
+        if (pv == null) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PV_QUERY_FAIL, name, true);
         }
-        Pod pod = new Pod();
-        //metadata
-        ObjectMeta metadata = new ObjectMeta();
-        metadata.setName(CommonConstant.PV_RECYCLE_POD_NAME + name);
-        metadata.setNamespace(CommonConstant.CICD_NAMESPACE);
-        pod.setMetadata(metadata);
-        //spec
-        PodSpec spec = new PodSpec();
-        spec.setRestartPolicy(CommonConstant.RESTARTPOLICY_NEVER);
-        //container
-        List<Container> cs = new ArrayList<Container>();
-        Container con = new Container();
-        con.setName("pv-recycler");
-        con.setImage("k8s-deploy/busybox");
-        con.setImagePullPolicy("IfNotPresent");
-        List<String> command = new ArrayList<String>();
-        command.add("/bin/sh");
-        command.add("-c");
-        command.add("test -e /scrub && rm -rf /scrub/..?* /scrub/.[!.]* /scrub/*  && test -z \"$(ls-A /scrub)\" || exit 1");
-        con.setCommand(command);
-        List<VolumeMount> vms = new ArrayList<VolumeMount>();
-        VolumeMount vm = new VolumeMount();
-        vm.setMountPath("/scrub");
-        vm.setName("vol");
-        vms.add(vm);
-        con.setVolumeMounts(vms);
-        cs.add(con);
-        spec.setContainers(cs);
-        //volumes
-        List<Volume> vs = new ArrayList<Volume>();
-        Volume v = new Volume();
-        v.setNfs(pv.getSpec().getNfs());
-        v.setName("vol");
-        vs.add(v);
-        spec.setVolumes(vs);
-        pod.setSpec(spec);
-        ActionReturnUtil res = podService.addPod(CommonConstant.CICD_NAMESPACE, pod, cluster);
-        // 开启线程执行
-        new Thread() {
-            @Override
-            public void run() {
-                try {
-                    for (; ; ) {
-                        //暂停两秒钟等待灰度升级开始
-                        Thread.sleep(SLEEP_TIME_TWO_SECONDS);
-                        K8SClientResponse dp = podService.getPod(CommonConstant.CICD_NAMESPACE, CommonConstant.PV_RECYCLE_POD_NAME + name, cluster);
-                        if (!HttpStatusUtil.isSuccessStatus(dp.getStatus()) && dp.getStatus() != Constant.HTTP_404) {
-                            break;
-                        }
-                        Pod pod = JsonUtil.jsonToPojo(dp.getBody(), Pod.class);
-                        if(pod != null && pod.getMetadata() != null && pod.getMetadata().getName() != null){
-                            if(pod.getStatus() != null && pod.getStatus().getPhase() != null){
-                                if( !POD_STATUS_RUNNING.equals(pod.getStatus().getPhase()) && !POD_STATUS_PENDING.equals(pod.getStatus().getPhase())){
-                                    podService.deletePod(CommonConstant.CICD_NAMESPACE, CommonConstant.PV_RECYCLE_POD_NAME + name, cluster);
-                                    break;
-                                }
-                            }
-                        }else{
-                            break;
-                        }
-                    }
-                } catch (Exception e) {
-                    LOGGER.error("回收pv失败,name:{},clusterId:{}", new String[]{name,clusterId},e);
-                }
-            }
-        }.start();
+        String command = "test -e /scrub && rm -rf /scrub/..?* /scrub/.[!.]* /scrub/*  && test -z \"$(ls-A /scrub)\" || exit 1";
+        Pod pod = createPod(CommonConstant.PV_RECYCLE_POD_NAME + name, "pv-recycler", command, pv.getSpec().getNfs());
+        ActionReturnUtil res = podService.addPod(CommonConstant.DEFAULT_NAMESPACE, pod, cluster);
+        startThreadDeletePod(CommonConstant.PV_RECYCLE_POD_NAME + name, cluster);
         return res;
 
     }
 
-    public void deletePv(String projectId) throws Exception{
+    @Override
+    public ActionReturnUtil releasePv(String name, String clusterId, String namespace, String serviceName) throws Exception {
+        Cluster cluster = clusterService.findClusterById(clusterId);
+        K8SClientResponse pvcRes = pvcService.getPVC(name, namespace, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+        }
+        PersistentVolumeClaim persistentVolumeClaim = K8SClient.converToBean(pvcRes, PersistentVolumeClaim.class);
+        if (persistentVolumeClaim != null) {
+            K8SURL url = new K8SURL();
+            url.setName(persistentVolumeClaim.getMetadata().getName()).setNamespace(namespace).setResource(Resource.PERSISTENTVOLUMECLAIM);
+            Map<String, Object> headers = new HashMap<>();
+            headers.put("Content-Type", "application/json");
+            Map<String, Object> bodys = new HashMap<>();
+            bodys.put("gracePeriodSeconds", CommonConstant.NUM_ONE);
+            K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
+                LOGGER.error("删除PVC失败,DeploymentName:{}, error:{}", serviceName, response.getBody());
+                throw new MarsRuntimeException(ErrorCodeMessage.PV_RELEASE_FAIL);
+            }
+            if (response.getStatus() != Constant.HTTP_404 && persistentVolumeClaim.getSpec() != null && persistentVolumeClaim.getSpec().getVolumeName() != null) {
+                String pvName = persistentVolumeClaim.getSpec().getVolumeName();
+                PersistentVolume pv = pvService.getPvByName(pvName, null);
+                this.updatePV(pv, cluster);
+            }
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    public void deletePv(String projectId) throws Exception {
         Map<String, Object> bodys = new HashMap<>();
         // 根据lable查询pv
         bodys.put(CommonConstant.LABELSELECTOR, LABEL_PROJECT_ID + "=" + projectId);
         K8SURL url = new K8SURL();
         List<Cluster> clusters = clusterService.listCluster();
-        for(Cluster cluster : clusters) {
+        for (Cluster cluster : clusters) {
             url.setResource(com.harmonycloud.k8s.constant.Resource.PERSISTENTVOLUME);
             K8SClientResponse k8SClientResponse = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
             if (HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
                 PersistentVolumeList persistentVolumeList = JsonUtil.jsonToPojo(k8SClientResponse.getBody(), PersistentVolumeList.class);
-                if (persistentVolumeList == null){
+                if (persistentVolumeList == null) {
                     continue;
                 }
                 List<PersistentVolume> items = persistentVolumeList.getItems();
@@ -442,19 +452,19 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
             }
         }
     }
-    
-    private ActionReturnUtil createPvc(PersistentVolumeDto volume, Cluster cluster) throws Exception{
+
+    private ActionReturnUtil createPvc(PersistentVolumeDto volume, Cluster cluster) throws Exception {
         PersistentVolumeClaim pVolumeClaim = new PersistentVolumeClaim();
         ObjectMeta meta = new ObjectMeta();
         meta.setName(volume.getPvcName());
         PersistentVolumeClaimSpec pvSpec = new PersistentVolumeClaimSpec();
-        pvSpec.setAccessModes(this.getAccessModes(volume.getReadOnly(),volume.getBindOne()));
+        pvSpec.setAccessModes(this.getAccessModes(volume.getReadOnly(), volume.getBindOne()));
         LabelSelector labelSelector = new LabelSelector();
         Map<String, Object> labels = new HashMap<>();
         labels.put(LABEL_PROJECT_ID, volume.getProjectId());
-        if(StringUtils.isBlank(volume.getServiceType())) {
+        if (StringUtils.isBlank(volume.getServiceType())) {
             labels.put(LABEL_KEY_APP, volume.getServiceName());
-        }else{
+        } else {
             labels.put(volume.getServiceType(), volume.getServiceName());
         }
         labelSelector.setMatchLabels(labels);
@@ -463,7 +473,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         Map<String, Object> limits = new HashMap<>();
         if (volume.getCapacity().contains(CommonConstant.MI) || volume.getCapacity().contains(CommonConstant.GI)) {
             limits.put(CommonConstant.STORAGE, volume.getCapacity());
-        }else{
+        } else {
             limits.put(CommonConstant.STORAGE, volume.getCapacity() + CommonConstant.GI);
         }
         ResourceRequirements resources = new ResourceRequirements();
@@ -473,7 +483,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         pvSpec.setVolumeName(volume.getVolumeName());
         pVolumeClaim.setMetadata(meta);
         pVolumeClaim.setSpec(pvSpec);
-        K8SClientResponse response = pvService.createPvc(volume.getNamespace(),pVolumeClaim,cluster);
+        K8SClientResponse response = pvService.createPvc(volume.getNamespace(), pVolumeClaim, cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
@@ -481,16 +491,16 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         return ActionReturnUtil.returnSuccess();
     }
 
-    private List<String> getAccessModes(Boolean isReadonly, Boolean isBindOne) throws MarsRuntimeException{
-        if(isReadonly == null || isBindOne == null){
+    private List<String> getAccessModes(Boolean isReadonly, Boolean isBindOne) throws MarsRuntimeException {
+        if (isReadonly == null || isBindOne == null) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         List<String> accessModes = new ArrayList<>();
         if (isReadonly) {
             accessModes.add(CommonConstant.READONLYMANY);
-        }else if (isBindOne) {
+        } else if (isBindOne) {
             accessModes.add(CommonConstant.READWRITEONCE);
-        }else {
+        } else {
             accessModes.add(CommonConstant.READWRITEMANY);
 
         }
@@ -498,7 +508,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
 
     }
 
-    private PvDto convertPvDto(PersistentVolume pv, Map<String,String> pvcAppMap) {
+    private PvDto convertPvDto(PersistentVolume pv, Map<String, String> pvcAppMap) {
         PvDto pvDto = new PvDto();
         // 设置读写权限
         if (pv.getSpec().getAccessModes() != null) {
@@ -546,5 +556,75 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         return pvDto;
     }
 
+    private Pod createPod(String podName, String containerName, String shCommand, NFSVolumeSource nfsVolumeSource) throws Exception {
+        Pod pod = new Pod();
+        //metadata
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(podName);
+        metadata.setNamespace(CommonConstant.DEFAULT_NAMESPACE);
+        pod.setMetadata(metadata);
+        //spec
+        PodSpec spec = new PodSpec();
+        spec.setRestartPolicy(CommonConstant.RESTARTPOLICY_NEVER);
+        //container
+        List<Container> cs = new ArrayList<Container>();
+        Container con = new Container();
+        con.setName(containerName);
+        con.setImage("k8s-deploy/busybox");
+        con.setImagePullPolicy("IfNotPresent");
+        List<String> command = new ArrayList<String>();
+        command.add("/bin/sh");
+        command.add("-c");
+        command.add(shCommand);
+        con.setCommand(command);
+        List<VolumeMount> vms = new ArrayList<VolumeMount>();
+        VolumeMount vm = new VolumeMount();
+        vm.setMountPath("/scrub");
+        vm.setName("vol");
+        vms.add(vm);
+        con.setVolumeMounts(vms);
+        cs.add(con);
+        spec.setContainers(cs);
+        //volumes
+        List<Volume> vs = new ArrayList<>();
+        Volume v = new Volume();
+        v.setNfs(nfsVolumeSource);
+        v.setName("vol");
+        vs.add(v);
+        spec.setVolumes(vs);
+        pod.setSpec(spec);
+        return pod;
+    }
 
+    private void startThreadDeletePod(String name, Cluster cluster) {
+        // 开启线程执行
+        new Thread() {
+            @Override
+            public void run() {
+                try {
+                    for (; ; ) {
+                        //暂停两秒钟后获取pod
+                        Thread.sleep(SLEEP_TIME_TWO_SECONDS);
+                        K8SClientResponse dp = podService.getPod(CommonConstant.DEFAULT_NAMESPACE, name, cluster);
+                        if (!HttpStatusUtil.isSuccessStatus(dp.getStatus()) && dp.getStatus() != Constant.HTTP_404) {
+                            break;
+                        }
+                        Pod pod = JsonUtil.jsonToPojo(dp.getBody(), Pod.class);
+                        if (pod != null && pod.getMetadata() != null && pod.getMetadata().getName() != null) {
+                            if (pod.getStatus() != null && pod.getStatus().getPhase() != null) {
+                                if (!POD_STATUS_RUNNING.equals(pod.getStatus().getPhase()) && !POD_STATUS_PENDING.equals(pod.getStatus().getPhase())) {
+                                    podService.deletePod(CommonConstant.DEFAULT_NAMESPACE, name, cluster);
+                                    break;
+                                }
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                } catch (Exception e) {
+                    LOGGER.error("回收pv失败,name:{},clusterId:{}", new String[]{name, cluster.getId()}, e);
+                }
+            }
+        }.start();
+    }
 }

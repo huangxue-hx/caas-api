@@ -5,8 +5,8 @@ import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dto.config.AuditRequestInfo;
 import com.harmonycloud.service.audit.AuditRequestHandle;
-import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.user.UserAuditService;
+import com.harmonycloud.service.user.UserService;
 import org.apache.commons.lang3.StringUtils;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.*;
@@ -39,6 +39,9 @@ public class AuditControllerAspect {
 
 	@Autowired
 	UserAuditService userAuditService;
+
+	@Autowired
+	UserService userService;
 
 	@Pointcut("execution(public * com.harmonycloud.api..*.*(..))")
 	public void auditController() {
@@ -84,9 +87,13 @@ public class AuditControllerAspect {
 				AuditRequestInfo audit = result.get();
 				if (audit != null) {
 					String reString = JsonUtil.convertToJson(res);
-					audit.setResponse(reString);
+					/*audit.setUser(audit.getUrl().indexOf("/current") > -1 ? userService.getCurrentUsername():audit.getUser());
+					audit.setSubject(audit.getUrl().indexOf("/current") > -1 ? userService.getCurrentUsername():audit.getSubject());*/
+					//current接口的参数与响应结果无需记录，所以将请求参数与响应结果置为null
+					audit.setRequestParams(audit.getUrl().indexOf("/current") > -1 ? null : audit.getRequestParams());
+					audit.setResponse(audit.getUrl().indexOf("/current") > -1 ? null : reString);
 					String opStatus = reString.lastIndexOf("success") > -1 ?
-							reString.substring(reString.lastIndexOf("success") + 9, reString.length() - 1) : "true";
+							reString.substring(reString.lastIndexOf("success") + CommonConstant.NUM_NINE, reString.length() - 1) : "true";
 					opStatus = opStatus.indexOf(",") > -1 ? opStatus.substring(0,opStatus.indexOf(",")) : opStatus;
 					audit.setStatus(opStatus);
 					result.remove();
@@ -134,6 +141,7 @@ public class AuditControllerAspect {
 			}
 		};
 
+		log.debug("插入数据前:{}", searchResult.getUser() + ";" + searchResult.getStatus());
 		if (StringUtils.isNotBlank(searchResult.getUser()) && StringUtils.isNotBlank(searchResult.getStatus())) {
 			ESFactory.executor.execute(worker);
 		}

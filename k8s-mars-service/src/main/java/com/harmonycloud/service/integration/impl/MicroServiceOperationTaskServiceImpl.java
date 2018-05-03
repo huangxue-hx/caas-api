@@ -60,4 +60,9 @@ public class MicroServiceOperationTaskServiceImpl implements MicroServiceOperati
         List<MicroServiceOperationTask> operationTasks = operationTaskMapper.findTasksByStatus(namespaceId, Integer.valueOf(status));
         return operationTasks;
     }
+
+    @Override
+    public void deleteTask(String namespaceId) throws Exception {
+        operationTaskMapper.deleteTask(namespaceId);
+    }
 }

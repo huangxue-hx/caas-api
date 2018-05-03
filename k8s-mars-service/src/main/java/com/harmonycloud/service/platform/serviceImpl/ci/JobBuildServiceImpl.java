@@ -44,4 +44,31 @@ public class JobBuildServiceImpl implements JobBuildService{
     public Integer queryLastBuildNumById(Integer jobId){
         return jobBuildMapper.queryLastBuildNumById(jobId);
     }
+
+    @Override
+    public void deleteByJobId(Integer jobId) {
+        jobBuildMapper.deleteByJobId(jobId);
+    }
+
+    @Override
+    public JobBuild queryLastBuildById(Integer jobId){
+        return jobBuildMapper.queryLastBuildById(jobId);
+    }
+
+    @Override
+    public void updateLogById(JobBuild jobBuild) {
+        jobBuildMapper.updateLogById(jobBuild);
+    }
+
+    @Override
+    public JobBuild queryFirstBuildById(Integer jobId) {
+        return jobBuildMapper.queryFirstBuildById(jobId);
+    }
+
+    @Override
+    public void deleteByJobIdAndBuildNum(Integer id, List buildNumList) {
+        jobBuildMapper.deleteByJobIdAndBuildNum(id, buildNumList);
+    }
+
+
 }

@@ -78,14 +78,21 @@ public interface TenantClusterQuotaService {
      * @return
      * @throws Exception
      */
-    public List<TenantClusterQuota> getClusterQuotaByClusterId(String clusterId) throws Exception;
+    public List<TenantClusterQuota> getClusterQuotaByClusterId(String clusterId,Boolean isAll) throws Exception;
 
     /**
-     * 根据集群id删除集群配额列表
+     * 根据集群id软删除集群配额列表
      * @param clusterId
      * @throws Exception
      */
-    public void deleteClusterQuotaByClusterId(String clusterId) throws Exception;
+    public void pauseClusterQuotaByClusterId(String clusterId) throws Exception;
+
+    /**
+     * 根据集群id恢复集群配额列表
+     * @param clusterId
+     * @throws Exception
+     */
+    public void renewClusterQuotaByClusterId(String clusterId) throws Exception;
 
     int deleteByClusterId(String clusterId);
 }

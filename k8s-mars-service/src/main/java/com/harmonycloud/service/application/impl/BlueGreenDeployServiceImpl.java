@@ -18,6 +18,7 @@ import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.BlueGreenDeployService;
 import com.harmonycloud.service.application.PersistentVolumeService;
+import com.harmonycloud.service.application.VersionControlService;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
@@ -73,13 +74,14 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
     private PodService podService;
 
     @Override
-    public ActionReturnUtil deployByBlueGreen(UpdateDeployment updateDeployment, String userName) throws Exception {
+    public ActionReturnUtil deployByBlueGreen(UpdateDeployment updateDeployment, String userName, String projectId) throws Exception {
         // 参数判空
         if (Objects.isNull(updateDeployment) || StringUtils.isBlank(updateDeployment.getNamespace())
                 || CollectionUtils.isEmpty(updateDeployment.getContainers())
                 || StringUtils.isBlank(updateDeployment.getInstance())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
+        updateDeployment.setProjectId(projectId);
         String namespace = updateDeployment.getNamespace();
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(updateDeployment.getNamespace());
         if (Objects.isNull(cluster)) {
@@ -113,6 +115,7 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
                             dep.getSpec().getTemplate().getMetadata().setLabels(podLabels);
                             depLabels.put(blueGreenLabel, name + "-" + version);
                             dep.getMetadata().setLabels(depLabels);
+                            currentLabel = name + "-" + version;
                             isExistLabel = true;
                             break;
                         }
@@ -123,7 +126,7 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         if (!isExistLabel) {
             throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_BLUE_GREEN_FAILURE);
         }
-        checkPvAndCreateVolume(updateDeployment.getContainers(), name, namespace, cluster);
+        checkPvAndCreateVolume(updateDeployment.getContainers(), name, namespace, cluster, projectId);
 
         // 创建configmap
         Map<String, String> containerToConfigMap = createConfigmaps(updateDeployment, cluster);
@@ -146,6 +149,7 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         headers.put("Content-Type", "application/json");
         RequestAttributes request = RequestContextHolder.currentRequestAttributes();
         int replicas = Integer.valueOf(updateDeployment.getInstance());
+        final String newBlueGreenLabel = currentLabel;
         ThreadPoolExecutorFactory.executor.execute(new Runnable() {
 
             @Override
@@ -162,31 +166,40 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
                             continue;
                         }
                         Deployment updatingDep = JsonUtil.jsonToPojo(dp.getBody(), Deployment.class);
-                        if (updatingDep.getStatus() != null) {
-                            System.out.println("更新的实例数量..." + updatingDep.getStatus().getUpdatedReplicas());
+
+                        //根据当前deployment的label获取rs,如果存在rs,就设置成paused
+                        Map<String, Object> bodys = new HashMap<String, Object>();
+                        bodys.put("labelSelector", "app=" + name + CommonConstant.COMMA +
+                                blueGreenLabel + CommonConstant.EQUALITY_SIGN + newBlueGreenLabel);
+                        K8SClientResponse rsResponse = rsService.doRsByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
+                        if (!HttpStatusUtil.isSuccessStatus(rsResponse.getStatus())) {
+                            logger.error("蓝绿发布获取rs报错，{}", rsResponse.getBody());
+                            continue;
                         }
-                        // 升级的实例数达到原本的实例个数
-                        if (updatingDep.getStatus() != null && updatingDep.getStatus().getUpdatedReplicas() != null
-                                && updatingDep.getStatus().getUpdatedReplicas() == replicas) {
+                        ReplicaSetList rsList = K8SClient.converToBean(rsResponse, ReplicaSetList.class);
+                        List<ReplicaSet> replicaSets = rsList.getItems();
+                        if (CollectionUtils.isNotEmpty(replicaSets)) {
                             // 暂停升级参数设置
                             if (updatingDep.getSpec() == null) {
                                 continue;
                             }
                             updatingDep.getSpec().setPaused(true);
-                            Map<String, Object> bodys = CollectionUtil.transBean2Map(updatingDep);
+                            Map<String, Object> depBodys = CollectionUtil.transBean2Map(updatingDep);
 
                             // 暂停升级
                             Map<String, Object> headers = new HashMap<>();
                             headers.put("Content-Type", "application/json");
-                            K8SClientResponse pauseRes = dpService.doSpecifyDeployment(namespace, name, headers, bodys,
+                            K8SClientResponse pauseRes = dpService.doSpecifyDeployment(namespace, name, headers, depBodys,
                                     HTTPMethod.PUT, cluster);
                             if (!HttpStatusUtil.isSuccessStatus(pauseRes.getStatus())) {
                                 logger.error("蓝绿发布暂停Deployment报错，{}", pauseRes.getBody());
                             }
                             break;
                         } else if (updatingDep.getStatus() != null && updatingDep.getStatus().getReplicas() != null
-                                && updatingDep.getStatus().getReplicas() == replicas) {
+                                && updatingDep.getStatus().getReplicas() == replicas*CommonConstant.NUM_TWO) {
                             break;
+                        } else {
+                            continue;
                         }
                     }
                 } catch (Exception e) {
@@ -202,7 +215,6 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
             logger.error("蓝绿发布失败", putRes.getBody());
             throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_BLUE_GREEN_FAILURE);
         }
-        updateServiceSelector(namespace, name, cluster, dep, false);
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -338,6 +350,13 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
             logger.error("取消deployment的pause", dpUpdate.getBody());
             throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_BLUE_GREEN_ROLLBACK_FAILURE);
         }
+        K8SClientResponse dpNew = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(dpNew.getStatus())) {
+            logger.error("获取deployment失败", dpNew.getBody());
+            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_BLUE_GREEN_ROLLBACK_FAILURE);
+        }
+        Deployment depNew = JsonUtil.jsonToPojo(dpNew.getBody(), Deployment.class);
+        checkPvcInNewAndOldDeployment(depNew.getSpec().getTemplate(), namespace, name, cluster);
         updateServiceSelector(namespace, name, cluster, dep, false);
         return ActionReturnUtil.returnSuccess();
     }
@@ -626,7 +645,13 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
             logger.error("升级到新版本Deployment报错");
             throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_BLUE_GREEN_UPDATE_FAILURE);
         }
-
+        K8SClientResponse dpNew = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(dpNew.getStatus())) {
+            logger.error("获取deployment失败", dpNew.getBody());
+            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_BLUE_GREEN_ROLLBACK_FAILURE);
+        }
+        Deployment depNew = JsonUtil.jsonToPojo(dpNew.getBody(), Deployment.class);
+        checkPvcInNewAndOldDeployment(depNew.getSpec().getTemplate(), namespace, name, cluster);
         // 更新service的selector
         updateServiceSelector(namespace, name, cluster, dep, true);
     }
@@ -641,7 +666,7 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
      * @throws Exception
      */
     private void checkPvAndCreateVolume(List<UpdateContainer> updateContainers, String name, String namespace,
-                                        Cluster cluster) throws Exception {
+                                        Cluster cluster, String projectId) throws Exception {
         // 获取pvc信息
         Map<String, Object> label = new HashMap<>();
         label.put("labelSelector", "app=" + name);
@@ -656,42 +681,23 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         if (Objects.nonNull(pvcList) && CollectionUtils.isNotEmpty(pvcList.getItems())) {
             for (PersistentVolumeClaim onePvc : pvcList.getItems()) {
                 String pvc = onePvc.getMetadata().getName();
-                boolean boo = true;
                 for (UpdateContainer container : updateContainers) {
                     if (container.getStorage() != null && container.getStorage().size() > 0) {
                         boolean flag = true;
                         for (PersistentVolumeDto pv : container.getStorage()) {
                             if (Constant.VOLUME_TYPE_PV.equals(pv.getType())) {
                                 if (pvc.equals(pv.getPvcName())) {
-                                    boo = false;
                                     flag = false;
                                 }
                                 if (flag) {
+                                    pv.setVolumeName(pv.getPvcName());
+                                    pv.setProjectId(projectId);
+                                    pv.setNamespace(namespace);
+                                    pv.setServiceName(name);
                                     volumeSerivce.createVolume(pv);
                                 }
                             }
                         }
-                    }
-                }
-                if (boo) {
-                    K8SURL url = new K8SURL();
-                    url.setName(onePvc.getMetadata().getName()).setNamespace(namespace)
-                            .setResource(Resource.PERSISTENTVOLUMECLAIM);
-                    Map<String, Object> headers = new HashMap<>();
-                    headers.put("Content-Type", "application/json");
-                    Map<String, Object> bodys = new HashMap<>();
-                    bodys.put("gracePeriodSeconds", 1);
-                    K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys,
-                            cluster);
-                    if (HttpStatusUtil.isSuccessStatus(response.getStatus()) && onePvc.getSpec() != null
-                            && onePvc.getSpec().getVolumeName() != null) {
-                        // update pv
-                        String pvname = onePvc.getSpec().getVolumeName();
-                        PersistentVolume pv = pvService.getPvByName(pvname, cluster);
-                        volumeSerivce.updatePV(pv, cluster);
-                    } else {
-                        UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-                        throw new MarsRuntimeException(status.getMessage());
                     }
                 }
             }
@@ -700,6 +706,10 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
                 if (container.getStorage() != null && container.getStorage().size() > 0) {
                     for (PersistentVolumeDto pv : container.getStorage()) {
                         if (Constant.VOLUME_TYPE_PV.equals(pv.getType())) {
+                            pv.setVolumeName(pv.getPvcName());
+                            pv.setProjectId(projectId);
+                            pv.setServiceName(name);
+                            pv.setNamespace(namespace);
                             volumeSerivce.createVolume(pv);
                         }
                     }
@@ -766,4 +776,65 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         return containerToConfigmapMap;
     }
 
+    private void checkPvcInNewAndOldDeployment(PodTemplateSpec podTemplateSpec, String namespace, String name, Cluster cluster) throws Exception {
+        List<Volume> rollbackVolumes = new ArrayList<>();
+        if (null != podTemplateSpec.getSpec() && null != podTemplateSpec.getSpec().getVolumes()) {
+            rollbackVolumes = podTemplateSpec.getSpec().getVolumes();
+        }
+
+        //将PersistentVolumeClaim转成PersistentVolumeDto对象
+        List<PersistentVolumeDto> pvDtoList = new ArrayList<>();
+        rollbackVolumes.stream().forEach(rv -> {
+            if (null != rv.getPersistentVolumeClaim()) {
+                PersistentVolumeClaimVolumeSource pvc = rv.getPersistentVolumeClaim();
+                PersistentVolumeDto pvDto = new PersistentVolumeDto();
+                pvDto.setNamespace(namespace);
+                pvDto.setReadOnly(pvc.isReadOnly());
+                pvDto.setPvcName(pvc.getClaimName());
+                pvDtoList.add(pvDto);
+            }
+        });
+
+        // 获取pvc信息
+        Map<String, Object> label = new HashMap<>();
+        label.put("labelSelector", "app=" + name);
+        K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, label, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
+            throw new MarsRuntimeException(status.getMessage());
+        }
+        PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(pvcRes.getBody(), PersistentVolumeClaimList.class);
+        if (Objects.nonNull(pvcList) && CollectionUtils.isNotEmpty(pvcList.getItems())) {
+            if (CollectionUtils.isNotEmpty(pvDtoList)) {
+                for (PersistentVolumeDto onePv : pvDtoList) {
+                    for (PersistentVolumeClaim onePvc : pvcList.getItems()) {
+                        boolean flag = true;
+                        String pvc = onePvc.getMetadata().getName();
+                        if (pvc.equals(onePv.getPvcName())) {
+                            flag = false;
+                        }
+                        if (flag) {
+                            pvcService.deletePVC(namespace, onePvc.getMetadata().getName(), cluster);
+                            if (onePvc.getSpec() != null && onePvc.getSpec().getVolumeName() != null) {
+                                // update pv
+                                String pvName = onePvc.getSpec().getVolumeName();
+                                PersistentVolume pv = pvService.getPvByName(pvName, cluster);
+                                volumeSerivce.updatePV(pv, cluster);
+                            }
+                        }
+                    }
+                }
+            } else {
+                for (PersistentVolumeClaim onePvc : pvcList.getItems()) {
+                    pvcService.deletePVC(namespace, onePvc.getMetadata().getName(), cluster);
+                    if (onePvc.getSpec() != null && onePvc.getSpec().getVolumeName() != null) {
+                        // update pv
+                        String pvName = onePvc.getSpec().getVolumeName();
+                        PersistentVolume pv = pvService.getPvByName(pvName, cluster);
+                        volumeSerivce.updatePV(pv, cluster);
+                    }
+                }
+            }
+        }
+    }
 }

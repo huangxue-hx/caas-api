@@ -156,9 +156,6 @@ public class LogSnapshotRuleController {
     @RequestMapping(value="snapshots",method = RequestMethod.GET)
     public ActionReturnUtil listSnapshots(@RequestParam(value = "clusterId",required = false) String clusterId,
                                            @RequestParam(value = "snapshotNames", required = false) String[] snapshotNames) throws Exception{
-        if (StringUtils.isAnyBlank(clusterId)){
-            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
-        }
         List<SnapshotInfoDto> snapshotInfos = esService.listSnapshots(clusterId, snapshotNames);
         return ActionReturnUtil.returnSuccessWithData(snapshotInfos);
     }

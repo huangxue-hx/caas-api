@@ -298,7 +298,7 @@ public class UserController {
     @RequestMapping(value = "/current", method = RequestMethod.GET)
     public ActionReturnUtil getCurrentuser(HttpServletRequest request, HttpServletResponse response,
                                            @RequestParam(value = "isLogin", required = false) boolean isLogin) throws Exception {
-        logger.info("获取当前用户");
+//        logger.info("获取当前用户");
         Map res = userService.getcurrentUser(request, response);
         return ActionReturnUtil.returnSuccessWithData(res);
     }
@@ -694,4 +694,11 @@ public class UserController {
         in.close();
         return ActionReturnUtil.returnSuccess();   
 	}
+
+    @RequestMapping(value="/switchLanguage",method=RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil switchLanguage(@RequestParam(value="language") String language) throws Exception{
+        session.setAttribute("language", language);
+        return ActionReturnUtil.returnSuccess();
+    }
 }

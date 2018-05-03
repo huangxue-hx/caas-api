@@ -11,7 +11,7 @@ public interface ApplicationServiceMapper {
 
     int selectByIdList(@Param("idList") List<Integer> idList);
 
-    void deleteApplicationService(String name);
+    void deleteApplicationService(@Param("name")String name, @Param("projectId")String projectId, @Param("clusterId")String clusterId);
     
     List<ApplicationService> listApplicationServiceByAppTemplatesId(@Param("applicationId")int applicationId);
     

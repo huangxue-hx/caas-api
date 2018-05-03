@@ -11,6 +11,7 @@ import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.common.HarborHttpsClientUtil;
 import com.harmonycloud.service.platform.bean.harbor.*;
 import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.platform.service.harbor.HarborService;
@@ -18,6 +19,8 @@ import com.harmonycloud.service.platform.service.harbor.HarborUserService;
 import org.apache.commons.lang3.StringUtils;
 import com.harmonycloud.service.platform.client.HarborClient;
 import com.harmonycloud.service.platform.service.harbor.HarborReplicationService;
+import org.apache.http.HttpStatus;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -74,7 +77,7 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
 
 		String url = HarborClient.getHarborUrl(harborServer) + "/api/targets";
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
-		return HttpsClientUtil.httpPostRequestForHarbor(url, headers, convertHarborReplicationTarget(harborReplicationTarget));
+		return HarborHttpsClientUtil.httpPostRequestForHarbor(url, headers, convertHarborReplicationTarget(harborReplicationTarget));
 
 	}
 
@@ -106,7 +109,7 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
 		}
 		String url = HarborClient.getHarborUrl(harborServer) + "/api/targets/" + harborReplicationTarget.getId();
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
-		return HttpsClientUtil.httpPutRequestForHarbor(url, headers, convertHarborReplicationTarget(harborReplicationTarget));
+		return HarborHttpsClientUtil.httpPutRequestForHarbor(url, headers, convertHarborReplicationTarget(harborReplicationTarget));
 
 	}
 
@@ -126,7 +129,17 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
 
         Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 
-        return HttpsClientUtil.httpPostRequestForHarbor(url, headers,null);
+		ActionReturnUtil response = HarborHttpsClientUtil.httpPostRequestForHarbor(url, headers,null);
+		String loginUrl = endpoint + "/login";
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put("principal", targetusername);
+		params.put("password", targetuserpassword);
+		CloseableHttpResponse logResponse = HarborHttpsClientUtil.doPostWithLogin(loginUrl, params, null);
+		Integer statusCode = logResponse.getStatusLine().getStatusCode();
+		if(statusCode == HttpStatus.SC_MOVED_PERMANENTLY){
+			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.HARBOR_PROTOCOL_INVALID);
+		}
+		return response;
 	}
 	 /**
      * 删除跨harbor同步对象
@@ -141,7 +154,13 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
 		
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 
-        return HttpsClientUtil.httpDoDelete(url, null, headers);
+		ActionReturnUtil actionReturnUtil = HarborHttpsClientUtil.httpDoDelete(url, null, headers);
+		if(!actionReturnUtil.isSuccess() && actionReturnUtil.getData() != null){
+			if(actionReturnUtil.getData().toString().contains("used by policies")){
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.REPLICATION_TARGET_USING);
+			}
+		}
+		return actionReturnUtil;
 	}
 
 	/**
@@ -157,7 +176,7 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
 
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 
-		return HttpsClientUtil.httpGetRequest(url, null, headers);
+		return HarborHttpsClientUtil.httpGetRequest(url, null, headers);
 	}
 
 	/**
@@ -177,7 +196,7 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
 		for(HarborServer harborServer : harborServers) {
 			String url = HarborClient.getHarborUrl(harborServer) + "/api/targets";
 			Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
-			ActionReturnUtil listResponse = HttpsClientUtil.httpGetRequest(url, headers, null);
+			ActionReturnUtil listResponse = HarborHttpsClientUtil.httpGetRequest(url, headers, null);
 			if (!listResponse.isSuccess()) {
 				return listResponse;
 			}
@@ -241,7 +260,7 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
 	      Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 
 	      //return HttpsClientUtil.httpPostRequestForHarborCreate(url, headers, convertHarborReplicationPolicy(harborReplicationPolicy));
-		 ActionReturnUtil result = HttpsClientUtil.httpPostRequestForHarbor(url, headers, convertHarborReplicationPolicy(harborReplicationPolicy));
+		 ActionReturnUtil result = HarborHttpsClientUtil.httpPostRequestForHarbor(url, headers, convertHarborReplicationPolicy(harborReplicationPolicy));
 		 if ((boolean) result.get("success") != true){
 			 if(result.get("data").toString().contains("policy already exists with the same project and target")) {
 				 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.REPLICATION_EXIST);
@@ -261,7 +280,7 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
 			
 	      Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 
-		 ActionReturnUtil result =  HttpsClientUtil.httpDoDelete(url, null, headers);
+		 ActionReturnUtil result =  HarborHttpsClientUtil.httpDoDelete(url, null, headers);
 		 if ((boolean) result.get("success") != true){
 			 if(result.get("data").toString().contains("plicy is enabled")) {
 				 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.REPLICATION_ENABLE);
@@ -300,7 +319,7 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
 			 params = new HashMap<>();
 			 params.put("project_id", harborProjectID);
 		 }
-		 ActionReturnUtil response = HttpsClientUtil.httpGetRequest(url, headers, params);
+		 ActionReturnUtil response = HarborHttpsClientUtil.httpGetRequest(url, headers, params);
 		 if(response.isSuccess() && response.getData() != null){
 			 List<HarborPolicyDetail> policyDetailList = this.getPolicyDetailList(response.getData().toString());
 			 return policyDetailList;
@@ -322,7 +341,7 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
 		Map<String, Object> params = new HashMap<>();
 		params.put("target_id", targetID);
 
-		return HttpsClientUtil.httpGetRequest(url, headers,params);
+		return HarborHttpsClientUtil.httpGetRequest(url, headers,params);
 	   }
 
 	/**
@@ -340,7 +359,7 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
         Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 		Map<String, Object> params = new HashMap<>();
 		params.put("enabled",enabled);
-        return HttpsClientUtil.httpPutRequestForHarbor(url, headers, params);
+        return HarborHttpsClientUtil.httpPutRequestForHarbor(url, headers, params);
 	}
 
 	
@@ -356,7 +375,7 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
 
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 
-		return HttpsClientUtil.httpGetRequest(url, headers, params);
+		return HarborHttpsClientUtil.httpGetRequest(url, headers, params);
 	}
 	 /**
      * 查看harbor同步任务的具体子任务job的日志
@@ -370,7 +389,7 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
 
         Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 
-        return HttpsClientUtil.httpGetRequest(url, headers, null);
+        return HarborHttpsClientUtil.httpGetRequest(url, headers, null);
 	}
 	/**
 	 * 生成复制镜像map
@@ -407,7 +426,7 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
 
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 
-		return HttpsClientUtil.httpPostRequestForHarbor(url, headers,convertHarborImageCopy(harborImageCopy));
+		return HarborHttpsClientUtil.httpPostRequestForHarbor(url, headers,convertHarborImageCopy(harborImageCopy));
 	}
 
 	/**
@@ -422,7 +441,7 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
 
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 
-		return HttpsClientUtil.httpGetRequest(url, headers, null);
+		return HarborHttpsClientUtil.httpGetRequest(url, headers, null);
 	}
 
 	/**
@@ -589,7 +608,7 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
 		harborReplicationPolicy.put("enabled", 0);
 		harborReplicationPolicy.put("partial", 1);
 		harborReplicationPolicy.put("image", imagePartialSyncInfo.getImages());
-		return HttpsClientUtil.httpPostRequestForHarbor(url, headers, harborReplicationPolicy);
+		return HarborHttpsClientUtil.httpPostRequestForHarbor(url, headers, harborReplicationPolicy);
 
 	}
 

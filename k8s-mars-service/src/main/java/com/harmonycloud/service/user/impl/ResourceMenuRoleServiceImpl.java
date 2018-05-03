@@ -223,11 +223,21 @@ public class ResourceMenuRoleServiceImpl implements ResourceMenuRoleService{
     public ResourceMenuRole getResourceMenuRole(Integer roleId, Integer rmid) throws Exception {
         ResourceMenuRoleExample example = this.getExample();
         example.createCriteria().andRoleIdEqualTo(roleId).andRmidEqualTo(rmid);
+        ResourceMenuRole resourceMenuRole = null;
         List<ResourceMenuRole> resourceMenuRoles = this.resourceMenuRoleMapper.selectByExample(example);
         if (CollectionUtils.isEmpty(resourceMenuRoles)){
-            throw new MarsRuntimeException(ErrorCodeMessage.ROLE_MENU_NOT_EXIST);
+            //菜单不存在创建
+            resourceMenuRole = new ResourceMenuRole();
+            resourceMenuRole.setRoleId(roleId);
+            resourceMenuRole.setRmid(rmid);
+            resourceMenuRole.setAvailable(Boolean.FALSE);
+            resourceMenuRole.setWeight(rmid);
+            resourceMenuRole.setCreateTime(new Date());
+            resourceMenuRole.setUpdateTime(new Date());
+            this.createResourceMenuRoleNative(resourceMenuRole);
+        }else {
+            resourceMenuRole = resourceMenuRoles.get(0);
         }
-        ResourceMenuRole resourceMenuRole = resourceMenuRoles.get(0);
         return resourceMenuRole;
     }
     /**

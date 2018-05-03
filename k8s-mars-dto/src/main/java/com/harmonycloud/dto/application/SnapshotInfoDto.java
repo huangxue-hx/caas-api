@@ -19,6 +19,8 @@ public class SnapshotInfoDto {
     private Version version;
     private boolean inRestore;
     private List<LogIndexDate> restoredDate;
+    private String clusterAliasName;
+    private String clusterId;
 
     public String getName() {
         return name;
@@ -123,5 +125,21 @@ public class SnapshotInfoDto {
 
     public void setRestoredDate(List<LogIndexDate> restoredDate) {
         this.restoredDate = restoredDate;
+    }
+
+    public String getClusterAliasName() {
+        return clusterAliasName;
+    }
+
+    public void setClusterAliasName(String clusterAliasName) {
+        this.clusterAliasName = clusterAliasName;
+    }
+
+    public String getClusterId() {
+        return clusterId;
+    }
+
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
     }
 }

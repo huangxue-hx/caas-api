@@ -47,12 +47,15 @@
         <if test="repoName !=null  and repoName != ''  ">
             and reponame=#{repoName}
         </if>
+        <if test="clusterId !=null  and clusterId != ''  ">
+            and cluster_id=#{clusterId}
+        </if>
         order by tags desc
     </select>
     
     <!-- 根据tenant keyword模糊查找 -->
     <select id="listConfigSearch" resultMap="configfileMap">
-        select distinct name ,reponame,project_id from configfile 
+        select distinct name,cluster_id,project_id from configfile
         <where>
           <if test="projectId !=null  and projectId != ''  ">
             project_id=#{projectId}
@@ -72,24 +75,21 @@
         </where>
     </select>
  
-    <!-- 根据租户、文件名称，repo名称查找安照时间倒叙  -->
-    <select id="listConfigByNameAsc" parameterType="java.lang.String" resultMap="configfileMap">
-        select * from configfile where project_id=#{projectId} and name=#{name}
-        <if test="repoName !=null  and repoName != ''  ">
-          and reponame=#{repoName}
-        </if>
-        order by create_time
-    </select>
- 
     <!-- 根据tenant,reponame查找listsOverview -->
-    <select id="listConfigOverview" parameterType="java.lang.String" resultMap="configfileMap">
-        select distinct name,project_id,reponame from configfile
+    <select id="listConfigOverview" resultMap="configfileMap">
+        select distinct name,project_id,cluster_id from configfile
         <where>
           <if test="projectId != null and projectId !=''">
             project_id=#{projectId}
           </if>
           <if test="repoName != null and repoName !=''">
            and reponame=#{repoName}
+          </if>
+          <if test="clusterIds !=null  and clusterIds.size > 0">
+              and cluster_id in
+              <foreach item="item" index="index" collection="clusterIds" open="(" separator="," close=")">
+                  #{item}
+              </foreach>
           </if>
         </where> 
         order by name
@@ -126,4 +126,22 @@
     	</set>
     	where id = #{id}
   </update>
+
+    <select id="getConfigByNameAndTag" resultMap="configfileMap">
+        select * from configfile
+        <where>
+            <if test="projectId !=null  and projectId != ''  ">
+                project_id=#{projectId}
+            </if>
+            <if test="name !=null  and name != ''  ">
+                and name=#{name}
+            </if>
+            <if test="tag !=null  and tag != ''  ">
+                and tags=#{tag}
+            </if>
+            <if test="clusterId != null and clusterId != ''">
+                and cluster_id=#{clusterId}
+            </if>
+        </where>
+    </select>
 </mapper>

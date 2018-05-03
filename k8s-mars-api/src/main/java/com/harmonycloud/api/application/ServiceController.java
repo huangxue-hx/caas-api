@@ -64,7 +64,6 @@ public class ServiceController {
                                             @RequestParam(value = "clusterId", required = false) String clusterId,
                                             @RequestParam(value = "isPubilc", required = false) boolean isPublic,
                                             @PathVariable(value = "projectId") String projectId) throws Exception {
-        logger.info("get service templates");
         return serviceService.listServiceTemplate(name, clusterId, isPublic, projectId);
     }
 
@@ -88,7 +87,6 @@ public class ServiceController {
     @RequestMapping(value = "/svctemplates/images", method = RequestMethod.GET)
     public ActionReturnUtil listDeploymentsByImage(@RequestParam(value = "name", required = false) String name, @RequestParam(value = "tenant", required = false) String tenant,
             @RequestParam(value = "image", required = true) String image, @PathVariable(value = "projectId") String projectId) throws Exception {
-        logger.info("get service template by image");
         return serviceService.listTemplateByImage(name, tenant, image, projectId);
     }
 
@@ -97,7 +95,7 @@ public class ServiceController {
      *
      * @param name
      * 
-     * @param tenant
+     * @param clusterId
      * 
      * @return
      * 
@@ -110,7 +108,6 @@ public class ServiceController {
                                                        @RequestParam(value = "clusterId", required = false) String clusterId,
                                                        @RequestParam(value = "tag", required = false) String tag,
                                                        @PathVariable(value = "projectId") String projectId) throws Exception {
-        logger.info("get service template detail");
         return ActionReturnUtil.returnSuccessWithData(serviceService.getSpecificTemplate(name, tag, clusterId, projectId));
     }
 
@@ -145,10 +142,12 @@ public class ServiceController {
      */
     @ResponseBody
     @RequestMapping(value = "/svctemplates/{templateName}",method = RequestMethod.DELETE)
-    public ActionReturnUtil deleteServiceTemplate(@PathVariable(value = "templateName") String name) throws Exception {
+    public ActionReturnUtil deleteServiceTemplate(@PathVariable(value = "templateName") String name,
+                                                  @PathVariable(value = "projectId") String projectId,
+                                                  @RequestParam(value = "clusterId") String clusterId) throws Exception {
         logger.info("delete service template");
         String userName = (String) session.getAttribute("username");
-        return serviceService.deleteServiceTemplate(name, userName);
+        return serviceService.deleteServiceTemplate(name, userName, projectId, clusterId);
     }
 
 
@@ -169,7 +168,6 @@ public class ServiceController {
                                                 @RequestParam(value = "clusterId", required = false) String clusterId,
                                                 @RequestParam(value = "isPubilc", required = false) boolean isPublic,
                                                 @PathVariable(value = "projectId") String projectId) throws Exception {
-        logger.info("search service template");
         return serviceService.listServiceTemplate(searchKey, searchValue, clusterId, isPublic, projectId);
     }
 
@@ -237,7 +235,6 @@ public class ServiceController {
                                      @RequestParam(value = "tenant") String tenant,
                                      @PathVariable(value = "projectId") String projectId)
             throws Exception {
-        logger.info("get service template by tenant");
         return serviceService.listTemplateTagsByName(name, tenant, projectId);
     }
 
@@ -266,9 +263,10 @@ public class ServiceController {
 
     @ResponseBody
     @RequestMapping(value = "/svctemplates/{templateName}/checkname", method = RequestMethod.GET)
-    public ActionReturnUtil checkServiceTemplateName(@PathVariable(value = "templateName") String templateName) throws Exception {
-        logger.info("校验服务模板重名");
-        return serviceService.checkServiceTemplateName(templateName);
+    public ActionReturnUtil checkServiceTemplateName(@PathVariable(value = "templateName") String templateName,
+                                                     @PathVariable(value = "projectId") String projectId,
+                                                     @RequestParam(value = "clusterId") String clusterId) throws Exception {
+        return serviceService.checkServiceTemplateName(templateName, projectId, clusterId);
     }
     
 }

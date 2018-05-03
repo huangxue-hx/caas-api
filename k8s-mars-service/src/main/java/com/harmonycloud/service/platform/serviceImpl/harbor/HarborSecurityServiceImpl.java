@@ -4,18 +4,13 @@ import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.HarborSecurityFlagNameEnum;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;
-import com.harmonycloud.k8s.bean.RoleBinding;
-import com.harmonycloud.k8s.bean.RoleBindingList;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import com.harmonycloud.k8s.service.RoleBindingService;
-import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.cluster.ClusterService;
-import com.harmonycloud.service.platform.bean.TenantHarborDetail;
+import com.harmonycloud.service.common.HarborHttpsClientUtil;
 import com.harmonycloud.service.platform.bean.harbor.HarborManifest;
 import com.harmonycloud.service.platform.bean.harbor.HarborSecurityClairStatistcs;
 import com.harmonycloud.service.platform.client.HarborClient;
-import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.platform.service.harbor.HarborSecurityService;
 
@@ -26,12 +21,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static com.harmonycloud.common.Constant.CommonConstant.SLASH;
 
 /**
  * Created by zsl on 2017/1/22.
@@ -72,7 +64,7 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
         params.put("flag_name", flagName);
         params.put("name", name);
 
-        return HttpsClientUtil.httpGetRequest(url, headers, params);
+        return HarborHttpsClientUtil.httpGetRequest(url, headers, params);
     }
 
     /**
@@ -97,7 +89,7 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
         Map<String, Object> params = new HashMap<>();
         params.put("repo_name", repoName);
 
-        return HttpsClientUtil.httpGetRequest(url, headers, params);
+        return HarborHttpsClientUtil.httpGetRequest(url, headers, params);
     }
 
     /**
@@ -122,7 +114,7 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
         Map<String, Object> params = new HashMap<>();
         params.put("repo_name", repoName);
 
-        return HttpsClientUtil.httpGetRequest(url, headers, params);
+        return HarborHttpsClientUtil.httpGetRequest(url, headers, params);
     }
 
     /**
@@ -156,11 +148,31 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
     @Override
     public ActionReturnUtil manifestsOfTag(Integer repositoryId, String imageName, String tag) throws Exception {
         ImageRepository imageRepository = harborProjectService.findRepositoryById(repositoryId);
-        return this.manifestsOfTag(imageRepository.getHarborHost(), imageName,tag);
+        return this.getManifestsDetail(imageRepository.getHarborHost(), imageName,tag);
     }
 
     /**
-     * tag详情
+     * 获取tag manifest信息，漏洞数量以及各个包的漏洞信息
+     *
+     * @param repoName repo name
+     * @param tag      tag
+     * @return
+     */
+    @Override
+    public ActionReturnUtil getManifestsDetail(String harborHost, String repoName, String tag) throws Exception {
+        ActionReturnUtil manifestsResponse = harborService.getManifests(harborHost, repoName, tag);
+
+        if (manifestsResponse.isSuccess()) {
+            if (manifestsResponse.get("data") != null) {
+                return ActionReturnUtil.returnSuccessWithData(getHarborManifestResp(harborHost,
+                        manifestsResponse.get("data").toString(), repoName, tag,true));
+            }
+        }
+        return manifestsResponse;
+    }
+
+    /**
+     * 获取tag manifest信息以及漏洞数量
      *
      * @param repoName repo name
      * @param tag      tag
@@ -173,10 +185,10 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
         if (manifestsResponse.isSuccess()) {
             if (manifestsResponse.get("data") != null) {
                 return ActionReturnUtil.returnSuccessWithData(getHarborManifestResp(harborHost,
-                        manifestsResponse.get("data").toString(), repoName, tag));
+                        manifestsResponse.get("data").toString(), repoName, tag,false));
             }
         }
-        return ActionReturnUtil.returnError();
+        return manifestsResponse;
     }
 
     /**
@@ -240,16 +252,19 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
      * @param dataJson json格式返回的data
      * @return
      */
-    private HarborManifest getHarborManifestResp(String harborHost, String dataJson, String repoName, String tag) throws Exception {
+    private HarborManifest getHarborManifestResp(String harborHost, String dataJson, String repoName, String tag, boolean withPackage) throws Exception {
         HarborManifest harborManifest = null;
         if (StringUtils.isNotEmpty(dataJson)) {
             ActionReturnUtil vulnerabilitySummaryResponse = this.vulnerabilitySummary(harborHost, repoName, tag);
-            ActionReturnUtil vulnerabilitiesByPackageResponse = this.vulnerabilitiesByPackage(harborHost, repoName, tag);
             harborManifest = new HarborManifest();
             harborManifest.setTag(tag);
             Map<String, Object> manifestMap = JsonUtil.convertJsonToMap(dataJson);
             if (manifestMap.get("Author") != null) {
                 harborManifest.setAuthor(manifestMap.get("Author").toString());
+            }
+            if (manifestMap.get("manifest") != null) {
+                String digest = ((Map)((Map)manifestMap.get("manifest")).get("config")).get("digest").toString();
+                harborManifest.setDigest(digest);
             }
             if (manifestMap.get("config") != null) {
                 String manifestTime = manifestMap.get("config").toString();
@@ -264,12 +279,40 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
             }
             if (vulnerabilitySummaryResponse.isSuccess()) {
                 if (vulnerabilitySummaryResponse.get("data") != null) {
-                    harborManifest.setVulnerabilitySummary(JsonUtil.convertJsonToMap(vulnerabilitySummaryResponse.get("data").toString()));
+                    //将严重漏洞归到高危漏洞
+                    String result = vulnerabilitySummaryResponse.get("data").toString().replaceAll("\"severity\": \"Critical\"", "\"severity\": \"High\"");
+                    Map<String, Object> resultMap = JsonUtil.convertJsonToMap(result);
+                    if(resultMap.get("vulnerability-suminfo") != null){
+                        Map vulnerabilitySuminfo = (Map)resultMap.get("vulnerability-suminfo");
+                        if(vulnerabilitySuminfo.get("high-level-sum") != null && vulnerabilitySuminfo.get("critical-level-sum")!=null){
+                            Integer highNum = (int)vulnerabilitySuminfo.get("high-level-sum") + (int)vulnerabilitySuminfo.get("critical-level-sum");
+                            vulnerabilitySuminfo.put("high-level-sum",highNum);
+                        }
+                        resultMap.put("vulnerability-suminfo", vulnerabilitySuminfo);
+                    }
+                    harborManifest.setVulnerabilitySummary(resultMap);
                 }
             }
-            if (vulnerabilitiesByPackageResponse.isSuccess()) {
-                if (vulnerabilitySummaryResponse.get("data") != null) {
-                    harborManifest.setVulnerabilitiesByPackage(JsonUtil.convertJsonToMap(vulnerabilitiesByPackageResponse.get("data").toString()));
+            //需要获取tag详情的时候查询VulnerabilitiesByPackage
+            if(withPackage) {
+                ActionReturnUtil vulnerabilitiesByPackageResponse = this.vulnerabilitiesByPackage(harborHost, repoName, tag);
+                if (vulnerabilitiesByPackageResponse.isSuccess() && vulnerabilitiesByPackageResponse.get("data") != null) {
+                    //将严重漏洞归到高危漏洞
+                    Map<String, Object> resultMap = JsonUtil.convertJsonToMap(vulnerabilitiesByPackageResponse.get("data").toString());
+                    List<Map<String, Object>> packages = (List)resultMap.get("image_packages");
+                    for(Map<String, Object> map : packages){
+                        Map<String, Object> vulnerabilityMap = (Map)map.get("vulnerabilitles");
+                        if(vulnerabilityMap.get("high_level") != null && vulnerabilityMap.get("critical_level") != null){
+                            vulnerabilityMap.put("high_level", (int)vulnerabilityMap.get("high_level") + (int)vulnerabilityMap.get("critical_level"));
+                        }
+
+                    }
+                    Map<String, Object> packagesSummary = (Map)resultMap.get("packages_summary");
+                    Map<String, Object> levelSummaryMap = (Map)packagesSummary.get("level_summary");
+                    if(levelSummaryMap.get("high_level") != null && levelSummaryMap.get("critical_level") != null){
+                        levelSummaryMap.put("high_level", (int)levelSummaryMap.get("high_level") + (int)levelSummaryMap.get("critical_level"));
+                    }
+                    harborManifest.setVulnerabilitiesByPackage(resultMap);
                 }
             }
         }
@@ -281,7 +324,7 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
         HarborServer harborServer = clusterService.findHarborByHost(harborHost);
 		String url = HarborClient.getHarborUrl(harborServer) + "/api/internal/syncregistry";
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
-	    return HttpsClientUtil.httpPostRequestForHarbor(url, headers, null);
+	    return HarborHttpsClientUtil.httpPostRequestForHarbor(url, headers, null);
 	}
 
 }

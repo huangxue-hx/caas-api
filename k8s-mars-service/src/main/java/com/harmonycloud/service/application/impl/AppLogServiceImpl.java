@@ -15,7 +15,6 @@ import com.harmonycloud.service.application.AppLogService;
 import com.harmonycloud.service.application.EsService;
 import com.harmonycloud.service.cluster.ClusterService;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.time.DateUtils;
 import org.elasticsearch.cluster.metadata.RepositoryMetaData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,12 +25,12 @@ import org.springframework.util.CollectionUtils;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.stream.Stream;
 
 @Service
 public class AppLogServiceImpl implements AppLogService {
 
     private static Logger LOGGER = LoggerFactory.getLogger(AppLogServiceImpl.class);
+    private static final int TIME_OFFSET_HOUT = -1;
 
     @Autowired
     private LogBackupRuleMapper logBackupRuleMapper;
@@ -225,7 +224,7 @@ public class AppLogServiceImpl implements AppLogService {
         LogBackupRule commonRule = getCommonRule();
         List<Cluster> clusters = clusterService.listCluster();
         // 确定当前时间，防止重复获取时得到不同的值
-        final Date currentDate = DateUtil.getCurrentUtcTime();
+        final Date currentDate = new Date();
         final Date nullDate = DateUtil.LongToDate(CommonConstant.ORIGINAL_DATE_MILL_SECOND);
         for (Cluster cluster : clusters) {
             List<String> existIndexes = esService.getIndexes(cluster.getId());
@@ -247,9 +246,11 @@ public class AppLogServiceImpl implements AppLogService {
             if (null != snapshotInfoDto){
                 lastSnapshotDate = DateUtil.LongToDate(snapshotInfoDto.getStartTime());
             }
-            // 在duration天数之前做过备份，则现在不需要做
+            // 在duration天数之前做过备份，则现在不需要做,
+            // 往前一小时避免不同服务器时间偏差, 同时需要考虑创建日志快照比定时任务开始运行要晚一点
+            Date date = DateUtil.addHour(DateUtil.addDay(lastSnapshotDate, currentRule.getDaysDuration()),TIME_OFFSET_HOUT);
             if(null != lastSnapshotDate
-                    && DateUtil.addDay(lastSnapshotDate, currentRule.getDaysDuration()).after(currentDate)){
+                    && date.after(currentDate)){
                 continue;
             }
             // 计算哪些时间的索引要备份

@@ -38,8 +38,8 @@ public class ApplicationTemplateServiceImpl implements ApplicationTemplateServic
     }
 
     @Override
-    public void deleteApplicationTemplate(String name) throws Exception {
-        applicationTemplatesMapper.deleteAppTemplate(name);
+    public void deleteApplicationTemplate(String name, String projectId, String clusterId) throws Exception {
+        applicationTemplatesMapper.deleteAppTemplate(name, projectId, clusterId);
     }
 
     @Override
@@ -141,5 +141,10 @@ public class ApplicationTemplateServiceImpl implements ApplicationTemplateServic
     public ApplicationTemplates selectByNamespaceId(String namespaceId) throws Exception {
         ApplicationTemplates applicationTemplate = applicationTemplatesMapper.selectByNamespaceId(namespaceId);
         return applicationTemplate;
+    }
+
+    @Override
+    public void deleteAppTemplateById(Integer id) throws Exception {
+        applicationTemplatesMapper.deleteApplicationTemplatesById(id);
     }
 }

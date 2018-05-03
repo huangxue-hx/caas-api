@@ -151,6 +151,21 @@ public class ClusterServiceImpl implements ClusterService {
     }
 
     @Override
+    public List<Cluster> listAllCluster(Boolean isEnable) throws Exception {
+        List<Cluster> clusters = clusterCacheManager.listCluster();
+        if(CollectionUtils.isEmpty(clusters)){
+            clusters = new ArrayList<>();
+            clusters.add(clusterCacheManager.getPlatformCluster());
+        }else{
+            clusters.add(clusterCacheManager.getPlatformCluster());
+        }
+        if(isEnable != null){
+            return clusters.stream().filter(Cluster::getIsEnable).collect(Collectors.toList());
+        }
+        return clusters;
+    }
+
+    @Override
     public List<Cluster> listCluster(String dataCenter,  Boolean isEnable, String  template ) throws Exception {
         List<Cluster> clusters = clusterCacheManager.listCluster();
         if (StringUtils.isNotBlank(template)) {
@@ -248,7 +263,7 @@ public class ClusterServiceImpl implements ClusterService {
 
                 clusterCpuCapacity = Double.parseDouble(allocatableMap.get("cpu").toString());
                 clusterMemoryCapacity = Double.parseDouble(allocatableMap.get("memoryGb").toString()) ;
-                List<TenantClusterQuota> clusterQuotas = tenantClusterQuotaService.getClusterQuotaByClusterId(cluster.getId());
+                List<TenantClusterQuota> clusterQuotas = tenantClusterQuotaService.getClusterQuotaByClusterId(cluster.getId(),false);
                 double clusterCpuAllocatedResources =0;
                 double clusterMemoryAllocatedResources =0;
                 for(TenantClusterQuota quota : clusterQuotas){
@@ -402,6 +417,7 @@ public class ClusterServiceImpl implements ClusterService {
         try {
             AssertUtil.notBlank(host, DictEnum.HARBOR_HOST);
             List<Cluster> clusters = clusterCacheManager.listCluster();
+            clusters.add(this.getPlatformCluster());
             for(Cluster cluster : clusters){
                 if(host.equals(cluster.getHarborServer().getHarborHost())){
                     return cluster.getHarborServer();
@@ -470,7 +486,7 @@ public class ClusterServiceImpl implements ClusterService {
         map.put(K8sModuleEnum.KUBE_DNS.getCode(), Constant.STATUS_NORMAL);
         map.put(K8sModuleEnum.SERVICE_LOADBALANCER.getCode(), Constant.STATUS_NORMAL);
         map.put(K8sModuleEnum.MONITOR.getCode(), Constant.STATUS_NORMAL);
-        map.put(K8sModuleEnum.NFS.getCode(), Constant.STATUS_NORMAL);
+
         Map<String, K8sModuleEnum> moduleEnumMap = K8sModuleEnum.getModuleMap();
         int abnormalCount = 0;
         for (PodDto pod : podDtoList) {
@@ -488,6 +504,8 @@ public class ClusterServiceImpl implements ClusterService {
                 }
             }
         }
+
+
         double totalCount = map.size();
         String health = String.format("%.0f", (totalCount - abnormalCount) / totalCount * PERCENT_HUNDRED);
         Map<String, Object> resultMap = new HashMap<>();

@@ -7,6 +7,7 @@
     <result column="type" jdbcType="INTEGER" property="type" />
     <result column="name" jdbcType="VARCHAR" property="name" />
     <result column="value" jdbcType="VARCHAR" property="value" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
   </resultMap>
   <sql id="Example_Where_Clause">
     <where>
@@ -38,7 +39,7 @@
     </where>
   </sql>
   <sql id="Base_Column_List">
-    id, job_id, type, name, value
+    id, job_id, type, name, value, description
   </sql>
   <select id="selectByExample" parameterType="com.harmonycloud.dao.ci.bean.ParameterExample" resultMap="BaseResultMap">
     select
@@ -73,9 +74,9 @@
   </delete>
   <insert id="insert" parameterType="com.harmonycloud.dao.ci.bean.Parameter">
     insert into cicd_parameter (id, job_id, type, 
-      name, value)
+      name, value, description)
     values (#{id,jdbcType=INTEGER}, #{jobId,jdbcType=INTEGER}, #{type,jdbcType=INTEGER}, 
-      #{name,jdbcType=VARCHAR}, #{value,jdbcType=VARCHAR})
+      #{name,jdbcType=VARCHAR}, #{value,jdbcType=VARCHAR}, #{description,jdbcType=VARCHAR})
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.ci.bean.Parameter">
     insert into cicd_parameter

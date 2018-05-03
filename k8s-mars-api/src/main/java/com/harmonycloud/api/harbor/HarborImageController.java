@@ -43,8 +43,10 @@ public class HarborImageController {
 	 */
 	@ResponseBody
 	@RequestMapping(value = "/{repositoryId}/images", method = RequestMethod.GET)
-	public ActionReturnUtil listImages(@PathVariable(value = "repositoryId") Integer repositoryId)throws Exception {
-		return harborProjectService.listImages(repositoryId);
+	public ActionReturnUtil listImages(@PathVariable(value = "repositoryId") Integer repositoryId,
+									   @RequestParam(value = "pageSize", required = false) Integer pageSize,
+									   @RequestParam(value = "pageNo", required = false) Integer pageNo)throws Exception {
+		return harborProjectService.listImages(repositoryId,  pageSize, pageNo);
 	}
 
 	/**
@@ -237,7 +239,9 @@ public class HarborImageController {
 	@ResponseBody
 	@RequestMapping(value = "/images", method = RequestMethod.GET)
 	public ActionReturnUtil listImages(@PathVariable(value="projectId") String projectId,
-										 @RequestParam(value = "clusterId") String clusterId)throws Exception {
-		return harborProjectService.listImages(projectId,clusterId);
+									   @RequestParam(value = "clusterId") String clusterId,
+									   @RequestParam(value = "pageSize", required = false) Integer pageSize,
+									   @RequestParam(value = "pageNo", required = false) Integer pageNo)throws Exception {
+		return harborProjectService.listImages(projectId,clusterId, pageSize, pageNo);
 	}
 }

@@ -15,7 +15,16 @@ public class ConfigDetailDto implements Serializable {
     private String repoName;
     private String items;
     private String path;
-    
+    private String isCreate;
+
+    public String getIsCreate() {
+        return isCreate;
+    }
+
+    public void setIsCreate(String isCreate) {
+        this.isCreate = isCreate;
+    }
+
     public String getId() {
         return id;
     }

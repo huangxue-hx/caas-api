@@ -6,7 +6,7 @@ metadata:
   name: webapi
   namespace: kube-system
 spec:
-  replicas: 1 
+  replicas: 2
   selector:
     matchLabels:
       app: webapi
@@ -28,7 +28,7 @@ spec:
         env:
         - name: "JAVA_OPTS"
           value: "-Xmx4096m"
-        name: hc
+        name: webapi
         ports:
         - containerPort: 8080 
           hostPort: 8080
@@ -37,10 +37,12 @@ spec:
         - mountPath: /usr/local/k8s-mars-api/WEB-INF/classes/constant.properties 
           subPath: constant.properties
           name: webapi-config-volume
-        - mountPath: /tmp
-          name: tmp
+        - mountPath: /home
+          name: webapi-storage
         - mountPath: /var/run
           name: docker
+        - mountPath: /opt/logs
+          name: logdirwebapi
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
@@ -53,9 +55,12 @@ spec:
           - key: constant.properties
             path: constant.properties
         name: webapi-config-volume
-      - name: tmp
-        hostPath:
-          path: /tmp
+      - name: webapi-storage
+        persistentVolumeClaim:
+          claimName: webapi-claim
       - name: docker
         hostPath:
           path: /var/run
+      - name: logdirwebapi
+        emptyDir: {}
+

@@ -26,4 +26,5 @@ public interface DockerFileMapper {
 
     int deleteByClusterId(@Param("clusterId")String clusterId);
 
+    void deleteByProjectId(String projectId);
 }

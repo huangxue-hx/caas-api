@@ -1,14 +1,16 @@
 package com.harmonycloud.service.application.impl;
 
+import com.alibaba.fastjson.JSON;
 import com.harmonycloud.common.Constant.CommonConstant;
-import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.cluster.bean.RollbackBean;
-import com.harmonycloud.dto.application.*;
+import com.harmonycloud.dto.application.CreateConfigMapDto;
+import com.harmonycloud.dto.application.PersistentVolumeDto;
 import com.harmonycloud.k8s.bean.*;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
@@ -16,21 +18,18 @@ import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
-import com.harmonycloud.k8s.util.RandomNum;
-import com.harmonycloud.service.application.VersionControlService;
 import com.harmonycloud.service.application.PersistentVolumeService;
-import com.harmonycloud.service.platform.bean.*;
+import com.harmonycloud.service.application.VersionControlService;
+import com.harmonycloud.service.platform.bean.CanaryDeployment;
+import com.harmonycloud.service.platform.bean.PvDto;
+import com.harmonycloud.service.platform.bean.UpdateContainer;
 import com.harmonycloud.service.platform.constant.Constant;
-import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.platform.convert.KubeServiceConvert;
 import com.harmonycloud.service.platform.dto.PodDto;
 import com.harmonycloud.service.platform.dto.ReplicaSetDto;
 import com.harmonycloud.service.platform.service.WatchService;
-
-import com.alibaba.fastjson.JSON;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import net.sf.json.JSONObject;
-
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.lang3.StringUtils;
@@ -41,11 +40,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Created by czm on 2017/4/26.
@@ -111,43 +108,23 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         }
         Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
 
-        K8SClientResponse rsRes = sService.doSepcifyService(detail.getNamespace(),
-                detail.getName(), null, null, HTTPMethod.GET, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus())) {
-            UnversionedStatus status = JsonUtil.jsonToPojo(rsRes.getBody(), UnversionedStatus.class);
-            throw new MarsRuntimeException(status.getMessage());
-        }
-
-        com.harmonycloud.k8s.bean.Service service = JsonUtil.jsonToPojo(rsRes.getBody(), com.harmonycloud.k8s.bean.Service.class);
-
         //获取service的pvc信息
-        Map<String, Object> label = new HashMap<String, Object>();
-        label.put("labelSelector", "app=" + detail.getName());
-        K8SClientResponse pvcRes = pvcService.doSepcifyPVC(detail.getNamespace(), label, HTTPMethod.GET, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
-            UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
-            throw new MarsRuntimeException(status.getMessage());
-        }
-        PersistentVolumeClaimList pvclist = JsonUtil.jsonToPojo(pvcRes.getBody(), com.harmonycloud.k8s.bean.PersistentVolumeClaimList.class);
-        if (Objects.nonNull(pvclist) && CollectionUtils.isNotEmpty(pvclist.getItems())) {
+        PersistentVolumeClaimList pvcList = getServicePvcList(detail.getName(), detail.getNamespace(), cluster);
+        if (Objects.nonNull(pvcList) && CollectionUtils.isNotEmpty(pvcList.getItems())) {
             if (detail.getContainers() != null) {
                 for (UpdateContainer container : detail.getContainers()) {
                     if (container.getStorage() != null && container.getStorage().size() > 0) {
                         for (PersistentVolumeDto pv : container.getStorage()) {
                             if (Constant.VOLUME_TYPE_PV.equals(pv.getType())) {
                                 boolean flag = true;
-                                for (PersistentVolumeClaim onePvc : pvclist.getItems()) {
+                                for (PersistentVolumeClaim onePvc : pvcList.getItems()) {
                                     String pvc = onePvc.getMetadata().getName();
                                     if (pvc.equals(pv.getPvcName())) {
                                         flag = false;
                                     }
                                 }
                                 if (flag) {
-                                    pv.setVolumeName(pv.getPvcName());
-                                    pv.setProjectId(detail.getProjectId());
-                                    pv.setNamespace(detail.getNamespace());
-                                    pv.setServiceName(detail.getName());
-                                    volumeSerivce.createVolume(pv);
+                                    handlePersistentVolumeClaimVolume(pv, detail.getProjectId(), detail.getName(), detail.getNamespace());
                                 }
                             }
                         }
@@ -155,7 +132,7 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
                 }
             }
             //比较两个pvc删除多的pvc
-            for (PersistentVolumeClaim onePvc : pvclist.getItems()) {
+            for (PersistentVolumeClaim onePvc : pvcList.getItems()) {
                 String pvc = onePvc.getMetadata().getName();
                 boolean boo = true;
                 if (detail.getContainers() != null && detail.getContainers().size() > 0) {
@@ -178,8 +155,8 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
                         String pvName = onePvc.getSpec().getVolumeName();
                         PersistentVolume pv = pvService.getPvByName(pvName, cluster);
                         ActionReturnUtil pvRes = volumeSerivce.updatePV(pv, cluster);
-                        if(!pvRes.isSuccess()){
-                            return  pvRes;
+                        if (!pvRes.isSuccess()) {
+                            return pvRes;
                         }
                     }
                 }
@@ -190,11 +167,7 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
                     if (container.getStorage() != null && container.getStorage().size() > 0) {
                         for (PersistentVolumeDto pv : container.getStorage()) {
                             if (Constant.VOLUME_TYPE_PV.equals(pv.getType())) {
-                                pv.setVolumeName(pv.getPvcName());
-                                pv.setProjectId(detail.getProjectId());
-                                pv.setServiceName(detail.getName());
-                                pv.setNamespace(detail.getNamespace());
-                                volumeSerivce.createVolume(pv);
+                                handlePersistentVolumeClaimVolume(pv, detail.getProjectId(), detail.getName(), detail.getNamespace());
                             }
                         }
                     }
@@ -291,9 +264,10 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
                             break;
                         }
                     }
-                    mCountDownLatch.countDown();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    logger.error("灰度升级失败", e);
+                } finally {
+                    mCountDownLatch.countDown();
                 }
             }
         }));
@@ -342,21 +316,25 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         json.put("maxUnavailable", 0);
         json.put("instances", 0);
         List<Integer> counts = new ArrayList<>();
+        //排除蓝绿
         if ("RollingUpdate".equals(dep.getSpec().getStrategy().getType())) {
-            Integer updateCounts = 0;
-            if (dep.getStatus().getUpdatedReplicas() != null && dep.getStatus().getUpdatedReplicas() != 0) {
-                updateCounts = dep.getStatus().getUpdatedReplicas();
-                counts.add(updateCounts);
-                counts.add(dep.getSpec().getReplicas() - updateCounts);
-            } else {
-                if (dep.getStatus().getUnavailableReplicas() != null) {
-                    int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
-                    updateCounts = dep.getSpec().getReplicas() - unavailableReplicas;
-                    if (updateCounts < 0) {
-                        updateCounts = 0;
-                    }
+            String maxSurge = String.valueOf(dep.getSpec().getStrategy().getRollingUpdate().getMaxSurge());
+            if (!maxSurge.equals(Constant.ROLLINGUPDATE_MAX_UNAVAILABLE)) {
+                Integer updateCounts = 0;
+                if (dep.getStatus().getUpdatedReplicas() != null && dep.getStatus().getUpdatedReplicas() != 0) {
+                    updateCounts = dep.getStatus().getUpdatedReplicas();
                     counts.add(updateCounts);
-                    counts.add(unavailableReplicas);
+                    counts.add(dep.getSpec().getReplicas() - updateCounts);
+                } else {
+                    if (dep.getStatus().getUnavailableReplicas() != null) {
+                        int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
+                        updateCounts = dep.getSpec().getReplicas() - unavailableReplicas;
+                        if (updateCounts < 0) {
+                            updateCounts = 0;
+                        }
+                        counts.add(updateCounts);
+                        counts.add(unavailableReplicas);
+                    }
                 }
             }
             if (counts != null && counts.size() > 0 && counts.get(CommonConstant.NUM_ONE) > 0) {
@@ -396,7 +374,7 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
     }
 
     @Override
-    public ActionReturnUtil canaryRollback(String namespace, String name, String revision) throws Exception {
+    public ActionReturnUtil canaryRollback(String namespace, String name, String revision, String podTemplate, String projectId) throws Exception {
         if (StringUtils.isBlank(namespace) || StringUtils.isBlank(name)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
@@ -404,6 +382,89 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
         if (null == cluster) {
             throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+        }
+
+        //获取回滚版本的pvc
+        PodTemplateSpec podTemplateSpec = JsonUtil.jsonToPojo(podTemplate, PodTemplateSpec.class);
+        List<Volume> rollbackVolumes = new ArrayList<>();
+        if (null != podTemplateSpec.getSpec() && null != podTemplateSpec.getSpec().getVolumes()) {
+            rollbackVolumes = podTemplateSpec.getSpec().getVolumes();
+        }
+
+        //将PersistentVolumeClaim转成PersistentVolumeDto对象
+        List<PersistentVolumeDto> pvDtoList = new ArrayList<>();
+        rollbackVolumes.stream().forEach(rv -> {
+            if (null != rv.getPersistentVolumeClaim()) {
+                PersistentVolumeClaimVolumeSource pvc = rv.getPersistentVolumeClaim();
+                PersistentVolumeDto pvDto = new PersistentVolumeDto();
+                pvDto.setNamespace(namespace);
+                pvDto.setReadOnly(pvc.isReadOnly());
+                pvDto.setPvcName(pvc.getClaimName());
+                pvDtoList.add(pvDto);
+            }
+        });
+
+        //获取当前服务的pvc
+        PersistentVolumeClaimList pvcList = getServicePvcList(name, namespace, cluster);
+        if (Objects.nonNull(pvcList) && CollectionUtils.isNotEmpty(pvcList.getItems())) {
+            if (CollectionUtils.isNotEmpty(pvDtoList)) {
+                for (PersistentVolumeDto onePv : pvDtoList) {
+                    for (PersistentVolumeClaim onePvc : pvcList.getItems()) {
+                        boolean flag = true;
+                        String pvc = onePvc.getMetadata().getName();
+                        if (pvc.equals(onePv.getPvcName())) {
+                            flag = false;
+                        }
+                        if (flag) {
+                            ActionReturnUtil volumeRes = volumeSerivce.getPv(onePv.getPvcName(), cluster.getId());
+                            if(!volumeRes.isSuccess()){
+                                return volumeRes;
+                            }
+                            PvDto pvDto = (PvDto) volumeRes.getData();
+                            onePv.setBindOne(pvDto.getIsBindOne());
+                            onePv.setCapacity(pvDto.getCapacity());
+                            handlePersistentVolumeClaimVolume(onePv, projectId, name, namespace);
+                        }
+                    }
+                }
+            }
+            //比较两个pvc删除多的pvc
+            for (PersistentVolumeClaim onePvc : pvcList.getItems()) {
+                String pvc = onePvc.getMetadata().getName();
+                boolean boo = true;
+                if (CollectionUtils.isNotEmpty(pvDtoList)) {
+                    for (PersistentVolumeDto onePv : pvDtoList) {
+                        if (pvc.equals(onePv.getPvcName())) {
+                            boo = false;
+                        }
+                    }
+                }
+                if (boo) {
+                    pvcService.deletePVC(namespace, onePvc.getMetadata().getName(), cluster);
+                    if (onePvc.getSpec() != null && onePvc.getSpec().getVolumeName() != null) {
+                        // update pv
+                        String pvName = onePvc.getSpec().getVolumeName();
+                        PersistentVolume pv = pvService.getPvByName(pvName, cluster);
+                        ActionReturnUtil pvRes = volumeSerivce.updatePV(pv, cluster);
+                        if(!pvRes.isSuccess()){
+                            return pvRes;
+                        }
+                    }
+                }
+            }
+        }else {
+            if (CollectionUtils.isNotEmpty(pvDtoList)) {
+                for (PersistentVolumeDto onePv : pvDtoList) {
+                    ActionReturnUtil volumeRes = volumeSerivce.getPv(onePv.getPvcName(), cluster.getId());
+                    if(!volumeRes.isSuccess()){
+                        return volumeRes;
+                    }
+                    PvDto pvDto = (PvDto) volumeRes.getData();
+                    onePv.setBindOne(pvDto.getIsBindOne());
+                    onePv.setCapacity(pvDto.getCapacity());
+                    handlePersistentVolumeClaimVolume(onePv, projectId, name, namespace);
+                }
+            }
         }
         DeploymentRollback deploymentRollback = new DeploymentRollback();
         RollbackConfig rollbackConfig = new RollbackConfig();
@@ -635,7 +696,7 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
                             cfgmap.add(v.getConfigMap().getName());
                         }
                     }
-                    rollbackBean.setConfigmap(cfgmap);
+                    rollbackBean.setConfigmap(cfgmap.stream().distinct().collect(Collectors.toList()));
                 }
             }
             rollbackBean.setCurrent("false");
@@ -647,7 +708,7 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
             reversions.add(rollbackBean);
         }
 
-        Collections.sort(reversions);
+        reversions.sort((RollbackBean r1, RollbackBean r2) -> r2.getRevision().compareTo(r1.getRevision()));
 
         return ActionReturnUtil.returnSuccessWithData(reversions);
     }
@@ -692,7 +753,15 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
                 UnversionedStatus status = JsonUtil.jsonToPojo(dpUpdate.getBody(), UnversionedStatus.class);
                 return ActionReturnUtil.returnErrorWithData(status.getMessage());
             }
-            return updateServiceByDeployment(dep, cluster);
+
+            K8SClientResponse dpUpdated = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(dpUpdated.getStatus())) {
+                logger.error("回滚升级,获得Deployment出错");
+                UnversionedStatus status = JsonUtil.jsonToPojo(dpUpdated.getBody(), UnversionedStatus.class);
+                return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            }
+            Deployment depUpdated = JsonUtil.jsonToPojo(dpUpdated.getBody(), Deployment.class);
+            return updateServiceByDeployment(depUpdated, cluster);
         }
         return ActionReturnUtil.returnSuccess();
 
@@ -882,4 +951,23 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
 
     }
 
+    private PersistentVolumeClaimList getServicePvcList(String name, String namespace, Cluster cluster) throws Exception {
+        Map<String, Object> label = new HashMap<String, Object>();
+        label.put("labelSelector", "app=" + name);
+        K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, label, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
+            throw new MarsRuntimeException(status.getMessage());
+        }
+        PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(pvcRes.getBody(), com.harmonycloud.k8s.bean.PersistentVolumeClaimList.class);
+        return pvcList;
+    }
+
+    private void handlePersistentVolumeClaimVolume(PersistentVolumeDto pv, String projectId, String name, String namespace) throws Exception {
+        pv.setVolumeName(pv.getPvcName());
+        pv.setProjectId(projectId);
+        pv.setServiceName(name);
+        pv.setNamespace(namespace);
+        volumeSerivce.createVolume(pv);
+    }
 }

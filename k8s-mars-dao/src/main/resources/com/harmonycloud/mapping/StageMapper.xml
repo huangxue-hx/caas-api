@@ -287,6 +287,9 @@
             <if test="dependences != null">
                 AND dependences like concat(concat('%',#{dependences}),'%')
             </if>
+            <if test="credentialsUsername != null">
+                AND credentials_username = #{credentialsUsername}
+            </if>
         </where>
     </sql>
 
@@ -298,4 +301,7 @@
         <include refid="selectAllColumns"/>
         <include refid="Where_Clause" />
     </select>
+    <update id="updatePasswordByUsername" >
+        UPDATE cicd_stage SET credentials_password=#{password} WHERE credentials_username = #{username}
+    </update>
 </mapper>

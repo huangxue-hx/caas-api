@@ -1,21 +1,22 @@
 package com.harmonycloud.service.platform.serviceipml.configcenter;
 
-import java.text.DecimalFormat;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.ObjConverter;
-import com.harmonycloud.common.util.UUIDUtil;
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.application.ConfigFileMapper;
 import com.harmonycloud.dao.application.bean.ConfigFile;
 import com.harmonycloud.dto.config.ConfigDetailDto;
+import com.harmonycloud.k8s.bean.ConfigMap;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.service.ConfigmapService;
+import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.user.RoleLocalService;
+import com.harmonycloud.service.user.UserService;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang3.StringUtils;
@@ -24,6 +25,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
+
+import java.text.DecimalFormat;
+import java.util.*;
 
 /**
  * Created by gurongyun on 17/03/24. configcenter serviceImpl
@@ -37,9 +41,17 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 	@Autowired
 	private ConfigFileMapper configFileMapper;
 	@Autowired
-	ClusterService clusterService;
+	private ClusterService clusterService;
 	@Autowired
-	RoleLocalService roleLocalService;
+	private RoleLocalService roleLocalService;
+	@Autowired
+	private UserService userService;
+
+	@Autowired
+	private ConfigmapService configmapService;
+
+	@Autowired
+	private NamespaceLocalService namespaceLocalService;
 
 	/**
 	 * add or update config serviceImpl on 17/03/24.
@@ -54,7 +66,12 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         Assert.notNull(configDetail);
 		double tags = Constant.TEMPLATE_TAG;
 		// 检查数据库有没有存在
-		List<ConfigFile> list=configFileMapper.listConfigByName(configDetail.getName(), configDetail.getProjectId(),configDetail.getRepoName());
+		List<ConfigFile> list=configFileMapper.listConfigByName(configDetail.getName(), configDetail.getProjectId(),configDetail.getClusterId(),null);
+		if (Objects.nonNull(configDetail.getIsCreate()) && Boolean.valueOf(configDetail.getIsCreate())) {
+			if (!CollectionUtils.isEmpty(list)) {
+				return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CONFIGMAP_NAME_DUPLICATE);
+			}
+		}
 		ConfigFile configFile = ObjConverter.convert(configDetail, ConfigFile.class);
 		// 随机生成64位字符串
 		configFile.setId(UUIDUtil.getUUID());
@@ -125,9 +142,10 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 	public ActionReturnUtil searchConfig(String projectId, String clusterId,  String repoName, String keyword) throws Exception {
 		JSONArray array = new JSONArray();
 		Set<String> clusterIds = null;
+		Map<String, Cluster> userCluster = userService.getCurrentUserCluster();
 		// 查询项目下所有的配置文件
 		if(StringUtils.isBlank(clusterId)){
-			clusterIds = roleLocalService.listCurrentUserRoleClusterIds();
+			clusterIds = userCluster.keySet();
 		}else{
 			clusterIds = new HashSet<>();
 			clusterIds.add(clusterId);
@@ -145,8 +163,8 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 				json.put("projectId",configFile.getProjectId());
 				JSONArray configFileTagsArray = new JSONArray();
 				// 查询同一配置文件不同版本
-				List<ConfigFile> lis = configFileMapper.listConfigByNameAsc(configFile.getName(),
-						configFile.getProjectId(), configFile.getRepoName());
+				List<ConfigFile> lis = configFileMapper.listConfigByName(configFile.getName(),
+						configFile.getProjectId(), configFile.getClusterId(), repoName);
 				int count = 0;
 				if (lis != null && lis.size() > 0) {
 					count = lis.size();
@@ -159,8 +177,10 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 						tags.put("item", c.getItems());
 						tags.put("desc", c.getDescription());
 						tags.put("path", c.getPath());
+						tags.put("reponame",c.getRepoName());
 						tags.put("clusterId",c.getClusterId());
 						tags.put("clusterName",c.getClusterName());
+						tags.put("clusterAliasName",userCluster.get(c.getClusterId()).getAliasName());
 						tags.put("create_time", c.getCreateTime());
 
 						configFileTagsArray.add(tags);
@@ -185,8 +205,9 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 	@Override
 	public ActionReturnUtil listConfig(String projectId, String repoName) throws Exception {
 		JSONArray array = new JSONArray();
+		Map<String, Cluster> userCluster = userService.getCurrentUserCluster();
 		// 查询同一repo下的所有配置文件
-		List<ConfigFile> lists = configFileMapper.listConfigOverview(projectId, repoName);
+		List<ConfigFile> lists = configFileMapper.listConfigOverview(projectId, repoName, userCluster.keySet());
 		if (CollectionUtils.isEmpty(lists)) {
 			return ActionReturnUtil.returnSuccess();
 		} else {
@@ -197,7 +218,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 				json.put("projectId", lists.get(i).getProjectId());
 				json.put("repo", lists.get(i).getRepoName());
 				JSONArray jsarr=new JSONArray();
-				List<ConfigFile> configli=configFileMapper.listConfigByName(lists.get(i).getName(),lists.get(i).getProjectId(),lists.get(i).getRepoName());
+				List<ConfigFile> configli=configFileMapper.listConfigByName(lists.get(i).getName(),lists.get(i).getProjectId(),lists.get(i).getClusterId(),lists.get(i).getRepoName());
 				if(configli != null && configli.size() > 0){
 					for(ConfigFile con : configli){
 						JSONObject js=new JSONObject();
@@ -206,9 +227,11 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 						js.put("item", con.getItems());
 						js.put("desc", con.getDescription());
 						js.put("path", con.getPath());
+						js.put("reponame",con.getRepoName());
 						js.put("createTime",con.getCreateTime());
 						js.put("clusterId",con.getClusterId());
 						js.put("clusterName",con.getClusterName());
+						js.put("clusterAliasName",userCluster.get(con.getClusterId()).getAliasName());
 						jsarr.add(js);
 					}	
 				}
@@ -289,12 +312,42 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 		Assert.hasText(projectId);
 
 		// validate name
-		List<ConfigFile> configFiles = configFileMapper.listConfigByName(name, projectId,null);
+		List<ConfigFile> configFiles = configFileMapper.listConfigByName(name, projectId,null, null);
 		if (CollectionUtils.isEmpty(configFiles)) {
 			return ActionReturnUtil.returnSuccessWithData(false);
 		} else {
 			return ActionReturnUtil.returnSuccessWithData(true);
 		}
+	}
+
+	public ActionReturnUtil getConfigMapByName(String namespace, String name) throws Exception {
+		Assert.hasText(namespace);
+		Assert.hasText(name);
+		List<String> names = new ArrayList<>();
+		if(name.contains(CommonConstant.COMMA)){
+			String [] n = name.split(CommonConstant.COMMA);
+			names = Arrays.asList(n);
+		}else{
+			names.add(name);
+		}
+		List<ConfigMap> list = new ArrayList<>();
+		Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+		if(names != null && names.size() > 0){
+			for(String n : names){
+				K8SClientResponse response = configmapService.doSepcifyConfigmap(namespace, n, cluster);
+				if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+					return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+				}
+				ConfigMap configMap = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
+				list.add(configMap);
+			}
+		}
+		return ActionReturnUtil.returnSuccessWithData(list);
+	}
+
+	@Override
+	public ConfigFile getConfigByNameAndTag(String name, String tag, String projectId, String clusterId){
+		return configFileMapper.getConfigByNameAndTag(name, tag, projectId, clusterId);
 	}
 
 }

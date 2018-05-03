@@ -92,6 +92,8 @@ public class HarborImageCleanServiceImpl implements HarborImageCleanService {
         Set<String> deletedImageHarbor = filterAndCleanRepos(details);
         for(String harborHost : deletedImageHarbor){
             cleanImageGarbage(harborHost);
+            //同步harbor的registry和db数据
+            harborService.syncRegistry(harborHost);
         }
     }
 
@@ -293,6 +295,7 @@ public class HarborImageCleanServiceImpl implements HarborImageCleanService {
                     continue;
                 }
                 List<HarborManifest> harborManifests = repositoryMessage.getRepositoryDetial();
+                Set<String> keepDigest = new HashSet<>();
                 //清除这个时间点之前创建的镜像
                 if (detail.getRule().getTimeBefore() != null && detail.getRule().getTimeBefore() > 0){
                     Date startDate = DateUtils.addDays(DateUtil.getCurrentUtcTime(), -detail.getRule().getTimeBefore());
@@ -300,15 +303,24 @@ public class HarborImageCleanServiceImpl implements HarborImageCleanService {
                         Date tagCreatedTime = DateUtil.stringToDate(harborManifest.getCreateTime(),
                                 DateStyle.YYYY_MM_DD_HH_MM_SS.getValue(), TIME_ZONE_UTC);
                         if (tagCreatedTime.after(startDate)) {
+                            keepDigest.add(harborManifest.getDigest());
                             continue;
                         }
                         //如果镜像正在使用，不清理该镜像
                         String imageFullName = repositoryMessage.getFullNameRepo()+ CommonConstant.COLON + harborManifest.getTag();
                         if (usingImages.contains(imageFullName)) {
+                            LOGGER.info("镜像清理，镜像正在使用，不清理,repo:{},tag:{}",repositoryMessage.getRepository(), harborManifest.getTag());
+                            keepDigest.add(harborManifest.getDigest());
                             continue;
                         }
                         //版本号包含此文本的排除，不会被清理
                         if(isTagContain(detail.getRule().getTagNameExclude(), harborManifest.getTag())){
+                            keepDigest.add(harborManifest.getDigest());
+                            continue;
+                        }
+                        //对于同一个digest的镜像的不同标签，docker不支持只删除指定tag，只能根据digest删除，如果digest相同，
+                        // 其中一个标签需要保留，那该镜像不会删除，其他标签也不能删除
+                        if(keepDigest.contains(harborManifest.getDigest())){
                             continue;
                         }
                         LOGGER.info("镜像清理，删除镜像,repo:{},tag:{}",repoName,harborManifest.getTag());
@@ -322,21 +334,29 @@ public class HarborImageCleanServiceImpl implements HarborImageCleanService {
                         && harborManifests.size() > detail.getRule().getKeepTagCount()){
                     int keepCount = 0;
                     for(int i=0; i<harborManifests.size(); i++){
+                        HarborManifest harborManifest = harborManifests.get(i);
                         //版本号包含此文本的排除，不会被清理
-                        if(isTagContain(detail.getRule().getTagNameExclude(), harborManifests.get(i).getTag())){
+                        if(isTagContain(detail.getRule().getTagNameExclude(), harborManifest.getTag())){
+                            keepDigest.add(harborManifest.getDigest());
                             continue;
                         }
                         if(keepCount < detail.getRule().getKeepTagCount()){
                             keepCount++;
+                            keepDigest.add(harborManifest.getDigest());
                             continue;
                         }
-                        String imageFullName = repositoryMessage.getFullNameRepo()+ CommonConstant.COLON + harborManifests.get(i).getTag();
+                        String imageFullName = repositoryMessage.getFullNameRepo()+ CommonConstant.COLON + harborManifest.getTag();
                         if(usingImages.contains(imageFullName)){
+                            LOGGER.info("镜像清理，镜像正在使用，不清理,repo:{},tag:{}",repositoryMessage.getRepository(), harborManifest.getTag());
+                            keepDigest.add(harborManifest.getDigest());
                             continue;
                         }
-                        LOGGER.info("镜像清理，删除镜像,repo:{},tag:{}",repositoryMessage.getRepository(), harborManifests.get(i).getTag());
+                        if(keepDigest.contains(harborManifest.getDigest())){
+                            continue;
+                        }
+                        LOGGER.info("镜像清理，删除镜像,repo:{},tag:{}",repositoryMessage.getRepository(), harborManifest.getTag());
                         harborService.deleteRepo(detail.getImageRepository().getHarborHost(),
-                            repositoryMessage.getRepository(), harborManifests.get(i).getTag());
+                                repositoryMessage.getRepository(), harborManifest.getTag());
                         deletedImageHarbor.add(detail.getImageRepository().getHarborHost());
                     }
                 }

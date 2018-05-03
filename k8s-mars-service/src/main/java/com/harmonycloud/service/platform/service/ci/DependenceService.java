@@ -69,4 +69,10 @@ public interface DependenceService {
      * @throws Exception
      */
     void deleteFile(String dependenceName, String projectId, String clusterId, String path) throws Exception;
+
+    /**
+     * 删除项目下的依赖
+     * @param projectId 项目id
+     */
+    void deleteDependenceByProject(String projectId);
 }

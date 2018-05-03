@@ -64,4 +64,8 @@
         SELECT * FROM msf_instance WHERE task_id = #{taskId}
     </select>
 
+    <delete id="deleteByNamespaceId" parameterType="java.lang.String">
+        DELETE FROM msf_instance where namespace_id = #{namespaceId}
+    </delete>
+
 </mapper>

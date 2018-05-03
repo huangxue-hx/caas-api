@@ -59,8 +59,15 @@
         log = #{log}
         WHERE id = #{id}
     </update>
+
+    <update id="updateLogById" parameterType="com.harmonycloud.dao.ci.bean.JobBuild">
+        UPDATE cicd_job_build
+        SET log = #{log}
+        WHERE id = #{id}
+    </update>
+
     <delete id="deleteByJobId" parameterType="java.lang.Integer">
-        DELETE FROM cicd_job_build WHERE id=#{id}
+        DELETE FROM cicd_job_build WHERE job_id=#{id}
     </delete>
 
     <select id="queryLogByObject" resultType="java.lang.String">
@@ -74,4 +81,26 @@
         WHERE job_id=#{jobId}
         ORDER BY build_num DESC LIMIT 1
     </select>
+
+    <select id="queryLastBuildById" resultMap="BaseResultMap">
+        SELECT id,job_id,build_num,status,duration,start_time,duration,start_user
+        FROM cicd_job_build
+        WHERE job_id=#{jobId}
+        ORDER BY build_num DESC LIMIT 1
+    </select>
+
+    <select id="queryFirstBuildById" resultMap="BaseResultMap">
+        SELECT id,job_id,build_num,status,duration,start_time,duration,start_user FROM cicd_job_build
+        WHERE job_id = #{jobId}
+        ORDER BY build_num LIMIT 1
+    </select>
+
+    <delete id="deleteByJobIdAndBuildNum">
+        DELETE FROM cicd_job_build
+        WHERE job_id=#{jobId}
+        AND build_num in
+        <foreach collection="buildNumList" item="item" open="(" close=")" separator="," >
+            #{item}
+        </foreach>
+    </delete>
 </mapper>

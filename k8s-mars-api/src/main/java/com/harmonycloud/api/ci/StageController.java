@@ -29,7 +29,7 @@ public class StageController {
     @RequestMapping(method = RequestMethod.POST)
     @ResponseBody
     public ActionReturnUtil addStage(@RequestBody StageDto stageDto) throws Exception {
-        logger.info("add stage");
+//        logger.info("add stage");
         Integer stageId = stageService.addStage(stageDto);
         Map map = new HashMap();
         map.put("id", stageId);
@@ -39,7 +39,7 @@ public class StageController {
     @RequestMapping(method = RequestMethod.PUT)
     @ResponseBody
     public ActionReturnUtil updateStage(@RequestBody StageDto stageDto) throws Exception {
-        logger.info("update stage");
+//        logger.info("update stage");
         stageService.updateStage(stageDto);
         return ActionReturnUtil.returnSuccess();
     }
@@ -47,19 +47,15 @@ public class StageController {
     @RequestMapping(value = "/{stageId}", method = RequestMethod.DELETE)
     @ResponseBody
     public ActionReturnUtil deleteStage(@PathVariable("stageId") Integer stageId) throws Exception{
-        logger.info("delete stage");
+//        logger.info("delete stage");
         stageService.deleteStage(stageId);
         return ActionReturnUtil.returnSuccess();
     }
 
     @RequestMapping(value = "/{stageId}", method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil stageDetail(@PathVariable("stageId") Integer stageId){
-        try{
-            return stageService.stageDetail(stageId);
-        } catch (Exception e){
-            return ActionReturnUtil.returnErrorWithData(e.getMessage());
-        }
+    public ActionReturnUtil stageDetail(@PathVariable("stageId") Integer stageId) throws Exception {
+        return ActionReturnUtil.returnSuccessWithData(stageService.stageDetail(stageId));
     }
 
     @RequestMapping(value = "/{stageId}/result", method = RequestMethod.GET)
@@ -106,5 +102,18 @@ public class StageController {
         return ActionReturnUtil.returnSuccessWithData(stageService.getStageLog(stageId, buildNum));
     }
 
+    /**
+     *   更新该用户在所有流水线中的密码
+     * @param username
+     * @param password
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/updateCredentials", method = RequestMethod.POST)
+    @ResponseBody
+    public ActionReturnUtil updateCredential(@RequestParam(value="username", required = false)String username, @RequestParam(value="password", required = false)String password) throws Exception{
+        stageService.updateUserCredentials(username, password);
+        return ActionReturnUtil.returnSuccess();
+    }
 
 }

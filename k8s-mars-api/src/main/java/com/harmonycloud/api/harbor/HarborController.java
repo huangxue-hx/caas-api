@@ -74,6 +74,17 @@ public class HarborController {
     public ActionReturnUtil cleanImageGarbage(@PathVariable(value="harborHost") String harborHost) throws Exception{
         return ActionReturnUtil.returnSuccessWithData(harborImageCleanService.cleanImageGarbage(harborHost));
     }
+
+    /**
+     * docker registry与harbor ui同步
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/harbor/{harborHost}/syncRegistry", method = RequestMethod.PUT)
+    @ResponseBody
+    public ActionReturnUtil syncRegistry(@PathVariable(value="harborHost") String harborHost) throws Exception{
+        return ActionReturnUtil.returnSuccessWithData(harborService.syncRegistry(harborHost));
+    }
 }
 
 

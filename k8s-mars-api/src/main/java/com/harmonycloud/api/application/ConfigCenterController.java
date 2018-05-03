@@ -129,7 +129,6 @@ public class ConfigCenterController {
 											@PathVariable("projectId") String projectId,
 											@RequestParam(value = "name") String name,
 											@RequestParam(value = "reponame") String repoName) throws Exception {
-		logger.info("获取最新版本的详细配置文件");
 		return configCenterService.getLatestConfigMap(name, projectId, repoName);
 	}
 
@@ -148,7 +147,6 @@ public class ConfigCenterController {
 											@RequestParam(value = "clusterId",required = false) String clusterId,
 											@RequestParam(value = "reponame", required = false) String repoName,
 			                                @RequestParam(value = "keyword", required = false) String keyword) throws Exception {
-		logger.info("获取配置中心列表");
 		return configCenterService.searchConfig(projectId, clusterId, repoName, keyword);
 	}
 
@@ -163,7 +161,6 @@ public class ConfigCenterController {
 	public ActionReturnUtil listConfigMap(@PathVariable("tenantId") String tenantId,
 											   @PathVariable("projectId") String projectId,
 			                                   @RequestParam(value = "reponame", required = false) String repoName) throws Exception {
-		logger.info("获取配置overview");
 		return configCenterService.listConfig(projectId, repoName);
 	}
 	
@@ -180,7 +177,13 @@ public class ConfigCenterController {
 	public ActionReturnUtil checkName(@PathVariable("tenantId") String tenantId,
 									  @PathVariable("projectId") String projectId,
 									  @RequestParam(value = "name") String name) throws Exception {
-		logger.info("checkName");
 		return configCenterService.checkDuplicateName(name,projectId);
+	}
+
+	@ResponseBody
+	@RequestMapping(value = "/content", method = RequestMethod.GET)
+	public ActionReturnUtil getConfigMapByName(@RequestParam(value = "namespace")String namespace,
+											   @RequestParam(value = "name")String name) throws Exception {
+		return configCenterService.getConfigMapByName(namespace, name);
 	}
 }

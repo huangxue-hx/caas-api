@@ -1,6 +1,7 @@
 package com.harmonycloud.service.platform.serviceImpl.ci;
 
 import com.alibaba.druid.pool.DruidDataSource;
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DockerfileTypeEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.RepositoryTypeEnum;
@@ -17,6 +18,7 @@ import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.sonarqube.webapi.client.SonarProjectService;
 import com.harmonycloud.sonarqube.webapi.client.SonarQualitygatesService;
 import com.harmonycloud.sonarqube.webapi.client.SonarUserTokensService;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,7 +42,6 @@ import java.util.*;
  * Created by anson on 17/7/13.
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class StageServiceImpl implements StageService {
 
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(StageServiceImpl.class);
@@ -111,8 +112,21 @@ public class StageServiceImpl implements StageService {
     @Autowired
     private DruidDataSource dataSource;
 
+    @Autowired
+    private BuildEnvironmentService buildEnvironmentService;
+
+    @Autowired
+    private DependenceServiceImpl dependenceService;
+
+    @Autowired
+    private JobBuildService jobBuildService;
+
+    private long sleepTime = 2000L;
+
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Integer addStage(StageDto stageDto) throws Exception{
+        verifyResource(stageDto);
         verifyTag(stageDto);
         //increace order for all stages behind this stage
         stageMapper.increaseStageOrder(stageDto.getJobId(), stageDto.getStageOrder());
@@ -143,7 +157,9 @@ public class StageServiceImpl implements StageService {
 
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updateStage(StageDto stageDto) throws Exception{
+        verifyResource(stageDto);
         verifyTag(stageDto);
         Stage stage = stageDto.convertToBean();
         stage.setUpdateTime(new Date());
@@ -174,6 +190,7 @@ public class StageServiceImpl implements StageService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deleteStage(Integer id) throws Exception {
         Stage stage = stageMapper.queryById(id);
         stageMapper.deleteStage(id);
@@ -189,7 +206,7 @@ public class StageServiceImpl implements StageService {
     }
 
     @Override
-    public ActionReturnUtil stageDetail(Integer id) throws Exception {
+    public StageDto stageDetail(Integer id) throws Exception {
         Stage stage = stageMapper.queryById(id);
         StageDto stageDto = new StageDto();
         if(null == stage){
@@ -203,9 +220,11 @@ public class StageServiceImpl implements StageService {
             stageDto.setCredentialsPassword(DesUtil.decrypt(stageDto.getCredentialsPassword(), null));
         }else if(StageTemplateTypeEnum.DEPLOY.getCode() == stage.getStageTemplateType() && stage.getOriginStageId() != null){
             Stage originStage = stageMapper.queryById(stage.getOriginStageId());
-            stageDto.setOriginJobId(originStage.getJobId());
+            if(originStage != null) {
+                stageDto.setOriginJobId(originStage.getJobId());
+            }
         }
-        return ActionReturnUtil.returnSuccessWithData(stageDto);
+        return stageDto;
     }
 
     @Override
@@ -216,7 +235,7 @@ public class StageServiceImpl implements StageService {
     @Override
     public ActionReturnUtil addStageType(StageType stageType) {
         //stageType.setUserDefined(true);
-        stageType.setTemplateType(3);
+        stageType.setTemplateType(CommonConstant.NUM_THREE);
         stageTypeMapper.insertStageType(stageType);
         Map data = new HashMap<>();
         data.put("id",stageType.getId());
@@ -291,25 +310,56 @@ public class StageServiceImpl implements StageService {
             Map dataMap = JsonUtil.convertJsonToMap(data);
             return (List<Map>) dataMap.get("stages");
         }else{
-            throw new Exception("获取构建信息失败。");
+            logger.error("获取构建信息失败", result.getData());
+            throw new Exception();
         }
     }
 
     @Override
     public void stageBuildSync(Job job, Integer buildNum, Map stageMap, int stageOrder) throws Exception{
-        StageBuild stageBuild = new StageBuild();
-        stageBuild.setJobId(job.getId());
-        stageBuild.setBuildNum(buildNum);
-        stageBuild.setStageOrder(stageOrder);
-        stageBuild.setStatus(convertStatus((String) stageMap.get("status")));
-        if(stageMap.get("startTimeMillis") instanceof  Integer){
-            stageBuild.setStartTime(new Timestamp(Long.valueOf((Integer)stageMap.get("startTimeMillis"))));
-        }else if(stageMap.get("startTimeMillis") instanceof  Long){
-            stageBuild.setStartTime(new Timestamp((Long)stageMap.get("startTimeMillis")));
+        JobBuild jobBuildCondition = new JobBuild();
+        jobBuildCondition.setJobId(job.getId());
+        jobBuildCondition.setBuildNum(buildNum);
+        List<JobBuild> jobBuildList = jobBuildService.queryByObject(jobBuildCondition);
+        JobBuild jobBuild = null;
+        if(CollectionUtils.isNotEmpty(jobBuildList)){
+            jobBuild = jobBuildList.get(0);
         }
-        stageBuild.setDuration(String.valueOf(stageMap.get("durationMillis")));
-        stageBuild.setLog(getStageBuildLogFromJenkins(job, buildNum, (String)stageMap.get("id")));
-        stageBuildMapper.updateByStageOrderAndBuildNum(stageBuild);
+        StageBuild condition = new StageBuild();
+        condition.setJobId(job.getId());
+        condition.setBuildNum(buildNum);
+        condition.setStageOrder(stageOrder);
+        List<StageBuild> stageBuildList = stageBuildService.selectStageBuildByObject(condition);
+        if(CollectionUtils.isNotEmpty(stageBuildList)) {
+            StageBuild stageBuild = stageBuildList.get(0);
+            if(!Constant.PIPELINE_STATUS_BUILDING.equals(stageBuild.getStatus()) && !Constant.PIPELINE_STATUS_NOTBUILT.equals(stageBuild.getStatus()) && !Constant.PIPELINE_STATUS_WAITING.equals(stageBuild.getStatus())){
+                return;
+            }
+//            stageBuild.setJobId(job.getId());
+//            stageBuild.setBuildNum(buildNum);
+//            stageBuild.setStageOrder(stageOrder);
+            Stage stage = stageMapper.queryById(stageBuild.getStageId());
+            if(StageTemplateTypeEnum.CODESCAN.getCode() == stage.getStageTemplateType() || StageTemplateTypeEnum.INTEGRATIONTEST.getCode() == stage.getStageTemplateType()){
+                if(StringUtils.isNotBlank(stageBuild.getStatus()) && !stageBuild.getStatus().equals(Constant.PIPELINE_STATUS_SUCCESS) && !stageBuild.getStatus().equals(Constant.PIPELINE_STATUS_FAILED)){
+                    if(jobBuild !=null && Constant.PIPELINE_STATUS_ABORTED.equals(jobBuild.getStatus())){
+                        stageBuild.setStatus(Constant.PIPELINE_STATUS_FAILED);
+                    } else {
+                        stageBuild.setStatus(Constant.PIPELINE_STATUS_BUILDING);
+                    }
+                }
+            }else{
+                stageBuild.setStatus(convertStatus((String) stageMap.get("status")));
+            }
+            if (stageMap.get("startTimeMillis") instanceof Integer) {
+                stageBuild.setStartTime(new Timestamp(Long.valueOf((Integer) stageMap.get("startTimeMillis"))));
+            } else if (stageMap.get("startTimeMillis") instanceof Long) {
+                stageBuild.setStartTime(new Timestamp((Long) stageMap.get("startTimeMillis")));
+            }
+            stageBuild.setDuration(String.valueOf(stageMap.get("durationMillis")));
+            stageBuildMapper.updateByStageOrderAndBuildNum(stageBuild);
+            stageBuild.setLog(getStageBuildLogFromJenkins(job, buildNum, (String) stageMap.get("id")));
+            stageBuildMapper.updateStageLog(stageBuild);
+        }
     }
 
 
@@ -317,21 +367,20 @@ public class StageServiceImpl implements StageService {
     public void getStageLogWS(WebSocketSession session, Integer id, Integer buildNum) {
         try {
             String existingLog = "";
-            DefaultTransactionDefinition def = new DefaultTransactionDefinition();
-            def.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-            TransactionStatus status = transactionManager.getTransaction(def);
             Stage stage = stageMapper.queryById(id);
             Job job = jobMapper.queryById(stage.getJobId());
-            transactionManager.commit(status);
             boolean building = true;
+            long duration = 0L;
             while(building && session.isOpen()) {
-                status = transactionManager.getTransaction(def);
+                long startTime = System.currentTimeMillis();
                 List<Map> stageMapList = getStageBuildFromJenkins(job, buildNum);
                 if(stageMapList.size() >= stage.getStageOrder()) {
                     Map stageMap = stageMapList.get(stage.getStageOrder() - 1);
                     String log = getStageBuildLogFromJenkins(job, buildNum, (String)stageMap.get("id"));
-                    String newLog;
-                    if(!StringUtils.isBlank(newLog = log.replaceFirst(existingLog, ""))) {
+                    int existLogLength = existingLog.length();
+                    String newLog = log.substring(existLogLength);
+                    if(!StringUtils.isBlank(newLog) || duration > CommonConstant.CICD_WEBSOCKET_MAX_DURATION) {
+                        duration = 0L;
                         existingLog = log;
                         if(session.isOpen()) {
                             session.sendMessage(new TextMessage(newLog));
@@ -341,10 +390,12 @@ public class StageServiceImpl implements StageService {
                         //building = false;
                     }
                 }
-                transactionManager.commit(status);
-                Connection conn = DataSourceUtils.getConnection(dataSource);
-                conn.close();//手动关闭连接，防止长时间连接导致连接数达上限
-                Thread.sleep(2000);
+                try{
+                    Thread.sleep(sleepTime);
+                }catch (Exception e){
+                    logger.error("获取流水线步骤日志失败", e);
+                }
+                duration += System.currentTimeMillis() - startTime;
             }
         } catch (Exception e) {
             logger.error("get stage log error, stageId: {}", id, e);
@@ -376,7 +427,28 @@ public class StageServiceImpl implements StageService {
         StageBuild stageBuild = new StageBuild();
         stageBuild.setStageId(stageId);
         stageBuild.setBuildNum(buildNum);
-        return stageBuildService.getStageLogByObject(stageBuild);
+        String log = stageBuildService.getStageLogByObject(stageBuild);
+        if(StringUtils.isBlank(log)){
+            List<StageBuild> stageBuildList = stageBuildService.selectStageBuildByObject(stageBuild);
+            if(stageBuildList.size() == 1) {
+                stageBuild = stageBuildList.get(0);
+                if (!Constant.PIPELINE_STATUS_BUILDING.equals(stageBuild.getStatus()) && !Constant.PIPELINE_STATUS_NOTBUILT.equals(stageBuild.getStatus()) && !Constant.PIPELINE_STATUS_WAITING.equals(stageBuild.getStatus())) {
+                    Job job = jobService.getJobById(stageBuild.getJobId());
+                    List<Map> stageMapList = getStageBuildFromJenkins(job, buildNum);
+                    if (stageMapList.size() > stageBuild.getStageOrder()) {
+                        Map stageMap = stageMapList.get(stageBuild.getStageOrder() - 1);
+                        log = getStageBuildLogFromJenkins(job, buildNum, String.valueOf(stageMap.get("id")));
+                        stageBuild.setLog(log);
+                        try {
+                            stageBuildMapper.updateStageLog(stageBuild);
+                        } catch (Exception e) {
+                            logger.error("保存步骤日志失败, stageId:{}, buildNum", stageId, buildNum);
+                        }
+                    }
+                }
+            }
+        }
+        return log;
     }
 
     @Override
@@ -404,11 +476,15 @@ public class StageServiceImpl implements StageService {
                     }
                 }
             }
-            return(log.toString());
+            if(StringUtils.isNotBlank(log.toString())) {
+                return (log.toString().replaceAll("</?[^>]+>",""));
+            }
         }
         return null;
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void createOrUpdateCredential(Integer stageId, String username, String password) throws Exception{
         ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/credentials/store/system/domain/_/credential/" + stageId + "/", null, null, false);
         if(result.isSuccess()){
@@ -416,6 +492,29 @@ public class StageServiceImpl implements StageService {
         }else{
             createCredentials(stageId, username, password);
         }
+    }
+
+    @Override
+    public void updateUserCredentials(String username, String password) throws Exception {
+        if(StringUtils.isBlank(username)){
+            throw new MarsRuntimeException(ErrorCodeMessage.PIPELINE_CREDENTIALS_USERNAME_NOT_NULL);
+        }
+        Stage stageCondition = new Stage();
+        stageCondition.setCredentialsUsername(username);
+        List<Stage> stageList = stageMapper.selectByExample(stageCondition);
+        if(CollectionUtils.isNotEmpty(stageList)) {
+            stageMapper.updatePasswordByUsername(username, DesUtil.encrypt(password, null));
+            for (Stage stage : stageList) {
+                if ((stage.getCredentialsPassword() == null && StringUtils.isNotBlank(password)) || (stage.getCredentialsPassword() != null && !stage.getCredentialsPassword().equals(DesUtil.encrypt(password, null)))) {
+                    updateCredentials(stage.getId(), username, DesUtil.encrypt(password, null));
+                }
+            }
+        }
+    }
+
+    @Override
+    public List<Stage> getStageByJobId(Integer jobId) {
+        return stageMapper.queryByJobId(jobId);
     }
 
     private void createCredentials(Integer stageId, String username, String password) throws Exception {
@@ -488,6 +587,54 @@ public class StageServiceImpl implements StageService {
         if(StageTemplateTypeEnum.IMAGEBUILD.ordinal() == stageDto.getStageTemplateType() && "1".equals(stageDto.getImageTagType())){
             if(stageDto.getImageBaseTag().split("\\.").length != stageDto.getImageIncreaseTag().split("\\.").length){
                 throw new Exception("版本输入有误，请重新输入。");
+            }
+        }
+    }
+
+    private void verifyResource(StageDto stageDto) throws Exception{
+        Job job = jobService.getJobById(stageDto.getJobId());
+        if(job == null){
+            throw new MarsRuntimeException(ErrorCodeMessage.PIPELINE_ALREADY_DELETED);
+        }
+        verifyStageResource(job, stageDto);
+    }
+
+    public void verifyStageResource(Job job, StageDto stageDto) throws Exception{
+        if(StageTemplateTypeEnum.CODECHECKOUT.getCode() == stageDto.getStageTemplateType() || (StageTemplateTypeEnum.CUSTOM.getCode() == stageDto.getStageTemplateType() && stageDto.getBuildEnvironmentId() != 0 )){
+            BuildEnvironment buildEnvironment = buildEnvironmentService.getBuildEnvironment(stageDto.getBuildEnvironmentId());
+            if(buildEnvironment == null){
+                throw new MarsRuntimeException(ErrorCodeMessage.ENVIRONMENT_ALREADY_DELETED);
+            }
+        }
+        if(StageTemplateTypeEnum.CODECHECKOUT.getCode() == stageDto.getStageTemplateType()){
+            List<StageDto.Dependence> dependenceList = stageDto.getDependences();
+            if(CollectionUtils.isNotEmpty(dependenceList)){
+                List<Map> list = dependenceService.listByProjectIdAndClusterId(job.getProjectId(), job.getClusterId(), null);
+                for(StageDto.Dependence dependence : dependenceList){
+                    boolean dependenceExist = false;
+                    for(Map dependenceMap : list){
+                        if(dependence.getPvName().equals(dependenceMap.get("pvName"))){
+                            dependenceExist = true;
+                            break;
+                        }
+                    }
+                    if(!dependenceExist){
+                        throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_ALREADY_DELETED);
+                    }
+                }
+            }
+        }
+        if(StageTemplateTypeEnum.IMAGEBUILD.getCode() == stageDto.getStageTemplateType() && DockerfileTypeEnum.PLATFORM.ordinal() == stageDto.getDockerfileType()){
+            if(dockerFileService.selectDockerFileById(stageDto.getDockerfileId()) == null){
+                throw new MarsRuntimeException(ErrorCodeMessage.DOCKERFILE_ALREADY_DELETED);
+            }
+        }
+        if(StageTemplateTypeEnum.DEPLOY.getCode() == stageDto.getStageTemplateType()){
+            if(stageDto.getOriginStageId() != null){
+                Stage originStage = stageMapper.queryById(stageDto.getOriginStageId());
+                if(originStage == null){
+                    throw new MarsRuntimeException(ErrorCodeMessage.ORIGIN_STAGE_NOT_EXIST);
+                }
             }
         }
     }

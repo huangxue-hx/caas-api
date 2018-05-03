@@ -25,10 +25,13 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.springframework.http.MediaType;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+
+import javax.servlet.http.HttpServletRequest;
 
 
 public class HttpClientUtil {
@@ -780,6 +783,28 @@ public class HttpClientUtil {
 		}
 		for (Map.Entry<String, Object> entry : headers.entrySet()) {
 			method.addHeader(entry.getKey(), String.valueOf(entry.getValue()));
+		}
+	}
+
+	/**
+	 * 判断是否是application/json方式
+	 * @param request 请求
+	 * @return boolean
+	 */
+	public static boolean isApplicationJsonType(HttpServletRequest request) {
+		String contentType = request.getContentType();
+		if (contentType != null) {
+			try {
+				MediaType mediaType = MediaType.parseMediaType(contentType);
+				if (MediaType.APPLICATION_JSON.includes(mediaType)) {
+					return true;
+				}
+				return false;
+			} catch (IllegalArgumentException ex) {
+				return false;
+			}
+		} else {
+			return false;
 		}
 	}
 }

@@ -149,12 +149,14 @@ public class VersionController {
     @RequestMapping(value = "/canaryrollback", method = RequestMethod.PUT)
     public ActionReturnUtil canaryRollback(@RequestParam(value = "namespace") String namespace,
                                            @PathVariable(value = "deployName") String name,
-                                           @RequestParam(value = "revision") String revision) throws Exception {
+                                           @RequestParam(value = "revision") String revision,
+                                           @RequestParam(value = "podTemplate", required = false) String podTemplate,
+                                           @PathVariable(value = "projectId") String projectId) throws Exception {
     	String userName = (String) session.getAttribute("username");
         if(userName == null){
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
-        return versionControlService.canaryRollback(namespace,name,revision);
+        return versionControlService.canaryRollback(namespace,name,revision,podTemplate, projectId);
     }
 
     /**
@@ -183,12 +185,13 @@ public class VersionController {
      */
     @ResponseBody
     @RequestMapping(value = "/bluegreen", method = RequestMethod.PUT)
-    public ActionReturnUtil deployByBlueAndGreen(@ModelAttribute UpdateDeployment updateDeployment) throws Exception {
+    public ActionReturnUtil deployByBlueAndGreen(@ModelAttribute UpdateDeployment updateDeployment,
+                                                 @PathVariable(value = "projectId") String projectId) throws Exception {
         String userName = (String) session.getAttribute("username");
         if (userName == null) {
             throw new K8sAuthException(Constant.HTTP_401);
         }
-        return blueGreenDeployService.deployByBlueGreen(updateDeployment, userName);
+        return blueGreenDeployService.deployByBlueGreen(updateDeployment, userName, projectId);
     }
 
     /**

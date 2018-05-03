@@ -1,5 +1,6 @@
 package com.harmonycloud.api.monitor;
 
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
@@ -17,9 +18,11 @@ import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.monitor.InfluxdbQuery;
 import com.harmonycloud.service.platform.service.*;
 import com.harmonycloud.service.tenant.TenantService;
+import org.influxdb.dto.QueryResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -186,6 +189,7 @@ public class MonitorAlarmController {
 			NodeList nodeList = JsonUtil.jsonToPojo(nodeRes.getBody(), NodeList.class);
 			List<Node> nodes = nodeList.getItems();
 			List<Map<String, Object>> res = new ArrayList<>();
+			Map<String, List<QueryResult.Series>> clusterMap = this.influxdbService.getClusterResourceUsage("node", "filesystem/limit", "nodename,resource_id", cluster, null);
 			if (nodes != null && nodes.size() > 0) {
 				for (Node node : nodes) {
 					List<NodeCondition> conditions = node.getStatus().getConditions();
@@ -196,7 +200,13 @@ public class MonitorAlarmController {
 							}
 						}
 					}
-					double nodeFilesystemCapacity =  this.influxdbService.getClusterResourceUsage("node", "filesystem/limit", "nodename,resource_id",cluster, null, node.getMetadata().getName());
+					String nodeName = node.getMetadata().getName();
+					double nodeFilesystemCapacity = 0;
+					if (!CollectionUtils.isEmpty(clusterMap.get(nodeName))){
+						nodeFilesystemCapacity = this.influxdbService.computeNodeInfo(clusterMap.get(nodeName));
+					}
+
+//					double nodeFilesystemCapacity =  this.influxdbService.getClusterResourceUsage("node", "filesystem/limit", "nodename,resource_id",cluster, null, node.getMetadata().getName());
 					Object object = node.getStatus().getAllocatable();
 					if (object != null) {
 						Map<String, Object> resourceMap = new HashMap<String, Object>();

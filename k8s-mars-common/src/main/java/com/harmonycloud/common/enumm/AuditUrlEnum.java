@@ -35,6 +35,7 @@ public enum AuditUrlEnum {
 
     DEPLOY_APP("/tenants/([^//]+)/projects/([^//]+)/apps_POST", "发布应用", "deployApp", null, null, "appName", "APP"),
     DELETE_APP("/tenants/([^//]+)/projects/([^//]+)/apps/([^//]+)_DELETE", "删除应用", "deleteApp", 3, null, null, "APP"),
+    UPDATE_APP("/tenants/([^//]+)/projects/([^//]+)/apps/([^//]+)_PUT", "修改应用", "updateApp", 3, null, null, "APP"),
 
     ADD_SERVICE_TEMPLATE_IN_APP_TEMPLATE("/tenants/([^//]+)/projects/([^//]+)/apptemplates/([^//]+)/addsvctemplate_POST",
             "在应用模板内添加服务模板", "addServiceTemplateInAppTemplate", null, null, "serviceList", "SERVICE_TEMPLATE"),
@@ -48,8 +49,8 @@ public enum AuditUrlEnum {
             "deleteServiceTemplate", 3, null, null, "SERVICE_TEMPLATE"),
     USE_SERVICE_TEMPLATE_DEPLOY("/tenants/([^//]+)/projects/([^//]+)/svctemplates/([^//]+)/deploys_POST", "使用服务模板发布服务",
             "useServiceTemplateDeploy", 3, null, null, "SERVICE_TEMPLATE"),
-    DEPLOY_SERVICE_TEMPLATE("/tenants/([^//]+)/projects/([^//]+)/svctemplates/deploys_POST", "发布服务", "deployService",
-            null, null, "serviceTemplate.deploymentDetail.name", "SERVICE_TEMPLATE"),
+    DEPLOY_SERVICE_TEMPLATE("/tenants/([^//]+)/projects/([^//]+)/deploys_POST", "发布服务", "deployService",
+            null, null, "serviceTemplate.deploymentDetail.name", "SERVICE"),
     CHANGE_STATUS_SERVICE_TEMPLATE("/tenants/([^//]+)/projects/([^//]+)/svctemplates/([^//]+)/status_PUT", "改变应用模板状态",
             "changeServiceTemplateStatus", 3, null, null, "SERVICE_TEMPLATE"),
 
@@ -68,7 +69,7 @@ public enum AuditUrlEnum {
     SCALE_SERVICE("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)/scale_POST", "服务实例伸缩", "scaleService", 3, null, null, "SERVICE"),
     DELETE_SERVICE("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)_DELETE", "删除服务", "deleteService", 3, null, null, "SERVICE"),
     UPDATE_SERVICE("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)_PUT", "修改服务", "updateService", 3, null, null, "SERVICE"),
-    CANARY_UPDATE_SERVICE("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)/canaryupdate_PUT", "灰度升级", "canaryUpdate", 3, null, null, "SERVICE"),
+    CANARY_UPDATE_SERVICE("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)/canaryUpdate_PUT", "灰度升级", "canaryUpdate", 3, null, null, "SERVICE"),
     CANCEL_CANARY_UPDATE_SERVICE("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)/canaryupdate/cancel_PUT",
             "取消灰度升级", "cancelCanaryUpdate", 3, null, null, "SERVICE"),
     RESUME_CANARY_UPDATE_SERVICE("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)/canaryupdate/resume_PUT",
@@ -77,7 +78,7 @@ public enum AuditUrlEnum {
             "暂停灰度升级", "pauseCanaryUpdate", 3, null, null, "SERVICE"),
     ROLLBACK_CANARY_UPDATE("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)/canaryrollback_PUT",
             "灰度升级回滚", "rollbackCanaryUpdate", 3, null, null, "SERVICE"),
-    BLUEGREEN_DEPLOY("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)/bluegreen_POST", "蓝绿发布", "blueGreenDeploy", 3, null, null, "SERVICE"),
+    BLUEGREEN_DEPLOY("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)/bluegreen_PUT", "蓝绿发布", "blueGreenDeploy", 3, null, null, "SERVICE"),
     SWITCH_FLOW_BETWEEN_SERVICE("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)/bluegreen/switchflow_POST", "蓝绿发布流量切换",
             "switchFlowInBlueGreenDeploy", 3, null, null, "SERVICE"),
     CONFIRM_UPDATE_NEW("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)/bluegreen/confirm_POST", "蓝绿发布确认升级",
@@ -157,6 +158,8 @@ public enum AuditUrlEnum {
             3, "JobService", null, "CICD"),
     DELETE_STAGE_IN_PIPELINE("/tenants/([^//]+)/projects/([^//]+)/cicdjobs/([^//]+)/stages/([^//]+)_DELETE", "流水线删除步骤", "deletePipelineStage",
             3, "JobService", null, "CICD"),
+    UPDATE_CREDENTIALS("/tenants/([^//]+)/projects/([^//]+)/cicdjobs/([^//]+)/stages/updateCredentials_POST", "更新流水线密码", "updateCredential",
+            3, "JobService", null, "CICD"),
 
     CREATE_TENANT("/tenants_POST", "创建租户", "createTenant", null, null, "tenantName", "TENANT"),
     DELETE_TENANT("/tenants/([^//]+)_DELETE", "删除租户", "deleteTenant", 1, "TenantService", null, "TENANT"),
@@ -206,6 +209,11 @@ public enum AuditUrlEnum {
     ADD_DATACENTER("/datacenters_POST", "添加数据中心", "addDataCenter", null, null, "annotations", "CLUSTER"),
     UPDATE_DATACENTER("/datacenters/([^//]+)_PUT", "修改数据中心", "updateDataCenter", null, null, "annotations", "CLUSTER"),
     DELETE_DATACENTER("/datacenters/([^//]+)_DELETE", "删除数据中心", "deleteDataCenter", 1, null, null, "CLUSTER"),
+    ADD_NODE("/clusters/([^//]+)/nodes/([^//]+)/addNode_POST", "主机上线", "addNodeInCluster", 2, null, null, "CLUSTER"),
+    DELETE_NODE("/clusters/([^//]+)/nodes/([^//]+)/removeNode_DELETE", "主机下线", "deleteNodeInCluster", 2, null, null, "CLUSTER"),
+    UPDATE_NODE_STATUS("/clusters/([^//]+)/nodes/([^//]+)/schedule_PUT", "修改主机维护状态", "changeNodeStatus", 2, null, null, "CLUSTER"),
+    UPDATE_IDLENODE_STATUS("/clusters/([^//]+)/nodes/([^//]+)_PUT", "修改闲置节点状态", "updateIdleNodeStatus", 2, null, null, "CLUSTER"),
+    DRAIN_POD("/clusters/([^//]+)/nodes/([^//]+)/drainPod_PUT", "主机POD迁移", "drainPod", 2, null, null, "CLUSTER"),
 
     CREATE_LOG_BACKUP_RULE("/snapshotrules_POST", "创建日志备份规则", "createLogBackupRule", null, "ClusterService", "clusterIds", "LOG"),
     UPDATE_LOG_BACKUP_RULE("/snapshotrules/([^snapshots//]+)_PUT", "更新日志备份规则", "updateLogBackupRule", null, "ClusterService", "clusterIds", "LOG"),
@@ -216,12 +224,25 @@ public enum AuditUrlEnum {
     DELETE_SNAPSHOT("/snapshotrules/snapshots_DELETE", "删除日志备份快照", "deleteLogBackupSnapshot", null, null, "snapshotName", "LOG"),
     RECOVER_SNAPSHOT("/snapshotrules/snapshots_PUT", "恢复日志备份快照", "recoverLogBackupSnapshot", null, null, "snapshotName", "LOG");
 
+    //url正则表达式
     private final String urlRegex;
+
+    //操作中文描述
     private final String chDesc;
+
+    //操作英文描述
     private final String enDesc;
+
+    //正则表达式匹配组号
     private final Integer paramIndex;
+
+    //查询数据库的service
     private final String queryDb;
+
+    //请求参数名称
     private final String paramName;
+
+    //所属模块
     private final String module;
 
     AuditUrlEnum(String urlRegex, String chDesc, String enDesc, Integer paramIndex, String queryDb, String paramName, String module) {

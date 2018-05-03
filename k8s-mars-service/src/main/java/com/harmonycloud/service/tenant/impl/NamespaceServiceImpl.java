@@ -5,7 +5,12 @@ import static com.harmonycloud.common.enumm.RolebindingsEnum.DEV_RB;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
@@ -13,6 +18,7 @@ import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.tenant.bean.NamespaceLocalExample;
 import com.harmonycloud.dto.tenant.ClusterQuotaDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -22,6 +28,7 @@ import com.harmonycloud.service.application.DaemonSetsService;
 import com.harmonycloud.service.application.SecretService;
 import com.harmonycloud.service.application.ServiceService;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.integration.MicroServiceService;
 import com.harmonycloud.service.platform.bean.NodeDto;
 import com.harmonycloud.service.platform.bean.PodDto;
 import com.harmonycloud.service.platform.service.PodService;
@@ -68,46 +75,49 @@ public class NamespaceServiceImpl implements NamespaceService {
     private Logger LOGGER = LoggerFactory.getLogger(NamespaceLocalService.class);
 
     @Autowired
-    ResourceQuotaService resourceQuotaService;
+    private ResourceQuotaService resourceQuotaService;
     @Autowired
-    ServiceService serviceService;
+    private ServiceService serviceService;
     @Autowired
-    ApplicationDeployService applicationDeployService;
+    private ApplicationDeployService applicationDeployService;
     @Autowired
-    com.harmonycloud.k8s.service.NamespaceService namespaceService;
+    private com.harmonycloud.k8s.service.NamespaceService namespaceService;
     @Autowired
-    RoleBindingService roleBindingService;
+    private RoleBindingService roleBindingService;
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
     @Autowired
-    RoleService roleService;
+    private RoleService roleService;
     @Autowired
     private DeploymentService deploymentService;
     @Autowired
-    NetworkService networkService;
+    private NetworkService networkService;
     @Autowired
-    NetworkPolicyService networkPolicyService;
+    private NetworkPolicyService networkPolicyService;
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    PrivatePartitionService privatePartitionService;
+    private PrivatePartitionService privatePartitionService;
     @Autowired
-    NodeService nodeService;
+    private NodeService nodeService;
     @Autowired
-    DashboardService dashboardService;
+    private DashboardService dashboardService;
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
     @Autowired
-    TenantClusterQuotaService tenantClusterQuotaService;
+    private TenantClusterQuotaService tenantClusterQuotaService;
     @Autowired
-    SecretService secretService;
+    private SecretService secretService;
     @Autowired
-    UserService userService;
+    private UserService userService;
     @Autowired
-    PodService podService;
+    private PodService podService;
     @Autowired
-    DaemonSetsService daemonSetsService;
+    private DaemonSetsService daemonSetsService;
+
+    @Autowired
+    private MicroServiceService microServiceService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -123,108 +133,132 @@ public class NamespaceServiceImpl implements NamespaceService {
 
     //检查配额的有效值
     private void checkQuota(Cluster cluster, NamespaceDto namespaceDto) throws Exception {
-        //获取集群配额
-        List<ClusterQuotaDto> clusterQuotaDtos = this.tenantClusterQuotaService.
-                listClusterQuotaByTenantid(namespaceDto.getTenantId(), cluster.getId());
-        if (CollectionUtils.isEmpty(clusterQuotaDtos)){
-            throw new MarsRuntimeException(ErrorCodeMessage.UNKNOWN);
-        }
-        ClusterQuotaDto clusterQuotaDto = clusterQuotaDtos.get(0);
-        if (clusterQuotaDto.getTotalMomry() == 0d || clusterQuotaDto.getTotalCpu() == 0d){
-            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_RESOURCE_NOT_ZERO);
-        }
-        double cpuQuota = clusterQuotaDto.getCpuQuota();
-        double memoryQuota = clusterQuotaDto.getMemoryQuota();
-        String memoryQuotaType = clusterQuotaDto.getMemoryQuotaType();
-        double usedCpu = clusterQuotaDto.getUsedCpu();
-        double usedMemory = clusterQuotaDto.getUsedMemory();
-        String usedMemoryType = clusterQuotaDto.getUsedMemoryType();
-        //内存配额转换统一内存为MB
-        memoryQuota = this.transformValue(memoryQuota,memoryQuotaType);
-        //使用内存转换统一内存为MB
-        usedMemory = this.transformValue(usedMemory,usedMemoryType);
-
-        double canCpu = 0.0;
-        Map<String, Object> namespaceQuota = null;
-        if (!namespaceDto.getUpdate()) {
-            //第一次配额
-            canCpu = Double.parseDouble(namespaceDto.getQuota().getCpu());
-        } else {
-            namespaceQuota = getNamespaceQuota(namespaceDto.getName());
-            //修改cpu配额
-            List<String> cpu = (List<String>)namespaceQuota.get(CommonConstant.CPU);
-            namespaceDto.setLastCpu(cpu.get(CommonConstant.NUM_ONE));
-            usedCpu = Double.parseDouble(namespaceDto.getLastCpu());
-            canCpu = Double.parseDouble(namespaceDto.getQuota().getCpu()) - Double.parseDouble(namespaceDto.getLastCpu());
-        }
-        //检查cpu配额
-        checkResource(canCpu, cpuQuota, usedCpu, CommonConstant.DEFAULT);
-
-        List<String> laseUsedMemory = null;
-        String laseUsedMemoryType = null;
-        //检查内存配额
-        if (memoryQuota != 0) {
-            double canMemory = 0d;
-            if (namespaceDto.getQuota().getMemory().contains(CommonConstant.MI)) {
-                String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.MI);
-                if (!namespaceDto.getUpdate()) {
-                    canMemory = (Double.parseDouble(splitMemory[0]));
-                } else {
-                    //更新内存配额
-                    laseUsedMemory = (List<String>)namespaceQuota.get(CommonConstant.MEMORY);
-                    laseUsedMemoryType = (String)namespaceQuota.get(CommonConstant.USEDTYPE);
-                    double parseDouble = Double.parseDouble(laseUsedMemory.get(CommonConstant.NUM_ONE));
-                    double lasetUsedMemory = this.transformValue(parseDouble,laseUsedMemoryType);
-                    usedMemory = lasetUsedMemory;
-                    canMemory = (Double.parseDouble(splitMemory[0]) - lasetUsedMemory);
-                }
-                checkResource(canMemory, memoryQuota, usedMemory, CommonConstant.MI);
-            } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.GI)) {
-                String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.GI);
-                if (!namespaceDto.getUpdate()) {
-                    canMemory = (Double.parseDouble(splitMemory[0])) * CommonConstant.NUM_SIZE_MEMORY;
-                } else {
-                    //更新内存配额
-                    laseUsedMemory = (List<String>)namespaceQuota.get(CommonConstant.MEMORY);
-                    laseUsedMemoryType = (String)namespaceQuota.get(CommonConstant.USEDTYPE);
-                    double parseDouble = Double.parseDouble(laseUsedMemory.get(CommonConstant.NUM_ONE));
-                    double lasetUsedMemory = this.transformValue(parseDouble,laseUsedMemoryType);
-                    usedMemory = lasetUsedMemory;
-                    canMemory = (Double.parseDouble(splitMemory[0])* CommonConstant.NUM_SIZE_MEMORY - lasetUsedMemory);
-                }
-                checkResource(canMemory, memoryQuota, usedMemory, CommonConstant.GI);
-            } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.TI)) {
-                String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.TI);
-                if (!namespaceDto.getUpdate()) {
-                    canMemory = (Double.parseDouble(splitMemory[0])) *
-                            CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY;
-                } else {
-                    //更新内存配额
-                    laseUsedMemory = (List<String>)namespaceQuota.get(CommonConstant.MEMORY);
-                    laseUsedMemoryType = (String)namespaceQuota.get(CommonConstant.USEDTYPE);
-                    double parseDouble = Double.parseDouble(laseUsedMemory.get(CommonConstant.NUM_ONE));
-                    double lasetUsedMemory = this.transformValue(parseDouble,laseUsedMemoryType);
-                    usedMemory = lasetUsedMemory;
-                    canMemory = (Double.parseDouble(splitMemory[0])*
-                            CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY - lasetUsedMemory);
-                }
-                checkResource(canMemory, memoryQuota, usedMemory, CommonConstant.TI);
-            } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.PI)) {
-                String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.PI);
-                if (!namespaceDto.getUpdate()) {
-                    canMemory = (Double.parseDouble(splitMemory[0])) * Math.pow(CommonConstant.NUM_SIZE_MEMORY,CommonConstant.NUM_THREE);
-                } else {
-                    //更新内存配额
-                    laseUsedMemory = (List<String>)namespaceQuota.get(CommonConstant.MEMORY);
-                    laseUsedMemoryType = (String)namespaceQuota.get(CommonConstant.USEDTYPE);
-                    double parseDouble = Double.parseDouble(laseUsedMemory.get(CommonConstant.NUM_ONE));
-                    double lasetUsedMemory = this.transformValue(parseDouble,laseUsedMemoryType);
-                    usedMemory = lasetUsedMemory;
-                    canMemory = (Double.parseDouble(splitMemory[0])*
-                            Math.pow(CommonConstant.NUM_SIZE_MEMORY,CommonConstant.NUM_THREE) - lasetUsedMemory);
-                }
-                checkResource(canMemory, memoryQuota, usedMemory, CommonConstant.PI);
+        Lock lock = new ReentrantLock();
+        lock.lock();
+        try{
+            //获取集群配额
+            List<ClusterQuotaDto> clusterQuotaDtos = this.tenantClusterQuotaService.
+                    listClusterQuotaByTenantid(namespaceDto.getTenantId(), cluster.getId());
+            if (CollectionUtils.isEmpty(clusterQuotaDtos)) {
+                throw new MarsRuntimeException(ErrorCodeMessage.UNKNOWN);
             }
+            ClusterQuotaDto clusterQuotaDto = clusterQuotaDtos.get(0);
+            if (clusterQuotaDto.getTotalMomry() == 0d || clusterQuotaDto.getTotalCpu() == 0d) {
+                throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_RESOURCE_NOT_ZERO);
+            }
+            double cpuQuota = clusterQuotaDto.getCpuQuota();
+            double memoryQuota = clusterQuotaDto.getMemoryQuota();
+            String memoryQuotaType = clusterQuotaDto.getMemoryQuotaType();
+            double usedCpu = clusterQuotaDto.getUsedCpu();
+            double usedMemory = clusterQuotaDto.getUsedMemory();
+            String usedMemoryType = clusterQuotaDto.getUsedMemoryType();
+            //内存配额转换统一内存为MB
+            memoryQuota = this.transformValue(memoryQuota, memoryQuotaType);
+            //使用内存转换统一内存为MB
+            usedMemory = this.transformValue(usedMemory, usedMemoryType);
+
+            double canCpu = 0.0;
+            double usedCpuNs = 0.0;
+            double usedCpuQuotaNs = 0.0;
+            Map<String, Object> namespaceQuota = null;
+            if (!namespaceDto.getUpdate()) {
+                //第一次配额
+                canCpu = Double.parseDouble(namespaceDto.getQuota().getCpu());
+            } else {
+                namespaceQuota = getNamespaceQuota(namespaceDto.getName());
+                //修改cpu配额
+                List<String> cpu = (List<String>) namespaceQuota.get(CommonConstant.CPU);
+                namespaceDto.setLastCpu(cpu.get(CommonConstant.NUM_ONE));
+                canCpu = Double.parseDouble(namespaceDto.getQuota().getCpu()) - Double.parseDouble(cpu.get(0));
+                usedCpuQuotaNs = Double.parseDouble(namespaceDto.getQuota().getCpu());
+                usedCpuNs = Double.parseDouble(cpu.get(CommonConstant.NUM_ONE));
+
+            }
+            //检查cpu配额
+            checkResource(canCpu, cpuQuota - usedCpu, usedCpuNs,usedCpuQuotaNs, CommonConstant.DEFAULT);
+
+            List<String> laseUsedMemory = null;
+            String laseUsedMemoryType = null;
+            String laseHardMemoryType = null;
+            //检查内存配额
+            if (memoryQuota != 0) {
+                double canMemory = 0d;
+                double usedMemoryNs = 0d;
+                double usedMemoryQuotaNs = 0d;
+                if (namespaceDto.getQuota().getMemory().contains(CommonConstant.MI)) {
+                    String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.MI);
+                    if (!namespaceDto.getUpdate()) {
+                        canMemory = (Double.parseDouble(splitMemory[0]));
+                    } else {
+                        //更新内存配额
+                        laseUsedMemory = (List<String>) namespaceQuota.get(CommonConstant.MEMORY);
+                        laseUsedMemoryType = (String) namespaceQuota.get(CommonConstant.HARDTYPE);
+                        double parseDouble = Double.parseDouble(laseUsedMemory.get(0));
+                        double lasetUsedMemory = this.transformValue(parseDouble, laseUsedMemoryType);
+//                        usedMemory = lasetUsedMemory;
+                        canMemory = (Double.parseDouble(splitMemory[0]) - lasetUsedMemory);
+                        usedMemoryQuotaNs = Double.parseDouble(splitMemory[0]);
+                        usedMemoryNs = Double.parseDouble(laseUsedMemory.get(CommonConstant.NUM_ONE));
+                    }
+                    checkResource(canMemory, memoryQuota - usedMemory, usedMemoryNs,usedMemoryQuotaNs, CommonConstant.MI);
+                } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.GI)) {
+                    String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.GI);
+                    if (!namespaceDto.getUpdate()) {
+                        canMemory = (Double.parseDouble(splitMemory[0])) * CommonConstant.NUM_SIZE_MEMORY;
+                    } else {
+                        //更新内存配额
+                        laseUsedMemory = (List<String>) namespaceQuota.get(CommonConstant.MEMORY);
+                        laseUsedMemoryType = (String) namespaceQuota.get(CommonConstant.HARDTYPE);
+                        double parseDouble = Double.parseDouble(laseUsedMemory.get(0));
+                        double lasetUsedMemory = this.transformValue(parseDouble, laseUsedMemoryType);
+//                        usedMemory = lasetUsedMemory;
+                        canMemory = (Double.parseDouble(splitMemory[0]) * CommonConstant.NUM_SIZE_MEMORY - lasetUsedMemory);
+                        usedMemoryQuotaNs = Double.parseDouble(splitMemory[0]) * CommonConstant.NUM_SIZE_MEMORY;
+                        laseHardMemoryType = (String) namespaceQuota.get(CommonConstant.HARDTYPE);
+                        usedMemoryNs = this.transformValue(Double.parseDouble(laseUsedMemory.get(CommonConstant.NUM_ONE)), laseHardMemoryType);
+                    }
+                    checkResource(canMemory, memoryQuota - usedMemory, usedMemoryNs,usedMemoryQuotaNs, CommonConstant.GI);
+                } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.TI)) {
+                    String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.TI);
+                    if (!namespaceDto.getUpdate()) {
+                        canMemory = (Double.parseDouble(splitMemory[0])) *
+                                CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY;
+                    } else {
+                        //更新内存配额
+                        laseUsedMemory = (List<String>) namespaceQuota.get(CommonConstant.MEMORY);
+                        laseUsedMemoryType = (String) namespaceQuota.get(CommonConstant.HARDTYPE);
+                        double parseDouble = Double.parseDouble(laseUsedMemory.get(0));
+                        double lasetUsedMemory = this.transformValue(parseDouble, laseUsedMemoryType);
+//                        usedMemory = lasetUsedMemory;
+                        canMemory = (Double.parseDouble(splitMemory[0]) *
+                                CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY - lasetUsedMemory);
+                        usedMemoryQuotaNs = Double.parseDouble(splitMemory[0]) * CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY;
+                        laseHardMemoryType = (String) namespaceQuota.get(CommonConstant.HARDTYPE);
+                        usedMemoryNs = this.transformValue(Double.parseDouble(laseUsedMemory.get(CommonConstant.NUM_ONE)), laseHardMemoryType);
+                    }
+                    checkResource(canMemory, memoryQuota - usedMemory, usedMemoryNs,usedMemoryQuotaNs, CommonConstant.TI);
+                } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.PI)) {
+                    String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.PI);
+                    if (!namespaceDto.getUpdate()) {
+                        canMemory = (Double.parseDouble(splitMemory[0])) * Math.pow(CommonConstant.NUM_SIZE_MEMORY, CommonConstant.NUM_THREE);
+                    } else {
+                        //更新内存配额
+                        laseUsedMemory = (List<String>) namespaceQuota.get(CommonConstant.MEMORY);
+                        laseUsedMemoryType = (String) namespaceQuota.get(CommonConstant.HARDTYPE);
+                        double parseDouble = Double.parseDouble(laseUsedMemory.get(0));
+                        double lasetUsedMemory = this.transformValue(parseDouble, laseUsedMemoryType);
+//                        usedMemory = lasetUsedMemory;
+                        canMemory = (Double.parseDouble(splitMemory[0]) *
+                                Math.pow(CommonConstant.NUM_SIZE_MEMORY, CommonConstant.NUM_THREE) - lasetUsedMemory);
+                        usedMemoryQuotaNs = Double.parseDouble(splitMemory[0]) * Math.pow(CommonConstant.NUM_SIZE_MEMORY, CommonConstant.NUM_THREE);
+                        laseHardMemoryType = (String) namespaceQuota.get(CommonConstant.HARDTYPE);
+                        usedMemoryNs = this.transformValue(Double.parseDouble(laseUsedMemory.get(CommonConstant.NUM_ONE)), laseHardMemoryType);
+                    }
+                    checkResource(canMemory, memoryQuota - usedMemory, usedMemoryNs,usedMemoryQuotaNs, CommonConstant.TI);
+                }
+            }
+        }finally {
+            lock.unlock();
         }
     }
     private double transformValue(double usedMemory ,String type){
@@ -248,16 +282,16 @@ public class NamespaceServiceImpl implements NamespaceService {
         return value;
     }
     //检查资源是否可用和主机资源保持算法一直
-    private void checkResource(double can,double resource,double use,String type) throws Exception {
+    private void checkResource(double can,double resource,double use,double usedQuotaNs,String type) throws Exception {
         NumberFormat nf = NumberFormat.getNumberInstance();
+        nf.setGroupingUsed(false);
         nf.setMaximumFractionDigits(1);
         nf.setRoundingMode(RoundingMode.HALF_UP);
-        nf.setGroupingUsed(false);
 //        double fomatResource = new BigDecimal(resource).setScale(CommonConstant.NUM_ONE, BigDecimal.ROUND_HALF_UP).doubleValue();double pow = Math.pow(2, 10);Math.pow(CommonConstant.NUM_SIZE_MEMORY,CommonConstant.NUM_THREE)
-        if (can < 0 ){
-            throw new MarsRuntimeException(ErrorCodeMessage.RESOURCE_QUOTA_NOT_LESS_ZERO);
+        if (usedQuotaNs < use){
+            throw new MarsRuntimeException(ErrorCodeMessage.RESOURCE_OVER_FLOOR);
         }
-        if ((resource - can - use) < - 0.1) {
+        if ((resource - can) < - 0.1) {
             switch (type){
                 case CommonConstant.MI:
                     throw new MarsRuntimeException(ErrorCodeMessage.MEMORY_QUOTA_OVER_FLOOR,nf.format(-(resource - can - use)) + "MB",Boolean.FALSE);
@@ -382,6 +416,7 @@ public class NamespaceServiceImpl implements NamespaceService {
                     if (Objects.isNull(quota2)){
                         quota2 = new QuotaDto();
                     }
+                    //获取
                     Double oldCpuValue = (quota2.getCpu()==null)?0d:(quota2.getCpu().contains(CommonConstant.SMALLM)?(Double.parseDouble(quota2.getCpu().split(CommonConstant.SMALLM)[0])/1000):Double.parseDouble(quota2.getCpu()));
                     quota2.setCpu(oldCpuValue + (nodeDetail.getCpu().contains(CommonConstant.SMALLM)?(Double.parseDouble(nodeDetail.getCpu().split(CommonConstant.SMALLM)[0])/1000):Double.parseDouble(nodeDetail.getCpu()) - remainCpu)+"");
                     Double oldMemoryValue = quota2.getMemory()==null?0d:Double.parseDouble(quota2.getMemory().split(CommonConstant.GI)[0]);
@@ -578,7 +613,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         }
         Map<String,Object> mapNode = new HashMap<>();
         for (String nodename : nodes) {
-            if (CollectionUtils.isEmpty(mapNode)){
+            if (Objects.isNull(mapNode.get(nodename))){
                 ActionReturnUtil addNodeLabels = nodeService.addNodeLabels(nodename, newLabels, cluster.getId());
                 if ((Boolean) addNodeLabels.get(CommonConstant.SUCCESS) == false) {
                     throw new MarsRuntimeException(ErrorCodeMessage.NODE_LABEL_CREATE_ERROR);
@@ -645,7 +680,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         // ActionReturnUtil.returnErrorWithMsg("请传入正确的tenanid与namespace");
         // }
         Cluster cluster = this.namespaceLocalService.getClusterByNamespaceName(namespace);
-
+        NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByTenantIdAndName(tenantid, namespace);
 //        // 1.删除分区网络绑定
 //        ActionReturnUtil deleteNetwork = networkService.subnetRemoveBing(namespace);
 //        if ((Boolean) deleteNetwork.get(CommonConstant.SUCCESS) == false) {
@@ -653,7 +688,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 //        }
 
         // 2.租户绑定信息里删除namepsace
-        this.namespaceLocalService.deleteNamespace(tenantid,namespace);
+        this.namespaceLocalService.deleteNamespace(namespaceLocal);
 
         // 3.调用k8s接口删除namespace
         ActionReturnUtil delbResult = this.delNamespace(namespace, cluster);
@@ -680,6 +715,11 @@ public class NamespaceServiceImpl implements NamespaceService {
         ActionReturnUtil ShareNamespace = this.delShareNamespace(tenantid, namespace);
         if ((Boolean) ShareNamespace.get(CommonConstant.SUCCESS) == false) {
             return ShareNamespace;
+        }
+
+        ActionReturnUtil deleteMsfTaskAndIns = microServiceService.deleteTaskAndInstance(namespaceLocal.getNamespaceId());
+        if ((Boolean) deleteMsfTaskAndIns.get(CommonConstant.SUCCESS) == false) {
+            return deleteMsfTaskAndIns;
         }
         return ActionReturnUtil.returnSuccess();
     }
@@ -908,6 +948,11 @@ public class NamespaceServiceImpl implements NamespaceService {
 
         Map<String, Object> namespaceQuota = this.getNamespaceQuota(name);
         namespaceQuota.put("otherNamespaceList", otherNamespaceList);
+        //私有分区获取分区的私有节点列表
+        if(namespaceQuota.get(ISPRIVATE) != null && (Boolean)namespaceQuota.get(ISPRIVATE)){
+            List<NodeDto> nodeDtos = nodeService.listNodeByNamespaces(name);
+            namespaceQuota.put(PRIVATENODELIST,nodeDtos);
+        }
         return ActionReturnUtil.returnSuccessWithData(namespaceQuota);
     }
 
@@ -1601,50 +1646,104 @@ public class NamespaceServiceImpl implements NamespaceService {
         if (Objects.isNull(clusterId)) {
             throw new MarsRuntimeException(ErrorCodeMessage.CLUSTERID_NOT_BLANK);
         }
+        Cluster cluster = clusterService.findClusterById(clusterId);
         List<NamespaceLocal> namespaceList = namespaceLocalService.getNamespaceListByClusterId(clusterId);
+        Map<String,NamespaceLocal> namespaceLocalMap = namespaceList.stream().collect(Collectors.toMap(NamespaceLocal::getNamespaceName, ns -> ns));
         List<Map<String, Object>> namespaceData = new ArrayList<Map<String, Object>>();
-        this.getNameSpaceDetailByNamespaceLocalList(namespaceList,namespaceData);
+        List<Namespace> namespaces = this.namespaceService.list(cluster);
+        if (CollectionUtils.isEmpty(namespaces)) {
+            return namespaceData;
+        }
+        for (Namespace namespace : namespaces) {
+            Map<String, Object> namespaceDetail = this.getNamespaceQuota(namespace, cluster);
+            if (namespaceDetail != null) {
+                namespaceDetail.put(CommonConstant.NS_ALIASNAME,namespaceLocalMap.get(namespace.getMetadata().getName()).getAliasName());
+                namespaceDetail.put(CommonConstant.TENANT_ID,namespaceLocalMap.get(namespace.getMetadata().getName()).getTenantId());
+                namespaceData.add(namespaceDetail);
+            }
+        }
         return namespaceData;
     }
     private void getNameSpaceDetailByNamespaceLocalList(List<NamespaceLocal> namespaceList,List<Map<String, Object>> namespaceData) throws Exception{
         if (!CollectionUtils.isEmpty(namespaceList)){
             // 查询namespace信息
+            CountDownLatch countDownLatchApp = new CountDownLatch(namespaceList.size());
             for (NamespaceLocal namespace : namespaceList) {
-                Map<String, Object> namespaceDetail = getNamespaceQuota(namespace.getNamespaceName());
-                if (namespaceDetail != null) {
-                    namespaceDetail.put(CommonConstant.NS_ALIASNAME,namespace.getAliasName());
-                    namespaceDetail.put(CommonConstant.TENANT_ID,namespace.getTenantId());
-                    namespaceData.add(namespaceDetail);
+                ThreadPoolExecutorFactory.executor.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            Map<String, Object> namespaceDetail = getNamespaceQuota(namespace.getNamespaceName());
+                            if (namespaceDetail != null) {
+                                namespaceDetail.put(CommonConstant.NS_ALIASNAME,namespace.getAliasName());
+                                namespaceDetail.put(CommonConstant.TENANT_ID,namespace.getTenantId());
+                                namespaceData.add(namespaceDetail);
+                            }
+                        } catch (Exception e) {
+                            logger.error("获取分区配额失败", e);
+                        } finally {
+                            countDownLatchApp.countDown();
+                        }
+                    }
+                });
+            }
+            countDownLatchApp.await();
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+            sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+            // 对时间进行升序
+            if (!CollectionUtils.isEmpty(namespaceData)){
+                try{
+                    Collections.sort(namespaceData, new Comparator<Map<String, Object>>() {
+                        @Override
+                        public int compare(Map<String, Object> o1, Map<String, Object> o2) {
+                            try {
+                                return Long.valueOf(sdf.parse(o1.get(CREATETIME).toString()).getTime())
+                                        .compareTo(Long.valueOf(sdf.parse(o2.get(CREATETIME).toString()).getTime()));
+                            } catch (ParseException e) {
+                                return 0;
+                            }
+                        }
+                    });
+                }catch (Exception e){
+                    logger.error("ns排序错误", e);
                 }
             }
         }
     }
+
     public Map<String, Object> getNamespaceQuota(String namespace) throws Exception {
-        Map<String, Object> namespaceMap = new HashMap<String, Object>();
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
-        NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByName(namespace);
         K8SClientResponse namespace2 = this.namespaceService.getNamespace(namespace, null, null, cluster);
         if (!HttpStatusUtil.isSuccessStatus(namespace2.getStatus())) {
             logger.error("调用k8s接口查询namespace失败", namespace2.getBody());
             return ActionReturnUtil.returnErrorWithMsg(namespace2.getBody());
         }
+        Namespace namespacePojo = JsonUtil.jsonToPojo(namespace2.getBody(), Namespace.class);
+        return this.getNamespaceQuota(namespacePojo, cluster);
+    }
+
+    public Map<String, Object> getNamespaceQuota(Namespace namespace, Cluster cluster) throws Exception {
+        Map<String, Object> namespaceMap = new HashMap<String, Object>();
+        String nsName = namespace.getMetadata().getName();
+        NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByName(nsName);
+        if(namespaceLocal == null){
+            return null;
+        }
         namespaceMap.put(CommonConstant.CLUSTERID,cluster.getId());
+        namespaceMap.put(CommonConstant.CLUSTERALIASID,cluster.getAliasName());
         namespaceMap.put(CommonConstant.CLUSTER_NAME,cluster.getName());
-        Namespace toPojo = JsonUtil.jsonToPojo(namespace2.getBody(), Namespace.class);
-        Object label = toPojo.getMetadata().getLabels().get(ISPRIVATE);
-        String phase = toPojo.getStatus().getPhase();
-        String creationTimestamp = toPojo.getMetadata().getCreationTimestamp();
+        Object label = namespace.getMetadata().getLabels().get(ISPRIVATE);
+        String phase = namespace.getStatus().getPhase();
+        String creationTimestamp = namespace.getMetadata().getCreationTimestamp();
         namespaceMap.put(PHASE,phase);
         namespaceMap.put(CREATETIME,creationTimestamp);
         if (label != null && label.toString().equals(CommonConstant.ONENUMSTRING)) {
             namespaceMap.put(ISPRIVATE, true);
-            List<NodeDto> nodeDtos = nodeService.listNodeByNamespaces(namespace);
-            namespaceMap.put(PRIVATENODELIST,nodeDtos);
         } else {
             namespaceMap.put(ISPRIVATE, false);
         }
-        ResourceQuotaList quotaList = this.getResouceQuota(namespace, cluster);
-        namespaceMap.put(CommonConstant.NAME, namespace);
+        ResourceQuotaList quotaList = this.getResouceQuota(nsName, cluster);
+        namespaceMap.put(CommonConstant.NAME, nsName);
         namespaceMap.put(CommonConstant.ALIASNAME, namespaceLocal.getAliasName());
         if (quotaList != null && quotaList.getItems() != null && quotaList.getItems().size() != 0) {
             ResourceQuota resourceQuota = quotaList.getItems().get(0);
@@ -1656,9 +1755,9 @@ public class NamespaceServiceImpl implements NamespaceService {
                 List<Object> cpu = new LinkedList<>();
                 // 保留两位小数 四舍五入
                 NumberFormat nf = NumberFormat.getNumberInstance();
-                nf.setMaximumFractionDigits(CommonConstant.NUM_TWO);
-                nf.setRoundingMode(RoundingMode.UP);
                 nf.setGroupingUsed(false);
+                nf.setMaximumFractionDigits(CommonConstant.NUM_ONE);
+                nf.setRoundingMode(RoundingMode.DOWN);
                 if (hard.get(CommonConstant.CPU).contains(CommonConstant.SMALLM)) {
                     String chard = hard.get(CommonConstant.CPU).split(CommonConstant.SMALLM)[0];
                     double hardMemory = Double.parseDouble(chard);
@@ -1998,9 +2097,9 @@ public class NamespaceServiceImpl implements NamespaceService {
         //添加原有分区的配额
         // 保留一位小数 四舍五入
         NumberFormat nf = NumberFormat.getNumberInstance();
-        nf.setMaximumFractionDigits(CommonConstant.NUM_TWO);
-        nf.setRoundingMode(RoundingMode.UP);
         nf.setGroupingUsed(false);
+        nf.setMaximumFractionDigits(CommonConstant.NUM_TWO);
+        nf.setRoundingMode(RoundingMode.HALF_UP);
         QuotaDto quota = namespaceDto.getQuota();
         Double oldCpuValue = (quota.getCpu()==null)?0d:(quota.getCpu().contains(CommonConstant.SMALLM)?(Double.parseDouble(quota.getCpu().split(CommonConstant.SMALLM)[0])/1000):Double.parseDouble(quota.getCpu()));
         double cpuHard = oldCpuValue + cpu;

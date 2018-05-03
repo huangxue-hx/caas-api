@@ -160,7 +160,7 @@ public class ExternalServiceImpl implements ExternalService {
             K8SClientResponse response = sService.doServiceByNamespace(null, null, bodys, HTTPMethod.GET, cluster);
             if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
                 UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-                LOGGER.error("删除外部服务失败:projectId:{},cluster:{},res:{}",
+                LOGGER.error("获取外部服务失败:projectId:{},cluster:{},res:{}",
                         new String[]{projectId, cluster.getName(), JSONObject.toJSONString(sta)});
                 errorMessage += cluster.getName() + ", ";
                 continue;

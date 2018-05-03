@@ -191,6 +191,19 @@ public interface TenantService {
     public void dealQuotaWithNewCluster(String clusterId) throws Exception;
 
     /**
+     * 给要开启的集群恢复租户配额
+     * @param clusterId
+     * @throws Exception
+     */
+    public void dealQuotaWithNormalCluster(String clusterId) throws Exception;
+    /**
+     *给要暂停的集群软删除租户配额
+     * @param clusterId
+     * @return
+     * @throws Exception
+     */
+    public void dealQuotaWithPauseCluster(String clusterId) throws Exception;
+    /**
      *  导入租户项目
      * @param tenantDto
      * @return

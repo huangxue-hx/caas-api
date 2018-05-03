@@ -10,6 +10,7 @@ import com.harmonycloud.common.exception.MarsRuntimeException;
 
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.application.bean.ConfigFile;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dao.ci.*;
 import com.harmonycloud.dao.ci.bean.*;
@@ -29,14 +30,21 @@ import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.common.PrivilegeHelper;
 import com.harmonycloud.service.platform.bean.*;
+import com.harmonycloud.service.platform.bean.harbor.HarborProjectInfo;
+import com.harmonycloud.service.platform.bean.harbor.HarborRepositoryMessage;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
+import com.harmonycloud.service.platform.service.ConfigCenterService;
 import com.harmonycloud.service.platform.service.ci.*;
+import com.harmonycloud.service.platform.service.harbor.HarborService;
+import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.offbytwo.jenkins.JenkinsServer;
+import com.offbytwo.jenkins.model.Build;
+import com.offbytwo.jenkins.model.BuildWithDetails;
 import com.offbytwo.jenkins.model.FolderJob;
 import com.offbytwo.jenkins.model.JobWithDetails;
 import org.apache.commons.beanutils.BeanUtils;
@@ -45,10 +53,13 @@ import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
+import org.apache.http.HttpStatus;
+import org.dom4j.Document;
+import org.dom4j.DocumentHelper;
+import org.dom4j.Element;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -66,114 +77,125 @@ import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeUtility;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
-import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
 
 /**
  * Created by anson on 17/5/31.
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class JobServiceImpl implements JobService {
 
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(JobServiceImpl.class);
 
     @Autowired
-    JobMapper jobMapper;
+    private JobMapper jobMapper;
 
     @Autowired
-    StageMapper stageMapper;
+    private StageMapper stageMapper;
 
     @Autowired
-    JobBuildMapper jobBuildMapper;
+    private JobBuildMapper jobBuildMapper;
 
     @Autowired
-    StageBuildMapper stageBuildMapper;
+    private StageBuildMapper stageBuildMapper;
 
     @Autowired
-    StageService stageService;
+    private StageService stageService;
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    DeploymentsService deploymentsService;
+    private DeploymentsService deploymentsService;
 
     @Autowired
-    DeploymentService deploymentService;
+    private DeploymentService deploymentService;
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
 
     @Autowired
-    VersionControlService versionControlService;
+    private VersionControlService versionControlService;
 
     @Autowired
-    ApplicationDeployService applicationDeployService;
+    private ApplicationDeployService applicationDeployService;
 
     @Autowired
-    ConfigMapService configMapService;
+    private ConfigMapService configMapService;
 
     @Autowired
-    DockerFileJobStageMapper dockerFileJobStageMapper;
+    private DockerFileJobStageMapper dockerFileJobStageMapper;
 
     @Autowired
-    BuildEnvironmentMapper buildEnvironmentMapper;
+    private BuildEnvironmentMapper buildEnvironmentMapper;
 
     @Autowired
-    ProjectService projectService;
+    private ProjectService projectService;
 
     @Autowired
-    ParameterService parameterService;
+    private ParameterService parameterService;
 
     @Autowired
-    ServiceService serviceService;
+    private ServiceService serviceService;
 
     @Autowired
-    BlueGreenDeployService blueGreenDeployService;
+    private BlueGreenDeployService blueGreenDeployService;
     @Autowired
-    PersistentVolumeService persistentVolumeService;
+    private PersistentVolumeService persistentVolumeService;
 
     @Autowired
-    IntegrationTestService integrationTestService;
+    private IntegrationTestService integrationTestService;
 
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
 
     @Autowired
-    StageTypeService stageTypeService;
+    private StageTypeService stageTypeService;
 
     @Autowired
-    StageBuildService stageBuildService;
+    private StageBuildService stageBuildService;
 
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
 
     @Autowired
-    JobBuildService jobBuildService;
+    private JobBuildService jobBuildService;
 
     @Autowired
-    TriggerService triggerService;
+    private TriggerService triggerService;
 
     @Autowired
-    DockerFileService dockerFileService;
+    private DockerFileService dockerFileService;
 
     @Autowired
-    PrivilegeHelper privilegeHelper;
+    private PrivilegeHelper privilegeHelper;
+
+    @Autowired
+    private HarborService harborService;
+
+    @Autowired
+    private ConfigCenterService configCenterService;
+
+    @Autowired
+    private SystemConfigService systemConfigService;
 
     @Value("#{propertiesReader['web.url']}")
     private String webUrl;
 
     @Value("#{propertiesReader['api.url']}")
     private String apiUrl;
+
+    @Value("#{propertiesReader['jenkins.timeout']}")
+    private String jenkinsTimeout;
 
     @Autowired
     private DruidDataSource dataSource;
@@ -182,11 +204,12 @@ public class JobServiceImpl implements JobService {
     private DataSourceTransactionManager transactionManager;
     @Autowired
     SecretService secretService;
-
+    private long sleepTime = 2000L;
 
     DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Integer createJob(JobDto jobDto) throws Exception {
         Job job;
         if(jobDto.getCopyId() == null) {
@@ -197,6 +220,7 @@ public class JobServiceImpl implements JobService {
                 throw new MarsRuntimeException(ErrorCodeMessage.COPIED_PIPELINE_NOT_EXIST);
             }
             job.setName(jobDto.getName());
+            job.setDescription(jobDto.getDescription());
             job.setNotification(jobDto.isNotification());
             job.setSuccessNotification(jobDto.isSuccessNotification());
             job.setFailNotification(jobDto.isFailNotification());
@@ -225,6 +249,7 @@ public class JobServiceImpl implements JobService {
             dataModel.put("stageList", new ArrayList<>());
             dataModel.put("job", job);
             dataModel.put("apiUrl", apiUrl);
+            dataModel.put("timeout", jenkinsTimeout);
             String script = TemplateUtil.generate("pipeline.ftl", dataModel);
             dataModel.put("script", script);
             String body = TemplateUtil.generate("jobConfig.ftl", dataModel);
@@ -263,29 +288,7 @@ public class JobServiceImpl implements JobService {
 
 
     @Override
-    public ActionReturnUtil updateJob(Job job) {
-        String username = (String)session.getAttribute("username");
-        job.setUpdateUser(username);
-        job.setUpdateTime(new Date());
-        jobMapper.updateJob(job);
-
-        String jenkinsJobName = job.getTenant() + "_" + job.getName();
-        Map<String, Object> dataModel = new HashMap<>();
-        try {
-            //dataModel.put("tag", job.getImageTag());
-            //dataModel.put("script", generateScript(job));
-            String body = null;
-            dataModel.put("job", job);
-            body = TemplateUtil.generate("jobConfig.ftl", dataModel);
-            ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + jenkinsJobName + "/config.xml", null, null, body, null);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return ActionReturnUtil.returnSuccess();
-    }
-
-    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deleteJob(Integer id) throws Exception {
         Job job = jobMapper.queryById(id);
         if(null == job){
@@ -297,10 +300,17 @@ public class JobServiceImpl implements JobService {
         //删除数据库中的流水线与步骤数据
         jobMapper.deleteJobById(id);
         stageMapper.deleteStageByJob(id);
+        //删除数据库中的构建记录
+        jobBuildService.deleteByJobId(id);
+        stageBuildService.deleteByJobId(id);
 
         //删除jenkins中的流水线
         JenkinsServer jenkinsServer = JenkinsClient.getJenkinsServer();
         FolderJob folderJob = getFolderJob(projectName, clusterName);
+        JobWithDetails jobWithDetails = jenkinsServer.getJob(folderJob, job.getName());
+        if(jobWithDetails == null){
+            return;
+        }
         try {
             jenkinsServer.deleteJob(folderJob, job.getName());
         } catch(Exception e){
@@ -319,55 +329,44 @@ public class JobServiceImpl implements JobService {
 
     @Override
     public List getJobList(String projectId, String clusterId, String type, String jobName) throws Exception{
-        String projectName = getProjectNameByProjectId(projectId);
-
-        List<Map> jobList = new ArrayList();
-
-        Map<String, Object> params = new HashMap<>();
-        params.put("tree", "jobs[name,color,lastBuild[number,building,result,timestamp],builds[result]]");
-        ActionReturnUtil result;
+        List<Map> jobMapList = new ArrayList();
+        List<JobWithBuild> jobList = new ArrayList<>();
+        List<Cluster> clusterList = roleLocalService.listCurrentUserRoleCluster();
+        Map<String, Cluster> clusterMap = clusterList.stream().collect(Collectors.toMap(Cluster::getId, cluster -> cluster));
         if(StringUtils.isNotEmpty(clusterId)) {
-            Cluster cluster = clusterService.findClusterById(clusterId);
-            result = HttpJenkinsClientUtil.httpGetRequest("/job/" + projectName + "/job/" + cluster.getName() + "/api/xml", null, params, false);
-            jobList.addAll(getJobsByJenkinsResult(result, jobName, projectId, clusterId, cluster.getAliasName(), type));
+            jobList = jobMapper.selectJobWithLastBuild(projectId, clusterId, jobName, type);
         }else{
-            Map<String, List<Map>> jobListMap = new HashMap();
-            List<Cluster> clusterList = roleLocalService.listCurrentUserRoleCluster();
-            if(CollectionUtils.isNotEmpty(clusterList)) {
-                CountDownLatch countDownLatch = new CountDownLatch(clusterList.size());
-                for (Cluster cluster : clusterList) {
-                    NewCachedThreadPool threadPool = NewCachedThreadPool.init();
-                    threadPool.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + projectName + "/job/" + cluster.getName() + "/api/xml", null, params, false);
-                                jobListMap.put(cluster.getId(), getJobsByJenkinsResult(result, jobName, projectId, cluster.getId(), cluster.getAliasName(), type));
-                            }catch(Exception e){
-                                logger.error("获取流水线失败", e);
-                            }finally {
-                                countDownLatch.countDown();
-                            }
-                        }
-                    });
-                }
-                countDownLatch.await();
-                for (Cluster cluster : clusterList) {
-                    jobList.addAll(jobListMap.get(cluster.getId()));
-                }
+            for(Cluster cluster: clusterList){
+                jobList.addAll(jobMapper.selectJobWithLastBuild(projectId, cluster.getId(), jobName, type));
             }
         }
+        for(JobWithBuild jobWithBuild : jobList){
+            Map<String, Object> jobMap = new HashMap<>();
+            jobMap.put("id", jobWithBuild.getId());
+            jobMap.put("clusterId", jobWithBuild.getClusterId());
+            Cluster cluster = clusterMap.get(jobWithBuild.getClusterId());
+            jobMap.put("clusterName", cluster!=null?cluster.getAliasName() : null);
+            jobMap.put("name", jobWithBuild.getName());
+            jobMap.put("description", jobWithBuild.getDescription());
+            jobMap.put("type", jobWithBuild.getType());
+            jobMap.put("lastBuildStatus", StringUtils.isBlank(jobWithBuild.getStatus())?Constant.PIPELINE_STATUS_NOTBUILT : jobWithBuild.getStatus());
+            jobMap.put("lastBuildTime", jobWithBuild.getStartTime());
+            jobMap.put("lastBuildNumber", jobWithBuild.getBuildNum());
+            jobMapList.add(jobMap);
+        }
+
+
         //数据权限过滤
-        Iterator it = jobList.iterator();
-        while(it.hasNext()){
-            Map job = (Map)it.next();
-            PipelinePrivilegeDto pipelinePrivilegeDto = new PipelinePrivilegeDto();
-            pipelinePrivilegeDto.setName((String)job.get("name"));
-            if (privilegeHelper.isFiltered(pipelinePrivilegeDto)) {
-                it.remove();
-            }
-        }
-        return jobList;
+//        Iterator it = jobMapList.iterator();
+//        while(it.hasNext()){
+//            Map job = (Map)it.next();
+//            PipelinePrivilegeDto pipelinePrivilegeDto = new PipelinePrivilegeDto();
+//            pipelinePrivilegeDto.setName((String)job.get("name"));
+//            if (privilegeHelper.isFiltered(pipelinePrivilegeDto)) {
+//                it.remove();
+//            }
+//        }
+        return jobMapList;
     }
 
     @Override
@@ -378,94 +377,18 @@ public class JobServiceImpl implements JobService {
         Map job = new HashMap();
         job.put("id", id);
         job.put("jobName", dbJob.getName());
+        job.put("description", dbJob.getDescription());
         job.put("type",dbJob.getType());
         job.put("tenant", dbJob.getTenant());
         job.put("clusterId", dbJob.getClusterId());
-        //String jenkinsJobName = dbJob.getTenant() + "_" + dbJob.getName();
-        Integer buildNum = null;
-        ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + projectName + "/job/" + clusterName + "/job/" + dbJob.getName() + "/lastBuild/api/json", null, null, false);
-        List<Map> jenkinsStageMapList = new ArrayList<>();
-        if(result.isSuccess()){
-            Map map = JsonUtil.convertJsonToMap((String)result.get("data"));
-            if(false == (boolean)map.get("building")){
-                job.put("lastBuildStatus", map.get("result"));
-            }else{
-                job.put("lastBuildStatus", Constant.PIPELINE_STATUS_BUILDING);
-            }
-            job.put("lastBuildDuration", map.get("duration"));
-            job.put("lastBuildTime", new Timestamp((Long)map.get("timestamp")));
-            buildNum = (Integer)map.get("number");
-            jenkinsStageMapList = stageService.getStageBuildFromJenkins(dbJob, 0);
-        }else{
-            job.put("lastBuildStatus", Constant.PIPELINE_STATUS_NOTBUILT);
-            job.put("lastBuildDuration", null);
-            job.put("lastBuildTime", null);
-        }
-        job.put("buildNum", buildNum);
+
+        JobWithBuild jobWithBuild = jobMapper.selectJobWithLastBuildById(id);
+        job.put("lastBuildStatus", StringUtils.isBlank(jobWithBuild.getStatus())?Constant.PIPELINE_STATUS_NOTBUILT : jobWithBuild.getStatus());
+        job.put("lastBuildTime", jobWithBuild.getStartTime());
+        job.put("buildNum", jobWithBuild.getBuildNum());
 
         //返回工作空间
         job.put("workspace", "/home/workspace/" + projectName + "/" + clusterName + "/" + dbJob.getName());
-
-
-/*
-         String jenkinsJobName = dbJob.getTenant() + "_" + dbJob.getName();
-        Map<String, Object> params = new HashMap<>();
-        params.put("tree", "name,builds[number,building,result,duration,timestamp],lastBuild[number,building,result,duration,timestamp]");
-        ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/api/xml", null, params, false);
-       if (result.isSuccess()) {
-            Map jenkinsDataMap = XmlUtil.parseXmlStringToMap((String) result.get("data"));
-
-            Map buildMap;
-            List<Map> jenkinsBuildList = new ArrayList<>();
-            List buildList = new ArrayList<>();
-
-
-            Map rootMap = (Map) jenkinsDataMap.get("workflowJob");
-            if (rootMap.get("build") instanceof Map) {
-                jenkinsBuildList.add((Map) rootMap.get("build"));
-            } else if (rootMap.get("build") instanceof List) {
-                jenkinsBuildList.addAll((List) rootMap.get("build"));
-            }
-            for (Map jenkinsBuild : jenkinsBuildList) {
-                buildMap = new HashMap<>();
-                buildMap.put("build_num", jenkinsBuild.get("number"));
-                if ("false".equalsIgnoreCase((String) jenkinsBuild.get("building"))) {
-                    buildMap.put("build_status", jenkinsBuild.get("result"));
-                } else {
-                    buildMap.put("build_status", "BUILDING");
-                }
-                if (jenkinsBuild.get("timestamp") != null) {
-                    buildMap.put("start_time", df.format(new Timestamp(Long.valueOf((String) jenkinsBuild.get("timestamp")))));
-                }
-                buildMap.put("duration", jenkinsBuild.get("duration"));
-                buildList.add(buildMap);
-            }
-            job.put("build_list", buildList);
-*/
-
-//            List<Job> dbJobList = jobMapper.select(tenantName, jobName, null);
-//            if(dbJobList != null && dbJobList.size()==1){
-//                Job dbJob = dbJobList.get(0);
-//                job.put("projectType", dbJob.getProjectType());
-//                job.put("buildType", dbJob.getBuildType());
-//                job.put("repositoryType", dbJob.getRepositoryType());
-//
-//            }
-
-//            JobBuild jobBuildCondition = new JobBuild();
-//            jobBuildCondition.setJobId(dbJob.getId());
-//            jobBuildCondition.setBuildNum(dbJob.getLastBuildNum());
-//            List<JobBuild> jobBuildList = jobBuildMapper.queryByObject(jobBuildCondition);
-//            if(null != jobBuildList && jobBuildList.size() == 1) {
-//                JobBuild jobBuild = jobBuildList.get(0);
-//                job.put("lastBuildStatus", jobBuild.getStatus());
-//                job.put("lastBuildTime", jobBuild.getStartTime());
-//                job.put("lastBuildDuration", jobBuild.getDuration());
-//            }else {
-//                job.put("lastBuildStatus", "NOTBUILT");
-//                job.put("lastBuildTime", null);
-//                job.put("lastBuildDuration", null);
-//            }
 
 
         List<Map> stageMapList = new ArrayList<>();
@@ -478,13 +401,6 @@ public class JobServiceImpl implements JobService {
             stageTypeMap.put(stageType.getId(),stageType.getName());
         }
 
-//            //get last build info of stages for the job
-//            StageBuild stageBuildCondition = new StageBuild();
-//            stageBuildCondition.setJobId(dbJob.getId());
-//            stageBuildCondition.setBuildNum(dbJob.getLastBuildNum());
-//            List<StageBuild> stageBuildList = stageBuildMapper.queryByObject(stageBuildCondition);
-
-
         for(Stage stage:stageList){
             Map stageMap = new HashMap<>();
             stageMap.put("id",stage.getId());
@@ -492,14 +408,11 @@ public class JobServiceImpl implements JobService {
             stageMap.put("stageType",stageTypeMap.get(stage.getStageTypeId()));
             stageMap.put("stageOrder",stage.getStageOrder());
 
-            for(Map jenkinsStageMap : jenkinsStageMapList){
-                if(String.valueOf(stage.getId()).equals(jenkinsStageMap.get("name").toString().split("-")[1])){
-                    stageMap.put("lastBuildStatus", convertStatus((String)jenkinsStageMap.get("status")));
-                    stageMap.put("lastBuildTime", new Timestamp((Long)jenkinsStageMap.get("startTimeMillis")));
-                    stageMap.put("lastBuildDuration", jenkinsStageMap.get("durationMillis"));
-                    break;
-                }
-            }
+            StageBuild stageBuild = stageBuildService.selectLastBuildById(stage.getId());
+            stageMap.put("lastBuildStatus", stageBuild == null?null:stageBuild.getStatus());
+            stageMap.put("lastBuildTime", stageBuild == null?null:stageBuild.getStartTime());
+
+
             if(StringUtils.isEmpty((String)stageMap.get("lastBuildStatus"))){
                 if(Constant.PIPELINE_STATUS_BUILDING.equals(job.get("lastBuildStatus")) && stage.getStageOrder() == 1) {
                     stageMap.put("lastBuildStatus", Constant.PIPELINE_STATUS_WAITING);
@@ -507,42 +420,21 @@ public class JobServiceImpl implements JobService {
                     stageMap.put("lastBuildStatus", Constant.PIPELINE_STATUS_NOTBUILT);
                 }
                 stageMap.put("lastBuildTime", null);
-                stageMap.put("lastBuildDuration", null);
             }
-            stageMap.put("buildNum", buildNum);
-            //StageBuild stageBuild = (StageBuild)stageBuildMap.get(stage.getId());
-//            if(stageBuild == null){
-//                stageMap.put("lastBuildStatus", "NOTBUILT");
-//                stageMap.put("lastBuildTime", null);
-//                stageMap.put("lastBuildDuration", null);
-//            }else {
-//                stageMap.put("lastBuildStatus", stageBuild.getStatus());
-//                stageMap.put("lastBuildTime", stageBuild.getStartTime());
-//                stageMap.put("lastBuildDuration", stageBuild.getDuration());
-//            }
+            stageMap.put("buildNum", jobWithBuild.getBuildNum());
+
             stageMapList.add(stageMap);
         }
-
-
-
-//            Map stageBuildMap = new HashMap<>();
-//            for(StageBuild stageBuild : stageBuildList){
-//                stageBuildMap.put(stageBuild.getStageId(),stageBuild);
-//            }
-
 
 
         job.put("stageList",stageMapList);
 
         return ActionReturnUtil.returnSuccessWithData(job);
-//        }
-//        else {
-//            return ActionReturnUtil.returnError();
-//        }
     }
 
     @Override
-    public Integer build(Integer id, List<Map<String, Object>> parameters) throws Exception{
+    @Transactional(rollbackFor = Exception.class)
+    public Integer build(Integer id, List<Map<String, Object>> parameters, String image, String tag) throws Exception{
         Job job = jobMapper.queryById(id);
         String jobName = job.getName();
         String projectName = projectService.getProjectNameByProjectId(job.getProjectId());
@@ -550,20 +442,13 @@ public class JobServiceImpl implements JobService {
         Integer lastBuildNumber = null;
         Map<String, Object> params;
         List<Stage> stageList = stageMapper.queryByJobId(id);
-        validateJob(job, stageList);
+        validateJob(job, stageList, StringUtils.isBlank(image));
         Map tagMap = new HashMap<>();
 
         JenkinsServer jenkinsServer = JenkinsClient.getJenkinsServer();
-        //if (result.isSuccess()) {
         params = new HashMap<>();
-        //   params.put("tree","number,timestamp");
-        //  result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/lastBuild/api/xml", null, params, false);
         FolderJob folderJob = getFolderJob(projectName, clusterName);
         JobWithDetails jobWithDetails = jenkinsServer.getJob(folderJob, job.getName());
-        //ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/api/json", null, null, false);
-
-        //if(result.isSuccess()){
-        //Map dataMap = JsonUtil.convertJsonToMap((String) result.get("data"));
         lastBuildNumber =  jobWithDetails.getNextBuildNumber();
         jobMapper.updateLastBuildNum(id, lastBuildNumber);
         JobBuild jobBuild = new JobBuild();
@@ -572,12 +457,12 @@ public class JobServiceImpl implements JobService {
         List<JobBuild> jobBuildList = jobBuildService.queryByObject(jobBuild);
         if(CollectionUtils.isEmpty(jobBuildList)){
             jobBuild.setStatus(Constant.PIPELINE_STATUS_BUILDING);
-            jobBuild.setStartUser((String)session.getAttribute("username"));
+            jobBuild.setStartUser(image != null ? null : (String)session.getAttribute(CommonConstant.USERNAME));
             jobBuildService.insert(jobBuild);
         }else{
             jobBuild = jobBuildList.get(0);
             jobBuild.setStatus(Constant.PIPELINE_STATUS_BUILDING);
-            jobBuild.setStartUser((String)session.getAttribute("username"));
+            jobBuild.setStartUser(image != null ? null : (String)session.getAttribute(CommonConstant.USERNAME));
             jobBuildService.update(jobBuild);
         }
 
@@ -588,6 +473,9 @@ public class JobServiceImpl implements JobService {
         }
 
         for(Stage stage : stageList){
+            StageDto stageDto = new StageDto();
+            stageDto.convertFromBean(stage);
+            stageService.verifyStageResource(job, stageDto);
             StageBuild stageBuild = new StageBuild();
             stageBuild.setJobId(id);
             stageBuild.setStageId(stage.getId());
@@ -598,59 +486,25 @@ public class JobServiceImpl implements JobService {
             stageBuild.setStageType(stageType.getName());
             stageBuild.setStageTemplateTypeId(stageType.getTemplateType());
             stageBuild.setBuildNum(lastBuildNumber);
-            stageBuild.setStatus(Constant.PIPELINE_STATUS_NOTBUILT);
+            if(stage.getStageOrder() == 1){
+                stageBuild.setStatus(Constant.PIPELINE_STATUS_WAITING);
+            }else {
+                stageBuild.setStatus(Constant.PIPELINE_STATUS_NOTBUILT);
+            }
             if(StageTemplateTypeEnum.IMAGEBUILD.getCode() == stage.getStageTemplateType()){
                 if(CommonConstant.IMAGE_TAG_RULE.equals(stage.getImageTagType())) {
                     stage.setImageBaseTag(generateTag(stage));
                     stageMapper.updateStage(stage);
                 }
             }else if(StageTemplateTypeEnum.DEPLOY.getCode() == stage.getStageTemplateType()) {
+                if(StringUtils.isNotBlank(image) && image.equals(stage.getImageName())){
+                    stage.setImageTag(tag);
+                }
                 updateDeployStageBuild(stage, stageBuild);
-
             }
             stageBuildMapper.insert(stageBuild);
         }
 
-        //}
-//            if(result.isSuccess()){
-//                Map body = XmlUtil.parseXmlStringToMap((String) result.get("data"));
-//                Map root = (Map)body.get("workflowRun");
-//                Integer lastBuildNumber = Integer.valueOf((String) root.get("number"));
-//                Date startTime = new Timestamp(Long.valueOf((String) root.get("timestamp")));
-//                jobMapper.updateLastBuildNum(id, lastBuildNumber);
-//                JobBuild jobBuild = new JobBuild();
-//                jobBuild.setJobId(id);
-//                jobBuild.setBuildNum(lastBuildNumber);
-//                jobBuild.setStatus(Constant.PIPELINE_STATUS_BUILDING);
-//                jobBuild.setStartTime(startTime);
-//                jobBuild.setStartUser((String)session.getAttribute("username"));
-//                jobBuildMapper.insert(jobBuild);
-//
-//                Map<Integer, String> stageTypeMap = new HashMap<>();
-//                List<StageType> stageTypeList = stageTypeMapper.queryByTenant(job.getTenant());
-//                for(StageType stageType : stageTypeList){
-//                    stageTypeMap.put(stageType.getId(),stageType.getName());
-//                }
-//
-//                for(Stage stage : stageList){
-//                    StageBuild stageBuild = new StageBuild();
-//                    stageBuild.setJobId(id);
-//                    stageBuild.setStageId(stage.getId());
-//                    stageBuild.setStageName(stage.getStageName());
-//                    stageBuild.setStageOrder(stage.getStageOrder());
-//                    stageBuild.setStageType(stageTypeMap.get(stage.getStageTypeId()));
-//                    stageBuild.setBuildNum(lastBuildNumber);
-//                    stageBuild.setStatus(Constant.PIPELINE_STATUS_WAITING);
-//                    if(StageTemplateTypeEnum.DEPLOY.ordinal() == stage.getStageTemplateType()) {
-//                        stageBuild.setImage(stage.getImageName() + ":" + tagMap.get(stage.getImageName()));
-//                    }
-//                    stageBuildMapper.insert(stageBuild);
-//                }
-//                Map data = new HashMap<>();
-//                data.put("buildNum", lastBuildNumber);
-//                return ActionReturnUtil.returnSuccessWithData(data);
-//            }
-        //}
         params.put("delay", "0sec");
         //构建时带上参数，若为空则使用自定义参数
         if(CollectionUtils.isNotEmpty(parameters)){
@@ -684,19 +538,61 @@ public class JobServiceImpl implements JobService {
 
 
     @Override
-    public ActionReturnUtil stopBuild(Integer jobId, String buildNum) throws Exception{
+    @Transactional(rollbackFor = Exception.class)
+    public void stopBuild(Integer jobId, String buildNum) throws Exception{
         Job job = jobMapper.queryById(jobId);
+        if(job == null){
+            throw new MarsRuntimeException(ErrorCodeMessage.PIPELINE_NOT_EXIST);
+        }
         String jobName = job.getName();
         String projectName = getProjectNameByProjectId(job.getProjectId());
         String clusterName = getClusterNameByClusterId(job.getClusterId());
-        ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + projectName + "/job/" + clusterName + "/job/" + jobName + "/" + buildNum + "/stop", null, null, null, 302);
-        if (result.isSuccess()) {
-            return ActionReturnUtil.returnSuccess();
+        FolderJob folderJob = getFolderJob(projectName, clusterName);
+        JenkinsServer jenkinsServer = JenkinsClient.getJenkinsServer();
+        JobWithDetails jobWithDetails = jenkinsServer.getJob(folderJob, jobName);
+        if(jobWithDetails == null){
+            throw new MarsRuntimeException(ErrorCodeMessage.PIPELINE_NOT_EXIST_IN_JENKINS);
         }
-        return ActionReturnUtil.returnError();
+        Build build = jobWithDetails.getBuildByNumber(Integer.valueOf(buildNum));
+        try {
+            build.Stop();
+        }catch(Exception e){
+            throw new MarsRuntimeException(ErrorCodeMessage.PIPELINE_BUILD_STOP_ERROR);
+        }
+        List<Stage> stageList = stageService.getStageByJobId(jobId);
+        StageBuild condition = new StageBuild();
+        condition.setJobId(jobId);
+        condition.setBuildNum(Integer.valueOf(buildNum));
+        List<StageBuild> stageBuildList = stageBuildService.selectStageBuildByObject(condition);
+        if(CollectionUtils.isNotEmpty(stageBuildList)){
+            boolean abort = false;
+            for(StageBuild stageBuild : stageBuildList){
+                if(StageTemplateTypeEnum.CODESCAN.getCode() == stageBuild.getStageTemplateTypeId() || StageTemplateTypeEnum.INTEGRATIONTEST.getCode() == stageBuild.getStageTemplateTypeId()){
+                    if(Constant.PIPELINE_STATUS_BUILDING.equals(stageBuild.getStatus()) || Constant.PIPELINE_STATUS_WAITING.equals(stageBuild.getStatus())){
+                        stageBuild.setStatus(Constant.PIPELINE_STATUS_FAILED);
+                        stageBuildService.updateStageBuildByStageIdAndBuildNum(stageBuild);
+                        abort = true;
+                    }
+                }
+            }
+            if(abort){
+                JobBuild jobBuildCondition = new JobBuild();
+                jobBuildCondition.setBuildNum(Integer.valueOf(buildNum));
+                jobBuildCondition.setJobId(jobId);
+                List<JobBuild> jobBuildList = jobBuildService.queryByObject(jobBuildCondition);
+                if(CollectionUtils.isNotEmpty(jobBuildList)){
+                    JobBuild jobBuild = jobBuildList.get(0);
+                    if(Constant.PIPELINE_STATUS_BUILDING.equals(jobBuild.getStatus())){
+                        jobBuild.setStatus(Constant.PIPELINE_STATUS_ABORTED);
+                        jobBuildService.update(jobBuild);
+                    }
+                }
+            }
+        }
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public ActionReturnUtil deleteBuild(Integer id, String buildNum) throws Exception {
         Job job = jobMapper.queryById(id);
         String jenkinsJobName = job.getTenant() + job.getName();
@@ -752,38 +648,17 @@ public class JobServiceImpl implements JobService {
             stageBuildCondition.setBuildNum(jobBuild.getBuildNum());
             List<StageBuild> stageBuildList = stageBuildMapper.queryByObject(stageBuildCondition);
             int stageCount = stageBuildList.size();
-//            List stageBuildMapList = new ArrayList<>();
             for(StageBuild stageBuild : stageBuildList){
-//                Map stageBuildMap = new HashMap<>();
                 if(!Constant.PIPELINE_STATUS_BUILDING.equals(jobBuild.getStatus()) && (Constant.PIPELINE_STATUS_WAITING.equals(stageBuild.getStatus()) || Constant.PIPELINE_STATUS_BUILDING.equals(stageBuild.getStatus()))){
                     allStageStatusSync(job, jobBuild.getBuildNum());
                     stageBuildMapper.updateWaitingStage(job.getId(), jobBuild.getBuildNum());
                     stageBuildList = stageBuildMapper.queryByObject(stageBuildCondition);
-//                    stageBuildMapList = new ArrayList<>();
                     jobDuration = 0;
                     staticCount = 0;
                     staticSuccessCount = 0;
                     testCount = 0;
                     testSuccessCount =0;
                     for(StageBuild newStageBuild : stageBuildList){
-//                        stageBuildMap = new HashMap<>();
-//                        stageBuildMap.put("stageId", newStageBuild.getStageId());
-//                        stageBuildMap.put("stageName", newStageBuild.getStageName());
-//                        stageBuildMap.put("stageOrder", newStageBuild.getStageOrder());
-//                        stageBuildMap.put("stageType", newStageBuild.getStageType());
-//                        stageBuildMap.put("stageTypeId", newStageBuild.getStageTypeId());
-//                        stageBuildMap.put("stageTemplateTypeId", newStageBuild.getStageTemplateTypeId());
-//                        if(Constant.PIPELINE_STATUS_WAITING.equals(newStageBuild.getStatus())){
-//                            stageBuildMap.put("buildStatus", Constant.PIPELINE_STATUS_NOTBUILT);
-//                        }else {
-//                            stageBuildMap.put("buildStatus", newStageBuild.getStatus());
-//                        }
-//                        stageBuildMap.put("buildNum", newStageBuild.getBuildNum());
-//                        stageBuildMap.put("buildTime", newStageBuild.getStartTime());
-//                        stageBuildMap.put("duration", newStageBuild.getDuration());
-//                        stageBuildMap.put("log", newStageBuild.getLog());
-//                        stageBuildMap.put("testResult", newStageBuild.getTestResult());
-//                        stageBuildMap.put("testUrl", newStageBuild.getTestUrl());
                         if(StageTemplateTypeEnum.CODESCAN.getCode() == newStageBuild.getStageTemplateTypeId()){
                             staticCount++;
                             if(newStageBuild.getTestResult() != null && newStageBuild.getTestResult().indexOf(CommonConstant.SUCCESS) == 0){
@@ -802,19 +677,6 @@ public class JobServiceImpl implements JobService {
                     }
                     break;
                 }
-//                stageBuildMap.put("stageId", stageBuild.getStageId());
-//                stageBuildMap.put("stageName", stageBuild.getStageName());
-//                stageBuildMap.put("stageOrder", stageBuild.getStageOrder());
-//                stageBuildMap.put("stageType", stageBuild.getStageType());
-//                stageBuildMap.put("stageTypeId", stageBuild.getStageTypeId());
-//                stageBuildMap.put("stageTemplateTypeId", stageBuild.getStageTemplateTypeId());
-//                stageBuildMap.put("buildStatus", stageBuild.getStatus());
-//                stageBuildMap.put("buildNum", stageBuild.getBuildNum());
-//                stageBuildMap.put("buildTime", stageBuild.getStartTime());
-//                stageBuildMap.put("duration", stageBuild.getDuration());
-//                stageBuildMap.put("log", stageBuild.getLog());
-//                stageBuildMap.put("testResult", stageBuild.getTestResult());
-//                stageBuildMap.put("testUrl", stageBuild.getTestUrl());
                 if(stageBuild.getStageTemplateTypeId() != null && StageTemplateTypeEnum.CODESCAN.getCode() == stageBuild.getStageTemplateTypeId()){
                     staticCount++;
                     if(stageBuild.getTestResult() != null && stageBuild.getTestResult().indexOf(CommonConstant.SUCCESS) == 0){
@@ -826,14 +688,12 @@ public class JobServiceImpl implements JobService {
                         testSuccessCount++;
                     }
                 }
-//                stageBuildMapList.add(stageBuildMap);
                 if(StringUtils.isNumeric((String)stageBuild.getDuration())){
                     jobDuration += (int)Math.ceil(Long.parseLong((String)stageBuild.getDuration())/1000.0)*1000;
                 }
             }
             buildMap.put("stageCount", stageCount);
             buildMap.put("duration", jobDuration);
-//            buildMap.put("stageList",stageBuildMapList);
             buildMap.put("staticResult", String.valueOf(staticSuccessCount) + "/" + staticCount);
             buildMap.put("testResult", String.valueOf(testSuccessCount) + "/" + testCount);
             buildList.add(buildMap);
@@ -850,17 +710,14 @@ public class JobServiceImpl implements JobService {
     @Override
     public void getJobLogWS(WebSocketSession session, Integer id, String buildNum) {
         try {
-            DefaultTransactionDefinition def = new DefaultTransactionDefinition();
-            def.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-            TransactionStatus status = transactionManager.getTransaction(def);
             Job job = jobMapper.queryById(id);
             String projectName = projectService.getProjectNameByProjectId(job.getProjectId());
             String clusterName = clusterService.getClusterNameByClusterId(job.getClusterId());
-            transactionManager.commit(status);
             String start = "0";
             String moreData = "";
-
+            long duration = 0L;
             while (moreData != null && session.isOpen()) {
+                long startTime = System.currentTimeMillis();
                 moreData = null;
                 Map<String, Object> params = new HashMap<>();
                 params.put("start", start);
@@ -876,15 +733,19 @@ public class JobServiceImpl implements JobService {
                                 start = header.getValue();
                             }
                         }
-                        if (StringUtils.isNotEmpty((String) ((Map) result.get("data")).get("body"))) {
+                        if (StringUtils.isNotEmpty((String) ((Map) result.get("data")).get("body")) || duration > CommonConstant.CICD_WEBSOCKET_MAX_DURATION) {
+                            duration = 0L;
                             String log = ((String) ((Map) result.get("data")).get("body")).replaceAll("</?[^>]+>","");
                             session.sendMessage(new TextMessage(log));
                         }
                     }
                 }
-                Connection conn = DataSourceUtils.getConnection(dataSource);
-                conn.close();//手动关闭连接，防止长时间连接导致连接数达上限
-                Thread.sleep(2000);
+                try{
+                    Thread.sleep(sleepTime);
+                }catch (Exception e){
+                    logger.error("获取流水线日志失败", e);
+                }
+                duration += System.currentTimeMillis() - startTime;
             }
 
         } catch (Exception e) {
@@ -918,6 +779,7 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public ActionReturnUtil updateNotification(JobDto jobDto) throws Exception {
         Job job = jobDto.convertToBean();
         String username = (String)session.getAttribute("username");
@@ -928,58 +790,6 @@ public class JobServiceImpl implements JobService {
         return ActionReturnUtil.returnSuccess();
     }
 
-//    @Override
-//    public ActionReturnUtil getTrigger(Integer id) throws Exception {
-//        Job job = jobMapper.queryById(id);
-//        if(null == job){
-//            return ActionReturnUtil.returnErrorWithMap("message", "流程不存在");
-//        }
-//        Map triggerMap = new HashMap();
-//        triggerMap.put("trigger", job.isTrigger());
-//        triggerMap.put("pollScm", job.isPollScm());
-//        triggerMap.put("pollScmCustomize", job.isPollScmCustomize());
-//        if(job.isPollScmCustomize()){
-//            triggerMap.put("cronExpForPollScm",job.getCronExpForPollScm());
-//        }else{
-//            List<JobDto.TimeRule> timeRuleList = new ArrayList<>();
-//            if(StringUtils.isNotBlank(job.getCronExpForPollScm()));
-//            String[] cronArray = job.getCronExpForPollScm().split("\n");
-//            for(String cron: cronArray){
-//                JobDto.TimeRule timeRule = new JobDto.TimeRule();
-//                String[] part = cron.split(" ");
-//                timeRule.setDayOfMonth(part[2]);
-//                timeRule.setDayOfWeek(part[4]);
-//                timeRule.setHour(part[1]);
-//                timeRule.setMinute(part[0]);
-//                timeRuleList.add(timeRule);
-//            }
-//            triggerMap.put("pollScmTimeRule", timeRuleList);
-//        }
-//        return ActionReturnUtil.returnSuccessWithData(triggerMap);
-//    }
-
-//    @Override
-//    public ActionReturnUtil updateTrigger(JobDto jobDto) throws Exception {
-//        String username = (String)session.getAttribute("username");
-//        jobDto.setUpdateUser(username);
-//        jobDto.setUpdateTime(new Date());
-//        String cron = null;
-//        List cronList = new ArrayList<>();
-//        if(!jobDto.isPollScmCustomize()){
-//            for(JobDto.TimeRule timeRule:jobDto.getPollScmTimeRule()){
-//                cron = null;
-//                if(StringUtils.isNotBlank(timeRule.getDayOfMonth()) && StringUtils.isNotBlank(timeRule.getDayOfWeek()) && StringUtils.isNotBlank(timeRule.getHour()) && StringUtils.isNotBlank(timeRule.getMinute())){
-//                    cron = timeRule.getMinute() + " " + timeRule.getHour() + " " + timeRule.getDayOfMonth() + " * " + timeRule.getDayOfWeek();
-//                }
-//                cronList.add(cron);
-//            }
-//            jobDto.setCronExpForPollScm(String.join("\n", cronList));
-//        }
-//        Job job = jobDto.convertToBean();
-//        jobMapper.updateTrigger(job);
-//        stageService.updateJenkinsJob(jobDto.getId());
-//        return ActionReturnUtil.returnSuccess();
-//    }
 
     @Override
     public void preBuild(Integer id, Integer buildNum, String dateTime) throws Exception{
@@ -1011,14 +821,17 @@ public class JobServiceImpl implements JobService {
                     tagMap.put(map.get("name"), map.get("defaultValue"));
                 }
             }
+        }else{
+            logger.error("获取流水线信息失败", result.getData());
+            throw new MarsRuntimeException(ErrorCodeMessage.JENKINS_PIPELINE_INFO_GET_ERROR);
         }
 
         JobBuild jobbuild = new JobBuild();
         jobbuild.setJobId(id);
         jobbuild.setBuildNum(buildNum);
         List<JobBuild> jobBuildList = jobBuildMapper.queryByObject(jobbuild);
+        List<Stage> stageList = stageService.getStageByJobId(id);
         if(jobBuildList == null || jobBuildList.size() == 0){
-            String jenkinsJobName = job.getTenant()+"_"+job.getName();
             Map params = new HashMap<>();
             params.put("tree","number,timestamp");
             result = HttpJenkinsClientUtil.httpGetRequest("/job/" + projectName + "/job/" + clusterName + "/job/" + job.getName() + "/lastBuild/api/xml", null, params, false);
@@ -1047,7 +860,6 @@ public class JobServiceImpl implements JobService {
                     stageTypeMap.put(stageType.getId(),stageType);
                 }
 
-                List<Stage> stageList = stageMapper.queryByJobId(id);
                 for(Stage stage:stageList){
                     StageBuild stageBuild = new  StageBuild();
                     stageBuild.setJobId(id);
@@ -1076,9 +888,11 @@ public class JobServiceImpl implements JobService {
                     }
                     stageBuildMapper.insert(stageBuild);
                 }
+            }else{
+                logger.error("获取流水线信息失败", result.getData());
+                throw new MarsRuntimeException(ErrorCodeMessage.JENKINS_PIPELINE_INFO_GET_ERROR);
             }
         }else{
-            List<Stage> stageList = stageMapper.queryByJobId(id);
             for(Stage stage:stageList){
                 StageBuild condition = new StageBuild();
                 condition.setStageId(stage.getId());
@@ -1087,29 +901,81 @@ public class JobServiceImpl implements JobService {
                 if(CollectionUtils.isNotEmpty(stageBuildList)){
                     StageBuild stageBuild = stageBuildList.get(0);
 
-                    if(StageTemplateTypeEnum.IMAGEBUILD.ordinal() == stage.getStageTemplateType()){
+                    if(StageTemplateTypeEnum.IMAGEBUILD.getCode() == stage.getStageTemplateType()){
                         if(CommonConstant.IMAGE_TAG_TIMESTAMP.equals(stage.getImageTagType())){
                             stageBuild.setImage(stage.getHarborProject() + "/" + stage.getImageName() + ":" + dateTime);
                         }else{
                             stageBuild.setImage(stage.getHarborProject() + "/" + stage.getImageName() + ":" + tagMap.get("tag" + stage.getStageOrder()));
                         }
 
-                    }else if(StageTemplateTypeEnum.DEPLOY.ordinal() == stage.getStageTemplateType()) {
+                    }else if(StageTemplateTypeEnum.DEPLOY.getCode() == stage.getStageTemplateType() && StringUtils.isBlank(stageBuild.getImage())) {
                         updateDeployStageBuild(stage, stageBuild);
                     }
                     stageBuildMapper.updateByStageOrderAndBuildNum(stageBuild);
                 }
             }
         }
+
+        try {
+            for (Stage stage : stageList) {
+                StageDto stageDto = new StageDto();
+                stageDto.convertFromBean(stage);
+                stageService.verifyStageResource(job, stageDto);
+            }
+        }catch(MarsRuntimeException e){
+            ErrorCodeMessage errorCodeMessage = ErrorCodeMessage.valueOf(e.getErrorCode());
+            throw new MarsRuntimeException(errorCodeMessage.getReasonEnPhrase() + "(" + errorCodeMessage.getReasonChPhrase() + ")");
+        }
+        updateJenkinsImageTag(job);
     }
 
     private void updateDeployStageBuild(Stage stage, StageBuild stageBuild) throws Exception{
         String tag = stage.getImageTag();
         Integer stageId = stage.getOriginStageId();
         if(stageId == null) {
-            stageBuild.setImage(stage.getImageName() + ":" + tag);
+            if(StringUtils.isNotBlank(tag)) {
+                stageBuild.setImage(stage.getImageName() + ":" + tag);
+            }else{
+                Job job = getJobById(stage.getJobId());
+                String image = stage.getImageName();
+                if(StringUtils.isBlank(image)) {
+                    throw new MarsRuntimeException(ErrorCodeMessage.DEPLOY_IMAGE_NOT_EXIST);
+                }
+                String[] imageArray = image.split("/");
+                if(imageArray.length != 2) {
+                    throw new MarsRuntimeException(ErrorCodeMessage.DEPLOY_IMAGE_NOT_EXIST);
+                }
+                String repository = imageArray[0];
+                ActionReturnUtil result = harborService.getFirstImage(job.getProjectId(), job.getClusterId(), repository,  image);
+                if(result.isSuccess()){
+                    List<HarborProjectInfo> list = (List<HarborProjectInfo>) result.getData();
+                    for(HarborProjectInfo harborProjectInfo : list){
+                        if(harborProjectInfo.getProject_name().equals(repository)){
+                            List<HarborRepositoryMessage> harborRepositoryMessageList = harborProjectInfo.getHarborRepositoryMessagesList();
+                            for(HarborRepositoryMessage harborRepositoryMessage : harborRepositoryMessageList){
+                                if(image.equals(harborRepositoryMessage.getRepository())){
+                                    List<String> tags = harborRepositoryMessage.getTags();
+                                    if(CollectionUtils.isNotEmpty(tags)){
+                                        tag = tags.get(0);
+                                    }else{
+                                        throw new MarsRuntimeException(ErrorCodeMessage.DEPLOY_IMAGE_NOT_EXIST);
+                                    }
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                    }
+
+                }
+
+                stageBuild.setImage(stage.getImageName() + ":" + tag);
+            }
         }else{
             Stage ciStage = stageService.selectByPrimaryKey(stageId);
+            if(ciStage == null){
+                return;
+            }
             StageBuild condition = new StageBuild();
             condition.setStageId(ciStage.getId());
             condition.setStatus(Constant.PIPELINE_STATUS_SUCCESS);
@@ -1129,16 +995,27 @@ public class JobServiceImpl implements JobService {
         Runnable worker = new Runnable() {
             @Override
             public void run() {
-                try {
-                    updateJenkinsJob(id);
-                    Thread.sleep(3000);
-                    Job job = jobMapper.queryById(id);
-                    syncJobStatus(job, buildNum);
-                    allStageStatusSync(job, buildNum);
-                    stageBuildMapper.updateWaitingStage(job.getId(), buildNum);
-                    sendNotification(job, buildNum);
-                } catch (Exception e) {
-                    e.printStackTrace();
+                int retry = 0;
+                while(retry <= 3) {
+                    try {
+
+                        Thread.sleep(3000);
+                        Job job = jobMapper.queryById(id);
+                        syncJobStatus(job, buildNum);
+                        allStageStatusSync(job, buildNum);
+                        stageBuildMapper.updateWaitingStage(job.getId(), buildNum);
+                        sendNotification(job, buildNum);
+                        break;
+                    } catch (Exception e) {
+                        logger.error("流水线状态更新失败, retry:{}", retry, e);
+                        try {
+                            if (retry > 0) {
+                                Thread.sleep(CommonConstant.CICD_SLEEP_TIME_300000);
+                            }
+                        } catch (InterruptedException e1) {
+                        }
+                        retry ++;
+                    }
                 }
             }
         };
@@ -1151,11 +1028,22 @@ public class JobServiceImpl implements JobService {
         Runnable worker = new Runnable() {
             @Override
             public void run() {
-                try {
-                    Thread.sleep(500);
-                    stageStatusSync(id, buildNum);
-                } catch (Exception e) {
-                    e.printStackTrace();
+                int retry = 0;
+                while (retry <= 3) {
+                    try {
+                        Thread.sleep(500);
+                        stageStatusSync(id, buildNum);
+                        break;
+                    } catch (Exception e) {
+                        logger.error("同步步骤状态失败,retry: {}", retry, e);
+                        try {
+                            if (retry > 0) {
+                                Thread.sleep(CommonConstant.CICD_SLEEP_TIME_30000);
+                            }
+                        } catch (InterruptedException e1) {
+                        }
+                        retry ++;
+                    }
                 }
             }
         };
@@ -1185,32 +1073,27 @@ public class JobServiceImpl implements JobService {
             doBlueGreenRelease(job, stageDto, cluster, buildNum);
         }
 
-
-//        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
-//        session = request.getSession();
-//        session.setAttribute("username", "admin");
-//        K8SClient.tokenMap.put("admin", cluster.getMachineToken());
-
-
     }
 
     @Override
     public void jobStatusWS(WebSocketSession session, Integer id) {
         try {
-            DefaultTransactionDefinition def = new DefaultTransactionDefinition();
-            def.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-            TransactionStatus status = transactionManager.getTransaction(def);
+            //根据job id查询job
             Job job = jobMapper.queryById(id);
             String projectName = projectService.getProjectNameByProjectId(job.getProjectId());
             String clusterName = clusterService.getClusterNameByClusterId(job.getClusterId());
+            //获取stageList
             List<Stage> dbStageList = stageMapper.queryByJobId(id);
-            transactionManager.commit(status);
             StringBuilder lastStatus = new StringBuilder();
-            StringBuilder currentStatus;
+            StringBuilder currentStatus = null;
+            long duration = 0L;
+            //循环查询job状态
             while (session.isOpen()) {
+                long startTime = System.currentTimeMillis();
                 List<Stage> dbStageListCp = new ArrayList<>();
                 dbStageListCp.addAll(dbStageList);
                 currentStatus =  new StringBuilder();
+                StringBuilder stageStatus = new StringBuilder();
                 Map jenkinsJobMap = new HashMap<>();
                 String jobStatus = null;
                 ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + projectName + "/job/" + clusterName + "/job/" + job.getName()  + "/lastBuild/api/json", null, null, false);
@@ -1226,11 +1109,10 @@ public class JobServiceImpl implements JobService {
                 if (result.isSuccess()) {
                     String data = (String) result.get("data");
                     Map dataMap = JsonUtil.convertJsonToMap(data);
-                    //String jobStatus = (String)dataMap.get("status");
-                    currentStatus.append(jobStatus);
                     List<Map> stages = (List<Map>) dataMap.get("stages");
                     int i = 0;
                     List stageList = new ArrayList<>();
+                    String status = "";
                     for (Map stage : stages) {
                         Map stageMap = new HashMap<>();
                         stageMap.put("lastBuildStatus", convertStatus((String)stage.get("status")));
@@ -1243,69 +1125,79 @@ public class JobServiceImpl implements JobService {
                         for(Stage dbStage : dbStageListCp){
                             String jenkinsStageName = stage.get("name").toString();
                             String[] stageArray = jenkinsStageName.split("-");
-                            if(dbStage.getId().toString().equals(stageArray[stageArray.length-1])){
+                            if(dbStage.getId().toString().equals(stageArray[stageArray.length - CommonConstant.NUM_ONE])){
                                 stageMap.put("stageId", dbStage.getId());
                                 stageMap.put("stageOrder", dbStage.getStageOrder());
+                                if(StageTemplateTypeEnum.CODESCAN.getCode() == dbStage.getStageTemplateType() || StageTemplateTypeEnum.INTEGRATIONTEST.getCode() == dbStage.getStageTemplateType()){
+                                    StageBuild stageBuild = stageBuildService.selectLastBuildById(dbStage.getId());
+                                    stageMap.put("lastBuildStatus", stageBuild.getStatus());
+                                    if(Constant.PIPELINE_STATUS_FAILED.equals(stageBuild.getStatus()) && StringUtils.isBlank(status)){
+                                        status = Constant.PIPELINE_STATUS_FAILURE;
+                                    }else if(Constant.PIPELINE_STATUS_BUILDING.equals(stageBuild.getStatus())){
+                                        status = Constant.PIPELINE_STATUS_BUILDING;
+                                    }
+                                }
                                 dbStageListCp.remove(dbStageListCp.indexOf(dbStage));
                                 break;
                             }
                         }
                         i++;
                         stageList.add(stageMap);
-                        currentStatus.append(convertStatus((String)stage.get("status")));
+                        stageStatus.append(convertStatus((String)stage.get("status")));
                     }
                     for(Stage stage : dbStageListCp){
                         Map stageMap = new HashMap<>();
                         stageMap.put("stageId", stage.getId());
                         stageMap.put("stageOrder", stage.getStageOrder());
-                        if(stage.getStageOrder() == 1){
+                        if(stage.getStageOrder() == CommonConstant.NUM_ONE){
                             stageMap.put("lastBuildStatus", Constant.PIPELINE_STATUS_BUILDING.equals(jobStatus)?Constant.PIPELINE_STATUS_WAITING:Constant.PIPELINE_STATUS_NOTBUILT);
                         }else{
                             stageMap.put("lastBuildStatus", Constant.PIPELINE_STATUS_NOTBUILT);
                         }
                         stageList.add(stageMap);
-                        currentStatus.append((String)stageMap.get("lastBuildStatus"));
+                        stageStatus.append((String)stageMap.get("lastBuildStatus"));
                         i++;
                     }
-//                    while(stageList.size()<stageCount){
-//                        Map stageMap = new HashMap<>();
-//                        if(dbStageList.get(i) != null){
-//                            stageMap.put("stageId", dbStageList.get(i).getId());
-//                        }
-//                        if(stageList.size() == 0){
-//                            stageMap.put("lastBuildStatus", Constant.PIPELINE_STATUS_INPROGRESS.equals(jobStatus)?Constant.PIPELINE_STATUS_WAITING:Constant.PIPELINE_STATUS_NOTBUILT);
-//                        }else {
-//                            stageMap.put("lastBuildStatus", Constant.PIPELINE_STATUS_NOTBUILT);
-//                        }
-//                        stageMap.put("stageOrder", stageList.size()+1);
-//                        stageList.add(stageMap);
-//                        currentStatus.append((String)stageMap.get("lastBuildStatus"));
-//                        i++;
-//                    }
+                    JobBuild jobBuild = jobBuildService.queryLastBuildById(id);
+                    if(Constant.PIPELINE_STATUS_ABORTED.equals(jobBuild.getStatus())){
+                        currentStatus.append(Constant.PIPELINE_STATUS_ABORTED);
+                    }else if(StringUtils.isBlank(status)) {
+                        currentStatus.append(convertStatus(jobStatus));
+                    }else{
+                        currentStatus.append(status);
+                    }
+                    currentStatus.append(stageStatus);
 
-
-                    if (!currentStatus.toString().equals(lastStatus.toString())) {
+                    if (!currentStatus.toString().equals(lastStatus.toString()) || duration > CommonConstant.CICD_WEBSOCKET_MAX_DURATION) {
+                        duration = 0L;
                         Map jobMap = new HashMap<>();
                         jobMap.put("stageList", stageList);
-                        jobMap.put("lastBuildStatus", convertStatus(jobStatus));
+                        if(Constant.PIPELINE_STATUS_ABORTED.equals(jobBuild.getStatus())){
+                            jobMap.put("lastBuildStatus", Constant.PIPELINE_STATUS_ABORTED);
+                        }else if(StringUtils.isBlank(status)){
+                            jobMap.put("lastBuildStatus", convertStatus(jobStatus));
+                        }else{
+                            jobMap.put("lastBuildStatus", status);
+                        }
                         if(dataMap.get("startTimeMillis") instanceof Long) {
                             jobMap.put("lastBuildTime", new Timestamp((Long) dataMap.get("startTimeMillis")));
                         }else{
                             jobMap.put("lastBuildTime", new Timestamp(Long.valueOf((Integer) dataMap.get("startTimeMillis"))));
                         }
-                        status = transactionManager.getTransaction(def);
-                        Integer lastBuildNum = jobBuildService.queryLastBuildNumById(id);
-                        transactionManager.commit(status);
-                        jobMap.put("lastBuildNum", lastBuildNum);
+
+                        jobMap.put("lastBuildNum", jobBuild == null?null:jobBuild.getBuildNum());
                         jobMap.put("lastBuildDuration", jenkinsJobMap.get("duration"));
                         session.sendMessage(new TextMessage(JsonUtil.convertToJson(ActionReturnUtil.returnSuccessWithData(jobMap))));
                     }
                 }
                 lastStatus = currentStatus;
-                Connection conn = DataSourceUtils.getConnection(dataSource);
-                conn.close();//手动关闭连接，防止长时间连接导致连接数达上限
 
-                Thread.sleep(2000);
+                try{
+                    Thread.sleep(sleepTime);
+                }catch (Exception e){
+                    logger.error("获取流水线状态失败", e);
+                }
+                duration += System.currentTimeMillis() - startTime;
             }
         } catch (Exception e) {
             logger.error("get job status error", e);
@@ -1428,44 +1320,42 @@ public class JobServiceImpl implements JobService {
         return body.replaceAll("password: .*\\n","password: ******\\\n");
     }
 
-//    @Override
-//    public ActionReturnUtil getLastBuildLog(Integer id) throws Exception{
-//        Job job = jobMapper.queryById(id);
-//        Project project = projectService.getProjectByProjectId(job.getProjectId());
-//        if(null == project){
-//            throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_NOT_EXIST);
-//        }
-//        String projectName = project.getProjectName();
-//        Cluster cluster = clusterService.findClusterById(job.getClusterId());
-//        if(null == cluster){
-//            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
-//        }
-//        String clusterName = cluster.getName();
-//        String jenkinsJobName = job.getTenant() + "_" + job.getName();
-//        Map data = new HashMap();
-//        ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + projectName + "/job/" + clusterName + "/job/" + job.getName()  + "/lastBuild/consoleText", null, null, false);
-//        if(result.isSuccess()){
-//            data.put("log", result.get("data"));
-//        }else{
-//            data.put("log", "");
-//        }
-//        return ActionReturnUtil.returnSuccessWithData(data);
-//    }
 
     @Override
-    public String getJobLog(Integer id, Integer buildNum){
+    public String getJobLog(Integer id, Integer buildNum) throws Exception {
         JobBuild jobBuild = new JobBuild();
         jobBuild.setJobId(id);
         jobBuild.setBuildNum(buildNum);
-        return jobBuildService.queryLogByObject(jobBuild);
+        String log = jobBuildService.queryLogByObject(jobBuild);
+        if(StringUtils.isBlank(log)){
+            List<JobBuild> buildList = jobBuildService.queryByObject(jobBuild);
+            if(buildList.size() == 1){
+                jobBuild = buildList.get(0);
+                if(!Constant.PIPELINE_STATUS_BUILDING.equals(jobBuild.getStatus()) && !Constant.PIPELINE_STATUS_NOTBUILT.equals(jobBuild.getStatus())) {
+                    JenkinsServer jenkinsServer = JenkinsClient.getJenkinsServer();
+                    Job job = getJobById(id);
+                    String projectName = projectService.getProjectNameByProjectId(job.getProjectId());
+                    String clusterName = clusterService.getClusterNameByClusterId(job.getClusterId());
+                    FolderJob folderJob = getFolderJob(projectName, clusterName);
+                    JobWithDetails jobWithDetails = jenkinsServer.getJob(folderJob, job.getName());
+                    Build build = jobWithDetails.getBuildByNumber(buildNum);
+                    BuildWithDetails buildWithDetails = build.details();
+                    log = buildWithDetails.getConsoleOutputText();
+                    jobBuild.setLog(log);
+                    try {
+                        jobBuildService.updateLogById(jobBuild);
+                    }catch(Exception e){
+                        logger.error("流水线日志保存失败，id:{}, buildNum:{}", job.getId(), buildNum);
+                    }
+                }
+            }
+        }
+        return log;
     }
 
     @Override
     public void getJobListWS(WebSocketSession session, String projectId, String clusterId) {
         try {
-            DefaultTransactionDefinition def = new DefaultTransactionDefinition();
-            def.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-            TransactionStatus status = transactionManager.getTransaction(def);
             String projectName = projectService.getProjectNameByProjectId(projectId);
             String clusterName = null;
             List<Cluster> clusterList = null;
@@ -1474,7 +1364,6 @@ public class JobServiceImpl implements JobService {
             }else{
                 clusterList = roleLocalService.getClusterListByRoleId((Integer)session.getAttributes().get(CommonConstant.ROLEID));
             }
-            transactionManager.commit(status);
             StringBuilder lastStatus = new StringBuilder();
             StringBuilder currentStatus;
             Map<String, Object> params = new HashMap<>();
@@ -1485,9 +1374,7 @@ public class JobServiceImpl implements JobService {
             while (session.isOpen()) {
                 currentStatus = new StringBuilder();
                 List jobList = new ArrayList();
-                status = transactionManager.getTransaction(def);
-                List<Job> dbJobList = jobMapper.select(projectId, clusterId, null, null);
-                transactionManager.commit(status);
+                List<Job> dbJobList = jobMapper.select(projectId, clusterId, null, null, null);
 
                 if(StringUtils.isNotBlank(clusterName)){
                     result = HttpJenkinsClientUtil.httpGetRequest("/job/" + projectName + "/job/" + clusterName + "/api/xml", null, params, false);
@@ -1503,10 +1390,12 @@ public class JobServiceImpl implements JobService {
                     session.sendMessage(new TextMessage(JsonUtil.convertToJson(ActionReturnUtil.returnSuccessWithData(jobList))));
                 }
                 lastStatus = currentStatus;
-                Connection conn = DataSourceUtils.getConnection(transactionManager.getDataSource());
-                conn.close();//手动关闭连接，防止长时间连接导致连接数达上限
 
-                Thread.sleep(2000);
+                try{
+                    Thread.sleep(sleepTime);
+                }catch (Exception e){
+                    logger.error("获取流水线列表失败",e);
+                }
             }
         } catch (Exception e) {
             logger.error("get job list error", e);
@@ -1581,6 +1470,7 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void destroyCicdPod(Cluster cluster) throws Exception{
         List jenkinsPodList = new ArrayList<>();
         ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/computer/api/json", null, null, false);
@@ -1666,8 +1556,9 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteByClusterId(String clusterId){
-        List<Job> jobs = jobMapper.select(null,clusterId,null,null);
+        List<Job> jobs = jobMapper.select(null,clusterId,null,null, null);
         if(CollectionUtils.isEmpty(jobs)){
             return 0;
         }
@@ -1886,7 +1777,7 @@ public class JobServiceImpl implements JobService {
                 jobMap.put("successNum",successNum);
                 jobMap.put("failNum",failNum);
                 jobMap.put("clusterName", clusterName);
-                List<Job> dbJobList = jobMapper.select(projectId, clusterId, (String)jobMap.get("name"), null);
+                List<Job> dbJobList = jobMapper.select(projectId, clusterId, (String)jobMap.get("name"), null, null);
                 if(CollectionUtils.isNotEmpty(dbJobList)){
                     for(Job dbJob : dbJobList){
                         if(StringUtils.isNotBlank(dbJob.getName()) && dbJob.getName().equals(jobMap.get("name"))){
@@ -1950,52 +1841,6 @@ public class JobServiceImpl implements JobService {
     }
 
 
-/*
-    private String generateScript(Job job) {
-        StringBuilder script = new StringBuilder("node(");
-        String projectType = job.getProjectType();
-        //switch node
-        if (ProjectTypeEnum.JAVA.toString().equalsIgnoreCase(projectType)) {
-            script.append("'java'){ ");
-        } else if (ProjectTypeEnum.JAVASCRIPT.toString().equalsIgnoreCase(projectType)) {
-            script.append("'java'){ ");
-        }
-        //check out
-        script.append("\n\tstage('Check out'){ ");
-        if (RepositoryTypeEnum.SVN.getType().equalsIgnoreCase(job.getRepositoryType())) {
-            script.append("\n\t\tcheckout([$class: 'SubversionSCM',  locations: [[credentialsId: '").append(job.getTenant() + "_" + job.getJobName()).append("', depthOption: 'infinity', ignoreExternalsOption: true, local: '.', remote: '").append(job.getRepositoryUrl()).append("']]]) }");
-        } else if (RepositoryTypeEnum.GIT.getType().equalsIgnoreCase(job.getRepositoryType())) {
-            script.append("\n\t\tgit url:'").append(job.getRepositoryUrl()).append("',").append("credentialsId:'").append(job.getTenant() + "_" + job.getJobName()).append("'");
-            if(StringUtils.isNotEmpty(job.getRepositoryBranch())){
-                script.append(", branch:'").append(job.getRepositoryBranch()).append("'");
-            }
-            script.append(" }");
-        }
-        //build project
-        if (ProjectTypeEnum.JAVA.toString().equalsIgnoreCase(projectType)) {
-            script.append("\n\tstage('Build project') {\n\t\tsh 'mvn clean install -Dmaven.test.failure.ignore=true' } ");
-        } else if (ProjectTypeEnum.JAVASCRIPT.toString().equalsIgnoreCase(projectType)) {
-            script.append(" ");
-        }
-        //prepare docker env and Dockerfile
-        script.append("\n\tstage('Prepare docker envriment') { \n\t\tsh 'nohup wrapdocker 2>/dev/null' \n\t\tsh 'cp /root/script/* ./' \n\t\tsh './pre_Dockerfile_").append(job.getProjectType().toLowerCase()).append(".sh' } ");
-        //build and push image
-        script.append("\n\tstage('Build and push image') { \n\t\twithCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harbor', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) \n\t\t{ sh 'docker login ")
-                .append(harborClient.getHost())
-                .append(" --username=$USERNAME --password=$PASSWORD' } \n\t\tdocker.build('")
-                .append(harborClient.getHost())
-                .append("/")
-                .append(job.getHarborProject())
-                .append("/")
-                .append(job.getImageName())
-                .append(":$tag').push() } \n} ");
-
-        return script.toString();
-    }
-
-*/
-
-
     private boolean deleteCredentials(String jenkinsJobName) {
         ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/credentials/store/system/domain/_/credential/" + jenkinsJobName + "/doDelete", null, null, null, 302);
         if (result.isSuccess()) {
@@ -2003,7 +1848,6 @@ public class JobServiceImpl implements JobService {
         }
         return false;
     }
-
     private JobBuild syncJobStatus(Job job, Integer buildNum) throws Exception{
         Project project = projectService.getProjectByProjectId(job.getProjectId());
         if(null == project){
@@ -2029,7 +1873,6 @@ public class JobServiceImpl implements JobService {
             jobBuildMapper.insert(jobBuild);
         }
 
-        String jenkinsJobName = job.getTenant() + "_" + job.getName();
         Map<String, Object> params = new HashMap<>();
         params.put("tree", "building,timestamp,result,duration,number");
         ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + projectName + "/job/" + clusterName + "/job/" +job.getName() + "/" + buildNum + "/api/xml", null, params, false);
@@ -2040,27 +1883,53 @@ public class JobServiceImpl implements JobService {
             Map build = new HashMap();
             Map rootMap = (Map) jenkinsDataMap.get("workflowRun");
             if (rootMap != null) {
-                //build.put("build_num", rootMap.get("number"));
                 if ("false".equalsIgnoreCase((String) rootMap.get("building"))) {
-                    //build.put("build_status", rootMap.get("result"));
                     jobBuild.setStatus((String)rootMap.get("result"));
                 } else {
-                    //build.put("build_status", "BUILDING");
-                    jobBuild.setStatus("BUILDING");
+                    jobBuild.setStatus(Constant.PIPELINE_STATUS_BUILDING);
                 }
                 if (rootMap.get("timestamp") != null) {
-                    //build.put("start_time", new Timestamp(Long.valueOf((String) rootMap.get("timestamp"))).toString());
                     jobBuild.setStartTime(new Timestamp(Long.valueOf((String) rootMap.get("timestamp"))));
                 }
                 jobBuild.setDuration((String)rootMap.get("duration"));
-                //build.put("duration", rootMap.get("duration"));
+            }
+            String status = "";
+            List<Stage> stageList = stageService.getStageByJobId(job.getId());
+            for(Stage stage : stageList){
+                if(StageTemplateTypeEnum.CODESCAN.getCode() == stage.getStageTemplateType() || StageTemplateTypeEnum.INTEGRATIONTEST.getCode() == stage.getStageTemplateType()){
+                    StageBuild condition = new StageBuild();
+                    condition.setJobId(job.getId());
+                    condition.setStageId(stage.getId());
+                    condition.setBuildNum(buildNum);
+                    List<StageBuild> stageBuildList = stageBuildService.selectStageBuildByObject(condition);
+                    if(CollectionUtils.isNotEmpty(stageBuildList)){
+                        StageBuild stageBuild = stageBuildList.get(0);
+                        if(Constant.PIPELINE_STATUS_FAILED.equals(stageBuild.getStatus()) && StringUtils.isBlank(status)){
+                            status = Constant.PIPELINE_STATUS_FAILURE;
+                        }else if(Constant.PIPELINE_STATUS_BUILDING.equals(stageBuild.getStatus())){
+                            status = Constant.PIPELINE_STATUS_BUILDING;
+                        }
+                    }
+                }
+            }
+            if(StringUtils.isNotBlank(status) && !Constant.PIPELINE_STATUS_ABORTED.equals(jobBuild.getStatus())){
+                jobBuild.setStatus(status);
+            }
+            jobBuildService.update(jobBuild);
+            if(Constant.PIPELINE_STATUS_ABORTED.equals(jobBuild.getStatus()) && Constant.PIPELINE_STATUS_BUILDING.equals(status)){
+                allStageStatusSync(job, buildNum);
             }
             if (logResult.isSuccess()) {
-                //build.put("build_log", logResult.get("data"));
                 jobBuild.setLog((String) logResult.get("data"));
+            }else{
+                logger.error("获取流水线日志失败", logResult.getData());
+                throw new Exception();
             }
-            jobBuildMapper.update(jobBuild);
+            jobBuildService.updateLogById(jobBuild);
 
+        }else{
+            logger.error("获取流水线信息失败", result.getData());
+            throw new MarsRuntimeException(ErrorCodeMessage.JENKINS_PIPELINE_INFO_GET_ERROR);
         }
         return jobBuild;
 
@@ -2072,9 +1941,13 @@ public class JobServiceImpl implements JobService {
         List<Map> stageMapList = stageService.getStageBuildFromJenkins(job, buildNum);
         int i = stage.getStageOrder() - 2;
         for(i = i<0?0:i ; i< stageMapList.size();i++){
-            stageService.stageBuildSync(job, buildNum, stageMapList.get(i), i+1);
+            try {
+                stageService.stageBuildSync(job, buildNum, stageMapList.get(i), i + 1);
+            }catch(Exception e){
+                logger.error("步骤同步失败, stageOrder:{}, buildNum:{}", i+1, buildNum);
+                throw new MarsRuntimeException(ErrorCodeMessage.SYNC_STAGE_ERROR);
+            }
         }
-
     }
 
 
@@ -2082,14 +1955,19 @@ public class JobServiceImpl implements JobService {
         List<Map> stageMapList = stageService.getStageBuildFromJenkins(job, buildNum);
         int i=0;
         for(Map stageMap : stageMapList){
-            stageService.stageBuildSync(job, buildNum, stageMap, ++i);
+            try {
+                stageService.stageBuildSync(job, buildNum, stageMap, ++i);
+            }catch(Exception e){
+                logger.error("步骤同步失败, stageOrder:{}, buildNum:{}", i+1, buildNum);
+                throw new MarsRuntimeException(ErrorCodeMessage.SYNC_STAGE_ERROR);
+            }
         }
     }
 
 
 
 
-    private void sendNotification(Job job, Integer buildNum){
+    private void sendNotification(Job job, Integer buildNum) throws Exception {
         if(job.isNotification()) {
             JobBuild jobBuildContidion = new JobBuild();
             jobBuildContidion.setJobId(job.getId());
@@ -2113,7 +1991,7 @@ public class JobServiceImpl implements JobService {
                 try {
                     MimeMessageHelper helper = new MimeMessageHelper(mimeMessage,true,"UTF-8");
                     helper.setTo((String[])mailList.toArray(new String[mailList.size()]));
-                    helper.setSubject(MimeUtility.encodeText("CICD Notification_" + job.getName() + "_" + jobBuild.getBuildNum(), MimeUtility.mimeCharset("gb2312"), null));
+                    helper.setSubject(MimeUtility.encodeText("【容器云平台】CICD Notification_" + job.getName() + "_" + jobBuild.getBuildNum(), MimeUtility.mimeCharset("gb2312"), null));
                     Map dataModel = new HashMap<>();
                     Cluster cluster = clusterService.findClusterById(job.getClusterId());
                     dataModel.put("url", webUrl + "/#/cicd/process/"+job.getId());
@@ -2153,7 +2031,8 @@ public class JobServiceImpl implements JobService {
 //                    helper.addInline("icon-status", new ByteArrayResource(bytes), "image/png");
                     MailUtil.sendMimeMessage(mimeMessage);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    logger.error("发送邮件失败", e);
+                    throw new Exception("发送邮件失败");
                 }
             }
         }
@@ -2293,6 +2172,8 @@ public class JobServiceImpl implements JobService {
     }
 
     private void doCanaryRelease(Job job, StageDto stageDto, Cluster cluster, Integer buildNum) throws Exception{
+        verifyUpgrade(stageDto.getServiceName(), stageDto.getNamespace(), false);
+
         K8SClientResponse depRes = deploymentService.doSpecifyDeployment(stageDto.getNamespace(), stageDto.getServiceName(), null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
             throw new MarsRuntimeException(ErrorCodeMessage.DEPLOYMENT_GET_FAILURE);
@@ -2301,6 +2182,7 @@ public class JobServiceImpl implements JobService {
         List<UpdateContainer> updateContainerList = getUpdateContainerList(dep, job, stageDto, cluster, buildNum);
 
         CanaryDeployment canaryDeployment = new CanaryDeployment();
+        canaryDeployment.setProjectId(job.getProjectId());
         canaryDeployment.setName(stageDto.getServiceName());
         canaryDeployment.setContainers(updateContainerList);
         if(stageDto.getMaxSurge() != null) {
@@ -2321,8 +2203,7 @@ public class JobServiceImpl implements JobService {
     }
 
     private void doBlueGreenRelease(Job job, StageDto stageDto, Cluster cluster, Integer buildNum) throws Exception{
-        ActionReturnUtil result = deploymentsService.getDeploymentDetail(stageDto.getServiceName(), stageDto.getNamespace());
-        AppDetail appDetail = (AppDetail)result.get("data");
+        verifyUpgrade(stageDto.getServiceName(), stageDto.getNamespace(), false);
 
         K8SClientResponse depRes = deploymentService.doSpecifyDeployment(stageDto.getNamespace(), stageDto.getServiceName(), null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
@@ -2337,7 +2218,7 @@ public class JobServiceImpl implements JobService {
         updateDeployment.setContainers(updateContainerList);
 
 
-        blueGreenDeployService.deployByBlueGreen(updateDeployment, null);
+        blueGreenDeployService.deployByBlueGreen(updateDeployment, null, job.getProjectId());
     }
 
     private List<UpdateContainer> getUpdateContainerList(Deployment dep, Job job, StageDto stageDto, Cluster cluster, Integer buildNum) throws Exception {
@@ -2406,24 +2287,11 @@ public class JobServiceImpl implements JobService {
                         updateVolume.setType(volumeMountExt.getType());
                         updateVolume.setReadOnly(volumeMountExt.getReadOnly());
                         updateVolume.setPath(volumeMountExt.getMountPath());
-                        updateVolume.setVolumeName(volumeMountExt.getName());
                         updateVolume.setEmptyDir(volumeMountExt.getEmptyDir());
                         updateVolume.setHostPath(volumeMountExt.getHostPath());
                         updateVolume.setRevision(volumeMountExt.getRevision());
                         if ("nfs".equals(volumeMountExt.getType())) {
-                            updateVolume.setBindOne(true);
-                            //updateVolume.setPvcTenantid(job.getTenantId());
-                            updateVolume.setPvcName(updateVolume.getVolumeName());
-                            List<PvDto> pvDtoList = persistentVolumeService.listPv(job.getProjectId(), cluster.getId(), Boolean.TRUE);
-                            if (pvDtoList != null) {
-                                for (PvDto pvDto : pvDtoList) {
-                                    //todo -------------
-                                    if (volumeMountExt.getName().split("-")[0].equals(pvDto.getName())) {
-                                        updateVolume.setCapacity(pvDto.getCapacity());
-                                        break;
-                                    }
-                                }
-                            }
+                            updateVolume.setPvcName(volumeMountExt.getPvcname());
                         }
                         updateVolumeList.add(updateVolume);
                     } else if ("configMap".equals(volumeMountExt.getType())) {
@@ -2433,11 +2301,12 @@ public class JobServiceImpl implements JobService {
                             configMap.setTag(volumeMountExt.getName().substring(volumeMountExt.getName().lastIndexOf("v") + 1).replace("-", "."));
                             configMap.setFile(volumeMountExt.getName().substring(0, volumeMountExt.getName().lastIndexOf("v")));
                         }
-                        ActionReturnUtil configMapResult = configMapService.getConfigMapByName(stageDto.getNamespace(), volumeMountExt.getConfigMapName(), null, cluster);
-                        if (configMapResult.isSuccess()) {
-                            ConfigMap config = (ConfigMap) configMapResult.get("data");
-                            Map data = (Map) config.getData();
-                            configMap.setValue((String) data.get(volumeMountExt.getName().replace("-", ".")));
+                        //升级时从数据库读取配置文件的内容
+                        ConfigFile configFile = configCenterService.getConfigByNameAndTag(configMap.getFile(), configMap.getTag(), job.getProjectId(), job.getClusterId());
+                        if(configFile != null){
+                            configMap.setValue(configFile.getItems());
+                        }else{
+                            configMap.setValue(null);
                         }
                         configMapList.add(configMap);
                     }
@@ -2456,6 +2325,12 @@ public class JobServiceImpl implements JobService {
                 if(CollectionUtils.isNotEmpty(stageDto.getConfigMaps())){
                     configMapList = new ArrayList<>();
                     for(CreateConfigMapDto createConfigMapDto : stageDto.getConfigMaps()) {
+                        ConfigFile configFile = configCenterService.getConfigByNameAndTag(createConfigMapDto.getFile(), createConfigMapDto.getTag(), job.getProjectId(), job.getClusterId());
+                        if(configFile != null){
+                            createConfigMapDto.setValue(configFile.getItems());
+                        }else{
+                            createConfigMapDto.setValue(null);
+                        }
                         configMapList.add(createConfigMapDto);
                     }
                     updateContainer.setConfigmap(configMapList);
@@ -2487,7 +2362,7 @@ public class JobServiceImpl implements JobService {
         return cluster.getName();
     }
 
-    private void validateJob(Job job, List<Stage> stageList) throws Exception{
+    private void validateJob(Job job, List<Stage> stageList, boolean validateDeploy) throws Exception{
         if(CollectionUtils.isEmpty(stageList)){
             throw new MarsRuntimeException(ErrorCodeMessage.STAGE_EMPTY);
         }
@@ -2504,6 +2379,8 @@ public class JobServiceImpl implements JobService {
                 if(!valid){
                     throw new MarsRuntimeException(ErrorCodeMessage.TEST_SUITE_NOT_EXIST);
                 }
+            }else if(validateDeploy && StageTemplateTypeEnum.DEPLOY.getCode() == stage.getStageTemplateType()){
+                verifyUpgrade(stage.getServiceName(), stage.getNamespace(), true);
             }
         }
     }
@@ -2528,7 +2405,7 @@ public class JobServiceImpl implements JobService {
                     stageBuildMap.put("stageId", newStageBuild.getStageId());
                     stageBuildMap.put("stageName", newStageBuild.getStageName());
                     stageBuildMap.put("stageOrder", newStageBuild.getStageOrder());
-                    stageBuildMap.put("stageType", newStageBuild.getStageType());
+                    stageBuildMap.put("stageType", MessageUtil.getMessage(newStageBuild.getStageType()));
                     stageBuildMap.put("stageTemplateTypeId", newStageBuild.getStageTemplateTypeId());
                     if(Constant.PIPELINE_STATUS_WAITING.equals(newStageBuild.getStatus())){
                         stageBuildMap.put("buildStatus", Constant.PIPELINE_STATUS_NOTBUILT);
@@ -2548,7 +2425,7 @@ public class JobServiceImpl implements JobService {
             stageBuildMap.put("stageId", stageBuild.getStageId());
             stageBuildMap.put("stageName", stageBuild.getStageName());
             stageBuildMap.put("stageOrder", stageBuild.getStageOrder());
-            stageBuildMap.put("stageType", stageBuild.getStageType());
+            stageBuildMap.put("stageType", MessageUtil.getMessage(stageBuild.getStageType()));
             stageBuildMap.put("stageTemplateTypeId", stageBuild.getStageTemplateTypeId());
             stageBuildMap.put("buildStatus", stageBuild.getStatus());
             stageBuildMap.put("buildNum", stageBuild.getBuildNum());
@@ -2569,7 +2446,113 @@ public class JobServiceImpl implements JobService {
         String clusterName = clusterService.getClusterNameByClusterId(job.getClusterId());
         String body = generateJobBody(job);
         ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest("/job/" + projectName + "/job/" + clusterName + "/job/" + job.getName() + "/config.xml", null, null, body, null);
+        if(!result.isSuccess()){
+            logger.error("更新jenkins配置失败, id:{}", id, result.getData());
+            throw new MarsRuntimeException(ErrorCodeMessage.PIPELINE_CONFIG_UPDATE_ERROR_IN_JENKINS);
+        }
         return result;
+    }
+
+    @Override
+    public void deletePipelineByProject(String projectId) throws Exception {
+        List<Job> jobList = jobMapper.select(projectId, null, null, null, null);
+        for(Job job : jobList){
+            jobMapper.deleteJobById(job.getId());
+            stageMapper.deleteStageByJob(job.getId());
+            triggerService.deleteByJobId(job.getId());
+            parameterService.deleteByJobId(job.getId());
+            jobBuildService.deleteByJobId(job.getId());
+            stageBuildService.deleteByJobId(job.getId());
+        }
+        String projectName = projectService.getProjectNameByProjectId(projectId);
+        JenkinsServer jenkinsServer = JenkinsClient.getJenkinsServer();
+        if(jenkinsServer.getJob(projectName) != null) {
+            jenkinsServer.deleteJob(projectName);
+        }
+    }
+
+    @Override
+    public void rename(Integer jobId, String newName) throws Exception {
+        Job job = getJobById(jobId);
+        if(job.getName().equals(newName)){
+            return;
+        }
+        jobMapper.updateJobName(job.getId(), newName);
+        String projectName = projectService.getProjectNameByProjectId(job.getProjectId());
+        String clusterName = clusterService.getClusterNameByClusterId(job.getClusterId());
+        FolderJob folderJob = getFolderJob(projectName, clusterName);
+        validateJobName(newName, projectName, clusterName);
+        JenkinsServer jenkinsServer = JenkinsClient.getJenkinsServer();
+        jenkinsServer.renameJob(folderJob, job.getName(), newName);
+        if(jenkinsServer.getJob(folderJob, newName) == null){
+            throw new MarsRuntimeException(ErrorCodeMessage.PIPELINE_RENAME_ERROR);
+        }
+    }
+
+    @Override
+    public void updateJob(JobDto jobDto) {
+        Job job = jobDto.convertToBean();
+        job.setUpdateTime(DateUtil.getCurrentUtcTime());
+        job.setUpdateUser((String)session.getAttribute(CommonConstant.USERNAME));
+        jobMapper.updateJob(job);
+    }
+
+    @Override
+    public void deleteBuildResult() throws Exception {
+        CicdConfigDto cicdConfigDto = systemConfigService.getCicdConfig();
+        if(cicdConfigDto.getRemainNumber() != null){
+            List<Job> jobList = jobMapper.select(null, null, null, null, null);
+            for(Job job : jobList) {
+                try {
+                    Integer lastBuildNum = job.getLastBuildNum();
+                    if (lastBuildNum != null) {
+                        int deleteLastBuildNum = lastBuildNum - cicdConfigDto.getRemainNumber();
+                        JobBuild firstJobBuild = jobBuildService.queryFirstBuildById(job.getId());
+                        int deleteFirstBuildNum = 1;
+                        if (firstJobBuild != null) {
+                            deleteFirstBuildNum = firstJobBuild.getBuildNum();
+                        }
+                        if (deleteLastBuildNum > 0 && firstJobBuild != null && deleteFirstBuildNum <= deleteLastBuildNum) {
+                            String projectName = projectService.getProjectNameByProjectId(job.getProjectId());
+                            String clusterName = clusterService.getClusterNameByClusterId(job.getClusterId());
+                            String name = job.getName();
+                            List buildNumList = new ArrayList();
+                            //遍历每个构建，发送jenkins请求进行删除
+                            for (int buildNum = deleteFirstBuildNum; buildNum <= deleteLastBuildNum; buildNum++) {
+                                JenkinsUrl url = new JenkinsUrl();
+                                url.setFolders(projectName, clusterName);
+                                url.setName(name);
+                                url.setBuildNumber(String.valueOf(buildNum));
+                                url.setApi("doDelete");
+                                ActionReturnUtil result = HttpJenkinsClientUtil.httpPostRequest(url.getUrl(), null, null, null, HttpStatus.SC_MOVED_TEMPORARILY);
+                                if (result.isSuccess()) {
+                                    //构建中，无法删除
+                                    if (StringUtils.isNotBlank((String) result.get("data")) && result.get("data").toString().contains("Resource busy")) {
+                                        logger.error("删除构建记录失败,jobId:{},buildNum:{}", job.getId(), buildNum);
+                                    } else {
+                                        buildNumList.add(buildNum);
+                                    }
+                                } else {
+                                    //已删除，接口不可以
+                                    if (StringUtils.isNotBlank((String) result.get("message")) && result.get("message").toString().contains(String.valueOf(HttpStatus.SC_NOT_FOUND))) {
+                                        buildNumList.add(buildNum);
+                                    } else {
+                                        logger.error("删除构建记录失败,jobId:{},buildNum:{}", job.getId(), buildNum);
+                                    }
+                                }
+                            }
+                            //删除数据库中的构建记录
+                            if (CollectionUtils.isNotEmpty(buildNumList)) {
+                                jobBuildService.deleteByJobIdAndBuildNum(job.getId(), buildNumList);
+                                stageBuildService.deleteByJobIdAndBuildNum(job.getId(), buildNumList);
+                            }
+                        }
+                    }
+                } catch(Exception e){
+                    logger.error("删除流水线构建记录失败, jobId: {}", job.getId());
+                }
+            }
+        }
     }
 
     private String generateJobBody(Job job) throws Exception{
@@ -2652,15 +2635,92 @@ public class JobServiceImpl implements JobService {
         dataModel.put("dockerFileMap", dockerFileMap);
         dataModel.put("stageList", stageDtoList);
         dataModel.put("imageBuildStages", imageBuildStages);
+        dataModel.put("timeout", jenkinsTimeout);
         String script = null;
 
         try {
             script = TemplateUtil.generate("pipeline.ftl", dataModel);
         }catch(Exception e){
-            e.printStackTrace();
+            logger.error("流水线脚本生成失败.{}", e);
         }
         return script;
     }
 
+    private void verifyUpgrade(String service, String namespace, boolean manually) throws Exception {
+        //判断服务是否启动
+        ActionReturnUtil deploymentDetailResult = deploymentsService.getDeploymentDetail(namespace, service);
+        if(deploymentDetailResult.isSuccess()){
+            AppDetail appDetail = (AppDetail) deploymentDetailResult.getData();
+            if(appDetail !=null ){
+                if(Constant.SERVICE_STOP.equals(appDetail.getStatus())){
+                    if(manually){
+                        throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_NOT_STARTED_INFORM);
+                    }else {
+                        throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_NOT_STARTED);
+                    }
+                }
+            }
+        }
+
+        //判断是否在蓝绿升级中
+        ActionReturnUtil result = blueGreenDeployService.getInfoAboutTwoVersion(service, namespace);
+        if(result.isSuccess()){
+            Map data = (Map)result.getData();
+            if(data != null && data.keySet().size() == 2){
+                if(manually){
+                    throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_ALREADY_IN_BLUE_GREEN_UPGRADE_INFORM);
+                }else {
+                    throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_ALREADY_IN_BLUE_GREEN_UPGRADE);
+                }
+            }
+        }
+        //判断是否在灰度升级中
+        ActionReturnUtil updateStatusResult = versionControlService.getUpdateStatus(namespace, service);
+        if(updateStatusResult.isSuccess()){
+            Map data = (Map)updateStatusResult.getData();
+            if(data != null){
+                List<Integer> counts = (List<Integer>) data.get("counts");
+                if(CollectionUtils.isNotEmpty(counts) && counts.size() == 2 && counts.get(1) != 0){
+                    if(manually){
+                        throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_ALREADY_IN_CANARY_UPGRADE_INFORM);
+                    }else {
+                        throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_ALREADY_IN_CANARY_UPGRADE);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 更新jenkins中的镜像版本
+     * @param job
+     * @throws Exception
+     */
+    private void updateJenkinsImageTag(Job job) throws Exception{
+        JenkinsServer jenkinsServer = JenkinsClient.getJenkinsServer();
+        String projectName = projectService.getProjectNameByProjectId(job.getProjectId());
+        String clusterName = clusterService.getClusterNameByClusterId(job.getClusterId());
+        FolderJob folderJob = getFolderJob(projectName, clusterName);
+        String jobXml = jenkinsServer.getJobXml(folderJob, job.getName());
+        Document doc = DocumentHelper.parseText(jobXml);
+        Element rootElement = doc.getRootElement();
+        List<Stage> stageList = stageService.getStageByJobId(job.getId());
+        Map<String, String> tagMap = new HashMap<>();
+        for(Stage stage : stageList){
+            if(StageTemplateTypeEnum.IMAGEBUILD.getCode() == stage.getStageTemplateType() && CommonConstant.IMAGE_TAG_RULE.equals(stage.getImageTagType())){
+                tagMap.put("tag" + stage.getStageOrder(), stage.getImageBaseTag());
+            }
+        }
+        if(tagMap.size() > 0){
+            List<Element> paramElements = rootElement.element("properties").element("hudson.model.ParametersDefinitionProperty").element("parameterDefinitions").elements("hudson.model.StringParameterDefinition");
+            for(Element element : paramElements){
+                String param = element.elementText("name");
+                if(tagMap.get(param) != null){
+                    element.element("defaultValue").setText(tagMap.get(param));
+                }
+            }
+        }
+        jenkinsServer.updateJob(folderJob, job.getName(), doc.asXML(), false);
+    }
 
 }

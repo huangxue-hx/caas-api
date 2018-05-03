@@ -2,10 +2,7 @@ package com.harmonycloud.service.application.impl;
 
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.DictEnum;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dto.application.CreateConfigMapDto;
 import com.harmonycloud.dto.application.CreateContainerDto;
@@ -112,6 +109,9 @@ public class JobsServiceImpl implements JobsService{
 							pvc.setServiceType(Constant.TYPE_JOB);
 							pvc.setServiceName(detail.getName());
 							pvc.setProjectId(detail.getProjectId());
+							if(StringUtils.isBlank(pvc.getVolumeName())){
+								pvc.setVolumeName(pvc.getPvcName());
+							}
 							volumeSerivce.createVolume(pvc);
                     	}
                     }
@@ -603,6 +603,10 @@ public class JobsServiceImpl implements JobsService{
 							pvc.setNamespace(detail.getNamespace());
 							pvc.setServiceType(Constant.TYPE_JOB);
 							pvc.setServiceName(detail.getName());
+							pvc.setProjectId(detail.getProjectId());
+							if(StringUtils.isBlank(pvc.getVolumeName())){
+								pvc.setVolumeName(pvc.getPvcName());
+							}
 							volumeSerivce.createVolume(pvc);
 						}
 					}
@@ -925,7 +929,7 @@ public class JobsServiceImpl implements JobsService{
 			Map<String, Object> label = new HashMap<String, Object>();
 			label.put(type, name);
 			if (!StringUtils.isEmpty(appName)){
-				label.put("business",appName);
+				label.put("app",appName);
 			}
 			meta.put("labels", label);
 			bodys.put("metadata", meta);

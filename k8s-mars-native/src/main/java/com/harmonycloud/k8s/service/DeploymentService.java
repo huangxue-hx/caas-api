@@ -57,13 +57,15 @@ public class DeploymentService {
 	/**
 	 * 获取某namespace下所有Deployment
 	 * @param namespace
-	 * @param labels
-	 * @param name
 	 * @return
 	 */
 	public K8SClientResponse doDeploymentsByNamespace(String namespace, Map<String, Object> headers, Map<String, Object> bodys, String method, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
-		url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
+		if (StringUtils.isNotBlank(namespace)){
+			url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
+		}else {
+			url.setResource(Resource.DEPLOYMENT);
+		}
 		K8SClientResponse response = new K8sMachineClient().exec(url, method, headers, bodys, cluster);
 		return response;
 	}

@@ -5,6 +5,7 @@ import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.dao.system.bean.SystemConfig;
+import com.harmonycloud.dto.cicd.CicdConfigDto;
 import com.harmonycloud.dto.user.LdapConfigDto;
 import com.harmonycloud.service.system.SystemConfigService;
 import org.slf4j.Logger;
@@ -30,7 +31,7 @@ public class SystemConfigController {
 	public ActionReturnUtil saveLdapConfig(@ModelAttribute LdapConfigDto ldapConfigDto) throws Exception {
 		AssertUtil.notNull(ldapConfigDto);
 		try {
-			logger.info("save ldapConfig");
+//			logger.info("save ldapConfig");
 			systemConfigService.addLdapConfig(ldapConfigDto);
 			return ActionReturnUtil.returnSuccess();
 
@@ -47,7 +48,7 @@ public class SystemConfigController {
 	public ActionReturnUtil  getSystemConfigById(@PathVariable String id) throws Exception{
 		try {
 			SystemConfig systemConfig = systemConfigService.findById(id);
-			logger.info("Get SystemConfig By id:{}", id);
+//			logger.info("Get SystemConfig By id:{}", id);
 			return ActionReturnUtil.returnSuccessWithData(systemConfig);
 		} catch (Exception e) {
 			logger.error("Failed to get SystemConfig By id", e.getMessage());
@@ -94,5 +95,30 @@ public class SystemConfigController {
 		}
 	}
 
+	@ResponseBody
+	@RequestMapping(value = "/maintenance", method = RequestMethod.GET)
+	public ActionReturnUtil getMaintenanceStatus(){
+		return ActionReturnUtil.returnSuccessWithData(systemConfigService.findMaintenanceStatus());
+	}
+
+	@ResponseBody
+	@RequestMapping(value = "/maintenance", method = RequestMethod.POST)
+	public ActionReturnUtil updateMaintenanceStatus(@RequestParam(value="status") String status){
+		systemConfigService.updateMaintenanceStatus(status);
+		return ActionReturnUtil.returnSuccess();
+	}
+
+	@ResponseBody
+	@RequestMapping(value = "/cicd", method = RequestMethod.GET)
+	public ActionReturnUtil getCicdConfig(){
+		return ActionReturnUtil.returnSuccessWithData(systemConfigService.getCicdConfig());
+	}
+
+	@ResponseBody
+	@RequestMapping(value = "/cicd", method = RequestMethod.POST)
+	public ActionReturnUtil updateCicdConfig(@RequestBody CicdConfigDto cicdConfigDto){
+		systemConfigService.updateCicdConfig(cicdConfigDto);
+		return ActionReturnUtil.returnSuccess();
+	}
 
 }

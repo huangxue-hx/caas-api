@@ -22,17 +22,17 @@
                         <#if parameter.type == 1>
                             <hudson.model.StringParameterDefinition>
                                 <name>${parameter.name}</name>
-                                <description/>
-                                <defaultValue>${parameter.value}</defaultValue>
+                                <description><![CDATA[${parameter.description!}]]></description>
+                                <defaultValue><![CDATA[${parameter.value}]]></defaultValue>
                             </hudson.model.StringParameterDefinition>
                         <#elseif parameter.type == 2>
                             <hudson.model.ChoiceParameterDefinition>
                                 <name>${parameter.name}</name>
-                                <description/>
+                                <description><![CDATA[${parameter.description!}]]></description>
                                 <choices class="java.util.Arrays$ArrayList">
                                     <a class="string-array">
                                         <#list parameter.value?split("\n") as value>
-                                        <string>${value}</string>
+                                        <string><![CDATA[${value}]]></string>
                                         </#list>
                                     </a>
                                 </choices>

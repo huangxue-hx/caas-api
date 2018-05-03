@@ -167,7 +167,6 @@ public class RoleLocalServiceImpl implements RoleLocalService {
                 Role role = map.get(roleId);
                 if (Objects.isNull(role)){
                     Role roleById = this.getRoleById(roleId);
-                    log.info("循环角色：" + roleById.getNickName());
                     if (!Objects.isNull(roleById)){
                         list.add(roleById);
                         map.put(roleById.getId(),roleById);
@@ -495,7 +494,10 @@ public class RoleLocalServiceImpl implements RoleLocalService {
                continue;
             }
             if(clusterId.equalsIgnoreCase(role.getClusterIds().trim())){
-                roleMapper.deleteByPrimaryKey(role.getId());
+                role.setUpdateTime(DateUtil.getCurrentUtcTime());
+                role.setAvailable(Boolean.FALSE);
+                role.setClusterIds(null);
+                roleMapper.updateByPrimaryKey(role);
                 count++;
                 continue;
             }
@@ -601,6 +603,9 @@ public class RoleLocalServiceImpl implements RoleLocalService {
         List<UserRoleRelationship> users = this.userRoleRelationshipService.listUserByNickName(nickName);
         if (!CollectionUtils.isEmpty(users)){
             throw new MarsRuntimeException(ErrorCodeMessage.ROLE_USER_EXIST);
+        }
+        if (roleId <= CommonConstant.NUM_SEVEN){
+            throw new MarsRuntimeException(ErrorCodeMessage.INIT_ROLE_CANNOT_DELETE);
         }
         // 删除角色权限
         this.rolePrivilegeService.deleteRolePrivilegeByRoleId(roleId);

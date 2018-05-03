@@ -1,9 +1,14 @@
 package com.harmonycloud.service.user.impl;
 
+import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dao.user.UrlDicMapper;
 import com.harmonycloud.dao.user.bean.UrlDic;
 import com.harmonycloud.dao.user.bean.UrlDicExample;
+import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.user.UrlDicService;
+import com.harmonycloud.service.user.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,10 +21,14 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class UrlDicServiceImpl implements UrlDicService{
+    private static final Logger LOGGER = LoggerFactory.getLogger(UrlDicServiceImpl.class);
     @Autowired
-    UrlDicMapper urlDicMapper;
+    private UrlDicMapper urlDicMapper;
+    @Autowired
+    private HarborProjectService harborProjectService;
+    @Autowired
+    private UserService userService;
     /**
      * 获取url对应的map(测试使用)
      *
@@ -29,6 +38,8 @@ public class UrlDicServiceImpl implements UrlDicService{
     @Override
     public Map getUrlMap() throws Exception {
         UrlDicExample example = this.getExample();
+        //测试 TODO
+        example.createCriteria().andModuleEqualTo("appcenter");
         List<UrlDic> urlDics = this.urlDicMapper.selectByExample(example);
         Map<String, Map<String, List<UrlDic>>> result = new HashMap<>();
         //获取所有的模块
@@ -56,17 +67,13 @@ public class UrlDicServiceImpl implements UrlDicService{
                 }
             }
         }
-        if (!CollectionUtils.isEmpty(result)){
-            for (Map.Entry<String, Map<String, List<UrlDic>>> entryResource : result.entrySet()) {
-                for (Map.Entry<String, List<UrlDic>> entry : entryResource.getValue().entrySet()) {
-                    //添加模块下资源权限信息
-                    List<UrlDic> value = entry.getValue();
-                    for (UrlDic urlDic:value) {
-                        System.out.println(urlDic.getModule()+"|"+urlDic.getResource()+"|"+urlDic.getUrl());
-                    }
-                }
-            }
-        }
+        //test TODO
+        ImageRepository repository = new ImageRepository();
+        repository.setTenantId("B812870533934326AF6D532F1363D1E3");
+        List<ImageRepository> imageRepositories = harborProjectService.listRepositories(repository);
+        repository.setProjectId("6042eef939f94bca980d6afbb349590f");
+         imageRepositories = harborProjectService.listRepositories(repository);
+        userService.changePhone("w_zhangkui","13071815676");
         return result;
 
     }

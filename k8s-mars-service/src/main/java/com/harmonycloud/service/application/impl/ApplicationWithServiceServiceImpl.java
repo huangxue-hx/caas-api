@@ -33,8 +33,8 @@ public class ApplicationWithServiceServiceImpl implements ApplicationWithService
     }
 
     @Override
-    public void deleteApplicationService(String name) throws Exception {
-        applicationServiceMapper.deleteApplicationService(name);
+    public void deleteApplicationService(String name, String projectId, String clusterId) throws Exception {
+        applicationServiceMapper.deleteApplicationService(name, projectId, clusterId);
     }
 
     @Override

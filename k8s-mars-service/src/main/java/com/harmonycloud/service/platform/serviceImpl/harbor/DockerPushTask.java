@@ -2,7 +2,8 @@ package com.harmonycloud.service.platform.serviceImpl.harbor;
 
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.BizUtil;
+import com.harmonycloud.service.platform.bean.harbor.HarborLog;
 import com.spotify.docker.client.DockerClient;
 import com.spotify.docker.client.messages.RegistryAuth;
 import com.spotify.docker.client.messages.RemovedImage;
@@ -14,6 +15,7 @@ import java.io.FileInputStream;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class DockerPushTask implements Callable<Boolean>{
     private static final Logger logger = LoggerFactory.getLogger(DockerPushTask.class);
@@ -21,13 +23,15 @@ public class DockerPushTask implements Callable<Boolean>{
     private String imageName;
     private RegistryAuth registryAuth;
     private File imageFile;
+    private LinkedBlockingQueue<HarborLog> queue;
 
 
-    public DockerPushTask(DockerClient dockerClient, String imageName, File imageFile, RegistryAuth registryAuth){
+    public DockerPushTask(DockerClient dockerClient, String imageName, File imageFile, RegistryAuth registryAuth,LinkedBlockingQueue queue){
         this.dockerClient = dockerClient;
         this.imageName = imageName;
         this.imageFile = imageFile;
         this.registryAuth = registryAuth;
+        this.queue = (LinkedBlockingQueue<HarborLog>)queue;
     }
 
 
@@ -48,6 +52,9 @@ public class DockerPushTask implements Callable<Boolean>{
             dockerClient.tag(tarFileImage, imageName);
             dockerClient.push(imageName, registryAuth);
             logger.info("{}镜像上传完成", imageName);
+            String[] imagePart = BizUtil.getImageInfoFromName(imageName);
+            HarborLog harborLog = new HarborLog(imagePart[0],imagePart[1],imagePart[2]);
+            queue.put(harborLog);
             List<RemovedImage> removedImages = dockerClient.removeImage(tarFileImage);
             removedImages.addAll(dockerClient.removeImage(imageName));
             removedImages.stream().forEach(image -> logger.info("删除镜像：{}", image.imageId()));

@@ -104,7 +104,7 @@ public class PodServiceImpl implements PodService {
 		K8SURL url = new K8SURL();
 		url.setNamespace("kube-system");
 		url.setResource(Resource.POD);
-		List<Cluster> clusters = clusterService.listCluster();
+		List<Cluster> clusters = clusterService.listAllCluster(Boolean.TRUE);
 		List<KubeModuleStatus> kubeModuleStatuses = new ArrayList<>();
 		for(Cluster cluster : clusters) {
 			K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null, cluster);

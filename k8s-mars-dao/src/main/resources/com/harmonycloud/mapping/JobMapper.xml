@@ -6,6 +6,7 @@
         <id column="id" property="id" jdbcType="INTEGER" />
         <result column="uuid" property="uuid" jdbcType="VARCHAR" />
         <result column="name" property="name" jdbcType="VARCHAR" />
+        <result column="description" property="description" jdbcType="VARCHAR"/>
         <result column="type" property="type" jdbcType="VARCHAR" />
         <result column="tenant_id" property="tenantId" jdbcType="VARCHAR" />
         <result column="cluster_id" property="clusterId" jdbcType="VARCHAR" />
@@ -24,12 +25,24 @@
         <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
         <result column="last_build_num" property="lastBuildNum" jdbcType="INTEGER" />
     </resultMap>
+    <resultMap id="JobWithBuildResultMap" type="com.harmonycloud.dao.ci.bean.JobWithBuild" >
+        <id column="id" property="id" jdbcType="INTEGER" />
+        <result column="name" property="name" jdbcType="VARCHAR" />
+        <result column="description" property="description" jdbcType="VARCHAR"/>
+        <result column="type" property="type" jdbcType="VARCHAR" />
+        <result column="cluster_id" property="clusterId" jdbcType="VARCHAR" />
+        <result column="project_id" property="projectId" jdbcType="VARCHAR" />
+        <result column="build_num" jdbcType="VARCHAR" property="buildNum" />
+        <result column="status" jdbcType="VARCHAR" property="status" />
+        <result column="start_time" jdbcType="TIMESTAMP" property="startTime" />
+    </resultMap>
+
     <sql id="Base_Column_List" >
-        id,uuid,name,type,tenant_id,cluster_id,project_id,notification,success_notification,fail_notification,mail,create_user,last_build_num
+        id,uuid,name,description,type,tenant_id,cluster_id,project_id,notification,success_notification,fail_notification,mail,create_user,last_build_num
     </sql>
 
 
-    <select id="select" resultMap="BaseResultMap" parameterType="java.lang.String">
+    <select id="select" useCache="false" flushCache="true"  resultMap="BaseResultMap" parameterType="java.lang.String">
         SELECT
         <include refid="Base_Column_List" />
         FROM cicd_job
@@ -38,6 +51,7 @@
             <if test="projectId!=null">AND project_id=#{projectId} </if>
             <if test="clusterId!=null and clusterId!=''">AND cluster_id=#{clusterId} </if>
             <if test="createUser!=null and createUser!=''">AND createUser=#{create_user} </if>
+            <if test="type!=null and type!=''">AND type=#{type} </if>
         </trim>
     </select>
 
@@ -49,8 +63,8 @@
     </select>
 
     <insert id="insertJob" parameterType="com.harmonycloud.dao.ci.bean.Job" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO cicd_job (uuid,name,type,tenant_id,project_id,cluster_id,notification,success_notification,fail_notification,mail,create_user,create_time)
-        VALUE (#{uuid},#{name},#{type},#{tenantId},#{projectId},#{clusterId},#{notification},#{successNotification},#{failNotification},#{mail},#{createUser},#{createTime})
+        INSERT INTO cicd_job (uuid,name,description,type,tenant_id,project_id,cluster_id,notification,success_notification,fail_notification,mail,create_user,create_time)
+        VALUE (#{uuid},#{name},#{description},#{type},#{tenantId},#{projectId},#{clusterId},#{notification},#{successNotification},#{failNotification},#{mail},#{createUser},#{createTime})
     </insert>
 
     <update id="updateNotification" parameterType="com.harmonycloud.dao.ci.bean.Job">
@@ -74,19 +88,22 @@
         WHERE id = #{id}
     </update>
     <update id="updateJob" parameterType="com.harmonycloud.dao.ci.bean.Job">
-        UPDATE job
-        SET project_type = #{projectType},
-        build_type = #{buildType},
-        repository_type = #{repositoryType},
-        repository_url = #{repositoryUrl},
-        repository_branch = #{repositoryBranch},
-        credentials_username = #{credentialsUsername},
-        credentials_password = #{credentialsPassword},
-        base_image = #{baseImage},
-        image_name = #{imageName},
-        image_tag = #{imageTag},
-        harbor_project = #{harborProject}
-        WHERE tenant = #{tenant} and job_name = #{jobName}
+        UPDATE cicd_job
+        <set>
+            <if test="name != null">
+                name = #{name},
+            </if>
+            <if test="description != null">
+                description = #{description},
+            </if>
+            <if test="updateUser != null">
+                update_user = #{updateUser},
+            </if>
+            <if test="updateTime != null">
+                update_time = #{updateTime},
+            </if>
+        </set>
+        WHERE id = #{id}
     </update>
     <delete id="deleteJobByTenantAndJobName" parameterType="java.lang.String">
         DELETE FROM job where tenant = #{tenant} and job_name = #{jobName}
@@ -111,5 +128,25 @@
         WHERE uuid = #{uuid}
     </select>
 
+    <update id="updateJobName">
+        UPDATE cicd_job SET name = #{name} WHERE id = #{id}
+    </update>
 
+    <select id="selectJobWithLastBuild" resultMap="JobWithBuildResultMap">
+        SELECT cicd_job.id, cicd_job.name,cicd_job.description,cicd_job.type,cicd_job.project_id, cicd_job.cluster_id,job_build.build_num,job_build.status,job_build.start_time FROM cicd_job
+        LEFT JOIN  cicd_job_build  job_build on cicd_job.id = job_build.job_id and cicd_job.last_build_num = job_build.build_num
+        <trim prefix="where" prefixOverrides="and">
+            <if test="jobName!=null and jobName!=''">AND name like CONCAT('%', #{jobName}, '%') </if>
+            <if test="projectId!=null">AND project_id=#{projectId} </if>
+            <if test="clusterId!=null and clusterId!=''">AND cluster_id=#{clusterId} </if>
+            <if test="type!=null and type!=''">AND type=#{type} </if>
+        </trim>
+        ORDER BY cicd_job.name
+    </select>
+
+    <select id="selectJobWithLastBuildById" resultMap="JobWithBuildResultMap">
+        SELECT cicd_job.id, cicd_job.name,cicd_job.type,cicd_job.project_id, cicd_job.cluster_id,job_build.build_num,job_build.status,job_build.start_time FROM cicd_job
+        LEFT JOIN  cicd_job_build job_build on cicd_job.id = job_build.job_id and cicd_job.last_build_num = job_build.build_num
+        WHERE cicd_job.id = #{jobId}
+    </select>
 </mapper>

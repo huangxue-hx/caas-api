@@ -32,4 +32,10 @@ public interface ParameterService {
      * @throws Exception
      */
     void insertParameter(ParameterDto parameterDto) throws Exception;
+
+    /**
+     * 删除参数
+     * @param id
+     */
+    void deleteByJobId(Integer id);
 }

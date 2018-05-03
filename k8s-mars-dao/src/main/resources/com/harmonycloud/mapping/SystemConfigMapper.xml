@@ -6,6 +6,7 @@
     <resultMap id="systemConfigMap" type="com.harmonycloud.dao.system.bean.SystemConfig">
         <id property="id" column="id"/>
         <result property="configName" column="config_name"/>
+        <result property="configType" column="config_type"/>
         <result property="configValue" column="config_value"/>
         <result property="createUser" column="create_user"/>
         <result property="updateUser" column="update_user"/>
@@ -28,7 +29,7 @@
         from system_config where config_type=#{configType}
     </select>
 
-    <insert id="addSystemConfig" parameterType="com.harmonycloud.dao.system.bean.SystemConfig">
+    <insert id="addSystemConfig" parameterType="com.harmonycloud.dao.system.bean.SystemConfig" useGeneratedKeys="true" keyProperty="id">
 		insert into system_config(id, config_name, config_value, config_type, create_user,update_user,create_time,update_time)
 		values(#{id},#{configName},#{configValue},#{configType},#{createUser},#{updateUser},#{createTime},#{updateTime})
 	</insert>

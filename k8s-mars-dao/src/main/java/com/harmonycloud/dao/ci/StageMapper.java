@@ -27,4 +27,6 @@ public interface StageMapper {
 
     long countByExample(Stage stage);
     List<Stage> selectByExample(Stage stage);
+
+    void updatePasswordByUsername(@Param("username")String username, @Param("password")String password);
 }

@@ -54,4 +54,11 @@ public interface MicroServiceOperationTaskService {
      * @throws Exception
      */
     List<MicroServiceOperationTask> getTaskByNamespaceAndStatus(String namespaceId, String status) throws Exception;
+
+    /**
+     * 删除分区下的所有任务
+     * @param namespaceId
+     * @throws Exception
+     */
+    void deleteTask(String namespaceId) throws Exception;
 }

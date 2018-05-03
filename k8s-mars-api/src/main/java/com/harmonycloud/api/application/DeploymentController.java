@@ -4,6 +4,7 @@ import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.DeployedServiceNamesDto;
+import com.harmonycloud.dto.application.ServiceDeployDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dto.application.DeploymentDetailDto;
 import com.harmonycloud.k8s.constant.Constant;
@@ -72,12 +73,20 @@ public class DeploymentController {
 	/**
 	 * 创建deployment
 	 * 
-	 * @param deploymentDetail
+	 * @param serviceDeploy
 	 * @return ActionReturnUtil
 	 */
 	@ResponseBody
 	@RequestMapping(method = RequestMethod.POST)
-	public ActionReturnUtil createDeployments(@ModelAttribute DeploymentDetailDto deploymentDetail) throws Exception {
+	public ActionReturnUtil deployService(@ModelAttribute ServiceDeployDto serviceDeploy) throws Exception {
+		logger.info("deploy service");
+		String userName = (String) session.getAttribute("username");
+		if(userName == null){
+			throw new K8sAuthException(Constant.HTTP_401);
+		}
+		return serviceService.deployService(serviceDeploy, userName);
+	}
+	/*public ActionReturnUtil createDeployments(@ModelAttribute DeploymentDetailDto deploymentDetail) throws Exception {
 		logger.info("创建服务");
 		String userName = (String) session.getAttribute("username");
 		if (userName == null) {
@@ -85,7 +94,7 @@ public class DeploymentController {
 		}
 		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
 		return dpService.createDeployment(deploymentDetail, userName, "", cluster);
-	}
+	}*/
 
 	/**
 	 * 获取应用详情
@@ -99,7 +108,6 @@ public class DeploymentController {
 	public ActionReturnUtil deploymentDetail(@PathVariable(value = "deployName") String name,
 			@RequestParam(value = "namespace", required = true) String namespace) throws Exception {
 
-		logger.info("查询服务详情");
 		String userName = (String) session.getAttribute("username");
 		if (userName == null) {
 			throw new K8sAuthException(Constant.HTTP_401);
@@ -151,7 +159,6 @@ public class DeploymentController {
 	public ActionReturnUtil getPodDetail(@RequestParam(value = "name", required = true) String name,
 			@RequestParam(value = "namespace") String namespace) throws Exception {
 
-		logger.info("获取服务中的pod详情");
 		if (StringUtils.isEmpty(namespace) || StringUtils.isEmpty(name)) {
 			return ActionReturnUtil.returnError();
 		}
@@ -169,7 +176,6 @@ public class DeploymentController {
 	public ActionReturnUtil podList(@PathVariable(value = "deployName") String name,
 			@RequestParam(value = "namespace") String namespace) throws Exception {
 
-		logger.info("获取服务的pod列表");
 		String userName = (String) session.getAttribute("username");
 		if (userName == null) {
 			throw new K8sAuthException(Constant.HTTP_401);
@@ -184,7 +190,6 @@ public class DeploymentController {
 			@RequestParam(value = "namespace", required = true) String namespace,
 			@RequestParam(value = "clusterId", required = false) String clusterId) throws Exception {
 
-		logger.info("获取服务的事件");
 		String userName = (String) session.getAttribute("username");
 		if (userName == null) {
 			throw new K8sAuthException(Constant.HTTP_401);
@@ -196,7 +201,7 @@ public class DeploymentController {
 	@RequestMapping(value = "/{deployName}/containers", method = RequestMethod.GET)
 	public ActionReturnUtil getDeploymentContainer(@PathVariable(value = "deployName") String name,
 			@RequestParam(value = "namespace", required = true) String namespace) throws Exception {
-		logger.info("获取pod的cantainer");
+
 		String userName = (String) session.getAttribute("username");
 		if (userName == null) {
 			throw new K8sAuthException(Constant.HTTP_401);
@@ -230,9 +235,10 @@ public class DeploymentController {
 	@RequestMapping(value = "/{deployName}/checkname", method = RequestMethod.GET)
 	@ResponseBody
 	public ActionReturnUtil checkServiceName(@PathVariable(value = "deployName") String name,
-											 @RequestParam(value = "namespace", required = true) String namespace) throws Exception {
-		logger.info("检测服务名称重名");
-		ActionReturnUtil result = dpService.checkDeploymentName(name, namespace);
+											 @RequestParam(value = "namespace", required = true) String namespace,
+											 @RequestParam(value = "isTpl") boolean isTpl) throws Exception {
+
+		ActionReturnUtil result = dpService.checkDeploymentName(name, namespace, isTpl);
 		return result;
 	}
 

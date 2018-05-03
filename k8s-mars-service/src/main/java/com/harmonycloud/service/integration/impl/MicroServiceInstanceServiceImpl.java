@@ -69,4 +69,9 @@ public class MicroServiceInstanceServiceImpl implements MicroServiceInstanceServ
     public int deleteByClusterId(String clusterId){
         return msfInstanceMapper.deleteByClusterId(clusterId);
     }
+
+    @Override
+    public void deleteByNamespaceId(String namespaceId) throws Exception {
+        msfInstanceMapper.deleteByNamespaceId(namespaceId);
+    }
 }

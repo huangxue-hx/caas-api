@@ -21,6 +21,24 @@ public class ClusterMysql implements Serializable {
     private boolean removeAbandoned;
     private Integer removeAbandonedTimeout;
     private boolean logAbandoned;
+    private Integer maxOpenPreparedStatements;
+    private boolean poolPreparedStatements;
+
+    public Integer getMaxOpenPreparedStatements() {
+        return maxOpenPreparedStatements;
+    }
+
+    public void setMaxOpenPreparedStatements(Integer maxOpenPreparedStatements) {
+        this.maxOpenPreparedStatements = maxOpenPreparedStatements;
+    }
+
+    public boolean isPoolPreparedStatements() {
+        return poolPreparedStatements;
+    }
+
+    public void setPoolPreparedStatements(boolean poolPreparedStatements) {
+        this.poolPreparedStatements = poolPreparedStatements;
+    }
 
     public String getFilters() {
         return filters;

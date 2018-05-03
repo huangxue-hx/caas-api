@@ -166,6 +166,7 @@ public class CommonConstant {
     public static final String CLUSTERLIST = "clusterList";
     public static final String TENANTSIZE = "tenantSize";
     public static final String CLUSTERID = "clusterId";
+    public static final String CLUSTERALIASID = "clusterAliasName";
     public static final String CLUSTER_NAME = "clusterName";
     public static final String LABELSELECTOR = "labelSelector";
     public static final String PODSELECTOR = "podSelector";
@@ -265,7 +266,7 @@ public class CommonConstant {
     public static final String ZERONUM = "0";
     public static final String ONENUMSTRING = "1";
     //创建镜像仓库默认镜像数量配额
-    public static final Integer QUOTA_NUM = 1000;
+    public static final Integer QUOTA_NUM = 10000;
     //创建镜像仓库默认磁盘配额
     public static final Float QUOTA_SIZE = 512000.0f;
     public static final int NUM_ONE = 1;
@@ -279,6 +280,7 @@ public class CommonConstant {
     public static final int NUM_NINE = 9;
     public static final int NUM_TEN = 10;
     public static final int NUM_ELEVEN = 11;
+    public static final int NUM_TWELVE = 12;
     //1000进制
     public static final int NUM_THOUSAND = 1000;
     public static final int NUM_MINUS_ONE = -1;
@@ -300,6 +302,12 @@ public class CommonConstant {
     public static final String CONFIG_TYPE_FULLLINK = "fulllink";
     public static final String CONFIG_TYPE_LDAP = "ldap";
 
+    public static final String MAINTENANCE_STATUS = "maintenanceStatus";
+    public static final String CONFIG_TYPE_MAINTENANCE = "maintenance";
+
+    public static final String CONFIG_TYPE_CICD = "cicd";
+    public static final String CICD_RESULT_REMAIN_NUM = "cicd_remain_num";
+
     public static final String TRIAL_TIME = "trial_time";
 
     public static final String FILE_MAX_SIZE = "file_maxsize";
@@ -311,14 +319,20 @@ public class CommonConstant {
     public static final String PROTOCOL_HTTP = "http";
     public static final Integer DEFAULT_KUBE_APISERVER_PORT = 6443;
     public static final Integer DEFAULT_HARBOR_PORT = 80;
+    public static final String DEFAULT_NAMESPACE = "default";
     //cicd
-    public static final String CICD_NAMESPACE = "default";
+    public static final String CICD_NAMESPACE = "cicd";
     public static final String DEPENDENCE_PREFIX = "cicd-dependence";
+    //cicd 长连接30秒内至少返回一次数据
+    public static final long CICD_WEBSOCKET_MAX_DURATION = 30000L;
+    public static final long CICD_SLEEP_TIME_30000 = 30000L;
+    public static final long CICD_SLEEP_TIME_300000 = 300000L;
     //流水线触发类型
     public static final int PERIODICAL = 1;
     public static final int POLLSCM = 2;
     public static final int WEBHOOK = 3;
     public static final int JOBTRIGGER = 4;
+    public static final int IMAGETRIGGER = 5;
     //流水线参数类型
     public static final int STRING_TYPE_PARAMETER = 1;
     public static final int CHOICE_TYPE_PARAMETER = 2;
@@ -356,6 +370,10 @@ public class CommonConstant {
     public static final String PV_STATUS_RELEASED= "Released";
 
     public static final String PV_RECYCLE_POD_NAME= "pv-recycler-";
+
+    public static final String PV_CREATE_POD_NAME= "pv-dir-create-";
+
+    public static final String PV_DELETE_POD_NAME= "pv-dir-delete-";
 
     public static final String RESTARTPOLICY_NEVER= "Never";
 
@@ -414,6 +432,13 @@ public class CommonConstant {
     public static final String LBS_CN = "负载均衡";
     public static final String PRIVATE_CN = "独占";
     public static final String SYSTEM_AND_LBS_CN = "系统,负载均衡";
+
+    public static final String MASTER_EN = "master";
+    public static final String SYSTEM_EN = "system";
+    public static final String BUILD_EN = "build";
+    public static final String LBS_EN = "slb";
+    public static final String PRIVATE_EN = "private";
+    public static final String SYSTEM_AND_LBS_EN = "system,slb";
 
     //通用规则
     public static final String RULE_ALL = "-1";
@@ -479,9 +504,14 @@ public class CommonConstant {
     public static final String TIME_UNIT_MINUTES = "m";
     public static final String TENANTNOTINTHRCLUSTER = "当前节点的租户不在本集群的库中，请切换其他集群的云管平台查看";
     public static final String REDIS_KEY_IMAGE_PULL_STATUS = "image_pull_status";
+    public static final String REDIS_KEY_IMAGE_DELETING = "image_deleting";
     public static final String IMAGE_PULLING_STATUS_PULLING = "pulling";
     public static final String IMAGE_PULLING_STATUS_PULLED = "pulled";
     public static final String IMAGE_FILE_DOWNLOAD_PATH = "image-download";
     public static final String IMAGE_FILE_UPLOAD_PATH = "image-upload";
+    public static final int ONE_DAY_SECONDS = 86400;
+    public static final int FIVE_MINUTES_SECONDS = 300;
+
+    public static final int ES_MAX_RESULT_WINDOW = 300000;
 
 }

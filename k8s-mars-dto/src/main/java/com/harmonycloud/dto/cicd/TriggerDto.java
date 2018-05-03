@@ -27,6 +27,8 @@ public class TriggerDto {
 
     private Integer triggerJobId;
 
+    private String triggerImage;
+
     public Integer getId() {
         return id;
     }
@@ -97,5 +99,13 @@ public class TriggerDto {
 
     public void setTriggerJobId(Integer triggerJobId) {
         this.triggerJobId = triggerJobId;
+    }
+
+    public String getTriggerImage() {
+        return triggerImage;
+    }
+
+    public void setTriggerImage(String triggerImage) {
+        this.triggerImage = triggerImage;
     }
 }

@@ -4,7 +4,7 @@ def label
 def dateTime = new Date().format('yyyyMMddHHmmss')
 <#assign buildInPod=false>
 try{
-httpRequest url:"${apiUrl!}/rest/openapi/cicd/preBuild?id=${job.id!}&amp;buildNum=${r'${currentBuild.number}'}&amp;dateTime=${r'${dateTime}'}",quiet: true
+httpRequest url:"${apiUrl!}/rest/openapi/cicd/preBuild?id=${job.id!}&amp;buildNum=${r'${currentBuild.number}'}&amp;dateTime=${r'${dateTime}'}",consoleLogResponseBody: true,timeout: ${timeout}
 <#list stageList as stage>
 <#if (stage.stageTemplateType == 0 ||((stage.stageTemplateType == 1 || stage.stageTemplateType == 6) && stage.environmentChange == true))>
 <#if stage.stageOrder != 1>
@@ -57,15 +57,15 @@ podTemplate(
 
     node("build-${r'${label}'}"){
 </#if>
-        httpRequest url:"${apiUrl!}/rest/openapi/cicd/stageSync?id=${stage.id!}&amp;buildNum=${r'${currentBuild.number}'}&amp;dateTime=${r'${dateTime}'}",quiet: true
+        httpRequest url:"${apiUrl!}/rest/openapi/cicd/stageSync?id=${stage.id!}&amp;buildNum=${r'${currentBuild.number}'}&amp;dateTime=${r'${dateTime}'}",quiet: true,timeout: ${timeout}
     <#if (stageList?size>0 && stage.stageOrder == 1 && buildInPod! == false)>
-        node(){
+        node('master'){
     </#if>
         stage('${stage.stageName}-${stage.id}'){
 <#if stage.repositoryType! == "git">
-            checkout([$class: 'GitSCM', branches: [[name: '${stage.repositoryBranch!}']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '${stage.id}', url: '${stage.repositoryUrl}']]])
+            <![CDATA[checkout([$class: 'GitSCM', branches: [[name: '${stage.repositoryBranch!}']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '${stage.id}', url: '${stage.repositoryUrl}']]])]]>
 <#elseif stage.repositoryType! == "svn">
-            checkout([$class: 'SubversionSCM',  locations: [[credentialsId: '${stage.id}', depthOption: 'infinity', ignoreExternalsOption: true, local: '.', remote: '${stage.repositoryUrl}']]])
+            <![CDATA[checkout([$class: 'SubversionSCM',  locations: [[credentialsId: '${stage.id}', depthOption: 'infinity', ignoreExternalsOption: true, local: '.', remote: '${stage.repositoryUrl}']]])]]>
 </#if>
 <#if stage.stageTemplateType == 1>
             <#if stage.imageTagType == '0'>
@@ -80,14 +80,13 @@ podTemplate(
             sh "docker push ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}"
 </#if>
 <#if stage.stageTemplateType == 2>
-            httpRequest "${apiUrl!}/rest/openapi/cicdjobs/stages/${stage.id!}?buildNum=${r'${currentBuild.number}'}"
+            httpRequest url:"${apiUrl!}/rest/openapi/cicdjobs/stages/${stage.id!}?buildNum=${r'${currentBuild.number}'}",consoleLogResponseBody: true, timeout: ${timeout}
 </#if>
 <#if (stage.stageTemplateType == 7 || stage.stageTemplateType == 8)>
-            httpRequest "${apiUrl!}/rest/openapi/cicdjobs/stages/${stage.id!}?buildNum=${r'${currentBuild.number}'}"
+            httpRequest url:"${apiUrl!}/rest/openapi/cicdjobs/stages/${stage.id!}?buildNum=${r'${currentBuild.number}'}",timeout: ${timeout}
 </#if>
 <#if (stage.command!?size>0)>
-    sh '''<#list stage.command! as command>
-    <![CDATA[${command}]]>
+    sh '''<#list stage.command! as command><![CDATA[${command}]]>
     </#list>'''
 </#if>
 
@@ -100,5 +99,5 @@ podTemplate(
     }
 </#if>
 }finally{
-    httpRequest url:"${apiUrl!}/rest/openapi/cicd/postBuild?id=${job.id!}&amp;buildNum=${r'${currentBuild.number}'}",quiet: true
+    httpRequest url:"${apiUrl!}/rest/openapi/cicd/postBuild?id=${job.id!}&amp;buildNum=${r'${currentBuild.number}'}",quiet: true,timeout: ${timeout}
 }

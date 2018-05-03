@@ -33,9 +33,9 @@ public interface ServiceTemplatesMapper {
 
     List<ServiceTemplates> listIDListByTemplateName(String name);
 
-    int deleteByName(String name);
+    int deleteByName(@Param("name")String name, @Param("projectId") String projectId, @Param("clusterId") String clusterId);
 
-    List<String> listTenantByName(String name);
+    List<ServiceTemplates> listTplByNameAndProjectAndCluster(@Param("name") String name, @Param("clusterId") String clusterId, @Param("isPublic") boolean isPublic, @Param("projectId") String projectId);
 
     ServiceTemplates getServiceTemplatesByID(@Param("ID") Integer id);
     

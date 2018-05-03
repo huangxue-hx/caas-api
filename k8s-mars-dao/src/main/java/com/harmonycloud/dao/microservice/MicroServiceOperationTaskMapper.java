@@ -24,4 +24,6 @@ public interface MicroServiceOperationTaskMapper {
     List<MicroServiceOperationTask> findTaskByNamespace(String namespaceId);
 
     List<MicroServiceOperationTask> findTasksByStatus(@Param("namespaceId")String namespaceId, @Param("status") Integer status);
+
+    void deleteTask(String namespaceId);
 }

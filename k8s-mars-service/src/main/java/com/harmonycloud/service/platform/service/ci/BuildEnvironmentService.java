@@ -18,4 +18,6 @@ public interface BuildEnvironmentService {
     void deleteBuildEnvironment(Integer id) throws Exception;
 
     int deleteByClusterId(String clusterId);
+
+    void deleteBuildEnvironmentByProject(String projectId);
 }

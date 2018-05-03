@@ -1,8 +1,7 @@
 package com.harmonycloud.service.application.impl;
 
-import com.harmonycloud.common.Constant.CommonConstant;
-import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.AssertUtil;
@@ -10,17 +9,23 @@ import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.application.ServiceTemplatesMapper;
 import com.harmonycloud.dao.application.bean.ApplicationTemplates;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
-import com.harmonycloud.dto.application.*;
+import com.harmonycloud.dto.application.ApplicationTemplateDto;
+import com.harmonycloud.dto.application.CreateContainerDto;
+import com.harmonycloud.dto.application.DeploymentDetailDto;
+import com.harmonycloud.dto.application.ServiceTemplateDto;
 import com.harmonycloud.k8s.bean.Deployment;
 import com.harmonycloud.k8s.service.ReplicasetsService;
-import com.harmonycloud.service.application.*;
+import com.harmonycloud.service.application.ApplicationService;
+import com.harmonycloud.service.application.ApplicationTemplateService;
+import com.harmonycloud.service.application.ApplicationWithServiceService;
+import com.harmonycloud.service.application.ServiceService;
 import com.harmonycloud.service.application.Util.TemplateToYamlUtil;
+import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
-import net.sf.json.JSON;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang3.StringUtils;
@@ -77,6 +82,9 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Autowired
     RoleLocalService roleLocalService;
 
+    @Autowired
+    private ClusterService clusterService;
+
     /**
      * remove appTemplate on 17/04/07.
      *
@@ -84,12 +92,12 @@ public class ApplicationServiceImpl implements ApplicationService {
      * @return ActionReturnUtil
      */
     @Override
-    public ActionReturnUtil deleteApplicationTemplate(String name) throws Exception {
+    public ActionReturnUtil deleteApplicationTemplate(String name, String projectId, String clusterId) throws Exception {
         AssertUtil.notBlank(name, DictEnum.NAME);
         // delete application_template
-        appTemplateService.deleteApplicationTemplate(name);
+        appTemplateService.deleteApplicationTemplate(name, projectId, clusterId);
         // delete application__service
-        appWithServiceService.deleteApplicationService(name);
+        appWithServiceService.deleteApplicationService(name, projectId, clusterId);
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -103,12 +111,13 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Override
     public ActionReturnUtil getApplicationTemplate(String name, String tag, String clusterId, String projectId) throws Exception {
         // check params
-        if (StringUtils.isBlank(name) || StringUtils.isBlank(projectId)) {
+        if (StringUtils.isBlank(name) || StringUtils.isBlank(projectId) || (!"all".equals(projectId) && StringUtils.isBlank(clusterId))) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
+
         // select a application Template
-        //String newProjectId = "all".equals(tenant) ? "all" : projectId;
-        ApplicationTemplates applicationTemplates = appTemplateService.getApplicationTemplatesByNameAndTag(name, tag, clusterId, projectId);
+        String newClusterId = "all".equals(projectId)? null : clusterId;
+        ApplicationTemplates applicationTemplates = appTemplateService.getApplicationTemplatesByNameAndTag(name, tag, newClusterId, projectId);
         JSONObject js = new JSONObject();
         if (applicationTemplates != null) {
             js.put("name", applicationTemplates.getName());
@@ -191,7 +200,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         //公私模板
         if (isPublic) {
             //公有模板
-            return listPublicBusinessTemplate(searchKey, searchValue);
+            return listPublicApplicationTemplate(searchKey, searchValue);
         } else {
             //私有模板
             return listPrivateAppTemplate(searchKey, searchValue, projectId, clusterId);
@@ -201,7 +210,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     /**
      * 公有模板
      */
-    private ActionReturnUtil listPublicBusinessTemplate(String searchKey, String searchValue) throws Exception {
+    private ActionReturnUtil listPublicApplicationTemplate(String searchKey, String searchValue) throws Exception {
         JSONArray array = new JSONArray();
         if (StringUtils.isEmpty(searchValue)) {
             // search value is null
@@ -261,13 +270,13 @@ public class ApplicationServiceImpl implements ApplicationService {
                     array.add(getApplicationTemplates(list));
                 }
             } else {
-                List<ApplicationTemplates> appTemplatesList = appTemplateService.listNameByName("%" + searchValue + "%", clusterId, projectId);
+                List<ApplicationTemplates> appTemplatesList = appTemplateService.listNameByName("%" + searchValue + "%", cId, projectId);
                 for (int i = 0; i < appTemplatesList.size(); i++) {
                     List<ApplicationTemplates> list = appTemplateService.listApplicationTemplatesByName(appTemplatesList.get(i).getName(), appTemplatesList.get(i).getClusterId(), false, appTemplatesList.get(i).getProjectId());
                     array.add(getApplicationTemplates(list));
                 }
                 // search by image
-                List<ApplicationTemplates> appTemplatesImageList = appTemplateService.listNameByImage(searchValue, clusterId, projectId);
+                List<ApplicationTemplates> appTemplatesImageList = appTemplateService.listNameByImage(searchValue, cId, projectId);
                 for (int i = 0; i < appTemplatesImageList.size(); i++) {
                     List<ApplicationTemplates> list = appTemplateService.listApplicationTemplatesByNameAndImage(appTemplatesImageList.get(i).getName(), searchValue,
                             appTemplatesImageList.get(i).getClusterId(), appTemplatesImageList.get(i).getProjectId());
@@ -488,6 +497,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             }
             json.put("tags", tagArray);
             json.put("clusterId", appTemplatesList.get(0).getClusterId());
+            json.put("clusterName", "all".equals(appTemplatesList.get(0).getProjectId())?null : clusterService.findClusterById(appTemplatesList.get(0).getClusterId()).getAliasName());
         }
         return json;
     }
@@ -529,7 +539,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         List<Object> listR = new LinkedList<Object>();
         // addSave service templates
 
-        //删除应用模板
+        //删除服务模板
         List<com.harmonycloud.dao.application.bean.ApplicationService> bsList = appWithServiceService.listApplicationServiceByAppTemplatesId(appTemplate.getId());
         if (bsList != null && bsList.size() > 0) {
             for (com.harmonycloud.dao.application.bean.ApplicationService bs : bsList) {
@@ -715,10 +725,10 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Override
-    public ActionReturnUtil checkAppTemplateName(String name) throws Exception {
-        List<ApplicationTemplates> appTpls = appTemplateService.listApplicationTemplatesByName(name, null, false, null);
+    public ActionReturnUtil checkAppTemplateName(String name, String projectId, String clusterId) throws Exception {
+        List<ApplicationTemplates> appTpls = appTemplateService.listApplicationTemplatesByName(name, clusterId, false, projectId);
         if (org.apache.commons.collections.CollectionUtils.isNotEmpty(appTpls)) {
-            int AppTmpId = appTpls.get(0).getId();
+            Integer AppTmpId = appTpls.get(0).getId();
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.APPLICATION_TEMPLATE_NAME_DUPLICATE, String.valueOf(AppTmpId));
         }
         return ActionReturnUtil.returnSuccess();
@@ -732,7 +742,8 @@ public class ApplicationServiceImpl implements ApplicationService {
             JSONObject tempObject = array.getJSONObject(i);
             boolean isRepeat = false;
             for (int j = 0; j<newArray.size(); j++) {
-                if(tempObject.getString("name").equals(newArray.getJSONObject(j).getString("name"))) {
+                if(tempObject.getString("name").equals(newArray.getJSONObject(j).getString("name"))
+                        && tempObject.getString("clusterId").equals(newArray.getJSONObject(j).getString("clusterId"))) {
                     isRepeat = true;
                     break;
                 }

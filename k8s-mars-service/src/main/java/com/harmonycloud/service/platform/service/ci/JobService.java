@@ -16,8 +16,6 @@ public interface JobService {
 
     Integer createJob(JobDto job) throws Exception;
 
-    ActionReturnUtil updateJob(Job job);
-
     void deleteJob(Integer id) throws Exception;
 
     void validateName(String jobName, String projectId, String clusterId) throws Exception;
@@ -26,9 +24,9 @@ public interface JobService {
 
     ActionReturnUtil getJobDetail(Integer id) throws Exception;
 
-    Integer build(Integer id, List<Map<String, Object>> parameters) throws Exception;
+    Integer build(Integer id, List<Map<String, Object>> parameters, String image, String tag) throws Exception;
 
-    ActionReturnUtil stopBuild(Integer jobId, String buildNum) throws Exception;
+    void stopBuild(Integer jobId, String buildNum) throws Exception;
 
     ActionReturnUtil deleteBuild(Integer id, String buildNum) throws Exception;
 
@@ -84,4 +82,26 @@ public interface JobService {
     List getStageBuildResult(Integer id, Integer buildNum, String status) throws Exception;
 
     ActionReturnUtil updateJenkinsJob(Integer id) throws Exception;
+
+    /**
+     * 根据项目删除流水线
+     * @param projectId
+     * @throws Exception
+     */
+    void deletePipelineByProject(String projectId) throws Exception;
+
+    /**
+     * 流水线重命名
+     * @param jobId
+     * @param newName
+     */
+    void rename(Integer jobId, String newName) throws Exception;
+
+    /**
+     * 修改流水线信息
+     * @param jobDto
+     */
+    void updateJob(JobDto jobDto) throws Exception;
+
+    void deleteBuildResult() throws Exception;
 }

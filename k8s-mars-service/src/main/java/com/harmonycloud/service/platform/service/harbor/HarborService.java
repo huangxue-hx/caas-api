@@ -21,7 +21,7 @@ public interface HarborService {
      * @return
      * @throws Exception
      */
-    List<HarborProject> listProject(String harborHost, Integer page, Integer pageSize) throws Exception;
+    List<HarborProject> listProject(String harborHost, String harborProjectName, Integer page, Integer pageSize) throws Exception;
 
     /**
      * 根据projectId获取harbor project详情
@@ -42,6 +42,15 @@ public interface HarborService {
     ActionReturnUtil repoListById(String harborHost, Integer harborProjectId) throws Exception;
 
     /**
+     * 根据projectId获取harbor repository列表，分页查询
+     *
+     * @param harborProjectId id
+     * @return
+     * @throws Exception
+     */
+    ActionReturnUtil repoListById(String harborHost, Integer harborProjectId, Integer pageSize, Integer pageNo, String repoName) throws Exception;
+
+    /**
      * 根据repository name获取tags
      *
      * @param repoName repoName
@@ -51,7 +60,7 @@ public interface HarborService {
     ActionReturnUtil getTagsByRepoName(String harborHost, String repoName) throws Exception;
 
     /**
-     * 获取manifests
+     * 获取manifests,不包括漏洞信息
      *
      * @param repoName repoName
      * @param tag      tag
@@ -59,6 +68,16 @@ public interface HarborService {
      * @throws Exception
      */
     ActionReturnUtil getManifests(String harborHost, String repoName, String tag) throws Exception;
+
+    /**
+     * 获取tag manifest 以及漏洞数量， 不含漏洞详情
+     * @param harborHost
+     * @param repoName
+     * @param tag
+     * @return
+     * @throws Exception
+     */
+    ActionReturnUtil getManifestsWithVulnerabilitySum(String harborHost, String repoName, String tag) throws Exception;
 
     /**
      * 创建harbor project
@@ -88,6 +107,15 @@ public interface HarborService {
      */
     ActionReturnUtil deleteRepo(String harborHost, String repo, String tag) throws Exception;
 
+    /**
+     * 删除repo，删除整个镜像包含所有tag
+     *
+     * @param repo
+     * @return
+     * @throws Exception
+     */
+    ActionReturnUtil deleteRepo(String harborHost, String repo) throws Exception;
+
      /*
 	 * @lili
 	 */
@@ -108,7 +136,7 @@ public interface HarborService {
      * @return
      * @throws Exception
      */
-    ActionReturnUtil getRepositoryDetailByProjectId(String harborHost, Integer projectId) throws Exception ;
+    ActionReturnUtil getRepositoryDetailByProjectId(String harborHost, Integer projectId, Integer pageSize, Integer pageNo) throws Exception ;
 
 
     /**
@@ -132,6 +160,8 @@ public interface HarborService {
      */
     ActionReturnUtil listImageDetail(String projectId) throws Exception;
 
+    List<String> listTag(String harborHost, String repoName) throws Exception;
+
     ActionReturnUtil getFirstImage(String projectId, String clusterId, String harborProjectName, String repoName) throws Exception;
 
     List<HarborLog> projectOperationLogs(String harborHost,Integer projectId, Integer begin, Integer end,
@@ -140,4 +170,11 @@ public interface HarborService {
     HarborRepositoryMessage getHarborRepositoryDetail(String harborHost, String repoName) throws Exception;
 
     ActionReturnUtil getImagesByProjectId(String projectId, String clusterId) throws Exception;
+
+    /**
+     * 将harbor的registry镜像信息同步到harbor ui
+     * @param harborHost
+     * @throws Exception
+     */
+    boolean syncRegistry(String harborHost) throws Exception;
 }

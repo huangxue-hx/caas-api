@@ -13,6 +13,8 @@ public class Parameter implements Serializable {
 
     private String value;
 
+    private String description;
+
     private static final long serialVersionUID = 1L;
 
     public Integer getId() {
@@ -55,6 +57,14 @@ public class Parameter implements Serializable {
         this.value = value == null ? null : value.trim();
     }
 
+    public String getDescription() {
+        return description == null ? "" : description.trim();
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
     @Override
     public boolean equals(Object that) {
         if (this == that) {
@@ -71,7 +81,8 @@ public class Parameter implements Serializable {
             && (this.getJobId() == null ? other.getJobId() == null : this.getJobId().equals(other.getJobId()))
             && (this.getType() == null ? other.getType() == null : this.getType().equals(other.getType()))
             && (this.getName() == null ? other.getName() == null : this.getName().equals(other.getName()))
-            && (this.getValue() == null ? other.getValue() == null : this.getValue().equals(other.getValue()));
+            && (this.getValue() == null ? other.getValue() == null : this.getValue().equals(other.getValue()))
+            && (this.getDescription() == null ? other.getDescription() == null : this.getDescription().equals(other.getDescription()));
     }
 
     @Override
@@ -83,6 +94,7 @@ public class Parameter implements Serializable {
         result = prime * result + ((getType() == null) ? 0 : getType().hashCode());
         result = prime * result + ((getName() == null) ? 0 : getName().hashCode());
         result = prime * result + ((getValue() == null) ? 0 : getValue().hashCode());
+        result = prime * result + ((getDescription() == null) ? 0 : getDescription().hashCode());
         return result;
     }
 }

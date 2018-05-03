@@ -107,5 +107,7 @@ public interface PersistentVolumeService {
 	 * @throws Exception
 	 */
 	public ActionReturnUtil recyclePv(String name, String clusterId) throws Exception;
+
+	ActionReturnUtil releasePv(String name, String clusterId, String namespace, String serviceName) throws Exception;
 	
 }

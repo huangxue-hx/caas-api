@@ -19,6 +19,10 @@ public enum K8sModuleEnum {
     NFS("nfs","nfs存储"),
     MONITOR("monitor","监控"),
     HEAPSTER("heapster","资源监控"),
+    WEBAPI("webapi","云平台后台"),
+    WEBPAGE("webpage","云平台前端"),
+    OAM_TASK("oam-task","云平台告警任务"),
+    OAM_API("oam-api","云平台告警API"),
     INFLUXDB("influxdb","资源监控存储");
 
     private String code;
@@ -60,7 +64,7 @@ public enum K8sModuleEnum {
         return code;
     }
 
-    public void setCode(String code) {
+    private void setCode(String code) {
         this.code = code;
     }
 
@@ -68,7 +72,7 @@ public enum K8sModuleEnum {
         return name;
     }
 
-    public void setName(String name) {
+    private void setName(String name) {
         this.name = name;
     }
 }

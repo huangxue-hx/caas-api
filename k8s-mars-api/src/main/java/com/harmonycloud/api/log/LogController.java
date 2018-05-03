@@ -49,10 +49,9 @@ public class LogController {
     public ActionReturnUtil queryLog(@PathVariable("deployName") String deployName,
                                      @ModelAttribute LogQueryDto logQueryDto){
         try {
-            logger.info("根据日志路径获取container日志, params: " + logQueryDto.toString());
+//            logger.info("根据日志路径获取container日志, params: " + logQueryDto.toString());
             logQueryDto.setDeployment(deployName);
             LogQuery logQuery = logService.transLogQuery(logQueryDto);
-            logQuery.setMathPhrase(true);
             return logService.fileLog(logQuery);
         }catch (IllegalArgumentException ie) {
             logger.warn("根据日志路径获取container日志参数有误", ie);
@@ -75,10 +74,9 @@ public class LogController {
     public void exportLog(@PathVariable("deployName") String deployName,
                                      @ModelAttribute LogQueryDto logQueryDto,
                                       HttpServletResponse response) throws Exception{
-        logger.info("导出日志, deployName:{},params:{} ", deployName, logQueryDto.toString());
+//        logger.info("导出日志, deployName:{},params:{} ", deployName, logQueryDto.toString());
         logQueryDto.setDeployment(deployName);
         LogQuery logQuery = logService.transLogQuery(logQueryDto);
-        logQuery.setMathPhrase(true);
         logService.exportLog(logQuery, response);
     }
 
@@ -90,8 +88,7 @@ public class LogController {
         try {
             logQueryDto.setDeployment(deployName);
             LogQuery logQuery = logService.transLogQuery(logQueryDto);
-            logQuery.setMathPhrase(true);
-            logger.info("获取服务的日志文件列表");
+//            logger.info("获取服务的日志文件列表");
             return logService.listfileName(logQuery);
         } catch (Exception e) {
             logger.error("获取服务日志文件列表失败：deploymentName:{}", deployName, e);

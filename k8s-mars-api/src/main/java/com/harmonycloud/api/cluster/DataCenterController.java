@@ -31,7 +31,7 @@ public class DataCenterController {
     @ResponseBody
     @RequestMapping(method = RequestMethod.GET)
     public ActionReturnUtil listDataCenters() throws Exception {
-        logger.info("get dataCenterlis ");
+//        logger.info("]get dataCenterlis ");
         return dataCenterService.listDataCenter();
     }
 
@@ -57,7 +57,7 @@ public class DataCenterController {
     @ResponseBody
     @RequestMapping(value = "/{datacenter}", method = RequestMethod.GET)
     public ActionReturnUtil getDataCenter(@PathVariable("datacenter") String datacenter) throws Exception {
-        logger.info("get dataCenter, name:{}",datacenter);
+//        logger.info("get dataCenter, name:{}",datacenter);
         return dataCenterService.getDataCenter(datacenter);
     }
 

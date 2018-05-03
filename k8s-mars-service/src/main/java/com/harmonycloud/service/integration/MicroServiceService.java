@@ -80,4 +80,11 @@ public interface MicroServiceService {
      */
     public ActionReturnUtil getSpaceByTenant(DeleteAndQueryMsfDto params) throws Exception;
 
+    /**
+     * 删除分区时删除对应的任务和实例记录
+     * @param namespaceId
+     * @throws Exception
+     */
+    ActionReturnUtil deleteTaskAndInstance(String namespaceId) throws Exception;
+
 }

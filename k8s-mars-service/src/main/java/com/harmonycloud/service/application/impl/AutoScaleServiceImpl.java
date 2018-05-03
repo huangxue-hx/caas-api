@@ -32,8 +32,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
-
-import javax.swing.*;
 import java.util.*;
 
 import static com.harmonycloud.common.Constant.CommonConstant.CPU;
@@ -585,6 +583,10 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		dto.setMaxPods(hpaSpec.getMaxReplicas());
 		dto.setMinPods(hpaSpec.getMinReplicas());
 		dto.setControllerType(SCALE_CONTROLLER_TYPE_HPA);
+		if(hpa.getStatus() != null){
+			dto.setLastScaleTime(hpa.getStatus().getLastScaleTime());
+		}
+
 		List<com.harmonycloud.k8s.bean.MetricSpec> metricSpecList = hpaSpec.getMetrics();
 		if (!CollectionUtils.isEmpty(metricSpecList)) {
 			for (com.harmonycloud.k8s.bean.MetricSpec metric : metricSpecList) {

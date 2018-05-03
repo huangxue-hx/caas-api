@@ -14,6 +14,16 @@ public class ApplicationList implements Serializable {
     private List<String> idList;
     private String tenantId;
 
+    private String projectId;
+
+    public String getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
+    }
+
     public List<String> getIdList() {
         return idList;
     }

@@ -20,7 +20,7 @@ public interface StageService {
 
     void deleteStage(Integer id) throws Exception;
 
-    ActionReturnUtil stageDetail(Integer id) throws Exception;
+    StageDto stageDetail(Integer id) throws Exception;
 
     List<StageType> listStageType(String type) throws Exception;
 
@@ -49,4 +49,10 @@ public interface StageService {
     void insert(Stage stage) throws Exception;
 
     void createOrUpdateCredential(Integer stageId, String username, String password) throws Exception;
+
+    void updateUserCredentials(String username, String password) throws Exception;
+
+    List<Stage> getStageByJobId(Integer id);
+
+    void verifyStageResource(Job job, StageDto stageDto) throws Exception;
 }

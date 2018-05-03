@@ -1,5 +1,6 @@
 package com.harmonycloud.api.harbor;
 
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.dao.harbor.bean.ImageCleanRule;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;
@@ -68,7 +69,7 @@ public class HarborProjectController {
 	public ActionReturnUtil listRepositories(@RequestParam(value = "clusterId",required = false) String clusterId,
 											 @RequestParam(value = "isPublic",required = false) Boolean isPublic,
 											 @PathVariable(value = "projectId") String projectId) throws Exception{
-		List<ImageRepository> imageRepositories = harborProjectService.listRepositoryDetails(projectId, clusterId, isPublic);
+		List<ImageRepository> imageRepositories = harborProjectService.listRepositoryDetails(projectId, clusterId, isPublic,Boolean.TRUE);
 		return ActionReturnUtil.returnSuccessWithData(imageRepositories);
 	}
 
@@ -83,7 +84,7 @@ public class HarborProjectController {
 	public ActionReturnUtil selectRepositories(@PathVariable(value = "projectId") String projectId,
 											   @RequestParam(value = "clusterId",required = false) String clusterId,
 	                                           @RequestParam(value = "isPublic",required = false) Boolean isPublic) throws Exception{
-		List<ImageRepository> imageRepositories = harborProjectService.listRepositories(projectId, clusterId, isPublic);
+		List<ImageRepository> imageRepositories = harborProjectService.listRepositories(projectId, clusterId, isPublic, Boolean.TRUE);
 		return ActionReturnUtil.returnSuccessWithData(imageRepositories);
 	}
 
@@ -175,6 +176,9 @@ public class HarborProjectController {
 	@ResponseBody
 	public ActionReturnUtil getQuota(@PathVariable(value = "repositoryId") Integer repositoryId)throws Exception{
 		HarborProject harborProject = harborProjectService.getRepositoryQuota(repositoryId);
+		if(harborProject == null){
+			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.QUERY_FAIL);
+		}
 		return ActionReturnUtil.returnSuccessWithData(harborProject);
 	}
 

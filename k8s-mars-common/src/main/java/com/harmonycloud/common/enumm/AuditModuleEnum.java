@@ -25,7 +25,8 @@ public enum AuditModuleEnum {
     MSF("/msf", "微服务平台", "microServicePlatform"),
     CDP("/tenants/addProject", "持续交付平台", "Continue Deliver Platform"),
     CLUSTER("/clusters", "集群", "cluster"),
-    LOG("/snapshotrules", "日志管理", "Log Management");
+    LOG("/snapshotrules", "日志管理", "Log Management"),
+    ALARM("/oam", "告警", "alarm");
 
 
     private final String moduleRegex;

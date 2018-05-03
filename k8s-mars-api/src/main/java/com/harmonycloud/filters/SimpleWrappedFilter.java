@@ -1,5 +1,6 @@
 package com.harmonycloud.filters;
 
+import com.harmonycloud.common.util.HttpClientUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -28,39 +29,19 @@ public class SimpleWrappedFilter implements Filter {
         try {
             HttpServletRequest servletRequest = (HttpServletRequest) request;
             if (("PUT".equals(servletRequest.getMethod()) || "PATCH".equals(servletRequest.getMethod())
-                    || "DELETE".equals(servletRequest.getMethod()) || "POST".equals(servletRequest.getMethod())) && isApplicationJsonType(servletRequest)) {
+                    || "DELETE".equals(servletRequest.getMethod()) || "POST".equals(servletRequest.getMethod())) && HttpClientUtil.isApplicationJsonType(servletRequest)) {
                 BodyReaderHttpServletRequestWrapper bodyReaderHttpServletRequestWrapper = new BodyReaderHttpServletRequestWrapper(servletRequest);
                 HttpSession session = bodyReaderHttpServletRequestWrapper.getSession();
                 session.setAttribute("requestBody", bodyReaderHttpServletRequestWrapper.getBody());
                 ServletRequest requestWrapper = bodyReaderHttpServletRequestWrapper;
                 chain.doFilter(requestWrapper, response);
             } else {
+                HttpSession session = servletRequest.getSession();
+                session.setAttribute("requestBody", null);
                 chain.doFilter(request, response);
             }
         } catch (Exception exception) {
             log.error(exception.getMessage(), exception);
-        }
-    }
-
-    /**
-     * 判断是否是application/json方式
-     * @param request 请求
-     * @return boolean
-     */
-    private boolean isApplicationJsonType(HttpServletRequest request) {
-        String contentType = request.getContentType();
-        if (contentType != null) {
-            try {
-                MediaType mediaType = MediaType.parseMediaType(contentType);
-                if (MediaType.APPLICATION_JSON.includes(mediaType)) {
-                    return true;
-                }
-                return false;
-            } catch (IllegalArgumentException ex) {
-                return false;
-            }
-        } else {
-            return false;
         }
     }
 

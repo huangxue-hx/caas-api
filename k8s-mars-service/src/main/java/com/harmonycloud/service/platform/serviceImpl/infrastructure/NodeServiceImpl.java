@@ -15,6 +15,7 @@ import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.cluster.bean.NodeDrainProgress;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
+import com.harmonycloud.dao.tenant.bean.TenantPrivateNode;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.NodeDrainProgressService;
@@ -25,6 +26,7 @@ import com.harmonycloud.service.tenant.NamespaceLocalService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.exception.MarsRuntimeException;
@@ -79,6 +81,8 @@ public class NodeServiceImpl implements NodeService {
     PrivatePartitionService privatePartitionService;
     @Autowired
     TenantPrivateNodeService tenantPrivateNodeService;
+    @Value("#{propertiesReader['pod.drain.timeout']}")
+    private String podDrainTimeout;
 
     protected static final ExecutorService executor = Executors.newFixedThreadPool(CommonConstant.NUM_FIVE);
 
@@ -89,6 +93,7 @@ public class NodeServiceImpl implements NodeService {
     private static final String LABELSELECTOR = "labelSelector";
     private static final String SECCUSS = "1000";
     private static final int TIMEOUT = 700000;
+    private static final String DEFAULT_POD_DRAIN_TIMEOUT = "1800s";
     //共享
     private static final int SHARESTATUS = 1;
     //负债均衡
@@ -211,32 +216,32 @@ public class NodeServiceImpl implements NodeService {
             Map<String, Object> labels = node.getMetadata().getLabels();
             if (labels.get(CommonConstant.MASTERNODELABEL) != null) {
                 nodeDto.setType(CommonConstant.MASTERNODE);
-                nodeDto.setNodeShareStatus("主控");
+                nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_MASTER));
             } else {
                 nodeDto.setType(CommonConstant.DATANODE);
             }
             if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
-                nodeDto.setNodeShareStatus("闲置");
+                nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_IDLE));
             } else if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
-                nodeDto.setNodeShareStatus("共享");
+                nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_PUBLIC));
             } else if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_D)) {
-                nodeDto.setNodeShareStatus("独占");
+                nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_PRIVATE));
             } else if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) != null
                     && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_A)) {
                 //主要是处理demo的时候资源不足时负载均衡部署在系统节点是的页面展示问题
                 if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS_LBS) != null
                         && labels.get(CommonConstant.HARMONYCLOUD_STATUS_LBS).equals(CommonConstant.LABEL_STATUS_F)){
-                    nodeDto.setNodeShareStatus("系统,负载均衡");
+                    nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_SYSTEMANDSLB));
                 }else {
-                    nodeDto.setNodeShareStatus("系统");
+                    nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_SYSTEM));
                 }
 
             } else if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) != null
                     && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_E)) {
-                nodeDto.setNodeShareStatus("构建");
+                nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_BUILD));
             }else if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS_LBS) != null
                     && labels.get(CommonConstant.HARMONYCLOUD_STATUS_LBS).equals(CommonConstant.LABEL_STATUS_F)) {
-                nodeDto.setNodeShareStatus(CommonConstant.LBS_CN);
+                nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_LB));
             }
 
             List<NodeCondition> conditions = node.getStatus().getConditions();
@@ -282,25 +287,38 @@ public class NodeServiceImpl implements NodeService {
     private void dealNode(Node node,NodeDetailDto nodeDetailDto,Cluster cluster)throws Exception{
         Map<String, Object> labelsMap = node.getMetadata().getLabels();
         if (labelsMap.get(CommonConstant.MASTERNODELABEL) != null) {
-            nodeDetailDto.setNodeShareStatus("主控");
+            nodeDetailDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_MASTER));
         }else if (labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS) != null
                 && labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
-            nodeDetailDto.setNodeShareStatus("闲置");
+            nodeDetailDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_IDLE));
         } else if (labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS) != null
                 && labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
-            nodeDetailDto.setNodeShareStatus("共享");
+            nodeDetailDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_PUBLIC));
         } else if (labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS) != null
                 && labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_D)) {
-            nodeDetailDto.setNodeShareStatus("独占");
+            nodeDetailDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_PRIVATE));
             Object o = labelsMap.get(CommonConstant.HARMONYCLOUD_TENANTNAME_NS);
             if (!Objects.isNull(o)){
                 String[] labels = o.toString().split(CommonConstant.LINE);
                 if (labels.length>0){
                     TenantBinding tenantBinding = this.tenantService.getTenantBytenantName(labels[0]);
                     if (Objects.isNull(tenantBinding)){
-                        nodeDetailDto.setTenantAliasName(CommonConstant.TENANTNOTINTHRCLUSTER);
+                        nodeDetailDto.setTenantAliasName(MessageUtil.getMessage(ErrorCodeMessage.TENANTNOTINTHRCLUSTER));
                     } else {
                         nodeDetailDto.setTenantAliasName(tenantBinding.getAliasName());
+                        String tenantId = tenantBinding.getTenantId();
+                        String nodeName = node.getMetadata().getName();
+                        String clusterId = cluster.getId();
+                        TenantPrivateNode tenantPrivateNode = this.tenantPrivateNodeService.getTenantPrivateNode(tenantId, clusterId, nodeName);
+                        if (Objects.isNull(tenantPrivateNode)){
+                            tenantPrivateNode = new TenantPrivateNode();
+                            tenantPrivateNode.setTenantId(tenantId);
+                            tenantPrivateNode.setClusterId(clusterId);
+                            tenantPrivateNode.setCreateTime(new Date());
+                            tenantPrivateNode.setUpdateTime(new Date());
+                            tenantPrivateNode.setNodeName(nodeName);
+                            this.tenantPrivateNodeService.createTenantPrivateNode(tenantPrivateNode);
+                        }
                     }
                 }
             }
@@ -310,16 +328,16 @@ public class NodeServiceImpl implements NodeService {
             //主要是处理demo的时候资源不足时负载均衡部署在系统节点是的页面展示问题
             if (labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS_LBS) != null
                     && labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS_LBS).equals(CommonConstant.LABEL_STATUS_F)){
-                nodeDetailDto.setNodeShareStatus("系统,负载均衡");
+                nodeDetailDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_SYSTEMANDSLB));
             }else {
-                nodeDetailDto.setNodeShareStatus("系统");
+                nodeDetailDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_SYSTEM));
             }
         }else if (labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS) != null
                 && labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_E)) {
-            nodeDetailDto.setNodeShareStatus("构建");
+            nodeDetailDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_BUILD));
         }else if (labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS_LBS) != null
                 && labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS_LBS).equals(CommonConstant.LABEL_STATUS_F)) {
-            nodeDetailDto.setNodeShareStatus(CommonConstant.LBS_CN);
+            nodeDetailDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_LB));
         }
         NodeDto nodedto = new NodeDto();
         NodeDto hostUsege = this.getHostUsege(node, nodedto, cluster);
@@ -965,6 +983,36 @@ public class NodeServiceImpl implements NodeService {
                         throw new MarsRuntimeException(ErrorCodeMessage.NODE_CANNOT_REMOVED, CommonConstant.SYSTEM_AND_LBS_CN, Boolean.TRUE);
                     }
                     break;
+                case CommonConstant.MASTER_EN:
+                    if (host.equals(nodeDto.getIp())) {
+                        throw new MarsRuntimeException(ErrorCodeMessage.WORK_NODE_OFFLINE, CommonConstant.MASTER_EN, Boolean.TRUE);
+                    }
+                    break;
+                case CommonConstant.SYSTEM_EN:
+                    if (host.equals(nodeDto.getIp())) {
+                        throw new MarsRuntimeException(ErrorCodeMessage.WORK_NODE_OFFLINE, CommonConstant.SYSTEM_EN, Boolean.TRUE);
+                    }
+                    break;
+                case CommonConstant.BUILD_EN:
+                    if (host.equals(nodeDto.getIp())) {
+                        throw new MarsRuntimeException(ErrorCodeMessage.WORK_NODE_OFFLINE, CommonConstant.BUILD_EN, Boolean.TRUE);
+                    }
+                    break;
+                case CommonConstant.LBS_EN:
+                    if (host.equals(nodeDto.getIp())) {
+                        throw new MarsRuntimeException(ErrorCodeMessage.WORK_NODE_OFFLINE, CommonConstant.LBS_EN, Boolean.TRUE);
+                    }
+                    break;
+                case CommonConstant.PRIVATE_EN:
+                    if (host.equals(nodeDto.getIp())) {
+                        throw new MarsRuntimeException(ErrorCodeMessage.NODE_CANNOT_REMOVED, CommonConstant.PRIVATE_EN, Boolean.TRUE);
+                    }
+                    break;
+                case CommonConstant.SYSTEM_AND_LBS_EN:
+                    if (host.equals(nodeDto.getIp())) {
+                        throw new MarsRuntimeException(ErrorCodeMessage.NODE_CANNOT_REMOVED, CommonConstant.SYSTEM_AND_LBS_EN, Boolean.TRUE);
+                    }
+                    break;
                 default:
                     if (host.equals(nodeDto.getIp())) {
                         removed = Boolean.TRUE;
@@ -1297,7 +1345,8 @@ public class NodeServiceImpl implements NodeService {
                 NodeDrainProgress drainProgress = nodeDrainProgressService.findByNodeName(nodeName, clusterId);
                 drainProgress.setStatus(CommonConstant.INPROCESS);
                 try {
-                    ProcessBuilder proc = new ProcessBuilder("sh", path, node, cluster.getMachineToken(), cluster.getApiServerUrl());
+                    ProcessBuilder proc = new ProcessBuilder("sh", path, node, cluster.getMachineToken(), cluster.getApiServerUrl(),
+                            podDrainTimeout == null?DEFAULT_POD_DRAIN_TIMEOUT:podDrainTimeout);
                     Process p = proc.start();
                     String res = null;
                     String errMsg = null;

@@ -52,4 +52,8 @@
         FROM msf_operation_task WHERE namespace_id=#{namespaceId} and status = #{status}
     </select>
 
+    <delete id="deleteTask" parameterType="java.lang.String">
+        DELETE FROM msf_operation_task WHERE namespace_id=#{namespaceId}
+    </delete>
+
 </mapper>

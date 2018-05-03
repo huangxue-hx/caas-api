@@ -14,6 +14,7 @@ import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.platform.service.ci.StageService;
 import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.user.RoleLocalService;
+import com.harmonycloud.service.user.UserService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -36,22 +37,25 @@ public class BuildEnvironmentServiceImpl implements BuildEnvironmentService {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    BuildEnvironmentMapper buildEnvironmentMapper;
+    private BuildEnvironmentMapper buildEnvironmentMapper;
 
     @Autowired
-    StageService stageService;
+    private StageService stageService;
 
     @Autowired
-    JobService jobService;
+    private JobService jobService;
 
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    ProjectService projectService;
+    private ProjectService projectService;
+
+    @Autowired
+    private UserService userService;
 
     /**
      * 查询环境列表
@@ -117,14 +121,19 @@ public class BuildEnvironmentServiceImpl implements BuildEnvironmentService {
         if (StringUtils.isBlank(buildEnvironment.getName())) {
             throw new MarsRuntimeException(ErrorCodeMessage.ENVIRONMENT_NAME_NOT_BLANK);
         }
-        if (null == buildEnvironment.getClusterId()) {
-            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+        if(buildEnvironment.isPublic()){
+            buildEnvironment.setProjectId(null);
+            buildEnvironment.setClusterId(null);
+            buildEnvironmentExample.createCriteria().andNameEqualTo(buildEnvironment.getName()).andIsPublicEqualTo(CommonConstant.FLAG_TRUE);
+        }else{
+            if (null == buildEnvironment.getClusterId()) {
+                throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+            }
+            if (null == buildEnvironment.getProjectId()) {
+                throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_NOT_EXIST);
+            }
+            buildEnvironmentExample.createCriteria().andNameEqualTo(buildEnvironment.getName()).andClusterIdEqualTo(buildEnvironment.getClusterId()).andProjectIdEqualTo(buildEnvironment.getProjectId());
         }
-        if (null == buildEnvironment.getProjectId()) {
-            throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_NOT_EXIST);
-        }
-        buildEnvironmentExample.createCriteria().andNameEqualTo(buildEnvironment.getName()).andClusterIdEqualTo(buildEnvironment.getClusterId()).andProjectIdEqualTo(buildEnvironment.getProjectId());
-        buildEnvironmentExample.or(buildEnvironmentExample.createCriteria().andNameEqualTo(buildEnvironment.getName()).andIsPublicEqualTo(CommonConstant.FLAG_TRUE));
         long count = buildEnvironmentMapper.countByExample(buildEnvironmentExample);
         if (count > 0) {
             throw new MarsRuntimeException(ErrorCodeMessage.ENVIRONMENT_NAME_DUPLICATE);
@@ -183,6 +192,16 @@ public class BuildEnvironmentServiceImpl implements BuildEnvironmentService {
         if (count > 0) {
             throw new MarsRuntimeException(ErrorCodeMessage.ENVIRONMENT_USED);
         }
+        BuildEnvironment buildEnvironment = buildEnvironmentMapper.selectByPrimaryKey(id);
+        if(buildEnvironment.isPublic()){
+            String createUser = buildEnvironment.getCreateUser();
+            String username = (String)session.getAttribute(CommonConstant.USERNAME);
+            if(StringUtils.isNotBlank(createUser) && !createUser.equals(username)){
+                if(!userService.checkCurrentUserIsAdmin()) {
+                    throw new MarsRuntimeException(ErrorCodeMessage.ENVIRONMENT_NO_PRIVILEGE_DELETE);
+                }
+            }
+        }
         buildEnvironmentMapper.deleteByPrimaryKey(id);
     }
 
@@ -191,5 +210,8 @@ public class BuildEnvironmentServiceImpl implements BuildEnvironmentService {
         return buildEnvironmentMapper.deleteByClusterId(clusterId);
     }
 
-
+    @Override
+    public void deleteBuildEnvironmentByProject(String projectId) {
+        buildEnvironmentMapper.deleteByProjectId(projectId);
+    }
 }

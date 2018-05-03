@@ -29,7 +29,7 @@ public class BuildEnvironmentController {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    BuildEnvironmentService buildEnvironmentService;
+    private BuildEnvironmentService buildEnvironmentService;
 
     @Autowired
     private HttpSession session;
@@ -46,7 +46,7 @@ public class BuildEnvironmentController {
     public ActionReturnUtil listBuildEnvironment(@PathVariable("projectId")String projectId,
                                                  @RequestParam(value = "clusterId",required = false) String clusterId,
                                                  @RequestParam(value = "name", required = false) String name) throws Exception {
-        logger.info("查询环境列表");
+//        logger.info("查询环境列表");
         return ActionReturnUtil.returnSuccessWithData(buildEnvironmentService.listBuildEnvironment(projectId, clusterId, name));
     }
 
@@ -60,7 +60,7 @@ public class BuildEnvironmentController {
     @RequestMapping(value = "/{id}",method = RequestMethod.POST)
     @ResponseBody
     public ActionReturnUtil getBuildEnvironment(@PathVariable("id")Integer id) throws Exception {
-        logger.info("获取环境信息");
+//        logger.info("获取环境信息");
         return ActionReturnUtil.returnSuccessWithData(buildEnvironmentService.getBuildEnvironment(id));
     }
 
@@ -74,7 +74,7 @@ public class BuildEnvironmentController {
     @RequestMapping(method = RequestMethod.POST)
     @ResponseBody
     public ActionReturnUtil addBuildEnvironment(@RequestBody BuildEnvironment buildEnvironment) throws Exception {
-        logger.info("新增环境");
+//        logger.info("新增环境");
         String username = (String) session.getAttribute("username");
         buildEnvironment.setCreateUser(username);
         buildEnvironment.setCreateTime(new Date());
@@ -94,7 +94,7 @@ public class BuildEnvironmentController {
     public ActionReturnUtil updateBuildEnvironment(@PathVariable("tenantId")String tenantId,
                                                    @PathVariable("projectId")String projectId,
                                                    @RequestBody BuildEnvironment buildEnvironment) throws Exception {
-        logger.info("更新环境");
+//        logger.info("更新环境");
         String username = (String) session.getAttribute("username");
         buildEnvironment.setUpdateUser(username);
         buildEnvironment.setUpdateTime(new Date());
@@ -112,7 +112,7 @@ public class BuildEnvironmentController {
     @RequestMapping(value = "/{id}",method = RequestMethod.DELETE)
     @ResponseBody
     public ActionReturnUtil deleteBuildEnvironment(@PathVariable("id")Integer id) throws Exception {
-        logger.info("删除环境");
+//        logger.info("删除环境");
         buildEnvironmentService.deleteBuildEnvironment(id);
         return ActionReturnUtil.returnSuccess();
     }

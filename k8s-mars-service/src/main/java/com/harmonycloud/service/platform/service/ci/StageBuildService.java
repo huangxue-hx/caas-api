@@ -16,4 +16,10 @@ public interface StageBuildService {
     List<StageBuild> selectStageBuildByObject(StageBuild stageBuild);
 
     String getStageLogByObject(StageBuild stageBuild);
+
+    void deleteByJobId(Integer id);
+
+    StageBuild selectLastBuildById(Integer stageId);
+
+    void deleteByJobIdAndBuildNum(Integer id, List buildNumList);
 }

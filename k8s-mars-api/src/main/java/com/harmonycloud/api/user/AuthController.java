@@ -15,6 +15,8 @@ import com.harmonycloud.dto.user.LdapConfigDto;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.user.*;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -58,6 +60,10 @@ public class AuthController {
     UserRoleRelationshipService userRoleRelationshipService;
     @Autowired
     RolePrivilegeService rolePrivilegeService;
+    @Autowired
+    HttpServletRequest request;
+
+    private Logger logger = LoggerFactory.getLogger(this.getClass());
     /**
      * 用户认证
      * 
@@ -168,9 +174,11 @@ public class AuthController {
     @SuppressWarnings("unchecked")
     @ResponseBody
     @RequestMapping(value = "/token", method = RequestMethod.POST)
-    public Map<String, Object> authToken(HttpServletRequest request) throws Exception {
+    public Map<String, Object> authToken() throws Exception {
+//        logger.info("start auth token");
         int size = request.getContentLength();
         if (size == 0) {
+            logger.error("request is null");
             return null;
         }
         InputStream is = request.getInputStream();

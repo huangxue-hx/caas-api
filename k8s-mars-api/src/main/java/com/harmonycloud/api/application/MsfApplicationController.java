@@ -54,7 +54,6 @@ public class MsfApplicationController {
     public ActionReturnUtil getApplicationDetail(@RequestParam(value = "id", required = true) String id,
                                                  @PathVariable(value = "appName") String appName,
                                                  @RequestParam(value = "namespace", required = false) String namespace) throws Exception {
-        logger.info("获取微服务组件应用详情");
         return applicationDeployService.selectApplicationById(id, appName, namespace);
     }
 
@@ -62,8 +61,6 @@ public class MsfApplicationController {
     @RequestMapping(value = "/msf/deploys/{deployName}", method = RequestMethod.GET)
     public ActionReturnUtil deploymentDetail(@PathVariable(value = "deployName") String name,
                                              @RequestParam(value = "namespace", required = true) String namespace) throws Exception {
-
-        logger.info("获取微服务组件服务详情");
         return dpService.getDeploymentDetail(namespace, name);
     }
 
@@ -109,8 +106,6 @@ public class MsfApplicationController {
     @RequestMapping(value = "/msf/deploys/{deployName}/pods", method = RequestMethod.GET)
     public ActionReturnUtil podList(@PathVariable(value = "deployName") String name,
                                     @RequestParam(value = "namespace") String namespace) throws Exception {
-
-        logger.info("获取微服务组件服务的pod列表");
         String userName = (String) session.getAttribute("username");
         if (userName == null) {
             throw new K8sAuthException(Constant.HTTP_401);
@@ -124,8 +119,6 @@ public class MsfApplicationController {
     public ActionReturnUtil getAppEvents(@PathVariable(value = "deployName") String name,
                                          @RequestParam(value = "namespace", required = true) String namespace,
                                          @RequestParam(value = "clusterId", required = false) String clusterId) throws Exception {
-
-        logger.info("获取微服务组件服务的事件");
         String userName = (String) session.getAttribute("username");
         if (userName == null) {
             throw new K8sAuthException(Constant.HTTP_401);
@@ -137,7 +130,6 @@ public class MsfApplicationController {
     @RequestMapping(value = "/msf/deploys/{deployName}/containers", method = RequestMethod.GET)
     public ActionReturnUtil getDeploymentContainer(@PathVariable(value = "deployName") String name,
                                                    @RequestParam(value = "namespace", required = true) String namespace) throws Exception {
-        logger.info("获取微服务组件pod的cantainer");
         String userName = (String) session.getAttribute("username");
         if (userName == null) {
             throw new K8sAuthException(Constant.HTTP_401);
@@ -162,7 +154,6 @@ public class MsfApplicationController {
                                              @ModelAttribute LogQueryDto logQueryDto) throws Exception{
 
         try {
-            logger.info("获取微服务组件服务的日志文件列表");
             logQueryDto.setDeployment(deployName);
             LogQuery logQuery = logService.transLogQuery(logQueryDto);
             return logService.listfileName(logQuery);
@@ -227,10 +218,9 @@ public class MsfApplicationController {
     public ActionReturnUtil queryLog(@PathVariable("deployName") String deployName,
                                      @ModelAttribute LogQueryDto logQueryDto){
         try {
-            logger.info("根据日志路径获取微服务组件container日志, params: " + logQueryDto.toString());
+            logger.debug("根据日志路径获取微服务组件container日志, params: " + logQueryDto.toString());
             logQueryDto.setDeployment(deployName);
             LogQuery logQuery = logService.transLogQuery(logQueryDto);
-            logQuery.setMathPhrase(true);
             return logService.fileLog(logQuery);
         }catch (IllegalArgumentException ie) {
             logger.warn("根据日志路径获取微服务组件container日志参数有误", ie);

@@ -7,7 +7,7 @@ then
     unzip -O GBK -q "$2" -d "$1"
 elif [ "${2##*.}"x = "tar"x ];
 then
-    tar xf "$2" -C "$1"
+    tar xfo "$2" -C "$1"
 fi
 for f in "$1"/*
     do

@@ -57,6 +57,7 @@ public class DockerPullTask implements Callable<Boolean>{
                 outputStream.write(b, 0, length);
             }
             outputStream.flush();
+            outputStream.close();
             dockerClient.removeImage(imageName);
             statusHashOps.put(imageName, IMAGE_PULLING_STATUS_PULLED);
             logger.info("end pull image:{}",imageName);

@@ -78,7 +78,7 @@ public interface ApplicationService {
      * 
      * @return ActionReturnUtil
      */
-    ActionReturnUtil deleteApplicationTemplate(String name) throws Exception;
+    ActionReturnUtil deleteApplicationTemplate(String name, String projectId, String clusterId) throws Exception;
     
     /**
      * get application template by name  on 17/04/07.
@@ -154,5 +154,5 @@ public interface ApplicationService {
      * @return
      * @throws Exception
      */
-    ActionReturnUtil checkAppTemplateName(String name) throws Exception;
+    ActionReturnUtil checkAppTemplateName(String name, String projectId, String clusterId) throws Exception;
 }

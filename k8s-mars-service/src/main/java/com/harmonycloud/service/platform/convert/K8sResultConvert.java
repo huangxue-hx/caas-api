@@ -109,39 +109,7 @@ public class K8sResultConvert {
                 appDetail.setMsf(true);
             }
         }
-
-        if (meta.getAnnotations() != null && meta.getAnnotations().containsKey("nephele/status")) {
-            Integer state = Integer.valueOf(meta.getAnnotations().get("nephele/status").toString());
-            switch (state) {
-                case 3:
-                    if (dep.getSpec().getReplicas() != null && dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getReadyReplicas() != null && dep.getStatus().getReadyReplicas().equals(dep.getStatus().getAvailableReplicas()) && dep.getSpec().getReplicas().equals(dep.getStatus().getReadyReplicas())) {
-                        appDetail.setStatus(Constant.SERVICE_START);
-                    } else {
-                        appDetail.setStatus(Constant.SERVICE_STARTING);
-                    }
-                    break;
-                case 2:
-                    if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
-                        appDetail.setStatus(Constant.SERVICE_STOPPING);
-                    } else {
-                        appDetail.setStatus(Constant.SERVICE_STOP);
-                    }
-                    break;
-                default:
-                    if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
-                        appDetail.setStatus(Constant.SERVICE_START);
-                    } else {
-                        appDetail.setStatus(Constant.SERVICE_STOP);
-                    }
-                    break;
-            }
-        } else {
-            if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
-                appDetail.setStatus(Constant.SERVICE_START);
-            } else {
-                appDetail.setStatus(Constant.SERVICE_STOP);
-            }
-        }
+        appDetail.setStatus(getDeploymentStatus(dep));
         if (meta.getAnnotations() != null && meta.getAnnotations().containsKey("nephele/annotation")) {
             appDetail.setAnnotation(meta.getAnnotations().get("nephele/annotation").toString());
         }
@@ -452,46 +420,7 @@ public class K8sResultConvert {
                     }
                     tMap.put("labels", labelMap);
                 }
-                String status = null;
-                if (dep.getMetadata().getAnnotations() != null && dep.getMetadata().getAnnotations().containsKey("nephele/status")) {
-                    status = dep.getMetadata().getAnnotations().get("nephele/status").toString();
-                }
-
-                if (!StringUtils.isEmpty(status)) {
-                    switch (Integer.valueOf(status)) {
-                        case 3:
-                            if (dep.getStatus().getReadyReplicas()!=null && dep.getStatus().getReadyReplicas() > 0
-                                    && dep.getStatus().getAvailableReplicas() !=null && (dep.getStatus().getAvailableReplicas().equals(dep.getStatus().getReadyReplicas())) && dep.getSpec().getReplicas() != null && dep.getSpec().getReplicas().equals(dep.getStatus().getReadyReplicas())) {
-                                tMap.put("status", Constant.SERVICE_START);
-                            }  else {
-                                tMap.put("status", Constant.SERVICE_STARTING);
-                            }
-                            break;
-                        case 2:
-                            if (dep.getStatus().getAvailableReplicas() != null
-                                    && dep.getStatus().getAvailableReplicas() > 0) {
-                                tMap.put("status", Constant.SERVICE_STOPPING);
-                            } else {
-                                tMap.put("status", Constant.SERVICE_STOP);
-                            }
-                            break;
-                        default:
-                            if (dep.getStatus().getAvailableReplicas() != null
-                                    && dep.getStatus().getAvailableReplicas() > 0) {
-                                tMap.put("status", Constant.SERVICE_START);
-                            } else {
-                                tMap.put("status", Constant.SERVICE_STOP);
-                            }
-                            break;
-                    }
-                } else {
-                    if (dep.getStatus().getAvailableReplicas() != null
-                            && dep.getStatus().getAvailableReplicas() > 0) {
-                        tMap.put("status", Constant.SERVICE_START);
-                    } else {
-                        tMap.put("status", Constant.SERVICE_STOP);
-                    }
-                }
+                tMap.put("status", getDeploymentStatus(dep));
                 if (dep.getMetadata().getAnnotations() != null && dep.getMetadata().getAnnotations().containsKey("deployment.kubernetes.io/revision")) {
                     tMap.put("version", "v" + dep.getMetadata().getAnnotations().get("deployment.kubernetes.io/revision"));
                 }
@@ -685,6 +614,7 @@ public class K8sResultConvert {
         ServiceSpec ss = new ServiceSpec();
         Map<String, Object> selector = new HashMap<String, Object>();
         selector.put("app", detail.getName());
+        selector.put(Constant.NODESELECTOR_LABELS_PRE + "bluegreen", detail.getName() + "-1");
         ss.setSelector(selector);
         if (!StringUtils.isEmpty(detail.getClusterIP())) {
             ss.setClusterIP(detail.getClusterIP());
@@ -1981,29 +1911,7 @@ public class K8sResultConvert {
                 }
 
                 if (c.getResource() != null) {
-                    ResourceRequirements limit = new ResourceRequirements();
-                    Map<String, String> res = new HashMap<String, String>();
-                    String regEx = "[^0-9]";
-                    Pattern p = Pattern.compile(regEx);
-                    Matcher m = p.matcher(c.getResource().getCpu());
-                    String result = m.replaceAll("").trim();
-                    res.put("cpu", result + "m");
-                    Matcher mm = p.matcher(c.getResource().getMemory());
-                    String resultm = mm.replaceAll("").trim();
-                    res.put("memory", resultm + "Mi");
-                    limit.setLimits(res);
-                    limit.setRequests(res);
-                    if (c.getLimit() != null) {
-                        Map<String, String> resli = new HashMap<String, String>();
-                        Matcher l = p.matcher(c.getLimit().getCpu());
-                        String resultl = l.replaceAll("").trim();
-                        resli.put("cpu", resultl + "m");
-                        Matcher ml = p.matcher(c.getLimit().getMemory());
-                        String resultml = ml.replaceAll("").trim();
-                        resli.put("memory", resultml + "Mi");
-                        limit.setLimits(resli);
-                    }
-                    container.setResources(limit);
+                    container.setResources(convertResource(c));
                 }
 
                 List<VolumeMount> volumeMounts = new ArrayList<VolumeMount>();
@@ -2165,6 +2073,32 @@ public class K8sResultConvert {
         res.put("container", cs);
         res.put("volume", volumes);
         return res;
+    }
+
+    public static ResourceRequirements convertResource(CreateContainerDto c) throws Exception {
+        ResourceRequirements limit = new ResourceRequirements();
+        Map<String, String> res = new HashMap<String, String>();
+        String regEx = "[^0-9]";
+        Pattern p = Pattern.compile(regEx);
+        Matcher m = p.matcher(c.getResource().getCpu());
+        String result = m.replaceAll("").trim();
+        res.put("cpu", result + "m");
+        Matcher mm = p.matcher(c.getResource().getMemory());
+        String resultm = mm.replaceAll("").trim();
+        res.put("memory", resultm + "Mi");
+        limit.setLimits(res);
+        limit.setRequests(res);
+        if (c.getLimit() != null) {
+            Map<String, String> resli = new HashMap<String, String>();
+            Matcher l = p.matcher(c.getLimit().getCpu());
+            String resultl = l.replaceAll("").trim();
+            resli.put("cpu", resultl + "m");
+            Matcher ml = p.matcher(c.getLimit().getMemory());
+            String resultml = ml.replaceAll("").trim();
+            resli.put("memory", resultml + "Mi");
+            limit.setLimits(resli);
+        }
+        return limit;
     }
 
     public static Map<String, Object> convertNodeSelector(String selector) throws Exception {
@@ -2406,5 +2340,52 @@ public class K8sResultConvert {
             detail.setRestartPolicy(spec.getRestartPolicy());
         }
         return detail;
+    }
+
+    public static String getDeploymentStatus(Deployment dep) throws Exception {
+        String depStatus = null;
+        if (dep.getMetadata().getAnnotations() != null && dep.getMetadata().getAnnotations().containsKey("nephele/status")) {
+            Integer state = Integer.valueOf(dep.getMetadata().getAnnotations().get("nephele/status").toString());
+            switch (state) {
+                case 3:
+                    if (dep.getSpec().getReplicas() != null && dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getReadyReplicas() != null && dep.getStatus().getReadyReplicas().equals(dep.getStatus().getAvailableReplicas()) ) {
+                        if (dep.getSpec().isPaused() && dep.getSpec().getStrategy() != null && dep.getSpec().getStrategy().getRollingUpdate() != null
+                                && StringUtils.isNotBlank(String.valueOf(dep.getSpec().getStrategy().getRollingUpdate().getMaxSurge()))) {
+                            String maxSurge = String.valueOf(dep.getSpec().getStrategy().getRollingUpdate().getMaxSurge());
+                            int precent = maxSurge.equals(Constant.ROLLINGUPDATE_MAX_UNAVAILABLE)? Integer.valueOf(maxSurge.substring(0, maxSurge.indexOf("%"))) : 0;
+                            int maxSurgeIns = precent/CommonConstant.PERCENT_HUNDRED * dep.getSpec().getReplicas();
+                            depStatus = dep.getSpec().getReplicas() + maxSurgeIns == dep.getStatus().getReadyReplicas() ? Constant.SERVICE_START : Constant.SERVICE_STARTING;
+                        } else if (dep.getSpec().getReplicas().equals(dep.getStatus().getReadyReplicas())) {
+                            depStatus = Constant.SERVICE_START;
+                        } else {
+                            depStatus = Constant.SERVICE_STARTING;
+                        }
+                    } else {
+                        depStatus = Constant.SERVICE_STARTING;
+                    }
+                    break;
+                case 2:
+                    if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
+                        depStatus = Constant.SERVICE_STOPPING;
+                    } else {
+                        depStatus = Constant.SERVICE_STOP;
+                    }
+                    break;
+                default:
+                    if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
+                        depStatus = Constant.SERVICE_START;
+                    } else {
+                        depStatus = Constant.SERVICE_STOP;
+                    }
+                    break;
+            }
+        } else {
+            if (dep.getStatus().getAvailableReplicas() != null && dep.getStatus().getAvailableReplicas() > 0) {
+                depStatus = Constant.SERVICE_START;
+            } else {
+                depStatus = Constant.SERVICE_STOP;
+            }
+        }
+        return depStatus;
     }
 }

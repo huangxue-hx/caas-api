@@ -30,6 +30,7 @@ import com.harmonycloud.service.platform.service.ci.DependenceService;
 import com.harmonycloud.service.platform.service.ci.StageService;
 import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.user.RoleLocalService;
+import com.harmonycloud.service.user.UserService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -39,6 +40,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpSession;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
@@ -77,6 +79,12 @@ public class DependenceServiceImpl implements DependenceService {
 
     @Autowired
     private StageService stageService;
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private HttpSession session;
 
     private ClassLoader classLoader = this.getClass().getClassLoader();
 
@@ -227,9 +235,10 @@ public class DependenceServiceImpl implements DependenceService {
         metadata.setName(pvName);
         Map<String, Object> labels = new HashMap<>();
         labels.put("name",dependenceDto.getName());
-        labels.put("projectId", dependenceDto.getProjectId());
+        labels.put("projectId", dependenceDto.isCommon()? null : dependenceDto.getProjectId());
         labels.put("clusterId", dependenceDto.getClusterId());
         labels.put("common", dependenceDto.isCommon() ? "true" : "false");
+        labels.put(CommonConstant.USERNAME, session.getAttribute(CommonConstant.USERNAME));
         metadata.setLabels(labels);
         // 设置spec
         PersistentVolumeSpec spec = new PersistentVolumeSpec();
@@ -319,38 +328,30 @@ public class DependenceServiceImpl implements DependenceService {
         if(CollectionUtils.isNotEmpty(stageList)){
             throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_USED);
         }
+        PersistentVolume pv = pvService.getPvByName(pvName, topCluster);
+        if(pv == null){
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_ALREADY_DELETED);
+        }
+        Map<String, Object> labels = pv.getMetadata().getLabels();
+        String createUser = (String)labels.get(CommonConstant.USERNAME);
+        String username = (String)session.getAttribute(CommonConstant.USERNAME);
+        if(StringUtils.isBlank(clusterId)) {
+            if(StringUtils.isNotBlank(username) && !username.equals(createUser)){
+                if(!userService.checkCurrentUserIsAdmin()){
+                    throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_NO_PRIVILEGE_DELETE);
+                }
+            }
+        }
         pvService.delPvByName(pvName, topCluster);
 
         Map<String, Object> query = new HashMap<>();
         query.put(CommonConstant.LABELSELECTOR, "name=" + pvName);
         pvcService.doSepcifyPVC(CommonConstant.CICD_NAMESPACE, query, HTTPMethod.DELETE, topCluster);
 
-        String server = topCluster.getProtocol() + "://" + topCluster.getHost() + ":" + topCluster.getPort();
-
         Pod fileUploadPod = this.getFileUploadPod(topCluster);
         String fileUploadPodName = fileUploadPod.getMetadata().getName();
 
-        Process p = null;
-        String res;
-        String shellPath = classLoader.getResource("shell/rmDependence.sh").getPath();
-        ProcessBuilder proc = new ProcessBuilder("sh", shellPath, fileUploadPodName, remoteDirectory, CommonConstant.KUBE_SYSTEM, topCluster.getMachineToken(), server);
-        try {
-            p = proc.start();
-            BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
-            while ((res = stdInput.readLine()) != null) {
-                logger.info("执行删除目录脚本：" + res);
-            }
-            while ((res = stdError.readLine()) != null) {
-                logger.error("执行删除目录脚本错误：" + res);
-            }
-            int runningStatus = p.waitFor();
-            logger.info("执行删除目录脚本结果：" + runningStatus);
-        }finally{
-            if(p != null){
-                p.destroy();
-            }
-        }
+        deleteFile(fileUploadPodName, remoteDirectory, topCluster);
 
     }
 
@@ -393,6 +394,7 @@ public class DependenceServiceImpl implements DependenceService {
         //文件上传至临时目录
 
         File tmpFile = new File(localFile);
+
         file.transferTo(tmpFile);
 
         Pod fileUploadPod = this.getFileUploadPod(topCluster);
@@ -406,7 +408,6 @@ public class DependenceServiceImpl implements DependenceService {
             if (!dependenceFileDto.isDecompressed()) {
                 String shellPath = classLoader.getResource("shell/uploadDependence.sh").getPath();
                 proc = new ProcessBuilder("sh", shellPath, localFile, CommonConstant.KUBE_SYSTEM, fileUploadPodName, remoteDirectory, topCluster.getMachineToken(), server);
-
                 p = proc.start();
                 BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
                 BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
@@ -414,8 +415,12 @@ public class DependenceServiceImpl implements DependenceService {
                     logger.info("执行上传文件脚本：" + res);
                 }
                 while ((res = stdError.readLine()) != null) {
-                    logger.error("执行上传文件脚本错误：" + res);
-                    error = true;
+                    if(res.contains("in the future")){
+                        logger.warn("执行上传文件脚本警告：" + res);
+                    }else {
+                        logger.error("执行上传文件脚本错误：" + res);
+                        error = true;
+                    }
                 }
                 if (error) {
                     throw new Exception();
@@ -620,5 +625,60 @@ public class DependenceServiceImpl implements DependenceService {
             }
         }
         throw new MarsRuntimeException(DictEnum.POD.phrase(), ErrorCodeMessage.NOT_FOUND);
+    }
+
+    @Override
+    public void deleteDependenceByProject(String projectId) {
+        try {
+            Cluster topCluster = clusterService.getPlatformCluster();
+            String label = "projectId = " + projectId;
+            K8SClientResponse response = pvService.listPvBylabel(label, topCluster);
+            if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                PersistentVolumeList persistentVolumeList = K8SClient.converToBean(response, PersistentVolumeList.class);
+                List<PersistentVolume> items = persistentVolumeList.getItems();
+                for (PersistentVolume pv : items) {
+                    String pvName = pv.getMetadata().getName();
+                    String remoteDirectory = "/nfs/" + pvName.replace(CommonConstant.DEPENDENCE_PREFIX + ".", "");
+                    pvService.delPvByName(pvName, topCluster);
+
+                    Map<String, Object> query = new HashMap<>();
+                    query.put(CommonConstant.LABELSELECTOR, "name=" + pvName);
+                    pvcService.doSepcifyPVC(CommonConstant.CICD_NAMESPACE, query, HTTPMethod.DELETE, topCluster);
+
+                    Pod fileUploadPod = this.getFileUploadPod(topCluster);
+                    String fileUploadPodName = fileUploadPod.getMetadata().getName();
+                    deleteFile(fileUploadPodName, remoteDirectory, topCluster);
+                }
+            }
+        }catch(Exception e){
+            logger.error("删除依赖目录失败：" + e);
+        }
+    }
+
+    private void deleteFile(String fileUploadPodName, String directory, Cluster topCluster){
+        String server = topCluster.getProtocol() + "://" + topCluster.getHost() + ":" + topCluster.getPort();
+        Process p = null;
+        String res;
+        String shellPath = classLoader.getResource("shell/rmDependence.sh").getPath();
+        ProcessBuilder proc = new ProcessBuilder("sh", shellPath, fileUploadPodName, directory, CommonConstant.KUBE_SYSTEM, topCluster.getMachineToken(), server);
+        try {
+            p = proc.start();
+            BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+            while ((res = stdInput.readLine()) != null) {
+                logger.info("执行删除目录脚本：" + res);
+            }
+            while ((res = stdError.readLine()) != null) {
+                logger.error("执行删除目录脚本错误：" + res);
+            }
+            int runningStatus = p.waitFor();
+            logger.info("执行删除目录脚本结果：" + runningStatus);
+        } catch (Exception e) {
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_FILE_RM_FAIL);
+        } finally {
+            if (p != null) {
+                p.destroy();
+            }
+        }
     }
 }

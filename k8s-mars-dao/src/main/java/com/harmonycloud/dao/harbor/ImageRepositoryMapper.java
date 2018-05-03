@@ -19,7 +19,8 @@ public interface ImageRepositoryMapper {
     List<ImageRepository> listRepositories(ImageRepository imageRepository);
     void deleteRepositories(ImageRepository imageRepository);
     List<ImageRepository> selectRepositories(@Param("projectId") String projectId, @Param("harborHosts") Set<String> harborHosts,
-                                             @Param("clusterIds") Set<String> clusterIds, @Param("isPublic") Boolean isPublic);
+                                             @Param("clusterIds") Set<String> clusterIds, @Param("isPublic") Boolean isPublic,
+                                             @Param("isNormal") Boolean isNormal);
     ImageRepository findRepositoryById(Integer id);
     int deleteRepositoryById(Integer id);
     int deleteByClusterId(@Param("clusterId")String clusterId);

@@ -96,6 +96,8 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
     private static final String AUDITLOG = "auditlog";
     //日志备份
     private static final String SNAPSHOTRULE = "snapshotrule";
+    //日志备份
+    private static final String SYSTEMLOG = "systemlog";
     //告警规则
     private static final String ALARMRULE = "alarmrule";
     //告警处理
@@ -126,22 +128,17 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
         String username = this.userService.getCurrentUsername();
         String currentProjectId = this.userService.getCurrentProjectId();
         Role role = this.roleLocalService.getRoleById(roleId);
-        log.info("当前租户id：" + currentTenantId);
-        log.info("当前项目id：" + currentProjectId);
         if ( org.apache.commons.lang3.StringUtils.isBlank(username)){
             SsoClient.dealHeader(session);
             throw new MarsRuntimeException(ErrorCodeMessage.USER_NOT_AUTH_OR_TIMEOUT);
         }
         List<Role> availableRoleList = this.roleLocalService.getRoleListByUsernameAndTenantIdAndProjectId(username, currentTenantId, currentProjectId);
         //检查切换的角色是否在用户能切换的角色范围之内
-        log.info("当前角色：" + role.getNickName());
-        log.info("可用角色长度：" + availableRoleList.size());
-        for (Role role1:availableRoleList) {
-            log.info("可用角色列表：" + role1.getNickName());
-        }
         boolean contains = availableRoleList.contains(role);
         if (!contains){
-            throw new MarsRuntimeException(ErrorCodeMessage.SWITCH_ROLE_INCORRECT,role.getNickName(),Boolean.TRUE);
+            SsoClient.dealHeader(session);
+            throw new MarsRuntimeException(ErrorCodeMessage.SWITCH_ROLE_INCORRECT);
+//            throw new MarsRuntimeException(ErrorCodeMessage.SWITCH_ROLE_INCORRECT,role.getNickName(),Boolean.TRUE);
         }
         Map<String, Object> result = new HashMap<>();
         Map<String, Object> availablePrivilege = this.getAvailablePrivilegeByRoleId(roleId);
@@ -198,10 +195,6 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
 //            projects.stream().map(Project::getProjectId).collect(Collectors.toMap(Project::getProjectId,))
             session.setAttribute(CommonConstant.PROJECT,projectMap);
         }
-        //设置集群信息
-        List<Cluster> clusterList = this.roleLocalService.getClusterListByRoleId(roleId);
-        Map<String, Cluster> clusterMap = clusterList.stream().collect(Collectors.toMap(Cluster::getId, cluster -> cluster));
-        session.setAttribute(CommonConstant.CLUSTER,clusterMap);
         return result;
     }
 
@@ -332,6 +325,10 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
                 resourceMap.put(AUDITLOG,auditlog);
                 List snapshotrule = (List) moduleMap.get(SNAPSHOTRULE);
                 resourceMap.put(SNAPSHOTRULE,snapshotrule);
+                List systemlog = (List) moduleMap.get(SYSTEMLOG);
+                if (!CollectionUtils.isEmpty(systemlog)){
+                    resourceMap.put(SYSTEMLOG,systemlog);
+                }
                 privilegeList = resourceMap.get(secondResource);
                 if ((!status && CollectionUtils.isEmpty(privilegeList) || status && !CollectionUtils.isEmpty(privilegeList))){
                     //日志中心

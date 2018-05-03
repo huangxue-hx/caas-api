@@ -20,11 +20,18 @@
     insert into application_service (application_id, service_id,status,is_external)
     values (#{applicationId}, #{serviceId},#{status},#{isExternal})
   </insert>
-  
+
   <update id="deleteApplicationService" parameterType="java.lang.String">
-    update application_service set status=1 where application_id in ( select id from application_templates where name=#{name}) and status=0
+    update application_service set status=1 where application_id in
+    ( select id from application_templates where name=#{name}
+       <if test="clusterId != null and clusterId != '' ">
+          and cluster_id = #{clusterId}
+       </if>
+       <if test="projectId != null and projectId != '' ">
+          and project_id = #{projectId}
+       </if> ) and status=0
   </update>
-  
+
   <select id="listApplicationServiceByAppTemplatesId" parameterType="java.lang.Integer" resultMap="BaseResultMap">
     select * from application_service where application_id=#{applicationId} and status=0
   </select>
@@ -42,5 +49,5 @@
   <select id="selectAppServiceByAppId" parameterType="java.lang.Integer" resultMap="BaseResultMap">
     select * from application_service where application_id = #{applicationId} and service_id = #{serviceId} and status=0
   </select>
-  
+
 </mapper>

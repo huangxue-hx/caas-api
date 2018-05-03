@@ -113,4 +113,13 @@ public class PersistentVolumeController {
                                             @RequestParam(value = "clusterId") String clusterId) throws Exception {
         return persistentVolumeService.recyclePv(pvName, clusterId);
     }
+
+    @RequestMapping(value = "/{pvName}/release", method = RequestMethod.PUT)
+    @ResponseBody
+    public ActionReturnUtil releasePv(@PathVariable("pvName") String pvName,
+                                      @RequestParam(value = "clusterId") String clusterId,
+                                      @RequestParam(value = "namespace") String namespace,
+                                      @RequestParam(value = "serviceName") String serviceName) throws Exception {
+        return persistentVolumeService.releasePv(pvName, clusterId, namespace, serviceName);
+    }
 }

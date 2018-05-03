@@ -5,6 +5,7 @@ import com.harmonycloud.dao.application.bean.ConfigFile;
 import com.harmonycloud.dto.config.ConfigDetailDto;
 
 import java.util.List;
+import java.util.Set;
 
 
 /**
@@ -117,4 +118,23 @@ public interface ConfigCenterService {
     ActionReturnUtil deleteConfigByProject(String projectId) throws Exception;
 
     int deleteByClusterId(String clusterId);
+
+    /**
+     * 根据名称获取configmap
+     * @param namespace
+     * @param name
+     * @return
+     * @throws Exception
+     */
+    ActionReturnUtil getConfigMapByName(String namespace, String name) throws Exception;
+
+    /**
+     *
+     * @param name
+     * @param tag
+     * @param projectId
+     * @param clusterId
+     * @return
+     */
+    ConfigFile getConfigByNameAndTag(String name, String tag, String projectId, String clusterId);
 }

@@ -50,6 +50,8 @@ public interface HarborSecurityService {
 
     ActionReturnUtil manifestsOfTag(Integer repositoryId, String imageName, String tag) throws Exception;
 
+    ActionReturnUtil getManifestsDetail(String harborHost, String repoName, String tag) throws Exception;
+
     /**
      * tag详情
      *

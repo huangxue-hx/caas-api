@@ -4,6 +4,7 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.AuditModuleEnum;
 import com.harmonycloud.common.enumm.AuditQueryDbEnum;
 import com.harmonycloud.common.enumm.AuditUrlEnum;
+import com.harmonycloud.common.util.HttpClientUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.SsoClient;
 import com.harmonycloud.dao.application.LogBackupRuleMapper;
@@ -34,6 +35,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -88,6 +90,10 @@ public class AuditRequestHandle {
     @Autowired
     LogBackupRuleMapper logBackupRuleMapper;
 
+    private static final String CDP = "Continue Deliver Platform";
+
+    private static final String CDP_DEFAULT_USER = "cdp_default_user";
+
     protected static final Map<String, AuditUrlEnum> AUDIT_URL_MAP = new ConcurrentHashMap<>(
             AuditUrlEnum.values().length);
 
@@ -121,7 +127,7 @@ public class AuditRequestHandle {
                 //获取请求参数
                 String bodyData = Objects.nonNull(request.getSession().getAttribute("requestBody")) ?
                         String.valueOf(request.getSession().getAttribute("requestBody")) : null;
-                if (StringUtils.isNotBlank(bodyData)) {
+                if (StringUtils.isNotBlank(bodyData) && HttpClientUtil.isApplicationJsonType(request)) {
                     //获取subject
                     Map<String, Object> data = JsonUtil.convertJsonToMap(bodyData);
                     if (StringUtils.isNotBlank(urlEnum.getParamName())) {
@@ -159,8 +165,8 @@ public class AuditRequestHandle {
                 //获取当前用户
                 requestInfo.setUser(userService.getCurrentUsername());
                 //单点登录
-                if (url.indexOf("/current") > -1 ) {
-                    if (StringUtils.isNotBlank(subject) && Boolean.valueOf(subject) == true) {
+                if ("/users/current_GET".equals(url)) {
+                    if (StringUtils.isNotBlank(subject) && Boolean.valueOf(subject)) {
                         User user = SsoClient.getUserByCookie(request);
                         requestInfo.setUser(null != user? user.getName():null);
                         requestInfo.setSubject(null != user? user.getName():null);
@@ -169,22 +175,25 @@ public class AuditRequestHandle {
                     }
                 }
                 //如果是登录请求，从参数内获取,并且将参数加密
-                if (url.indexOf("login") > -1) {
-                    requestInfo.setRequestParams("请求参数:******");
+                if ("/users/auth/login".equals(url)) {
+                    requestInfo.setRequestParams("******");
                     String username = request.getParameter("username");
                     requestInfo.setUser(username);
                     requestInfo.setSubject(username);
                 }
-                if (url.indexOf("logout") > -1) {
+                if ("/users/auth/logout_POST".equals(url)) {
                     HttpSession session = request.getSession();
                     String username = (String) session.getAttribute("username");
                     requestInfo.setUser(username);
                     requestInfo.setSubject(username);
                 }
-                if(url.indexOf("/msf") < 0) {
+                if(url.indexOf("/msf/") < 0) {
                     HttpSession session = request.getSession();
                     requestInfo.setTenant((String) session.getAttribute(CommonConstant.TENANT_ALIASNAME));
                     requestInfo.setProject((String) session.getAttribute(CommonConstant.PROJECT_ALIASNAME));
+                }
+                if (CDP.equals(requestInfo.getModuleEnDesc())) {
+                    requestInfo.setUser(CDP_DEFAULT_USER);
                 }
                 return requestInfo;
             }
@@ -219,11 +228,12 @@ public class AuditRequestHandle {
         Map<String, Object> res = new HashMap<String, Object>();
         String value = null;
         while (enu.hasMoreElements()) {
-            if (sb.length() <= 0) {
-                sb.append("请求参数:");
-            }
             String paraName = enu.nextElement();
-            sb.append(paraName + "->" + request.getParameter(paraName) + ";");
+            String paraValue = request.getParameter(paraName);
+            if ("passwd".equals(paraName) || paraName.contains("password")) {
+                paraValue = "******";
+            }
+            sb.append(paraName + "->" + paraValue + ";");
             if (StringUtils.isNotBlank(key) && paraName.equals(key)) {
                 value = request.getParameter(paraName);
             }
@@ -285,14 +295,14 @@ public class AuditRequestHandle {
 
     public String getRemoteIp(HttpServletRequest request) throws Exception{
         String forwardIp = getHeader(request, "X-Forwarded-For");
-        logger.info("nginx forwardIp:{}", forwardIp);
+        logger.debug("nginx forwardIp:{}", forwardIp);
         forwardIp = StringUtils.isNotEmpty(forwardIp)? forwardIp.split(CommonConstant.COMMA)[0] : "";
         return StringUtils.isEmpty(forwardIp)? request.getRemoteAddr() : forwardIp;
     }
 
     private String getHeader(HttpServletRequest request, String headName) {
         String value = request.getHeader(headName);
-        logger.info("header value:{}", value);
+        logger.debug("header value:{}", value);
         return (StringUtils.isNotBlank(value) && !"unknown".equalsIgnoreCase(value)) ? value : "";
     }
 }

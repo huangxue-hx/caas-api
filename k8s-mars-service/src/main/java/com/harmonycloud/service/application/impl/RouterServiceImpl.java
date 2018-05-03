@@ -709,7 +709,6 @@ public class RouterServiceImpl implements RouterService {
 
         //获取F5的IP
         String ip = clusterService.getEntry(namespace);
-
         String [] names = nameList.split(",");
         List<Map<String, Object>> routerList = new ArrayList<>();
         for (int i = 0; i < names.length; i++) {
@@ -754,16 +753,18 @@ public class RouterServiceImpl implements RouterService {
                                 if (path.getBackend() != null) {
                                     j.put("port", path.getBackend().getServicePort());
                                 }
-                                path.setPath("/");
                                 if (org.apache.commons.lang.StringUtils.isNotBlank(path.getPath())) {
-                                    if (path.getPath().lastIndexOf("/") != path.getPath().length() - 1) {
-                                        path.setPath(path.getPath() + "/");
+                                    if (path.getPath().lastIndexOf( CommonConstant.SLASH) != path.getPath().length() - CommonConstant.NUM_ONE) {
+                                        path.setPath(path.getPath());
+                                    }
+                                    if ( CommonConstant.SLASH.equals(path.getPath())) {
+                                        path.setPath("");
                                     }
                                 }
                                 //判断域名类型
                                 String host = rule.getHost();
-                                String[] domainLevels = host.indexOf(CommonConstant.DOT) > -1 ? host.split(CommonConstant.DOT) : null;
-                                Integer port = Constant.LIVENESS_PORT;
+                                String[] domainLevels = StringUtils.isNotBlank(host) && host.indexOf(CommonConstant.DOT) > -1 ? host.split(CommonConstant.DOT) : null;
+                                int port = Constant.LIVENESS_PORT;
                                 if (domainLevels != null) {
                                     String domainLevelName = (Constant.DOMAIN_LEVEL_FOUR == domainLevels.length) ? Constant.CLUSTER_FOUR_DOMAIN : Constant.CLUSTER_THREE_DOMAIN;
                                     for (ClusterDomain clusterDomain : domains) {
@@ -773,7 +774,10 @@ public class RouterServiceImpl implements RouterService {
                                         }
                                     }
                                 }
-                                j.put("hostname", rule.getHost() + CommonConstant.COLON + port + path.getPath());
+                                String hostName = port == Constant.LIVENESS_PORT ? rule.getHost():
+                                        rule.getHost() + CommonConstant.COLON + port;
+                                hostName = StringUtils.isNotBlank(path.getPath()) ? hostName + path.getPath() : hostName;
+                                j.put("hostname", hostName);
                                 addressList.add(j);
                             }
                         }
@@ -783,7 +787,6 @@ public class RouterServiceImpl implements RouterService {
                 }
             }
         }
-
         return ActionReturnUtil.returnSuccessWithData(routerList);
     }
 
@@ -872,12 +875,13 @@ public class RouterServiceImpl implements RouterService {
         Map<String, Object> configMapData = (Map<String, Object>) configMap.getData();
         if (Objects.nonNull(configMapData)) {
             for (Map.Entry<String, Object> entry : configMapData.entrySet()) {
-                if (entry.getValue().toString().indexOf(valuePrefix) > -1) {
-                    String value = entry.getValue().toString();
+                String value = entry.getValue().toString();
+                String[] valueArray = value.split(CommonConstant.COLON);
+                if (Objects.nonNull(valueArray) && valueArray.length == CommonConstant.NUM_TWO && valuePrefix.equals(valueArray[0])) {
                     Map<String, Object> tmp = new HashMap<>();
                     tmp.put("type", type);
                     Map<String, Object> address = new HashMap<>();
-                    String containerPort = value.substring(value.indexOf(valuePrefix) + valuePrefix.length() + 1);
+                    String containerPort = valueArray[CommonConstant.NUM_ONE];
                     address.put("containerPort", containerPort);
                     address.put("externalPort", entry.getKey());
                     address.put("ip", ip);

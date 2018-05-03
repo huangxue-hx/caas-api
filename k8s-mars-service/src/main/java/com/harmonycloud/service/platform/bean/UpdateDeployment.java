@@ -40,6 +40,16 @@ public class UpdateDeployment {
 	/**pod 是否分散*/
 	private AffinityDto podDisperse;
 
+	private String projectId;
+
+	public String getProjectId() {
+		return projectId;
+	}
+
+	public void setProjectId(String projectId) {
+		this.projectId = projectId;
+	}
+
 	public String getName() {
 		return name;
 	}

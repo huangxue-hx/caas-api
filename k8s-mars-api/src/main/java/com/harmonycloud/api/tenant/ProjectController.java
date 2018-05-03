@@ -59,7 +59,7 @@ public class ProjectController {
     public ActionReturnUtil getProjectDetailByProjectId(@PathVariable(value = "tenantId") String tenantId,
                                                         @PathVariable(value = "projectId") String projectId) throws Exception {
 
-        logger.info("根据id查询项目详情");
+//        logger.info("根据id查询项目详情");
         if (StringUtils.isAnyBlank(projectId,tenantId)){
             throw new MarsRuntimeException(ErrorCodeMessage.PROJECTID_NOT_BLANK);
         }
@@ -76,7 +76,7 @@ public class ProjectController {
     @ResponseBody
     public ActionReturnUtil createProject(@PathVariable(value = "tenantId") String tenantId,
                                           @ModelAttribute ProjectDto projectDto) throws Exception {
-        logger.info("创建项目");
+//        logger.info("创建项目");
         //项目名空值判断
         if (StringUtils.isEmpty(projectDto.getProjectName()) || StringUtils.isEmpty(tenantId)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
@@ -96,7 +96,7 @@ public class ProjectController {
     @ResponseBody
     public ActionReturnUtil deleteProject(@PathVariable(value = "tenantId") String tenantId,
                                           @PathVariable(value = "projectId") String projectId) throws Exception {
-        logger.info("根据项目id删除项目");
+//        logger.info("根据项目id删除项目");
         if (StringUtils.isAnyBlank(tenantId,projectId)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PROJECTID_NOT_BLANK);
         }
@@ -115,7 +115,7 @@ public class ProjectController {
     public ActionReturnUtil updateProject(@PathVariable(value = "tenantId") String tenantId,
                                           @PathVariable(value = "projectId") String projectId,
                                           @ModelAttribute ProjectDto projectDto) throws Exception {
-        logger.info("修改项目");
+//        logger.info("修改项目");
         if (StringUtils.isAnyBlank(tenantId,projectId)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PROJECTID_NOT_BLANK);
         }
@@ -135,7 +135,7 @@ public class ProjectController {
     @RequestMapping(value = "/tenants/{tenantId}/projects", method = RequestMethod.GET)
     public @ResponseBody ActionReturnUtil listProjectsByUserName(@PathVariable(value = "tenantId") String tenantId,
                                                                 String username) throws Exception {
-        logger.info("根据用户名与租户id查询租户下项目列表");
+//        logger.info("根据用户名与租户id查询租户下项目列表");
         //空值判断
         if (StringUtils.isAnyBlank(tenantId)){
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);

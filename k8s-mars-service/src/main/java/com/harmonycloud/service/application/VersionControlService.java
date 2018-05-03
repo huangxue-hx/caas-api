@@ -80,7 +80,7 @@ public interface VersionControlService {
      * @return
      * @throws Exception
      */
-    ActionReturnUtil canaryRollback(String namespace, String name, String revision) throws Exception;
+    ActionReturnUtil canaryRollback(String namespace, String name, String revision, String podTemplate, String projectId) throws Exception;
 
     /**
      * 查询出所有版本以及版本信息

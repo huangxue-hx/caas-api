@@ -46,7 +46,7 @@ public class UserAuditController {
         //判断是否时超级用户,获取用户名称
         String userName = session.getAttribute("username").toString();
 
-        return userAuditService.serachByUserName(userName);
+        return userAuditService.searchModule(userName);
     }
 
     /**
@@ -99,7 +99,7 @@ public class UserAuditController {
         userAuditSearch.setTenantName(tenantName);
         userAuditSearch.setPageNum(pageNum);
         userAuditSearch.setSize(size);
-        return userAuditService.serachByQuery(userAuditSearch);
+        return userAuditService.searchByQuery(userAuditSearch);
     }
 
     //方法转移到getAuditLogsByModule，若module为null或“”则是查找当前登录用户的操作日志

@@ -47,7 +47,6 @@ public class CicdWebSocketHandler implements WebSocketHandler{
 
 	@Override
 	public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        logger.info("成功建立socket连接");
 		String username = session.getAttributes().get(CommonConstant.USERNAME).toString();
 		userSocketSessionMap.put(username, session);
 		if(userSocketSessionMap != null && userSocketSessionMap.containsKey(username)){

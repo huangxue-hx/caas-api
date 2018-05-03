@@ -20,4 +20,6 @@ public interface MicroServiceInstanceMapper {
     List<MicroServiceInstance> getMsfInstancesByNamespaceId(String namespaceId);
 
     int deleteByClusterId(@Param("clusterId")String clusterId);
+
+    void deleteByNamespaceId(@Param("namespaceId")String namespaceId);
 }

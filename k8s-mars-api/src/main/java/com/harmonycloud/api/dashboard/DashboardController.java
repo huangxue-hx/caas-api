@@ -6,6 +6,7 @@ import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.application.ApplicationDeployService;
 import com.harmonycloud.service.platform.bean.monitor.InfluxdbQuery;
 import com.harmonycloud.service.tenant.NamespaceService;
+import net.sf.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,7 +48,7 @@ public class DashboardController {
 	public ActionReturnUtil getPodInfo(@PathVariable(value = "clusterId") String clusterId) throws Exception{
 		
 		try {
-			logger.info("dashboard获取pod信息");
+//			logger.info("dashboard获取pod信息");
 			Cluster cluster = clusterService.findClusterById(clusterId);
 			if (null == cluster) {
 				return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
@@ -64,7 +65,7 @@ public class DashboardController {
 	public ActionReturnUtil getInfraInfo(@PathVariable(value = "clusterId") String clusterId) throws Exception{
 		
 		try {
-			logger.info("dashboard获取机器信息");
+//			logger.info("dashboard获取机器信息");
 			Cluster cluster = clusterService.findClusterById(clusterId);
 			if (null == cluster) {
 				return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
@@ -82,7 +83,7 @@ public class DashboardController {
 	public ActionReturnUtil getWarningInfo(@PathVariable(value = "clusterId") String clusterId, @RequestParam(value = "namespace", required=false) String namespace) throws Exception{
 		
 		try {
-			logger.info("dashboard获取告警信息");
+//			logger.info("dashboard获取告警信息");
 			Cluster cluster = clusterService.findClusterById(clusterId);
 			if (null == cluster) {
 				return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
@@ -99,7 +100,7 @@ public class DashboardController {
 	public ActionReturnUtil getEventInfo(@PathVariable(value = "clusterId") String clusterId, @RequestParam(value = "namespace", required=false) String namespace) throws Exception{
 		
 		try {
-			logger.info("dashboard获取事件信息");
+//			logger.info("dashboard获取事件信息");
 			Cluster cluster = clusterService.findClusterById(clusterId);
 			if (null == cluster) {
 				return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
@@ -119,7 +120,7 @@ public class DashboardController {
 			@PathVariable(value = "clusterId") String clusterId) throws Exception{
 		
 		try {
-			logger.info("dashboard获取事件信息");
+//			logger.info("dashboard获取事件信息");
 			InfluxdbQuery influxdbQuery = new InfluxdbQuery();
 			influxdbQuery.setRangeType(rangeType);
 			influxdbQuery.setMeasurement(target);
@@ -136,7 +137,7 @@ public class DashboardController {
 	@RequestMapping(value = "/nodeLicense", method = RequestMethod.GET)
 	public ActionReturnUtil getNodeLicense () throws Exception{
 		try {
-			logger.info("获取node license");
+//			logger.info("获取node license");
 			return dashboardService.getNodeLicense();
 		} catch (Exception e) {
 			logger.error("获取node license失败");
@@ -153,7 +154,6 @@ public class DashboardController {
 	@ResponseBody
 	@RequestMapping(value = "/sum", method = RequestMethod.GET)
 	public ActionReturnUtil getSumOfApplication(@PathVariable(value = "clusterId") String clusterId) throws Exception {
-		logger.info("get sum of application in projects");
 		return applicationDeployService.searchSumApplication(clusterId);
 	}
 
@@ -182,7 +182,7 @@ public class DashboardController {
 	public ActionReturnUtil listK8sComponentPod(@PathVariable(value = "clusterId") String clusterId,
 									 @RequestParam(value = "podName") String podName,
 									 @RequestParam(value = "namespace") String namespace) throws Exception {
-		logger.info("获取k8s的组件pod列表");
+//		logger.info("获取k8s的组件pod列表");
 		Cluster cluster = clusterService.findClusterById(clusterId);
 		if (null == cluster) {
 			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
@@ -196,7 +196,7 @@ public class DashboardController {
 												  @PathVariable(value = "podName") String name,
 												  @RequestParam(value = "namespace") String namespace) throws Exception {
 
-		logger.info("获取k8s的组件pod详情");
+//		logger.info("获取k8s的组件pod详情");
 		Cluster cluster = clusterService.findClusterById(clusterId);
 		if (null == cluster) {
 			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);

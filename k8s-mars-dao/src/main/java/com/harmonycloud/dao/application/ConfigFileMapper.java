@@ -43,7 +43,7 @@ public interface ConfigFileMapper {
      * @description finds configfiles order by create_time
      * @return List
      */
-    ConfigFile getLatestConfig(@Param("name")String name, @Param("projectId")String projectId, @Param("repoName")String repoName);
+    ConfigFile getLatestConfig(@Param("name") String name, @Param("projectId") String projectId, @Param("repoName") String repoName);
     
     /**
      * on 17/03/24.
@@ -55,20 +55,8 @@ public interface ConfigFileMapper {
      * @description finds configfiles order by tags desc
      * @return List
      */
-    List<ConfigFile> listConfigByName(@Param("name") String name, @Param("projectId") String projectId, @Param("repoName") String repoName);
+    List<ConfigFile> listConfigByName(@Param("name") String name, @Param("projectId") String projectId, @Param("clusterId") String clusterId, @Param("repoName") String repoName);
 
-    /**
-     * on 17/03/24.
-     *
-     * @author gurongyun
-     * @param name required
-     * @param projectId required
-     * @param repoName required
-     * @description finds configfiles order by create_time desc
-     * @return List
-     */
-    List<ConfigFile> listConfigByNameAsc(@Param("name")String name, @Param("projectId")String projectId, @Param("repoName")String repoName);
-    
     /**
      * on 17/03/24.
      * 
@@ -77,10 +65,10 @@ public interface ConfigFileMapper {
      * @description finds configfiles 
      * @return List
      */
-    List<ConfigFile> listConfigSearch(@Param("projectId")String projectId,
+    List<ConfigFile> listConfigSearch(@Param("projectId") String projectId,
                                       @Param("clusterIds") Set<String> clusterIds,
-                                      @Param("repoName")String repoName,
-                                      @Param("keyword")String keyword);
+                                      @Param("repoName") String repoName,
+                                      @Param("keyword") String keyword);
     
     /**
      * on 17/03/24.
@@ -90,7 +78,7 @@ public interface ConfigFileMapper {
      * @description find configfiles by projectId,reponame
      * @return list
      */
-    List<ConfigFile> listConfigOverview(@Param("projectId")String projectId, @Param("repoName")String repoName);
+    List<ConfigFile> listConfigOverview(@Param("projectId") String projectId, @Param("repoName") String repoName, @Param("clusterIds") Set<String> clusterIds);
 
     /**
      * on 17/03/24.
@@ -101,8 +89,8 @@ public interface ConfigFileMapper {
      * @param repoName required
      * @description delete configfiles
      */
-    int deleteConfigByName( @Param("name") String name,@Param("projectId") String projectId,
-                            @Param("clusterId") String clusterId);
+    int deleteConfigByName(@Param("name") String name, @Param("projectId") String projectId,
+                           @Param("clusterId") String clusterId);
 
     /**
      * on 17/03/24.
@@ -111,7 +99,7 @@ public interface ConfigFileMapper {
      * @param projectId required
      * @description delete configfiles
      */
-    void deleteConfigByProject(@Param("projectId")String projectId);
+    void deleteConfigByProject(@Param("projectId") String projectId);
 
     /**
      * on 17/03/24.
@@ -124,7 +112,8 @@ public interface ConfigFileMapper {
 
     void updateConfig(ConfigFile configFile);
 
-    int deleteByClusterId(@Param("clusterId")String clusterId);
+    int deleteByClusterId(@Param("clusterId") String clusterId);
 
+    ConfigFile getConfigByNameAndTag(@Param("name") String name, @Param("tag") String tag, @Param("projectId") String projectId, @Param("clusterId") String clusterId);
 
 }

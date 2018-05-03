@@ -43,7 +43,7 @@ public class ProjectMemberController {
     @ResponseBody
     public ActionReturnUtil listProjectTm(@PathVariable(value = "tenantId") String tenantId,
                                           @PathVariable(value = "projectId") String projectId) throws Exception {
-        logger.info("查询项目下的所有用户角色");
+//        logger.info("查询项目下的所有用户角色");
         if (StringUtils.isAnyBlank(tenantId,projectId)){
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
@@ -62,7 +62,7 @@ public class ProjectMemberController {
     public ActionReturnUtil createPm(@PathVariable(value = "tenantId") String tenantId,
                                                    @PathVariable(value = "projectId") String projectId,
                                                    @ModelAttribute ProjectDto projectDto) throws Exception {
-        logger.info("创建项目管理员");
+//        logger.info("创建项目管理员");
         //空值判断
         List<String> pmList = projectDto.getPmList();
         if (StringUtils.isAnyBlank(tenantId,projectId) || CollectionUtils.isEmpty(pmList)){
@@ -78,7 +78,7 @@ public class ProjectMemberController {
     public ActionReturnUtil deletePm(@PathVariable(value = "tenantId") String tenantId,
                                      @PathVariable(value = "projectId") String projectId,
                                      @PathVariable(value = "username") String username) throws Exception {
-        logger.info("删除项目管理员");
+//        logger.info("删除项目管理员");
         //空值判断
         if (StringUtils.isAnyBlank(projectId,tenantId,username)){
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
@@ -92,7 +92,7 @@ public class ProjectMemberController {
     public ActionReturnUtil addUserRole(@PathVariable(value = "tenantId") String tenantId,
                                            @PathVariable(value = "projectId") String projectId,
                                            @ModelAttribute UserRoleDto userRoleDto) throws Exception {
-        logger.info("项目添加角色");
+//        logger.info("项目添加角色");
         //空值判断
         if (CollectionUtils.isEmpty(userRoleDto.getRoleIdList()) || CollectionUtils.isEmpty(userRoleDto.getUsernameList())){
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
@@ -109,7 +109,7 @@ public class ProjectMemberController {
                                            @PathVariable(value = "projectId") String projectId,
                                            @PathVariable(value = "username") String username,
                                            @ModelAttribute UserRoleDto userRoleDto) throws Exception {
-        logger.info("项目移除角色");
+//        logger.info("项目移除角色");
         //空值判断
         if (Objects.isNull(userRoleDto.getRoleId())){
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);

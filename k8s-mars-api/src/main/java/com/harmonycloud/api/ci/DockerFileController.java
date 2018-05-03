@@ -29,7 +29,7 @@ public class DockerFileController {
     @RequestMapping(method = RequestMethod.GET)
     public ActionReturnUtil listDockerFile(@PathVariable("projectId") String projectId,
                                            @RequestParam(value = "clusterId" , required = false) String clusterId) throws Exception{
-        logger.info("dockerfile getAllList.");
+//        logger.info("dockerfile getAllList.");
         DockerFile dockerFile = new DockerFile();
         dockerFile.setProjectId(projectId);
         dockerFile.setClusterId(clusterId);
@@ -43,7 +43,7 @@ public class DockerFileController {
                                                  @RequestParam(value = "currentPage") Integer currentPage,
                                                  @RequestParam(value = "pageSize") Integer pageSize,
                                                  @RequestParam(value = "name", required = false) String name) throws Exception {
-        logger.info("dockerfile getPageList.");
+//        logger.info("dockerfile getPageList.");
         DockerFileDto dockerFileDTO = new DockerFileDto();
         dockerFileDTO.setProjectId(projectId);
         dockerFileDTO.setClusterId(clusterId);
@@ -58,7 +58,7 @@ public class DockerFileController {
     public ActionReturnUtil addDockerFile(@PathVariable("projectId") String projectId,@RequestBody DockerFile dockerFile) throws Exception {
         AssertUtil.notNull(dockerFile);
         dockerFile.setProjectId(projectId);
-        logger.info("dockerfile addDockerFile.");
+//        logger.info("dockerfile addDockerFile.");
         if(StringUtils.isBlank(dockerFile.getName())){
             dockerFile.setName("未命名-"+ DateUtil.DateToString(new Date(),"yyyyMMddHHssmm"));
         }
@@ -70,7 +70,7 @@ public class DockerFileController {
 
     @RequestMapping(method = RequestMethod.PUT)
     public ActionReturnUtil updateDockerFile(@RequestBody DockerFile dockerFile) throws Exception {
-        logger.info("dockerfile updateDockerFile.");
+//        logger.info("dockerfile updateDockerFile.");
         dockerFile.setUpdateTime(new Date());
         dockerFileService.updateDockerFile(dockerFile);
         return ActionReturnUtil.returnSuccessWithData(dockerFile.getId());
@@ -78,14 +78,14 @@ public class DockerFileController {
 
     @RequestMapping(value = "/{dockerfileId}",method = RequestMethod.DELETE)
     public ActionReturnUtil deleteDockerFile(@PathVariable("dockerfileId") Integer dockerfileId) throws Exception {
-        logger.info("dockerfile deleteDockerFile.");
+//        logger.info("dockerfile deleteDockerFile.");
         dockerFileService.deleteDockerFile(dockerfileId);
         return ActionReturnUtil.returnSuccess();
     }
 
     @RequestMapping(value = "/{dockerfileId}",method = RequestMethod.GET)
     public ActionReturnUtil getDockerFile(@PathVariable("dockerfileId") Integer dockerfileId){
-        logger.info("dockerfile getDockerFile.");
+//        logger.info("dockerfile getDockerFile.");
         return ActionReturnUtil.returnSuccessWithData(dockerFileService.selectDockerFileById(dockerfileId));
     }
 }

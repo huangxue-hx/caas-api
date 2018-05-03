@@ -157,8 +157,12 @@ public class UserServiceImpl implements UserService {
      * @return
      */
     @Override
-    public Map<String, Cluster> getCurrentUserCluster() {
-        return (Map<String, Cluster>)session.getAttribute(CommonConstant.CLUSTER);
+    public Map<String, Cluster> getCurrentUserCluster() throws Exception{
+        final Integer currentRoleId = this.getCurrentRoleId();
+        //设置集群信息
+        List<Cluster> clusterList = this.roleLocalService.getClusterListByRoleId(currentRoleId);
+        Map<String, Cluster> clusterMap = clusterList.stream().collect(Collectors.toMap(Cluster::getId, cluster -> cluster));
+        return clusterMap;
     }
 
     /**
@@ -1307,10 +1311,10 @@ public class UserServiceImpl implements UserService {
     }
 
     /**
-     * 删除用户群组
-     *
-     * @param
-     * @return ActionReturnUtil
+     * 根据组id删除组内成员和组
+     * @param groupid
+     * @return
+     * @throws Exception
      */
     public ActionReturnUtil deleteGroupbyId(int groupid) throws Exception {
         // 删除user_group表中的相关数据同时删除user_group_relation表中的关联数据

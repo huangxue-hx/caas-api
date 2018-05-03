@@ -42,7 +42,7 @@ public class DaemonSetController {
     @ResponseBody
     @RequestMapping(value = "/{clusterId}/daemonsets", method = RequestMethod.POST)
     public ActionReturnUtil createDaemonSet(@ModelAttribute DaemonSetDetailDto daemonSetDetail) throws Exception {
-        logger.info("创建DaemonSet");
+//        logger.info("创建DaemonSet");
         String userName = (String) session.getAttribute("username");
         if (StringUtils.isEmpty(userName)) {
             throw new K8sAuthException(Constant.HTTP_401);
@@ -60,7 +60,7 @@ public class DaemonSetController {
     @ResponseBody
     @RequestMapping(value = "/{clusterId}/daemonsets/{name}", method = RequestMethod.PUT)
     public ActionReturnUtil updateDaemonSet(@ModelAttribute DaemonSetDetailDto daemonSetDetail) throws Exception {
-        logger.info("更新DaemonSet");
+//        logger.info("更新DaemonSet");
         String userName = (String) session.getAttribute("username");
         if (StringUtils.isEmpty(userName)) {
             throw new K8sAuthException(Constant.HTTP_401);
@@ -80,7 +80,7 @@ public class DaemonSetController {
     public ActionReturnUtil deleteDeployments(@PathVariable(value = "name") String name,
                                               @RequestParam(value = "namespace", required = true) String namespace,
                                               @PathVariable(value = "clusterId") String clusterId) throws Exception {
-        logger.info("删除DaemonSet");
+//        logger.info("删除DaemonSet");
         String userName = (String) session.getAttribute("username");
         if (StringUtils.isEmpty(userName)) {
             throw new K8sAuthException(Constant.HTTP_401);
@@ -97,7 +97,7 @@ public class DaemonSetController {
     @ResponseBody
     @RequestMapping(value = "/daemonsets", method = RequestMethod.GET)
     public ActionReturnUtil listDaemonSets(@RequestParam(value = "labels", required = false) String labels) throws Exception {
-        logger.info("获取DaemonSet列表");
+//        logger.info("获取DaemonSet列表");
         return daemonSetsService.listDaemonSets(labels);
     }
 
@@ -113,7 +113,7 @@ public class DaemonSetController {
     public ActionReturnUtil getDaemonSetDetail(@PathVariable(value = "name") String name,
                                                @RequestParam(value = "namespace", required = true) String namespace,
                                                @PathVariable(value = "clusterId") String clusterId) throws Exception {
-        logger.info("获取DaemonSet详情：{}", name);
+//        logger.info("获取DaemonSet详情：{}", name);
         String userName = (String) session.getAttribute("username");
         if (StringUtils.isEmpty(userName)) {
             throw new K8sAuthException(Constant.HTTP_401);
@@ -131,7 +131,7 @@ public class DaemonSetController {
     public ActionReturnUtil listDaemonSetPods(@PathVariable(value = "name") String name,
                                               @RequestParam(value = "namespace", required = true) String namespace,
                                               @PathVariable(value = "clusterId") String clusterId) throws Exception {
-        logger.info("获取DaemonSet的POD列表：{}", name);
+//        logger.info("获取DaemonSet的POD列表：{}", name);
         String userName = (String) session.getAttribute("username");
         if (StringUtils.isEmpty(userName)) {
             throw new K8sAuthException(Constant.HTTP_401);
@@ -152,7 +152,7 @@ public class DaemonSetController {
     public ActionReturnUtil listDaemontSetEvents(@PathVariable(value = "name") String name,
                                                  @RequestParam(value = "namespace", required = true) String namespace,
                                                  @PathVariable(value = "clusterId") String clusterId) throws Exception {
-        logger.info("获取DaemonSet的Events：{}", name);
+//        logger.info("获取DaemonSet的Events：{}", name);
         String userName = (String) session.getAttribute("username");
         if (StringUtils.isEmpty(userName)) {
             throw new K8sAuthException(Constant.HTTP_401);

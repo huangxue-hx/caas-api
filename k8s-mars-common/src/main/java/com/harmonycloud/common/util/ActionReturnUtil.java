@@ -29,7 +29,12 @@ public class ActionReturnUtil extends HashMap<String, Object>{
         returnMap.put("success",true);
         return returnMap;
     }
-
+    public static ActionReturnUtil returnSuccessWithData(ErrorCodeMessage error){
+        ActionReturnUtil returnMap = new ActionReturnUtil();
+        returnMap.put("data", ErrorCodeMessage.getMessageWithLanguage(error,"",Boolean.FALSE));
+        returnMap.put("success",true);
+        return returnMap;
+    }
     public static ActionReturnUtil returnSuccessWithDataAndCount(Object data,int Count){
         ActionReturnUtil returnMap = new ActionReturnUtil();
         returnMap.put("data", data);

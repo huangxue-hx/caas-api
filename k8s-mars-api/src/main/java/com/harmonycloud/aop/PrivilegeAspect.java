@@ -6,6 +6,7 @@ import com.harmonycloud.common.enumm.MicroServiceCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.exception.MsfException;
 import com.harmonycloud.common.util.*;
+import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dao.user.bean.LocalRolePrivilege;
 import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.dao.user.bean.UrlDic;
@@ -14,6 +15,7 @@ import com.harmonycloud.dto.tenant.TenantDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.common.PrivilegeHelper;
+import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.*;
 import org.apache.commons.lang3.StringUtils;
@@ -69,6 +71,12 @@ public class PrivilegeAspect {
 	private static final Integer TM_ROLEID = 2;
 
 	private static final String OVERURL = "/clusters/*/nodes/*/schedule,/clusters/*/nodes/*/drainPod";
+	//日志查询
+	private static final String LOGURL = "/clusters/*/namespaces/*/deploys/*/logs";
+	//镜像推送
+	private static final String IMAGEURL = "/tenants/*/projects/*/repositories/*/images/*/tags/*/syncImage";
+	//分区
+	private static final String NAMESPACE = "namespace";
 
 	
 	@Autowired
@@ -80,15 +88,18 @@ public class PrivilegeAspect {
 	@Autowired
 	private RolePrivilegeService rolePrivilegeService;
 	@Autowired
-	UserRoleRelationshipService userRoleRelationshipService;
+	private UserRoleRelationshipService userRoleRelationshipService;
 	@Autowired
-	ClusterCacheManager clusterCacheManager;
+	private ClusterCacheManager clusterCacheManager;
 	@Autowired
-	PrivilegeHelper privilegeHelper;
+	private PrivilegeHelper privilegeHelper;
 	@Autowired
-	TenantService tenantService;
+	private TenantService tenantService;
+	@Autowired
+	private SystemConfigService systemConfigService;
 
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
+	private static Map<String, UrlDic> urlDicMap = null;
 
 	@Pointcut("execution(public * com.harmonycloud.api..*.*(..))")
 	public void privilegeAspect() {
@@ -99,7 +110,7 @@ public class PrivilegeAspect {
 	@Before("privilegeAspect()")
 	public void doBefore(JoinPoint joinPoint) throws Exception{
 
-		long startTime=System.currentTimeMillis();   //获取开始时间
+//		long startTime=System.currentTimeMillis();   //获取开始时间
 		ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
 		HttpServletRequest request = attributes.getRequest();
 		HttpSession session = request.getSession();
@@ -120,7 +131,9 @@ public class PrivilegeAspect {
 			url = url.substring(0, i);
 		}
 		//加载权限字典
-		Map<String, UrlDic> urlDicMap = this.urlDicService.getUrlDicMap();
+		if (CollectionUtils.isEmpty(urlDicMap)){
+			urlDicMap = this.urlDicService.getUrlDicMap();
+		}
 		UrlDic urlDic = urlDicMap.get(url);
 		if (Objects.isNull(urlDic)){
 			throw new MarsRuntimeException(ErrorCodeMessage.URL_PERMISSION_DENIED,url,Boolean.TRUE);
@@ -133,8 +146,13 @@ public class PrivilegeAspect {
 		if (!WHITELIST.equals(moduleName)){
 			Integer roleId = this.userService.getCurrentRoleId();
 			String username = this.userService.getCurrentUsername();
+			SystemConfig systemConfig = systemConfigService.findMaintenanceStatus();
+			if(Boolean.valueOf(systemConfig.getConfigValue()) && !userService.isAdmin(username)){
+				this.dealHeaderWithMaintenance(attributes.getResponse());
+				throw new MarsRuntimeException(ErrorCodeMessage.SYSTEM_IN_MAINTENANCE);
+			}
 			//处理微服务 只允许系统管理员与租户管理员
-			if (MSF.equals(moduleName)){
+			if (MSF.equals(moduleName) && !GET.equals(method)){
 				User user = userService.getUser(username);
 				if (CommonConstant.PAUSE.equals(user.getPause())) {
 					throw new MsfException(MicroServiceCodeMessage.USER_DISABLED);
@@ -149,17 +167,16 @@ public class PrivilegeAspect {
 				Integer currentRoleId = this.userService.getCurrentRoleId();
 				if (!Objects.isNull(requestBody)){
 					Map<String, Object> stringObjectMap = JsonUtil.convertJsonToMap(requestBody.toString());
-					tenantId = stringObjectMap.get(TENANT_ID).toString();
-					//角色为租户管理员直接通过返回
-					Boolean tmUser = this.userRoleRelationshipService.isTmUser(tenantId, username,TM_ROLEID);
-					if (tmUser){
-						return;
+					if (stringObjectMap.containsKey(TENANT_ID) && !Objects.isNull(stringObjectMap.get(TENANT_ID))){
+						tenantId = stringObjectMap.get(TENANT_ID).toString();
+						//角色为租户管理员直接通过返回
+						Boolean tmUser = this.userRoleRelationshipService.isTmUser(tenantId, username,TM_ROLEID);
+						if (tmUser){
+							return;
+						}
 					}
 				}
-				if (currentRoleId <= CommonConstant.TM_ROLEID){
-					return;
-				}
-				throw new MarsRuntimeException(ErrorCodeMessage.USER_PERMISSION_DENIED,url,Boolean.TRUE);
+				throw new MsfException(MicroServiceCodeMessage.NON_PRIVILEGED);
 			}
 			//不在白名单内,并且不是微服务模块，检查角色是否为空
 			if (Objects.isNull(roleId) && StringUtils.isNotBlank(username)){
@@ -257,7 +274,7 @@ public class PrivilegeAspect {
 					}
 					//如果权限未通过或者权限通过scope检查不通过则返回权限不足
 					boolean scope = false;
-					if (!(passed && (scope = this.checkScope(attribute,parameterMap,url)))){
+					if (!(passed && (scope = this.checkScope(attribute,parameterMap,url,passed)))){
 						if (rolePrivilegeStatus){
 							throw new MarsRuntimeException(ErrorCodeMessage.USER_PERMISSION_DENIED_FOR_PRIVILEGE_CHANGE,url,Boolean.TRUE);
 						} else {
@@ -275,8 +292,8 @@ public class PrivilegeAspect {
 				}
 			}
 		}
-		long endTime=System.currentTimeMillis(); //获取结束时间
-		long time = endTime - startTime;//获取消耗时间，调试使用
+//		long endTime=System.currentTimeMillis(); //获取结束时间
+//		long time = endTime - startTime;//获取消耗时间，调试使用
 //		System.out.println("消耗时间："+time);
 	}
 	private void dealHeader (ServletRequestAttributes attributes){
@@ -293,6 +310,12 @@ public class PrivilegeAspect {
 			session.invalidate();
 		}
 	}
+
+	private void dealHeaderWithMaintenance (HttpServletResponse response){
+		response.setHeader("Access-Control-Expose-Headers","Maintenance");
+		response.setHeader("Maintenance","true");
+	}
+
 	//处理系统内跨权限请求（例如租户管理员，处理独占分区主机）
 	private void dealOverPrivilege(Map<String, Boolean> privilegeMap,Map<String, Map<String, Object>> privilege,Integer roleId,String method,String url){
 		String[] urls = OVERURL.split(CommonConstant.COMMA);
@@ -318,25 +341,19 @@ public class PrivilegeAspect {
             throw new MarsRuntimeException(ErrorCodeMessage.USER_PERMISSION_DENIED);
         }
     }
-	private Boolean checkScope(Map<String,String> attribute,Map<String, String[]> parameterMap,String url) throws Exception{
+	private Boolean checkScope(Map<String,String> attribute,Map<String, String[]> parameterMap,String url,Boolean passed) throws Exception{
 		Integer roleId = this.userService.getCurrentRoleId();
 		String tenantId = attribute.get(CommonConstant.TENANT_ID);
-//		if (!Objects.isNull(tenantId)){//TODO 等前端我的租户项目切换同步做完善的时候在放出来
-//			String currentTenantId = this.userService.getCurrentTenantId();
-//			//与传入的租户id与当前租户不匹配
-//			if (!tenantId.equals(currentTenantId)){
-//				logger.error("当前租户id:" + currentTenantId + "传入租户id：" + tenantId);
-//				return Boolean.FALSE;
-//			}
-//		}
-//		String projectId = attribute.get(CommonConstant.PROJECTID);
-//		if (StringUtils.isNotBlank(projectId)){
-//			String currentProjectId = this.userService.getCurrentProjectId();
-//			if (!projectId.equals(currentProjectId)){
-//				return Boolean.FALSE;
-//			}
-//		}
-		if (url.equals("/tenants/*/projects/*/repositories/*/images/*/tags/*/syncImage")){
+
+		if (url.equals(IMAGEURL)){
+			return Boolean.TRUE;
+		}
+		String namespace = attribute.get(NAMESPACE);
+		//排除系统日志在上层集群的作用域不符合
+		if (url.contains(LOGURL)
+				&& !Objects.isNull(namespace)
+				&& CommonConstant.KUBE_SYSTEM.equals(namespace)
+				&& passed){
 			return Boolean.TRUE;
 		}
 		//如果带有集群信息，检查对应作用域
@@ -352,4 +369,6 @@ public class PrivilegeAspect {
 		}
 		return Boolean.TRUE;
 	}
+
+
 }

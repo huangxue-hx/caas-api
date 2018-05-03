@@ -57,7 +57,6 @@ public class RoleController {
 	@RequestMapping(value = "/roles/{roleId}/switchRole", method = RequestMethod.GET)
 	@ResponseBody
 	public ActionReturnUtil switchRole(@PathVariable("roleId") Integer roleId) throws Exception {
-		logger.info("切换角色");
 		Map<String, Object> availablePrivilege = this.rolePrivilegeService.switchRole(roleId);
 		return ActionReturnUtil.returnSuccessWithData(availablePrivilege);
 	}
@@ -78,7 +77,7 @@ public class RoleController {
 	@ResponseBody
 	public ActionReturnUtil updateRole(@PathVariable(value = "roleId") Integer roleId,
 												@ModelAttribute RoleDto roleDto) throws Exception {
-		logger.info("分配角色权限");
+//		logger.info("分配角色权限");
 		//空值判断
 		if (StringUtils.isBlank(roleDto.getNickName()) || (roleId > CommonConstant.PM_ROLEID && StringUtils.isBlank(roleDto.getClusterIds()))){
 			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
@@ -139,7 +138,7 @@ public class RoleController {
 	@RequestMapping(value = "/roles/privilege", method = RequestMethod.GET)
 	@ResponseBody
 	public ActionReturnUtil getInitialPrivilege() throws Exception {
-		logger.info("获取系统基本权限操作列表");
+//		logger.info("获取系统基本权限操作列表");
 		Map<String, Object> privilegeByRole = rolePrivilegeService.getAllSystemPrivilege();
 		return ActionReturnUtil.returnSuccessWithData(privilegeByRole);
 	}

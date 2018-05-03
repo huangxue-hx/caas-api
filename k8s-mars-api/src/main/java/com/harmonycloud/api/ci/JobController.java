@@ -30,26 +30,36 @@ public class JobController {
     @RequestMapping(method = RequestMethod.POST)
     @ResponseBody
     public ActionReturnUtil addJob(@PathVariable("tenantId") String tenantId,
-                                      @PathVariable("projectId") String projectId,
-                                      @RequestBody JobDto jobDto) throws Exception{
-        logger.info("create job.");
+                                   @PathVariable("projectId") String projectId,
+                                   @RequestBody JobDto jobDto) throws Exception{
+//        logger.info("create job.");
         jobDto.setTenantId(tenantId);
         jobDto.setProjectId(projectId);
         return ActionReturnUtil.returnSuccessWithData(jobService.createJob(jobDto));
     }
 
-    @RequestMapping(method = RequestMethod.PUT)
-    @ResponseBody
-    public ActionReturnUtil updateJob(@RequestBody Job job){
-        logger.info("update job.");
-        return jobService.updateJob(job);
-    }
 
     @RequestMapping(value = "{jobId}", method = RequestMethod.DELETE)
     @ResponseBody
-    public ActionReturnUtil deleteJob(@PathVariable("jobId") Integer jobId, @RequestParam(value = "pipelineName") String pipelineName) throws Exception {
-        logger.info("delete job.");
+    public ActionReturnUtil deleteJob(@PathVariable("jobId") Integer jobId) throws Exception {
+//        logger.info("delete job.");
         jobService.deleteJob(jobId);
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    @RequestMapping(value = "/{jobId}/rename", method = RequestMethod.POST)
+    @ResponseBody
+    public ActionReturnUtil renameJob(@PathVariable("jobId") Integer jobId, @RequestParam("newName") String newName) throws Exception {
+//        logger.info("rename job.");
+        jobService.rename(jobId, newName);
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    @RequestMapping(value = "/{jobId}", method = RequestMethod.PUT)
+    @ResponseBody
+    public ActionReturnUtil updateJob(@PathVariable("jobId") Integer jobId, @RequestBody JobDto jobDto) throws Exception {
+        jobDto.setId(jobId);
+        jobService.updateJob(jobDto);
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -58,7 +68,7 @@ public class JobController {
     public ActionReturnUtil validateName( @PathVariable("projectId") String projectId,
                                           @RequestParam(value = "clusterId" ) String clusterId,
                                           @RequestParam(value="name") String jobName) throws Exception {
-        logger.info("validate job name.");
+//        logger.info("validate job name.");
         jobService.validateName(jobName, projectId, clusterId);
         return ActionReturnUtil.returnSuccess();
     }
@@ -67,17 +77,17 @@ public class JobController {
     @RequestMapping(method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil listJob(@PathVariable("projectId") String projectId,
-                                       @RequestParam(value = "clusterId" ,required = false) String clusterId,
-                                       @RequestParam(value = "type",required = false) String type,
-                                       @RequestParam(value="name", required = false) String jobName) throws Exception{
-        logger.info("get job list.");
+                                    @RequestParam(value = "clusterId" ,required = false) String clusterId,
+                                    @RequestParam(value = "type",required = false) String type,
+                                    @RequestParam(value="name", required = false) String jobName) throws Exception{
+//        logger.info("get job list.");
         return ActionReturnUtil.returnSuccessWithData(jobService.getJobList(projectId, clusterId, type, jobName));
     }
 
     @RequestMapping(value = "{jobId}", method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil getJob(@PathVariable("jobId") Integer jobId) throws Exception {
-        logger.info("get job detail.");
+//        logger.info("get job detail.");
         return jobService.getJobDetail(jobId);
     }
 
@@ -86,15 +96,15 @@ public class JobController {
     public ActionReturnUtil listBuildResult(@PathVariable("jobId") Integer jobId,
                                             @RequestParam(value="pageSize", required = false, defaultValue = "10") Integer pageSize,
                                             @RequestParam(value="page", required = false, defaultValue = "1") Integer page) throws Exception {
-        logger.info("get build detail.");
+//        logger.info("get build detail.");
         return jobService.getBuildList(jobId, pageSize, page);
     }
 
     @RequestMapping(value = "/{jobId}/start", method = RequestMethod.PATCH)
     @ResponseBody
     public ActionReturnUtil startBuild(@RequestBody ParameterDto parameterDto) throws Exception {
-        logger.info("build job.");
-        jobService.build(parameterDto.getJobId(), parameterDto.getParameters());
+//        logger.info("build job.");
+        jobService.build(parameterDto.getJobId(), parameterDto.getParameters(), null, null);
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -102,22 +112,23 @@ public class JobController {
     @ResponseBody
     public ActionReturnUtil stopBuild(@PathVariable("jobId") Integer jobId,
                                       @RequestParam(value="buildNum") String buildNum) throws Exception{
-        logger.info("stop build.");
-        return jobService.stopBuild(jobId, buildNum);
+//        logger.info("stop build.");
+        jobService.stopBuild(jobId, buildNum);
+        return ActionReturnUtil.returnSuccess();
     }
 
     @RequestMapping(value = "/{jobId}/result/{buildNum}/delete", method = RequestMethod.DELETE)
     @ResponseBody
     public ActionReturnUtil deleteBuildResult(@PathVariable("jobId") Integer jobId,
                                               @PathVariable("buildNum") String buildNum) throws Exception {
-        logger.info("delete build.");
+//        logger.info("delete build.");
         return jobService.deleteBuild(jobId, buildNum);
     }
 
     @RequestMapping(value = "/validateCredential", method = RequestMethod.POST)
     @ResponseBody
     public ActionReturnUtil validateCredential(@RequestParam(value="type") String repositoryType, @RequestParam(value="repositoryUrl") String repositoryUrl, @RequestParam(value="username") String username, @RequestParam(value="password") String password){
-        logger.info("validate repository credentials.");
+//        logger.info("validate repository credentials.");
         return jobService.validateCredential(repositoryType, repositoryUrl, username, password);
     }
 

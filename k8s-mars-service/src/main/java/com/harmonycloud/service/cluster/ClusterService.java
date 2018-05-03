@@ -50,6 +50,13 @@ public interface ClusterService {
 	List<Cluster> listCluster() throws Exception;
 
 	/**
+	 * 获取所有集群，包括上层集群
+	 *
+	 * @return
+	 */
+	List<Cluster> listAllCluster(Boolean isEnable) throws Exception;
+
+	/**
 	 * 获取某个数据中心下的集群列表,为空则获取所有的业务集群
 	 *
 	 * @return

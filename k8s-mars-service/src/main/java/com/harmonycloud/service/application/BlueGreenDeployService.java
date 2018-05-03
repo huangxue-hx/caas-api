@@ -16,7 +16,7 @@ public interface BlueGreenDeployService {
      * @return ActionReturnUtil
      * @throws Exception
      */
-    ActionReturnUtil deployByBlueGreen(UpdateDeployment updateDeployment, String userName) throws Exception;
+    ActionReturnUtil deployByBlueGreen(UpdateDeployment updateDeployment, String userName, String projectId) throws Exception;
 
     /**
      * 新旧版本流量切换

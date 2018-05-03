@@ -272,7 +272,7 @@ public enum LocalRoleCondComparorEnum {
         return cnDesc;
     }
 
-    public void setCnDesc(String cnDesc) {
+    private void setCnDesc(String cnDesc) {
         this.cnDesc = cnDesc;
     }
 
@@ -280,7 +280,7 @@ public enum LocalRoleCondComparorEnum {
         return enDesc;
     }
 
-    public void setEnDesc(String enDesc) {
+    private void setEnDesc(String enDesc) {
         this.enDesc = enDesc;
     }
 

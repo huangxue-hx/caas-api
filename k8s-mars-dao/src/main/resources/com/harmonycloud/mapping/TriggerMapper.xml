@@ -9,6 +9,7 @@
     <result column="is_customised" jdbcType="INTEGER" property="isCustomised" />
     <result column="cron_exp" jdbcType="VARCHAR" property="cronExp" />
     <result column="trigger_job_id" jdbcType="INTEGER" property="triggerJobId" />
+    <result column="trigger_image" jdbcType="VARCHAR" property="triggerImage" />
   </resultMap>
   <sql id="Example_Where_Clause">
     <where>
@@ -69,7 +70,7 @@
     </where>
   </sql>
   <sql id="Base_Column_List">
-    id, job_id, is_valid, type, is_customised, cron_exp, trigger_job_id
+    id, job_id, is_valid, type, is_customised, cron_exp, trigger_job_id, trigger_image
   </sql>
   <select id="selectByExample" parameterType="com.harmonycloud.dao.ci.bean.TriggerExample" resultMap="BaseResultMap">
     select
@@ -107,10 +108,10 @@
       SELECT LAST_INSERT_ID()
     </selectKey>
     insert into cicd_trigger (job_id, is_valid, type, 
-      is_customised, cron_exp, trigger_job_id
+      is_customised, cron_exp, trigger_job_id, trigger_image
       )
     values (#{jobId,jdbcType=INTEGER}, #{isValid,jdbcType=BIT}, #{type,jdbcType=INTEGER}, 
-      #{isCustomised,jdbcType=INTEGER}, #{cronExp,jdbcType=VARCHAR}, #{triggerJobId,jdbcType=INTEGER}
+      #{isCustomised,jdbcType=INTEGER}, #{cronExp,jdbcType=VARCHAR}, #{triggerJobId,jdbcType=INTEGER}, #{triggerImage,jdbcType=VARCHAR}
       )
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.ci.bean.Trigger">
@@ -137,6 +138,9 @@
       <if test="triggerJobId != null">
         trigger_job_id,
       </if>
+      <if test="triggerImage != null">
+        trigger_image,
+      </if>
     </trim>
     <trim prefix="values (" suffix=")" suffixOverrides=",">
       <if test="jobId != null">
@@ -156,6 +160,9 @@
       </if>
       <if test="triggerJobId != null">
         #{triggerJobId,jdbcType=INTEGER},
+      </if>
+      <if test="triggerImage != null">
+        #{triggerImage,jdbcType=VARCHAR},
       </if>
     </trim>
   </insert>
@@ -189,6 +196,9 @@
       <if test="record.triggerJobId != null">
         trigger_job_id = #{record.triggerJobId,jdbcType=INTEGER},
       </if>
+      <if test="record.triggerImage != null">
+        trigger_image = #{record.triggerImage,jdbcType=VARCHAR},
+      </if>
     </set>
     <if test="_parameter != null">
       <include refid="Update_By_Example_Where_Clause" />
@@ -202,7 +212,8 @@
       type = #{record.type,jdbcType=INTEGER},
       is_customised = #{record.isCustomised,jdbcType=INTEGER},
       cron_exp = #{record.cronExp,jdbcType=VARCHAR},
-      trigger_job_id = #{record.triggerJobId,jdbcType=INTEGER}
+      trigger_job_id = #{record.triggerJobId,jdbcType=INTEGER},
+      trigger_image = #{record.triggerImage,jdbcType=VARCHAR}
     <if test="_parameter != null">
       <include refid="Update_By_Example_Where_Clause" />
     </if>
@@ -228,6 +239,9 @@
       <if test="triggerJobId != null">
         trigger_job_id = #{triggerJobId,jdbcType=INTEGER},
       </if>
+      <if test="triggerImage != null">
+        trigger_image = #{triggerImage,jdbcType=VARCHAR},
+      </if>
     </set>
     where id = #{id,jdbcType=INTEGER}
   </update>
@@ -238,7 +252,8 @@
       type = #{type,jdbcType=INTEGER},
       is_customised = #{isCustomised,jdbcType=INTEGER},
       cron_exp = #{cronExp,jdbcType=VARCHAR},
-      trigger_job_id = #{triggerJobId,jdbcType=INTEGER}
+      trigger_job_id = #{triggerJobId,jdbcType=INTEGER},
+      trigger_image = #{triggerImage,jdbcType=VARCHAR}
     where id = #{id,jdbcType=INTEGER}
   </update>
   <select id="selectByJobId" parameterType="java.lang.Integer" resultMap="BaseResultMap">

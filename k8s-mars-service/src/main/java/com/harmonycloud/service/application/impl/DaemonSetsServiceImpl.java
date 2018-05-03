@@ -125,7 +125,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                         detail.getName(), cluster, Constant.TYPE_DAEMONSET, username);
             }
 
-            //创建PV
+            //创建PVC
             if (Objects.nonNull(c.getStorage()) && c.getStorage().size() > 0) {
                 for (PersistentVolumeDto volume : c.getStorage()) {
                     if (Constant.VOLUME_TYPE_PV.equals(volume.getType())) {
@@ -168,9 +168,17 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
             String updateTimestamp = DateUtil.UTC_FORMAT.format(updateTime);
             anno.put("updateTimestamp", updateTimestamp);
             ds.getMetadata().setAnnotations(anno);
-            //更新容器
-            Map<String, Object> map = K8sResultConvert.convertContainer(detail.getContainers(), detail.getLogService(), detail.getLogPath(), detail.getName());
-            List<Container> containers = (List<Container>) map.get("container");
+            List<Container> cons = ds.getSpec().getTemplate().getSpec().getContainers();
+            //更新容器(CPU, memory)
+            List<Container> containers = new ArrayList<>();
+            for (CreateContainerDto createContainer : detail.getContainers()) {
+                for (Container c : cons) {
+                    if (c.getName().equals(createContainer.getName())) {
+                        c.setResources(K8sResultConvert.convertResource(createContainer));
+                        containers.add(c);
+                    }
+                }
+            }
             ds.getSpec().getTemplate().getSpec().setContainers(containers);
 
             //更新nodeselector
@@ -188,10 +196,6 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
             rollingUpdateDaemonSet.setMaxUnavailable(Constant.ROLLINGUPDATE_MAX_UNAVAILABLE);
             updateStrategy.setRollingUpdate(rollingUpdateDaemonSet);
             ds.getSpec().setUpdateStrategy(updateStrategy);
-
-            //更新volume
-            List<Volume> volumes = (List<Volume>) map.get("volume");
-            ds.getSpec().getTemplate().getSpec().setVolumes(volumes);
 
             //update DaemonSet
             dsService.updateDaemonSet(detail.getNamespace(), detail.getName(), ds, cluster);
@@ -405,13 +409,6 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
         K8SClientResponse conRes = configmapService.doSepcifyConfigmap(namespace, null, queryP, HTTPMethod.DELETE, cluster);
         if (!HttpStatusUtil.isSuccessStatus(conRes.getStatus()) && conRes.getStatus() != Constant.HTTP_404) {
             UnversionedStatus status = JsonUtil.jsonToPojo(conRes.getBody(), UnversionedStatus.class);
-            throw new MarsRuntimeException(status.getMessage());
-        }
-
-        //delete pod
-        K8SClientResponse podRes = podService.deletePods(namespace, queryP, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(podRes.getStatus()) && podRes.getStatus() != Constant.HTTP_404) {
-            UnversionedStatus status = JsonUtil.jsonToPojo(podRes.getBody(), UnversionedStatus.class);
             throw new MarsRuntimeException(status.getMessage());
         }
 

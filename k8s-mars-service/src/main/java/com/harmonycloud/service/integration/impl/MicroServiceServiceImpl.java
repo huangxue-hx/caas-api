@@ -570,7 +570,7 @@ public class MicroServiceServiceImpl implements MicroServiceService {
                         if (isFailed) {
                             updateTask(taskId, Constant.SPRINGCLOUD_TASK_FAILURE, "组件实例启动失败");
                             //删除deployment和service，以及对外ingress和端口
-                            deleteAllMsfInstancesInNamespace(kubeAppFormatList, namespaceName, cluster, userName, true, null);
+                            deleteAllMsfInstancesInNamespace(kubeAppFormatList, namespaceName, cluster, userName, true, null, namespaceId);
                         }
                     } catch (Exception e) {
                         LOGGER.error(e.getMessage(), e);
@@ -579,7 +579,7 @@ public class MicroServiceServiceImpl implements MicroServiceService {
                             updateTask(taskId, Constant.SPRINGCLOUD_TASK_FAILURE, e.getMessage());
 
                             //删除deployment和service，以及对外ingress和端口
-                            deleteAllMsfInstancesInNamespace(kubeAppFormatList, namespaceName, cluster, userName, true, null);
+                            deleteAllMsfInstancesInNamespace(kubeAppFormatList, namespaceName, cluster, userName, true, null, namespaceId);
                         } catch (Exception e1) {
                             LOGGER.error(e1.getMessage(), e1);
                         }
@@ -676,6 +676,7 @@ public class MicroServiceServiceImpl implements MicroServiceService {
                             //删除service模板
                             List<ApplicationService> applicationServices = appWithServiceService.listApplicationServiceByAppTemplatesId(appTemplateId);
                             if (applicationServices != null && applicationServices.size() > 0) {
+                                appWithServiceService.deleteApplicationServiceByAppTemplateId(appTemplateId);
                                 for (ApplicationService applicationService : applicationServices) {
                                     serviceTemplatesMapper.deleteById(applicationService.getServiceId());
                                 }
@@ -709,6 +710,8 @@ public class MicroServiceServiceImpl implements MicroServiceService {
                             kubeAppFormatList.add(tmp);
                         }
                         if (isResetSpace) {
+                            //删除应用
+                            tprApplication.delApplicationByName(appName, namespaceName, cluster);
                             //创建应用
                             createAppTPR(namespaceName, cluster, userName, appName);
                         }
@@ -719,7 +722,7 @@ public class MicroServiceServiceImpl implements MicroServiceService {
                             LOGGER.info("线程中，是否重置空间：{}", isResetSpace);
                             updateTask(taskId, Constant.SPRINGCLOUD_TASK_FAILURE, "组件实例启动失败");
                             //删除需要重置的组件的deployment和service，以及对外ingress和端口
-                            deleteAllMsfInstancesInNamespace(kubeAppFormatList, namespaceName, cluster, userName, isResetSpace, consulPort);
+                            deleteAllMsfInstancesInNamespace(kubeAppFormatList, namespaceName, cluster, userName, isResetSpace, consulPort, namespaceId);
                         }
                     } catch (Exception e) {
                         LOGGER.error(e.getMessage(), e);
@@ -794,11 +797,6 @@ public class MicroServiceServiceImpl implements MicroServiceService {
                 @Override
                 public void run() {
                     try {
-                        //删除应用
-                        ActionReturnUtil tprDelete = tprApplication.delApplicationByName(Constant.MSF + namespaceName, namespaceName, cluster);
-                        if (!tprDelete.isSuccess()) {
-                            throw new Exception("删除应用失败");
-                        }
                         boolean deleteIsSuccess = true;
                         for (MicroServiceInstance ins : instances) {
                             deleteIsSuccess = deleteInstance(ins, namespaceName, cluster);
@@ -808,6 +806,13 @@ public class MicroServiceServiceImpl implements MicroServiceService {
                             //更新任务数据表:失败
                             updateTask(taskId, Constant.SPRINGCLOUD_TASK_FAILURE, null);
                         } else {
+                            //删除应用
+                            ActionReturnUtil tprDelete = tprApplication.delApplicationByName(Constant.MSF + namespaceName, namespaceName, cluster);
+                            if (!tprDelete.isSuccess()) {
+                                throw new Exception("删除应用失败");
+                            }
+                            //删除应用和服务模板
+                            deleteTemplate(Constant.MSF + namespaceName, namespaceId);
 
                             //更新任务数据表：成功
                             updateTask(taskId, Constant.SPRINGCLOUD_TASK_SUCCESS, null);
@@ -957,6 +962,18 @@ public class MicroServiceServiceImpl implements MicroServiceService {
             LOGGER.error("删除组件失败:", e);
             throw e;
         }
+    }
+
+    @Override
+    public ActionReturnUtil deleteTaskAndInstance(String namespaceId) throws Exception {
+        try{
+            msfInstanceService.deleteByNamespaceId(namespaceId);
+            operationTaskService.deleteTask(namespaceId);
+        }catch (Exception e) {
+            LOGGER.error("删除任务和实例失败，{}", e);
+            return ActionReturnUtil.returnError();
+        }
+        return ActionReturnUtil.returnSuccess();
     }
 
     /**
@@ -1235,9 +1252,6 @@ public class MicroServiceServiceImpl implements MicroServiceService {
         if (isSuccess) {
             //删除msf_instance表内的记录
             msfInstanceService.deleteMicroServiceInstance(ins.getInstanceId(), ins.getNamespaceId());
-            //删除应用和服务模板
-            appTemplateService.deleteApplicationTemplate(Constant.MSF + namespaceName);
-            appWithServiceService.deleteApplicationService(Constant.MSF + namespaceName);
         } else {
             //更新msf_instance表的实例删除状态
             ins.setStatus(Integer.valueOf(Constant.SPRINGCLOUD_TASK_FAILURE));
@@ -1369,7 +1383,8 @@ public class MicroServiceServiceImpl implements MicroServiceService {
      * @param userName
      * @throws Exception
      */
-    private void deleteAllMsfInstancesInNamespace(List<Map<String, Object>> kubeAppFormatList, String namespaceName, Cluster cluster, String userName, boolean isDeleteApp, String consulPort) throws Exception {
+    private void deleteAllMsfInstancesInNamespace(List<Map<String, Object>> kubeAppFormatList, String namespaceName, Cluster cluster,
+                                                  String userName, boolean isDeleteApp, String consulPort, String namespaceId) throws Exception {
         //删除应用
         if (isDeleteApp) {
             tprApplication.delApplicationByName(Constant.MSF + namespaceName, namespaceName, cluster);
@@ -1399,7 +1414,7 @@ public class MicroServiceServiceImpl implements MicroServiceService {
             }
         }
         //删除模板
-        deleteTemplate(Constant.MSF + namespaceName);
+        deleteTemplate(Constant.MSF + namespaceName, namespaceId);
     }
 
     /**
@@ -1408,10 +1423,13 @@ public class MicroServiceServiceImpl implements MicroServiceService {
      * @param appTemplateName
      * @throws Exception
      */
-    private void deleteTemplate(String appTemplateName) throws Exception {
+    private void deleteTemplate(String appTemplateName, String namespaceId) throws Exception {
         //删除模板
-        appTemplateService.deleteApplicationTemplate(appTemplateName);
-        appWithServiceService.deleteApplicationService(appTemplateName);
+        ApplicationTemplates appTemplate = appTemplateService.selectByNamespaceId(namespaceId);
+        if (appTemplateName.equals(appTemplate.getName())) {
+            appTemplateService.deleteAppTemplateById(appTemplate.getId());
+            appWithServiceService.deleteApplicationServiceByAppTemplateId(appTemplate.getId());
+        }
     }
 
     /**

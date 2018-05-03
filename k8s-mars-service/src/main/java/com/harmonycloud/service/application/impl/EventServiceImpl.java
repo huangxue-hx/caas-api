@@ -108,7 +108,7 @@ public class EventServiceImpl implements EventService {
 
 	@Override
 	public Map<String,List<Event>> getNodeRestartEvents() throws Exception {
-		List<Cluster> clusters = clusterService.listCluster();
+		List<Cluster> clusters = clusterService.listAllCluster(Boolean.TRUE);
 		if (CollectionUtils.isEmpty(clusters)) {
 			return Collections.emptyMap();
 		}

@@ -62,4 +62,6 @@ public interface DockerFileService {
     DockerFile selectDockerFileById(Integer id);
 
     int deleteByClusterId(String clusterId);
+
+    void deleteDockerfileByProject(String projectId);
 }

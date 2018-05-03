@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
 import java.util.List;
+import java.util.Set;
 
 public interface HarborProjectService {
 
@@ -59,7 +60,7 @@ public interface HarborProjectService {
 	 * @return
 	 * @throws Exception
 	 */
-	List<ImageRepository> listPrivateRepository(String projectId, String clusterId) throws Exception;
+	List<ImageRepository> listPrivateRepository(String projectId, String clusterId, Boolean isNormal) throws Exception;
 
 	/**
 	 * 根据条件查询镜像仓库列表,不包括镜像数量、磁盘配额和使用量详细信息
@@ -69,7 +70,7 @@ public interface HarborProjectService {
 	 * @return
 	 * @throws Exception
 	 */
-	List<ImageRepository> listRepositories(String projectId, String clusterId, Boolean isPublic) throws Exception;
+	List<ImageRepository> listRepositories(String projectId, String clusterId, Boolean isPublic, Boolean isNormal) throws Exception;
 
 	/**
 	 * 根据条件查询镜像仓库列表,包括镜像数量、磁盘配额和使用量详细信息
@@ -79,8 +80,16 @@ public interface HarborProjectService {
 	 * @return
 	 * @throws Exception
 	 */
-	List<ImageRepository> listRepositoryDetails(String projectId, String clusterId, Boolean isPublic) throws Exception;
-
+	List<ImageRepository> listRepositoryDetails(String projectId, String clusterId, Boolean isPublic, Boolean isNormal) throws Exception;
+	/**
+	 * 根据条件查询镜像仓库列表
+	 * @param projectId
+	 * @param clusterId
+	 * @param isPublic
+	 * @return
+	 * @throws Exception
+	 */
+	List<ImageRepository> listRepository(String projectId, String clusterId, Boolean isPublic, Boolean isNormal) throws Exception;
 	/**
 	 * 查找某个镜像仓库
 	 * @param id
@@ -120,7 +129,7 @@ public interface HarborProjectService {
 
 	void setImagePullStatus(List<HarborRepositoryMessage> harborRepositoryList);
 
-	ActionReturnUtil listImages(Integer repositoryId) throws Exception ;
+	ActionReturnUtil listImages(Integer repositoryId, Integer pageSize, Integer pageNo) throws Exception ;
 
 	/**
 	 * 查询项目和环境对应的镜像仓库下的所有镜像
@@ -129,7 +138,7 @@ public interface HarborProjectService {
 	 * @return
 	 * @throws Exception
 	 */
-	ActionReturnUtil listImages(String projectId, String clusterId) throws Exception ;
+	ActionReturnUtil listImages(String projectId, String clusterId, Integer pageSize, Integer pageNo) throws Exception ;
 
 	ActionReturnUtil deleteImage(Integer repositoryId, String image, String tag) throws Exception ;
 
@@ -197,7 +206,7 @@ public interface HarborProjectService {
 	 * @param tag
 	 * @throws Exception
 	 */
-	List<Cluster> listSyncClusters(Integer repositoryId, String repoName, String tag) throws Exception;
+	Set<Cluster> listSyncClusters(Integer repositoryId, String repoName, String tag) throws Exception;
 
 	ActionReturnUtil updateRepositoryQuota(Integer repositoryId, HarborProjectQuota harborProjectQuota) throws Exception;
 

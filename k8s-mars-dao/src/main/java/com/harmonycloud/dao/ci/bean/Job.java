@@ -10,6 +10,7 @@ public class Job  implements Serializable{
     private Integer id;
     private String uuid;
     private String name;
+    private String description;
     private String type;
     private String tenant;
     private String tenantId;
@@ -51,6 +52,14 @@ public class Job  implements Serializable{
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public String getType() {

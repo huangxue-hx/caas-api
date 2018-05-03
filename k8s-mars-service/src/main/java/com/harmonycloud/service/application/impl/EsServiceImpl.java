@@ -15,7 +15,7 @@ import com.harmonycloud.dto.log.EsSnapshotDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.service.application.EsService;
 import com.harmonycloud.service.cluster.ClusterService;
-import com.harmonycloud.service.user.RoleLocalService;
+import com.harmonycloud.service.user.UserService;
 import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesAction;
 import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesRequestBuilder;
@@ -74,7 +74,7 @@ public class EsServiceImpl implements EsService {
 	@Autowired
 	ClusterService clusterService;
 	@Autowired
-	RoleLocalService roleLocalService;
+	UserService userService;
 
 	@Override
 	public TransportClient getEsClient(Cluster cluster) throws Exception{
@@ -251,13 +251,18 @@ public class EsServiceImpl implements EsService {
     public List<SnapshotInfoDto> listSnapshots(String clusterId, String[] snapshotNames) throws Exception{
     	List<Cluster> clusters = new ArrayList<>();
     	if(StringUtils.isBlank(clusterId)){
-			clusters = roleLocalService.listCurrentUserRoleCluster();
+			clusters.addAll(userService.getCurrentUserCluster().values());
 		}else{
 			clusters.add(clusterService.findClusterById(clusterId));
 		}
 		List<SnapshotInfoDto> snapshotInfoDtos = new ArrayList<>();
     	for(Cluster cluster : clusters) {
 			try {
+				// 检查仓库是否已经创建，如果没有，也就没有快照
+				List<RepositoryMetaData> repositoryMetaDatas = listSnapshotRepositories(cluster.getId());
+				if (CollectionUtils.isEmpty(repositoryMetaDatas)){
+					continue;
+				}
 				TransportClient client = getEsClient(cluster);
 				GetSnapshotsRequestBuilder snapshotsRequestBuilder
 						= new GetSnapshotsRequestBuilder(client.admin().cluster(), GetSnapshotsAction.INSTANCE);
@@ -270,13 +275,15 @@ public class EsServiceImpl implements EsService {
 				if (response == null || CollectionUtils.isEmpty(response.getSnapshots())) {
                    continue;
 				}
-				Map<String,Date> restoredDate = new HashMap<>();
+				Map<String,LogIndexDate> restoredDate = new HashMap<>();
 				Set<String> inRestoredSnapshot = this.getRestoreSnapshot(client,cluster.getName(),restoredDate);
 				List<String> indexes = this.getIndexes(cluster.getId());
 				snapshotInfoDtos.addAll(response.getSnapshots().stream().map(snapshotInfo -> {
-					SnapshotInfoDto snapshotInfoDto = new SnapshotInfoDto();
+					SnapshotInfoDto snapshotInfoDto = this.convertFromESBean(snapshotInfo,indexes,restoredDate);
 					snapshotInfoDto.setInRestore(inRestoredSnapshot.contains(snapshotInfo.name()));
-					return this.convertFromESBean(snapshotInfo,indexes,restoredDate);
+					snapshotInfoDto.setClusterId(cluster.getId());
+					snapshotInfoDto.setClusterAliasName(cluster.getAliasName());
+					return snapshotInfoDto;
 				}).collect(Collectors.toList()));
 
 			} catch (RepositoryMissingException rme) {
@@ -483,7 +490,7 @@ public class EsServiceImpl implements EsService {
 	 * @param clusterName
 	 * @return
 	 */
-	private Set<String> getRestoreSnapshot(TransportClient client,String clusterName, Map<String, Date> restoredDates){
+	private Set<String> getRestoreSnapshot(TransportClient client,String clusterName, Map<String, LogIndexDate> restoredDates){
 		Set<String> inRestoreSnapshot = new HashSet<>();
 		RecoveryRequestBuilder recoveryRequestBuilder = new RecoveryRequestBuilder(client.admin().cluster(), RecoveryAction.INSTANCE);
 		RecoveryResponse recoveryResponse = recoveryRequestBuilder.execute().actionGet();
@@ -494,10 +501,21 @@ public class EsServiceImpl implements EsService {
 				if(CollectionUtils.isEmpty(states)){
 					continue;
 				}
-				if(entry.getKey().endsWith(ES_INDEX_SNAPSHOT_RESTORE)) {
-					restoredDates.put(entry.getKey(), new Date(states.get(0).getIndex().startTime()));
+				String indexName = entry.getKey();
+				if(indexName.endsWith(ES_INDEX_SNAPSHOT_RESTORE)) {
+					LogIndexDate logIndexDate = new LogIndexDate();
+					logIndexDate.setLogDate(this.getLogDateFromIndexName(indexName));
+					logIndexDate.setIndexName(indexName);
+					logIndexDate.setCreated(new Date(states.get(0).getIndex().startTime()));
+					logIndexDate.setRestoredDone(true);
+					restoredDates.put(indexName,logIndexDate);
 				}
 				for(RecoveryState state : states){
+					//如果有一个分片状态不是完成状态，则这个恢复的索引状态为恢复中
+					if(restoredDates.get(indexName) != null  && restoredDates.get(indexName).getRestoredDone()
+							&& !state.getStage().name().equalsIgnoreCase(CommonConstant.DONE)){
+						restoredDates.get(indexName).setRestoredDone(false);
+					}
 					if(state.getType().name().equalsIgnoreCase("SNAPSHOT")
 							&& state.getRestoreSource() != null
 							&& !state.getStage().name().equalsIgnoreCase(CommonConstant.DONE)){
@@ -513,13 +531,14 @@ public class EsServiceImpl implements EsService {
 		return inRestoreSnapshot;
 	}
 
-	private SnapshotInfoDto convertFromESBean(SnapshotInfo snapshotInfo, List<String> indexes, Map<String,Date> restoredDate){
+	private SnapshotInfoDto convertFromESBean(SnapshotInfo snapshotInfo, List<String> indexes, Map<String,LogIndexDate> restoredDate){
 		if (null == snapshotInfo){
 			return null;
 		}
 		SnapshotInfoDto snapshotInfoDto = new SnapshotInfoDto();
 		List<LogIndexDate> logIndexDates = new ArrayList<>();
 		List<String> indices = snapshotInfo.indices();
+		snapshotInfoDto.setIndices(indices);
 		snapshotInfoDto.setName(snapshotInfo.name());
 		snapshotInfoDto.setState(snapshotInfo.state());
 		snapshotInfoDto.setReason(snapshotInfo.reason());
@@ -533,12 +552,9 @@ public class EsServiceImpl implements EsService {
 		Date end = start;
 		for(String indexName : indices){
 			String strIndexDate = indexName.replace(CommonConstant.ES_INDEX_LOGSTASH_PREFIX,"");
-			if(indexes.contains(indexName+CommonConstant.ES_INDEX_SNAPSHOT_RESTORE)){
-				LogIndexDate logIndexDate = new LogIndexDate();
-				logIndexDate.setLogDate(strIndexDate.replaceAll("\\.","-"));
-				logIndexDate.setIndexName(indexName+CommonConstant.ES_INDEX_SNAPSHOT_RESTORE);
-				logIndexDate.setCreated(restoredDate.get(indexName+CommonConstant.ES_INDEX_SNAPSHOT_RESTORE));
-				logIndexDates.add(logIndexDate);
+			if(indexes.contains(indexName+CommonConstant.ES_INDEX_SNAPSHOT_RESTORE)
+					&& restoredDate.get(indexName+CommonConstant.ES_INDEX_SNAPSHOT_RESTORE) != null){
+				logIndexDates.add(restoredDate.get(indexName+CommonConstant.ES_INDEX_SNAPSHOT_RESTORE));
 			}
 			Date indexDate = DateUtil.StringToDate(strIndexDate, DateStyle.YYYYMMDD_DOT);
 			if(indexDate.after(end)){
@@ -552,6 +568,12 @@ public class EsServiceImpl implements EsService {
 		snapshotInfoDto.setLogStartDate(DateUtil.DateToString(start,DateStyle.YYYY_MM_DD));
 		snapshotInfoDto.setLogEndDate(DateUtil.DateToString(end, DateStyle.YYYY_MM_DD));
 		return snapshotInfoDto;
+	}
+
+	private String getLogDateFromIndexName(String indexName){
+		String strIndexDate = indexName.replace(CommonConstant.ES_INDEX_LOGSTASH_PREFIX,"");
+		strIndexDate = strIndexDate.replace(CommonConstant.ES_INDEX_SNAPSHOT_RESTORE,"");
+		return strIndexDate.replaceAll("\\.","-");
 	}
 
 }

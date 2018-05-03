@@ -20,4 +20,14 @@ public interface JobBuildService {
     List<JobBuild> queryByObject(JobBuild jobBuild);
 
     Integer queryLastBuildNumById(Integer jobId);
+
+    void deleteByJobId(Integer jobId);
+
+    JobBuild queryLastBuildById(Integer jobId);
+
+    void updateLogById(JobBuild jobBuild);
+
+    JobBuild queryFirstBuildById(Integer jobId);
+
+    void deleteByJobIdAndBuildNum(Integer id, List buildNumList);
 }

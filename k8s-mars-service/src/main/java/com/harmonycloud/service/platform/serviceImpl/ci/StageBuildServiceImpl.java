@@ -33,4 +33,19 @@ public class StageBuildServiceImpl implements StageBuildService {
     public String getStageLogByObject(StageBuild stageBuild){
         return stageBuildMapper.queryLogByObject(stageBuild);
     }
+
+    @Override
+    public void deleteByJobId(Integer id) {
+        stageBuildMapper.deleteByJobId(id);
+    }
+
+    @Override
+    public StageBuild selectLastBuildById(Integer stageId) {
+        return stageBuildMapper.selectLastBuildById(stageId);
+    }
+
+    @Override
+    public void deleteByJobIdAndBuildNum(Integer id, List buildNumList) {
+        stageBuildMapper.deleteByJobIdAndBuildNum(id, buildNumList);
+    }
 }

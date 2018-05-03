@@ -90,7 +90,7 @@ public interface ApplicationDeployService {
      *            username
      * @return ActionReturnUtil
      */
-    ActionReturnUtil stopApplicationTemplate(ApplicationList applicationList, String username, Cluster cluster) throws Exception;
+    ActionReturnUtil stopApplication(ApplicationList applicationList, String username) throws Exception;
 
     /**
      * start application service on 17/04/11.
@@ -103,7 +103,7 @@ public interface ApplicationDeployService {
      *            username
      * @return ActionReturnUtil
      */
-    ActionReturnUtil startApplicationTemplate(ApplicationList applicationList, String username, Cluster cluster) throws Exception;
+    ActionReturnUtil startApplication(ApplicationList applicationList, String username) throws Exception;
     
     ActionReturnUtil deleteApplicationByNamespace(String namespace) throws Exception;
     
@@ -212,4 +212,6 @@ public interface ApplicationDeployService {
      * @throws Exception
      */
     ActionReturnUtil checkAppNamespaceResource(String namespace, String appTemplateName, String projectId) throws Exception;
+
+    ActionReturnUtil updateApplication(String appName, String namespace, String desc) throws Exception;
 }

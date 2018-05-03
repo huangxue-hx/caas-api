@@ -2,6 +2,7 @@ package com.harmonycloud.task;
 
 
 import com.harmonycloud.service.cache.ImageCacheManager;
+import com.harmonycloud.service.platform.service.ci.JobService;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,8 +34,10 @@ public class ScheduledTasks {
     private static final String CLEANREPO = "cleanrepo";
     private static final String BACKUPAPP = "backupapp";
     private static final String DELETEIMAGEFILE = "deleteimagefile";
-    private static final String IMAGEREFRESH = "imagerefresh";
+    private static final String IMAGEREFRESH = "imagerefreshall";
+    private static final String IMAGEREFRESHLOG = "imagerefreshlog";
     private static final String SCHEDULED = "scheduled" ;
+    private static final String DELETEBUILDRESULT = "deletebuildresult";
 
     @Autowired
     private TrialtimeTask trialtimeTask;
@@ -50,26 +53,44 @@ public class ScheduledTasks {
 
     @Autowired
     StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
+    JobService jobService;
     @Value("#{propertiesReader['upload.path']}")
     private String tempPath;
 
 
-    //启动后延迟30秒每15分钟刷新缓存
-    @Scheduled(fixedRate = 10 * 60 * 1000, initialDelay =  30 * 1000)
-    public void freshRepository() {
-        if(checkLeader(IMAGEREFRESH,15, TimeUnit.MINUTES)) {
+    //启动后延迟10秒每30分钟根据harbor的操作日志刷新缓存
+    @Scheduled(fixedRate = 30 * 60 * 1000, initialDelay =  10 * 1000)
+    public void freshRepositoryByLog() {
+        try {
+            if(checkLeader(IMAGEREFRESHLOG,18, TimeUnit.MINUTES)) {
+                imageCacheManager.freshRepositoryByLog();
+            }else {
+                log.info("freshRepository has been scgeduled");
+            }
+        }catch (Exception e){
+            log.error("根据harbor的操作日志刷新镜像缓存失败",e);
+        }
+    }
+
+    //每天5点全量刷新镜像缓存
+    @Scheduled(cron = "0 0 5 * * ?")
+    public void freshAllRepository() {
+        log.info("begin fresh all repository");
+        if(checkLeader(IMAGEREFRESH,8, TimeUnit.HOURS)) {
+            log.info("start fresh all repository");
             imageCacheManager.freshRepository();
-            stringRedisTemplate.delete(IMAGEREFRESH);
         }else {
-            log.info("freshRepository has been scgeduled");
+            log.info("freshAllRepository has been scheduled");
         }
     }
 
     /**
      * 24小时更新一次试用时间
      */
-    @Scheduled(fixedRate = 60000*60*24)
-    public void emailAlert() {
+    //@Scheduled(fixedRate = 60000*60*24)
+    public void trialTimeTask() {
         long startTime = System.currentTimeMillis();
         trialtimeTask.run();
         long endTime = System.currentTimeMillis();
@@ -77,16 +98,17 @@ public class ScheduledTasks {
     }
 
     /**
-     * 每天闲时3点执行镜像清理任务
+     * 每天闲时4点执行镜像清理任务
      */
-    @Scheduled(cron = "0 0 3 * * ?")
+    @Scheduled(cron = "0 0 4 * * ?")
     public void cleanRepo() {
         long startTime = System.currentTimeMillis();
         boolean status = checkLeader(CLEANREPO,12, TimeUnit.HOURS);
         if (status) {
+            log.info("start cleanrepo task");
             cleanRepoTask.run();
         } else {
-            log.info("has been scgeduled");
+            log.info("cleanrepo has been scheduled");
             return ;
         }
 
@@ -138,6 +160,27 @@ public class ScheduledTasks {
         }
         long endTime = System.currentTimeMillis();
         log.info("task[deleteImageTempFile],execute cost time[" + (endTime - startTime)/1000 + "] s");
+    }
+
+    /**
+     * 每天闲时3点删除流水线构建记录
+     */
+    @Scheduled(cron = "0 0 3 * * ?")
+    public void deleteBuildResult() {
+        long startTime = System.currentTimeMillis();
+        boolean status = checkLeader(DELETEBUILDRESULT, 12, TimeUnit.HOURS);
+        if(status) {
+            try {
+                jobService.deleteBuildResult();
+            } catch (Exception e) {
+                log.error("delete build result failed. {}", e);
+            }
+        } else {
+            log.info("has been scheduled");
+            return ;
+        }
+        long endTime = System.currentTimeMillis();
+        log.info("task[deleteBuildResult],execute cost time[" + (endTime - startTime)/1000 + "] s");
     }
 
     /**

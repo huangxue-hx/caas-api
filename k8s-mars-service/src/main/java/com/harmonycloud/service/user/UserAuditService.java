@@ -12,13 +12,9 @@ import java.io.IOException;
  * Created by czm on 2017/3/29.
  */
 public interface UserAuditService {
-    ActionReturnUtil serachByQuery(UserAuditSearch userAuditSearch) throws Exception;
+    ActionReturnUtil searchByQuery(UserAuditSearch userAuditSearch) throws Exception;
 
-    ActionReturnUtil serachByUserName(String username) throws Exception;
-
-    ActionReturnUtil serachByModule(String username, String module, boolean isAdmin) throws Exception;
-
-    ActionReturnUtil serachAuditsByUser(String username, boolean isAdmin) throws Exception;
+    ActionReturnUtil searchModule(String username) throws Exception;
     
     ActionReturnUtil getAuditCount(UserAuditSearch userAuditSearch) throws Exception;
 

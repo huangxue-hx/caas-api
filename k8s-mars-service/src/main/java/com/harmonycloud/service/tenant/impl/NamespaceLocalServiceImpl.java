@@ -1,13 +1,18 @@
 package com.harmonycloud.service.tenant.impl;
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.tenant.NamespaceLocalMapper;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocalExample;
+import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.tenant.*;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
@@ -22,6 +27,8 @@ import org.springframework.util.CollectionUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.harmonycloud.common.Constant.CommonConstant.COMMA;
+
 
 /**
  * Created by zgl on 17-12-7.
@@ -32,13 +39,16 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
 
 
     @Autowired
-    NamespaceLocalMapper namespaceLocalMapper;
+    private NamespaceLocalMapper namespaceLocalMapper;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
     @Autowired
-    UserService userService;
+    private UserService userService;
+    @Autowired
+    private HarborProjectService harborProjectService;
+
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
 
@@ -88,22 +98,26 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
     /**
      * 删除namespace
      *
-     * @param tenantId
-     * @param name
+     * @param namespaceLocal
      * @return
      */
     @Override
-    public void deleteNamespace(String tenantId, String name) throws Exception {
+    public void deleteNamespace(NamespaceLocal namespaceLocal) throws Exception {
+        //删除分区
+        this.namespaceLocalMapper.deleteByPrimaryKey(namespaceLocal.getId());
+    }
+
+    @Override
+    public NamespaceLocal getNamespaceByTenantIdAndName(String tenantId, String namespace) throws Exception {
         //查询要删除的分区
         NamespaceLocalExample example = new NamespaceLocalExample();
-        example.createCriteria().andTenantIdEqualTo(tenantId).andNamespaceNameEqualTo(name);
+        example.createCriteria().andTenantIdEqualTo(tenantId).andNamespaceNameEqualTo(namespace);
         List<NamespaceLocal> namespaceLocals = namespaceLocalMapper.selectByExample(example);
         //不存在提示返回
         if (CollectionUtils.isEmpty(namespaceLocals)){
             throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_NOT_FOUND);
         }
-        //删除分区
-        this.namespaceLocalMapper.deleteByPrimaryKey(namespaceLocals.get(0).getId());
+        return namespaceLocals.get(0);
     }
 
     /**
@@ -148,7 +162,7 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
         NamespaceLocalExample.Criteria criteria = example.createCriteria();
         List<String> clusterIdList = null;
         if (StringUtils.isNotBlank(clusterIds)){
-            clusterIdList = Arrays.stream(clusterIds.split(CommonConstant.COMMA)).collect(Collectors.toList());
+            clusterIdList = Arrays.stream(clusterIds.split(COMMA)).collect(Collectors.toList());
         } else {
             List<Cluster> clusterList = clusterService.listCluster();
             clusterIdList = clusterList.stream().map(cluster -> cluster.getId()).collect(Collectors.toList());
@@ -198,20 +212,44 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
     /**
      * 根据tenantId,clusterId查询namespace列表
      * @param tenantId
-     * @param clusterId
+     * @param clusterIds
      * @return
      * @throws Exception
      */
-    public List<NamespaceLocal> getNamespaceListByTenantIdAndClusterId(String tenantId, String clusterId) throws Exception{
-        //集群状态不可用，发布服务不能选择该集群的分区
-        Cluster cluster = clusterService.findClusterById(clusterId);
-        if(!cluster.getIsEnable()){
-            return Collections.emptyList();
-        }
+    public List<NamespaceLocal> getNamespaceListByTenantIdAndClusterId(String tenantId, List<String> clusterIds) throws Exception{
+        Map<String,Cluster> userClusters = userService.getCurrentUserCluster();
+        List<String> clusters = clusterIds.stream().filter(clusterId -> userClusters.get(clusterId) != null).collect(Collectors.toList());
         NamespaceLocalExample example = this.getExample();
-        example.createCriteria().andTenantIdEqualTo(tenantId).andClusterIdEqualTo(clusterId);
+        example.createCriteria().andTenantIdEqualTo(tenantId).andClusterIdIn(clusters);
         List<NamespaceLocal> namespaceLocals = this.namespaceLocalMapper.selectByExample(example);
+        //添加结果集群返回值
+        if (!CollectionUtils.isEmpty(namespaceLocals)){
+            for (NamespaceLocal namespaceLocal:namespaceLocals) {
+                String currentClusterId = namespaceLocal.getClusterId();
+                Cluster cluster = clusterService.findClusterById(currentClusterId);
+                namespaceLocal.setClusterAliasName(cluster.getAliasName());
+            }
+        }
         return namespaceLocals;
+    }
+
+    @Override
+    public List<NamespaceLocal> getNamespaceListByRepositoryId(String tenantId, Integer repositoryId) throws Exception {
+        AssertUtil.notBlank(tenantId, DictEnum.TENANT_ID);
+        AssertUtil.notNull(repositoryId, DictEnum.TENANT_ID);
+        ImageRepository imageRepository = harborProjectService.findRepositoryById(repositoryId);
+        if(imageRepository == null){
+            throw new MarsRuntimeException(ErrorCodeMessage.NOT_FOUND,DictEnum.REPOSITORY.phrase());
+        }
+        List<String> clusterIds = new ArrayList<>();
+        if(imageRepository.isPublic()) {
+            HarborServer harborServer = clusterService.findHarborByHost(imageRepository.getHarborHost());
+            String[] clusterIdArray = harborServer.getReferredClusterIds().split(COMMA);
+            clusterIds.addAll( Arrays.asList(clusterIdArray));
+        }else{
+            clusterIds.add(imageRepository.getClusterId());
+        }
+        return this.getNamespaceListByTenantIdAndClusterId(tenantId,clusterIds);
     }
 
     /**

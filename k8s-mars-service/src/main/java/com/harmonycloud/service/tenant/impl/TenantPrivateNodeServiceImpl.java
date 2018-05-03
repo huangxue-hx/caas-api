@@ -129,10 +129,9 @@ public class TenantPrivateNodeServiceImpl implements TenantPrivateNodeService {
         String clusterId = tenantPrivateNode.getClusterId();
         String nodeName = tenantPrivateNode.getNodeName();
         TenantPrivateNode privateNode = this.getTenantPrivateNode(tenantId, clusterId, nodeName);
-        if (!Objects.isNull(privateNode)){
-            throw new MarsRuntimeException(ErrorCodeMessage.TENANT_NODE_EXIST);
+        if (Objects.isNull(privateNode)){
+            this.tenantPrivateNodeMapper.insertSelective(tenantPrivateNode);
         }
-        this.tenantPrivateNodeMapper.insertSelective(tenantPrivateNode);
     }
 
     /**

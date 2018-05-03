@@ -86,7 +86,6 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 			newFileName = fileName.replaceAll(" ", Constant.SPACE_TRANS);
 		}
 		File newFile = new File(path + "/" + newFileName);
-		logger.info("newFilepath:" + newFile.getPath());
 		Long userId = Long.valueOf(session.getAttribute("userId").toString());
 		List<Integer> uploadIds = new ArrayList<Integer>();
 		for (PodContainerDto pDto : podList) {
@@ -153,13 +152,13 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 		}
 
 		if (uploadIds != null && uploadIds.size() > 0) {
-			logger.info("dirFileExist:" + dirFile.exists());
+			logger.debug("dirFileExist:" + dirFile.exists());
 			if (!dirFile.exists()) {
 				dirFile.mkdirs();
 			}
 			try {
 				file.transferTo(newFile);
-				logger.info("newFileIsExist:" + newFile.exists());
+				logger.debug("newFileIsExist:" + newFile.exists());
 				for (Integer tId : uploadIds) {
 
 					// 上传成功更新上传状态
@@ -325,7 +324,7 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 		if (StringUtils.isNotBlank(container)) {
 			proc = new ProcessBuilder("bash", shellPath, pod, containerFilePath, namespace, token, server, container);
 		}
-		logger.info("执行命令参数：{}",proc.command());
+		logger.debug("执行命令参数：{}",proc.command());
 		Process p = proc.start();
 		String res = null;
 		List<Map<String, String>> files = new ArrayList<Map<String, String>>();
@@ -340,14 +339,14 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 			}
 			file.put("name", res);
 			files.add(file);
-			logger.info("文件名：" + res);
+			logger.debug("文件名：" + res);
 		}
 		while ((res = stdError.readLine()) != null) {
 			logger.error("执行容器文件目录脚本错误：" + res);
 			return ActionReturnUtil.returnErrorWithMsg(res);
 		}
 		int runningStatus = p.waitFor();
-		logger.info("执行容器文件目录结果：" + runningStatus);
+		logger.debug("执行容器文件目录结果：" + runningStatus);
 		return ActionReturnUtil.returnSuccessWithData(files);
 	}
 
@@ -409,7 +408,7 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 		FileUploadContainer fileUpload = fileUploadContainerMapper.selectByPrimaryKey(id);
 		String path = null;
 		try {
-			logger.info("文件是否存在:" + new File(localPath).listFiles().length);
+			logger.debug("文件是否存在:" + new File(localPath).listFiles().length);
 			fileUpload.setPhase(2);
 			fileUpload.setStatus("doing");
 			fileUploadContainerMapper.updateByPrimaryKeySelective(fileUpload);
@@ -434,14 +433,14 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 				logger.error("执行上传文件脚本错误：" + res + ":" + localPath + "/" + fileUpload.getFileName());
 			}
 			int runningStatus = p.waitFor();
-			logger.info("执行上传文件脚本结果：" + runningStatus);
+			logger.debug("执行上传文件脚本结果：" + runningStatus);
 			// 0代表成功, 更新数据库
 			if (runningStatus == 0) {
 				fileUpload.setStatus("success");
 				path = localPath + "/" + fileUpload.getFileName();
-				logger.info("上传到容器成功：" + path);
+				logger.debug("上传到容器成功：" + path);
 			} else {
-				logger.info("执行上传文件脚本结果失败:" + exception);
+				logger.debug("执行上传文件脚本结果失败:" + exception);
 				fileUpload.setStatus("failed");
 				fileUpload.setErrMsg(exception);
 			}
@@ -454,6 +453,13 @@ public class FileUploadToContainerServiceImpl implements FileUploadToContainerSe
 			throw e;
 		}
 
+	}
+
+	@Override
+	public void deleteUploadRecord(String namespace, String deployment) throws Exception {
+		FileUploadContainerExample fucExample = new FileUploadContainerExample();
+		fucExample.createCriteria().andNamespaceEqualTo(namespace).andDeploymentEqualTo(deployment);
+		fileUploadContainerMapper.deleteByExample(fucExample);
 	}
 
 	public String getUploadPath() {

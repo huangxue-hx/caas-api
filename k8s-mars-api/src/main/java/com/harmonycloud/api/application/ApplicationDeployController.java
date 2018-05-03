@@ -2,6 +2,7 @@ package com.harmonycloud.api.application;
 
 import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.application.ApplicationTemplateDto;
 import com.harmonycloud.service.application.ApplicationDeployService;
 import com.harmonycloud.service.application.ApplicationService;
 import com.harmonycloud.service.application.DeploymentsService;
@@ -75,7 +76,6 @@ public class ApplicationDeployController {
     public ActionReturnUtil getApplicationDetail(@RequestParam(value = "id", required = true) String id,
                                                  @PathVariable(value = "appName") String appName,
                                                  @RequestParam(value = "namespace", required = false) String namespace) throws Exception {
-        logger.info("get application detail");
         String userName = (String) session.getAttribute("username");
         if(userName == null){
             throw new K8sAuthException(Constant.HTTP_401);
@@ -146,7 +146,6 @@ public class ApplicationDeployController {
     @ResponseBody
     @RequestMapping(value = "/projects/{projectId}/apps/{appName}/topo", method = RequestMethod.GET)
     public ActionReturnUtil getApplicationTopo(@RequestParam(value = "id", required = true) String id) throws Exception {
-        logger.info("get application topo");
         return applicationDeployService.getTopo(id);
     }
 
@@ -160,8 +159,52 @@ public class ApplicationDeployController {
     @ResponseBody
     @RequestMapping(value = "/apps", method = RequestMethod.GET)
     public ActionReturnUtil listApplicationInNamespace(@RequestParam(value = "namespace") String namespace) throws Exception {
-        logger.info("get application list in namespace.");
         return applicationDeployService.getApplicationListInNamespace(namespace);
+    }
+
+    @ResponseBody
+    @RequestMapping(value = "/projects/{projectId}/apps/yaml", method = RequestMethod.POST)
+    public ActionReturnUtil getApplicationTemplateYaml(@ModelAttribute ApplicationTemplateDto appTemplate) throws Exception {
+        logger.info("get application yaml");
+        return applicationService.getApplicationTemplateYaml(appTemplate);
+    }
+
+    @ResponseBody
+    @RequestMapping(value = "/projects/{projectId}/apps/{appName}/start", method = RequestMethod.POST)
+    public ActionReturnUtil startApplication(@ModelAttribute ApplicationList appList) throws Exception {
+        logger.info("start application");
+        String userName = (String) session.getAttribute("username");
+        if(userName == null){
+            throw new K8sAuthException(Constant.HTTP_401);
+        }
+        return applicationDeployService.startApplication(appList, userName);
+    }
+
+    @ResponseBody
+    @RequestMapping(value = "/projects/{projectId}/apps/{appName}/stop", method = RequestMethod.POST)
+    public ActionReturnUtil stopApplication(@ModelAttribute ApplicationList appList) throws Exception {
+        logger.info("stop application");
+        String userName = (String) session.getAttribute("username");
+        if(userName == null){
+            throw new K8sAuthException(Constant.HTTP_401);
+        }
+        return applicationDeployService.stopApplication(appList, userName);
+    }
+
+    /**
+     * 更新应用
+     * @param appName
+     * @param namespace
+     * @return
+     * @throws Exception
+     */
+    @ResponseBody
+    @RequestMapping(value = "/projects/{projectId}/apps/{appName}", method = RequestMethod.PUT)
+    public ActionReturnUtil updateApplication(@PathVariable(value = "appName") String appName,
+                                              @RequestParam(value = "namespace") String namespace,
+                                              @RequestParam(value = "desc") String desc) throws Exception {
+        logger.info("update application");
+        return applicationDeployService.updateApplication(appName, namespace, desc);
     }
 
 }

@@ -20,6 +20,7 @@ import com.harmonycloud.service.tenant.NamespaceService;
 
 import javax.servlet.http.HttpSession;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 
@@ -49,7 +50,7 @@ public class NamespaceController {
     public ActionReturnUtil createNamespace(@PathVariable("tenantId") String tenantId,
                                             @ModelAttribute NamespaceDto namespaceDto) throws Exception {
         namespaceDto.setTenantId(tenantId);
-        logger.info("创建namespace:{}", JSONObject.toJSONString(namespaceDto));
+//        logger.info("创建namespace:{}", JSONObject.toJSONString(namespaceDto));
         return namespaceService.createNamespace(namespaceDto);
     }
 
@@ -64,7 +65,7 @@ public class NamespaceController {
                                             @ModelAttribute NamespaceDto namespaceDto) throws Exception {
 
         namespaceDto.setTenantId(tenantId);
-        logger.info("修改namespace:{}", JSONObject.toJSONString(namespaceDto));
+//        logger.info("修改namespace:{}", JSONObject.toJSONString(namespaceDto));
         return namespaceService.updateNamespace(namespaceDto);
     }
 
@@ -77,7 +78,7 @@ public class NamespaceController {
     @ResponseBody
     public ActionReturnUtil deleteNamespace(@PathVariable("tenantId") String tenantId, @PathVariable("namespaceName") String namespaceName)
             throws Exception {
-        logger.info("删除namespace:{}",namespaceName);
+//        logger.info("删除namespace:{}",namespaceName);
         return namespaceService.deleteNamespace(tenantId, namespaceName);
 
     }
@@ -100,27 +101,25 @@ public class NamespaceController {
      */
     @RequestMapping(method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil listNamespace(@PathVariable("tenantId") String tenantId, @RequestParam(value="clusterId", required = false)String clusterId) throws Exception {
+    public ActionReturnUtil listNamespace(@PathVariable("tenantId") String tenantId,
+                                          @RequestParam(value="clusterId", required = false)String clusterId,
+                                          @RequestParam(value="repositoryId", required = false) Integer repositoryId) throws Exception {
         List<NamespaceLocal> namespaceList = new ArrayList<>();
+        //查询镜像可以部署的分区列表
+        if(repositoryId != null){
+            return ActionReturnUtil.returnSuccessWithData(namespaceLocalService.getNamespaceListByRepositoryId(tenantId,repositoryId));
+        }
         if(StringUtils.isBlank(clusterId)) {
             namespaceList = namespaceLocalService.getNamespaceListByTenantId(tenantId);
         }else{
+            List<String> clusterIds = new ArrayList<>();
             if(clusterId.contains(CommonConstant.COMMA)){
-                String[] clusterIds = clusterId.split(CommonConstant.COMMA);
-                for(String cluster : clusterIds) {
-                    namespaceList.addAll(namespaceLocalService.getNamespaceListByTenantIdAndClusterId(tenantId, cluster));
-                }
+                String[] clusterIdArr = clusterId.split(CommonConstant.COMMA);
+                clusterIds.addAll(Arrays.asList(clusterIdArr));
             }else {
-                namespaceList = namespaceLocalService.getNamespaceListByTenantIdAndClusterId(tenantId, clusterId);
+                clusterIds.add(clusterId);
             }
-        }
-        //添加结果集群返回值
-        if (!CollectionUtils.isEmpty(namespaceList)){
-            for (NamespaceLocal namespaceLocal:namespaceList) {
-                String currentClusterId = namespaceLocal.getClusterId();
-                Cluster cluster = clusterService.findClusterById(currentClusterId);
-                namespaceLocal.setClusterAliasName(cluster.getAliasName());
-            }
+            namespaceList.addAll(namespaceLocalService.getNamespaceListByTenantIdAndClusterId(tenantId, clusterIds));
         }
         return ActionReturnUtil.returnSuccessWithData(namespaceList);
     }

@@ -298,4 +298,8 @@
   <delete id="deleteByClusterId">
     delete from cicd_build_environment where cluster_id = #{clusterId}
   </delete>
+
+  <delete id="deleteByProjectId">
+    delete from cicd_build_environment where project_id=#{projectId}
+  </delete>
 </mapper>

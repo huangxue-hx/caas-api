@@ -91,10 +91,6 @@ public class TenantController {
     @ResponseBody
     public ActionReturnUtil getTenantDetail(@PathVariable(value = "tenantId") String tenantId) throws Exception {
 
-        logger.info("根据id查询租户详情");
-//        if (StringUtils.isEmpty(tenantId)) {
-//            return ActionReturnUtil.returnError();
-//        }
         TenantDto tenantDto = tenantService.getTenantDetail(tenantId);
         return ActionReturnUtil.returnSuccessWithData(tenantDto);
     }
@@ -107,6 +103,7 @@ public class TenantController {
     @RequestMapping(method = RequestMethod.POST)
     @ResponseBody
     public ActionReturnUtil createTenant(@ModelAttribute TenantDto tenantDto) throws Exception {
+//        logger.info("创建租户");
         //租户名空值判断
         if (StringUtils.isAnyEmpty(tenantDto.getTenantName(),tenantDto.getAliasName())) {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
@@ -125,6 +122,7 @@ public class TenantController {
     @RequestMapping(value = "/{tenantId}", method = RequestMethod.DELETE)
     @ResponseBody
     public ActionReturnUtil deleteTenantByTenantId(@PathVariable(value = "tenantId") String tenantId) throws Exception {
+//        logger.info("删除租户");
         AssertUtil.notBlank(tenantId, DictEnum.TENANT_ID);
         tenantService.deleteTenantByTenantId(tenantId);
         return ActionReturnUtil.returnSuccess();
@@ -168,7 +166,7 @@ public class TenantController {
     @RequestMapping(value = "{tenantId}/tms", method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil listTenantTm(@PathVariable(value = "tenantId") String tenantId) throws Exception {
-        logger.info("查询tenant下的所有tm用户");
+//        logger.info("查询tenant下的所有tm用户");
         List<UserRoleRelationship> userRoleRelationships = this.tenantService.listTenantTm(tenantId);
         List<String> list = new ArrayList<>();
         if (!userRoleRelationships.isEmpty()){
@@ -190,7 +188,7 @@ public class TenantController {
             throws Exception {
         //租户id空值判断
         AssertUtil.notBlank(tenantId, DictEnum.TENANT_ID);
-        logger.info("向tenant增加租户管理员");
+//        logger.info("向tenant增加租户管理员");
         List<String> tmList = tenantDto.getTmList();
         //用户名空值判断
         if (CollectionUtils.isEmpty(tmList)){
@@ -209,7 +207,7 @@ public class TenantController {
     @ResponseBody
     public ActionReturnUtil deleteTm(@PathVariable(value = "tenantId") String tenantId,
                                      @PathVariable(value = "username") String username) throws Exception {
-        logger.info("向tenant移除租户管理员");
+//        logger.info("向tenant移除租户管理员");
         if (StringUtils.isAnyBlank(tenantId,username)){
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
@@ -228,7 +226,7 @@ public class TenantController {
     @ResponseBody
     public ActionReturnUtil listTenantQuota(@PathVariable(value = "tenantId") String tenantId) throws Exception {
 
-        logger.info("列出tenan下面的资源使用情况");
+//        logger.info("列出tenan下面的资源使用情况");
         if (StringUtils.isBlank(tenantId)){
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
@@ -248,7 +246,7 @@ public class TenantController {
     public ActionReturnUtil getPodLabel(@PathVariable(value = "tenantId") String tenantId,
                                         @PathVariable(value = "namespaceName") String namespaceName) throws Exception {
 
-        logger.info("获取namespace下pod创建时候的nodeSelector的标签");
+//        logger.info("获取namespace下pod创建时候的nodeSelector的标签");
         if (StringUtils.isAnyBlank(tenantId,namespaceName)){
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }

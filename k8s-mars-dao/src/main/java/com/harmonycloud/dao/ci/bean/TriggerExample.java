@@ -538,6 +538,76 @@ public class TriggerExample {
             addCriterion("upper(cron_exp) like", value.toUpperCase(), "cronExp");
             return (Criteria) this;
         }
+
+        public Criteria andTriggerImageIsNull() {
+            addCriterion("trigger_image is null");
+            return (Criteria) this;
+        }
+
+        public Criteria andTriggerImageIsNotNull() {
+            addCriterion("trigger_image is not null");
+            return (Criteria) this;
+        }
+
+        public Criteria andTriggerImageEqualTo(String value) {
+            addCriterion("trigger_image =", value, "triggerImage");
+            return (Criteria) this;
+        }
+
+        public Criteria andTriggerImageNotEqualTo(String value) {
+            addCriterion("trigger_image <>", value, "triggerImage");
+            return (Criteria) this;
+        }
+
+        public Criteria andTriggerImageGreaterThan(String value) {
+            addCriterion("trigger_image >", value, "triggerImage");
+            return (Criteria) this;
+        }
+
+        public Criteria andTriggerImageGreaterThanOrEqualTo(String value) {
+            addCriterion("trigger_image >=", value, "triggerImage");
+            return (Criteria) this;
+        }
+
+        public Criteria andTriggerImageLessThan(String value) {
+            addCriterion("trigger_image <", value, "triggerImage");
+            return (Criteria) this;
+        }
+
+        public Criteria andTriggerImageLessThanOrEqualTo(String value) {
+            addCriterion("trigger_image <=", value, "triggerImage");
+            return (Criteria) this;
+        }
+
+        public Criteria andTriggerImageLike(String value) {
+            addCriterion("trigger_image like", value, "triggerImage");
+            return (Criteria) this;
+        }
+
+        public Criteria andTriggerImageNotLike(String value) {
+            addCriterion("trigger_image not like", value, "triggerImage");
+            return (Criteria) this;
+        }
+
+        public Criteria andTriggerImageIn(List<String> values) {
+            addCriterion("trigger_image in", values, "triggerImage");
+            return (Criteria) this;
+        }
+
+        public Criteria andTriggerImageNotIn(List<String> values) {
+            addCriterion("trigger_image not in", values, "triggerImage");
+            return (Criteria) this;
+        }
+
+        public Criteria andTriggerImageBetween(String value1, String value2) {
+            addCriterion("trigger_image between", value1, value2, "triggerImage");
+            return (Criteria) this;
+        }
+
+        public Criteria andTriggerImageNotBetween(String value1, String value2) {
+            addCriterion("trigger_image not between", value1, value2, "triggerImage");
+            return (Criteria) this;
+        }
     }
 
     public static class Criteria extends GeneratedCriteria {

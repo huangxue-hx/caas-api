@@ -3,7 +3,8 @@ package com.harmonycloud.common.util.date;
 public enum DateStyle {
 
 	MM_DD("MM-dd"), 
-	YYYY_MM("yyyy-MM"), 
+	YYYY_MM("yyyy-MM"),
+	YYYY_MM_DOT("yyyy.MM"),
 	YYYY_MM_DD("yyyy-MM-dd"),
 	YYYYMMDD_DOT("yyyy.MM.dd"),
 	MM_DD_HH_MM("MM-dd HH:mm"), 

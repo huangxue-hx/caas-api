@@ -1,5 +1,6 @@
 package com.harmonycloud.common.util;
 
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.servlet.http.HttpServletRequest;
@@ -135,7 +136,7 @@ public class DicUtil {
 
 		while (enu.hasMoreElements()) {
 			if (sb.length() <= 0) {
-				sb.append("请求参数:");
+				sb.append(MessageUtil.getMessage(ErrorCodeMessage.PARAMETERS));
 			}
 			String paraName = (String) enu.nextElement();
 			sb.append(paraName + "->" + request.getParameter(paraName) + ";");
@@ -173,7 +174,7 @@ public class DicUtil {
         String[] ps = key.split(";");
 		while (enu.hasMoreElements()) {
 			if (sb.length() <= 0) {
-				sb.append("请求参数:");
+				sb.append(MessageUtil.getMessage(ErrorCodeMessage.PARAMETERS));
 			}
 			String paraName = (String) enu.nextElement();
 			sb.append(paraName + "->" + request.getParameter(paraName) + ";");

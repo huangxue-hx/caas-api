@@ -35,7 +35,7 @@ public interface ServiceService {
 
     public ActionReturnUtil updateServiceTemplate(ServiceTemplateDto serviceTemplate, String username) throws Exception;
 
-    public ActionReturnUtil deleteServiceTemplate(String name, String userName) throws Exception;
+    public ActionReturnUtil deleteServiceTemplate(String name, String userName, String projectId, String clusterId) throws Exception;
 
     public ServiceTemplates getSpecificTemplate(String name, String tag, String clusterId, String projectId) throws Exception;
 
@@ -85,5 +85,5 @@ public interface ServiceService {
      * @return
      * @throws Exception
      */
-    ActionReturnUtil checkServiceTemplateName(String name) throws Exception;
+    ActionReturnUtil checkServiceTemplateName(String name, String projectId, String clusterId) throws Exception;
 }

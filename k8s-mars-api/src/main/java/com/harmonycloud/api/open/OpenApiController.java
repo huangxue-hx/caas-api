@@ -26,6 +26,7 @@ import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.user.UrlDicService;
 import com.harmonycloud.service.user.UserService;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -202,13 +203,15 @@ public class OpenApiController {
 		Map<String,String> methodDescs = new HashMap<>();
 		Map<String,String> controllerDescs = new HashMap<>();
 		String apiControllerDir = sourceCodeDir;
-		if(sourceCodeDir.endsWith("/") || sourceCodeDir.endsWith("\\")){
-			apiControllerDir +=  "k8s-mars-api/src/main/java";
-		}else{
-			apiControllerDir +=  "/k8s-mars-api/src/main/java";
+		if(StringUtils.isNotBlank(apiControllerDir)) {
+			if (sourceCodeDir.endsWith("/") || sourceCodeDir.endsWith("\\")) {
+				apiControllerDir += "k8s-mars-api/src/main/java";
+			} else {
+				apiControllerDir += "/k8s-mars-api/src/main/java";
+			}
+			File file = new File(apiControllerDir);
+			getMethodDesc(file, methodDescs, controllerDescs);
 		}
-		File file = new File(apiControllerDir);
-		getMethodDesc(file, methodDescs, controllerDescs);
 		//获取spring收集的所有controller的url mapping
 		WebApplicationContext wc = WebApplicationContextUtils.getRequiredWebApplicationContext(request.getSession().getServletContext());
 		RequestMappingHandlerMapping rmhp = wc.getBean(RequestMappingHandlerMapping.class);

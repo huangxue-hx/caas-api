@@ -31,7 +31,7 @@
   </select>
 
   <select id="listNameByProjectId" parameterType="java.lang.String" resultMap="BaseResultMap">
-    select distinct name , image_list,tenant FROM service_templates WHERE
+    select * FROM service_templates WHERE
     <if test="name != null" >
       name like concat(concat('%',#{name}),'%') AND
     </if>
@@ -89,10 +89,26 @@
   <update id="deleteByName" parameterType="java.lang.String">
     update service_templates SET status = 1
     WHERE name = #{name}
+    <if test="clusterId != null" >
+      AND cluster_id = #{clusterId}
+    </if>
+    <if test="projectId != null" >
+      AND project_id = #{projectId}
+    </if>
   </update>
 
-  <select id="listTenantByName" parameterType="java.lang.String" resultType="String">
-    SELECT DISTINCT tenant FROM service_templates WHERE name = #{name} AND status=0
+  <select id="listTplByNameAndProjectAndCluster" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT * FROM service_templates WHERE
+    <if test="name != null" >
+      name = #{name} AND
+    </if>
+    <if test="clusterId != null" >
+      cluster_id = #{clusterId} AND
+    </if>
+    <if test="projectId != null" >
+      project_id = #{projectId} AND
+    </if>
+    status=0 and flag=0 and is_public=#{isPublic}
   </select>
 
   <select id="getSpecificService" parameterType="java.lang.String" resultMap="BaseResultMap">
@@ -120,7 +136,7 @@
   </select>
   
   <select id="listSearchByImage" parameterType="java.lang.String" resultMap="BaseResultMap">
-    SELECT DISTINCT tenant, name, image_list FROM service_templates WHERE status=0 and flag=0  and is_public=#{isPublic}
+    SELECT * FROM service_templates WHERE status=0 and flag=0  and is_public=#{isPublic}
     <if test="image != null and image != ''">
     	and image_list LIKE concat(concat('%',#{image}),'%')
     </if>
@@ -133,7 +149,7 @@
   </select>
   
   <select id="listSearchByName" parameterType="java.lang.String" resultMap="BaseResultMap">
-    SELECT distinct name, image_list, tenant FROM service_templates WHERE status=0 and flag=0 and is_public=#{isPublic}
+    SELECT * FROM service_templates WHERE status=0 and flag=0 and is_public=#{isPublic}
     <if test="name != null and name != ''">
     	and name LIKE concat(concat('%',#{name}),'%')
     </if>

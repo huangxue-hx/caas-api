@@ -1,26 +1,31 @@
 package com.harmonycloud.service.user.impl;
 
 
-import java.io.IOException;
-import java.net.URLDecoder;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.AuditModuleEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.UserAuditSearch;
+import com.harmonycloud.common.util.date.DateStyle;
+import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dto.config.AuditRequestInfo;
 import com.harmonycloud.service.application.EsService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.user.UserAuditService;
 import com.harmonycloud.service.user.UserService;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
+import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.query.BoolQueryBuilder;
@@ -33,15 +38,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.UserAuditSearch;
-import com.harmonycloud.common.util.date.DateUtil;
-import com.harmonycloud.service.user.UserAuditService;
-
 import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpSession;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.net.URLDecoder;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import com.harmonycloud.common.Constant.CommonConstant;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 
 /**
@@ -73,10 +78,11 @@ public class UserAuditServiceImpl implements UserAuditService {
     private void initAuditLogIndex(){
         try {
             platformEsClient = esService.getEsClient(clusterService.getPlatformCluster());
-            if (esService.isExistIndex(Constant.ES_INDEX_AUDIT_LOG, clusterService.getPlatformCluster())) {
+            String indexName = this.generateIndexName();
+            if (esService.isExistIndex(indexName, clusterService.getPlatformCluster())) {
                 return;
             }
-            this.createIndexMapping(Constant.ES_INDEX_AUDIT_LOG, Constant.ES_INDEX_TYPE_AUDIT_LOG);
+            this.createIndexMapping(indexName, Constant.ES_INDEX_TYPE_AUDIT_LOG);
             LOGGER.info("操作审计ES index创建成功");
         }catch (Exception e){
             LOGGER.info("操作审计ES index创建失败",e);
@@ -84,12 +90,17 @@ public class UserAuditServiceImpl implements UserAuditService {
     }
 
     @Override
-    public ActionReturnUtil serachByQuery(UserAuditSearch userAuditSearch) throws Exception {
+    public ActionReturnUtil searchByQuery(UserAuditSearch userAuditSearch) throws Exception {
         String scrollId = userAuditSearch.getScrollId();
         Integer pageSize = userAuditSearch.getSize();
         Integer pageNum = userAuditSearch.getPageNum();
+        String startTime = userAuditSearch.getStartTime();
+        String endTime = userAuditSearch.getEndTime();
         BoolQueryBuilder query = generateQuery(userAuditSearch);
-        return this.searchFromIndex(query, scrollId, pageSize, pageNum);
+        List<String> indexNameList = new ArrayList<>();
+        //根据时间范围判断落在哪几个索引
+        indexNameList = getExistIndexNames(startTime, endTime);
+        return this.searchFromIndex(query, scrollId, pageSize, pageNum, indexNameList);
 
     }
 
@@ -98,8 +109,7 @@ public class UserAuditServiceImpl implements UserAuditService {
      * isAdmin 大于等于1 表示为管理员、否则为普通成员
      */
 
-    public ActionReturnUtil serachByUserName(String username) throws Exception {
-        BoolQueryBuilder query = QueryBuilders.boolQuery();
+    public ActionReturnUtil searchModule(String username) throws Exception {
 
         //根据当前系统语言获取相应的字段
         String language = CommonConstant.DEFAULT_LANGUAGE_CHINESE;
@@ -107,49 +117,63 @@ public class UserAuditServiceImpl implements UserAuditService {
         if(org.apache.commons.lang3.StringUtils.isNotBlank(sessionLanguage) && !"null".equals(sessionLanguage)){
             language = sessionLanguage;
         }
-        String module = CommonConstant.DEAULT_MODULE_CH;
-        switch (language) {
-            case CommonConstant.LANGUAGE_ENGLISH:
-                module = CommonConstant.DEAULT_MODULE_EN;
+        List<String> searchResults = new ArrayList<>();
+        List<String> enModules = new ArrayList<>();
+        String regex = "[a-zA-Z]+";
+        Pattern pattern = Pattern.compile(regex);
+        for (AuditModuleEnum oneModule : EnumSet.allOf(AuditModuleEnum.class)) {
+            switch (language) {
+                case CommonConstant.LANGUAGE_ENGLISH:
+                    searchResults.add(oneModule.getEnDesc());
+                    break;
+                case CommonConstant.LANGUAGE_CHINESE:
+                    Matcher matcher = pattern.matcher(oneModule.getChDesc());
+                    if (matcher.find()) {
+                        enModules.add(oneModule.getChDesc());
+                    } else {
+                        searchResults.add(oneModule.getChDesc());
+                    }
+                    break;
+                default:
+                    searchResults.add(oneModule.getChDesc());
+                    break;
+            }
         }
-        return this.searchFromIndexByUser(query, module);
+        Set<String> searchResults1 = new HashSet<String>();
+        searchResults.addAll(searchResults1);
+        Collections.sort(searchResults, new Comparator<String>() {
+            @Override
+            public int compare(String o1, String o2) {
+                int len1 = o1.length();
+                int len2 = o2.length();
+                return len1 - len2;
+            }
+        });
+        if (CommonConstant.LANGUAGE_CHINESE.equals(language) && CollectionUtils.isNotEmpty(searchResults)) {
+            List<String> tmpModules = new ArrayList<>();
+            tmpModules.add(searchResults.get(0));
+            for (String enM : enModules) {
+                for (int i = CommonConstant.NUM_ONE; i<searchResults.size(); i++) {
+                    String insertModule = enM.length() == searchResults.get(i).length()
+                            && searchResults.get(i).length() != searchResults.get(i - CommonConstant.NUM_ONE).length()? enM : searchResults.get(i);
+                    tmpModules.add(insertModule);
+                }
+            }
+            searchResults = tmpModules;
+        }
+        searchResults.add(0, searchResults.size() > 0 &&CommonConstant.LANGUAGE_ENGLISH.equals(language)? "all" : "全部模块");
+        return ActionReturnUtil.returnSuccessWithData(searchResults);
 
     }
-
-    public ActionReturnUtil serachByModule(String username, String module, boolean isAdmin) throws Exception {
-
-        BoolQueryBuilder query = QueryBuilders.boolQuery();
-
-        /*if (!isAdmin) {
-            query.must(QueryBuilders.termQuery("user", username));
-        }*/
-
-        if (module != null && !module.equals("")) {
-            query.must(QueryBuilders.termQuery("moduleChDesc", module));
-        }
-
-//        ESFactory esFactory = new ESFactory();
-        ActionReturnUtil lists = this.searchFromIndex(query, null,1000,0);
-
-        return lists;
-    }
-
-    public ActionReturnUtil serachAuditsByUser(String username, boolean isAdmin) throws Exception {
-        BoolQueryBuilder query = QueryBuilders.boolQuery();
-
-        if (!isAdmin) {
-            query.must(QueryBuilders.termQuery("user", username));
-        }
-
-//        ESFactory esFactory = new ESFactory();
-        return this.searchFromIndex(query, null,10000,0);
-    }
-
 
 	@Override
 	public ActionReturnUtil getAuditCount(UserAuditSearch userAuditSearch) throws Exception {
 		BoolQueryBuilder query = generateQuery(userAuditSearch);
-		return this.getTotalCounts(query);
+        String startTime = userAuditSearch.getStartTime();
+        String endTime = userAuditSearch.getEndTime();
+        //根据时间范围判断落在哪几个索引
+        List<String> indexList = getExistIndexNames(startTime, endTime);
+		return this.getTotalCounts(query, indexList);
 	}
 
     /**
@@ -164,8 +188,9 @@ public class UserAuditServiceImpl implements UserAuditService {
     public ActionReturnUtil insertToEsIndex(AuditRequestInfo auditRequestInfo) throws Exception {
         LOGGER.debug("插入ElasticSearch:");
         LOGGER.debug("即将插入es，url：{},remoteIP:{}",auditRequestInfo.getUrl(), auditRequestInfo.getRemoteIp());
+        String indexName = generateIndexName();
         IndexResponse indexResponse = platformEsClient
-                .prepareIndex(Constant.ES_INDEX_AUDIT_LOG, Constant.ES_INDEX_TYPE_AUDIT_LOG, String.valueOf(new Date().getTime()))
+                .prepareIndex(indexName, Constant.ES_INDEX_TYPE_AUDIT_LOG, String.valueOf(new Date().getTime()))
                 .setSource(                 // 这里可以直接用json字符串
                         XContentFactory.jsonBuilder().startObject().field("user", auditRequestInfo.getUser())
                                 .field("tenant", auditRequestInfo.getTenant()).field("project", auditRequestInfo.getProject())
@@ -189,17 +214,20 @@ public class UserAuditServiceImpl implements UserAuditService {
      *             IO异常
      */
     public ActionReturnUtil searchFromIndex(BoolQueryBuilder query, String scrollId, int pageSize,
-                                            int currentPage) throws Exception {
+                                            int currentPage, List<String> indexList) throws Exception {
         //根据当前系统语言获取相应的字段
         String language = CommonConstant.DEFAULT_LANGUAGE_CHINESE;
         String sessionLanguage = String.valueOf(session.getAttribute("language"));
         if(org.apache.commons.lang3.StringUtils.isNotBlank(sessionLanguage) && !"null".equals(sessionLanguage)){
             language = sessionLanguage;
         }
+        SearchRequestBuilder searchRequestBuilder = mulitIndexSearch(indexList);
         SearchResponse response;
-        response = platformEsClient.prepareSearch(Constant.ES_INDEX_AUDIT_LOG).setTypes(Constant.ES_INDEX_TYPE_AUDIT_LOG)
+        response = searchRequestBuilder
+                .setTypes(Constant.ES_INDEX_TYPE_AUDIT_LOG)
                 // .setScroll(new TimeValue(60000))
-                .setQuery(query).addSort("actionTime", SortOrder.DESC).setFrom((currentPage - 1) * pageSize).setSize(pageSize).setExplain(true) // 这里需要修改整整分页之后
+                .setQuery(query).addSort("actionTime", SortOrder.DESC)
+                .setFrom((currentPage - CommonConstant.NUM_ONE) * pageSize).setSize(pageSize).setExplain(true) // 这里需要修改整整分页之后
                 .get();
         // scrollid的分页,setSize中的5为分片数
 		/*if (StringUtils.isBlank(scrollId)) {
@@ -292,16 +320,14 @@ public class UserAuditServiceImpl implements UserAuditService {
      * @throws IOException
      *             IO异常
      */
-    public ActionReturnUtil searchFromIndexByUser(BoolQueryBuilder query, String module) throws Exception {
-        SearchResponse response = platformEsClient.prepareSearch(Constant.ES_INDEX_AUDIT_LOG).setTypes(Constant.ES_INDEX_TYPE_AUDIT_LOG)
+    public ActionReturnUtil searchFromIndexByUser(BoolQueryBuilder query, String module, List<String> indexList) throws Exception {
+        SearchRequestBuilder searchRequestBuilder = mulitIndexSearch(indexList);
+        SearchResponse response = searchRequestBuilder.setTypes(Constant.ES_INDEX_TYPE_AUDIT_LOG)
                 .setSearchType(SearchType.QUERY_AND_FETCH).addFields(module).setQuery(query).setFrom(0).setSize(10000)
                 .setExplain(true).get();
 
         List<String> searchResults = new ArrayList<String>();
 
-        if (response.getHits().getHits().length > 0) {
-            searchResults.add("全部模块");
-        }
         Set<String> searchResults1 = new HashSet<String>();
         for (SearchHit hit : response.getHits().getHits()) {
             Set<Map.Entry<String, SearchHitField>> fieldEntry = hit.getFields().entrySet();
@@ -310,12 +336,25 @@ public class UserAuditServiceImpl implements UserAuditService {
             }
         }
         searchResults.addAll(searchResults1);
+        Collections.sort(searchResults, new Comparator<String>() {
+            @Override
+            public int compare(String o1, String o2) {
+                int len1 = o1.length();
+                int len2 = o2.length();
+                return len1 - len2;
+            }
+        });
+        if (response.getHits().getHits().length > 0) {
+            searchResults.add(0, module.toLowerCase().indexOf(CommonConstant.LANGUAGE_ENGLISH) > -1? "all" : "全部模块");
+        }
         return ActionReturnUtil.returnSuccessWithData(searchResults);
     }
     
-    public ActionReturnUtil getTotalCounts(BoolQueryBuilder query) throws Exception {
+    public ActionReturnUtil getTotalCounts(BoolQueryBuilder query, List<String> indexList) throws Exception {
+        SearchRequestBuilder searchRequestBuilder = mulitIndexSearch(indexList);
         // 计算页数对应的数据行数，先查询出来总的记录个数，计算
-        SearchResponse pageResponse = platformEsClient.prepareSearch(Constant.ES_INDEX_AUDIT_LOG).setTypes(Constant.ES_INDEX_TYPE_AUDIT_LOG)
+        SearchResponse pageResponse = searchRequestBuilder
+                .setTypes(Constant.ES_INDEX_TYPE_AUDIT_LOG)
                 .setSearchType(SearchType.QUERY_AND_FETCH).setQuery(query).setExplain(true)
                 .get();
 
@@ -329,7 +368,12 @@ public class UserAuditServiceImpl implements UserAuditService {
     private void createIndexMapping(String indices, String mappingType) throws Exception {
         // 创建索引
         LOGGER.debug("正在创建索引:" + indices);
-        platformEsClient.admin().indices().prepareCreate(indices).execute().actionGet();
+        platformEsClient.admin().indices().prepareCreate(indices)
+                .setSettings(Settings.settingsBuilder()
+                        .put("number_of_shards", CommonConstant.NUM_FIVE)
+                        .put("max_result_window", CommonConstant.ES_MAX_RESULT_WINDOW)
+                        .put("number_of_replicas", CommonConstant.NUM_ONE))
+                .execute().actionGet();
         LOGGER.debug("创建索引结束:" + indices);
 
         XContentBuilder builder = jsonBuilder().startObject().startObject("properties")
@@ -388,16 +432,10 @@ public class UserAuditServiceImpl implements UserAuditService {
         String endTime = userAuditSearch.getEndTime();
         String moduleName = userAuditSearch.getModuleName();
         String keyWords = userAuditSearch.getKeyWords();
-        String user = userAuditSearch.getUser();
-        String scrollId = userAuditSearch.getScrollId();
         List<String> userLists = userAuditSearch.getUserList();
-        Integer pageSize = userAuditSearch.getSize();
-        Integer pageNum = userAuditSearch.getPageNum();
         String tenantName = userAuditSearch.getTenantName();
         BoolQueryBuilder query = QueryBuilders.boolQuery();
         if (StringUtils.isNotBlank(startTime)&&StringUtils.isNotBlank(endTime)) {
-            LOGGER.info("操作审计开始时间：{}",startTime);
-            LOGGER.info("操作审计结束时间：{}",endTime);
             if(DateUtil.timeFormat.parse(startTime).after(DateUtil.timeFormat.parse(endTime))){
                 throw new MarsRuntimeException(ErrorCodeMessage.START_DATE_AFTER_END);
             }
@@ -423,7 +461,12 @@ public class UserAuditServiceImpl implements UserAuditService {
 
         if (StringUtils.isNotBlank(tenantName) && !"all".equals(tenantName)) {
             tenantName = URLDecoder.decode(tenantName, "UTF-8");
-            query.must(QueryBuilders.matchPhraseQuery("tenant", tenantName));
+            String[] tenants = tenantName.split(",");
+            BoolQueryBuilder queryTenant = QueryBuilders.boolQuery();
+            for (int i=0; i<tenants.length; i++) {
+                queryTenant.should(QueryBuilders.matchPhraseQuery("tenant", tenants[i]));
+            }
+            query.must(queryTenant);
         }
 
         if (userLists != null && userLists.size() > 0) {
@@ -432,4 +475,60 @@ public class UserAuditServiceImpl implements UserAuditService {
         return query;
     }
 
+    private String generateIndexName(){
+        Date now = DateUtil.getCurrentUtcTime();
+        String date = DateUtil.DateToString(now, DateStyle.YYYY_MM_DOT);
+        String indexName = Constant.ES_INDEX_AUDIT_LOG + CommonConstant.LINE + date;
+        return indexName;
+    }
+
+    private List<String> getExistIndexNames(String startTime, String endTime) throws Exception {
+        String index = "";
+        List<String> indexNameList = new ArrayList<>();
+        if (StringUtils.isNotBlank(startTime) && StringUtils.isNotBlank(endTime)) {
+            Date startDate = DateUtil.StringToDate(startTime, DateStyle.YYYY_MM_DD_HH_MM_SS);
+            Date endDate = DateUtil.StringToDate(endTime, DateStyle.YYYY_MM_DD_HH_MM_SS);
+            int startYear = DateUtil.getYear(startDate);
+            int startMonth = DateUtil.getMonth(startDate) + CommonConstant.NUM_ONE;
+            int endYear = DateUtil.getYear(endDate);
+            int endMonth = DateUtil.getMonth(endDate) + CommonConstant.NUM_ONE;
+            int year = endYear - startYear;
+            if (year == 0) {
+                for (int i = startMonth; i <= endMonth; i++) {
+                    indexNameList.add(Constant.ES_INDEX_AUDIT_LOG + CommonConstant.LINE + endYear + CommonConstant.DOT + String.format("%02d", i));
+                }
+            } else {
+                for (int i = startMonth; i <= CommonConstant.NUM_TWELVE; i++) {
+                    indexNameList.add(Constant.ES_INDEX_AUDIT_LOG + CommonConstant.LINE + endYear + CommonConstant.DOT + String.format("%02d", i));
+                }
+                for (int y = startYear + CommonConstant.NUM_ONE; y < endMonth; y++) {
+                    for (int m = CommonConstant.NUM_ONE; m <= CommonConstant.NUM_TWELVE; m++) {
+                        indexNameList.add(Constant.ES_INDEX_AUDIT_LOG + CommonConstant.LINE + endYear + CommonConstant.DOT + String.format("%02d", m));
+                    }
+                }
+                for (int i = CommonConstant.NUM_ONE; i <= endMonth; i++) {
+                    indexNameList.add(Constant.ES_INDEX_AUDIT_LOG + CommonConstant.LINE + endYear + CommonConstant.DOT + String.format("%02d", i));
+                }
+            }
+        }
+        indexNameList = CollectionUtils.isNotEmpty(indexNameList) ? indexNameList : Arrays.asList(generateIndexName());
+        //取得已存在的索引
+        GetIndexResponse indexResponse = platformEsClient.admin().indices().prepareGetIndex().execute().actionGet();
+        String[] indices = indexResponse.getIndices();
+        indexNameList.retainAll(Arrays.asList(indices));
+        return indexNameList;
+    }
+
+    private SearchRequestBuilder mulitIndexSearch(List<String> indexList) throws Exception {
+        Class<?> clazz = Class.forName("org.elasticsearch.action.search.SearchRequestBuilder");
+        SearchRequestBuilder searchRequestBuilder = platformEsClient.prepareSearch();
+        List<Object> objectList = new ArrayList<>();
+        for (String s : indexList) {
+            objectList.add(s);
+        }
+        String[] strArray = objectList.toArray(new String[objectList.size()]);
+        Method method = clazz.getMethod("setIndices", new Class[]{String[].class});
+        searchRequestBuilder = (SearchRequestBuilder)method.invoke(searchRequestBuilder, new Object[]{strArray});
+        return searchRequestBuilder;
+    }
 }

@@ -63,7 +63,6 @@ public class ApplicationController {
     @ResponseBody
     @RequestMapping(value = "/{tenantId}/projects/{projectId}/apptemplates/{templateName}/yaml", method = RequestMethod.POST)
     public ActionReturnUtil getApplicationTemplateYaml(@ModelAttribute ApplicationTemplateDto appTemplate) throws Exception {
-        logger.info("add application template");
         return appService.getApplicationTemplateYaml(appTemplate);
     }
 
@@ -101,7 +100,6 @@ public class ApplicationController {
                                                  @PathVariable(value = "projectId") String projectId,
                                                  @RequestParam(value = "isPublic", required = false) boolean isPublic,
                                                  @RequestParam(value = "clusterId", required = false) String clusterId) throws Exception {
-        logger.info("get application template");
         return appService.listApplicationTemplate(searchKey, searchValue, isPublic, projectId, clusterId);
     }
 
@@ -121,7 +119,6 @@ public class ApplicationController {
                                                    @RequestParam(value = "tag", required = false) String tag,
                                                    @RequestParam(value = "clusterId", required = false) String clusterId,
                                                    @PathVariable(value = "projectId") String projectId) throws Exception {
-        logger.info("get application template detail");
         return appService.getApplicationTemplate(name, tag, clusterId, projectId);
     }
 
@@ -134,9 +131,11 @@ public class ApplicationController {
      */
     @ResponseBody
     @RequestMapping(value = "/{tenantId}/projects/{projectId}/apptemplates/{templateName}", method = RequestMethod.DELETE)
-    public ActionReturnUtil deleteApplicationTemplate(@PathVariable(value = "templateName") String name) throws Exception {
+    public ActionReturnUtil deleteApplicationTemplate(@PathVariable(value = "templateName") String name,
+                                                      @PathVariable(value = "projectId") String projectId,
+                                                      @RequestParam(value = "clusterId") String clusterId) throws Exception {
         logger.info("delete application template");
-        return appService.deleteApplicationTemplate(name);
+        return appService.deleteApplicationTemplate(name, projectId, clusterId);
     }
 
     /**
@@ -154,7 +153,6 @@ public class ApplicationController {
                                                       @RequestParam(value = "clusterId", required = false) String clusterId,
                                                       @RequestParam(value = "isPublic", required = true) boolean isPublic,
                                                       @PathVariable(value = "projectId") String projectId) throws Exception {
-        logger.info("list application template tag");
         return appService.getApplicationTemplateByName(name, clusterId, isPublic, projectId);
     }
     
@@ -260,8 +258,9 @@ public class ApplicationController {
 
     @ResponseBody
     @RequestMapping(value = "/{tenantId}/projects/{projectId}/apptemplates/{templateName}/checkname", method = RequestMethod.GET)
-    public ActionReturnUtil checkApplicationTemplateName(@PathVariable(value = "templateName") String templateName) throws Exception {
-        logger.info("校验应用模板重名");
-        return appService.checkAppTemplateName(templateName);
+    public ActionReturnUtil checkApplicationTemplateName(@PathVariable(value = "templateName") String templateName,
+                                                         @PathVariable(value = "projectId") String projectId,
+                                                         @RequestParam(value = "clusterId") String clusterId) throws Exception {
+        return appService.checkAppTemplateName(templateName, projectId, clusterId);
     }
 } 

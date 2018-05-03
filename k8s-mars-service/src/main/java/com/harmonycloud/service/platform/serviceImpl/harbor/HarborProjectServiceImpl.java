@@ -8,8 +8,7 @@ import java.io.FileNotFoundException;
 import java.net.URI;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 import com.alibaba.fastjson.JSONObject;
@@ -30,8 +29,8 @@ import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.bean.harbor.*;
 import com.harmonycloud.service.platform.client.HarborClient;
-import com.harmonycloud.service.platform.service.harbor.HarborImageCleanService;
-import com.harmonycloud.service.platform.service.harbor.HarborReplicationService;
+import com.harmonycloud.service.platform.service.ci.TriggerService;
+import com.harmonycloud.service.platform.service.harbor.*;
 import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserRoleRelationshipService;
@@ -47,13 +46,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
-import com.harmonycloud.service.platform.service.harbor.HarborService;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -66,28 +64,33 @@ import static com.harmonycloud.common.Constant.CommonConstant.*;
 public class HarborProjectServiceImpl implements HarborProjectService {
 	private static ExecutorService executorService = Executors.newFixedThreadPool(2);
 	private static final Logger logger = LoggerFactory.getLogger(HarborProjectServiceImpl.class);
+	private static LinkedBlockingQueue<HarborLog> imageUpdateQueue = new LinkedBlockingQueue();
+	//上传镜像之后，最长查询10分钟，如果超过10分钟还没查到，则认为镜像上传失败
+	private static final int PUSH_IMAGE_GET_TRY_MINUTES = 10;
 	@Autowired
-	HarborService harborService;
+	private HarborService harborService;
 	@Autowired
-	ClusterService clusterService;
+	private ClusterService clusterService;
 	@Autowired
-	ProjectService projectService;
+	private ProjectService projectService;
 	@Autowired
-	UserService userService;
+	private UserService userService;
 	@Autowired
-	HarborReplicationService harborReplicationService;
+	private HarborReplicationService harborReplicationService;
 	@Autowired
-	ImageRepositoryMapper imageRepositoryMapper;
+	private ImageRepositoryMapper imageRepositoryMapper;
 	@Autowired
-	ImageCacheManager imageCacheManager;
+	private ImageCacheManager imageCacheManager;
 	@Autowired
-	RoleLocalService roleLocalService;
+	private RoleLocalService roleLocalService;
 	@Autowired
-	StringRedisTemplate stringRedisTemplate;
+	private StringRedisTemplate stringRedisTemplate;
 	@Autowired
-	UserRoleRelationshipService roleRelationshipService;
+	private UserRoleRelationshipService roleRelationshipService;
 	@Autowired
-	HarborImageCleanService harborImageCleanService;
+	private HarborImageCleanService harborImageCleanService;
+	@Autowired
+	private TriggerService triggerService;
 
 	@Value("#{propertiesReader['upload.path']}")
 	private String uploadPath;
@@ -164,7 +167,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			Cluster cluster = clusterService.findClusterById(repositoryInfo.getClusterId());
 			clusters.add(cluster);
 		}else{
-			clusters.addAll(clusterService.listCluster());
+			clusters.addAll(clusterService.listCluster(null,null,null));
 		}
 		String failedCluster = "";
 		List<ImageRepository> createdRepository = new ArrayList<>();
@@ -208,7 +211,6 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			} catch (Exception e) {
 				logger.error("创建镜像仓库失败,repositoryInfo:{},cluster:{}",
 						new String[]{JSONObject.toJSONString(repositoryInfo), cluster.getName()}, e);
-				logger.error("创建镜像仓库失败", e);
 				try {
 					if (harborProjectId != null) {
 						harborService.deleteProject(cluster.getHarborServer().getHarborHost(), harborProjectId);
@@ -277,7 +279,6 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			} catch (Exception e) {
 				logger.error("创建镜像仓库失败,repositoryInfo:{},cluster:{}",
 						new String[]{JSONObject.toJSONString(repositoryInfo), harborServer.getHarborHost()}, e);
-				logger.error("创建镜像仓库失败", e);
 				try {
 					if (harborProjectId != null) {
 						harborService.deleteProject(harborServer.getHarborHost(), harborProjectId);
@@ -322,25 +323,25 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	}
 
 	@Override
-	public List<ImageRepository> listRepositories(String projectId, String clusterId, Boolean isPublic) throws Exception {
+	public List<ImageRepository> listRepositories(String projectId, String clusterId, Boolean isPublic, Boolean isNormal) throws Exception {
 		//查询公共镜像仓库，公共镜像仓库需要根据harborHost过滤
 		List<ImageRepository> imageRepositories = new ArrayList();
 		if(isPublic != null && isPublic){
 			imageRepositories = this.listPublicRepository(clusterId);
 		}else if(isPublic != null && !isPublic){
 			AssertUtil.notBlank(projectId, DictEnum.PROJECT_ID);
-			imageRepositories = this.listPrivateRepository(projectId, clusterId);
+			imageRepositories = this.listPrivateRepository(projectId, clusterId, isNormal);
 		}else{
 			imageRepositories.addAll(this.listPublicRepository(clusterId));
 			if(StringUtils.isNotBlank(projectId)) {
-				imageRepositories.addAll(this.listPrivateRepository(projectId, clusterId));
+				imageRepositories.addAll(this.listPrivateRepository(projectId, clusterId, isNormal));
 			}
 		}
 		if(CollectionUtils.isEmpty(imageRepositories)){
 			return Collections.emptyList();
 		}
 		//非admin用户，过滤微服务的镜像仓库
-		if(!userService.checkCurrentUserIsAdmin()){
+		if(userService.getCurrentRoleId() != null && !userService.checkCurrentUserIsAdmin()){
 			imageRepositories = imageRepositories.stream()
 					.filter(repo -> !repo.getHarborProjectName().equalsIgnoreCase(HARBOR_PROJECT_NAME_MSF)).collect(Collectors.toList());
 		}
@@ -359,7 +360,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			harborHosts.add(clusterService.getHarborHost(clusterId));
 		}
 		List<ImageRepository> imageRepositories = imageRepositoryMapper
-				.selectRepositories(null, harborHosts,null,Boolean.TRUE);
+				.selectRepositories(null, harborHosts,null,Boolean.TRUE, null);
 		if(CollectionUtils.isEmpty(imageRepositories)){
 			return Collections.emptyList();
 		}
@@ -370,7 +371,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		return imageRepositories;
 	}
 
-	public List<ImageRepository> listPrivateRepository(String projectId, String clusterId) throws Exception{
+	public List<ImageRepository> listPrivateRepository(String projectId, String clusterId, Boolean isNormal) throws Exception{
 		Set<String> clusterIds = new HashSet<>();
 		if(StringUtils.isBlank(clusterId)){
 			clusterIds.addAll(roleLocalService.listCurrentUserRoleClusterIds());
@@ -380,12 +381,12 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		if (CollectionUtils.isEmpty(clusterIds)){
 			throw new MarsRuntimeException(ErrorCodeMessage.ROLE_HAVE_DISABLE_CLUSTER);
 		}
-		return imageRepositoryMapper.selectRepositories(projectId, null,clusterIds, Boolean.FALSE);
+		return imageRepositoryMapper.selectRepositories(projectId, null,clusterIds, Boolean.FALSE, isNormal);
 	}
 
 	@Override
-	public List<ImageRepository> listRepositoryDetails(String projectId, String clusterId, Boolean isPublic) throws Exception {
-		List<ImageRepository> imageRepositories = this.listRepositories(projectId, clusterId, isPublic);
+	public List<ImageRepository> listRepositoryDetails(String projectId, String clusterId, Boolean isPublic, Boolean isNormal) throws Exception {
+		List<ImageRepository> imageRepositories = this.listRepositories(projectId, clusterId, isPublic, isNormal);
 		if(CollectionUtils.isEmpty(imageRepositories)){
 			return imageRepositories;
 		}
@@ -395,6 +396,21 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		return imageRepositories;
 	}
 
+	/**
+	 * 根据条件查询镜像仓库列表
+	 *
+	 * @param projectId
+	 * @param clusterId
+	 * @param isPublic
+	 * @param isNormal
+	 * @return
+	 * @throws Exception
+	 */
+	@Override
+	public List<ImageRepository> listRepository(String projectId, String clusterId, Boolean isPublic, Boolean isNormal) throws Exception {
+		List<ImageRepository> imageRepositories = this.listRepositories(projectId, clusterId, isPublic, isNormal);
+		return imageRepositories;
+	}
 
 	/**
 	 * 查找某个镜像仓库
@@ -411,6 +427,14 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		if(imageRepository.getIsPublic()){
 			imageRepository.setClusterId(harborServer.getReferredClusterIds());
 			imageRepository.setClusterName(harborServer.getReferredClusterNames());
+		}
+		try {
+			List<HarborProject> harborProjects = harborService.listProject(imageRepository.getHarborHost(), imageRepository.getHarborProjectName(),null,null);
+			if(!CollectionUtils.isEmpty(harborProjects)) {
+				imageRepository.setImageCount(harborProjects.get(0).getRepoCount());
+			}
+		}catch (Exception e){
+			logger.error("查询镜像仓库下的镜像数量失败，image：{}",JSONObject.toJSONString(imageRepository),e);
 		}
 		return imageRepository;
 	}
@@ -523,10 +547,10 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	}
 
 	@Override
-	public ActionReturnUtil listImages(Integer repositoryId) throws Exception {
+	public ActionReturnUtil listImages(Integer repositoryId, Integer pageSize, Integer pageNo) throws Exception {
 		ImageRepository imageRepository = imageRepositoryMapper.findRepositoryById(repositoryId);
 		ActionReturnUtil response = harborService.getRepositoryDetailByProjectId(imageRepository.getHarborHost(),
-				imageRepository.getHarborProjectId());
+				imageRepository.getHarborProjectId(), pageSize, pageNo);
 		if (!response.isSuccess()) {
 			return response;
 		}
@@ -540,7 +564,6 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			BoundHashOperations<String, String, String> statusHashOps = stringRedisTemplate
 					.boundHashOps(REDIS_KEY_IMAGE_PULL_STATUS);
 			Set<String> pullingImages = statusHashOps.keys();
-			logger.info("pulling images{}", JSONObject.toJSONString(pullingImages));
 			if (CollectionUtils.isEmpty(pullingImages) || CollectionUtils.isEmpty(harborRepositoryList)) {
 				return;
 			}
@@ -559,12 +582,12 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	}
 
 	@Override
-	public ActionReturnUtil listImages(String projectId, String clusterId) throws Exception {
-		List<ImageRepository> imageRepositories = this.listRepositories(projectId, clusterId,null);
+	public ActionReturnUtil listImages(String projectId, String clusterId, Integer pageSize, Integer pageNo) throws Exception {
+		List<ImageRepository> imageRepositories = this.listRepositories(projectId, clusterId,null, Boolean.TRUE);
 		Map<String, List<HarborRepositoryMessage>> imagesMap = new HashMap<>();
 		for(ImageRepository repository : imageRepositories){
 			ActionReturnUtil response = harborService.getRepositoryDetailByProjectId(repository.getHarborHost(),
-					repository.getHarborProjectId());
+					repository.getHarborProjectId(), pageSize, pageNo);
 			if(response.isSuccess() && response.getData() != null){
 				List<HarborRepositoryMessage> images = null;
 				if(repository.getIsPublic()){
@@ -632,7 +655,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 				return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.IMAGE_UPLOADING,imageFullName ,true);
 			}
 			file.transferTo(imageFile);
-			executorService.submit(new DockerPushTask(getDockerClient(),imageFullName, imageFile,this.dockerAuth(harborServer)));
+			executorService.submit(new DockerPushTask(getDockerClient(),imageFullName, imageFile,this.dockerAuth(harborServer),imageUpdateQueue));
 		} catch (Exception e) {
 			logger.error("上传镜像失败",e);
 			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.UPLOAD_FAIL);
@@ -745,27 +768,24 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 				logger.error("镜像推送失败,response:{}",JSONObject.toJSONString(response));
 				return false;
 			}
+			imageUpdateQueue.put(new HarborLog(destHarborHost, destRepoName, tag));
 		}else{
 			HarborServer sourceHarborServer = clusterService.findHarborByHost(sourceRepository.getHarborHost());
 			HarborServer destHarborServer = clusterService.findHarborByHost(destRepository.getHarborHost());
 			String sourceImageName = sourceHarborServer.getHarborHost() + SLASH + repoName + COLON + tag;
 			String destImageName = destRepository.getHarborHost() + SLASH + destRepoName + COLON + tag;
-			DockerClient docker = this.getDockerClient();
 			//登录源harbor服务器
 			HarborClient.checkHarborAdminCookie(sourceHarborServer);
 			//登录目标harbor服务器
 			HarborClient.checkHarborAdminCookie(destHarborServer);
-			docker.pull(sourceImageName, this.dockerAuth(sourceHarborServer));
-			docker.tag(sourceImageName, destImageName);
-			docker.push(destImageName,this.dockerAuth(destHarborServer));
-			docker.removeImage(sourceImageName);
-			docker.removeImage(destImageName);
+			executorService.submit(new DockerImageSyncTask(getDockerClient(),sourceImageName, destImageName,
+					this.dockerAuth(sourceHarborServer), this.dockerAuth(destHarborServer),imageUpdateQueue));
 		}
 		return true;
 	}
 
 	@Override
-	public List<Cluster> listSyncClusters(Integer repositoryId, String repoName, String tag) throws Exception {
+	public Set<Cluster> listSyncClusters(Integer repositoryId, String repoName, String tag) throws Exception {
 		ImageRepository repository = imageRepositoryMapper.findRepositoryById(repositoryId);
 		if(repository.getIsPublic()){
 			throw new MarsRuntimeException(ErrorCodeMessage.IMAGE_PUBLIC_SYNC_DENIED);
@@ -776,12 +796,23 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		}
 		List<Cluster> clusters = clusterService.listCluster();
 		Map<Integer,List<Cluster>> clusterMap = clusters.stream().collect(Collectors.groupingBy(Cluster::getLevel));
+		Set<Cluster> syncCluster = new HashSet<>();
+		//查找下一级别的集群
         for(int i=cluster.getLevel()+1;i<=ClusterLevelEnum.PRD.getLevel();i++){
         	if(clusterMap.get(i) != null){
-        		return clusterMap.get(i);
+        		syncCluster.addAll(clusterMap.get(i));
+        		break;
 			}
 		}
-        return Collections.emptyList();
+		//用户授权的集群
+		Map<String,Cluster> userCluster = userService.getCurrentUserCluster();
+		for(String clusterId : userCluster.keySet()){
+			Cluster clusterValue = userCluster.get(clusterId);
+        	if(!repository.getClusterId().equals(clusterId) && clusterValue.getLevel()>cluster.getLevel()) {
+				syncCluster.add(clusterValue);
+			}
+		}
+        return syncCluster;
 	}
 
 	@Override
@@ -792,12 +823,6 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		ActionReturnUtil response = harborService.updateProjectQuota(repository.getHarborHost(),harborProjectQuota);
 		if(!response.isSuccess()){
 			return response;
-		}
-		//更新配额之后 更新缓存
-		HarborProject harborProject =  harborService.getProjectQuota(repository.getHarborHost(), repository.getHarborProjectName());
-		if(harborProject != null){
-			String harborProjectKey = imageCacheManager.getHarborProjectCacheKey(repository.getHarborHost(), harborProject.getProjectName());
-			imageCacheManager.putHarborProject(harborProjectKey, harborProject);
 		}
 		return response;
 	}
@@ -818,7 +843,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	public ActionReturnUtil getRepositoryDetail(Integer repositoryId) throws Exception {
 		ImageRepository repository = imageRepositoryMapper.findRepositoryById(repositoryId);
 		return harborService.getRepositoryDetailByProjectId(repository.getHarborHost(),
-				repository.getHarborProjectId());
+				repository.getHarborProjectId(), null, null);
 	}
 
 	@Override
@@ -886,7 +911,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			if(!CollectionUtils.isEmpty(publicRepositories)){
 				continue;
 			}
-			List<HarborProject> harborProjects= harborService.listProject(harborServer.getHarborHost(),null,null);
+			List<HarborProject> harborProjects= harborService.listProject(harborServer.getHarborHost(),null,null,null);
 			for(HarborProject harborProject: harborProjects) {
 				//公共镜像仓库过滤容器云平台使用的镜像仓库以及同名的镜像仓库名称, 即平台使用多个harbor，如果各个harbor的projectname相同，则只使用某个harbor的镜像仓库
 				if(harborProject.getIsPublic() == FLAG_FALSE
@@ -971,6 +996,10 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		imageRepository.setClusterId(clusterId);
 		List<ImageRepository> imageRepositories = imageRepositoryMapper.listRepositories(imageRepository);
 		for(ImageRepository repository : imageRepositories){
+			//harbor没有创建成功的镜像仓库 不需要删除
+			if(repository.getHarborProjectId() == null){
+				continue;
+			}
 			harborService.deleteProject(repository.getHarborHost(), repository.getHarborProjectId());
 		}
 		//删除公共镜像仓库
@@ -1037,13 +1066,15 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		List<ImageRepository> imageRepositories = new ArrayList<>();
 		ImageRepository queryRepository = new ImageRepository();
 		queryRepository.setHarborHost(harborHost);
+		queryRepository.setIsNormal(Boolean.TRUE);
 		List<ImageRepository> dbRepositories = this.listRepositories(queryRepository);
 		if(CollectionUtils.isEmpty(dbRepositories)){
 			return Collections.emptyList();
 		}
 		Map<Integer,ImageRepository> repositoryMap = dbRepositories.stream()
+				.filter(repository -> repository.getHarborProjectId() != null)
 				.collect(Collectors.toMap(ImageRepository::getHarborProjectId, repo -> repo));
-		List<HarborProject> harborProjects= harborService.listProject(harborHost,null,null);
+		List<HarborProject> harborProjects= harborService.listProject(harborHost,null,null,null);
 		if(CollectionUtils.isEmpty(harborProjects)){
 			return Collections.emptyList();
 		}
@@ -1059,6 +1090,9 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			}
 			imageRepository.setCreateTime(DateUtil.utcToGmtDate(harborProject.getCreateTime()));
 			imageRepository.setImageCount(harborProject.getRepoCount());
+			imageRepository.setQuotaSize(harborProject.getQuotaSize());
+			imageRepository.setUsageSize(harborProject.getUseSize());
+			imageRepository.setUsageRate(harborProject.getUseRate());
 			imageRepositories.add(imageRepository);
 		}
 		return imageRepositories;
@@ -1164,5 +1198,52 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		String fileName = imageFullName.substring(imageFullName.lastIndexOf("/")+1);
 		fileName = fileName.replace(COLON,LINE) + ".tar";
 		return filePath +  File.separator + fileName;
+	}
+
+	/**
+	 * 每隔3秒检查镜像是否上传成功，上传成功则更新缓存
+	 */
+	@Scheduled(fixedRate = 3000)
+	public void updateTagCache() {
+		List<HarborLog> keepCheckLog = new ArrayList<>();
+		while(imageUpdateQueue.size()>0){
+			try {
+				HarborLog harborLog = imageUpdateQueue.take();
+				ActionReturnUtil res = harborService.getManifestsWithVulnerabilitySum(harborLog.getHarborHost(),
+						harborLog.getRepoName(), harborLog.getRepoTag());
+				if(res.isSuccess() && res.getData() != null){
+					logger.info("检查镜像上传结果: 已上传，更新缓存,镜像信息:{}",JSONObject.toJSONString(harborLog));
+					HarborManifest harborManifest = (HarborManifest)res.getData();
+					//如果镜像扫描结果是异常，可能扫描结果未更新，再检查一次
+					if(harborManifest.getAbnormal() && DateUtil.addSecond(harborLog.getOperationTime(),NUM_FIVE).after(new Date())){
+						keepCheckLog.add(harborLog);
+						continue;
+					}
+					imageCacheManager.addRepoTag(harborLog.getHarborHost(),harborLog.getRepoName(),harborManifest);
+					//更新镜像触发流水线构建
+					triggerService.triggerJobByImage(harborLog.getHarborHost()+SLASH+harborLog.getRepoName(),harborLog.getRepoTag());
+					continue;
+				}
+				//上传之后检查10分钟，超过10分钟不再继续
+				if(DateUtil.addMinute(harborLog.getOperationTime(),PUSH_IMAGE_GET_TRY_MINUTES).after(new Date())){
+					keepCheckLog.add(harborLog);
+				}else{
+					logger.info("检查镜像上传结果: 未上传，已超过10分钟，放弃,镜像信息:{}",JSONObject.toJSONString(harborLog));
+				}
+			}catch (Exception e){
+				logger.error("检查镜像上传结果失败，",e);
+			}
+		}
+		if(keepCheckLog.size() == 0){
+			return;
+		}
+		//继续检查上传结果，重新放入queue
+		try {
+			for (HarborLog harborLog : keepCheckLog) {
+				imageUpdateQueue.put(harborLog);
+			}
+		}catch (Exception e){
+			logger.error("继续跟踪镜像上传结果失败，",e);
+		}
 	}
 }

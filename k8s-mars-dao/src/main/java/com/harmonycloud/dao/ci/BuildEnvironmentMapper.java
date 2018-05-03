@@ -32,4 +32,5 @@ public interface BuildEnvironmentMapper {
 
     int deleteByClusterId(@Param("clusterId")String clusterId);
 
+    void deleteByProjectId(String projectId);
 }

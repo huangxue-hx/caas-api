@@ -23,6 +23,10 @@ import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.RepositoryInfo;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
 import com.harmonycloud.service.platform.service.ExternalService;
+import com.harmonycloud.service.platform.service.ci.BuildEnvironmentService;
+import com.harmonycloud.service.platform.service.ci.DependenceService;
+import com.harmonycloud.service.platform.service.ci.DockerFileService;
+import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.platform.service.harbor.HarborService;
 import com.harmonycloud.service.tenant.*;
@@ -37,10 +41,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
-
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -84,6 +84,14 @@ public class ProjectServiceImpl implements ProjectService {
     LocalRoleService localRoleService;
     @Autowired
     ClusterCacheManager clusterCacheManager;
+    @Autowired
+    JobService jobService;
+    @Autowired
+    DockerFileService dockerFileService;
+    @Autowired
+    DependenceService dependenceService;
+    @Autowired
+    BuildEnvironmentService buildEnvironmentService;
 
     private static final Logger logger = LoggerFactory.getLogger(ProjectServiceImpl.class);
 
@@ -221,6 +229,14 @@ public class ProjectServiceImpl implements ProjectService {
         this.applicationDeployService.deleteProjectAppResource(projectId);
         //删除模板
         this.applicationService.deleteTemplatesInProject(projectId);
+        //删除流水线
+        this.jobService.deletePipelineByProject(projectId);
+        //删除Dockerfile
+        this.dockerFileService.deleteDockerfileByProject(projectId);
+        //删除dependence
+        this.dependenceService.deleteDependenceByProject(projectId);
+        //删除环境
+        this.buildEnvironmentService.deleteBuildEnvironmentByProject(projectId);
         //删除项目
         this.deleteProjectById(projectByProjectId.getId());
     }
@@ -251,9 +267,15 @@ public class ProjectServiceImpl implements ProjectService {
         if (Objects.isNull(projectByProjectId) || !projectDto.getTenantId().equals(projectByProjectId.getTenantId())){
             throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_NOT_EXIST);
         }
+        String aliasName = projectDto.getAliasName();
+
         //如果项目名不为空则更新项目名
-        if (!Objects.isNull(projectDto.getAliasName())){
-            projectByProjectId.setAliasName(projectDto.getAliasName());
+        if (!Objects.isNull(aliasName)){
+            Project projectByAliasName = this.getProjectByAliasName(aliasName);
+            if (!Objects.isNull(projectByAliasName)){
+                throw new MarsRuntimeException(ErrorCodeMessage.PROJECTALIASNAME_EXIST,aliasName,Boolean.TRUE);
+            }
+            projectByProjectId.setAliasName(aliasName);
         }
         //如果备注不为空则更新备注
         if (!Objects.isNull(projectDto.getAnnotation())){
@@ -393,6 +415,10 @@ public class ProjectServiceImpl implements ProjectService {
     //组装projectDto返回给页面 isList为 false 则查询详情，isList为 true 则查询列表返回值
     private List<ProjectDto> generateProjectDto(List<Project> projectList,Boolean isList) throws Exception{
         List<ProjectDto> resultList = new ArrayList<>();
+        if (CollectionUtils.isEmpty(projectList)){
+            return resultList;
+        }
+//        CountDownLatch countDownLatchApp = new CountDownLatch(projectList.size());
         for (Project project:projectList) {
             ProjectDto projectDto = new ProjectDto();
             //设置备注
@@ -402,13 +428,6 @@ public class ProjectServiceImpl implements ProjectService {
             //设置更新时间
             projectDto.setUpdateTime(project.getUpdateTime());
             List<ImageRepository> imageRepositories = null;
-            try {
-                imageRepositories = harborProjectService
-                        .listRepositoryDetails(project.getProjectId(),null,Boolean.FALSE);
-            }catch (Exception e){
-                logger.error("查询project repository失败，", e);
-//                throw new MarsRuntimeException(ErrorCodeMessage.IMAGE_LIST_ERROR);
-            }
             projectDto.setId(project.getId());
             //设置租户id
             projectDto.setTenantId(project.getTenantId());
@@ -423,28 +442,25 @@ public class ProjectServiceImpl implements ProjectService {
                 List<String> pmList = Arrays.stream(split).collect(Collectors.toList());
                 projectDto.setPmList(pmList);
             }
-
-            List<UserRoleRelationship> userRoleRelationships = this.userRoleRelationshipService.listUserByProjectId(project.getProjectId());
+            List<UserRoleRelationship> userRoleRelationships = userRoleRelationshipService.listUserByProjectId(project.getProjectId());
             if (isList){
+                //设置项目用户数量
                 if (!CollectionUtils.isEmpty(userRoleRelationships)){
                     Set<String> users = userRoleRelationships.stream().map(UserRoleRelationship::getUsername).collect(Collectors.toSet());
                     projectDto.setUserNum(users.size());
-                    if (CollectionUtils.isEmpty(imageRepositories)){
-                        projectDto.setHarborRepositoryNum(0);
-                    }else {
-                        projectDto.setHarborRepositoryNum(imageRepositories.size());
-                    }
-                    List<BaseResource> baseResources = null;
-                    try {
-                       baseResources = this.applicationDeployService.listApplicationByProject(project.getProjectId());
-                    }catch (Exception e){
-                        logger.info("获取当前租户应用失败："+e.getMessage() , e);
-                    }
-                    if (CollectionUtils.isEmpty(baseResources)){
-                        projectDto.setAppNum(0);
-                    }else {
-                        projectDto.setAppNum(baseResources.size());
-                    }
+                }
+                //设置项目应用数量
+                List<BaseResource> baseResources = null;
+                try {
+                    baseResources = applicationDeployService.listApplicationByProject(project.getProjectId());
+                }catch (Exception e){
+                    logger.info("获取当前租户应用失败："+e.getMessage() , e);
+                }
+
+                if (CollectionUtils.isEmpty(baseResources)){
+                    projectDto.setAppNum(0);
+                }else {
+                    projectDto.setAppNum(baseResources.size());
                 }
             }else {
                 List<LocalRole> localRoles = localRoleService.listLocalRoleByRoleName(project.getProjectId(), null);
@@ -467,9 +483,17 @@ public class ProjectServiceImpl implements ProjectService {
                     }
                     projectDto.setUserDataList(list);
                 }
+                try {
+                    imageRepositories = harborProjectService
+                            .listRepositoryDetails(project.getProjectId(),null,Boolean.FALSE, null);
+                }catch (Exception e){
+                    logger.error("查询project repository 详情失败，", e);
+//                throw new MarsRuntimeException(ErrorCodeMessage.IMAGE_LIST_ERROR);
+                }
                 projectDto.setHarborRepositoryList(imageRepositories);
             }
             resultList.add(projectDto);
+
         }
         return resultList;
     }
@@ -761,7 +785,7 @@ public class ProjectServiceImpl implements ProjectService {
         }
         List<Integer> roleIdList = userRoleDto.getRoleIdList();
         List<String> usernameList = userRoleDto.getUsernameList();
-        //创建用户在项目的角色
+        //根据用户列表循环创建用户在项目的角色
         for (String username:usernameList) {
             for (Integer roleId:roleIdList) {
                 this.createProjectRole(tenantId,projectId,username,roleId);

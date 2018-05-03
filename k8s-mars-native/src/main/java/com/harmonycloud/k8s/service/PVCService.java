@@ -45,4 +45,18 @@ public class PVCService {
         }
         return response;
     }
+
+    public K8SClientResponse getPVC(String name, String namespace, Cluster cluster) throws Exception {
+        K8SURL url = new K8SURL();
+        url.setName(name).setNamespace(namespace).setResource(Resource.PERSISTENTVOLUMECLAIM);
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("Content-Type", "application/json");
+        Map<String, Object> bodys = new HashMap<>();
+        bodys.put("gracePeriodSeconds", 1);
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, headers, bodys, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            throw new MarsRuntimeException(response.getBody());
+        }
+        return response;
+    }
 }

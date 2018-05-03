@@ -1,5 +1,6 @@
 package com.harmonycloud.service.application.impl;
 
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
@@ -20,6 +21,7 @@ import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.*;
+import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
@@ -28,7 +30,6 @@ import com.harmonycloud.service.tenant.PrivatePartitionService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
-import com.sun.tools.internal.xjc.generator.util.ExistingBlockReference;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.collections.CollectionUtils;
@@ -88,6 +89,9 @@ public class ServiceServiceImpl implements ServiceService {
     @Autowired
     UserService userService;
 
+    @Autowired
+    private ClusterService clusterService;
+
     /**
      * create Service Template implement
      *
@@ -108,14 +112,7 @@ public class ServiceServiceImpl implements ServiceService {
         int a = Constant.TEMPLATE_STATUS_CREATE;
         if (type == Constant.TEMPLATE_STATUS_DELETE) {
             a = Constant.TEMPLATE_STATUS_DELETE;
-        } else {
-            List<ServiceTemplates> serviceTemplateList = serviceTemplatesMapper.listByTemplateName(serviceTemplate.getName(), null);
-            if (serviceTemplateList != null && serviceTemplateList.size() > 0) {
-                int svcTmpId = serviceTemplateList.get(0).getId();
-                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_TEMPLATE_NAME_DUPLICATE, String.valueOf(svcTmpId));
-            }
         }
-
         // create and insert into db
         ServiceTemplates serviceTemplateDB = new ServiceTemplates();
         serviceTemplateDB.setName(serviceTemplate.getName());
@@ -255,25 +252,21 @@ public class ServiceServiceImpl implements ServiceService {
      * @throws Exception
      */
     @Override
-    public ActionReturnUtil deleteServiceTemplate(String name, String userName) throws Exception {
+    public ActionReturnUtil deleteServiceTemplate(String name, String userName, String projectId, String clusterId) throws Exception {
         AssertUtil.notBlank(name, DictEnum.NAME);
         // get id list by service_template_name
-        List<ServiceTemplates> idList = serviceTemplatesMapper.listIDListByTemplateName(name);
+        List<ServiceTemplates> idList = serviceTemplatesMapper.listTplByNameAndProjectAndCluster(name, clusterId, false, projectId);
         List<Integer> ids = new ArrayList<>();
         for (ServiceTemplates id : idList) {
             ids.add(id.getId());
         }
-
         // check map
         int mapNum = appWithServiceService.selectByIdList(ids);
-        if (mapNum >= 1) {
-            return ActionReturnUtil.returnErrorWithData(
-                    "该应用模板已经被其他业务模板绑定，不能删除！");
+        if (mapNum >= CommonConstant.NUM_ONE) {
+            return ActionReturnUtil.returnErrorWithData("该服务模板已经被其他应用模板绑定，不能删除！");
         }
-
         // delete
-        serviceTemplatesMapper.deleteByName(name);
-
+        serviceTemplatesMapper.deleteByName(name, projectId, clusterId);
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -325,6 +318,7 @@ public class ServiceServiceImpl implements ServiceService {
             }
             json.put("tags", tagArray);
             json.put("clusterId", serviceTemplatesList.get(0).getClusterId());
+            json.put("clusterName", clusterService.findClusterById(serviceTemplatesList.get(0).getClusterId()).getAliasName());
         }
         return json;
     }
@@ -408,9 +402,7 @@ public class ServiceServiceImpl implements ServiceService {
         }
         if (serviceBytenant != null && serviceBytenant.size() > 0) {
             for (ServiceTemplates serviceTemplates : serviceBytenant) {
-                List<ServiceTemplates> serviceList = serviceTemplatesMapper.listServiceByImage(
-                        serviceTemplates.getName(), serviceTemplates.getImageList(), serviceTemplates.getTenant(), isPublic);
-                array.add(getServiceTemplates(serviceList));
+                array.add(getServiceTemplates(Arrays.asList(serviceTemplates)));
             }
         }
         return ActionReturnUtil.returnSuccessWithData(array);
@@ -791,9 +783,9 @@ public class ServiceServiceImpl implements ServiceService {
     }
 
     @Override
-    public ActionReturnUtil checkServiceTemplateName(String name) throws Exception {
+    public ActionReturnUtil checkServiceTemplateName(String name, String projectId, String clusterId) throws Exception {
         //判断重名
-        List<ServiceTemplates> serviceTemplateList = serviceTemplatesMapper.listByTemplateName(name, null);
+        List<ServiceTemplates> serviceTemplateList = serviceTemplatesMapper.listTplByNameAndProjectAndCluster(name, clusterId, false, projectId);
         if (serviceTemplateList != null && serviceTemplateList.size() > 0) {
             int svcTmpId = serviceTemplateList.get(0).getId();
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_TEMPLATE_NAME_DUPLICATE, String.valueOf(svcTmpId));

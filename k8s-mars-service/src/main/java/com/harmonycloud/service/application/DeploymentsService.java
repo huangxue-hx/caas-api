@@ -111,6 +111,16 @@ public interface DeploymentsService {
 	public ActionReturnUtil deploymentContainer(String namespace, String name) throws Exception;
 
 	/**
+	 * deployment详情页内的容器信息
+	 * @param namespace
+	 * @param name
+	 * @param cluster
+	 * @return
+	 * @throws Exception
+	 */
+	public ActionReturnUtil deploymentContainer(String namespace, String name, Cluster cluster) throws Exception;
+
+	/**
 	 * 获取某个namespace下的所有容器列表
 	 * @param namespace
 	 * @return
@@ -219,5 +229,5 @@ public interface DeploymentsService {
 	 * @return ActionReturnUtil
 	 * @throws Exception
 	 */
-    ActionReturnUtil checkDeploymentName(String name, String namespace) throws Exception;
+    ActionReturnUtil checkDeploymentName(String name, String namespace, boolean isTpl) throws Exception;
 }

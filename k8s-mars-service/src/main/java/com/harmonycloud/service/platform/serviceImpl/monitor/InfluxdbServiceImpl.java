@@ -4,12 +4,14 @@ import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import com.harmonycloud.common.enumm.*;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.monitor.InfluxdbQuery;
+import com.harmonycloud.service.platform.client.InfluxDBClient;
 import org.apache.commons.lang3.StringUtils;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
@@ -25,6 +27,7 @@ import com.harmonycloud.common.util.HttpClientUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.service.platform.service.InfluxdbService;
+import org.springframework.util.CollectionUtils;
 
 import javax.servlet.http.HttpSession;
 
@@ -44,6 +47,7 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 	HttpSession session;
 	//监控数据最大展示100个监控点
     private static final int MAX_MONITOR_POINT = 100;
+    private String nodeName = "nodename";
 
 
 	public ActionReturnUtil podMonit(InfluxdbQuery query) throws Exception {
@@ -259,13 +263,42 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 	}
 
 	@Override
-	public double getClusterResourceUsage(String type, String measurements, String groupBy, Cluster cluster, List<String> notWorkNode) throws Exception {
-		return this.getClusterResourceUsage(type, measurements, groupBy, cluster, notWorkNode, null);
+	public Map<String,List<QueryResult.Series>>  getClusterResourceUsage(String type, String measurements, String groupBy, Cluster cluster, List<String> notWorkNode) throws Exception {
+//		long startTime=System.currentTimeMillis();   //获取开始时间
+		StringBuffer sb = new StringBuffer("SELECT mean(\"value\") FROM \""+measurements+"\" WHERE \"type\" = '"+type+"' ");
+		sb.append("  AND time > now() - 10m GROUP BY time(1m),"+groupBy+" order by time desc  limit 5");
+		InfluxDB influxDB = InfluxDBClient.getInfluxDB(cluster);
+		Query query = new Query(sb.toString(), cluster.getInfluxdbDb());
+		QueryResult queryResult = influxDB.query(query);
+		List<QueryResult.Series> series = queryResult.getResults().get(0).getSeries();
+		Map<String,List<QueryResult.Series>> map = new HashMap<>();
+		if (!CollectionUtils.isEmpty(series)){
+			for (QueryResult.Series series1:series) {
+				if (!Objects.isNull(series1.getTags()) && StringUtils.isNotBlank(series1.getTags().get(nodeName))){
+					String name = series1.getTags().get(nodeName);
+					List<QueryResult.Series> nodeList = map.get(name);
+					if (CollectionUtils.isEmpty(nodeList)){
+						nodeList = new ArrayList<>();
+						nodeList.add(series1);
+						map.put(name,nodeList);
+					}else {
+						nodeList.add(series1);
+						map.put(name,nodeList);
+					}
+				}
+
+			}
+		}
+//		long endTime=System.currentTimeMillis(); //获取结束时间
+//		long time = endTime - startTime;//获取消耗时间，调试使用
+//		System.out.println("消耗时间："+time);
+		return map;
 	}
 
 	public double getClusterResourceUsage(String type, String measurements, String groupBy, Cluster cluster, List<String> notWorkNode, String nodename) throws Exception {
-        StringBuffer sb = new StringBuffer("SELECT mean(\"value\") FROM \""+measurements+"\" WHERE \"type\" = '"+type+"' ");
-        if(null != nodename && !"".equals(nodename)) {
+//		long startTime=System.currentTimeMillis();   //获取开始时间
+		StringBuffer sb = new StringBuffer("SELECT mean(\"value\") FROM \""+measurements+"\" WHERE \"type\" = '"+type+"' ");
+        if(StringUtils.isNotBlank(nodename)) {
         	sb.append(" and nodename='"+nodename+"' ");
 		} else {
 			if(notWorkNode != null && notWorkNode.size() > 0) {
@@ -274,59 +307,81 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 				}
 			}
 		}
-		sb.append("  AND time > now() - 10m GROUP BY time(1m),"+groupBy+" order by time desc  limit 5");
+		sb.append("  AND time > now() - 8m GROUP BY time(1m),"+groupBy+" order by time desc  limit 5");
 
 
-		InfluxDB influxDB = InfluxDBFactory.connect(cluster.getInfluxdbUrl()+"/", "root", "");
+		InfluxDB influxDB = InfluxDBClient.getInfluxDB(cluster);
 		Query query = new Query(sb.toString(), cluster.getInfluxdbDb());
 		QueryResult queryResult = influxDB.query(query);
 
 
 		List<QueryResult.Series> series = queryResult.getResults().get(0).getSeries();
 
-		Double totailResult = 0.0;
-		if(series!=null&&series.size()>0){
-		    for(int i=0; i<series.size(); i++) {
-	            Double result = 0.0;
-	            if(series.get(i)!=null&&series.get(i).getValues()!=null&&series.get(i).getValues().size()>0&&series.get(i).getValues().get(0).size()>0&&series.get(i).getValues().get(0).get(1)!=null){
-	                result = Double.parseDouble(series.get(i).getValues().get(0).get(1).toString());
-	            }
-
-	            if(result == 0.0) {
-					if(series.get(i)!=null&&series.get(i).getValues()!=null&&series.get(i).getValues().size()>0&&series.get(i).getValues().get(1).size()>0&&series.get(i).getValues().get(1).get(1)!=null){
-						result = Double.parseDouble(series.get(i).getValues().get(1).get(1).toString());
-					}
-				}
-	            
-	            if(result == 0.0) {
-					if(series.get(i)!=null&&series.get(i).getValues()!=null&&series.get(i).getValues().size()>0&&series.get(i).getValues().get(2).size()>0&&series.get(i).getValues().get(2).get(1)!=null){
-						result = Double.parseDouble(series.get(i).getValues().get(2).get(1).toString());
-					}
-				}
-	            
-	            if(result == 0.0) {
-					if(series.get(i)!=null&&series.get(i).getValues()!=null&&series.get(i).getValues().size()>0&&series.get(i).getValues().get(3).size()>0&&series.get(i).getValues().get(3).get(1)!=null){
-						result = Double.parseDouble(series.get(i).getValues().get(3).get(1).toString());
-					}
-				}
-
-	            if(result == 0.0) {
-					if(series.get(i)!=null&&series.get(i).getValues()!=null&&series.get(i).getValues().size()>0&&series.get(i).getValues().get(4).size()>0&&series.get(i).getValues().get(4).get(1)!=null){
-						result = Double.parseDouble(series.get(i).getValues().get(4).get(1).toString());
-					}
-				} 
-	            
-				result = new BigDecimal(result).setScale(1, BigDecimal.ROUND_HALF_UP).doubleValue();
-	            totailResult = totailResult + result;
-	        }
-//			if(measurements.toLowerCase().equals("cpu/node_utilization")) {
-//				totailResult = totailResult / series.size();
-//			}
-		}
+		Double totailResult = this.computeNodeInfo(series);
+//		long endTime=System.currentTimeMillis(); //获取结束时间
+//		long time = endTime - startTime;//获取消耗时间，调试使用
+//		System.out.println("消耗时间："+time);
 		return totailResult;
 	}
 
+	@Override
+	public Double computeNodeInfo(List<QueryResult.Series> series) throws Exception{
+		Double totailResult = 0.0;
+		if(series!=null&&series.size()>0){
+			for(int i=0; i<series.size(); i++) {
+				Double result = 0.0;
+				if (series.get(i)!=null&& !CollectionUtils.isEmpty(series.get(i).getValues())){
+					List<List<Object>> values = series.get(i).getValues();
+					if (null != values.get(0).get(CommonConstant.NUM_ONE)){
+						result = Double.parseDouble(values.get(0).get(CommonConstant.NUM_ONE).toString());
+					}
+					if (result == 0.0 && null != values.get(CommonConstant.NUM_ONE).get(CommonConstant.NUM_ONE)){
+						result = Double.parseDouble(values.get(CommonConstant.NUM_ONE).get(CommonConstant.NUM_ONE).toString());
+					}
+					if (result == 0.0 && null != values.get(CommonConstant.NUM_TWO).get(CommonConstant.NUM_ONE)){
+						result = Double.parseDouble(values.get(CommonConstant.NUM_TWO).get(CommonConstant.NUM_ONE).toString());
+					}
+					if (result == 0.0 && null != values.get(CommonConstant.NUM_THREE).get(CommonConstant.NUM_ONE)){
+						result = Double.parseDouble(values.get(CommonConstant.NUM_THREE).get(CommonConstant.NUM_ONE).toString());
+					}
+					if (result == 0.0 && null != values.get(CommonConstant.NUM_FOUR).get(CommonConstant.NUM_ONE)){
+						result = Double.parseDouble(values.get(CommonConstant.NUM_FOUR).get(CommonConstant.NUM_ONE).toString());
+					}
+				}
+//	            if(series.get(i)!=null&&series.get(i).getValues()!=null&&series.get(i).getValues().size()>0&&series.get(i).getValues().get(0).size()>0&&series.get(i).getValues().get(0).get(1)!=null){
+//	                result = Double.parseDouble(series.get(i).getValues().get(0).get(1).toString());
+//	            }
+//
+//	            if(result == 0.0) {
+//					if(series.get(i)!=null&&series.get(i).getValues()!=null&&series.get(i).getValues().size()>0&&series.get(i).getValues().get(1).size()>0&&series.get(i).getValues().get(1).get(1)!=null){
+//						result = Double.parseDouble(series.get(i).getValues().get(1).get(1).toString());
+//					}
+//				}
+//
+//	            if(result == 0.0) {
+//					if(series.get(i)!=null&&series.get(i).getValues()!=null&&series.get(i).getValues().size()>0&&series.get(i).getValues().get(2).size()>0&&series.get(i).getValues().get(2).get(1)!=null){
+//						result = Double.parseDouble(series.get(i).getValues().get(2).get(1).toString());
+//					}
+//				}
+//
+//	            if(result == 0.0) {
+//					if(series.get(i)!=null&&series.get(i).getValues()!=null&&series.get(i).getValues().size()>0&&series.get(i).getValues().get(3).size()>0&&series.get(i).getValues().get(3).get(1)!=null){
+//						result = Double.parseDouble(series.get(i).getValues().get(3).get(1).toString());
+//					}
+//				}
+//
+//	            if(result == 0.0) {
+//					if(series.get(i)!=null&&series.get(i).getValues()!=null&&series.get(i).getValues().size()>0&&series.get(i).getValues().get(4).size()>0&&series.get(i).getValues().get(4).get(1)!=null){
+//						result = Double.parseDouble(series.get(i).getValues().get(4).get(1).toString());
+//					}
+//				}
 
+				result = new BigDecimal(result).setScale(CommonConstant.NUM_ONE, BigDecimal.ROUND_HALF_UP).doubleValue();
+				totailResult = totailResult + result;
+			}
+		}
+		return totailResult;
+	}
 
 
 	@Override
@@ -336,7 +391,7 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 
 		sql = "SELECT mean(\"value\") FROM \""+measurements+"\" WHERE \"type\" = '"+type+"'  AND time > now() - 30m GROUP BY time(1m) order by time desc  limit 2";
 
-		InfluxDB influxDB = InfluxDBFactory.connect(cluster.getInfluxdbUrl()+"/", "root", "");
+		InfluxDB influxDB = InfluxDBClient.getInfluxDB(cluster);
 		Query query = new Query(sql, cluster.getInfluxdbDb());
 		QueryResult queryResult = influxDB.query(query);
 

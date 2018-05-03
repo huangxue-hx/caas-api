@@ -12,6 +12,7 @@ import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import com.harmonycloud.k8s.constant.Resource;
 
@@ -78,14 +79,13 @@ public class TprApplication {
      * @param
      * @return
      */
-
-    //todo
     public ActionReturnUtil updateApplication(String namespace, String name, BaseResource application, Cluster cluster) throws Exception {
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.APP).setName(name);
         Map<String, Object> bodys = new HashMap<>();
         bodys.put("metadata", application.getMetadata());
         bodys.put("kind", application.getKind());
+        bodys.put("apiVersion", application.getApiVersion());
         Map<String, Object> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
         K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT,headers,bodys,cluster);
@@ -103,7 +103,11 @@ public class TprApplication {
      */
     public K8SClientResponse listApplicationByNamespace(String namespace, Map<String, Object> headers, Map<String, Object> bodys, String method, Cluster cluster) throws Exception {
         K8SURL url = new K8SURL();
-        url.setNamespace(namespace).setResource(Resource.APP);
+        if(StringUtils.isNotBlank(namespace)) {
+            url.setNamespace(namespace).setResource(Resource.APP);
+        }else{
+            url.setResource(Resource.APP);
+        }
         K8SClientResponse response = new K8sMachineClient().exec(url, method, headers, bodys, cluster);
         return response;
     }
