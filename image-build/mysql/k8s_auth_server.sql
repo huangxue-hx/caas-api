@@ -3169,7 +3169,7 @@ CREATE TABLE `service_templates` (
   `node_selector` varchar(225) DEFAULT NULL,
   `project_id` varchar(64) DEFAULT NULL,
   `cluster_id` varchar(64) DEFAULT NULL COMMENT '集群Id',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
   KEY `project_cluster` (`project_id`,`cluster_id`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8;
 
