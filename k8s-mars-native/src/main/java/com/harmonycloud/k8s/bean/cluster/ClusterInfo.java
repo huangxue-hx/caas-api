@@ -16,7 +16,7 @@ public class ClusterInfo implements Serializable {
     private ClusterMysql mysql;
     private ClusterRedis redis;
     private ClusterHarbor harbor;
-    private ClusterDomain domain ;
+    private List<ClusterDomain> domain ;
     private List<ClusterExternal> external ;
     private List<ClusterStorage> nfs ;
 
@@ -84,11 +84,11 @@ public class ClusterInfo implements Serializable {
         this.harbor = harbor;
     }
 
-    public ClusterDomain getDomain() {
+    public List<ClusterDomain> getDomain() {
         return domain;
     }
 
-    public void setDomain(ClusterDomain domain) {
+    public void setDomain(List<ClusterDomain> domain) {
         this.domain = domain;
     }
 

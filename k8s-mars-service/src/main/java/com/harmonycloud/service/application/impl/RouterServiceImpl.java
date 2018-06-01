@@ -8,8 +8,9 @@ import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.cluster.bean.NodePortClusterUsage;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.k8s.bean.*;
-import com.harmonycloud.k8s.bean.ServicePort;
-import com.harmonycloud.k8s.bean.cluster.*;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.bean.cluster.ClusterDomain;
+import com.harmonycloud.k8s.bean.cluster.ClusterExternal;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
@@ -68,47 +69,65 @@ public class RouterServiceImpl implements RouterService {
     /**
      * 创建router
      *
-     * @param parsedIngress
+     * @param parsedIngressList
      * @return
      */
     @Override
-    public ActionReturnUtil ingCreate(ParsedIngressListDto parsedIngress) throws Exception {
-        if (parsedIngress == null || StringUtils.isBlank(parsedIngress.getNamespace()) || StringUtils.isBlank(parsedIngress.getName()) || StringUtils.isBlank(parsedIngress.getHost())) {
+    public ActionReturnUtil ingCreate(ParsedIngressListDto parsedIngressList) throws Exception {
+        if (parsedIngressList == null || StringUtils.isBlank(parsedIngressList.getNamespace()) || StringUtils.isBlank(parsedIngressList.getName())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
-        String namespace = parsedIngress.getNamespace();
+        String namespace = parsedIngressList.getNamespace();
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
         if (cluster == null) {
             throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
-        //判断集群内是否有相同host和相同名称的ingress
-        String[] domainArray = parsedIngress.getHost().split("\\.");
-        String ingressName = domainArray.length > CommonConstant.NUM_THREE ? parsedIngress.getName() + CommonConstant.DOT + domainArray[CommonConstant.NUM_ONE] : parsedIngress.getName();
-        parsedIngress.setName(ingressName);
-        if (checkIngressName(cluster, ingressName)) {
-            //是否需要覆盖
-            K8SURL url = new K8SURL();
-            url.setNamespace(namespace).setResource(Resource.INGRESS);
-            Map<String, Object> bodys = new HashMap<>();
-            bodys.put("labelSelector", "app=" + parsedIngress.getServiceName());
-            K8SClientResponse k = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
-            if (!HttpStatusUtil.isSuccessStatus(k.getStatus())) {
-                throw new MarsRuntimeException(k.getBody());
-            }
-            IngressList ingressList = K8SClient.converToBean(k, IngressList.class);
-            List<Ingress> ingresses = ingressList.getItems();
-            if (Objects.nonNull(ingresses)) {
-                if(ingresses.stream().anyMatch(ing -> ing.getMetadata().getName().equals(ingressName))){
-                    return this.ingUpdate(parsedIngress, cluster);
-                }
-            }
+        //判断集群内是否有相同名称的ingress
+        if (checkIngressName(cluster, parsedIngressList.getName())) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.HTTP_INGRESS_NAME_DUPLICATE);
         }
-        Ingress ingress = this.generateIngressBean(parsedIngress);
+        Ingress ingress = new Ingress();
+        ingress.setMetadata(new ObjectMeta());
+        ingress.setSpec(new IngressSpec());
 
+        Map<String, Object> anno = new HashMap<String, Object>();
+        if (parsedIngressList.getAnnotaion() != null) {
+            anno.put("nephele/annotation", parsedIngressList.getAnnotaion());
+            ingress.getMetadata().setAnnotations(anno);
+        }
+        List<HttpRuleDto> rules = parsedIngressList.getRules();
+
+        Map<String, Object> la = new HashMap<>();
+        List<HTTPIngressPath> path = new ArrayList<>();
+        String name = "";
+        if (rules != null && rules.size() > 0) {
+            for (HttpRuleDto rule : rules) {
+                name = rule.getService();
+                HTTPIngressPath p = new HTTPIngressPath();
+                IngressBackend backend = new IngressBackend();
+                backend.setServiceName(rule.getService());
+                backend.setServicePort(Integer.valueOf(rule.getPort()));
+                p.setBackend(backend);
+                p.setPath(rule.getPath());
+                path.add(p);
+            }
+        }
+        la.put("app", name);
+        ingress.getMetadata().setLabels(la);
+        ingress.getMetadata().setNamespace(namespace);
+
+        IngressRule ingressRule = new IngressRule();
+        ingressRule.setHost(parsedIngressList.getHost());
+        HTTPIngressRuleValue http = new HTTPIngressRuleValue();
+        http.setPaths(path);
+        ingressRule.setHttp(http);
+        ingress.getSpec().setRules(new ArrayList<>());
+        ingress.getSpec().getRules().add(ingressRule);
+
+        ingress.getMetadata().setName(parsedIngressList.getName());
         Map<String, Object> body = CollectionUtil.transBean2Map(ingress);
         K8SURL url = new K8SURL();
-        Map<String, Object> head = new HashMap<>();
+        Map<String, Object> head = new HashMap<String, Object>();
         head.put("Content-Type", "application/json");
         url.setNamespace(namespace).setResource(Resource.INGRESS);
         K8SClientResponse k = new K8sMachineClient().exec(url, HTTPMethod.POST, head, body, cluster);
@@ -133,7 +152,7 @@ public class RouterServiceImpl implements RouterService {
         }
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.INGRESS).setName(name);
-        Map<String, Object> head = new HashMap<>();
+        Map<String, Object> head = new HashMap<String, Object>();
         head.put("Content-Type", "application/json");
         K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, head, null, cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
@@ -313,21 +332,66 @@ public class RouterServiceImpl implements RouterService {
      * @throws Exception
      */
     @Override
-    public ActionReturnUtil ingUpdate(ParsedIngressListDto parsedIngressList, Cluster cluster) throws Exception {
+    public ActionReturnUtil ingUpdate(ParsedIngressListUpdateDto parsedIngressList) throws Exception {
         K8SURL url = new K8SURL();
         url.setNamespace(parsedIngressList.getNamespace()).setResource(Resource.INGRESS)
                 .setName(parsedIngressList.getName());
-        Map<String, Object> head = new HashMap<>();
+        Map<String, Object> head = new HashMap<String, Object>();
         head.put("Content-Type", "application/json");
         Map<String, Object> body = new HashMap<>();
-        Ingress ingress = this.generateIngressBean(parsedIngressList);
-        body.put("metadata", ingress.getMetadata());
-        body.put("spec", ingress.getSpec());
-        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, head, body, cluster);
+        // 设置metadata
+        ObjectMeta metadata = new ObjectMeta();
+        // 处理label
+        List<HttpLabelDto> labels = parsedIngressList.getLabels();
+        Map<String, Object> label = new HashMap<>();
+        Map<String, Object> annotations = new HashMap<>();
+        if (labels != null) {
+            for (HttpLabelDto httpLabel : labels) {
+                label.put(httpLabel.getName(), httpLabel.getValue());
+            }
+        }
+        if (parsedIngressList.getAnnotaion() != null) {
+            annotations.put("nephele/annotation", parsedIngressList.getAnnotaion().toString());
+            metadata.setAnnotations(annotations);
+        }
+        metadata.setLabels(label);
+        metadata.setName(parsedIngressList.getName());
+        metadata.setNamespace(parsedIngressList.getNamespace());
+        // 设置spec
+        IngressSpec spec = new IngressSpec();
+        // 转换为k8s需要的结构
+        List<HttpRuleDto> rules = parsedIngressList.getRules();
+        List<IngressRule> listRule = new ArrayList<>();
+        if (rules != null) {
+            for (HttpRuleDto httpRule : rules) {
+                // 判断是否为编辑状态,编辑状态下不更新
+                if (httpRule.getIsEdit() != null && !httpRule.getIsEdit().equals("true")) {
+                    HTTPIngressRuleValue http = new HTTPIngressRuleValue();
+                    List<HTTPIngressPath> paths = new ArrayList<>();
+                    IngressRule rule = new IngressRule();
+                    HTTPIngressPath path = new HTTPIngressPath();
+                    IngressBackend backend = new IngressBackend();
+                    backend.setServiceName(httpRule.getService());
+                    backend.setServicePort(Integer.valueOf(httpRule.getPort()));
+                    path.setPath(httpRule.getPath());
+                    path.setBackend(backend);
+                    paths.add(path);
+                    http.setPaths(paths);
+                    rule.setHttp(http);
+                    rule.setHost(parsedIngressList.getHost());
+                    listRule.add(rule);
+                }
+            }
+        }
+        spec.setRules(listRule);
+        body.put("metadata", metadata);
+        body.put("spec", spec);
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, head, body);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             return ActionReturnUtil.returnErrorWithData(response.getBody());
         }
         return ActionReturnUtil.returnSuccessWithData(response.getBody());
+
     }
 
     @Override
@@ -671,17 +735,14 @@ public class RouterServiceImpl implements RouterService {
             IngressList ingressList = JsonUtil.jsonToPojo(k.getBody(), IngressList.class);
             List<Ingress> list = ingressList.getItems();
             if (CollectionUtils.isNotEmpty(list)) {
+                //获取域名
+                List<ClusterDomain> domains = clusterService.findDomain(namespace);
                 for (Ingress in : list) {
                     Map<String, Object> tmp = new HashMap<>();
-                    tmp.put("realName", in.getMetadata().getName());
-                    tmp.put("name", in.getMetadata().getName().contains(CommonConstant.DOT)? in.getMetadata().getName().split("\\.")[0] : in.getMetadata().getName());
-                    String protocol = Constant.PROTOCOL_HTTP.toLowerCase();
-                    tmp.put("type", protocol);
+                    tmp.put("name", in.getMetadata().getName());
+                    tmp.put("type", "HTTP");
                     List<Map<String, Object>> addressList = new ArrayList<>();
                     List<IngressRule> rules = in.getSpec().getRules();
-                    Map<String, Object> annotation = in.getMetadata().getAnnotations();
-                    ClusterDomainPort domainPort = Objects.nonNull(annotation) && annotation.containsKey(Constant.INGRESS_MULTIPLE_PORT_ANNOTATION)?
-                            JsonUtil.jsonToPojo(annotation.get(Constant.INGRESS_MULTIPLE_PORT_ANNOTATION).toString(), ClusterDomainPort.class) : null;
                     if (CollectionUtils.isNotEmpty(rules)) {
                         IngressRule rule = rules.get(0);
                         HTTPIngressRuleValue http = rule.getHttp();
@@ -700,15 +761,23 @@ public class RouterServiceImpl implements RouterService {
                                         path.setPath("");
                                     }
                                 }
+                                //判断域名类型
+                                String host = rule.getHost();
+                                String[] domainLevels = StringUtils.isNotBlank(host) && host.indexOf(CommonConstant.DOT) > -1 ? host.split(CommonConstant.DOT) : null;
                                 int port = Constant.LIVENESS_PORT;
-                                String hostName_suffix = CommonConstant.COLON + CommonConstant.SLASH + CommonConstant.SLASH + rule.getHost();
-                                if (Objects.nonNull(domainPort)) {
-                                    port = domainPort.getPort();
-                                    protocol = domainPort.getProtocol();
-                                    tmp.put("type", protocol);
+                                if (domainLevels != null) {
+                                    String domainLevelName = (Constant.DOMAIN_LEVEL_FOUR == domainLevels.length) ? Constant.CLUSTER_FOUR_DOMAIN : Constant.CLUSTER_THREE_DOMAIN;
+                                    for (ClusterDomain clusterDomain : domains) {
+                                        if (domainLevelName.equals(clusterDomain.getDomain())) {
+                                            port = clusterDomain.getPort();
+                                            break;
+                                        }
+                                    }
                                 }
-                                String hostName = port == Constant.LIVENESS_PORT ? protocol + hostName_suffix : protocol + hostName_suffix + CommonConstant.COLON + port;
-                                j.put("hostname", StringUtils.isNotBlank(path.getPath()) ? hostName + path.getPath() : hostName);
+                                String hostName = port == Constant.LIVENESS_PORT ? rule.getHost():
+                                        rule.getHost() + CommonConstant.COLON + port;
+                                hostName = StringUtils.isNotBlank(path.getPath()) ? hostName + path.getPath() : hostName;
+                                j.put("hostname", hostName);
                                 addressList.add(j);
                             }
                         }
@@ -939,103 +1008,17 @@ public class RouterServiceImpl implements RouterService {
      */
     @Override
     public boolean checkIngressName(Cluster cluster, String name) throws Exception {
-        List<Ingress> ingresses = this.listIngressInCluster(cluster);
-        if (Objects.nonNull(ingresses)) {
-            boolean isExist = ingresses.stream().anyMatch(ing -> ing.getMetadata().getName().equals(name));
-            return isExist;
-        }
-        return false;
-    }
-
-    private Ingress generateIngressBean(ParsedIngressListDto parsedIngressList) throws Exception {
-        Ingress ingress = new Ingress();
-        ingress.setMetadata(new ObjectMeta());
-        ingress.setSpec(new IngressSpec());
-
-        Map<String, Object> anno = new HashMap<>();
-        if (parsedIngressList.getAnnotaion() != null) {
-            anno.put("nephele/annotation", parsedIngressList.getAnnotaion());
-        }
-        ClusterDomainPort domainPort = new ClusterDomainPort();
-        domainPort.setPort(Integer.valueOf(parsedIngressList.getExposePort()));
-        domainPort.setProtocol(parsedIngressList.getProtocol());
-        domainPort.setExternal(parsedIngressList.getExternal());
-        anno.put(Constant.INGRESS_MULTIPLE_PORT_ANNOTATION, JsonUtil.convertToJson(domainPort));
-        List<HttpRuleDto> rules = parsedIngressList.getRules();
-        Map<String, Object> la = new HashMap<>();
-        List<HTTPIngressPath> pathList = new ArrayList<>();
-        String name = "";
-        if (rules != null && rules.size() > 0) {
-            for (HttpRuleDto rule : rules) {
-                name = rule.getService();
-                HTTPIngressPath p = new HTTPIngressPath();
-                IngressBackend backend = new IngressBackend();
-                backend.setServiceName(rule.getService());
-                backend.setServicePort(Integer.valueOf(rule.getPort()));
-                p.setBackend(backend);
-                p.setPath(rule.getPath());
-                pathList.add(p);
-            }
-        }
-        la.put("app", name);
-        ingress.getMetadata().setLabels(la);
-        ingress.getMetadata().setNamespace(parsedIngressList.getNamespace());
-        IngressRule ingressRule = new IngressRule();
-        ingressRule.setHost(parsedIngressList.getHost());
-        HTTPIngressRuleValue http = new HTTPIngressRuleValue();
-        http.setPaths(pathList);
-        ingressRule.setHttp(http);
-        ingress.getSpec().setRules(new ArrayList<>());
-        ingress.getSpec().getRules().add(ingressRule);
-        ingress.getMetadata().setName(parsedIngressList.getName());
-        ingress.getMetadata().setAnnotations(anno);
-        return ingress;
-    }
-
-    private List<Ingress> listIngressInCluster(Cluster cluster) throws Exception {
         K8SURL url = new K8SURL().setResource(Resource.INGRESS);
-        //查询ingress host
         K8SClientResponse checkRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null, cluster);
         if (!HttpStatusUtil.isSuccessStatus(checkRes.getStatus())) {
             throw new MarsRuntimeException(checkRes.getBody());
         }
         IngressList ingressList = K8SClient.converToBean(checkRes, IngressList.class);
         List<Ingress> ingresses = ingressList.getItems();
-        return ingresses;
-    }
-
-    @Override
-    public boolean checkExternalService(List<IngressDto> svcIngressList, Cluster cluster, String namespace) throws Exception {
-        boolean flag = true;
-        List<Ingress> ingresses = this.listIngressInCluster(cluster);
-        //check ingress
-        for (IngressDto ing : svcIngressList) {
-            if (ing.getType() != null && "HTTP".equals(ing.getType())) {
-                String[] domainArray = ing.getParsedIngressList().getHost().split("\\.");
-                String name = ing.getParsedIngressList().getName();
-                String ingressName = domainArray.length > CommonConstant.NUM_THREE ? name + CommonConstant.DOT + domainArray[CommonConstant.NUM_ONE] : name;
-                boolean isExist = ingresses.stream().anyMatch(ingress -> ingress.getMetadata().getName().equals(ingressName));
-                if (isExist) {
-                    flag = false;
-                    break;
-                }
-            }
-            //检测tcp和udp端口
-            if (ing.getType() != null && ("TCP".equals(ing.getType()) || "UDP".equals(ing.getType()))) {
-                for (TcpRuleDto rule : ing.getSvcRouter().getRules()) {
-                    if (StringUtils.isBlank(rule.getPort())) {
-                        continue;
-                    }
-
-                    ActionReturnUtil checkPortRes = this.checkPort(rule.getPort(), namespace);
-                    if ("true".equals(checkPortRes.getData().toString())) {
-                        flag = false;
-                        break;
-                    }
-                }
-            }
+        if (Objects.nonNull(ingresses)) {
+            boolean isExist = ingresses.stream().anyMatch(ing -> ing.getMetadata().getName().equals(name));
+            return isExist;
         }
-        return flag;
+        return false;
     }
-
 }

@@ -12,6 +12,7 @@ import com.harmonycloud.dao.application.ServiceTemplatesMapper;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.k8s.bean.Deployment;
+import com.harmonycloud.k8s.bean.DeploymentList;
 import com.harmonycloud.k8s.bean.UnversionedStatus;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8sMachineClient;
@@ -21,6 +22,7 @@ import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
@@ -583,22 +585,54 @@ public class ServiceServiceImpl implements ServiceService {
         //check name
         //service name
         K8SURL url = new K8SURL();
-        url.setNamespace(namespace).setResource(Resource.DEPLOYMENT).setName(service.getDeploymentDetail().getName());
+        url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
         K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null, cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
                 && depRes.getStatus() != Constant.HTTP_404) {
             UnversionedStatus status = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
-
+        DeploymentList deplist = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+        List<Deployment> deps = new ArrayList<Deployment>();
+        if (deplist != null && deplist.getItems() != null) {
+            deps = deplist.getItems();
+        }
+        //ingress tcp
+        ActionReturnUtil tcpRes = routerService.svcList(namespace);
+        if (!tcpRes.isSuccess()) {
+            return tcpRes;
+        }
+        @SuppressWarnings("unchecked")
+        List<RouterSvc> tcplist = (List<RouterSvc>) tcpRes.get("data");
         boolean flag = true;
-        if (service.getDeploymentDetail() != null && HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
-            msg.put("服务名称:" + service.getDeploymentDetail().getName(), "重复");
-            flag = false;
+        if (service.getDeploymentDetail() != null && deps != null && deps.size() > 0) {
+            for (Deployment dep : deps) {
+                if (service.getDeploymentDetail().getName().equals(dep.getMetadata().getName())) {
+                    msg.put("服务名称:" + service.getDeploymentDetail().getName(), "重复");
+                    flag = false;
+                }
+            }
         }
         //check ingress
         if (service.getIngress() != null && service.getIngress().size() > 0) {
-            flag = routerService.checkExternalService(service.getIngress(), cluster, namespace);
+            for (IngressDto ing : service.getIngress()) {
+                if (ing.getType() != null && "HTTP".equals(ing.getType())) {
+                    boolean isExist = routerService.checkIngressName(cluster, ing.getParsedIngressList().getName());
+                    if (isExist) {
+                        msg.put("Ingress(Http):" + ing.getParsedIngressList().getName(), "重复");
+                        flag = false;
+                        break;
+                    }
+                }
+                if (ing.getType() != null && "TCP".equals(ing.getType()) && tcplist != null && tcplist.size() > 0) {
+                    for (RouterSvc tcp : tcplist) {
+                        if (("routersvc" + ing.getSvcRouter().getName()).equals(tcp.getName())) {
+                            msg.put("Ingress(Tcp):" + ing.getSvcRouter().getName(), "重复");
+                            flag = false;
+                        }
+                    }
+                }
+            }
         }
         if (flag) {
             return ActionReturnUtil.returnSuccess();

@@ -74,7 +74,7 @@ public interface ClusterService {
 	 *
 	 * @return
 	 */
-	ClusterDomain findDomain(String namespace) throws Exception;
+	List<ClusterDomain> findDomain(String namespace) throws Exception;
 
 	/**
 	 * 根据harborHost查询harbor具体信息

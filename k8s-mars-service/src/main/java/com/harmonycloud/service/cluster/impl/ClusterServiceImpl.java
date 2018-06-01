@@ -402,7 +402,7 @@ public class ClusterServiceImpl implements ClusterService {
      * @return
      */
     @Override
-    public ClusterDomain findDomain(String namespace) throws Exception {
+    public List<ClusterDomain> findDomain(String namespace) throws Exception {
         if (StringUtils.isBlank(namespace)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }

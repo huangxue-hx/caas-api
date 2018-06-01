@@ -15,13 +15,13 @@ import java.util.Map;
  * Created by czm on 2017/1/18.
  */
 public interface RouterService {
-    
+
     public ActionReturnUtil ingCreate(ParsedIngressListDto parsedIngressList) throws Exception;
-    
-    public ActionReturnUtil ingUpdate(ParsedIngressListDto parsedIngressList, Cluster cluster) throws Exception;
-    
+
+    public ActionReturnUtil ingUpdate(ParsedIngressListUpdateDto parsedIngressList) throws Exception;
+
     public ActionReturnUtil ingDelete(String namespace, String name) throws Exception;
-    
+
     public ActionReturnUtil svcList(String namespace) throws Exception;
 
     /**
@@ -65,7 +65,7 @@ public interface RouterService {
     public ActionReturnUtil delPort(String port,String tenantId) throws Exception;
 
     List<RouterSvc> listIngressByName(ParsedIngressListDto parsedIngressListDto) throws Exception;
-    
+
     public ActionReturnUtil listIngressByName(String namespace, String nameList) throws Exception;
 
     /**
@@ -144,6 +144,4 @@ public interface RouterService {
     List<Map<String, Object>> createExternalRule(ServiceTemplateDto svcTemplate, String namespace) throws Exception;
 
     boolean checkIngressName(Cluster cluster, String name) throws Exception;
-
-    boolean checkExternalService(List<IngressDto> svcIngressList, Cluster cluster, String namespace) throws Exception;
 }

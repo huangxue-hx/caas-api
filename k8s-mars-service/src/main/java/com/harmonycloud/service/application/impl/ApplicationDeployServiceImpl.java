@@ -23,6 +23,7 @@ import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.cluster.LoadbalanceService;
 import com.harmonycloud.service.common.PrivilegeHelper;
 import com.harmonycloud.service.platform.bean.ApplicationList;
+import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.tenant.*;
@@ -1219,6 +1220,13 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         if (Objects.nonNull(deplist) && CollectionUtils.isNotEmpty(deplist.getItems())) {
             deps = deplist.getItems();
         }
+        //ingress tcp
+        ActionReturnUtil tcpRes = routerService.svcList(namespace);
+        if (!tcpRes.isSuccess()) {
+            return tcpRes;
+        }
+        @SuppressWarnings("unchecked")
+        List<RouterSvc> tcplist = (List<RouterSvc>) tcpRes.get("data");
 
         for (ServiceTemplateDto std : appDeploy.getAppTemplate().getServiceList()) {
             //check service name
@@ -1232,9 +1240,19 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             }
             //check ingress
             if (CollectionUtils.isNotEmpty(std.getIngress())) {
-                boolean flag = routerService.checkExternalService(std.getIngress(), cluster, namespace);
-                if (!flag) {
-                    return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.TCP_INGRESS_NAME_DUPLICATE);
+                for (IngressDto ing : std.getIngress()) {
+                    if (ing.getType() != null && "HTTP".equals(ing.getType())) {
+                        if (routerService.checkIngressName(cluster, ing.getParsedIngressList().getName())) {
+                            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.HTTP_INGRESS_NAME_DUPLICATE);
+                        }
+                    }
+                    if (ing.getType() != null && "TCP".equals(ing.getType()) && tcplist != null && tcplist.size() > 0) {
+                        for (RouterSvc tcp : tcplist) {
+                            if (("routersvc" + ing.getSvcRouter().getName()).equals(tcp.getName())) {
+                                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.TCP_INGRESS_NAME_DUPLICATE);
+                            }
+                        }
+                    }
                 }
             }
         }
