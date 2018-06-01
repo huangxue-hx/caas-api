@@ -41,6 +41,8 @@ public class PersistentVolumeDto {
 
     private String serviceName;
 
+	private String clusterId;
+
 	public String getType() {
 		return type;
 	}
@@ -168,5 +170,13 @@ public class PersistentVolumeDto {
 
 	public void setBindOne(Boolean bindOne) {
 		this.bindOne = bindOne;
+	}
+
+	public String getClusterId() {
+		return clusterId;
+	}
+
+	public void setClusterId(String clusterId) {
+		this.clusterId = clusterId;
 	}
 }

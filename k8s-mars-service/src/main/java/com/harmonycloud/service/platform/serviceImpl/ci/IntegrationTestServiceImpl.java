@@ -16,6 +16,7 @@ import com.harmonycloud.dto.cicd.TestResultDto;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.ci.IntegrationTestService;
+import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.platform.service.ci.StageBuildService;
 import com.harmonycloud.service.platform.service.ci.StageService;
 import com.harmonycloud.service.tenant.ProjectService;
@@ -56,7 +57,7 @@ public class IntegrationTestServiceImpl implements IntegrationTestService{
     ProjectService projectService;
 
     @Autowired
-    DataSourceTransactionManager transactionManager;
+    JobService jobService;
 
     @Override
     public List<Map> getTestSuites(String projectId, String type) throws Exception{
@@ -82,7 +83,6 @@ public class IntegrationTestServiceImpl implements IntegrationTestService{
 
     @Override
     public ActionReturnUtil updateTestResult(Integer stageId, Integer buildNum, TestResultDto testResult) throws Exception{
-        Thread.sleep(Constant.THREAD_SLEEP_TIME_1000);
         Stage stage = stageService.selectByPrimaryKey(stageId);
         if(stage == null){
             return ActionReturnUtil.returnCodeAndMsg(CtsCodeMessage.STAGE_NOT_EXIST, "");
@@ -106,6 +106,7 @@ public class IntegrationTestServiceImpl implements IntegrationTestService{
         stageBuild.setTestResult(testResult.getResult()+"("+testResult.getMsg()+")");
         stageBuild.setTestUrl(testResult.getLink());
         stageBuildService.updateStageBuildByStageIdAndBuildNum(stageBuild);
+        jobService.syncJobStatus(jobService.getJobById(stage.getJobId()),buildNum);
         return ActionReturnUtil.returnCodeAndMsg(CtsCodeMessage.SUCCESS, "");
     }
 
@@ -116,15 +117,14 @@ public class IntegrationTestServiceImpl implements IntegrationTestService{
         params.put("callback", CtsClient.buildCallBackUrl(stageId, buildNum));
         HttpClientResponse response = CtsClient.exec(CtsClient.buildExecuteSuiteUrl(), HTTPMethod.POST, null, params);
         if(HttpStatus.OK.value() == response.getStatus()){
+            //获取调用的response，若测试结果为失败，则更新步骤的构建记录
             TestResultDto testResultDto = JSON.parseObject(response.getBody(), TestResultDto.class);
             if(CtsClient.FAILURE.equals(testResultDto.getResult())){
-                DefaultTransactionDefinition def = new DefaultTransactionDefinition();
-                def.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-                TransactionStatus status = transactionManager.getTransaction(def);
                 updateTestResult(stageId, buildNum, testResultDto);
-                transactionManager.commit(status);
-                throw new MarsRuntimeException(ErrorCodeMessage.TEST_SUITE_NOT_EXIST);
+                throw new MarsRuntimeException(testResultDto.getMsg());
             }
+        }else{
+            throw new MarsRuntimeException(ErrorCodeMessage.EXECUTE_TEST_SUITE_ERROR);
         }
     }
 

@@ -491,6 +491,7 @@ public class TenantServiceImpl implements TenantService {
                 Integer id = clusterQuotaDto.getId();
                 TenantClusterQuota quota = null;
                 if (!Objects.isNull(id)){
+                    //获取该id的配额
                     quota = this.tenantClusterQuotaService.getClusterQuotaById(id);
                 }
                 Double cpuQuota = clusterQuotaDto.getCpuQuota();
@@ -521,18 +522,10 @@ public class TenantServiceImpl implements TenantService {
                 Double clusterMemoryAllocatedResources = Double.valueOf(clusterMemoryAllocatedObj.toString());
                 //获取集群使用配额
                 this.tenantClusterQuotaService.getClusterUsage(tenantId,clusterId,clusterQuotaDto);
-                //整个集群已经使用的配额
-//            Double clusterUsedCpu = clusterQuotaDto.getClusterUsedCpu();
-//            Double clusterUsedMemory = clusterQuotaDto.getClusterUsedMemory();
-//            String clusterUsedMemoryType = clusterQuotaDto.getClusterUsedMemoryType();
                 //租户内已经使用的配额
                 Double usedCpu = clusterQuotaDto.getUsedCpu();
                 Double usedMemory = clusterQuotaDto.getUsedMemory();
                 String usedMemoryType = clusterQuotaDto.getUsedMemoryType();
-                //总配额
-//            Double totalCpu = clusterQuotaDto.getTotalCpu();
-//            Double totalMemory = clusterQuotaDto.getTotalMomry();
-//            String totalMemoryType = clusterQuotaDto.getTotalMemoryType();
 
 //            //类型不一样，同一转化为MB
 //            totalMemory = this.convertValue(totalMemoryType,totalMemory);
@@ -542,11 +535,6 @@ public class TenantServiceImpl implements TenantService {
                     usedMemory = 0d;
                     usedCpu = 0d;
                 }
-//            if (Objects.isNull(clusterUsedMemoryType)){
-//                clusterUsedMemory = 0d;
-//            }else {
-//                clusterUsedMemory = this.convertValue(clusterUsedMemoryType,clusterUsedMemory);
-//            }
 
                 Double changeCpuValue = cpuQuota - lastCpu;
                 Double changeMemoryValue = memoryQuota - lastMemory;
@@ -721,7 +709,7 @@ public class TenantServiceImpl implements TenantService {
     private void createClusterQuotaByTenantId(TenantDto tenantDto)throws Exception{
         List<ClusterQuotaDto> clusterQuota = tenantDto.getClusterQuota();
         Map<String,ClusterQuotaDto> clusterQuotaMap = new HashMap<>();
-        //如果有初始配额，检查初始配额的有效性
+        //如果有初始配额，检查初始配额的有效性(暂时不启用)
         if (!CollectionUtils.isEmpty(clusterQuota)){
             //修改配额有效值检查
             Boolean checkClusterQuota = this.checkClusterQuota(tenantDto.getClusterQuota(),tenantDto.getTenantId());
@@ -1330,7 +1318,7 @@ public class TenantServiceImpl implements TenantService {
             user.setPhone(tel);
             user.setPause(CommonConstant.NORMAL);
             user.setIsAdmin(0);
-            user.setCreateTime(DateUtil.getCurrentUtcTime());
+            user.setCreateTime(new Date());
             this.userService.insertUser(user);
         } else {
             //更新用户
@@ -1344,9 +1332,9 @@ public class TenantServiceImpl implements TenantService {
                 user.setPhone(tel);
             }
             if (Objects.isNull(user.getCreateTime())){
-                user.setCreateTime(DateUtil.getCurrentUtcTime());
+                user.setCreateTime(new Date());
             }
-            user.setUpdateTime(DateUtil.getCurrentUtcTime());
+            user.setUpdateTime(new Date());
             this.userService.updateUser(user);
         }
     }

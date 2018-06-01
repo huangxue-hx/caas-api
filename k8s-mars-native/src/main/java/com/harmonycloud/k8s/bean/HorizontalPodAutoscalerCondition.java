@@ -1,5 +1,8 @@
 package com.harmonycloud.k8s.bean;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class HorizontalPodAutoscalerCondition {
     private String lastTransitionTime;
     private String message;

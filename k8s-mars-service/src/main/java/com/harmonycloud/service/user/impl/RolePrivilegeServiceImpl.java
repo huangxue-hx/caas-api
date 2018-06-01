@@ -2,6 +2,7 @@ package com.harmonycloud.service.user.impl;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.DicUtil;
 import com.harmonycloud.common.util.SsoClient;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.tenant.bean.Project;
@@ -215,7 +216,7 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
             Integer pid = rolePrivilegeById.getPid();
             this.syncRoleMenu(roleId,pid,status);
         }
-        this.updateRoleMenu(roleId);
+
     }
     public void syncRoleMenu(Integer roleId,Integer privilegeId,Boolean status) throws Exception{
         //获取权限
@@ -470,9 +471,13 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
         }
     }
     private void updateSubRoleMenu(Integer roleId,Integer rmid,Boolean status,String module)throws Exception{
+        //获取该菜单的子菜单列表
         List<ResourceMenu> subResourceMenuList = this.resourceMenuService.getResourceMenuListByParentId(rmid);
+        Boolean isParent = Boolean.FALSE;
+        //如果没有子菜单则是一级目录直接获取一级目录本身主菜单
         if (CollectionUtils.isEmpty(subResourceMenuList)){
             ResourceMenu menuById = this.resourceMenuService.getResourceMenuById(rmid);
+            isParent = Boolean.TRUE;
             if (!Objects.isNull(menuById)){
                 subResourceMenuList.add(menuById);
             }
@@ -485,7 +490,7 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
                         subResourceMenuRole.setAvailable(status);
                         resourceMenuRoleService.updateResourceMenuRole(subResourceMenuRole);
                         //如果子菜单为true,父级菜单如果为false则需要同步更新父级菜单
-                        if (status){
+                        if (status && !isParent){
                             ResourceMenuRole parentResourceMenuRole = this.resourceMenuRoleService.getResourceMenuRole(roleId, rmid);
                             if (!parentResourceMenuRole.getAvailable()){
                                 parentResourceMenuRole.setAvailable(status);
@@ -505,36 +510,7 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
         }
 
     }
-    /**
-     * 更新角色菜单(仅供后台数据库同步使用)
-     * @param roleId
-     * @throws Exception
-     */
-    @SuppressWarnings("unchecked")
-    @Override
-    public void updateRoleMenu(Integer roleId) throws Exception {
-//        List<RolePrivilege> moduleByParentId = this.getAllStatusModuleByParentId(0, roleName);
-//        for (RolePrivilege map : moduleByParentId) {
-//            Resource resource = this.getRolePrivateByMark(map.getMark().equals("租户管理")?"我的租户":map.getMark(),roleName);
-//            if(resource == null){
-//                throw new MarsRuntimeException("系统异常,权限数据格式错误,请联系管理员");
-//            }
-//            Boolean status = map.getStatus();
-//            if(status ^ resource.getAvailable()){
-//                this.resourceService.updateRoleMenuResource(resource.getId(), status);
-//            }
-//            List<RolePrivilege> moduleByParentIdSecond = this.getAllStatusModuleByParentId(map.getRpid(), roleName);
-//            for (RolePrivilege rolePrivilegeSecond : moduleByParentIdSecond) {
-//                Resource resourceSecond = this.getRolePrivateByMark(rolePrivilegeSecond.getMark().equals("租户管理")?"我的租户":rolePrivilegeSecond.getMark(),roleName);
-//                if(resourceSecond != null){
-//                    Boolean statusSecond = rolePrivilegeSecond.getStatus();
-//                    if(statusSecond ^ resourceSecond.getAvailable()){
-//                        this.resourceService.updateRoleMenuResource(resourceSecond.getId(), statusSecond);
-//                    }
-//                }
-//            }
-//        }
-    }
+
 
     /**
      * 根据roleId获取权限
@@ -576,34 +552,44 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
         if(Objects.isNull(role)){
             throw new MarsRuntimeException(ErrorCodeMessage.ROLE_NOT_EXIST);
         }
-        //获取角色下rolePrivilege列表
-        List<RolePrivilege> list = this.getRolePrivilegeByRoleId(roleId,available);
-        List<Privilege> privileges = new ArrayList<>();
-        if (!CollectionUtils.isEmpty(list)){
-            for (RolePrivilege rolePrivilege:list) {
-                //获取权限
-                Privilege privilegeById = this.privilegeService.getPrivilegeById(rolePrivilege.getPid());
-                //基本权限可用才添加
-                if (privilegeById.getStatus() && checkSystemPrivilege(roleId,privilegeById.getModule())){
-                    //设置角色权限状态
-                    privilegeById.setStatus(rolePrivilege.getStatus());
-                    privilegeById.setCreateTime(rolePrivilege.getCreateTime());
-                    privilegeById.setId(rolePrivilege.getId());
-                    privileges.add(privilegeById);
-                }
-            }
-        }
+        //获取角色Id获取角色Privilege列表
+        List<Privilege> privileges = this.getPrivileteListByRole(roleId,available);
         if (!CollectionUtils.isEmpty(privileges)){
             //根据权限列表组装权限树
             result = this.dealPrivilegeTree(privileges);
         }
         return result;
     }
-    private Boolean checkSystemPrivilege(Integer roleId,String module) throws Exception{
-        if (roleId > CommonConstant.ADMIN_ROLEID && (module.equals("dashboard") || module.equals("infrastructure")|| module.equals("system"))){
-            return Boolean.FALSE;
+
+    /**
+     * 获取角色Id获取角色Privilege列表
+     * @param roleId
+     * @param available
+     * @return
+     * @throws Exception
+     */
+    private List<Privilege> getPrivileteListByRole(Integer roleId,Boolean available) throws Exception{
+        List<Privilege> privileges = new ArrayList<>();
+        List<RolePrivilege> list = this.getRolePrivilegeByRoleId(roleId,available);
+        if (!CollectionUtils.isEmpty(list)){
+            ArrayList<Integer> pids = new ArrayList<>();
+            Map<Integer, Boolean> privilegeStatusMap = new HashMap<>();
+            Map<Integer, Integer> rolePrivilegeIdMap = new HashMap<>();
+            for (RolePrivilege rolePrivilege : list) {
+                pids.add(rolePrivilege.getPid());
+                privilegeStatusMap.put(rolePrivilege.getPid(),rolePrivilege.getStatus());
+                rolePrivilegeIdMap.put(rolePrivilege.getPid(),rolePrivilege.getId());
+            }
+            ArrayList<String> adminModules = DicUtil.getAdminModules();
+            privileges = this.privilegeService.listPrivilegeByIds(roleId,pids,adminModules);
+            privileges.stream().forEach(privilege -> {
+                if (!Objects.isNull(privilegeStatusMap.get(privilege.getId()))){
+                    privilege.setStatus(privilegeStatusMap.get(privilege.getId()));
+                    privilege.setId(rolePrivilegeIdMap.get(privilege.getId()));
+                }
+            });
         }
-        return Boolean.TRUE;
+        return privileges;
     }
     /**
      * 获取基本权限操作
@@ -644,14 +630,12 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
                         for (Map.Entry<String, List<Privilege>> entryResource : resources.entrySet()) {
                             //添加模块下资源权限信息
                             resource.put(entryResource.getKey(),entryResource.getValue());
-//                            resource.put(CommonConstant.STATUS,!CollectionUtils.isEmpty(entryResource.getValue()));
                         }
                     }
                 }
                 if (!Objects.isNull(resource)){
                     //添加模块信息
                     result.put(entry.getKey(),resource);
-//                    result.put(CommonConstant.STATUS,!CollectionUtils.isEmpty(resource));//后续调试
                 }
             }
         }

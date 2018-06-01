@@ -110,7 +110,7 @@ public interface ApplicationTemplateService {
      * @param projectId
      * @return
      */
-    List<ApplicationTemplates> listApplicationTemplatesByNameAndImage(String name, String imageList, String tenant, String projectId) throws Exception;
+    List<ApplicationTemplates> listApplicationTemplatesByNameAndImage(String name, String imageList, String clusterId, String projectId) throws Exception;
 
     /**
      * 共有模板查询

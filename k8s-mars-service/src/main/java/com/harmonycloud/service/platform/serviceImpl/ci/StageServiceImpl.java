@@ -341,7 +341,7 @@ public class StageServiceImpl implements StageService {
             Stage stage = stageMapper.queryById(stageBuild.getStageId());
             if(StageTemplateTypeEnum.CODESCAN.getCode() == stage.getStageTemplateType() || StageTemplateTypeEnum.INTEGRATIONTEST.getCode() == stage.getStageTemplateType()){
                 if(StringUtils.isNotBlank(stageBuild.getStatus()) && !stageBuild.getStatus().equals(Constant.PIPELINE_STATUS_SUCCESS) && !stageBuild.getStatus().equals(Constant.PIPELINE_STATUS_FAILED)){
-                    if(jobBuild !=null && Constant.PIPELINE_STATUS_ABORTED.equals(jobBuild.getStatus())){
+                    if(jobBuild !=null && Constant.PIPELINE_STATUS_ABORTED.equals(jobBuild.getStatus()) || Constant.PIPELINE_STATUS_FAILED.equals((String) stageMap.get("status"))){
                         stageBuild.setStatus(Constant.PIPELINE_STATUS_FAILED);
                     } else {
                         stageBuild.setStatus(Constant.PIPELINE_STATUS_BUILDING);

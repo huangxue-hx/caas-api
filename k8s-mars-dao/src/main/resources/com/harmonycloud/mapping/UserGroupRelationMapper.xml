@@ -5,6 +5,22 @@
     <result column="userid" property="userid" jdbcType="BIGINT" />
     <result column="groupid" property="groupid" jdbcType="INTEGER" />
   </resultMap>
+  <resultMap id="UserResultMap" type="com.harmonycloud.dao.user.bean.User" >
+    <id column="id" property="id" jdbcType="BIGINT" />
+    <result column="username" property="username" jdbcType="VARCHAR" />
+    <result column="password" property="password" jdbcType="VARCHAR" />
+    <result column="token" property="token" jdbcType="VARCHAR" />
+    <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
+    <result column="token_create" property="tokenCreate" jdbcType="TIMESTAMP" />
+    <result column="is_admin" property="isAdmin" jdbcType="BIT" />
+    <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
+    <result column="email" property="email" jdbcType="VARCHAR" />
+    <result column="real_name" property="realName" jdbcType="VARCHAR" />
+    <result column="is_machine" property="isMachine" jdbcType="BIT" />
+    <result column="comment" property="comment" jdbcType="VARCHAR" />
+    <result column="pause" property="pause" jdbcType="VARCHAR" />
+    <result column="phone" property="phone" jdbcType="VARCHAR" />
+  </resultMap>
   <sql id="Example_Where_Clause" >
     <where >
       <foreach collection="oredCriteria" item="criteria" separator="or" >
@@ -88,4 +104,10 @@
     (#{ugrs.userid},#{ugrs.groupid})
   </foreach>
 </insert>
+  <select id="selectUserListByGroupName" resultMap="UserResultMap" parameterType="java.lang.String" >
+    select
+    id, username, password, token, create_time, token_create, is_admin, update_time,
+    email, real_name, is_machine, comment, pause,phone
+    from `user` INNER JOIN (SELECT * FROM user_group_relation WHERE groupid = (SELECT id FROM user_group WHERE groupname = #{groupname,jdbcType=VARCHAR})) usergroup ON `user`.id = usergroup.userid
+  </select>
 </mapper>

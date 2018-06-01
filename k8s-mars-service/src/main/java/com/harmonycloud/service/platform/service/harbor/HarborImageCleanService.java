@@ -32,5 +32,10 @@ public interface HarborImageCleanService {
      */
     boolean isHarborInGc(String harborHost) throws Exception;
 
-
+    /**
+     * 删除集群时将该集群的镜像仓库的清理规则删除
+     * @return
+     * @throws Exception
+     */
+    void deleteClusterCleanRule(String clusterId) throws Exception;
 }

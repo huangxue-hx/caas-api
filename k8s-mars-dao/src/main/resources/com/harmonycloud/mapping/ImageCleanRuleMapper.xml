@@ -89,4 +89,8 @@
         </foreach>
     </select>
 
+    <delete id="deleteByClusterId" parameterType="java.lang.String">
+        delete from image_clean_rule where repository_id in (select id from image_repository where cluster_id=#{clusterId})
+    </delete>
+
 </mapper>

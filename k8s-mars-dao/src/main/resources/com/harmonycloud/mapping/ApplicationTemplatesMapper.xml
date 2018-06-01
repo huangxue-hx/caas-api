@@ -104,8 +104,8 @@
     <select id="listAppTemplatesByNameAndImage" parameterType="java.lang.String" resultMap="BaseResultMap">
         select * from application_templates where status = 0 and is_public = false and name=#{name} and image_list like
         concat(concat('%',#{imageList}),'%')
-        <if test="tenant != null and tenant != '' ">
-            and tenant =#{tenant}
+        <if test="clusterId != null and clusterId != '' ">
+            and cluster_id = #{clusterId}
         </if>
         <if test="projectId != null and projectId != '' ">
             and project_id = #{projectId}

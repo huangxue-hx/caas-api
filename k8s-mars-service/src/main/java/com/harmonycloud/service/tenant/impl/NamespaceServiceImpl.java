@@ -388,6 +388,22 @@ public class NamespaceServiceImpl implements NamespaceService {
         if (Objects.isNull(cluster)){
             throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
+        //分区有效值判断
+        NamespaceLocal namespaceByName = this.namespaceLocalService.getNamespaceByName(namespace);
+
+        if (!Objects.isNull(namespaceByName)){
+            throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_EXIST,namespace,Boolean.TRUE);
+        }
+        //分区别名检查
+        NamespaceLocal namespaceByAliasName = this.namespaceLocalService.getNamespaceByAliasName(namespaceDto.getAliasName());
+        if (!Objects.isNull(namespaceByAliasName)){
+            throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_EXIST,namespaceDto.getAliasName(),Boolean.TRUE);
+        }
+
+        if(!namespaceDto.isPrivate()){
+            //检查分区分配的配额是否超出可用值
+            this.checkQuota(cluster, namespaceDto);
+        }
         //处理独占节点配额，配额如果有小数点，处理配额小数点
         if (namespaceDto.isPrivate()) {
             QuotaDto quota2 = namespaceDto.getQuota();
@@ -427,57 +443,8 @@ public class NamespaceServiceImpl implements NamespaceService {
             
             namespaceDto.setQuota(quota2);
         }
-        //分区有效值判断
-        NamespaceLocal namespaceByName = this.namespaceLocalService.getNamespaceByName(namespace);
-//        K8SClientResponse namespaceResponse = namespaceService.getNamespace(namespaceDto.getName(), null, null, cluster);
-//        Map<String, Object> convertJsonToMap = JsonUtil.convertJsonToMap(namespaceResponse.getBody());
-//        String metadata = convertJsonToMap.get(CommonConstant.METADATA).toString();
-        if (!Objects.isNull(namespaceByName)){
-            throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_EXIST,namespace,Boolean.TRUE);
-        }
-        //分区别名检查
-        NamespaceLocal namespaceByAliasName = this.namespaceLocalService.getNamespaceByAliasName(namespaceDto.getAliasName());
-        if (!Objects.isNull(namespaceByAliasName)){
-            throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_EXIST,namespaceDto.getAliasName(),Boolean.TRUE);
-        }
 
-        if(!namespaceDto.isPrivate()){
-            //检查分区分配的配额是否超出可用值
-            this.checkQuota(cluster, namespaceDto);
-        }
-        //TODO 后续对接网络
-//        List<NetworkCalico> networkList = networkService.getnetworkbyTenantid(namespaceDto.getTenantid());
-//        if (networkList.size() != 1) {
-//            return ActionReturnUtil.returnErrorWithMsg("租户信息有错，请检查");
-//        }
-        // 1创建分区网络
-//        NetworkCalico networkCalico = networkList.get(0);
-//        String networkid = networkCalico.getNetworkid();
-//        String networkname = networkCalico.getNetworkname();
-//        String subnetname = networkname + "_subnet_" + namespaceDto.getName();
-//        String subnetId = null;
-//        try {
-//            ActionReturnUtil subnetworkCreate = networkService.subnetworkCreate(networkid, subnetname);
-//            if ((Boolean) subnetworkCreate.get(CommonConstant.SUCCESS) == false) {
-//                return subnetworkCreate;
-//            }
-//            subnetId = ((NamespceBindSubnet) subnetworkCreate.get(CommonConstant.DATA)).getSubnetId();
-//        } catch (Exception e) {
-//            if (e instanceof K8sAuthException) {
-//                throw e;
-//            }
-//            logger.error("创建分区网络失败，错误原因：" + e.getMessage());
-//            return ActionReturnUtil.returnErrorWithMsg("创建分区网络失败，请检查");
-//        }
-        // 向namespaceDto赋值
-//        NetworkDto network = new NetworkDto();
-//        network.setNetworkid(networkid);
-//        network.setName(networkname);
-//        SubnetDto subnet = new SubnetDto();
-//        subnet.setSubnetid(subnetId);
-//        subnet.setSubnetname(subnetname);
-//        network.setSubnet(subnet);
-//        namespaceDto.setNetwork(network);
+
         // 2.创建namespace
         this.create(namespaceDto, cluster);
 
@@ -634,32 +601,36 @@ public class NamespaceServiceImpl implements NamespaceService {
         String namespaceName = namespaceDto.getName();
         //获取集群
         Cluster cluster = this.namespaceLocalService.getClusterByNamespaceName(namespaceName);
-        //检查配额
-        namespaceDto.setUpdate(Boolean.TRUE);
-        checkQuota(cluster, namespaceDto);
-        // 初始化判断
-        if (!namespaceDto.isPrivate()
-                && (namespaceDto.getQuota() == null
-                || StringUtils.isEmpty(namespaceDto.getQuota().getCpu())
-                || StringUtils.isEmpty(namespaceDto.getQuota().getMemory()))) {
-            throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_QUOTA_NOT_BLANK);
+        if (!Objects.isNull(namespaceDto.getQuota())){
+            //检查配额
+            namespaceDto.setUpdate(Boolean.TRUE);
+            checkQuota(cluster, namespaceDto);
         }
-
         //检查有效性
         NamespaceLocal namespaceByName = this.namespaceLocalService.getNamespaceByName(namespaceName);
         if (Objects.isNull(namespaceByName)){
             throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_NOT_FOUND);
         }
-
-        // 组装quota
-        Map<String, Object> bodys = generateQuotaBodys(namespaceDto);
-        Map<String, Object> headers = new HashMap<>();
-        headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
-        //向K8S发送请求更新配额
-        K8SClientResponse k8SClientResponse = resourceQuotaService.update(namespaceName, namespaceName + QUOTA, headers, bodys, HTTPMethod.PUT,cluster);
-        if (!HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
-            logger.error("调用k8s接口更新namespace下quota失败", k8SClientResponse.getBody());
-            return ActionReturnUtil.returnErrorWithMsg(k8SClientResponse.getBody());
+        String updateAliasName = namespaceDto.getUpdateAliasName();
+        if (StringUtils.isNotBlank(updateAliasName)){
+            NamespaceLocal updateNamespace = this.namespaceLocalService.getNamespaceByAliasName(updateAliasName);
+            if (!Objects.isNull(updateNamespace)){
+                throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_EXIST,updateAliasName,Boolean.TRUE);
+            }
+            namespaceByName.setAliasName(updateAliasName);
+            this.namespaceLocalService.updateNamespace(namespaceByName);
+        }
+        if (namespaceDto.getUpdate()){
+            // 组装quota
+            Map<String, Object> bodys = generateQuotaBodys(namespaceDto);
+            Map<String, Object> headers = new HashMap<>();
+            headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
+            //向K8S发送请求更新配额
+            K8SClientResponse k8SClientResponse = resourceQuotaService.update(namespaceName, namespaceName + QUOTA, headers, bodys, HTTPMethod.PUT,cluster);
+            if (!HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
+                logger.error("调用k8s接口更新namespace下quota失败", k8SClientResponse.getBody());
+                return ActionReturnUtil.returnErrorWithMsg(k8SClientResponse.getBody());
+            }
         }
         return ActionReturnUtil.returnSuccess();
     }

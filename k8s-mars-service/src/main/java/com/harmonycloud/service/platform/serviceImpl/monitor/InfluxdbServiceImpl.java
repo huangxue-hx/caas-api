@@ -4,17 +4,23 @@ import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import com.harmonycloud.common.enumm.*;
 import com.harmonycloud.common.util.date.DateStyle;
+import com.harmonycloud.k8s.bean.Node;
+import com.harmonycloud.k8s.bean.NodeCondition;
+import com.harmonycloud.k8s.bean.NodeList;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.client.K8sMachineClient;
+import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.constant.Resource;
+import com.harmonycloud.k8s.util.K8SClientResponse;
+import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.monitor.InfluxdbQuery;
 import com.harmonycloud.service.platform.client.InfluxDBClient;
 import org.apache.commons.lang3.StringUtils;
 import org.influxdb.InfluxDB;
-import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.Query;
 import org.influxdb.dto.QueryResult;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -416,7 +422,52 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 		return result;
 	}
 
+	@Override
+	public ActionReturnUtil getClusterNodeInfo(String clusterId) throws Exception {
+		Cluster cluster = this.clusterService.findClusterById(clusterId);
+		// 获取node
+		K8SURL url = new K8SURL();
+		url.setResource(Resource.NODE);
+		K8SClientResponse nodeRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null, cluster);
+		if (!HttpStatusUtil.isSuccessStatus(nodeRes.getStatus())) {
+			return ActionReturnUtil.returnErrorWithMsg(nodeRes.getBody());
+		}
+		NodeList nodeList = JsonUtil.jsonToPojo(nodeRes.getBody(), NodeList.class);
+		List<Node> nodes = nodeList.getItems();
+		List<Map<String, Object>> res = new ArrayList<>();
+		Map<String, List<QueryResult.Series>> clusterMap = this.getClusterResourceUsage("node", "filesystem/limit", "nodename,resource_id", cluster, null);
+		if (nodes != null && nodes.size() > 0) {
+			for (Node node : nodes) {
+				List<NodeCondition> conditions = node.getStatus().getConditions();
+				for (NodeCondition nodeCondition : conditions) {
+					if (nodeCondition.getType().equalsIgnoreCase("Ready")) {
+						if(!nodeCondition.getStatus().equalsIgnoreCase("True")) {
+							continue;
+						}
+					}
+				}
+				String nodeName = node.getMetadata().getName();
+				double nodeFilesystemCapacity = 0;
+				if (!CollectionUtils.isEmpty(clusterMap.get(nodeName))){
+					nodeFilesystemCapacity = this.computeNodeInfo(clusterMap.get(nodeName));
+				}
 
+				Object object = node.getStatus().getAllocatable();
+				if (object != null) {
+					Map<String, Object> resourceMap = new HashMap<String, Object>();
+					resourceMap.put("ip", node.getMetadata().getName());
+					resourceMap.put("cpu", ((Map<String, Object>) object).get("cpu").toString());
+					String memory = ((Map<String, Object>) object).get("memory").toString();
+					memory = memory.substring(0, memory.indexOf("Ki"));
+					double memoryDouble = Double.parseDouble(memory);
+					resourceMap.put("memory", String.format("%.1f", memoryDouble/1024/1024));
+					resourceMap.put("disk", String.format("%.0f", nodeFilesystemCapacity/1024/1024/1024));
+					res.add(resourceMap);
+				}
+			}
+		}
+		return ActionReturnUtil.returnSuccessWithData(res);
+	}
 
 
 }

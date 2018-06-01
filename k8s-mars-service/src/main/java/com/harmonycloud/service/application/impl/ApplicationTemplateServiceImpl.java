@@ -72,8 +72,8 @@ public class ApplicationTemplateServiceImpl implements ApplicationTemplateServic
     }
 
     @Override
-    public List<ApplicationTemplates> listApplicationTemplatesByNameAndImage(String name, String imageList, String tenant, String projectId) throws Exception{
-        List<ApplicationTemplates> applicationTemplates = applicationTemplatesMapper.listAppTemplatesByNameAndImage(name, imageList, tenant, projectId);
+    public List<ApplicationTemplates> listApplicationTemplatesByNameAndImage(String name, String imageList, String clusterId, String projectId) throws Exception{
+        List<ApplicationTemplates> applicationTemplates = applicationTemplatesMapper.listAppTemplatesByNameAndImage(name, imageList, clusterId, projectId);
         return applicationTemplates;
     }
 

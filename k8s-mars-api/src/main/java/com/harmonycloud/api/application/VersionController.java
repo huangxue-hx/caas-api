@@ -88,7 +88,7 @@ public class VersionController {
     }
 
     /**
-     * 暂停灰度升级
+     * 暂停灰度升级 （未使用）
      * @param namespace
      * @param name
      * @return
@@ -121,7 +121,7 @@ public class VersionController {
         return versionControlService.resumeCanaryUpdate(namespace, name);
     }
 
-    //完成
+    //完成 （未使用）
     @ResponseBody
     @RequestMapping(value = "/reversions", method = RequestMethod.GET)
     public ActionReturnUtil listReversions(@RequestParam(value = "namespace") String namespace, @PathVariable(value = "deployName") String name) throws Exception {
@@ -129,7 +129,7 @@ public class VersionController {
         return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.OPERATION_DISABLED);
     }
 
-    //完成
+    //完成 （未使用）
     @ResponseBody
     @RequestMapping(value = "/reversions/{revision}", method = RequestMethod.GET)
     public ActionReturnUtil getRevisionDetail(@RequestParam(value = "namespace") String namespace, @PathVariable(value = "deployName") String name) throws Exception {
@@ -138,7 +138,7 @@ public class VersionController {
     }
 
     /**
-     * 灰度升级回滚
+     * 服务回滚
      * @param namespace 分区
      * @param name 服务名称
      * @param revision 版本
@@ -160,7 +160,7 @@ public class VersionController {
     }
 
     /**
-     * 获取版本以及详情
+     * 服务回滚获取版本以及详情
      * @param namespace 分区
      * @param name 服务名称
      * @return ActionReturnUtil

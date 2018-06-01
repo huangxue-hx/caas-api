@@ -131,7 +131,7 @@ public class K8sResultConvert {
         if (CollectionUtils.isNotEmpty(serviceList.getItems())) {
             com.harmonycloud.k8s.bean.Service service = serviceList.getItems().get(0);
             appDetail.setClusterIP(service.getSpec().getClusterIP());
-            appDetail.setServiceAddress(service.getMetadata().getNamespace() + "." + service.getMetadata().getName());
+            appDetail.setServiceAddress(service.getMetadata().getName()+ "." +service.getMetadata().getNamespace());
             appDetail.setInternalPorts(service.getSpec().getPorts());
             if (StringUtils.isEmpty(service.getSpec().getSessionAffinity())) {
                 appDetail.setSessionAffinity("false");

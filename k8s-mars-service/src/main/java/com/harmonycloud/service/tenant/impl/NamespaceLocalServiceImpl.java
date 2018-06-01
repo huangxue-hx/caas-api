@@ -320,6 +320,18 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
         List<NamespaceLocal> namespaceLocals = this.namespaceLocalMapper.selectByExample(example);
         return namespaceLocals;
     }
+
+    /**
+     * 更新分区
+     *
+     * @param namespaceLocal
+     * @throws Exception
+     */
+    @Override
+    public void updateNamespace(NamespaceLocal namespaceLocal) throws Exception {
+        this.namespaceLocalMapper.updateByPrimaryKeySelective(namespaceLocal);
+    }
+
     @Override
     public List<NamespaceLocal> getPublicNamespaceListByClusterId(String clusterId) throws Exception {
         NamespaceLocalExample example = this.getExample();

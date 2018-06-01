@@ -8,6 +8,8 @@ import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dto.application.TcpRuleDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.ClusterDomain;
+import com.harmonycloud.k8s.bean.cluster.ClusterDomainAddress;
+import com.harmonycloud.k8s.bean.cluster.ClusterDomainPort;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
@@ -181,10 +183,10 @@ public class MicroServiceWithKubeServiceImpl implements MicroServiceWithKubeServ
         if (msfPorts != null && msfPorts.size() > 0) {
             //获取四级域名
             String fourDomain = null;
-            List<ClusterDomain> domains = clusterService.findDomain(namespace);
-            for (ClusterDomain domain : domains) {
-                if (Constant.CLUSTER_FOUR_DOMAIN.equals(domain.getName())) {
-                    fourDomain = domain.getDomain();
+            ClusterDomain domains = clusterService.findDomain(namespace);
+            for (ClusterDomainAddress address : domains.getAddress()) {
+                if (Constant.CLUSTER_FOUR_DOMAIN.equals(address.getName())) {
+                    fourDomain = address.getDomain();
                     break;
                 }
             }
@@ -202,8 +204,6 @@ public class MicroServiceWithKubeServiceImpl implements MicroServiceWithKubeServ
             annotation.put("nginx.ingress.kubernetes.io/force-ssl-redirect", "false");
             annotation.put("nginx.ingress.kubernetes.io/rewrite-target", "/");
             annotation.put("nginx.ingress.kubernetes.io/ssl-redirect", "false");
-            meta.setAnnotations(annotation);
-            ingress.setMetadata(meta);
             List<HTTPIngressPath> path = new ArrayList<HTTPIngressPath>();
             for (MsfDeploymentPort pp : msfPorts) {
                 HTTPIngressPath httpIngressPath = new HTTPIngressPath();
@@ -214,6 +214,8 @@ public class MicroServiceWithKubeServiceImpl implements MicroServiceWithKubeServ
                 httpIngressPath.setPath(pp.getHttp_path());
                 path.add(httpIngressPath);
             }
+            meta.setAnnotations(annotation);
+            ingress.setMetadata(meta);
             IngressRule ingressRule = new IngressRule();
             ingressRule.setHost(dep.getMetadata().getDeployment_name() + CommonConstant.LINE + namespace + CommonConstant.DOT + fourDomain);
             HTTPIngressRuleValue http = new HTTPIngressRuleValue();
@@ -249,7 +251,7 @@ public class MicroServiceWithKubeServiceImpl implements MicroServiceWithKubeServ
         List<Ingress> list = routerService.listHttpIngress(depName, namespace, cluster);
         if (list != null && list.size() > 0) {
             //获取域名
-            List<ClusterDomain> domains = clusterService.findDomain(namespace);
+            ClusterDomain domains = clusterService.findDomain(namespace);
             for (Ingress in : list) {
                 List<IngressRule> rules = in.getSpec().getRules();
                 if (CollectionUtils.isNotEmpty(rules)) {
@@ -257,11 +259,11 @@ public class MicroServiceWithKubeServiceImpl implements MicroServiceWithKubeServ
                     HTTPIngressRuleValue http = rule.getHttp();
                     List<HTTPIngressPath> paths = http.getPaths();
                     if (CollectionUtils.isNotEmpty(paths)) {
-                        //获取四级域名端口
+                        //获取内网端口
                         Integer port = Constant.LIVENESS_PORT;
-                        for (ClusterDomain clusterDomain : domains) {
-                            if (Constant.CLUSTER_FOUR_DOMAIN.equals(clusterDomain.getDomain())) {
-                                port = clusterDomain.getPort();
+                        for (ClusterDomainPort domainPort : domains.getPort()) {
+                            if (!domainPort.getExternal()) {
+                                port = domainPort.getPort();
                                 break;
                             }
                         }

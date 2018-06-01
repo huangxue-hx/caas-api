@@ -97,7 +97,7 @@ public class DeploymentController {
 	}*/
 
 	/**
-	 * 获取应用详情
+	 * 获取服务详情
 	 * 
 	 * @param name
 	 * @param namespace
@@ -210,7 +210,7 @@ public class DeploymentController {
 	}
 
 	/**
-	 * 查询namespace下容器名称列表
+	 * 查询namespace下容器名称列表 （未使用）
 	 *
 	 * @param namespace
 	 * @return

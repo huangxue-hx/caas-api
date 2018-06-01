@@ -110,22 +110,6 @@ public class HarborImageController {
 	}
 
 	/**
-	 * 查询云平台服务主机上的镜像
-	 * @param repositoryId
-	 * @param imageName
-	 * @param tagName
-	 * @return
-	 * @throws Exception
-	 */
-	@ResponseBody
-	@RequestMapping(value="/{repositoryId}/images/{imageName}/removelocal",method=RequestMethod.GET)
-	public ActionReturnUtil removeLocalImage(@PathVariable(value = "repositoryId") Integer repositoryId,
-												 @PathVariable("imageName") String imageName, @RequestParam("tagName") String tagName) throws Exception{
-		String image = URLDecoder.decode(imageName,"UTF-8");
-		return ActionReturnUtil.returnSuccessWithData(harborProjectService.removeImageFile(repositoryId, image, tagName));
-	}
-
-	/**
 	 * 下载镜像文件，前提需要将镜像拉取到本地主机上，如果本地主机上没有，返回错误
 	 * @param repositoryId
 	 * @param imageName
@@ -219,8 +203,8 @@ public class HarborImageController {
 		return harborService.getFirstImage(projectId, clusterId,projectName, imageName);
 	}
 
-	/**查询满足条件的默认一个镜像
-	 *
+	/**
+	 * 获取项目和集群对应仓库下的镜像名称列表（创建配置文件选择镜像）
 	 * @return
 	 * @throws Exception
 	 */

@@ -81,6 +81,14 @@ public class ExternalServiceController {
                 return ActionReturnUtil.returnSuccessWithData(externalService.listExtServiceType());
         }
 
+        /**
+         * 该接口暂未被使用
+         * @param serviceName
+         * @param clusterId
+         * @param namespace
+         * @return
+         * @throws Exception
+         */
         @ResponseBody
         @RequestMapping(value = "/{serviceName}", method = RequestMethod.GET)
         public ActionReturnUtil getExtService(@PathVariable("serviceName") String serviceName,

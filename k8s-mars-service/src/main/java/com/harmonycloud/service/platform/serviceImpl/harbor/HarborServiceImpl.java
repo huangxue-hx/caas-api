@@ -85,16 +85,11 @@ public class HarborServiceImpl implements HarborService {
         imageRepository.setHarborHost(harborHost);
         List<ImageRepository> imageRepositories = harborOverview.getRepositories();
         if(!CollectionUtils.isEmpty(imageRepositories)) {
-            Map<Integer, String> projectNameMap = imageRepositories.stream()
-                    .collect(Collectors.toMap(ImageRepository::getId, repo -> repo.getHarborProjectName()));
             List<HarborPolicyDetail> replications = harborReplicationService.listPolicies(harborHost);
             List<Integer> harborProjectIds = imageRepositories.stream().map(ImageRepository::getHarborProjectId).collect(Collectors.toList());
             replications = replications.stream().filter(policy -> harborProjectIds.contains(policy.getProject_id())).collect(Collectors.toList());
             List<Integer> repositoryIds = imageRepositories.stream().map(ImageRepository::getId).collect(Collectors.toList());
             List<ImageCleanRule> imageCleanRules = harborImageCleanService.listByIds(repositoryIds);
-            for(ImageCleanRule imageCleanRule : imageCleanRules){
-                imageCleanRule.setHarborProjectName(projectNameMap.get(imageCleanRule.getRepositoryId()));
-            }
             harborOverview.setPolicies(replications);
             harborOverview.setCleanRules(imageCleanRules);
         }
@@ -879,6 +874,7 @@ public class HarborServiceImpl implements HarborService {
             if (repoResponse.isSuccess()) {
                 Map<String, List<String>> map = getRepositoryList(repoResponse.get("data").toString());
                 Map<String, List<String>> repoListMap = new HashMap<>();
+                //过滤未记录在云平台数据库中的仓库镜像
                 for (String projectNameID : map.keySet()) {
                     String[] nameID = projectNameID.split(SPLIT);
                     if (nameID.length == 2) {

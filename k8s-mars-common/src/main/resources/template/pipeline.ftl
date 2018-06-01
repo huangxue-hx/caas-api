@@ -76,14 +76,14 @@ podTemplate(
             <#if stage.dockerfileType == 2>
             sh "cp -r ${'/opt/dockerfile'+stage.id} ./dockerfile@tmp${stage.id}"
             </#if>
-            sh "docker build <#if stage.dockerfileType == 1> -f ./${stage.dockerfilePath}</#if><#if stage.dockerfileType == 2> -f dockerfile@tmp${stage.id}/<#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if> -t ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!} ."
+            sh "docker build --no-cache <#if stage.dockerfileType == 1> -f ./${stage.dockerfilePath}</#if><#if stage.dockerfileType == 2> -f dockerfile@tmp${stage.id}/<#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if> -t ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!} ."
             sh "docker push ${harborHost!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}"
 </#if>
 <#if stage.stageTemplateType == 2>
             httpRequest url:"${apiUrl!}/rest/openapi/cicdjobs/stages/${stage.id!}?buildNum=${r'${currentBuild.number}'}",consoleLogResponseBody: true, timeout: ${timeout}
 </#if>
 <#if (stage.stageTemplateType == 7 || stage.stageTemplateType == 8)>
-            httpRequest url:"${apiUrl!}/rest/openapi/cicdjobs/stages/${stage.id!}?buildNum=${r'${currentBuild.number}'}",timeout: ${timeout}
+            httpRequest url:"${apiUrl!}/rest/openapi/cicdjobs/stages/${stage.id!}?buildNum=${r'${currentBuild.number}'}",consoleLogResponseBody: true, timeout: ${timeout}
 </#if>
 <#if (stage.command!?size>0)>
     sh '''<#list stage.command! as command><![CDATA[${command}]]>

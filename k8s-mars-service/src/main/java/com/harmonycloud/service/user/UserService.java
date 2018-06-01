@@ -215,11 +215,7 @@ public interface UserService {
      * @return
      */
     public List<LocalRolePrivilege> getCurrentUserLocalPrivilegeList();
-    /**
-     * 从session中获取当前租户管理员用户项目列表
-     * @return
-     */
-    public Map<String, Project> getCurrentTmUserProject();
+
 
     /**
      * 从session中获取当前数据权限列表

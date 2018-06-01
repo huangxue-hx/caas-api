@@ -60,6 +60,7 @@ import static com.harmonycloud.service.platform.constant.Constant.NAMESPACE_SYST
 public class ClusterServiceImpl implements ClusterService {
 
     private static final Logger LOG = LoggerFactory.getLogger(ClusterServiceImpl.class);
+    private static final String MODULE_MONITOR = "monitor";
 
     @Autowired
     NodeService nodeService;
@@ -401,7 +402,7 @@ public class ClusterServiceImpl implements ClusterService {
      * @return
      */
     @Override
-    public List<ClusterDomain> findDomain(String namespace) throws Exception {
+    public ClusterDomain findDomain(String namespace) throws Exception {
         if (StringUtils.isBlank(namespace)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
@@ -485,18 +486,37 @@ public class ClusterServiceImpl implements ClusterService {
         map.put(K8sModuleEnum.CALICO.getCode(), Constant.STATUS_NORMAL);
         map.put(K8sModuleEnum.KUBE_DNS.getCode(), Constant.STATUS_NORMAL);
         map.put(K8sModuleEnum.SERVICE_LOADBALANCER.getCode(), Constant.STATUS_NORMAL);
-        map.put(K8sModuleEnum.MONITOR.getCode(), Constant.STATUS_NORMAL);
+        map.put(MODULE_MONITOR, Constant.STATUS_NORMAL);
 
         Map<String, K8sModuleEnum> moduleEnumMap = K8sModuleEnum.getModuleMap();
         int abnormalCount = 0;
+        boolean heapsterCreated = false;
+        boolean influxdbCreated = false;
+        Set<String> createdComponent = new HashSet<>();
         for (PodDto pod : podDtoList) {
-            if (pod.getStatus().equalsIgnoreCase(Constant.RUNNING)) {
-                continue;
-            }
+
             for (Map.Entry<String, K8sModuleEnum> entry : moduleEnumMap.entrySet()) {
                 if (pod.getName().contains(entry.getValue().getCode())) {
+                    //设置已经创建的组件列表
+                    if(entry.getValue() == K8sModuleEnum.HEAPSTER ){
+                        heapsterCreated = true;
+                        if(heapsterCreated && influxdbCreated) {
+                            createdComponent.add(MODULE_MONITOR);
+                        }
+                    }else if(entry.getValue() == K8sModuleEnum.INFLUXDB){
+                        influxdbCreated = true;
+                        if(heapsterCreated && influxdbCreated) {
+                            createdComponent.add(MODULE_MONITOR);
+                        }
+                    }else{
+                        createdComponent.add(entry.getValue().getCode());
+                    }
+                    if (pod.getStatus().equalsIgnoreCase(Constant.RUNNING)) {
+                        continue;
+                    }
+                    //设置状态为异常的组件，如果一个组件有多个pod，如calico，每个节点一个pod，如果其中一个pod状态不正常，则该组件状态为异常
                     if(entry.getValue() == K8sModuleEnum.HEAPSTER || entry.getValue() == K8sModuleEnum.INFLUXDB){
-                        map.put(K8sModuleEnum.MONITOR.getCode(), Constant.STATUS_ABNORMAL);
+                        map.put(MODULE_MONITOR, Constant.STATUS_ABNORMAL);
                     }else{
                         map.put(entry.getValue().getCode(), Constant.STATUS_ABNORMAL);
                     }
@@ -504,8 +524,13 @@ public class ClusterServiceImpl implements ClusterService {
                 }
             }
         }
-
-
+        //如果组件没有创建，状态修改为异常
+        for (String componentCode : map.keySet()) {
+            if(!createdComponent.contains(componentCode)){
+                map.put(componentCode, Constant.STATUS_ABNORMAL);
+                abnormalCount ++;
+            }
+        }
         double totalCount = map.size();
         String health = String.format("%.0f", (totalCount - abnormalCount) / totalCount * PERCENT_HUNDRED);
         Map<String, Object> resultMap = new HashMap<>();

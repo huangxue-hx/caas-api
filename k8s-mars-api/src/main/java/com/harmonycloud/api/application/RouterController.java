@@ -35,18 +35,19 @@ public class RouterController {
 
 	@ResponseBody
 	@RequestMapping(value = "/{deployName}/ingress", method = { RequestMethod.POST })
-	public ActionReturnUtil ingCreate(@ModelAttribute ParsedIngressListDto parsedIngressList) throws Exception{
+	public ActionReturnUtil ingCreate(@ModelAttribute ParsedIngressListDto parsedIngressList, @PathVariable(value = "deployName") String deployName) throws Exception{
 		logger.info("创建ingress");
+		parsedIngressList.setServiceName(deployName);
 		return routerService.ingCreate(parsedIngressList);
 		
 	}
 
-	@ResponseBody
+	/*@ResponseBody
 	@RequestMapping(value = "/{deployName}/ingress", method = RequestMethod.PUT)
-	public ActionReturnUtil ingUpdate(@ModelAttribute ParsedIngressListUpdateDto parsedIngressList) throws Exception{
+	public ActionReturnUtil ingUpdate(@ModelAttribute ParsedIngressListDto parsedIngressList) throws Exception{
 		logger.info("修改ingress");
 		return routerService.ingUpdate(parsedIngressList);
-	}
+	}*/
 
 	/**
 	 * 在服务所属的集群分配一个未使用的端口

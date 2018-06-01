@@ -293,29 +293,10 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         }
         Map<String, Object> bodys = new HashMap<String, Object>();
 
-        // 先删除自动扩容
-        bodys.put("labelSelector", "app=" + name);
-        K8SClientResponse response = hpaService.doHpautoscalerByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
-        if (response.getStatus() == Constant.HTTP_404) {
-            return ActionReturnUtil.returnSuccess();
-        }
-        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            return ActionReturnUtil.returnErrorWithData(response.getBody());
-        }
-        HorizontalPodAutoscalerList hpaList = JsonUtil.jsonToPojo(response.getBody(),
-                HorizontalPodAutoscalerList.class);
-        Map<String, Object> headers = new HashMap<String, Object>();
-        headers.put("Content-type", "application/json");
-        if (hpaList.getItems().size() > 0) {
-            HorizontalPodAutoscaler hpa = hpaList.getItems().get(0);
-            hpa.getSpec().setMinReplicas(0);
-            bodys.clear();
-            bodys.put("gracePeriodSeconds", 1);
-            K8SClientResponse delRes = hpaService.doSpecifyHpautoscaler(namespace, name, headers, bodys,
-                    HTTPMethod.DELETE, cluster);
-            if (!HttpStatusUtil.isSuccessStatus(delRes.getStatus())) {
-                return ActionReturnUtil.returnErrorWithData(delRes.getBody());
-            }
+        //先删除自动伸缩控制
+        boolean scaleDeleted = autoScaleService.delete(namespace, name);
+        if (!scaleDeleted) {
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_AUTOSCALE_DELETE_FAILURE);
         }
         // String lrv = watchService.getLatestVersion(namespace);
         // watchAppEvent(name, namespace, null, lrv, userName);
@@ -353,6 +334,8 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
             bodys.clear();
             bodys = CollectionUtil.transBean2Map(dep);
+            Map<String, Object> headers = new HashMap<>();
+            headers.put("Content-type", "application/json");
             K8SClientResponse newRes = dpService.doSpecifyDeployment(namespace, name, headers, bodys, HTTPMethod.PUT, cluster);
             if (!HttpStatusUtil.isSuccessStatus(newRes.getStatus())) {
                 return ActionReturnUtil.returnErrorWithData(newRes.getBody());
@@ -783,13 +766,10 @@ public class DeploymentsServiceImpl implements DeploymentsService {
     @Override
     public ActionReturnUtil createDeployment(DeploymentDetailDto detail, String userName, String app, Cluster cluster) throws Exception {
         List<CreateContainerDto> containers = detail.getContainers();
-        List<ConfigMap> cms = new ArrayList<ConfigMap>();
         if (containers != null && !containers.isEmpty()) {
             for (CreateContainerDto c : containers) {
                 List<CreateConfigMapDto> configMaps = c.getConfigmap();
                 if (configMaps != null && configMaps.size() > 0) {
-                    K8SURL url = new K8SURL();
-                    url.setNamespace(detail.getNamespace()).setResource(Resource.CONFIGMAP);
                     K8SURL url1 = new K8SURL();
                     url1.setNamespace(detail.getNamespace()).setResource(Resource.CONFIGMAP).setName(detail.getName() + c.getName());
                     K8SClientResponse responses = new K8sMachineClient().exec(url1, HTTPMethod.GET, null, null, cluster);
@@ -799,37 +779,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
                         return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NAME_EXIST,
                                 DictEnum.CONFIG_MAP.phrase() + detail.getName() + c.getName(), true);
                     }
-                    Map<String, Object> bodys = new HashMap<String, Object>();
-                    Map<String, Object> meta = new HashMap<String, Object>();
-                    meta.put("namespace", detail.getNamespace());
-                    meta.put("name", detail.getName() + c.getName());
-                    Map<String, Object> label = new HashMap<String, Object>();
-                    label.put("app", detail.getName());
-                    meta.put("labels", label);
-                    bodys.put("metadata", meta);
-                    Map<String, Object> data = new HashMap<String, Object>();
-                    for (CreateConfigMapDto configMap : configMaps) {
-                        if (configMap != null && !StringUtils.isEmpty(configMap.getPath())) {
-                            if (Objects.isNull(configMap.getValue())){
-                                throw new MarsRuntimeException(ErrorCodeMessage.CONFIGMAP_IS_EMPTY);
-                            }
-                            if (StringUtils.isEmpty(configMap.getFile())) {
-                                data.put("config.json", configMap.getValue().toString());
-                            } else {
-                                data.put(configMap.getFile() + "v" + configMap.getTag(), configMap.getValue().toString());
-                            }
-                        }
-                    }
-                    bodys.put("data", data);
-                    Map<String, Object> headers = new HashMap<String, Object>();
-                    headers.put("Content-type", "application/json");
-                    K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
-                    if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                        UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-                        return ActionReturnUtil.returnErrorWithData(status.getMessage());
-                    }
-                    ConfigMap cm = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
-                    cms.add(cm);
+                    this.createConfigMap(detail.getNamespace(), detail.getName() + c.getName(), detail.getName(), configMaps, cluster);
                 }
             }
         }
@@ -902,38 +852,12 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
         }
 
-        // 获取service
-        K8SClientResponse svcRes = sService.doServiceByNamespace(namespace, null, queryP, HTTPMethod.GET, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(svcRes.getStatus())) {
-            LOGGER.error("获取Service失败,DeploymentName:{}, error:{}", name, svcRes.getBody());
-            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
-        }
-        ServiceList svcs = JsonUtil.jsonToPojo(svcRes.getBody(), ServiceList.class);
-
-        // 删除rs
         if (dep != null && dep.getSpec() != null) {
-
+            // 删除deployment
             K8SClientResponse delRes = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.DELETE, cluster);
             if (!HttpStatusUtil.isSuccessStatus(delRes.getStatus()) && delRes.getStatus() != Constant.HTTP_404) {
                 LOGGER.error("删除Deployment失败,DeploymentName:{}, error:{}", name, delRes.getBody());
                 throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
-            }
-            //删除rs
-            Map<String, Object> labels = new HashMap<>();
-//			labels.put("labelSelector", exp);
-            labels.put("labelSelector", "app=" + name);
-            K8SClientResponse rsRes = rsService.doRsByNamespace(namespace, null, labels, HTTPMethod.DELETE, cluster);
-            if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus()) && rsRes.getStatus() != Constant.HTTP_404) {
-                LOGGER.error("删除ReplicaSet失败,DeploymentName:{}, error:{}", name, rsRes.getBody());
-                throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
-            }
-            //删除pod
-            K8SClientResponse podRes = podService.getPodByNamespace(namespace, null, labels, HTTPMethod.DELETE, cluster);
-            if (!HttpStatusUtil.isSuccessStatus(podRes.getStatus()) && podRes.getStatus() != Constant.HTTP_404) {
-                if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus()) && rsRes.getStatus() != Constant.HTTP_404) {
-                    LOGGER.error("删除POD失败,DeploymentName:{}, error:{}", name, podRes.getBody());
-                    throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
-                }
             }
 
             // 删除ingress
@@ -1005,7 +929,15 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             routerService.deleteRulesByName(namespace, name, cluster);
         }
 
-        // 循环删除service
+        // 获取service
+        K8SClientResponse svcRes = sService.doServiceByNamespace(namespace, null, queryP, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(svcRes.getStatus())) {
+            LOGGER.error("获取Service失败,DeploymentName:{}, error:{}", name, svcRes.getBody());
+            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
+        }
+        ServiceList svcs = JsonUtil.jsonToPojo(svcRes.getBody(), ServiceList.class);
+
+        // 循环删除service,在k8s中service只能根据名称删除
         List<com.harmonycloud.k8s.bean.Service> svc = svcs.getItems();
         K8SURL svcUrl = new K8SURL();
         svcUrl.setNamespace(namespace).setResource(Resource.SERVICE);
@@ -1267,5 +1199,57 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         }
         nodeAffinitys.add(nodeAffinity);
         return nodeAffinitys;
+    }
+
+    @Override
+    public Map<String, String> createConfigMapInUpdate(String namespace, String depName, Cluster cluster, List<UpdateContainer> containers) throws Exception {
+        Map<String, String> containerToConfigmapMap = new HashMap<String, String>();
+        if (containers != null && !containers.isEmpty()) {
+            for (UpdateContainer c : containers) {
+                if (c.getConfigmap() != null) {
+                    List<CreateConfigMapDto> configMaps = c.getConfigmap();
+                    if (configMaps != null && configMaps.size() > 0) {
+                        String configmapName = depName + c.getName() + UUID.randomUUID().toString();
+                        this.createConfigMap(namespace, configmapName, depName, configMaps, cluster);
+                        containerToConfigmapMap.put(c.getName(), configmapName);
+                    }
+                }
+            }
+        }
+        return containerToConfigmapMap;
+    }
+
+    private void createConfigMap(String namespace, String configMapName, String depName, List<CreateConfigMapDto> configMaps, Cluster cluster) throws Exception {
+        K8SURL url = new K8SURL();
+        url.setNamespace(namespace).setResource(Resource.CONFIGMAP);
+        Map<String, Object> bodys = new HashMap<String, Object>();
+        Map<String, Object> meta = new HashMap<String, Object>();
+        meta.put("namespace", namespace);
+        meta.put("name", configMapName);
+        Map<String, Object> label = new HashMap<String, Object>();
+        label.put("app", depName);
+        meta.put("labels", label);
+        bodys.put("metadata", meta);
+        Map<String, Object> data = new HashMap<String, Object>();
+        for (CreateConfigMapDto configMap : configMaps) {
+            if (configMap != null && !StringUtils.isEmpty(configMap.getPath())) {
+                if (Objects.isNull(configMap.getValue())){
+                    throw new MarsRuntimeException(ErrorCodeMessage.CONFIGMAP_IS_EMPTY);
+                }
+                if (StringUtils.isEmpty(configMap.getFile())) {
+                    data.put("config.json", configMap.getValue().toString());
+                } else {
+                    data.put(configMap.getFile() + "v" + configMap.getTag(), configMap.getValue().toString());
+                }
+            }
+        }
+        bodys.put("data", data);
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("Content-type", "application/json");
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            throw new MarsRuntimeException(status.getMessage());
+        }
     }
 }

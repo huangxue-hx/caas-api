@@ -8,6 +8,7 @@ import java.util.List;
 public class UserProjectBiding {
     private String harborHost;
     private Integer harborProjectId;
+    //角色id列表 1:admin 2:dev 3:watcher
     private Integer harborRoleType;
     private List<String> users;
 

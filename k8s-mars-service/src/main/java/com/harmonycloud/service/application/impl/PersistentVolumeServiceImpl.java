@@ -112,7 +112,8 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         //获取集群
-        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(volume.getNamespace());
+        Cluster cluster = Constant.NAMESPACE_SYSTEM.equals(volume.getNamespace())?
+                clusterService.findClusterById(volume.getClusterId()) : namespaceLocalService.getClusterByNamespaceName(volume.getNamespace());
         if (Objects.isNull(cluster)) {
             throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
@@ -271,10 +272,11 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
                     PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(pvcResponse.getBody(), PersistentVolumeClaimList.class);
                     List<PersistentVolumeClaim> pvcs = pvcList.getItems();
                     for (PersistentVolumeClaim pvc : pvcs) {
-                        if (pvc.getMetadata().getLabels() == null || pvc.getMetadata().getLabels().get(LABEL_KEY_APP) == null) {
+                        if (pvc.getMetadata().getLabels() == null || (pvc.getMetadata().getLabels().get(LABEL_KEY_APP) == null && pvc.getMetadata().getLabels().get(Constant.TYPE_DAEMONSET) == null)) {
                             continue;
                         }
-                        String app = pvc.getMetadata().getLabels().get(LABEL_KEY_APP).toString();
+                        String app = pvc.getMetadata().getLabels().containsKey(LABEL_KEY_APP) ? pvc.getMetadata().getLabels().get(LABEL_KEY_APP).toString() : null;
+                        app = pvc.getMetadata().getLabels().containsKey(Constant.TYPE_DAEMONSET) ? pvc.getMetadata().getLabels().get(Constant.TYPE_DAEMONSET).toString() : app;
                         pvcAppMap.put(pvc.getMetadata().getNamespace() + SLASH + pvc.getMetadata().getName(), app);
                     }
                 }

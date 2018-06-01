@@ -751,6 +751,9 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		}
 		ImageRepository destRepository = destRepositories.get(0);
 		String destHarborHost = clusterService.getHarborHost(destClusterId);
+		if(harborImageCleanService.isHarborInGc(destHarborHost)){
+			throw new MarsRuntimeException(ErrorCodeMessage.HARBOR_IN_GARBAGE_CLEAN);
+		}
 		String destRepoName = repoName.replace(sourceRepository.getHarborProjectName(),
 				destRepository.getHarborProjectName());
 		if(overwrite == null || overwrite == false) {
@@ -1004,6 +1007,8 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		}
 		//删除公共镜像仓库
 		this.deletePublicHarborProject(clusterService.findClusterById(clusterId).getHarborServer().getHarborHost());
+		//删除镜像清理规则
+		harborImageCleanService.deleteClusterCleanRule(clusterId);
 		return imageRepositoryMapper.deleteByClusterId(clusterId);
 	}
 

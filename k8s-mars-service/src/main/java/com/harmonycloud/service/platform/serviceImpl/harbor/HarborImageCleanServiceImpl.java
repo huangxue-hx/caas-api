@@ -2,9 +2,11 @@ package com.harmonycloud.service.platform.serviceImpl.harbor;
 
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.harbor.ImageCleanRuleMapper;
@@ -41,6 +43,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.harmonycloud.common.Constant.CommonConstant.NUM_TWO;
 import static com.harmonycloud.common.Constant.CommonConstant.SLASH;
 import static com.harmonycloud.service.platform.constant.Constant.TIME_ZONE_UTC;
 
@@ -54,7 +57,6 @@ public class HarborImageCleanServiceImpl implements HarborImageCleanService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HarborImageCleanServiceImpl.class);
     private static final int DOCKER_PORT = 2379;
-    private static final int CLEAN_IMAGE_TIME_OUT_HOUR = 1;
     private static final String CLEAN_IMAGE_REDIS_KEY_PREFIX = "imagegc";
 
     @Autowired
@@ -189,7 +191,7 @@ public class HarborImageCleanServiceImpl implements HarborImageCleanService {
             LOGGER.info("清理镜像文件程序已经在运行，harborHost:{}",harborHost);
             return true;
         }
-        stringRedisTemplate.expire(redisKey, CLEAN_IMAGE_TIME_OUT_HOUR, TimeUnit.HOURS);
+        stringRedisTemplate.expire(redisKey, NUM_TWO, TimeUnit.HOURS);
         String shellPath = this.getClass().getClassLoader().getResource("shell/cleanImage.sh").getPath();
         ProcessBuilder proc = new ProcessBuilder("sh", shellPath, "tcp://" + harborHost + CommonConstant.COLON + DOCKER_PORT);
         Process p = proc.start();
@@ -217,6 +219,12 @@ public class HarborImageCleanServiceImpl implements HarborImageCleanService {
             return false;
         }
         return true;
+    }
+
+    @Override
+    public void deleteClusterCleanRule(String clusterId) throws Exception{
+        AssertUtil.notBlank(clusterId, DictEnum.CLUSTER);
+        imageCleanRuleMapper.deleteByClusterId(clusterId);
     }
 
     private List<ImageCleanRuleDetail> getReposByRule() throws Exception {

@@ -18,6 +18,7 @@ import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
+import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.PersistentVolumeService;
 import com.harmonycloud.service.application.VersionControlService;
 import com.harmonycloud.service.platform.bean.CanaryDeployment;
@@ -81,6 +82,9 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
 
     @Autowired
     NamespaceLocalService namespaceLocalService;
+
+    @Autowired
+    private DeploymentsService deploymentsService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -176,7 +180,7 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         }
 
         //在这里创建configmap,在convertAppPut当中增加Deployment的注解,返回的是容器和configmap之间的映射关系列表
-        Map<String, String> containerToConfigMap = createConfigmaps(detail, cluster);
+        Map<String, String> containerToConfigMap = deploymentsService.createConfigMapInUpdate(detail.getNamespace(), detail.getName(), cluster, detail.getContainers());
 
         //更新旧的Deployment对象
         Deployment deped = KubeServiceConvert.convertDeploymentUpdate(dep, detail.getContainers(), detail.getName(), containerToConfigMap, cluster);
@@ -469,7 +473,7 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         DeploymentRollback deploymentRollback = new DeploymentRollback();
         RollbackConfig rollbackConfig = new RollbackConfig();
         deploymentRollback.setName(name);
-        //将参数设置成0自动回滚到最新的版本
+        //将参数设置成需要回滚的版本号
         rollbackConfig.setRevision(Integer.parseInt(revision));
         deploymentRollback.setRollbackTo(rollbackConfig);
 
@@ -766,56 +770,6 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         return ActionReturnUtil.returnSuccess();
 
     }
-
-    private Map<String, String> createConfigmaps(CanaryDeployment detail, Cluster cluster) throws Exception {
-        Map<String, String> containerToConfigmapMap = new HashMap<String, String>();
-        List<UpdateContainer> containers = detail.getContainers();
-        if (containers != null && !containers.isEmpty()) {
-            for (UpdateContainer c : containers) {
-                if (c.getConfigmap() != null) {
-                    List<CreateConfigMapDto> configMaps = c.getConfigmap();
-                    if (configMaps != null && configMaps.size() > 0) {
-                        K8SURL url = new K8SURL();
-                        url.setNamespace(detail.getNamespace()).setResource(Resource.CONFIGMAP);
-                        Map<String, Object> bodys = new HashMap<String, Object>();
-                        Map<String, Object> meta = new HashMap<String, Object>();
-                        meta.put("namespace", detail.getNamespace());
-                        String configmaName = detail.getName() + c.getName() + UUID.randomUUID().toString();
-                        meta.put("name", configmaName);
-                        Map<String, Object> label = new HashMap<String, Object>();
-                        label.put("app", detail.getName());
-                        meta.put("labels", label);
-                        bodys.put("metadata", meta);
-                        Map<String, Object> data = new HashMap<String, Object>();
-                        for (CreateConfigMapDto configMap : configMaps) {
-                            if (configMap != null && !StringUtils.isEmpty(configMap.getPath())) {
-                                if (StringUtils.isEmpty(configMap.getFile())) {
-                                    data.put("config.json", configMap.getValue().toString());
-                                } else {
-                                    if (configMap.getValue() != null) {
-                                        data.put(configMap.getFile() + "v" + configMap.getTag(), configMap.getValue().toString());
-                                    } else {
-                                        data.put(configMap.getFile() + "v" + configMap.getTag(), "");
-                                    }
-                                }
-                            }
-                        }
-                        bodys.put("data", data);
-                        Map<String, Object> headers = new HashMap<String, Object>();
-                        headers.put("Content-type", "application/json");
-                        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
-                        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                            throw new RuntimeException();
-                        }
-
-                        containerToConfigmapMap.put(c.getName(), configmaName);
-                    }
-                }
-            }
-        }
-        return containerToConfigmapMap;
-    }
-
 
     @SuppressWarnings("unused")
     private void watchAppEvent(String name, String namespace, String kind, String rv, String userName, Cluster cluster)

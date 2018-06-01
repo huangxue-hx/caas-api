@@ -32,6 +32,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.harmonycloud.common.Constant.CommonConstant.NUM_ONE;
 import static com.harmonycloud.common.Constant.CommonConstant.PROTOCOL_HTTP;
 
 /**
@@ -294,8 +295,8 @@ public class ClusterCacheManager {
             clusters.put(clusterId, JSONObject.toJSONString(clusterMap.get(clusterId)));
         }
         clusterHashOps.putAll(clusters);
-        //key有效期1小时,每小时触发刷新缓存
-        clusterHashOps.expireAt(DateUtil.addHour(new Date(),1));
+        //缓存有效期1天，每24小时会重置更新缓存
+        clusterHashOps.expireAt(DateUtil.addDay(new Date(),NUM_ONE));
     }
 
     /**
@@ -325,10 +326,15 @@ public class ClusterCacheManager {
         LOGGER.info("重置cluster缓存，size：{}",clusterMap.size());
         BoundHashOperations<String, String, String> clusterHashOps = stringRedisTemplate
                 .boundHashOps(REDIS_KEY_CLUSTER);
-        Map<String, String> maps = clusterHashOps.entries();
-        for (String clusterId : maps.keySet()) {
-            clusterHashOps.delete(REDIS_KEY_CLUSTER, clusterId);
+        Set<String> existClusterIds = clusterHashOps.keys();
+        Set<String> newClusterIds = clusterMap.keySet();
+        //老的集群clusterId不在新的集群列表中，既该集群已经被删除，则将redis中该集群信息删除
+        for(String clusterId : existClusterIds){
+            if(!newClusterIds.contains(clusterId)){
+                clusterHashOps.delete(REDIS_KEY_CLUSTER, clusterId);
+            }
         }
+        //更新最新集群信息到redis
         putCluster(clusterMap);
     }
 
@@ -363,7 +369,6 @@ public class ClusterCacheManager {
             cluster.setNetwork(clusterTPRDto.getNetwork());
             cluster.setRedis(clusterTPRDto.getRedis());
             cluster.setClusterComponent(clusterTPRDto.getTemplate());
-            cluster.setIsEnable(Boolean.TRUE);
             cluster.setCreateTime(clusterTPRDto.getCreateTime());
             cluster.setIsEnable(clusterTPRDto.getIsEnable());
 

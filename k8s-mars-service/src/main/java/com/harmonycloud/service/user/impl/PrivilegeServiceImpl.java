@@ -161,6 +161,26 @@ public class PrivilegeServiceImpl implements PrivilegeService {
     }
 
     /**
+     * 根据id列表和模块列表查询对应的权限列表
+     *
+     * @param ids
+     * @param modules
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public List<Privilege> listPrivilegeByIds(Integer roleId,ArrayList<Integer> ids, ArrayList<String> modules) throws Exception {
+        PrivilegeExample example = this.getExample();
+        if (roleId == CommonConstant.ADMIN_ROLEID){
+            example.createCriteria().andStatusEqualTo(Boolean.TRUE).andIdIn(ids);
+        }else {
+            example.createCriteria().andStatusEqualTo(Boolean.TRUE).andIdIn(ids).andModuleNotIn(modules);
+        }
+        List<Privilege> privileges = this.privilegeMapper.selectByExample(example);
+        return privileges;
+    }
+
+    /**
      * 查询模块组列表
      *
      * @throws Exception

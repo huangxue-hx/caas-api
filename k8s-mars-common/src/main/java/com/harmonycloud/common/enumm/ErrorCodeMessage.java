@@ -247,7 +247,7 @@ public enum ErrorCodeMessage {
     DEPLOYMENT_UPDATE_FAILURE(400015, "Update Service failure.", "更新服务失败"),
     DEPLOYMENT_NAME_DUPLICATE(400016, "Service name duplicate:", "服务名称已存在:"),
     HTTP_INGRESS_NAME_DUPLICATE(400017, "HTTP Service name duplicate.", "HTTP服务名称已存在"),
-    TCP_INGRESS_NAME_DUPLICATE(400018, "TCP Service name duplicate.", "TCP服务名称已存在"),
+    TCP_INGRESS_NAME_DUPLICATE(400018, "Expose port in use or HTTP Service name duplicate.", "对外暴露端口被使用或HTTP服务名称已存在"),
     APPLICATION_NAME_DUPLICATE(400019, "Application name duplicate.", "应用名称已存在"),
     APPLICATION_CREATE_ROLLBACK_FAILURE(400020, "Create application rollback failure.", "创建应用时回滚失败"),
     DEPLOYMENT_CANARY_SCALE_FAILURE(400021, "Canary update service failure.", "灰度升级失败"),
@@ -361,8 +361,8 @@ public enum ErrorCodeMessage {
     IMAGE_IN_PULLING_DELETE_ERROR(405035, "Image is pulling, can not be delete now, please try later when image is pulled",
             "镜像正在在拉取中，不能删除文件，请等待镜像文件已经生成之后删除"),
     HARBOR_PROJECT_QUOTA_EXCEED(405036, "Harbor project quota exceeds.", "仓库磁盘配额已用完"),
-    HARBOR_IN_GARBAGE_CLEAN(405037, "Harbor is in garbage cleaning, it may take several minutes, pleas try later after 10 minutes.",
-            "镜像仓库正在清理镜像垃圾文件，请10分钟后再试"),
+    HARBOR_IN_GARBAGE_CLEAN(405037, "Harbor is in garbage cleaning, pleas try later.",
+            "镜像仓库正在清理镜像垃圾文件，请稍后再试"),
     PUBLIC_HARBOR_PROJECT_CLEAN_ACCESS(405038, "Public harbor project image clean rule is only allow for admin",
             "公共镜像仓库清理规则需要系统管理员权限可以设置"),
     HARBOR_COOKIE_INVALID(405039, "Harbor login timeout, please retry.", "Harbor登录超时，请重试"),
@@ -449,6 +449,7 @@ public enum ErrorCodeMessage {
             "服务未启动，无法升级"),
     STAGE_CONFIG_ERROR(406065, "Stage configuration is wrong, please check", "流水线步骤配置有误，请检查步骤"),
     ORIGIN_STAGE_NOT_EXIST(406066, "Stage or pipeline is deleted in deploy stage, please configure", "部署步骤中镜像来源处的流水线或其步骤已被删除，请重新设置"),
+    EXECUTE_TEST_SUITE_ERROR(406067, "Test suite execute failed.", "执行测试套件失败"),
 
     //配置文件 407xxx
     CONFIGMAP_NAME_DUPLICATE(407001, "ConfigMap name duplicate.", "配置文件名称已存在"),

@@ -166,7 +166,7 @@ public class ConfigCenterController {
 	
 	/**
 	 * check name on 17/03/24.
-	 * 
+	 * 未使用
 	 * @author gurongyun
 	 * @param name
 	 *            required
@@ -180,6 +180,13 @@ public class ConfigCenterController {
 		return configCenterService.checkDuplicateName(name,projectId);
 	}
 
+	/**
+	 * 获取k8s中配置文件内容，回滚服务时
+	 * @param namespace
+	 * @param name
+	 * @return
+	 * @throws Exception
+	 */
 	@ResponseBody
 	@RequestMapping(value = "/content", method = RequestMethod.GET)
 	public ActionReturnUtil getConfigMapByName(@RequestParam(value = "namespace")String namespace,

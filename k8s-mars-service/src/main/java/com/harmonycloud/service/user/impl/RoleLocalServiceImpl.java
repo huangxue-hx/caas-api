@@ -331,12 +331,13 @@ public class RoleLocalServiceImpl implements RoleLocalService {
         String nickName = roleDto.getNickName();
         String clusterIds = roleDto.getClusterIds();
         if (roleDto.getAvailable() || StringUtils.isNotBlank(clusterIds)){
-            //去除无效的集群id
+            //去除无效的空集群id
             String[] split = clusterIds.split(CommonConstant.COMMA);
             List<String> clusteridList = Arrays.stream(split).
                     filter(clusterId -> StringUtils.isNotBlank(clusterId)).collect(Collectors.toList());
             clusterIds = StringUtils.join(clusteridList, CommonConstant.COMMA);
         }
+        //检查角色是否存在
         Role role = this.getRoleByNickName(nickName.trim());
         if(!Objects.isNull(role)){
             throw new MarsRuntimeException(ErrorCodeMessage.ROLE_EXIST,nickName,Boolean.TRUE);
@@ -353,6 +354,7 @@ public class RoleLocalServiceImpl implements RoleLocalService {
         }
         role.setNickName(nickName.trim());
         role.setClusterIds(clusterIds);
+        //如果角色作用域选择分区将会设置对应的分区（现在未启用）
         if (StringUtils.isNotBlank(namespaceNames)){
             role.setNamespaceNames(namespaceNames);
         }

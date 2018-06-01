@@ -17,7 +17,6 @@ public enum K8sModuleEnum {
     CALICO("calico","集群网络"),
     ETCD("etcd","etcd存储"),
     NFS("nfs","nfs存储"),
-    MONITOR("monitor","监控"),
     HEAPSTER("heapster","资源监控"),
     WEBAPI("webapi","云平台后台"),
     WEBPAGE("webpage","云平台前端"),

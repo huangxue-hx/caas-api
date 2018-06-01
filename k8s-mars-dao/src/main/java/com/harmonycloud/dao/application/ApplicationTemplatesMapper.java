@@ -123,7 +123,7 @@ public interface ApplicationTemplatesMapper {
      * 
      * @description find a app Templates like
      */
-    List<ApplicationTemplates> listAppTemplatesByNameAndImage(@Param("name")String name, @Param("imageList")String imageList, @Param("tenant")String tenant, @Param("projectId")String projectId);
+    List<ApplicationTemplates> listAppTemplatesByNameAndImage(@Param("name")String name, @Param("imageList")String imageList, @Param("clusterId")String clusterId, @Param("projectId")String projectId);
     
     /**
      * update app Templates image  on 17/04/07.

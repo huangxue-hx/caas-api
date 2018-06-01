@@ -266,20 +266,19 @@ public class ApplicationServiceImpl implements ApplicationService {
             if (StringUtils.isEmpty(searchValue)) {
                 List<ApplicationTemplates> appTemplatesList = appTemplateService.listNameByProjectId(projectId, cId);
                 for (int i = 0; i < appTemplatesList.size(); i++) {
-                    List<ApplicationTemplates> list = appTemplateService.listApplicationTemplatesByName(appTemplatesList.get(i).getName(), appTemplatesList.get(i).getClusterId(), false, appTemplatesList.get(i).getProjectId());
+                    List<ApplicationTemplates> list = appTemplateService.listApplicationTemplatesByName(appTemplatesList.get(i).getName(), appTemplatesList.get(i).getClusterId(), false, projectId);
                     array.add(getApplicationTemplates(list));
                 }
             } else {
                 List<ApplicationTemplates> appTemplatesList = appTemplateService.listNameByName("%" + searchValue + "%", cId, projectId);
                 for (int i = 0; i < appTemplatesList.size(); i++) {
-                    List<ApplicationTemplates> list = appTemplateService.listApplicationTemplatesByName(appTemplatesList.get(i).getName(), appTemplatesList.get(i).getClusterId(), false, appTemplatesList.get(i).getProjectId());
+                    List<ApplicationTemplates> list = appTemplateService.listApplicationTemplatesByName(appTemplatesList.get(i).getName(), appTemplatesList.get(i).getClusterId(), false, projectId);
                     array.add(getApplicationTemplates(list));
                 }
                 // search by image
                 List<ApplicationTemplates> appTemplatesImageList = appTemplateService.listNameByImage(searchValue, cId, projectId);
                 for (int i = 0; i < appTemplatesImageList.size(); i++) {
-                    List<ApplicationTemplates> list = appTemplateService.listApplicationTemplatesByNameAndImage(appTemplatesImageList.get(i).getName(), searchValue,
-                            appTemplatesImageList.get(i).getClusterId(), appTemplatesImageList.get(i).getProjectId());
+                    List<ApplicationTemplates> list = appTemplateService.listApplicationTemplatesByNameAndImage(appTemplatesImageList.get(i).getName(), searchValue, cId, projectId);
                     array.add(getApplicationTemplates(list));
                 }
                 //对数组进行去重
@@ -365,13 +364,19 @@ public class ApplicationServiceImpl implements ApplicationService {
         List<Map<String, Object>> idList = new ArrayList<Map<String, Object>>();
         int appTemplatesId = applicationTemplates.getId();
         map.put(applicationTemplates.getName(), appTemplatesId + "");
+
+        //该变量用来保存应用下的服务用到的所有镜像
         List<String> list = new LinkedList<String>();
 
         // addSave service templates
         for (ServiceTemplateDto serviceTemplate : appTemplate.getServiceList()) {
+
+            //将list作为参数不断的传递，然后将当前服务所用到的镜像返回给listR, listR中存放的元素0：模板名称和id；1：镜像列表信息
             List<Object> listR = saveServiceTemplates(serviceTemplate, appTemplatesId, appTemplate.getTenant(), userName, list, Constant.TEMPLATE_STATUS_DELETE);
             //获取每个内部服务镜像
             if (serviceTemplate.getExternal() == null || serviceTemplate.getExternal() == 0) {
+
+                //镜像列表信息保存的列表的第二个位置，所以需要get(1)
                 if (listR.get(1) != null) {
                     list = (List<String>) listR.get(1);
                 }
@@ -742,7 +747,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             JSONObject tempObject = array.getJSONObject(i);
             boolean isRepeat = false;
             for (int j = 0; j<newArray.size(); j++) {
-                if(tempObject.getString("name").equals(newArray.getJSONObject(j).getString("name"))
+                if(Objects.nonNull(tempObject) && tempObject.size() > 0 && tempObject.getString("name").equals(newArray.getJSONObject(j).getString("name"))
                         && tempObject.getString("clusterId").equals(newArray.getJSONObject(j).getString("clusterId"))) {
                     isRepeat = true;
                     break;

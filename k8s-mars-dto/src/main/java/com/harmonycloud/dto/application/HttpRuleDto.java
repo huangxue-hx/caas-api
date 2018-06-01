@@ -5,6 +5,7 @@ public class HttpRuleDto {
 	private String service;
 	private String port;
 	private String isEdit;
+
 	public String getPath() {
 		return path;
 	}
@@ -29,5 +30,4 @@ public class HttpRuleDto {
 	public void setIsEdit(String isEdit) {
 		this.isEdit = isEdit;
 	}
-	
 }

@@ -243,7 +243,7 @@ public class Constant {
 	//同步宿主机时区hostpath目录
 	public final static String VOLUME_SYNC_TIME_ZONE_PATH = "/etc/localtime";
 
-	public final static String VOLUME_TYPE_LOGDIR = "logDir";
+	public final static String VOLUME_TYPE_LOGDIR = "logdir";
 
 	public final static String NAMESPACE_SYSTEM = "kube-system";
 
@@ -336,6 +336,8 @@ public class Constant {
 
 	public final static int THREAD_SLEEP_TIME_1000 = 1000;
 
-	public final static  String MSF = "msf-";
+	public final static String MSF = "msf-";
+
+	public final static String INGRESS_MULTIPLE_PORT_ANNOTATION = "nginx.ingress.listen";
 
 }

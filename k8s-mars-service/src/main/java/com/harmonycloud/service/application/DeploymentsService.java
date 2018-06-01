@@ -1,12 +1,14 @@
 package com.harmonycloud.service.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.application.DeploymentDetailDto;
 import com.harmonycloud.dto.scale.HPADto;
 import com.harmonycloud.k8s.bean.DeploymentList;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.dto.application.DeploymentDetailDto;
+import com.harmonycloud.service.platform.bean.UpdateContainer;
 import com.harmonycloud.service.platform.bean.UpdateDeployment;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -230,4 +232,15 @@ public interface DeploymentsService {
 	 * @throws Exception
 	 */
     ActionReturnUtil checkDeploymentName(String name, String namespace, boolean isTpl) throws Exception;
+
+	/**
+	 * 创建配置文件（）
+	 * @param namespace
+	 * @param depName
+	 * @param containers
+	 * @param cluster
+	 * @return Map
+	 * @throws Exception
+	 */
+	Map<String, String> createConfigMapInUpdate(String namespace, String depName, Cluster cluster, List<UpdateContainer> containers) throws Exception;
 }

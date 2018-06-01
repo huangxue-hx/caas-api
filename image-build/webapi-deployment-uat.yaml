@@ -6,7 +6,7 @@ metadata:
   name: webapi
   namespace: kube-system
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: webapi
@@ -14,6 +14,11 @@ spec:
     metadata:
       labels:
         app: webapi
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
     spec:
       containers:
       - image: library/k8s-webapi:uat
@@ -43,6 +48,16 @@ spec:
           name: docker
         - mountPath: /opt/logs
           name: logdirwebapi
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       terminationGracePeriodSeconds: 30

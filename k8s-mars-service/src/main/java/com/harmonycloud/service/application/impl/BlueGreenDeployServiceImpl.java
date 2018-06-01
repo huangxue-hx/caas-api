@@ -17,8 +17,8 @@ import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.BlueGreenDeployService;
+import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.PersistentVolumeService;
-import com.harmonycloud.service.application.VersionControlService;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
@@ -72,6 +72,9 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
 
     @Autowired
     private PodService podService;
+
+    @Autowired
+    private DeploymentsService deploymentsService;
 
     @Override
     public ActionReturnUtil deployByBlueGreen(UpdateDeployment updateDeployment, String userName, String projectId) throws Exception {
@@ -129,7 +132,7 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         checkPvAndCreateVolume(updateDeployment.getContainers(), name, namespace, cluster, projectId);
 
         // 创建configmap
-        Map<String, String> containerToConfigMap = createConfigmaps(updateDeployment, cluster);
+        Map<String, String> containerToConfigMap = deploymentsService.createConfigMapInUpdate(namespace, name, cluster, updateDeployment.getContainers());
 
         // 更新deployment对象内的数据
         dep = KubeServiceConvert.convertDeploymentUpdate(dep, updateDeployment.getContainers(), name, containerToConfigMap, cluster);
@@ -415,11 +418,13 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
             Map<String, Object> annotation = rs.getMetadata().getAnnotations();
             if (null != annotation.get("deployment.kubernetes.io/revision")) {
                 int rsVersion = Integer.valueOf(annotation.get("deployment.kubernetes.io/revision").toString());
+                //如果是暂停状态，则判断当前的rs版本是否与deployment版本相同或者少1
                 if (paused) {
                     if (rsVersion == version || rsVersion == version - CommonConstant.NUM_ONE) {
                         replicaSetList.add(rs);
                     }
                 } else {
+                    //如果不处于暂停状态，只要判断当前的rs版本是否与deployment版本相同
                     if (rsVersion == version) {
                         res = loopReplicas(Arrays.asList(rs), cluster, name, null);
                         break;
@@ -461,6 +466,7 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         int tag = 0;
         for (ReplicaSet rs : replicaSets) {
             Map<String, Object> bodys = new HashMap<>();
+            //获取rs的版本作为返回Map的key
             if (rs.getMetadata().getAnnotations() != null && !StringUtils.isEmpty(rs.getMetadata().getAnnotations().get("deployment.kubernetes.io/revision").toString())) {
                 tag = Integer.parseInt(rs.getMetadata().getAnnotations().get("deployment.kubernetes.io/revision").toString());
             } else {
@@ -468,6 +474,7 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
             }
             Map<String, Object> rsLabels = rs.getMetadata().getLabels();
             if (!StringUtils.isEmpty(rsLabels.get("pod-template-hash").toString())) {
+                //根据label获取rs管辖的pod列表
                 bodys.put("labelSelector", "pod-template-hash=" + rsLabels.get("pod-template-hash"));
                 K8SClientResponse podRes = podService.getPodByNamespace(rs.getMetadata().getNamespace(), null, bodys, HTTPMethod.GET, cluster);
                 if (!HttpStatusUtil.isSuccessStatus(podRes.getStatus())) {
@@ -716,64 +723,6 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
                 }
             }
         }
-    }
-
-    /**
-     * 创建configmap
-     *
-     * @param detail  需要更新的deployment对象
-     * @param cluster 集群
-     * @return Map<String, String>
-     * @throws Exception
-     */
-    private Map<String, String> createConfigmaps(UpdateDeployment detail, Cluster cluster) throws Exception {
-        Map<String, String> containerToConfigmapMap = new HashMap<>();
-        List<UpdateContainer> containers = detail.getContainers();
-        if (containers != null && !containers.isEmpty()) {
-            for (UpdateContainer c : containers) {
-                if (c.getConfigmap() != null) {
-                    List<CreateConfigMapDto> configMaps = c.getConfigmap();
-                    if (configMaps != null && configMaps.size() > 0) {
-                        K8SURL url = new K8SURL();
-                        url.setNamespace(detail.getNamespace()).setResource(Resource.CONFIGMAP);
-                        Map<String, Object> bodys = new HashMap<>();
-                        Map<String, Object> meta = new HashMap<>();
-                        meta.put("namespace", detail.getNamespace());
-                        String configmaName = detail.getName() + c.getName() + UUID.randomUUID().toString();
-                        meta.put("name", configmaName);
-                        Map<String, Object> label = new HashMap<>();
-                        label.put("app", detail.getName());
-                        meta.put("labels", label);
-                        bodys.put("metadata", meta);
-                        Map<String, Object> data = new HashMap<>();
-                        for (CreateConfigMapDto configMap : configMaps) {
-                            if (configMap != null && !StringUtils.isEmpty(configMap.getPath())) {
-                                if (StringUtils.isEmpty(configMap.getFile())) {
-                                    data.put("config.json", configMap.getValue().toString());
-                                } else {
-                                    if (configMap.getValue() != null) {
-                                        data.put(configMap.getFile() + "v" + configMap.getTag(),
-                                                configMap.getValue().toString());
-                                    } else {
-                                        data.put(configMap.getFile() + "v" + configMap.getTag(), "");
-                                    }
-                                }
-                            }
-                        }
-                        bodys.put("data", data);
-                        Map<String, Object> headers = new HashMap<>();
-                        headers.put("Content-type", "application/json");
-                        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys,
-                                cluster);
-                        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                            throw new MarsRuntimeException();
-                        }
-                        containerToConfigmapMap.put(c.getName(), configmaName);
-                    }
-                }
-            }
-        }
-        return containerToConfigmapMap;
     }
 
     private void checkPvcInNewAndOldDeployment(PodTemplateSpec podTemplateSpec, String namespace, String name, Cluster cluster) throws Exception {

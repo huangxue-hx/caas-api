@@ -56,6 +56,15 @@ public interface PrivilegeService {
      * @throws Exception
      */
     public List<Privilege> listPrivilegeByIds(ArrayList<Integer> ids) throws Exception;
+
+    /**
+     * 根据id列表和模块列表查询对应的权限列表
+     * @param ids
+     * @param modules
+     * @return
+     * @throws Exception
+     */
+    public List<Privilege> listPrivilegeByIds(Integer roleId,ArrayList<Integer> ids,ArrayList<String> modules) throws Exception;
     /**
      * 查询模块组列表
      * @throws Exception

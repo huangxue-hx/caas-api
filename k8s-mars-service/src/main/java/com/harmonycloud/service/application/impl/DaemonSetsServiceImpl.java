@@ -111,8 +111,8 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
             return actionReturnUtil;
         }
         //添加自定义节点标签的前缀
-        if(StringUtils.isNotBlank(detail.getNodeSelector())
-                && !detail.getNodeSelector().startsWith(NODESELECTOR_LABELS_PRE)){
+        if (StringUtils.isNotBlank(detail.getNodeSelector())
+                && !detail.getNodeSelector().startsWith(NODESELECTOR_LABELS_PRE)) {
             detail.setNodeSelector(NODESELECTOR_LABELS_PRE + detail.getNodeSelector());
         }
         for (CreateContainerDto c : detail.getContainers()) {
@@ -121,7 +121,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
             }
             if (Objects.nonNull(c.getConfigmap()) && c.getConfigmap().size() > 0) {
                 //创建configmap
-                configMapService.createConfigMap(c.getConfigmap(), detail.getNamespace(), c.getName(),
+                configMapService.createConfigMap(c.getConfigmap(), CommonConstant.KUBE_SYSTEM, c.getName(),
                         detail.getName(), cluster, Constant.TYPE_DAEMONSET, username);
             }
 
@@ -132,9 +132,11 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                         if (StringUtils.isEmpty(volume.getPvcName())) {
                             continue;
                         }
-                        volume.setNamespace(detail.getNamespace());
+                        volume.setNamespace(Constant.NAMESPACE_SYSTEM);
                         volume.setServiceType(Constant.TYPE_DAEMONSET);
                         volume.setServiceName(detail.getName());
+                        volume.setClusterId(detail.getClusterId());
+                        volume.setVolumeName(volume.getPvcName());
                         volumeSerivce.createVolume(volume);
                     }
                 }
@@ -182,8 +184,8 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
             ds.getSpec().getTemplate().getSpec().setContainers(containers);
 
             //更新nodeselector
-            if(StringUtils.isNotBlank(detail.getNodeSelector())
-                    && !detail.getNodeSelector().startsWith(NODESELECTOR_LABELS_PRE)){
+            if (StringUtils.isNotBlank(detail.getNodeSelector())
+                    && !detail.getNodeSelector().startsWith(NODESELECTOR_LABELS_PRE)) {
                 detail.setNodeSelector(NODESELECTOR_LABELS_PRE + detail.getNodeSelector());
             }
             Map<String, Object> nodeSelector = K8sResultConvert.convertNodeSelector(detail.getNodeSelector());
@@ -220,7 +222,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
         DaemonSet ds = dsService.getDaemonSet(namespace, name, cluster);
         if (Objects.nonNull(ds) && Objects.nonNull(ds.getMetadata()) && !StringUtils.isEmpty(ds.getMetadata().getName())) {
             DaemonSetDetailDto detail = K8sResultConvert.convertDaemonSetDetail(ds);
-            detail.setAliasName(StringUtils.isNotBlank(detail.getCreator())? userService.getUser(detail.getCreator()).getRealName() : null);
+            detail.setAliasName(StringUtils.isNotBlank(detail.getCreator()) ? userService.getUser(detail.getCreator()).getRealName() : null);
             PodSpec podSpec = ds.getSpec().getTemplate().getSpec();
             //容器
             List<Container> containers = podSpec.getContainers();
@@ -280,7 +282,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                 //resources
                 if (Objects.nonNull(container.getResources())) {
                     CreateResourceDto rs = new CreateResourceDto();
-                    Map<String, Object> map = (Map<String, Object>) container.getResources().getLimits();
+                    Map<String, Object> map = (Map<String, Object>) container.getResources().getRequests();
                     if (map != null) {
                         rs.setCpu(map.get("cpu").toString());
                         rs.setMemory(map.get("memory").toString());
@@ -311,52 +313,46 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                     for (VolumeMount vm : container.getVolumeMounts()) {
                         PersistentVolumeDto cv = new PersistentVolumeDto();
                         for (Volume volume : podSpec.getVolumes()) {
-                            if (volume.getConfigMap() != null) {
-                                CreateConfigMapDto con = new CreateConfigMapDto();
-                                con.setPath(vm.getMountPath());
-                                String str = volume.getConfigMap().getName();
-                                if (str.lastIndexOf("v") > 0) {
-                                    con.setTag(str.substring(str.lastIndexOf("v") + 1, str.length()).replace("-", "."));
-                                    con.setFile(str.substring(0, str.lastIndexOf("v")));
+                            if (vm.getName().equals(volume.getName())){
+                                if (volume.getConfigMap() != null){
+                                    CreateConfigMapDto con = new CreateConfigMapDto();
+                                    con.setPath(vm.getMountPath());
+                                    String str = volume.getConfigMap().getName();
+                                    if (str.lastIndexOf("v") > 0) {
+                                        con.setTag(str.substring(str.lastIndexOf("v") + 1, str.length()).replace("-", "."));
+                                        con.setFile(str.substring(0, str.lastIndexOf("v")));
+                                    }
+                                    K8SURL url = new K8SURL();
+                                    url.setNamespace(namespace).setName(volume.getConfigMap().getName()).setResource(Resource.CONFIGMAP);
+                                    K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null, cluster);
+                                    if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                                        logger.error("DaemonSet详情获取configmap失败:{}", response.getBody());
+                                        throw new MarsRuntimeException(ErrorCodeMessage.DAEMONSET_DETAIL_GET_FAILURE);
+                                    }
+                                    ConfigMap configMap = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
+                                    Map<String, Object> datas = (Map<String, Object>) configMap.getData();
+                                    if (CollectionUtils.isNotEmpty(volume.getConfigMap().getItems())) {
+                                        con.setValue(datas.get(volume.getConfigMap().getItems().get(0).getKey()));
+                                        configmap.add(con);
+                                    }
+                                    c.setConfigmap(configmap);
+                                    continue;
                                 }
-                                K8SURL url = new K8SURL();
-                                url.setNamespace(namespace).setName(volume.getConfigMap().getName()).setResource(Resource.CONFIGMAP);
-                                K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null, cluster);
-                                if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                                    logger.error("DaemonSet详情获取configmap失败:{}", response.getBody());
-                                    throw new MarsRuntimeException(ErrorCodeMessage.DAEMONSET_DETAIL_GET_FAILURE);
-                                }
-                                ConfigMap configMap = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
-                                Map<String, Object> datas = (Map<String, Object>) configMap.getData();
-                                if (CollectionUtils.isNotEmpty(volume.getConfigMap().getItems())) {
-                                    con.setValue(datas.get(volume.getConfigMap().getItems().get(0).getKey()));
-                                    configmap.add(con);
-                                }
-                            } else {
                                 cv.setPath(vm.getMountPath());
                                 cv.setReadOnly(vm.isReadOnly());
                                 if (Objects.isNull(vm.isReadOnly())) {
                                     cv.setReadOnly(Boolean.FALSE);
                                 }
-                                if (Objects.nonNull(volume.getNfs())) {
+                                if (Objects.nonNull(volume.getPersistentVolumeClaim())) {
                                     cv.setType(Constant.VOLUME_TYPE_PV);
                                     cv.setPvcName(volume.getPersistentVolumeClaim().getClaimName());
                                     cv.setVolumeName(volume.getPersistentVolumeClaim().getClaimName());
-                                    PersistentVolume pvByName = this.pvService.getPvByName(name, null);
-                                    if (pvByName != null) {
-                                        Map<String, Object> map = new HashMap<>();
-                                        map = (Map<String, Object>) pvByName.getSpec().getCapacity();
-                                        cv.setCapacity(map.get("storage").toString());
-                                    }
-                                    cv.setBindOne(Boolean.TRUE);
-                                    Map<String, Object> labels = new HashMap<>();
-                                    labels = pvByName.getMetadata().getLabels();
-                                    cv.setProjectId(labels.get(CommonConstant.PROJECT_ID).toString());
                                 }
                                 if (Objects.nonNull(volume.getEmptyDir())) {
                                     if (volume.getName().contains(Constant.VOLUME_TYPE_LOGDIR)) {
                                         log = vm.getMountPath();
                                         c.setLog(log);
+                                        cv.setType("logDir");
                                     } else {
                                         cv.setType(Constant.VOLUME_TYPE_EMPTYDIR);
                                         if (Objects.nonNull(volume.getEmptyDir())) {
@@ -369,7 +365,9 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                                 if (Objects.nonNull(volume.getHostPath())) {
                                     cv.setType(Constant.VOLUME_TYPE_HOSTPASTH);
                                     cv.setHostPath(volume.getHostPath().getPath());
-
+                                    if (volume.getName().contains(Constant.VOLUME_TYPE_LOGDIR)) {
+                                        cv.setType("logDir");
+                                    }
                                 }
                                 if (Objects.nonNull(volume.getGitRepo())) {
                                     cv.setType(Constant.VOLUME_TYPE_GITREPO);
@@ -380,6 +378,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                             }
                         }
                     }
+                    c.setStorage(storage);
                 }
                 cs.add(c);
             }
@@ -474,7 +473,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
     @Override
     public List<DaemonSet> listDaemonSets(Cluster cluster) throws Exception {
         List<Map<String, Object>> daemonSets = new ArrayList<Map<String, Object>>();
-        DaemonSetList list = dsService.listDaemonSet( cluster);
+        DaemonSetList list = dsService.listDaemonSet(cluster);
         List<DaemonSet> items = list.getItems();
         return list.getItems();
     }

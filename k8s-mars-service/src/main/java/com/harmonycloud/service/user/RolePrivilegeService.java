@@ -13,12 +13,6 @@ public interface RolePrivilegeService {
 
 
     /**
-     * 更新角色菜单(仅供后台数据库同步使用)
-     * @param roleId
-     * @throws Exception
-     */
-    public void updateRoleMenu(Integer roleId) throws Exception;
-    /**
      * 切换角色
      * @return
      * @throws Exception

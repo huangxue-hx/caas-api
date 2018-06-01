@@ -1,32 +1,19 @@
 package com.harmonycloud.api.log;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.TimeZone;
-
-import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.service.platform.service.LogService;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.util.Assert;
 import org.springframework.web.bind.annotation.*;
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dto.log.LogQueryDto;
 import com.harmonycloud.service.platform.bean.LogQuery;
 import com.harmonycloud.service.application.DeploymentsService;
-
 import javax.servlet.http.HttpServletResponse;
-
-import static com.harmonycloud.common.Constant.CommonConstant.DEFAULT_PAGE_SIZE_200;
-import static com.harmonycloud.common.Constant.CommonConstant.MAX_PAGE_SIZE_1000;
 
 /**
  * 应用日志相关控制器
@@ -130,13 +117,4 @@ public class LogController {
         }
     }
 
-    @ResponseBody
-    @RequestMapping(value="/logfile/{fileName}/export", method= RequestMethod.GET)
-    public void exportLog(@RequestParam(value="namespace") String namespace,
-                          @RequestParam(value="pod") String podName,
-                          @RequestParam(value="clusterId") String clusterId,
-                          @PathVariable("fileName") String fileName, HttpServletResponse response) throws Exception{
-        logService.exportLog(namespace, podName, clusterId, fileName, response);
-
-    }
 }

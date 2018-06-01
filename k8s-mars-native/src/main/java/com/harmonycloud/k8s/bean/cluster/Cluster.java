@@ -87,7 +87,7 @@ public class Cluster implements Serializable,Comparable<Cluster> {
 	/**
 	 * 集群http对外服务的域名，有三级和四级域名
 	 */
-	private List<ClusterDomain> domains;
+	private ClusterDomain domains;
 	/**
 	 * 集群是否可用状态
 	 */
@@ -304,15 +304,15 @@ public class Cluster implements Serializable,Comparable<Cluster> {
 		this.isEnable = enable;
 	}
 
-	public List<ClusterDomain> getDomains() {
+	public ClusterDomain getDomains() {
 		return domains;
 	}
 
-	public void setDomains(List<ClusterDomain> domains) {
+	public void setDomains(ClusterDomain domains) {
 		this.domains = domains;
 	}
 
-    public List<ClusterExternal> getExternal() {
+	public List<ClusterExternal> getExternal() {
         return external;
     }
 

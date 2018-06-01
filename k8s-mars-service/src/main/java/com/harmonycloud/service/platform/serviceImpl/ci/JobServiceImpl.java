@@ -212,6 +212,7 @@ public class JobServiceImpl implements JobService {
     @Transactional(rollbackFor = Exception.class)
     public Integer createJob(JobDto jobDto) throws Exception {
         Job job;
+        //新建或复制
         if(jobDto.getCopyId() == null) {
             job = jobDto.convertToBean();
         }else{
@@ -244,6 +245,7 @@ public class JobServiceImpl implements JobService {
         job.setCreateTime(new Date());
         jobMapper.insertJob(job);
         JenkinsServer jenkinsServer = JenkinsClient.getJenkinsServer();
+        //新建或复制
         if(jobDto.getCopyId() == null) {
             Map<String, Object> dataModel = new HashMap<>();
             dataModel.put("stageList", new ArrayList<>());
@@ -442,6 +444,7 @@ public class JobServiceImpl implements JobService {
         Integer lastBuildNumber = null;
         Map<String, Object> params;
         List<Stage> stageList = stageMapper.queryByJobId(id);
+        //校验步骤信息
         validateJob(job, stageList, StringUtils.isBlank(image));
         Map tagMap = new HashMap<>();
 
@@ -506,7 +509,7 @@ public class JobServiceImpl implements JobService {
         }
 
         params.put("delay", "0sec");
-        //构建时带上参数，若为空则使用自定义参数
+        //构建时带上参数，若为空则使用默认参数
         if(CollectionUtils.isNotEmpty(parameters)){
             for(Map<String, Object> parameterMap : parameters){
                 params.put((String)parameterMap.get("name"), String.valueOf(parameterMap.get("value")));
@@ -726,13 +729,16 @@ public class JobServiceImpl implements JobService {
                     if (result.get("data") != null) {
                         Header[] headers = (Header[]) ((Map) result.get("data")).get("header");
                         for (Header header : headers) {
+                            //当还有日志输出时，会有X-More-Data
                             if ("X-More-Data".equalsIgnoreCase(header.getName())) {
                                 moreData = header.getValue();
                             }
+                            //当前已经获取的日志标记，下一次从该处取新的日志
                             if ("X-Text-Size".equalsIgnoreCase(header.getName())) {
                                 start = header.getValue();
                             }
                         }
+                        //当获取到的日志非空或30秒内无返回时，返回日志内容
                         if (StringUtils.isNotEmpty((String) ((Map) result.get("data")).get("body")) || duration > CommonConstant.CICD_WEBSOCKET_MAX_DURATION) {
                             duration = 0L;
                             String log = ((String) ((Map) result.get("data")).get("body")).replaceAll("</?[^>]+>","");
@@ -915,7 +921,7 @@ public class JobServiceImpl implements JobService {
                 }
             }
         }
-
+        //校验步骤配置
         try {
             for (Stage stage : stageList) {
                 StageDto stageDto = new StageDto();
@@ -926,12 +932,14 @@ public class JobServiceImpl implements JobService {
             ErrorCodeMessage errorCodeMessage = ErrorCodeMessage.valueOf(e.getErrorCode());
             throw new MarsRuntimeException(errorCodeMessage.getReasonEnPhrase() + "(" + errorCodeMessage.getReasonChPhrase() + ")");
         }
+        //更新Jenkins中镜像tag
         updateJenkinsImageTag(job);
     }
 
     private void updateDeployStageBuild(Stage stage, StageBuild stageBuild) throws Exception{
         String tag = stage.getImageTag();
         Integer stageId = stage.getOriginStageId();
+        //根据镜像来源流水线步骤是否为空区分镜像来源于流水线或镜像仓库
         if(stageId == null) {
             if(StringUtils.isNotBlank(tag)) {
                 stageBuild.setImage(stage.getImageName() + ":" + tag);
@@ -1001,10 +1009,9 @@ public class JobServiceImpl implements JobService {
 
                         Thread.sleep(3000);
                         Job job = jobMapper.queryById(id);
-                        syncJobStatus(job, buildNum);
                         allStageStatusSync(job, buildNum);
+                        syncJobStatus(job, buildNum);
                         stageBuildMapper.updateWaitingStage(job.getId(), buildNum);
-                        sendNotification(job, buildNum);
                         break;
                     } catch (Exception e) {
                         logger.error("流水线状态更新失败, retry:{}", retry, e);
@@ -1064,7 +1071,7 @@ public class JobServiceImpl implements JobService {
 
 
         Cluster cluster = clusterService.findClusterById(job.getClusterId());
-
+        //根据升级类型进行升级，全新发布已废弃
         if(CommonConstant.FRESH_RELEASE.equals(stage.getDeployType())){
             doFreshRelease(job, stageDto, cluster, buildNum);
         }else if(CommonConstant.CANARY_RELEASE.equals(stage.getDeployType())){
@@ -1087,7 +1094,16 @@ public class JobServiceImpl implements JobService {
             StringBuilder lastStatus = new StringBuilder();
             StringBuilder currentStatus = null;
             long duration = 0L;
-            //循环查询job状态
+            //拼接Jenkins流水线状态和步骤状态的URL
+            JenkinsUrl lastBuildStatusUrl = new JenkinsUrl();
+            lastBuildStatusUrl.setFolders(projectName, clusterName);
+            lastBuildStatusUrl.setName(job.getName());
+            lastBuildStatusUrl.setApi("lastBuild/api/json");
+            JenkinsUrl lastBuildDesUrl = new JenkinsUrl();
+            lastBuildDesUrl.setFolders(projectName, clusterName);
+            lastBuildDesUrl.setName(job.getName());
+            lastBuildDesUrl.setApi("lastBuild/wfapi/describe");
+            //循环查询流水线和步骤状态
             while (session.isOpen()) {
                 long startTime = System.currentTimeMillis();
                 List<Stage> dbStageListCp = new ArrayList<>();
@@ -1096,7 +1112,8 @@ public class JobServiceImpl implements JobService {
                 StringBuilder stageStatus = new StringBuilder();
                 Map jenkinsJobMap = new HashMap<>();
                 String jobStatus = null;
-                ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + projectName + "/job/" + clusterName + "/job/" + job.getName()  + "/lastBuild/api/json", null, null, false);
+                //获取Jenkins流水线状态
+                ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest(lastBuildStatusUrl.getUrl(), null, null, false);
                 if (result.isSuccess()) {
                     jenkinsJobMap = JsonUtil.convertJsonToMap((String) result.get("data"));
                     if((boolean)jenkinsJobMap.get("building") == true) {
@@ -1105,7 +1122,8 @@ public class JobServiceImpl implements JobService {
                         jobStatus = (String)jenkinsJobMap.get("result");
                     }
                 }
-                result = HttpJenkinsClientUtil.httpGetRequest("/job/" + projectName + "/job/" + clusterName + "/job/" + job.getName()  + "/lastBuild/wfapi/describe", null, null, false);
+                //获取步骤的构建信息
+                result = HttpJenkinsClientUtil.httpGetRequest(lastBuildDesUrl.getUrl(), null, null, false);
                 if (result.isSuccess()) {
                     String data = (String) result.get("data");
                     Map dataMap = JsonUtil.convertJsonToMap(data);
@@ -1113,6 +1131,7 @@ public class JobServiceImpl implements JobService {
                     int i = 0;
                     List stageList = new ArrayList<>();
                     String status = "";
+                    //遍历Jenkins中获取的步骤
                     for (Map stage : stages) {
                         Map stageMap = new HashMap<>();
                         stageMap.put("lastBuildStatus", convertStatus((String)stage.get("status")));
@@ -1122,12 +1141,14 @@ public class JobServiceImpl implements JobService {
                         }else{
                             stageMap.put("lastBuildTime", new Timestamp(Long.valueOf((Integer) stage.get("startTimeMillis"))));
                         }
+                        //遍历数据库的步骤列表，匹配到对应步骤
                         for(Stage dbStage : dbStageListCp){
                             String jenkinsStageName = stage.get("name").toString();
                             String[] stageArray = jenkinsStageName.split("-");
                             if(dbStage.getId().toString().equals(stageArray[stageArray.length - CommonConstant.NUM_ONE])){
                                 stageMap.put("stageId", dbStage.getId());
                                 stageMap.put("stageOrder", dbStage.getStageOrder());
+                                //静态扫描和集成测试步骤的状态取自数据库构建记录表，并且决定流水线最终状态
                                 if(StageTemplateTypeEnum.CODESCAN.getCode() == dbStage.getStageTemplateType() || StageTemplateTypeEnum.INTEGRATIONTEST.getCode() == dbStage.getStageTemplateType()){
                                     StageBuild stageBuild = stageBuildService.selectLastBuildById(dbStage.getId());
                                     stageMap.put("lastBuildStatus", stageBuild.getStatus());
@@ -1145,10 +1166,12 @@ public class JobServiceImpl implements JobService {
                         stageList.add(stageMap);
                         stageStatus.append(convertStatus((String)stage.get("status")));
                     }
+                    //数据库中没匹配到的步骤，则还没有开始构建
                     for(Stage stage : dbStageListCp){
                         Map stageMap = new HashMap<>();
                         stageMap.put("stageId", stage.getId());
                         stageMap.put("stageOrder", stage.getStageOrder());
+                        //若步骤为第一步，且流水线为运行状态，则该步骤状态为等待中，其他都为未构建
                         if(stage.getStageOrder() == CommonConstant.NUM_ONE){
                             stageMap.put("lastBuildStatus", Constant.PIPELINE_STATUS_BUILDING.equals(jobStatus)?Constant.PIPELINE_STATUS_WAITING:Constant.PIPELINE_STATUS_NOTBUILT);
                         }else{
@@ -1158,27 +1181,23 @@ public class JobServiceImpl implements JobService {
                         stageStatus.append((String)stageMap.get("lastBuildStatus"));
                         i++;
                     }
+                    //流水线状态以终止状态最为优先，其次为构建中，再为上述根据测试套件步骤决定的状态，最后为Jenkins中状态
                     JobBuild jobBuild = jobBuildService.queryLastBuildById(id);
                     if(Constant.PIPELINE_STATUS_ABORTED.equals(jobBuild.getStatus())){
-                        currentStatus.append(Constant.PIPELINE_STATUS_ABORTED);
-                    }else if(StringUtils.isBlank(status)) {
-                        currentStatus.append(convertStatus(jobStatus));
-                    }else{
-                        currentStatus.append(status);
+                        jobStatus = Constant.PIPELINE_STATUS_ABORTED;
+                    }else if(StringUtils.isNotBlank(status) && !Constant.PIPELINE_STATUS_BUILDING.equals(jobStatus)) {
+                        jobStatus = status;
                     }
+                    //当前状态为流水线状态拼接每个步骤的状态
+                    currentStatus.append(jobStatus);
                     currentStatus.append(stageStatus);
 
+                    //当前状态与之前的状态不一致或30秒内没有返回时，则返回当前状态
                     if (!currentStatus.toString().equals(lastStatus.toString()) || duration > CommonConstant.CICD_WEBSOCKET_MAX_DURATION) {
                         duration = 0L;
                         Map jobMap = new HashMap<>();
                         jobMap.put("stageList", stageList);
-                        if(Constant.PIPELINE_STATUS_ABORTED.equals(jobBuild.getStatus())){
-                            jobMap.put("lastBuildStatus", Constant.PIPELINE_STATUS_ABORTED);
-                        }else if(StringUtils.isBlank(status)){
-                            jobMap.put("lastBuildStatus", convertStatus(jobStatus));
-                        }else{
-                            jobMap.put("lastBuildStatus", status);
-                        }
+                        jobMap.put("lastBuildStatus", jobStatus);
                         if(dataMap.get("startTimeMillis") instanceof Long) {
                             jobMap.put("lastBuildTime", new Timestamp((Long) dataMap.get("startTimeMillis")));
                         }else{
@@ -1229,12 +1248,6 @@ public class JobServiceImpl implements JobService {
             notification.put("failNotification", job.isFailNotification());
             jobMap.put("notification", notification);
         }
-        //TODO:trigger yaml
-//        if(job.isTrigger()){
-//            Map trigger = new LinkedHashMap<>();
-//            job.getCronExpForPollScm();
-//            trigger.put("pollScm", job.getCronExpForPollScm());
-//        }
         Map buildEnvMap = new HashMap<>();
         List<BuildEnvironment> buildEnvList = buildEnvironmentMapper.queryAll();
         for(BuildEnvironment buildEnv:buildEnvList){
@@ -1848,7 +1861,7 @@ public class JobServiceImpl implements JobService {
         }
         return false;
     }
-    private JobBuild syncJobStatus(Job job, Integer buildNum) throws Exception{
+    public JobBuild syncJobStatus(Job job, Integer buildNum) throws Exception{
         Project project = projectService.getProjectByProjectId(job.getProjectId());
         if(null == project){
             throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_NOT_EXIST);
@@ -1872,13 +1885,24 @@ public class JobServiceImpl implements JobService {
             jobBuild.setBuildNum(buildNum);
             jobBuildMapper.insert(jobBuild);
         }
-
+        //调用Jenkins接口，获取流水线构建信息
         Map<String, Object> params = new HashMap<>();
         params.put("tree", "building,timestamp,result,duration,number");
-        ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest("/job/" + projectName + "/job/" + clusterName + "/job/" +job.getName() + "/" + buildNum + "/api/xml", null, params, false);
-        //ActionReturnUtil logResult = HttpJenkinsClientUtil.httpGetRequest("/job/" + jenkinsJobName + "/" + buildNum + "/logText/progressiveHtml", null, null, false);
-        ActionReturnUtil logResult = HttpJenkinsClientUtil.httpGetRequest("/job/" + projectName + "/job/" + clusterName + "/job/" +job.getName()  + "/" + buildNum + "/consoleText", null, null, false);
+        JenkinsUrl xmlUrl = new JenkinsUrl();
+        xmlUrl.setFolders(projectName, clusterName);
+        xmlUrl.setName(job.getName());
+        xmlUrl.setBuildNumber(String.valueOf(buildNum));
+        xmlUrl.setApi("api/xml");
+        ActionReturnUtil result = HttpJenkinsClientUtil.httpGetRequest(xmlUrl.getUrl(), null, params, false);
+        //获取Jenkins中流水线构建日志
+        JenkinsUrl logUrl = new JenkinsUrl();
+        logUrl.setFolders(projectName, clusterName);
+        logUrl.setName(job.getName());
+        logUrl.setBuildNumber(String.valueOf(buildNum));
+        logUrl.setApi("consoleText");
+        ActionReturnUtil logResult = HttpJenkinsClientUtil.httpGetRequest(logUrl.getUrl(), null, null, false);
         if (result.isSuccess()) {
+            //解析构建信息
             Map jenkinsDataMap = XmlUtil.parseXmlStringToMap((String) result.get("data"));
             Map build = new HashMap();
             Map rootMap = (Map) jenkinsDataMap.get("workflowRun");
@@ -1894,6 +1918,7 @@ public class JobServiceImpl implements JobService {
                 jobBuild.setDuration((String)rootMap.get("duration"));
             }
             String status = "";
+            //若步骤中含有静态扫描和集成测试步骤，则根据数据库中该类步骤状态来确定流水线状态
             List<Stage> stageList = stageService.getStageByJobId(job.getId());
             for(Stage stage : stageList){
                 if(StageTemplateTypeEnum.CODESCAN.getCode() == stage.getStageTemplateType() || StageTemplateTypeEnum.INTEGRATIONTEST.getCode() == stage.getStageTemplateType()){
@@ -1912,18 +1937,29 @@ public class JobServiceImpl implements JobService {
                     }
                 }
             }
-            if(StringUtils.isNotBlank(status) && !Constant.PIPELINE_STATUS_ABORTED.equals(jobBuild.getStatus())){
+
+            if(StringUtils.isNotBlank(status) && !Constant.PIPELINE_STATUS_ABORTED.equals(jobBuild.getStatus()) && !Constant.PIPELINE_STATUS_BUILDING.equals(jobBuild.getStatus())){
                 jobBuild.setStatus(status);
             }
-            jobBuildService.update(jobBuild);
-            if(Constant.PIPELINE_STATUS_ABORTED.equals(jobBuild.getStatus()) && Constant.PIPELINE_STATUS_BUILDING.equals(status)){
+            String preStatus = null;
+            jobBuildList = jobBuildMapper.queryByObject(jobBuildCondition);
+
+            if(null != jobBuildList && jobBuildList.size()==1) {
+                preStatus = jobBuildList.get(0).getStatus();
+            }
+            if(Constant.PIPELINE_STATUS_ABORTED.equals(jobBuild.getStatus()) && Constant.PIPELINE_STATUS_BUILDING.equals(status) ||
+                    ((Constant.PIPELINE_STATUS_BUILDING.equals(preStatus) || StringUtils.isBlank(preStatus))&&!Constant.PIPELINE_STATUS_BUILDING.equals(status))){
                 allStageStatusSync(job, buildNum);
+            }
+            jobBuildService.update(jobBuild);
+            if((Constant.PIPELINE_STATUS_BUILDING.equals(preStatus) || StringUtils.isBlank(preStatus))&& (Constant.PIPELINE_STATUS_FAILURE.equals(jobBuild.getStatus()) || Constant.PIPELINE_STATUS_SUCCESS.equals(jobBuild.getStatus()))){
+                sendNotification(job, buildNum);
             }
             if (logResult.isSuccess()) {
                 jobBuild.setLog((String) logResult.get("data"));
             }else{
                 logger.error("获取流水线日志失败", logResult.getData());
-                throw new Exception();
+                throw new MarsRuntimeException(ErrorCodeMessage.JENKINS_PIPELINE_INFO_GET_ERROR);
             }
             jobBuildService.updateLogById(jobBuild);
 
@@ -1940,6 +1976,7 @@ public class JobServiceImpl implements JobService {
         Job job = jobMapper.queryById(stage.getJobId());
         List<Map> stageMapList = stageService.getStageBuildFromJenkins(job, buildNum);
         int i = stage.getStageOrder() - 2;
+        //同步上一个步骤状态与当前步骤状态
         for(i = i<0?0:i ; i< stageMapList.size();i++){
             try {
                 stageService.stageBuildSync(job, buildNum, stageMapList.get(i), i + 1);
@@ -2181,6 +2218,7 @@ public class JobServiceImpl implements JobService {
         Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
         List<UpdateContainer> updateContainerList = getUpdateContainerList(dep, job, stageDto, cluster, buildNum);
 
+        //设置灰度升级的参数
         CanaryDeployment canaryDeployment = new CanaryDeployment();
         canaryDeployment.setProjectId(job.getProjectId());
         canaryDeployment.setName(stageDto.getServiceName());
@@ -2318,10 +2356,10 @@ public class JobServiceImpl implements JobService {
             if (updateContainer.getLog() == null) {
                 updateContainer.setLog(new LogVolume());
             }
-
+            //当遍历到需要升级的容器时，更新镜像
             if (stageDto.getContainerName().equals(containerOfPodDetail.getName())) {
                 updateContainer.setImg(stageBuild.getImage());
-                //更新配置
+                //若配置不为空，则查询数据库中的最新配置信息，更新到需要升级的容器配置中
                 if(CollectionUtils.isNotEmpty(stageDto.getConfigMaps())){
                     configMapList = new ArrayList<>();
                     for(CreateConfigMapDto createConfigMapDto : stageDto.getConfigMaps()) {
@@ -2720,7 +2758,7 @@ public class JobServiceImpl implements JobService {
                 }
             }
         }
-        jenkinsServer.updateJob(folderJob, job.getName(), doc.asXML(), false);
-    }
+            jenkinsServer.updateJob(folderJob, job.getName(), doc.asXML(), false);
+        }
 
 }

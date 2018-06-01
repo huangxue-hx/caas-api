@@ -23,7 +23,7 @@ public class ClusterCRDDto {
     private Integer harborPort;
     private Date createTime;
 
-    private List<ClusterDomain> domain ;
+    private ClusterDomain domain ;
     private List<ClusterExternal> external ;
     private ClusterNetwork network;
     private ClusterRedis redis;
@@ -153,11 +153,11 @@ public class ClusterCRDDto {
         this.harborAdminPwd = harborAdminPwd;
     }
 
-    public List<ClusterDomain> getDomain() {
+    public ClusterDomain getDomain() {
         return domain;
     }
 
-    public void setDomain(List<ClusterDomain> domain) {
+    public void setDomain(ClusterDomain domain) {
         this.domain = domain;
     }
 

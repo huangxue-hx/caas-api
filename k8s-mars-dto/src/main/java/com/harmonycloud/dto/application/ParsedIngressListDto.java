@@ -16,6 +16,10 @@ public class ParsedIngressListDto {
 	private String host;
 	private Object annotaion;
 	private List<HttpRuleDto> rules;
+	private String protocol;
+	private String exposePort;
+	private Boolean external;
+	private String serviceName;
 
 	public String getNamespace() {
 		return namespace;
@@ -73,4 +77,34 @@ public class ParsedIngressListDto {
 		this.annotaion = annotaion;
 	}
 
+	public String getProtocol() {
+		return protocol;
+	}
+
+	public void setProtocol(String protocol) {
+		this.protocol = protocol;
+	}
+
+	public String getExposePort() {
+		return exposePort;
+	}
+
+	public void setExposePort(String exposePort) {
+		this.exposePort = exposePort;
+	}
+
+	public Boolean getExternal() {
+		return external;
+	}
+
+	public void setExternal(Boolean external) {
+		this.external = external;
+	}
+	public String getServiceName() {
+		return serviceName;
+	}
+
+	public void setServiceName(String serviceName) {
+		this.serviceName = serviceName;
+	}
 }

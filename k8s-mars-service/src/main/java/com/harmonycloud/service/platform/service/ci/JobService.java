@@ -2,6 +2,7 @@ package com.harmonycloud.service.platform.service.ci;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.ci.bean.Job;
+import com.harmonycloud.dao.ci.bean.JobBuild;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dto.cicd.JobDto;
 import org.springframework.web.socket.WebSocketSession;
@@ -104,4 +105,6 @@ public interface JobService {
     void updateJob(JobDto jobDto) throws Exception;
 
     void deleteBuildResult() throws Exception;
+
+    JobBuild syncJobStatus(Job job, Integer buildNum) throws Exception;
 }

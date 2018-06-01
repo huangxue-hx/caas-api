@@ -175,15 +175,6 @@ public class UserServiceImpl implements UserService {
         return (List<LocalRolePrivilege>)session.getAttribute(CommonConstant.SESSION_DATA_PRIVILEGE_LIST);
     }
 
-    /**
-     * 从session中获取当前租户管理员用户项目列表
-     *
-     * @return
-     */
-    @Override
-    public Map<String, Project> getCurrentTmUserProject() {
-        return (Map<String, Project>)session.getAttribute(CommonConstant.PROJECT);
-    }
 
     /**
      * 从session中获取当前数据权限列表
@@ -459,7 +450,7 @@ public class UserServiceImpl implements UserService {
         // 密码md5加密
         String MD5password = StringUtil.convertToMD5(user.getPassword());
         user.setPassword(MD5password);
-        user.setCreateTime(DateUtil.getCurrentUtcTime());
+        user.setCreateTime(new Date());
         user.setPause(CommonConstant.NORMAL);
         if (user.getIsAdmin() == null) {
             user.setIsAdmin(Constant.NON_ADMIN_ACCOUNT);
@@ -1127,13 +1118,13 @@ public class UserServiceImpl implements UserService {
             }
 
             Date createTime = user.getCreateTime();
-            String date = DateUtil.DateToString(createTime, DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z);
+            String date = DateUtil.DateToString(createTime, DateStyle.YYYY_MM_DD_HH_MM_SS);
             u.setCreateTime(date);
             if (user.getUpdate_time() == null) {
                 u.setUpdateTime("");
             } else {
                 Date updateTime = user.getUpdate_time();
-                u.setUpdateTime(DateUtil.DateToString(updateTime, DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z));
+                u.setUpdateTime(DateUtil.DateToString(updateTime, DateStyle.YYYY_MM_DD_HH_MM_SS));
             }
             userNameList.add(u);
 
@@ -1178,13 +1169,13 @@ public class UserServiceImpl implements UserService {
             }
 
             Date createTime = user.getCreateTime();
-            String date = DateUtil.DateToString(createTime, DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z);
+            String date = DateUtil.DateToString(createTime, DateStyle.YYYY_MM_DD_HH_MM_SS);
             u.setCreateTime(date);
             if (user.getUpdateTime() == null) {
                 u.setUpdateTime("");
             } else {
                 Date updateTime = user.getUpdateTime();
-                u.setUpdateTime(DateUtil.DateToString(updateTime, DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z));
+                u.setUpdateTime(DateUtil.DateToString(updateTime, DateStyle.YYYY_MM_DD_HH_MM_SS));
             }
             userNameList.add(u);
 
@@ -1588,29 +1579,8 @@ public class UserServiceImpl implements UserService {
      * @return List<UserGroup>
      */
     public List<User> searchUsersGroupname(String groupname) throws Exception {
-        UserGroupExample ugexample = new UserGroupExample();
-        ugexample.createCriteria().andGroupnameEqualTo(groupname);
-        int groupid = usergroupMapper.selectByExample(ugexample).get(0).getId();
-        UserGroupRelationExample ugrexample = new UserGroupRelationExample();
-        ugrexample.createCriteria().andGroupidEqualTo(groupid);
-        List<UserGroupRelation> ls = usergrouprelationMapper.selectByExample(ugrexample);
-        List<User> users = new ArrayList<User>();
-        for (int i = 0; i < ls.size(); i++) {
-            User user = new User();
-            UserExample example = new UserExample();
-            example.createCriteria().andIdEqualTo(ls.get(i).getUserid().intValue());
-            List<User> userList = userMapperNew.selectByExample(example);
-            if (!CollectionUtils.isEmpty(userList)){
-                user = userList.get(0);
-                if (userMapper.findAthorizeByUsername(user.getUsername()) != null) {
-                    user.setIsAuthorize(1);
-                } else {
-                    user.setIsAuthorize(0);
-                }
-                users.add(user);
-            }
-        }
-        return users;
+        List<User> list = usergrouprelationMapper.selectUserListByGroupName(groupname);
+        return list;
     }
 
     /**
@@ -1632,13 +1602,13 @@ public class UserServiceImpl implements UserService {
             u.setComment(user.getComment());
             u.setPause(user.getPause());
             Date createTime = user.getCreateTime();
-            String date = DateUtil.DateToString(createTime, DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z);
+            String date = DateUtil.DateToString(createTime, DateStyle.YYYY_MM_DD_HH_MM_SS);
             u.setCreateTime(date);
             if (user.getUpdateTime() == null) {
                 u.setUpdateTime("");
             } else {
                 Date updateTime = user.getUpdateTime();
-                u.setUpdateTime(DateUtil.DateToString(updateTime, DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z));
+                u.setUpdateTime(DateUtil.DateToString(updateTime, DateStyle.YYYY_MM_DD_HH_MM_SS));
             }
             userNameList.add(u);
         }

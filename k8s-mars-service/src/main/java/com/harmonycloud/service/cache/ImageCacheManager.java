@@ -371,6 +371,7 @@ public class ImageCacheManager {
                     }
                     List<HarborManifest> harborManifests = harborRepositoryMessage.getRepositoryDetial();
                     Map<String, HarborManifest> harborManifestMap = harborManifests.stream().collect(Collectors.toMap(HarborManifest::getTag, manifest -> manifest));
+                    //每个tag对应的digest值
                     Map<String, String> tagDigest = harborManifests.stream().collect(Collectors.toMap(HarborManifest::getTag, manifest -> manifest.getDigest()));
                     boolean updated = false;
                     for (String tag : tags) {

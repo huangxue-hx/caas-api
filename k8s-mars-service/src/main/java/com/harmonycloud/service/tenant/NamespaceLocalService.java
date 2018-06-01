@@ -111,6 +111,13 @@ public interface NamespaceLocalService {
     public List<NamespaceLocal> getNamespaceListByClusterId(String clusterId) throws Exception;
 
     /**
+     * 更新分区
+     * @param namespaceLocal
+     * @throws Exception
+     */
+    public void updateNamespace(NamespaceLocal namespaceLocal) throws Exception;
+
+    /**
      * 根据clusterId查询共享namespace列表
      * @param clusterId
      * @return

@@ -18,7 +18,7 @@ public interface RouterService {
     
     public ActionReturnUtil ingCreate(ParsedIngressListDto parsedIngressList) throws Exception;
     
-    public ActionReturnUtil ingUpdate(ParsedIngressListUpdateDto parsedIngressList) throws Exception;
+    public ActionReturnUtil ingUpdate(ParsedIngressListDto parsedIngressList, Cluster cluster) throws Exception;
     
     public ActionReturnUtil ingDelete(String namespace, String name) throws Exception;
     
@@ -144,4 +144,6 @@ public interface RouterService {
     List<Map<String, Object>> createExternalRule(ServiceTemplateDto svcTemplate, String namespace) throws Exception;
 
     boolean checkIngressName(Cluster cluster, String name) throws Exception;
+
+    boolean checkExternalService(List<IngressDto> svcIngressList, Cluster cluster, String namespace) throws Exception;
 }

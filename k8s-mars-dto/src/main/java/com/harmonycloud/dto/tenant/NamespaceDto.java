@@ -10,6 +10,8 @@ public class NamespaceDto {
     private String name;
     //分区别名
     private String aliasName;
+    //修改分区别名
+    private String updateAliasName;
     //租户id
     private String tenantId;
     //备注
@@ -32,6 +34,14 @@ public class NamespaceDto {
     private String clusterId;
     //主机名列表
     private List<String> nodeList;
+
+    public String getUpdateAliasName() {
+        return updateAliasName;
+    }
+
+    public void setUpdateAliasName(String updateAliasName) {
+        this.updateAliasName = updateAliasName;
+    }
 
     public Boolean getUpdate() {
         return update;

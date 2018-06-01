@@ -47,7 +47,7 @@ public class ServiceController {
     }
 
     /**
-     * list template by tlistTemplateByImage on 17/05/05.
+     * list template by tlistTemplateByImage on 17/05/05.  (暂未使用)
      *
      * @param name
      * 

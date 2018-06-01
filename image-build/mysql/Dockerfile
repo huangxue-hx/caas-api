@@ -1,4 +1,4 @@
-FROM 10.10.103.29/k8s-deploy/mysql:v1.2
+FROM k8s-deploy/mysql:v1.2
 
 WORKDIR /opt
 ADD k8s_auth_server.sql auth.sql

@@ -177,55 +177,7 @@ public class MonitorAlarmController {
 	@ResponseBody
 	@RequestMapping(value = "/resource/info", method = RequestMethod.GET)
 	public ActionReturnUtil getClusterNodeInfo(@PathVariable(value = "clusterId") String clusterId) throws Exception {
-		try {
-			Cluster cluster = this.clusterService.findClusterById(clusterId);
-			// 获取node
-			K8SURL url = new K8SURL();
-			url.setResource(Resource.NODE);
-			K8SClientResponse nodeRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null, cluster);
-			if (!HttpStatusUtil.isSuccessStatus(nodeRes.getStatus())) {
-				return ActionReturnUtil.returnErrorWithMsg(nodeRes.getBody());
-			}
-			NodeList nodeList = JsonUtil.jsonToPojo(nodeRes.getBody(), NodeList.class);
-			List<Node> nodes = nodeList.getItems();
-			List<Map<String, Object>> res = new ArrayList<>();
-			Map<String, List<QueryResult.Series>> clusterMap = this.influxdbService.getClusterResourceUsage("node", "filesystem/limit", "nodename,resource_id", cluster, null);
-			if (nodes != null && nodes.size() > 0) {
-				for (Node node : nodes) {
-					List<NodeCondition> conditions = node.getStatus().getConditions();
-					for (NodeCondition nodeCondition : conditions) {
-						if (nodeCondition.getType().equalsIgnoreCase("Ready")) {
-							if(!nodeCondition.getStatus().equalsIgnoreCase("True")) {
-								continue;
-							}
-						}
-					}
-					String nodeName = node.getMetadata().getName();
-					double nodeFilesystemCapacity = 0;
-					if (!CollectionUtils.isEmpty(clusterMap.get(nodeName))){
-						nodeFilesystemCapacity = this.influxdbService.computeNodeInfo(clusterMap.get(nodeName));
-					}
-
-//					double nodeFilesystemCapacity =  this.influxdbService.getClusterResourceUsage("node", "filesystem/limit", "nodename,resource_id",cluster, null, node.getMetadata().getName());
-					Object object = node.getStatus().getAllocatable();
-					if (object != null) {
-						Map<String, Object> resourceMap = new HashMap<String, Object>();
-						resourceMap.put("ip", node.getMetadata().getName());
-						resourceMap.put("cpu", ((Map<String, Object>) object).get("cpu").toString());
-						String memory = ((Map<String, Object>) object).get("memory").toString();
-						memory = memory.substring(0, memory.indexOf("Ki"));
-						double memoryDouble = Double.parseDouble(memory);
-						resourceMap.put("memory", String.format("%.1f", memoryDouble/1024/1024));
-						resourceMap.put("disk", String.format("%.0f", nodeFilesystemCapacity/1024/1024/1024));
-						res.add(resourceMap);
-					}
-				}
-			}
-			return ActionReturnUtil.returnSuccessWithData(res);
-		} catch (Exception e) {
-			logger.error("Failed to get cluster allocated resources."+e.getMessage());
-			return ActionReturnUtil.returnErrorWithMsg(e.getMessage());
-		}
+		return influxdbService.getClusterNodeInfo(clusterId);
 	}
 
 }

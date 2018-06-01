@@ -2,6 +2,7 @@ package com.harmonycloud.common.util;
 
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.util.CollectionUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.BufferedReader;
@@ -188,5 +189,12 @@ public class DicUtil {
 		res.put("allParams", sb.toString());
 		res.put("values", values);
 		return res;
+	}
+	public static ArrayList<String> getAdminModules() throws IOException {
+		ArrayList<String> adminModules = new ArrayList<>();
+		adminModules.add("dashboard");
+		adminModules.add("infrastructure");
+		adminModules.add("system");
+		return adminModules;
 	}
 }

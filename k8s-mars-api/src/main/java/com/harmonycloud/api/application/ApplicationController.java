@@ -54,7 +54,7 @@ public class ApplicationController {
 
 
     /**
-     *add service template to appTemplate on 17/05/05 .
+     * 创建应用模板时获取对应的yaml格式
      *
      * @param appTemplate
      *
@@ -139,7 +139,7 @@ public class ApplicationController {
     }
 
     /**
-     * get application template by name and tag (and tenant) on 17/05/05 .
+     * get application template by name and tag (and tenant) on 17/05/05 .  （暂未使用）
      * @param name 应用模板名称
      * @param clusterId 应用模板所属的集群
      * @param isPublic 应用模板是否共有
@@ -158,7 +158,7 @@ public class ApplicationController {
     
     /**
      *add service template to appTemplate on 17/05/05 .
-     * 
+     *  暂未使用
      * @param appTemplate
      * 
      * @return ActionReturnUtil
@@ -174,7 +174,7 @@ public class ApplicationController {
     
     /**
      *update service template to appTemplate on 17/05/05 .
-     * 
+     * 暂未使用
      * @param appTemplate
      * 
      * @return ActionReturnUtil
@@ -200,7 +200,7 @@ public class ApplicationController {
     }
 
     /**
-     * 应用模板公私有类型转换
+     * 应用模板公私有类型转换  （暂未使用）
      *
      * @param name 模板名称
      *

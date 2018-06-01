@@ -76,13 +76,13 @@ public class JenkinsUrl {
         StringBuilder sb = new StringBuilder();
         sb.append(getFolderUrl());
         if(StringUtils.isNotEmpty(name)) {
-            sb.append("/job/").append(name).append("/");
+            sb.append("/job/").append(name);
         }
         if(StringUtils.isNotEmpty(buildNumber)){
-            sb.append(buildNumber).append("/");
+            sb.append("/").append(buildNumber);
         }
         if(StringUtils.isNotEmpty(api)){
-            sb.append(api);
+            sb.append("/").append(api);
         }
         if(params != null && CollectionUtils.isNotEmpty(params.keySet())) {
             sb.append("?");

@@ -37,5 +37,5 @@ public interface InfluxdbService {
 
 	public double getClusterAllocatedResources(String type, String measurements, Cluster cluster) throws Exception;
 
-//	public Map<String, Object> getClusterResourceUsage(String clusterId) throws  Exception;
+	ActionReturnUtil getClusterNodeInfo(String clusterId) throws Exception;
 }
