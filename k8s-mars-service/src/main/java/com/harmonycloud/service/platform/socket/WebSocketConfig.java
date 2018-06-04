@@ -8,6 +8,7 @@ import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+import org.springframework.web.socket.handler.PerConnectionWebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 
 @Configuration
@@ -39,16 +40,22 @@ public class WebSocketConfig extends WebMvcConfigurerAdapter implements WebSocke
         registry.addHandler(cicdWebSocketHandler(), "/cicd/job/status").addInterceptors(webSocketInterceptor())
                 .setAllowedOrigins("*").withSockJS();
 
-        registry.addHandler(cicdWebSocketHandler(), "/cicd/stage/status").addInterceptors(webSocketInterceptor())
+        registry.addHandler(cicdWebSocketHandler(), "/cicd/stage/log").addInterceptors(webSocketInterceptor())
                 .setAllowedOrigins("*");
 
-        registry.addHandler(cicdWebSocketHandler(), "/cicd/stage/status").addInterceptors(webSocketInterceptor())
+        registry.addHandler(cicdWebSocketHandler(), "/cicd/stage/log").addInterceptors(webSocketInterceptor())
                 .setAllowedOrigins("*").withSockJS();
 
         registry.addHandler(cicdWebSocketHandler(), "/cicd/job/jobList").addInterceptors(webSocketInterceptor())
                 .setAllowedOrigins("*");
 
         registry.addHandler(cicdWebSocketHandler(), "/cicd/job/jobList").addInterceptors(webSocketInterceptor())
+                .setAllowedOrigins("*").withSockJS();
+
+        registry.addHandler(terminalSocketHandler(), "/terminal").addInterceptors(webSocketInterceptor())
+                .setAllowedOrigins("*");
+
+        registry.addHandler(terminalSocketHandler(), "/terminal").addInterceptors(webSocketInterceptor())
                 .setAllowedOrigins("*").withSockJS();
 
 	}
@@ -67,4 +74,10 @@ public class WebSocketConfig extends WebMvcConfigurerAdapter implements WebSocke
 	public HandshakeInterceptor webSocketInterceptor(){
 		return new WebSocketInterceptor();
 	}
+
+    @Bean
+    public WebSocketHandler terminalSocketHandler(){
+        WebSocketHandler webSocketHandler = new PerConnectionWebSocketHandler(TerminalSocketHandler.class);
+        return webSocketHandler;
+    }
 }

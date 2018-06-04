@@ -27,7 +27,7 @@ public class UpdateVolume {
 
 	private String pvcCapacity;
 
-	private String pvcTenantid;
+	private String projectId;
 
 	private String pvcBindOne;
 
@@ -37,14 +37,6 @@ public class UpdateVolume {
 
 	public void setPvcCapacity(String pvcCapacity) {
 		this.pvcCapacity = pvcCapacity;
-	}
-
-	public String getPvcTenantid() {
-		return pvcTenantid;
-	}
-
-	public void setPvcTenantid(String pvcTenantid) {
-		this.pvcTenantid = pvcTenantid;
 	}
 
 	public String getPvcBindOne() {
@@ -135,4 +127,11 @@ public class UpdateVolume {
 		this.emptyDir = emptyDir;
 	}
 
+	public String getProjectId() {
+		return projectId;
+	}
+
+	public void setProjectId(String projectId) {
+		this.projectId = projectId;
+	}
 }

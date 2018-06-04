@@ -4,8 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import com.harmonycloud.dto.business.TcpRuleDto;
-import com.harmonycloud.dto.svc.SelectorDto;
+import com.harmonycloud.dto.application.TcpRuleDto;
 
 public class SvcTcpDto {
 

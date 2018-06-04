@@ -74,8 +74,6 @@ public class NotificationService {
 				messages.add(message);
 			}
 		}
-		System.out.println(messages.size());
-		System.out.println(JsonUtil.objectToJson(messages));
 		return messages;
 	}
 	

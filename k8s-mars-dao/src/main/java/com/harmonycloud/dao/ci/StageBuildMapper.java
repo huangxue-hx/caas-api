@@ -22,4 +22,13 @@ public interface StageBuildMapper {
 
     List<StageBuild> queryByObjectWithPagination(@Param("stageBuild")StageBuild stageBuild, @Param("offset")Integer offset, @Param("rows") Integer rows);
 
+    void updateByStageIdAndBuildNum(StageBuild stageBuild);
+
+    String queryLogByObject(StageBuild stageBuild);
+
+    StageBuild selectLastBuildById(Integer stageId);
+
+    void updateStageLog(@Param("stageBuild")StageBuild stageBuild);
+
+    void deleteByJobIdAndBuildNum(@Param("jobId")Integer jobId, @Param("buildNumList")List buildNumList);
 }

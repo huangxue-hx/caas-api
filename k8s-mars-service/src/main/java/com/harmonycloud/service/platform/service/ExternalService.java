@@ -1,8 +1,10 @@
 package com.harmonycloud.service.platform.service;
-import java.util.Map;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dao.application.bean.ExternalTypeBean;
 import com.harmonycloud.dto.external.ExternalServiceBean;
+
+import java.util.List;
 
 /**
  * 外部服务管理
@@ -14,24 +16,23 @@ import com.harmonycloud.dto.external.ExternalServiceBean;
 public interface ExternalService {
 
         //新增外部服务
-        public ActionReturnUtil svcCreate(ExternalServiceBean externalServiceBean) throws Exception;
+        public ActionReturnUtil createExtService(ExternalServiceBean externalServiceBean) throws Exception;
 
         //删除外部服务
-        public ActionReturnUtil deleteOutService(String name) throws Exception;
+        public ActionReturnUtil deleteExtService(String clusterId, String name, String namespace) throws Exception;
         
-        //根据租户删除外部服务
-        public ActionReturnUtil deleteOutServicebytenant(String tenantName,String tenantId) throws Exception;
+        //根据项目删除外部服务
+        public ActionReturnUtil deleteExtServiceByProject(String projectId) throws Exception;
 
         //修改外部服务
-        public ActionReturnUtil updateOutService(ExternalServiceBean externalServiceBean) throws Exception;
+        public ActionReturnUtil updateExtService(ExternalServiceBean externalServiceBean) throws Exception;
 
-        //查询所有外部服务
-        public ActionReturnUtil getListOutService(String tenant,String tenantId) throws Exception;
-
-        //根据label查询外部服务
-        public ActionReturnUtil getListOutServiceByLabel(String labels) throws Exception;
+        //查询外部服务
+        public ActionReturnUtil listExtService(String clusterId, String projectId,String serviceType) throws Exception;
 
          //根据name查询外部服务
-        public ActionReturnUtil getservicebyname(String name) throws Exception;
+        public ActionReturnUtil getExtService(String clusterId, String name,String namespace) throws Exception;
+
+        List<ExternalTypeBean> listExtServiceType() throws Exception;
 
 }

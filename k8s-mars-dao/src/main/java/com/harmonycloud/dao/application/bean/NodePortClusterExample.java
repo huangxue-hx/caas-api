@@ -174,53 +174,8 @@ public class NodePortClusterExample {
             return (Criteria) this;
         }
 
-        public Criteria andClusteridEqualTo(Integer value) {
-            addCriterion("clusterId =", value, "clusterid");
-            return (Criteria) this;
-        }
-
-        public Criteria andClusteridNotEqualTo(Integer value) {
-            addCriterion("clusterId <>", value, "clusterid");
-            return (Criteria) this;
-        }
-
-        public Criteria andClusteridGreaterThan(Integer value) {
-            addCriterion("clusterId >", value, "clusterid");
-            return (Criteria) this;
-        }
-
-        public Criteria andClusteridGreaterThanOrEqualTo(Integer value) {
-            addCriterion("clusterId >=", value, "clusterid");
-            return (Criteria) this;
-        }
-
-        public Criteria andClusteridLessThan(Integer value) {
-            addCriterion("clusterId <", value, "clusterid");
-            return (Criteria) this;
-        }
-
-        public Criteria andClusteridLessThanOrEqualTo(Integer value) {
-            addCriterion("clusterId <=", value, "clusterid");
-            return (Criteria) this;
-        }
-
-        public Criteria andClusteridIn(List<Integer> values) {
-            addCriterion("clusterId in", values, "clusterid");
-            return (Criteria) this;
-        }
-
-        public Criteria andClusteridNotIn(List<Integer> values) {
-            addCriterion("clusterId not in", values, "clusterid");
-            return (Criteria) this;
-        }
-
-        public Criteria andClusteridBetween(Integer value1, Integer value2) {
-            addCriterion("clusterId between", value1, value2, "clusterid");
-            return (Criteria) this;
-        }
-
-        public Criteria andClusteridNotBetween(Integer value1, Integer value2) {
-            addCriterion("clusterId not between", value1, value2, "clusterid");
+        public Criteria andClusteridEqualTo(String value) {
+            addCriterion("clusterId =", value, "clusterId");
             return (Criteria) this;
         }
 

@@ -1,5 +1,8 @@
 package com.harmonycloud.k8s.bean;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import java.util.List;
 
 /**
@@ -7,6 +10,8 @@ import java.util.List;
  * @author jmi
  *
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(value=JsonInclude.Include.NON_NULL)
 public class SecretVolumeSource {
 	
 	private String secretName;

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.microservice.MicroServiceOperationTaskMapper">
+
+    <resultMap id="operationTaskMap" type="com.harmonycloud.dao.microservice.bean.MicroServiceOperationTask">
+        <id column="id" jdbcType="INTEGER" property="id" />
+        <result column="task_id" jdbcType="VARCHAR" property="taskId" />
+        <result column="status" jdbcType="INTEGER" property="status" />
+        <result column="task_type" jdbcType="INTEGER" property="taskType" />
+        <result column="error_msg" jdbcType="VARCHAR" property="errorMsg" />
+        <result column="app_template_id" jdbcType="INTEGER"  property="appTemplateId"/>
+        <result column="namespace_id" jdbcType="VARCHAR" property="namespaceId"/>
+        <result column="create_time" jdbcType="TIMESTAMP"  property="createTime"/>
+        <result column="update_time" jdbcType="TIMESTAMP"  property="updateTime"/>
+    </resultMap>
+
+    <insert id="insertTask" parameterType="com.harmonycloud.dao.microservice.bean.MicroServiceOperationTask" useGeneratedKeys="true" keyProperty="id">
+        INSERT  INTO msf_operation_task(task_id, status, task_type, error_msg, namespace_id, app_template_id, create_time)
+        VALUES (#{taskId}, #{status}, #{taskType}, #{errorMsg}, #{namespaceId}, #{appTemplateId}, #{createTime});
+    </insert>
+
+    <select id="findByTaskId" resultMap="operationTaskMap" parameterType="java.lang.String">
+        SELECT id, task_id, status, task_type, error_msg, namespace_id, app_template_id, create_time, update_time
+        FROM msf_operation_task WHERE task_id=#{taskId}
+    </select>
+
+    <update id="updateTask" parameterType="com.harmonycloud.dao.microservice.bean.MicroServiceOperationTask">
+        UPDATE  msf_operation_task
+        <trim prefix="set" suffixOverrides=",">
+            <if test="id!=null">id=#{id},</if>
+            <if test="taskId!=null">task_id=#{taskId},</if>
+            <if test="status!=null">status=#{status},</if>
+            <if test="appTemplateId!=null">app_template_id=#{appTemplateId},</if>
+            <if test="errorMsg!=null">error_msg=#{errorMsg},</if>
+            <if test="updateTime!=null">update_time=#{updateTime}</if>
+        </trim>
+        WHERE id=#{id}
+    </update>
+
+    <select id="findTaskByType" resultMap="operationTaskMap">
+        SELECT id, task_id, status, task_type, error_msg, namespace_id, app_template_id, create_time, update_time
+        FROM msf_operation_task WHERE namespace_id=#{namespaceId} AND task_type=#{taskType} ORDER BY create_time DESC
+    </select>
+
+    <select id="findTaskByNamespace" resultMap="operationTaskMap" parameterType="java.lang.String">
+        SELECT id, task_id, status, task_type, error_msg, namespace_id, app_template_id, create_time, update_time
+        FROM msf_operation_task WHERE namespace_id=#{namespaceId}
+    </select>
+
+    <select id="findTasksByStatus" resultMap="operationTaskMap">
+        SELECT id, task_id, status, task_type, error_msg, namespace_id, app_template_id, create_time, update_time
+        FROM msf_operation_task WHERE namespace_id=#{namespaceId} and status = #{status}
+    </select>
+
+    <delete id="deleteTask" parameterType="java.lang.String">
+        DELETE FROM msf_operation_task WHERE namespace_id=#{namespaceId}
+    </delete>
+
+</mapper>

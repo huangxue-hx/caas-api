@@ -62,6 +62,7 @@
 		<spring.session.version>1.2.2.RELEASE</spring.session.version>
 		<spring.redis.version>1.7.5.RELEASE</spring.redis.version>
 		<jedis.client>2.8.2</jedis.client>
+		<logback.version>1.1.7</logback.version>
 	</properties>
 
 	<dependencies>
@@ -105,6 +106,11 @@
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-log4j12</artifactId>
 			<version>${slf4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+			<version>${logback.version}</version>
 		</dependency>
 		<!-- Mybatis -->
 		<dependency>
@@ -243,14 +249,24 @@
 			<version>${jna-platform.version}</version>
 		</dependency>
 		<dependency>
+			<groupId>purejavacomm</groupId>
+			<artifactId>purejavacomm</artifactId>
+			<version>0.0.17</version>
+		</dependency>
+		<dependency>
 			<groupId>org.springframework.data</groupId>
 			<artifactId>spring-data-redis</artifactId>
 			<version>${spring.redis.version}</version>
 		</dependency>
+		<!--<dependency>-->
+			<!--<groupId>org.springframework.session</groupId>-->
+			<!--<artifactId>spring-session</artifactId>-->
+			<!--<version>${spring.session.version}</version>-->
+		<!--</dependency>-->
 		<dependency>
 			<groupId>org.springframework.session</groupId>
-			<artifactId>spring-session</artifactId>
-			<version>${spring.session.version}</version>
+			<artifactId>spring-session-data-redis</artifactId>
+			<version>1.2.2.RELEASE</version>
 		</dependency>
 		<dependency>
 			<groupId>redis.clients</groupId>
@@ -278,6 +294,17 @@
 			<groupId>commons-fileupload</groupId>
 			<artifactId>commons-fileupload</artifactId>
 			<version>1.3.2</version>
+		</dependency>
+		<!-- SSO -->
+		<dependency>
+			<groupId>com.whchem</groupId>
+			<artifactId>paas-sso-common</artifactId>
+			<version>0.0.1</version>
+		</dependency>
+		<dependency>
+			<groupId>com.whchem</groupId>
+			<artifactId>paas-sso-client</artifactId>
+			<version>0.0.1</version>
 		</dependency>
 	</dependencies>
 

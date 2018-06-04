@@ -13,7 +13,7 @@ public interface PrivatePartitionService {
 	 * @return
 	 * @throws Exception
 	 */
-	public ActionReturnUtil setPrivatePartition(String tenantid,String namespace) throws Exception;
+	public void setPrivatePartition(String tenantid,String namespace) throws Exception;
 	/**
 	 * 设置共享分区
 	 * @param tenantid
@@ -21,7 +21,7 @@ public interface PrivatePartitionService {
 	 * @return
 	 * @throws Exception
 	 */
-	public ActionReturnUtil setSharePartition(String tenantid,String namespace,boolean config) throws Exception;
+	public void setSharePartition(String tenantid,String namespace,boolean config) throws Exception;
 	/**
 	 * 移除私有分区
 	 * @param tenantid
@@ -45,5 +45,5 @@ public interface PrivatePartitionService {
 	 * @return
 	 * @throws Exception
 	 */
-	public ActionReturnUtil getPrivatePartitionLabel(String tenantid,String namespace) throws Exception;
+	public String getPrivatePartitionLabel(String tenantid,String namespace) throws Exception;
 }

@@ -2,17 +2,17 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.harmonycloud.dao.user.UserMapper" >
   <resultMap id="BaseResultMap" type="com.harmonycloud.dao.user.bean.User" >
-    <id column="uuid" property="uuid" jdbcType="BIGINT" />
+    <id column="id" property="id" jdbcType="BIGINT" />
     <result column="username" property="username" jdbcType="VARCHAR" />
     <result column="password" property="password" jdbcType="VARCHAR" />
     <result column="token" property="token" jdbcType="VARCHAR" />
     <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
     <result column="token_create" property="tokenCreate" jdbcType="TIMESTAMP" />
-    <result column="isAdmin" property="isadmin" jdbcType="BIT" />
+    <result column="is_admin" property="isAdmin" jdbcType="BIT" />
     <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
     <result column="email" property="email" jdbcType="VARCHAR" />
     <result column="real_name" property="realName" jdbcType="VARCHAR" />
-    <result column="isMachine" property="ismachine" jdbcType="BIT" />
+    <result column="is_machine" property="isMachine" jdbcType="BIT" />
     <result column="comment" property="comment" jdbcType="VARCHAR" />
     <result column="pause" property="pause" jdbcType="VARCHAR" />
     <result column="phone" property="phone" jdbcType="VARCHAR" />
@@ -48,14 +48,129 @@
     </where>
   </sql>
   <sql id="Base_Column_List" >
-    uuid, username, password, token, create_time, token_create, isAdmin, update_time, 
-    email, real_name, isMachine, comment, pause,phone
+    id, username, password, token, create_time, token_create, is_admin, update_time,
+    email, real_name, is_machine, comment, pause,phone
   </sql>
   <select id="selectLikeUsername" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.user.bean.User" >
     select
-    *
+    <include refid="Base_Column_List" />
     from user where username like concat(concat('%',#{username},'%'))
   </select>
+
+  <select id="findByUsername" resultMap="BaseResultMap" parameterType="java.lang.String">
+    select
+    <include refid="Base_Column_List" />
+    from user where username=#{username};
+  </select>
+
+  <select id="findUserByEmail" parameterType="java.lang.String" resultType="com.harmonycloud.dao.user.bean.User">
+    select
+    <include refid="Base_Column_List" />
+    from user where email = #{email};
+  </select>
+
+  <select id="selectGroupNameByUserID" resultType="java.lang.String" parameterType="java.lang.Long">
+    select groupname from user_group where id=(SELECT groupid from user_group_relation where userid=#{userid})
+  </select>
+
+  <select id="findUserByToken" resultType="com.harmonycloud.dao.user.bean.User" parameterType="java.lang.String">
+    select
+    <include refid="Base_Column_List" />
+    from user where token = #{token};
+  </select>
+
+  <select id="listMachineUsers" resultType="com.harmonycloud.dao.user.bean.User">
+    select
+    <include refid="Base_Column_List" />
+    from user where is_machine = '1';
+  </select>
+  <select id="listCommonUsers" resultType="com.harmonycloud.dao.user.bean.User">
+    select id,username,password,token,create_time,token_create,is_admin,update_time,email,real_name,is_machine,comment,pause,phone from user where is_admin != '1';
+  </select>
+  <select id="getUserPausedListByDepartmnet" resultType="com.harmonycloud.dao.user.bean.User" parameterType="java.lang.String">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM `user` WHERE id in (SELECT userid FROM user_group_relation WHERE groupid = (SELECT id FROM user_group WHERE groupname= #{departmnet})) AND pause = 'pause';
+  </select>
+
+  <select id="getUserNormalListByDepartmnet" resultType="com.harmonycloud.dao.user.bean.User" parameterType="java.lang.String">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM `user` WHERE id in (SELECT userid FROM user_group_relation WHERE groupid = (SELECT id FROM user_group WHERE groupname= #{departmnet})) AND pause = 'normal';
+  </select>
+  <select id="listAdmin" resultType="com.harmonycloud.dao.user.bean.User">
+    select
+    <include refid="Base_Column_List" />
+    from user where is_admin = '1';
+  </select>
+  <select id="getActiveUserList" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.user.bean.User">
+    select 'false' as QUERYID,id,username,password,token,create_time,token_create,is_admin,update_time,email,real_name,is_machine,comment,pause,phone from user
+    WHERE ( token_create between #{leftTime} and #{rightTime}  and token_create is not null);
+  </select>
+
+  <select id="getAllUserPausedList" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from user where pause = 'pause';
+  </select>
+  <select id="getUnauthorizedUserList" resultMap="BaseResultMap" >
+    select
+    <include refid="Base_Column_List" />
+    from user where pause = 'normal' AND username not in (select DISTINCT username  from user_role_relationship )
+    AND is_admin!=1 AND pause!="pause";
+  </select>
+  <select id="getAllUserNormalList" resultMap="BaseResultMap" >
+    select
+    <include refid="Base_Column_List" />
+    from user
+    where pause = 'normal' AND username in (select DISTINCT username  from user_role_relationship) AND is_admin!=1 ;
+  </select>
+  <select id="findAthorizeByUsername" resultType="com.harmonycloud.dao.user.bean.User" parameterType="java.lang.String">
+    select
+    <include refid="Base_Column_List" />
+    FROM
+    user
+    WHERE
+    pause = 'normal'
+    AND is_admin = 1
+    AND username = #{username}
+    OR (
+    username IN (
+    SELECT DISTINCT
+    username
+    FROM
+    user_role_relationship
+    )
+    AND pause = 'normal'
+    AND is_admin != 1
+    AND username = #{username}
+    );
+  </select>
+
+  <select id="listAllUsers" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from user where is_machine = 'false'
+  </select>
+
+  <select id="listUser" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from user where  pause = 'normal'
+      <if test="isAdmin != null" >
+        and is_admin = ${isAdmin}
+      </if>
+      <if test="isMachine != null" >
+        and is_machine = ${isMachine}
+      </if>
+      <if test="isCommon != null and isCommon ==true" >
+        and is_admin = false and is_machine=false
+      </if>
+      <if test="isCommon != null and isCommon !=true" >
+        and (is_admin = true or is_machine = true)
+      </if>
+  </select>
+
   <select id="selectByExample" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.user.bean.UserExample" >
     select
     <if test="distinct" >
@@ -76,11 +191,11 @@
     select 
     <include refid="Base_Column_List" />
     from user
-    where uuid = #{uuid,jdbcType=BIGINT}
+    where id = #{id,jdbcType=BIGINT}
   </select>
   <delete id="deleteByPrimaryKey" parameterType="java.lang.Long" >
     delete from user
-    where uuid = #{uuid,jdbcType=BIGINT}
+    where id = #{id,jdbcType=BIGINT}
   </delete>
   <delete id="deleteByExample" parameterType="com.harmonycloud.dao.user.bean.UserExample" >
     delete from user
@@ -89,22 +204,37 @@
     </if>
   </delete>
   <insert id="insert" parameterType="com.harmonycloud.dao.user.bean.User" >
-    insert into user (uuid, username, password, 
+    insert into user (username, password,
       token, create_time, token_create, 
-      isAdmin, update_time, email, 
-      real_name, isMachine, comment, 
+      is_admin, update_time, email,
+      real_name, is_machine, comment,
       pause,phone)
-    values (#{uuid,jdbcType=BIGINT}, #{username,jdbcType=VARCHAR}, #{password,jdbcType=VARCHAR}, 
+    values (#{username,jdbcType=VARCHAR}, #{password,jdbcType=VARCHAR},
       #{token,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{tokenCreate,jdbcType=TIMESTAMP}, 
-      #{isadmin,jdbcType=BIT}, #{updateTime,jdbcType=TIMESTAMP}, #{email,jdbcType=VARCHAR}, 
-      #{realName,jdbcType=VARCHAR}, #{ismachine,jdbcType=BIT}, #{comment,jdbcType=VARCHAR}, 
+      #{isAdmin,jdbcType=BIT}, #{updateTime,jdbcType=TIMESTAMP}, #{email,jdbcType=VARCHAR},
+      #{realName,jdbcType=VARCHAR}, #{isMachine,jdbcType=BIT}, #{comment,jdbcType=VARCHAR},
       #{pause,jdbcType=VARCHAR},#{phone,jdbcType=VARCHAR})
+  </insert>
+  <insert id="batchInsert" parameterType="java.util.List" >
+    insert into user (username, password,
+    token, create_time, token_create,
+    is_admin, update_time, email,
+    real_name, is_machine, comment,
+    pause,phone)
+    values
+    <foreach collection="records" item="record" index="index" separator=",">
+      (#{record.username,jdbcType=VARCHAR}, #{record.password,jdbcType=VARCHAR},
+      #{record.token,jdbcType=VARCHAR}, #{record.createTime,jdbcType=TIMESTAMP}, #{record.tokenCreate,jdbcType=TIMESTAMP},
+      #{record.isAdmin,jdbcType=BIT}, #{record.updateTime,jdbcType=TIMESTAMP}, #{record.email,jdbcType=VARCHAR},
+      #{record.realName,jdbcType=VARCHAR}, #{record.isMachine,jdbcType=BIT}, #{record.comment,jdbcType=VARCHAR},
+      #{record.pause,jdbcType=VARCHAR},#{record.phone,jdbcType=VARCHAR})
+    </foreach>
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.user.bean.User" >
     insert into user
     <trim prefix="(" suffix=")" suffixOverrides="," >
-      <if test="uuid != null" >
-        uuid,
+      <if test="id != null" >
+        id,
       </if>
       <if test="username != null" >
         username,
@@ -121,8 +251,8 @@
       <if test="tokenCreate != null" >
         token_create,
       </if>
-      <if test="isadmin != null" >
-        isAdmin,
+      <if test="isAdmin != null" >
+        is_admin,
       </if>
       <if test="updateTime != null" >
         update_time,
@@ -133,8 +263,8 @@
       <if test="realName != null" >
         real_name,
       </if>
-      <if test="ismachine != null" >
-        isMachine,
+      <if test="isMachine != null" >
+        is_machine,
       </if>
       <if test="comment != null" >
         comment,
@@ -147,8 +277,8 @@
       </if>
     </trim>
     <trim prefix="values (" suffix=")" suffixOverrides="," >
-      <if test="uuid != null" >
-        #{uuid,jdbcType=BIGINT},
+      <if test="id != null" >
+        #{id,jdbcType=BIGINT},
       </if>
       <if test="username != null" >
         #{username,jdbcType=VARCHAR},
@@ -165,8 +295,8 @@
       <if test="tokenCreate != null" >
         #{tokenCreate,jdbcType=TIMESTAMP},
       </if>
-      <if test="isadmin != null" >
-        #{isadmin,jdbcType=BIT},
+      <if test="isAdmin != null" >
+        #{isAdmin,jdbcType=BIT},
       </if>
       <if test="updateTime != null" >
         #{updateTime,jdbcType=TIMESTAMP},
@@ -177,8 +307,8 @@
       <if test="realName != null" >
         #{realName,jdbcType=VARCHAR},
       </if>
-      <if test="ismachine != null" >
-        #{ismachine,jdbcType=BIT},
+      <if test="isMachine != null" >
+        #{isMachine,jdbcType=BIT},
       </if>
       <if test="comment != null" >
         #{comment,jdbcType=VARCHAR},
@@ -209,8 +339,8 @@
       <if test="tokenCreate != null" >
         token_create = #{tokenCreate,jdbcType=TIMESTAMP},
       </if>
-      <if test="isadmin != null" >
-        isAdmin = #{isadmin,jdbcType=BIT},
+      <if test="isAdmin != null" >
+        is_admin = #{isAdmin,jdbcType=BIT},
       </if>
       <if test="updateTime != null" >
         update_time = #{updateTime,jdbcType=TIMESTAMP},
@@ -221,8 +351,8 @@
       <if test="realName != null" >
         real_name = #{realName,jdbcType=VARCHAR},
       </if>
-      <if test="ismachine != null" >
-        isMachine = #{ismachine,jdbcType=BIT},
+      <if test="isMachine != null" >
+        is_machine = #{isMachine,jdbcType=BIT},
       </if>
       <if test="comment != null" >
         comment = #{comment,jdbcType=VARCHAR},
@@ -234,7 +364,7 @@
         phone = #{phone,jdbcType=VARCHAR},
       </if>
     </set>
-    where uuid = #{uuid,jdbcType=BIGINT}
+    where id = #{id,jdbcType=BIGINT}
   </update>
   <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.user.bean.User" >
     update user
@@ -243,14 +373,41 @@
       token = #{token,jdbcType=VARCHAR},
       create_time = #{createTime,jdbcType=TIMESTAMP},
       token_create = #{tokenCreate,jdbcType=TIMESTAMP},
-      isAdmin = #{isadmin,jdbcType=BIT},
+      is_admin = #{isAdmin,jdbcType=BIT},
       update_time = #{updateTime,jdbcType=TIMESTAMP},
       email = #{email,jdbcType=VARCHAR},
       real_name = #{realName,jdbcType=VARCHAR},
-      isMachine = #{ismachine,jdbcType=BIT},
+      is_machine = #{isMachine,jdbcType=BIT},
       comment = #{comment,jdbcType=VARCHAR},
       pause = #{pause,jdbcType=VARCHAR},
       phone = #{phone,jdbcType=VARCHAR}
-    where uuid = #{uuid,jdbcType=BIGINT}
+    where id = #{id,jdbcType=BIGINT}
   </update>
+  <update id="updateUserByUsername" parameterType="com.harmonycloud.dao.user.bean.User">
+    update user
+    <set >
+      <if test="password!=null">password=#{password},</if>
+      <if test="token!=null">token=#{token,jdbcType=VARCHAR},</if>
+      <if test="createTime!=null">create_time=#{createTime,jdbcType=TIMESTAMP},</if>
+      <if test="tokenCreate!=null">token_create=#{tokenCreate,jdbcType=TIMESTAMP},</if>
+      <if test="isAdmin!=null">is_admin=#{isAdmin},</if>
+      <if test="updateTime!=null">update_time=#{updateTime,jdbcType=TIMESTAMP},</if>
+      <if test="email!=null">email=#{email,jdbcType=VARCHAR},</if>
+      <if test="realName!=null">real_name=#{realName},</if>
+      <if test="isMachine!=null">is_machine=#{isMachine},</if>
+      <if test="comment!=null">comment=#{comment,jdbcType=VARCHAR}</if>
+      <if test="pause!=null">pause=#{pause,jdbcType=VARCHAR}</if>
+      <if test="phone!=null">phone=#{phone,jdbcType=VARCHAR}</if>
+    </set>
+    WHERE username=#{username}
+  </update>
+
+  <update id="updatePassword">
+    update user set password = #{password,jdbcType=VARCHAR} where username=#{username,jdbcType=VARCHAR}
+  </update>
+
+  <delete id="deleteUserByName" parameterType="java.lang.String">
+    delete from user where username=#{username}
+  </delete>
+
 </mapper>

@@ -1,7 +1,6 @@
 package com.harmonycloud.service.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
 import com.harmonycloud.service.platform.bean.CanaryDeployment;
 
 /**
@@ -16,7 +15,7 @@ public interface VersionControlService {
      * @return 是否开始升级 true表示开始，否则表示失败
      * @throws Exception 异常
      */
-    ActionReturnUtil canaryUpdate(CanaryDeployment detail, int instances, String userName, Cluster cluster) throws Exception;
+    ActionReturnUtil canaryUpdate(CanaryDeployment detail, int instances, String userName) throws Exception;
 
     /**
      * 暂停灰度升级过程
@@ -25,7 +24,7 @@ public interface VersionControlService {
      * @return 暂停状态
      * @throws Exception
      */
-    ActionReturnUtil pauseCanaryUpdate(String namespace, String name, Cluster cluster) throws Exception;
+    ActionReturnUtil pauseCanaryUpdate(String namespace, String name) throws Exception;
 
     /**
      * 这里是有问题的
@@ -35,7 +34,7 @@ public interface VersionControlService {
      * @return 取消灰度升级是否成功 true表示成功，否则表示失败
      * @throws Exception
      */
-    ActionReturnUtil cancelCanaryUpdate(String namespace, String name, Cluster cluster) throws Exception;
+    ActionReturnUtil cancelCanaryUpdate(String namespace, String name) throws Exception;
 
     /**
      * 恢复灰度升级
@@ -44,7 +43,7 @@ public interface VersionControlService {
      * @return
      * @throws Exception
      */
-    ActionReturnUtil resumeCanaryUpdate(String namespace, String name, Cluster cluster) throws Exception;
+    ActionReturnUtil resumeCanaryUpdate(String namespace, String name) throws Exception;
 
     /**
      * 回去灰度升级状态
@@ -53,7 +52,7 @@ public interface VersionControlService {
      * @return 更新了几个POD，原来总共有几个POD
      * @throws Exception
      */
-    ActionReturnUtil getUpdateStatus(String namespace, String name, Cluster cluster) throws Exception;
+    ActionReturnUtil getUpdateStatus(String namespace, String name) throws Exception;
 
 
     /**
@@ -81,7 +80,7 @@ public interface VersionControlService {
      * @return
      * @throws Exception
      */
-    ActionReturnUtil canaryRollback(String namespace, String name, String revision, Cluster cluster) throws Exception;
+    ActionReturnUtil canaryRollback(String namespace, String name, String revision, String podTemplate, String projectId) throws Exception;
 
     /**
      * 查询出所有版本以及版本信息
@@ -90,6 +89,6 @@ public interface VersionControlService {
      * @return
      * @throws Exception
      */
-    public ActionReturnUtil listRevisionAndDetails(String namespace, String name, Cluster cluster) throws Exception;
+    public ActionReturnUtil listRevisionAndDetails(String namespace, String name) throws Exception;
 
 }

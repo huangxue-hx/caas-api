@@ -65,13 +65,11 @@ public class PersistentvolumeService {
                 "https://10.10.102.25:6443",headers,null, null);
 
         if(pvs != null){
-            System.out.println(JsonUtil.convertToJson(pvs));
             bodys.put("labelSelector", "nephele_tenantid_c4b6ae6cd95f412c881814666978e3af=c4b6ae6cd95f412c881814666978e3af");
             PersistentVolume persistentVolume = new PersistentvolumeService().getClusterRolebindings(
                     PersistentVolume.class, "https://10.10.102.25:6443", headers, bodys,
                     pvs.getItems().get(0).getMetadata().getName());
 
-            System.out.println(JsonUtil.convertToJson(persistentVolume));
         }
 
     }

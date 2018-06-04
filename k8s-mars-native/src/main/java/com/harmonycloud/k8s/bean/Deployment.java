@@ -1,11 +1,14 @@
 package com.harmonycloud.k8s.bean;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.harmonycloud.k8s.constant.Constant;
 
 /**
  * @author qg
  *
  */
+@JsonInclude(value=JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Deployment extends BaseResource{
 
@@ -31,6 +34,6 @@ public class Deployment extends BaseResource{
 	
 	public Deployment(){
 		this.setKind("Deployment");
-		this.setApiVersion("");
+		this.setApiVersion(Constant.DEPLOYMENT_API_VERSION);
 	}
 }

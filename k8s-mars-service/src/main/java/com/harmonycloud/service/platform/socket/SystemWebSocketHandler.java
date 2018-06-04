@@ -27,7 +27,6 @@ public class SystemWebSocketHandler implements WebSocketHandler{
 	@Override
 	public void afterConnectionClosed(WebSocketSession session, CloseStatus arg1) throws Exception {
 		logger.debug("连接已关闭");
-        System.out.println("afterConnectionClosed");
 		String username = session.getAttributes().get("userName").toString();
 		userSocketSessionMap.remove(username);
 	}
@@ -43,8 +42,6 @@ public class SystemWebSocketHandler implements WebSocketHandler{
 
 	@Override
 	public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        System.out.println("ConnectionEstablished");
-        logger.info("成功建立socket连接");
 		String username = session.getAttributes().get("userName").toString();
 		userSocketSessionMap.put(username, session);
 		if(userSocketSessionMap != null && userSocketSessionMap.containsKey(username)){
@@ -64,7 +61,6 @@ public class SystemWebSocketHandler implements WebSocketHandler{
 
 	@Override
 	public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) throws Exception {
-        System.out.println("handleMessage" + message.toString());
         TextMessage returnMessage = new TextMessage(message.getPayload()+" received at server");// 获取提交过来的消息
 
 		// template.convertAndSend("/topic/getLog", text); // 这里用于广播

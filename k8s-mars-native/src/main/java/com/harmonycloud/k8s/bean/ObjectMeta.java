@@ -4,11 +4,13 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
  * @author qg
  *
  */
+@JsonInclude(value=JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ObjectMeta {
 	
@@ -41,6 +43,8 @@ public class ObjectMeta {
 	private String namespace;
 	
 	private List<OwnerReference> ownerReferences ;
+	
+	private Initializers initializers;
 
 	public String getGenerateName() {
 		return generateName;
@@ -160,6 +164,14 @@ public class ObjectMeta {
 
 	public void setOwnerReferences(List<OwnerReference> ownerReferences) {
 		this.ownerReferences = ownerReferences;
+	}
+
+	public Initializers getInitializers() {
+		return initializers;
+	}
+
+	public void setInitializers(Initializers initializers) {
+		this.initializers = initializers;
 	}
 
 }

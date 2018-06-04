@@ -2,8 +2,6 @@ package com.harmonycloud.service.tenant;
 
 import java.util.List;
 import java.util.Map;
-
-import com.harmonycloud.dao.tenant.bean.RolePrivilege;
 import com.harmonycloud.dao.user.bean.Role;
 
 /**
@@ -23,18 +21,26 @@ public interface RoleService {
      * @throws Exception
      */
     public Role getRoleByRoleName(String roleName) throws Exception;
+
     /**
-     * 启用角色
-     * @param roleName
+     * 根据角色id获取Role
+     * @param roleId
+     * @return
      * @throws Exception
      */
-    public void EnableRoleByRoleName(String roleName) throws Exception;
-    /**
-     * 启用角色
-     * @param roleName
-     * @throws Exception
-     */
-    public void DisableRoleByRoleName(String roleName) throws Exception;
+    public Role getRoleByRoleId(Integer roleId) throws Exception;
+//    /**
+//     * 启用角色
+//     * @param roleName
+//     * @throws Exception
+//     */
+//    public void EnableRoleByRoleName(String roleName) throws Exception;
+//    /**
+//     * 启用角色
+//     * @param roleName
+//     * @throws Exception
+//     */
+//    public void DisableRoleByRoleName(String roleName) throws Exception;
     /**
      * 添加角色
      * @param role
@@ -49,24 +55,24 @@ public interface RoleService {
     public void deleteRole(String roleName) throws Exception;
     /**
      * 更新角色
-     * @param resourceIds
+     * @param role
      * @throws Exception
      */
     public void updateRole(Role role) throws Exception;
     /**
-     * 根据用户名和tenantid获取角色
+     * 根据用户名和项目id获取角色
      * @param userName
-     * @param tenantid
+     * @param projectId
      * @return
      * @throws Exception
      */
-    public Role getRoleByUserNameAndTenant(String userName,String tenantid) throws Exception;
+    public Role getRoleByUserNameAndTenant(String userName,String projectId) throws Exception;
 
-    /**
-     * 重置角色(保留1-5纪录)
-     * @return
-     * @throws Exception
-     */
-    public void resetRole() throws Exception;
+//    /**
+//     * 重置角色(保留1-5纪录)
+//     * @return
+//     * @throws Exception
+//     */
+//    public void resetRole() throws Exception;
 
 }

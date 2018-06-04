@@ -1,8 +1,11 @@
 package com.harmonycloud.api.system;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.dao.system.bean.SystemConfig;
+import com.harmonycloud.dto.cicd.CicdConfigDto;
 import com.harmonycloud.dto.user.LdapConfigDto;
 import com.harmonycloud.service.system.SystemConfigService;
 import org.slf4j.Logger;
@@ -13,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 
 @RestController
-@RequestMapping("/systemConfig")
+@RequestMapping("/system/configs")
 public class SystemConfigController {
 	
 	@Autowired
@@ -24,58 +27,54 @@ public class SystemConfigController {
 
 
 	@ResponseBody
-	@RequestMapping(value="/saveLdap", method = RequestMethod.POST)
+	@RequestMapping(value="/ldap", method = RequestMethod.POST)
 	public ActionReturnUtil saveLdapConfig(@ModelAttribute LdapConfigDto ldapConfigDto) throws Exception {
-
+		AssertUtil.notNull(ldapConfigDto);
 		try {
-			logger.info("save ldapConfig");
-			if (StringUtils.isEmpty(ldapConfigDto)) {
-				return ActionReturnUtil.returnErrorWithMsg("LDAP配置信息不能为空");
-			}
-
+//			logger.info("save ldapConfig");
 			systemConfigService.addLdapConfig(ldapConfigDto);
-			return ActionReturnUtil.returnSuccessWithMsg("保存LDAP成功");
+			return ActionReturnUtil.returnSuccess();
 
 		} catch (Exception e) {
 			e.printStackTrace();
 			logger.error("Failed to save systemConfig.", e.getMessage());
-			return ActionReturnUtil.returnErrorWithMsg("保存LDAP失败");
+			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.SAVE_FAIL);
 		}
 	}
 
 
 	@ResponseBody
-	@RequestMapping(value = "/findById", method = RequestMethod.GET)
-	public ActionReturnUtil  getSystemConfigById(@RequestParam(value = "id") String id){
+	@RequestMapping(value = "/{id}", method = RequestMethod.GET)
+	public ActionReturnUtil  getSystemConfigById(@PathVariable String id) throws Exception{
 		try {
 			SystemConfig systemConfig = systemConfigService.findById(id);
-			logger.info("Get SystemConfig By id:{}", id);
+//			logger.info("Get SystemConfig By id:{}", id);
 			return ActionReturnUtil.returnSuccessWithData(systemConfig);
 		} catch (Exception e) {
-			logger.error("Failed to get SystemConfig By id", e);
-			return ActionReturnUtil.returnSuccessWithData("获取Ldap配置失败");
+			logger.error("Failed to get SystemConfig By id", e.getMessage());
+			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.QUERY_FAIL);
 		}
 	}
 
 	@ResponseBody
-	@RequestMapping(value = "/findLdap", method = RequestMethod.GET)
-	public ActionReturnUtil  findLdap(){
+	@RequestMapping(value = "/ldap", method = RequestMethod.GET)
+	public ActionReturnUtil  getLdap()throws Exception{
 		try {
 			LdapConfigDto ldapConfigDto = this.systemConfigService.findLdapConfig();
 			if (StringUtils.isEmpty(ldapConfigDto)) {
-				return ActionReturnUtil.returnErrorWithMsg("获取Ldap配置失败");
+				return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.GET_LDAP_CONF_FAIL);
 			}
 
 			return ActionReturnUtil.returnSuccessWithData(ldapConfigDto);
 		} catch (Exception e) {
 			logger.error("Failed to get SystemConfig", e);
-			return ActionReturnUtil.returnSuccessWithData("获取Ldap配置失败");
+			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.GET_LDAP_CONF_FAIL);
 		}
 	}
 
 	@ResponseBody
-	@RequestMapping(value = "/trialTime", method = RequestMethod.GET)
-	public ActionReturnUtil  trialTime(){
+	@RequestMapping(value = "/trialtime", method = RequestMethod.GET)
+	public ActionReturnUtil  getTrialTime()throws Exception{
 		try {
 			SystemConfig systemConfig = this.systemConfigService.findByConfigName(CommonConstant.TRIAL_TIME);
 			if (StringUtils.isEmpty(systemConfig)) {
@@ -92,9 +91,34 @@ public class SystemConfigController {
 			return ActionReturnUtil.returnSuccessWithData(systemConfig);
 		} catch (Exception e) {
 			logger.error("Failed to get Trial time", e);
-			return ActionReturnUtil.returnSuccessWithData("获取试用时间失败");
+			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.QUERY_FAIL);
 		}
 	}
 
+	@ResponseBody
+	@RequestMapping(value = "/maintenance", method = RequestMethod.GET)
+	public ActionReturnUtil getMaintenanceStatus(){
+		return ActionReturnUtil.returnSuccessWithData(systemConfigService.findMaintenanceStatus());
+	}
+
+	@ResponseBody
+	@RequestMapping(value = "/maintenance", method = RequestMethod.POST)
+	public ActionReturnUtil updateMaintenanceStatus(@RequestParam(value="status") String status){
+		systemConfigService.updateMaintenanceStatus(status);
+		return ActionReturnUtil.returnSuccess();
+	}
+
+	@ResponseBody
+	@RequestMapping(value = "/cicd", method = RequestMethod.GET)
+	public ActionReturnUtil getCicdConfig(){
+		return ActionReturnUtil.returnSuccessWithData(systemConfigService.getCicdConfig());
+	}
+
+	@ResponseBody
+	@RequestMapping(value = "/cicd", method = RequestMethod.POST)
+	public ActionReturnUtil updateCicdConfig(@RequestBody CicdConfigDto cicdConfigDto){
+		systemConfigService.updateCicdConfig(cicdConfigDto);
+		return ActionReturnUtil.returnSuccess();
+	}
 
 }

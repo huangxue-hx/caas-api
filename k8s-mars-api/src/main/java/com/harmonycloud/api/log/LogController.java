@@ -1,81 +1,84 @@
 package com.harmonycloud.api.log;
 
-
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.TimeZone;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import org.apache.commons.lang3.StringUtils;
+import com.harmonycloud.service.platform.service.LogService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.util.Assert;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dto.log.LogQueryDto;
-import com.harmonycloud.service.platform.bean.ContainerLog;
 import com.harmonycloud.service.platform.bean.LogQuery;
 import com.harmonycloud.service.application.DeploymentsService;
-import com.harmonycloud.service.application.EsService;
+import javax.servlet.http.HttpServletResponse;
 
 /**
- * 日志相关控制器
+ * 应用日志相关控制器
  * @author zhangkui
  */
 @Controller
-@RequestMapping("/log")
+@RequestMapping("/tenants/{tenantId}/projects/{projectId}/deploys/{deployName}/applogs")
 public class LogController {
 
-    private static final int MAX_PAGE_SIZE = 1000;
-    private static final int DEFAULT_PAGE_SIZE = 200;
     private Logger logger = LoggerFactory.getLogger(this.getClass());
-
-    @Autowired
-    EsService esService;
 
     @Autowired
     DeploymentsService deploymentService;
 
+    @Autowired
+    LogService logService;
+
     @ResponseBody
-    @RequestMapping(value="/logfile/search", method = RequestMethod.POST)
-    public ActionReturnUtil searchContainerLog(@RequestBody LogQueryDto logQueryDto){
+    @RequestMapping(method = RequestMethod.GET)
+    public ActionReturnUtil queryLog(@PathVariable("deployName") String deployName,
+                                     @ModelAttribute LogQueryDto logQueryDto){
         try {
-            logger.info("根据日志路径获取container日志, params: " + logQueryDto.toString());
-            LogQuery logQuery = this.transLogQuery(logQueryDto);
-            logQuery.setMathPhrase(true);
-            return esService.fileLog(logQuery);
+//            logger.info("根据日志路径获取container日志, params: " + logQueryDto.toString());
+            logQueryDto.setDeployment(deployName);
+            LogQuery logQuery = logService.transLogQuery(logQueryDto);
+            return logService.fileLog(logQuery);
         }catch (IllegalArgumentException ie) {
             logger.warn("根据日志路径获取container日志参数有误", ie);
             return ActionReturnUtil.returnErrorWithData(ie.getMessage());
         }catch (Exception e) {
             logger.error("根据日志路径获取container日志失败：logQueryDto:{}",
                     logQueryDto.toString(), e);
-            return ActionReturnUtil.returnErrorWithData("未知异常");
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.UNKNOWN);
         }
 
     }
 
+    /**
+     * 导出查询日志
+     * @param deployName
+     * @param logQueryDto
+     * @param response
+     */
+    @RequestMapping(value="/export", method= RequestMethod.GET)
+    public void exportLog(@PathVariable("deployName") String deployName,
+                                     @ModelAttribute LogQueryDto logQueryDto,
+                                      HttpServletResponse response) throws Exception{
+//        logger.info("导出日志, deployName:{},params:{} ", deployName, logQueryDto.toString());
+        logQueryDto.setDeployment(deployName);
+        LogQuery logQuery = logService.transLogQuery(logQueryDto);
+        logService.exportLog(logQuery, response);
+    }
+
     @ResponseBody
-    @RequestMapping(value="/logfile/list", method= RequestMethod.GET)
-    public ActionReturnUtil listDeploymentLogFile(@RequestParam(value="namespace") String namespace,
-                                              @RequestParam(value="deployment", required=false) String deploymentName,
-                                              @RequestParam(value="pod", required=false) String podName,
-                                              @RequestParam(value="container", required=false) String containerName,
-                                              @RequestParam(value="clusterId", required=false) String clusterId) throws Exception{
+    @RequestMapping(value="/filenames", method= RequestMethod.GET)
+    public ActionReturnUtil listLogFilenames(@PathVariable("deployName") String deployName,
+                                             @ModelAttribute LogQueryDto logQueryDto) throws Exception{
 
         try {
-            logger.info("获取服务的日志文件列表");
-            return esService.listfileName(namespace,deploymentName,podName,containerName,clusterId);
+            logQueryDto.setDeployment(deployName);
+            LogQuery logQuery = logService.transLogQuery(logQueryDto);
+//            logger.info("获取服务的日志文件列表");
+            return logService.listfileName(logQuery);
         } catch (Exception e) {
-            logger.error("获取服务日志文件列表失败：deploymentName:{}", deploymentName, e);
+            logger.error("获取服务日志文件列表失败：deploymentName:{}", deployName, e);
             return ActionReturnUtil.returnErrorWithMsg(e.getMessage());
         }
 
@@ -92,7 +95,7 @@ public class LogController {
      * @return
      */
     @ResponseBody
-    @RequestMapping(value="/container/logs", method= RequestMethod.GET)
+    @RequestMapping(value="/stderrlogs", method= RequestMethod.GET)
     public ActionReturnUtil getPodAppLog(@RequestParam(value="pod") String pod,
                                          @RequestParam(value="namespace") String namespace,
                                          @RequestParam(value="container", required=false) String container,
@@ -100,7 +103,7 @@ public class LogController {
                                          @RequestParam(value="recentTimeUnit", required=false) String recentTimeUnit,
                                          @RequestParam(value="clusterId", required=false) String clusterId){
         try {
-            Integer sinceSeconds = this.getSinceSeconds(recentTimeNum, recentTimeUnit);
+            Integer sinceSeconds = DateUtil.getSinceSeconds(recentTimeNum, recentTimeUnit);
             return deploymentService.getPodAppLog(namespace, container, pod, sinceSeconds, clusterId);
         }catch(IllegalArgumentException e){
             logger.error("获取pod的应用日志失败",e);
@@ -110,94 +113,8 @@ public class LogController {
             return ActionReturnUtil.returnErrorWithData(e.getMessage());
         }catch (Exception e) {
             logger.error("获取pod的应用日志失败",e);
-            return ActionReturnUtil.returnErrorWithData("未知异常");
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.UNKNOWN);
         }
-    }
-
-    /**
-     * 参数校验，并将接口日志查询对象转换为内部服务查询对象
-     * @param logQueryDto 对外接口日志查询对象
-     * @return 内部服务日志查询对象
-     */
-    private LogQuery transLogQuery(LogQueryDto logQueryDto) throws IllegalArgumentException{
-        if(StringUtils.isNotBlank(logQueryDto.getScrollId())){
-            LogQuery logQuery = new LogQuery();
-            logQuery.setScrollId(logQueryDto.getScrollId());
-            return logQuery;
-        }
-        Assert.notNull(logQueryDto,"查询参数不能为空");
-        Assert.hasText(logQueryDto.getDeployment(),"服务名不能为空");
-        Assert.hasText(logQueryDto.getNamespace(),"分区不能为空");
-        String fromDate = "";
-        String toDate ="";
-        if(logQueryDto.getRecentTimeNum() != null && logQueryDto.getRecentTimeNum() != 0){
-            Assert.hasText(logQueryDto.getRecentTimeUnit(),"时间单位不能为空");
-            SimpleDateFormat format = new SimpleDateFormat(DateStyle.YYYY_MM_DD_T_HH_MM_SS_0000.getValue());
-            format.setTimeZone(TimeZone.getTimeZone("UTC"));
-            Date current = new Date();
-            Date from = DateUtil.addTime(current, logQueryDto.getRecentTimeUnit(),
-                    -logQueryDto.getRecentTimeNum());
-            fromDate = format.format(from);
-            toDate = format.format(current);
-        }else {
-            Assert.hasText(logQueryDto.getLogTimeStart(),"查询时间开始时间不能为空");
-            Assert.hasText(logQueryDto.getLogTimeEnd(),"查询时间结束不能为空");
-            //前端传过来的时间是标准时间UTC
-            if(logQueryDto.getLogTimeStart().length()>20) {
-                fromDate = DateUtil.StringToString(logQueryDto.getLogTimeStart(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z_SSS,
-                        DateStyle.YYYY_MM_DD_T_HH_MM_SS_0000);
-                toDate = DateUtil.StringToString(logQueryDto.getLogTimeEnd(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z_SSS,
-                        DateStyle.YYYY_MM_DD_T_HH_MM_SS_0000);
-                if (fromDate == null || toDate == null) {
-                    throw new IllegalArgumentException("日期时间格式错误");
-                }
-            }else {
-                //cst时间
-                Date from = DateUtil.StringToDate(logQueryDto.getLogTimeStart(), DateStyle.YYYY_MM_DD_HH_MM_SS);
-                Date to = DateUtil.StringToDate(logQueryDto.getLogTimeEnd(), DateStyle.YYYY_MM_DD_HH_MM_SS);
-                if(from == null || to == null){
-                    throw new IllegalArgumentException("日期时间格式错误");
-                }
-                from = DateUtil.addHour(from, -8);
-                to = DateUtil.addHour(to, -8);
-                fromDate = DateUtil.DateToString(from, DateStyle.YYYY_MM_DD_T_HH_MM_SS_0000);
-                toDate = DateUtil.DateToString(to,  DateStyle.YYYY_MM_DD_T_HH_MM_SS_0000);
-            }
-        }
-        logger.info("Query log time, fromDate:{},toDate:{}", fromDate, toDate);
-        LogQuery logQuery = new LogQuery();
-        BeanUtils.copyProperties(logQueryDto,logQuery);
-        logQuery.setLogDateStart(fromDate);
-        logQuery.setLogDateEnd(toDate);
-        if(logQueryDto.getPageSize() == null){
-            logQuery.setPageSize(DEFAULT_PAGE_SIZE);
-        }
-        if(logQueryDto.getPageSize() > MAX_PAGE_SIZE){
-            logQuery.setPageSize(MAX_PAGE_SIZE);
-        }
-        return logQuery;
-    }
-
-    private Integer getSinceSeconds(Integer num, String timeUnit){
-        if(num == null || StringUtils.isBlank(timeUnit)){
-            return null;
-        }
-        Integer sinceSeconds = 0;
-        String unit = timeUnit.toLowerCase();
-        switch (unit){
-            case "m":
-                sinceSeconds = 60 * num;
-                break;
-            case "h":
-                sinceSeconds = 60 * 60 * num;
-                break;
-            case "d":
-                sinceSeconds = 60 * 60 * 24 * num;
-                break;
-            default:
-                sinceSeconds = 0;
-        }
-        return sinceSeconds;
     }
 
 }

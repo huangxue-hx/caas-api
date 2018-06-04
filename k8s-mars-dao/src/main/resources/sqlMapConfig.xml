@@ -7,52 +7,58 @@
         <setting name="defaultExecutorType" value="REUSE" />
         <setting name="lazyLoadingEnabled" value="false" />
         <setting name="defaultStatementTimeout" value="25000" />
-        <setting name="logImpl" value="STDOUT_LOGGING" />
+        <!--<setting name="logImpl" value="STDOUT_LOGGING" />-->
     </settings>
     <typeAliases>
-        <typeAlias alias="HarborProjectTenant" type="com.harmonycloud.dao.tenant.bean.HarborProjectTenant" />
         <typeAlias alias="NamespceBindSubnet" type="com.harmonycloud.dao.network.bean.NamespceBindSubnet" />
         <typeAlias alias="NamespceBindSubnetExample" type="com.harmonycloud.dao.network.bean.NamespceBindSubnetExample" />
-        <typeAlias alias="Network" type="com.harmonycloud.dao.network.bean.Network" />
         <typeAlias alias="Resource" type="com.harmonycloud.dao.user.bean.Resource" />
+        <typeAlias alias="UserRoleRelationship" type="com.harmonycloud.dao.user.bean.UserRoleRelationship" />
         <typeAlias alias="ResourceCustom" type="com.harmonycloud.dao.user.bean.ResourceCustom" />
         <typeAlias alias="Role" type="com.harmonycloud.dao.user.bean.Role" />
         <typeAlias alias="RoleExample" type="com.harmonycloud.dao.user.bean.RoleExample" />
-        <typeAlias alias="RolePrivilege" type="com.harmonycloud.dao.tenant.bean.RolePrivilege" />
-        <typeAlias alias="RolePrivilegeExample" type="com.harmonycloud.dao.tenant.bean.RolePrivilegeExample" />
-        <typeAlias alias="RolePrivilegeCustom" type="com.harmonycloud.dao.tenant.bean.RolePrivilegeCustom"/>
-        <typeAlias alias="RolePrivilegeCustomExample" type="com.harmonycloud.dao.tenant.bean.RolePrivilegeCustomExample"/>
+        <typeAlias alias="RolePrivilege" type="com.harmonycloud.dao.user.bean.RolePrivilege" />
+        <typeAlias alias="Privilege" type="com.harmonycloud.dao.user.bean.Privilege" />
+        <typeAlias alias="RolePrivilegeExample" type="com.harmonycloud.dao.user.bean.RolePrivilegeExample" />
+        <typeAlias alias="RolePrivilegeReplication" type="com.harmonycloud.dao.user.bean.RolePrivilegeReplication" />
+        <typeAlias alias="RolePrivilegeReplicationExample" type="com.harmonycloud.dao.user.bean.RolePrivilegeReplicationExample" />
+        <!--<typeAlias alias="RolePrivilegeCustom" type="com.harmonycloud.dao.tenant.bean.RolePrivilegeCustom"/>-->
+        <!--<typeAlias alias="RolePrivilegeCustomExample" type="com.harmonycloud.dao.user.bean.RolePrivilegeCustomExample"/>-->
         <typeAlias alias="Tenant" type="com.harmonycloud.dao.tenant.bean.Tenant" />
         <typeAlias alias="TenantBinding" type="com.harmonycloud.dao.tenant.bean.TenantBinding" />
         <typeAlias alias="TenantBindingExample" type="com.harmonycloud.dao.tenant.bean.TenantBindingExample" />
+        <typeAlias alias="TenantClusterQuota" type="com.harmonycloud.dao.tenant.bean.TenantClusterQuota" />
+        <typeAlias alias="TenantPrivateNode" type="com.harmonycloud.dao.tenant.bean.TenantPrivateNode" />
+        <typeAlias alias="TenantPrivateNodeMapper" type="com.harmonycloud.dao.tenant.TenantPrivateNodeMapper" />
+        <typeAlias alias="TenantClusterQuotaExample" type="com.harmonycloud.dao.tenant.bean.TenantClusterQuotaExample" />
         <typeAlias alias="User" type="com.harmonycloud.dao.user.bean.User" />
         <typeAlias alias="Usergroup" type="com.harmonycloud.dao.user.bean.UserGroup" />
         <typeAlias alias="UsergroupRelation" type="com.harmonycloud.dao.user.bean.UserGroupRelation" />
-        <typeAlias alias="Usertenant" type="com.harmonycloud.dao.tenant.bean.UserTenant" />
-        <typeAlias alias="UsertenantExample" type="com.harmonycloud.dao.tenant.bean.UserTenantExample" />
+        <typeAlias alias="UserProject" type="com.harmonycloud.dao.user.bean.UserProject" />
+        <typeAlias alias="UserProjectExample" type="com.harmonycloud.dao.user.bean.UserProjectExample" />
+        <typeAlias alias="NamespaceLocal" type="com.harmonycloud.dao.tenant.bean.NamespaceLocal" />
+        <typeAlias alias="NamespaceLocalExample" type="com.harmonycloud.dao.tenant.bean.NamespaceLocalExample" />
+        <typeAlias alias="Project" type="com.harmonycloud.dao.tenant.bean.Project" />
+        <typeAlias alias="ProjectExample" type="com.harmonycloud.dao.tenant.bean.ProjectExample" />
         <typeAlias alias="NetworkCalicoExample" type="com.harmonycloud.dao.network.bean.NetworkCalicoExample" />
         <typeAlias alias="NetworkCalico" type="com.harmonycloud.dao.network.bean.NetworkCalico" />
         <typeAlias alias="NetworkTopologyExample" type="com.harmonycloud.dao.network.bean.NetworkTopologyExample" />
         <typeAlias alias="PrivatePartition" type="com.harmonycloud.dao.tenant.bean.PrivatePartition" />
         <typeAlias alias="PrivatePartitionExample" type="com.harmonycloud.dao.tenant.bean.PrivatePartitionExample" />
-        <typeAlias alias="Business" type="com.harmonycloud.dao.application.bean.Business" />
-        <typeAlias alias="BusinessTemplates" type="com.harmonycloud.dao.application.bean.BusinessTemplates" />
+        <typeAlias alias="ApplicationTemplates" type="com.harmonycloud.dao.application.bean.ApplicationTemplates" />
         <typeAlias alias="ServiceTemplates" type="com.harmonycloud.dao.application.bean.ServiceTemplates" />
-        <typeAlias alias="Topology" type="com.harmonycloud.dao.network.bean.Topology" />
-        <typeAlias alias="BusinessService" type="com.harmonycloud.dao.application.bean.BusinessService" />
+        <typeAlias alias="ApplicationService" type="com.harmonycloud.dao.application.bean.ApplicationService" />
         <typeAlias alias="Service" type="com.harmonycloud.dao.application.bean.Service" />
         <typeAlias alias="ExternalTypeBean" type="com.harmonycloud.dao.application.bean.ExternalTypeBean" />
         <typeAlias alias="NodePort" type="com.harmonycloud.dao.application.bean.NodePort" />
         <typeAlias alias="NodePortCluster" type="com.harmonycloud.dao.application.bean.NodePortCluster" />
         <typeAlias alias="HarborUser" type="com.harmonycloud.dao.application.bean.HarborUser" />
-        <typeAlias alias="ClusterDomain" type="com.harmonycloud.dao.cluster.bean.ClusterDomain" />
 	<!--  配置中心 gurongyun start -->
         <typeAlias alias="ConfigFile" type="com.harmonycloud.dao.application.bean.ConfigFile" />
 <!--         <typeAlias alias="ConfigItem" type="com.harmonycloud.db.bean.ConfigItem" /> -->
         <!--  配置中心 gurongyun end -->
-        <!--<typeAlias alias="Topology" type="com.harmonycloud.db.bean.BusinessService" />-->
+        <!--<typeAlias alias="Topology" type="com.harmonycloud.db.bean.ApplicationService" />-->
         <typeAlias alias="AuthUserExample" type="com.harmonycloud.dao.user.bean.AuthUserExample" />
-        <typeAlias alias="Cluster" type="com.harmonycloud.dao.cluster.bean.Cluster" />
         <typeAlias alias="Message" type="com.harmonycloud.dao.message.bean.Message" />
         <typeAlias alias="DockerFile" type="com.harmonycloud.dao.ci.bean.DockerFile" />
         <typeAlias alias="DockerFileJobStage" type="com.harmonycloud.dao.ci.bean.DockerFileJobStage" />
@@ -60,27 +66,30 @@
     </typeAliases>
 
     <mappers>
-        <mapper resource="com/harmonycloud/mapping/HarborProjectTenantMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/TenantPrivateNodeMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/NamespceBindSubnetMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/ResourceMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/ResourceCustomMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/RoleMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/RolePrivilegeMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/PrivilegeMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/RolePrivilegeReplicationMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/TenantBindingMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/TenantClusterQuotaMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/UserMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/UserGroupMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/UserProjectMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/UserGroupRelationMapper.xml" />
-        <mapper resource="com/harmonycloud/mapping/custums/CustomUserMapper.xml" />
-        <mapper resource="com/harmonycloud/mapping/UserTenantMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/ProjectMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/UserRoleRelationshipMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/NamespaceLocalMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/NetworkCalicoMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/NetworkTopologyMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/PrivatePartitionMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/NetworkTopologyMapper.xml" />
-        <mapper resource="com/harmonycloud/mapping/BusinessTemplatesMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/ApplicationTemplatesMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/ServiceTemplatesMapper.xml" />
-        <mapper resource="com/harmonycloud/mapping/TopologyMapper.xml" />
-        <mapper resource="com/harmonycloud/mapping/BusinessServiceMapper.xml" />
-
+        <mapper resource="com/harmonycloud/mapping/ApplicationServiceMapper.xml" />
         <!--<mapper resource="com/harmonycloud/mapping/ServiceMapper.xml" />-->
         <mapper resource="com/harmonycloud/mapping/RolePrivilegeCustomMapper.xml" />
 
@@ -89,15 +98,13 @@
         <mapper resource="com/harmonycloud/mapping/NodePortMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/NodePortClusterMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/HarborUserMapper.xml" />
-        <mapper resource="com/harmonycloud/mapping/ClusterDomainMapper.xml" />
-        <mapper resource="com/harmonycloud/mapping/custums/UserTenantMapperCustom.xml" />
         <!--  配置中心 gurongyun start -->
         <mapper resource="com/harmonycloud/mapping/ConfigFileMapper.xml" />
 <!--         <mapper resource="com/harmonycloud/mapping/ConfigItemMapper.xml" /> -->
         <!--  配置中心 gurongyun end -->
          <mapper resource="com/harmonycloud/mapping/NetworkTopologyMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/AuthUserMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/ClusterMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/NodeDrainProgressMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/NodeInstallProgressMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/JobMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/MessageMapper.xml" />
@@ -110,8 +117,24 @@
          <mapper resource="com/harmonycloud/mapping/FileUploadContainerMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/SystemConfigMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/BuildEnvironmentMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/ClusterLoadbalanceMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/StageSonarMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/SonarConfigMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/ImageCleanRuleMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/custums/CustomNamespaceMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/custums/MicroServiceInstanceMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/custums/MicroServiceOperationTaskMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/custums/NodePortClusterUsageMapper.xml" />
+         <mapper resource="com/harmonycloud/mapping/custums/NodePortClusterRangeMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/TriggerMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/HarborRepositoryProjectMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/ImageRepositoryMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/ParameterMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/LocalRoleMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/LocalRolePrivilegeMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/LocalPrivilegeMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/LocalUserRoleRelMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/LogBackupRuleMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/UrlDicMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/ResourceMenuMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/ResourceMenuRoleMapper.xml" />
     </mappers>
 </configuration>
+

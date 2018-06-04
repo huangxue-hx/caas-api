@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.harmonycloud.dao.application.ApplicationTemplatesMapper">
+    <resultMap id="BaseResultMap" type="com.harmonycloud.dao.application.bean.ApplicationTemplates">
+        <id column="id" property="id" jdbcType="INTEGER"/>
+        <result column="name" property="name" jdbcType="VARCHAR"/>
+        <result column="tag" property="tag" jdbcType="VARCHAR"/>
+        <result column="details" property="details" jdbcType="VARCHAR"/>
+        <result column="status" property="status" jdbcType="INTEGER"/>
+        <result column="tenant" property="tenant" jdbcType="VARCHAR"/>
+        <result column="create_user" property="user" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+        <result column="is_deploy" property="isDeploy" jdbcType="INTEGER"/>
+        <result column="image_list" property="imageList" jdbcType="VARCHAR"/>
+        <result column="is_public" property="isPublic" jdbcType="BOOLEAN"/>
+        <result column="project_id" property="projectId" jdbcType="VARCHAR"/>
+        <result column="namespace_id" property="namespaceId" jdbcType="VARCHAR"/>
+        <result column="cluster_id" property="clusterId" jdbcType="VARCHAR"/>
+    </resultMap>
+
+
+    <insert id="saveApplicationTemplates" parameterType="com.harmonycloud.dao.application.bean.ApplicationTemplates"
+            useGeneratedKeys="true" keyProperty="id">
+    insert into application_templates (name, tag, details, status, tenant, create_user, create_time,image_list, is_public, project_id, namespace_id, cluster_id)
+    values (#{name}, #{tag}, #{details}, #{status}, #{tenant}, #{user}, #{createTime},#{imageList}, #{isPublic}, #{projectId}, #{namespaceId}, #{clusterId})
+  </insert>
+
+    <select id="listAppTempaltesMaxTagByName" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT * FROM application_templates where tag = (SELECT  max(tag) FROM application_templates where name = #{name} AND status = 0 AND project_id != 'all') AND name = #{name} AND status = 0 AND project_id != 'all' and project_id = #{projectId}
+  </select>
+
+    <select id="getAppTemplatesByNameAndTag" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT * FROM application_templates where status = 0
+        <if test="tag != null and tag != '' ">
+        AND tag=#{tag}
+        </if>
+        And name=#{name}
+        <if test="clusterId != null and clusterId != '' ">
+            and cluster_id = #{clusterId}
+        </if>
+         AND project_id = #{projectId}
+  </select>
+
+    <!-- 删除根据name,tenantt删除 -->
+    <update id="deleteAppTemplate" parameterType="java.lang.String">
+    update application_templates set status=1 where name=#{name} and status = 0
+        <if test="clusterId != null and clusterId != '' ">
+            and cluster_id = #{clusterId}
+        </if>
+        <if test="projectId != null and projectId != '' ">
+            and project_id = #{projectId}
+        </if>
+  </update>
+
+    <select id="listNameByProjectId" parameterType="java.lang.String" resultMap="BaseResultMap">
+        select distinct name, tenant, cluster_id from application_templates where status = 0 and is_public = false
+        <if test="clusterId != null and clusterId != '' ">
+            and cluster_id = #{clusterId}
+        </if>
+        <if test="projectId != null and projectId != '' ">
+            and project_id = #{projectId}
+        </if>
+    </select>
+
+    <select id="listAppTemplatesByName" parameterType="java.lang.String" resultMap="BaseResultMap">
+        select * from application_templates where name = #{name}
+        <if test="clusterId != null and clusterId != '' ">
+            and cluster_id = #{clusterId}
+        </if>
+        <if test="projectId != null and projectId != '' ">
+            and project_id = #{projectId}
+        </if>
+        and status = 0 and is_public = #{isPublic} order by tag
+    </select>
+
+    <select id="getAppTemplatesByNameAndProjectId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select * from application_templates where name=#{name} and project_id = #{projectId}
+  </select>
+
+    <select id="listNameByName" parameterType="java.lang.String" resultMap="BaseResultMap">
+        select * from application_templates where status = 0 and name like #{name} and is_public =
+        false
+        <if test="clusterId != null and clusterId != '' ">
+            and cluster_id = #{clusterId}
+        </if>
+        <if test="projectId != null and projectId != '' ">
+            and project_id = #{projectId}
+        </if>
+    </select>
+
+    <select id="listNameByImage" parameterType="java.lang.String" resultMap="BaseResultMap">
+        select distinct name, tenant from application_templates where status = 0 and is_public = false and image_list
+        like
+        concat(concat('%',#{imageList}),'%')
+        <if test="clusterId != null and clusterId != '' ">
+            and cluster_id = #{clusterId}
+        </if>
+        <if test="projectId != null and projectId != '' ">
+            and project_id = #{projectId}
+        </if>
+    </select>
+
+    <select id="listAppTemplatesByNameAndImage" parameterType="java.lang.String" resultMap="BaseResultMap">
+        select * from application_templates where status = 0 and is_public = false and name=#{name} and image_list like
+        concat(concat('%',#{imageList}),'%')
+        <if test="clusterId != null and clusterId != '' ">
+            and cluster_id = #{clusterId}
+        </if>
+        <if test="projectId != null and projectId != '' ">
+            and project_id = #{projectId}
+        </if>
+        order by create_time
+    </select>
+
+    <update id="updateImageById" parameterType="java.lang.String">
+    update application_templates set image_list=#{0} where id=#{1}
+  </update>
+
+    <select id="selectById" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select * from application_templates where id=#{id}
+  </select>
+
+    <update id="updateDeployById" parameterType="java.lang.String">
+    update application_templates set is_deploy=1 where id=#{0}
+  </update>
+
+    <delete id="deleteByProjectIds">
+        delete from application_templates where project_id in
+        <foreach item="item" index="index" collection="projectIds" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </delete>
+
+    <delete id="deleteByClusterId">
+        delete from application_templates where cluster_id = #{clusterId}
+    </delete>
+
+    <update id="updateApplicationTemplate" parameterType="com.harmonycloud.dao.application.bean.ApplicationTemplates">
+        update application_templates
+        <set>
+            details = #{details},
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="user != null">
+                create_user = #{user},
+            </if>
+            <if test="updateTime != null">
+                update_time = #{updateTime},
+            </if>
+            <if test="imageList != null">
+                image_list = #{imageList},
+            </if>
+            <if test="clusterId != null">
+                cluster_id = #{clusterId},
+            </if>
+        </set>
+        where id = #{id}
+    </update>
+    <select id="listPublic" resultMap="BaseResultMap">
+    select distinct name, tenant, project_id from application_templates where status = 0  and tenant = 'all' and project_id = 'all'
+  </select>
+    <select id="listPublicTemplate" resultMap="BaseResultMap">
+  	select distinct name, tenant from application_templates where status = 0  and is_public = true
+  </select>
+    <select id="listPublicNameByName" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select distinct name, tenant from application_templates where status = 0  and name like #{name} and is_public = true
+  </select>
+    <select id="listPublicNameByImage" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select distinct name, tenant from application_templates where status = 0 and is_public = true and image_list like concat(concat('%',#{imageList}),'%')
+  </select>
+
+    <update id="updateAppTemplatePublic">
+        update application_templates
+        <set>
+            is_public = #{isPublic},
+        </set>
+        where name = #{name} and status=0
+    </update>
+
+    <select id="selectByNamespaceId" parameterType="java.lang.String" resultMap="BaseResultMap">
+        SELECT * FROM application_templates WHERE namespace_id = #{namespaceId} and status=0
+    </select>
+
+    <update id="deleteApplicationTemplatesById" parameterType="java.lang.Integer">
+        update application_templates set status=1 where id=#{id} and status = 0
+    </update>
+</mapper>

@@ -1,6 +1,9 @@
 package com.harmonycloud.common.util;
 
+import com.harmonycloud.common.Constant.CommonConstant;
+
 import java.security.MessageDigest;
+import java.util.UUID;
 
 public class StringUtil {
 	
@@ -35,7 +38,14 @@ public class StringUtil {
         } catch (Exception e) {
             e.printStackTrace();
             return null;
-        }	
+        }
 	}
-	
+    public static String getId() {
+        // 通过uuid生成token
+        UUID uuid = UUID.randomUUID();
+        String str = uuid.toString();
+        // 去掉"-"符号
+        String id = str.replaceAll(CommonConstant.LINE, CommonConstant.EMPTYSTRING);
+        return id;
+    }
 }

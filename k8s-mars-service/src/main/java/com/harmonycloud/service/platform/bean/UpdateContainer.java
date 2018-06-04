@@ -1,16 +1,10 @@
 package com.harmonycloud.service.platform.bean;
 
-import java.io.Serializable;
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.harmonycloud.dto.business.CreateConfigMapDto;
-import com.harmonycloud.dto.business.CreateEnvDto;
-import com.harmonycloud.dto.business.CreatePortDto;
-import com.harmonycloud.dto.business.CreateResourceDto;
-import com.harmonycloud.dto.business.SecurityContextDto;
+import com.harmonycloud.dto.application.*;
 import com.harmonycloud.k8s.bean.Probe;
+
+import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class UpdateContainer{
 
@@ -21,6 +15,8 @@ public class UpdateContainer{
 	private String tag;
 
 	private CreateResourceDto resource;
+	
+	private CreateResourceDto limit;
 
 //	private String log;
 
@@ -40,7 +36,7 @@ public class UpdateContainer{
 
 	private List<CreateEnvDto> env;
 
-	private List<UpdateVolume> storage;
+	private List<PersistentVolumeDto> storage;
 	
 	private SecurityContextDto securityContext;
 	
@@ -159,11 +155,11 @@ public class UpdateContainer{
 		this.env = env;
 	}
 
-	public List<UpdateVolume> getStorage() {
+	public List<PersistentVolumeDto> getStorage() {
 		return storage;
 	}
 
-	public void setStorage(List<UpdateVolume> storage) {
+	public void setStorage(List<PersistentVolumeDto> storage) {
 		this.storage = storage;
 	}
 
@@ -181,6 +177,14 @@ public class UpdateContainer{
 
 	public void setSecurityContext(SecurityContextDto securityContext) {
 		this.securityContext = securityContext;
+	}
+
+	public CreateResourceDto getLimit() {
+		return limit;
+	}
+
+	public void setLimit(CreateResourceDto limit) {
+		this.limit = limit;
 	}
 
 

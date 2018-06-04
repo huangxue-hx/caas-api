@@ -1,5 +1,7 @@
 package com.harmonycloud.service.platform.bean;
 
+import com.harmonycloud.dto.application.AffinityDto;
+
 import java.util.List;
 
 public class UpdateDeployment {
@@ -25,6 +27,28 @@ public class UpdateDeployment {
 	private String logService;
 
 	private String logPath;
+
+	/**节点亲和*/
+	private List<AffinityDto> nodeAffinity;
+
+	/**pod 亲和*/
+	private AffinityDto podAffinity;
+
+	/**pod 反亲和*/
+	private AffinityDto podAntiAffinity;
+
+	/**pod 是否分散*/
+	private AffinityDto podDisperse;
+
+	private String projectId;
+
+	public String getProjectId() {
+		return projectId;
+	}
+
+	public void setProjectId(String projectId) {
+		this.projectId = projectId;
+	}
 
 	public String getName() {
 		return name;
@@ -114,4 +138,35 @@ public class UpdateDeployment {
 		this.logPath = logPath;
 	}
 
+	public List<AffinityDto> getNodeAffinity() {
+		return nodeAffinity;
+	}
+
+	public void setNodeAffinity(List<AffinityDto> nodeAffinity) {
+		this.nodeAffinity = nodeAffinity;
+	}
+
+	public AffinityDto getPodAffinity() {
+		return podAffinity;
+	}
+
+	public void setPodAffinity(AffinityDto podAffinity) {
+		this.podAffinity = podAffinity;
+	}
+
+	public AffinityDto getPodAntiAffinity() {
+		return podAntiAffinity;
+	}
+
+	public void setPodAntiAffinity(AffinityDto podAntiAffinity) {
+		this.podAntiAffinity = podAntiAffinity;
+	}
+
+	public AffinityDto getPodDisperse() {
+		return podDisperse;
+	}
+
+	public void setPodDisperse(AffinityDto podDisperse) {
+		this.podDisperse = podDisperse;
+	}
 }

@@ -1,24 +1,46 @@
 package com.harmonycloud.service.platform.bean;
 
-public class PvDto {
-	private Object bind;
+import org.hibernate.validator.constraints.NotBlank;
+
+import javax.validation.constraints.NotNull;
+import java.io.Serializable;
+import java.util.Date;
+
+public class PvDto implements Serializable{
+
+	private static final long serialVersionUID = 5202810321695795037L;
+	/**
+	 * 是否已绑定服务
+	 */
+	private Boolean isBind;
+	/**
+	 * 该pv资源所在的集群名称
+	 */
+	private String clusterName;
+	private String clusterAliasName;
+	@NotBlank
+	private String clusterId;
+	@NotBlank
 	private String capacity;
-	private boolean multiple;
+	@NotNull
+	private Boolean isBindOne;
+	@NotBlank
 	private String name;
-	private boolean readOnly;
-	private String tenantid;
-	private String time;
+	@NotNull
+	private Boolean isReadonly;
+	private String tenantId;
+	@NotBlank
+	private String projectId;
+	private Date createTime;
+	@NotBlank
 	private String type;
-	private String usage;
-	private Tenant tenant;
+	/**
+	 * pv将被绑定的服务名
+	 */
+	private String serviceName;
 
-	public Object getBind() {
-		return bind;
-	}
-
-	public void setBind(Object bind) {
-		this.bind = bind;
-	}
+	private String serviceNamespace;
+	private String status;
 
 	public String getCapacity() {
 		return capacity;
@@ -26,14 +48,6 @@ public class PvDto {
 
 	public void setCapacity(String capacity) {
 		this.capacity = capacity;
-	}
-
-	public boolean isMultiple() {
-		return multiple;
-	}
-
-	public void setMultiple(boolean multiple) {
-		this.multiple = multiple;
 	}
 
 	public String getName() {
@@ -44,28 +58,16 @@ public class PvDto {
 		this.name = name;
 	}
 
-	public boolean isReadOnly() {
-		return readOnly;
+	public Boolean isReadonly() {
+		return isReadonly;
 	}
 
-	public void setReadOnly(boolean readOnly) {
-		this.readOnly = readOnly;
+	public Boolean getIsReadonly() {
+		return isReadonly;
 	}
 
-	public String getTenantid() {
-		return tenantid;
-	}
-
-	public void setTenantid(String tenantid) {
-		this.tenantid = tenantid;
-	}
-
-	public String getTime() {
-		return time;
-	}
-
-	public void setTime(String time) {
-		this.time = time;
+	public void setIsReadonly(Boolean readOnly) {
+		this.isReadonly = readOnly;
 	}
 
 	public String getType() {
@@ -76,42 +78,95 @@ public class PvDto {
 		this.type = type;
 	}
 
-	public String getUsage() {
-		return usage;
+	public String getProjectId() {
+		return projectId;
 	}
 
-	public void setUsage(String usage) {
-		this.usage = usage;
+	public void setProjectId(String projectId) {
+		this.projectId = projectId;
 	}
 
-	public Tenant getTenant() {
-		return tenant;
+	public String getClusterName() {
+		return clusterName;
 	}
 
-	public void setTenant(Tenant tenant) {
-		this.tenant = tenant;
+	public void setClusterName(String clusterName) {
+		this.clusterName = clusterName;
 	}
 
-	public class Tenant {
-		private String tenantid;
-		private String tenantname;
-
-		public String getTenantid() {
-			return tenantid;
-		}
-
-		public void setTenantid(String tenantid) {
-			this.tenantid = tenantid;
-		}
-
-		public String getTenantname() {
-			return tenantname;
-		}
-
-		public void setTenantname(String tenantname) {
-			this.tenantname = tenantname;
-		}
-
+	public String getClusterId() {
+		return clusterId;
 	}
-	
+
+	public void setClusterId(String clusterId) {
+		this.clusterId = clusterId;
+	}
+
+	public Boolean getIsBind() {
+		return isBind;
+	}
+
+	public void setIsBind(Boolean bind) {
+		isBind = bind;
+	}
+
+	public String getTenantId() {
+		return tenantId;
+	}
+
+	public void setTenantId(String tenantId) {
+		this.tenantId = tenantId;
+	}
+
+	public Date getCreateTime() {
+		return createTime;
+	}
+
+	public void setCreateTime(Date createTime) {
+		this.createTime = createTime;
+	}
+
+	public String getServiceName() {
+		return serviceName;
+	}
+
+	public void setServiceName(String serviceName) {
+		this.serviceName = serviceName;
+	}
+
+	public Boolean isBindOne() {
+		return isBindOne;
+	}
+
+	public Boolean getIsBindOne() {
+		return isBindOne;
+	}
+
+	public void setIsBindOne(Boolean bindOne) {
+		isBindOne = bindOne;
+	}
+
+	public String getServiceNamespace() {
+		return serviceNamespace;
+	}
+
+	public void setServiceNamespace(String serviceNamespace) {
+		this.serviceNamespace = serviceNamespace;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	public String getClusterAliasName() {
+		return clusterAliasName;
+	}
+
+	public void setClusterAliasName(String clusterAliasName) {
+		this.clusterAliasName = clusterAliasName;
+	}
 }

@@ -3,11 +3,10 @@ package com.harmonycloud.service.platform.bean;
 import java.util.List;
 import java.util.Map;
 
-import com.harmonycloud.dto.business.SecurityContextDto;
+import com.harmonycloud.dto.application.SecurityContextDto;
 import com.harmonycloud.k8s.bean.ContainerPort;
 import com.harmonycloud.k8s.bean.EnvVar;
 import com.harmonycloud.k8s.bean.Probe;
-import com.harmonycloud.k8s.bean.SecurityContext;
 
 public class ContainerOfPodDetail {
 	
@@ -18,6 +17,8 @@ public class ContainerOfPodDetail {
 	private String img;
 	
 	private Map<String, Object> resource;
+	
+	private Map<String, Object> limit;
 	
 	private Probe livenessProbe;
 	
@@ -40,6 +41,16 @@ public class ContainerOfPodDetail {
 	private SecurityContextDto securityContext;
 	
 	private String imagePullPolicy;
+
+//	private String  timeZone;
+//
+//	public String getTimeZone() {
+//		return timeZone;
+//	}
+//
+//	public void setTimeZone(String syncTimeZone) {
+//		this.timeZone = syncTimeZone;
+//	}
 
 	public ContainerOfPodDetail() {
 		
@@ -175,6 +186,14 @@ public class ContainerOfPodDetail {
 
 	public void setImagePullPolicy(String imagePullPolicy) {
 		this.imagePullPolicy = imagePullPolicy;
+	}
+
+	public Map<String, Object> getLimit() {
+		return limit;
+	}
+
+	public void setLimit(Map<String, Object> limit) {
+		this.limit = limit;
 	}
 
 }

@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace必须指向Dao接口 -->
+<mapper namespace="com.harmonycloud.dao.harbor.ImageRepositoryMapper">
+
+    <resultMap id="imageRepositoryMap" type="com.harmonycloud.dao.harbor.bean.ImageRepository">
+        <id property="id" column="id" />
+        <result property="harborProjectId" column="harbor_project_id" />
+        <result property="harborProjectName" column="harbor_project_name" />
+        <result property="repositoryName" column="repository_name" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="clusterId" column="cluster_id" />
+        <result property="harborHost" column="harbor_host" />
+        <result property="clusterName" column="cluster_name" />
+        <result property="projectId" column="project_id" />
+        <result property="isDefault" column="is_default" />
+        <result property="isPublic" column="is_public" />
+        <result property="isNormal" column="is_normal" />
+        <result property="createTime" column="create_time" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, harbor_project_id, harbor_project_name, repository_name, cluster_id, harbor_host, cluster_name, project_id, is_default, tenant_id, is_public, is_normal, create_time
+    </sql>
+
+    <select id="isDefault" resultMap="imageRepositoryMap" parameterType = "com.harmonycloud.dao.harbor.bean.ImageRepository">
+        select count(*) from image_repository
+        where cluster_id = #{clusterId}
+        and project_id = #{projectId}
+        <if test="harborProjectId != null" >
+            and harbor_project_id = #{harborProjectId}
+        </if>
+        <if test="harborProjectName != null" >
+            and harbor_project_name = #{harborProjectName}
+        </if>
+        and is_default = 1 and is_normal = 1
+    </select>
+
+    <select id="listRepositories" resultMap="imageRepositoryMap" parameterType = "com.harmonycloud.dao.harbor.bean.ImageRepository">
+        select
+        <include refid="Base_Column_List" />
+         from image_repository
+        <where>
+            <if test="projectId != null" >
+                project_id = #{projectId}
+            </if>
+            <if test="clusterId != null" >
+                 and cluster_id = #{clusterId}
+            </if>
+            <if test="repositoryName != null" >
+                and repository_name = #{repositoryName}
+            </if>
+            <if test="harborProjectId != null" >
+                and harbor_project_id = #{harborProjectId}
+            </if>
+            <if test="harborProjectName != null" >
+                and harbor_project_name = #{harborProjectName}
+            </if>
+            <if test="harborHost != null" >
+                and harbor_host = #{harborHost}
+            </if>
+            <if test="isDefault != null" >
+                and is_default = #{isDefault}
+            </if>
+            <if test="isPublic != null" >
+                and is_public = #{isPublic}
+            </if>
+            <if test="isNormal != null" >
+                and is_normal = #{isNormal}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectRepositories" resultMap="imageRepositoryMap">
+        select
+        <include refid="Base_Column_List" />
+        from image_repository where is_normal =true
+        <if test="projectId != null" >
+            and project_id = #{projectId}
+        </if>
+        <if test="isPublic != null" >
+            and is_public = #{isPublic}
+        </if>
+        <if test="isNormal != null" >
+            and is_normal = #{isNormal}
+        </if>
+        <if  test="harborHosts != null" >
+            and harbor_host in
+            <foreach item="item" index="index" collection="harborHosts" open="(" separator="," close=")">
+                #{item}
+            </foreach>
+        </if>
+        <if  test="clusterIds != null" >
+            and cluster_id in
+            <foreach item="item" index="index" collection="clusterIds" open="(" separator="," close=")">
+                #{item}
+            </foreach>
+        </if>
+
+    </select>
+
+    <insert id="insert" parameterType = "com.harmonycloud.dao.harbor.bean.ImageRepository">
+        INSERT INTO image_repository (harbor_project_id, harbor_project_name, repository_name, cluster_id,  cluster_name, project_id, harbor_host, is_default, tenant_id, is_public, is_normal, create_time)
+        VALUES (#{harborProjectId}, #{harborProjectName},#{repositoryName}, #{clusterId},#{clusterName},#{projectId},#{harborHost},#{isDefault},#{tenantId}, #{isPublic},  #{isNormal},#{createTime})
+    </insert>
+
+    <select id="findRepositoryById" resultMap="imageRepositoryMap" parameterType="java.lang.Integer">
+        select
+        <include refid="Base_Column_List" />
+        from image_repository where id = #{id}
+    </select>
+
+    <delete id="deleteRepositoryById" parameterType="java.lang.Integer">
+        delete from image_repository where id = #{id}
+    </delete>
+
+    <delete id="deleteByClusterId">
+        delete from image_repository where cluster_id = #{clusterId}
+    </delete>
+
+    <delete id="deleteRepositories" parameterType = "com.harmonycloud.dao.harbor.bean.ImageRepository">
+        delete from image_repository
+        <where>
+            <if test="projectId != null" >
+                project_id = #{projectId}
+            </if>
+            <if test="clusterId != null" >
+                and cluster_id = #{clusterId}
+            </if>
+            <if test="repositoryName != null" >
+                and repository_name = #{repositoryName}
+            </if>
+            <if test="harborProjectId != null" >
+                and harbor_project_id = #{harborProjectId}
+            </if>
+            <if test="harborProjectName != null" >
+                and harbor_project_name = #{harborProjectName}
+            </if>
+            <if test="harborHost != null" >
+                and harbor_host = #{harborHost}
+            </if>
+            <if test="isDefault != null" >
+                and is_default = #{isDefault}
+            </if>
+            <if test="isPublic != null" >
+                and is_public = #{isPublic}
+            </if>
+            <if test="isNormal != null" >
+                and is_normal = #{isNormal}
+            </if>
+        </where>
+    </delete>
+
+    <update id="update" parameterType = "com.harmonycloud.dao.harbor.bean.ImageRepository">
+        update image_repository
+        <set>
+            <if test="repositoryName != null" >
+                repository_name = #{repositoryName}
+            </if>
+            <if test="harborProjectId != null" >
+                harbor_project_id = #{harborProjectId}
+            </if>
+            <if test="harborProjectName != null" >
+                harbor_project_name = #{harborProjectName}
+            </if>
+            <if test="isPublic != null" >
+                is_public = #{isPublic}
+            </if>
+            <if test="isDefault != null" >
+                is_default = #{isDefault}
+            </if>
+            <if test="isNormal != null" >
+                is_normal = #{isNormal}
+            </if>
+        </set>
+        where id = #{id,jdbcType=INTEGER}
+    </update>
+</mapper>

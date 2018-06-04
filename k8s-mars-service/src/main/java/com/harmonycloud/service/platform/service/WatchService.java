@@ -2,7 +2,7 @@ package com.harmonycloud.service.platform.service;
 
 import java.util.Map;
 
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 
 public interface WatchService {
 	

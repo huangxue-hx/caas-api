@@ -8,7 +8,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.UUIDUtil;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.service.cache.ClusterCacheManager;
+import com.harmonycloud.service.cluster.ClusterService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,8 +26,7 @@ import org.springframework.util.StringUtils;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.TenantUtils;
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.network.NamespceBindSubnetMapper;
 import com.harmonycloud.dao.network.NetworkCalicoMapper;
 import com.harmonycloud.dao.network.NetworkTopologyMapper;
@@ -32,7 +37,6 @@ import com.harmonycloud.dao.network.bean.NetworkCalicoExample;
 import com.harmonycloud.dao.network.bean.NetworkTopology;
 import com.harmonycloud.dao.network.bean.NetworkTopologyExample;
 import com.harmonycloud.dao.tenant.TenantBindingMapper;
-import com.harmonycloud.dao.tenant.UserTenantMapper;
 import com.harmonycloud.dao.tenant.bean.SubNetwork;
 import com.harmonycloud.dto.tenant.CreateNetwork;
 import com.harmonycloud.dto.tenant.NetworkBean;
@@ -58,9 +62,6 @@ public class NetworkServiceImpl implements NetworkService {
     NamespceBindSubnetMapper namespceBindSubnetMapper;
 
     @Autowired
-    UserTenantMapper usertenantMapper;
-
-    @Autowired
     NetworkTopologyMapper networkTopologyMapper;
 
     @Autowired
@@ -71,6 +72,13 @@ public class NetworkServiceImpl implements NetworkService {
 
     @Value("#{propertiesReader['network.version']}")
     private String version;
+
+    @Autowired
+    ClusterService clusterService;
+
+//    NetworkServiceImpl() throws Exception{
+//        version = clusterService.getPlatformCluster().getNetwork().getVersion();
+//    }
 
     @Autowired
     com.harmonycloud.k8s.service.NamespaceService namespaceService;
@@ -107,14 +115,16 @@ public class NetworkServiceImpl implements NetworkService {
     public ActionReturnUtil networkCreate(CreateNetwork createNetwork) throws Exception {
         String tenantName = createNetwork.getTenant().getTenantname();
         String networkName = createNetwork.getNetworkname();
+        AssertUtil.notBlank(createNetwork.getTenant().getTenantname(), DictEnum.TENANT_NAME);
+        AssertUtil.notBlank(createNetwork.getNetworkname(), DictEnum.NETWORK_NAME);
         String annotation = createNetwork.getAnnotation();
         NetworkCalico networkCalico = getnetworkbyname(networkName, tenantName);
         if (networkCalico != null) {
-            return ActionReturnUtil.returnErrorWithMsg("network " + networkName + " was existed");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NAME_EXIST);
         }
         NetworkCalico networkid2 = getnetworkbyNetworkid(createNetwork.getTenant().getTenantid());
         if (networkid2 != null) {
-            return ActionReturnUtil.returnErrorWithMsg("tenant:  " + tenantName + " 只允许创建一个网络，不能重复创建！");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.TENANT_NETWORK_EXIST);
         }
         NetworkBean network = new NetworkBean();
         network.setAnnotation(annotation);
@@ -122,10 +132,7 @@ public class NetworkServiceImpl implements NetworkService {
         network.setTenantName(tenantName);
         List<SubNetwork> subnets = createNetwork.getSubnets();
         List<SubNetwork> s = new ArrayList<SubNetwork>();
-        if (StringUtils.isEmpty(networkName) || StringUtils.isEmpty(tenantName)) {
-            return ActionReturnUtil.returnErrorWithMsg("networkName,tenantName or tenantid can not be null");
-        }
-        String networkid = TenantUtils.getuuid();
+        String networkid = UUIDUtil.getUUID();
         Date date = DateUtil.getCurrentUtcTime();
         NetworkCalico record = new NetworkCalico();
         record.setAnnotation(annotation);
@@ -155,7 +162,7 @@ public class NetworkServiceImpl implements NetworkService {
         example1.createCriteria().andNetworkidEqualTo(networkid);
         List<NetworkCalico> list1 = networkCalicoMapper.selectByExample(example1);
         if (list1.size() < 1) {
-            return ActionReturnUtil.returnErrorWithMsg("查询的networkid不存在");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NOT_FOUND, DictEnum.NETWORK_ID.phrase(), true);
         }
         Map<String, Object> maps = new HashMap<String, Object>();
         Map<String, Object> maps2 = new HashMap<String, Object>();
@@ -229,12 +236,12 @@ public class NetworkServiceImpl implements NetworkService {
     public ActionReturnUtil subnetworkCreate(String networkid, String subnetname) throws Exception {
         NamespceBindSubnet getsubnetbySubnetname = getsubnetbySubnetname(networkid, subnetname);
         if (getsubnetbySubnetname != null) {
-            return ActionReturnUtil.returnErrorWithMsg("subnetname " + subnetname + " was existed in network!");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NAME_EXIST);
         }
         Date date = DateUtil.getCurrentUtcTime();
 
         // insert subnets
-        String subnetId = TenantUtils.getuuid();
+        String subnetId = UUIDUtil.getUUID();
         NamespceBindSubnet subnet = new NamespceBindSubnet();
         subnet.setBinding(0);
         subnet.setCreateTime(date);
@@ -250,7 +257,7 @@ public class NetworkServiceImpl implements NetworkService {
         Date date = DateUtil.getCurrentUtcTime();
         NamespceBindSubnet subnet = this.getsubnetbySubnetid(subnetid);
         if (subnet == null) {
-            return ActionReturnUtil.returnErrorWithMsg("subnetid can not be found");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NOT_FOUND, DictEnum.SUB_NETWORK_ID.phrase(),true);
         }
         subnet.setUpdateTime(date);
         subnet.setNamespace(namespace);
@@ -302,7 +309,7 @@ public class NetworkServiceImpl implements NetworkService {
     public ActionReturnUtil networkDelete(String networkid) throws Exception {
         NetworkCalico network = getnetworkbyNetworkid(networkid);
         if (network == null) {
-            return ActionReturnUtil.returnErrorWithMsg("network can not be found");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NOT_FOUND, DictEnum.NETWORK.phrase(),true);
         }
         NamespceBindSubnetExample example = new NamespceBindSubnetExample();
         example.createCriteria().andNetIdEqualTo(networkid);
@@ -311,7 +318,7 @@ public class NetworkServiceImpl implements NetworkService {
             namespceBindSubnetMapper.deleteBySubnetId(namespceBindSubnet.getSubnetId());
         }
         networkCalicoMapper.deleteByNetworkId(networkid);
-        return ActionReturnUtil.returnSuccessWithData("delete network success");
+        return ActionReturnUtil.returnSuccess();
     }
 
     @Override
@@ -374,12 +381,12 @@ public class NetworkServiceImpl implements NetworkService {
     public ActionReturnUtil subnetChecked(String subnetid, String subnetname) throws Exception {
         NamespceBindSubnet subnet = this.getsubnetbySubnetnameAndSubnetid(subnetid, subnetname);
         if (subnet == null) {
-            return ActionReturnUtil.returnErrorWithMsg("subnetid or subnetname can not be found");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NOT_FOUND, DictEnum.NETWORK.phrase(),true);
         }
         if (subnet.getBinding() == 1) {
-            return ActionReturnUtil.returnErrorWithMsg("subent " + subnetname + " has been bound");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NETWORK_ALREADY_BIND);
         }
-        return ActionReturnUtil.returnSuccessWithData("subent is available");
+        return ActionReturnUtil.returnSuccess();
     }
 
     @Override

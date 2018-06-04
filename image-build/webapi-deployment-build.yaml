@@ -1,0 +1,80 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    nephele/user: gao
+  name: webapi
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webapi
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: webapi
+    spec:
+      containers:
+      - image: library/k8s-webapi:build
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 4096Mi
+          requests:
+            cpu: 500m
+            memory: 1024Mi
+        imagePullPolicy: Always
+        env:
+        - name: "JAVA_OPTS"
+          value: "-Xmx4096m"
+        name: webapi
+        ports:
+        - containerPort: 8080 
+          hostPort: 8080
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /usr/local/k8s-mars-api/WEB-INF/classes/constant.properties 
+          subPath: constant.properties
+          name: webapi-config-volume
+        - mountPath: /home
+          name: webapi-storage
+        - mountPath: /var/run
+          name: docker
+        - mountPath: /opt/logs
+          name: logdirwebapi
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        HarmonyCloud_Status: A
+      volumes:
+      - configMap:
+          name: webapi-config
+          items:
+          - key: constant.properties
+            path: constant.properties
+        name: webapi-config-volume
+      - name: webapi-storage
+        persistentVolumeClaim:
+          claimName: webapi-claim
+      - name: docker
+        hostPath:
+          path: /var/run
+      - name: logdirwebapi
+        emptyDir: {}

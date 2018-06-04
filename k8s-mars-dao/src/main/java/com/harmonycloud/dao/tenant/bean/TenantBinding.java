@@ -1,15 +1,12 @@
 package com.harmonycloud.dao.tenant.bean;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
-import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
-
-public class TenantBinding  implements Serializable{
+public class TenantBinding implements Serializable {
     private Integer id;
+
+    private String tenantSystemCode;
 
     private String tenantId;
 
@@ -17,237 +14,31 @@ public class TenantBinding  implements Serializable{
 
     private String tmUsernames;
 
-    private String harborProjects;
-
-    private String networkIds;
-
-    private String k8sPvs;
-
-    private String k8sNamespaces;
-    
-    private List<String> k8sNamespaceList;
-    
-    private List<String> k8sPvList;
-    
-    private List<String> networkIdList;
-    
-    private List<String> harborProjectList;
-    
-    private List<String> tmUsernameList;
-
     private Date createTime;
 
     private Date updateTime;
 
     private String annotation;
-    
-    private String role;
 
-    private Integer clusterId;
+    private String updateUserAccount;
 
-    public String getRole() {
-        return role;
-    }
-    public void setRole(String role) {
-        this.role = role;
-    }
-    public List<String> getTmUsernameList() {
-        if(tmUsernameList == null) {
-            tmUsernameList = new ArrayList<String>();
-        }
-        return tmUsernameList;
-    }
-    public void setTmUsernameList(List<String> tmUsernameList) {
-        this.tmUsernameList = tmUsernameList;
-    }
-    public String getTmUsernames() {
-        if(CollectionUtils.isEmpty(tmUsernameList)) {
-            return "";
-        }
-        StringBuilder s = new StringBuilder();
-        for(String tmUsername : tmUsernameList) {
-            s.append(tmUsername);
-            s.append(",");
-        }
-        String retVal = s.toString();
-        if (retVal.length() > 1){
-            retVal = retVal.substring(0, retVal.length()-1);
-        }
-        return retVal;
-    }
+    private String updateUserId;
 
-    public void setTmUsernames(String tmUsernames) {
-        if(StringUtils.isEmpty(tmUsernames)) {
-            return;
-        }
-        String[] tmUsernameStrArr = tmUsernames.split(",");
-        for(String tmUsernameStr : tmUsernameStrArr) {
-            if(StringUtils.isEmpty(tmUsernameStr)) {
-                continue;
-            }
-            getTmUsernameList().add(tmUsernameStr);
-        }
-    }
+    private String updateUserName;
 
-    public List<String> getHarborProjectList() {
-        if(harborProjectList == null) {
-            harborProjectList = new ArrayList<String>();
-        }
-        return harborProjectList;
-    }
+    private String createUserAccount;
 
-    public void setHarborProjectList(List<String> harborProjectList) {
-        this.harborProjectList = harborProjectList;
-    }
+    private String createUserId;
 
-    public String getHarborProjects() {
-        if(CollectionUtils.isEmpty(harborProjectList)) {
-            return "";
-        }
-        StringBuilder s = new StringBuilder();
-        for(String harborProject : harborProjectList) {
-            s.append(harborProject);
-            s.append(",");
-        }
-        String retVal = s.toString();
-        if (retVal.length() > 1){
-            retVal = retVal.substring(0, retVal.length()-1);
-        }
-        return retVal;
-    }
+    private String createUserName;
 
-    public void setHarborProjects(String harborProjects) {
-        if(StringUtils.isEmpty(harborProjects)) {
-            return;
-        }
-        String[] harborProjectStrArr = harborProjects.split(",");
-        for(String harborProjectStr : harborProjectStrArr) {
-            if(StringUtils.isEmpty(harborProjectStr)) {
-                continue;
-            }
-            getHarborProjectList().add(harborProjectStr);
-        }
-    }
+    private String aliasName;
 
-    public String getNetworkIds() {
-        if(CollectionUtils.isEmpty(networkIdList)) {
-            return "";
-        }
-        StringBuilder s = new StringBuilder();
-        for(String networkId : networkIdList) {
-            s.append(networkId);
-            s.append(",");
-        }
-        String retVal = s.toString();
-        if (retVal.length() > 1){
-            retVal = retVal.substring(0, retVal.length()-1);
-        }
-        return retVal;
-    }
+    private String reserve1;
 
-    public void setNetworkIds(String networkIds) {
-        if(StringUtils.isEmpty(networkIds)) {
-            return;
-        }
-        String[] networkIdStrArr = networkIds.split(",");
-        for(String networkIdStr : networkIdStrArr) {
-            if(StringUtils.isEmpty(networkIdStr)) {
-                continue;
-            }
-            getNetworkIdList().add(networkIdStr);
-        }
-    }
+    private String reserve2;
 
-    public List<String> getNetworkIdList() {
-        if(networkIdList == null) {
-            networkIdList = new ArrayList<String>();
-        }
-        return networkIdList;
-    }
-
-    public void setNetworkIdList(List<String> networkIdList) {
-        this.networkIdList = networkIdList;
-    }
-
-    public String getK8sPvs() {
-        if(CollectionUtils.isEmpty(k8sPvList)) {
-            return "";
-        }
-        StringBuilder s = new StringBuilder();
-        for(String k8sPv : k8sPvList) {
-            s.append(k8sPv);
-            s.append(",");
-        }
-        String retVal = s.toString();
-        if (retVal.length() > 1){
-            retVal = retVal.substring(0, retVal.length()-1);
-        }
-        return retVal;
-    }
-
-    public void setK8sPvs(String k8sPvs) {
-        if(StringUtils.isEmpty(k8sPvs)) {
-            return;
-        }
-        String[] k8sPvsStrArr = k8sPvs.split(",");
-        for(String k8sPvsStr : k8sPvsStrArr) {
-            if(StringUtils.isEmpty(k8sPvsStr)) {
-                continue;
-            }
-            getK8sPvList().add(k8sPvsStr);
-        }
-    }
-
-    public List<String> getK8sPvList() {
-        if(k8sPvList == null) {
-            k8sPvList = new ArrayList<String>();
-        }
-        return k8sPvList;
-    }
-
-    public void setK8sPvList(List<String> k8sPvList) {
-        this.k8sPvList = k8sPvList;
-    }
-
-    public String getK8sNamespaces() {
-        if(CollectionUtils.isEmpty(k8sNamespaceList)) {
-            return "";
-        }
-        StringBuilder s = new StringBuilder();
-        for(String k8sNamespace : k8sNamespaceList) {
-            s.append(k8sNamespace);
-            s.append(",");
-        }
-        String retVal = s.toString();
-        if (retVal.length() > 1){
-            retVal = retVal.substring(0, retVal.length()-1);
-        }
-        return retVal;
-    }
-
-    public void setK8sNamespaces(String k8sNamespaces) {
-        if(StringUtils.isEmpty(k8sNamespaces)) {
-            return;
-        }
-        String[] k8sNamespaceStrArr = k8sNamespaces.split(",");
-        for(String k8sNamespaceStr : k8sNamespaceStrArr) {
-            if(StringUtils.isEmpty(k8sNamespaceStr)) {
-                continue;
-            }
-            getK8sNamespaceList().add(k8sNamespaceStr);
-        }
-    }
-
-    public List<String> getK8sNamespaceList() {
-        if(k8sNamespaceList == null) {
-            k8sNamespaceList = new ArrayList<String>();
-        }
-        return k8sNamespaceList;
-    }
-
-    public void setK8sNamespaceList(List<String> k8sNamespaceList) {
-        this.k8sNamespaceList = k8sNamespaceList;
-    }
+    private static final long serialVersionUID = 1L;
 
     public Integer getId() {
         return id;
@@ -255,6 +46,14 @@ public class TenantBinding  implements Serializable{
 
     public void setId(Integer id) {
         this.id = id;
+    }
+
+    public String getTenantSystemCode() {
+        return tenantSystemCode;
+    }
+
+    public void setTenantSystemCode(String tenantSystemCode) {
+        this.tenantSystemCode = tenantSystemCode == null ? null : tenantSystemCode.trim();
     }
 
     public String getTenantId() {
@@ -271,6 +70,14 @@ public class TenantBinding  implements Serializable{
 
     public void setTenantName(String tenantName) {
         this.tenantName = tenantName == null ? null : tenantName.trim();
+    }
+
+    public String getTmUsernames() {
+        return tmUsernames;
+    }
+
+    public void setTmUsernames(String tmUsernames) {
+        this.tmUsernames = tmUsernames == null ? null : tmUsernames.trim();
     }
 
     public Date getCreateTime() {
@@ -297,11 +104,130 @@ public class TenantBinding  implements Serializable{
         this.annotation = annotation == null ? null : annotation.trim();
     }
 
-    public Integer getClusterId() {
-        return clusterId;
+    public String getUpdateUserAccount() {
+        return updateUserAccount;
     }
 
-    public void setClusterId(Integer clusterId) {
-        this.clusterId = clusterId;
+    public void setUpdateUserAccount(String updateUserAccount) {
+        this.updateUserAccount = updateUserAccount == null ? null : updateUserAccount.trim();
+    }
+
+    public String getUpdateUserId() {
+        return updateUserId;
+    }
+
+    public void setUpdateUserId(String updateUserId) {
+        this.updateUserId = updateUserId == null ? null : updateUserId.trim();
+    }
+
+    public String getUpdateUserName() {
+        return updateUserName;
+    }
+
+    public void setUpdateUserName(String updateUserName) {
+        this.updateUserName = updateUserName == null ? null : updateUserName.trim();
+    }
+
+    public String getCreateUserAccount() {
+        return createUserAccount;
+    }
+
+    public void setCreateUserAccount(String createUserAccount) {
+        this.createUserAccount = createUserAccount == null ? null : createUserAccount.trim();
+    }
+
+    public String getCreateUserId() {
+        return createUserId;
+    }
+
+    public void setCreateUserId(String createUserId) {
+        this.createUserId = createUserId == null ? null : createUserId.trim();
+    }
+
+    public String getCreateUserName() {
+        return createUserName;
+    }
+
+    public void setCreateUserName(String createUserName) {
+        this.createUserName = createUserName == null ? null : createUserName.trim();
+    }
+
+    public String getAliasName() {
+        return aliasName;
+    }
+
+    public void setAliasName(String aliasName) {
+        this.aliasName = aliasName == null ? null : aliasName.trim();
+    }
+
+    public String getReserve1() {
+        return reserve1;
+    }
+
+    public void setReserve1(String reserve1) {
+        this.reserve1 = reserve1 == null ? null : reserve1.trim();
+    }
+
+    public String getReserve2() {
+        return reserve2;
+    }
+
+    public void setReserve2(String reserve2) {
+        this.reserve2 = reserve2 == null ? null : reserve2.trim();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+        if (this == that) {
+            return true;
+        }
+        if (that == null) {
+            return false;
+        }
+        if (getClass() != that.getClass()) {
+            return false;
+        }
+        TenantBinding other = (TenantBinding) that;
+        return (this.getId() == null ? other.getId() == null : this.getId().equals(other.getId()))
+            && (this.getTenantSystemCode() == null ? other.getTenantSystemCode() == null : this.getTenantSystemCode().equals(other.getTenantSystemCode()))
+            && (this.getTenantId() == null ? other.getTenantId() == null : this.getTenantId().equals(other.getTenantId()))
+            && (this.getTenantName() == null ? other.getTenantName() == null : this.getTenantName().equals(other.getTenantName()))
+            && (this.getTmUsernames() == null ? other.getTmUsernames() == null : this.getTmUsernames().equals(other.getTmUsernames()))
+            && (this.getCreateTime() == null ? other.getCreateTime() == null : this.getCreateTime().equals(other.getCreateTime()))
+            && (this.getUpdateTime() == null ? other.getUpdateTime() == null : this.getUpdateTime().equals(other.getUpdateTime()))
+            && (this.getAnnotation() == null ? other.getAnnotation() == null : this.getAnnotation().equals(other.getAnnotation()))
+            && (this.getUpdateUserAccount() == null ? other.getUpdateUserAccount() == null : this.getUpdateUserAccount().equals(other.getUpdateUserAccount()))
+            && (this.getUpdateUserId() == null ? other.getUpdateUserId() == null : this.getUpdateUserId().equals(other.getUpdateUserId()))
+            && (this.getUpdateUserName() == null ? other.getUpdateUserName() == null : this.getUpdateUserName().equals(other.getUpdateUserName()))
+            && (this.getCreateUserAccount() == null ? other.getCreateUserAccount() == null : this.getCreateUserAccount().equals(other.getCreateUserAccount()))
+            && (this.getCreateUserId() == null ? other.getCreateUserId() == null : this.getCreateUserId().equals(other.getCreateUserId()))
+            && (this.getCreateUserName() == null ? other.getCreateUserName() == null : this.getCreateUserName().equals(other.getCreateUserName()))
+            && (this.getAliasName() == null ? other.getAliasName() == null : this.getAliasName().equals(other.getAliasName()))
+            && (this.getReserve1() == null ? other.getReserve1() == null : this.getReserve1().equals(other.getReserve1()))
+            && (this.getReserve2() == null ? other.getReserve2() == null : this.getReserve2().equals(other.getReserve2()));
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((getId() == null) ? 0 : getId().hashCode());
+        result = prime * result + ((getTenantSystemCode() == null) ? 0 : getTenantSystemCode().hashCode());
+        result = prime * result + ((getTenantId() == null) ? 0 : getTenantId().hashCode());
+        result = prime * result + ((getTenantName() == null) ? 0 : getTenantName().hashCode());
+        result = prime * result + ((getTmUsernames() == null) ? 0 : getTmUsernames().hashCode());
+        result = prime * result + ((getCreateTime() == null) ? 0 : getCreateTime().hashCode());
+        result = prime * result + ((getUpdateTime() == null) ? 0 : getUpdateTime().hashCode());
+        result = prime * result + ((getAnnotation() == null) ? 0 : getAnnotation().hashCode());
+        result = prime * result + ((getUpdateUserAccount() == null) ? 0 : getUpdateUserAccount().hashCode());
+        result = prime * result + ((getUpdateUserId() == null) ? 0 : getUpdateUserId().hashCode());
+        result = prime * result + ((getUpdateUserName() == null) ? 0 : getUpdateUserName().hashCode());
+        result = prime * result + ((getCreateUserAccount() == null) ? 0 : getCreateUserAccount().hashCode());
+        result = prime * result + ((getCreateUserId() == null) ? 0 : getCreateUserId().hashCode());
+        result = prime * result + ((getCreateUserName() == null) ? 0 : getCreateUserName().hashCode());
+        result = prime * result + ((getAliasName() == null) ? 0 : getAliasName().hashCode());
+        result = prime * result + ((getReserve1() == null) ? 0 : getReserve1().hashCode());
+        result = prime * result + ((getReserve2() == null) ? 0 : getReserve2().hashCode());
+        return result;
     }
 }

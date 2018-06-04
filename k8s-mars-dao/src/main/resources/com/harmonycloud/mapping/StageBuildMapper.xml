@@ -7,22 +7,47 @@
         <result column="stage_id" jdbcType="INTEGER" property="stageId" />
         <result column="stage_name" jdbcType="VARCHAR" property="stageName" />
         <result column="stage_order" jdbcType="INTEGER" property="stageOrder" />
+        <result column="stage_type_id" jdbcType="INTEGER" property="stageTypeId" />
         <result column="stage_type" jdbcType="VARCHAR" property="stageType" />
+        <result column="stage_template_type_id" jdbcType="INTEGER" property="stageTemplateTypeId" />
         <result column="build_num" jdbcType="VARCHAR" property="buildNum" />
         <result column="status" jdbcType="VARCHAR" property="status" />
         <result column="start_time" jdbcType="TIMESTAMP" property="startTime" />
         <result column="duration" jdbcType="VARCHAR" property="duration" />
         <result column="log" jdbcType="VARCHAR" property="log" />
         <result column="image" jdbcType="VARCHAR" property="image"/>
+        <result column="test_result" jdbcType="VARCHAR" property="testResult"/>
+        <result column="test_url" jdbcType="VARCHAR" property="testUrl"/>
     </resultMap>
 
+    <sql id="Base_Column_List">
+        id,job_id,stage_id,stage_name,stage_order,stage_type_id,stage_type,stage_template_type_id,build_num,status,start_time,duration,image,test_result,test_url
+    </sql>
+    <sql id="Where_Clause">
+        <trim prefix="where" prefixOverrides="and">
+            <if test="jobId!=null">
+                AND job_id=#{jobId}
+            </if>
+            <if test="stageId!=null">
+                AND stage_id=#{stageId}
+            </if>
+            <if test="buildNum!=null">
+                AND build_num=#{buildNum}
+            </if>
+            <if test="status!=null">
+                AND status=#{status}
+            </if>
+            <if test="stageOrder!=null">
+                AND stage_order=#{stageOrder}
+            </if>
+        </trim>
+    </sql>
+
     <select id="queryByObject" resultMap="BaseResultMap">
-        SELECT id,job_id,stage_id,stage_name,stage_order,stage_type,build_num,status,start_time,duration,log,image
+        SELECT
+        <include refid="Base_Column_List" />
         FROM cicd_stage_build
-        WHERE 1=1
-        <if test="jobId!=null and jobId!=''"> AND job_id=#{jobId} </if>
-        <if test="stageId!=null and stageId!=''"> AND stage_id=#{stageId} </if>
-        <if test="buildNum!=null and buildNum!=''"> AND build_num=#{buildNum} </if>
+        <include refid="Where_Clause" />
         ORDER BY build_num DESC
     </select>
 
@@ -30,26 +55,41 @@
     <select id="countByObject" resultType="java.lang.Integer">
         SELECT count(1)
         FROM cicd_stage_build
-        WHERE 1=1
-        <if test="jobId!=null and jobId!=''"> AND job_id=#{jobId} </if>
-        <if test="stageId!=null and stageId!=''"> AND stage_id=#{stageId} </if>
-        <if test="buildNum!=null and buildNum!=''"> AND build_num=#{buildNum} </if>
+        <trim prefix="where" prefixOverrides="and">
+            <if test="jobId!=null">
+                AND job_id=#{jobId}
+            </if>
+            <if test="stageId!=null">
+                AND stage_id=#{stageId}
+            </if>
+            <if test="buildNum!=null">
+                AND build_num=#{buildNum}
+            </if>
+        </trim>
     </select>
 
     <select id="queryByObjectWithPagination" resultMap="BaseResultMap">
-        SELECT id,job_id,stage_id,stage_name,stage_order,stage_type,build_num,status,start_time,duration,log,image
+        SELECT
+        <include refid="Base_Column_List" />
         FROM cicd_stage_build
-        WHERE 1=1
-        <if test="stageBuild.jobId!=null and stageBuild.jobId!=''"> AND job_id=#{stageBuild.jobId} </if>
-        <if test="stageBuild.stageId!=null and stageBuild.stageId!=''"> AND stage_id=#{stageBuild.stageId} </if>
-        <if test="stageBuild.buildNum!=null and stageBuild.buildNum!=''"> AND build_num=#{stageBuild.buildNum} </if>
+        <trim prefix="where" prefixOverrides="and">
+            <if test="stageBuild.jobId!=null">
+                AND job_id=#{stageBuild.jobId}
+            </if>
+            <if test="stageBuild.stageId!=null">
+                AND stage_id=#{stageBuild.stageId}
+            </if>
+            <if test="stageBuild.buildNum!=null">
+                AND build_num=#{stageBuild.buildNum}
+            </if>
+        </trim>
         ORDER BY build_num DESC
         LIMIT #{offset},#{rows}
     </select>
 
     <insert id="insert" parameterType="com.harmonycloud.dao.ci.bean.StageBuild">
-        INSERT INTO cicd_stage_build(job_id,stage_id,stage_name,stage_order,stage_type,build_num,status,start_time,image)
-        VALUE(#{jobId},#{stageId},#{stageName},#{stageOrder},#{stageType},#{buildNum},#{status},#{startTime},#{image})
+        INSERT INTO cicd_stage_build(job_id,stage_id,stage_name,stage_order,stage_type_id,stage_type,stage_template_type_id,build_num,status,start_time,image)
+        VALUE(#{jobId},#{stageId},#{stageName},#{stageOrder},#{stageTypeId},#{stageType},#{stageTemplateTypeId},#{buildNum},#{status},#{startTime},#{image})
     </insert>
 
     <update id="updateByStageOrderAndBuildNum">
@@ -59,7 +99,7 @@
         status = #{stageBuild.status},
         log = #{stageBuild.log}
         <if test="stageBuild.image!=null and stageBuild.image !=''">
-        ,image=#{stageBuild.image}
+            ,image=#{stageBuild.image}
         </if>
         WHERE job_id = #{stageBuild.jobId}
         AND stage_order = #{stageBuild.stageOrder}
@@ -77,5 +117,76 @@
     <delete id="deleteByJobId" parameterType="java.lang.Integer">
         DELETE FROM cicd_stage_build
         WHERE job_id=#{id}
+    </delete>
+
+    <update id="updateByStageIdAndBuildNum" parameterType="com.harmonycloud.dao.ci.bean.StageBuild">
+        UPDATE cicd_stage_build
+        <set>
+            <if test="jobId != null">
+                job_id = #{jobId},
+            </if>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="startTime != null">
+                start_time = #{startTime},
+            </if>
+            <if test="duration != null">
+                duration = #{duration},
+            </if>
+            <if test="stageName != null">
+                stage_name = #{stageName},
+            </if>
+            <if test="stageOrder != null">
+                stage_order = #{stageOrder},
+            </if>
+            <if test="stageTypeId != null">
+                stage_type_id = #{stageTypeId},
+            </if>
+            <if test="stageType != null">
+                stage_type = #{stageType},
+            </if>
+            <if test="image != null">
+                image = #{image},
+            </if>
+            <if test="testResult != null">
+                test_result = #{testResult},
+            </if>
+            <if test="testUrl != null">
+                test_url = #{testUrl},
+            </if>
+        </set>
+        WHERE stage_id = #{stageId}
+        AND build_num = #{buildNum}
+    </update>
+
+    <select id="queryLogByObject" resultType="java.lang.String">
+        SELECT log FROM cicd_stage_build
+        <include refid="Where_Clause" />
+    </select>
+
+    <select id="selectLastBuildById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List" />
+        FROM cicd_stage_build
+        WHERE stage_id = #{stageId}
+        ORDER BY build_num DESC LIMIT 1
+    </select>
+
+    <update id="updateStageLog">
+        UPDATE cicd_stage_build
+        SET log = #{stageBuild.log}
+        WHERE job_id = #{stageBuild.jobId}
+        AND stage_order = #{stageBuild.stageOrder}
+        AND build_num = #{stageBuild.buildNum}
+    </update>
+
+    <delete id="deleteByJobIdAndBuildNum">
+        DELETE FROM cicd_stage_build
+        WHERE job_id=#{jobId}
+        AND build_num in
+        <foreach collection="buildNumList" item="item" open="(" close=")" separator="," >
+            #{item}
+        </foreach>
     </delete>
 </mapper>

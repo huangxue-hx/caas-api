@@ -2,6 +2,7 @@ package com.harmonycloud.dao.tenant;
 
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.TenantBindingExample;
+
 import java.util.List;
 
 public interface TenantBindingMapper {
@@ -20,15 +21,4 @@ public interface TenantBindingMapper {
     int updateByPrimaryKeySelective(TenantBinding record);
 
     int updateByPrimaryKey(TenantBinding record);
-
-    List<String> selectByTenanantName(String tenantName);
-
-    List<TenantBinding> selectTenantsByUserName(String name);
-
-    List<TenantBinding> selectAllTenantNames();
-    
-    int deleteByTenantid(String tenantid);
-    
-    int updateBytenantIdSelective(TenantBinding record);
-
 }

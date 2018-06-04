@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.harmonycloud.dao.cluster.NodeDrainProgressMapper">
+	<resultMap id="BaseResultMap"
+		type="com.harmonycloud.dao.cluster.bean.NodeDrainProgress">
+		<id column="id" property="id" jdbcType="INTEGER" />
+		<result column="node_name" property="nodeName" jdbcType="VARCHAR" />
+		<result column="status" property="status" jdbcType="VARCHAR" />
+		<result column="progress" property="progress" jdbcType="VARCHAR" />
+		<result column="cluster_id" property="clusterId" jdbcType="VARCHAR" />
+		<result column="error_msg" property="errorMsg" jdbcType="VARCHAR" />
+		<result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
+		<result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
+		<result column="pod_total_num" property="podTotalNum" jdbcType="INTEGER" />
+	</resultMap>
+
+	<select id="findByNodeName" resultMap="BaseResultMap">
+		select * from node_drain_progress where
+		node_name=#{nodeName} and cluster_id = #{clusterId} order by create_time desc limit 1
+	</select>
+
+	<insert id="insertDrainProgress" parameterType="com.harmonycloud.dao.cluster.bean.NodeDrainProgress">
+		insert into node_drain_progress
+		<trim prefix="(" suffix=")" suffixOverrides=",">
+			<if test="id != null">
+				id,
+			</if>
+			<if test="nodeName != null">
+				node_name,
+			</if>
+			<if test="status != null">
+				status,
+			</if>
+			<if test="podTotalNum != null">
+				pod_total_num,
+			</if>
+			<if test="progress != null">
+				progress,
+			</if>
+			<if test="clusterId != null">
+				cluster_id,
+			</if>
+			<if test="errorMsg != null">
+				error_msg,
+			</if>
+			<if test="createTime != null">
+				create_time
+			</if>
+		</trim>
+		<trim prefix="values (" suffix=")" suffixOverrides=",">
+			<if test="id != null">
+				#{id,jdbcType=INTEGER},
+			</if>
+			<if test="nodeName != null">
+				#{nodeName,jdbcType=VARCHAR},
+			</if>
+			<if test="status != null">
+				#{status,jdbcType=VARCHAR},
+			</if>
+			<if test="podTotalNum != null">
+				#{podTotalNum},
+			</if>
+			<if test="progress != null">
+				#{progress,jdbcType=VARCHAR},
+			</if>
+			<if test="clusterId != null">
+				#{clusterId,jdbcType=VARCHAR},
+			</if>
+			<if test="errorMsg != null">
+				#{errorMsg,jdbcType=VARCHAR},
+			</if>
+			<if test="createTime != null">
+				#{createTime,jdbcType=TIMESTAMP},
+			</if>
+		</trim>
+		<selectKey resultType="java.lang.Integer" order="AFTER"
+			keyProperty="id">
+			SELECT LAST_INSERT_ID() AS id
+		</selectKey>
+	</insert>
+
+	<update id="updateDrainProgress" parameterType="com.harmonycloud.dao.cluster.bean.NodeDrainProgress">
+		update node_drain_progress
+		<trim prefix="set" suffixOverrides=",">
+			<if test="id != null">id = #{id},</if>
+			<if test="nodeName != null">node_name = #{nodeName},</if>
+			<if test="status != null">status = #{status},</if>
+			<if test="podTotalNum != null">pod_total_num = #{podTotalNum},</if>
+			<if test="progress != null">progress = #{progress},</if>
+			<if test="clusterId != null">cluster_id = #{clusterId},</if>
+			<if test="errorMsg != null">error_msg = #{errorMsg},</if>
+			<if test="updateTime != null">update_time = #{updateTime}</if>
+		</trim>
+		WHERE id=#{id}
+	</update>
+
+
+</mapper>

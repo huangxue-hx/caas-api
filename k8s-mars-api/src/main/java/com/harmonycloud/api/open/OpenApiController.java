@@ -1,8 +1,7 @@
 package com.harmonycloud.api.open;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
-import com.harmonycloud.dao.user.bean.User;
+import com.harmonycloud.dto.config.ControllerUrlMapping;
 import com.harmonycloud.dto.container.ContainerBriefDto;
 import com.harmonycloud.dto.event.EventBriefDto;
 import com.harmonycloud.k8s.bean.Event;
@@ -10,10 +9,14 @@ import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.EventService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.cluster.LoadbalanceService;
-import com.harmonycloud.service.platform.bean.ContainerOfPodDetail;
+import com.harmonycloud.service.platform.bean.ContainerWithStatus;
 import com.harmonycloud.service.platform.bean.KubeModuleStatus;
+import com.harmonycloud.service.platform.bean.PodDetail;
 import com.harmonycloud.service.platform.service.PodService;
 import com.harmonycloud.service.platform.service.ci.JobService;
+import com.harmonycloud.service.system.ApiService;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.user.UrlDicService;
 import com.harmonycloud.service.user.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,11 +24,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-
+import org.springframework.web.bind.annotation.*;
+import javax.servlet.http.HttpServletRequest;
 import java.util.*;
+import java.util.stream.Collectors;
 
 
 /**
@@ -54,7 +56,12 @@ public class OpenApiController {
     
     @Autowired
     LoadbalanceService loadbalanceService;
-
+    @Autowired
+	NamespaceLocalService namespaceLocalService;
+	@Autowired
+	UrlDicService urlDicService;
+	@Autowired
+	ApiService apiService;
 	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -65,30 +72,24 @@ public class OpenApiController {
 	 * @return
 	 */
 	@RequestMapping(value = "/namespace/containers", method = RequestMethod.GET)
-	public ResponseEntity<List<ContainerBriefDto>> getContainerList(@RequestParam(value = "tenantId") String tenantId,
-																	@RequestParam(value = "namespace") String namespace)
+	public ResponseEntity<List<ContainerBriefDto>> getContainerList(@RequestParam(value = "namespace") String namespace)
 			throws Exception {
 
-		Cluster cluster = clusterService.findClusterByTenantId(tenantId);
-		if(cluster == null){
-			logger.info("未找到租户对应的集群信息,tenantId:{}", tenantId);
-			return new ResponseEntity("未找到租户对应的集群信息", HttpStatus.BAD_REQUEST);
-		}
-		User user = userService.getUser("admin");
-		Map<String, Object> headers  = new HashMap<>();
-		headers.put("Authorization", "Bearer " + user.getToken());
-		ActionReturnUtil result = dpService.namespaceContainer(namespace, cluster, headers);
-		if((boolean)result.get("success")){
-			List<ContainerBriefDto> containers = new ArrayList<>();
-			List<ContainerOfPodDetail> containerOfPodDetails = (List<ContainerOfPodDetail>)result.get("data");
-			for(ContainerOfPodDetail containerOfPodDetail : containerOfPodDetails){
-				containers.add(new ContainerBriefDto(containerOfPodDetail.getName(),
-						containerOfPodDetail.getDeploymentName()));
-			}
-			return new ResponseEntity(containers, HttpStatus.OK);
-		}else{
+		ActionReturnUtil result = dpService.podList(null, namespace);
+		if(!result.isSuccess()){
 			return new ResponseEntity("查找失败", HttpStatus.INTERNAL_SERVER_ERROR);
 		}
+		List<ContainerBriefDto> containers = new ArrayList<>();
+		List<PodDetail> podDetails = (List<PodDetail>)result.getData();
+		Map<String,List<PodDetail>> podMap = podDetails.stream().collect(Collectors.groupingBy(PodDetail::getDeployment));
+		for(Map.Entry<String,List<PodDetail>> entry : podMap.entrySet()){
+			ContainerBriefDto containerBriefDto = new ContainerBriefDto();
+			containerBriefDto.setDeploymentName(entry.getKey());
+			containerBriefDto.setPods(entry.getValue().stream().map(PodDetail::getName).collect(Collectors.toList()));
+			containerBriefDto.setContainers(entry.getValue().get(0).getContainers().stream().map(ContainerWithStatus::getName).collect(Collectors.toList()));
+			containers.add(containerBriefDto);
+		}
+		return new ResponseEntity(containers, HttpStatus.OK);
 	}
 
 	/**
@@ -115,7 +116,11 @@ public class OpenApiController {
 			return new ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-
+	@RequestMapping(value = "/getUrlDic", method = RequestMethod.GET)
+	public ResponseEntity<List<EventBriefDto>> getUrlDic() throws Exception{
+		Map urlMap = urlDicService.getUrlMap();
+		return new ResponseEntity(urlMap, HttpStatus.OK);
+	}
 	/**
 	 * 查询所有集群下kube-system核心组件的状态和重启等信息
 	 * @return
@@ -131,7 +136,7 @@ public class OpenApiController {
 	}
 
     @RequestMapping(value = "/cicd/preBuild", method = RequestMethod.GET)
-    public ResponseEntity preBuild(@RequestParam(value = "id")Integer id, @RequestParam(value = "buildNum")Integer buildNum, @RequestParam(value="dateTime")String dateTime){
+    public ResponseEntity preBuild(@RequestParam(value = "id")Integer id, @RequestParam(value = "buildNum")Integer buildNum, @RequestParam(value="dateTime")String dateTime) throws Exception{
         jobService.preBuild(id, buildNum, dateTime);
         return new ResponseEntity(HttpStatus.OK);
     }
@@ -143,20 +148,17 @@ public class OpenApiController {
     }
 
     @RequestMapping(value = "/cicd/stageSync", method = RequestMethod.GET)
-    public ResponseEntity stageSync(@RequestParam(value = "id")Integer id, @RequestParam(value = "buildNum")Integer buildNum){
+    public ResponseEntity syncStage(@RequestParam(value = "id")Integer id, @RequestParam(value = "buildNum")Integer buildNum){
         jobService.stageSync(id, buildNum);
         return new ResponseEntity(HttpStatus.OK);
     }
 
-    @RequestMapping(value = "/cicd/deploy", method = RequestMethod.GET)
-    public ResponseEntity deploy(@RequestParam(value = "buildNum")Integer buildNum, @RequestParam(value = "stageId")Integer stageId){
-        try {
-            jobService.deploy(stageId, buildNum);
-        } catch (Exception e) {
-            return new ResponseEntity(e.getMessage(),HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    @RequestMapping(value = "/cicdjobs/stages/{stageId}", method = RequestMethod.GET)
+    public ResponseEntity runStage(@RequestParam(value = "buildNum")Integer buildNum, @PathVariable("stageId")Integer stageId) throws Exception{
+		jobService.runStage(stageId, buildNum);
         return new ResponseEntity(HttpStatus.OK);
     }
+
     
     @RequestMapping(value="/app/stats", method = RequestMethod.GET)
     public ResponseEntity getStatsOfService(@RequestParam(value = "app") String app, @RequestParam(value = "namespace") String namespace) {
@@ -167,5 +169,18 @@ public class OpenApiController {
 			return new ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
     }
+
+	/**
+	 * 获取平台所有的controller接口信息
+	 * @param request
+	 * @return
+	 * @throws Exception
+	 */
+	@ResponseBody
+	@RequestMapping(value="/urlmapping", method = RequestMethod.GET)
+	public Map<String, ControllerUrlMapping> getUrlMapping(@RequestParam(value = "order",required = false) String order,
+														   HttpServletRequest request) throws Exception{
+		return apiService.generateUrlMapping(order, request);
+	}
 
 }

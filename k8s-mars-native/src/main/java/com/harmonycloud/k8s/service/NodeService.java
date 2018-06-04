@@ -6,7 +6,9 @@ import java.util.List;
 import java.util.Map;
 
 import com.harmonycloud.common.Constant.CommonConstant;
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.harmonycloud.common.util.HttpStatusUtil;
@@ -23,11 +25,13 @@ import com.harmonycloud.k8s.util.K8SURL;
 @Service
 public class NodeService {
 
-	public K8SClientResponse getSpecifyNode(String namespace, String name, Map<String, Object> headers,
-			Map<String, Object> bodys, String method) throws Exception {
+	private static Logger LOG = LoggerFactory.getLogger(NodeService.class);
+
+	public K8SClientResponse getSpecifyNode(String name, Map<String, Object> headers,
+			Map<String, Object> bodys, String method, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
-		url.setNamespace(namespace).setResource(Resource.NODE).setName(name);
-		K8SClientResponse response = new K8sMachineClient().exec(url, method, headers, bodys,null);
+		url.setResource(Resource.NODE).setName(name);
+		K8SClientResponse response = new K8sMachineClient().exec(url, method, headers, bodys,cluster);
 		return response;
 	}
 
@@ -54,10 +58,10 @@ public class NodeService {
 		}
 		return null;
 	}
-	public NodeList listNodeByLabel(Map<String, Object> headers,Map<String, Object> bodys) {
+	public NodeList listNodeByLabel(Map<String, Object> headers,Map<String, Object> bodys, Cluster cluster) {
         K8SURL url = new K8SURL();
         url.setResource(Resource.NODE);
-        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, headers, bodys);
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, headers, bodys, cluster);
         if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             NodeList nodeList = K8SClient.converToBean(response, NodeList.class);
             return nodeList;
@@ -125,6 +129,7 @@ public class NodeService {
 			NodeList nodeList = K8SClient.converToBean(response, NodeList.class);
 			return nodeList;
 		}
+		LOG.error("list node error:" + response.getBody());
 		return null;
 	}
 
@@ -154,6 +159,16 @@ public class NodeService {
 							&& node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
 						list.add(node.getMetadata().getName());
 					}
+
+					if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
+							&& node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_D)) {
+						list.add(node.getMetadata().getName());
+					}
+
+					/*if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
+							&& node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_E)){
+						list.add(node.getMetadata().getName());
+					}*/
 
 					if (labels.get(CommonConstant.MASTERNODELABEL) != null) {
 						list.add(node.getMetadata().getName());

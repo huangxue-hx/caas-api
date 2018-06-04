@@ -2,6 +2,11 @@ package com.harmonycloud.k8s.bean;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+@JsonInclude(value=JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class HTTPGetAction {
 	
 	private String path;
@@ -14,6 +19,7 @@ public class HTTPGetAction {
 	
 	private String host;
 	
+	private List<HTTPHeader> httpHeaders;
 	
 	public String getHost() {
 		return host;
@@ -22,8 +28,6 @@ public class HTTPGetAction {
 	public void setHost(String host) {
 		this.host = host;
 	}
-
-	private List<HTTPHeader> httpHeaders;
 
 	public String getPath() {
 		return path;

@@ -20,7 +20,8 @@ public class Stage  implements Serializable{
     private String repositoryBranch;
     private String credentialsUsername;
     private String credentialsPassword;
-    private String buildEnvironment;
+    private boolean environmentChange;
+    private Integer buildEnvironmentId;
     private String environmentVariables;
     private boolean useDependency;
     private String dependences;
@@ -28,17 +29,29 @@ public class Stage  implements Serializable{
     private String baseImage;
     private Integer dockerfileId;
     private String dockerfilePath;
+    private String imageType;
     private String imageName;
     private String imageTagType;
     private String imageBaseTag;
     private String imageIncreaseTag;
     private String imageTag;
     private String harborProject;
+    private String deployType;
     private String namespace;
+    private Integer originStageId;
+    private String serviceTemplateName;
+    private String serviceTemplateTag;
     private String serviceName;
     private String containerName;
+    private String configuration;
+    private Integer maxSurge;
+    private Integer maxUnavailable;
+    private Integer instances;
     private String command;
+    private String suiteId;
+    private String createUser;
     private Date createTime;
+    private String updateUser;
     private Date updateTime;
 
     public Integer getId() {
@@ -145,12 +158,20 @@ public class Stage  implements Serializable{
         this.credentialsPassword = credentialsPassword;
     }
 
-    public String getBuildEnvironment() {
-        return buildEnvironment;
+    public boolean isEnvironmentChange() {
+        return environmentChange;
     }
 
-    public void setBuildEnvironment(String buildEnvironment) {
-        this.buildEnvironment = buildEnvironment;
+    public void setEnvironmentChange(boolean environmentChange) {
+        this.environmentChange = environmentChange;
+    }
+
+    public Integer getBuildEnvironmentId() {
+        return buildEnvironmentId;
+    }
+
+    public void setBuildEnvironmentId(Integer buildEnvironmentId) {
+        this.buildEnvironmentId = buildEnvironmentId;
     }
 
     public String getEnvironmentVariables() {
@@ -209,6 +230,14 @@ public class Stage  implements Serializable{
         this.dockerfilePath = dockerfilePath;
     }
 
+    public String getImageType() {
+        return imageType;
+    }
+
+    public void setImageType(String imageType) {
+        this.imageType = imageType;
+    }
+
     public String getImageName() {
         return imageName;
     }
@@ -257,12 +286,44 @@ public class Stage  implements Serializable{
         this.harborProject = harborProject;
     }
 
+    public String getDeployType() {
+        return deployType;
+    }
+
+    public void setDeployType(String deployType) {
+        this.deployType = deployType;
+    }
+
     public String getNamespace() {
         return namespace;
     }
 
     public void setNamespace(String namespace) {
         this.namespace = namespace;
+    }
+
+    public Integer getOriginStageId() {
+        return originStageId;
+    }
+
+    public void setOriginStageId(Integer originStageId) {
+        this.originStageId = originStageId;
+    }
+
+    public String getServiceTemplateName() {
+        return serviceTemplateName;
+    }
+
+    public void setServiceTemplateName(String serviceTemplateName) {
+        this.serviceTemplateName = serviceTemplateName;
+    }
+
+    public String getServiceTemplateTag() {
+        return serviceTemplateTag;
+    }
+
+    public void setServiceTemplateTag(String serviceTemplateTag) {
+        this.serviceTemplateTag = serviceTemplateTag;
     }
 
     public String getServiceName() {
@@ -281,6 +342,38 @@ public class Stage  implements Serializable{
         this.containerName = containerName;
     }
 
+    public String getConfiguration() {
+        return configuration;
+    }
+
+    public void setConfiguration(String configuration) {
+        this.configuration = configuration;
+    }
+
+    public Integer getMaxSurge() {
+        return maxSurge;
+    }
+
+    public void setMaxSurge(Integer maxSurge) {
+        this.maxSurge = maxSurge;
+    }
+
+    public Integer getMaxUnavailable() {
+        return maxUnavailable;
+    }
+
+    public void setMaxUnavailable(Integer maxUnavailable) {
+        this.maxUnavailable = maxUnavailable;
+    }
+
+    public Integer getInstances() {
+        return instances;
+    }
+
+    public void setInstances(Integer instances) {
+        this.instances = instances;
+    }
+
     public String getCommand() {
         return command;
     }
@@ -289,12 +382,36 @@ public class Stage  implements Serializable{
         this.command = command;
     }
 
+    public String getSuiteId() {
+        return suiteId;
+    }
+
+    public void setSuiteId(String suiteId) {
+        this.suiteId = suiteId;
+    }
+
+    public String getCreateUser() {
+        return createUser;
+    }
+
+    public void setCreateUser(String createUser) {
+        this.createUser = createUser;
+    }
+
     public Date getCreateTime() {
         return createTime;
     }
 
     public void setCreateTime(Date createTime) {
         this.createTime = createTime;
+    }
+
+    public String getUpdateUser() {
+        return updateUser;
+    }
+
+    public void setUpdateUser(String updateUser) {
+        this.updateUser = updateUser;
     }
 
     public Date getUpdateTime() {

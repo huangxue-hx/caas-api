@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.Map.Entry;
 
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.util.date.DateUtil;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
@@ -66,7 +67,6 @@ public class ApmHttpClient {
         UrlEncodedFormEntity postEntity = new UrlEncodedFormEntity(
                 getParam(params), "UTF-8");
         httpPost.setEntity(postEntity);
-        System.out.println("request line:" + httpPost.getRequestLine());
         try {
             // 执行post请求
             CloseableHttpResponse httpResponse = httpClient.execute(httpPost);
@@ -121,7 +121,7 @@ public class ApmHttpClient {
             }
         } catch (Exception e) {
             e.printStackTrace();
-            return ActionReturnUtil.returnErrorWithData("http访问异常:"+e.getMessage());
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.HTTP_EXCUTE_FAILED, e.getMessage(), false);
         }
         return ActionReturnUtil.returnError();
     }
@@ -175,7 +175,7 @@ public class ApmHttpClient {
                 }
             }
         } catch (Exception e) {
-            return ActionReturnUtil.returnErrorWithData("http访问异常:"+e.getMessage());
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.HTTP_EXCUTE_FAILED, e.getMessage(), false);
         }
         return ActionReturnUtil.returnError();
     }

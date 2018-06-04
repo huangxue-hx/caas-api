@@ -15,7 +15,7 @@ public class ContainerStatus {
 	
 	private ContainerState lastState;
 	
-	private Boolean ready;
+	private boolean ready;
 	
 	private Integer restartCount;
 	
@@ -49,13 +49,6 @@ public class ContainerStatus {
 		this.lastState = lastState;
 	}
 
-	public Boolean getReady() {
-		return ready;
-	}
-
-	public void setReady(Boolean ready) {
-		this.ready = ready;
-	}
 
 	public Integer getRestartCount() {
 		return restartCount;
@@ -87,5 +80,13 @@ public class ContainerStatus {
 
 	public void setContainerID(String containerID) {
 		this.containerID = containerID;
+	}
+
+	public boolean isReady() {
+		return ready;
+	}
+
+	public void setReady(boolean ready) {
+		this.ready = ready;
 	}
 }

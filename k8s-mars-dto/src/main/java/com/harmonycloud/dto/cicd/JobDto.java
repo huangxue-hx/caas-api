@@ -13,8 +13,13 @@ import java.util.List;
 public class JobDto {
     private Integer id;
     private String name;
+    private String description;
+    private String pipelineName;
+    private String type;
     private String tenant;
     private String tenantId;
+    private String projectId;
+    private String clusterId;
     private boolean notification;
     private List mail;
     private boolean failNotification;
@@ -24,6 +29,7 @@ public class JobDto {
     private boolean pollScmCustomize;
     private String cronExpForPollScm;
     private List<TimeRule> pollScmTimeRule;
+    private Integer copyId;
     private String createUser;
     private String updateUser;
     private Date createTime;
@@ -45,6 +51,30 @@ public class JobDto {
         this.name = name;
     }
 
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getPipelineName() {
+        return pipelineName;
+    }
+
+    public void setPipelineName(String pipelineName) {
+        this.pipelineName = pipelineName;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
     public String getTenant() {
         return tenant;
     }
@@ -59,6 +89,22 @@ public class JobDto {
 
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
+    }
+
+    public String getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
+    }
+
+    public String getClusterId() {
+        return clusterId;
+    }
+
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
     }
 
     public boolean isNotification() {
@@ -135,6 +181,14 @@ public class JobDto {
 
     public void setPollScmTimeRule(List<TimeRule> pollScmTimeRule) {
         this.pollScmTimeRule = pollScmTimeRule;
+    }
+
+    public Integer getCopyId() {
+        return copyId;
+    }
+
+    public void setCopyId(Integer copyId) {
+        this.copyId = copyId;
     }
 
     public void setCreateUser(String createUser) {

@@ -1,5 +1,6 @@
 package com.harmonycloud.common.util.date;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,12 +26,21 @@ public class DateUtil {
      */
     public final static SimpleDateFormat noSecondFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
 
+    /**
+     * utc时间格式
+     */
+    public final static SimpleDateFormat UTC_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+
+    public static final int ONE_HOUR_MILLISECONDS = 60*60*1000;
+    public static final int ONE_MINUTE_MILLISECONDS = 60*1000;
+
     public final static String TIME_UNIT_SECOND = "s";
     public final static String TIME_UNIT_MINUTE = "m";
     public final static String TIME_UNIT_HOUR= "h";
     public final static String TIME_UNIT_DAY = "d";
 
     public static Date getCurrentUtcTime() {
+
         SimpleDateFormat adf = new SimpleDateFormat(DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
 
         StringBuffer UTCTimeBuffer = new StringBuffer();
@@ -305,7 +315,7 @@ public class DateUtil {
         if(date != null){
             try{
                 SimpleDateFormat format = getDateFormat(pattern);
-                format.setTimeZone(TimeZone.getTimeZone(timeZone));;
+                format.setTimeZone(TimeZone.getTimeZone(timeZone));
                 myDate = format.parse(date);
             }catch(Exception e){
                 LOGGER.error("转换日期失败, date:{}",date, e);
@@ -313,6 +323,19 @@ public class DateUtil {
             }
         }
         return myDate;
+    }
+
+    public static String utcToGmt(String strDate){
+        Date date = DateUtil.stringToDate(strDate, DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue(),"UTC");
+        return DateToString(date, DateStyle.YYYY_MM_DD_HH_MM_SS);
+    }
+
+    public static Date utcToGmtDate(String strDate){
+        return DateUtil.stringToDate(strDate, DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue(),"UTC");
+    }
+
+    public static int getTimeInt(Date date){
+        return (int) (date.getTime()/1000);
     }
 
     /**
@@ -589,12 +612,12 @@ public class DateUtil {
      * 
      * @param date
      *            日期
-     * @param hourAmount
+     * @param minuteAmount
      *            增加数量。可为负数
      * @return 增加分钟后的日期
      */
-    public static Date addMinute(Date date, int hourAmount){
-        return addInteger(date, Calendar.MINUTE, hourAmount);
+    public static Date addMinute(Date date, int minuteAmount){
+        return addInteger(date, Calendar.MINUTE, minuteAmount);
     }
 
     /**
@@ -972,38 +995,60 @@ public class DateUtil {
         long days = millSec / (1000 * 60 * 60 * 24);
         long hours = (millSec % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60);
         long minutes = (millSec % (1000 * 60 * 60)) / (1000 * 60);
-        double secondsD = (millSec % (1000 * 60)) / 1000.0;
-        long secondsL = (millSec % (1000 * 60)) / 1000;
-        String seconds = days > 0 || hours > 0 || minutes > 0?String.valueOf(secondsL):String.valueOf(secondsD);
-        return (days>0 ? days + "天":"") + (hours>0?hours + "小时":"") + (minutes>0? minutes + "分":"")
-                + seconds + "秒";
+        long seconds = (millSec % (1000 * 60)) / 1000;
+        return (days>0 ? days + "d":"") + (hours>0?hours + "h":"") + (minutes>0? minutes + "m":"")
+                + seconds + "s";
     }
 
     public static String getDuration(String millSecStr){
         return getDuration(Long.valueOf(millSecStr));
     }
 
-
-    public static void main(String[] args){
-//    	Long currentTime = System.currentTimeMillis();
-//    	System.out.println(LongToDate(currentTime));
-    	
-        // Date currentDate = new Date();
-        // currentDate = getZeroPoint(currentDate);
-        // //得到一天前
-        // Date dd = getLastTimeForDays(currentDate, 1);
-        // System.out.println(dd.toLocaleString());
-        // //得到前一周
-        // Date dw = getLastTimeForDays(currentDate, 7);
-        // System.out.println(dw.toLocaleString());
-        // //得到前一个月
-        // Date dm = getLastTimeForMonths(currentDate, 1);
-        // System.out.println(dm.toLocaleString());
-        // //得到前一年
-        // Date dy = getLastTimeForYears(currentDate, 1);
-        // System.out.println(dy.toLocaleString());
-        String date = DateToString(new Date(), "yyyyMMddHHmmss");
-        System.out.println(date);
-        System.out.println(getZeroPoint(new Date()));
+    public static Integer getSinceSeconds(Integer num, String timeUnit){
+        if(num == null || StringUtils.isBlank(timeUnit)){
+            return null;
+        }
+        Integer sinceSeconds = 0;
+        String unit = timeUnit.toLowerCase();
+        switch (unit){
+            case "m":
+                sinceSeconds = 60 * num;
+                break;
+            case "h":
+                sinceSeconds = 60 * 60 * num;
+                break;
+            case "d":
+                sinceSeconds = 60 * 60 * 24 * num;
+                break;
+            default:
+                sinceSeconds = 0;
+        }
+        return sinceSeconds;
     }
+
+    /**
+     * 根据时区获取带时区的日期格式
+     * @param timeZone
+     * @return
+     */
+    public static String getTimezoneFormatStyle(TimeZone timeZone){
+        int hour = timeZone.getRawOffset()/ONE_HOUR_MILLISECONDS;
+        int minute = Math.abs((timeZone.getRawOffset() - hour * ONE_HOUR_MILLISECONDS)/ONE_MINUTE_MILLISECONDS);
+        String hourMinute = hour + "";
+        if(hour> -10 && hour < 0){
+            hourMinute = "-0" + Math.abs(hour);
+        }else if(hour >= 0 && hour<10){
+            hourMinute = "+0" + hourMinute;
+        }else if(hour>9){
+            hourMinute =  "+" + hourMinute;
+        }
+        if(minute == 0) {
+            hourMinute += ":00";
+        }else{
+            hourMinute += ":" + minute;
+        }
+        String style = "yyyy-MM-dd'T'HH:mm:ss'"+hourMinute+"'";
+        return  style;
+    }
+
 }

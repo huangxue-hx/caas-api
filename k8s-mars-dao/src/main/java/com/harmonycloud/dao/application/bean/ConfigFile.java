@@ -12,18 +12,15 @@ public class ConfigFile implements Serializable {
 	private String name; // 配置文件名称
 	private String description; // 描述
 	private String tags; // 版本号
-	private String tenant; // 租户
+	private String tenantId; // 租户id
+	private String projectId; // 项目id
+	private String clusterId;
+	private String clusterName;
 	private String repoName; // 镜像repo
 	private String user; // 创建者
 	private String createTime; // 创建时间
-	private String item; //配置文件内容
+	private String items; //配置文件内容
 	private String path; //容器内部挂载路径
-	@Override
-	public boolean equals(Object obj) {
-		// TODO Auto-generated method stub
-		ConfigFile o = (ConfigFile)obj;
-		return this.name.equals(o.getName())&&this.repoName.equals(o.getRepoName())&&this.tenant.equals(o.getTenant())&&this.description.equals(o.getDescription())&&this.item.equals(o.getItem())&&this.path.equals(o.getPath());
-	}
 
 	public ConfigFile() {
 		super();
@@ -61,14 +58,6 @@ public class ConfigFile implements Serializable {
 		this.description = description;
 	}
 
-	public String getTenant() {
-		return tenant;
-	}
-
-	public void setTenant(String tenant) {
-		this.tenant = tenant;
-	}
-
 	public String getUser() {
 		return user;
 	}
@@ -77,12 +66,12 @@ public class ConfigFile implements Serializable {
 		this.user = user;
 	}
 
-	public String getItem() {
-		return item;
+	public String getItems() {
+		return items;
 	}
 
-	public void setItem(String item) {
-		this.item = item;
+	public void setItems(String items) {
+		this.items = items;
 	}
 
 	public String getRepoName() {
@@ -109,4 +98,35 @@ public class ConfigFile implements Serializable {
 		this.path = path;
 	}
 
+	public String getTenantId() {
+		return tenantId;
+	}
+
+	public void setTenantId(String tenantId) {
+		this.tenantId = tenantId;
+	}
+
+	public String getProjectId() {
+		return projectId;
+	}
+
+	public void setProjectId(String projectId) {
+		this.projectId = projectId;
+	}
+
+	public String getClusterId() {
+		return clusterId;
+	}
+
+	public void setClusterId(String clusterId) {
+		this.clusterId = clusterId;
+	}
+
+	public String getClusterName() {
+		return clusterName;
+	}
+
+	public void setClusterName(String clusterName) {
+		this.clusterName = clusterName;
+	}
 }

@@ -3,11 +3,13 @@ package com.harmonycloud.k8s.bean;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
  * @author qg
  *
  */
+@JsonInclude(value=JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class PersistentVolumeClaimStatus {
 
@@ -16,6 +18,8 @@ public class PersistentVolumeClaimStatus {
 	private List<String> accessModes;
 	
 	private Object capacity;
+	
+	private List<PersistentVolumeClaimCondition> conditions;
 
 	public String getPhase() {
 		return phase;
@@ -39,6 +43,14 @@ public class PersistentVolumeClaimStatus {
 
 	public void setCapacity(Object capacity) {
 		this.capacity = capacity;
+	}
+
+	public List<PersistentVolumeClaimCondition> getConditions() {
+		return conditions;
+	}
+
+	public void setConditions(List<PersistentVolumeClaimCondition> conditions) {
+		this.conditions = conditions;
 	}
 	
 }

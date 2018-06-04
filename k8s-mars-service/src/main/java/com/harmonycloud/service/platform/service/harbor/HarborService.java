@@ -1,29 +1,17 @@
 package com.harmonycloud.service.platform.service.harbor;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.service.platform.bean.HarborLog;
-import com.harmonycloud.service.platform.bean.HarborProject;
-import com.harmonycloud.service.platform.bean.HarborProjectQuota;
-import org.springframework.web.multipart.MultipartFile;
+import com.harmonycloud.service.platform.bean.harbor.*;
 
-import java.io.InputStream;
 import java.util.List;
 
 /**
  * Created by zsl on 2017/1/18.
- * harbor常规接口
+ * harbor常规接口, 与harbor api接口交互服务类
  */
 public interface HarborService {
 
-    /**
-     * harbor 登录接口
-     *
-     * @param username 用户名
-     * @param password 密码
-     * @return
-     * @throws Exception
-     */
-    ActionReturnUtil login(String username, String password) throws Exception;
+    HarborOverview getHarborOverview(String harborHost, String userName) throws Exception;
 
     /**
      * 分页获取harbor project list
@@ -33,25 +21,34 @@ public interface HarborService {
      * @return
      * @throws Exception
      */
-    ActionReturnUtil projectList(Integer page, Integer pageSize) throws Exception;
+    List<HarborProject> listProject(String harborHost, String harborProjectName, Integer page, Integer pageSize) throws Exception;
 
     /**
      * 根据projectId获取harbor project详情
      *
-     * @param projectId id
+     * @param harborProjectId id
      * @return
      * @throws Exception
      */
-    ActionReturnUtil getProjectById(Integer projectId) throws Exception;
+    HarborProject getHarborProjectById(String harborHost, Integer harborProjectId) throws Exception;
 
     /**
      * 根据projectId获取harbor repository列表
      *
-     * @param projectId id
+     * @param harborProjectId id
      * @return
      * @throws Exception
      */
-    ActionReturnUtil repoListById(Integer projectId) throws Exception;
+    ActionReturnUtil repoListById(String harborHost, Integer harborProjectId) throws Exception;
+
+    /**
+     * 根据projectId获取harbor repository列表，分页查询
+     *
+     * @param harborProjectId id
+     * @return
+     * @throws Exception
+     */
+    ActionReturnUtil repoListById(String harborHost, Integer harborProjectId, Integer pageSize, Integer pageNo, String repoName) throws Exception;
 
     /**
      * 根据repository name获取tags
@@ -60,17 +57,27 @@ public interface HarborService {
      * @return
      * @throws Exception
      */
-    ActionReturnUtil getTagsByRepoName(String repoName) throws Exception;
+    ActionReturnUtil getTagsByRepoName(String harborHost, String repoName) throws Exception;
 
     /**
-     * 获取manifests
+     * 获取manifests,不包括漏洞信息
      *
      * @param repoName repoName
      * @param tag      tag
      * @return
      * @throws Exception
      */
-    ActionReturnUtil getManifests(String repoName, String tag) throws Exception;
+    ActionReturnUtil getManifests(String harborHost, String repoName, String tag) throws Exception;
+
+    /**
+     * 获取tag manifest 以及漏洞数量， 不含漏洞详情
+     * @param harborHost
+     * @param repoName
+     * @param tag
+     * @return
+     * @throws Exception
+     */
+    ActionReturnUtil getManifestsWithVulnerabilitySum(String harborHost, String repoName, String tag) throws Exception;
 
     /**
      * 创建harbor project
@@ -79,7 +86,7 @@ public interface HarborService {
      * @return
      * @throws Exception
      */
-    ActionReturnUtil createProject(HarborProject harborProject) throws Exception;
+    ActionReturnUtil createProject(String harborHost, HarborProject harborProject) throws Exception;
 
     /**
      * 删除harbor project
@@ -88,7 +95,7 @@ public interface HarborService {
      * @return
      * @throws Exception
      */
-    ActionReturnUtil deleteProject(Integer projectId) throws Exception;
+    ActionReturnUtil deleteProject(String harborHost, Integer projectId) throws Exception;
     
     /**
      * 删除repo
@@ -98,21 +105,17 @@ public interface HarborService {
      * @return
      * @throws Exception
      */
-    ActionReturnUtil deleteRepo(String repo, String tag) throws Exception;
-    
+    ActionReturnUtil deleteRepo(String harborHost, String repo, String tag) throws Exception;
+
     /**
-     * 获取harbor信息
+     * 删除repo，删除整个镜像包含所有tag
+     *
+     * @param repo
      * @return
      * @throws Exception
      */
-    ActionReturnUtil listProvider() throws Exception;
-    
-    /**
-     * 根据用户名获取Harbor-project
-     * @return
-     * @throws Exception
-     */
-    ActionReturnUtil getProjectByUser(String username) throws Exception;
+    ActionReturnUtil deleteRepo(String harborHost, String repo) throws Exception;
+
      /*
 	 * @lili
 	 */
@@ -121,48 +124,57 @@ public interface HarborService {
      * @return
      * @throws Exception
      */
-    ActionReturnUtil getProjectQuota(String projectname) throws Exception;
+    HarborProject getProjectQuota(String harborHost, String harborProjectName) throws Exception;
     /**
      * 更新project配额
      * @return
      * @throws Exception
      */
-    ActionReturnUtil updateProjectQuota(Integer projectID,HarborProjectQuota harborProjectQuota) throws Exception;
+    ActionReturnUtil updateProjectQuota(String harborHost, HarborProjectQuota harborProjectQuota) throws Exception;
     /**
      * get repository detail
      * @return
      * @throws Exception
      */
-    ActionReturnUtil getRepositoryDetailByProjectId(Integer projectId) throws Exception ;
+    ActionReturnUtil getRepositoryDetailByProjectId(String harborHost, Integer projectId, Integer pageSize, Integer pageNo) throws Exception ;
+
+
     /**
      * 得到project information clair result && quota
      * @return
      * @throws Exception
      */
-    ActionReturnUtil getPolicyDetailList(String projectName) throws Exception;
+    ActionReturnUtil getRepositorySummary(String harborHost, String harborProjectName) throws Exception;
     /**
      * 模糊查询镜像repository
      * @return
      * @throws Exception
      */
-    ActionReturnUtil getRepoFuzzySearch(String query,String tenantID, String isPublic) throws Exception;
+    ActionReturnUtil getRepoFuzzySearch(String query,String projectId, Boolean isPublic) throws Exception;
+
+    ActionReturnUtil getFuzzySearch(String harborHost, String query) throws Exception;
     /**
-     * 查询指定租户的镜像
+     * 查询指定项目的镜像
      * @return
      * @throws Exception
      */
-    ActionReturnUtil getImageByTenantID(String tenantID) throws Exception;
+    ActionReturnUtil listImageDetail(String projectId) throws Exception;
 
-    ActionReturnUtil getDefaultImageByTenantID(String tenantID, String projectName, String repoName) throws Exception;
+    List<String> listTag(String harborHost, String repoName) throws Exception;
 
-    List<HarborLog> projectOperationLogs(Integer projectId, Integer begin, Integer end,
+    ActionReturnUtil getFirstImage(String projectId, String clusterId, String harborProjectName, String repoName) throws Exception;
+
+    List<HarborLog> projectOperationLogs(String harborHost,Integer projectId, Integer begin, Integer end,
                                          String keywords) throws Exception;
 
+    HarborRepositoryMessage getHarborRepositoryDetail(String harborHost, String repoName) throws Exception;
 
-    ActionReturnUtil uploadImage(MultipartFile file,  String imageName);
+    ActionReturnUtil getImagesByProjectId(String projectId, String clusterId) throws Exception;
 
-    boolean removeImage(String imageName) throws Exception;
-
-    InputStream downloadImage(String imageName) throws Exception;
-
+    /**
+     * 将harbor的registry镜像信息同步到harbor ui
+     * @param harborHost
+     * @throws Exception
+     */
+    boolean syncRegistry(String harborHost) throws Exception;
 }

@@ -1,13 +1,13 @@
 package com.harmonycloud.service.application.impl;
 
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
-import com.harmonycloud.dto.business.CreateConfigMapDto;
-import com.harmonycloud.dto.business.CreateContainerDto;
-import com.harmonycloud.dto.business.CreateVolumeDto;
-import com.harmonycloud.dto.business.JobsDetailDto;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.util.*;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.dto.application.CreateConfigMapDto;
+import com.harmonycloud.dto.application.CreateContainerDto;
+import com.harmonycloud.dto.application.PersistentVolumeDto;
+import com.harmonycloud.dto.application.JobsDetailDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
@@ -21,11 +21,13 @@ import com.harmonycloud.k8s.service.PvService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.JobsService;
-import com.harmonycloud.service.application.VolumeSerivce;
+import com.harmonycloud.service.application.PersistentVolumeService;
+import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.EventDetail;
 import com.harmonycloud.service.platform.bean.VolumeMountExt;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
 
 import net.sf.json.JSONArray;
@@ -35,6 +37,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -56,7 +59,7 @@ public class JobsServiceImpl implements JobsService{
     JobService jobService;
     
     @Autowired
-    private VolumeSerivce volumeSerivce;
+    private PersistentVolumeService volumeSerivce;
 
     @Autowired
     PodService podService;
@@ -75,10 +78,17 @@ public class JobsServiceImpl implements JobsService{
 
 	@Autowired
 	EventService eventService;
-    
+
+	@Autowired
+	NamespaceLocalService namespaceLocalService;
+	@Autowired
+	ClusterService clusterService;
+
     @Override
-    public ActionReturnUtil createJob(JobsDetailDto detail, String userName, Cluster cluster) throws Exception {
+    public ActionReturnUtil createJob(JobsDetailDto detail, String userName) throws Exception {
     	//创建configmap/pvc
+		Assert.hasText(detail.getNamespace());
+		Cluster cluster = namespaceLocalService.getClusterByNamespaceName(detail.getNamespace());
     	List<CreateContainerDto> containers = detail.getContainers();
     	if(containers != null && containers.size() > 0){
     		for(CreateContainerDto c : containers){
@@ -90,12 +100,19 @@ public class JobsServiceImpl implements JobsService{
     			}
     			//创建PVC
     			if (c.getStorage() != null) {
-                    for (CreateVolumeDto pvc : c.getStorage()) {
+                    for (PersistentVolumeDto pvc : c.getStorage()) {
                     	if(pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())){
                     		if (pvc.getPvcName() == "" || pvc.getPvcName() == null) {
                                 continue;
                             }
-                    		volumeSerivce.createVolume(detail.getNamespace(), pvc.getPvcName(), pvc.getPvcCapacity(), pvc.getPvcTenantid(), pvc.getReadOnly(), pvc.getPvcBindOne(), pvc.getVolume(), Constant.TYPE_JOB, detail.getName());
+							pvc.setNamespace(detail.getNamespace());
+							pvc.setServiceType(Constant.TYPE_JOB);
+							pvc.setServiceName(detail.getName());
+							pvc.setProjectId(detail.getProjectId());
+							if(StringUtils.isBlank(pvc.getVolumeName())){
+								pvc.setVolumeName(pvc.getPvcName());
+							}
+							volumeSerivce.createVolume(pvc);
                     	}
                     }
                 }
@@ -108,34 +125,32 @@ public class JobsServiceImpl implements JobsService{
 
     @SuppressWarnings("unchecked")
 	@Override
-    public ActionReturnUtil listJob(String tenantId, String namespace, String labels, String status, Cluster cluster) throws Exception {
+    public ActionReturnUtil listJob(String projectId, String namespace, String labels, String status, String clusterId) throws Exception {
         Map<String, Object> bodys = new HashMap<String, Object>();
 
-        if (!StringUtils.isEmpty(labels)) {
-            bodys.put("labelSelector", labels);
-        }
-        List<String> namespaceList = new ArrayList<String>();
-        if("全部".equals(namespace)){
-        	ActionReturnUtil res = namespaceService.getNamespaceListByTenantid(tenantId);
-        	if(!res.isSuccess()){
-        		return res;
-        	}
-        	List<Map<String, Object>> ls = (List<Map<String, Object>>) res.get("data");
-        	if(ls != null && ls.size() > 0){
-        		for(Map<String, Object> m : ls){
-        			if(m.get("name") != null){
-        				namespaceList.add(m.get("name").toString());
-        			}
-        		}
-        	}
+        if (StringUtils.isNotBlank(labels)) {
+        	if(labels.indexOf(Constant.LABEL_PROJECT_ID)>0) {
+				bodys.put("labelSelector", labels);
+			}else{
+				bodys.put("labelSelector", labels+","+Constant.LABEL_PROJECT_ID+"="+projectId);
+			}
         }else{
-        	namespaceList.add(namespace);
-        }
+			bodys.put("labelSelector", Constant.LABEL_PROJECT_ID+"="+projectId);
+		}
+		List<Cluster> clusters = new ArrayList<>();
+        if(StringUtils.isNotBlank(namespace)){
+			clusters.add(namespaceLocalService.getClusterByNamespaceName(namespace));
+		}else if (StringUtils.isBlank(clusterId)) {
+			clusters.add(clusterService.findClusterById(clusterId));
+		} else {
+			clusters = clusterService.listCluster();
+		}
+
         JSONArray array = new JSONArray();
-        for(String n : namespaceList){
-        	K8SClientResponse listJob = jobService.listJob(n,bodys,cluster);
+        for(Cluster cluster : clusters){
+        	K8SClientResponse listJob = jobService.listJob(namespace,bodys,cluster);
             if (!HttpStatusUtil.isSuccessStatus(listJob.getStatus())) {
-                return ActionReturnUtil.returnErrorWithMsg(listJob.getBody());
+                return ActionReturnUtil.returnErrorWithData(listJob.getBody());
             }
 
             JobList jobList = JsonUtil.jsonToPojo(listJob.getBody(), JobList.class);
@@ -216,12 +231,13 @@ public class JobsServiceImpl implements JobsService{
 
     @SuppressWarnings("unchecked")
 	@Override
-    public ActionReturnUtil getJobDetail(String namespace, String name, Cluster cluster) throws Exception {
+    public ActionReturnUtil getJobDetail(String namespace, String name) throws Exception {
+    	Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
         // 获取job
         Map<String, Object> bodys = new HashMap<String, Object>();
         K8SClientResponse deleteJob = jobService.getJob(namespace,name,bodys,cluster);
         if (!HttpStatusUtil.isSuccessStatus(deleteJob.getStatus())) {
-            return ActionReturnUtil.returnErrorWithMsg(deleteJob.getBody());
+            return ActionReturnUtil.returnErrorWithData(deleteJob.getBody());
         }
         Job job = JsonUtil.jsonToPojo(deleteJob.getBody(), Job.class);
 
@@ -230,7 +246,7 @@ public class JobsServiceImpl implements JobsService{
         bodys.put("labelSelector", "jobs=" + name);
         K8SClientResponse podRes = podService.getPodByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(podRes.getStatus())) {
-            return ActionReturnUtil.returnErrorWithMsg(podRes.getBody());
+            return ActionReturnUtil.returnErrorWithData(podRes.getBody());
         }
         PodList podList = JsonUtil.jsonToPojo(podRes.getBody(), PodList.class);
         
@@ -304,7 +320,7 @@ public class JobsServiceImpl implements JobsService{
 			List<VolumeMountExt> vms = new ArrayList<VolumeMountExt>();
 			if (volumeMounts != null && volumeMounts.size() > 0) {
 				for (VolumeMount vm : volumeMounts) {
-					VolumeMountExt vmExt = new VolumeMountExt(vm.getName(), vm.getReadOnly(), vm.getMountPath(),
+					VolumeMountExt vmExt = new VolumeMountExt(vm.getName(), vm.isReadOnly(), vm.getMountPath(),
 							vm.getSubPath());
 					for (Volume volume : job.getSpec().getTemplate().getSpec().getVolumes()) {
 						if (vm.getName().equals(volume.getName())) {
@@ -371,7 +387,7 @@ public class JobsServiceImpl implements JobsService{
 		bodys.put("fieldSelector", "involvedObject.uid=" + job.getMetadata().getUid());
 		K8SClientResponse evRes = eventService.doEventByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
 		if (!HttpStatusUtil.isSuccessStatus(evRes.getStatus())) {
-			return ActionReturnUtil.returnErrorWithMsg(evRes.getBody());
+			return ActionReturnUtil.returnErrorWithData(evRes.getBody());
 		}
 		EventList depeventList = JsonUtil.jsonToPojo(evRes.getBody(), EventList.class);
 		if (depeventList.getItems() != null && depeventList.getItems().size() > 0) {
@@ -385,7 +401,7 @@ public class JobsServiceImpl implements JobsService{
 			bodys.put("fieldSelector", "involvedObject.uid=" + pod.getMetadata().getUid());
 			K8SClientResponse podevRes = eventService.doEventByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
 			if (!HttpStatusUtil.isSuccessStatus(podevRes.getStatus())) {
-				return ActionReturnUtil.returnErrorWithMsg(podevRes.getBody());
+				return ActionReturnUtil.returnErrorWithData(podevRes.getBody());
 			}
 			EventList podeventList = JsonUtil.jsonToPojo(podevRes.getBody(), EventList.class);
 			if (podeventList.getItems() != null && podeventList.getItems().size() > 0) {
@@ -400,7 +416,8 @@ public class JobsServiceImpl implements JobsService{
     }
 
     @Override
-    public ActionReturnUtil startJob(String name, String namespace, String userName, Cluster cluster) throws Exception {
+    public ActionReturnUtil startJob(String name, String namespace, String userName) throws Exception {
+		Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
     	//参数check
     	boolean paramboo = true;
     	StringBuffer sb = new StringBuffer();
@@ -417,7 +434,7 @@ public class JobsServiceImpl implements JobsService{
     		K8SClientResponse jobRes = jobService.getJob(namespace, name, null, cluster);
     		if(!HttpStatusUtil.isSuccessStatus(jobRes.getStatus())){
     			UnversionedStatus status = JsonUtil.jsonToPojo(jobRes.getBody(),UnversionedStatus.class);
-    			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+    			return ActionReturnUtil.returnErrorWithData(status.getMessage());
     		}
     		Job job = JsonUtil.jsonToPojo(jobRes.getBody(),Job.class);
     		if(job != null){
@@ -430,7 +447,8 @@ public class JobsServiceImpl implements JobsService{
     						String status = anno.get("nephele/status").toString();
     						if (status.equals(Constant.STARTING)) {
     							return ActionReturnUtil
-    									.returnErrorWithMsg("job " + name + " 已经启动了");
+    									.returnErrorWithData(ErrorCodeMessage.STOPPED,
+												DictEnum.JOB.getChPhrase() + " " + name,true);
     						} else {
     							if (anno.get("nephele/parallelism") != null){
     								para = Integer.valueOf(anno.get("nephele/parallelism").toString());
@@ -462,12 +480,13 @@ public class JobsServiceImpl implements JobsService{
     		//更新
     		return jobService.updateJob(namespace, name, job, cluster);
     	}else{
-    		return ActionReturnUtil.returnErrorWithMsg(sb.toString());
+    		return ActionReturnUtil.returnErrorWithData(sb.toString());
     	}
     }
 
     @Override
-    public ActionReturnUtil stopJob(String name, String namespace, String userName, Cluster cluster) throws Exception {
+    public ActionReturnUtil stopJob(String name, String namespace, String userName) throws Exception {
+		Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
     	//参数check
     	boolean paramboo = true;
     	StringBuffer sb = new StringBuffer();
@@ -484,7 +503,7 @@ public class JobsServiceImpl implements JobsService{
     		K8SClientResponse jobRes = jobService.getJob(namespace, name, null, cluster);
     		if(!HttpStatusUtil.isSuccessStatus(jobRes.getStatus())){
     			UnversionedStatus status = JsonUtil.jsonToPojo(jobRes.getBody(),UnversionedStatus.class);
-    			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+    			return ActionReturnUtil.returnErrorWithData(status.getMessage());
     		}
     		Job job = JsonUtil.jsonToPojo(jobRes.getBody(),Job.class);
     		if(job != null){
@@ -500,7 +519,7 @@ public class JobsServiceImpl implements JobsService{
 								String status = anno.get("nephele/status").toString();
 								if (status.equals(Constant.STOPPING)) {
 									return ActionReturnUtil
-											.returnErrorWithMsg("job " + name + " 已经停止");
+											.returnErrorWithData(ErrorCodeMessage.STOPPED, DictEnum.JOB.getChPhrase(),true);
 								} else {
 									if (anno.get("nephele/parallelism") == null){
 										anno.put("nephele/parallelism",para+"");
@@ -527,74 +546,81 @@ public class JobsServiceImpl implements JobsService{
 						}
         	    		job.getSpec().setParallelism(0);
     				}else {
-    					return ActionReturnUtil.returnErrorWithMsg("job " + name + " 已经完成或者失败了");
+    					return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.JOB_FINISHED);
     				}
     			}
     		}
     		//更新
     		return jobService.updateJob(namespace, name, job, cluster);
     	}else{
-    		return ActionReturnUtil.returnErrorWithMsg(sb.toString());
+    		return ActionReturnUtil.returnErrorWithData(sb.toString());
     	}
     }
 
     @Override
-    public ActionReturnUtil replaceJob(JobsDetailDto detail, String userName, Cluster cluster) throws Exception {
-    	//check param
-    	if(detail != null && !StringUtils.isEmpty(detail.getName()) && detail.getContainers() != null){
-    		//获取job
-    		K8SClientResponse jobRes = jobService.getJob(detail.getNamespace(), detail.getName(), null, cluster);
-    		if (!HttpStatusUtil.isSuccessStatus(jobRes.getStatus())) {
-    			return ActionReturnUtil.returnErrorWithMsg(jobRes.getBody());
-    		}
-    		Job job = JsonUtil.jsonToPojo(jobRes.getBody(), Job.class);
-    		//删除configMap
-            Map<String, Object> queryP = new HashMap<>();
-            queryP.put("labelSelector", Constant.TYPE_JOB + "=" + detail.getName());
-            K8SClientResponse conRes = configmapService.doSepcifyConfigmap(detail.getNamespace(), queryP, HTTPMethod.DELETE, cluster);
-            if (!HttpStatusUtil.isSuccessStatus(conRes.getStatus()) && conRes.getStatus() != Constant.HTTP_404) {
-                UnversionedStatus status = JsonUtil.jsonToPojo(conRes.getBody(), UnversionedStatus.class);
-                return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
-            }
+    public ActionReturnUtil replaceJob(JobsDetailDto detail, String userName) throws Exception {
+		AssertUtil.notNull(detail, DictEnum.JOB);
+		AssertUtil.notEmpty(detail.getContainers(), DictEnum.JOB);
+    	AssertUtil.notBlank(detail.getNamespace(), DictEnum.NAMESPACE);
+		Cluster cluster = namespaceLocalService.getClusterByNamespaceName(detail.getNamespace());
+		//获取job
+		K8SClientResponse jobRes = jobService.getJob(detail.getNamespace(), detail.getName(), null, cluster);
+		if (!HttpStatusUtil.isSuccessStatus(jobRes.getStatus())) {
+			return ActionReturnUtil.returnErrorWithData(jobRes.getBody());
+		}
+		Job job = JsonUtil.jsonToPojo(jobRes.getBody(), Job.class);
+		//删除configMap
+		Map<String, Object> queryP = new HashMap<>();
+		queryP.put("labelSelector", Constant.TYPE_JOB + "=" + detail.getName());
+		K8SClientResponse conRes = configmapService.doSepcifyConfigmap(detail.getNamespace(), null, queryP, HTTPMethod.DELETE, cluster);
+		if (!HttpStatusUtil.isSuccessStatus(conRes.getStatus()) && conRes.getStatus() != Constant.HTTP_404) {
+			UnversionedStatus status = JsonUtil.jsonToPojo(conRes.getBody(), UnversionedStatus.class);
+			return ActionReturnUtil.returnErrorWithData(status.getMessage());
+		}
 
-            //delete pvc
-            K8SClientResponse pvcRes = pvcService.doSepcifyPVC(detail.getNamespace(), queryP, HTTPMethod.DELETE, cluster);
-            if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
-                UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
-                return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
-            }
-    		List<CreateContainerDto> containers = detail.getContainers();
-        	if(containers != null && containers.size() > 0){
-        		for(CreateContainerDto c : containers){
-        			List<CreateConfigMapDto> configMaps = c.getConfigmap();
-        			//调用创建configmap接口
-        			ActionReturnUtil cm = createConfigMap(configMaps, detail.getNamespace(), c.getName(), detail.getName(), cluster, Constant.TYPE_JOB, null);
-        			if(!cm.isSuccess()){
-        				return cm;
-        			}
-        			//创建PVC
-        			if (c.getStorage() != null) {
-                        for (CreateVolumeDto pvc : c.getStorage()) {
-                        	if(pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())){
-                        		if (pvc.getPvcName() == "" || pvc.getPvcName() == null) {
-                                    continue;
-                                }
-                        		volumeSerivce.createVolume(detail.getNamespace(), pvc.getPvcName(), pvc.getPvcCapacity(), pvc.getPvcTenantid(), pvc.getReadOnly(), pvc.getPvcBindOne(), pvc.getVolume(), Constant.TYPE_JOB, detail.getName());
-                        	}
-                        }
-                    }
-        		}
-        	}
-        	Job newjob = convertJob(job, detail, userName);
-        	return jobService.updateJob(detail.getNamespace(), detail.getName(), newjob, cluster);
-    	}else{
-    		return ActionReturnUtil.returnErrorWithMsg("job为空");
-    	}
+		//delete pvc
+		K8SClientResponse pvcRes = pvcService.doSepcifyPVC(detail.getNamespace(), queryP, HTTPMethod.DELETE, cluster);
+		if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
+			UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
+			return ActionReturnUtil.returnErrorWithData(status.getMessage());
+		}
+		List<CreateContainerDto> containers = detail.getContainers();
+		if(containers != null && containers.size() > 0){
+			for(CreateContainerDto c : containers){
+				List<CreateConfigMapDto> configMaps = c.getConfigmap();
+				//调用创建configmap接口
+				ActionReturnUtil cm = createConfigMap(configMaps, detail.getNamespace(), c.getName(), detail.getName(), cluster, Constant.TYPE_JOB, null);
+				if(!cm.isSuccess()){
+					return cm;
+				}
+				//创建PVC
+				if (c.getStorage() != null) {
+					for (PersistentVolumeDto pvc : c.getStorage()) {
+						if(pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())){
+							if (pvc.getPvcName() == "" || pvc.getPvcName() == null) {
+								continue;
+							}
+							pvc.setNamespace(detail.getNamespace());
+							pvc.setServiceType(Constant.TYPE_JOB);
+							pvc.setServiceName(detail.getName());
+							pvc.setProjectId(detail.getProjectId());
+							if(StringUtils.isBlank(pvc.getVolumeName())){
+								pvc.setVolumeName(pvc.getPvcName());
+							}
+							volumeSerivce.createVolume(pvc);
+						}
+					}
+				}
+			}
+		}
+		Job newjob = convertJob(job, detail, userName);
+		return jobService.updateJob(detail.getNamespace(), detail.getName(), newjob, cluster);
+
     }
 
     @Override
-    public ActionReturnUtil deleteJob(String name, String namespace, String userName, Cluster cluster) throws Exception {
-
+    public ActionReturnUtil deleteJob(String name, String namespace, String userName) throws Exception {
+		Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
         //delete job
         ActionReturnUtil deleteJob = jobService.delJobByName(name,namespace,cluster);
         if (!deleteJob.isSuccess()){
@@ -604,30 +630,30 @@ public class JobsServiceImpl implements JobsService{
         //delete configmap
         Map<String, Object> queryP = new HashMap<>();
         queryP.put("labelSelector", Constant.TYPE_JOB + "=" + name);
-        K8SClientResponse conRes = configmapService.doSepcifyConfigmap(namespace, queryP, HTTPMethod.DELETE, cluster);
+		K8SClientResponse conRes = configmapService.doSepcifyConfigmap(namespace, null, queryP, HTTPMethod.DELETE, cluster);
         if (!HttpStatusUtil.isSuccessStatus(conRes.getStatus()) && conRes.getStatus() != Constant.HTTP_404) {
             UnversionedStatus status = JsonUtil.jsonToPojo(conRes.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+            return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
 
         //delete pod 
         K8SClientResponse podRes = podService.deletePods(namespace, queryP, cluster);
         if (!HttpStatusUtil.isSuccessStatus(conRes.getStatus()) && podRes.getStatus() != Constant.HTTP_404) {
             UnversionedStatus status = JsonUtil.jsonToPojo(podRes.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+            return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
         
         //get pvc
         K8SClientResponse pvcsRes = pvcService.doSepcifyPVC(namespace, queryP, HTTPMethod.GET, cluster);
         if(!HttpStatusUtil.isSuccessStatus(pvcsRes.getStatus()) && pvcsRes.getStatus() != Constant.HTTP_404){
         	UnversionedStatus status = JsonUtil.jsonToPojo(pvcsRes.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+            return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
         //delete pvc
         K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, queryP, HTTPMethod.DELETE, cluster);
         if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
             UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+            return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
         //update pv
         PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(pvcsRes.getBody(), PersistentVolumeClaimList.class);
@@ -657,7 +683,7 @@ public class JobsServiceImpl implements JobsService{
 									headersPV, bodysPV);
 							if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
 								UnversionedStatus status = JsonUtil.jsonToPojo(responsePV.getBody(), UnversionedStatus.class);
-								return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+								return ActionReturnUtil.returnErrorWithData(status.getMessage());
 							}
 						}
         			}
@@ -669,7 +695,8 @@ public class JobsServiceImpl implements JobsService{
     }
 
     @Override
-    public ActionReturnUtil reRunJob(String name, String namespace, String userName, Cluster cluster) throws Exception {
+    public ActionReturnUtil reRunJob(String name, String namespace, String userName) throws Exception {
+		Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
     	//参数check
     	boolean paramboo = true;
     	StringBuffer sb = new StringBuffer();
@@ -689,14 +716,14 @@ public class JobsServiceImpl implements JobsService{
     		K8SClientResponse jobRes = jobService.getJob(namespace, name, null, cluster);
     		if(!HttpStatusUtil.isSuccessStatus(jobRes.getStatus())){
     			UnversionedStatus status = JsonUtil.jsonToPojo(jobRes.getBody(),UnversionedStatus.class);
-    			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+    			return ActionReturnUtil.returnErrorWithData(status.getMessage());
     		}
     		Job job = JsonUtil.jsonToPojo(jobRes.getBody(),Job.class);
     		
     		Map<String, Object> label = new HashMap<String, Object>();
     		label.put("labelSelector", Constant.TYPE_JOB+"="+name);
     		//获取config map
-    		K8SClientResponse cmRes = configmapService.doSepcifyConfigmap(namespace, label, HTTPMethod.GET, cluster);
+			K8SClientResponse cmRes = configmapService.doSepcifyConfigmap(namespace, null, label, HTTPMethod.GET, cluster);
     		boolean cmboo = true;
     		if(cmRes.getStatus() == Constant.HTTP_404){
     			cmboo = false;
@@ -704,7 +731,7 @@ public class JobsServiceImpl implements JobsService{
     		
     		if(!HttpStatusUtil.isSuccessStatus(cmRes.getStatus()) && cmRes.getStatus() != Constant.HTTP_404){
     			UnversionedStatus status = JsonUtil.jsonToPojo(cmRes.getBody(),UnversionedStatus.class);
-    			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+    			return ActionReturnUtil.returnErrorWithData(status.getMessage());
     		}
 			//获取pvc
     		K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, label, HTTPMethod.GET, cluster);
@@ -714,14 +741,14 @@ public class JobsServiceImpl implements JobsService{
     		}
     		if(!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404){
     			UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(),UnversionedStatus.class);
-    			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+    			return ActionReturnUtil.returnErrorWithData(status.getMessage());
     			
     		}
     		
     		if(job != null){
     			//删除已有的job
     			Job newjob = new Job();
-    			ActionReturnUtil delRes=deleteJob(name, namespace, userName, cluster);
+    			ActionReturnUtil delRes=deleteJob(name, namespace, userName);
     			if(!delRes.isSuccess()){
     				return delRes;
     			}
@@ -840,7 +867,7 @@ public class JobsServiceImpl implements JobsService{
         						K8SClientResponse response = configmapService.doSepcifyConfigmap(namespace, headers, bodys, HTTPMethod.POST, cluster);
         						if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
         							UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-        							return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+        							return ActionReturnUtil.returnErrorWithData(status.getMessage());
         						}
         					}
         				}
@@ -862,7 +889,7 @@ public class JobsServiceImpl implements JobsService{
         						K8SClientResponse response = pvcService.doSepcifyPVC(namespace, headers, bodys, HTTPMethod.POST, cluster);
         						if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
         							UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-        							return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+        							return ActionReturnUtil.returnErrorWithData(status.getMessage());
         						}
         					}
         				}
@@ -871,10 +898,10 @@ public class JobsServiceImpl implements JobsService{
     			//创建job
     			jobService.addJob(namespace, newjob, cluster);
     		}else{
-    			return ActionReturnUtil.returnErrorWithMsg("job:name已不存在");
+    			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NAME_EXIST,"job",true);
     		}
     	}else{
-    		return ActionReturnUtil.returnErrorWithMsg(sb.toString()+"为空");
+    		return ActionReturnUtil.returnErrorWithData(sb.toString()+"为空");
     	}
         return ActionReturnUtil.returnSuccess();
     }
@@ -891,7 +918,7 @@ public class JobsServiceImpl implements JobsService{
      * */
 	@Override
 	public ActionReturnUtil createConfigMap(List<CreateConfigMapDto> configMaps, String namespace, String containerName,
-			String name, Cluster cluster, String type, String businessName) throws Exception {
+			String name, Cluster cluster, String type, String appName) throws Exception {
 		if (configMaps != null && configMaps.size() > 0) {
 			K8SURL url = new K8SURL();
 			url.setNamespace(namespace).setResource(Resource.CONFIGMAP);
@@ -901,8 +928,8 @@ public class JobsServiceImpl implements JobsService{
 			meta.put("name", name + containerName);
 			Map<String, Object> label = new HashMap<String, Object>();
 			label.put(type, name);
-			if (!StringUtils.isEmpty(businessName)){
-				label.put("business",businessName);
+			if (!StringUtils.isEmpty(appName)){
+				label.put("app",appName);
 			}
 			meta.put("labels", label);
 			bodys.put("metadata", meta);
@@ -922,7 +949,7 @@ public class JobsServiceImpl implements JobsService{
 			K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
 			if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 				UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-				return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+				return ActionReturnUtil.returnErrorWithData(status.getMessage());
 			}
 		}
 		return ActionReturnUtil.returnSuccess();
@@ -1060,8 +1087,9 @@ public class JobsServiceImpl implements JobsService{
     }
 
 	@Override
-	public ActionReturnUtil updateJobParallelism(String name, String namespace, int parallelism, Cluster cluster)
+	public ActionReturnUtil updateJobParallelism(String name, String namespace, int parallelism)
 			throws Exception {
+		Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
 		boolean boo = true;
 		StringBuffer sb = new StringBuffer();
 		if(StringUtils.isEmpty(name)) {
@@ -1081,7 +1109,7 @@ public class JobsServiceImpl implements JobsService{
     		K8SClientResponse jobRes = jobService.getJob(namespace, name, null, cluster);
     		if(!HttpStatusUtil.isSuccessStatus(jobRes.getStatus())){
     			UnversionedStatus status = JsonUtil.jsonToPojo(jobRes.getBody(),UnversionedStatus.class);
-    			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
+    			return ActionReturnUtil.returnErrorWithData(status.getMessage());
     		}
     		Job job = JsonUtil.jsonToPojo(jobRes.getBody(),Job.class);
     		if(job != null) {
@@ -1100,10 +1128,10 @@ public class JobsServiceImpl implements JobsService{
     			}
     			return jobService.updateJob(namespace, name, job, cluster);
     		}else {
-    			return ActionReturnUtil.returnErrorWithMsg("job不存在");
+    			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NOT_EXIST, DictEnum.JOB.phrase(),true);
     		}
 		}else {
-			return ActionReturnUtil.returnErrorWithMsg(sb.toString()+"为空");
+			return ActionReturnUtil.returnErrorWithData(sb.toString()+"为空");
 		}
 	}
 }

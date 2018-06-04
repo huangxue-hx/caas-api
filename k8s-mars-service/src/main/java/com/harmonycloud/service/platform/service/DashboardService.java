@@ -1,7 +1,7 @@
 package com.harmonycloud.service.platform.service;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 
 import java.util.Map;
 
@@ -17,21 +17,14 @@ public interface DashboardService {
 	 * @return
 	 * @throws Exception
 	 */
-	public ActionReturnUtil getPodInfo() throws Exception;
+	public ActionReturnUtil getPodInfo(Cluster cluster ) throws Exception;
 	
 	/**
 	 * 获取机器信息
 	 * @return
 	 * @throws Exception
 	 */
-	public ActionReturnUtil getInfraInfo() throws Exception;
-
-	/**
-	 * 获取机器信息
-	 * @return
-	 * @throws Exception
-	 */
-	public Map<String, Object> getInfraInfo(Cluster cluster) throws Exception;
+	public ActionReturnUtil getInfraInfo(Cluster cluster) throws Exception;
 
 	/**
 	 * 获取node信息
@@ -45,7 +38,7 @@ public interface DashboardService {
 	 * @return
 	 * @throws Exception
 	 */
-	public ActionReturnUtil getWarningInfo(String namespace) throws Exception;
+	public ActionReturnUtil getWarningInfo(Cluster cluster ,String namespace) throws Exception;
 	
 	/**
 	 * 获取事件信息
@@ -53,7 +46,7 @@ public interface DashboardService {
 	 * @return
 	 * @throws Exception
 	 */
-	public ActionReturnUtil getEventInfo(String namespace) throws Exception;
+	public ActionReturnUtil getEventInfo(Cluster cluster, String namespace) throws Exception;
 
 	/**
 	 * 读取node的license
@@ -62,8 +55,28 @@ public interface DashboardService {
 	 * @throws Exception
 	 */
 
-	public ActionReturnUtil getＮodeLicense() throws Exception;
+	public ActionReturnUtil getNodeLicense() throws Exception;
 
 	public Map<String, Object> getInfraInfoWorkNode(Cluster cluster) throws Exception;
+
+	/**
+	 * 获取组件pod列表
+	 * @param cluster
+	 * @param podName
+	 * @param namespace
+	 * @return
+	 * @throws Exception
+	 */
+	ActionReturnUtil listK8sComponentPod(Cluster cluster, String podName, String namespace) throws Exception;
+
+	/**
+	 * 获取组件pod详情
+	 * @param cluster
+	 * @param name
+	 * @param namespace
+	 * @return
+	 * @throws Exception
+	 */
+	ActionReturnUtil getComponentPodDetail(Cluster cluster, String name, String namespace) throws Exception;
 
 }

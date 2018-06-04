@@ -2,32 +2,17 @@ package com.harmonycloud.k8s.bean;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 /**
  * 
  * @author jmi
  *
  */
+@JsonInclude(value=JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Capabilities {
-	
-	/*private List<Capability> add;
-	
-	private List<Capability> drop;
-
-	public List<Capability> getAdd() {
-		return add;
-	}
-
-	public void setAdd(List<Capability> add) {
-		this.add = add;
-	}
-
-	public List<Capability> getDrop() {
-		return drop;
-	}
-
-	public void setDrop(List<Capability> drop) {
-		this.drop = drop;
-	}*/
 	
 	private List<String> add;
 	

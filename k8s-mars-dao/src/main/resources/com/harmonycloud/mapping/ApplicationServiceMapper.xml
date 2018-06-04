@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.harmonycloud.dao.application.ApplicationServiceMapper" >
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.application.bean.ApplicationService" >
+    <id column="id" property="id" jdbcType="INTEGER" />
+    <result column="application_id" property="applicationId" jdbcType="INTEGER" />
+    <result column="service_id" property="serviceId" jdbcType="INTEGER" />
+    <result column="status" property="status" jdbcType="INTEGER" />
+    <result column="is_external" property="isExternal" jdbcType="INTEGER" />
+  </resultMap>
+
+  <select id="selectByIdList" parameterType="java.util.List" resultType="java.lang.Integer">
+    select count(*) from application_service WHERE status != 1 AND service_id IN
+    <foreach collection="idList" index="index" item="item"
+             open="(" separator="," close=")">
+      #{item}
+    </foreach>
+  </select>
+  <insert id="insert" parameterType="com.harmonycloud.dao.application.bean.ApplicationService" useGeneratedKeys="true" keyProperty="id">
+    insert into application_service (application_id, service_id,status,is_external)
+    values (#{applicationId}, #{serviceId},#{status},#{isExternal})
+  </insert>
+
+  <update id="deleteApplicationService" parameterType="java.lang.String">
+    update application_service set status=1 where application_id in
+    ( select id from application_templates where name=#{name}
+       <if test="clusterId != null and clusterId != '' ">
+          and cluster_id = #{clusterId}
+       </if>
+       <if test="projectId != null and projectId != '' ">
+          and project_id = #{projectId}
+       </if> ) and status=0
+  </update>
+
+  <select id="listApplicationServiceByAppTemplatesId" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select * from application_service where application_id=#{applicationId} and status=0
+  </select>
+
+  <delete id="deleteByProjectIds">
+  	delete from application_service where application_id in (select id from application_templates  where project_id in
+   	  <foreach item="item" index="index" collection="projectIds" open="(" separator="," close=")">
+       	#{item}
+         </foreach>
+	)
+  </delete>
+  <update id="deleteApplicationServiceByAppTemplateId" parameterType="java.lang.Integer">
+    update application_service set status=1 where application_id = #{applicationId} and status=0
+  </update>
+  <select id="selectAppServiceByAppId" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select * from application_service where application_id = #{applicationId} and service_id = #{serviceId} and status=0
+  </select>
+
+</mapper>

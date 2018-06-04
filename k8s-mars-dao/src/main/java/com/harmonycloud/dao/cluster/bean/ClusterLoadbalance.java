@@ -5,13 +5,22 @@ import java.io.Serializable;
 public class ClusterLoadbalance implements Serializable {
     private Integer lbId;
 
-    private Integer clusterId;
+    private String clusterId;
 
     private String loadbalanceName;
 
     private String loadbalanceIp;
 
     private String loadbalancePort;
+
+    public ClusterLoadbalance() {
+    }
+
+    public ClusterLoadbalance(String loadbalanceName, String loadbalanceIp, String loadbalancePort) {
+        this.loadbalanceName = loadbalanceName;
+        this.loadbalanceIp = loadbalanceIp;
+        this.loadbalancePort = loadbalancePort;
+    }
 
     private static final long serialVersionUID = 1L;
 
@@ -23,11 +32,11 @@ public class ClusterLoadbalance implements Serializable {
         this.lbId = lbId;
     }
 
-    public Integer getClusterId() {
+    public String getClusterId() {
         return clusterId;
     }
 
-    public void setClusterId(Integer clusterId) {
+    public void setClusterId(String clusterId) {
         this.clusterId = clusterId;
     }
 

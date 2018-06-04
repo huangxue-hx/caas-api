@@ -5,7 +5,8 @@ package com.harmonycloud.dto.cicd;
  */
 public class DependenceDto {
     private String name;
-    private String tenantid;
+    private String projectId;
+    private String clusterId;
     private String path;
     private String nfsServer;
     private boolean common;
@@ -19,12 +20,20 @@ public class DependenceDto {
         this.name = name;
     }
 
-    public String getTenantid() {
-        return tenantid;
+    public String getProjectId() {
+        return projectId;
     }
 
-    public void setTenantid(String tenantid) {
-        this.tenantid = tenantid;
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
+    }
+
+    public String getClusterId() {
+        return clusterId;
+    }
+
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
     }
 
     public String getPath() {

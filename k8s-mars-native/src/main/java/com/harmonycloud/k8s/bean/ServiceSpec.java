@@ -3,11 +3,13 @@ package com.harmonycloud.k8s.bean;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
  * @author qg
  *
  */
+@JsonInclude(value=JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ServiceSpec {
 
@@ -30,6 +32,14 @@ public class ServiceSpec {
 	private List<String> loadBalancerSourceRanges;
 	
 	private String externalName;
+	
+	private String externalTrafficPolicy;
+	
+	private Integer healthCheckNodePort;
+	
+	private boolean publishNotReadyAddresses;
+	
+	private SessionAffinityConfig sessionAffinityConfig;
 	
 	public List<ServicePort> getPorts() {
 		return ports;
@@ -109,6 +119,38 @@ public class ServiceSpec {
 
 	public void setExternalName(String externalName) {
 		this.externalName = externalName;
+	}
+
+	public String getExternalTrafficPolicy() {
+		return externalTrafficPolicy;
+	}
+
+	public void setExternalTrafficPolicy(String externalTrafficPolicy) {
+		this.externalTrafficPolicy = externalTrafficPolicy;
+	}
+
+	public Integer getHealthCheckNodePort() {
+		return healthCheckNodePort;
+	}
+
+	public void setHealthCheckNodePort(Integer healthCheckNodePort) {
+		this.healthCheckNodePort = healthCheckNodePort;
+	}
+
+	public boolean isPublishNotReadyAddresses() {
+		return publishNotReadyAddresses;
+	}
+
+	public void setPublishNotReadyAddresses(boolean publishNotReadyAddresses) {
+		this.publishNotReadyAddresses = publishNotReadyAddresses;
+	}
+
+	public SessionAffinityConfig getSessionAffinityConfig() {
+		return sessionAffinityConfig;
+	}
+
+	public void setSessionAffinityConfig(SessionAffinityConfig sessionAffinityConfig) {
+		this.sessionAffinityConfig = sessionAffinityConfig;
 	}
 
 }

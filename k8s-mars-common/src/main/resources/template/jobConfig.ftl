@@ -17,16 +17,56 @@
                     <defaultValue><#if stage.imageTagType == '1'>${stage.imageBaseTag}<#elseif stage.imageTagType == '2'>${stage.imageTag}</#if></defaultValue>
                 </hudson.model.StringParameterDefinition>
                 </#if></#list>
+                <#if parameterList??>
+                    <#list parameterList as parameter>
+                        <#if parameter.type == 1>
+                            <hudson.model.StringParameterDefinition>
+                                <name>${parameter.name}</name>
+                                <description><![CDATA[${parameter.description!}]]></description>
+                                <defaultValue><![CDATA[${parameter.value}]]></defaultValue>
+                            </hudson.model.StringParameterDefinition>
+                        <#elseif parameter.type == 2>
+                            <hudson.model.ChoiceParameterDefinition>
+                                <name>${parameter.name}</name>
+                                <description><![CDATA[${parameter.description!}]]></description>
+                                <choices class="java.util.Arrays$ArrayList">
+                                    <a class="string-array">
+                                        <#list parameter.value?split("\n") as value>
+                                        <string><![CDATA[${value}]]></string>
+                                        </#list>
+                                    </a>
+                                </choices>
+                            </hudson.model.ChoiceParameterDefinition>
+                        </#if>
+                    </#list>
+                </#if>
             </parameterDefinitions>
         </hudson.model.ParametersDefinitionProperty>
-        <#if job.trigger! == true>
+        <#if (trigger?? && trigger.valid == true)>
         <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
             <triggers>
-                <#if job.pollScm! == true>
+                <#if trigger.type == 1>
+                    <hudson.triggers.TimerTrigger>
+                        <spec>${trigger.cronExp}</spec>
+                    </hudson.triggers.TimerTrigger>
+                </#if>
+                <#if trigger.type == 2>
                 <hudson.triggers.SCMTrigger>
-                    <spec>${job.cronExpForPollScm}</spec>
+                    <spec>${trigger.cronExp}</spec>
                     <ignorePostCommitHooks>false</ignorePostCommitHooks>
                 </hudson.triggers.SCMTrigger>
+                </#if>
+                <#if trigger.type == 4>
+                    <jenkins.triggers.ReverseBuildTrigger>
+                        <spec/>
+                        <upstreamProjects>${triggerJobName!}</upstreamProjects>
+                        <threshold>
+                            <name>SUCCESS</name>
+                            <ordinal>0</ordinal>
+                            <color>BLUE</color>
+                            <completeBuild>true</completeBuild>
+                        </threshold>
+                    </jenkins.triggers.ReverseBuildTrigger>
                 </#if>
             </triggers>
         </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>

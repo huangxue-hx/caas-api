@@ -2,13 +2,16 @@ package com.harmonycloud.api.log;
 
 
 import com.alibaba.fastjson.JSONObject;
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.EsSearchTypeEnum;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dto.log.FullLinkQueryDto;
-import com.harmonycloud.service.application.EsService;
 import com.harmonycloud.service.platform.bean.LogQuery;
 import com.harmonycloud.service.platform.service.FullLinkLogService;
+import com.harmonycloud.service.platform.service.LogService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,12 +21,15 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Date;
 
+import static com.harmonycloud.common.Constant.CommonConstant.DEFAULT_PAGE_SIZE_20;
+import static com.harmonycloud.common.Constant.CommonConstant.ONE_WEEK_DAYS;
+
 /**
- * 全链路相关控制器
+ * 全链路日志相关控制器
  * @author zhangkui
  */
 @Controller
-@RequestMapping("/fulllink")
+@RequestMapping("/tenants/{tenantId}/projects/{projectId}/deploys/{deployName}/linklogs")
 public class FullLinkLogController {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -32,33 +38,35 @@ public class FullLinkLogController {
     FullLinkLogService linkLogService;
 
     @Autowired
-    EsService esService;
+    LogService logService;
 
     @ResponseBody
-    @RequestMapping(value="/podlist", method= RequestMethod.GET)
-    public ActionReturnUtil list(@RequestParam(value="namespace") String namespace,
-                                 @RequestParam(value="deployment") String deployment) throws Exception{
+    @RequestMapping(value="/pod", method= RequestMethod.GET)
+    public ActionReturnUtil listPod(@PathVariable("deployName") String deployName,
+                                    @RequestParam(value="namespace") String namespace) throws Exception{
         try {
             FullLinkQueryDto queryDto = new FullLinkQueryDto();
             queryDto.setNamespace(namespace);
-            queryDto.setDeployment(deployment);
+            queryDto.setDeployment(deployName);
             Date to = new Date();
-            Date from = DateUtil.addDay(to, -7);
+            Date from = DateUtil.addDay(to, -ONE_WEEK_DAYS);
             queryDto.setFromTime(DateUtil.DateToString(from, DateStyle.YYYY_MM_DD_HH_MM_SS.getValue()));
             queryDto.setToTime(DateUtil.DateToString(to, DateStyle.YYYY_MM_DD_HH_MM_SS.getValue()));
             return linkLogService.listPod(queryDto);
         } catch (Exception e) {
             logger.error("获取服务全链路日志失败.",  e);
-            return ActionReturnUtil.returnErrorWithData("获取服务日志列表失败");
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.LIST_LOG_ERROR);
         }
 
     }
 
     @ResponseBody
-    @RequestMapping(value="/errorAnalysis", method = RequestMethod.POST)
-    public ActionReturnUtil errorAnalysis(@RequestBody FullLinkQueryDto queryDto){
+    @RequestMapping(value="/erroranalysis", method = RequestMethod.GET)
+    public ActionReturnUtil getErrorAnalysis(@PathVariable("deployName") String deployName,
+                                             @RequestBody FullLinkQueryDto queryDto){
         try {
-            logger.debug("查询全链路日志错误路径参数: " + JSONObject.toJSONString(queryDto));
+            queryDto.setDeployment(deployName);
+            logger.debug("查询全链路日志错误路径参数: queryDto:{}", JSONObject.toJSONString(queryDto));
             return linkLogService.errorAnalysis(queryDto);
         }catch (IllegalArgumentException ie) {
             logger.warn("查询全链路日志错误路径参数有误", ie);
@@ -66,15 +74,17 @@ public class FullLinkLogController {
         }catch (Exception e) {
             logger.error("查询全链路日志错误路径失败：queryDto:{}",
                     queryDto.toString(), e.getMessage());
-            return ActionReturnUtil.returnErrorWithData("未知异常");
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.UNKNOWN);
         }
 
     }
 
     @ResponseBody
-    @RequestMapping(value="/errorTransactions", method = RequestMethod.POST)
-    public ActionReturnUtil errorTransactions(@RequestBody FullLinkQueryDto queryDto){
+    @RequestMapping(value="/errortransactions", method = RequestMethod.GET)
+    public ActionReturnUtil getErrorTransactions(@PathVariable("deployName") String deployName,
+                                                 @RequestBody FullLinkQueryDto queryDto){
         try {
+            queryDto.setDeployment(deployName);
             logger.debug("查询全链路日志业务信息参数: " + JSONObject.toJSONString(queryDto));
             return linkLogService.errorTransactions(queryDto);
         }catch (IllegalArgumentException ie) {
@@ -83,50 +93,52 @@ public class FullLinkLogController {
         }catch (Exception e) {
             logger.error("查询全链路日志业务信息失败：queryDto:{}",
                     queryDto.toString(), e.getMessage());
-            return ActionReturnUtil.returnErrorWithData("未知异常");
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.UNKNOWN);
         }
 
     }
 
     @ResponseBody
-    @RequestMapping(value="/transactionTrace", method = RequestMethod.POST)
-    public ActionReturnUtil transactionTrace(@RequestParam(value="transactionId") String transactionId){
+    @RequestMapping(value="/transactiontraces/{transactionId}", method = RequestMethod.GET)
+    public ActionReturnUtil getTransactionTrace(@PathVariable("transactionId") String transactionId){
         try {
             return linkLogService.transactionTrace(transactionId);
         }catch (Exception e) {
             logger.error("查询全链路拓扑图失败：transactionId:{}",
                     transactionId, e.getMessage());
-            return ActionReturnUtil.returnErrorWithData("查询全链路拓扑图失败");
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.QUERY_LOG_TOPOLOGY_ERROR);
         }
 
     }
 
     @ResponseBody
-    @RequestMapping(value="/loginfo", method = RequestMethod.POST)
-    public ActionReturnUtil loginfo(
+    @RequestMapping(method = RequestMethod.GET)
+    public ActionReturnUtil getLinkLogInfo(
+            @PathVariable("deployName") String deployName,
             @RequestParam(value="namespace") String namespace,
-            @RequestParam(value="deployment") String deployment,
             @RequestParam(value="size",required = false) Integer size,
             @RequestParam(value="scrollId",required = false) String scrollId,
-            @RequestParam(value="transactionId") String transactionId){
+            @RequestParam(value="transactionId") String transactionId,
+            @RequestParam(value="pod",required = false) String pod){
         try {
-            if(transactionId.indexOf("@") == -1 || transactionId.indexOf(":") == -1){
+            if(transactionId.indexOf(CommonConstant.AT) == -1 || transactionId.indexOf(CommonConstant.COLON) == -1){
                 logger.error("transactionId：{} 格式错误", transactionId);
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.FORMAT_ERROR, "transactionId", true);
             }
             LogQuery logQuery = new LogQuery();
             logQuery.setNamespace(namespace);
-            logQuery.setDeployment(deployment);
-            logQuery.setPod(transactionId.substring(transactionId.indexOf("@")+1, transactionId.indexOf(":")));
-            logQuery.setMathPhrase(true);
+            logQuery.setDeployment(deployName);
+            logQuery.setPod(pod);
+            logQuery.setSearchType(EsSearchTypeEnum.MATCH_PHRASE.getCode());
             logQuery.setSearchWord(transactionId);
-            logQuery.setPageSize(size==null?20:size);
+            logQuery.setPageSize(size==null?DEFAULT_PAGE_SIZE_20:size);
             logQuery.setScrollId(scrollId);
-            ActionReturnUtil result = esService.fileLog(logQuery);
+            ActionReturnUtil result = logService.fileLog(logQuery);
             return result;
         }catch (Exception e) {
             logger.error("获取全链路日志内容失败：transactionId:{}",
                     transactionId, e);
-            return ActionReturnUtil.returnErrorWithData("获取全链路日志内容失败");
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.QUERY_LOG_CONTENT_ERROR);
         }
 
     }

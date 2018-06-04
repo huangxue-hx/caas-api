@@ -2,17 +2,14 @@ package com.harmonycloud.api.application;
 
 import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
-import com.harmonycloud.dto.business.DeployedServiceNamesDto;
-import com.harmonycloud.dto.business.ServiceDeployDto;
-import com.harmonycloud.dto.business.ServiceTemplateDto;
+import com.harmonycloud.dto.application.ServiceDeployDto;
+import com.harmonycloud.dto.application.ServiceTemplateDto;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.service.application.ServiceService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpSession;
@@ -22,7 +19,7 @@ import javax.servlet.http.HttpSession;
  * Created by root on 3/29/17.
  */
 @Controller
-@RequestMapping("/serviceTemplate")
+@RequestMapping("/tenants/{tenantId}/projects/{projectId}")
 public class ServiceController {
 
     @Autowired
@@ -42,22 +39,19 @@ public class ServiceController {
      * 
      */
     @ResponseBody
-    @RequestMapping(method = RequestMethod.POST)
-    public ActionReturnUtil saveDeployments(@ModelAttribute ServiceTemplateDto serviceTemplate) throws Exception {
+    @RequestMapping(value = "/svctemplates", method = RequestMethod.POST)
+    public ActionReturnUtil saveServiceTemplate(@ModelAttribute ServiceTemplateDto serviceTemplate) throws Exception {
         logger.info("create service template");
         String userName = (String) session.getAttribute("username");
-        if (serviceTemplate == null) {
-            return ActionReturnUtil.returnErrorWithMsg("serviceTemplate is null");
-        }
         return serviceService.saveServiceTemplate(serviceTemplate, userName, serviceTemplate.getType());
     }
 
     /**
-     * list template by tlistTemplateByImage on 17/05/05.
+     * list template by tlistTemplateByImage on 17/05/05.  (暂未使用)
      *
      * @param name
      * 
-     * @param tenant
+     * @param clusterId
      * 
      * @return
      * 
@@ -65,36 +59,35 @@ public class ServiceController {
      * 
      */
     @ResponseBody
-    @RequestMapping(method = RequestMethod.GET)
-    public ActionReturnUtil listDeployments(@RequestParam(value = "name", required = false) String name, @RequestParam(value = "tenant", required = false) String tenant, @RequestParam(value = "isPubilc", required = false) boolean isPublic)
-            throws Exception {
-        logger.info("get service template by tenant");
-        return serviceService.listTemplateByTenat(name, tenant, isPublic);
+    @RequestMapping(value = "/svctemplates", method = RequestMethod.GET)
+    public ActionReturnUtil listServiceTemplate(@RequestParam(value = "name", required = false) String name,
+                                            @RequestParam(value = "clusterId", required = false) String clusterId,
+                                            @RequestParam(value = "isPubilc", required = false) boolean isPublic,
+                                            @PathVariable(value = "projectId") String projectId) throws Exception {
+        return serviceService.listServiceTemplate(name, clusterId, isPublic, projectId);
     }
 
     /**
      * list template by image on 17/05/05.
      *
-     * @param name
+     * @param name 服务模板名称
      * 
-     * @param tenant
+     * @param projectId 项目Id
      * 
-     * @param image
+     * @param image 镜像信息
+     *
+     * @param tenant 租户
      * 
-     * @return
+     * @return ActionReturnUtil
      * 
      * @throws Exception
      * 
      */
     @ResponseBody
-    @RequestMapping(value = "/image", method = RequestMethod.GET)
+    @RequestMapping(value = "/svctemplates/images", method = RequestMethod.GET)
     public ActionReturnUtil listDeploymentsByImage(@RequestParam(value = "name", required = false) String name, @RequestParam(value = "tenant", required = false) String tenant,
-            @RequestParam(value = "image", required = true) String image) throws Exception {
-        logger.info("get service template by image");
-        if (StringUtils.isEmpty(image)) {
-            return ActionReturnUtil.returnErrorWithMsg("image is null");
-        }
-        return serviceService.listTemplateByImage(name, tenant, image);
+            @RequestParam(value = "image", required = true) String image, @PathVariable(value = "projectId") String projectId) throws Exception {
+        return serviceService.listTemplateByImage(name, tenant, image, projectId);
     }
 
     /**
@@ -102,7 +95,7 @@ public class ServiceController {
      *
      * @param name
      * 
-     * @param tenant
+     * @param clusterId
      * 
      * @return
      * 
@@ -110,14 +103,12 @@ public class ServiceController {
      * 
      */
     @ResponseBody
-    @RequestMapping(value = "/detial", method = RequestMethod.GET)
-    public ActionReturnUtil getSpecificServiceTemplate(@RequestParam(value = "name", required = true) String name, @RequestParam(value = "tenant", required = false) String tenant,
-            @RequestParam(value = "tag", required = true) String tag) throws Exception {
-        logger.info("get service template by image");
-        if (StringUtils.isEmpty(name) || StringUtils.isEmpty(tag)) {
-            return ActionReturnUtil.returnErrorWithMsg("name or tag is null");
-        }
-        return serviceService.getSpecificTemplate(name, tag);
+    @RequestMapping(value = "/svctemplates/{templateName}", method = RequestMethod.GET)
+    public ActionReturnUtil getSpecificServiceTemplate(@PathVariable(value = "templateName") String name,
+                                                       @RequestParam(value = "clusterId", required = false) String clusterId,
+                                                       @RequestParam(value = "tag", required = false) String tag,
+                                                       @PathVariable(value = "projectId") String projectId) throws Exception {
+        return ActionReturnUtil.returnSuccessWithData(serviceService.getSpecificTemplate(name, tag, clusterId, projectId));
     }
 
     /**
@@ -131,14 +122,14 @@ public class ServiceController {
      * 
      */
     @ResponseBody
-    @RequestMapping(method = RequestMethod.PUT)
-    public ActionReturnUtil updateDeployments(@ModelAttribute ServiceTemplateDto serviceTemplate) throws Exception {
+    @RequestMapping(value = "/svctemplates/{templateName}", method = RequestMethod.PUT)
+    public ActionReturnUtil updateServiceTemplate(@ModelAttribute ServiceTemplateDto serviceTemplate) throws Exception {
         logger.info("update service template");
         String userName = (String) session.getAttribute("username");
         if(userName == null){
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
-        return serviceService.updateServiceTemplata(serviceTemplate, userName, serviceTemplate.getTag());
+        return serviceService.updateServiceTemplate(serviceTemplate, userName);
     }
 
     /**
@@ -150,99 +141,79 @@ public class ServiceController {
      * 
      */
     @ResponseBody
-    @RequestMapping(method = RequestMethod.DELETE)
-    public ActionReturnUtil deleteDeployments(@RequestParam(value = "name", required = true) String name) throws Exception {
+    @RequestMapping(value = "/svctemplates/{templateName}",method = RequestMethod.DELETE)
+    public ActionReturnUtil deleteServiceTemplate(@PathVariable(value = "templateName") String name,
+                                                  @PathVariable(value = "projectId") String projectId,
+                                                  @RequestParam(value = "clusterId") String clusterId) throws Exception {
         logger.info("delete service template");
         String userName = (String) session.getAttribute("username");
-        return serviceService.deleteServiceTemplate(name, userName);
+        return serviceService.deleteServiceTemplate(name, userName, projectId, clusterId);
+    }
+
+
+    /**
+     * 查询服务模板
+     * @param searchKey
+     * @param searchValue
+     * @param clusterId
+     * @param isPublic
+     * @param projectId
+     * @return ActionReturnUtil
+     * @throws Exception
+     */
+    @ResponseBody
+    @RequestMapping(value = "/svctemplates/search", method = RequestMethod.GET)
+    public ActionReturnUtil listServiceTemplate(@RequestParam(value = "searchkey", required = false) String searchKey,
+                                                @RequestParam(value = "searchvalue", required = false) String searchValue,
+                                                @RequestParam(value = "clusterId", required = false) String clusterId,
+                                                @RequestParam(value = "isPubilc", required = false) boolean isPublic,
+                                                @PathVariable(value = "projectId") String projectId) throws Exception {
+        return serviceService.listServiceTemplate(searchKey, searchValue, clusterId, isPublic, projectId);
     }
 
     /**
-     * delete service template on 17/05/05.
-     *
-     * @param name
-     *
+     * deploy service template by name(使用服务模板发布服务)
+     * @param name 模板名称
+     * @param app 应用名称
+     * @param tenantId 租户Id
+     * @param namespace 分区
+     * @param clusterId 版本
+     * @param nodeSelector 节点标签
      * @return ActionReturnUtil
-     *
+     * @throws Exception
      */
     @ResponseBody
-    @RequestMapping(value = "/deployedService", method = RequestMethod.DELETE)
-    public ActionReturnUtil deleteDeployedService(@ModelAttribute DeployedServiceNamesDto deployedServiceNamesDto) throws Exception {
-        logger.info("delete service template");
-        String userName = (String) session.getAttribute("username");
-        if(userName == null){
-			throw new K8sAuthException(Constant.HTTP_401);
-		}
-		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-		return serviceService.deleteDeployedService(deployedServiceNamesDto, userName, cluster);
-    }
-    
-    /**
-     * delete service template on 17/05/05.
-     *
-     * @param name
-     *
-     * @return ActionReturnUtil
-     *
-     */
-    @ResponseBody
-    @RequestMapping(value = "/list/search", method = RequestMethod.GET)
-    public ActionReturnUtil listServiceTemplate(@RequestParam(value = "searchkey", required = false) String searchKey,
-            @RequestParam(value = "searchvalue", required = false) String searchValue, @RequestParam(value = "tenant", required = false) String tenant, @RequestParam(value = "isPubilc", required = false) boolean isPublic) throws Exception {
-        logger.info("delete service template");
-        return serviceService.listServiceTemplate(searchKey, searchValue, tenant, isPublic);
-    }
-    
-    /**
-     * deploy service template on 17/05/05.
-     *
-     * @param name
-     * 
-     * @param tag
-     * 
-     * @param namspace
-     *
-     * @return ActionReturnUtil
-     *
-     */
-    @ResponseBody
-    @RequestMapping(value = "/deploy/name", method = RequestMethod.POST)
-    public ActionReturnUtil deployServiceTemplateByName(@RequestParam(value = "name", required = true) String name, @RequestParam(value = "app", required = true) String app, @RequestParam(value = "tenantId", required = true) String tenantId,
-            @RequestParam(value = "namespace", required = true) String namespace, @RequestParam(value = "tag", required = true ) String tag, @RequestParam(value = "nodeSelector", required = false ) String nodeSelector) throws Exception {
+    @RequestMapping(value = "/svctemplates/{templateName}/deploys", method = RequestMethod.POST)
+    public ActionReturnUtil deployServiceTemplateByName(@PathVariable(value = "templateName") String name,
+                                                        @RequestParam(value = "serviceName", required = true) String app,
+                                                        @PathVariable(value = "tenantId") String tenantId,
+                                                        @RequestParam(value = "namespace", required = true) String namespace,
+                                                        @RequestParam(value = "clusterId", required = false ) String clusterId,
+                                                        @RequestParam(value = "nodeSelector", required = false ) String nodeSelector,
+                                                        @PathVariable(value = "projectId") String projectId) throws Exception {
         logger.info("deploy service template");
         String userName = (String) session.getAttribute("username");
         if(userName == null){
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
-		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-		if(StringUtils.isEmpty(tenantId)){
-			tenantId = (String) session.getAttribute("tenantId");
-		}
-        return serviceService.deployServiceByname(app, tenantId, name, tag, namespace, cluster, userName, nodeSelector);
+        return serviceService.deployServiceByName(app, tenantId, name, clusterId, namespace, userName, nodeSelector, projectId);
     }
-    
+
     /**
      * deploy service template on 17/05/05.
-     *
-     * @param name
-     * 
-     * @param tag
-     * 
-     * @param namspace
-     *
+     * @param serviceDeploy 服务模板信息
      * @return ActionReturnUtil
-     *
+     * @throws Exception
      */
     @ResponseBody
-    @RequestMapping(value = "/deploy", method = RequestMethod.POST)
+    @RequestMapping(value = "/svctemplates/deploys", method = RequestMethod.POST)
     public ActionReturnUtil deployServiceTemplate(@ModelAttribute ServiceDeployDto serviceDeploy) throws Exception {
         logger.info("deploy service template");
         String userName = (String) session.getAttribute("username");
         if(userName == null){
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
-		Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-        return serviceService.deployService(serviceDeploy, cluster, userName);
+        return serviceService.deployService(serviceDeploy, userName);
     }
 
     
@@ -259,31 +230,43 @@ public class ServiceController {
      * 
      */
     @ResponseBody
-    @RequestMapping(value = "/tags",method = RequestMethod.GET)
-    public ActionReturnUtil listTags(@RequestParam(value = "name", required = false) String name, @RequestParam(value = "tenant", required = false ) String tenant)
+    @RequestMapping(value = "/svctemplates/tags",method = RequestMethod.GET)
+    public ActionReturnUtil listTags(@RequestParam(value = "name", required = true) String name,
+                                     @RequestParam(value = "tenant") String tenant,
+                                     @PathVariable(value = "projectId") String projectId)
             throws Exception {
-        logger.info("get service template by tenant");
-        return serviceService.listTemplateTagsByName(name, tenant);
+        return serviceService.listTemplateTagsByName(name, tenant, projectId);
     }
-    
+
     /**
-     * list template tags by name tenant on 17/05/05.
-     *
+     * switch public status about service template
      * @param name
-     * 
-     * @param tenant
-     * 
-     * @return
-     * 
+     * @param status
+     * @return ActionReturnUtil
      * @throws Exception
-     * 
      */
     @ResponseBody
-    @RequestMapping(value = "/switch",method = RequestMethod.PUT)
-    public ActionReturnUtil switchPublic(@RequestParam(value = "name", required = false) String name, @RequestParam(value = "isPublic", required = false ) boolean isPublic)
+    @RequestMapping(value = "/svctemplates/{templateName}/status",method = RequestMethod.PUT)
+    public ActionReturnUtil switchPublic(@PathVariable(value = "templateName") String name, @RequestParam(value = "status", required = false ) boolean status)
             throws Exception {
-        logger.info("get service template by tenant");
-        return serviceService.switchPub(name, isPublic);
+        logger.info("switch public status about service template.");
+        return serviceService.switchPub(name, status);
+    }
+
+    @ResponseBody
+    @RequestMapping(value = "/svctemplates/{templateName}/checkResource", method = RequestMethod.GET)
+    public ActionReturnUtil checkRemainResourceInNamespace(@PathVariable(value="projectId") String projectId,
+                                                           @PathVariable(value = "templateName") String templateName,
+                                                           @RequestParam(value = "namespace") String namespace) throws Exception {
+        return serviceService.checkResourceQuota(projectId, namespace, templateName);
+    }
+
+    @ResponseBody
+    @RequestMapping(value = "/svctemplates/{templateName}/checkname", method = RequestMethod.GET)
+    public ActionReturnUtil checkServiceTemplateName(@PathVariable(value = "templateName") String templateName,
+                                                     @PathVariable(value = "projectId") String projectId,
+                                                     @RequestParam(value = "clusterId") String clusterId) throws Exception {
+        return serviceService.checkServiceTemplateName(templateName, projectId, clusterId);
     }
     
 }

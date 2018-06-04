@@ -1,6 +1,7 @@
 package com.harmonycloud.dao.application;
 
 import java.util.List;
+import java.util.Set;
 
 import org.apache.ibatis.annotations.Param;
 import org.springframework.stereotype.Repository;
@@ -12,108 +13,10 @@ import com.harmonycloud.dao.application.bean.ConfigFile;
  */
 @Repository
 public interface ConfigFileMapper {
-    /**
-     * get configfile max tags on 17/03/24.
-     * 
-     * @author gurongyun
-     * @param name required
-     * @param tenant required
-     * @param repoName required
-     * @description find configfile
-     * @return ConfigFile
-     */
-    ConfigFile getConfigFile(String name, String tenant, String repoName);
-
-    /**
-     * on 17/03/24.
-     * 
-     * @author gurongyun
-     * @param id required
-     * @description get configfile by id
-     * @return ConfigFile
-     */
-    ConfigFile getConfigFileById(String id);
-    
-    /**
-     * on 17/03/24.
-     * 
-     * @author gurongyun
-     * @param tenant required
-     * @param name required
-     * @param repoName required
-     * @description finds configfiles order by tags desc
-     * @return List
-     */
-    List<ConfigFile> listConfigByName(String tenant, String name, String repoName);
-    
-    /**
-     * on 17/03/24.
-     * 
-     * @author gurongyun
-     * @param name required
-     * @param tenant required
-     * @param repoName required
-     * @description delete configfiles
-     */
-    void deleteConfigFileByName(String name, String tenant, String repoName);
-    
-    /**
-     * on 17/03/24.
-     * 
-     * @author gurongyun
-     * @param name required
-     * @param tenant required
-     * @param repoName required
-     * @description finds configfiles order by create_time 
-     * @return List
-     */
-    List<ConfigFile> listConfigByNameLatest(@Param("name")String name, @Param("tenant")String tenant, @Param("repoName")String repoName);
-    
-    /**
-     * on 17/03/24.
-     * 
-     * @author gurongyun
-     * @param name required
-     * @param tenant required
-     * @param repoName required
-     * @description finds configfiles order by create_time desc
-     * @return List
-     */
-    List<ConfigFile> listConfigByNameAsc(@Param("name")String name, @Param("tenant")String tenant, @Param("repoName")String repoName);
-    
-    /**
-     * on 17/03/24.
-     * 
-     * @author gurongyun
-     * @param tenant required
-     * @description finds configfiles 
-     * @return List
-     */
-    List<ConfigFile> listConfigSearch(@Param("tenant")String tenant,@Param("keyword")String keyword);
-    
-    /**
-     * on 17/03/24.
-     * 
-     * @author gurongyun
-     * @param tenant required
-     * @description find configfiles by tenant,reponame
-     * @return list
-     */
-    List<ConfigFile> listConfigOverview(@Param("tenant")String tenant, @Param("repoName")String repoName);
-    
-    /**
-     * on 17/03/24.
-     * 
-     * @author gurongyun
-     * @param id required
-     * @description check id by id
-     * @return String
-     */
-    String getId(String id);    
 
     /**
      * add configfile on 17/03/24.
-     * 
+     *
      * @author gurongyun
      * @param configFile required
      * @description add configfile
@@ -125,31 +28,92 @@ public interface ConfigFileMapper {
      * 
      * @author gurongyun
      * @param id required
-     * @description delete a configfile
+     * @description get configfile by id
+     * @return ConfigFile
      */
-    void removeConfigFileById(String id);
+    ConfigFile getConfig(String id);
+
+    /**
+     * on 17/03/24.
+     *
+     * @author gurongyun
+     * @param name required
+     * @param projectId required
+     * @param repoName required
+     * @description finds configfiles order by create_time
+     * @return List
+     */
+    ConfigFile getLatestConfig(@Param("name") String name, @Param("projectId") String projectId, @Param("repoName") String repoName);
+    
+    /**
+     * on 17/03/24.
+     * 
+     * @author gurongyun
+     * @param projectId required
+     * @param name required
+     * @param repoName required
+     * @description finds configfiles order by tags desc
+     * @return List
+     */
+    List<ConfigFile> listConfigByName(@Param("name") String name, @Param("projectId") String projectId, @Param("clusterId") String clusterId, @Param("repoName") String repoName);
 
     /**
      * on 17/03/24.
      * 
      * @author gurongyun
-     * @param name required
-     * @description get tenant
+     * @param projectId required
+     * @description finds configfiles 
+     * @return List
      */
-    ConfigFile getTenantByName(@Param("name")String name);
-
-
+    List<ConfigFile> listConfigSearch(@Param("projectId") String projectId,
+                                      @Param("clusterIds") Set<String> clusterIds,
+                                      @Param("repoName") String repoName,
+                                      @Param("keyword") String keyword);
+    
     /**
      * on 17/03/24.
      * 
      * @author gurongyun
+     * @param projectId required
+     * @description find configfiles by projectId,reponame
+     * @return list
+     */
+    List<ConfigFile> listConfigOverview(@Param("projectId") String projectId, @Param("repoName") String repoName, @Param("clusterIds") Set<String> clusterIds);
+
+    /**
+     * on 17/03/24.
+     *
+     * @author gurongyun
      * @param name required
-     * @param tenant required
+     * @param projectId required
      * @param repoName required
      * @description delete configfiles
      */
-    void deleteConfigFileByTenant(@Param("tenant")String tenant);
+    int deleteConfigByName(@Param("name") String name, @Param("projectId") String projectId,
+                           @Param("clusterId") String clusterId);
+
+    /**
+     * on 17/03/24.
+     *
+     * @author gurongyun
+     * @param projectId required
+     * @description delete configfiles
+     */
+    void deleteConfigByProject(@Param("projectId") String projectId);
+
+    /**
+     * on 17/03/24.
+     *
+     * @author gurongyun
+     * @param id required
+     * @description delete a configfile
+     */
+    int deleteConfig(@Param("id") String id, @Param("projectId") String projectId);
 
     void updateConfig(ConfigFile configFile);
+
+    int deleteByClusterId(@Param("clusterId") String clusterId);
+
+    ConfigFile getConfigByNameAndTag(@Param("name") String name, @Param("tag") String tag, @Param("projectId") String projectId, @Param("clusterId") String clusterId);
 
 }

@@ -8,11 +8,23 @@ public class ConfigDetailDto implements Serializable {
     private String id;
     private String name;
     private String description;
-    private String tenant;
+    private String tenantId;
+    private String projectId;
+    private String clusterId;
+    private String clusterName;
     private String repoName;
     private String items;
     private String path;
-    
+    private String isCreate;
+
+    public String getIsCreate() {
+        return isCreate;
+    }
+
+    public void setIsCreate(String isCreate) {
+        this.isCreate = isCreate;
+    }
+
     public String getId() {
         return id;
     }
@@ -35,14 +47,6 @@ public class ConfigDetailDto implements Serializable {
     
     public void setDescription(String description) {
         this.description = description;
-    }
-    
-    public String getTenant() {
-        return tenant;
-    }
-    
-    public void setTenant(String tenant) {
-        this.tenant = tenant;
     }
 
 	public String getItems() {
@@ -68,5 +72,36 @@ public class ConfigDetailDto implements Serializable {
 	public void setPath(String path) {
 		this.path = path;
 	}
-  
+
+    public String getTenantId() {
+        return tenantId;
+    }
+
+    public void setTenantId(String tenantId) {
+        this.tenantId = tenantId;
+    }
+
+    public String getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
+    }
+
+    public String getClusterId() {
+        return clusterId;
+    }
+
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
+    }
+
+    public String getClusterName() {
+        return clusterName;
+    }
+
+    public void setClusterName(String clusterName) {
+        this.clusterName = clusterName;
+    }
 }

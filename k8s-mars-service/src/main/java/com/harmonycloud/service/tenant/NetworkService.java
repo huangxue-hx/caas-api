@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.network.bean.NamespceBindSubnet;
 import com.harmonycloud.dao.network.bean.NetworkCalico;
 import com.harmonycloud.dao.network.bean.NetworkTopology;

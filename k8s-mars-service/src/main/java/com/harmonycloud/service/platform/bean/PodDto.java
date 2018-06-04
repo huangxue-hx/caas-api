@@ -7,6 +7,7 @@ public class PodDto {
 	private String startTime;
 	private String status;
 	private String nodeName;
+	private String ownerReferenceKind;
 
 	public String getIp() {
 		return ip;
@@ -54,5 +55,13 @@ public class PodDto {
 
 	public void setNodeName(String nodeName) {
 		this.nodeName = nodeName;
+	}
+
+	public String getOwnerReferenceKind() {
+		return ownerReferenceKind;
+	}
+
+	public void setOwnerReferenceKind(String ownerReferenceKind) {
+		this.ownerReferenceKind = ownerReferenceKind;
 	}
 }

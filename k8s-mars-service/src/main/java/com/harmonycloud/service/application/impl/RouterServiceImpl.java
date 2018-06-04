@@ -1,43 +1,41 @@
 package com.harmonycloud.service.application.impl;
 
-import com.alibaba.druid.stat.TableStat.Name;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.CollectionUtil;
-import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.dao.application.NodePortClusterMapper;
-import com.harmonycloud.dao.application.NodePortMapper;
-import com.harmonycloud.dao.application.bean.NodePortCluster;
-import com.harmonycloud.dao.application.bean.NodePortClusterExample;
-import com.harmonycloud.dao.cluster.bean.Cluster;
-import com.harmonycloud.dto.business.*;
-import com.harmonycloud.dto.svc.SvcTcpDto;
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.*;
+import com.harmonycloud.dao.cluster.bean.NodePortClusterUsage;
+import com.harmonycloud.dto.application.*;
 import com.harmonycloud.k8s.bean.*;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.bean.cluster.ClusterDomain;
+import com.harmonycloud.k8s.bean.cluster.ClusterExternal;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
+import com.harmonycloud.k8s.service.DeploymentService;
+import com.harmonycloud.k8s.service.NodeService;
 import com.harmonycloud.k8s.service.ServicesService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
+import com.harmonycloud.service.application.ConfigMapService;
 import com.harmonycloud.service.application.RouterService;
-import com.harmonycloud.service.platform.bean.*;
+import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.cluster.NodePortClusterUsageService;
+import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
-import com.harmonycloud.service.tenant.TenantService;
-
+import com.harmonycloud.service.tenant.NamespaceLocalService;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
-
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.servlet.http.HttpSession;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by czm on 2017/1/18. jmi 补充
@@ -45,1079 +43,982 @@ import java.util.Map;
 @Service
 public class RouterServiceImpl implements RouterService {
 
-	@Autowired
-	private ServicesService sService;
+    @Autowired
+    private ServicesService sService;
 
-	@Autowired
-	private TenantService tService;
+    @Autowired
+    HttpSession session;
 
-	@Autowired
-	private NodePortMapper nodePortMapper;
+    @Autowired
+    NodeService nodeService;
+    @Autowired
+    NamespaceLocalService namespaceLocalService;
 
-	@Autowired
-	private NodePortClusterMapper npcMapper;
+    @Autowired
+    private ConfigMapService configMapService;
 
-	@Autowired
-	HttpSession session;
+    @Autowired
+    private NodePortClusterUsageService portClusterUsageService;
 
-	@Value("#{propertiesReader['clusterHost.hostname']}")
-	private String hostName;
+    @Autowired
+    private ClusterService clusterService;
 
-	@Value("#{propertiesReader['kube.haProxyVersion']}")
-	private String haProxyVersion;
+    @Autowired
+    private DeploymentService dpService;
 
-	final static String START_PORT = "30101";
+    /**
+     * 创建router
+     *
+     * @param parsedIngressList
+     * @return
+     */
+    @Override
+    public ActionReturnUtil ingCreate(ParsedIngressListDto parsedIngressList) throws Exception {
+        if (parsedIngressList == null || StringUtils.isBlank(parsedIngressList.getNamespace()) || StringUtils.isBlank(parsedIngressList.getName())) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        String namespace = parsedIngressList.getNamespace();
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        if (cluster == null) {
+            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+        }
+        //判断集群内是否有相同名称的ingress
+        if (checkIngressName(cluster, parsedIngressList.getName())) {
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.HTTP_INGRESS_NAME_DUPLICATE);
+        }
+        Ingress ingress = new Ingress();
+        ingress.setMetadata(new ObjectMeta());
+        ingress.setSpec(new IngressSpec());
 
-	final static Integer START_PORT_INT = 30101;
+        Map<String, Object> anno = new HashMap<String, Object>();
+        if (parsedIngressList.getAnnotaion() != null) {
+            anno.put("nephele/annotation", parsedIngressList.getAnnotaion());
+            ingress.getMetadata().setAnnotations(anno);
+        }
+        List<HttpRuleDto> rules = parsedIngressList.getRules();
 
-	final static Integer PORT_SIZE = 200;
+        Map<String, Object> la = new HashMap<>();
+        List<HTTPIngressPath> path = new ArrayList<>();
+        String name = "";
+        if (rules != null && rules.size() > 0) {
+            for (HttpRuleDto rule : rules) {
+                name = rule.getService();
+                HTTPIngressPath p = new HTTPIngressPath();
+                IngressBackend backend = new IngressBackend();
+                backend.setServiceName(rule.getService());
+                backend.setServicePort(Integer.valueOf(rule.getPort()));
+                p.setBackend(backend);
+                p.setPath(rule.getPath());
+                path.add(p);
+            }
+        }
+        la.put("app", name);
+        ingress.getMetadata().setLabels(la);
+        ingress.getMetadata().setNamespace(namespace);
 
-	/**
-	 * 查询router列表
-	 *
-	 * @param namespace
-	 * @return
-	 */
-	@Override
-	public List<ParsedIngressListDto> ingList(String namespace) throws Exception {
+        IngressRule ingressRule = new IngressRule();
+        ingressRule.setHost(parsedIngressList.getHost());
+        HTTPIngressRuleValue http = new HTTPIngressRuleValue();
+        http.setPaths(path);
+        ingressRule.setHttp(http);
+        ingress.getSpec().setRules(new ArrayList<>());
+        ingress.getSpec().getRules().add(ingressRule);
 
-		// 找到URL进行调用
-		K8SURL url = new K8SURL();
-		url.setNamespace(namespace).setResource(Resource.INGRESS);// 资源类型怎么判断
-		K8SClientResponse k = new K8sMachineClient().exec(url, HTTPMethod.GET, /* "330957b867a3462ea457bec41410624b", */null,
-				null, null);
-		IngressList ingressList = K8SClient.converToBean(k, IngressList.class);
+        ingress.getMetadata().setName(parsedIngressList.getName());
+        Map<String, Object> body = CollectionUtil.transBean2Map(ingress);
+        K8SURL url = new K8SURL();
+        Map<String, Object> head = new HashMap<String, Object>();
+        head.put("Content-Type", "application/json");
+        url.setNamespace(namespace).setResource(Resource.INGRESS);
+        K8SClientResponse k = new K8sMachineClient().exec(url, HTTPMethod.POST, head, body, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(k.getStatus())) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(k.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+        }
+        return ActionReturnUtil.returnSuccessWithData(k.getBody());
+    }
 
-		List<ParsedIngressListDto> parsedIngressLists = new ArrayList<ParsedIngressListDto>();
+    /**
+     * 删除HTTP应用网关
+     */
+    @Override
+    public ActionReturnUtil ingDelete(String namespace, String name) throws Exception {
+        if (StringUtils.isBlank(namespace) || StringUtils.isBlank(name)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        if (cluster == null) {
+            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+        }
+        K8SURL url = new K8SURL();
+        url.setNamespace(namespace).setResource(Resource.INGRESS).setName(name);
+        Map<String, Object> head = new HashMap<String, Object>();
+        head.put("Content-Type", "application/json");
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, head, null, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
+            return ActionReturnUtil.returnErrorWithData(response.getBody());
+        }
+        return ActionReturnUtil.returnSuccessWithData(response.getBody());
+    }
 
-		if (ingressList != null) {
-			for (Ingress ingress : ingressList.getItems()) {
-				ParsedIngressListDto parsedIngressList = new ParsedIngressListDto();
-				List<HttpRuleDto> rules = new ArrayList<>();
+    @Override
+    public ActionReturnUtil svcList(String namespace) throws Exception {
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        K8SClientResponse response = sService.doServiceByNamespace(namespace, null, null, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            return ActionReturnUtil.returnErrorWithData(response.getBody());
+        }
+        ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
+        List<com.harmonycloud.k8s.bean.Service> services = svList.getItems();
+        List<RouterSvc> routerSvcs = new ArrayList<RouterSvc>();
+        if (services != null && !services.isEmpty()) {
+            for (int i = 0; i < services.size(); i++) {
+                boolean flag = false;
+                Map<String, Object> labels = services.get(i).getMetadata().getLabels();
+                if (labels != null && !labels.isEmpty()) {
+                    for (Map.Entry<String, Object> m : labels.entrySet()) {
+                        if (m.getKey().indexOf("nephele") > -1) {
+                            flag = true;
+                            break;
+                        }
+                    }
+                }
 
-				ObjectMeta metadata = ingress.getMetadata();
-				parsedIngressList.setNamespace(metadata.getNamespace());
-				parsedIngressList.setName(metadata.getName());
-				parsedIngressList.setLabels(metadata.getLabels());
-				parsedIngressList.setCreateTime(metadata.getCreationTimestamp());
-				parsedIngressList.setHost(ingress.getSpec().getRules().get(0).getHost());
+                if (flag) {
+                    RouterSvc routerSvc = new RouterSvc();
+                    com.harmonycloud.k8s.bean.Service svc = services.get(i);
+                    routerSvc.setNamespace(svc.getMetadata().getNamespace());
+                    routerSvc.setName(svc.getMetadata().getName());
+                    routerSvc.setCreateTime(svc.getMetadata().getCreationTimestamp());
+                    Map<String, Object> tMap = new HashMap<String, Object>();
+                    for (Map.Entry<String, Object> m : labels.entrySet()) {
+                        if (m.getKey().indexOf("nephele") < 0) {
+                            tMap.put(m.getKey(), m.getValue());
+                        }
+                    }
+                    routerSvc.setLabels(tMap);
+                    routerSvc.setSelector(svc.getSpec().getSelector());
+                    routerSvc.setRules(svc.getSpec().getPorts());
+                    Map<String, Object> anno = svc.getMetadata().getAnnotations();
+                    if (anno != null && !anno.isEmpty()) {
+                        if (anno.containsKey("nephele/annotation")
+                                && !StringUtils.isEmpty(anno.get("nephele/annotation").toString())) {
+                            routerSvc.setAnnotation(anno.get("nephele/annotation").toString());
+                        }
+                        if (anno.containsKey("nephele/deployment")
+                                && !StringUtils.isEmpty(anno.get("nephele/deployment").toString())) {
+                            routerSvc.setService(anno.get("nephele/deployment").toString());
+                        }
+                    }
+                    routerSvcs.add(routerSvc);
+                }
+            }
+        }
+        return ActionReturnUtil.returnSuccessWithData(routerSvcs);
+    }
 
-				if (metadata.getAnnotations() != null) {
-					parsedIngressList.setAnnotaion(metadata.getAnnotations().get("nephele/annotation"));
-				}
+    @Override
+    public void deleteRulesByName(String namespace, String name, Cluster cluster) throws Exception {
+        AssertUtil.notBlank(namespace, DictEnum.NAMESPACE);
+        AssertUtil.notBlank(name, DictEnum.NAME);
+        //获取nginx configmap
+        String valuePrefix = namespace + "/" + name;
+        deleteNginxConfigMap(valuePrefix, cluster, Constant.PROTOCOL_TCP);
+        deleteNginxConfigMap(valuePrefix, cluster, Constant.PROTOCOL_UDP);
+    }
 
-				List<IngressRule> specRules = ingress.getSpec().getRules();
-				for (IngressRule ingressRule : specRules) {
-					HttpRuleDto rule = new HttpRuleDto();
-					rule.setPath(ingressRule.getHttp().getPaths().get(0).getPath());
-					rule.setService(ingressRule.getHttp().getPaths().get(0).getBackend().getServiceName());
-					rule.setPort(String.valueOf(ingressRule.getHttp().getPaths().get(0).getBackend().getServicePort()));
-					rules.add(rule);
-					parsedIngressList.setRules(rules);
-				}
-				parsedIngressLists.add(parsedIngressList);
-			}
-		}
+    private void deleteNginxConfigMap(String valuePrefix, Cluster cluster, String protocol) throws Exception {
+        ConfigMap configMap = getSystemExposeConfigmap(cluster, protocol);
+        Map<String, Object> data = (Map<String, Object>) configMap.getData();
+        if (null != data) {
+            Iterator<Map.Entry<String, Object>> it = data.entrySet().iterator();
+            List<String> externalPorts = new ArrayList<>();
+            while (it.hasNext()) {
+                Map.Entry<String, Object> entry = it.next();
+                String value = entry.getValue().toString();
+                if (value.contains(valuePrefix)) {
+                    externalPorts.add(entry.getKey());
+                    it.remove();
+                }
+            }
 
-		return parsedIngressLists;
-	}
+            //更新configmap
+            configMap.setData(data);
+            configMapService.updateConfigmap(configMap, cluster);
 
-	/**
-	 * 创建router
-	 *
-	 * @param parsedIngressList
-	 * @return
-	 */
-	@Override
-	public ActionReturnUtil ingCreate(ParsedIngressListDto parsedIngressList) throws Exception {
-		Map<String, Object> body = new HashMap<String, Object>();
-		Ingress ingress = new Ingress();
-		ingress.setMetadata(new ObjectMeta());
-		ingress.setSpec(new IngressSpec());
+            //删除数据库端口
+            for (String port : externalPorts) {
+                portClusterUsageService.deleteNodePortUsage(cluster.getId(), Integer.valueOf(port));
+            }
+        }
+    }
 
-		Map<String, Object> anno = new HashMap<String, Object>();
-		if (parsedIngressList.getAnnotaion() != null) {
-			anno.put("nephele/annotation", parsedIngressList.getAnnotaion());
-			ingress.getMetadata().setAnnotations(anno);
-		}
-		ingress.getMetadata().setLabels(parsedIngressList.getLabels());
-		ingress.getMetadata().setNamespace(parsedIngressList.getNamespace());
-		List<HttpRuleDto> rules = parsedIngressList.getRules();
+    /**
+     * 更新service
+     */
+    @Override
+    public ActionReturnUtil svcUpdate(SvcRouterUpdateDto svcRouterUpdate) throws Exception {
+        // 查询
+        K8SURL url1 = new K8SURL();
+        url1.setNamespace(svcRouterUpdate.getNamespace()).setResource(Resource.SERVICE)
+                .setSubpath(svcRouterUpdate.getName());
+        Map<String, Object> head = new HashMap<String, Object>();
+        head.put("Content-Type", "application/json");
+        K8SClientResponse serivceResponse = new K8sMachineClient().exec(url1, HTTPMethod.GET, head, null, null);
+        com.harmonycloud.k8s.bean.Service service = K8SClient.converToBean(serivceResponse,
+                com.harmonycloud.k8s.bean.Service.class);
+        String apiVersion = service.getApiVersion();
+        String kind = service.getKind();
+        ObjectMeta metadata = service.getMetadata();
+        // 更新metadata
+        Map<String, Object> annotations = metadata.getAnnotations();
+        annotations.clear();
+        annotations.put("nephele/deployment", svcRouterUpdate.getService());
+        Map<String, Object> labels = metadata.getLabels();
+        labels.clear();
+        List<HttpLabelDto> httpLabels = svcRouterUpdate.getLabels();
+        for (HttpLabelDto httpLabel : httpLabels) {
+            labels.put(httpLabel.getName(), httpLabel.getValue());
+        }
+        labels.put("nephele_Type", "HAP");
 
-		List<HTTPIngressPath> path = new ArrayList<HTTPIngressPath>();
+        ServiceSpec spec = service.getSpec();
+        // 更新spec
+        ServiceStatus status = service.getStatus();
+        // 更新spec.ports
+        List<ServicePort> ports = new ArrayList<>();
+        List<TcpRuleDto> rules = svcRouterUpdate.getRules();
+        for (int i = 0; i < rules.size(); i++) {
+            // 判断是否为编辑状态,编辑状态下不更新
+            if (rules.get(i).getIsEdit() != null && rules.get(i).getIsEdit() == false) {
+                ServicePort port = new ServicePort();
+                port.setName(svcRouterUpdate.getName() + "-port" + i);
+                port.setPort(Integer.valueOf(rules.get(i).getPort()));
+                port.setTargetPort(Integer.valueOf(rules.get(i).getTargetPort()));
+                port.setProtocol(rules.get(i).getProtocol());
+                ports.add(port);
+            }
+        }
+        // 更新spec.selector
+        Map<String, Object> selector = new HashMap<>();
+        if (svcRouterUpdate.getSelector() != null && svcRouterUpdate.getSelector().size() > 0) {
+            selector.put(svcRouterUpdate.getSelector().get(0).getName(),
+                    svcRouterUpdate.getSelector().get(0).getValue());
+        }
+        spec.setPorts(ports);
+        spec.setSelector(selector);
+        Map<String, Object> body = new HashMap<>();
+        body.put("metadata", metadata);
+        body.put("spec", spec);
+        body.put("kind", kind);
+        body.put("apiVersion", apiVersion);
+        body.put("status", status);
+        K8SURL url = new K8SURL();
+        url.setNamespace(svcRouterUpdate.getNamespace()).setResource(Resource.SERVICE)
+                .setSubpath(svcRouterUpdate.getName());
+        head.put("Content-Type", "application/json");
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, head, body, null);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            return ActionReturnUtil.returnErrorWithData(response.getBody());
+        }
+        return ActionReturnUtil.returnSuccessWithData(response.getBody());
+    }
 
-		if (rules != null && !rules.equals("")) {
-			for (HttpRuleDto rule : rules) {
+    /**
+     * 更新HTTP应用网关
+     *
+     * @param parsedIngressList
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public ActionReturnUtil ingUpdate(ParsedIngressListUpdateDto parsedIngressList) throws Exception {
+        K8SURL url = new K8SURL();
+        url.setNamespace(parsedIngressList.getNamespace()).setResource(Resource.INGRESS)
+                .setName(parsedIngressList.getName());
+        Map<String, Object> head = new HashMap<String, Object>();
+        head.put("Content-Type", "application/json");
+        Map<String, Object> body = new HashMap<>();
+        // 设置metadata
+        ObjectMeta metadata = new ObjectMeta();
+        // 处理label
+        List<HttpLabelDto> labels = parsedIngressList.getLabels();
+        Map<String, Object> label = new HashMap<>();
+        Map<String, Object> annotations = new HashMap<>();
+        if (labels != null) {
+            for (HttpLabelDto httpLabel : labels) {
+                label.put(httpLabel.getName(), httpLabel.getValue());
+            }
+        }
+        if (parsedIngressList.getAnnotaion() != null) {
+            annotations.put("nephele/annotation", parsedIngressList.getAnnotaion().toString());
+            metadata.setAnnotations(annotations);
+        }
+        metadata.setLabels(label);
+        metadata.setName(parsedIngressList.getName());
+        metadata.setNamespace(parsedIngressList.getNamespace());
+        // 设置spec
+        IngressSpec spec = new IngressSpec();
+        // 转换为k8s需要的结构
+        List<HttpRuleDto> rules = parsedIngressList.getRules();
+        List<IngressRule> listRule = new ArrayList<>();
+        if (rules != null) {
+            for (HttpRuleDto httpRule : rules) {
+                // 判断是否为编辑状态,编辑状态下不更新
+                if (httpRule.getIsEdit() != null && !httpRule.getIsEdit().equals("true")) {
+                    HTTPIngressRuleValue http = new HTTPIngressRuleValue();
+                    List<HTTPIngressPath> paths = new ArrayList<>();
+                    IngressRule rule = new IngressRule();
+                    HTTPIngressPath path = new HTTPIngressPath();
+                    IngressBackend backend = new IngressBackend();
+                    backend.setServiceName(httpRule.getService());
+                    backend.setServicePort(Integer.valueOf(httpRule.getPort()));
+                    path.setPath(httpRule.getPath());
+                    path.setBackend(backend);
+                    paths.add(path);
+                    http.setPaths(paths);
+                    rule.setHttp(http);
+                    rule.setHost(parsedIngressList.getHost());
+                    listRule.add(rule);
+                }
+            }
+        }
+        spec.setRules(listRule);
+        body.put("metadata", metadata);
+        body.put("spec", spec);
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, head, body);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            return ActionReturnUtil.returnErrorWithData(response.getBody());
+        }
+        return ActionReturnUtil.returnSuccessWithData(response.getBody());
 
-				HTTPIngressPath p = new HTTPIngressPath();
-				IngressBackend backend = new IngressBackend();
-				backend.setServiceName(rule.getService());
-				backend.setServicePort(Integer.valueOf(rule.getPort()));
-				p.setBackend(backend);
-				p.setPath(rule.getPath());
-				path.add(p);
-			}
-		}
+    }
 
-		IngressRule ingressRule = new IngressRule();
-		ingressRule.setHost(parsedIngressList.getHost());
-		HTTPIngressRuleValue http = new HTTPIngressRuleValue();
-		http.setPaths(path);
-		ingressRule.setHttp(http);
-		ingress.getSpec().setRules(new ArrayList<IngressRule>());
-		ingress.getSpec().getRules().add(ingressRule);
+    @Override
+    public ActionReturnUtil getPort(String namespace) throws Exception {
+        if (StringUtils.isBlank(namespace)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        if (Objects.isNull(cluster)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+        }
+        Integer port = this.chooseOnePort(cluster);
+        NodePortClusterUsage newUsage = new NodePortClusterUsage();
+        newUsage.setClusterId(cluster.getId());
+        newUsage.setCreateTime(new Date());
+        newUsage.setNodeport(port);
+        newUsage.setStatus(Constant.EXTERNAL_PORT_STATUS_USED);
+        portClusterUsageService.insertNodeportUsage(newUsage);
+        return ActionReturnUtil.returnSuccessWithData(port);
+    }
 
-		ingress.getMetadata().setName(parsedIngressList.getName());
-		body = CollectionUtil.transBean2Map(ingress);
-		K8SURL url = new K8SURL();
-		Map<String, Object> head = new HashMap<String, Object>();
-		head.put("Content-Type", "application/json");
+    @Override
+    public ActionReturnUtil checkPort(String port, String namespace) throws Exception {
+        if (StringUtils.isBlank(port) || StringUtils.isBlank(namespace)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        if (Objects.isNull(cluster)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+        }
+        String clusterId = cluster.getId();
+        int externalPort = Integer.valueOf(port);
+        NodePortClusterUsage portClusterUsage = portClusterUsageService.selectPortUsageByPort(clusterId, externalPort);
+        if (Objects.isNull(portClusterUsage)) {
+            return ActionReturnUtil.returnSuccessWithData("false");
+        }
+        return ActionReturnUtil.returnSuccessWithData("true");
+    }
 
-		String namespace = parsedIngressList.getNamespace();
-		url.setNamespace(namespace).setResource(Resource.INGRESS);
-		// String s = JsonUtil.convertToJsonNonNull(body);
-		K8SClientResponse k = new K8sMachineClient().exec(url, HTTPMethod.POST, head, body, null);
-		if (!HttpStatusUtil.isSuccessStatus(k.getStatus())) {
-			UnversionedStatus status = JsonUtil.jsonToPojo(k.getBody(), UnversionedStatus.class);
-			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
-		}
-		return ActionReturnUtil.returnSuccessWithData(k.getBody());
+    @Override
+    public ActionReturnUtil updatePort(String oldPort, String nowPort, String namespace) throws Exception {
+        if (StringUtils.isBlank(oldPort) || StringUtils.isBlank(nowPort) || StringUtils.isBlank(namespace)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        if (Objects.isNull(cluster)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+        }
+        String clusterId = cluster.getId();
+        //根据旧的端口查询出记录
+        NodePortClusterUsage oldPortUsage = portClusterUsageService.selectPortUsageByPort(clusterId, Integer.valueOf(oldPort));
+        if (Objects.isNull(oldPortUsage)) {
+            NodePortClusterUsage newUsage = new NodePortClusterUsage();
+            newUsage.setClusterId(clusterId);
+            newUsage.setCreateTime(new Date());
+            newUsage.setStatus(Constant.EXTERNAL_PORT_STATUS_USED);
+            portClusterUsageService.insertNodeportUsage(newUsage);
+        } else {
+            portClusterUsageService.deleteNodePortUsage(clusterId, Integer.valueOf(oldPort));
+            oldPortUsage.setNodeport(Integer.valueOf(nowPort));
+            portClusterUsageService.insertNodeportUsage(oldPortUsage);
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
 
-	}
+    @Override
+    public ActionReturnUtil delPort(String port, String namespace) throws Exception {
+        if (StringUtils.isBlank(port) || StringUtils.isBlank(namespace)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        if (Objects.isNull(cluster)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+        }
+        String clusterId = cluster.getId();
+        portClusterUsageService.deleteNodePortUsage(clusterId, Integer.valueOf(port));
+        return ActionReturnUtil.returnSuccess();
+    }
 
-	/**
-	 * 删除HTTP应用网关
-	 */
-	@Override
-	public ActionReturnUtil ingDelete(String namespace, String name) throws Exception {
-		K8SURL url = new K8SURL();
-		url.setNamespace(namespace).setResource(Resource.INGRESS).setName(name);
-		Map<String, Object> head = new HashMap<String, Object>();
-		head.put("Content-Type", "application/json");
-		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, head, null, null);
-		if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
-			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
-		}
-		return ActionReturnUtil.returnSuccessWithData(response.getBody());
-	}
+    @Deprecated
+    @Override
+    public List<RouterSvc> listIngressByName(ParsedIngressListDto parsedIngressListDto) throws Exception {
+        List<RouterSvc> routerSvcs = new ArrayList<RouterSvc>();
+        if (parsedIngressListDto.getNamespace() == null) {
+            return routerSvcs;
+        }
+        if (parsedIngressListDto.getLabels() == null) {
+            return routerSvcs;
+        }
+        String namespace = parsedIngressListDto.getNamespace();
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        K8SClientResponse response = sService.doServiceByNamespace(namespace, null, null, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            return routerSvcs;
+        }
+        ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
+        List<com.harmonycloud.k8s.bean.Service> services = svList.getItems();
 
-	@Override
-	public ActionReturnUtil svcList(String namespace) throws Exception {
-		K8SClientResponse response = sService.doServiceByNamespace(namespace, null, null, HTTPMethod.GET);
-		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
-		}
-		ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
-		List<com.harmonycloud.k8s.bean.Service> services = svList.getItems();
-		List<RouterSvc> routerSvcs = new ArrayList<RouterSvc>();
-		if (services != null && !services.isEmpty()) {
-			for (int i = 0; i < services.size(); i++) {
-				boolean flag = false;
-				Map<String, Object> labels = services.get(i).getMetadata().getLabels();
-				if (labels != null && !labels.isEmpty()) {
-					for (Map.Entry<String, Object> m : labels.entrySet()) {
-						if (m.getKey().indexOf("nephele") > -1) {
-							flag = true;
-							break;
-						}
-					}
-				}
+        if (services != null && !services.isEmpty()) {
+            for (int i = 0; i < services.size(); i++) {
+                boolean flag = false;
+                Map<String, Object> labels = services.get(i).getMetadata().getLabels();
+                if (labels != null && !labels.isEmpty()) {
+                    for (Map.Entry<String, Object> m : labels.entrySet()) {
+                        if (m.getKey().indexOf("nephele") > -1) {
+                            flag = true;
+                            break;
+                        }
+                    }
+                }
 
-				if (flag) {
-					RouterSvc routerSvc = new RouterSvc();
-					com.harmonycloud.k8s.bean.Service svc = services.get(i);
-					routerSvc.setNamespace(svc.getMetadata().getNamespace());
-					routerSvc.setName(svc.getMetadata().getName());
-					routerSvc.setCreateTime(svc.getMetadata().getCreationTimestamp());
-					Map<String, Object> tMap = new HashMap<String, Object>();
-					for (Map.Entry<String, Object> m : labels.entrySet()) {
-						if (m.getKey().indexOf("nephele") < 0) {
-							tMap.put(m.getKey(), m.getValue());
-						}
-					}
-					routerSvc.setLabels(tMap);
-					routerSvc.setSelector(svc.getSpec().getSelector());
-					routerSvc.setRules(svc.getSpec().getPorts());
-					Map<String, Object> anno = svc.getMetadata().getAnnotations();
-					if (anno != null && !anno.isEmpty()) {
-						if (anno.containsKey("nephele/annotation")
-								&& !StringUtils.isEmpty(anno.get("nephele/annotation").toString())) {
-							routerSvc.setAnnotation(anno.get("nephele/annotation").toString());
-						}
-						if (anno.containsKey("nephele/deployment")
-								&& !StringUtils.isEmpty(anno.get("nephele/deployment").toString())) {
-							routerSvc.setService(anno.get("nephele/deployment").toString());
-						}
-					}
-					routerSvcs.add(routerSvc);
-				}
-			}
-		}
-		return ActionReturnUtil.returnSuccessWithData(routerSvcs);
-	}
-
-	@Override
-	public ActionReturnUtil listSvcByName(ParsedIngressListDto parsedIngressListDto) throws Exception {
-		if (parsedIngressListDto.getNamespace() == null) {
-			return ActionReturnUtil.returnErrorWithMsg("namespace cannot be null!");
-		}
-		if (parsedIngressListDto.getLabels() == null) {
-			return ActionReturnUtil.returnErrorWithMsg("labels cannot be null!");
-		}
-		String namespace = parsedIngressListDto.getNamespace();
-		K8SClientResponse response = sService.doServiceByNamespace(namespace, null, null, HTTPMethod.GET);
-		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
-		}
-		ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
-		List<com.harmonycloud.k8s.bean.Service> services = svList.getItems();
-		List<RouterSvc> routerSvcs = new ArrayList<RouterSvc>();
-		if ( services != null && !services.isEmpty()) {
-			for (int i = 0; i < services.size(); i++) {
-				boolean flag = false;
-				Map<String, Object> labels = services.get(i).getMetadata().getLabels();
-				if (labels != null && !labels.isEmpty()) {
-					for (Map.Entry<String, Object> m : labels.entrySet()) {
-						if (m.getKey().indexOf("nephele") > -1) {
-							flag = true;
-							break;
-						}
-					}
-				}
-
-				if (flag) {
-					RouterSvc routerSvc = new RouterSvc();
-					com.harmonycloud.k8s.bean.Service svc = services.get(i);
-					if (svc.getSpec().getSelector().equals(parsedIngressListDto.getLabels())) {
-						routerSvc.setNamespace(svc.getMetadata().getNamespace());
-						routerSvc.setName(svc.getMetadata().getName());
-						routerSvc.setCreateTime(svc.getMetadata().getCreationTimestamp());
-						Map<String, Object> tMap = new HashMap<String, Object>();
-						for (Map.Entry<String, Object> m : labels.entrySet()) {
+                if (flag) {
+                    RouterSvc routerSvc = new RouterSvc();
+                    com.harmonycloud.k8s.bean.Service svc = services.get(i);
+                    if (svc.getSpec().getSelector().equals(parsedIngressListDto.getLabels())) {
+                        routerSvc.setNamespace(svc.getMetadata().getNamespace());
+                        routerSvc.setName(svc.getMetadata().getName());
+                        routerSvc.setCreateTime(svc.getMetadata().getCreationTimestamp());
+                        Map<String, Object> tMap = new HashMap<String, Object>();
+                        for (Map.Entry<String, Object> m : labels.entrySet()) {
 							/* if (m.getKey().indexOf("nephele") < 0) { */
-							tMap.put(m.getKey(), m.getValue());
+                            tMap.put(m.getKey(), m.getValue());
 							/* } */
-						}
-						routerSvc.setLabels(tMap);
-						routerSvc.setSelector(svc.getSpec().getSelector());
-						routerSvc.setRules(svc.getSpec().getPorts());
-						Map<String, Object> anno = svc.getMetadata().getAnnotations();
-						if (anno != null && !anno.isEmpty()) {
-							if (anno.containsKey("nephele/annotation")
-									&& !StringUtils.isEmpty(anno.get("nephele/annotation").toString())) {
-								routerSvc.setAnnotation(anno.get("nephele/annotation").toString());
-							}
-							if (anno.containsKey("nephele/deployment")
-									&& !StringUtils.isEmpty(anno.get("nephele/deployment").toString())) {
-								routerSvc.setService(anno.get("nephele/deployment").toString());
-							}
-						}
-						routerSvcs.add(routerSvc);
-					}
-				}
-			}
-		}
-		return ActionReturnUtil.returnSuccessWithData(routerSvcs);
-	}
+                        }
+                        routerSvc.setLabels(tMap);
+                        routerSvc.setSelector(svc.getSpec().getSelector());
+                        routerSvc.setRules(svc.getSpec().getPorts());
+                        Map<String, Object> anno = svc.getMetadata().getAnnotations();
+                        if (anno != null && !anno.isEmpty()) {
+                            if (anno.containsKey("nephele/annotation")
+                                    && !StringUtils.isEmpty(anno.get("nephele/annotation").toString())) {
+                                routerSvc.setAnnotation(anno.get("nephele/annotation").toString());
+                            }
+                            if (anno.containsKey("nephele/deployment")
+                                    && !StringUtils.isEmpty(anno.get("nephele/deployment").toString())) {
+                                routerSvc.setService(anno.get("nephele/deployment").toString());
+                            }
+                        }
+                        routerSvcs.add(routerSvc);
+                    }
+                }
+            }
+        }
+        return routerSvcs;
+    }
 
-	@Override
-	public ActionReturnUtil svcCreate(SvcRouterDto svcRouter) throws Exception {
-		com.harmonycloud.k8s.bean.Service service = new com.harmonycloud.k8s.bean.Service();
-		ObjectMeta meta = new ObjectMeta();
-		meta.setName("routersvc" + svcRouter.getName());
-		Map<String, Object> labels = new HashMap<String, Object>();
-		if (svcRouter.getLabels() != null) {
-			labels = svcRouter.getLabels();
-		}
-		labels.put("nephele_Type", "HAP");
-		labels.put("type", "TCP");
-		meta.setLabels(labels);
-		Map<String, Object> anno = new HashMap<String, Object>();
-		anno.put("nephele/deployment", svcRouter.getApp());
-		if (svcRouter.getAnnotaion() != null) {
-			anno.put("nephele/annotation", svcRouter.getAnnotaion());
-		}
-		meta.setAnnotations(anno);
-		ServiceSpec serviceSpec = new ServiceSpec();
-		serviceSpec.setType("ClusterIP");
-		List<ServicePort> ports = new ArrayList<ServicePort>();
-		serviceSpec.setPorts(ports);
-		if (svcRouter.getRules() != null && !svcRouter.getRules().isEmpty()) {
-			List<TcpRuleDto> rules = svcRouter.getRules();
-			List<TcpRuleDto> rulesNew = new ArrayList<>();
+    @Override
+    public ActionReturnUtil listIngressByName(String namespace, String nameList) throws Exception {
+        if (StringUtils.isEmpty(namespace) || StringUtils.isEmpty(nameList)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        //获取集群
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        if (Objects.isNull(cluster)) {
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+        }
+        String ip = clusterService.getEntry(namespace);
+        JSONArray array = new JSONArray();
+        List<String> names = new ArrayList<>();
+        if (nameList.contains(",")) {
+            String[] n = nameList.split(",");
+            names = java.util.Arrays.asList(n);
+        } else {
+            names.add(nameList);
+        }
+        for (String name : names) {
+            // 获取ingress http
+            K8SURL url = new K8SURL();
+            url.setNamespace(namespace).setResource(Resource.INGRESS);// 资源类型怎么判断
+            Map<String, Object> bodys = new HashMap<String, Object>();
+            bodys.put("labelSelector", "app=" + name);
+            K8SClientResponse k = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
+            if (k.getStatus() == Constant.HTTP_404) {
+                return ActionReturnUtil.returnSuccess();
+            }
+            if (!HttpStatusUtil.isSuccessStatus(k.getStatus()) && k.getStatus() != Constant.HTTP_404) {
+                UnversionedStatus status = JsonUtil.jsonToPojo(k.getBody(), UnversionedStatus.class);
+                return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            }
+            IngressList ingressList = JsonUtil.jsonToPojo(k.getBody(), IngressList.class);
+            if (ingressList != null) {
+                List<Ingress> list = ingressList.getItems();
+                if (list != null && list.size() > 0) {
+                    for (Ingress in : list) {
+                        JSONObject json = new JSONObject();
+                        json.put("name", in.getMetadata().getName());
+                        json.put("type", "HTTP");
+                        JSONArray ja = new JSONArray();
+                        List<IngressRule> rules = in.getSpec().getRules();
+                        if (rules != null && rules.size() > 0) {
+                            IngressRule rule = rules.get(0);
+                            HTTPIngressRuleValue http = rule.getHttp();
+                            List<HTTPIngressPath> paths = http.getPaths();
+                            if (paths != null && paths.size() > 0) {
+                                for (HTTPIngressPath path : paths) {
+                                    JSONObject j = new JSONObject();
+                                    if (path.getBackend() != null) {
+                                        j.put("port", path.getBackend().getServicePort());
+                                    }
+                                    if (path.getPath().lastIndexOf("/") != path.getPath().length() - 1) {
+                                        path.setPath(path.getPath() + "/");
+                                    }
+                                    j.put("hostname", rule.getHost() + ":30888" + path.getPath());
+                                    ja.add(j);
+                                }
+                            }
+                        }
+                        json.put("address", ja);
+                        array.add(json);
+                    }
+                }
+            }
+            // 获取tcp
+            ActionReturnUtil tcpRes = svcList(namespace);
+            if (!tcpRes.isSuccess()) {
+                return tcpRes;
+            }
+            @SuppressWarnings("unchecked")
+            List<RouterSvc> routerSvcs = (List<RouterSvc>) tcpRes.get("data");
+            if (routerSvcs != null && routerSvcs.size() > 0) {
+                for (RouterSvc routerSvc : routerSvcs) {
+                    if (routerSvc.getLabels() != null && routerSvc.getLabels().size() > 0) {
+                        Map<String, Object> labels = routerSvc.getLabels();
+                        if (labels.get("app") != null && name.equals(labels.get("app").toString())
+                                && labels.get("type") != null && "TCP".equals(labels.get("type"))) {
+                            JSONObject json = new JSONObject();
+                            json.put("name", routerSvc.getName());
+                            json.put("type", "TCP");
+                            if (routerSvc.getRules() != null) {
+                                List<Integer> ports = new ArrayList<Integer>();
+                                List<ServicePort> rules = routerSvc.getRules();
+                                if (rules.size() > 0) {
+                                    JSONArray ja = new JSONArray();
+                                    for (ServicePort rule : rules) {
+                                        JSONObject j = new JSONObject();
+                                        j.put("port", rule.getTargetPort());
+                                        j.put("ip", ip + ":" + rule.getPort());
+                                        ja.add(j);
+                                        ports.add(rule.getPort());
+                                    }
+                                    json.put("address", ja);
+                                    json.put("ports", ports);
+                                }
+                            }
 
-			Cluster cluster = (Cluster) session.getAttribute("currentCluster");
-			String tenantID = (String) session.getAttribute("tenantId");
+                            array.add(json);
+                        }
+                    }
+                }
+            }
+        }
+        return ActionReturnUtil.returnSuccessWithData(array);
+    }
 
-			int i = 0;
-			for (i = 0; i < rules.size(); i++) {
-				TcpRuleDto rule = rules.get(i);
-				ServicePort servicePort = new ServicePort();
-				servicePort.setName(svcRouter.getName() + "-port" + i);
-				servicePort.setProtocol(rule.getProtocol());
+    @Override
+    public List<Ingress> listHttpIngress(String name, String namespace, Cluster cluster) throws Exception {
+        List<Ingress> ingresses = new ArrayList<>();
+        K8SURL url = new K8SURL();
+        url.setNamespace(namespace).setResource(Resource.INGRESS);
+        Map<String, Object> bodys = new HashMap<String, Object>();
+        bodys.put("labelSelector", "app=" + name);
+        K8SClientResponse k = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(k.getStatus()) && k.getStatus() != Constant.HTTP_404) {
+            throw new Exception("获取ingress失败");
+        }
+        IngressList ingressList = JsonUtil.jsonToPojo(k.getBody(), IngressList.class);
+        if (ingressList != null) {
+            return ingressList.getItems();
+        }
+        return ingresses;
+    }
 
-				if (rule.getPort() != null) {
-					servicePort.setPort(Integer.valueOf(rule.getPort()));
-					NodePortCluster npCluster = new NodePortCluster();
-					npCluster.setClusterid(Integer.valueOf((cluster.getId().toString())));
-					npCluster.setNodeportid(Integer.valueOf(rule.getPort()) - 30100);
-					npCluster.setStatus(2);
-					npcMapper.insert(npCluster);
-					servicePort.setTargetPort(Integer.valueOf(rule.getTargetPort()));
-					ports.add(servicePort);
-				} else {
-					rulesNew.add(rules.get(i));
-					// String tenantID = (String)
-					// session.getAttribute("tenantId");
-					// servicePort.setPort(Integer.valueOf((String)
-					// getPort(tenantID).get("msg")));
-				}
-			}
+    @Override
+    public ConfigMap getSystemExposeConfigmap(Cluster cluster, String protocolType) throws Exception {
+        ConfigMap configMap = new ConfigMap();
+        ActionReturnUtil result = new ActionReturnUtil();
+        if (Constant.PROTOCOL_TCP.equals(protocolType)) {
+            result = configMapService.getConfigMapByName(CommonConstant.KUBE_SYSTEM, Constant.EXPOSE_CONFIGMAP_NAME_TCP, HTTPMethod.GET, cluster);
+        }
+        if (Constant.PROTOCOL_UDP.equals(protocolType)) {
+            result = configMapService.getConfigMapByName(CommonConstant.KUBE_SYSTEM, Constant.EXPOSE_CONFIGMAP_NAME_UDP, HTTPMethod.GET, cluster);
+        }
+        if (Objects.isNull(result) || !result.isSuccess()) {
+            throw new MarsRuntimeException(ErrorCodeMessage.SYSTEM_NGINX_CONFIGMAP_NOT_FIND);
+        }
+        configMap = (ConfigMap) result.get("data");
+        return configMap;
+    }
 
-			for (int j = 0; j < rulesNew.size(); i++, j++) {
-				TcpRuleDto rule = rules.get(j);
-				ServicePort servicePort = new ServicePort();
-				servicePort.setName(svcRouter.getName() + "-port" + i);
-				servicePort.setProtocol(rule.getProtocol());
-				String port = (String) getPort(tenantID).get("msg");
-				servicePort.setPort(Integer.valueOf(port));
-				servicePort.setTargetPort(Integer.valueOf(rule.getTargetPort()));
-				ports.add(servicePort);
-			}
+    @Override
+    public ActionReturnUtil updateSystemExposeConfigmap(Cluster cluster, String namespace, String service, List<TcpRuleDto> rules, String protocol) throws Exception {
+        ConfigMap configMap = getSystemExposeConfigmap(cluster, protocol);
+        Map<String, Object> data = (Map<String, Object>) configMap.getData();
+        if (data == null) {
+            data = new HashMap<>();
+        }
+        if (rules != null && rules.size() > 0) {
+            for (TcpRuleDto rule : rules) {
+                data.put(rule.getPort(), namespace + "/" + service + ":" + rule.getTargetPort());
+            }
+            //更新configmap
+            configMap.setData(data);
+            configMapService.updateConfigmap(configMap, cluster);
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
 
-			serviceSpec.setPorts(ports);
-		}
-		// selector
-		if (svcRouter.getSelector() != null && StringUtils.isNotEmpty(svcRouter.getSelector().getApp())) {
-			Map<String, Object> selector = new HashMap<String, Object>();
-			selector.put("app", svcRouter.getSelector().getApp());
-			if (StringUtils.isNotEmpty(svcRouter.getSelector().getName())) {
-				selector.put("name", svcRouter.getSelector().getName());
-			}
-			if (StringUtils.isNotEmpty(svcRouter.getSelector().getValue())) {
-				selector.put("value", svcRouter.getSelector().getValue());
-			}
-			serviceSpec.setSelector(selector);
-		}
-		// serviceSpec.setSelector(svcRouter.getSelector());
-		service.setMetadata(meta);
-		service.setSpec(serviceSpec);
-		ServiceStatus status = new ServiceStatus();
-		status.setLoadBalancer(null);
-		service.setStatus(status);
-		Map<String, Object> bodys = new HashMap<String, Object>();
-		bodys = CollectionUtil.transBean2Map(service);
-		Map<String, Object> head = new HashMap<String, Object>();
-		head.put("Content-Type", "application/json");
-		K8SClientResponse response = sService.doServiceByNamespace(svcRouter.getNamespace(), head, bodys,
-				HTTPMethod.POST);
-		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			UnversionedStatus sataus = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-			return ActionReturnUtil.returnErrorWithMsg(sataus.getMessage());
-		}
-		com.harmonycloud.k8s.bean.Service newService = JsonUtil.jsonToPojo(response.getBody(),
-				com.harmonycloud.k8s.bean.Service.class);
-		return ActionReturnUtil.returnSuccessWithData(newService);
-	}
+    @Override
+    public ActionReturnUtil listExposedRouterWithIngressAndNginx(String namespace, String nameList) throws Exception {
+        if (StringUtils.isBlank(namespace) || StringUtils.isBlank(nameList)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        //获取cluster
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
 
-	@Override
-	public ActionReturnUtil createTcpSvc(SvcTcpDto svcTcpDto) throws Exception {
-		if (svcTcpDto == null) {
-			return ActionReturnUtil.returnErrorWithMsg("参数不能为空");
-		}
-		String tenantId = svcTcpDto.getTenantId();
-		// 根据tenantid获取cluster
-		Cluster cluster = tService.getClusterByTenantid(tenantId);
-		int clusterId = tService.getClusterByTenantid(tenantId).getId().intValue();
-		ArrayList<NodePortCluster> lnpc = new ArrayList<NodePortCluster>();
-		// 修改nodeport_cluster中间表的status
-		for (int i = 0; i < svcTcpDto.getRules().size(); i++) {
-			int nodeport = Integer.valueOf(svcTcpDto.getRules().get(i).getPort());
-			Integer nodeportId = nodePortMapper.getidbynodeport(nodeport);
-			NodePortCluster npc = new NodePortCluster();
-			npc.setClusterid(clusterId);
-			npc.setNodeportid(nodeportId);
-			npc.setStatus(2);
-			lnpc.add(npc);
-		}
+        //获取F5的IP
+        String ip = clusterService.getEntry(namespace);
+        String [] names = nameList.split(",");
+        List<Map<String, Object>> routerList = new ArrayList<>();
+        for (int i = 0; i < names.length; i++) {
+            //获取nginx对应的upd和tcp configmap
+            ConfigMap configMapTcp = getSystemExposeConfigmap(cluster, Constant.PROTOCOL_TCP);
+            ConfigMap configMapUdp = getSystemExposeConfigmap(cluster, Constant.PROTOCOL_UDP);
+            String valuePrefix = namespace + "/" + names[i];
+            routerList.addAll(listServiceRouter(configMapTcp, valuePrefix, ip, Constant.PROTOCOL_TCP));
+            routerList.addAll(listServiceRouter(configMapUdp, valuePrefix, ip, Constant.PROTOCOL_UDP));
 
-		com.harmonycloud.k8s.bean.Service service = new com.harmonycloud.k8s.bean.Service();
-		ObjectMeta meta = new ObjectMeta();
-		meta.setName("routersvc" + svcTcpDto.getName());
-		Map<String, Object> labels = new HashMap<String, Object>();
-		if (svcTcpDto.getLabels() != null) {
-			labels = svcTcpDto.getLabels();
-		}
-		labels.put("nephele_Type", "HAP");
-		labels.put("type", "TCP");
-		meta.setLabels(labels);
-		Map<String, Object> anno = new HashMap<String, Object>();
-		anno.put("nephele/deployment", svcTcpDto.getApp());
-		if (svcTcpDto.getAnnotaion() != null) {
-			anno.put("nephele/annotation", svcTcpDto.getAnnotaion());
-		}
-		meta.setAnnotations(anno);
-		ServiceSpec serviceSpec = new ServiceSpec();
-		serviceSpec.setType("ClusterIP");
-		List<ServicePort> ports = new ArrayList<ServicePort>();
-		if (svcTcpDto.getRules() != null && !svcTcpDto.getRules().isEmpty()) {
-			List<TcpRuleDto> rules = svcTcpDto.getRules();
-			for (int i = 0; i < rules.size(); i++) {
-				TcpRuleDto rule = rules.get(i);
-				ServicePort servicePort = new ServicePort();
-				servicePort.setName(svcTcpDto.getName() + "-port" + i);
-				servicePort.setProtocol(rule.getProtocol());
-				servicePort.setPort(Integer.valueOf(rule.getPort()));
-				servicePort.setTargetPort(Integer.valueOf(rule.getTargetPort()));
-				ports.add(servicePort);
-			}
-			serviceSpec.setPorts(ports);
-		}
-		serviceSpec.setSelector(svcTcpDto.getSelector());
-		service.setMetadata(meta);
-		service.setSpec(serviceSpec);
-		ServiceStatus status = new ServiceStatus();
-		status.setLoadBalancer(null);
-		service.setStatus(status);
-		Map<String, Object> bodys = new HashMap<String, Object>();
-		bodys = CollectionUtil.transBean2Map(service);
-		Map<String, Object> head = new HashMap<String, Object>();
-		head.put("Content-Type", "application/json");
-		K8SClientResponse response = sService.doServiceByNamespace(svcTcpDto.getNamespace(), head, bodys,
-				HTTPMethod.POST, cluster);
-		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			for (int i = 0; i < svcTcpDto.getRules().size(); i++) {
-				int nodeport = Integer.valueOf(svcTcpDto.getRules().get(i).getPort());
-				Integer nodeportId = nodePortMapper.getidbynodeport(nodeport);
-				NodePortClusterExample example = new NodePortClusterExample();
-				// 创建tcp失败释放端口
-				example.createCriteria().andClusteridEqualTo(clusterId).andNodeportidEqualTo(nodeportId)
-						.andStatusEqualTo(1);
-				npcMapper.deleteByExample(example);
-			}
-			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
-		}
-		com.harmonycloud.k8s.bean.Service newService = JsonUtil.jsonToPojo(response.getBody(),
-				com.harmonycloud.k8s.bean.Service.class);
-		for (int i = 0; i < lnpc.size(); i++) {
-			npcMapper.updateNodePortCluster(lnpc.get(i));
-		}
-		return ActionReturnUtil.returnSuccessWithData(newService);
-	}
+            //获取http ingress
+            K8SURL url = new K8SURL();
+            url.setNamespace(namespace).setResource(Resource.INGRESS);
+            Map<String, Object> bodys = new HashMap<String, Object>();
+            bodys.put("labelSelector", "app=" + names[i]);
+            K8SClientResponse k = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
+            if (Constant.HTTP_404 == k.getStatus()) {
+                return ActionReturnUtil.returnSuccessWithData(routerList);
+            }
+            if (!HttpStatusUtil.isSuccessStatus(k.getStatus()) && k.getStatus() != Constant.HTTP_404) {
+                UnversionedStatus status = JsonUtil.jsonToPojo(k.getBody(), UnversionedStatus.class);
+                return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            }
+            IngressList ingressList = JsonUtil.jsonToPojo(k.getBody(), IngressList.class);
+            List<Ingress> list = ingressList.getItems();
+            if (CollectionUtils.isNotEmpty(list)) {
+                //获取域名
+                List<ClusterDomain> domains = clusterService.findDomain(namespace);
+                for (Ingress in : list) {
+                    Map<String, Object> tmp = new HashMap<>();
+                    tmp.put("name", in.getMetadata().getName());
+                    tmp.put("type", "HTTP");
+                    List<Map<String, Object>> addressList = new ArrayList<>();
+                    List<IngressRule> rules = in.getSpec().getRules();
+                    if (CollectionUtils.isNotEmpty(rules)) {
+                        IngressRule rule = rules.get(0);
+                        HTTPIngressRuleValue http = rule.getHttp();
+                        List<HTTPIngressPath> paths = http.getPaths();
+                        if (CollectionUtils.isNotEmpty(paths)) {
+                            for (HTTPIngressPath path : paths) {
+                                Map<String, Object> j = new HashMap<>();
+                                if (path.getBackend() != null) {
+                                    j.put("port", path.getBackend().getServicePort());
+                                }
+                                if (org.apache.commons.lang.StringUtils.isNotBlank(path.getPath())) {
+                                    if (path.getPath().lastIndexOf( CommonConstant.SLASH) != path.getPath().length() - CommonConstant.NUM_ONE) {
+                                        path.setPath(path.getPath());
+                                    }
+                                    if ( CommonConstant.SLASH.equals(path.getPath())) {
+                                        path.setPath("");
+                                    }
+                                }
+                                //判断域名类型
+                                String host = rule.getHost();
+                                String[] domainLevels = StringUtils.isNotBlank(host) && host.indexOf(CommonConstant.DOT) > -1 ? host.split(CommonConstant.DOT) : null;
+                                int port = Constant.LIVENESS_PORT;
+                                if (domainLevels != null) {
+                                    String domainLevelName = (Constant.DOMAIN_LEVEL_FOUR == domainLevels.length) ? Constant.CLUSTER_FOUR_DOMAIN : Constant.CLUSTER_THREE_DOMAIN;
+                                    for (ClusterDomain clusterDomain : domains) {
+                                        if (domainLevelName.equals(clusterDomain.getDomain())) {
+                                            port = clusterDomain.getPort();
+                                            break;
+                                        }
+                                    }
+                                }
+                                String hostName = port == Constant.LIVENESS_PORT ? rule.getHost():
+                                        rule.getHost() + CommonConstant.COLON + port;
+                                hostName = StringUtils.isNotBlank(path.getPath()) ? hostName + path.getPath() : hostName;
+                                j.put("hostname", hostName);
+                                addressList.add(j);
+                            }
+                        }
+                    }
+                    tmp.put("address", addressList);
+                    routerList.add(tmp);
+                }
+            }
+        }
+        return ActionReturnUtil.returnSuccessWithData(routerList);
+    }
 
-	@Override
-	public ActionReturnUtil createhttpsvc(SvcTcpDto svcTcpDto) throws Exception {
-		com.harmonycloud.k8s.bean.Service service = new com.harmonycloud.k8s.bean.Service();
-		ObjectMeta meta = new ObjectMeta();
-		meta.setName("routersvc" + svcTcpDto.getName());
-		Map<String, Object> labels = new HashMap<String, Object>();
-		if (svcTcpDto.getLabels() != null) {
-			labels = svcTcpDto.getLabels();
-		}
-		labels.put("nephele_Type", "HAP");
-		labels.put("type", "HTTP");
-		meta.setLabels(labels);
-		Map<String, Object> anno = new HashMap<String, Object>();
-		anno.put("nephele/deployment", svcTcpDto.getApp());
-		if (svcTcpDto.getAnnotaion() != null) {
-			anno.put("nephele/annotation", svcTcpDto.getAnnotaion());
-		}
-		meta.setAnnotations(anno);
-		ServiceSpec serviceSpec = new ServiceSpec();
-		serviceSpec.setType("ClusterIP");
-		List<ServicePort> ports = new ArrayList<ServicePort>();
-		serviceSpec.setPorts(ports);
-		if (svcTcpDto.getRules() != null && !svcTcpDto.getRules().isEmpty()) {
-			List<TcpRuleDto> rules = svcTcpDto.getRules();
-			for (int i = 0; i < rules.size(); i++) {
-				TcpRuleDto rule = rules.get(i);
-				ServicePort servicePort = new ServicePort();
-				servicePort.setName(svcTcpDto.getName() + "-port" + i);
-				servicePort.setProtocol(rule.getProtocol());
-				servicePort.setPort(Integer.valueOf(rule.getPort()));
-				servicePort.setTargetPort(Integer.valueOf(rule.getTargetPort()));
-				ports.add(servicePort);
-			}
-			serviceSpec.setPorts(ports);
-		}
-		serviceSpec.setSelector(svcTcpDto.getSelector());
-		service.setMetadata(meta);
-		service.setSpec(serviceSpec);
-		ServiceStatus status = new ServiceStatus();
-		status.setLoadBalancer(null);
-		service.setStatus(status);
-		Map<String, Object> bodys = new HashMap<String, Object>();
-		bodys = CollectionUtil.transBean2Map(service);
-		Map<String, Object> head = new HashMap<String, Object>();
-		head.put("Content-Type", "application/json");
-		K8SClientResponse response = sService.doServiceByNamespace(svcTcpDto.getNamespace(), head, bodys,
-				HTTPMethod.POST);
-		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-			return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
-		}
-		com.harmonycloud.k8s.bean.Service newService = JsonUtil.jsonToPojo(response.getBody(),
-				com.harmonycloud.k8s.bean.Service.class);
-		return ActionReturnUtil.returnSuccessWithData(newService);
-	}
+    @Override
+    public ActionReturnUtil updateSystemRouteRule(SvcRouterDto svcRouterDto) throws Exception {
+        if (Objects.isNull(svcRouterDto) || CollectionUtils.isEmpty(svcRouterDto.getRules())
+                || StringUtils.isBlank(svcRouterDto.getName()) || StringUtils.isBlank(svcRouterDto.getNamespace())) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(svcRouterDto.getNamespace());
+        //获取容器内的端口协议
+        K8SClientResponse depRes = dpService.doSpecifyDeployment(svcRouterDto.getNamespace(), svcRouterDto.getName(), null, null, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
+            return ActionReturnUtil.returnErrorWithData(depRes.getBody());
+        }
+        Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+        List<Container> containers = dep.getSpec().getTemplate().getSpec().getContainers();
+        List<ContainerPort> portAll = new ArrayList<>();
+        containers.stream().forEach(c -> { portAll.addAll(c.getPorts()); });
+        List<TcpRuleDto> rules = svcRouterDto.getRules();
+        String protocol = Constant.PROTOCOL_TCP;
+        for (TcpRuleDto rule : rules) {
+            //判断端口和协议是否匹配
+            boolean isMatch = portAll.stream().anyMatch(port -> String.valueOf(port.getContainerPort()).equals(rule.getTargetPort()) && rule.getProtocol().equals(port.getProtocol()));
+            if (!isMatch) {
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_EXPOSE_NGINX_FAILED);
+            }
+            //更新数据库
+            NodePortClusterUsage usage = new NodePortClusterUsage();
+            usage.setNodeport(Integer.valueOf(rule.getPort()));
+            usage.setClusterId(cluster.getId());
+            usage.setStatus(Constant.EXTERNAL_PORT_STATUS_CONFIRM_USED);
+            portClusterUsageService.updateNodePortStatus(usage);
+            protocol = rule.getProtocol();
+        }
+        this.updateSystemExposeConfigmap(cluster, svcRouterDto.getNamespace(), svcRouterDto.getName(), rules, protocol);
+        return ActionReturnUtil.returnSuccess();
+    }
 
-	@Override
-	public ActionReturnUtil createHttpSvc(ParsedIngressListDto parsedIngressList) throws Exception {
-		// 创建svc和ingress
-		this.ingCreate(parsedIngressList);
-		return ActionReturnUtil.returnSuccess();
-	}
+    @Override
+    public ActionReturnUtil deleteSystemRouteRule(TcpDeleteDto tcpDeleteDto) throws Exception {
+        if (Objects.isNull(tcpDeleteDto) || CollectionUtils.isEmpty(tcpDeleteDto.getPorts()) || StringUtils.isBlank(tcpDeleteDto.getNamespace()) || StringUtils.isBlank(tcpDeleteDto.getProtocol())) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        String namespace = tcpDeleteDto.getNamespace();
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        if (Objects.isNull(cluster)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+        }
 
-	/**
-	 * 更新service
-	 */
-	@Override
-	public ActionReturnUtil svcUpdate(SvcRouterUpdateDto svcRouterUpdate) throws Exception {
-		// 查询
-		K8SURL url1 = new K8SURL();
-		url1.setNamespace(svcRouterUpdate.getNamespace()).setResource(Resource.SERVICE)
-				.setSubpath(svcRouterUpdate.getName());
-		Map<String, Object> head = new HashMap<String, Object>();
-		head.put("Content-Type", "application/json");
-		K8SClientResponse serivceResponse = new K8sMachineClient().exec(url1, HTTPMethod.GET, head, null, null);
-		com.harmonycloud.k8s.bean.Service service = K8SClient.converToBean(serivceResponse,
-				com.harmonycloud.k8s.bean.Service.class);
-		String apiVersion = service.getApiVersion();
-		String kind = service.getKind();
-		ObjectMeta metadata = service.getMetadata();
-		// 更新metadata
-		Map<String, Object> annotations = metadata.getAnnotations();
-		annotations.clear();
-		annotations.put("nephele/deployment", svcRouterUpdate.getService());
-		Map<String, Object> labels = metadata.getLabels();
-		labels.clear();
-		List<HttpLabelDto> httpLabels = svcRouterUpdate.getLabels();
-		for (HttpLabelDto httpLabel : httpLabels) {
-			labels.put(httpLabel.getName(), httpLabel.getValue());
-		}
-		labels.put("nephele_Type", "HAP");
+        //获取configmap后，删除对应的规则
+        ConfigMap configMap = this.getSystemExposeConfigmap(cluster, tcpDeleteDto.getProtocol());
+        List<Integer> externalPorts = tcpDeleteDto.getPorts();
+        Map<String, Object> data = (Map<String, Object>) configMap.getData();
+        Iterator<Map.Entry<String, Object>> it = data.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<String, Object> entry = it.next();
+            String key = entry.getKey();
+            if (externalPorts.contains(Integer.valueOf(key))) {
+                it.remove();
+            }
+        }
 
-		ServiceSpec spec = service.getSpec();
-		// 更新spec
-		ServiceStatus status = service.getStatus();
-		// 更新spec.ports
-		List<ServicePort> ports = new ArrayList<>();
-		List<TcpRuleDto> rules = svcRouterUpdate.getRules();
-		for (int i = 0; i < rules.size(); i++) {
-			// 判断是否为编辑状态,编辑状态下不更新
-			if (rules.get(i).getIsEdit() != null && rules.get(i).getIsEdit() == false) {
-				ServicePort port = new ServicePort();
-				port.setName(svcRouterUpdate.getName() + "-port" + i);
-				port.setPort(Integer.valueOf(rules.get(i).getPort()));
-				port.setTargetPort(Integer.valueOf(rules.get(i).getTargetPort()));
-				port.setProtocol(rules.get(i).getProtocol());
-				ports.add(port);
-			}
-		}
-		// 更新spec.selector
-		Map<String, Object> selector = new HashMap<>();
-		if (svcRouterUpdate.getSelector() != null && svcRouterUpdate.getSelector().size() > 0) {
-			selector.put(svcRouterUpdate.getSelector().get(0).getName(),
-					svcRouterUpdate.getSelector().get(0).getValue());
-		}
-		spec.setPorts(ports);
-		spec.setSelector(selector);
-		Map<String, Object> body = new HashMap<>();
-		body.put("metadata", metadata);
-		body.put("spec", spec);
-		body.put("kind", kind);
-		body.put("apiVersion", apiVersion);
-		body.put("status", status);
-		String string = JsonUtil.convertToJsonNonNull(body);
-		System.out.println(string);
-		K8SURL url = new K8SURL();
-		url.setNamespace(svcRouterUpdate.getNamespace()).setResource(Resource.SERVICE)
-				.setSubpath(svcRouterUpdate.getName());
-		head.put("Content-Type", "application/json");
-		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, head, body, null);
-		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
-		}
-		return ActionReturnUtil.returnSuccessWithData(response.getBody());
-	}
+        //更新configmap
+        configMap.setData(data);
+        configMapService.updateConfigmap(configMap, cluster);
 
-	/**
-	 * 删除service
-	 */
-	@Override
-	public ActionReturnUtil svcDelete(String namespace, String name) throws Exception {
-		K8SURL url = new K8SURL();
-		url.setResource(Resource.SERVICE).setNamespace(namespace).setSubpath(name);
-		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, null);
-		if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
-			return ActionReturnUtil.returnErrorWithMsg("删除出错");
-		}
-		return ActionReturnUtil.returnSuccessWithData(response.getBody());
-	}
+        //删除数据库端口
+        for (Integer port : externalPorts) {
+            portClusterUsageService.deleteNodePortUsage(cluster.getId(), port);
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
 
-	/**
-	 * 删除(tcp) service,释放数据库占用30000-30050端口
-	 */
-	@Override
-	public ActionReturnUtil deleteTcpSvc(String namespace, String name, List<Integer> ports, String tenantId)
-			throws Exception {
-		// 根据tenantId获取clusterId
-		int clusterId = tService.getClusterByTenantid(tenantId).getId().intValue();
-		// 根据tenantid获取cluster
-		Cluster cluster = tService.getClusterByTenantid(tenantId);
-		// 查询port并释放
-		if (ports != null && ports.size() > 0) {
-			for (Integer port : ports) {
-				Integer nodeport = nodePortMapper.getidbynodeport(port);
-				NodePortClusterExample example = new NodePortClusterExample();
-				example.createCriteria().andClusteridEqualTo(clusterId).andNodeportidEqualTo(nodeport);
-				npcMapper.deleteByExample(example);
-			}
-		}
-		// 删除service
-		K8SURL url = new K8SURL();
-		url.setResource(Resource.SERVICE).setNamespace(namespace).setSubpath(name);
-		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, null, cluster);
-		if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
-			UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
-		}
-		return ActionReturnUtil.returnSuccess();
-	}
+    /**
+     * 获取指定服务下的TCP或UDP的路由
+     *
+     * @param configMap
+     * @param valuePrefix
+     * @param ip
+     * @return List<Map<String, Object>>
+     * @throws Exception
+     */
+    private List<Map<String, Object>> listServiceRouter(ConfigMap configMap, String valuePrefix, String ip, String type) throws Exception {
+        List<Map<String, Object>> routerList = new ArrayList<>();
+        Map<String, Object> configMapData = (Map<String, Object>) configMap.getData();
+        if (Objects.nonNull(configMapData)) {
+            for (Map.Entry<String, Object> entry : configMapData.entrySet()) {
+                String value = entry.getValue().toString();
+                String[] valueArray = value.split(CommonConstant.COLON);
+                if (Objects.nonNull(valueArray) && valueArray.length == CommonConstant.NUM_TWO && valuePrefix.equals(valueArray[0])) {
+                    Map<String, Object> tmp = new HashMap<>();
+                    tmp.put("type", type);
+                    Map<String, Object> address = new HashMap<>();
+                    String containerPort = valueArray[CommonConstant.NUM_ONE];
+                    address.put("containerPort", containerPort);
+                    address.put("externalPort", entry.getKey());
+                    address.put("ip", ip);
+                    tmp.put("address", address);
+                    routerList.add(tmp);
+                }
+            }
+        }
+        return routerList;
+    }
 
-	/**
-	 * 更新HTTP应用网关
-	 *
-	 * @param parsedIngressList
-	 * @return
-	 * @throws Exception
-	 */
-	@Override
-	public ActionReturnUtil ingUpdate(ParsedIngressListUpdateDto parsedIngressList) throws Exception {
-		K8SURL url = new K8SURL();
-		url.setNamespace(parsedIngressList.getNamespace()).setResource(Resource.INGRESS)
-				.setName(parsedIngressList.getName());
-		Map<String, Object> head = new HashMap<String, Object>();
-		head.put("Content-Type", "application/json");
-		Map<String, Object> body = new HashMap<>();
-		// 设置metadata
-		ObjectMeta metadata = new ObjectMeta();
-		// 处理label
-		List<HttpLabelDto> labels = parsedIngressList.getLabels();
-		Map<String, Object> label = new HashMap<>();
-		Map<String, Object> annotations = new HashMap<>();
-		if (labels != null) {
-			for (HttpLabelDto httpLabel : labels) {
-				label.put(httpLabel.getName(), httpLabel.getValue());
-			}
-		}
-		if (parsedIngressList.getAnnotaion() != null) {
-			annotations.put("nephele/annotation", parsedIngressList.getAnnotaion().toString());
-			metadata.setAnnotations(annotations);
-		}
-		metadata.setLabels(label);
-		metadata.setName(parsedIngressList.getName());
-		metadata.setNamespace(parsedIngressList.getNamespace());
-		// 设置spec
-		IngressSpec spec = new IngressSpec();
-		// 转换为k8s需要的结构
-		List<HttpRuleDto> rules = parsedIngressList.getRules();
-		List<IngressRule> listRule = new ArrayList<>();
-		if (rules != null) {
-			for (HttpRuleDto httpRule : rules) {
-				// 判断是否为编辑状态,编辑状态下不更新
-				if (httpRule.getIsEdit() != null && !httpRule.getIsEdit().equals("true")) {
-					HTTPIngressRuleValue http = new HTTPIngressRuleValue();
-					List<HTTPIngressPath> paths = new ArrayList<>();
-					IngressRule rule = new IngressRule();
-					HTTPIngressPath path = new HTTPIngressPath();
-					IngressBackend backend = new IngressBackend();
-					backend.setServiceName(httpRule.getService());
-					backend.setServicePort(Integer.valueOf(httpRule.getPort()));
-					path.setPath(httpRule.getPath());
-					path.setBackend(backend);
-					paths.add(path);
-					http.setPaths(paths);
-					rule.setHttp(http);
-					rule.setHost(parsedIngressList.getHost());
-					listRule.add(rule);
-				}
-			}
-		}
-		spec.setRules(listRule);
-		body.put("metadata", metadata);
-		body.put("spec", spec);
-		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, head, body);
-		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
-		}
-		return ActionReturnUtil.returnSuccessWithData(response.getBody());
+    @Override
+    public Integer chooseOnePort(Cluster cluster) throws Exception {
+        //从集群内获取端口范围
+        Map<String, Integer> range = this.getPortRange(null, cluster);
+        Integer minPort = range.get("minPort");
+        Integer maxPort = range.get("maxPort");
+        Integer resultPort = 0;
+        List<NodePortClusterUsage> portClusterUsageList = portClusterUsageService.selectPortUsageByClusterId(cluster.getId());
 
-	}
+        //当集群已经有使用过端口，则选择出一个未使用的
+        if (CollectionUtils.isNotEmpty(portClusterUsageList)) {
+            List<Integer> usagedPortList = new ArrayList<>();
+            portClusterUsageList.forEach(port -> {
+                usagedPortList.add(port.getNodeport());
+            });
+            Integer currentPort = minPort;
+            while (minPort <= maxPort) {
+                if (!usagedPortList.contains(currentPort)) {
+                    resultPort = currentPort;
+                    break;
+                }
+                currentPort ++;
+            }
+            if (currentPort > maxPort) {
+                throw new MarsRuntimeException(ErrorCodeMessage.SYSTEM_NO_EXTERNAL_PORT_IN_CLUSTER);
+            }
+        } else {
+            resultPort = minPort;
+        }
+        return resultPort;
+    }
 
-	@Override
-	public ActionReturnUtil getEntry() throws Exception {
-		K8SURL url = new K8SURL();
-		url.setResource(Resource.POD);
-		Map<String, Object> bodys = new HashMap<String, Object>();
-		bodys.put("labelSelector", "nepheleselector=nephele-entry");
-		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys);
-		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
-		}
-		PodList podList = JsonUtil.jsonToPojo(response.getBody(), PodList.class);
-		List<Pod> pods = podList.getItems();
-		if (pods != null && !pods.isEmpty()) {
-			for (Pod pod : pods) {
-				if (!StringUtils.isEmpty(pod.getSpec().getNodeName())) {
-					return ActionReturnUtil.returnSuccessWithData(pod.getSpec().getNodeName());
-				}
-			}
-		}
-		return ActionReturnUtil.returnErrorWithMsg("获取入口IP失败");
-	}
+    @Override
+    public Map<String, Integer> getPortRange(String namespace, Cluster cluster) throws Exception {
+        Cluster newCluster = cluster;
+        if (Objects.isNull(cluster) && StringUtils.isNotBlank(namespace)) {
+            newCluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+            if (Objects.isNull(newCluster)) {
+                throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+            }
+        }
+        //从集群内获取端口范围
+        List<ClusterExternal> clusterExternals = newCluster.getExternal();
+        Integer minPort = 0;
+        Integer maxPort = 0;
+        for (ClusterExternal external : clusterExternals) {
+            minPort = external.getMinPort();
+            maxPort = external.getMaxPort();
+        }
+        if (minPort >= maxPort) {
+            throw new MarsRuntimeException(ErrorCodeMessage.SYSTEM_NO_EXTERNAL_PORT_IN_CLUSTER);
+        }
+        Map<String, Integer> result = new HashMap<>();
+        result.put("minPort", minPort);
+        result.put("maxPort", maxPort);
+        return result;
+    }
 
-	@Override
-	public ActionReturnUtil getHost() throws Exception {
+    @Override
+    public ActionReturnUtil createRuleInDeploy(SvcRouterDto svcRouterDto) throws Exception {
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(svcRouterDto.getNamespace());
+        List<TcpRuleDto> rules = svcRouterDto.getRules();
+        for (TcpRuleDto rule : rules) {
+            Integer port = StringUtils.isBlank(rule.getPort()) ? this.chooseOnePort(cluster) : Integer.valueOf(rule.getPort());
+            NodePortClusterUsage newUsage = new NodePortClusterUsage();
+            newUsage.setClusterId(cluster.getId());
+            newUsage.setCreateTime(new Date());
+            newUsage.setNodeport(port);
+            newUsage.setStatus(Constant.EXTERNAL_PORT_STATUS_CONFIRM_USED);
+            portClusterUsageService.insertNodeportUsage(newUsage);
+            rule.setPort(String.valueOf(port));
+            this.updateSystemExposeConfigmap(cluster, svcRouterDto.getNamespace(), svcRouterDto.getName(), Arrays.asList(rule), rule.getProtocol());
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
 
-		return ActionReturnUtil.returnSuccessWithData(hostName);
-	}
+    @Override
+    public List<Map<String, Object>> createExternalRule(ServiceTemplateDto svcTemplate, String namespace) throws Exception {
+        List<Map<String, Object>> message = new ArrayList<>();
+        for (IngressDto ingress : svcTemplate.getIngress()) {
+            if (Constant.PROTOCOL_HTTP.equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getParsedIngressList().getName())) {
+                Map<String, Object> labels = new HashMap<String, Object>();
+                labels.put("app", svcTemplate.getDeploymentDetail().getName());
+                ingress.getParsedIngressList().setLabels(labels);
+                ingress.getParsedIngressList().setNamespace(namespace);
+                ActionReturnUtil httpIngRes = this.ingCreate(ingress.getParsedIngressList());
+                if (!httpIngRes.isSuccess()) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("ingress:" + ingress.getParsedIngressList().getName(), httpIngRes.get("data"));
+                    message.add(map);
+                }
+            }
+            if ((ingress.getType().contains(Constant.PROTOCOL_TCP)|| ingress.getType().contains(Constant.PROTOCOL_UDP)) && !StringUtils.isEmpty(ingress.getSvcRouter().getApp())) {
+                ingress.getSvcRouter().setNamespace(namespace);
+                ingress.getSvcRouter().setName(ingress.getSvcRouter().getApp());
+                ActionReturnUtil tcpSvcRes = this.createRuleInDeploy(ingress.getSvcRouter());
+                if (!tcpSvcRes.isSuccess()) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("ingress:" + ingress.getParsedIngressList().getName(), tcpSvcRes.get("data"));
+                    message.add(map);
+                }
+            }
+        }
+        return message;
+    }
 
-	@Override
-	public ActionReturnUtil listProvider() throws Exception {
-		ActionReturnUtil res = getEntry();
-		if (res.isSuccess()) {
-			String ip = res.get("data").toString();
-			List<ProviderPlugin> provider = new ArrayList<ProviderPlugin>();
-			ProviderPlugin providerPlugin = new ProviderPlugin();
-			providerPlugin.setIp(ip);
-			providerPlugin.setName(Constant.HAPROXY);
-			providerPlugin.setVersion(haProxyVersion);
-			provider.add(providerPlugin);
-			return ActionReturnUtil.returnSuccessWithData(provider);
-		} else {
-			return res;
-		}
-
-	}
-
-	@Override
-	public ActionReturnUtil getPort(String tenantId) throws Exception {
-		if (tenantId == "" || tenantId == null) {
-			return ActionReturnUtil.returnErrorWithMsg("tenantId为空！");
-		}
-		// 根据tenantId获取clusterId
-		int clusterId = tService.getClusterByTenantid(tenantId).getId().intValue();
-		// 根据clusterId查询nodeport_cluster中间表,去除已使用端口;
-		NodePortClusterExample example = new NodePortClusterExample();
-		example.createCriteria().andClusteridEqualTo(clusterId);
-		List<NodePortCluster> list = npcMapper.selectByExample(example);
-		ArrayList<Integer> nlist = new ArrayList<Integer>();
-		if (list == null || list.isEmpty()) {
-			NodePortCluster npCluster = new NodePortCluster();
-			npCluster.setClusterid(clusterId);
-			npCluster.setNodeportid(1);
-			npCluster.setStatus(1);
-			npcMapper.insert(npCluster);
-			return ActionReturnUtil.returnSuccessWithMsg(START_PORT);
-		} else {
-			for (int i = 0; i < list.size(); i++) {
-				nlist.add(nodePortMapper.getnodeportbyid(list.get(i).getNodeportid()));
-			}
-			// 生成分配 端口,增加同步
-			int nodePort = 0;
-			for (int j = 0; j <= PORT_SIZE; j++) {
-				nodePort = START_PORT_INT + j;
-				if (!nlist.contains(nodePort)) {
-					NodePortCluster npCluster = new NodePortCluster();
-					npCluster.setClusterid(clusterId);
-					npCluster.setNodeportid(j + 1);
-					npCluster.setStatus(1);
-					npcMapper.insert(npCluster);
-					return ActionReturnUtil.returnSuccessWithMsg(String.valueOf(nodePort));
-				}
-			}
-		}
-		return ActionReturnUtil.returnErrorWithMsg("获取port信息失败");
-	}
-
-	@Override
-	public ActionReturnUtil getListPort(String tenantId) throws Exception {
-		if (tenantId == "" || tenantId == null) {
-			return ActionReturnUtil.returnErrorWithMsg("tenantId为空！");
-		}
-		// 根据tenantId获取clusterId
-		int clusterId = tService.getClusterByTenantid(tenantId).getId().intValue();
-		// 根据clusterId查询nodeport_cluster中间表,去除已使用端口;
-		NodePortClusterExample example = new NodePortClusterExample();
-		example.createCriteria().andClusteridEqualTo(clusterId);
-		List<NodePortCluster> list = npcMapper.selectByExample(example);
-		ArrayList<Integer> nlist = new ArrayList<Integer>();
-		if (list == null || list.isEmpty()) {
-			return ActionReturnUtil.returnSuccessWithData(null);
-		} else {
-			for (int i = 0; i < list.size(); i++) {
-				nlist.add(nodePortMapper.getnodeportbyid(list.get(i).getNodeportid()));
-			}
-		}
-		return ActionReturnUtil.returnSuccessWithData(nlist);
-	}
-
-	@Override
-	public ActionReturnUtil checkPort(String port, String tenantId) throws Exception {
-		int clusterId = tService.getClusterByTenantid(tenantId).getId().intValue();
-		int nodeport = Integer.valueOf(port);
-		Integer nodeportId = nodePortMapper.getidbynodeport(nodeport);
-		NodePortClusterExample example = new NodePortClusterExample();
-		example.createCriteria().andClusteridEqualTo(clusterId).andNodeportidEqualTo(nodeportId);
-		List<NodePortCluster> list = npcMapper.selectByExample(example);
-		if (list == null || list.isEmpty()) {
-			return ActionReturnUtil.returnSuccessWithData("端口未被占用");
-		}
-		return ActionReturnUtil.returnSuccessWithData("true");
-	}
-
-	@Override
-	public ActionReturnUtil updatePort(String oldport, String nowport, String tenantId) throws Exception {
-		int clusterId = tService.getClusterByTenantid(tenantId).getId().intValue();
-		int oldnodeport = Integer.valueOf(oldport);
-		Integer oldnodeportId = nodePortMapper.getidbynodeport(oldnodeport);
-		int nownodeport = Integer.valueOf(nowport);
-		Integer nownodeportId = nodePortMapper.getidbynodeport(nownodeport);
-		NodePortCluster npc = new NodePortCluster();
-		npc.setClusterid(clusterId);
-		npc.setNodeportid(oldnodeportId);
-		npc.setUnodeport(nownodeportId);
-		npc.setStatus(1);
-		npcMapper.updateNodePortClusterbynodeportid(npc);
-		return ActionReturnUtil.returnSuccessWithData("true");
-	}
-
-	@Override
-	public ActionReturnUtil delPort(String port, String tenantId) throws Exception {
-		if (StringUtils.isEmpty(port) || port == null) {
-			return ActionReturnUtil.returnErrorWithMsg("端口为空！");
-		}
-		if (StringUtils.isEmpty(tenantId) || tenantId == null) {
-			return ActionReturnUtil.returnErrorWithMsg("tenantId为空！");
-		}
-		// 根据tenantId获取clusterId
-		int clusterId = tService.getClusterByTenantid(tenantId).getId().intValue();
-		int nodeport = Integer.valueOf(port);
-		Integer nodeportId = nodePortMapper.getidbynodeport(nodeport);
-		NodePortClusterExample example = new NodePortClusterExample();
-		example.createCriteria().andClusteridEqualTo(clusterId).andNodeportidEqualTo(nodeportId).andStatusEqualTo(1);
-		npcMapper.deleteByExample(example);
-		return ActionReturnUtil.returnSuccess();
-	}
-
-	@Override
-	public List<RouterSvc> listIngressByName(ParsedIngressListDto parsedIngressListDto) throws Exception {
-		List<RouterSvc> routerSvcs = new ArrayList<RouterSvc>();
-		if (parsedIngressListDto.getNamespace() == null) {
-			return routerSvcs;
-		}
-		if (parsedIngressListDto.getLabels() == null) {
-			return routerSvcs;
-		}
-		String namespace = parsedIngressListDto.getNamespace();
-		K8SClientResponse response = sService.doServiceByNamespace(namespace, null, null, HTTPMethod.GET);
-		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			return routerSvcs;
-		}
-		ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
-		List<com.harmonycloud.k8s.bean.Service> services = svList.getItems();
-
-		if (services != null && !services.isEmpty()) {
-			for (int i = 0; i < services.size(); i++) {
-				boolean flag = false;
-				Map<String, Object> labels = services.get(i).getMetadata().getLabels();
-				if (labels != null && !labels.isEmpty()) {
-					for (Map.Entry<String, Object> m : labels.entrySet()) {
-						if (m.getKey().indexOf("nephele") > -1) {
-							flag = true;
-							break;
-						}
-					}
-				}
-
-				if (flag) {
-					RouterSvc routerSvc = new RouterSvc();
-					com.harmonycloud.k8s.bean.Service svc = services.get(i);
-					if (svc.getSpec().getSelector().equals(parsedIngressListDto.getLabels())) {
-						routerSvc.setNamespace(svc.getMetadata().getNamespace());
-						routerSvc.setName(svc.getMetadata().getName());
-						routerSvc.setCreateTime(svc.getMetadata().getCreationTimestamp());
-						Map<String, Object> tMap = new HashMap<String, Object>();
-						for (Map.Entry<String, Object> m : labels.entrySet()) {
-							/* if (m.getKey().indexOf("nephele") < 0) { */
-							tMap.put(m.getKey(), m.getValue());
-							/* } */
-						}
-						routerSvc.setLabels(tMap);
-						routerSvc.setSelector(svc.getSpec().getSelector());
-						routerSvc.setRules(svc.getSpec().getPorts());
-						Map<String, Object> anno = svc.getMetadata().getAnnotations();
-						if (anno != null && !anno.isEmpty()) {
-							if (anno.containsKey("nephele/annotation")
-									&& !StringUtils.isEmpty(anno.get("nephele/annotation").toString())) {
-								routerSvc.setAnnotation(anno.get("nephele/annotation").toString());
-							}
-							if (anno.containsKey("nephele/deployment")
-									&& !StringUtils.isEmpty(anno.get("nephele/deployment").toString())) {
-								routerSvc.setService(anno.get("nephele/deployment").toString());
-							}
-						}
-						routerSvcs.add(routerSvc);
-					}
-				}
-			}
-		}
-		return routerSvcs;
-	}
-
-	public String getHostName() {
-		return hostName;
-	}
-
-	public void setHostName(String hostName) {
-		this.hostName = hostName;
-	}
-
-	public String getHaProxyVersion() {
-		return haProxyVersion;
-	}
-
-	public void setHaProxyVersion(String haProxyVersion) {
-		this.haProxyVersion = haProxyVersion;
-	}
-
-	@Override
-	public ActionReturnUtil listIngressByName(String namespace, String nameList, Cluster cluster) throws Exception {
-		if (StringUtils.isEmpty(namespace)) {
-			return ActionReturnUtil.returnErrorWithMsg("没有分区");
-		}
-		if (StringUtils.isEmpty(nameList)) {
-			return ActionReturnUtil.returnErrorWithMsg("应用名称不存在");
-		}
-		ActionReturnUtil hostRes = getEntry();
-		if (!hostRes.isSuccess()) {
-			return hostRes;
-		}
-		String ip = (String) hostRes.get("data");
-		JSONArray array = new JSONArray();
-		List<String> names = new ArrayList<>();
-		if(nameList.contains(",")){
-			String [] n = nameList.split(",");
-			names = java.util.Arrays.asList(n);
-		}else{
-			names.add(nameList);
-		}
-		for(String name : names){
-			// 获取ingress http
-			K8SURL url = new K8SURL();
-			url.setNamespace(namespace).setResource(Resource.INGRESS);// 资源类型怎么判断
-			Map<String, Object> bodys = new HashMap<String, Object>();
-			bodys.put("labelSelector", "app=" + name);
-			K8SClientResponse k = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
-			if (k.getStatus() == Constant.HTTP_404) {
-				return ActionReturnUtil.returnSuccess();
-			}
-			if (!HttpStatusUtil.isSuccessStatus(k.getStatus()) && k.getStatus() != Constant.HTTP_404) {
-				UnversionedStatus status = JsonUtil.jsonToPojo(k.getBody(), UnversionedStatus.class);
-				return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
-			}
-			IngressList ingressList = JsonUtil.jsonToPojo(k.getBody(), IngressList.class);
-			if (ingressList != null) {
-				List<Ingress> list = ingressList.getItems();
-				if (list != null && list.size() > 0) {
-					for (Ingress in : list) {
-						JSONObject json = new JSONObject();
-						json.put("name", in.getMetadata().getName());
-						json.put("type", "HTTP");
-						JSONArray ja = new JSONArray();
-						List<IngressRule> rules = in.getSpec().getRules();
-						if (rules != null && rules.size() > 0) {
-							IngressRule rule = rules.get(0);
-							HTTPIngressRuleValue http = rule.getHttp();
-							List<HTTPIngressPath> paths = http.getPaths();
-							if (paths != null && paths.size() > 0) {
-								for (HTTPIngressPath path : paths) {
-									JSONObject j = new JSONObject();
-									if (path.getBackend() != null) {
-										j.put("port", path.getBackend().getServicePort());
-									}
-									j.put("hostname", rule.getHost() + ":30888" + path.getPath());
-									j.put("ip", ip + ":30888" + path.getPath());
-									ja.add(j);
-								}
-							}
-						}
-						json.put("address", ja);
-						array.add(json);
-					}
-				}
-			}
-			// 获取tcp
-			ActionReturnUtil tcpRes = svcList(namespace);
-			if (!tcpRes.isSuccess()) {
-				return tcpRes;
-			}
-			@SuppressWarnings("unchecked")
-			List<RouterSvc> routerSvcs = (List<RouterSvc>) tcpRes.get("data");
-			if (routerSvcs != null && routerSvcs.size() > 0) {
-				for (RouterSvc routerSvc : routerSvcs) {
-					if (routerSvc.getLabels() != null && routerSvc.getLabels().size() > 0) {
-						Map<String, Object> labels = routerSvc.getLabels();
-						if (labels.get("app") != null && name.equals(labels.get("app").toString())
-								&& labels.get("type") != null && "TCP".equals(labels.get("type"))) {
-							JSONObject json = new JSONObject();
-							json.put("name", routerSvc.getName());
-							json.put("type", "TCP");
-							if (routerSvc.getRules() != null) {
-								List<Integer> ports = new ArrayList<Integer>();
-								List<ServicePort> rules = routerSvc.getRules();
-								if (rules.size() > 0) {
-									JSONArray ja = new JSONArray();
-									for (ServicePort rule : rules) {
-										JSONObject j = new JSONObject();
-										j.put("port", rule.getTargetPort());
-										j.put("ip", ip + ":" + rule.getPort());
-										ja.add(j);
-										ports.add(rule.getPort());
-									}
-									json.put("address", ja);
-									json.put("ports", ports);
-								}
-							}
-
-							array.add(json);
-						}
-					}
-				}
-			}
-		}
-		return ActionReturnUtil.returnSuccessWithData(array);
-	}
-
-	@Override
-	public ActionReturnUtil listRoutHttp(String name,String namespace, Cluster cluster) throws Exception {
-		K8SURL url = new K8SURL();
-		url.setNamespace(namespace).setResource(Resource.INGRESS);// 资源类型怎么判断
-		Map<String, Object> bodys = new HashMap<String, Object>();
-		bodys.put("labelSelector", "app=" + name);
-		K8SClientResponse k = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
-		if (k.getStatus() == Constant.HTTP_404) {
-			return ActionReturnUtil.returnSuccess();
-		}
-		if (!HttpStatusUtil.isSuccessStatus(k.getStatus()) && k.getStatus() != Constant.HTTP_404) {
-			UnversionedStatus status = JsonUtil.jsonToPojo(k.getBody(), UnversionedStatus.class);
-			return ActionReturnUtil.returnErrorWithMsg(status.getMessage());
-		}
-		IngressList ingressList = JsonUtil.jsonToPojo(k.getBody(), IngressList.class);
-		if (ingressList != null) {
-			return ActionReturnUtil.returnSuccessWithData(ingressList);
-		}
-		return ActionReturnUtil.returnError();
-	}
+    /**
+     * 检查在一个集群内是否有相同的
+     * @param cluster
+     * @param name
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public boolean checkIngressName(Cluster cluster, String name) throws Exception {
+        K8SURL url = new K8SURL().setResource(Resource.INGRESS);
+        K8SClientResponse checkRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(checkRes.getStatus())) {
+            throw new MarsRuntimeException(checkRes.getBody());
+        }
+        IngressList ingressList = K8SClient.converToBean(checkRes, IngressList.class);
+        List<Ingress> ingresses = ingressList.getItems();
+        if (Objects.nonNull(ingresses)) {
+            boolean isExist = ingresses.stream().anyMatch(ing -> ing.getMetadata().getName().equals(name));
+            return isExist;
+        }
+        return false;
+    }
 }

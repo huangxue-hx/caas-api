@@ -8,14 +8,16 @@ import java.util.List;
 public class ProjectUserBinding {
 
     private String userName;
-    private Integer userId;
-    private List<String> projects;
+    private Long userId;
+    private String harborHost;
+    private Integer harborRoleType;
+    private List<Integer> projects;
 
-    public Integer getUserId() {
+    public Long getUserId() {
         return userId;
     }
 
-    public void setUserId(Integer userId) {
+    public void setUserId(Long userId) {
         this.userId = userId;
     }
 
@@ -27,11 +29,27 @@ public class ProjectUserBinding {
         this.userName = user;
     }
 
-    public List<String> getProjects() {
+    public List<Integer> getProjects() {
         return projects;
     }
 
-    public void setProjects(List<String> projects) {
+    public void setProjects(List<Integer> projects) {
         this.projects = projects;
+    }
+
+    public String getHarborHost() {
+        return harborHost;
+    }
+
+    public void setHarborHost(String harborHost) {
+        this.harborHost = harborHost;
+    }
+
+    public Integer getHarborRoleType() {
+        return harborRoleType;
+    }
+
+    public void setHarborRoleType(Integer harborRoleType) {
+        this.harborRoleType = harborRoleType;
     }
 }

@@ -13,7 +13,8 @@
         <result column="repository_branch" jdbcType="VARCHAR" property="repositoryBranch" />
         <result column="credentials_username" jdbcType="VARCHAR" property="credentialsUsername" />
         <result column="credentials_password" jdbcType="VARCHAR" property="credentialsPassword" />
-        <result column="build_environment" jdbcType="VARCHAR" property="buildEnvironment" />
+        <result column="environment_change" jdbcType="BOOLEAN" property="environmentChange" />
+        <result column="build_environment_id" jdbcType="VARCHAR" property="buildEnvironmentId" />
         <result column="environment_variables" jdbcType="VARCHAR" property="environmentVariables" />
         <result column="use_dependency" jdbcType="BOOLEAN" property="useDependency" />
         <result column="dependences" jdbcType="VARCHAR" property="dependences" />
@@ -27,11 +28,22 @@
         <result column="image_increase_tag" jdbcType="VARCHAR" property="imageIncreaseTag" />
         <result column="image_tag" jdbcType="VARCHAR" property="imageTag" />
         <result column="harbor_project" jdbcType="VARCHAR" property="harborProject" />
+        <result column="deploy_type" jdbcType="VARCHAR" property="deployType" />
         <result column="namespace" jdbcType="VARCHAR" property="namespace" />
+        <result column="origin_stage_id" jdbcType="INTEGER" property="originStageId" />
+        <result column="service_template_name" jdbcType="VARCHAR" property="serviceTemplateName" />
+        <result column="service_template_tag" jdbcType="VARCHAR" property="serviceTemplateTag" />
         <result column="service_name" jdbcType="VARCHAR" property="serviceName" />
         <result column="container_name" jdbcType="VARCHAR" property="containerName" />
+        <result column="configuration" jdbcType="VARCHAR" property="configuration"/>
+        <result column="instances" jdbcType="INTEGER" property="instances"/>
+        <result column="max_surge" jdbcType="INTEGER" property="maxSurge"/>
+        <result column="max_unavailable" jdbcType="INTEGER" property="maxUnavailable"/>
         <result column="command" jdbcType="VARCHAR" property="command" />
+        <result column="suite_id" jdbcType="VARCHAR" property="suiteId" />
+        <result column="create_user" jdbcType="VARCHAR" property="createUser" />
         <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+        <result column="update_user" jdbcType="VARCHAR" property="updateUser" />
         <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
     </resultMap>
 
@@ -46,7 +58,8 @@
         s.repository_branch,
         s.credentials_username,
         s.credentials_password,
-        s.build_environment,
+        s.environment_change,
+        s.build_environment_id,
         s.environment_variables,
         s.use_dependency,
         s.dependences,
@@ -54,16 +67,26 @@
         s.base_image,
         s.dockerfile_id,
         s.dockerfile_path,
+        s.image_type,
         s.image_name,
         s.image_tag_type,
         s.image_base_tag,
         s.image_increase_tag,
         s.image_tag,
         s.harbor_project,
+        s.deploy_type,
         s.namespace,
+        s.origin_stage_id,
+        s.service_template_name,
+        s.service_template_tag,
         s.service_name,
         s.container_name,
+        s.configuration,
+        s.instances,
+        s.max_surge,
+        s.max_unavailable,
         s.command,
+        s.suite_id,
         s.create_time,
         s.update_time,
         cicd_stage_type.template_type stage_template_type
@@ -82,7 +105,8 @@
         repository_branch,
         credentials_username,
         credentials_password,
-        build_environment,
+        environment_change,
+        build_environment_id,
         environment_variables,
         use_dependency,
         dependences,
@@ -96,11 +120,22 @@
         image_increase_tag,
         image_tag,
         harbor_project,
+        deploy_type,
         namespace,
+        origin_stage_id,
+        service_template_name,
+        service_template_tag,
         service_name,
         container_name,
+        configuration,
+        instances,
+        max_surge,
+        max_unavailable,
         command,
+        suite_id,
+        create_user,
         create_time,
+        update_user,
         update_time
         )
         VALUES(
@@ -113,7 +148,8 @@
         #{repositoryBranch},
         #{credentialsUsername},
         #{credentialsPassword},
-        #{buildEnvironment},
+        #{environmentChange},
+        #{buildEnvironmentId},
         #{environmentVariables},
         #{useDependency},
         #{dependences},
@@ -127,11 +163,22 @@
         #{imageIncreaseTag},
         #{imageTag},
         #{harborProject},
+        #{deployType},
         #{namespace},
+        #{originStageId},
+        #{serviceTemplateName},
+        #{serviceTemplateTag},
         #{serviceName},
         #{containerName},
+        #{configuration},
+        #{instances},
+        #{maxSurge},
+        #{maxUnavailable},
         #{command},
+        #{suiteId},
+        #{createUser},
         #{createTime},
+        #{updateUser},
         #{updateTime}
         )
     </insert>
@@ -161,7 +208,8 @@
         repository_branch = #{repositoryBranch},
         credentials_username = #{credentialsUsername},
         credentials_password = #{credentialsPassword},
-        build_environment = #{buildEnvironment},
+        environment_change = #{environmentChange},
+        build_environment_id = #{buildEnvironmentId},
         environment_variables = #{environmentVariables},
         use_dependency = #{useDependency},
         dependences = #{dependences},
@@ -175,10 +223,20 @@
         image_increase_tag = #{imageIncreaseTag},
         image_tag = #{imageTag},
         harbor_project = #{harborProject},
+        deploy_type = #{deployType},
         namespace = #{namespace},
+        origin_stage_id = #{originStageId},
+        service_template_name = #{serviceTemplateName},
+        service_template_tag = #{serviceTemplateTag},
         service_name = #{serviceName},
         container_name = #{containerName},
+        configuration = #{configuration},
+        instances = #{instances},
+        max_surge = #{maxSurge},
+        max_unavailable = #{maxUnavailable},
         command = #{command},
+        suite_id = #{suiteId},
+        update_user = #{updateUser},
         update_time = #{updateTime}
         WHERE id = #{id}
     </update>
@@ -212,5 +270,38 @@
         </if>
         AND s.job_id = #{jobId} ORDER BY s.stage_order
     </select>
+    <sql id="Where_Clause">
+        <where>
+            <if test="jobId != null">
+                AND job_id = #{jobId}
+            </if>
+            <if test="stageOrder != null">
+                AND stage_order = #{stageOrder}
+            </if>
+            <if test="buildEnvironmentId != null">
+                AND build_environment_id = #{buildEnvironmentId}
+            </if>
+            <if test="dockerfileId != null">
+                AND dockerfile_id = #{dockerfileId}
+            </if>
+            <if test="dependences != null">
+                AND dependences like concat(concat('%',#{dependences}),'%')
+            </if>
+            <if test="credentialsUsername != null">
+                AND credentials_username = #{credentialsUsername}
+            </if>
+        </where>
+    </sql>
 
+    <select id="countByExample" parameterType="com.harmonycloud.dao.ci.bean.Stage" resultType="java.lang.Long">
+        SELECT count(1) FROM cicd_stage s
+        <include refid="Where_Clause" />
+    </select>
+    <select id="selectByExample" parameterType="com.harmonycloud.dao.ci.bean.Stage" resultMap="BaseResultMap">
+        <include refid="selectAllColumns"/>
+        <include refid="Where_Clause" />
+    </select>
+    <update id="updatePasswordByUsername" >
+        UPDATE cicd_stage SET credentials_password=#{password} WHERE credentials_username = #{username}
+    </update>
 </mapper>

@@ -12,8 +12,7 @@ public class StageType  implements Serializable{
 
     private Integer id;
     private String name;
-    private boolean userDefined;
-    private String tenantId;
+    private String type;
     private Integer templateType;
 
     public Integer getId() {
@@ -32,21 +31,12 @@ public class StageType  implements Serializable{
         this.name = name;
     }
 
-    public boolean isUserDefined() {
-        return userDefined;
+    public String getType() {
+        return type;
     }
 
-    public void setUserDefined(boolean userDefined) {
-        this.userDefined = userDefined;
-    }
-
-    @JsonIgnore
-    public String getTenantId() {
-        return tenantId;
-    }
-    @JsonProperty
-    public void setTenantId(String tenantId) {
-        this.tenantId = tenantId;
+    public void setType(String type) {
+        this.type = type;
     }
 
     public Integer getTemplateType() {

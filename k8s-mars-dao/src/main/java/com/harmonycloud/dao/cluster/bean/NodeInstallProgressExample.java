@@ -10,6 +10,10 @@ public class NodeInstallProgressExample {
 
     protected List<Criteria> oredCriteria;
 
+    private Integer limit;
+
+    private Integer offset;
+
     public NodeInstallProgressExample() {
         oredCriteria = new ArrayList<Criteria>();
     }
@@ -61,6 +65,22 @@ public class NodeInstallProgressExample {
         oredCriteria.clear();
         orderByClause = null;
         distinct = false;
+    }
+
+    public void setLimit(Integer limit) {
+        this.limit = limit;
+    }
+
+    public Integer getLimit() {
+        return limit;
+    }
+
+    public void setOffset(Integer offset) {
+        this.offset = offset;
+    }
+
+    public Integer getOffset() {
+        return offset;
     }
 
     protected abstract static class GeneratedCriteria {
@@ -374,52 +394,62 @@ public class NodeInstallProgressExample {
             return (Criteria) this;
         }
 
-        public Criteria andClusterIdEqualTo(Integer value) {
+        public Criteria andClusterIdEqualTo(String value) {
             addCriterion("cluster_id =", value, "clusterId");
             return (Criteria) this;
         }
 
-        public Criteria andClusterIdNotEqualTo(Integer value) {
+        public Criteria andClusterIdNotEqualTo(String value) {
             addCriterion("cluster_id <>", value, "clusterId");
             return (Criteria) this;
         }
 
-        public Criteria andClusterIdGreaterThan(Integer value) {
+        public Criteria andClusterIdGreaterThan(String value) {
             addCriterion("cluster_id >", value, "clusterId");
             return (Criteria) this;
         }
 
-        public Criteria andClusterIdGreaterThanOrEqualTo(Integer value) {
+        public Criteria andClusterIdGreaterThanOrEqualTo(String value) {
             addCriterion("cluster_id >=", value, "clusterId");
             return (Criteria) this;
         }
 
-        public Criteria andClusterIdLessThan(Integer value) {
+        public Criteria andClusterIdLessThan(String value) {
             addCriterion("cluster_id <", value, "clusterId");
             return (Criteria) this;
         }
 
-        public Criteria andClusterIdLessThanOrEqualTo(Integer value) {
+        public Criteria andClusterIdLessThanOrEqualTo(String value) {
             addCriterion("cluster_id <=", value, "clusterId");
             return (Criteria) this;
         }
 
-        public Criteria andClusterIdIn(List<Integer> values) {
+        public Criteria andClusterIdLike(String value) {
+            addCriterion("cluster_id like", value, "clusterId");
+            return (Criteria) this;
+        }
+
+        public Criteria andClusterIdNotLike(String value) {
+            addCriterion("cluster_id not like", value, "clusterId");
+            return (Criteria) this;
+        }
+
+        public Criteria andClusterIdIn(List<String> values) {
             addCriterion("cluster_id in", values, "clusterId");
             return (Criteria) this;
         }
 
-        public Criteria andClusterIdNotIn(List<Integer> values) {
+        public Criteria andClusterIdNotIn(List<String> values) {
             addCriterion("cluster_id not in", values, "clusterId");
             return (Criteria) this;
         }
 
-        public Criteria andClusterIdBetween(Integer value1, Integer value2) {
+        public Criteria andClusterIdBetween(String value1, String value2) {
             addCriterion("cluster_id between", value1, value2, "clusterId");
             return (Criteria) this;
         }
 
-        public Criteria andClusterIdNotBetween(Integer value1, Integer value2) {
+        public Criteria andClusterIdNotBetween(String value1, String value2) {
             addCriterion("cluster_id not between", value1, value2, "clusterId");
             return (Criteria) this;
         }
@@ -491,6 +521,26 @@ public class NodeInstallProgressExample {
 
         public Criteria andErrorMsgNotBetween(String value1, String value2) {
             addCriterion("error_msg not between", value1, value2, "errorMsg");
+            return (Criteria) this;
+        }
+
+        public Criteria andNameLikeInsensitive(String value) {
+            addCriterion("upper(name) like", value.toUpperCase(), "name");
+            return (Criteria) this;
+        }
+
+        public Criteria andInstallStatusLikeInsensitive(String value) {
+            addCriterion("upper(install_status) like", value.toUpperCase(), "installStatus");
+            return (Criteria) this;
+        }
+
+        public Criteria andClusterIdLikeInsensitive(String value) {
+            addCriterion("upper(cluster_id) like", value.toUpperCase(), "clusterId");
+            return (Criteria) this;
+        }
+
+        public Criteria andErrorMsgLikeInsensitive(String value) {
+            addCriterion("upper(error_msg) like", value.toUpperCase(), "errorMsg");
             return (Criteria) this;
         }
     }

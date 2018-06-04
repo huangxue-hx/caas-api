@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.namespace.NamespaceMapper">
+
+    <resultMap id="namespaceMap" type="com.harmonycloud.dao.namespace.bean.NamespaceBean">
+        <id column="id" jdbcType="INTEGER" property="id" />
+        <result column="tenant_id" jdbcType="VARCHAR" property="tenantId" />
+        <result column="cluster_id" jdbcType="VARCHAR" property="clusterId" />
+        <result column="namespace_id" jdbcType="VARCHAR" property="namespaceId" />
+        <result column="namespace_name" jdbcType="VARCHAR" property="namespaceName" />
+        <result column="create_time" jdbcType="TIMESTAMP"  property="createTime"/>
+        <result column="update_time" jdbcType="TIMESTAMP"  property="updateTime"/>
+        <result column="reserve1" jdbcType="VARCHAR" property="reserve1"/>
+        <result column="reserve2" jdbcType="VARCHAR" property="reserve2"/>
+    </resultMap>
+
+    <select id="findByNamespaceId" resultMap="namespaceMap" parameterType="java.lang.String">
+        select id, tenant_id, cluster_id, namespace_id, namespace_name, create_time, update_time, reserve1, reserve2
+        from namespace where namespace_id=#{namespaceId}
+    </select>
+
+</mapper>

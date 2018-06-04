@@ -6,13 +6,15 @@
         <id column="id" property="id" jdbcType="INTEGER" />
         <result column="name" property="name" jdbcType="VARCHAR" />
         <result column="tenant" property="tenant" jdbcType="VARCHAR" />
+        <result column="project_id" property="projectId" jdbcType="INTEGER" />
+        <result column="cluster_id" property="clusterId" jdbcType="VARCHAR" />
         <result column="content" property="content" jdbcType="VARCHAR" />
         <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
         <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, name, tenant, content, create_time, update_time
+        id, name, tenant, project_id, cluster_id, content, create_time, update_time
     </sql>
 
     <select id="findByAll" resultMap="BaseResultMap" parameterType="DockerFile">
@@ -26,23 +28,36 @@
             <if test="tenant!=null and tenant!=''">
                 AND tenant = #{tenant}
             </if>
+            <if test="projectId!=null ">
+                AND project_id = #{projectId}
+            </if>
+            <if test="clusterId!=null">
+                AND cluster_id = #{clusterId}
+            </if>
         </trim>
     </select>
 
-    <select id="findPageByAll" resultType="com.harmonycloud.dao.ci.bean.DockerFilePage" parameterType="DockerFile">
-        SELECT df.id id,df.name name,GROUP_CONCAT(cj.id) jobIds,GROUP_CONCAT(cj.name) jobNames,
+    <select id="findPageByAll" resultType="com.harmonycloud.dao.ci.bean.DockerFilePage">
+        SELECT df.id id,df.name name, df.tenant tenant, df.project_id projectId, df.cluster_id clusterId,GROUP_CONCAT(cj.id) jobIds,GROUP_CONCAT(cj.name order by cj.name) jobNames,
         GROUP_CONCAT(cs.id) stageIds,GROUP_CONCAT(cs.stage_name) stageNames,
-        df.create_time createTime,df.update_time updateTime
-        FROM cicd_docker_file df
-        LEFT JOIN cicd_docker_file_job_stage dfj ON df.id=dfj.docker_file_id
-        LEFT JOIN cicd_job cj ON cj.id=dfj.job_id
-        LEFT JOIN cicd_stage cs ON cs.id=dfj.stage_id
+        df.create_time createTime,df.update_time updateTime FROM cicd_docker_file df
+        LEFT JOIN cicd_stage cs ON df.id=cs.dockerfile_id
+        LEFT JOIN cicd_job cj ON cs.job_id=cj.id
         <trim prefix="where" prefixOverrides="and">
-            <if test="name!=null and name!=''">
-                AND df.name LIKE  CONCAT('%', #{name}, '%')
+            <if test="dockerFile.name!=null and dockerFile.name!=''">
+                AND df.name LIKE  CONCAT('%', #{dockerFile.name}, '%')
             </if>
-            <if test="tenant!=null and tenant!=''">
-                AND df.tenant = #{tenant}
+            <if test="dockerFile.tenant!=null and dockerFile.tenant!=''">
+                AND df.tenant = #{dockerFile.tenant}
+            </if>
+            <if test="dockerFile.projectId!=null ">
+                AND df.project_id = #{dockerFile.projectId}
+            </if>
+            <if test="clusterIdList != null">
+                AND df.cluster_id IN
+                <foreach collection="clusterIdList" item="item" open="(" close=")" separator="," >
+                    #{item}
+                </foreach>
             </if>
         </trim>
         group by df.id
@@ -50,8 +65,8 @@
 
     <insert id="insertDockerFile" parameterType="DockerFile" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO cicd_docker_file
-        (name,tenant,content,create_time,update_time)
-        VALUE (#{name},#{tenant},#{content},#{createTime},#{updateTime})
+        (name,tenant,project_id,cluster_id,content,create_time,update_time)
+        VALUE (#{name},#{tenant},#{projectId},#{clusterId},#{content},#{createTime},#{updateTime})
     </insert>
     <update id="updateDockerFile" parameterType="DockerFile">
         UPDATE cicd_docker_file
@@ -66,8 +81,8 @@
         </trim>
         WHERE id = #{id}
     </update>
-    <delete id="deleteDockerFile" parameterType="DockerFile">
-        DELETE FROM cicd_docker_file where id = #{id} AND tenant = #{tenant}
+    <delete id="deleteDockerFile" parameterType="java.lang.Integer">
+        DELETE FROM cicd_docker_file where id = #{id}
     </delete>
 
     <select id="selectNameAndTenant" resultMap="BaseResultMap" parameterType="DockerFile">
@@ -84,6 +99,13 @@
         </trim>
     </select>
 
+    <select id="selectDockerFileById" resultMap="BaseResultMap" parameterType="java.lang.Integer">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM cicd_docker_file
+        WHERE id = #{id}
+    </select>
+
     <select id="selectDockerFile" resultMap="BaseResultMap" parameterType="DockerFile">
         SELECT
         <include refid="Base_Column_List"/>
@@ -95,6 +117,21 @@
             <if test="id!=null and id!=''">
                 AND id = #{id}
             </if>
+            <if test="projectId!=null">
+                AND project_id = #{projectId}
+            </if>
+            <if test="clusterId!=null and clusterId!=''">
+                AND cluster_id = #{clusterId}
+            </if>
         </trim>
     </select>
+
+    <delete id="deleteByClusterId">
+        delete from cicd_docker_file where cluster_id = #{clusterId}
+    </delete>
+
+    <delete id="deleteByProjectId">
+        delete from cicd_docker_file where project_id = #{projectId}
+    </delete>
+
 </mapper>

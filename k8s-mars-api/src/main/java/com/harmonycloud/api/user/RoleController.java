@@ -1,384 +1,640 @@
 package com.harmonycloud.api.user;
 
-import java.util.Date;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
-import com.harmonycloud.dao.tenant.bean.RolePrivilege;
-import com.harmonycloud.dao.user.bean.Role;
-import com.harmonycloud.dao.user.bean.RoleExample;
-import com.harmonycloud.service.tenant.RolePrivilegeService;
-import com.harmonycloud.service.tenant.impl.RoleServiceImpl;
+import java.util.Objects;
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.LocalRolePreConditionDto;
+import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.dao.user.bean.*;
+import com.harmonycloud.dto.user.*;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.service.cache.ClusterCacheManager;
+import com.harmonycloud.service.common.PrivilegeHelper;
+import com.harmonycloud.service.user.*;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.*;
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dto.user.UserDetailDto;
-import com.harmonycloud.service.user.ResourceService;
-import com.harmonycloud.service.tenant.RoleService;
-//import com.harmonycloud.service.user.RoleService;
-import com.harmonycloud.service.user.impl.ResourceServiceimpl;
+import org.springframework.util.CollectionUtils;
+import org.springframework.web.bind.annotation.*;
 
-import javax.xml.bind.MarshalException;
-
-
+/**
+ * 角色权限控制器
+ */
 @Controller
 public class RoleController {
+
 	@Autowired
-	private RoleService roleService;
+	private RoleLocalService roleLocalService;
 	
 	@Autowired
 	private ResourceService resourceService;
+	@Autowired
+	private ResourceMenuRoleService resourceMenuRoleService;
 
 	@Autowired
 	private RolePrivilegeService rolePrivilegeService;
+    @Autowired
+	private LocalRoleService localRoleService;
+	@Autowired
+	ClusterCacheManager clusterCacheManager;
 
+    @Autowired
+	PrivilegeHelper privilegeHelper;
+
+	private Logger logger = LoggerFactory.getLogger(this.getClass());
 
 	/**
-	 * 更新角色权限
-	 * @param roleName
-	 * @param rolePrivilegeList
+	 * 切换角色
 	 * @return
 	 * @throws Exception
 	 */
-	@RequestMapping(value = "/role/updateRolePrivilege", method = RequestMethod.PUT)
+	@RequestMapping(value = "/roles/{roleId}/switchRole", method = RequestMethod.GET)
 	@ResponseBody
-	public ActionReturnUtil updateRolePrivilege(@RequestBody Map<String, Object> map) throws Exception {
-		List<Map<String, Object>> list = (List<Map<String, Object>>)map.get("rolePrivilegeList");
-		String roleName = (String)map.get("roleName");
-		Role role = roleService.getRoleByRoleName(roleName);
-		String description = (String)map.get("description");
-		if(description!=null&&!description.isEmpty()&&!description.equals(role.getDescription())){
-			role.setUpdateTime(new Date());
-			role.setDescription(description);
-			roleService.updateRole(role);
+	public ActionReturnUtil switchRole(@PathVariable("roleId") Integer roleId) throws Exception {
+		Map<String, Object> availablePrivilege = this.rolePrivilegeService.switchRole(roleId);
+		return ActionReturnUtil.returnSuccessWithData(availablePrivilege);
+	}
+	/**
+	 * 分配角色权限
+	 *  使用场景：
+	 *  1、首次创建角色后勾选资源
+	 *  2、再次更改菜单
+	 *  问题：
+	 *  当某菜单被其中项目的pm分配过数据权限后，发生2时，会导致数据权限不可用。
+	 *  后台处理策略：
+	 *  删除该全局角色权限菜单，不删除数据权限
+	 *
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/roles/{roleId}", method = RequestMethod.PUT)
+	@ResponseBody
+	public ActionReturnUtil updateRole(@PathVariable(value = "roleId") Integer roleId,
+												@ModelAttribute RoleDto roleDto) throws Exception {
+//		logger.info("分配角色权限");
+		//空值判断
+		if (StringUtils.isBlank(roleDto.getNickName()) || (roleId > CommonConstant.PM_ROLEID && StringUtils.isBlank(roleDto.getClusterIds()))){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
 		}
-//	        rolePrivilegeList
-		if(list==null||list.size()==0){
-			return ActionReturnUtil.returnSuccess();
+
+		roleDto.setId(roleId);
+		roleLocalService.updateRole(roleDto);
+		return ActionReturnUtil.returnSuccess();
+	}
+	/**
+	 * 根据角色id获取所有可用权限菜单列表
+	 * @param roleId
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/roles/{roleId}/menu", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil getRolePrivilegeMenu(@PathVariable(value = "roleId") Integer roleId) throws Exception {
+//		long startTime=System.currentTimeMillis();   //获取开始时间
+		List<MenuDto> menuList = resourceMenuRoleService.getResourceMenuByRoleId(roleId);
+//		long endTime=System.currentTimeMillis(); //获取结束时间
+		return ActionReturnUtil.returnSuccessWithData(menuList);
+	}
+
+	/**
+	 * 根据角色名获取有效权限
+	 * @param roleId
+	 * @param available true表示获取有效权限，false表示获取所有权限
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/roles/{roleId}/privilege", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil getRolePrivilege(@PathVariable(value = "roleId") Integer roleId,
+											 Boolean available) throws Exception {
+		//空值判断
+		if (Objects.isNull(roleId) || Objects.isNull(available)){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		Map<String, Object> privilegeByRole = null;
+		if (available){
+			//获取有效权限
+			privilegeByRole = rolePrivilegeService.getAvailablePrivilegeByRoleId(roleId);
 		}else {
-			rolePrivilegeService.updateRolePrivilege(roleName, list);
-			return ActionReturnUtil.returnSuccess();
+			//表示获取所有权限
+			privilegeByRole = rolePrivilegeService.getAllPrivilegeByRoleId(roleId);
 		}
-	}
-	/**
-	 * 根据角色名获取所有可用权限菜单列表
-	 * @param roleName
-	 * @return
-	 * @throws Exception
-	 */
-	@RequestMapping(value = "/role/getRolePrivilegeMenu", method = RequestMethod.GET)
-	@ResponseBody
-	public ActionReturnUtil getRolePrivilegeMenu(String roleName) throws Exception {
-		long startTime=System.currentTimeMillis();   //获取开始时间
-		Map<String, Object> privilegeByRole = rolePrivilegeService.getAllStatusPrivilegeMenuByRoleName(roleName);
-		long endTime=System.currentTimeMillis(); //获取结束时间
-		System.out.println("程序运行时间： "+(endTime-startTime)+"ms");
 		return ActionReturnUtil.returnSuccessWithData(privilegeByRole);
 	}
 
 	/**
-	 * 根据角色名获取权限
-	 * @param roleName
+	 * 获取基本可见权限操作列表
+	 * 组装成无勾选状态的权限树
+	 * @param
 	 * @return
 	 * @throws Exception
 	 */
-	@RequestMapping(value = "/role/getRolePrivilege", method = RequestMethod.GET)
+	@RequestMapping(value = "/roles/privilege", method = RequestMethod.GET)
 	@ResponseBody
-	public ActionReturnUtil getRolePrivilege(String roleName) throws Exception {
-		Map<String, Object> privilegeByRole = rolePrivilegeService.getPrivilegeByRole(roleName);
+	public ActionReturnUtil getInitialPrivilege() throws Exception {
+//		logger.info("获取系统基本权限操作列表");
+		Map<String, Object> privilegeByRole = rolePrivilegeService.getAllSystemPrivilege();
 		return ActionReturnUtil.returnSuccessWithData(privilegeByRole);
 	}
-
-	/**
-	 * 重置所有角色及权限
-	 * @return
-	 * @throws Exception
-	 */
-	@RequestMapping(value = "/role/resetRole", method = RequestMethod.PUT)
-	@ResponseBody
-	public ActionReturnUtil resetRole() throws Exception {
-		roleService.resetRole();
-		return ActionReturnUtil.returnSuccess();
-	}
-	/**
-	 * 重置对应角色权限
-	 * @param roleName
-	 * @return
-	 * @throws Exception
-	 */
-	@RequestMapping(value = "/role/resetPrivilegeByRoleName", method = RequestMethod.PUT)
-	@ResponseBody
-	public ActionReturnUtil resetPrivilegeByRoleName(String roleName) throws Exception {
-		//TODO
-		rolePrivilegeService.resetRolePrivilegeByRoleName(roleName);
-		return ActionReturnUtil.returnSuccess();
-	}
-
 	/**
 	 * 更新菜单权重
-	 * @param id
-	 * @param weight
 	 * @return
 	 * @throws Exception
 	 */
-	@RequestMapping(value = "/role/updateRoleMenuPrivilegeWight", method = RequestMethod.PUT)
+	@RequestMapping(value = "/roles/{roleId}/menu", method = RequestMethod.PUT)
 	@ResponseBody
-	public ActionReturnUtil updateRoleMenuPrivilegeWight(@RequestBody Map<String, Object> map) throws Exception {
+	public ActionReturnUtil updateRoleMenuPrivilegeWight(@PathVariable(value = "roleId") Integer roleId,
+														 @RequestBody Map<String, Object> map) throws Exception {
 		List<Map<Integer,Integer>> weightList = (List<Map<Integer,Integer>>)map.get("weightList");
-		for (Map<Integer,Integer> weight : weightList) {
-			resourceService.updateRoleMenuPrivilegeWight(weight.get("id"),weight.get("weight"));
+		if (Objects.isNull(roleId) || CollectionUtils.isEmpty(weightList)){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
 		}
-		return ActionReturnUtil.returnSuccess();
-	}
-	/**
-	 * 根据用户名和tenantid获取角色
-	 * @param userName
-	 * @param tenantid
-	 * @return
-	 * @throws Exception
-	 */
-	@RequestMapping(value = "/role/getRoleByUserNameAndTenantId", method = RequestMethod.POST)
-	@ResponseBody
-	public ActionReturnUtil getRoleByUserNameAndTenant(String userName,String tenantid) throws Exception {
-		roleService.getRoleByUserNameAndTenant(userName,tenantid);
+		for (Map<Integer,Integer> weight : weightList) {
+			resourceService.updateRoleMenuPrivilegeWight(roleId,weight.get("id"),weight.get("weight"));
+		}
 		return ActionReturnUtil.returnSuccess();
 	}
 
 	/**
-	 * 根据角色名删除角色
-	 * @param roleName
+	 * 根据角色id获取集群列表
+	 * 从redis缓存中获取
+	 * @param roleId
+	 * @return
 	 * @throws Exception
 	 */
-	@RequestMapping(value = "/role/deleteRole", method = RequestMethod.DELETE)
+	@RequestMapping(value = "/roles/{roleId}/clusters", method = RequestMethod.GET)
 	@ResponseBody
-	public ActionReturnUtil deleteRole(@RequestParam(value = "roleName") String roleName) throws Exception {
-		roleService.deleteRole(roleName);
+	public ActionReturnUtil getClusterListByRoleId(@PathVariable(value = "roleId") Integer roleId) throws Exception {
+		if (Objects.isNull(roleId)){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		List<Cluster> clusterList = roleLocalService.getClusterListByRoleId(roleId);
+		return ActionReturnUtil.returnSuccessWithData(clusterList);
+	}
+
+	/**
+	 * 根据角色id删除角色
+	 * @param roleId
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/roles/{roleId}", method = RequestMethod.DELETE)
+	@ResponseBody
+	public ActionReturnUtil deleteRole(@PathVariable(value = "roleId") Integer roleId) throws Exception {
+		if (Objects.isNull(roleId)){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		roleLocalService.deleteRoleById(roleId);
 		return ActionReturnUtil.returnSuccess();
 	}
+
 	/**
 	 * 添加角色
-	 * @param role
+	 * @param roleDto
 	 * @throws Exception
 	 */
-	/**
-	 * 添加角色
-	 * @param role
-	 * @throws Exception
-	 */
-	@RequestMapping(value = "/role/addRole", method = RequestMethod.POST)
+	@RequestMapping(value = "/roles", method = RequestMethod.POST)
 	@ResponseBody
-	public ActionReturnUtil addRole(@RequestBody Map<String, Object> map) throws Exception {
-		List<Map<String, Object>> NewRolePrivilegeList = (List<Map<String, Object>>)map.get("rolePrivilegeList");
-		String roleName = (String)map.get("name");
-		String description = (String)map.get("description");
-		if(description == null || description.isEmpty()){
-			description=roleName;
+	public ActionReturnUtil addRole(@ModelAttribute RoleDto roleDto) throws Exception {
+		String nickName = roleDto.getNickName();
+		String clusterIds = roleDto.getClusterIds();
+		//空值判断
+		if (StringUtils.isBlank(nickName)){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
 		}
-		Role roleByRoleName = roleService.getRoleByRoleName(roleName);
-		if(roleByRoleName != null  && roleByRoleName.getAvailable() == Boolean.TRUE){
-			throw new MarshalException("创建的角色："+ roleName + "已经存在,请重新输入!");
+		if (!Objects.isNull(roleDto.getAvailable())
+				&& roleDto.getAvailable()
+				&& (StringUtils.isBlank(clusterIds)
+				|| StringUtils.isBlank(clusterIds.replaceAll(CommonConstant.COMMA,CommonConstant.EMPTYSTRING)))){
+			throw new MarsRuntimeException(ErrorCodeMessage.ROLE_SCOPE_NOT_BLANK);
 		}
-		Role role = new Role();
-		role.setName(roleName);
-		role.setDescription(description);
-		role.setAvailable(Boolean.TRUE);
-		role.setCreateTime(new Date());
-		role.setUpdateTime(new Date());
-		roleService.addRole(role,NewRolePrivilegeList);
+		if (CollectionUtils.isEmpty(roleDto.getRolePrivilegeList())){
+			throw new MarsRuntimeException(ErrorCodeMessage.ROLE_PRIVILEGE_NOT_BLANK);
+		}
+		roleLocalService.createRole(roleDto);
 		return ActionReturnUtil.returnSuccess();
 	}
 	/**
 
 	/**
 	 * 禁用角色
-	 * @param roleName
+	 * @param roleId
 	 * @throws Exception
 	 */
-	@RequestMapping(value = "/role/disableRoleByRoleName", method = RequestMethod.PUT)
+	@RequestMapping(value = "/roles/{roleId}/disable", method = RequestMethod.PUT)
 	@ResponseBody
-	public ActionReturnUtil disableRoleByRoleName(String roleName) throws Exception {
-		roleService.DisableRoleByRoleName(roleName);
+	public ActionReturnUtil disableRoleByRoleId(@PathVariable(value = "roleId") Integer roleId) throws Exception {
+		//空值判断
+		if (Objects.isNull(roleId)){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		roleLocalService.disableRoleByRoleId(roleId);
 		return ActionReturnUtil.returnSuccess();
 	}
-
+	@RequestMapping(value = "/roles/{roleId}/copy", method = RequestMethod.PUT)
+	@ResponseBody
+	public ActionReturnUtil copyRoleByRoleId(@PathVariable(value = "roleId") Integer roleId,String newNickName) throws Exception {
+		//空值判断
+		if (Objects.isNull(newNickName)){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		roleLocalService.copyRoleByRoleId(roleId,newNickName);
+		return ActionReturnUtil.returnSuccess();
+	}
 	/**
 	 * 启用角色
-	 * @param roleName
+	 * @param roleId
+	 * @param clusterIds 某一集群ID，必填
 	 * @throws Exception
 	 */
-	@RequestMapping(value = "/role/enableRoleByRoleName", method = RequestMethod.PUT)
+	@RequestMapping(value = "/roles/{roleId}/enable", method = RequestMethod.PUT)
 	@ResponseBody
-	public ActionReturnUtil enableRoleByRoleName(String roleName) throws Exception {
-		roleService.EnableRoleByRoleName(roleName);
+	public ActionReturnUtil enableRoleByRoleId(@PathVariable(value = "roleId") Integer roleId,
+											   @RequestParam(value = "clusterIds") String clusterIds) throws Exception {
+		//空值判断
+		if (StringUtils.isBlank(clusterIds)){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		roleLocalService.enableRoleByRoleId(roleId,clusterIds);
+		return ActionReturnUtil.returnSuccess();
+	}
+
+	/**
+	 * 根据角色id重置角色权限（只针对默认初始角色admin tm pm dev qas ops）
+	 * 通过默认角色副本数据库重置role_privilege_new_replication
+	 *
+	 * @param roleId
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/roles/{roleId}/privilege/reset", method = RequestMethod.PUT)
+	@ResponseBody
+	public ActionReturnUtil resetRolePrivilegeByRoleId(@PathVariable(value = "roleId") Integer roleId) throws Exception {
+		//空值判断
+		if (Objects.isNull(roleId)){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		this.rolePrivilegeService.resetRolePrivilegeByRoleId(roleId);
 		return ActionReturnUtil.returnSuccess();
 	}
 	/**
-	 * 根据角色名获取Role
+	 * 根据用户名,租户id和项目id获取角色 或者 根据status获取用户角色列表
+	 * status true获取用户所有角色列表，false获取用户有效角色列表
+	 * @param username
+	 * @param projectId
+	 * @param status true获取用户所有角色列表，false获取用户有效角色列表
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/roles", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil getRoleListByUsernameAndTenantIdAndProjectId(String username,String tenantId,String projectId,Boolean status) throws Exception {
+		if (Objects.isNull(status) && StringUtils.isAnyBlank(username,projectId)){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		List<Role> list = null;
+		if (StringUtils.isNotBlank(username)){
+			list = roleLocalService.getRoleListByUsernameAndTenantIdAndProjectId(username,tenantId, projectId);
+		} else if (status){
+			list = roleLocalService.getAllRoleList();
+		}else {
+			list = roleLocalService.getAvailableRoleList();
+		}
+
+		return ActionReturnUtil.returnSuccessWithData(list);
+	}
+
+	/**
+	 * 创建局部角色
+	 * @param localRoleDtoIn
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/localroles", method = RequestMethod.POST)
+	@ResponseBody
+	public ActionReturnUtil createLocalRole(@ModelAttribute LocalRoleDto localRoleDtoIn) throws Exception {
+		if(StringUtils.isAnyBlank(localRoleDtoIn.getProjectId(), localRoleDtoIn.getRoleDesc())){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		localRoleService.createLocalRole(localRoleDtoIn);
+		return ActionReturnUtil.returnSuccess();
+	}
+
+	/**
+	 * 更新局部角色
+	 * @param localRoleDtoIn
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/localroles/{roleId}", method = RequestMethod.PUT)
+	@ResponseBody
+	public ActionReturnUtil updateLocalRole(@PathVariable(value = "roleId") Integer roleId,
+											@ModelAttribute LocalRoleDto localRoleDtoIn) throws Exception {
+		if(Objects.isNull(roleId)){
+			throw new MarsRuntimeException(ErrorCodeMessage.ROLE_ID_BLANK);
+		}
+		localRoleDtoIn.setLocalRoleId(roleId);
+		localRoleService.updateLocalRole(localRoleDtoIn);
+		return ActionReturnUtil.returnSuccess();
+	}
+
+	/**
+	 * 根据角色名删除局部角色
 	 * @param roleName
 	 * @return
 	 * @throws Exception
 	 */
-	@RequestMapping(value = "/role/getRoleByRoleName", method = RequestMethod.GET)
+	@RequestMapping(value = "/localroles/projects/{projectId}/users/{roleName}", method = RequestMethod.DELETE)
 	@ResponseBody
-	public ActionReturnUtil getRoleByRoleName(String roleName) throws Exception {
-		Role role= roleService.getRoleByRoleName(roleName);
-		return ActionReturnUtil.returnSuccessWithData(role);
+	public ActionReturnUtil removeRoleByRoleName(@PathVariable(value = "roleName") String roleName,
+												 @PathVariable(value = "projectId") String projectId) throws Exception {
+		if(StringUtils.isAnyBlank(projectId, roleName)){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		localRoleService.removeRoleByRoleName(projectId, roleName);
+		return ActionReturnUtil.returnSuccess();
 	}
 
 	/**
-	 * 获取所有用户角色列表
-	 * @return
-	 */
-	@RequestMapping(value = "/role/list", method = RequestMethod.GET)
-	@ResponseBody
-	public ActionReturnUtil getRoleList() throws Exception {
-		List<Role> roleList = roleService.getRoleList();
-		return ActionReturnUtil.returnSuccessWithData(roleList);
-	}
-
-
-	/**
-	 * 获取所有资源操作列表
-	 * @return
-	 */
-	@ResponseBody
-	@RequestMapping(value="/resources",method=RequestMethod.GET)
-	public ActionReturnUtil listResources() throws Exception{
-		return resourceService.listAPIResource();
-	}
-
-	/**
-	 * 获取非资源性api列表
-	 * @return
-	 */
-	@ResponseBody
-	@RequestMapping(value="/noneResources",method=RequestMethod.GET)
-	public ActionReturnUtil listNoneResources() throws Exception {
-		return resourceService.listNoneResource();
-	}
-
-
-
-	/**
-	 * 获取所有clusterRole列表
-	 * @return
-	 */
-//	@ResponseBody
-//	@RequestMapping(value="/clusterroleList",method=RequestMethod.GET)
-//	public ActionReturnUtil clusterRoleList() throws Exception{
-//		ActionReturnUtil response = roleService.listClusterRoles();
-//		return response;
-//	}
-	
-	/**
-	 * 根据namespace和role名称返回role明细信息
-	 * @param namespace
-	 * @param name
-	 * @return
-	 */
-	@ResponseBody
-	@RequestMapping(value="/roleDetail",method=RequestMethod.GET)
-	public ActionReturnUtil roleDetail(@RequestParam(value="namespace") final String namespace,@RequestParam(value="name") final String roleName) throws Exception{
-		return null;
-	}
-	
-	/**
-	 * 根据clusterRole name获取角色权限明细
+	 * 根据角色名查询局部角色
+	 * @param projectId
 	 * @param roleName
-	 * @return 
+	 * @return
 	 * @throws Exception
 	 */
-//	@ResponseBody
-//	@RequestMapping(value="/clusterroleDetail",method=RequestMethod.GET)
-//	public ActionReturnUtil clusterRoleDetail(@RequestParam(value="name") final String roleName) throws Exception{
-//		ActionReturnUtil response = roleService.getClusterRoleDetail(roleName);
-//		return response;
-//	}
-	
+	@RequestMapping(value = "/localroles/{roleName}", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil listLocalRoleByRoleName(@PathVariable(value = "roleName") String roleName,
+													@RequestParam(value = "projectId") String projectId) throws Exception {
+		if(StringUtils.isAnyBlank(projectId, roleName)){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		List<LocalRole> localRoles = localRoleService.listLocalRoleByRoleName(projectId, roleName);
+		return ActionReturnUtil.returnSuccessWithData(localRoles);
+	}
+
 	/**
-	 * 绑定用户和角色
-	 * @param tenantname
-	 * @param tenantid
-	 * @param namespace
-	 * @param role
+	 * 查询局部角色
+	 * @param projectId
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/localroles/projects/{projectId}", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil listLocalRole(@PathVariable(value = "projectId") String projectId) throws Exception {
+		if(StringUtils.isAnyBlank(projectId)){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		List<LocalRole> localRoles = localRoleService.listLocalRoleByRoleName(projectId, null);
+		return ActionReturnUtil.returnSuccessWithData(localRoles);
+	}
+
+	/**
+	 * 根据用户名查询局部角色
+	 *
+	 * @param projectId
 	 * @param username
 	 * @return
+	 * @throws Exception
 	 */
-//	@ResponseBody
-//	@RequestMapping(value="/rolebinding/user",method=RequestMethod.POST)
-//	public ActionReturnUtil rolebind(@RequestParam(value="tenantname") final String tenantname,@RequestParam(value="tenantid") final String tenantid,
-//			@RequestParam(value="namespace") final String namespace,@RequestParam(value="role") final String role,@RequestParam(value="user") final String username) throws Exception{
-//		ActionReturnUtil response = roleService.rolebinding(tenantname,tenantid,namespace,role,username);
-//		return response;
-//	}
-	
-	
+	@RequestMapping(value = "/localroles/projects/{projectId}/users/{username}", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil listRoleByUserName(@PathVariable(value = "projectId") String projectId,
+											   @PathVariable(value = "username")  String username) throws Exception {
+		if(StringUtils.isAnyBlank(projectId, username)){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		List<LocalRole> localRoles = localRoleService.listRoleByUserName(projectId, username);
+		return ActionReturnUtil.returnSuccessWithData(localRoles);
+	}
+
 	/**
-	 * 解绑用户和角色
-	 * @param tenantname
-	 * @param tenantid
-	 * @param namespace
-	 * @param role
-	 * @param username
+	 * 根据id删除局部角色
+	 *
+	 * @param roleId
 	 * @return
+	 * @throws Exception
 	 */
-//	@ResponseBody
-//	@RequestMapping(value="/rolebinding/user",method=RequestMethod.DELETE)
-//	public ActionReturnUtil roleUnbind(@RequestParam(value="tenantname") final String tenantname,@RequestParam(value="tenantid") final String tenantid,
-//			@RequestParam(value="namespace") final String namespace,@RequestParam(value="role") final String role,@RequestParam(value="user") final String username) throws Exception{
-//		return roleService.roleUnbind(tenantname,tenantid,namespace,role,username);
-//	}
-	
+	@RequestMapping(value = "/localroles/{roleId}", method = RequestMethod.DELETE)
+	@ResponseBody
+	public ActionReturnUtil deleteLocalRoleById(@PathVariable(value = "roleId") Integer roleId) throws Exception {
+		if (Objects.isNull(roleId) || 0 == roleId){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		localRoleService.deleteLocalRoleById(roleId);
+		return ActionReturnUtil.returnSuccess();
+	}
+
 	/**
-	 * 获取rolebing列表
+	 * 为角色增加某种资源类型（如应用）的规则
+	 *
+	 * @param localRoleDtoIn
 	 * @return
+	 * @throws Exception
 	 */
-//	@ResponseBody
-//	@RequestMapping(value="/rolebinding/user",method=RequestMethod.GET)
-//	public ActionReturnUtil listRolebing(@RequestParam(value="user") final String username) throws Exception{
-//		List<UserDetailDto> roleBindingList = roleService.userDetail(username);
-//		//String data = JsonUtil.objectToJson(roleBindingList);
-//		return ActionReturnUtil.returnSuccessWithData(roleBindingList);
-//	}
-	
-//	/**
-//	 * 绑定租户管理员
-//	 * @return
-//	 */
-//	@ResponseBody
-//	@RequestMapping(value="/rolebinding/tm",method=RequestMethod.POST)
-//	public ActionReturnUtil rolebindingTm(@RequestParam(value="tenantid") final String tenantid,@RequestParam(value="user") final String username) throws Exception{
-//		try {
-//			roleService.rolebindingTM(tenantid,username);
-//			return ActionReturnUtil.returnSuccess();
-//		} catch (Exception e) {
-//			e.printStackTrace();
-//			return ActionReturnUtil.returnError();
-//		}
-//	}
-//
-//	/**
-//	 * 解绑租户管理员
-//	 * @param tenantid
-//	 * @param username
-//	 * @return
-//	 */
-//	@ResponseBody
-//	@RequestMapping(value="/rolebinding/tm",method=RequestMethod.DELETE)
-//	public ActionReturnUtil roleUnbingdingTm(@RequestParam(value="tenantid") final String tenantid,@RequestParam(value="user") final String username) throws Exception{
-//		roleService.roleUnbindingTM(tenantid,username);
-//		return ActionReturnUtil.returnSuccess();
-//	}
-//	/**
-//	 * 删除clusterrole
-//	 * @return
-//	 */
-//	@ResponseBody
-//	@RequestMapping(value="/clusterroles",method=RequestMethod.DELETE)
-//	public ActionReturnUtil deleteClusterrole(@RequestParam(value="name") String name) throws Exception{
-//		return this.roleService.deleteClusterrole(name);
-//	}
-//
-	
+	@RequestMapping(value = "/localroles/{roleId}/rules", method = RequestMethod.POST)
+	@ResponseBody
+	public ActionReturnUtil addResourceRule(@PathVariable(value = "roleId") Integer roleId,
+											@ModelAttribute LocalRoleDto localRoleDtoIn) throws Exception {
+		if (Objects.isNull(roleId) || 0 == roleId){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		localRoleDtoIn.setLocalRoleId(roleId);
+		localRoleService.addResourceRule(localRoleDtoIn);
+		return ActionReturnUtil.returnSuccess();
+	}
+
+	/**
+	 * 修改某种资源类型（如应用）的规则
+	 *
+	 * @param localRoleDtoIn
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/localroles/{roleId}/rules", method = RequestMethod.PUT)
+	@ResponseBody
+	public ActionReturnUtil updateResourceRule(@PathVariable(value = "roleId") Integer roleId,
+											   @ModelAttribute LocalRoleDto localRoleDtoIn) throws Exception {
+		if (Objects.isNull(roleId) || 0 == roleId){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		localRoleDtoIn.setLocalRoleId(roleId);
+		localRoleService.updateResourceRule(localRoleDtoIn);
+		return ActionReturnUtil.returnSuccess();
+	}
+
+	/**
+	 * 根据roleId查询资源类型规则列表
+	 *
+	 * @param roleId
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/localroles/{roleId}/rules", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil listResourceRuleByRoleId(@PathVariable(value = "roleId") Integer roleId) throws Exception {
+		if (Objects.isNull(roleId) || 0 == roleId){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		List<LocalPrivilege> localPrivileges = localRoleService.listResourceRuleByRoleId(roleId);
+		return ActionReturnUtil.returnSuccessWithData(localPrivileges);
+	}
+
+	/**
+	 * 根据id删除资源类型规则
+	 *
+	 * @param roleId
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/localroles/{roleId}/rules", method = RequestMethod.DELETE)
+	@ResponseBody
+	public ActionReturnUtil deleteResourceRuleById(@PathVariable(value = "roleId") Integer roleId) throws Exception {
+		if (Objects.isNull(roleId) || 0 == roleId){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		localRoleService.deleteResourceRuleById(roleId);
+		return ActionReturnUtil.returnSuccess();
+	}
+
+	/**
+	 * 更新局部角色的用户（成员）
+	 *
+	 * @param localRoleDtoIn
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/localroles/{roleId}/users", method = RequestMethod.POST)
+	@ResponseBody
+	public ActionReturnUtil assignRoleForUser(@PathVariable(value = "roleId") Integer roleId,
+											  @ModelAttribute LocalRoleDto localRoleDtoIn) throws Exception {
+		localRoleDtoIn.setLocalRoleId(roleId);
+		localRoleService.assignRoleToUser(localRoleDtoIn);
+		return ActionReturnUtil.returnSuccess();
+	}
+
+	/**
+	 * 为角色分配数据权限
+	 *
+	 * @param localRoleDtoIn
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/localroles/{roleId}/privilege", method = RequestMethod.POST)
+	@ResponseBody
+	public ActionReturnUtil assignPrivilege(@PathVariable(value = "roleId") Integer roleId,
+											@ModelAttribute LocalRoleDto localRoleDtoIn) throws Exception {
+		if (Objects.isNull(roleId)
+				|| 0 == roleId
+				|| StringUtils.isAnyBlank(localRoleDtoIn.getResourceType())){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		localRoleDtoIn.setLocalRoleId(roleId);
+		localRoleService.assignPrivilege(localRoleDtoIn);
+		return ActionReturnUtil.returnSuccess();
+	}
+
+	/**
+	 * 查询资源权限实例列表
+	 *
+	 * @param localRoleDtoIn
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/localroles/{roleId}/privilege", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil listPrivileges(@PathVariable(value = "roleId") Integer roleId,
+										   @ModelAttribute LocalRoleDto localRoleDtoIn) throws Exception {
+		if (Objects.isNull(roleId)
+				|| 0 == roleId){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		localRoleDtoIn.setLocalRoleId(roleId);
+		List<LocalRolePrivilege> localRolePrivileges = localRoleService.listPrivileges(localRoleDtoIn);
+		return ActionReturnUtil.returnSuccessWithData(localRolePrivileges);
+	}
+
+	/**
+	 * 根据resourceType查询资源规则
+	 *
+	 * @param localRoleDtoIn 必填：ProjectId, UserName, ResourceType
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/localroles/resourcetypes/{resourceType}/rules", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil listResurceRuleByType(@PathVariable(value = "resourceType") String resourceType,
+												  @ModelAttribute LocalRoleDto localRoleDtoIn) throws Exception {
+		if (StringUtils.isAnyBlank(localRoleDtoIn.getProjectId(),localRoleDtoIn.getUserName(),localRoleDtoIn.getResourceType())){
+			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+		}
+		localRoleDtoIn.setResourceType(resourceType);
+		List<LocalPrivilege> localPrivileges = localRoleService.listResurceRuleByType(localRoleDtoIn);
+		return ActionReturnUtil.returnSuccessWithData(localPrivileges);
+	}
+
+	/**
+	 * 根据项目、用户查询权限实例
+	 *
+	 * @param projectId
+	 * @param userName
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/localroles/projects/{projectId}/users/{userName}/privileges", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil  listPrivilegeByProject(@PathVariable(value = "projectId") String projectId,
+													@PathVariable(value = "userName") String userName) throws Exception {
+		List<LocalRolePrivilege> localRolePrivileges = localRoleService.listPrivilegeByProject(projectId, userName);
+		return ActionReturnUtil.returnSuccessWithData(localRolePrivileges);
+	}
+
+	/**
+	 * 查询角色下的用户成员
+	 *
+	 */
+	@RequestMapping(value = "/localroles/userNames", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil  listUserByRole(@RequestParam(value = "projectId", required = false) String projectId,
+													@RequestParam(value = "roleId", required = false) Integer roleId) throws Exception {
+		LocalRoleDto localRoleDtoIn = new LocalRoleDto();
+		localRoleDtoIn.setProjectId(projectId);
+		localRoleDtoIn.setLocalRoleId(roleId);
+		List<LocalUserRoleRel> localRolePrivileges = localRoleService.listUserByRole(localRoleDtoIn);
+		return ActionReturnUtil.returnSuccessWithData(localRolePrivileges);
+	}
+
+
+
+	/**
+	 * 查询数据权限支持的所有条件，供管理员选择使用
+	 *
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/localroles/conditions", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil listAllPreConditions() throws Exception {
+		List<LocalRolePreConditionDto> localRolePreConditionDtos = localRoleService.listAllPreConditions();
+		return ActionReturnUtil.returnSuccessWithData(localRolePreConditionDtos);
+	}
+
+	@RequestMapping(value = "/localroles/test", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil test() throws Exception {
+		PrivilegeApplicationFieldDto privilegeApplicationFieldDto = new PrivilegeApplicationFieldDto();
+		privilegeApplicationFieldDto.setNameInSelectApp("app_test");
+		List<PrivilegeApplicationFieldDto> privilegeApplicationFieldDtos = new ArrayList<>();
+		privilegeApplicationFieldDtos.add(privilegeApplicationFieldDto);
+		PrivilegeApplicationFieldDto privilegeApplicationFieldDto1 = new PrivilegeApplicationFieldDto();
+		privilegeApplicationFieldDto1.setNameInSelectApp("a_test");
+		privilegeApplicationFieldDtos.add(privilegeApplicationFieldDto1);
+		return ActionReturnUtil.returnSuccessWithData(privilegeHelper.matchAny(privilegeApplicationFieldDtos));
+	}
+
 }

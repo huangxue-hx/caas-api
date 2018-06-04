@@ -6,22 +6,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
+import com.harmonycloud.api.config.InitClusterConfig;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.common.util.date.DateUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.TenantUtils;
 import com.harmonycloud.dao.network.bean.NamespceBindSubnet;
 import com.harmonycloud.dao.network.bean.NetworkCalico;
 import com.harmonycloud.dao.network.bean.NetworkTopology;
@@ -31,101 +29,67 @@ import com.harmonycloud.service.tenant.NetworkService;
 
 
 @Controller
-@RestController
+@RequestMapping("/tenants/{tenantId}")
 @Transactional
 public class NetworkController {
 
     @Autowired
     NetworkService networkService;
 
-    @Value("#{propertiesReader['network.networkFlag']}")
-    private String networkFlag;
+//    @Value("#{propertiesReader['network.networkFlag']}")
+    private String networkFlag ;
 
-    @RequestMapping(value = "/network/list", method = RequestMethod.GET)
+    NetworkController() throws Exception{
+        networkFlag = InitClusterConfig.getNetworkConfig().getNetworkFlag();
+    }
+
+
+
+    @RequestMapping(value = "/networks", method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil tenantList(@RequestParam(value = "tenantid", required = false) String tenantid) throws Exception {
+    public ActionReturnUtil listNetwork(@PathVariable("tenantId") String tenantId) throws Exception {
 
         ActionReturnUtil data = null;
         if (Constant.NETWORK_CALICO.equals(networkFlag)) {
-            List<Map<String, Object>> networklist = networkService.networkList(tenantid);
+            List<Map<String, Object>> networklist = networkService.networkList(tenantId);
             data = ActionReturnUtil.returnSuccessWithData(networklist);
         } else {
-            return ActionReturnUtil.returnErrorWithMsg("networkFlag 参数 配置错误！");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_CONFIG,"networkFlag",true);
         }
         return data;
     }
 
-    @RequestMapping(value = "/network/detail", method = RequestMethod.GET)
+    @RequestMapping(value = "/networks/{networkId}", method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil networkDetail(@RequestParam(value = "networkid", required = true) String networkid, @RequestParam(value = "tenantid", required = true) String tenantid,
+    public ActionReturnUtil getNetwork(@PathVariable("tenantId") String tenantId, @PathVariable("networkId") String networkId,
             @RequestParam(value = "bind", required = false) String bind) throws Exception {
 
-        if (StringUtils.isEmpty(networkid) || StringUtils.isEmpty(tenantid)) {
-            return ActionReturnUtil.returnErrorWithMsg("networkid tenantid 不能为空");
+        if (StringUtils.isEmpty(networkId) || StringUtils.isEmpty(tenantId)) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         ActionReturnUtil data = null;
         if (Constant.NETWORK_CALICO.equals(networkFlag)) {
-            data = networkService.calicoNetworkdetail(networkid, tenantid, bind);
+            data = networkService.calicoNetworkdetail(networkId, tenantId, bind);
         } else {
-            return ActionReturnUtil.returnErrorWithMsg("networkFlag 参数 配置错误！");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_CONFIG,"networkFlag",true);
         }
         return data;
     }
 
-    @RequestMapping(value = "/network/create", method = RequestMethod.POST)
+    @RequestMapping(value = "/networks", method = RequestMethod.POST)
     @ResponseBody
     @Transactional(isolation = Isolation.DEFAULT)
-    public ActionReturnUtil networkCreate(@ModelAttribute CreateNetwork createNetwork) throws Exception {
-
+    public ActionReturnUtil createNetwork(@PathVariable("tenantId") String tenantId,
+                                          @ModelAttribute CreateNetwork createNetwork) throws Exception {
         return networkService.networkCreate(createNetwork);
 
     }
 
-    /**
-     * create subnet
-     * 
-     * @param networkid
-     * @param subnetname
-     * @return
-     */
-    @RequestMapping(value = "/subnetwork/create", method = RequestMethod.POST)
-    @ResponseBody
-    public ActionReturnUtil subnetCreate(@RequestParam(value = "networkid", required = true) String networkid,
-            @RequestParam(value = "subnetname", required = true) String subnetname) throws Exception {
-
-        return networkService.subnetworkCreate(networkid, subnetname);
-
-    }
-
-    @RequestMapping(value = "/subnetwork/update", method = RequestMethod.POST)
-    @ResponseBody
-    @Transactional
-    public ActionReturnUtil subnetupdate(@RequestParam(value = "subnetid", required = true) String subnetid, String namespace) throws Exception {
-        if (StringUtils.isEmpty(subnetid) || StringUtils.isEmpty(namespace)) {
-            return ActionReturnUtil.returnErrorWithMsg("subnetid or namespace can not be null");
-        }
-        return networkService.subnetworkupdatebinding(subnetid, namespace);
-    }
-
-    @RequestMapping(value = "/subnetwork/checked", method = RequestMethod.POST)
-    @ResponseBody
-    @Transactional
-    public ActionReturnUtil subnetchecked(@RequestParam(value = "subnetid", required = true) String subnetid, String subnetname) throws Exception {
-        if (StringUtils.isEmpty(subnetid) || StringUtils.isEmpty(subnetname)) {
-            return ActionReturnUtil.returnErrorWithMsg("subnetid or subnetname can not be null");
-        }
-        // update subnets
-        ActionReturnUtil data = networkService.subnetChecked(subnetid, subnetname);
-        return data;
-    }
-
-    @RequestMapping(value = "/network/removeBingSubnet", method = RequestMethod.POST)
+    @RequestMapping(value = "/networks/removeBingSubnet", method = RequestMethod.POST)
     @ResponseBody
     @Transactional
     public ActionReturnUtil removeBingSubnet(String namespace) throws Exception {
-        if (StringUtils.isEmpty(namespace)) {
-            return ActionReturnUtil.returnErrorWithMsg("namespace can not be null");
-        }
+        AssertUtil.notBlank(namespace, DictEnum.NAMESPACE);
         ActionReturnUtil data = networkService.subnetRemoveBing(namespace);
         return data;
     }
@@ -133,109 +97,96 @@ public class NetworkController {
     /**
      * delete network form db
      * 
-     * @param networkid
+     * @param networkId
      * @return
      */
-    @RequestMapping(value = "/network/delete", method = RequestMethod.DELETE)
+    @RequestMapping(value = "/networks/{networkId}", method = RequestMethod.DELETE)
     @ResponseBody
     @Transactional
-    public ActionReturnUtil networkDelete(@RequestParam(value = "networkid", required = true) String networkid) throws Exception {
-
-        return networkService.networkDelete(networkid);
-
+    public ActionReturnUtil deleteNetwork(@PathVariable("networkId") String networkId) throws Exception {
+        return networkService.networkDelete(networkId);
     }
 
-    @RequestMapping(value = "/subnetwork/delete", method = RequestMethod.DELETE)
+
+    @RequestMapping(value = "/networks/{networkId}/nettopology", method = RequestMethod.POST)
     @ResponseBody
-    public ActionReturnUtil subnetDelete(@RequestParam(value = "subnetid", required = true) String subnetid) throws Exception {
-        networkService.subnetworkDelete(subnetid);
-        return ActionReturnUtil.returnSuccessWithData("delete subnet success");
-    }
-
-    @RequestMapping(value = "/network/Topology", method = RequestMethod.POST)
-    @ResponseBody
-    public ActionReturnUtil createNetwrokTopology(@RequestParam(value = "networkid", required = true) String networkidfrom, String networkidto) throws Exception {
-        if (StringUtils.isEmpty(networkidfrom)) {
-            return ActionReturnUtil.returnErrorWithMsg("networkid can not be null");
+    public ActionReturnUtil createNetTopology(@PathVariable("networkId") String networkId, @RequestParam(value = "toNetworkId") String toNetworkId) throws Exception {
+        
+        NetworkCalico fromNetwork = networkService.getnetworkbyNetworkid(networkId);
+        if (fromNetwork == null) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER,"networkId", true);
         }
 
-        NetworkCalico networkfrom = networkService.getnetworkbyNetworkid(networkidfrom);
-        if (networkfrom == null) {
-            return ActionReturnUtil.returnErrorWithMsg("networkidfrom is error");
+        NetworkCalico toNetwork = networkService.getnetworkbyNetworkid(networkId);
+        if (toNetwork == null) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER,"toNetworkId", true);
         }
-
-        NetworkCalico networkto = networkService.getnetworkbyNetworkid(networkidfrom);
-        if (networkto == null) {
-            return ActionReturnUtil.returnErrorWithMsg("networkidto is error");
-        }
-        String networknamefrom = networkfrom.getNetworkname();
-        String networknameto = networkto.getNetworkname();
-        NetworkTopology topology2 = networkService.getTopologybyNetworkidfromAndNetworkidto(networkidfrom, networkidto, networknamefrom, networknameto);
+        String fromNetworkName = fromNetwork.getNetworkname();
+        String toNetworkName = toNetwork.getNetworkname();
+        NetworkTopology topology2 = networkService.getTopologybyNetworkidfromAndNetworkidto(networkId, toNetworkId, fromNetworkName, toNetworkName);
         if (topology2 != null) {
-            return ActionReturnUtil.returnErrorWithMsg("network " + networknamefrom + " to " + networknameto + " Topology was existed!");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.TOPOLOGY_EXIST,fromNetworkName + " -> " + toNetworkName + " ",true );
         }
         Date date = DateUtil.getCurrentUtcTime();
         NetworkTopology topology = new NetworkTopology();
         topology.setCreatetime(date);
-        topology.setNetId(networkidfrom);
-        topology.setNetName(networknamefrom);
-        topology.setTopology(networknamefrom + "_" + networknameto);
-        topology.setDestinationid(networkidto);
-        topology.setDestinationname(networknameto);
+        topology.setNetId(networkId);
+        topology.setNetName(fromNetworkName);
+        topology.setTopology(fromNetworkName + "_" + toNetworkName);
+        topology.setDestinationid(toNetworkId);
+        topology.setDestinationname(toNetworkName);
         networkService.createNetworkTopology(topology);
 
         // 查询from 和 to 对应的 ns并返回
-        List<NamespceBindSubnet> listfrom = networkService.getsubnetbynetworkid(networkidfrom);
+        List<NamespceBindSubnet> listfrom = networkService.getsubnetbynetworkid(networkId);
         List<String> nsfromlist = new ArrayList<>();
         for (NamespceBindSubnet namespceBindSubnet : listfrom) {
             nsfromlist.add(namespceBindSubnet.getNamespace());
         }
 
-        List<NamespceBindSubnet> listto = networkService.getsubnetbynetworkid(networkidto);
+        List<NamespceBindSubnet> listto = networkService.getsubnetbynetworkid(toNetworkId);
         List<String> nstolist = new ArrayList<>();
         for (NamespceBindSubnet namespceBindSubnet : listto) {
             nstolist.add(namespceBindSubnet.getNamespace());
         }
         Map<String, Object> data = new HashMap<String, Object>();
-        data.put("networknamefrom", networknamefrom);
-        data.put("networknameto", networknameto);
+        data.put("networknamefrom", fromNetworkName);
+        data.put("networknameto", toNetworkName);
         data.put("nsfrom", nsfromlist);
         data.put("nsto", nstolist);
         return ActionReturnUtil.returnSuccessWithData(data);
     }
 
-    @RequestMapping(value = "/network/Topology", method = RequestMethod.DELETE)
+    @RequestMapping(value = "/networks/{networkId}/nettopology", method = RequestMethod.DELETE)
     @ResponseBody
-    public ActionReturnUtil deleteNetwrokTopology(@RequestParam(value = "networkid", required = true) String networkidfrom, String networkidto) throws Exception {
-        if (StringUtils.isEmpty(networkidfrom)) {
-            return ActionReturnUtil.returnErrorWithMsg("networkid can not be null");
-        }
+    public ActionReturnUtil deleteNetTopology(@PathVariable("networkId") String networkId,
+                                              @RequestParam(value = "toNetworkId") String toNetworkId) throws Exception {
 
-        NetworkCalico networkfrom = networkService.getnetworkbyNetworkid(networkidfrom);
+        NetworkCalico networkfrom = networkService.getnetworkbyNetworkid(networkId);
         if (networkfrom == null) {
-            return ActionReturnUtil.returnErrorWithMsg("networkidfrom is error");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER,"networkId", true);
         }
 
-        NetworkCalico networkto = networkService.getnetworkbyNetworkid(networkidfrom);
+        NetworkCalico networkto = networkService.getnetworkbyNetworkid(networkId);
         if (networkto == null) {
-            return ActionReturnUtil.returnErrorWithMsg("networkidto is error");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER,"toNetworkId", true);
         }
         String networknamefrom = networkfrom.getNetworkname();
         String networknameto = networkto.getNetworkname();
-        NetworkTopology topology2 = networkService.getTopologybyNetworkidfromAndNetworkidto(networkidfrom, networkidto, networknamefrom, networknameto);
+        NetworkTopology topology2 = networkService.getTopologybyNetworkidfromAndNetworkidto(networkId, toNetworkId, networknamefrom, networknameto);
         if (topology2 == null) {
-            return ActionReturnUtil.returnErrorWithMsg("network " + networknamefrom + " to " + networknameto + " Topology wasn't exist!");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.TOPOLOGY_NOT_EXIST,networknamefrom + " -> " + networknameto + " ",true );
         }
 
         networkService.deletetopologybyId(topology2.getId());
         // 查询from 和 to 对应的 ns并返回
-        List<NamespceBindSubnet> listfrom = networkService.getsubnetbynetworkid(networkidfrom);
+        List<NamespceBindSubnet> listfrom = networkService.getsubnetbynetworkid(networkId);
         List<String> nsfromlist = new ArrayList<>();
         for (NamespceBindSubnet namespceBindSubnet : listfrom) {
             nsfromlist.add(namespceBindSubnet.getNamespace());
         }
 
-        List<NamespceBindSubnet> listto = networkService.getsubnetbynetworkid(networkidto);
+        List<NamespceBindSubnet> listto = networkService.getsubnetbynetworkid(toNetworkId);
         List<String> nstolist = new ArrayList<>();
         for (NamespceBindSubnet namespceBindSubnet : listto) {
             nstolist.add(namespceBindSubnet.getNamespace());
@@ -248,16 +199,13 @@ public class NetworkController {
         return ActionReturnUtil.returnSuccessWithData(data);
     }
 
-    @RequestMapping(value = "/network/hasTopology", method = RequestMethod.POST)
+    @RequestMapping(value = "/networks/{networkId}/nettopology", method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil hasTopology(@RequestParam(value = "networkid", required = true) String networkid) throws Exception {
-        if (StringUtils.isEmpty(networkid)) {
-            return ActionReturnUtil.returnErrorWithMsg("networkid can not be null");
-        }
+    public ActionReturnUtil getNetTopology(@PathVariable("networkId") String networkId) throws Exception {
         Map<String, Object> data = new HashMap<String, Object>();
-        List<NetworkTopology> list1 = networkService.getTopologybyNetworkid(networkid);
+        List<NetworkTopology> list1 = networkService.getTopologybyNetworkid(networkId);
 
-        List<NetworkTopology> list2 = networkService.getTopologybydestination(networkid);
+        List<NetworkTopology> list2 = networkService.getTopologybydestination(networkId);
         if (list1.size() <= 0 && list2.size() <= 0) {
             data.put("hasTopology", false);
             return ActionReturnUtil.returnSuccessWithData(data);
@@ -279,23 +227,16 @@ public class NetworkController {
         }
     }
 
-    @RequestMapping(value = "/network/getTopologys", method = RequestMethod.GET)
+    @RequestMapping(value = "/networks/nettopology", method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil getTopologyBytenantid(@RequestParam(value = "tenantid", required = true) String tenantid) throws Exception {
-        if (StringUtils.isEmpty(tenantid)) {
-            return ActionReturnUtil.returnErrorWithMsg("tenantid can not be null");
-        }
-        List<NetworkCalico> list = networkService.getnetworkbyTenantid(tenantid);
+    public ActionReturnUtil listNetTopology(@PathVariable("tenantId") String tenantId) throws Exception {
+        List<NetworkCalico> list = networkService.getnetworkbyTenantid(tenantId);
         Map<String, Object> data = new HashMap<String, Object>();
         Map<String, Integer> tem = new HashMap<>();
         List<Map<String, Object>> listnetnodes = new ArrayList<Map<String, Object>>();
         List<Map<String, Object>> listnetedges = new ArrayList<Map<String, Object>>();
         int location = 0;
         for (NetworkCalico networkCalico : list) {
-            // NetworkTopologyExample nt1 = new NetworkTopologyExample();
-            // nt1.createCriteria().andNetIdEqualTo(networkCalico.getNetworkid());
-            // List<NetworkTopology> list1 =
-            // networkTopologyMapper.selectByExample(nt1);
             List<NetworkTopology> list1 = networkService.getTopologybyNetworkid(networkCalico.getNetworkid());
             Map<String, Object> node = new HashMap<String, Object>();
             tem.put(networkCalico.getNetworkname(), location++);
@@ -328,14 +269,6 @@ public class NetworkController {
         data.put("edges", listnetedges);
         return ActionReturnUtil.returnSuccessWithData(data);
 
-    }
-
-    @RequestMapping(value = "/network/init", method = RequestMethod.GET)
-    @ResponseBody
-    public ActionReturnUtil tenantList() throws Exception {
-
-        ActionReturnUtil data = networkService.netwrokInit(null);
-        return data;
     }
 
     public String getNetworkFlag() {

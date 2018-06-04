@@ -1,346 +1,579 @@
 package com.harmonycloud.service.application.impl;
 
-import com.harmonycloud.common.enumm.EnumLogSeverity;
-import com.harmonycloud.common.enumm.EnumMonitorQuery;
+import com.alibaba.fastjson.JSONObject;
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.BizUtil;
-import com.harmonycloud.dao.cluster.ClusterMapper;
-import com.harmonycloud.dao.cluster.bean.Cluster;
-import com.harmonycloud.service.application.DeploymentsService;
+import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.date.DateStyle;
+import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dto.application.RestoreInfoDto;
+import com.harmonycloud.dto.application.LogIndexDate;
+import com.harmonycloud.dto.application.SnapshotInfoDto;
+import com.harmonycloud.dto.log.EsSnapshotDto;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.service.application.EsService;
-import com.harmonycloud.service.platform.bean.ContainerOfPodDetail;
-import com.harmonycloud.service.platform.bean.LogQuery;
-import com.harmonycloud.service.platform.bean.ProviderPlugin;
-import com.harmonycloud.service.platform.client.EsClient;
-import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.user.UserService;
 import org.apache.commons.lang3.StringUtils;
-import org.elasticsearch.action.search.SearchRequestBuilder;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesAction;
+import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesRequestBuilder;
+import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesResponse;
+import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryAction;
+import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequestBuilder;
+import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotAction;
+import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequestBuilder;
+import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotAction;
+import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotRequestBuilder;
+import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsAction;
+import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsRequestBuilder;
+import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsResponse;
+import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotAction;
+import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequestBuilder;
+import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotResponse;
+import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
+import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
+import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.elasticsearch.action.admin.indices.recovery.RecoveryAction;
+import org.elasticsearch.action.admin.indices.recovery.RecoveryRequestBuilder;
+import org.elasticsearch.action.admin.indices.recovery.RecoveryResponse;
 import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.aggregations.AggregationBuilders;
-import org.elasticsearch.search.aggregations.bucket.terms.Terms;
-import org.elasticsearch.search.aggregations.bucket.terms.Terms.Bucket;
-import org.elasticsearch.search.aggregations.bucket.terms.TermsBuilder;
-import org.elasticsearch.search.sort.SortOrder;
+import org.elasticsearch.cluster.metadata.RepositoryMetaData;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import org.elasticsearch.index.IndexNotFoundException;
+import org.elasticsearch.indices.recovery.RecoveryState;
+import org.elasticsearch.repositories.RepositoryMissingException;
+import org.elasticsearch.snapshots.SnapshotInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.util.Assert;
-
-import javax.servlet.http.HttpSession;
-import java.text.SimpleDateFormat;
+import org.springframework.util.CollectionUtils;
+import java.net.InetAddress;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
+import static com.harmonycloud.common.Constant.CommonConstant.*;
 
 
 @Service
 public class EsServiceImpl implements EsService {
-
-	private static final int SEARCH_TIME = 60000;
+	
 	private static Logger LOGGER = LoggerFactory.getLogger(EsServiceImpl.class);
-	@Autowired
-	private HttpSession session;
+	private Map<String, TransportClient> esClients = new ConcurrentHashMap<>();
+	private Map<String, List<String>> indexMap = new ConcurrentHashMap<>();
 
+	@Value("#{propertiesReader['es.backup.path']}")
+	private String esBackupRootDir;
+	
 	@Autowired
-	private ClusterMapper clusterMapper;
-
+	ClusterService clusterService;
 	@Autowired
-	private DeploymentsService deploymentsService;
+	UserService userService;
 
 	@Override
-	public ActionReturnUtil fileLog(LogQuery logQuery)
-			throws Exception {
+	public TransportClient getEsClient(Cluster cluster) throws Exception{
+		TransportClient transportClient = esClients.get(cluster.getId());
+		if(transportClient == null){
+			transportClient = this.createEsClient(cluster);
+			esClients.put(cluster.getId(), transportClient);
+		}
+		return transportClient;
+	}
 
-		StringBuilder log = new StringBuilder();
-		SearchResponse scrollResp = null;
-		String scrollId = logQuery.getScrollId();
-
-		Cluster cluster = null;
-		if(logQuery.getClusterId() != null && !logQuery.getClusterId().equals("")) {
-			cluster = this.clusterMapper.findClusterById(logQuery.getClusterId());
-		} else {
-			cluster = (Cluster) session.getAttribute("currentCluster");
+	public List<String> getIndexes(String clusterId) throws Exception{
+		if(StringUtils.isBlank(clusterId)){
+			return null;
 		}
-
-		EsClient esClient = new EsClient(cluster);
-		TransportClient client = esClient.getEsClient();
-		if(StringUtils.isBlank(scrollId)){
-			if (StringUtils.isBlank(logQuery.getNamespace())) {
-				return ActionReturnUtil.returnErrorWithMsg("分区名不能为空");
-			}
-			if(StringUtils.isBlank(logQuery.getDeployment()) && StringUtils.isBlank(logQuery.getPod())
-					&& StringUtils.isBlank(logQuery.getContainer())){
-				return ActionReturnUtil.returnErrorWithData("服务名、pod名称和容器名称不能都为空");
-			}
-			SearchRequestBuilder searchRequestBuilder = this.getSearchRequestBuilder(client, logQuery);
-			scrollResp = searchRequestBuilder.setSize(logQuery.getPageSize()).execute().actionGet();
-			scrollId = scrollResp.getScrollId();
-		}else{
-			scrollResp = client.prepareSearchScroll(scrollId).setScroll(new TimeValue(SEARCH_TIME)).execute().actionGet();
+		TransportClient esClient = esClients.get(clusterId);
+		if(esClient == null){
+			esClient = this.getEsClient(clusterService.findClusterById(clusterId));
 		}
-		for (SearchHit it : scrollResp.getHits().getHits()) {
-			String podName = it.getSource().get("pod_name").toString();
-			if(!BizUtil.isPodWithDeployment(podName, logQuery.getDeployment())){
-				continue;
-			}
-			log.append(it.getSource().get("message").toString() +"\n");
-		}
-		if(log.toString().length() == 0){
-			log.append("No log found.");
-		}
-		Map<String, Object> data = new HashMap<String, Object>();
-		data.put("log", log);
-		data.put("scrollId", scrollId);
-		data.put("totalHit", scrollResp.getHits().getTotalHits());
-	    return ActionReturnUtil.returnSuccessWithData(data);
+		ClusterStateResponse response = esClient.admin().cluster().prepareState().execute().actionGet();
+		String[] indexes = response.getState().getMetaData().getConcreteAllIndices();
+		indexMap.put(clusterId, Arrays.asList(indexes));
+		return indexMap.get(clusterId);
 	}
 
 	@Override
-	public ActionReturnUtil listfileName(String namespace, String deploymentName, String podName,
-										 String containerName, String clusterId) throws Exception {
-		TreeSet<String> logFileNames = new TreeSet<String>();
-		 //创建客户端
-		if (StringUtils.isBlank(namespace)) {
-			return ActionReturnUtil.returnErrorWithMsg("分区名不能为空");
-		}
-		if(StringUtils.isBlank(deploymentName) && StringUtils.isBlank(podName)
-				&& StringUtils.isBlank(containerName)){
-			return ActionReturnUtil.returnErrorWithData("服务名、pod名称和容器名称不能都为空");
-		}
-		Cluster cluster = null;
-		if(clusterId != null && !clusterId.equals("")) {
-			cluster = this.clusterMapper.findClusterById(clusterId);
-		} else {
-			cluster = (Cluster) session.getAttribute("currentCluster");
-		}
-		EsClient esClient = new EsClient(cluster);
-		Client client = esClient.getEsClient();
-		if(StringUtils.isBlank(containerName) && StringUtils.isBlank(podName)){
-			ActionReturnUtil containerRes = deploymentsService.deploymentContainer(namespace,deploymentName,cluster);
-			if(containerRes.isSuccess() && containerRes.get("data")!=null){
-				List<ContainerOfPodDetail> containers = (List<ContainerOfPodDetail>)containerRes.get("data");
-				for (ContainerOfPodDetail container : containers) {
-					logFileNames.addAll(this.listLogFileNames(namespace, deploymentName, null,container.getName(), client, true));
-				}
-			}
-		}else {
-			logFileNames.addAll(this.listLogFileNames(namespace, deploymentName, podName, containerName, client,false));
-		}
-		return ActionReturnUtil.returnSuccessWithData(logFileNames);
+	public boolean isExistIndex(String index, Cluster cluster) throws Exception {
+		IndicesExistsResponse response = this.getEsClient(cluster).admin().indices()
+				.exists(new IndicesExistsRequest().indices(new String[] {index })).actionGet();
+		return response.isExists();
 	}
 
 	@Override
-	public ActionReturnUtil getProcessLog(String rangeType, String processName, String node) throws Exception {
-		List<String> result = new ArrayList<String>();
+	public boolean deleteIndex(String indexName, Cluster cluster) throws Exception {
+		if(!isExistIndex(indexName, cluster)) {
+			throw new MarsRuntimeException(DictEnum.LOG_INDEX.phrase(), ErrorCodeMessage.NOT_FOUND);
+		}
+		DeleteIndexResponse dResponse = this.getEsClient(cluster).admin().indices().prepareDelete(indexName)
+				.execute().actionGet();
+		return dResponse.isAcknowledged();
+
+	}
+
+	private TransportClient createEsClient(Cluster cluster){
 		try {
-			EsClient esClient = new EsClient();
-			Client client = esClient.getEsClient();
-			EnumMonitorQuery query = EnumMonitorQuery.getRangeData(rangeType);
-			if (query == null) {
-				return ActionReturnUtil.returnErrorWithMsg("params is null!");
-			}
-			Date now = new Date();
-			SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'+08:00'");
-			long startTime = now.getTime() - query.getMillisecond();
-			String from = formatter.format(new Date(startTime));
-			String to = formatter.format(now);
-			QueryBuilder queryBuilder = QueryBuilders.rangeQuery("timestamp").from(from).to(to);
-			QueryBuilder matchBuilder = QueryBuilders.disMaxQuery().add(QueryBuilders.termQuery("tag", processName))
-					.add(QueryBuilders.matchQuery("host_ip", node));
-			SearchResponse searchResponse = client.prepareSearch("logstash-*")
-					            .addSort("@timestamp", SortOrder.DESC)
-					            .setScroll(new TimeValue(SEARCH_TIME))
-					            .setQuery(matchBuilder)
-					            .setQuery(queryBuilder).execute().actionGet();
-			for (SearchHit it : searchResponse.getHits().getHits()) {
-				result.add(it.getSource().get("@timestamp").toString()+"  "+it.getSource().get("message").toString()+
-						"(pid:"+it.getSource().get("pid").toString()+") and (source:"+it.getSource().get("source").toString()+")");
-			} 	
-		} catch (Exception e) {
-			throw e;
+			Settings settings = Settings.settingsBuilder().put("cluster.name", cluster.getEsClusterName()).build();
+			TransportClient transportClient = TransportClient.builder().settings(settings).build();
+			transportClient.addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName(cluster.getEsHost()), cluster.getEsPort()));
+			return transportClient;
+		}catch (Exception e){
+			LOGGER.error("创建ElasticSearch Client 失败,cluster:{}", JSONObject.toJSONString(cluster), e);
+			throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_ES_SERVICE_ERROR);
 		}
-		return ActionReturnUtil.returnSuccessWithData(result);
+
+	}
+
+	/**
+	 * 创建快照仓库
+	 *
+	 * @param esSnapshotDtoIn
+	 * @throws Exception
+	 */
+	public void createSnapshotRepository(EsSnapshotDto esSnapshotDtoIn) {
+		try {
+			Cluster cluster = clusterService.findClusterById(esSnapshotDtoIn.getClusterId());
+			TransportClient client = getEsClient(cluster);
+			Settings.Builder builder = Settings.builder();
+			//使用集群id作为备份子目录
+			builder.put(CommonConstant.ES_REPOSITORY_LOCATION, esBackupRootDir + SLASH + esSnapshotDtoIn.getClusterId());
+			if (!StringUtils.isAnyBlank(esSnapshotDtoIn.getMaxSnapshotSpeed())) {
+				builder.put(CommonConstant.ES_REPOSITORY_MAX_SNAPSHOT_SPEED, esSnapshotDtoIn.getMaxSnapshotSpeed() + MB);
+			}
+			if (!StringUtils.isAnyBlank(esSnapshotDtoIn.getMaxRestoreSpeed())){
+				builder.put(CommonConstant.ES_REPOSITORY_MAX_RESTORE_SPEED, esSnapshotDtoIn.getMaxRestoreSpeed()  + MB);
+			}
+			Settings settings = builder.build();
+			PutRepositoryRequestBuilder putRepo
+					= new PutRepositoryRequestBuilder(client.admin().cluster(), PutRepositoryAction.INSTANCE);
+			putRepo.setName(cluster.getName());
+			putRepo.setType(CommonConstant.ES_REPOSITORY_TYPE);
+			putRepo.setVerify(false);
+			putRepo.setSettings(settings);
+			putRepo.execute().actionGet();
+		} catch (Exception e) {
+			LOGGER.error("创建快照仓库失败", e);
+			throw new MarsRuntimeException(ErrorCodeMessage.APP_LOG_SNAPSHOT_CREATE_REPO_FAILED);
+		}
+
+	}
+
+	/**
+	 * 查询仓库信息
+	 *
+	 * @param clusterId
+	 * @return
+	 * @throws Exception
+	 */
+	public List<RepositoryMetaData> listSnapshotRepositories(String clusterId) throws Exception {
+		Cluster cluster = clusterService.findClusterById(clusterId);
+		TransportClient client = getEsClient(cluster);
+		GetRepositoriesRequestBuilder retRepo
+				= new GetRepositoriesRequestBuilder(client.admin().cluster(), GetRepositoriesAction.INSTANCE);
+		GetRepositoriesResponse response = retRepo.execute().actionGet();
+		return response.repositories();
+	}
+
+	/**
+	 * 创建快照，如果仓库不存在则创建仓库
+	 *
+	 * @param esSnapshotDtoIn
+	 * @throws Exception
+	 */
+	public void createSnapshotWithRepo(EsSnapshotDto esSnapshotDtoIn){
+		try {
+			checkIndexNames(esSnapshotDtoIn);
+			// 检查仓库，不存在则创建
+			List<RepositoryMetaData> repositoryMetaDatas = listSnapshotRepositories(esSnapshotDtoIn.getClusterId());
+			if (CollectionUtils.isEmpty(repositoryMetaDatas)){
+				createSnapshotRepository(esSnapshotDtoIn);
+			}
+			String snapshotName = esSnapshotDtoIn.getSnapshotName();
+			if (StringUtils.isAnyBlank(snapshotName)){
+				snapshotName = CommonConstant.ES_SNAPSHOT_CREATE_MANUAL_PREFIX
+						+ DateUtil.DateToString(new Date(), DateStyle.YYMMDDHHMMSS);
+			}
+			createSnapshot(esSnapshotDtoIn.getClusterId(), snapshotName, esSnapshotDtoIn.getIndexNames());
+		}catch (MarsRuntimeException e){
+			throw e;
+		}catch (Exception e){
+			LOGGER.error("创建快照失败", e);
+			throw new MarsRuntimeException(ErrorCodeMessage.APP_LOG_SNAPSHOT_CREATE_FAILED);
+		}
+
+	}
+
+	/**
+	 * 创建快照
+	 *
+	 * @param clusterId
+	 * @param snapshotName
+	 * @param indices
+	 * @throws Exception
+	 */
+	public void createSnapshot(String clusterId, String snapshotName, String[] indices) {
+		try {
+			Cluster cluster = clusterService.findClusterById(clusterId);
+			TransportClient client = getEsClient(cluster);
+			CreateSnapshotRequestBuilder snapshotRequestBuilder
+					= new CreateSnapshotRequestBuilder(client.admin().cluster(), CreateSnapshotAction.INSTANCE);
+			snapshotRequestBuilder.setRepository(cluster.getName());
+			snapshotRequestBuilder.setSnapshot(snapshotName);
+			snapshotRequestBuilder.setIndices(indices);
+			snapshotRequestBuilder.setIncludeGlobalState(false);
+			snapshotRequestBuilder.execute().actionGet();
+		}catch (IndexNotFoundException e){
+			LOGGER.error("创建快照失败,索引不存在,index:{}",indices, e);
+			throw new MarsRuntimeException(ErrorCodeMessage.APP_LOG_SNAPSHOT_INDEX_NOT_EXIST);
+		}catch (Exception e){
+			LOGGER.error("创建快照失败", e);
+			throw new MarsRuntimeException(ErrorCodeMessage.APP_LOG_SNAPSHOT_CREATE_FAILED);
+
+		}
+
+	}
+
+	/**
+	 * 查询快照
+	 *
+	 * @param clusterId
+	 * @param snapshotNames
+	 * @return
+	 * @throws Exception
+	 */
+    public List<SnapshotInfoDto> listSnapshots(String clusterId, String[] snapshotNames) throws Exception{
+    	List<Cluster> clusters = new ArrayList<>();
+    	if(StringUtils.isBlank(clusterId)){
+			clusters.addAll(userService.getCurrentUserCluster().values());
+		}else{
+			clusters.add(clusterService.findClusterById(clusterId));
+		}
+		List<SnapshotInfoDto> snapshotInfoDtos = new ArrayList<>();
+    	for(Cluster cluster : clusters) {
+			try {
+				// 检查仓库是否已经创建，如果没有，也就没有快照
+				List<RepositoryMetaData> repositoryMetaDatas = listSnapshotRepositories(cluster.getId());
+				if (CollectionUtils.isEmpty(repositoryMetaDatas)){
+					continue;
+				}
+				TransportClient client = getEsClient(cluster);
+				GetSnapshotsRequestBuilder snapshotsRequestBuilder
+						= new GetSnapshotsRequestBuilder(client.admin().cluster(), GetSnapshotsAction.INSTANCE);
+				snapshotsRequestBuilder.setRepository(cluster.getName());
+				snapshotsRequestBuilder.setIgnoreUnavailable(true);
+				if (!Objects.isNull(snapshotNames) && snapshotNames.length > 0) {
+					snapshotsRequestBuilder.setSnapshots(snapshotNames);
+				}
+				GetSnapshotsResponse response = snapshotsRequestBuilder.execute().actionGet();
+				if (response == null || CollectionUtils.isEmpty(response.getSnapshots())) {
+                   continue;
+				}
+				Map<String,LogIndexDate> restoredDate = new HashMap<>();
+				Set<String> inRestoredSnapshot = this.getRestoreSnapshot(client,cluster.getName(),restoredDate);
+				List<String> indexes = this.getIndexes(cluster.getId());
+				snapshotInfoDtos.addAll(response.getSnapshots().stream().map(snapshotInfo -> {
+					SnapshotInfoDto snapshotInfoDto = this.convertFromESBean(snapshotInfo,indexes,restoredDate);
+					snapshotInfoDto.setInRestore(inRestoredSnapshot.contains(snapshotInfo.name()));
+					snapshotInfoDto.setClusterId(cluster.getId());
+					snapshotInfoDto.setClusterAliasName(cluster.getAliasName());
+					return snapshotInfoDto;
+				}).collect(Collectors.toList()));
+
+			} catch (RepositoryMissingException rme) {
+				LOGGER.error("该集群尚未创建ES仓库", rme);
+				continue;
+			} catch (Exception e) {
+				LOGGER.error("查询快照失败", e);
+				continue;
+			}
+		}
+        return snapshotInfoDtos;
+	}
+
+	/**
+	 * 删除快照
+	 *
+	 * @param clusterId
+	 * @param snapshotName
+	 * @throws Exception
+	 */
+	public void deleteSnapshot(String clusterId, String snapshotName) {
+		try {
+			Cluster cluster = clusterService.findClusterById(clusterId);
+			TransportClient client = getEsClient(cluster);
+			DeleteSnapshotRequestBuilder snapshotRequestBuilder
+					= new DeleteSnapshotRequestBuilder(client.admin().cluster(), DeleteSnapshotAction.INSTANCE);
+			snapshotRequestBuilder.setRepository(cluster.getName());
+			snapshotRequestBuilder.setSnapshot(snapshotName);
+			snapshotRequestBuilder.execute().actionGet();
+		} catch (Exception e){
+			LOGGER.error("删除快照失败", e);
+			throw new MarsRuntimeException(ErrorCodeMessage.APP_LOG_SNAPSHOT_DELETE_FAILED);
+		}
+
+	}
+
+	/**
+	 * 恢复快照
+	 *
+	 * @param esSnapshotDtoIn
+	 * @return
+	 * @throws Exception
+	 */
+	public RestoreInfoDto restoreSnapshots(EsSnapshotDto esSnapshotDtoIn) {
+		//恢复后的索引名称加后缀
+		try {
+			String[] snapshots = new String[]{esSnapshotDtoIn.getSnapshotName()};
+			List<SnapshotInfoDto> snapshotInfos = listSnapshots(esSnapshotDtoIn.getClusterId(), snapshots);
+			if (CollectionUtils.isEmpty(snapshotInfos)){
+				return null;
+			}
+			Cluster cluster = clusterService.findClusterById(esSnapshotDtoIn.getClusterId());
+			List<String> existIndexes = this.getIndexes(esSnapshotDtoIn.getClusterId());
+			TransportClient client = getEsClient(cluster);
+			if (Objects.isNull(esSnapshotDtoIn.getIndexNames()) || esSnapshotDtoIn.getIndexNames().length == 0) {
+				//如果设置了时间段，则恢复指定时间段内的日志
+				if (StringUtils.isNotBlank(esSnapshotDtoIn.getLogDateStart()) && StringUtils.isNotBlank(esSnapshotDtoIn.getLogDateEnd())) {
+					List<String> indexDates = getIndexDates(esSnapshotDtoIn);
+					List<String> indices = snapshotInfos.get(0).getIndices();
+					List<String> reBuildIndex = new ArrayList<>();
+					for (String indexDate : indexDates) {
+						if (indices.contains(CommonConstant.ES_INDEX_LOGSTASH_PREFIX + indexDate)) {
+							reBuildIndex.add(CommonConstant.ES_INDEX_LOGSTASH_PREFIX + indexDate);
+						}
+					}
+					if (CollectionUtils.isEmpty(reBuildIndex)) {
+						throw new MarsRuntimeException(ErrorCodeMessage.LOG_SNAPSHOT_NO_INDEX);
+					}
+					esSnapshotDtoIn.setIndexNames(reBuildIndex.toArray(new String[reBuildIndex.size()]));
+				} else {
+					List<String> indices = snapshotInfos.get(0).getIndices();
+					esSnapshotDtoIn.setIndexNames(indices.toArray(new String[indices.size()]));
+				}
+			}
+			//判断是否已经存在已恢复的索引
+			String restoredIndex = "";
+            for(String indexName : esSnapshotDtoIn.getIndexNames()){
+				if(existIndexes.contains(indexName + ES_INDEX_SNAPSHOT_RESTORE)){
+					String indexDate = indexName.replaceFirst(CommonConstant.ES_INDEX_LOGSTASH_PREFIX,"");
+					restoredIndex += indexDate.replaceAll("\\.","-") + COMMA;
+				}
+			}
+			if(StringUtils.isNotBlank(restoredIndex)){
+				throw new MarsRuntimeException(restoredIndex.substring(0,restoredIndex.length()-1),
+						ErrorCodeMessage.LOG_SNAPSHOT_RESTORE_EXISTS);
+			}
+			RestoreSnapshotRequestBuilder restoreReqBuilder = new RestoreSnapshotRequestBuilder(client.admin().cluster(), RestoreSnapshotAction.INSTANCE);
+			restoreReqBuilder.setRepository(cluster.getName());
+			restoreReqBuilder.setSnapshot(esSnapshotDtoIn.getSnapshotName());
+			restoreReqBuilder.setIndices(esSnapshotDtoIn.getIndexNames());
+			restoreReqBuilder.setPartial(true);
+			StringBuilder replacement = new StringBuilder();
+			replacement.append(CommonConstant.ES_INDEX_RENAME_REPALCEMENT);
+			replacement.append(ES_INDEX_SNAPSHOT_RESTORE);
+			restoreReqBuilder.setRenamePattern(CommonConstant.ES_RESTORE_RENAME_PATTERN);
+			restoreReqBuilder.setRenameReplacement(replacement.toString());
+			RestoreSnapshotResponse response = restoreReqBuilder.execute().actionGet();
+			RestoreInfoDto restoreInfoDto = new RestoreInfoDto();
+			return restoreInfoDto.convertFromESBean(response.getRestoreInfo());
+
+		}catch (MarsRuntimeException e){
+			throw e;
+		}catch (Exception e){
+			LOGGER.error("恢复快照失败", e);
+			throw new MarsRuntimeException(ErrorCodeMessage.APP_LOG_SNAPSHOT_RESTORE_FAILED);
+		}
+
 	}
 
 	@Override
-	public ActionReturnUtil listProvider() throws Exception {
-		List<ProviderPlugin> provider = new ArrayList<ProviderPlugin>();
-		EsClient esClient = new EsClient();
-		ProviderPlugin providerPlugin = new ProviderPlugin();
-		providerPlugin.setIp(esClient.getHost());
-		providerPlugin.setName(Constant.ES);
-		providerPlugin.setVersion(esClient.getVersion());
-		provider.add(providerPlugin);
-		return ActionReturnUtil.returnSuccessWithData(provider);
+	public boolean deleteRestoredIndex(String date, String clusterId) throws Exception{
+		AssertUtil.notBlank(clusterId, DictEnum.CLUSTER);
+		AssertUtil.notNull(date);
+		Cluster cluster = clusterService.findClusterById(clusterId);
+		String indexDate = DateUtil.StringToString(date, DateStyle.YYYY_MM_DD,DateStyle.YYYYMMDD_DOT);
+		if(indexDate == null){
+			throw new MarsRuntimeException(ErrorCodeMessage.INVALID_PARAMETER);
+		}
+		String indexName = ES_INDEX_LOGSTASH_PREFIX + indexDate + ES_INDEX_SNAPSHOT_RESTORE;
+		return this.deleteIndex(indexName, cluster);
+	}
+
+	/**获取最新自动快照备份时间
+	 *
+	 * @param clusterId
+	 * @return
+	 */
+	public SnapshotInfoDto getLastSnapshot(String clusterId) throws Exception{
+		List<SnapshotInfoDto> snapshotInfoDtos = listSnapshots(clusterId,null);
+		if (CollectionUtils.isEmpty(snapshotInfoDtos)){
+			return null;
+		}
+		// 一般最新创建的快照放在末尾，从后往前查属于自动备份的最新快照速度快些。
+		// 由于手动备份的快照索引时间有各种可能，不具备参考价值，所以只考虑自动备份的。
+		boolean isAutoBackupFound = false;
+		int i = snapshotInfoDtos.size() -1;
+		for (; i >= 0 ; i--) {
+			if (snapshotInfoDtos.get(i).getName().startsWith(CommonConstant.ES_SNAPSHOT_CREATE_AUTO_PREFIX)){
+				isAutoBackupFound = true;
+				break;
+			}
+		}
+		return isAutoBackupFound ? snapshotInfoDtos.get(i) : null;
 	}
 
 	/**
-	 * 查询指定pod或容器的日志文件名称列表
-	 * @param namespace
-	 * @param deployment
-	 * @param podName
-	 * @param containerName
-	 * @param client
-	 * @return
-	 * @throws MarsRuntimeException
+	 * 根据时间日期获取对应的索引名称列表
+	 * @param esSnapshotDtoIn
 	 */
-	/*private TreeSet<String> listLogFileNames(String namespace, String deployment, String podName,
-											 String containerName, Client client){
-		if(StringUtils.isBlank(podName) && StringUtils.isBlank(containerName)){
-			throw new IllegalArgumentException("查询应用日志文件名称列表出错，pod名称和容器名称不能同时为空");
+	private void checkIndexNames(EsSnapshotDto esSnapshotDtoIn) throws Exception{
+		List<String> indexNames = new ArrayList<>();
+		List<String> existIndexes = this.getIndexes(esSnapshotDtoIn.getClusterId());
+		if(esSnapshotDtoIn.getIndexNames() != null && esSnapshotDtoIn.getIndexNames().length > 0){
+			for(String indexName : esSnapshotDtoIn.getIndexNames()) {
+				if (existIndexes.contains(indexName)) {
+					indexNames.add(indexName);
+				}
+			}
+			if(CollectionUtils.isEmpty(indexNames)){
+				throw new MarsRuntimeException(ErrorCodeMessage.LOG_SNAPSHOT_NO_INDEX);
+			}
+			esSnapshotDtoIn.setIndexNames(indexNames.toArray(new String[0]));
+			return;
 		}
-		TreeSet<String> logFileNames = new TreeSet<String>();
+		List<String> indexDates;
+		String[] indexDateArray= esSnapshotDtoIn.getDates();
+		if(indexDateArray == null || indexDateArray.length == 0){
+			indexDates = this.getIndexDates(esSnapshotDtoIn);
+		}else{
+			indexDates = Arrays.asList(indexDateArray);
+		}
+		for(String indexDate : indexDates) {
+			String indexName = CommonConstant.ES_INDEX_LOGSTASH_PREFIX + indexDate;
+			if (existIndexes.contains(indexName)) {
+				indexNames.add(indexName);
+			}
+		}
+		if(CollectionUtils.isEmpty(indexNames)){
+			throw new MarsRuntimeException(ErrorCodeMessage.LOG_SNAPSHOT_NO_INDEX);
+		}
+		esSnapshotDtoIn.setIndexNames(indexNames.toArray(new String[0]));
+	}
 
-		BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery()
-				.must(QueryBuilders.termQuery("namespace_name", namespace));
-		if(StringUtils.isNotBlank(containerName)){
-			queryBuilder.must(QueryBuilders.termQuery("container_name", containerName));
+	private List<String> getIndexDates(EsSnapshotDto esSnapshotDtoIn){
+		List<String> indexDates = new ArrayList<>();
+		if(StringUtils.isBlank(esSnapshotDtoIn.getLogDateStart()) || StringUtils.isBlank(esSnapshotDtoIn.getLogDateEnd())){
+			throw new MarsRuntimeException(ErrorCodeMessage.LOG_SNAPSHOT_DATE_ERROR);
 		}
-		if(StringUtils.isNotBlank(podName)){
-			queryBuilder.must(QueryBuilders.termQuery("pod_name", podName));
-		}else if(StringUtils.isNotBlank(deployment)){
-			queryBuilder.must(QueryBuilders.regexpQuery("pod_name", deployment + "-.*"));
+		Date start = DateUtil.StringToDate(esSnapshotDtoIn.getLogDateStart(),DateStyle.YYYY_MM_DD);
+		Date end = DateUtil.StringToDate(esSnapshotDtoIn.getLogDateEnd(),DateStyle.YYYY_MM_DD);
+		if(start.after(end)){
+			throw new MarsRuntimeException(ErrorCodeMessage.LOG_SNAPSHOT_DATE_ERROR);
 		}
-		SearchResponse scrollResp = null;
-		scrollResp = client.prepareSearch("logstash-*")
-				.addAggregation(AggregationBuilders.terms("logdir").field("logdir"))
-				.setScroll(new TimeValue(SEARCH_TIME))
-				.setQuery(queryBuilder).execute().actionGet();
-		if(scrollResp.getAggregations() == null){
-			return logFileNames;
+		while(start.before(end) || start.equals(end)){
+			indexDates.add(DateUtil.DateToString(start,DateStyle.YYYYMMDD_DOT));
+			start = DateUtil.addDay(start,1);
 		}
-		Terms agg1 = scrollResp.getAggregations().get("logdir");
-		List<Bucket> buckets = agg1.getBuckets();
-		for (Bucket bucket : buckets) {
-			String name = bucket.getKey().toString();
-			logFileNames.add(name);
-		}
-		return logFileNames;
-	}*/
-
+		return indexDates;
+	}
 
 	/**
-	 * 查询某个容器的日志文件名称列表，返回文件名称包含pod名称为前缀
-	 * @param namespace
-	 * @param deployment
-	 * @param containerName
+	 * 获取正在恢复中的快照列表
 	 * @param client
+	 * @param clusterName
 	 * @return
 	 */
-	private TreeSet<String> listLogFileNames(String namespace, String deployment, String podName,
-													String containerName, Client client, boolean withPodName){
-		TreeSet<String> logFileNames = new TreeSet<String>();
-		SearchResponse scrollResp = null;
-		BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery()
-				.must(QueryBuilders.termQuery("namespace_name", namespace));
-		if(StringUtils.isNotBlank(containerName)){
-			queryBuilder.must(QueryBuilders.termQuery("container_name", containerName));
-		}
-		if(StringUtils.isNotBlank(podName)){
-			queryBuilder.must(QueryBuilders.termQuery("pod_name", podName));
-			scrollResp = client.prepareSearch("logstash-*")
-					.addAggregation(AggregationBuilders.terms("logdir").field("logdir"))
-					.setScroll(new TimeValue(SEARCH_TIME))
-					.setQuery(queryBuilder).execute().actionGet();
-			if(scrollResp.getAggregations() == null){
-				return logFileNames;
-			}
-			Terms agg1 = scrollResp.getAggregations().get("logdir");
-			List<Bucket> buckets = agg1.getBuckets();
-			for (Bucket bucket : buckets) {
-				String name = bucket.getKey().toString();
-				logFileNames.add(name);
-			}
-			return logFileNames;
-		}
-		//pod名称为空，则容器名称不能为空
-		Assert.hasText(containerName);
-		TermsBuilder logDirTermsBuilder = AggregationBuilders.terms("logdir").field("logdir");
-		TermsBuilder podTermsBuilder = AggregationBuilders.terms("pod_name").field("pod_name");
-		podTermsBuilder.subAggregation(logDirTermsBuilder);
-		scrollResp = client.prepareSearch("logstash-*")
-				.addAggregation(podTermsBuilder)
-				.setScroll(new TimeValue(SEARCH_TIME))
-				.setQuery(queryBuilder).execute().actionGet();
-		if(scrollResp.getAggregations() == null){
-			return logFileNames;
-		}
-		Terms podTerms = scrollResp.getAggregations().get("pod_name");
-		List<Bucket> podBuckets = podTerms.getBuckets();
-		for (Bucket bucket : podBuckets) {
-			String bucketPodName = bucket.getKey().toString();
-			if(!BizUtil.isPodWithDeployment(bucketPodName, deployment)){
-				LOGGER.warn("容器对应的pod名称" + bucketPodName + "前缀非服务名称， 不是同一个服务下的容器");
-				continue;
-			}
-			Terms logDirTerms = bucket.getAggregations().get("logdir");
-			List<Bucket> logDirBuckets = logDirTerms.getBuckets();
-			for (Bucket dirBucket : logDirBuckets) {
-				String logDir = dirBucket.getKey().toString();
-				if(withPodName){
-					logFileNames.add(bucketPodName + "/" + logDir);
-				}else {
-					logFileNames.add(logDir);
+	private Set<String> getRestoreSnapshot(TransportClient client,String clusterName, Map<String, LogIndexDate> restoredDates){
+		Set<String> inRestoreSnapshot = new HashSet<>();
+		RecoveryRequestBuilder recoveryRequestBuilder = new RecoveryRequestBuilder(client.admin().cluster(), RecoveryAction.INSTANCE);
+		RecoveryResponse recoveryResponse = recoveryRequestBuilder.execute().actionGet();
+		if(recoveryResponse.hasRecoveries()){
+			Map<String, List<RecoveryState>> stateMap = recoveryResponse.shardRecoveryStates();
+			for(Map.Entry<String, List<RecoveryState>> entry : stateMap.entrySet()){
+				List<RecoveryState> states = entry.getValue();
+				if(CollectionUtils.isEmpty(states)){
+					continue;
+				}
+				String indexName = entry.getKey();
+				if(indexName.endsWith(ES_INDEX_SNAPSHOT_RESTORE)) {
+					LogIndexDate logIndexDate = new LogIndexDate();
+					logIndexDate.setLogDate(this.getLogDateFromIndexName(indexName));
+					logIndexDate.setIndexName(indexName);
+					logIndexDate.setCreated(new Date(states.get(0).getIndex().startTime()));
+					logIndexDate.setRestoredDone(true);
+					restoredDates.put(indexName,logIndexDate);
+				}
+				for(RecoveryState state : states){
+					//如果有一个分片状态不是完成状态，则这个恢复的索引状态为恢复中
+					if(restoredDates.get(indexName) != null  && restoredDates.get(indexName).getRestoredDone()
+							&& !state.getStage().name().equalsIgnoreCase(CommonConstant.DONE)){
+						restoredDates.get(indexName).setRestoredDone(false);
+					}
+					if(state.getType().name().equalsIgnoreCase("SNAPSHOT")
+							&& state.getRestoreSource() != null
+							&& !state.getStage().name().equalsIgnoreCase(CommonConstant.DONE)){
+						String repository = state.getRestoreSource().snapshotId().getRepository();
+						String snapshot = state.getRestoreSource().snapshotId().getSnapshot();
+						if(repository.equalsIgnoreCase(clusterName)) {
+							inRestoreSnapshot.add(snapshot);
+						}
+					}
 				}
 			}
 		}
-
-		return logFileNames;
+		return inRestoreSnapshot;
 	}
 
-
-	/**
-	 * 根据查询条件设置SearchRequestBuilder
-	 * @param client
-	 * @param logQuery
-     * @return
-     */
-	private SearchRequestBuilder getSearchRequestBuilder(TransportClient client, LogQuery logQuery){
-		//日志时间范围查询设置
-		QueryBuilder postFilter = QueryBuilders.rangeQuery("@timestamp").from(logQuery.getLogDateStart())
-				.to(logQuery.getLogDateEnd());
-		//日志时间范围查询设置
-		BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery()
-				.must(QueryBuilders.termQuery("namespace_name", logQuery.getNamespace()));
-		if(StringUtils.isNotBlank(logQuery.getContainer())){
-			queryBuilder.must(QueryBuilders.termQuery("container_name", logQuery.getContainer()));
+	private SnapshotInfoDto convertFromESBean(SnapshotInfo snapshotInfo, List<String> indexes, Map<String,LogIndexDate> restoredDate){
+		if (null == snapshotInfo){
+			return null;
 		}
-		if(StringUtils.isNotBlank(logQuery.getLogDir())){
-			queryBuilder.must(QueryBuilders.termQuery("logdir", logQuery.getLogDir()));
-		}
-		if(StringUtils.isNotBlank(logQuery.getPod())){
-			queryBuilder.must(QueryBuilders.termQuery("pod_name", logQuery.getPod()));
-		}else if(StringUtils.isNotBlank(logQuery.getDeployment())){
-			queryBuilder.must(QueryBuilders.regexpQuery("pod_name", logQuery.getDeployment() + "-.*"));
-		}
-		if(StringUtils.isNotBlank(logQuery.getSeverity()) && !logQuery.getSeverity().equalsIgnoreCase("All")){
-			//日志内容过滤 warn, error等信息
-			queryBuilder = queryBuilder.must(QueryBuilders.termQuery("message",
-					EnumLogSeverity.getSeverityName(logQuery.getSeverity())));
-		}
-		if(StringUtils.isNotBlank(logQuery.getSearchWord())){
-			//日志内容关键字查询
-			if(logQuery.isMathPhrase()){
-				queryBuilder = queryBuilder.must(QueryBuilders.matchPhraseQuery("message",
-						logQuery.getSearchWord()));
-			}else {
-				queryBuilder = queryBuilder.must(QueryBuilders.matchQuery("message",
-						logQuery.getSearchWord()));
+		SnapshotInfoDto snapshotInfoDto = new SnapshotInfoDto();
+		List<LogIndexDate> logIndexDates = new ArrayList<>();
+		List<String> indices = snapshotInfo.indices();
+		snapshotInfoDto.setIndices(indices);
+		snapshotInfoDto.setName(snapshotInfo.name());
+		snapshotInfoDto.setState(snapshotInfo.state());
+		snapshotInfoDto.setReason(snapshotInfo.reason());
+		snapshotInfoDto.setStartTime(snapshotInfo.startTime());
+		snapshotInfoDto.setEndTime(snapshotInfo.endTime());
+		snapshotInfoDto.setTotalShards(snapshotInfo.totalShards());
+		snapshotInfoDto.setSuccessfulShards(snapshotInfo.successfulShards());
+		snapshotInfoDto.setVersion(snapshotInfo.version());
+		Date start = DateUtil.StringToDate(indices.get(0).replace(CommonConstant.ES_INDEX_LOGSTASH_PREFIX,""),
+				DateStyle.YYYYMMDD_DOT);
+		Date end = start;
+		for(String indexName : indices){
+			String strIndexDate = indexName.replace(CommonConstant.ES_INDEX_LOGSTASH_PREFIX,"");
+			if(indexes.contains(indexName+CommonConstant.ES_INDEX_SNAPSHOT_RESTORE)
+					&& restoredDate.get(indexName+CommonConstant.ES_INDEX_SNAPSHOT_RESTORE) != null){
+				logIndexDates.add(restoredDate.get(indexName+CommonConstant.ES_INDEX_SNAPSHOT_RESTORE));
+			}
+			Date indexDate = DateUtil.StringToDate(strIndexDate, DateStyle.YYYYMMDD_DOT);
+			if(indexDate.after(end)){
+				end = indexDate;
+			}
+			if(indexDate.before(start)){
+				start = indexDate;
 			}
 		}
-		SearchRequestBuilder searchRequestBuilder = client.prepareSearch("logstash-*")
-				.addSort("@timestamp", SortOrder.ASC)
-				.setScroll(new TimeValue(SEARCH_TIME))
-				.setPostFilter(postFilter)
-				.setQuery(queryBuilder);
-		return searchRequestBuilder;
+		snapshotInfoDto.setRestoredDate(logIndexDates);
+		snapshotInfoDto.setLogStartDate(DateUtil.DateToString(start,DateStyle.YYYY_MM_DD));
+		snapshotInfoDto.setLogEndDate(DateUtil.DateToString(end, DateStyle.YYYY_MM_DD));
+		return snapshotInfoDto;
+	}
+
+	private String getLogDateFromIndexName(String indexName){
+		String strIndexDate = indexName.replace(CommonConstant.ES_INDEX_LOGSTASH_PREFIX,"");
+		strIndexDate = strIndexDate.replace(CommonConstant.ES_INDEX_SNAPSHOT_RESTORE,"");
+		return strIndexDate.replaceAll("\\.","-");
 	}
 
 }

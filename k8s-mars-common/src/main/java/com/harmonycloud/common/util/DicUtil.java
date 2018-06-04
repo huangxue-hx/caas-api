@@ -1,29 +1,23 @@
 package com.harmonycloud.common.util;
 
-import org.apache.commons.lang.StringUtils;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.util.CollectionUtils;
 
-import redis.clients.jedis.BinaryClient.LIST_POSITION;
-
+import javax.servlet.http.HttpServletRequest;
 import java.io.BufferedReader;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-
-import javax.print.attribute.HashAttributeSet;
-import javax.servlet.http.HttpServletRequest;
+import java.util.*;
 
 /**
  * Created by czm on 2017/3/27.
  */
 public class DicUtil {
 	public static final Properties properties = new Properties();
+
+
 
 	static {
 		try {
@@ -50,7 +44,6 @@ public class DicUtil {
 		if (value == null) {
 			return "";
 		}
-
 		return value;
 	}
 
@@ -64,7 +57,6 @@ public class DicUtil {
 	 * @return 模块名称
 	 */
 	public static String parseModelName(String uri, int index) {
-
 		String[] subPath = new String[100];
 		if (StringUtils.isNotBlank(uri)) {
 			subPath = uri.split("/");
@@ -131,7 +123,7 @@ public class DicUtil {
 	 * @throws IOException
 	 *             IO异常
 	 */
-	public static String parseParams(HttpServletRequest request) throws IOException {
+	public static String parseParams(HttpServletRequest request){
 		StringBuilder sb = new StringBuilder();
 		// String json;
 		// HttpPutFormContentRequestWrapper requestWrapper = new
@@ -145,10 +137,9 @@ public class DicUtil {
 
 		while (enu.hasMoreElements()) {
 			if (sb.length() <= 0) {
-				sb.append("请求参数:");
+				sb.append(MessageUtil.getMessage(ErrorCodeMessage.PARAMETERS));
 			}
 			String paraName = (String) enu.nextElement();
-			System.out.println(paraName + ": " + request.getParameter(paraName));
 			sb.append(paraName + "->" + request.getParameter(paraName) + ";");
 		}
 		// }
@@ -184,7 +175,7 @@ public class DicUtil {
         String[] ps = key.split(";");
 		while (enu.hasMoreElements()) {
 			if (sb.length() <= 0) {
-				sb.append("请求参数:");
+				sb.append(MessageUtil.getMessage(ErrorCodeMessage.PARAMETERS));
 			}
 			String paraName = (String) enu.nextElement();
 			sb.append(paraName + "->" + request.getParameter(paraName) + ";");
@@ -198,7 +189,12 @@ public class DicUtil {
 		res.put("allParams", sb.toString());
 		res.put("values", values);
 		return res;
-
 	}
-
+	public static ArrayList<String> getAdminModules() throws IOException {
+		ArrayList<String> adminModules = new ArrayList<>();
+		adminModules.add("dashboard");
+		adminModules.add("infrastructure");
+		adminModules.add("system");
+		return adminModules;
+	}
 }

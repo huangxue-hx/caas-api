@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace必须指向Dao接口 -->
+<mapper namespace="com.harmonycloud.dao.harbor.ImageCleanRuleMapper">
+
+    <resultMap id="imageCleanRuleMap" type="com.harmonycloud.dao.harbor.bean.ImageCleanRule">
+        <id property="id" column="id" />
+        <result property="name" column="name" />
+        <result property="type" column="type" />
+        <result property="repositoryId" column="repository_id" />
+        <result property="harborProjectName" column="harbor_project_name" />
+        <result property="repoName" column="repo_name" />
+        <result property="keepTagCount" column="keep_tag_count" />
+        <result property="timeBefore" column="time_before" />
+        <result property="tagNameExclude" column="tag_name_exclude" />
+        <result property="createTime" column="created_time" />
+        <result property="updateTime" column="updated_time" />
+        <result property="userName" column="user_name" />
+    </resultMap>
+
+    <select id="list" resultMap="imageCleanRuleMap">
+        select
+        id,name, type,repository_id,harbor_project_name,repo_name,keep_tag_count,time_before,tag_name_exclude,created_time,updated_time,user_name
+        from image_clean_rule
+    </select>
+
+    <insert id="insert" parameterType="com.harmonycloud.dao.harbor.bean.ImageCleanRule">
+        insert into image_clean_rule(
+        name,type,repository_id,harbor_project_name,repo_name,keep_tag_count,time_before,tag_name_exclude,created_time,user_name)
+        values (#{name}, #{type}, #{repositoryId}, #{harborProjectName}, #{repoName}, #{keepTagCount}, #{timeBefore}, #{tagNameExclude}, #{createTime}, #{userName})
+    </insert>
+
+    <delete id="delete" parameterType="java.lang.Long">
+        delete from image_clean_rule where id = #{id}
+    </delete>
+
+    <update id="update" parameterType="com.harmonycloud.dao.harbor.bean.ImageCleanRule">
+        update image_clean_rule
+        set
+        <if test="name != null">
+            name=#{name},
+        </if>
+        <if test="type != null">
+            type=#{type},
+        </if>
+        <if test="repositoryId != null">
+            repository_id=#{repositoryId},
+        </if>
+        <if test="harborProjectName != null">
+            harbor_project_name=#{harborProjectName},
+        </if>
+        <if test="repoName != null">
+            repo_name=#{repoName},
+        </if>
+        keep_tag_count=#{keepTagCount},
+        time_before=#{timeBefore},
+        tag_name_exclude=#{tagNameExclude},
+        updated_time=#{updateTime},
+        user_name=#{userName}
+        where id=#{id}
+    </update>
+
+    <select id="getBySelective" parameterType="com.harmonycloud.dao.harbor.bean.ImageCleanRule" resultMap="imageCleanRuleMap">
+       select
+        id,name,type,repository_id,harbor_project_name,repo_name,keep_tag_count,time_before,tag_name_exclude,created_time,updated_time,user_name
+        from image_clean_rule where
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">
+                id=#{id},
+            </if>
+            <if test="repositoryId != null">
+                repository_id = #{repositoryId}
+            </if>
+        </trim>
+    </select>
+
+    <select id="getByName" parameterType="java.lang.String" resultMap="imageCleanRuleMap">
+        select
+        id,name,type,repository_id,harbor_project_name,repo_name,keep_tag_count,time_before,tag_name_exclude,created_time,updated_time,user_name
+        from image_clean_rule where name = #{name}
+    </select>
+
+    <select id="listByIds" parameterType="java.util.List" resultMap="imageCleanRuleMap">
+        select
+        id,name,type,repository_id,harbor_project_name,repo_name,keep_tag_count,time_before,tag_name_exclude,created_time,updated_time,user_name
+        from image_clean_rule where repository_id in
+        <foreach item="item" index="index" collection="repositoryIds" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </select>
+
+    <delete id="deleteByClusterId" parameterType="java.lang.String">
+        delete from image_clean_rule where repository_id in (select id from image_repository where cluster_id=#{clusterId})
+    </delete>
+
+</mapper>

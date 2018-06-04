@@ -4,11 +4,13 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
  * @author qg
  *
  */
+@JsonInclude(value=JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class PodSpec {
 
@@ -32,11 +34,11 @@ public class PodSpec {
 	
 	private String nodeName;
 	
-	private Boolean hostNetwork;
+	private boolean hostNetwork;
 	
-	private Boolean hostPID;
+	private boolean hostPID;
 	
-	private Boolean hostIPC;
+	private boolean hostIPC;
 	
 	private List<LocalObjectReference> imagePullSecrets;
 	
@@ -45,18 +47,22 @@ public class PodSpec {
 	private String subdomain;
 
 	private Affinity affinity;
-
-	public Boolean getHostNetwork() {
-		return hostNetwork;
-	}
-
-	public Boolean getHostPID() {
-		return hostPID;
-	}
-
-	public Boolean getHostIPC() {
-		return hostIPC;
-	}
+	
+	private boolean automountServiceAccountToken;
+	
+	private List<HostAlias> hostAliases;
+	
+	private List<Container> initContainers;
+	
+	private Integer priority;
+	
+	private String priorityClassName;
+	
+	private String schedulerName;
+	
+	private List<Toleration> tolerations;
+	
+	private PodDNSConfig dnsConfig;
 
 	public Affinity getAffinity() {
 		return affinity;
@@ -66,22 +72,7 @@ public class PodSpec {
 		this.affinity = affinity;
 	}
 
-	public Integer getTerminationGracePeriodSeconds() {
-		return terminationGracePeriodSeconds;
-	}
-
-	public void setTerminationGracePeriodSeconds(Integer terminationGracePeriodSeconds) {
-		this.terminationGracePeriodSeconds = terminationGracePeriodSeconds;
-	}
-
-	public Integer getActiveDeadlineSeconds() {
-		return activeDeadlineSeconds;
-	}
-
-	public void setActiveDeadlineSeconds(Integer activeDeadlineSeconds) {
-		this.activeDeadlineSeconds = activeDeadlineSeconds;
-	}
-
+	
 	public String getDnsPolicy() {
 		return dnsPolicy;
 	}
@@ -96,30 +87,6 @@ public class PodSpec {
 
 	public void setServiceAccount(String serviceAccount) {
 		this.serviceAccount = serviceAccount;
-	}
-
-	public Boolean isHostNetwork() {
-		return hostNetwork;
-	}
-
-	public void setHostNetwork(Boolean hostNetwork) {
-		this.hostNetwork = hostNetwork;
-	}
-
-	public Boolean isHostPID() {
-		return hostPID;
-	}
-
-	public void setHostPID(Boolean hostPID) {
-		this.hostPID = hostPID;
-	}
-
-	public Boolean isHostIPC() {
-		return hostIPC;
-	}
-
-	public void setHostIPC(Boolean hostIPC) {
-		this.hostIPC = hostIPC;
 	}
 
 	public String getHostname() {
@@ -192,6 +159,110 @@ public class PodSpec {
 
 	public void setNodeName(String nodeName) {
 		this.nodeName = nodeName;
-	}	
+	}
+
+	public boolean isAutomountServiceAccountToken() {
+		return automountServiceAccountToken;
+	}
+
+	public void setAutomountServiceAccountToken(boolean automountServiceAccountToken) {
+		this.automountServiceAccountToken = automountServiceAccountToken;
+	}
+
+	public List<HostAlias> getHostAliases() {
+		return hostAliases;
+	}
+
+	public void setHostAliases(List<HostAlias> hostAliases) {
+		this.hostAliases = hostAliases;
+	}
+
+	public List<Container> getInitContainers() {
+		return initContainers;
+	}
+
+	public void setInitContainers(List<Container> initContainers) {
+		this.initContainers = initContainers;
+	}
+
+	public Integer getPriority() {
+		return priority;
+	}
+
+	public void setPriority(Integer priority) {
+		this.priority = priority;
+	}
+
+	public String getPriorityClassName() {
+		return priorityClassName;
+	}
+
+	public void setPriorityClassName(String priorityClassName) {
+		this.priorityClassName = priorityClassName;
+	}
+
+	public String getSchedulerName() {
+		return schedulerName;
+	}
+
+	public void setSchedulerName(String schedulerName) {
+		this.schedulerName = schedulerName;
+	}
+
+	public List<Toleration> getTolerations() {
+		return tolerations;
+	}
+
+	public void setTolerations(List<Toleration> tolerations) {
+		this.tolerations = tolerations;
+	}
+
+	public PodDNSConfig getDnsConfig() {
+		return dnsConfig;
+	}
+
+	public void setDnsConfig(PodDNSConfig dnsConfig) {
+		this.dnsConfig = dnsConfig;
+	}
+
+	public boolean isHostNetwork() {
+		return hostNetwork;
+	}
+
+	public void setHostNetwork(boolean hostNetwork) {
+		this.hostNetwork = hostNetwork;
+	}
+
+	public boolean isHostPID() {
+		return hostPID;
+	}
+
+	public void setHostPID(boolean hostPID) {
+		this.hostPID = hostPID;
+	}
+
+	public boolean isHostIPC() {
+		return hostIPC;
+	}
+
+	public void setHostIPC(boolean hostIPC) {
+		this.hostIPC = hostIPC;
+	}
+
+	public Integer getTerminationGracePeriodSeconds() {
+		return terminationGracePeriodSeconds;
+	}
+
+	public void setTerminationGracePeriodSeconds(Integer terminationGracePeriodSeconds) {
+		this.terminationGracePeriodSeconds = terminationGracePeriodSeconds;
+	}
+
+	public Integer getActiveDeadlineSeconds() {
+		return activeDeadlineSeconds;
+	}
+
+	public void setActiveDeadlineSeconds(Integer activeDeadlineSeconds) {
+		this.activeDeadlineSeconds = activeDeadlineSeconds;
+	}
 	
 }

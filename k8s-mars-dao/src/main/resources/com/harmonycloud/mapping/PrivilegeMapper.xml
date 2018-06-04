@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.user.PrivilegeMapper">
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.user.bean.Privilege">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="module" jdbcType="VARCHAR" property="module" />
+    <result column="module_name" jdbcType="VARCHAR" property="moduleName" />
+    <result column="resource" jdbcType="VARCHAR" property="resource" />
+    <result column="resource_name" jdbcType="VARCHAR" property="resourceName" />
+    <result column="privilege" jdbcType="VARCHAR" property="privilege" />
+    <result column="privilege_name" jdbcType="VARCHAR" property="privilegeName" />
+    <result column="remark" jdbcType="VARCHAR" property="remark" />
+    <result column="remark_name" jdbcType="VARCHAR" property="remarkName" />
+    <result column="status" jdbcType="BIT" property="status" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+  </resultMap>
+  <sql id="Example_Where_Clause">
+    <where>
+      <foreach collection="oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List">
+    id, module, module_name, resource, resource_name, privilege, privilege_name, remark, 
+    remark_name, status, create_time, update_time
+  </sql>
+  <select id="selectByExample" parameterType="com.harmonycloud.dao.user.bean.PrivilegeExample" resultMap="BaseResultMap">
+    select
+    <if test="distinct">
+      distinct
+    </if>
+    'false' as QUERYID,
+    <include refid="Base_Column_List" />
+    from privilege
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null">
+      order by ${orderByClause}
+    </if>
+    <if test="groupByClause != null">
+      group by ${groupByClause}
+    </if>
+    <if test="limit != null">
+      <if test="offset != null">
+        limit ${offset}, ${limit}
+      </if>
+      <if test="offset == null">
+        limit ${limit}
+      </if>
+    </if>
+  </select>
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from privilege
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from privilege
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <delete id="deleteByExample" parameterType="com.harmonycloud.dao.user.bean.PrivilegeExample">
+    delete from privilege
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </delete>
+  <insert id="insert" parameterType="com.harmonycloud.dao.user.bean.Privilege">
+    insert into privilege (id, module, module_name, 
+      resource, resource_name, privilege, 
+      privilege_name, remark, remark_name, 
+      status, create_time, update_time
+      )
+    values (#{id,jdbcType=INTEGER}, #{module,jdbcType=VARCHAR}, #{moduleName,jdbcType=VARCHAR}, 
+      #{resource,jdbcType=VARCHAR}, #{resourceName,jdbcType=VARCHAR}, #{privilege,jdbcType=VARCHAR}, 
+      #{privilegeName,jdbcType=VARCHAR}, #{remark,jdbcType=VARCHAR}, #{remarkName,jdbcType=VARCHAR}, 
+      #{status,jdbcType=BIT}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}
+      )
+  </insert>
+  <insert id="insertSelective" parameterType="com.harmonycloud.dao.user.bean.Privilege">
+    insert into privilege
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        id,
+      </if>
+      <if test="module != null">
+        module,
+      </if>
+      <if test="moduleName != null">
+        module_name,
+      </if>
+      <if test="resource != null">
+        resource,
+      </if>
+      <if test="resourceName != null">
+        resource_name,
+      </if>
+      <if test="privilege != null">
+        privilege,
+      </if>
+      <if test="privilegeName != null">
+        privilege_name,
+      </if>
+      <if test="remark != null">
+        remark,
+      </if>
+      <if test="remarkName != null">
+        remark_name,
+      </if>
+      <if test="status != null">
+        status,
+      </if>
+      <if test="createTime != null">
+        create_time,
+      </if>
+      <if test="updateTime != null">
+        update_time,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        #{id,jdbcType=INTEGER},
+      </if>
+      <if test="module != null">
+        #{module,jdbcType=VARCHAR},
+      </if>
+      <if test="moduleName != null">
+        #{moduleName,jdbcType=VARCHAR},
+      </if>
+      <if test="resource != null">
+        #{resource,jdbcType=VARCHAR},
+      </if>
+      <if test="resourceName != null">
+        #{resourceName,jdbcType=VARCHAR},
+      </if>
+      <if test="privilege != null">
+        #{privilege,jdbcType=VARCHAR},
+      </if>
+      <if test="privilegeName != null">
+        #{privilegeName,jdbcType=VARCHAR},
+      </if>
+      <if test="remark != null">
+        #{remark,jdbcType=VARCHAR},
+      </if>
+      <if test="remarkName != null">
+        #{remarkName,jdbcType=VARCHAR},
+      </if>
+      <if test="status != null">
+        #{status,jdbcType=BIT},
+      </if>
+      <if test="createTime != null">
+        #{createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="updateTime != null">
+        #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.user.bean.Privilege">
+    update privilege
+    <set>
+      <if test="module != null">
+        module = #{module,jdbcType=VARCHAR},
+      </if>
+      <if test="moduleName != null">
+        module_name = #{moduleName,jdbcType=VARCHAR},
+      </if>
+      <if test="resource != null">
+        resource = #{resource,jdbcType=VARCHAR},
+      </if>
+      <if test="resourceName != null">
+        resource_name = #{resourceName,jdbcType=VARCHAR},
+      </if>
+      <if test="privilege != null">
+        privilege = #{privilege,jdbcType=VARCHAR},
+      </if>
+      <if test="privilegeName != null">
+        privilege_name = #{privilegeName,jdbcType=VARCHAR},
+      </if>
+      <if test="remark != null">
+        remark = #{remark,jdbcType=VARCHAR},
+      </if>
+      <if test="remarkName != null">
+        remark_name = #{remarkName,jdbcType=VARCHAR},
+      </if>
+      <if test="status != null">
+        status = #{status,jdbcType=BIT},
+      </if>
+      <if test="createTime != null">
+        create_time = #{createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="updateTime != null">
+        update_time = #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+    </set>
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.user.bean.Privilege">
+    update privilege
+    set module = #{module,jdbcType=VARCHAR},
+      module_name = #{moduleName,jdbcType=VARCHAR},
+      resource = #{resource,jdbcType=VARCHAR},
+      resource_name = #{resourceName,jdbcType=VARCHAR},
+      privilege = #{privilege,jdbcType=VARCHAR},
+      privilege_name = #{privilegeName,jdbcType=VARCHAR},
+      remark = #{remark,jdbcType=VARCHAR},
+      remark_name = #{remarkName,jdbcType=VARCHAR},
+      status = #{status,jdbcType=BIT},
+      create_time = #{createTime,jdbcType=TIMESTAMP},
+      update_time = #{updateTime,jdbcType=TIMESTAMP}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+</mapper>

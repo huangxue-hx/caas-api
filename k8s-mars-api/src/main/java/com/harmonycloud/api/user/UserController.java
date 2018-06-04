@@ -2,7 +2,6 @@ package com.harmonycloud.api.user;
 
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -10,54 +9,36 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
-import com.harmonycloud.common.util.HttpClientUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
-import com.harmonycloud.dao.tenant.bean.TenantBinding;
-import com.harmonycloud.dao.tenant.bean.UserTenant;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.user.*;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.harmonycloud.common.Constant.CommonConstant;
-import com.harmonycloud.common.exception.K8sAuthException;
-import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.bean.UserGroup;
 import com.harmonycloud.dto.user.SummaryUserInfo;
 import com.harmonycloud.dto.user.UserDetailDto;
 import com.harmonycloud.dto.user.UserGroupDto;
-import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.service.tenant.TenantService;
-import com.harmonycloud.service.tenant.UserTenantService;
-import com.harmonycloud.service.user.MessageService;
-import com.harmonycloud.service.user.ResourceService;
-import com.harmonycloud.service.tenant.RolePrivilegeService;
-import com.harmonycloud.service.tenant.RoleService;
-import com.harmonycloud.service.user.UserService;
 
 @Controller
+@RequestMapping("/users")
 public class UserController {
 
     @Autowired
     private UserService userService;
 
     @Autowired
-    private RoleService roleService;
-
-    @Autowired
-    UserTenantService userTenantService;
+    private RoleLocalService roleLocalService;
 
     @Autowired
     ResourceService resourceService;
@@ -68,9 +49,6 @@ public class UserController {
 
     @Autowired
     private HttpSession session;
-
-    @Value("#{propertiesReader['superadmin.username']}")
-    private String superAdmin;
 
     @Autowired
     private TenantService tenantService;
@@ -89,8 +67,8 @@ public class UserController {
      * @throws Exception
      */
     @ResponseBody
-    @RequestMapping(value = "/user/isSystemAdmin", method = RequestMethod.GET)
-    public ActionReturnUtil isSystemAdmin(@RequestParam(value = "userName") final String userName) throws Exception {
+    @RequestMapping(value = "/{userName}", method = RequestMethod.GET)
+    public ActionReturnUtil isSystemAdmin(@PathVariable(value = "userName") final String userName) throws Exception{
         return userService.isSystemAdmin(userName);
     }
 
@@ -102,8 +80,8 @@ public class UserController {
      * @throws Exception
      */
     @ResponseBody
-    @RequestMapping(value = "/user/adduser", method = RequestMethod.POST)
-    public ActionReturnUtil addUser(@ModelAttribute User user) throws Exception {
+    @RequestMapping(method = RequestMethod.POST)
+    public ActionReturnUtil addUser(@ModelAttribute User user) throws Exception{
         return userService.addUser(user);
     }
 
@@ -117,9 +95,9 @@ public class UserController {
      * @throws Exception
      */
     @ResponseBody
-    @RequestMapping(value = "/user/changePwd", method = RequestMethod.PUT)
+    @RequestMapping(value = "/{username}/password", method = RequestMethod.PUT)
     public ActionReturnUtil changePwd(@RequestParam(value = "newPassword") final String newPassword, @RequestParam(value = "oldPassword") final String oldPassword,
-            @RequestParam(value = "userName") final String userName) throws Exception {
+            @PathVariable(value = "username") final String userName) throws Exception{
         return userService.changePwd(userName, oldPassword, newPassword);
     }
 
@@ -134,8 +112,8 @@ public class UserController {
      * @throws Exception
      */
     @ResponseBody
-    @RequestMapping(value = "/user/changePhone", method = RequestMethod.PUT)
-    public ActionReturnUtil changePhone(@RequestParam(value = "phone") final String phone, @RequestParam(value = "userName") final String userName) throws Exception {
+    @RequestMapping(value = "/{username}/phone", method = RequestMethod.PUT)
+    public ActionReturnUtil changePhone(@RequestParam(value = "phone") final String phone, @PathVariable(value = "username") final String userName) throws Exception{
         return userService.changePhone(userName, phone);
     }
 
@@ -148,8 +126,8 @@ public class UserController {
      * @throws Exception
      */
     @ResponseBody
-    @RequestMapping(value = "/user/changeRealName", method = RequestMethod.PUT)
-    public ActionReturnUtil changeRealName(@RequestParam(value = "realName") final String realName, @RequestParam(value = "userName") final String userName) throws Exception {
+    @RequestMapping(value = "/{username}/realname", method = RequestMethod.PUT)
+    public ActionReturnUtil changeRealName(@RequestParam(value = "realName") final String realName, @PathVariable(value = "username") final String userName) throws Exception{
         return userService.changeRealName(userName, realName);
     }
 
@@ -162,8 +140,8 @@ public class UserController {
      * @throws Exception
      */
     @ResponseBody
-    @RequestMapping(value = "/user/changeEmail", method = RequestMethod.PUT)
-    public ActionReturnUtil changeEmail(@RequestParam(value = "email") final String email, @RequestParam(value = "userName") final String userName) throws Exception {
+    @RequestMapping(value = "/{username}/email", method = RequestMethod.PUT)
+    public ActionReturnUtil changeEmail(@RequestParam(value = "email") final String email, @PathVariable(value = "username") final String userName) throws Exception{
         return userService.changeEmail(userName, email);
     }
 
@@ -177,19 +155,22 @@ public class UserController {
      * @throws Exception
      */
     @ResponseBody
-    @RequestMapping(value = "/user/adminReset", method = RequestMethod.PUT)
-    public ActionReturnUtil adminReset(@RequestParam(value = "newPassword") final String newPassword, @RequestParam(value = "oldPassword") final String oldPassword,
-            @RequestParam(value = "userName") final String userName) throws Exception {
+    @RequestMapping(value = "/{username}/password/reset", method = RequestMethod.PUT)
+    public ActionReturnUtil resetPassword(@RequestParam(value = "newPassword") final String newPassword, @RequestParam(value = "oldPassword") final String oldPassword,
+            @PathVariable(value = "username") final String userName) throws Exception {
         Object user = session.getAttribute("username");
-        if (user == null) {
-            throw new K8sAuthException(Constant.HTTP_401);
-        }
         if (userService.isAdmin(user.toString())) {
-            ActionReturnUtil.returnErrorWithMsg("管理员才能重置密码");
+            ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.ONLY_FOR_MANAGER);
         }
-        return userService.adminReset(userName, oldPassword, newPassword);
+        if (userService.isAdmin(userName)) {
+            return userService.changePwd(userName, oldPassword, newPassword);
+        }
+        else {
+            return userService.userReset(userName, newPassword);
+        }
     }
 
+    // 归并到restPassword方法里
     /**
      * 重置用户密码
      * 
@@ -197,20 +178,18 @@ public class UserController {
      * @return
      * @throws Exception
      */
-    @ResponseBody
-    @RequestMapping(value = "/user/userReset", method = RequestMethod.PUT)
-    public ActionReturnUtil userReset(@RequestParam(value = "userName") final String userName, @RequestParam(value = "newPassword") final String newPassword) throws Exception {
-        Object user = session.getAttribute("username");
-        if (user == null) {
-            throw new K8sAuthException(Constant.HTTP_401);
-        }
+//    @ResponseBody
+//    @RequestMapping(value = "/{username}/userReset", method = RequestMethod.PUT)
+//    public ActionReturnUtil userReset(@PathVariable(value = "username") final String userName, @RequestParam(value = "newPassword") final String newPassword) throws Exception{
+//        Object user = session.getAttribute("username");
+//        if (userService.isAdmin(user.toString())) {
+//            ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.ONLY_FOR_MANAGER);
+//        }
+//        return userService.userReset(userName, newPassword);
+//
+//    }
 
-        if (userService.isAdmin(user.toString())) {
-            ActionReturnUtil.returnErrorWithMsg("管理员才能重置密码");
-        }
-        return userService.userReset(userName, newPassword);
-    }
-
+    // 不需要提供接口api调用，后台自动发送
     /**
      * 重置用户密码后发送邮箱
      *
@@ -218,11 +197,11 @@ public class UserController {
      * @return
      * @throws Exception
      */
-    @ResponseBody
-    @RequestMapping(value = "/user/userResetSendEmail", method = RequestMethod.PUT)
-    public ActionReturnUtil userResetSendEmail(@RequestParam(value = "userName") final String userName) throws Exception {
-        return userService.sendEmail(userName);
-    }
+//    @ResponseBody
+//    @RequestMapping(value = "/{username}/userResetSendEmail", method = RequestMethod.PUT)
+//    public ActionReturnUtil userResetSendEmail(@RequestParam(value = "username") final String userName) throws Exception{
+//        return userService.sendEmail(userName);
+//    }
     /**
      * 删除用户
      * 
@@ -231,8 +210,8 @@ public class UserController {
      * @throws Exception
      */
     @ResponseBody
-    @RequestMapping(value = "/user/deleteUser", method = RequestMethod.DELETE)
-    public ActionReturnUtil deleteUser(@RequestParam(value = "userName") final String userName) throws Exception {
+    @RequestMapping(value = "/{username}", method = RequestMethod.DELETE)
+    public ActionReturnUtil deleteUser(@PathVariable(value = "username") final String userName) throws Exception{
         return userService.deleteUser(userName);
     }
 
@@ -242,39 +221,43 @@ public class UserController {
      * @param username
      * @return
      */
-    @RequestMapping(value = "/rest/rolebinding/user", method = RequestMethod.GET)
+    @RequestMapping(value = "/{username}/detail", method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil userDetail(@RequestParam(value = "user") final String username) throws Exception {
+    public ActionReturnUtil detailUser(@PathVariable(value = "username") final String username) throws Exception{
+
         List<UserDetailDto> userDetail = userService.userDetail(username);
         if (userDetail != null) {
             return ActionReturnUtil.returnSuccessWithData(userDetail);
         }
         return ActionReturnUtil.returnError();
+
     }
 
+    //合并到listUser
     /**
      * 获取所有机器账号
      * 
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/clusterrolebinding/machineList", method = RequestMethod.GET)
-    @ResponseBody
-    public ActionReturnUtil machineList() throws Exception {
-        return userService.listMachineUsers();
-    }
+//    @RequestMapping(value = "/clusterrolebinding/machineList", method = RequestMethod.GET)
+//    @ResponseBody
+//    public ActionReturnUtil machineList() throws Exception{
+//        return userService.listMachineUsers();
+//    }
 
+    //合并到listUser
     /**
-     * 获取所有管理员
+     * 获取所有管理员/
      * 
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/clusterrolebinding/adminList", method = RequestMethod.GET)
-    @ResponseBody
-    public ActionReturnUtil adminList() throws Exception {
-        return userService.listAdmin();
-    }
+//    @RequestMapping( method = RequestMethod.GET)
+//    @ResponseBody
+//    public ActionReturnUtil adminList() throws Exception{
+//        return userService.listAdmin();
+//    }
 
     /**
      * 用户列表 如果没有用户名则查询所有用户, 如果有用户名,则查询该用户
@@ -282,141 +265,62 @@ public class UserController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/userlist", method = RequestMethod.GET)
+    @RequestMapping( method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil userList() throws Exception {
-        return userService.listUsers();
+    public ActionReturnUtil listUser(@RequestParam(value = "isAdmin",required = false) Boolean isAdmin,
+                                     @RequestParam(value="isMachine",required = false) Boolean isMachine,
+                                     @RequestParam(value="isCommon",required = false) Boolean isCommon,
+                                     @RequestParam(value="all",required = false) Boolean all) throws Exception{
+        return userService.listUsers(isAdmin, isMachine, isCommon, all);
     }
+    //合并到listUser
     /**
      * 获取普通用户
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/listCommonUsers", method = RequestMethod.GET)
-    @ResponseBody
-    public ActionReturnUtil listCommonUsers() throws Exception {
-        return userService.listCommonUsers();
-    }
+//    @RequestMapping(value = "/listCommonUsers", method = RequestMethod.GET)
+//    @ResponseBody
+//    public ActionReturnUtil listCommonUsers() throws Exception{
+//        return userService.listCommonUsers();
+//    }
     /**
      * 获取当前用户
-     * 
+     * 1、从单点服务器同步用户信息至容器云平台数据库user
+     * 2、用户信息写入session
+     * 3、获取租户列表tenants
+     * 4、返回用户信息userId、username、isAdmin、tenants
      * @return
      */
     @SuppressWarnings("unchecked")
     @ResponseBody
-    @RequestMapping(value = "/currentuser", method = RequestMethod.GET)
-    public ActionReturnUtil getCurrentuser() {
-        try {
-            logger.info("获取当前用户");
-            Object user = session.getAttribute("username");
-            if (user == null) {
-                throw new K8sAuthException(Constant.HTTP_401);
-            }
-            String userName = user.toString();
-            String userId = session.getAttribute("userId").toString();
-            Map<String, Object> res = new HashMap<String, Object>();
-            res.put("username", userName);
-            res.put("userId", userId);
-            if (userName.equals(superAdmin)) {
-                ActionReturnUtil tenants = tenantService.tenantList(null, null);
-                res.put("tenants", tenants.get("data"));
-            }
 
-            // 判断是否是admin
-            String isAdmin = session.getAttribute("isAdmin").toString();
-            if ("1".equals(isAdmin)) {
-                ActionReturnUtil tenants = tenantService.tenantList(null, null);
-                res.put("tenants", tenants.get("data"));
-            } else {
-                ActionReturnUtil listTenantsByUserName = tenantService.listTenantsByUserName(userName, false);
-                // ActionReturnUtil roleBindingByUser =
-                // roleService.getRoleBindingByUser(userName);
-                if (((List) listTenantsByUserName.get(CommonConstant.DATA)).size() > 0) {
-                    res.put("tenants", (List) listTenantsByUserName.get(CommonConstant.DATA));
-                } else {
-                    res.put("tenants", null);
-                }
-            }
-            return ActionReturnUtil.returnSuccessWithData(res);
-        } catch (Exception e) {
-            logger.error("获取当前用户错误， e:" + e.getMessage());
-            return ActionReturnUtil.returnError();
-        }
+    @RequestMapping(value = "/current", method = RequestMethod.GET)
+    public ActionReturnUtil getCurrentuser(HttpServletRequest request, HttpServletResponse response,
+                                           @RequestParam(value = "isLogin", required = false) boolean isLogin) throws Exception {
+//        logger.info("获取当前用户");
+        Map res = userService.getcurrentUser(request, response);
+        return ActionReturnUtil.returnSuccessWithData(res);
     }
-
-//    @ResponseBody
-//    @RequestMapping(value = "/currentNamespaces", method = RequestMethod.GET)
-//    public ActionReturnUtil getCurrentNamespace(@RequestParam(value = "tenantid") final String tenantId) {
-//        try {
-////            logger.info("获取在特定的tenantid下的namespaces");
-////            Object name = session.getAttribute("username");
-////            if (name == null) {
-////                throw new K8sAuthException(Constant.HTTP_401);
-////            }
-////            String userName = name.toString();
-////            String isAdmin = session.getAttribute("isAdmin").toString();
-////            if (userName.equals(superAdmin) || "1".equals(isAdmin)) {
-////                return tenantService.tenantdetail(tenantId);
-////            } else {
-////                return roleService.getRoleBindingWithNamespace(userName, tenantId);
-////            }
-//            return ActionReturnUtil.returnSuccess();
-//        } catch (Exception e) {
-//            logger.error("获取在特定的tenantid下的namespaces错误，tenantId=" + tenantId + ", e:" + e.getMessage());
-//            return ActionReturnUtil.returnError();
-//        }
-//    }
 
     /**
-     * 在session中设置当前租户的租户和集群信息
-     * 
-     * @param tenantid
+     * 获取资源菜单
+     * 1、从session获取用户名
+     * 2、当角色未就位时，返回空资源，等待前端下次调用
+     * 3、如果是系统管理员，返回所有有效菜单
+     * 4、如果是其他角色，返回其可见菜单
      * @return
-     * @throws Exception
      */
-    @RequestMapping(value = "/currentTenant", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil currentTenant(@RequestParam(value = "tenantid") String tenantid) throws Exception {
-        if (session.getAttribute("username") == null) {
-            throw new K8sAuthException(Constant.HTTP_401);
-        }
-        Map<String, Object> result = new HashMap<>();
-        String userName = session.getAttribute("username").toString();
-        String isAdmin = session.getAttribute("isAdmin").toString();
-        Cluster cluster = this.tenantService.getClusterByTenantid(tenantid);
-        session.setAttribute("tenantId", tenantid);
-        session.setAttribute("currentCluster", cluster);
-        if(isAdmin.equals("1")){
-            session.setAttribute("role", CommonConstant.ADMIN);
-            return ActionReturnUtil.returnSuccessWithData(result);
-        }
-        Role role = roleService.getRoleByUserNameAndTenant(userName, tenantid);
-        if(role!=null&&"pause".equals(role.getSecondResourceIds())){
-        	  session.setAttribute("getMenu", Boolean.FALSE);
-            ActionReturnUtil.returnErrorWithMsg("当前用户所属角色被停用,请联系管理员");
-        }
-        Map<String, Object> privilegeByRole = rolePrivilegeService.getPrivilegeByRole(role.getName());
-        if(privilegeByRole==null || privilegeByRole.isEmpty()){
-        	  session.setAttribute("getMenu", Boolean.FALSE);
-            ActionReturnUtil.returnErrorWithMsg("当前用户所属角色未分配权限,请联系管理员");
-        }
-        session.setAttribute("role", role.getName());
-        session.setAttribute("privilege", privilegeByRole);
-        session.setAttribute("getMenu", Boolean.TRUE);
-        result.put("role", role.getName());
-        result.put("privilege", privilegeByRole);
-        return ActionReturnUtil.returnSuccessWithData(result);
-
-    }
-    @RequestMapping(value = "/user/getMenu", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil getMenu(String roleName) throws Exception {
-    	long startTime=System.currentTimeMillis();   //获取开始时间
+    @RequestMapping(value = "/menu", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getMenu(String roleName) throws Exception {
         Object name = session.getAttribute("username");
         if (name == null) {
-            throw new K8sAuthException(Constant.HTTP_401);
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.USER_NOT_LOGIN);
         }
         Boolean getMenu =(Boolean) session.getAttribute("getMenu");
         if(getMenu!=null  &&  !getMenu) {
-        		return ActionReturnUtil.returnSuccess();
+                return ActionReturnUtil.returnSuccess();
         }
         List<Map<String, Object>> menu = new ArrayList<>();
 
@@ -429,16 +333,16 @@ public class UserController {
                 Object Id = session.getAttribute("tenantId");
                 if(Id != null) {
                     String tenantId = Id.toString();
-                    String role = userTenantService.findRoleByName(userName,tenantId);
+//                    String role = userTenantService.findRoleByName(userName,tenantId);
+                    String role = "admin";//TODO 后续角色部分做
                     menu = resourceService.listMenuByRole(role);
                 }
             }
         }else {
             menu = resourceService.listAllMenuByRole(roleName);
         }
-        
-		long endTime=System.currentTimeMillis(); //获取结束时间
-		System.out.println("程序运行时间： "+(endTime-startTime)+"ms");
+
+        long endTime=System.currentTimeMillis(); //获取结束时间
         return ActionReturnUtil.returnSuccessWithData(menu);
 
     }
@@ -449,15 +353,20 @@ public class UserController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/user/updateUserStatusPause", method = RequestMethod.PUT)
-    public @ResponseBody ActionReturnUtil updateUserStatusPause(@RequestParam(value = "username") String username) throws Exception {
-        User user = userService.updateUserStatus(username, CommonConstant.PAUSE);
+    @RequestMapping(value = "/{username}/status", method = RequestMethod.PUT)
+    @ResponseBody
+    public ActionReturnUtil updateUserStatus(@PathVariable(value = "username") String username, @RequestParam(value = "status") String status ) throws Exception{
+        if (!(CommonConstant.PAUSE.equals(status) || CommonConstant.NORMAL.equals(status))) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.OPERATION_FAIL);
+        }
+        User user = userService.updateUserStatus(username, status);
         if (user == null) {
-            throw new MarsRuntimeException("更新用户pause状态失败");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.OPERATION_FAIL);
         }
         return ActionReturnUtil.returnSuccess();
 
     }
+    // 合并到updateUserStatus
     /**
      * 更新用户状态为normal
      * 
@@ -465,15 +374,15 @@ public class UserController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/user/updateUserStatusNormal", method = RequestMethod.PUT)
-    public @ResponseBody ActionReturnUtil updateUserStatusNormal(@RequestParam(value = "username") String username) throws Exception {
-        User user = userService.updateUserStatus(username, CommonConstant.NORMAL);
-        if (user == null) {
-            throw new MarsRuntimeException("更新用户normal状态失败");
-        }
-        return ActionReturnUtil.returnSuccess();
-
-    }
+//    @RequestMapping(value = "/user/updateUserStatusNormal", method = RequestMethod.PUT)
+//    public @ResponseBody ActionReturnUtil updateUserStatusNormal(@RequestParam(value = "username") String username) throws Exception{
+//        User user = userService.updateUserStatus(username, CommonConstant.NORMAL);
+//        if (user == null) {
+//            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.OPERATION_FAILED);
+//        }
+//        return ActionReturnUtil.returnSuccess();
+//    }
+    // 合并到updateUserType
     /**
      * 更改普通用户为admin
      * 
@@ -481,55 +390,90 @@ public class UserController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/user/updateUserToAdmin", method = RequestMethod.PUT)
-    public @ResponseBody ActionReturnUtil updateUserToAdmin(@RequestParam(value = "username") String username) throws Exception {
-        Object user = session.getAttribute("username");
-        if (user == null) {
-            throw new K8sAuthException(Constant.HTTP_401);
-        }
-        int isadmin = (Integer) session.getAttribute("isAdmin");
-        if (isadmin != 1) {
-            throw new MarsRuntimeException("admin用户才能操作");
-        }
-        User user2 = userService.updateUserToAdmin(username, 1);
-        if (user2 == null) {
-            throw new MarsRuntimeException("更新用户状态失败");
-        }
-        return ActionReturnUtil.returnSuccess();
-
-    }
-    @RequestMapping(value = "/user/updateAdminToNormal", method = RequestMethod.PUT)
-    public @ResponseBody ActionReturnUtil updateAdminToNormal(@RequestParam(value = "username") String username) throws Exception {
-        Object user = session.getAttribute("username");
-        if (user == null) {
-            throw new K8sAuthException(Constant.HTTP_401);
-        }
-        int isadmin = (Integer) session.getAttribute("isAdmin");
-        if (isadmin != 1) {
-            throw new MarsRuntimeException("admin用户才能操作");
-        }
-        if (username.equals(user.toString())) {
-            ActionReturnUtil.returnErrorWithMsg("管理员不能操作自己账户");
-        }
-        User user2 = userService.updateUserToAdmin(username, 0);
-        if (user2 == null) {
-            throw new MarsRuntimeException("更新用户状态失败");
-        }
-        return ActionReturnUtil.returnSuccess();
-
-    }
+//    @RequestMapping(value = "/user/updateUserToAdmin", method = RequestMethod.PUT)
+//    public @ResponseBody ActionReturnUtil updateUserToAdmin(@RequestParam(value = "username") String username) throws Exception{
+//        Object user = session.getAttribute("username");
+//        if (user == null) {
+//            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.USER_NOT_LOGIN);
+//        }
+//        int isadmin = (Integer) session.getAttribute("isAdmin");
+//        if (isadmin != 1) {
+//            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.ONLY_FOR_MANAGER);
+//        }
+//        User user2 = userService.updateUserToAdmin(username, 1);
+//        if (user2 == null) {
+//            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.OPERATION_FAILED);
+//        }
+//        return ActionReturnUtil.returnSuccess();
+//
+//    }
     /**
-     * 获取所有pause的用户
-     * 
+     * 更新用户类型
+     *
      * @param username
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/user/getAllUserPausedList", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil getAllUserPausedList() throws Exception {
+    @RequestMapping(value = "/{username}/type", method = RequestMethod.PUT)
+    @ResponseBody
+    public ActionReturnUtil updateUserType(@PathVariable(value = "username") String username, @RequestParam(value = "type") String type) throws Exception{
+        String currentUsername = this.userService.getCurrentUsername();
+        if (StringUtils.isBlank(currentUsername)) {
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.USER_NOT_LOGIN);
+        }
+        User user = this.userService.getUser(currentUsername);
+        if (user.getIsAdmin() != 1) {
+            throw new MarsRuntimeException(ErrorCodeMessage.ONLY_FOR_MANAGER);
+        }
+        User user2 = null;
+        if ("0".equals(type) ) {
+            if (username.equals(user.getUsername())) {
+                return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.CANNOT_OPERATE_YOURSELF);
+            }
+            user2  = userService.updateUserToAdmin(username, 0);
+        } else if ("1".equals(type)){
+            user2 = userService.updateUserToAdmin(username, 1);
+        } else {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_USER_TYPE);
+        }
+
+        if (user2 == null) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.OPERATION_FAIL);
+        }
+        return ActionReturnUtil.returnSuccess();
+
+    }
+    // 合并到updateUserType
+//    @RequestMapping(value = "/user/updateAdminToNormal", method = RequestMethod.PUT)
+//    public @ResponseBody ActionReturnUtil updateAdminToNormal(@RequestParam(value = "username") String username) throws Exception{
+//        Object user = session.getAttribute("username");
+//        if (user == null) {
+//            throw new K8sAuthException(Constant.HTTP_401);
+//        }
+//        int isadmin = (Integer) session.getAttribute("isAdmin");
+//        if (isadmin != 1) {
+//            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.ONLY_FOR_MANAGER);
+//        }
+//        if (username.equals(user.toString())) {
+//            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.CANNOT_OPERATE_YOURSELF);
+//        }
+//        User user2 = userService.updateUserToAdmin(username, 0);
+//        if (user2 == null) {
+//            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.OPERATION_FAILED);
+//        }
+//        return ActionReturnUtil.returnSuccess();
+//    }
+    /**
+     * 获取所有pause的用户
+     *
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/status/pause", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getAllUserPausedList() throws Exception{
         List<User> list = userService.getAllUserPausedList();
         return ActionReturnUtil.returnSuccessWithData(list);
-
     }
     /**
      * 获取部门pause的用户
@@ -538,24 +482,24 @@ public class UserController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/user/getUserPausedListByDepartmnet", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil getUserPausedListByDepartmnet(String department) throws Exception {
+    @RequestMapping(value = "/departments/{department}/status/pause", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getUserPausedListByDepartmnet(@PathVariable(value = "department") String department) throws Exception{
         List<User> list = userService.getUserPausedListByDepartmnet(department);
         return ActionReturnUtil.returnSuccessWithData(list);
-
     }
     /**
      * 获取所有normal的用户
      * 
-     * @param username
+     * @param
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/user/getAllUserNormalList", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil getAllUserNormalList() throws Exception {
+    @RequestMapping(value = "/status/normal", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil listNormalUsers() throws Exception{
         List<User> list = userService.getAllUserNormalList();
         return ActionReturnUtil.returnSuccessWithData(list);
-
     }
     /**
      * 获取部门normal的用户
@@ -564,21 +508,22 @@ public class UserController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/user/getUserNormalListByDepartmnet", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil getUserNormalListByDepartmnet(String department) throws Exception {
+    @RequestMapping(value = "/departments/{department}/status/normal", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil listNormalUsersByDepartmnet(@PathVariable(value = "department") String department) throws Exception{
         List<User> list = userService.getUserNormalListByDepartmnet(department);
         return ActionReturnUtil.returnSuccessWithData(list);
-
     }
     /**
      * 获取domain天以内活跃的用户
      * 
-     * @param username
+     * @param
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/user/getActiveUserList", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil getActiveUserList(@RequestParam(value = "domain") Integer domain) throws Exception {
+    @RequestMapping(value = "/status/active", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil listActiveUsers(@RequestParam(value = "domain") Integer domain) throws Exception {
         List<User> list = userService.getActiveUserList(domain);
         return ActionReturnUtil.returnSuccessWithData(list);
 
@@ -591,8 +536,9 @@ public class UserController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/user/getActiveUserListByDepartmnet", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil getActiveUserListByDepartmnet(@RequestParam(value = "domain") Integer domain, @RequestParam(value = "department") String department)
+    @RequestMapping(value = "/departments/{department}/status/active", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil listActiveUsersByDepartmnet(@RequestParam(value = "domain") Integer domain, @PathVariable(value = "department") String department)
             throws Exception {
         List<User> list = userService.getActiveUserListByDepartmnet(domain, department);
         return ActionReturnUtil.returnSuccessWithData(list);
@@ -601,12 +547,13 @@ public class UserController {
     /**
      * 获取所有部门未授权的用户
      * 
-     * @param department
+     * @param
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/user/getUnauthorizedUserList", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil getUnauthorizedUserList() throws Exception {
+    @RequestMapping(value = "/status/unauthorized", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil listUnauthorizedUsers() throws Exception {
         List<User> list = userService.getUnauthorizedUserList();
         return ActionReturnUtil.returnSuccessWithData(list);
     }
@@ -617,117 +564,125 @@ public class UserController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/user/getUnauthorizedUserListByDepartmnet", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil getUnActiveUserListByDepartmnet(@RequestParam(value = "department") String department) throws Exception {
+    @RequestMapping(value = "/departments/{department}/status/unauthorized", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil listUnauthorizedUsersByDepartmnet(@PathVariable(value = "department") String department) throws Exception {
         List<User> list = userService.getUnauthorizedUserListByDepartmnet(department);
         return ActionReturnUtil.returnSuccessWithData(list);
     }
-    @RequestMapping(value = "/user/getAllSummary", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil getAllSummary(@RequestParam(value = "domain") Integer domain) throws Exception {
-        int isadmin = (Integer) session.getAttribute("isAdmin");
-        if (isadmin != 1) {
-            throw new MarsRuntimeException("admin用户才能查看用户总览");
+    @RequestMapping(value = "/status/summary", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil listSummaryUsers(@RequestParam(value = "domain") Integer domain) throws Exception {
+        if (!userService.checkCurrentUserIsAdmin()) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.ONLY_FOR_MANAGER);
         }
         SummaryUserInfo allSummary = userService.getAllSummary(domain);
         return ActionReturnUtil.returnSuccessWithData(allSummary);
 
     }
-    @RequestMapping(value = "/user/getSummaryByDepartmnet", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil getSummaryByDepartmnet(@RequestParam(value = "domain") Integer domain, @RequestParam(value = "department") String department)
+    @RequestMapping(value = "/departments/{department}/status/summary", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil listSummaryUsersByDepartmnet(@RequestParam(value = "domain") Integer domain, @PathVariable(value = "department") String department)
             throws Exception {
-        int isadmin = (Integer) session.getAttribute("isAdmin");
-        if (isadmin != 1) {
-            throw new MarsRuntimeException("admin用户才能查看用户总览");
+        if (!userService.checkCurrentUserIsAdmin()) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.ONLY_FOR_MANAGER);
         }
         SummaryUserInfo allSummary = userService.getSummaryByDepartmnet(domain, department);
         return ActionReturnUtil.returnSuccessWithData(allSummary);
 
     }
-    @RequestMapping(value = "/user/getAdminList", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil getAdminList() throws Exception {
-        int isadmin = (Integer) session.getAttribute("isAdmin");
-        if (isadmin != 1) {
-            throw new MarsRuntimeException("admin用户才能查看admin用户列表");
+    @RequestMapping(value = "/status/admin", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil listAdminUsers() throws Exception {
+        if (!userService.checkCurrentUserIsAdmin()) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.ONLY_FOR_MANAGER);
         }
         List<User> list = userService.getAdminUserList();
         return ActionReturnUtil.returnSuccessWithData(list);
 
     }
-    @RequestMapping(value = "/user/testTime", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil getActiveUserListuu(@RequestParam(value = "domain") Integer domain) throws Exception {
-        List<TenantBinding> list = tenantService.testTime(domain);
-        return ActionReturnUtil.returnSuccessWithData(list);
+//    @RequestMapping(value = "/user/testTime", method = RequestMethod.GET)
+//    public @ResponseBody ActionReturnUtil getActiveUserListuu(@RequestParam(value = "domain") Integer domain) throws Exception {
+//        List<TenantBinding> list = tenantService.testTime(domain);
+//        return ActionReturnUtil.returnSuccessWithData(list);
+//    }
+
+    @RequestMapping(value = "/groups", method = RequestMethod.POST)
+    @ResponseBody
+    public ActionReturnUtil addGroups(@ModelAttribute UserGroup usergroup) throws Exception {
+    	return  userService.createGroup(usergroup);
     }
 
-    @RequestMapping(value = "/user/group/create_group", method = RequestMethod.POST)
-    public @ResponseBody ActionReturnUtil create_group(@ModelAttribute UserGroup usergroup) throws Exception {
-    	return  userService.create_group(usergroup);
-    }
+//    @RequestMapping(value = "/{username}/groups", method = RequestMethod.DELETE)
+//    public @ResponseBody ActionReturnUtil delete_group(@RequestParam("groupnames[]") List<String> groupnames) throws Exception {
+//    	return userService.delete_group(groupnames);
+//    }
 
-    @RequestMapping(value = "/user/group/delete_group", method = RequestMethod.DELETE)
-    public @ResponseBody ActionReturnUtil delete_group(@RequestParam("groupnames[]") List<String> groupnames) throws Exception {
-    	return userService.delete_group(groupnames);
-    }
-
-    @RequestMapping(value = "/user/group/delete_groupbyid", method = RequestMethod.DELETE)
-    public @ResponseBody ActionReturnUtil delete_groupbyid(@RequestParam("groupid") int groupid) throws Exception {
-    	return  userService.delete_groupbyid(groupid);
+    @RequestMapping(value = "/groups/{groupid}", method = RequestMethod.DELETE)
+    @ResponseBody
+    public ActionReturnUtil deleteGroups(@PathVariable("groupid") int groupid) throws Exception {
+    	return  userService.deleteGroupbyId(groupid);
     }
     
-    @RequestMapping(value = "/user/group/changeGroup", method = RequestMethod.PUT)
-    public @ResponseBody ActionReturnUtil updateGroup(@ModelAttribute UserGroupDto usergroupdto) throws Exception {
+    @RequestMapping(value = "/groups/{groupid}", method = RequestMethod.PUT)
+    @ResponseBody
+    public ActionReturnUtil updateGroup(@ModelAttribute UserGroupDto usergroupdto) throws Exception {
     	return userService.updateGroup(usergroupdto);
     }
 
-    @RequestMapping(value = "/user/group/search_group", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil get_groups() throws Exception {
+    @RequestMapping(value = "/groups", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil listGroups() throws Exception {
         List<UserGroup> list = userService.get_groups();
         return ActionReturnUtil.returnSuccessWithData(list);
     }
 
-    @RequestMapping(value = "/user/group/samegroupname", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil issame(@RequestParam("groupname") String groupname) throws Exception {
+    @RequestMapping(value = "/groups/same", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil checkGroupIssame(@RequestParam("groupname") String groupname) throws Exception {
         return ActionReturnUtil.returnSuccessWithData(userService.issame(groupname));
     }
 
-    @RequestMapping(value = "/user/group/searchuserbygroupid", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil searchuserbygroupid(@RequestParam("groupid") int groupid) throws Exception {
-        List<User> list = userService.searchuserbygroupid(groupid);
-        return ActionReturnUtil.returnSuccessWithData(list);
-    }
+//    @RequestMapping(value = "/{username}/groups/{groupid}/users", method = RequestMethod.GET)
+//    public @ResponseBody ActionReturnUtil searchuserbygroupid(@PathVariable("groupid") int groupid) throws Exception {
+//        List<User> list = userService.searchuserbygroupid(groupid);
+//        return ActionReturnUtil.returnSuccessWithData(list);
+//    }
 
-    @RequestMapping(value = "/user/group/search_group_username", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil search_group_username(@RequestParam("username") String username) throws Exception {
-        UserGroup usergroup = userService.search_group_username(username);
-        return ActionReturnUtil.returnSuccessWithData(usergroup);
-    }
+//    @RequestMapping(value = "/{username}/groups/{groupid}/", method = RequestMethod.GET)
+//    public @ResponseBody ActionReturnUtil search_group_username(@PathVariable("username") String username) throws Exception {
+//        UserGroup usergroup = userService.search_group_username(username);
+//        return ActionReturnUtil.returnSuccessWithData(usergroup);
+//    }
 
-    @RequestMapping(value = "/user/group/searchGroupbyUsername", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil searchGroupbyUsername(@RequestParam("username") String username) throws Exception {
+    @RequestMapping(value = "/{username}/group/searchgroup", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getGroupbyUsername(@PathVariable("username") String username) throws Exception {
         return userService.searchGroupByUsername(username);
     }
 
-    @RequestMapping(value = "/user/group/search_users_groupname", method = RequestMethod.GET)
-    public @ResponseBody ActionReturnUtil search_users_groupname(@RequestParam("groupname") String groupname) throws Exception {
-        List<User> users = userService.search_users_groupname(groupname);
+    @RequestMapping(value = "/groups/searchuser", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil listUsersByGroup(@RequestParam("groupname") String groupname) throws Exception {
+        List<User> users = userService.searchUsersGroupname(groupname);
         return ActionReturnUtil.returnSuccessWithData(users);
     }
     
-	@RequestMapping(value="/user/group/userlist",method=RequestMethod.GET)
+	@RequestMapping(value="/withoutgroup",method=RequestMethod.GET)
 	@ResponseBody
-	public ActionReturnUtil userListbygroup() throws Exception{
+	public ActionReturnUtil listUsersByGroup() throws Exception{
 	    return userService.listUserswithoutgroup();  
 	}
 	
-	@RequestMapping(value="/user/usersfile/export",method=RequestMethod.GET)
+	@RequestMapping(value="/usersfile/export",method=RequestMethod.GET)
 	@ResponseBody
-	public ActionReturnUtil fileexport(HttpServletRequest req,HttpServletResponse resp) throws Exception{
+	public ActionReturnUtil exportFile(HttpServletRequest req,HttpServletResponse resp) throws Exception{
 		return  userService.fileexport(req,resp);  
 	}
     
-	@RequestMapping(value="/user/usersfile/import",method=RequestMethod.POST)
+	@RequestMapping(value="/usersfile/import",method=RequestMethod.POST)
 	@ResponseBody
-	public ActionReturnUtil userBulkUpload(@RequestParam(value="file") MultipartFile file) throws Exception{
+	public ActionReturnUtil impoerFile(@RequestParam(value="file") MultipartFile file) throws Exception{
         /*//获取上传的文件
         MultipartHttpServletRequest multipart = (MultipartHttpServletRequest) request;
         //获得文件
@@ -739,4 +694,11 @@ public class UserController {
         in.close();
         return ActionReturnUtil.returnSuccess();   
 	}
+
+    @RequestMapping(value="/switchLanguage",method=RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil switchLanguage(@RequestParam(value="language") String language) throws Exception{
+        session.setAttribute("language", language);
+        return ActionReturnUtil.returnSuccess();
+    }
 }

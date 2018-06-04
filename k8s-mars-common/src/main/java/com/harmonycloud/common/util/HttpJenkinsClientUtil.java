@@ -31,7 +31,8 @@ public class HttpJenkinsClientUtil {
     private static int TIMEOUT = 6000000;
 
     private static CloseableHttpClient getHttpClient() throws Exception {
-		return HttpClients.createDefault();
+//		return HttpClients.createDefault();
+        return HttpSslClientUtil.createHttpsClient();
     }
 
 
@@ -39,6 +40,7 @@ public class HttpJenkinsClientUtil {
                                                   Map<String, Object> params, boolean getResponseHeader){
         HttpClientResponse httpClientResponse = new HttpClientResponse();
         CloseableHttpClient httpClient = null;
+        CloseableHttpResponse response = null;
         URIBuilder ub = new URIBuilder();
         String jenkinsUrl = JenkinsClient.getUrl();
         ub.setPath(jenkinsUrl + url);
@@ -65,7 +67,7 @@ public class HttpJenkinsClientUtil {
             }
 
             httpClient = getHttpClient();
-            CloseableHttpResponse response = httpClient.execute(httpGet);
+            response = httpClient.execute(httpGet);
             Integer statusCode = response.getStatusLine().getStatusCode();
             httpClientResponse.setStatus(statusCode);
             HttpEntity entity = response.getEntity();
@@ -82,7 +84,6 @@ public class HttpJenkinsClientUtil {
             else if (entity != null) {
                 String result = EntityUtils.toString(entity);
                 httpClientResponse.setBody(result);
-                response.close();
                 if (HttpStatusUtil.isSuccessStatus(statusCode)) {
                     return ActionReturnUtil.returnSuccessWithData(result);
                 } else {
@@ -92,12 +93,17 @@ public class HttpJenkinsClientUtil {
         } catch (Exception e) {
             e.printStackTrace();
         }finally {
-            try {
-                if (httpClient != null)
-                    httpClient.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+           //释放连接
+           try {
+               if (httpClient != null){
+                   response.close();
+               }
+               if (httpClient != null){
+                   httpClient.close();
+               }
+           } catch (IOException e) {
+               e.printStackTrace();
+           }
         }
         return ActionReturnUtil.returnError();
     }

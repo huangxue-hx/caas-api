@@ -10,11 +10,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Created by anson on 17/7/13.
  */
 
-@RequestMapping("/cicd/stage")
+@RequestMapping("/tenants/{tenantId}/projects/{projectId}/cicdjobs/{jobId}/stages")
 @Controller
 public class StageController {
 
@@ -26,57 +29,48 @@ public class StageController {
     @RequestMapping(method = RequestMethod.POST)
     @ResponseBody
     public ActionReturnUtil addStage(@RequestBody StageDto stageDto) throws Exception {
-        logger.info("add stage");
-        try {
-            return stageService.addStage(stageDto);
-        } catch (Exception e) {
-            return ActionReturnUtil.returnErrorWithMsg(e.getMessage());
-        }
+//        logger.info("add stage");
+        Integer stageId = stageService.addStage(stageDto);
+        Map map = new HashMap();
+        map.put("id", stageId);
+        return ActionReturnUtil.returnSuccessWithData(map);
     }
 
     @RequestMapping(method = RequestMethod.PUT)
     @ResponseBody
-    public ActionReturnUtil updateStage(@RequestBody StageDto stageDto){
-        logger.info("update stage");
-        try {
-            return stageService.updateStage(stageDto);
-        } catch (Exception e) {
-            return ActionReturnUtil.returnError();
-        }
+    public ActionReturnUtil updateStage(@RequestBody StageDto stageDto) throws Exception {
+//        logger.info("update stage");
+        stageService.updateStage(stageDto);
+        return ActionReturnUtil.returnSuccess();
     }
 
-    @RequestMapping(method = RequestMethod.DELETE)
+    @RequestMapping(value = "/{stageId}", method = RequestMethod.DELETE)
     @ResponseBody
-    public ActionReturnUtil deleteStage(@RequestParam(value="id") Integer id){
-        logger.info("delete stage");
-        try {
-            return stageService.deleteStage(id);
-        } catch (Exception e) {
-            return ActionReturnUtil.returnError();
-        }
+    public ActionReturnUtil deleteStage(@PathVariable("stageId") Integer stageId) throws Exception{
+//        logger.info("delete stage");
+        stageService.deleteStage(stageId);
+        return ActionReturnUtil.returnSuccess();
     }
 
-    @RequestMapping(method = RequestMethod.GET)
+    @RequestMapping(value = "/{stageId}", method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil stageDetail(@RequestParam(value="id") Integer id){
+    public ActionReturnUtil stageDetail(@PathVariable("stageId") Integer stageId) throws Exception {
+        return ActionReturnUtil.returnSuccessWithData(stageService.stageDetail(stageId));
+    }
+
+    @RequestMapping(value = "/{stageId}/result", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil listStageBuildResult(@PathVariable("stageId") Integer stageId,
+                                                 @RequestParam(value="pageSize", required = false, defaultValue = "10") Integer pageSize,
+                                                 @RequestParam(value="page", required = false, defaultValue = "1") Integer page){
         try{
-            return stageService.stageDetail(id);
-        } catch (Exception e){
-            return ActionReturnUtil.returnErrorWithData(e.getMessage());
-        }
-    }
-
-    @RequestMapping(value = "/buildList", method = RequestMethod.GET)
-    @ResponseBody
-    public ActionReturnUtil listStageBuildList(@RequestParam(value="id") Integer id, @RequestParam(value="pageSize", required = false, defaultValue = "10") Integer pageSize, @RequestParam(value="page", required = false, defaultValue = "1") Integer page){
-        try{
-            return stageService.getBuildList(id, pageSize, page);
+            return stageService.getBuildList(stageId, pageSize, page);
         }catch(Exception e){
             return ActionReturnUtil.returnError();
         }
     }
 
-    @RequestMapping(value = "/type", method = RequestMethod.POST)
+    @RequestMapping(value = "/stagetypes", method = RequestMethod.POST)
     @ResponseBody
     public ActionReturnUtil addStageType(@RequestBody StageType stageType){
         try{
@@ -86,7 +80,7 @@ public class StageController {
         }
     }
 
-    @RequestMapping(value = "/type", method = RequestMethod.DELETE)
+    @RequestMapping(value = "/stagetypes", method = RequestMethod.DELETE)
     @ResponseBody
     public ActionReturnUtil deleteStageType(@RequestParam(value = "id") Integer id){
         try{
@@ -96,25 +90,30 @@ public class StageController {
         }
     }
 
-    @RequestMapping(value = "/type", method = RequestMethod.GET)
+    @RequestMapping(value = "/stagetypes", method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil listStageType(@RequestParam(value="tenantId") String tenantId){
-        try{
-            return stageService.listStageType(tenantId);
-        }catch(Exception e){
-            return ActionReturnUtil.returnError();
-        }
+    public ActionReturnUtil listStageType(@PathVariable("tenantId") String tenantId, @RequestParam(value="type") String type) throws Exception{
+        return ActionReturnUtil.returnSuccessWithData(stageService.listStageType(type));
     }
 
-    @RequestMapping(value = "/buildEnvironment", method = RequestMethod.GET)
+    @RequestMapping(value = "/{stageId}/log", method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil listbuildenvironment(){
-        return stageService.listBuildEnvironemnt();
+    public ActionReturnUtil getStageLog(@PathVariable("stageId")Integer stageId, @RequestParam(value="buildNum")Integer buildNum) throws Exception{
+        return ActionReturnUtil.returnSuccessWithData(stageService.getStageLog(stageId, buildNum));
     }
 
-    @RequestMapping(value = "/deployImage", method = RequestMethod.GET)
+    /**
+     *   更新该用户在所有流水线中的密码
+     * @param username
+     * @param password
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/updateCredentials", method = RequestMethod.POST)
     @ResponseBody
-    public ActionReturnUtil listImageForDeployStage(@RequestParam(value="jobId") Integer jobId, @RequestParam(value="stageOrder") Integer stageOrder){
-        return stageService.listDeployImage(jobId, stageOrder);
+    public ActionReturnUtil updateCredential(@RequestParam(value="username", required = false)String username, @RequestParam(value="password", required = false)String password) throws Exception{
+        stageService.updateUserCredentials(username, password);
+        return ActionReturnUtil.returnSuccess();
     }
+
 }

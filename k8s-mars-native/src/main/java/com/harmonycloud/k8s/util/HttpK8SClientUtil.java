@@ -31,7 +31,7 @@ import com.harmonycloud.k8s.constant.Constant;
 
 public class HttpK8SClientUtil {
 
-	private static int TIMEOUT = 6000000;
+	private static int TIMEOUT = 30000;
 
 	private static String UTF_8 = "UTF-8";
 	
@@ -62,6 +62,7 @@ public class HttpK8SClientUtil {
 		URIBuilder ub = new URIBuilder();
 		ub.setPath(url);
 		CloseableHttpClient httpClient = null;
+		CloseableHttpResponse response = null;
 		if (params != null) {
 			ArrayList<NameValuePair> pairs = covertParams2NVPS(params);
 			ub.setParameters(pairs);
@@ -78,7 +79,7 @@ public class HttpK8SClientUtil {
 				}
 			}
 			httpClient = getHttpClient();
-			CloseableHttpResponse response = httpClient.execute(httpGet);
+			response = httpClient.execute(httpGet);
 			Integer statusCode = response.getStatusLine().getStatusCode();
 			k8sResponse.setStatus(statusCode);
 			HttpEntity entity = response.getEntity();
@@ -90,14 +91,17 @@ public class HttpK8SClientUtil {
 					throw new K8sAuthException(Constant.HTTP_401);
 				}
 				k8sResponse.setBody(result);
-				response.close();
 				return k8sResponse;
 			}
 		} catch (Exception e) {
 			throw e;
 		} finally {
-			if (httpClient != null)
-			   httpClient.close();
+			if (null != response){
+				EntityUtils.consume(response.getEntity());
+			}
+			if (httpClient != null){
+				httpClient.close();
+			}
 		}
 		return k8sResponse;
 	}
@@ -187,7 +191,9 @@ public class HttpK8SClientUtil {
 			k8sResponse.setStatus(statusCode);
 			HttpEntity entity = response.getEntity();
 			if (entity != null) {
-				String result = EntityUtils.toString(entity);
+				String charset = getContentCharSet(entity);
+				// 使用EntityUtils的toString方法，传递编码，默认编码是UTF-8
+				String result = EntityUtils.toString(entity, charset);
 				if (result.contains(Constant.HTTP_UNAUTHORIZED)) {
 					throw new K8sAuthException(Constant.HTTP_401);
 				}
@@ -297,7 +303,9 @@ public class HttpK8SClientUtil {
 			k8sResponse.setStatus(statusCode);
 			HttpEntity entity = response.getEntity();
 			if (entity != null) {
-				String result = EntityUtils.toString(entity);
+				String charset = getContentCharSet(entity);
+				// 使用EntityUtils的toString方法，传递编码，默认编码是UTF-8
+				String result = EntityUtils.toString(entity, charset);
 				if (result.contains(Constant.HTTP_UNAUTHORIZED)) {
 					throw new K8sAuthException(Constant.HTTP_401);
 				}
@@ -344,7 +352,6 @@ public class HttpK8SClientUtil {
 				HttpEntity entity = new StringEntity(
 						JsonUtil.objectToJson(params), "utf-8");
 				httpPut.setEntity(entity);
-				System.out.println(entity.toString());
 			}
 			httpClient = getHttpClient();
 			CloseableHttpResponse response = httpClient.execute(httpPut);
@@ -352,7 +359,9 @@ public class HttpK8SClientUtil {
 			k8sResponse.setStatus(statusCode);
 			HttpEntity entity = response.getEntity();
 			if (entity != null) {
-				String result = EntityUtils.toString(entity);
+				String charset = getContentCharSet(entity);
+				// 使用EntityUtils的toString方法，传递编码，默认编码是UTF-8
+				String result = EntityUtils.toString(entity, charset);
 				if (result.contains(Constant.HTTP_UNAUTHORIZED)) {
 					throw new K8sAuthException(Constant.HTTP_401);
 				}
@@ -406,7 +415,9 @@ public class HttpK8SClientUtil {
 			k8sResponse.setStatus(statusCode);
 			HttpEntity entity = response.getEntity();
 			if (entity != null) {
-				String result = EntityUtils.toString(entity);
+				String charset = getContentCharSet(entity);
+				// 使用EntityUtils的toString方法，传递编码，默认编码是UTF-8
+				String result = EntityUtils.toString(entity, charset);
 				if (result.contains(Constant.HTTP_UNAUTHORIZED)) {
 					throw new K8sAuthException(Constant.HTTP_401);
 				}

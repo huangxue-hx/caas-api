@@ -7,7 +7,24 @@
     <param-name>contextConfigLocation</param-name>
     <param-value>classpath:applicationContext.xml </param-value>
   </context-param>
-  <span style="white-space:pre">  </span><filter>  
+  <span style="white-space:pre">  </span>
+  <filter>
+    <filter-name>springSessionRepositoryFilter</filter-name>
+    <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+  </filter>
+  <filter-mapping>
+    <filter-name>springSessionRepositoryFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+  </filter-mapping>
+  <filter>
+    <filter-name>ssoFilter</filter-name>
+    <filter-class>com.harmonycloud.filters.SsoFilter</filter-class>
+  </filter>
+  <filter-mapping>
+    <filter-name>ssoFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+  </filter-mapping>
+  <filter>
         <filter-name>DruidWebStatFilter</filter-name>  
         <filter-class>com.alibaba.druid.support.http.WebStatFilter</filter-class>  
         <init-param>  
@@ -19,8 +36,6 @@
         <filter-name>DruidWebStatFilter</filter-name>  
         <url-pattern>/*</url-pattern>  
       </filter-mapping>
-
-
   <filter>
     <filter-name>httpFormFilter</filter-name>
     <filter-class>com.harmonycloud.interceptors.HttpFormContentFilter</filter-class>
@@ -47,11 +62,11 @@
     <url-pattern>/*</url-pattern>
   </filter-mapping>
   <filter>
-    <filter-name>springSessionRepositoryFilter</filter-name>
-    <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+    <filter-name>RequestFilter</filter-name>
+    <filter-class>com.harmonycloud.filters.SimpleWrappedFilter</filter-class>
   </filter>
   <filter-mapping>
-    <filter-name>springSessionRepositoryFilter</filter-name>
+    <filter-name>RequestFilter</filter-name>
     <url-pattern>/*</url-pattern>
   </filter-mapping>
   <servlet>
@@ -76,13 +91,33 @@
   <listener>
     <listener-class>org.springframework.web.context.request.RequestContextListener</listener-class>
   </listener>
-<!--   <filter>
-    <filter-name>RequestFilter</filter-name>
-    <filter-class>com.harmonycloud.filters.SimpleWrappedFilter</filter-class>
-  </filter>
-  <filter-mapping>
-    <filter-name>RequestFilter</filter-name>
-    <url-pattern>/*</url-pattern>
-  </filter-mapping> -->
-  
+  <session-config>
+    <session-timeout>480</session-timeout>
+  </session-config>
+  <security-role>
+    <role-name>r4devops</role-name>
+  </security-role>
+  <security-constraint>
+    <web-resource-collection>
+      <web-resource-name>HTTPAuthServlet</web-resource-name>
+      <url-pattern>/rest/msf/queryInstances</url-pattern>
+      <url-pattern>/rest/msf/tasks/*</url-pattern>
+      <url-pattern>/rest/cicdjobs/stage/*/result/*/testcallback</url-pattern>
+      <url-pattern>/rest/tenants/addProject</url-pattern>
+      <url-pattern>/rest/tenants/addUser</url-pattern>
+      <url-pattern>/rest/tenants/project/addUser</url-pattern>
+      <url-pattern>/rest/tenants/project/removeUser</url-pattern>
+      <http-method>DELETE</http-method>
+      <http-method>GET</http-method>
+      <http-method>POST</http-method>
+      <http-method>PUT</http-method>
+    </web-resource-collection>
+    <auth-constraint>
+      <role-name>r4devops</role-name>
+    </auth-constraint>
+  </security-constraint>
+  <login-config>
+    <auth-method>BASIC</auth-method>
+    <realm-name>Default</realm-name>
+  </login-config>
 </web-app>

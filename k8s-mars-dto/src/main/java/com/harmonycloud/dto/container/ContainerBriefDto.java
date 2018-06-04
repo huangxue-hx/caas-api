@@ -1,8 +1,12 @@
 package com.harmonycloud.dto.container;
 
+import java.util.List;
+
 public class ContainerBriefDto {
 
-	private String name;
+	private List<String> containers;
+
+	private List<String> pods;
 
 	private String deploymentName;
 
@@ -10,17 +14,20 @@ public class ContainerBriefDto {
 		super();
 	}
 
-	public ContainerBriefDto(String name, String deploymentName) {
-		this.name = name;
-		this.deploymentName = deploymentName;
+	public List<String> getContainers() {
+		return containers;
 	}
 
-	public String getName() {
-		return name;
+	public void setContainers(List<String> containers) {
+		this.containers = containers;
 	}
 
-	public void setName(String name) {
-		this.name = name;
+	public List<String> getPods() {
+		return pods;
+	}
+
+	public void setPods(List<String> pods) {
+		this.pods = pods;
 	}
 
 	public String getDeploymentName() {

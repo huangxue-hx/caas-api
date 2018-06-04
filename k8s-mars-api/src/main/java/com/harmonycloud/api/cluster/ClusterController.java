@@ -1,195 +1,155 @@
 package com.harmonycloud.api.cluster;
 
-import com.alibaba.fastjson.JSONObject;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.NodeList;
+import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.cluster.impl.ClusterTemplateServiceImpl;
 import com.harmonycloud.service.tenant.TenantService;
+import com.harmonycloud.service.user.UserService;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.util.StringUtils;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 import java.util.Map;
 
+import static com.harmonycloud.common.Constant.CommonConstant.COUNT;
+
 /**
  * dashboard
- * @author jmi
  *
+ * @author jmi
  */
 
 @RestController
+@RequestMapping(value = "/clusters")
 public class ClusterController {
-	
-	@Autowired
-	ClusterService clusterService;
 
-	@Autowired
-	TenantService tenantService;
+    @Autowired
+    ClusterService clusterService;
+    @Autowired
+    ClusterCacheManager clusterCacheManager;
+    @Autowired
+    TenantService tenantService;
+    @Autowired
+    UserService userService;
 
-	@Autowired
-	private com.harmonycloud.k8s.service.NodeService nodeService;
+    @Autowired
+    private com.harmonycloud.k8s.service.NodeService nodeService;
 
-	private Logger logger = LoggerFactory.getLogger(this.getClass());
+    private Logger logger = LoggerFactory.getLogger(this.getClass());
 
-
-	/**
-	 * 创建集群
-	 * @param cluster　集群对象
-	 * @return
-	 */
-	@ResponseBody
-	@RequestMapping(value="/clusters", method = RequestMethod.POST,headers="Accept=application/json")
-	public ActionReturnUtil addCluster(@RequestBody Cluster cluster) {
-
-		try {
-			logger.info("create cluster");
-			if (StringUtils.isEmpty(cluster)) {
-				return ActionReturnUtil.returnError();
-			}
-
-			return clusterService.addCluster(cluster);
-
-		} catch (Exception e) {
-			logger.error("Failed to create cluster.", e.getMessage());
-			return ActionReturnUtil.returnError();
-		}
-	}
-	
-	@ResponseBody
-	@RequestMapping(value = "/clusters", method = RequestMethod.GET)
-	public ActionReturnUtil listClusters() throws Exception{
-		
-		try {
-			logger.info("Get all clusters");
-			return clusterService.listClusters();
-		} catch (Exception e) {
-			e.printStackTrace();
-			logger.error("Failed to get all clusters"+e.getMessage());
-			return ActionReturnUtil.returnError();
-		}
-	}
-
-	@RequestMapping(value = "/clusters/list", method = RequestMethod.GET)
-	public ResponseEntity<List<Cluster>> listAllClusters() throws Exception{
-
-		try {
-			List<Cluster> clusters = clusterService.listCluster();
-			return new ResponseEntity(clusters, HttpStatus.OK);
-		} catch (Exception e) {
-			logger.error("Failed to get all clusters",e);
-			return new ResponseEntity(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
-		}
-	}
-
-
-	@ResponseBody
-    @RequestMapping(value = "/clusters/tenantOverView", method = RequestMethod.GET)
-    public ActionReturnUtil clusterListWithTenantOverView() throws Exception{
-        
-	    return clusterService.clusterListWithTenantOverView();
-    }
-
-	@ResponseBody
-	@RequestMapping(value = "/clusters/count", method = RequestMethod.GET)
-	public ActionReturnUtil clusterCounter() throws Exception{
-
-		try {
-			logger.info("Get  cluster count");
-			List<Cluster> list = clusterService.listCluster();
-			return ActionReturnUtil.returnSuccessWithMap("count", list.size()+"");
-		} catch (Exception e) {
-			e.printStackTrace();
-			logger.error("Failed to get cluster count"+e.getMessage());
-			return ActionReturnUtil.returnError();
-		}
-	}
-
-
-	@ResponseBody
-	@RequestMapping(value = "/clusters/getClusterBytenantId", method = RequestMethod.GET)
-	public ResponseEntity<Cluster>  getClusterBytenantId(@RequestParam(value = "tenantId") String tenantId){
-		try {
-			Cluster cluster = clusterService.findClusterByTenantId(tenantId);
-			logger.info("Get Cluster By tenantId:{},cluster:{}", tenantId, JSONObject.toJSONString(cluster));
-			return new ResponseEntity(cluster, HttpStatus.OK);
-		} catch (Exception e) {
-			logger.error("Failed to get Cluster By tenantId", e);
-			return new ResponseEntity(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
-		}
-	}
-	@RequestMapping(value = "/clusters/getTenantQuotaByClusterId")
-    public @ResponseBody ActionReturnUtil getTenantQuotaByClusterId(String clusterId) throws Exception {
-	    List<Map> tenantQuotaByClusterId = clusterService.getTenantQuotaByClusterId(clusterId);
-	    return ActionReturnUtil.returnSuccessWithData(tenantQuotaByClusterId);
-    }
-	
-	/**
-	 * cluster node 列表
-	 *
-	 * @return
-	 */
-	@RequestMapping(value = "/clusters/clusterNodeSize")
-	@ResponseBody
-	public ActionReturnUtil clusterNodeSize() throws Exception {
-
-		try {
-			List<Cluster> listCluster = this.clusterService.listCluster();
-			int nodeSize = 0;
-
-			if (null != listCluster && listCluster.size() > 0) {
-				for (Cluster cluster : listCluster) {
-					NodeList nodeList = nodeService.listNode(cluster);
-					if (null != nodeList && null != nodeList.getItems()) {
-						nodeSize += nodeList.getItems().size();
-					}
-				}
-			}
-			return ActionReturnUtil.returnSuccessWithMap("clusterNodeSize", nodeSize + "");
-		} catch (Exception e) {
-			e.printStackTrace();
-			logger.error("Failed to get cluster node size."+e.getMessage());
-			return ActionReturnUtil.returnErrorWithMsg("Failed to get cluster node size.");
-		}
-	}
-
-	/**
-	 * cluster domain
-	 *
-	 * @return
-	 */
+    @RequestMapping(method = RequestMethod.GET)
     @ResponseBody
-    @RequestMapping(value = "/cluster/getClusterDomain", method = RequestMethod.GET)
-    public ActionReturnUtil getClusterDomain()throws Exception {
-            try {
-                    logger.info("获取集群domain");
-                    return ActionReturnUtil.returnSuccessWithData(clusterService.find());
-            } catch (Exception e) {
-                    logger.error("获取集群domain错误"+",e="+e.getMessage());
-                    e.printStackTrace();
-                    throw e;
+    public ActionReturnUtil listCluster(@RequestParam(value = "dataCenter", required = false) String dataCenter,
+                                        @RequestParam(value = "includePlatformCluster", required = false) Boolean includePlatformCluster,
+                                        @RequestParam(value = "includeDisable", required = false) Boolean includeDisable ,
+                                        @RequestParam(value = "template", required = false) String template) throws Exception {
+        //默认查询enable的集群，如果传了includeDisable=true则包含disable的集群
+        Boolean isEnable = true;
+        if(includeDisable != null && includeDisable){
+            isEnable = null;
+        }
+        List<Cluster> clusters = clusterService.listCluster(dataCenter, isEnable, template);
+        if(includePlatformCluster != null && includePlatformCluster){
+            if(StringUtils.isBlank(dataCenter) || ClusterTemplateServiceImpl.DEFAULT_NAMESAPCE.equals(dataCenter)) {
+                clusters.add(clusterService.getPlatformCluster());
             }
+        }
+        return ActionReturnUtil.returnSuccessWithData(clusters);
     }
-    
+
+    @RequestMapping(value = "/{clusterId}", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getCluster(@PathVariable("clusterId") String clusterId) throws Exception {
+        return ActionReturnUtil.returnSuccessWithData(clusterService.findClusterById(clusterId));
+    }
+
+
+    @ResponseBody
+    @RequestMapping(value = "/count", method = RequestMethod.GET)
+    public ActionReturnUtil clusterCounter() throws Exception {
+        return ActionReturnUtil.returnSuccessWithMap(COUNT, String.valueOf(clusterService.listCluster().size()));
+    }
+
     /**
-	 * update cluster domain
-	 *
-	 * @return
-	 */
+     * 当cluster信息更新时，由cluster go controller触发刷新cluster缓存信息
+     *
+     * @return
+     * @throws Exception
+     */
     @ResponseBody
-    @RequestMapping(value = "/cluster/updateClusterDomain", method = RequestMethod.PUT)
-    public ActionReturnUtil updateOutService(@RequestParam(value="domain") final String domain)throws Exception {
-            try {
-            		logger.info("修改集群domain");
-                    return clusterService.updateDomain(domain);
-            } catch (Exception e) {
-                    logger.error("修改集群domain错误");
-                    e.printStackTrace();
-                    throw e;
-            }
+    @RequestMapping(value = "/cache", method = RequestMethod.PUT)
+    public ActionReturnUtil refreshClusterCache() throws Exception {
+        Map<String, Cluster> clusters = clusterCacheManager.initClusterCache();
+        if (CollectionUtils.isEmpty(clusters)) {
+            logger.warn("刷新cluster缓存，cluster信息为空");
+            return ActionReturnUtil.returnError();
+        } else {
+            logger.info("刷新cluster缓存成功，cluster size:{}", clusters.size());
+            return ActionReturnUtil.returnSuccess();
+        }
     }
+
+    /**
+     * cluster node 列表
+     *
+     * @return
+     */
+    @RequestMapping(value = "/clusterNodeSize")
+    @ResponseBody
+    public ActionReturnUtil clusterNodeSize() throws Exception {
+
+        try {
+            List<Cluster> listCluster = this.clusterService.listCluster();
+            int nodeSize = 0;
+
+            if (null != listCluster && listCluster.size() > 0) {
+                for (Cluster cluster : listCluster) {
+                    NodeList nodeList = nodeService.listNode(cluster);
+                    if (null != nodeList && null != nodeList.getItems()) {
+                        nodeSize += nodeList.getItems().size();
+                    }
+                }
+            }
+            return ActionReturnUtil.returnSuccessWithMap("clusterNodeSize", nodeSize + "");
+        } catch (Exception e) {
+            e.printStackTrace();
+            logger.error("Failed to get cluster node size." + e.getMessage());
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.QUERY_FAIL);
+        }
+    }
+
+    /**
+     * cluster domain
+     *
+     * @return
+     */
+    @ResponseBody
+    @RequestMapping(value = "/domain", method = RequestMethod.GET)
+    public ActionReturnUtil getClusterDomain(@RequestParam(value = "namespace") String namespace) throws Exception {
+        logger.info("获取集群domain");
+        return ActionReturnUtil.returnSuccessWithData(clusterService.findDomain(namespace));
+    }
+
+    /**
+     * 获取F5 IP
+     *
+     * @param namespace
+     * @return ActionReturnUtil
+     * @throws Exception
+     */
+    @ResponseBody
+    @RequestMapping(value = "/entry", method = RequestMethod.GET)
+    public ActionReturnUtil getEntry(@RequestParam(value = "namespace") String namespace) throws Exception {
+        logger.info("获取入口IP");
+        return ActionReturnUtil.returnSuccessWithData(clusterService.getEntry(namespace));
+    }
+
 }

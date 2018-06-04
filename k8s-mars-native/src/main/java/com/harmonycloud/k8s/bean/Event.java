@@ -1,11 +1,13 @@
 package com.harmonycloud.k8s.bean;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
  * @author qg
  *
  */
+@JsonInclude(value=JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Event extends BaseResource{
 	
@@ -24,6 +26,10 @@ public class Event extends BaseResource{
 	private Integer count;
 	
 	private String type;
+	
+	private String action;
+	
+	private String eventTime;
 
 	public ObjectReference getInvolvedObject() {
 		return involvedObject;
@@ -87,6 +93,22 @@ public class Event extends BaseResource{
 
 	public void setType(String type) {
 		this.type = type;
+	}
+
+	public String getAction() {
+		return action;
+	}
+
+	public void setAction(String action) {
+		this.action = action;
+	}
+
+	public String getEventTime() {
+		return eventTime;
+	}
+
+	public void setEventTime(String eventTime) {
+		this.eventTime = eventTime;
 	}
 	
 	

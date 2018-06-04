@@ -22,7 +22,7 @@ public class LogQueryDto{
     private Integer recentTimeNum;
     /**
      * 绝对时间区间查询方式 日志开始时间
-     * format: yyyy-MM-dd hh:mm:ss
+     * 宿主机时区format: yyyy-MM-dd hh:mm:ss / 零时区format: yyyy-MM-dd'T'HH:mm:ss'Z'
      */
     private String logTimeStart;
     /**
@@ -48,6 +48,10 @@ public class LogQueryDto{
     private String logSource;
 
     private String pod;
+
+    private String clusterId;
+
+    private String searchType;
 
     public String getNamespace() {
         return namespace;
@@ -176,5 +180,21 @@ public class LogQueryDto{
 
     public void setDeployment(String deployment) {
         this.deployment = deployment;
+    }
+
+    public String getClusterId() {
+        return clusterId;
+    }
+
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
+    }
+
+    public String getSearchType() {
+        return searchType;
+    }
+
+    public void setSearchType(String searchType) {
+        this.searchType = searchType;
     }
 }

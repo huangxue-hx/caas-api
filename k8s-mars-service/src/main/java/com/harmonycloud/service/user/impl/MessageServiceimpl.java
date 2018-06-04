@@ -5,6 +5,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.util.AssertUtil;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
@@ -65,10 +68,9 @@ public class MessageServiceimpl implements MessageService {
 
     @Override
     public void sendMessage(Integer id, List<String> mobiles, Map<String, String> params) throws Exception {
-        // 初始化判断
-        if (id == null || mobiles == null || mobiles.size() <= 0 || params == null) {
-            throw new MarsRuntimeException("id,mobiles,params不能为空!");
-        }
+        AssertUtil.notNull(id);
+        AssertUtil.notNull(params);
+        AssertUtil.notEmpty(mobiles, DictEnum.PHONE);
         Message message = this.getMessageById(id);
         // 发送验证码的请求路径URL
         String SERVER_URL = message.getServerUrl();
@@ -117,7 +119,7 @@ public class MessageServiceimpl implements MessageService {
         HttpResponse response = httpclient.execute(httpPost);
         String res = EntityUtils.toString(response.getEntity(), "utf-8");
         if (!res.contains("200")) {
-            throw new MarsRuntimeException("短信发送失败：" + res);
+            throw new MarsRuntimeException(ErrorCodeMessage.MESSAGE_SEND_ERROR ,res,false);
         }
     }
 

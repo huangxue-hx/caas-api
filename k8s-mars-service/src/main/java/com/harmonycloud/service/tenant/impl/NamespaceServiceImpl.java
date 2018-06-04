@@ -5,63 +5,54 @@ import static com.harmonycloud.common.enumm.RolebindingsEnum.DEV_RB;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
-import com.harmonycloud.dao.cluster.bean.Cluster;
-import com.harmonycloud.service.application.BusinessDeployService;
-import com.harmonycloud.service.application.BusinessService;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.*;
+import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.tenant.bean.NamespaceLocalExample;
+import com.harmonycloud.dto.tenant.ClusterQuotaDto;
+import com.harmonycloud.k8s.bean.*;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
+import com.harmonycloud.service.application.ApplicationDeployService;
+import com.harmonycloud.service.application.DaemonSetsService;
+import com.harmonycloud.service.application.SecretService;
 import com.harmonycloud.service.application.ServiceService;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.integration.MicroServiceService;
+import com.harmonycloud.service.platform.bean.NodeDto;
+import com.harmonycloud.service.platform.bean.PodDto;
+import com.harmonycloud.service.platform.service.PodService;
+import com.harmonycloud.service.tenant.*;
+import com.harmonycloud.service.user.UserService;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
 import com.harmonycloud.common.Constant.CommonConstant;
-import com.harmonycloud.common.enumm.HarborProjectRoleEnum;
 import com.harmonycloud.common.enumm.RolebindingsEnum;
 import com.harmonycloud.common.exception.K8sAuthException;
-import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.network.bean.NamespceBindSubnet;
-import com.harmonycloud.dao.network.bean.NetworkCalico;
 import com.harmonycloud.dao.network.bean.NetworkTopology;
-import com.harmonycloud.dao.tenant.TenantBindingMapper;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
-import com.harmonycloud.dao.tenant.bean.TenantBindingExample;
-import com.harmonycloud.dao.tenant.bean.UserTenant;
 import com.harmonycloud.dto.tenant.NamespaceDto;
-import com.harmonycloud.dto.tenant.NetworkDto;
 import com.harmonycloud.dto.tenant.QuotaDto;
 import com.harmonycloud.dto.tenant.SubnetDto;
 import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
 import com.harmonycloud.dto.tenant.show.QuotaDetailShowDto;
-import com.harmonycloud.dto.tenant.show.QuotaShowDto;
 import com.harmonycloud.dto.tenant.show.RolebindingShowDto;
-import com.harmonycloud.k8s.bean.Deployment;
-import com.harmonycloud.k8s.bean.DeploymentList;
-import com.harmonycloud.k8s.bean.LabelSelector;
-import com.harmonycloud.k8s.bean.Namespace;
-import com.harmonycloud.k8s.bean.NamespaceList;
-import com.harmonycloud.k8s.bean.ObjectMeta;
-import com.harmonycloud.k8s.bean.ObjectReference;
-import com.harmonycloud.k8s.bean.ResourceQuota;
-import com.harmonycloud.k8s.bean.ResourceQuotaList;
-import com.harmonycloud.k8s.bean.ResourceQuotaSpec;
-import com.harmonycloud.k8s.bean.ResourceQuotaStatus;
-import com.harmonycloud.k8s.bean.RoleBinding;
-import com.harmonycloud.k8s.bean.RoleBindingList;
-import com.harmonycloud.k8s.bean.Subjects;
-import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.k8s.service.NetworkPolicyService;
@@ -71,18 +62,8 @@ import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.platform.bean.NodeDetailDto;
 import com.harmonycloud.service.platform.service.DashboardService;
 import com.harmonycloud.service.platform.service.NodeService;
-import com.harmonycloud.service.tenant.NamespaceService;
-import com.harmonycloud.service.tenant.NetworkService;
-import com.harmonycloud.service.tenant.PrivatePartitionService;
-import com.harmonycloud.service.tenant.TenantBindingService;
-import com.harmonycloud.service.tenant.TenantService;
-import com.harmonycloud.service.tenant.UserTenantService;
 import com.harmonycloud.service.user.RoleService;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
+import org.springframework.util.CollectionUtils;
 
 /**
  * Created by andy on 17-1-20.
@@ -91,40 +72,52 @@ import javax.servlet.http.HttpSession;
 @Transactional(rollbackFor = Exception.class)
 public class NamespaceServiceImpl implements NamespaceService {
 
+    private Logger LOGGER = LoggerFactory.getLogger(NamespaceLocalService.class);
+
     @Autowired
-    ResourceQuotaService resourceQuotaService;
+    private ResourceQuotaService resourceQuotaService;
     @Autowired
-    ServiceService serviceService;
+    private ServiceService serviceService;
     @Autowired
-    BusinessDeployService businessDeployService;
+    private ApplicationDeployService applicationDeployService;
     @Autowired
-    com.harmonycloud.k8s.service.NamespaceService namespaceService;
+    private com.harmonycloud.k8s.service.NamespaceService namespaceService;
     @Autowired
-    TenantBindingService tenantBindingService;
+    private RoleBindingService roleBindingService;
     @Autowired
-    RoleBindingService roleBindingService;
+    private TenantService tenantService;
     @Autowired
-    TenantService tenantService;
-    @Autowired
-    RoleService roleService;
+    private RoleService roleService;
     @Autowired
     private DeploymentService deploymentService;
     @Autowired
-    NetworkService networkService;
+    private NetworkService networkService;
     @Autowired
-    NetworkPolicyService networkPolicyService;
+    private NetworkPolicyService networkPolicyService;
+
     @Autowired
-    UserTenantService userTenantService;
+    private ClusterService clusterService;
     @Autowired
-    TenantBindingMapper tenantBindingMapper;
+    private PrivatePartitionService privatePartitionService;
     @Autowired
-    ClusterService clusterService;
+    private NodeService nodeService;
     @Autowired
-    PrivatePartitionService privatePartitionService;
+    private DashboardService dashboardService;
     @Autowired
-    NodeService nodeService;
+    private NamespaceLocalService namespaceLocalService;
     @Autowired
-    DashboardService dashboardService;
+    private TenantClusterQuotaService tenantClusterQuotaService;
+    @Autowired
+    private SecretService secretService;
+    @Autowired
+    private UserService userService;
+    @Autowired
+    private PodService podService;
+    @Autowired
+    private DaemonSetsService daemonSetsService;
+
+    @Autowired
+    private MicroServiceService microServiceService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -133,305 +126,392 @@ public class NamespaceServiceImpl implements NamespaceService {
     private static final String HARBOR = "harbor";
 
     private static final String QUOTA = "quota";
+    private static final String ISPRIVATE = "isPrivate";
+    private static final String PRIVATENODELIST = "privateNodeList";
+    private static final String CREATETIME = "createTime";
+    private static final String PHASE = "phase";
 
-    private ActionReturnUtil checkQuota(Cluster cluster, NamespaceDto namespaceDto) throws Exception {
-        Map<String, Object> clusterInfo = dashboardService.getInfraInfoWorkNode(cluster);
-        String cpu = clusterInfo.get(CommonConstant.CPU).toString();
-        String memory = clusterInfo.get(CommonConstant.MEMORY).toString();
-        Map quotaByClusterId = tenantService.getTenantQuotaByClusterId(cluster.getId().toString());
-        double memoryUse = (double) quotaByClusterId.get(CommonConstant.MEMORY);
-        double cpuUse = (double) quotaByClusterId.get(CommonConstant.CPU);
-        String memoryUsedType = quotaByClusterId.get(CommonConstant.USEDTYPE).toString();
-        switch (memoryUsedType) {
+    //检查配额的有效值
+    private void checkQuota(Cluster cluster, NamespaceDto namespaceDto) throws Exception {
+        Lock lock = new ReentrantLock();
+        lock.lock();
+        try{
+            //获取集群配额
+            List<ClusterQuotaDto> clusterQuotaDtos = this.tenantClusterQuotaService.
+                    listClusterQuotaByTenantid(namespaceDto.getTenantId(), cluster.getId());
+            if (CollectionUtils.isEmpty(clusterQuotaDtos)) {
+                throw new MarsRuntimeException(ErrorCodeMessage.UNKNOWN);
+            }
+            ClusterQuotaDto clusterQuotaDto = clusterQuotaDtos.get(0);
+            if (clusterQuotaDto.getTotalMomry() == 0d || clusterQuotaDto.getTotalCpu() == 0d) {
+                throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_RESOURCE_NOT_ZERO);
+            }
+            double cpuQuota = clusterQuotaDto.getCpuQuota();
+            double memoryQuota = clusterQuotaDto.getMemoryQuota();
+            String memoryQuotaType = clusterQuotaDto.getMemoryQuotaType();
+            double usedCpu = clusterQuotaDto.getUsedCpu();
+            double usedMemory = clusterQuotaDto.getUsedMemory();
+            String usedMemoryType = clusterQuotaDto.getUsedMemoryType();
+            //内存配额转换统一内存为MB
+            memoryQuota = this.transformValue(memoryQuota, memoryQuotaType);
+            //使用内存转换统一内存为MB
+            usedMemory = this.transformValue(usedMemory, usedMemoryType);
+
+            double canCpu = 0.0;
+            double usedCpuNs = 0.0;
+            double usedCpuQuotaNs = 0.0;
+            Map<String, Object> namespaceQuota = null;
+            if (!namespaceDto.getUpdate()) {
+                //第一次配额
+                canCpu = Double.parseDouble(namespaceDto.getQuota().getCpu());
+            } else {
+                namespaceQuota = getNamespaceQuota(namespaceDto.getName());
+                //修改cpu配额
+                List<String> cpu = (List<String>) namespaceQuota.get(CommonConstant.CPU);
+                namespaceDto.setLastCpu(cpu.get(CommonConstant.NUM_ONE));
+                canCpu = Double.parseDouble(namespaceDto.getQuota().getCpu()) - Double.parseDouble(cpu.get(0));
+                usedCpuQuotaNs = Double.parseDouble(namespaceDto.getQuota().getCpu());
+                usedCpuNs = Double.parseDouble(cpu.get(CommonConstant.NUM_ONE));
+
+            }
+            //检查cpu配额
+            checkResource(canCpu, cpuQuota - usedCpu, usedCpuNs,usedCpuQuotaNs, CommonConstant.DEFAULT);
+
+            List<String> laseUsedMemory = null;
+            String laseUsedMemoryType = null;
+            String laseHardMemoryType = null;
+            //检查内存配额
+            if (memoryQuota != 0) {
+                double canMemory = 0d;
+                double usedMemoryNs = 0d;
+                double usedMemoryQuotaNs = 0d;
+                if (namespaceDto.getQuota().getMemory().contains(CommonConstant.MI)) {
+                    String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.MI);
+                    if (!namespaceDto.getUpdate()) {
+                        canMemory = (Double.parseDouble(splitMemory[0]));
+                    } else {
+                        //更新内存配额
+                        laseUsedMemory = (List<String>) namespaceQuota.get(CommonConstant.MEMORY);
+                        laseUsedMemoryType = (String) namespaceQuota.get(CommonConstant.HARDTYPE);
+                        double parseDouble = Double.parseDouble(laseUsedMemory.get(0));
+                        double lasetUsedMemory = this.transformValue(parseDouble, laseUsedMemoryType);
+//                        usedMemory = lasetUsedMemory;
+                        canMemory = (Double.parseDouble(splitMemory[0]) - lasetUsedMemory);
+                        usedMemoryQuotaNs = Double.parseDouble(splitMemory[0]);
+                        usedMemoryNs = Double.parseDouble(laseUsedMemory.get(CommonConstant.NUM_ONE));
+                    }
+                    checkResource(canMemory, memoryQuota - usedMemory, usedMemoryNs,usedMemoryQuotaNs, CommonConstant.MI);
+                } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.GI)) {
+                    String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.GI);
+                    if (!namespaceDto.getUpdate()) {
+                        canMemory = (Double.parseDouble(splitMemory[0])) * CommonConstant.NUM_SIZE_MEMORY;
+                    } else {
+                        //更新内存配额
+                        laseUsedMemory = (List<String>) namespaceQuota.get(CommonConstant.MEMORY);
+                        laseUsedMemoryType = (String) namespaceQuota.get(CommonConstant.HARDTYPE);
+                        double parseDouble = Double.parseDouble(laseUsedMemory.get(0));
+                        double lasetUsedMemory = this.transformValue(parseDouble, laseUsedMemoryType);
+//                        usedMemory = lasetUsedMemory;
+                        canMemory = (Double.parseDouble(splitMemory[0]) * CommonConstant.NUM_SIZE_MEMORY - lasetUsedMemory);
+                        usedMemoryQuotaNs = Double.parseDouble(splitMemory[0]) * CommonConstant.NUM_SIZE_MEMORY;
+                        laseHardMemoryType = (String) namespaceQuota.get(CommonConstant.HARDTYPE);
+                        usedMemoryNs = this.transformValue(Double.parseDouble(laseUsedMemory.get(CommonConstant.NUM_ONE)), laseHardMemoryType);
+                    }
+                    checkResource(canMemory, memoryQuota - usedMemory, usedMemoryNs,usedMemoryQuotaNs, CommonConstant.GI);
+                } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.TI)) {
+                    String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.TI);
+                    if (!namespaceDto.getUpdate()) {
+                        canMemory = (Double.parseDouble(splitMemory[0])) *
+                                CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY;
+                    } else {
+                        //更新内存配额
+                        laseUsedMemory = (List<String>) namespaceQuota.get(CommonConstant.MEMORY);
+                        laseUsedMemoryType = (String) namespaceQuota.get(CommonConstant.HARDTYPE);
+                        double parseDouble = Double.parseDouble(laseUsedMemory.get(0));
+                        double lasetUsedMemory = this.transformValue(parseDouble, laseUsedMemoryType);
+//                        usedMemory = lasetUsedMemory;
+                        canMemory = (Double.parseDouble(splitMemory[0]) *
+                                CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY - lasetUsedMemory);
+                        usedMemoryQuotaNs = Double.parseDouble(splitMemory[0]) * CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY;
+                        laseHardMemoryType = (String) namespaceQuota.get(CommonConstant.HARDTYPE);
+                        usedMemoryNs = this.transformValue(Double.parseDouble(laseUsedMemory.get(CommonConstant.NUM_ONE)), laseHardMemoryType);
+                    }
+                    checkResource(canMemory, memoryQuota - usedMemory, usedMemoryNs,usedMemoryQuotaNs, CommonConstant.TI);
+                } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.PI)) {
+                    String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.PI);
+                    if (!namespaceDto.getUpdate()) {
+                        canMemory = (Double.parseDouble(splitMemory[0])) * Math.pow(CommonConstant.NUM_SIZE_MEMORY, CommonConstant.NUM_THREE);
+                    } else {
+                        //更新内存配额
+                        laseUsedMemory = (List<String>) namespaceQuota.get(CommonConstant.MEMORY);
+                        laseUsedMemoryType = (String) namespaceQuota.get(CommonConstant.HARDTYPE);
+                        double parseDouble = Double.parseDouble(laseUsedMemory.get(0));
+                        double lasetUsedMemory = this.transformValue(parseDouble, laseUsedMemoryType);
+//                        usedMemory = lasetUsedMemory;
+                        canMemory = (Double.parseDouble(splitMemory[0]) *
+                                Math.pow(CommonConstant.NUM_SIZE_MEMORY, CommonConstant.NUM_THREE) - lasetUsedMemory);
+                        usedMemoryQuotaNs = Double.parseDouble(splitMemory[0]) * Math.pow(CommonConstant.NUM_SIZE_MEMORY, CommonConstant.NUM_THREE);
+                        laseHardMemoryType = (String) namespaceQuota.get(CommonConstant.HARDTYPE);
+                        usedMemoryNs = this.transformValue(Double.parseDouble(laseUsedMemory.get(CommonConstant.NUM_ONE)), laseHardMemoryType);
+                    }
+                    checkResource(canMemory, memoryQuota - usedMemory, usedMemoryNs,usedMemoryQuotaNs, CommonConstant.TI);
+                }
+            }
+        }finally {
+            lock.unlock();
+        }
+    }
+    private double transformValue(double usedMemory ,String type){
+        double value = 0d;
+        switch (type) {
             case CommonConstant.MB :
-                memoryUse = memoryUse * 1024;
+                value = usedMemory;
                 break;
             case CommonConstant.GB :
-                memoryUse = memoryUse * 1024 * 1024;
+                value = usedMemory * CommonConstant.NUM_SIZE_MEMORY;
                 break;
             case CommonConstant.TB :
-                memoryUse = memoryUse * 1024 * 1024 * 1024;
+                value = usedMemory * Math.pow(CommonConstant.NUM_SIZE_MEMORY,CommonConstant.NUM_TWO);
                 break;
             case CommonConstant.PB :
-                memoryUse = memoryUse * 1024 * 1024 * 1024 * 1024;
+                value = usedMemory * Math.pow(CommonConstant.NUM_SIZE_MEMORY,CommonConstant.NUM_THREE);
                 break;
+            default :
+                throw new MarsRuntimeException(ErrorCodeMessage.INVALID_MEMORY_UNIT_TYPE);
         }
-        double canCpu = 0.0;
-        if (namespaceDto.getLastlastcpu() == null) {
-            canCpu = Double.parseDouble(namespaceDto.getQuota().getCpu());
-        } else {
-            canCpu = Double.parseDouble(namespaceDto.getQuota().getCpu()) - Double.parseDouble(namespaceDto.getLastlastcpu());
-        }
-        ActionReturnUtil aDefault = checkResource(canCpu, cpu, cpuUse, "default");
-        if (aDefault != null){
-            return aDefault;
-        }
-        NumberFormat nf = NumberFormat.getNumberInstance();
-        // 保留两位小数
-        nf.setMaximumFractionDigits(2); 
-        if (memory != null) {
-            double canMemory = 0.0;
-            if (namespaceDto.getQuota().getMemory().contains(CommonConstant.MI)) {
-                String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.MI);
-                if (namespaceDto.getLastlastmemory() == null) {
-                    canMemory = (Double.parseDouble(splitMemory[0])) * 1024;
-                } else {
-                    canMemory = (Double.parseDouble(splitMemory[0]) - Double.parseDouble(namespaceDto.getLastlastmemory())) * 1024;
-                }
-                aDefault = checkResource(canMemory, memory, memoryUse, CommonConstant.MI);
-                if (aDefault != null){
-                    return aDefault;
-                }
-            } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.GI)) {
-                String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.GI);
-                if (namespaceDto.getLastlastmemory() == null) {
-                    canMemory = (Double.parseDouble(splitMemory[0])) * 1024 * 1024;
-                } else {
-                    canMemory = (Double.parseDouble(splitMemory[0]) - Double.parseDouble(namespaceDto.getLastlastmemory())) * 1024 * 1024;
-                }
-                aDefault = checkResource(canMemory, memory, memoryUse, CommonConstant.GI);
-                if (aDefault != null){
-                    return aDefault;
-                }
-            } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.TI)) {
-                String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.TI);
-                if (namespaceDto.getLastlastmemory() == null) {
-                    canMemory = (Double.parseDouble(splitMemory[0])) * 1024 * 1024 * 1024;
-                } else {
-                    canMemory = (Double.parseDouble(splitMemory[0]) - Double.parseDouble(namespaceDto.getLastlastmemory())) * 1024 * 1024 * 1024;
-                }
-                aDefault = checkResource(canMemory, memory, memoryUse, CommonConstant.TI);
-                if (aDefault != null){
-                    return aDefault;
-                }
-            } else if (namespaceDto.getQuota().getMemory().contains(CommonConstant.PI)) {
-                String[] splitMemory = namespaceDto.getQuota().getMemory().split(CommonConstant.PI);
-                if (namespaceDto.getLastlastmemory() == null) {
-                    canMemory = (Double.parseDouble(splitMemory[0])) * 1024 * 1024 * 1024 * 1024;
-                } else {
-                    canMemory = (Double.parseDouble(splitMemory[0]) - Double.parseDouble(namespaceDto.getLastlastmemory())) * 1024 * 1024 * 1024 * 1024;
-                }
-                aDefault = checkResource(canMemory, memory, memoryUse, CommonConstant.PI);
-                if (aDefault != null){
-                    return aDefault;
-                }
-            }
-        }
-        return ActionReturnUtil.returnSuccess();
+        return value;
     }
     //检查资源是否可用和主机资源保持算法一直
-    private ActionReturnUtil checkResource(double can,String resource,double use,String type) throws Exception {
+    private void checkResource(double can,double resource,double use,double usedQuotaNs,String type) throws Exception {
         NumberFormat nf = NumberFormat.getNumberInstance();
-        double fomatResource = new BigDecimal(resource).setScale(1, BigDecimal.ROUND_HALF_UP).doubleValue();
-        if (resource!=null && can > 0 && (fomatResource - can - use) < 0) {
-            if (Double.parseDouble(resource) - can - use < -0.1){
-                switch (type){
-                    case CommonConstant.MI:
-                        return ActionReturnUtil.returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((fomatResource - use) / 1024) + "MB");
-                    case CommonConstant.GI:
-                        return ActionReturnUtil.returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((fomatResource - use) / (1024 * 1024)) + "GB");
-                    case CommonConstant.TI:
-                        return ActionReturnUtil
-                                .returnErrorWithMsg("memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((fomatResource - use) / (1024 * 1024 * 1024)) + "TB");
-                    case CommonConstant.PI:
-                        return ActionReturnUtil.returnErrorWithMsg(
-                                "memory配额超过集群可使用配额,集群可使用配额为:" + nf.format((fomatResource / 1024 / 1024 / 1024 / 1024 - use) / (1024 * 1024 * 1024 * 1024)) + "PB");
-                    default:
-                        return ActionReturnUtil.returnErrorWithMsg("cpu配额超过集群可使用配额,集群可使用配额为:" + (fomatResource - use) + "核");
-                }
-
-            }
-
+        nf.setGroupingUsed(false);
+        nf.setMaximumFractionDigits(1);
+        nf.setRoundingMode(RoundingMode.HALF_UP);
+//        double fomatResource = new BigDecimal(resource).setScale(CommonConstant.NUM_ONE, BigDecimal.ROUND_HALF_UP).doubleValue();double pow = Math.pow(2, 10);Math.pow(CommonConstant.NUM_SIZE_MEMORY,CommonConstant.NUM_THREE)
+        if (usedQuotaNs < use){
+            throw new MarsRuntimeException(ErrorCodeMessage.RESOURCE_OVER_FLOOR);
         }
-        return null;
+        if ((resource - can) < - 0.1) {
+            switch (type){
+                case CommonConstant.MI:
+                    throw new MarsRuntimeException(ErrorCodeMessage.MEMORY_QUOTA_OVER_FLOOR,nf.format(-(resource - can - use)) + "MB",Boolean.FALSE);
+                case CommonConstant.GI:
+                    throw new MarsRuntimeException(ErrorCodeMessage.MEMORY_QUOTA_OVER_FLOOR,nf.format(-(resource - can - use)/ CommonConstant.NUM_SIZE_MEMORY ) + "GB",Boolean.FALSE);
+                case CommonConstant.TI:
+                    throw new MarsRuntimeException(ErrorCodeMessage.MEMORY_QUOTA_OVER_FLOOR,nf.format(-(resource - can - use)/ Math.pow(CommonConstant.NUM_SIZE_MEMORY,CommonConstant.NUM_TWO))  + "TB",Boolean.FALSE);
+                case CommonConstant.PI:
+                    throw new MarsRuntimeException(ErrorCodeMessage.MEMORY_QUOTA_OVER_FLOOR,nf.format(-(resource - can - use)/ Math.pow(CommonConstant.NUM_SIZE_MEMORY,CommonConstant.NUM_THREE)) + "PB",Boolean.FALSE);
+                default:
+                    throw new MarsRuntimeException(ErrorCodeMessage.CPU_QUOTA_OVER_FLOOR,nf.format(-(resource - can - use)) + "Core",Boolean.FALSE);
+            }
+        }
+    }
+    //计算预留资源
+    private Map<String,Double> computeRemainResource(List<DaemonSet> daemonSets,List<PodDto> podList) throws Exception{
+        double remainCpu = 0;
+        double remainMemory = 0;
+        Map<String,Double> result= new HashMap<>();
+        if (!org.springframework.util.CollectionUtils.isEmpty(daemonSets)){
+            //DaemonSet数量极少循环数量10以内 TODO 未调试
+            for (DaemonSet daemonSet: daemonSets) {
+                String daemonSetName = daemonSet.getMetadata().getName();
+                //判断节点pod上是否包含该daemonset
+                long count = podList.stream().filter(podDto -> podDto.getName().contains(daemonSetName)).count();
+                if (count > 0){
+                    List<Container> containers = daemonSet.getSpec().getTemplate().getSpec().getContainers();
+                    if (!org.springframework.util.CollectionUtils.isEmpty(containers)){
+                        for (Container container: containers) {
+                            //确定request的值
+                            Object requests = container.getResources().getRequests();
+                            if (null == requests){
+                                requests = container.getResources().getLimits();
+                            }
+                            if (null == requests){
+                                continue;
+                            }
+                            Map<String,Object> map = (Map<String,Object>)requests;
+                            //转换cpu的数值 添加到预留资源中
+                            Object cpu = map.get(CommonConstant.CPU);
+                            Object memory = map.get(CommonConstant.MEMORY);
+                            if (!Objects.isNull(cpu)){
+                                String cpuStr = cpu.toString();
+                                remainCpu += cpuStr.contains(CommonConstant.SMALLM) ? Double.valueOf(cpuStr.split(CommonConstant.SMALLM)[0])/CommonConstant.NUM_THOUSAND:Double.valueOf(cpuStr);
+                            }
+                            //转换memory的数值 添加到预留资源中
+                            if (!Objects.isNull(memory)){
+                                String memoryStr = memory.toString();
+                                if (memoryStr.contains(CommonConstant.MI)){
+                                    Double mem = Double.valueOf(memoryStr.split(CommonConstant.MI)[0]);
+                                    remainMemory += this.transformMemoryToGb(mem, CommonConstant.MB);
+                                }else if (memoryStr.contains(CommonConstant.GI)){
+                                    Double mem = Double.valueOf(memoryStr.split(CommonConstant.GI)[0]);
+                                    remainMemory += this.transformMemoryToGb(mem, CommonConstant.GB);
+                                }else if (memoryStr.contains(CommonConstant.TI)){
+                                    Double mem = Double.valueOf(memoryStr.split(CommonConstant.TI)[0]);
+                                    remainMemory += this.transformMemoryToGb(mem, CommonConstant.TB);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        result.put(CommonConstant.CPU,remainCpu);
+        result.put(CommonConstant.MEMORY,remainMemory);
+        return result;
     }
     @Override
     public ActionReturnUtil createNamespace(NamespaceDto namespaceDto) throws Exception {
+        String namespace = namespaceDto.getName();
+        String clusterId = namespaceDto.getClusterId();
         // 初始化判断1
-        if (StringUtils.isEmpty(namespaceDto.getName()) || StringUtils.isEmpty(namespaceDto.getTenantid())) {
-            return ActionReturnUtil.returnErrorWithMsg("分区名字，租户id 不能为空");
+        if (StringUtils.isEmpty(namespace)
+                || StringUtils.isEmpty(namespaceDto.getTenantId())
+                || Objects.isNull(clusterId)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         // 初始化判断2
         if (!namespaceDto.isPrivate()
-                && (namespaceDto.getQuota() == null || StringUtils.isEmpty(namespaceDto.getQuota().getCpu()) || StringUtils.isEmpty(namespaceDto.getQuota().getMemory()))) {
-            return ActionReturnUtil.returnErrorWithMsg("分区的限额cpu，内存不能为空");
+                && (namespaceDto.getQuota() == null
+                    || StringUtils.isEmpty(namespaceDto.getQuota().getCpu())
+                    || StringUtils.isEmpty(namespaceDto.getQuota().getMemory()))) {
+            throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_QUOTA_NOT_BLANK);
         }
         // 初始化判断3
-        if (namespaceDto.isPrivate() && StringUtils.isEmpty(namespaceDto.getNodename())) {
-            return ActionReturnUtil.returnErrorWithMsg("如果为私有分区，nodename不能为空");
+        if (namespaceDto.isPrivate() && StringUtils.isEmpty(namespaceDto.getNodeName())) {
+            throw new MarsRuntimeException(ErrorCodeMessage.NODENAME_NOT_BLANK);
         }
-        // 查询分区是否已经存在
+
         // 查询namespace详情
-        Cluster cluster = this.getClusterByTenantid(namespaceDto.getTenantid());
+        Cluster cluster = clusterService.findClusterById(namespaceDto.getClusterId());
+        //集群有效值查询
+        if (Objects.isNull(cluster)){
+            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+        }
+        //分区有效值判断
+        NamespaceLocal namespaceByName = this.namespaceLocalService.getNamespaceByName(namespace);
+
+        if (!Objects.isNull(namespaceByName)){
+            throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_EXIST,namespace,Boolean.TRUE);
+        }
+        //分区别名检查
+        NamespaceLocal namespaceByAliasName = this.namespaceLocalService.getNamespaceByAliasName(namespaceDto.getAliasName());
+        if (!Objects.isNull(namespaceByAliasName)){
+            throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_EXIST,namespaceDto.getAliasName(),Boolean.TRUE);
+        }
+
+        if(!namespaceDto.isPrivate()){
+            //检查分区分配的配额是否超出可用值
+            this.checkQuota(cluster, namespaceDto);
+        }
+        //处理独占节点配额，配额如果有小数点，处理配额小数点
         if (namespaceDto.isPrivate()) {
             QuotaDto quota2 = namespaceDto.getQuota();
-            String nodename = namespaceDto.getNodename();
-            if(StringUtils.isEmpty(nodename)){
-                return ActionReturnUtil.returnErrorWithMsg("nodename不能为空!");
-            }
+            String nodename = namespaceDto.getNodeName();
             String[] nodenames = nodename.split(CommonConstant.COMMA);
+            Map<String,Object> mapNode = new HashMap<>();
+            //一次性分配给分区独占节点数量极少循环数量10以内
             for (String name : nodenames) {
-                Map node = nodeService.getNode(name, cluster);
-                NodeDetailDto nodeDetail = (NodeDetailDto) node.get(CommonConstant.DATA);
-                if (nodeDetail == null && StringUtils.isEmpty(nodeDetail.getCpu())) {
-                    return ActionReturnUtil.returnErrorWithMsg("获取node:" + name + "信息错误");
+                //去掉前端重复的nodename
+                if (Objects.isNull(mapNode.get(name))){
+                    Map node = nodeService.getNodeDetail(name, cluster);
+                    //获取当前节点上运行的pod列表
+                    List<PodDto> podList = podService.PodList(name, cluster);
+                    List<DaemonSet> daemonSets = daemonSetsService.listDaemonSets(cluster);
+                    //获取daemonset占用节点资源
+                    double remainCpu = 0;
+                    double remainMemory = 0;
+                    Map<String, Double> remainResource = this.computeRemainResource(daemonSets, podList);
+                    remainCpu = remainResource.get(CommonConstant.CPU);
+                    remainMemory = remainResource.get(CommonConstant.MEMORY);
+                    NodeDetailDto nodeDetail = (NodeDetailDto) node.get(CommonConstant.DATA);
+                    if (nodeDetail == null && StringUtils.isEmpty(nodeDetail.getCpu())) {
+                        throw new MarsRuntimeException(ErrorCodeMessage.NODE_NOT_EXIST);
+                    }
+                    //处理空对象
+                    if (Objects.isNull(quota2)){
+                        quota2 = new QuotaDto();
+                    }
+                    //获取
+                    Double oldCpuValue = (quota2.getCpu()==null)?0d:(quota2.getCpu().contains(CommonConstant.SMALLM)?(Double.parseDouble(quota2.getCpu().split(CommonConstant.SMALLM)[0])/1000):Double.parseDouble(quota2.getCpu()));
+                    quota2.setCpu(oldCpuValue + (nodeDetail.getCpu().contains(CommonConstant.SMALLM)?(Double.parseDouble(nodeDetail.getCpu().split(CommonConstant.SMALLM)[0])/1000):Double.parseDouble(nodeDetail.getCpu()) - remainCpu)+"");
+                    Double oldMemoryValue = quota2.getMemory()==null?0d:Double.parseDouble(quota2.getMemory().split(CommonConstant.GI)[0]);
+                    quota2.setMemory((Double.parseDouble(nodeDetail.getMemory()) + oldMemoryValue - remainMemory)+ CommonConstant.GI);
+                    mapNode.put(name,name);
                 }
-                Double oldCpuValue = quota2.getCpu()==null?0d:(quota2.getCpu().contains(CommonConstant.SMALLM)?(Double.parseDouble(quota2.getCpu().split(CommonConstant.SMALLM)[0])/1000):Double.parseDouble(quota2.getCpu()));
-                quota2.setCpu(oldCpuValue + (nodeDetail.getCpu().contains(CommonConstant.SMALLM)?(Double.parseDouble(nodeDetail.getCpu().split(CommonConstant.SMALLM)[0])/1000):Double.parseDouble(nodeDetail.getCpu()))+"");
-                Double oldMemoryValue = quota2.getMemory()==null?0d:Double.parseDouble(quota2.getMemory().split(CommonConstant.GI)[0]);
-                quota2.setMemory((Double.parseDouble(nodeDetail.getMemory()) + oldMemoryValue)+ CommonConstant.GI);
             }
             
             namespaceDto.setQuota(quota2);
         }
 
-        K8SClientResponse namespaceResponse = namespaceService.getNamespace(namespaceDto.getName(), null, null, cluster);
-        Map<String, Object> convertJsonToMap = JsonUtil.convertJsonToMap(namespaceResponse.getBody());
-        String metadata = convertJsonToMap.get(CommonConstant.METADATA).toString();
-        if (!CommonConstant.EMPTYMETADATA.equals(metadata)) {
-            logger.error("namespace=" + namespaceDto.getName() + " 已经存在");
-            return ActionReturnUtil.returnErrorWithMsg("namespace=" + namespaceDto.getName() + " 已经存在");
-        }
-        // Map<String, Object> clusterInfo =
-        // dashboardService.getInfraInfo(cluster);
-        if(!namespaceDto.isPrivate()){
-            ActionReturnUtil checkQuota = checkQuota(cluster, namespaceDto);
-            if ((Boolean) checkQuota.get(CommonConstant.SUCCESS) == false) {
-                return checkQuota;
-            }
-        }
-        
-        List<NetworkCalico> networkList = networkService.getnetworkbyTenantid(namespaceDto.getTenantid());
-        if (networkList.size() != 1) {
-            return ActionReturnUtil.returnErrorWithMsg("租户信息有错，请检查");
-        }
 
-        // 1创建分区网络
-        NetworkCalico networkCalico = networkList.get(0);
-        String networkid = networkCalico.getNetworkid();
-        String networkname = networkCalico.getNetworkname();
-        String subnetname = networkname + "_subnet_" + namespaceDto.getName();
-        String subnetId = null;
-        try {
-            ActionReturnUtil subnetworkCreate = networkService.subnetworkCreate(networkid, subnetname);
-            if ((Boolean) subnetworkCreate.get(CommonConstant.SUCCESS) == false) {
-                return subnetworkCreate;
-            }
-            subnetId = ((NamespceBindSubnet) subnetworkCreate.get(CommonConstant.DATA)).getSubnetId();
-        } catch (Exception e) {
-            if (e instanceof K8sAuthException) {
-                throw e;
-            }
-            logger.error("创建分区网络失败，错误原因：" + e.getMessage());
-            return ActionReturnUtil.returnErrorWithMsg("创建分区网络失败，请检查");
-        }
-
-        // 向namespaceDto赋值
-        NetworkDto network = new NetworkDto();
-        network.setNetworkid(networkid);
-        network.setName(networkname);
-        SubnetDto subnet = new SubnetDto();
-        subnet.setSubnetid(subnetId);
-        subnet.setSubnetname(subnetname);
-        network.setSubnet(subnet);
-        namespaceDto.setNetwork(network);
         // 2.创建namespace
-        try {
-            ActionReturnUtil createNResult = this.create(namespaceDto, cluster);
-            if ((Boolean) createNResult.get(CommonConstant.SUCCESS) == false) {
-                // 失败回滚
-                this.rollbackNetwork(subnetId);
-                networkService.subnetworkDelete(subnetId);
-                return createNResult;
-            }
-        } catch (Exception e) {
-            // 失败回滚
-            this.rollbackNetwork(subnetId);
-            if (e instanceof K8sAuthException) {
-                throw e;
-            }
-            logger.error("创建namespace失败，错误原因：" + e.getMessage());
-            return ActionReturnUtil.returnErrorWithMsg("创建namespace失败，错误原因：" + e.getMessage());
-        }
+        this.create(namespaceDto, cluster);
 
         // 3.创建resource quota
         try {
             ActionReturnUtil createRResult = this.createQuota(namespaceDto, cluster);
             if ((Boolean) createRResult.get(CommonConstant.SUCCESS) == false) {
                 // 失败回滚
-                this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
+                this.rollbackNetworkAndNamespace(namespaceDto.getTenantId(), namespaceDto.getName(),clusterId);
                 return createRResult;
             }
         } catch (Exception e) {
             // 失败回滚
-            this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
+            this.rollbackNetworkAndNamespace( namespaceDto.getTenantId(), namespaceDto.getName(),clusterId);
+            logger.error("创建resource quota，错误原因：" + e.getMessage(),e);
             if (e instanceof K8sAuthException) {
                 throw e;
             }
-            logger.error("创建resource quota，错误原因：" + e.getMessage());
-            return ActionReturnUtil.returnErrorWithMsg("创建resource quota，请检查");
+            throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_QUOTA_CREATE_ERROR);
         }
-        // 4.创建network代理
-        try {
-            ActionReturnUtil createNPResult = this.createNetworkPolicy(namespaceDto.getName(), namespaceDto.getNetwork().getName(), 2, null, null, cluster);
-            if ((Boolean) createNPResult.get(CommonConstant.SUCCESS) == false) {
-                // 失败回滚
-                this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-                return createNPResult;
-            }
-        } catch (Exception e) {
-            // 失败回滚
-            this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-            if (e instanceof K8sAuthException) {
-                throw e;
-            }
-            logger.error("创建network代理失败，错误原因：" + e.getMessage());
-            return ActionReturnUtil.returnErrorWithMsg("创建network代理失败，请检查");
-        }
-
-        // 5.初始化ＨＡ
-        try {
-            ActionReturnUtil createHAResult = this.createHA(namespaceDto, cluster);
-            if ((Boolean) createHAResult.get(CommonConstant.SUCCESS) == false) {
-                // 失败回滚
-                this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-                return createHAResult;
-            }
-        } catch (Exception e) {
-            // 失败回滚
-            this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-            if (e instanceof K8sAuthException) {
-                throw e;
-            }
-            logger.error("初始化ＨＡ失败，错误原因：" + e.getMessage());
-            return ActionReturnUtil.returnErrorWithMsg("初始化ＨＡ失败，请检查");
-        }
-
-        // 6.添加租户绑定信息
-        try {
-            ActionReturnUtil createTBResult = tenantBindingService.updateTenantBinding(namespaceDto.getTenantid(), namespaceDto.getName(), null, null);
-            if ((Boolean) createTBResult.get(CommonConstant.SUCCESS) == false) {
-                // 失败回滚
-                this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-                return createTBResult;
-            }
-        } catch (Exception e) {
-            // 失败回滚
-            this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-            if (e instanceof K8sAuthException) {
-                throw e;
-            }
-            logger.error("添加租户绑定信息失败，错误原因：" + e.getMessage());
-            return ActionReturnUtil.returnErrorWithMsg("添加租户绑定信息失败，请检查");
-        }
-
-        // 7.创建rolebindings
+//        // 4.创建network代理
 //        try {
-//            ActionReturnUtil createRBResult = this.createRolebindings(namespaceDto, cluster);
-//            if ((Boolean) createRBResult.get(CommonConstant.SUCCESS) == false) {
+//            ActionReturnUtil createNPResult = this.createNetworkPolicy(namespaceDto.getName(), null, 2, null, null, cluster);
+//            if ((Boolean) createNPResult.get(CommonConstant.SUCCESS) == false) {
+//                // 失败回滚
+//                this.rollbackNetworkAndNamespace(namespaceDto.getTenantId(), namespaceDto.getName(),clusterId);
+//                return createNPResult;
+//            }
+//        } catch (Exception e) {
+//            // 失败回滚
+//            this.rollbackNetworkAndNamespace(namespaceDto.getTenantId(), namespaceDto.getName(),clusterId);
+//            throw e;
+//        }
+
+//        // 5.初始化ＨＡ
+//        try {
+//            ActionReturnUtil createHAResult = this.createHA(namespaceDto, cluster);
+//            if ((Boolean) createHAResult.get(CommonConstant.SUCCESS) == false) {
+//                // 失败回滚
+//                this.rollbackNetworkAndNamespace( namespaceDto.getTenantId(), namespaceDto.getName(),clusterId);
+//                return createHAResult;
+//            }
+//        } catch (Exception e) {
+//            // 失败回滚
+//            this.rollbackNetworkAndNamespace( namespaceDto.getTenantId(), namespaceDto.getName(),clusterId);
+//            throw e;
+//        }
+        // 6.创建secret
+        try {
+            ActionReturnUtil actionReturnUtil = this.secretService.doSecret(namespaceDto.getName(), cluster.getHarborServer().getHarborAdminAccount(), cluster.getHarborServer().getHarborAdminPassword(), cluster);
+            if ((Boolean) actionReturnUtil.get(CommonConstant.SUCCESS) == false) {
+                // 失败回滚
+                this.rollbackNetworkAndNamespace( namespaceDto.getTenantId(), namespaceDto.getName(),clusterId);
+                return actionReturnUtil;
+            }
+        } catch (Exception e) {
+            // 失败回滚
+            this.rollbackNetworkAndNamespace( namespaceDto.getTenantId(), namespaceDto.getName(),clusterId);
+            throw e;
+        }
+        // 6.绑定子网络
+//        try {
+//            ActionReturnUtil bindSubnet = networkService.subnetworkupdatebinding(subnetId, namespaceDto.getName());
+//            if ((Boolean) bindSubnet.get(CommonConstant.SUCCESS) == false) {
 //                // 失败回滚
 //                this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-//                return createRBResult;
+//                return bindSubnet;
 //            }
 //        } catch (Exception e) {
 //            // 失败回滚
@@ -439,161 +519,118 @@ public class NamespaceServiceImpl implements NamespaceService {
 //            if (e instanceof K8sAuthException) {
 //                throw e;
 //            }
-//            logger.error("创建分区下的rolebindings失败，错误原因：" + e.getMessage());
-//            return ActionReturnUtil.returnErrorWithMsg("创建分区下的rolebindings失败，请检查");
+//            logger.error("绑定子网络失败，错误原因：" + e.getMessage());
+//            return ActionReturnUtil.returnErrorWithMsg("绑定子网络失败，请检查");
 //        }
-
-        // 8.给namespace租户下的用户授予权限
-        try {
-            ActionReturnUtil bindTMResult = this.bindUser(namespaceDto);
-            if ((Boolean) bindTMResult.get(CommonConstant.SUCCESS) == false) {
-                // 失败回滚
-                this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-                return bindTMResult;
-            }
-        } catch (Exception e) {
-            // 失败回滚
-            this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-            if (e instanceof K8sAuthException) {
-                throw e;
-            }
-            logger.error("给namespace租户下的用户授予权限失败，错误原因：" + e.getMessage());
-            return ActionReturnUtil.returnErrorWithMsg("给namespace租户下的用户授予权限失败，请检查");
-        }
-
-        // 9.绑定子网络
-        try {
-            ActionReturnUtil bindSubnet = networkService.subnetworkupdatebinding(subnetId, namespaceDto.getName());
-            if ((Boolean) bindSubnet.get(CommonConstant.SUCCESS) == false) {
-                // 失败回滚
-                this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-                return bindSubnet;
-            }
-        } catch (Exception e) {
-            // 失败回滚
-            this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-            if (e instanceof K8sAuthException) {
-                throw e;
-            }
-            logger.error("绑定子网络失败，错误原因：" + e.getMessage());
-            return ActionReturnUtil.returnErrorWithMsg("绑定子网络失败，请检查");
-        }
-
         // 10.查看是否存在网络拓扑，如果有则处理拓扑关系
         // networkService.getnetworkbyNetworkid(networkid);
-        try {
-            ActionReturnUtil topologyResult = this.dealTopology(namespaceDto, cluster);
-            if ((Boolean) topologyResult.get(CommonConstant.SUCCESS) == false) {
-                // 失败回滚
-                this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-                return topologyResult;
-            }
-        } catch (Exception e) {
-            // 失败回滚
-            this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-            if (e instanceof K8sAuthException) {
-                throw e;
-            }
-            logger.error("处理拓扑关系失败，错误原因：" + e.getMessage());
-            return ActionReturnUtil.returnErrorWithMsg("处理拓扑关系失败，请检查");
-        }
+//        try {
+//            ActionReturnUtil topologyResult = this.dealTopology(namespaceDto, cluster);
+//            if ((Boolean) topologyResult.get(CommonConstant.SUCCESS) == false) {
+//                // 失败回滚
+//                this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
+//                return topologyResult;
+//            }
+//        } catch (Exception e) {
+//            // 失败回滚
+//            this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
+//            if (e instanceof K8sAuthException) {
+//                throw e;
+//            }
+//            logger.error("处理拓扑关系失败，错误原因：" + e.getMessage());
+//            return ActionReturnUtil.returnErrorWithMsg("处理拓扑关系失败，请检查");
+//        }
         // 11.如果为私有分区，创建私有分区,如果为共享分区则处理相应状态
         // 获取networkid
         try {
             if (namespaceDto.isPrivate()) {
-                ActionReturnUtil privatePartition = this.createPrivatePartition(namespaceDto, cluster);
-                if ((Boolean) privatePartition.get(CommonConstant.SUCCESS) == false) {
-                    // 失败回滚
-                    this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-                    return privatePartition;
-                }
+                this.createPrivatePartition(namespaceDto, cluster);
             } else {
-                ActionReturnUtil updateShareNode = updateShareNode(namespaceDto);
-                if ((Boolean) updateShareNode.get(CommonConstant.SUCCESS) == false) {
-                    // 失败回滚
-                    this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-                    return updateShareNode;
-                }
+                updateShareNode(namespaceDto);
             }
         } catch (Exception e) {
             // 失败回滚
-            this.rollbackNetworkAndNamespace(subnetId, namespaceDto.getTenantid(), namespaceDto.getName());
-            if (e instanceof K8sAuthException) {
-                throw e;
-            }
-            logger.error("设置私有分区失败，错误原因：" + e.getMessage());
-            return ActionReturnUtil.returnErrorWithMsg("设置私有分区失败，请检查");
+            this.rollbackNetworkAndNamespace( namespaceDto.getTenantId(), namespaceDto.getName(),clusterId);
+            throw e;
         }
         return ActionReturnUtil.returnSuccess();
     }
-    private Cluster getClusterByTenantid(String tenantid) throws Exception {
-        Cluster cluster = tenantService.getClusterByTenantid(tenantid);
-        return cluster;
+    //创建本地分区
+    private void createLocalNamespace(NamespaceDto namespaceDto) throws Exception{
+        NamespaceLocal namespaceLocal = new NamespaceLocal();
+        //组装分区参数
+        namespaceLocal.setNamespaceId(StringUtil.getId());
+        namespaceLocal.setNamespaceName(namespaceDto.getName());
+        namespaceLocal.setClusterId(namespaceDto.getClusterId());
+        namespaceLocal.setIsPrivate(namespaceDto.isPrivate());
+        namespaceLocal.setTenantId(namespaceDto.getTenantId());
+        namespaceLocal.setCreateTime(DateUtil.getCurrentUtcTime());
+        namespaceLocal.setAliasName(namespaceDto.getAliasName());
+        //创建本地分区
+        this.namespaceLocalService.createNamespace(namespaceLocal);
     }
-    private ActionReturnUtil createPrivatePartition(NamespaceDto namespaceDto, Cluster cluster) throws Exception {
+    private void createPrivatePartition(NamespaceDto namespaceDto, Cluster cluster) throws Exception {
         // 更新node节点状态
         Map<String, String> newLabels = new HashMap<String, String>();
         newLabels.put(CommonConstant.HARMONYCLOUD_STATUS, CommonConstant.LABEL_STATUS_D);
         newLabels.put(CommonConstant.HARMONYCLOUD_TENANTNAME_NS, namespaceDto.getName());
-        String[] nodes = namespaceDto.getNodename().split(",");
+        String[] nodes = namespaceDto.getNodeName().split(CommonConstant.COMMA);
         if (nodes.length <= 0) {
-            return ActionReturnUtil.returnErrorWithMsg("nodename 格式错误！");
+            throw new MarsRuntimeException(ErrorCodeMessage.NODENAME_NOT_BLANK);
         }
+        Map<String,Object> mapNode = new HashMap<>();
         for (String nodename : nodes) {
-            ActionReturnUtil addNodeLabels = nodeService.addNodeLabels(nodename, newLabels, cluster.getId().toString());
-            if ((Boolean) addNodeLabels.get(CommonConstant.SUCCESS) == false) {
-                return addNodeLabels;
+            if (Objects.isNull(mapNode.get(nodename))){
+                ActionReturnUtil addNodeLabels = nodeService.addNodeLabels(nodename, newLabels, cluster.getId());
+                if ((Boolean) addNodeLabels.get(CommonConstant.SUCCESS) == false) {
+                    throw new MarsRuntimeException(ErrorCodeMessage.NODE_LABEL_CREATE_ERROR);
+                }
+                mapNode.put(nodename,nodename);
             }
         }
         // 更新数据库
-        ActionReturnUtil privatePartition = privatePartitionService.setPrivatePartition(namespaceDto.getTenantid(), namespaceDto.getName());
-        if ((Boolean) privatePartition.get(CommonConstant.SUCCESS) == false) {
-            return privatePartition;
-        }
-        return ActionReturnUtil.returnSuccess();
+        privatePartitionService.setPrivatePartition(namespaceDto.getTenantId(), namespaceDto.getName());
     }
-    public ActionReturnUtil updateShareNode(NamespaceDto namespaceDto) throws Exception {
-        // 更新node节点状态
-        /*
-         * // 如果共享分区，并且选择了node Map<String, String> newLabels = new
-         * HashMap<String, String>(); if
-         * (!StringUtils.isEmpty(namespaceDto.getNodename())) {
-         * newLabels.put(CommonConstant.HARMONYCLOUD_TENANTNAME_NS,
-         * namespaceDto.getName()); String[] nodes =
-         * namespaceDto.getNodename().split(","); if (nodes.length <= 0) {
-         * return ActionReturnUtil.returnErrorWithMsg("nodename 格式错误！"); } for
-         * (String nodename : nodes) { ActionReturnUtil addNodeLabels =
-         * nodeService.addNodeLabels(nodename, newLabels); if ((Boolean)
-         * addNodeLabels.get(CommonConstant.SUCCESS) == false) { return
-         * addNodeLabels; } } // 更新数据库 ActionReturnUtil privatePartition =
-         * privatePartitionService.setSharePartition(namespaceDto.getTenantid(),
-         * namespaceDto.getName(), true); if ((Boolean)
-         * privatePartition.get(CommonConstant.SUCCESS) == false) { return
-         * privatePartition; } return ActionReturnUtil.returnSuccess(); }
-         */
+    public void updateShareNode(NamespaceDto namespaceDto) throws Exception {
         // 更新数据库
-        ActionReturnUtil privatePartition = privatePartitionService.setSharePartition(namespaceDto.getTenantid(), namespaceDto.getName(), false);
-        if ((Boolean) privatePartition.get(CommonConstant.SUCCESS) == false) {
-            return privatePartition;
-        }
-        return ActionReturnUtil.returnSuccess();
+        privatePartitionService.setSharePartition(namespaceDto.getTenantId(), namespaceDto.getName(), false);
     }
 
     @Override
     public ActionReturnUtil updateNamespace(NamespaceDto namespaceDto) throws Exception {
-        Cluster cluster = this.getClusterByTenantid(namespaceDto.getTenantid());
-        ActionReturnUtil checkQuota = checkQuota(cluster, namespaceDto);
-        if ((Boolean) checkQuota.get(CommonConstant.SUCCESS) == false) {
-            return checkQuota;
+        String namespaceName = namespaceDto.getName();
+        //获取集群
+        Cluster cluster = this.namespaceLocalService.getClusterByNamespaceName(namespaceName);
+        if (!Objects.isNull(namespaceDto.getQuota())){
+            //检查配额
+            namespaceDto.setUpdate(Boolean.TRUE);
+            checkQuota(cluster, namespaceDto);
         }
-        // 组装quota
-        Map<String, Object> bodys = generateQuotaBodys(namespaceDto);
-        Map<String, Object> headers = new HashMap<>();
-        headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
-        K8SClientResponse k8SClientResponse = resourceQuotaService.update(namespaceDto.getName(), namespaceDto.getName() + QUOTA, headers, bodys, HTTPMethod.PUT);
-        if (!HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
-            logger.error("调用k8s接口更新namespace下quota失败", k8SClientResponse.getBody());
-            return ActionReturnUtil.returnErrorWithMsg(k8SClientResponse.getBody());
+        //检查有效性
+        NamespaceLocal namespaceByName = this.namespaceLocalService.getNamespaceByName(namespaceName);
+        if (Objects.isNull(namespaceByName)){
+            throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_NOT_FOUND);
+        }
+        String updateAliasName = namespaceDto.getUpdateAliasName();
+        if (StringUtils.isNotBlank(updateAliasName)){
+            NamespaceLocal updateNamespace = this.namespaceLocalService.getNamespaceByAliasName(updateAliasName);
+            if (!Objects.isNull(updateNamespace)){
+                throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_EXIST,updateAliasName,Boolean.TRUE);
+            }
+            namespaceByName.setAliasName(updateAliasName);
+            this.namespaceLocalService.updateNamespace(namespaceByName);
+        }
+        if (namespaceDto.getUpdate()){
+            // 组装quota
+            Map<String, Object> bodys = generateQuotaBodys(namespaceDto);
+            Map<String, Object> headers = new HashMap<>();
+            headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
+            //向K8S发送请求更新配额
+            K8SClientResponse k8SClientResponse = resourceQuotaService.update(namespaceName, namespaceName + QUOTA, headers, bodys, HTTPMethod.PUT,cluster);
+            if (!HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
+                logger.error("调用k8s接口更新namespace下quota失败", k8SClientResponse.getBody());
+                return ActionReturnUtil.returnErrorWithMsg(k8SClientResponse.getBody());
+            }
         }
         return ActionReturnUtil.returnSuccess();
     }
@@ -602,9 +639,8 @@ public class NamespaceServiceImpl implements NamespaceService {
     public ActionReturnUtil deleteNamespace(String tenantid, String namespace) throws Exception {
 
         if (StringUtils.isEmpty(namespace) || namespace.indexOf(CommonConstant.LINE) < 0) {
-            return ActionReturnUtil.returnErrorWithMsg("Invalid namespace name");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.FORMAT_ERROR, DictEnum.NAMESPACE.phrase(),true);
         }
-        String tenantName = namespace.split(CommonConstant.LINE)[0];
         // 检查tenanid和namespace的正确性
         // TenantBinding tenantByTenantid =
         // tenantService.getTenantByTenantid(tenantid);
@@ -614,25 +650,16 @@ public class NamespaceServiceImpl implements NamespaceService {
         // return
         // ActionReturnUtil.returnErrorWithMsg("请传入正确的tenanid与namespace");
         // }
-        Cluster cluster = this.getClusterByTenantid(tenantid);
-        // 1.查询namespace下面的rolebindings
-        // ActionReturnUtil membResult = this.getNamespaceMember(namespace,
-        // tenantName);
-        // if((Boolean) membResult.get(CommonConstant.SUCCESS) == false){
-        // return membResult;
-        // }
-
-        // 1.删除分区网络绑定
-        ActionReturnUtil deleteNetwork = networkService.subnetRemoveBing(namespace);
-        if ((Boolean) deleteNetwork.get(CommonConstant.SUCCESS) == false) {
-            return deleteNetwork;
-        }
+        Cluster cluster = this.namespaceLocalService.getClusterByNamespaceName(namespace);
+        NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByTenantIdAndName(tenantid, namespace);
+//        // 1.删除分区网络绑定
+//        ActionReturnUtil deleteNetwork = networkService.subnetRemoveBing(namespace);
+//        if ((Boolean) deleteNetwork.get(CommonConstant.SUCCESS) == false) {
+//            return deleteNetwork;
+//        }
 
         // 2.租户绑定信息里删除namepsace
-        ActionReturnUtil result = tenantBindingService.deleteNamespace(tenantid, namespace);
-        if ((Boolean) result.get(CommonConstant.SUCCESS) == false) {
-            return result;
-        }
+        this.namespaceLocalService.deleteNamespace(namespaceLocal);
 
         // 3.调用k8s接口删除namespace
         ActionReturnUtil delbResult = this.delNamespace(namespace, cluster);
@@ -645,13 +672,13 @@ public class NamespaceServiceImpl implements NamespaceService {
         if (!serviceRes.isSuccess()) {
             return serviceRes;
         }
-        // 5.删除namespace下的所有business
-        ActionReturnUtil businessRes = this.delBusinessNamespace(namespace);
-        if (!businessRes.isSuccess()) {
-            return businessRes;
+        // 5.删除namespace下的所有app
+        ActionReturnUtil appRes = this.delApplicationNamespace(namespace);
+        if (!appRes.isSuccess()) {
+            return appRes;
         }
         // 6.如果有私有分区，处理其中的关系
-        ActionReturnUtil PrivateNamespace = this.delPrivateNamespace(tenantid, namespace);
+        ActionReturnUtil PrivateNamespace = this.delPrivateNamespace(tenantid, namespace,cluster.getId());
         if ((Boolean) PrivateNamespace.get(CommonConstant.SUCCESS) == false) {
             return PrivateNamespace;
         }
@@ -660,17 +687,46 @@ public class NamespaceServiceImpl implements NamespaceService {
         if ((Boolean) ShareNamespace.get(CommonConstant.SUCCESS) == false) {
             return ShareNamespace;
         }
+
+        ActionReturnUtil deleteMsfTaskAndIns = microServiceService.deleteTaskAndInstance(namespaceLocal.getNamespaceId());
+        if ((Boolean) deleteMsfTaskAndIns.get(CommonConstant.SUCCESS) == false) {
+            return deleteMsfTaskAndIns;
+        }
         return ActionReturnUtil.returnSuccess();
     }
+    // 删除分区（给创建分区失败回滚用）
+    private ActionReturnUtil deleteNamespace(String tenantid, String namespace,String clusterId) throws Exception {
 
+        if (StringUtils.isEmpty(namespace) || namespace.indexOf(CommonConstant.LINE) < 0) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.FORMAT_ERROR, DictEnum.NAMESPACE.phrase(),true);
+        }
+        Cluster cluster = this.clusterService.findClusterById(clusterId);
+
+        // 1.调用k8s接口删除namespace
+        ActionReturnUtil delbResult = this.delNamespace(namespace, cluster);
+        if ((Boolean) delbResult.get(CommonConstant.SUCCESS) == false) {
+            return delbResult;
+        }
+        // 2.如果有私有分区，处理其中的关系
+        ActionReturnUtil PrivateNamespace = this.delPrivateNamespace(tenantid, namespace,clusterId);
+        if ((Boolean) PrivateNamespace.get(CommonConstant.SUCCESS) == false) {
+            return PrivateNamespace;
+        }
+        // 3.如果为共享分区，处理其中的关系
+        ActionReturnUtil ShareNamespace = this.delShareNamespace(tenantid, namespace);
+        if ((Boolean) ShareNamespace.get(CommonConstant.SUCCESS) == false) {
+            return ShareNamespace;
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
     private ActionReturnUtil delServiceNamespace(String namespace) throws Exception {
         // 处理数据库
         return serviceService.deleteServiceByNamespace(namespace);
     }
 
-    private ActionReturnUtil delBusinessNamespace(String namespace) throws Exception {
+    private ActionReturnUtil delApplicationNamespace(String namespace) throws Exception {
         // 处理数据库
-        return businessDeployService.deleteBusinessByNamespace(namespace);
+        return applicationDeployService.deleteApplicationByNamespace(namespace);
     }
 
     private ActionReturnUtil delShareNamespace(String tenantid, String namespace) throws Exception {
@@ -682,38 +738,39 @@ public class NamespaceServiceImpl implements NamespaceService {
                 privatePartitionService.removePrivatePartition(tenantid, namespace);
             }
         } catch (Exception e) {
-            return ActionReturnUtil.returnErrorWithMsg("处理共享分区出错，错误信息：" + e.getMessage());
+            LOGGER.error("处理共享分区出错，",e);
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.UNKNOWN);
         }
         return ActionReturnUtil.returnSuccess();
     }
 
-    private ActionReturnUtil delPrivateNamespace(String tenantid, String namespace) throws Exception {
-        Cluster cluster = this.getClusterByTenantid(tenantid);
+    private ActionReturnUtil delPrivateNamespace(String tenantid, String namespace,String clusterId) throws Exception {
+        Cluster cluster = this.clusterService.findClusterById(clusterId);
         boolean privatePartition = privatePartitionService.isPrivatePartition(tenantid, namespace);
+        TenantBinding tenant = this.tenantService.getTenantByTenantid(tenantid);
         if (privatePartition) {
             // 获取当前私有分区node
             List<String> availableNodeList = nodeService.getPrivateNamespaceNodeList(namespace, cluster);
-            if (availableNodeList != null && availableNodeList.isEmpty()) {
-                return ActionReturnUtil.returnErrorWithMsg("警告：已经删除当前分区，但是当前分区为私有分区，所属独占节点属性被修改，导致独占节点不存在，请不要随意更改节点私有属性，以免发生冲突，如果在接下来的操作中遇到其它问题，请联系管理员!");
+            if (CollectionUtils.isEmpty(availableNodeList)) {
+                return ActionReturnUtil.returnSuccess();
             }
             Map<String, Map<String, String>> oldStatusLabels = new HashMap<String, Map<String, String>>();
             // 更新node节点标签
             for (String nodename : availableNodeList) {
                 Map<String, String> nodeStatusLabels = nodeService.listNodeStatusLabels(nodename, cluster);
                 oldStatusLabels.put(nodename, nodeStatusLabels);
-                Map<String, String> removelabels = new HashMap<String, String>();
                 String HarmonyCloud_Status = nodeStatusLabels.get("HarmonyCloud_Status");
                 if (org.apache.commons.lang.StringUtils.isBlank(HarmonyCloud_Status)) {
-                    return ActionReturnUtil.returnErrorWithMsg("node: " + nodename + "的标签状态有误，没有HarmonyCloud_Status标签");
+                    return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NODE_LABEL_ERROR,"HarmonyCloud_Status",true);
                 }
                 if (!HarmonyCloud_Status.equals(CommonConstant.LABEL_STATUS_D)) {
-                    return ActionReturnUtil.returnErrorWithMsg("node: " + nodename + "的标签状态有错");
+                    return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NODE_LABEL_ERROR);
                 }
-                removelabels.put(CommonConstant.HARMONYCLOUD_TENANTNAME_NS, nodeStatusLabels.get(CommonConstant.HARMONYCLOUD_TENANTNAME_NS));
-                nodeStatusLabels.put(CommonConstant.HARMONYCLOUD_STATUS, CommonConstant.LABEL_STATUS_B);
-                nodeStatusLabels.remove(CommonConstant.HARMONYCLOUD_TENANTNAME_NS);
-                nodeService.addNodeLabels(nodename, nodeStatusLabels, cluster.getId().toString());
-                nodeService.removeNodeLabels(nodename, removelabels, cluster);
+//                removelabels.put(CommonConstant.HARMONYCLOUD_TENANTNAME_NS, nodeStatusLabels.get(CommonConstant.HARMONYCLOUD_TENANTNAME_NS));
+                nodeStatusLabels.put(CommonConstant.HARMONYCLOUD_STATUS, CommonConstant.LABEL_STATUS_D);
+                nodeStatusLabels.put(CommonConstant.HARMONYCLOUD_TENANTNAME_NS,tenant.getTenantName());
+                nodeService.addNodeLabels(nodename, nodeStatusLabels, cluster.getId());
+//                nodeService.removeNodeLabels(nodename, removelabels, cluster);
             }
             // 处理数据库
             try {
@@ -722,9 +779,10 @@ public class NamespaceServiceImpl implements NamespaceService {
                 for (String nodename : availableNodeList) {
                     Map<String, String> map = oldStatusLabels.get(nodename);
                     map.put(CommonConstant.HARMONYCLOUD_STATUS, CommonConstant.LABEL_STATUS_D);
-                    nodeService.addNodeLabels(nodename, map, cluster.getId().toString());
+                    nodeService.addNodeLabels(nodename, map, cluster.getId());
                 }
-                return ActionReturnUtil.returnErrorWithMsg("错误原因:" + e.getMessage());
+                LOGGER.error("异常",e);
+                return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.UNKNOWN);
             }
         }
         return ActionReturnUtil.returnSuccess();
@@ -732,29 +790,30 @@ public class NamespaceServiceImpl implements NamespaceService {
 
     @SuppressWarnings(CommonConstant.UNCHECKED)
     @Override
-    public ActionReturnUtil getNamespaceList(String tenantid, String tenantname) throws Exception {
+    public ActionReturnUtil getNamespaceList(String tenantid) throws Exception {
 
-        // 1.查询租户详情
-        ActionReturnUtil tenantBindingResult = tenantService.getSmplTenantDetail(tenantid);
-        if ((Boolean) tenantBindingResult.get(CommonConstant.SUCCESS) == false) {
-            logger.error("查询租户绑定信息失败,tenantId=" + tenantid);
-            return tenantBindingResult;
-        }
-        Map<String, Object> tenantBinding = new HashMap<>();
-        List<Map<String, Object>> tenantData = (List<Map<String, Object>>) tenantBindingResult.get(CommonConstant.DATA);
-        if (tenantData != null && !tenantData.isEmpty() && !tenantname.equals(tenantData.get(0).get(CommonConstant.NAME))) {
-            logger.error("查询租户绑定信息失败,tenantId=" + tenantid);
-            return ActionReturnUtil.returnSuccessWithMsg("租户tenantId=" + tenantid + "与租户名=tenantname" + tenantname + "不一致");
-        }
-        tenantBinding.putAll(tenantData.get(0));
+        //TODO 后续可能会添加相关信息，代码开发完成调试后删除
+//        // 1.查询租户详情
+//        ActionReturnUtil tenantBindingResult = tenantService.getSmplTenantDetail(tenantid);
+//        if ((Boolean) tenantBindingResult.get(CommonConstant.SUCCESS) == false) {
+//            logger.error("查询租户绑定信息失败,tenantId=" + tenantid);
+//            return tenantBindingResult;
+//        }
+//        Map<String, Object> tenantBinding = new HashMap<>();
+//        List<Map<String, Object>> tenantData = (List<Map<String, Object>>) tenantBindingResult.get(CommonConstant.DATA);
+//        if (tenantData != null && !tenantData.isEmpty() && !tenantname.equals(tenantData.get(0).get(CommonConstant.NAME))) {
+//            logger.error("查询租户绑定信息失败,tenantId=" + tenantid);
+//            return ActionReturnUtil.returnSuccessWithMsg("租户tenantId=" + tenantid + "与租户名=tenantname" + tenantname + "不一致");
+//        }
+//        tenantBinding.putAll(tenantData.get(0));
 
-        // 2.查询租户下namespace列表
+        // 1.查询租户下namespace列表
         ActionReturnUtil listResult = getSimpleNamespaceListByTenant(tenantid);
         if ((Boolean) listResult.get(CommonConstant.SUCCESS) == false) {
             return listResult;
         }
         NamespaceList list = (NamespaceList) listResult.get(CommonConstant.DATA);
-        if (list.getItems() != null && list.getItems().isEmpty()) {
+        if (CollectionUtils.isEmpty(list.getItems())) {
             return ActionReturnUtil.returnSuccessWithData(null);
         }
 
@@ -764,11 +823,14 @@ public class NamespaceServiceImpl implements NamespaceService {
             namespaces.add(namespaceShowDto);
             namespaceShowDto.setName(namespace.getMetadata().getName());
             namespaceShowDto.setTime(namespace.getMetadata().getCreationTimestamp());
-            if (null != namespace.getMetadata().getAnnotations() && !StringUtils.isEmpty(namespace.getMetadata().getAnnotations().get(CommonConstant.NEPHELE_ANNOTATION))) {
+            if (null != namespace.getMetadata()
+                    && null != namespace.getMetadata().getAnnotations()
+                    && null != namespace.getMetadata().getAnnotations().get(CommonConstant.NEPHELE_ANNOTATION)
+                    && StringUtils.isNotBlank(namespace.getMetadata().getAnnotations().get(CommonConstant.NEPHELE_ANNOTATION).toString())) {
                 namespaceShowDto.setAnnotation((String) namespace.getMetadata().getAnnotations().get(CommonConstant.NEPHELE_ANNOTATION));
             }
-            namespaceShowDto.setTenant(tenantBinding);
-            // 2.1根据namespace查询deployments列表
+//            namespaceShowDto.setTenant(tenantBinding);
+            // 1.1根据namespace查询deployments列表
             ActionReturnUtil dlistResult = getDeploymentByNamespace(namespace.getMetadata().getName());
             if ((Boolean) dlistResult.get(CommonConstant.SUCCESS) == false) {
                 return dlistResult;
@@ -776,13 +838,13 @@ public class NamespaceServiceImpl implements NamespaceService {
             DeploymentList dlist = (DeploymentList) dlistResult.get(CommonConstant.DATA);
             this.genrerateService(dlist, namespaceShowDto);
 
-            // 2.2根据namespace查询rolebinding列表
-            ActionReturnUtil rlistResult = getRolebindingByNamespace(namespace.getMetadata().getName());
-            if ((Boolean) rlistResult.get(CommonConstant.SUCCESS) == false) {
-                return rlistResult;
-            }
-            RoleBindingList rlist = (RoleBindingList) rlistResult.get(CommonConstant.DATA);
-            this.genrerateMember(rlist, namespaceShowDto);
+//            // 1.2根据namespace查询rolebinding列表
+//            ActionReturnUtil rlistResult = getRolebindingByNamespace(namespace.getMetadata().getName());
+//            if ((Boolean) rlistResult.get(CommonConstant.SUCCESS) == false) {
+//                return rlistResult;
+//            }
+//            RoleBindingList rlist = (RoleBindingList) rlistResult.get(CommonConstant.DATA);
+//            this.genrerateMember(rlist, namespaceShowDto);
         }
 
         return ActionReturnUtil.returnSuccessWithData(namespaces);
@@ -834,77 +896,34 @@ public class NamespaceServiceImpl implements NamespaceService {
     }
 
     @Override
-    public ActionReturnUtil getNamespaceDetail(String name, String tenantid) throws Exception {
+    public ActionReturnUtil getNamespaceDetail(String name) throws Exception {
 
-        // 获取集群
-        TenantBinding ten = tenantService.getTenantByTenantid(tenantid);
-        if (ten == null) {
-            return ActionReturnUtil.returnErrorWithMsg("tenantid错误");
+        NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByName(name);
+        if (Objects.isNull(namespaceLocal)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_NOT_FOUND);
         }
-        List<String> k8sNamespaceList = ten.getK8sNamespaceList();
-        if (k8sNamespaceList == null || k8sNamespaceList.size() <= 0) {
-            return ActionReturnUtil.returnErrorWithMsg("传入分区名不在传入tenantid的租户下，请检查");
-        }
-        List<String> otherNamespaceList = new ArrayList<>();
-        for (String ns : k8sNamespaceList) {
-            if (!name.equals(ns)) {
-                otherNamespaceList.add(ns);
+        List<NamespaceLocal> namespaceList = this.namespaceLocalService.getNamespaceListByTenantId(namespaceLocal.getTenantId());
+        List<Map<String,Object>> otherNamespaceList = new ArrayList<>();
+        for (NamespaceLocal ns : namespaceList) {
+            if (!name.equals(ns.getNamespaceName())) {
+                Map<String,Object> namespaceMap = new HashMap<>();
+                namespaceMap.put(CommonConstant.NAME,ns.getNamespaceName());
+                namespaceMap.put(CommonConstant.NS_ALIASNAME,ns.getAliasName());
+                namespaceMap.put(CommonConstant.STATUS,ns.getIsPrivate());
+                otherNamespaceList.add(namespaceMap);
             }
         }
-        // if(otherNamespaceList==null||otherNamespaceList.size()<=0){
-        // otherNamespaceList.add("本租户下暂无其它分区");
-        // }
-        Cluster cluster = clusterService.findClusterById(ten.getClusterId().toString());
-        // 1.查询namespace详情
-        // K8SClientResponse namespaceResponse =
-        // namespaceService.getNamespace(name, null, null, cluster);
-        // if (!HttpStatusUtil.isSuccessStatus(namespaceResponse.getStatus())) {
-        // logger.error("调用k8s接口查询namespace详情失败, namespace=" + name,
-        // namespaceResponse.getBody());
-        // return
-        // ActionReturnUtil.returnErrorWithMsg(namespaceResponse.getBody());
-        // }
-        //
-        // Namespace namespace =
-        // JsonUtil.jsonToPojo(namespaceResponse.getBody(), Namespace.class);
+        NamespaceLocal namespaceByName = this.namespaceLocalService.getNamespaceByName(name);
+        //TODO   集群
+        Cluster cluster = clusterService.findClusterById(namespaceByName.getClusterId());
 
-        // 2.根据namespace名称查询resourceQuota
-        // K8SClientResponse quotaResponse =
-        // resourceQuotaService.getByNamespace(name, null, null, cluster);
-        // if (!HttpStatusUtil.isSuccessStatus(quotaResponse.getStatus())) {
-        // logger.error("调用k8s接口查询namespace下quota失败", quotaResponse.getBody());
-        // return ActionReturnUtil.returnErrorWithMsg(quotaResponse.getBody());
-        // }
-        //
-        // ResourceQuotaList quotaList =
-        // JsonUtil.jsonToPojo(quotaResponse.getBody(),
-        // ResourceQuotaList.class);
-        //
-        // // 3.组装返回数据
-        // QuotaShowDto quota = new QuotaShowDto();
-        // if (namespace.getMetadata().getAnnotations() != null) {
-        // Map<String, Object> annotations =
-        // namespace.getMetadata().getAnnotations();
-        // quota.setAnnotation((String)
-        // annotations.get(CommonConstant.NEPHELE_ANNOTATION));
-        // }
-        Map<String, Object> namespaceQuota = this.getNamespaceQuota(name, cluster);
+        Map<String, Object> namespaceQuota = this.getNamespaceQuota(name);
         namespaceQuota.put("otherNamespaceList", otherNamespaceList);
-        // QuotaDetailShowDto quotaDetailShowDto = new QuotaDetailShowDto();
-        // if (quotaList.getItems() != null) {
-        // ResourceQuota resourceQuota = quotaList.getItems().get(0);
-        // if (resourceQuota.getSpec() != null && resourceQuota.getStatus() !=
-        // null) {
-        // ResourceQuotaSpec resourceQuotaSpec = resourceQuota.getSpec();
-        // ResourceQuotaStatus resourceQuotaStatus = resourceQuota.getStatus();
-        // quota.setQuota(generateQuotaDetail(resourceQuotaSpec,
-        // resourceQuotaStatus));
-        // }
-        // }
-        //
-        // quota.setName(namespace.getMetadata().getName());
-        // quota.setTime(namespace.getMetadata().getCreationTimestamp());
-        // quota.setTenantName(otherNamespaceList);
+        //私有分区获取分区的私有节点列表
+        if(namespaceQuota.get(ISPRIVATE) != null && (Boolean)namespaceQuota.get(ISPRIVATE)){
+            List<NodeDto> nodeDtos = nodeService.listNodeByNamespaces(name);
+            namespaceQuota.put(PRIVATENODELIST,nodeDtos);
+        }
         return ActionReturnUtil.returnSuccessWithData(namespaceQuota);
     }
 
@@ -952,7 +971,8 @@ public class NamespaceServiceImpl implements NamespaceService {
      * @return
      */
     public ActionReturnUtil getDeploymentByNamespace(String namespace) throws Exception {
-        K8SClientResponse deploymentResponse = deploymentService.doDeploymentsByNamespace(namespace, null, null, HTTPMethod.GET, null);
+        Cluster cluster = this.namespaceLocalService.getClusterByNamespaceName(namespace);
+        K8SClientResponse deploymentResponse = deploymentService.doDeploymentsByNamespace(namespace, null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(deploymentResponse.getStatus())) {
             logger.error("调用k8s接口查询namespace下deployment列表失败", deploymentResponse.getBody());
             return ActionReturnUtil.returnErrorWithMsg(deploymentResponse.getBody());
@@ -973,25 +993,33 @@ public class NamespaceServiceImpl implements NamespaceService {
         Map<String, Object> bodys = new HashMap<>();
         bodys.put("labelSelector", "nephele_tenantid=" + tenantid);
         // 获取集群
-        Cluster cluster = this.getClusterByTenantid(tenantid);
-        K8SClientResponse k8SClientResponse = namespaceService.list(null, bodys, HTTPMethod.GET, cluster);
-
-        if (!HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
-            logger.error("调用k8s接口查询租户下namespace列表失败", k8SClientResponse.getBody());
-            return ActionReturnUtil.returnErrorWithMsg(k8SClientResponse.getBody());
+//        Cluster cluster = this.getClusterByTenantid(tenantid);
+        List<Cluster> clusters = this.clusterService.listCluster();
+        NamespaceList list = null;
+        for (Cluster cluster:clusters) {
+            K8SClientResponse k8SClientResponse = namespaceService.list(null, bodys, HTTPMethod.GET, cluster);
+            if (HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
+                NamespaceList newList = JsonUtil.jsonToPojo(k8SClientResponse.getBody(), NamespaceList.class);
+                if (null == list){
+                    list = newList;
+                }else {
+                    List<Namespace> items = list.getItems();
+                    items.addAll(newList.getItems());
+                    list.setItems(items);
+                }
+            }
         }
-
-        NamespaceList list = JsonUtil.jsonToPojo(k8SClientResponse.getBody(), NamespaceList.class);
-
         return ActionReturnUtil.returnSuccessWithData(list);
     }
 
     public ActionReturnUtil create(NamespaceDto namespaceDto, Cluster cluster) throws Exception {
 
         if (StringUtils.isEmpty(namespaceDto.getName()) || namespaceDto.getName().indexOf(CommonConstant.LINE) < 0) {
-            return ActionReturnUtil.returnErrorWithMsg("无效的namespace name");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_NS_NAME);
         }
-
+        //保存到本地数据库
+        this.createLocalNamespace(namespaceDto);
+        //组装k8s数据结构
         ObjectMeta objectMeta = new ObjectMeta();
         objectMeta.setAnnotations(this.getAnnotations(namespaceDto));
         objectMeta.setLabels(this.getLables(namespaceDto));
@@ -1001,15 +1029,31 @@ public class NamespaceServiceImpl implements NamespaceService {
         bodys.put(CommonConstant.METADATA, objectMeta);
         Map<String, Object> headers = new HashMap<>();
         headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
-
+        //向k8s创建分区
         K8SClientResponse k8SClientResponse = namespaceService.create(headers, bodys, HTTPMethod.POST, cluster);
-
+        Map<String, Object> stringObjectMap = JsonUtil.convertJsonToMap(k8SClientResponse.getBody());
         if (!HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
-            logger.error("调用k8s接口创建namespace失败，错误消息：" + k8SClientResponse.getBody());
-            return ActionReturnUtil.returnErrorWithMsg(k8SClientResponse.getBody());
+            logger.error("调用k8s接口创建namespace失败，错误消息：" + k8SClientResponse.getBody(),k8SClientResponse.getBody());
+            Object message = stringObjectMap.get("message");
+            if (!Objects.isNull(message) && message.toString().contains("object is being deleted")){
+                throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_CREATE_ERROR_DELETED,namespaceDto.getAliasName(),Boolean.TRUE);
+            }
+            throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_CREATE_ERROR);
         }
         return ActionReturnUtil.returnSuccess();
 
+    }
+
+    private NamespaceLocal generateNamespaceLocal(NamespaceDto namespaceDto) {
+        NamespaceLocal namespaceLocal = new NamespaceLocal();
+        namespaceLocal.setTenantId(namespaceDto.getTenantId());
+        namespaceLocal.setNamespaceName(namespaceDto.getName());
+        namespaceLocal.setClusterId(namespaceDto.getClusterId());
+        Date date = DateUtil.getCurrentUtcTime();
+        namespaceLocal.setCreateTime(date);
+        namespaceLocal.setIsPrivate(namespaceDto.isPrivate());
+        namespaceLocal.setNamespaceId(StringUtil.getId());
+        return namespaceLocal;
     }
 
     private ActionReturnUtil delNamespace(String namespace, Cluster cluster) throws Exception {
@@ -1038,7 +1082,7 @@ public class NamespaceServiceImpl implements NamespaceService {
             for (RoleBinding roleBinding : roleBindingList.getItems()) {
 
                 if (DEV_RB.getName().equals(roleBinding.getMetadata().getName()) && roleBinding.getSubjects().size() > 0) {
-                    return ActionReturnUtil.returnErrorWithMsg("delete member please before delete project!");
+                    return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.OPERATION_FAIL);
                 }
             }
         }
@@ -1071,34 +1115,50 @@ public class NamespaceServiceImpl implements NamespaceService {
         String tenantName = namespaceDto.getName().split(CommonConstant.LINE)[0];
 
         for (RolebindingsEnum rolebindingsEnum : RolebindingsEnum.values()) {
-            roleBindingService.createRoleBinding(rolebindingsEnum.getName(),namespaceDto.getName(),namespaceDto.getTenantid(),tenantName,rolebindingsEnum.getName().split(CommonConstant.LINE)[0],cluster);
+            roleBindingService.createRoleBinding(rolebindingsEnum.getName(),namespaceDto.getName(),namespaceDto.getTenantId(),tenantName,rolebindingsEnum.getName().split(CommonConstant.LINE)[0],cluster);
         }
         return ActionReturnUtil.returnSuccess();
     }
+//暂时不向分区绑定user
+//    private ActionReturnUtil bindUser(NamespaceDto namespaceDto) throws Exception {
+//
+//        List<UserTenant> userByTenantid = userTenantService.getUserByTenantid(namespaceDto.getTenantid());
+//        if (null == userByTenantid || userByTenantid.size() <= 0) {
+//            return ActionReturnUtil.returnSuccess();
+//        }
+//        for (UserTenant userTenant : userByTenantid) {
+//            TenantBinding tenantBinding = tenantService.getTenantByTenantid(namespaceDto.getTenantid());
+//            String tenantName = tenantBinding.getTenantName();
+//            String userName = userTenant.getUsername();
+//            ActionReturnUtil bindingResult = roleService.rolebinding(tenantName, namespaceDto.getTenantid(), namespaceDto.getName(), userTenant.getRole(), userName);
+//            if ((Boolean) bindingResult.get(CommonConstant.SUCCESS) == false) {
+//                logger.error("调用k8s接口向rolebinding绑定租户管理员失败,tenantName=" + tenantName + ",tenantid=" + namespaceDto.getTenantid() + ", namespace=" + namespaceDto.getName()
+//                        + ", userName=" + userName);
+//                return bindingResult;
+//            }
+//
+//        }
+//        return ActionReturnUtil.returnSuccess();
+//    }
 
-    private ActionReturnUtil bindUser(NamespaceDto namespaceDto) throws Exception {
-
-        List<UserTenant> userByTenantid = userTenantService.getUserByTenantid(namespaceDto.getTenantid());
-        if (null == userByTenantid || userByTenantid.size() <= 0) {
-            return ActionReturnUtil.returnSuccess();
-        }
-        for (UserTenant userTenant : userByTenantid) {
-            TenantBinding tenantBinding = tenantService.getTenantByTenantid(namespaceDto.getTenantid());
-            String tenantName = tenantBinding.getTenantName();
-            String userName = userTenant.getUsername();
-            ActionReturnUtil bindingResult = roleService.rolebinding(tenantName, namespaceDto.getTenantid(), namespaceDto.getName(), userTenant.getRole(), userName);
-            if ((Boolean) bindingResult.get(CommonConstant.SUCCESS) == false) {
-                logger.error("调用k8s接口向rolebinding绑定租户管理员失败,tenantName=" + tenantName + ",tenantid=" + namespaceDto.getTenantid() + ", namespace=" + namespaceDto.getName()
-                        + ", userName=" + userName);
-                return bindingResult;
-            }
-
-        }
-        return ActionReturnUtil.returnSuccess();
-    }
+    /**
+     *
+     * @param namespace
+     * @param networkname
+     * @param type 产生ingress类型 1，网络白名单策略 2，租户分区互通网络策略，3，系统组件网络策略
+     * @param networknamefrom
+     * @param networknameto
+     * @param cluster
+     * @return
+     * @throws Exception
+     */
     @Override
-    public ActionReturnUtil createNetworkPolicy(String namespace, String networkname, Integer type, String networknamefrom, String networknameto, Cluster cluster)
-            throws Exception {
+    public ActionReturnUtil createNetworkPolicy(String namespace,
+                                                String networkname,
+                                                Integer type,
+                                                String networknamefrom,
+                                                String networknameto,
+                                                Cluster cluster) throws Exception {
 
         String tenantName = namespace.split(CommonConstant.LINE)[0];
 
@@ -1107,14 +1167,17 @@ public class NamespaceServiceImpl implements NamespaceService {
         Map<String, Object> spec = new HashMap<String, Object>();
 
         LabelSelector podSelector = new LabelSelector();
+        //设置匹配标签
         podSelector.setMatchLabels(matchLabels);
-
         spec.put(CommonConstant.PODSELECTOR, podSelector);
-        spec.put(CommonConstant.INGRESS, generateIngress(tenantName, networkname, networknamefrom, networknameto, type));
-
+        //设置ingress规则 若果为分区策略
+        if (type != 2){
+            spec.put(CommonConstant.INGRESS, generateIngress(tenantName, networkname, networknamefrom, networknameto, type));
+        }
         ObjectMeta objectMeta = new ObjectMeta();
         String networkpolicyname = null;
         // name+"-"+p.networknamefrom+"-"+p.networknameto+"configpolicy"
+        //组装策略名
         if (StringUtils.isEmpty(networknamefrom) && StringUtils.isEmpty(networknameto)) {
             networkpolicyname = namespace + CommonConstant.POLICY;
             objectMeta.setName(networkpolicyname);
@@ -1123,7 +1186,7 @@ public class NamespaceServiceImpl implements NamespaceService {
                     + CommonConstant.LINE + networknameto.replaceAll(CommonConstant.UNDER_LINE + CommonConstant.MONIT_NETWORK, CommonConstant.EMPTYSTRING) + CommonConstant.POLICY;
             objectMeta.setName(networkpolicyname);
         }
-
+        //组装元数据
         objectMeta.setNamespace(namespace);
         Map<String, Object> bodys = new HashMap<String, Object>();
         bodys.put(CommonConstant.KIND, CommonConstant.NETWORKPOLICY);
@@ -1136,7 +1199,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
         if (!HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
             logger.error("调用k8s接口创建networkPolicy失败", k8SClientResponse.getBody());
-            return ActionReturnUtil.returnErrorWithMsg(k8SClientResponse.getBody());
+            throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_POLICY_CREATE_ERROR);
         }
 
         return ActionReturnUtil.returnSuccess();
@@ -1154,7 +1217,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         podSelector.setMatchLabels(matchLabels);
 
         spec.put(CommonConstant.PODSELECTOR, podSelector);
-        spec.put(CommonConstant.INGRESS, generateIngress(tenantName, namespaceDto.getNetwork().getName(), null, null, 3));
+        spec.put(CommonConstant.INGRESS, generateIngress(tenantName, null, null, null, 3));
         /*
          * NetworkPolicySpec spec = new NetworkPolicySpec();
          * List<NetworkPolicyIngressRule> ingress =
@@ -1176,13 +1239,23 @@ public class NamespaceServiceImpl implements NamespaceService {
         K8SClientResponse k8SClientResponse = networkPolicyService.create(headers, bodys, namespaceDto.getName(), cluster);
 
         if (!HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
-            logger.error("调用k8s接口创建networkPolicy失败", k8SClientResponse.getBody());
-            return ActionReturnUtil.returnErrorWithMsg(k8SClientResponse.getBody());
+            logger.error("调用k8s接口创建HA networkPolicy失败", k8SClientResponse.getBody());
+            throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_HA_POLICY_CREATE_ERROR);
         }
 
         return ActionReturnUtil.returnSuccess();
     }
 
+    /**
+     * 产生ingress
+     * @param tenantName 租户名
+     * @param networkName
+     * @param networknamefrom
+     * @param networknameto
+     * @param type 产生ingress类型 1，网络白名单策略 2，租户分区互通网络策略，3，系统组件网络策略
+     * @return
+     * @throws Exception
+     */
     private Object generateIngress(String tenantName, String networkName, String networknamefrom, String networknameto, Integer type) throws Exception {
 
         Map<String, Object> matchLabels = new HashMap<String, Object>();
@@ -1192,8 +1265,9 @@ public class NamespaceServiceImpl implements NamespaceService {
                 matchLabels.put(topology_key, "1");
                 break;
             case 2 :
-                matchLabels.put("nephele_tenant", tenantName);
-                matchLabels.put(CommonConstant.NEPHELE_TENANT_NETWORK, tenantName + CommonConstant.LINE + networkName);
+                //如果后续网络在同一个集群的租户下，可以启用整个租户网络
+//                matchLabels.put("nephele_tenant", tenantName);
+//                matchLabels.put(CommonConstant.NEPHELE_TENANT_NETWORK, tenantName + CommonConstant.LINE + networkName);
                 break;
             case 3 :
                 matchLabels.put(CommonConstant.INITKUBESYSTEM, CommonConstant.KUBE_SYSTEM);
@@ -1224,10 +1298,10 @@ public class NamespaceServiceImpl implements NamespaceService {
 
     private Map<String, Object> getLables(NamespaceDto namespaceDto) throws Exception {
         Map<String, Object> lables = new HashMap<>();
-        String tenantName = namespaceDto.getName().split(CommonConstant.LINE)[0];
-        lables.put("nephele_tenant", tenantName);
-        lables.put("nephele_tenantid", namespaceDto.getTenantid());
-        lables.put("nephele_tenant_network", new StringBuffer().append(tenantName).append(CommonConstant.LINE).append(namespaceDto.getNetwork().getName()).toString());
+        TenantBinding tenantByTenantid = this.tenantService.getTenantByTenantid(namespaceDto.getTenantId());
+        lables.put("nephele_tenant", tenantByTenantid.getTenantName());
+        lables.put("nephele_tenantid", namespaceDto.getTenantId());
+//        lables.put("nephele_tenant_network", new StringBuffer().append(tenantName).append(CommonConstant.LINE).append(namespaceDto.getNetwork().getName()).toString());
         if (namespaceDto.isPrivate()) {
             lables.put("isPrivate", "1");// 私有
         } else {
@@ -1242,13 +1316,13 @@ public class NamespaceServiceImpl implements NamespaceService {
 
     private Map<String, Object> getAnnotations(NamespaceDto namespaceDto) throws Exception {
         Map<String, Object> annotations = new HashMap<>();
-
-        annotations.put(CommonConstant.NEPHELE_SUBNETID, namespaceDto.getNetwork().getSubnet().getSubnetid());
-        annotations.put(CommonConstant.NETWORK_POLICY, CommonConstant.NETWORK_POLICY_INGRESS);
-        annotations.put(CommonConstant.NEPHELE_SUBNETNAME, namespaceDto.getNetwork().getSubnet().getSubnetname());
+        //TODO 后续网络可能会用到
+//        annotations.put(CommonConstant.NEPHELE_SUBNETID, namespaceDto.getNetwork().getSubnet().getSubnetid());
+//        annotations.put(CommonConstant.NETWORK_POLICY, CommonConstant.NETWORK_POLICY_INGRESS);
+//        annotations.put(CommonConstant.NEPHELE_SUBNETNAME, namespaceDto.getNetwork().getSubnet().getSubnetname());
         annotations.put(CommonConstant.NEPHELE_ANNOTATION, namespaceDto.getAnnotation());
-        annotations.put(CommonConstant.NEPHELE_NETWORKID, namespaceDto.getNetwork().getNetworkid());
-        annotations.put(CommonConstant.NEPHELE_NETWORKNAME, namespaceDto.getNetwork().getName());
+//        annotations.put(CommonConstant.NEPHELE_NETWORKID, namespaceDto.getNetwork().getNetworkid());
+//        annotations.put(CommonConstant.NEPHELE_NETWORKNAME, namespaceDto.getNetwork().getName());
 
         return annotations;
     }
@@ -1292,10 +1366,10 @@ public class NamespaceServiceImpl implements NamespaceService {
 
     private ActionReturnUtil checkSubnet(NamespaceDto namespaceDto) throws Exception {
         SubnetDto subnet = namespaceDto.getNetwork().getSubnet();
-        if (null == subnet || StringUtils.isEmpty(subnet.getSubnetid()) || StringUtils.isEmpty(subnet.getSubnetname())) {
-            logger.error("验证subnet是否已经被绑定时,Subnetid或者subnetname为空");
-            return ActionReturnUtil.returnErrorWithMsg("subnetid or subnetname can not be found");
-        }
+        AssertUtil.notNull(subnet);
+        AssertUtil.notBlank(subnet.getSubnetid(), DictEnum.SUB_NETWORK_ID);
+        AssertUtil.notBlank(subnet.getSubnetid(), DictEnum.SUB_NETWORK_NAME);
+        AssertUtil.notNull(subnet);
         NamespceBindSubnet net = networkService.getsubnetbySubnetnameAndSubnetid(subnet.getSubnetid(), subnet.getSubnetname());
 
         if (null == net) {
@@ -1305,7 +1379,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
         if (net.getBinding() == 1) {
             logger.info("subnet" + subnet.getSubnetname() + "已经被绑定");
-            return ActionReturnUtil.returnErrorWithMsg("subent " + subnet.getSubnetname() + " has been bound");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NETWORK_ALREADY_BIND);
         }
         return ActionReturnUtil.returnSuccess();
     }
@@ -1313,7 +1387,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     private ActionReturnUtil dealTopology(NamespaceDto namespaceDto, Cluster cluster) throws Exception {
 
         if (namespaceDto.getNetwork() == null || StringUtils.isEmpty(namespaceDto.getNetwork().getNetworkid())) {
-            return ActionReturnUtil.returnErrorWithMsg("创建project时,networkid为空");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER, DictEnum.NETWORK_ID.phrase(), true);
         }
 
         // 根据networkid查询网络拓扑关系
@@ -1353,7 +1427,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
         if (!HttpStatusUtil.isSuccessStatus(namespaceResponse.getStatus())) {
             logger.error("根据" + name + "查询namespace失败", namespaceResponse.getBody());
-            return ActionReturnUtil.returnErrorWithMsg("查询namespace失败");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.QUERY_FAIL, DictEnum.NAMESPACE.phrase(),true);
         }
         Namespace namespace = JsonUtil.jsonToPojo(namespaceResponse.getBody(), Namespace.class);
         // 2.更新namespace
@@ -1377,16 +1451,16 @@ public class NamespaceServiceImpl implements NamespaceService {
 
         if (!HttpStatusUtil.isSuccessStatus(update.getStatus())) {
             logger.error("根据" + name + "更新namespace失败， 错误信息：" + update.getBody());
-            return ActionReturnUtil.returnErrorWithMsg("更新namespace失败， 错误信息：" + update.getBody());
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.UPDATE_FAIL, update.getBody(),false);
         }
 
         return ActionReturnUtil.returnSuccess();
     }
-    public void rollbackNetworkAndNamespace(String subnetId, String tenantid, String namespace) throws Exception {
-        // 删除子网
-        networkService.subnetworkDelete(subnetId);
+    public void rollbackNetworkAndNamespace(String tenantid, String namespace,String clusterId) throws Exception {
+//        // 删除子网
+//        networkService.subnetworkDelete(subnetId);
         // 删除namespace
-        this.deleteNamespace(tenantid, namespace);
+        this.deleteNamespace(tenantid, namespace,clusterId);
     }
     public void rollbackNetwork(String subnetId) throws Exception {
         // 删除子网
@@ -1400,7 +1474,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
         if (!HttpStatusUtil.isSuccessStatus(namespaceResponse.getStatus())) {
             logger.error("根据" + name + "查询namespace失败", namespaceResponse.getBody());
-            return ActionReturnUtil.returnErrorWithMsg("查询namespace失败");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.QUERY_FAIL, DictEnum.NAMESPACE.phrase(),true);
         }
         Namespace namespace = JsonUtil.jsonToPojo(namespaceResponse.getBody(), Namespace.class);
         // 2.更新namespace
@@ -1426,7 +1500,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
         if (!HttpStatusUtil.isSuccessStatus(update.getStatus())) {
             logger.error("根据" + name + "更新namespace失败， 错误信息：" + update.getBody());
-            return ActionReturnUtil.returnErrorWithMsg("更新namespace失败， 错误信息：" + update.getBody());
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.UPDATE_FAIL, update.getBody(),false);
         }
 
         return ActionReturnUtil.returnSuccess();
@@ -1468,56 +1542,180 @@ public class NamespaceServiceImpl implements NamespaceService {
     }
 
     @Override
-    public ActionReturnUtil getPrivatePartitionLabel(String tenantid, String namespace) throws Exception {
-        ActionReturnUtil privatePartitionLabel = this.privatePartitionService.getPrivatePartitionLabel(tenantid, namespace);
+    public String getPrivatePartitionLabel(String tenantid, String namespace) throws Exception {
+        String privatePartitionLabel = this.privatePartitionService.getPrivatePartitionLabel(tenantid, namespace);
         return privatePartitionLabel;
     }
 
     @Override
-    public ActionReturnUtil getNamespaceListByTenantid(String tenantid) throws Exception {
+    public List<Map<String, Object>> getNamespaceListByTenantid(String tenantid) throws Exception {
         // 初始化判断1
+        AssertUtil.notBlank(tenantid, DictEnum.TENANT_ID);
+        List<Map<String, Object>> namespaceData = new ArrayList<Map<String, Object>>();
+        List<NamespaceLocal> namespaceList = this.namespaceLocalService.getAllNamespaceListByTenantId(tenantid);
+        this.getNameSpaceDetailByNamespaceLocalList(namespaceList,namespaceData);
+        return namespaceData;
+    }
+    /**
+     * 根据tenantid查询集群资源使用列表
+     * @param tenantid 如果为null查询当前集群下所有的资源使用情况
+     * @param clusterId  如果为null查询所有集群的资源使用情况
+     * @return
+     * @throws Exception
+     */
+    public Map<String,List> getClusterQuotaListByTenantid(String tenantid,String clusterId)throws Exception{
+        Map<String,List> result = new HashMap<>();
+        //获取所有的分区列表
+        List<NamespaceLocal> namespaceList = null;
         if (StringUtils.isEmpty(tenantid)) {
-            return ActionReturnUtil.returnErrorWithMsg("租户id不能为空");
+            namespaceList = this.namespaceLocalService.getPublicNamespaceListByClusterId(clusterId);
+        }else {
+            namespaceList = this.namespaceLocalService.getAllPublicNamespaceListByTenantId(tenantid);
         }
-        // 获取集群
-        Cluster cluster = this.getClusterByTenantid(tenantid);
-        if (cluster == null) {
-            return ActionReturnUtil.returnErrorWithMsg("该租户所在的集群无法使用，或者无效的租户id");
+
+        if (CollectionUtils.isEmpty(namespaceList)){
+            return result;
         }
-        TenantBindingExample example = new TenantBindingExample();
-        example.createCriteria().andTenantIdEqualTo(tenantid);
-        List<TenantBinding> list = tenantBindingMapper.selectByExample(example);
-        if (list == null || list.size() <= 0 || list.get(0) == null) {
-            return ActionReturnUtil.returnErrorWithData("tenantid错误");
+        Map<String, List<NamespaceLocal>> clusterNsMap = new HashMap<>();
+        //根据集群查询分区的详情
+        for (NamespaceLocal ns:namespaceList) {
+            if (clusterNsMap.get(ns.getClusterId().toString()) != null){
+                clusterNsMap.get(ns.getClusterId().toString()).add(ns);
+            }else {
+                List<NamespaceLocal> clusterList = new ArrayList<>();
+                clusterList.add(ns);
+                clusterNsMap.put(ns.getClusterId().toString(),clusterList);
+            }
         }
-        TenantBinding tenantBinding = list.get(0);
-        List<Object> namespaceData = new ArrayList<Object>();
-        List<String> k8sNamespace = tenantBinding.getK8sNamespaceList();
-        // 查询namespace信息
-        for (String namespace : k8sNamespace) {
-            Map<String, Object> namespaceDetail = getNamespaceQuota(namespace, cluster);
+        //如果集群不为空则筛选指定集群的分区信息
+        if ((!Objects.isNull(clusterId)) && StringUtils.isNotBlank(tenantid)){
+            List<NamespaceLocal> namespaceLocals = clusterNsMap.get(clusterId.toString());
+            clusterNsMap.clear();
+            clusterNsMap.put(clusterId.toString(),namespaceLocals);
+        }
+        if (CollectionUtils.isEmpty(clusterNsMap)){
+            return result;
+        }
+        //获取每个集群的使用量
+        for (Map.Entry<String,List<NamespaceLocal>> entry:clusterNsMap.entrySet()) {
+            List<Map<String, Object>> clusterNamespaceData = new ArrayList<>();
+            this.getNameSpaceDetailByNamespaceLocalList(entry.getValue(),clusterNamespaceData);
+            result.put(entry.getKey(),clusterNamespaceData);
+        }
+        return result;
+    }
+    /**
+     * 根据clusterId查询namespace配额使用量详情列表
+     *
+     * @param clusterId
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public List<Map<String, Object>> getNamespaceListByClusterId(String clusterId) throws Exception {
+        // 初始化判断1
+        if (Objects.isNull(clusterId)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTERID_NOT_BLANK);
+        }
+        Cluster cluster = clusterService.findClusterById(clusterId);
+        List<NamespaceLocal> namespaceList = namespaceLocalService.getNamespaceListByClusterId(clusterId);
+        Map<String,NamespaceLocal> namespaceLocalMap = namespaceList.stream().collect(Collectors.toMap(NamespaceLocal::getNamespaceName, ns -> ns));
+        List<Map<String, Object>> namespaceData = new ArrayList<Map<String, Object>>();
+        List<Namespace> namespaces = this.namespaceService.list(cluster);
+        if (CollectionUtils.isEmpty(namespaces)) {
+            return namespaceData;
+        }
+        for (Namespace namespace : namespaces) {
+            Map<String, Object> namespaceDetail = this.getNamespaceQuota(namespace, cluster);
             if (namespaceDetail != null) {
+                namespaceDetail.put(CommonConstant.NS_ALIASNAME,namespaceLocalMap.get(namespace.getMetadata().getName()).getAliasName());
+                namespaceDetail.put(CommonConstant.TENANT_ID,namespaceLocalMap.get(namespace.getMetadata().getName()).getTenantId());
                 namespaceData.add(namespaceDetail);
             }
         }
-        return ActionReturnUtil.returnSuccessWithData(namespaceData);
+        return namespaceData;
     }
-    public Map<String, Object> getNamespaceQuota(String namespace, Cluster cluster) throws Exception {
-        Map<String, Object> namespaceMap = new HashMap<String, Object>();
+    private void getNameSpaceDetailByNamespaceLocalList(List<NamespaceLocal> namespaceList,List<Map<String, Object>> namespaceData) throws Exception{
+        if (!CollectionUtils.isEmpty(namespaceList)){
+            // 查询namespace信息
+            CountDownLatch countDownLatchApp = new CountDownLatch(namespaceList.size());
+            for (NamespaceLocal namespace : namespaceList) {
+                ThreadPoolExecutorFactory.executor.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            Map<String, Object> namespaceDetail = getNamespaceQuota(namespace.getNamespaceName());
+                            if (namespaceDetail != null) {
+                                namespaceDetail.put(CommonConstant.NS_ALIASNAME,namespace.getAliasName());
+                                namespaceDetail.put(CommonConstant.TENANT_ID,namespace.getTenantId());
+                                namespaceData.add(namespaceDetail);
+                            }
+                        } catch (Exception e) {
+                            logger.error("获取分区配额失败", e);
+                        } finally {
+                            countDownLatchApp.countDown();
+                        }
+                    }
+                });
+            }
+            countDownLatchApp.await();
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+            sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+            // 对时间进行升序
+            if (!CollectionUtils.isEmpty(namespaceData)){
+                try{
+                    Collections.sort(namespaceData, new Comparator<Map<String, Object>>() {
+                        @Override
+                        public int compare(Map<String, Object> o1, Map<String, Object> o2) {
+                            try {
+                                return Long.valueOf(sdf.parse(o1.get(CREATETIME).toString()).getTime())
+                                        .compareTo(Long.valueOf(sdf.parse(o2.get(CREATETIME).toString()).getTime()));
+                            } catch (ParseException e) {
+                                return 0;
+                            }
+                        }
+                    });
+                }catch (Exception e){
+                    logger.error("ns排序错误", e);
+                }
+            }
+        }
+    }
+
+    public Map<String, Object> getNamespaceQuota(String namespace) throws Exception {
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
         K8SClientResponse namespace2 = this.namespaceService.getNamespace(namespace, null, null, cluster);
-        Namespace toPojo = JsonUtil.jsonToPojo(namespace2.getBody(), Namespace.class);
         if (!HttpStatusUtil.isSuccessStatus(namespace2.getStatus())) {
             logger.error("调用k8s接口查询namespace失败", namespace2.getBody());
             return ActionReturnUtil.returnErrorWithMsg(namespace2.getBody());
         }
-        Object label = toPojo.getMetadata().getLabels().get("isPrivate");
-        if (label != null && label.toString().equals("1")) {
-            namespaceMap.put("isPrivate", true);
-        } else {
-            namespaceMap.put("isPrivate", false);
+        Namespace namespacePojo = JsonUtil.jsonToPojo(namespace2.getBody(), Namespace.class);
+        return this.getNamespaceQuota(namespacePojo, cluster);
+    }
+
+    public Map<String, Object> getNamespaceQuota(Namespace namespace, Cluster cluster) throws Exception {
+        Map<String, Object> namespaceMap = new HashMap<String, Object>();
+        String nsName = namespace.getMetadata().getName();
+        NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByName(nsName);
+        if(namespaceLocal == null){
+            return null;
         }
-        ResourceQuotaList quotaList = this.getResouceQuota(namespace, cluster);
-        namespaceMap.put(CommonConstant.NAME, namespace);
+        namespaceMap.put(CommonConstant.CLUSTERID,cluster.getId());
+        namespaceMap.put(CommonConstant.CLUSTERALIASID,cluster.getAliasName());
+        namespaceMap.put(CommonConstant.CLUSTER_NAME,cluster.getName());
+        Object label = namespace.getMetadata().getLabels().get(ISPRIVATE);
+        String phase = namespace.getStatus().getPhase();
+        String creationTimestamp = namespace.getMetadata().getCreationTimestamp();
+        namespaceMap.put(PHASE,phase);
+        namespaceMap.put(CREATETIME,creationTimestamp);
+        if (label != null && label.toString().equals(CommonConstant.ONENUMSTRING)) {
+            namespaceMap.put(ISPRIVATE, true);
+        } else {
+            namespaceMap.put(ISPRIVATE, false);
+        }
+        ResourceQuotaList quotaList = this.getResouceQuota(nsName, cluster);
+        namespaceMap.put(CommonConstant.NAME, nsName);
+        namespaceMap.put(CommonConstant.ALIASNAME, namespaceLocal.getAliasName());
         if (quotaList != null && quotaList.getItems() != null && quotaList.getItems().size() != 0) {
             ResourceQuota resourceQuota = quotaList.getItems().get(0);
             if (resourceQuota.getSpec() != null && resourceQuota.getStatus() != null) {
@@ -1528,19 +1726,20 @@ public class NamespaceServiceImpl implements NamespaceService {
                 List<Object> cpu = new LinkedList<>();
                 // 保留两位小数 四舍五入
                 NumberFormat nf = NumberFormat.getNumberInstance();
-                nf.setMaximumFractionDigits(2);
-                nf.setRoundingMode(RoundingMode.UP);
+                nf.setGroupingUsed(false);
+                nf.setMaximumFractionDigits(CommonConstant.NUM_ONE);
+                nf.setRoundingMode(RoundingMode.DOWN);
                 if (hard.get(CommonConstant.CPU).contains(CommonConstant.SMALLM)) {
                     String chard = hard.get(CommonConstant.CPU).split(CommonConstant.SMALLM)[0];
                     double hardMemory = Double.parseDouble(chard);
-                    cpu.add(nf.format(hardMemory / 1000));
+                    cpu.add(nf.format(hardMemory / CommonConstant.NUM_THOUSAND));
                 } else {
                     cpu.add(hard.get(CommonConstant.CPU));
                 }
                 if (used.get(CommonConstant.CPU).contains(CommonConstant.SMALLM)) {
                     String chard = used.get(CommonConstant.CPU).split(CommonConstant.SMALLM)[0];
                     double hardMemory = Double.parseDouble(chard);
-                    cpu.add(nf.format(hardMemory / 1000));
+                    cpu.add(nf.format(hardMemory / CommonConstant.NUM_THOUSAND));
                 } else {
                     cpu.add(used.get(CommonConstant.CPU));
                 }
@@ -1551,7 +1750,11 @@ public class NamespaceServiceImpl implements NamespaceService {
                 int hardtype = 0;
                 int usedtype = 0;
                 // 内存总量
-                if (hard.get(CommonConstant.MEMORY).contains(CommonConstant.KI) || hard.get(CommonConstant.MEMORY).contains(CommonConstant.SMALLK)) {
+                if (hard.get(CommonConstant.MEMORY).equals(CommonConstant.ZERONUM)) {
+                    String mhard = hard.get(CommonConstant.MEMORY);
+                    memory.add(mhard);
+                    hardtype = CommonConstant.NUM_GB;
+                } else if (hard.get(CommonConstant.MEMORY).contains(CommonConstant.KI) || hard.get(CommonConstant.MEMORY).contains(CommonConstant.SMALLK)) {
                     String mhard = null;
                     if (hard.get(CommonConstant.MEMORY).contains(CommonConstant.SMALLM)) {
                         mhard = hard.get(CommonConstant.MEMORY).split(CommonConstant.SMALLK)[0];
@@ -1560,47 +1763,47 @@ public class NamespaceServiceImpl implements NamespaceService {
                     }
                     double hardMemory = Double.parseDouble(mhard);
                     int mum = 0;
-                    while (hardMemory >= 1024) {
-                        hardMemory = hardMemory / 1024;
-                        mum = mum + 1;
+                    while (hardMemory >= CommonConstant.NUM_SIZE_MEMORY) {
+                        hardMemory = hardMemory / CommonConstant.NUM_SIZE_MEMORY;
+                        mum ++;
                     }
                     hardtype = mum;
-                    memory.add(nf.format(hardMemory % 1.0 == 0 ? (long) hardMemory : hardMemory));
+                    memory.add(nf.format(hardMemory % CommonConstant.NUM_ONE_DOUBLE == 0 ? (long) hardMemory : hardMemory));
                 } else if (hard.get(CommonConstant.MEMORY).contains(CommonConstant.SMALLM)) {
                     String mhard = null;
                     mhard = hard.get(CommonConstant.MEMORY).split(CommonConstant.SMALLM)[0];
                     double hardMemory = Double.parseDouble(mhard);
                     int mum = 0;
-                    hardMemory = hardMemory / (1000 * 1024);
-                    while (hardMemory >= 1024) {
-                        hardMemory = hardMemory / 1024;
-                        mum = mum + 1;
+                    hardMemory = hardMemory / (CommonConstant.NUM_THOUSAND * CommonConstant.NUM_SIZE_MEMORY);
+                    while (hardMemory >= CommonConstant.NUM_SIZE_MEMORY) {
+                        hardMemory = hardMemory / CommonConstant.NUM_SIZE_MEMORY;
+                        mum ++;
                     }
                     hardtype = mum;
-                    memory.add(nf.format(hardMemory % 1.0 == 0 ? (long) hardMemory : hardMemory));
+                    memory.add(nf.format(hardMemory % CommonConstant.NUM_ONE_DOUBLE == 0 ? (long) hardMemory : hardMemory));
                 } else if (hard.get(CommonConstant.MEMORY).contains(CommonConstant.MI)) {
                     String mhard = null;
                     mhard = hard.get(CommonConstant.MEMORY).split(CommonConstant.MI)[0];
                     double hardMemory = Double.parseDouble(mhard);
-                    int mum = 1;
-                    while (hardMemory >= 1024) {
-                        hardMemory = hardMemory / 1024;
-                        mum = mum + 1;
+                    int mum = CommonConstant.NUM_ONE;
+                    while (hardMemory >= CommonConstant.NUM_SIZE_MEMORY) {
+                        hardMemory = hardMemory / CommonConstant.NUM_SIZE_MEMORY;
+                        mum ++;
                     }
                     hardtype = mum;
-                    memory.add(nf.format(hardMemory % 1.0 == 0 ? (long) hardMemory : hardMemory));
+                    memory.add(nf.format(hardMemory % CommonConstant.NUM_ONE_DOUBLE == 0 ? (long) hardMemory : hardMemory));
                 } else if (hard.get(CommonConstant.MEMORY).contains(CommonConstant.GI) || hard.get(CommonConstant.MEMORY).contains(CommonConstant.SMALLG)) {
                     String mhard = hard.get(CommonConstant.MEMORY).split(CommonConstant.GI)[0];
                     memory.add(mhard);
-                    hardtype = 2;
+                    hardtype = CommonConstant.NUM_TWO;
                 } else if (hard.get(CommonConstant.MEMORY).contains(CommonConstant.TI) || hard.get(CommonConstant.MEMORY).contains(CommonConstant.SMALLT)) {
                     String mhard = hard.get(CommonConstant.MEMORY).split(CommonConstant.TI)[0];
                     memory.add(mhard);
-                    hardtype = 3;
+                    hardtype = CommonConstant.NUM_THREE;
                 } else if (hard.get(CommonConstant.MEMORY).contains(CommonConstant.PI)) {
                     String mhard = hard.get(CommonConstant.MEMORY).split(CommonConstant.PI)[0];
                     memory.add(mhard);
-                    hardtype = 4;
+                    hardtype = CommonConstant.NUM_FOUR;
                 }
                 // 内存使用量
                 if (used.get(CommonConstant.MEMORY).equals(CommonConstant.ZERONUM)) {
@@ -1611,137 +1814,68 @@ public class NamespaceServiceImpl implements NamespaceService {
                     String mused = used.get(CommonConstant.MEMORY).split(CommonConstant.KI)[0];
                     double usedMemory = Double.parseDouble(mused);
                     int mum = 0;
-                    while (usedMemory >= 1024) {
-                        usedMemory = usedMemory / 1024;
-                        mum = mum + 1;
+                    while (usedMemory >= CommonConstant.NUM_SIZE_MEMORY) {
+                        usedMemory = usedMemory / CommonConstant.NUM_SIZE_MEMORY;
+                        mum ++;
                     }
                     usedtype = mum;
-                    memory.add(nf.format(usedMemory % 1.0 == 0 ? (long) usedMemory : usedMemory));
+                    memory.add(nf.format(usedMemory % CommonConstant.NUM_ONE_DOUBLE == 0 ? (long) usedMemory : usedMemory));
                 } else if (used.get(CommonConstant.MEMORY).contains(CommonConstant.MI)) {
                     String mused = used.get(CommonConstant.MEMORY).split(CommonConstant.MI)[0];
                     double usedMemory = Double.parseDouble(mused);
-                    int mum = 1;
-                    while (usedMemory >= 1024) {
-                        usedMemory = usedMemory / 1024;
-                        mum = mum + 1;
+                    int mum = CommonConstant.NUM_ONE;
+                    while (usedMemory >= CommonConstant.NUM_SIZE_MEMORY) {
+                        usedMemory = usedMemory / CommonConstant.NUM_SIZE_MEMORY;
+                        mum ++;
                     }
                     usedtype = mum;
-                    memory.add(nf.format(usedMemory % 1.0 == 0 ? (long) usedMemory : usedMemory));
+                    memory.add(nf.format(usedMemory % CommonConstant.NUM_ONE_DOUBLE == 0 ? (long) usedMemory : usedMemory));
                 } else if (used.get(CommonConstant.MEMORY).contains(CommonConstant.GI)) {
                     String mused = used.get(CommonConstant.MEMORY).split(CommonConstant.GI)[0];
                     memory.add(mused);
-                    usedtype = 2;
+                    usedtype = CommonConstant.NUM_TWO;
                 } else if (used.get(CommonConstant.MEMORY).contains(CommonConstant.TI)) {
                     String mused = used.get(CommonConstant.MEMORY).split(CommonConstant.TI)[0];
                     memory.add(mused);
-                    usedtype = 3;
+                    usedtype = CommonConstant.NUM_THREE;
                 } else if (used.get(CommonConstant.MEMORY).contains(CommonConstant.PI)) {
                     String mused = used.get(CommonConstant.MEMORY).split(CommonConstant.PI)[0];
                     memory.add(mused);
-                    usedtype = 4;
+                    usedtype = CommonConstant.NUM_FOUR;
                 }
-                // if
-                // (hard.get(CommonConstant.MEMORY).contains(CommonConstant.MB))
-                // {
-                // String mhard =
-                // hard.get(CommonConstant.MEMORY).split(CommonConstant.MB)[0];
-                // double hardMemory = Double.parseDouble(mhard);
-                // String hardmemory = null;
-                // if(hardMemory >= 1024){
-                // type = 2;
-                // double intm = (hardMemory / 1024);
-                // while(intm>=1024){
-                // intm = intm/1024;
-                // type++;
-                // }
-                // hardmemory = nf.format(intm%1.0==0?(long)intm:intm);
-                // }else{
-                // hardmemory = mhard;
-                // type = 1;
-                // }
-                // memory.add(hardmemory);
-                // } else
-                // if(hard.get(CommonConstant.MEMORY).contains(CommonConstant.GB)){
-                // double hardMemory =
-                // Double.parseDouble(hard.get(CommonConstant.MEMORY).split(CommonConstant.GB)[0]);
-                // memory.add(hardMemory%1.0==0?(long)hardMemory:hardMemory);
-                // type = 2;
-                //
-                // }else
-                // if(hard.get(CommonConstant.MEMORY).contains(CommonConstant.TB)){
-                // double hardMemory =
-                // Double.parseDouble(hard.get(CommonConstant.MEMORY).split(CommonConstant.TB)[0]);
-                // memory.add(hardMemory%1.0==0?(long)hardMemory:hardMemory);
-                // type = 3;
-                // }else{
-                // //hard.get(CommonConstant.MEMORY)没有单位的时候默认为GB
-                // double hardMemory =
-                // Double.parseDouble(hard.get(CommonConstant.MEMORY).split(CommonConstant.GB)[0]);
-                // memory.add(hardMemory%1.0==0?(long)hardMemory:hardMemory);
-                // type = 2;
-                // }
-                // if
-                // (used.get(CommonConstant.MEMORY).contains(CommonConstant.MB))
-                // {
-                // String mused =
-                // used.get(CommonConstant.MEMORY).split(CommonConstant.MB)[0];
-                // double usedMemory = Double.parseDouble(mused);
-                // String usedmemory = null;
-                // double intm = 0;
-                // switch (type) {
-                // case 1:
-                // usedmemory = mused;
-                // break;
-                // case 2:
-                // for(int i = type;i>=0;i++){
-                // intm = usedMemory / 1024;
-                // }
-                // usedmemory = nf.format(intm%1.0==0?(long)intm:intm);
-                // break;
-                // }
-                // memory.add(usedMemory == 0 ? "0":usedmemory);
-                // } else
-                // if(hard.get(CommonConstant.MEMORY).contains(CommonConstant.GB)){
-                // double usedMemory =
-                // Double.parseDouble(used.get(CommonConstant.MEMORY).split(CommonConstant.GB)[0]);
-                // memory.add(usedMemory%1.0==0?(long)usedMemory:usedMemory);
-                // }else
-                // if(hard.get(CommonConstant.MEMORY).contains(CommonConstant.TB)){
-                // double usedMemory =
-                // Double.parseDouble(used.get(CommonConstant.MEMORY).split(CommonConstant.TB)[0]);
-                // memory.add(usedMemory%1.0==0?(long)usedMemory:usedMemory);
-                // }
-                // memory.add(hard.get(CommonConstant.MEMORY).contains(CommonConstant.MB)?(hard.get(CommonConstant.MEMORY).split(CommonConstant.MB)[0]+CommonConstant.MB):hard.get(CommonConstant.MEMORY).split(CommonConstant.GB)[0]+CommonConstant.GB);
-                // memory.add(used.get(CommonConstant.MEMORY).contains(CommonConstant.MB)?(used.get(CommonConstant.MEMORY).split(CommonConstant.MB)[0]+CommonConstant.MB):used.get(CommonConstant.MEMORY).split(CommonConstant.GB)[0]+CommonConstant.GB);
+
                 namespaceMap.put(CommonConstant.MEMORY, memory);
                 switch (hardtype) {
                     case 0 :
                         namespaceMap.put(CommonConstant.HARDTYPE, CommonConstant.KB);
                         break;
-                    case 1 :
+                    case CommonConstant.NUM_ONE :
                         namespaceMap.put(CommonConstant.HARDTYPE, CommonConstant.MB);
                         break;
-                    case 2 :
+                    case CommonConstant.NUM_TWO :
                         namespaceMap.put(CommonConstant.HARDTYPE, CommonConstant.GB);
                         break;
-                    case 3 :
+                    case CommonConstant.NUM_THREE :
                         namespaceMap.put(CommonConstant.HARDTYPE, CommonConstant.TB);
                         break;
-                    case 4 :
+                    case CommonConstant.NUM_FOUR :
                         namespaceMap.put(CommonConstant.HARDTYPE, CommonConstant.PB);
                         break;
                 }
                 switch (usedtype) {
-                    case 1 :
+                    case 0 :
+                        namespaceMap.put(CommonConstant.USEDTYPE, CommonConstant.KB);
+                        break;
+                    case CommonConstant.NUM_ONE :
                         namespaceMap.put(CommonConstant.USEDTYPE, CommonConstant.MB);
                         break;
-                    case 2 :
+                    case CommonConstant.NUM_TWO :
                         namespaceMap.put(CommonConstant.USEDTYPE, CommonConstant.GB);
                         break;
-                    case 3 :
+                    case CommonConstant.NUM_THREE :
                         namespaceMap.put(CommonConstant.USEDTYPE, CommonConstant.TB);
                         break;
-                    case 4 :
+                    case CommonConstant.NUM_FOUR :
                         namespaceMap.put(CommonConstant.USEDTYPE, CommonConstant.PB);
                         break;
                 }
@@ -1749,5 +1883,302 @@ public class NamespaceServiceImpl implements NamespaceService {
             return namespaceMap;
         }
         return null;
+    }
+    /**
+     * 根据tenantid查询namespace名称（不包含分区配额信息）
+     * @param tenantid
+     * @return
+     * @throws Exception
+     */
+	@Override
+	public List<NamespaceLocal> listNamespaceNameByTenantid(String tenantid) throws Exception {
+        List<NamespaceLocal> namespaceList = this.namespaceLocalService.getNamespaceListByTenantId(tenantid);
+        return namespaceList;
+	}
+
+    /**
+     * 添加私有分区主机状态
+     *
+     * @param namespaceDto
+     * @throws Exception
+     */
+    @Override
+    public void addPrivateNamespaceNodes(NamespaceDto namespaceDto) throws Exception {
+        String clusterId = namespaceDto.getClusterId();
+        List<String> nodeList = namespaceDto.getNodeList();
+        Map<String, String> updateLabel = this.getUpdateLabel(namespaceDto,Boolean.FALSE);
+        for (String nodeName : nodeList) {
+            this.nodeService.addNodeLabels(nodeName,updateLabel,clusterId);
+        }
+    }
+
+    /**
+     * 移除私有分区主机状态
+     *
+     * @param namespaceDto
+     * @throws Exception
+     */
+    @Override
+    public void removePrivateNamespaceNodes(NamespaceDto namespaceDto) throws Exception {
+        String namespace = namespaceDto.getName();
+        NamespaceLocal namespaceByName = this.namespaceLocalService.getNamespaceByName(namespace);
+        //检查是否为私有分区
+        if (!namespaceByName.getIsPrivate()){
+            throw new MarsRuntimeException(ErrorCodeMessage.PRIVATE_NAMESPACE_ONLY);
+        }
+        //查询集群
+        Cluster cluster = this.clusterService.findClusterById(namespaceByName.getClusterId());
+        String nodeName = namespaceDto.getNodeName();
+        //获取该节点的pod列表
+        List<PodDto> podList = podService.PodList(nodeName, cluster);
+        for (PodDto podDto:podList) {
+            //如果该节点还有其他非系统pod则提示不能移除该独占主机
+            if (!(CommonConstant.KUBE_SYSTEM.equals(podDto.getNamespace()) || CommonConstant.DEFAULT.equals(podDto.getNamespace()))){
+                throw new MarsRuntimeException(ErrorCodeMessage.NODE_NOT_REMOVE);
+            }
+        }
+        //获取更新主机标签
+//        Map<String, String> deleteLabel = this.getUpdateLabel(namespaceDto,Boolean.TRUE);
+        Map<String, String> updateLabel = new HashMap<>();
+        //更新主机位闲置状态标签
+        updateLabel.put(CommonConstant.HARMONYCLOUD_STATUS ,CommonConstant.LABEL_STATUS_D);
+        String tenantId = namespaceDto.getTenantId();
+        TenantBinding tenant = this.tenantService.getTenantByTenantid(tenantId);
+        updateLabel.put(CommonConstant.HARMONYCLOUD_TENANTNAME_NS,tenant.getTenantName());
+        //更新主机信息
+        this.nodeService.removePrivateNamespaceNodes(nodeName,updateLabel,null,cluster);
+
+        //获取分区的配额
+        Map<String, Object> namespaceQuota = this.getNamespaceQuota(namespace);
+        List<String> memoryStatus =  (List<String>)namespaceQuota.get(CommonConstant.MEMORY);
+        List<String> cpuStatus = (List<String>)namespaceQuota.get(CommonConstant.CPU);
+        Double cpu = Double.valueOf(cpuStatus.get(0));
+        String hardUnit = namespaceQuota.get(CommonConstant.HARDTYPE).toString();
+        double memoryHard = Double.valueOf(memoryStatus.get(0));
+        memoryHard = transformMemoryToGb(memoryHard, hardUnit);
+
+        //处理节点资源使用量
+        QuotaDto quota2 = namespaceDto.getQuota();
+        Map node = nodeService.getNodeDetail(nodeName, cluster);
+        NodeDetailDto nodeDetail = (NodeDetailDto) node.get(CommonConstant.DATA);
+        if (nodeDetail == null && StringUtils.isEmpty(nodeDetail.getCpu())) {
+            throw new MarsRuntimeException(ErrorCodeMessage.NODE_NOT_EXIST);
+        }
+        //获取当前节点上运行的pod列表
+        List<DaemonSet> daemonSets = daemonSetsService.listDaemonSets(cluster);
+        //获取daemonset占用节点资源
+        double remainCpu = 0;
+        double remainMemory = 0;
+        Map<String, Double> remainResource = this.computeRemainResource(daemonSets, podList);
+        remainCpu = remainResource.get(CommonConstant.CPU);
+        remainMemory = remainResource.get(CommonConstant.MEMORY);
+        //处理空对象
+        if (Objects.isNull(quota2)){
+            quota2 = new QuotaDto();
+        }
+        double cpuQuota = cpu - remainCpu - (nodeDetail.getCpu().contains(CommonConstant.SMALLM)?(Double.parseDouble(nodeDetail.getCpu().split(CommonConstant.SMALLM)[0])/1000):Double.parseDouble(nodeDetail.getCpu()));
+        quota2.setCpu((cpuQuota < 0 ? 0:cpuQuota) + "");
+        double memoryQuota = memoryHard - remainMemory - (Double.parseDouble(nodeDetail.getMemory()));
+        quota2.setMemory((memoryQuota < 0 ? 0:memoryQuota) + CommonConstant.GI);
+        namespaceDto.setQuota(quota2);
+        //向K8S发送请求更新配额
+        // 组装quota
+        updateNamespaceQuota(namespaceDto,namespace,cluster);
+    }
+    //isRemoved 是否为更新状态
+    private Map<String, String> getUpdateLabel(NamespaceDto namespaceDto,Boolean isRemoved) throws Exception {
+        String namespace = namespaceDto.getName();
+        String tenantId = namespaceDto.getTenantId();
+        Map<String, String> labels = new HashMap<>();
+        //查询私有分区独占节点
+        String privateLabel = privatePartitionService.getPrivatePartitionLabel(tenantId, namespace);
+        String[] appLabel = privateLabel.split(CommonConstant.EQUALITY_SIGN);
+        if (appLabel.length > CommonConstant.NUM_ONE){
+            labels.put(appLabel[0],appLabel[CommonConstant.NUM_ONE]);
+        }else {
+            throw new MarsRuntimeException(ErrorCodeMessage.UNKNOWN);
+        }
+        if (!isRemoved){
+            labels.put(CommonConstant.HARMONYCLOUD_STATUS ,CommonConstant.LABEL_STATUS_D);
+        }
+        return labels;
+    }
+
+    /**
+     * 添加租户分区独占主机
+     *
+     * @param namespaceDto
+     * @throws Exception
+     */
+    @Override
+    public void addPrivilegeNamespaceNodes(NamespaceDto namespaceDto) throws Exception {
+        String namespace = namespaceDto.getName();
+        Cluster cluster = this.namespaceLocalService.getClusterByNamespaceName(namespace);
+        // 更新node节点状态
+        Map<String, String> newLabels = new HashMap<String, String>();
+        newLabels.put(CommonConstant.HARMONYCLOUD_STATUS, CommonConstant.LABEL_STATUS_D);
+        newLabels.put(CommonConstant.HARMONYCLOUD_TENANTNAME_NS, namespace);
+        String[] nodes = namespaceDto.getNodeName().split(CommonConstant.COMMA);
+        if (nodes.length <= 0) {
+            throw new MarsRuntimeException(ErrorCodeMessage.NODENAME_NOT_BLANK);
+        }
+
+        //获取分区的配额
+        Map<String, Object> namespaceQuota = this.getNamespaceQuota(namespace);
+        List<String> memoryStatus =  (List<String>)namespaceQuota.get(CommonConstant.MEMORY);
+        List<String> cpuStatus = (List<String>)namespaceQuota.get(CommonConstant.CPU);
+        Double cpu = Double.valueOf(cpuStatus.get(0));
+        String hardUnit = namespaceQuota.get(CommonConstant.HARDTYPE).toString();
+        double memoryHard = Double.valueOf(memoryStatus.get(0));
+        memoryHard = transformMemoryToGb(memoryHard, hardUnit);
+
+        for (String nodename : nodes) {
+            //更新节点标签
+            ActionReturnUtil addNodeLabels = nodeService.addNodeLabels(nodename, newLabels, cluster.getId());
+            if ((Boolean) addNodeLabels.get(CommonConstant.SUCCESS) == false) {
+                throw new MarsRuntimeException(ErrorCodeMessage.NODE_LABEL_CREATE_ERROR);
+            }
+            //处理节点资源使用量
+            QuotaDto quota2 = namespaceDto.getQuota();
+            Map node = nodeService.getNodeDetail(nodename, cluster);
+            NodeDetailDto nodeDetail = (NodeDetailDto) node.get(CommonConstant.DATA);
+            if (nodeDetail == null && StringUtils.isEmpty(nodeDetail.getCpu())) {
+                throw new MarsRuntimeException(ErrorCodeMessage.NODE_NOT_EXIST);
+            }
+            //获取当前节点上运行的pod列表
+            List<PodDto> podList = podService.PodList(nodename, cluster);
+            List<DaemonSet> daemonSets = daemonSetsService.listDaemonSets(cluster);
+            //获取daemonset占用节点资源
+            double remainCpu = 0;
+            double remainMemory = 0;
+            Map<String, Double> remainResource = this.computeRemainResource(daemonSets, podList);
+            remainCpu = remainResource.get(CommonConstant.CPU);
+            remainMemory = remainResource.get(CommonConstant.MEMORY);
+            //处理空对象
+            if (Objects.isNull(quota2)){
+                quota2 = new QuotaDto();
+            }
+            Double oldCpuValue = (quota2.getCpu()==null)?0d:(quota2.getCpu().contains(CommonConstant.SMALLM)?(Double.parseDouble(quota2.getCpu().split(CommonConstant.SMALLM)[0])/1000):Double.parseDouble(quota2.getCpu()));
+            quota2.setCpu(oldCpuValue + (nodeDetail.getCpu().contains(CommonConstant.SMALLM)?(Double.parseDouble(nodeDetail.getCpu().split(CommonConstant.SMALLM)[0])/1000):Double.parseDouble(nodeDetail.getCpu()) - remainCpu)+"");
+            Double oldMemoryValue = quota2.getMemory()==null?0d:Double.parseDouble(quota2.getMemory().split(CommonConstant.GI)[0]);
+            quota2.setMemory((Double.parseDouble(nodeDetail.getMemory()) + oldMemoryValue - remainMemory)+ CommonConstant.GI);
+
+            namespaceDto.setQuota(quota2);
+        }
+        //添加原有分区的配额
+        // 保留一位小数 四舍五入
+        NumberFormat nf = NumberFormat.getNumberInstance();
+        nf.setGroupingUsed(false);
+        nf.setMaximumFractionDigits(CommonConstant.NUM_TWO);
+        nf.setRoundingMode(RoundingMode.HALF_UP);
+        QuotaDto quota = namespaceDto.getQuota();
+        Double oldCpuValue = (quota.getCpu()==null)?0d:(quota.getCpu().contains(CommonConstant.SMALLM)?(Double.parseDouble(quota.getCpu().split(CommonConstant.SMALLM)[0])/1000):Double.parseDouble(quota.getCpu()));
+        double cpuHard = oldCpuValue + cpu;
+        String formatCpu = nf.format(cpuHard % CommonConstant.NUM_ONE_DOUBLE == 0 ? (long) cpuHard : cpuHard);
+        quota.setCpu(formatCpu + "");
+        Double oldMemoryValue = quota.getMemory()==null?0d:Double.parseDouble(quota.getMemory().split(CommonConstant.GI)[0]);
+        double memory = (memoryHard + oldMemoryValue);
+        String formatMemory = nf.format(memory % CommonConstant.NUM_ONE_DOUBLE == 0 ? (long) memory : memory);
+        quota.setMemory(formatMemory + CommonConstant.GI);
+        namespaceDto.setQuota(quota);
+        //向K8S发送请求更新配额
+        // 组装quota
+        updateNamespaceQuota(namespaceDto,namespace,cluster);
+    }
+    //向K8S发送请求更新配额
+    // 组装quota
+    private void updateNamespaceQuota(NamespaceDto namespaceDto,String namespace,Cluster cluster) throws Exception{
+        Map<String, Object> bodys = generateQuotaBodys(namespaceDto);
+        Map<String, Object> headers = new HashMap<>();
+        headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
+        K8SClientResponse k8SClientResponse = resourceQuotaService.update(namespace, namespace + QUOTA, headers, bodys, HTTPMethod.PUT,cluster);
+        if (!HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
+            logger.error("调用k8s接口更新namespace下quota失败", k8SClientResponse.getBody());
+            throw new MarsRuntimeException(k8SClientResponse.getBody());
+        }
+    }
+    @Override
+    public Map<String, String> getNamespaceResourceRemainQuota(String namespace) throws Exception {
+        Map<String, Object> namespaceQuota = this.getNamespaceQuota(namespace);
+        List<String> memoryStatus =  (List<String>)namespaceQuota.get(CommonConstant.MEMORY);
+        List<String> cpuStatus = (List<String>)namespaceQuota.get(CommonConstant.CPU);
+        String hardUnit = namespaceQuota.get(CommonConstant.HARDTYPE).toString();
+        String usedUnit = namespaceQuota.get(CommonConstant.USEDTYPE).toString();
+        double memoryHard = Double.valueOf(memoryStatus.get(0));
+        double memoryUsed = Double.valueOf(memoryStatus.get(CommonConstant.NUM_ONE));
+        memoryHard = transformMemoryUnit(memoryHard, hardUnit);
+        memoryUsed = transformMemoryUnit(memoryUsed, usedUnit);
+        BigDecimal cpu1 = new BigDecimal(Float.valueOf(cpuStatus.get(0))).setScale(CommonConstant.NUM_TWO, BigDecimal.ROUND_HALF_UP);
+        BigDecimal cpu2 = new BigDecimal(Float.valueOf(cpuStatus.get(CommonConstant.NUM_ONE))).setScale(CommonConstant.NUM_TWO, BigDecimal.ROUND_HALF_UP);
+        float cpuLeft = cpu1.subtract(cpu2).floatValue();
+        double memLeft = memoryHard - memoryUsed;
+        Map<String, String> result = new HashMap<>();
+        result.put(CommonConstant.CPU, String.valueOf(cpuLeft));
+        result.put(CommonConstant.MEMORY, String.valueOf(memLeft));
+        return result;
+    }
+
+    @Override
+    public ActionReturnUtil checkResourceInTemplateDeploy(Map<String, Long> requireResource, Map<String, String> remainResource) throws Exception {
+        float cpuNeed = Float.valueOf(requireResource.get("cpuNeed"))/ CommonConstant.NUM_THOUSAND;
+        double memoryNeed = Double.valueOf(requireResource.get("memoryNeed"));
+        float cpuRemain = Float.valueOf(remainResource.get(CommonConstant.CPU));
+        double memoryRemain = Double.valueOf(remainResource.get(CommonConstant.MEMORY));
+        if (cpuRemain - cpuNeed < 0 || memoryRemain - memoryNeed < 0) {
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NAMESPACE_RESOURCE_INSUFFICIENT);
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    /**
+     * 内存单位转换成MB(统一单位)
+     * @param memory
+     * @param unit
+     * @return double
+     * @throws Exception
+     */
+    private double transformMemoryUnit(double memory, String unit) throws Exception {
+        //判断单位
+        double memoryMb = memory;
+        switch (unit) {
+            case CommonConstant.GB:
+                memoryMb = memory * CommonConstant.NUM_SIZE_MEMORY;
+                break;
+            case CommonConstant.MB:
+                memoryMb = memory;
+                break;
+            case CommonConstant.TB:
+                memoryMb = memory * CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY;
+                break;
+            case CommonConstant.PB:
+                memoryMb = memory * CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY;
+                break;
+            case CommonConstant.KB:
+                memoryMb = memory / CommonConstant.NUM_SIZE_MEMORY;
+                break;
+        }
+        return memoryMb;
+    }
+    private double transformMemoryToGb(double memory, String type) throws Exception {
+        //判断单位
+        double memoryMb = memory;
+        switch (type) {
+            case CommonConstant.GB:
+                memoryMb = memory;
+                break;
+            case CommonConstant.MB:
+                memoryMb = memory / CommonConstant.NUM_SIZE_MEMORY;
+                break;
+            case CommonConstant.TB:
+                memoryMb = memory * CommonConstant.NUM_SIZE_MEMORY;
+                break;
+            case CommonConstant.PB:
+                memoryMb = memory * CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY;
+                break;
+            case CommonConstant.KB:
+                memoryMb = memory / CommonConstant.NUM_SIZE_MEMORY / CommonConstant.NUM_SIZE_MEMORY;
+                break;
+        }
+        return memoryMb;
     }
 }

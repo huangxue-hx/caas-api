@@ -3,14 +3,16 @@ package com.harmonycloud.k8s.service;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.CollectionUtil;
 import org.springframework.stereotype.Service;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
-import com.harmonycloud.k8s.bean.K8sResponseBody;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.PersistentVolume;
 import com.harmonycloud.k8s.bean.PersistentVolumeClaim;
 import com.harmonycloud.k8s.bean.UnversionedStatus;
@@ -20,8 +22,6 @@ import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
-
-import net.sf.json.JSONObject;
 
 @Service
 public class PvService {
@@ -50,12 +50,11 @@ public class PvService {
 		bodys.put("spec", pv.getSpec());
 		Map<String, Object> headers = new HashMap<>();
 		headers.put("Content-Type", "application/json");
-		System.out.println(JsonUtil.objectToJson(bodys));
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST,headers,bodys,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithMsg(us.getMessage() );
-        }
+			return ActionReturnUtil.returnErrorWithMsg(us.getMessage() );
+		}
 		return ActionReturnUtil.returnSuccess();
 	}
 	
@@ -86,7 +85,7 @@ public class PvService {
 		if(HttpStatusUtil.isSuccessStatus(response.getStatus())){
 			return ActionReturnUtil.returnSuccess();
 		}
-		return ActionReturnUtil.returnErrorWithMsg("删除失败，错误信息："+response.getBody());
+		return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.DELETE_FAIL, response.getBody(), false);
 	}
 	
 	/**
@@ -103,6 +102,20 @@ public class PvService {
 			return K8SClient.converToBean(response, PersistentVolumeClaim.class);
 		}
 		return null;
+	}
+
+	public K8SClientResponse createPvc(String namespace, PersistentVolumeClaim pVolumeClaim, Cluster cluster) throws Exception{
+		Map<String, Object> headers = new HashMap<>();
+		headers.put("Content-Type", "application/json");
+		Map<String, Object> bodys = CollectionUtil.transBean2Map(pVolumeClaim);
+		K8SURL url = new K8SURL();
+		url.setNamespace(namespace).setResource(Resource.PERSISTENTVOLUMECLAIM);
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
+		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+			UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+			throw new MarsRuntimeException(status.getMessage());
+		}
+		return response;
 	}
 	
 	/**

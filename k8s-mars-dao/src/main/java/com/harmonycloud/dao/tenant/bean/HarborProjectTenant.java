@@ -19,6 +19,8 @@ public class HarborProjectTenant implements Serializable{
     private String createTimeStr;
     private String harborProjectName;
     private Integer isPublic;
+    private String repositoryName;
+    private String harborServer;
 
     public Integer getIsPublic() {
         return isPublic;
@@ -82,5 +84,21 @@ public class HarborProjectTenant implements Serializable{
 
     public void setHarborProjectName(String harborProjectName) {
         this.harborProjectName = harborProjectName;
+    }
+
+    public String getRepositoryName() {
+        return repositoryName;
+    }
+
+    public void setRepositoryName(String repositoryName) {
+        this.repositoryName = repositoryName;
+    }
+
+    public String getHarborServer() {
+        return harborServer;
+    }
+
+    public void setHarborServer(String harborServer) {
+        this.harborServer = harborServer;
     }
 }

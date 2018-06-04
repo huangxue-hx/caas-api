@@ -174,53 +174,23 @@ public class ClusterLoadbalanceExample {
             return (Criteria) this;
         }
 
-        public Criteria andClusterIdEqualTo(Integer value) {
+        public Criteria andClusterIdEqualTo(String value) {
             addCriterion("cluster_id =", value, "clusterId");
             return (Criteria) this;
         }
 
-        public Criteria andClusterIdNotEqualTo(Integer value) {
+        public Criteria andClusterIdNotEqualTo(String value) {
             addCriterion("cluster_id <>", value, "clusterId");
             return (Criteria) this;
         }
 
-        public Criteria andClusterIdGreaterThan(Integer value) {
-            addCriterion("cluster_id >", value, "clusterId");
-            return (Criteria) this;
-        }
-
-        public Criteria andClusterIdGreaterThanOrEqualTo(Integer value) {
-            addCriterion("cluster_id >=", value, "clusterId");
-            return (Criteria) this;
-        }
-
-        public Criteria andClusterIdLessThan(Integer value) {
-            addCriterion("cluster_id <", value, "clusterId");
-            return (Criteria) this;
-        }
-
-        public Criteria andClusterIdLessThanOrEqualTo(Integer value) {
-            addCriterion("cluster_id <=", value, "clusterId");
-            return (Criteria) this;
-        }
-
-        public Criteria andClusterIdIn(List<Integer> values) {
+        public Criteria andClusterIdIn(List<String> values) {
             addCriterion("cluster_id in", values, "clusterId");
             return (Criteria) this;
         }
 
-        public Criteria andClusterIdNotIn(List<Integer> values) {
+        public Criteria andClusterIdNotIn(List<String> values) {
             addCriterion("cluster_id not in", values, "clusterId");
-            return (Criteria) this;
-        }
-
-        public Criteria andClusterIdBetween(Integer value1, Integer value2) {
-            addCriterion("cluster_id between", value1, value2, "clusterId");
-            return (Criteria) this;
-        }
-
-        public Criteria andClusterIdNotBetween(Integer value1, Integer value2) {
-            addCriterion("cluster_id not between", value1, value2, "clusterId");
             return (Criteria) this;
         }
 

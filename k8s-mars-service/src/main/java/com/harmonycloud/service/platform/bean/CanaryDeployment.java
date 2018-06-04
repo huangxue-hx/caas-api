@@ -25,6 +25,15 @@ public class CanaryDeployment{
 
     private String namespace; //Deployment 所属命名空间
 
+    private String projectId;
+
+    public String getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
+    }
 
     private List<UpdateContainer> containers;
 

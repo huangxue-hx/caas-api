@@ -8,12 +8,28 @@ public class ExternalSvc implements Serializable{
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
+
+	private String clusterName;
+
+	private String clusterAliasName;
+
+	private String clusterId;
 	
 	private String serviceName;
 
     private String name;
-	
-    public String getName() {
+
+    private String namespace;
+
+	public String getNamespace() {
+		return namespace;
+	}
+
+	public void setNamespace(String namespace) {
+		this.namespace = namespace;
+	}
+
+	public String getName() {
     	return name;
 	}
 
@@ -84,4 +100,27 @@ public class ExternalSvc implements Serializable{
 	private String describe;
 
 
+	public String getClusterName() {
+		return clusterName;
+	}
+
+	public void setClusterName(String clusterName) {
+		this.clusterName = clusterName;
+	}
+
+	public String getClusterId() {
+		return clusterId;
+	}
+
+	public void setClusterId(String clusterId) {
+		this.clusterId = clusterId;
+	}
+
+	public String getClusterAliasName() {
+		return clusterAliasName;
+	}
+
+	public void setClusterAliasName(String clusterAliasName) {
+		this.clusterAliasName = clusterAliasName;
+	}
 }

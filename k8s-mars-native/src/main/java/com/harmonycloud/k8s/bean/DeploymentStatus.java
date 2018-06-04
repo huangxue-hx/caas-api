@@ -3,11 +3,13 @@ package com.harmonycloud.k8s.bean;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
  * @author qg
  *
  */
+@JsonInclude(value=JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class DeploymentStatus {
 
@@ -22,6 +24,10 @@ public class DeploymentStatus {
 	private Integer unavailableReplicas;
 	
 	private List<DeploymentCondition> conditions;
+	
+    private Integer collisionCount;
+	
+	private Integer readyReplicas;
 
 	public Integer getObservedGeneration() {
 		return observedGeneration;
@@ -69,6 +75,22 @@ public class DeploymentStatus {
 
 	public void setConditions(List<DeploymentCondition> conditions) {
 		this.conditions = conditions;
+	}
+
+	public Integer getCollisionCount() {
+		return collisionCount;
+	}
+
+	public void setCollisionCount(Integer collisionCount) {
+		this.collisionCount = collisionCount;
+	}
+
+	public Integer getReadyReplicas() {
+		return readyReplicas;
+	}
+
+	public void setReadyReplicas(Integer readyReplicas) {
+		this.readyReplicas = readyReplicas;
 	}
 	
 	

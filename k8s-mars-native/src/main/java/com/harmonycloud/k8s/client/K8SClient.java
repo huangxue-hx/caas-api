@@ -1,12 +1,15 @@
 package com.harmonycloud.k8s.client;
 
+import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.dao.cluster.bean.Cluster;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.HttpK8SClientUtil;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -27,7 +30,7 @@ public class K8SClient {
 
 	private HttpSession session;
 
-
+	private static final Logger LOGGER = LoggerFactory.getLogger(K8SClient.class);
 	/**
 	 * 保存全局token信息
 	 */
@@ -194,11 +197,14 @@ public class K8SClient {
 	 * @return
 	 */
 	public static <T> T converToBean(K8SClientResponse response, Class<T> clazz) {
+
 		if (response != null && HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			String body = response.getBody();
 			if (body != null) {
 				return JsonUtil.jsonToPojo(body, clazz);
 			}
+		}else{
+			LOGGER.error("converToBean response:{}", JSONObject.toJSONString(response));
 		}
 		return null;
 	}

@@ -70,43 +70,56 @@
     <!--控制器增强，使一个Contoller成为全局的异常处理类，类中用@ExceptionHandler方法注解的方法可以处理所有Controller发生的异常-->
     <context:include-filter type="annotation" expression="org.springframework.web.bind.annotation.ControllerAdvice" />
 </context:component-scan>
-
 	<mvc:interceptors>
-	<mvc:interceptor>
-		<mvc:mapping path="/**" />
-		<mvc:exclude-mapping path="/js/**" />
-		<mvc:exclude-mapping path="/css/**" />
-		<mvc:exclude-mapping path="/font/**" />
-		<mvc:exclude-mapping path="/icons/**" />
-		<mvc:exclude-mapping path="/fonts/*" />
-		<mvc:exclude-mapping path="/images/**" />
-		<mvc:exclude-mapping path="/lib/**" />
-		<mvc:exclude-mapping path="/*.html" />
-		<mvc:exclude-mapping path="/style/**" />
-		<mvc:exclude-mapping path="/template/**" />
-		<mvc:exclude-mapping path="/view/**" />
-		<mvc:exclude-mapping path="/*.ico" />
-		<bean class="com.harmonycloud.interceptors.AuthInterceptor"></bean>
-	</mvc:interceptor>
-	<!-- <mvc:interceptor>
-		<mvc:mapping path="/**" />
-		<mvc:exclude-mapping path="/js/**" />
-		<mvc:exclude-mapping path="/css/**" />
-		<mvc:exclude-mapping path="/font/**" />
-		<mvc:exclude-mapping path="/icons/**" />
-		<mvc:exclude-mapping path="/fonts/*" />
-		<mvc:exclude-mapping path="/images/**" />
-		<mvc:exclude-mapping path="/lib/**" />
-		<mvc:exclude-mapping path="/*.html" />
-		<mvc:exclude-mapping path="/style/**" />
-		<mvc:exclude-mapping path="/template/**" />
-		<mvc:exclude-mapping path="/view/**" />
-		<mvc:exclude-mapping path="/*.ico" />
-		<mvc:exclude-mapping path="/notification/**"/>
-		<bean class="com.harmonycloud.controller.interceptors.HttpAccessInterceptor"></bean>
-	</mvc:interceptor> -->
-</mvc:interceptors>
-
+		<mvc:interceptor>
+			<mvc:mapping path="/**" />
+			<mvc:exclude-mapping path="/js/**" />
+			<mvc:exclude-mapping path="/css/**" />
+			<mvc:exclude-mapping path="/font/**" />
+			<mvc:exclude-mapping path="/icons/**" />
+			<mvc:exclude-mapping path="/fonts/*" />
+			<mvc:exclude-mapping path="/images/**" />
+			<mvc:exclude-mapping path="/lib/**" />
+			<mvc:exclude-mapping path="/*.html" />
+			<mvc:exclude-mapping path="/style/**" />
+			<mvc:exclude-mapping path="/template/**" />
+			<mvc:exclude-mapping path="/view/**" />
+			<mvc:exclude-mapping path="/*.ico" />
+			<bean class="com.harmonycloud.interceptors.AuthInterceptor"></bean>
+		</mvc:interceptor>
+		<!-- <mvc:interceptor>
+            <mvc:mapping path="/**" />
+            <mvc:exclude-mapping path="/js/**" />
+            <mvc:exclude-mapping path="/css/**" />
+            <mvc:exclude-mapping path="/font/**" />
+            <mvc:exclude-mapping path="/icons/**" />
+            <mvc:exclude-mapping path="/fonts/*" />
+            <mvc:exclude-mapping path="/images/**" />
+            <mvc:exclude-mapping path="/lib/**" />
+            <mvc:exclude-mapping path="/*.html" />
+            <mvc:exclude-mapping path="/style/**" />
+            <mvc:exclude-mapping path="/template/**" />
+            <mvc:exclude-mapping path="/view/**" />
+            <mvc:exclude-mapping path="/*.ico" />
+            <mvc:exclude-mapping path="/notification/**"/>
+            <bean class="com.harmonycloud.controller.interceptors.HttpAccessInterceptor"></bean>
+        </mvc:interceptor> -->
+	</mvc:interceptors>
+	<!--<bean id="redisHttpSessionConfiguration" class="org.springframework.session.data.redis.config.annotation.web.http.RedisHttpSessionConfiguration">-->
+		<!--<property name="maxInactiveIntervalInSeconds" value="1800"/>-->
+	<!--</bean>-->
+	<!--<bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">-->
+		<!--<property name="maxTotal" value="100"/>-->
+		<!--<property name="maxIdle" value="10"/>-->
+	<!--</bean>-->
+	<!--<bean id="jedisConnectionFactory" class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory" destroy-method="destroy">-->
+		<!--<property name="hostName" value="${redis.host}"/>-->
+		<!--<property name="port" value="${redis.port}"/>-->
+		<!--<property name="password" value="${redis.password}"/>-->
+		<!--<property name="timeout" value="3000"/>-->
+		<!--<property name="usePool" value="true"/>-->
+		<!--<property name="poolConfig" ref="jedisPoolConfig"/>-->
+	<!--</bean>-->
 	<bean id="stringHttpMessageConverter"
 		  class="org.springframework.http.converter.StringHttpMessageConverter">
 		<property name="supportedMediaTypes">
@@ -165,4 +178,5 @@
 	<bean class="org.springframework.web.servlet.view.InternalResourceViewResolver"
 		p:prefix="/" p:suffix=".html" />
     <aop:aspectj-autoproxy/>
+
 </beans>
