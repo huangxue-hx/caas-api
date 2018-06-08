@@ -1,4 +1,4 @@
-package com.harmonycloud.api.config;
+package com.harmonycloud.service.config;
 
 import com.alibaba.druid.pool.DruidDataSource;
 import com.github.pagehelper.PageHelper;

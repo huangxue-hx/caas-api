@@ -1,4 +1,4 @@
-package com.harmonycloud.api.config;
+package com.harmonycloud.service.config;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.cluster.ClusterCRDDto;
