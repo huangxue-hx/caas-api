@@ -5,9 +5,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-
-import com.harmonycloud.api.config.InitClusterConfig;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.util.AssertUtil;
@@ -24,7 +21,6 @@ import com.harmonycloud.dao.network.bean.NamespceBindSubnet;
 import com.harmonycloud.dao.network.bean.NetworkCalico;
 import com.harmonycloud.dao.network.bean.NetworkTopology;
 import com.harmonycloud.dto.tenant.CreateNetwork;
-import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.tenant.NetworkService;
 
 
@@ -36,27 +32,12 @@ public class NetworkController {
     @Autowired
     NetworkService networkService;
 
-//    @Value("#{propertiesReader['network.networkFlag']}")
-    private String networkFlag ;
-
-    NetworkController() throws Exception{
-        networkFlag = InitClusterConfig.getNetworkConfig().getNetworkFlag();
-    }
-
 
 
     @RequestMapping(value = "/networks", method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil listNetwork(@PathVariable("tenantId") String tenantId) throws Exception {
-
-        ActionReturnUtil data = null;
-        if (Constant.NETWORK_CALICO.equals(networkFlag)) {
-            List<Map<String, Object>> networklist = networkService.networkList(tenantId);
-            data = ActionReturnUtil.returnSuccessWithData(networklist);
-        } else {
-            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_CONFIG,"networkFlag",true);
-        }
-        return data;
+        return ActionReturnUtil.returnSuccessWithData(networkService.networkList(tenantId));
     }
 
     @RequestMapping(value = "/networks/{networkId}", method = RequestMethod.GET)
@@ -67,13 +48,7 @@ public class NetworkController {
         if (StringUtils.isEmpty(networkId) || StringUtils.isEmpty(tenantId)) {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
-        ActionReturnUtil data = null;
-        if (Constant.NETWORK_CALICO.equals(networkFlag)) {
-            data = networkService.calicoNetworkdetail(networkId, tenantId, bind);
-        } else {
-            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_CONFIG,"networkFlag",true);
-        }
-        return data;
+        return networkService.calicoNetworkdetail(networkId, tenantId, bind);
     }
 
     @RequestMapping(value = "/networks", method = RequestMethod.POST)
@@ -271,11 +246,4 @@ public class NetworkController {
 
     }
 
-    public String getNetworkFlag() {
-        return networkFlag;
-    }
-
-    public void setNetworkFlag(String networkFlag) {
-        this.networkFlag = networkFlag;
-    }
 }
