@@ -1252,4 +1252,29 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             throw new MarsRuntimeException(status.getMessage());
         }
     }
+
+    @Override
+    public ActionReturnUtil updateLabels(String namespace, String deploymentName, Cluster cluster, Map<String, Object> label) throws Exception {
+        K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, deploymentName, null, null, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
+            return ActionReturnUtil.returnErrorWithData(depRes.getBody());
+        }
+
+        Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+        Map<String, Object> labels = dep.getMetadata().getLabels();
+        labels.putAll(label);
+        dep.getMetadata().setLabels(labels);
+
+        Map<String, Object> bodys = CollectionUtil.transBean2Map(dep);
+        Map<String, Object> headers = new HashMap<String, Object>();
+        headers.put("Content-type","application/json");
+
+        K8SClientResponse putRes = dpService.doSpecifyDeployment(namespace, deploymentName, headers, bodys, HTTPMethod.PUT, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(putRes.getStatus())) {
+            return ActionReturnUtil.returnErrorWithData(putRes.getBody());
+        }
+
+        return ActionReturnUtil.returnSuccess();
+
+    }
 }

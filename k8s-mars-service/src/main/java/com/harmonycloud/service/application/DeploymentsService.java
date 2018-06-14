@@ -243,4 +243,17 @@ public interface DeploymentsService {
 	 * @throws Exception
 	 */
 	Map<String, String> createConfigMapInUpdate(String namespace, String depName, Cluster cluster, List<UpdateContainer> containers) throws Exception;
+
+	/**
+	 * 更新Deployment的labels
+	 * @author bilongchen@harmonycloud.cn
+	 * @date 2018.6.14
+	 * @param namespace
+	 * @param deploymentName
+	 * @param cluster
+	 * @param label
+	 * @return ActionReturnUtil
+	 * @throws Exception
+	 */
+	public ActionReturnUtil updateLabels(String  namespace, String deploymentName, Cluster cluster, Map<String, Object> label) throws Exception;
 }

@@ -305,6 +305,9 @@ public enum ErrorCodeMessage {
     AUTOSCALE_TIME_ZONE_ERROR(403007,"Time zone value is error","负载均衡时间段错误"),
     SERVICE_AUTOSCALE_UPDATE_FAILURE(403008, "Create autoScale failure.", "自动伸缩升级失败"),
     AUTOSCALE_NOT_FOUND(403009, "Can not found autoscale.", "自动伸缩找寻不到"),
+    SERVICE_AUTOSCALE_LABEL_UPDATE_FAILURE(403010, "Update autoscale label failure.", "更新自动伸缩标签失败"),
+
+
     //日志管理 404xxx
     QUERY_LOG_TOPOLOGY_ERROR(404001, "Get topology failed.","查询全链路拓扑图失败"),
     QUERY_LOG_CONTENT_ERROR(404002, "Get log content failed.","查询全链路日志内容失败"),
