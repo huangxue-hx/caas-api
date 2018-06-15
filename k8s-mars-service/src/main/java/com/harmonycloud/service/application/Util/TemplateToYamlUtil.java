@@ -13,7 +13,7 @@ public class TemplateToYamlUtil {
     public static Deployment templateToDeployment(DeploymentDetailDto deploymentDetailDto){
         Deployment deployment = new Deployment();
         try {
-            deployment = K8sResultConvert.convertAppCreate(deploymentDetailDto,null,null);
+            deployment = K8sResultConvert.convertAppCreate(deploymentDetailDto,null,null,null);
         } catch (Exception e) {
             e.printStackTrace();
         }

@@ -19,6 +19,8 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.harmonycloud.service.platform.constant.Constant.*;
+
 /**
  * @author jmi
  */
@@ -462,6 +464,12 @@ public class K8sResultConvert {
                         String appName = array.length > 0 ? array[array.length -1] : null;
                         tMap.put("appName", appName);
                     }
+
+                }
+                //获取对外服务标签
+                if (dep.getMetadata().getLabels() != null && dep.getMetadata().getLabels().containsKey(NODESELECTOR_LABELS_PRE + LABEL_SERVICE)) {
+                    String serviceType = dep.getMetadata().getLabels().get(NODESELECTOR_LABELS_PRE + LABEL_SERVICE).toString();
+                    tMap.put("service", serviceType);
                 }
                 tMap.put("isMsf", isMsf);
                 tMap.put("isPV", isPV);
@@ -480,7 +488,7 @@ public class K8sResultConvert {
         return res;
     }
 
-    public static Deployment convertAppCreate(DeploymentDetailDto detail, String userName, String applicationName) throws Exception {
+    public static Deployment convertAppCreate(DeploymentDetailDto detail, String userName, String applicationName, List<IngressDto> ingress) throws Exception {
         Deployment dep = new Deployment();
         ObjectMeta meta = new ObjectMeta();
         meta.setName(detail.getName());
@@ -489,6 +497,9 @@ public class K8sResultConvert {
         lmMap.put(Constant.NODESELECTOR_LABELS_PRE + "bluegreen", detail.getName()+ "-1");
         if (userName != null) {
             lmMap.put("nephele/user", userName);
+        }
+        if(ingress != null){
+            lmMap.put(NODESELECTOR_LABELS_PRE + LABEL_SERVICE, INGRESS_TRUE);
         }
         if (!StringUtils.isEmpty(applicationName)) {
             lmMap.put("topo-" + detail.getProjectId() + "-" + applicationName, detail.getNamespace());

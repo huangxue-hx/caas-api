@@ -21,6 +21,7 @@ import com.harmonycloud.k8s.service.ServicesService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.ConfigMapService;
+import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.RouterService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.cluster.NodePortClusterUsageService;
@@ -36,6 +37,8 @@ import org.springframework.stereotype.Service;
 
 import javax.servlet.http.HttpSession;
 import java.util.*;
+
+import static com.harmonycloud.service.platform.constant.Constant.*;
 
 /**
  * Created by czm on 2017/1/18. jmi 补充
@@ -65,6 +68,10 @@ public class RouterServiceImpl implements RouterService {
 
     @Autowired
     private DeploymentService dpService;
+
+    @Autowired
+    private DeploymentsService deploymentsService;
+
 
     /**
      * 创建router
@@ -135,6 +142,10 @@ public class RouterServiceImpl implements RouterService {
             UnversionedStatus status = JsonUtil.jsonToPojo(k.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
+        Map<String,Object> labels = new HashMap<String,Object>();
+        labels.put(NODESELECTOR_LABELS_PRE + LABEL_SERVICE,INGRESS_TRUE);
+        deploymentsService.updateLabels(namespace,parsedIngressList.getServiceName(),cluster,labels);
+
         return ActionReturnUtil.returnSuccessWithData(k.getBody());
     }
 
@@ -142,7 +153,7 @@ public class RouterServiceImpl implements RouterService {
      * 删除HTTP应用网关
      */
     @Override
-    public ActionReturnUtil ingDelete(String namespace, String name) throws Exception {
+    public ActionReturnUtil ingDelete(String namespace, String name, String depName) throws Exception {
         if (StringUtils.isBlank(namespace) || StringUtils.isBlank(name)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
@@ -158,6 +169,9 @@ public class RouterServiceImpl implements RouterService {
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
             return ActionReturnUtil.returnErrorWithData(response.getBody());
         }
+
+        //当TCP/UDP/HTTP对外服务数量为 0 时，更新对外服务标签为 "ingressFalse"
+        updateIngressServiceLabels(namespace, depName, cluster);
         return ActionReturnUtil.returnSuccessWithData(response.getBody());
     }
 
@@ -823,11 +837,14 @@ public class RouterServiceImpl implements RouterService {
             protocol = rule.getProtocol();
         }
         this.updateSystemExposeConfigmap(cluster, svcRouterDto.getNamespace(), svcRouterDto.getName(), rules, protocol);
+        Map<String,Object> labels = new HashMap<String,Object>();
+        labels.put(NODESELECTOR_LABELS_PRE + LABEL_SERVICE,INGRESS_TRUE);
+        deploymentsService.updateLabels(dep.getMetadata().getNamespace(),dep.getMetadata().getName(),cluster,labels);
         return ActionReturnUtil.returnSuccess();
     }
 
     @Override
-    public ActionReturnUtil deleteSystemRouteRule(TcpDeleteDto tcpDeleteDto) throws Exception {
+    public ActionReturnUtil deleteSystemRouteRule(TcpDeleteDto tcpDeleteDto, String deployName) throws Exception {
         if (Objects.isNull(tcpDeleteDto) || CollectionUtils.isEmpty(tcpDeleteDto.getPorts()) || StringUtils.isBlank(tcpDeleteDto.getNamespace()) || StringUtils.isBlank(tcpDeleteDto.getProtocol())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
@@ -858,6 +875,9 @@ public class RouterServiceImpl implements RouterService {
         for (Integer port : externalPorts) {
             portClusterUsageService.deleteNodePortUsage(cluster.getId(), port);
         }
+        //当TCP/UDP/HTTP对外服务数量为 0 时，更新对外服务标签为 "ingressFalse"
+        updateIngressServiceLabels(namespace, deployName, cluster);
+        List<Map<String, Object>> routerList = new ArrayList<>();
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -891,6 +911,31 @@ public class RouterServiceImpl implements RouterService {
             }
         }
         return routerList;
+    }
+
+    private void updateIngressServiceLabels(String namespace, String deploymentName, Cluster cluster) throws Exception {
+        //当TCP/UDP/HTTP对外服务数量为 0 时，更新对外服务标签为 "ingressFalse"
+        List<Map<String, Object>> routerList = new ArrayList<>();
+        String ip = clusterService.getEntry(namespace);
+        ConfigMap configMapTcp = getSystemExposeConfigmap(cluster, Constant.PROTOCOL_TCP);
+        ConfigMap configMapUdp = getSystemExposeConfigmap(cluster, Constant.PROTOCOL_UDP);
+        String valuePrefix = namespace + "/" + deploymentName;
+        routerList.addAll(listServiceRouter(configMapTcp, valuePrefix, ip, Constant.PROTOCOL_TCP));
+        routerList.addAll(listServiceRouter(configMapUdp, valuePrefix, ip, Constant.PROTOCOL_UDP));
+        if(routerList.size() == 0){
+            K8SURL url2 = new K8SURL();
+            url2.setNamespace(namespace).setResource(Resource.INGRESS);
+            Map<String, Object> bodys = new HashMap<String, Object>();
+            bodys.put("labelSelector", "app=" + deploymentName);
+            K8SClientResponse k = new K8sMachineClient().exec(url2, HTTPMethod.GET, null, bodys, cluster);
+            IngressList ingressList = JsonUtil.jsonToPojo(k.getBody(), IngressList.class);
+            List<Ingress> list = ingressList.getItems();
+            if(list.size() == 0){
+                Map<String,Object> labels = new HashMap<String,Object>();
+                labels.put(NODESELECTOR_LABELS_PRE + LABEL_SERVICE,INGRESS_FALSE);
+                deploymentsService.updateLabels(namespace,deploymentName,cluster,labels);
+            }
+        }
     }
 
     @Override

@@ -344,6 +344,10 @@ public class Constant {
 	public final static String LABEL_AUTOSCALE = "autoscale";
 	public final static String STATUS_ON = "on";
 	public final static String STATUS_OFF = "off";
+	//ingress service
+	public final static String LABEL_SERVICE = "service";
+	public final static String INGRESS_TRUE = "ingressTrue";
+	public final static String INGRESS_FALSE = "ingressFalse";
 
 
 }

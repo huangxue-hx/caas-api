@@ -2,6 +2,7 @@ package com.harmonycloud.service.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.DeploymentDetailDto;
+import com.harmonycloud.dto.application.IngressDto;
 import com.harmonycloud.dto.scale.HPADto;
 import com.harmonycloud.k8s.bean.DeploymentList;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -157,7 +158,7 @@ public interface DeploymentsService {
 	 * @return
 	 * @throws Exception
 	 */
-	public ActionReturnUtil createDeployment(DeploymentDetailDto detail, String userName, String app, Cluster cluster) throws Exception;
+	public ActionReturnUtil createDeployment(DeploymentDetailDto detail, String userName, String app, Cluster cluster, List<IngressDto> ingress) throws Exception;
 
 	/**
 	 * 删除deployment

@@ -167,7 +167,12 @@ public class DeploymentsServiceImpl implements DeploymentsService {
                     DeploymentList deployment = getDeployments(ns[i], bodys, cluster);
                     String aliasNamespace = namespaceLocalService.getNamespaceByName(ns[i]).getAliasName();
                     if (deployment != null && deployment.getItems().size() > 0) {
-                        result.addAll(K8sResultConvert.convertAppList(deployment, cluster, aliasNamespace));
+                        List<Map<String, Object>> res = K8sResultConvert.convertAppList(deployment, cluster, aliasNamespace);
+                        for(int n = 0; n < res.size(); n++){
+                            res.get(n).put("exposedRouter",routerService.listExposedRouterWithIngressAndNginx((String)res.get(n).get("namespace"),
+                                    (String)res.get(n).get("name")));
+                        }
+                        result.addAll(res);
                     }
                 }catch (Exception e){
                     LOGGER.error("查询deployment列表失败，namespace：{}", ns[i],e);
@@ -764,7 +769,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
     }
 
     @Override
-    public ActionReturnUtil createDeployment(DeploymentDetailDto detail, String userName, String app, Cluster cluster) throws Exception {
+    public ActionReturnUtil createDeployment(DeploymentDetailDto detail, String userName, String app, Cluster cluster, List<IngressDto> ingress) throws Exception {
         List<CreateContainerDto> containers = detail.getContainers();
         if (containers != null && !containers.isEmpty()) {
             for (CreateContainerDto c : containers) {
@@ -790,7 +795,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             nodeAffinityList = this.setNamespaceLabelAffinity(detail.getNamespace(), nodeAffinityList);
             detail.setNodeAffinity(nodeAffinityList);
         }
-        Deployment dep = K8sResultConvert.convertAppCreate(detail, userName, app);
+        Deployment dep = K8sResultConvert.convertAppCreate(detail, userName, app, ingress);
         K8SURL k8surl = new K8SURL();
         k8surl.setNamespace(detail.getNamespace()).setResource(Resource.DEPLOYMENT);
         Map<String, Object> headers = new HashMap<String, Object>();
