@@ -3,22 +3,15 @@ package com.harmonycloud.service.platform.convert;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.dto.application.*;
-
 import com.harmonycloud.dto.scale.HPADto;
 import com.harmonycloud.dto.scale.ResourceMetricScaleDto;
-
-import com.harmonycloud.dto.user.PrivilegeApplicationFieldDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.util.RandomNum;
-import com.harmonycloud.service.common.PrivilegeHelper;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
-import com.spotify.docker.client.messages.mount.TmpfsOptions;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -1311,7 +1304,7 @@ public class K8sResultConvert {
                                 filename = cm.getPath().substring(in + 1, cm.getPath().length());
                             }
                             Volume cMap = new Volume();
-                            cMap.setName((cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
+                            cMap.setName((cm.getName()+"#"+cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
                             ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
                             coMap.setName(name + c.getName());
                             List<KeyToPath> items = new LinkedList<KeyToPath>();
@@ -1323,7 +1316,7 @@ public class K8sResultConvert {
                             cMap.setConfigMap(coMap);
                             volumes.add(cMap);
                             VolumeMount volm = new VolumeMount();
-                            volm.setName((cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
+                            volm.setName((cm.getName()+"#"+cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
                             volm.setMountPath(cm.getPath());
                             volm.setSubPath(filename);
                             volumeMounts.add(volm);
@@ -1653,7 +1646,7 @@ public class K8sResultConvert {
                                 filename = cm.getPath().substring(in + 1, cm.getPath().length());
                             }
                             Volume cMap = new Volume();
-                            cMap.setName((cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
+                            cMap.setName((cm.getName()+"#"+cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
                             ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
                             coMap.setName(job.getMetadata().getName() + c.getName());
                             List<KeyToPath> items = new LinkedList<KeyToPath>();
@@ -1665,7 +1658,7 @@ public class K8sResultConvert {
                             cMap.setConfigMap(coMap);
                             volumes.add(cMap);
                             VolumeMount volm = new VolumeMount();
-                            volm.setName((cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
+                            volm.setName((cm.getName()+"#"+cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
                             volm.setMountPath(cm.getPath());
                             volm.setSubPath(filename);
                             volumeMounts.add(volm);
@@ -2028,7 +2021,7 @@ public class K8sResultConvert {
                                 filename = cm.getPath().substring(in + 1, cm.getPath().length());
                             }
                             Volume cMap = new Volume();
-                            cMap.setName((cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
+                            cMap.setName((cm.getName()+"#"+cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
                             ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
                             coMap.setName(name + c.getName());
                             List<KeyToPath> items = new LinkedList<KeyToPath>();
@@ -2040,7 +2033,7 @@ public class K8sResultConvert {
                             cMap.setConfigMap(coMap);
                             volumes.add(cMap);
                             VolumeMount volm = new VolumeMount();
-                            volm.setName((cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
+                            volm.setName((cm.getName()+"#"+cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
                             volm.setMountPath(cm.getPath());
                             volm.setSubPath(filename);
                             volumeMounts.add(volm);

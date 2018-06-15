@@ -4,9 +4,6 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.application.bean.ConfigFile;
 import com.harmonycloud.dto.config.ConfigDetailDto;
 
-import java.util.List;
-import java.util.Set;
-
 
 /**
  * Created by gurongyun on 17/03/24. configcenter service
@@ -53,11 +50,11 @@ public interface ConfigCenterService {
      *            required
      * @param projectId
      *            required
-     * @param repoName
+     * @param clusterId
      *            required
      * @return ActionReturnUtil
      */
-    ActionReturnUtil deleteConfigMap(String name, String projectId, String repoName) throws Exception;
+    ActionReturnUtil deleteConfigMap(String name, String projectId, String clusterId) throws Exception;
 
     /**
      * find config lists for center service on 17/03/24.
@@ -101,7 +98,7 @@ public interface ConfigCenterService {
      *            required
      * @return ActionReturnUtil
      */
-    ActionReturnUtil getLatestConfigMap(String name, String projectId, String repoName) throws Exception;
+    ActionReturnUtil getLatestConfigMap(String name, String projectId, String repoName,String clusterId,String tags) throws Exception;
     
     /**
      * check service on 17/03/24.
@@ -137,4 +134,13 @@ public interface ConfigCenterService {
      * @return
      */
     ConfigFile getConfigByNameAndTag(String name, String tag, String projectId, String clusterId);
+
+    /**
+     * 根据配置组名字,集群id,项目id返回对象
+     * @param name
+     * @param clusterId
+     * @param projectId
+     * @return
+     */
+    ActionReturnUtil getConfigMapByName(String name, String clusterId, String projectId);
 }
