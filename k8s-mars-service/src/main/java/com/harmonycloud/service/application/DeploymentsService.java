@@ -245,13 +245,14 @@ public interface DeploymentsService {
 	Map<String, String> createConfigMapInUpdate(String namespace, String depName, Cluster cluster, List<UpdateContainer> containers) throws Exception;
 
 	/**
-	 * 更新Deployment的labels
+	 * 更新Deployment的labels。
+	 * 可同时操作多个label，通过Entry的Value值是否为null来判断具体动作为添加/更新还是删除。
 	 * @author bilongchen@harmonycloud.cn
 	 * @date 2018.6.14
 	 * @param namespace
 	 * @param deploymentName
 	 * @param cluster
-	 * @param label
+	 * @param label 若Entry的Key与Value均不为null,则添加或更新label；若Entry的Key不为null、Value为null则删除此Key对应的label
 	 * @return ActionReturnUtil
 	 * @throws Exception
 	 */

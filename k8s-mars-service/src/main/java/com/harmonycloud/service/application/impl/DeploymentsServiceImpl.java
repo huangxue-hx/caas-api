@@ -1255,15 +1255,25 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
     @Override
     public ActionReturnUtil updateLabels(String namespace, String deploymentName, Cluster cluster, Map<String, Object> label) throws Exception {
+        if(label.isEmpty()){
+            return ActionReturnUtil.returnError();
+        }
+
         K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, deploymentName, null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
             return ActionReturnUtil.returnErrorWithData(depRes.getBody());
         }
 
         Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
-        Map<String, Object> labels = dep.getMetadata().getLabels();
-        labels.putAll(label);
-        dep.getMetadata().setLabels(labels);
+        Map<String, Object> depLabels = dep.getMetadata().getLabels();
+        for(Map.Entry<String, Object> entry : label.entrySet()){
+            if (entry.getValue() != null){
+                depLabels.put(entry.getKey(), entry.getValue());
+            }else{
+                depLabels.remove(entry.getKey());
+            }
+        }
+        dep.getMetadata().setLabels(depLabels);
 
         Map<String, Object> bodys = CollectionUtil.transBean2Map(dep);
         Map<String, Object> headers = new HashMap<String, Object>();
