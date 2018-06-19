@@ -514,4 +514,9 @@ public class CommonConstant {
 
     public static final int ES_MAX_RESULT_WINDOW = 300000;
 
+    //数据权限策略
+    public static final int DATCLOSED_STRATEGY = 1;
+    public static final int SEMIOPEN_STRATEGY = 2;
+    public static final int OPEN_STRATEGY = 3;
+
 }
