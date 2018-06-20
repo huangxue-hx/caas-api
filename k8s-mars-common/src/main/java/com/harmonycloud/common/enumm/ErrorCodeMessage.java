@@ -108,6 +108,7 @@ public enum ErrorCodeMessage {
     TENANT_NETWORK_EXIST(201006, "Tenant network was existed.","租户网络已创建"),
     TENANT_NODE_EXIST(201007, "Tenant private node was existed.","租户独占主机已经存在"),
     TENANT_NODE_NOT_EXIST(201008, "Tenant private node was not existed.","租户独占主机不存在"),
+    TENANT_STRATEGY_NOT_EXIST(201009, "Tenant strategy was not existed.","租户策略不存在"),
 
     //项目 202xxx
     PROJECT_EXIST(202001, "Project was existed.","项目已经存在"),

@@ -1,39 +1,32 @@
 package com.harmonycloud.api.tenant;
 
-import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.MicroServiceCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.AssertUtil;
-import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.user.bean.User;
-import com.harmonycloud.dao.user.bean.UserGroup;
 import com.harmonycloud.dao.user.bean.UserRoleRelationship;
 import com.harmonycloud.dto.tenant.CDPUserDto;
 import com.harmonycloud.dto.tenant.ClusterQuotaDto;
 import com.harmonycloud.dto.tenant.TenantDto;
 import com.harmonycloud.dto.user.UserGroupDto;
 import com.harmonycloud.service.platform.bean.NodeDto;
-import com.harmonycloud.service.tenant.ProjectService;
+import com.harmonycloud.service.tenant.NamespaceService;
+import com.harmonycloud.service.tenant.TenantService;
+import com.harmonycloud.service.user.RolePrivilegeService;
 import com.harmonycloud.service.user.UserService;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.service.tenant.NamespaceService;
-import com.harmonycloud.service.user.RolePrivilegeService;
-import com.harmonycloud.service.tenant.TenantService;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.core.PathSegment;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -106,6 +99,10 @@ public class TenantController {
 //        logger.info("创建租户");
         //租户名空值判断
         if (StringUtils.isAnyEmpty(tenantDto.getTenantName(),tenantDto.getAliasName())) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        //策略空值判断
+        if(StringUtils.isBlank(tenantDto.getStrategy().toString())){
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         tenantService.createTenant(tenantDto);
@@ -417,5 +414,26 @@ public class TenantController {
         String username = this.userService.getCurrentUsername();
         List<TenantBinding> tenantBindings = tenantService.tenantListByUsernameInner(username);
         return ActionReturnUtil.returnSuccessWithData(tenantBindings);
+    }
+
+    /**
+     * 修改租户策略
+     * @param tenantId
+     * @param strategy
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value="/{tenantId}/strategy/{strategy}")
+    @ResponseBody
+    public ActionReturnUtil updateTenantStrategy(@PathVariable("tenantId") String tenantId,
+                                                 @PathVariable("strategy") Integer strategy) throws Exception {
+
+        //空值判断
+        if (StringUtils.isAnyEmpty(tenantId,strategy.toString())) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+
+        tenantService.updateTenantStrategy(tenantId,strategy);
+        return ActionReturnUtil.returnSuccess();
     }
 }
