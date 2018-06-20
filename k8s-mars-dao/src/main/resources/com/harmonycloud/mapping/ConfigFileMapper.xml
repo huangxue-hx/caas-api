@@ -15,15 +15,13 @@
         <result property="createTime" column="create_time"/>
         <result property="user" column="creator"/>
         <result property="repoName" column="reponame"/>
-        <!--<result property="items" column="item"/>-->
-        <!--<result property="path" column="path"/>-->
     </resultMap>
 
     <!-- 添加ConfigFile -->
     <insert id="saveConfigFile" parameterType="com.harmonycloud.dao.application.bean.ConfigFile">
-        INSERT INTO configfile (id, name, tenant_id, project_id, cluster_id, cluster_name, description, tags, create_time, creator, reponame, item, path)
-        VALUES (#{id}, #{name}, #{tenantId}, #{projectId}, #{clusterId}, #{clusterName}, #{description}, #{tags}, #{createTime}, #{user}, #{repoName},
-                #{items}, #{path})
+        INSERT INTO configfile (id, name, tenant_id, project_id, cluster_id, cluster_name, description, tags, create_time, creator, reponame)
+        VALUES (#{id}, #{name}, #{tenantId}, #{projectId}, #{clusterId}, #{clusterName}, #{description}, #{tags}, #{createTime}, #{user}, #{repoName}
+                )
     </insert>
 
     <select id="getConfig" parameterType="java.lang.String" resultMap="configfileMap">
@@ -144,9 +142,7 @@
         <set>
             description = #{description},
             reponame = #{repoName},
-            creator = #{user},
-            item = #{items},
-            path = #{path}
+            creator = #{user}
         </set>
         where id = #{id}
     </update>

@@ -16,8 +16,6 @@ public class ConfigDetailDto implements Serializable {
     private String clusterId;
     private String clusterName;
     private String repoName;
-    private String items;
-    private String path;
     private String isCreate;
     private String tags;
     private List<ConfigFileItem> configFileItemList;
@@ -70,28 +68,12 @@ public class ConfigDetailDto implements Serializable {
         this.description = description;
     }
 
-    public String getItems() {
-        return items;
-    }
-
-    public void setItems(String items) {
-        this.items = items;
-    }
-
     public String getRepoName() {
         return repoName;
     }
 
     public void setRepoName(String repoName) {
         this.repoName = repoName;
-    }
-
-    public String getPath() {
-        return path;
-    }
-
-    public void setPath(String path) {
-        this.path = path;
     }
 
     public String getTenantId() {

@@ -64,7 +64,7 @@ public class ConfigCenterServiceTest {
         configDetail.setRepoName(null);
         configDetail.setTenantId("12");
         configDetail.setName("aa12");
-        configDetail.setId("13e54a9ddcaa41d9ae860a4ec6cfe558");
+        configDetail.setId("2cf1acbea11e41f3bf02ff181e9e5f4f");
         List<ConfigFileItem> configFileItemList = new ArrayList<>();
         ConfigFileItem configFileItem = new ConfigFileItem();
         configFileItem.setContent("asdasd12");
@@ -83,12 +83,12 @@ public class ConfigCenterServiceTest {
 
     @Test
     public void testDeleteConfig() throws Exception {
-        configCenterService.deleteConfig("13e54a9ddcaa41d9ae860a4ec6cfe558","1");
+        configCenterService.deleteConfig("2cf1acbea11e41f3bf02ff181e9e5f4f","1");
     }
 
     @Test
     public void testDeleteConfigByProject() throws Exception {
-        configCenterService.deleteConfigByProject("121");
+        configCenterService.deleteConfigByProject("df6c41577c214590bdbaff088766aa36");
     }
 
     @Test
@@ -97,13 +97,13 @@ public class ConfigCenterServiceTest {
     }
     @Test
     public void testGetConfigMap() throws Exception {
-        ActionReturnUtil configMap = configCenterService.getConfigMap("05d7e9f4769642c2aaa73f1741168495");
+        ActionReturnUtil configMap = configCenterService.getConfigMap("700d3d176a9c4288817dab2a97f22f2b");
         String toJSONString = JSONObject.toJSONString(configMap.getData());
         System.out.println(toJSONString);
     }
     @Test
     public void testGetLatestConfigMap() throws Exception {
-        ActionReturnUtil configMap = configCenterService.getLatestConfigMap("asas","aabc0a6f31d543e6a27f6042cddd91ad","library/jftomcat","cluster-top--dev","1.1");
+        ActionReturnUtil configMap = configCenterService.getLatestConfigMap("config2","ac6d46a2a39b47de9e10a1ec763e95bc","onlineshop/tomcat","cluster-top--dev","1.0");
         String toJSONString = JSONObject.toJSONString(configMap.getData());
         System.out.println(toJSONString);
     }
@@ -119,12 +119,12 @@ public class ConfigCenterServiceTest {
     }
     @Test
     public void testGetConfigByNameAndTag() throws Exception {
-        ConfigFile configFile = configCenterService.getConfigByNameAndTag("test", "1.0", "136ce5cb971948d48a29432209fc8533", "cluster-top--dev");
+        ConfigFile configFile = configCenterService.getConfigByNameAndTag("config2", "1.0", "ac6d46a2a39b47de9e10a1ec763e95bc", "cluster-top--dev");
         System.out.println(JSONObject.toJSONString(configFile));
     }
     @Test
     public void testGetConfigMapByName() throws Exception {
-        ActionReturnUtil configMapByName = configCenterService.getConfigMapByName("asas", "cluster-top--dev", "aabc0a6f31d543e6a27f6042cddd91ad");
+        ActionReturnUtil configMapByName = configCenterService.getConfigMapByName("config1", "cluster-top--dev", "ac6d46a2a39b47de9e10a1ec763e95bc");
         System.out.println(JSONObject.toJSONString(configMapByName));
     }
 
