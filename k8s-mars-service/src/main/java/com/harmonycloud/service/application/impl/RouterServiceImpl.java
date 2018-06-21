@@ -143,8 +143,8 @@ public class RouterServiceImpl implements RouterService {
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
         Map<String,Object> labels = new HashMap<String,Object>();
-        labels.put(NODESELECTOR_LABELS_PRE + LABEL_SERVICE,INGRESS_TRUE);
-        deploymentsService.updateLabels(namespace,parsedIngressList.getServiceName(),cluster,labels);
+        labels.put(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE,INGRESS_SERVICE_TRUE);
+        deploymentsService.updateLabels(namespace,name,cluster,labels);
 
         return ActionReturnUtil.returnSuccessWithData(k.getBody());
     }
@@ -838,7 +838,7 @@ public class RouterServiceImpl implements RouterService {
         }
         this.updateSystemExposeConfigmap(cluster, svcRouterDto.getNamespace(), svcRouterDto.getName(), rules, protocol);
         Map<String,Object> labels = new HashMap<String,Object>();
-        labels.put(NODESELECTOR_LABELS_PRE + LABEL_SERVICE,INGRESS_TRUE);
+        labels.put(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE,INGRESS_SERVICE_TRUE);
         deploymentsService.updateLabels(dep.getMetadata().getNamespace(),dep.getMetadata().getName(),cluster,labels);
         return ActionReturnUtil.returnSuccess();
     }
@@ -932,7 +932,7 @@ public class RouterServiceImpl implements RouterService {
             List<Ingress> list = ingressList.getItems();
             if(list.size() == 0){
                 Map<String,Object> labels = new HashMap<String,Object>();
-                labels.put(NODESELECTOR_LABELS_PRE + LABEL_SERVICE,INGRESS_FALSE);
+                labels.put(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE,INGRESS_SERVICE_FALSE);
                 deploymentsService.updateLabels(namespace,deploymentName,cluster,labels);
             }
         }

@@ -168,10 +168,6 @@ public class DeploymentsServiceImpl implements DeploymentsService {
                     String aliasNamespace = namespaceLocalService.getNamespaceByName(ns[i]).getAliasName();
                     if (deployment != null && deployment.getItems().size() > 0) {
                         List<Map<String, Object>> res = K8sResultConvert.convertAppList(deployment, cluster, aliasNamespace);
-                        for(int n = 0; n < res.size(); n++){
-                            res.get(n).put("exposedRouter",routerService.listExposedRouterWithIngressAndNginx((String)res.get(n).get("namespace"),
-                                    (String)res.get(n).get("name")));
-                        }
                         result.addAll(res);
                     }
                 }catch (Exception e){

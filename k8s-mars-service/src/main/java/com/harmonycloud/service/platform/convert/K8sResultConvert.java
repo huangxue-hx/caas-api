@@ -415,6 +415,15 @@ public class K8sResultConvert {
                     }
                     tMap.put("labels", labelMap);
                 }
+                //获取对外服务标签
+                String serviceType = null;
+                if (dep.getMetadata().getLabels() != null && dep.getMetadata().getLabels().containsKey(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE)) {
+                    serviceType = dep.getMetadata().getLabels().get(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE).toString();
+                }
+                if (!StringUtils.isEmpty(serviceType)) {
+                    labelMap.put(LABEL_INGRESS_SERVICE, serviceType);
+                    tMap.put("labels", labelMap);
+                }
                 tMap.put("status", getDeploymentStatus(dep));
                 if (dep.getMetadata().getAnnotations() != null && dep.getMetadata().getAnnotations().containsKey("deployment.kubernetes.io/revision")) {
                     tMap.put("version", "v" + dep.getMetadata().getAnnotations().get("deployment.kubernetes.io/revision"));
@@ -466,11 +475,7 @@ public class K8sResultConvert {
                     }
 
                 }
-                //获取对外服务标签
-                if (dep.getMetadata().getLabels() != null && dep.getMetadata().getLabels().containsKey(NODESELECTOR_LABELS_PRE + LABEL_SERVICE)) {
-                    String serviceType = dep.getMetadata().getLabels().get(NODESELECTOR_LABELS_PRE + LABEL_SERVICE).toString();
-                    tMap.put("service", serviceType);
-                }
+
                 tMap.put("isMsf", isMsf);
                 tMap.put("isPV", isPV);
                 tMap.put("cpu", cpu);
@@ -499,7 +504,7 @@ public class K8sResultConvert {
             lmMap.put("nephele/user", userName);
         }
         if(ingress != null){
-            lmMap.put(NODESELECTOR_LABELS_PRE + LABEL_SERVICE, INGRESS_TRUE);
+            lmMap.put(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE, INGRESS_SERVICE_TRUE);
         }
         if (!StringUtils.isEmpty(applicationName)) {
             lmMap.put("topo-" + detail.getProjectId() + "-" + applicationName, detail.getNamespace());
