@@ -5,7 +5,7 @@ import java.io.Serializable;
 public class DataPrivilegeGroupMember implements Serializable {
     private Integer id;
 
-    private String groupId;
+    private Integer groupId;
 
     private Integer memberType;
 
@@ -21,12 +21,12 @@ public class DataPrivilegeGroupMember implements Serializable {
         this.id = id;
     }
 
-    public String getGroupId() {
+    public Integer getGroupId() {
         return groupId;
     }
 
-    public void setGroupId(String groupId) {
-        this.groupId = groupId == null ? null : groupId.trim();
+    public void setGroupId(Integer groupId) {
+        this.groupId = groupId;
     }
 
     public Integer getMemberType() {

@@ -32,11 +32,11 @@ public class DataPrivilegeGroupMemberServiceImplTest {
     public void addMemberToGroup() throws Exception {
         DataPrivilegeGroupMember dataPrivilegeGroupMember = new DataPrivilegeGroupMember();
         dataPrivilegeGroupMember.setMemberId(99);
-        dataPrivilegeGroupMember.setGroupId("88");
+        dataPrivilegeGroupMember.setGroupId(88);
         dataPrivilegeGroupMemberService.addMemberToGroup(dataPrivilegeGroupMember);
         DataPrivilegeGroupMember dataPrivilegeGroupMember2 = new DataPrivilegeGroupMember();
         dataPrivilegeGroupMember2.setMemberId(100);
-        dataPrivilegeGroupMember2.setGroupId("88");
+        dataPrivilegeGroupMember2.setGroupId(88);
         dataPrivilegeGroupMemberService.addMemberToGroup(dataPrivilegeGroupMember2);
     }
 
@@ -47,7 +47,7 @@ public class DataPrivilegeGroupMemberServiceImplTest {
     public void delMemberFromGroup() throws Exception {
         DataPrivilegeGroupMember dataPrivilegeGroupMember = new DataPrivilegeGroupMember();
         dataPrivilegeGroupMember.setMemberId(99);
-        dataPrivilegeGroupMember.setGroupId("88");
+        dataPrivilegeGroupMember.setGroupId(88);
         dataPrivilegeGroupMemberService.delMemberFromGroup(dataPrivilegeGroupMember);
     }
 
@@ -56,7 +56,7 @@ public class DataPrivilegeGroupMemberServiceImplTest {
      */
     @Test
     public void listMemberInGroup() throws Exception {
-        String groupId = "88";
+        Integer groupId = 88;
         List<DataPrivilegeGroupMember> members = dataPrivilegeGroupMemberService.listMemberInGroup(groupId);
         assertEquals(2, members.size());
 

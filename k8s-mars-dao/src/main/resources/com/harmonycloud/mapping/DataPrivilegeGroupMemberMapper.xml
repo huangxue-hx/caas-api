@@ -3,7 +3,7 @@
 <mapper namespace="com.harmonycloud.dao.dataprivilege.DataPrivilegeGroupMemberMapper">
   <resultMap id="BaseResultMap" type="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMember">
     <id column="id" jdbcType="INTEGER" property="id" />
-    <result column="group_id" jdbcType="VARCHAR" property="groupId" />
+    <result column="group_id" jdbcType="INTEGER" property="groupId" />
     <result column="member_type" jdbcType="INTEGER" property="memberType" />
     <result column="member_id" jdbcType="INTEGER" property="memberId" />
   </resultMap>
@@ -76,7 +76,7 @@
     </selectKey>
     insert into data_privilege_group_member (group_id, member_type, member_id
       )
-    values (#{groupId,jdbcType=VARCHAR}, #{memberType,jdbcType=INTEGER}, #{memberId,jdbcType=INTEGER}
+    values (#{groupId,jdbcType=INTEGER}, #{memberType,jdbcType=INTEGER}, #{memberId,jdbcType=INTEGER}
       )
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMember">
@@ -97,7 +97,7 @@
     </trim>
     <trim prefix="values (" suffix=")" suffixOverrides=",">
       <if test="groupId != null">
-        #{groupId,jdbcType=VARCHAR},
+        #{groupId,jdbcType=INTEGER},
       </if>
       <if test="memberType != null">
         #{memberType,jdbcType=INTEGER},
@@ -111,7 +111,7 @@
     update data_privilege_group_member
     <set>
       <if test="groupId != null">
-        group_id = #{groupId,jdbcType=VARCHAR},
+        group_id = #{groupId,jdbcType=INTEGER},
       </if>
       <if test="memberType != null">
         member_type = #{memberType,jdbcType=INTEGER},
@@ -124,7 +124,7 @@
   </update>
   <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMember">
     update data_privilege_group_member
-    set group_id = #{groupId,jdbcType=VARCHAR},
+    set group_id = #{groupId,jdbcType=INTEGER},
       member_type = #{memberType,jdbcType=INTEGER},
       member_id = #{memberId,jdbcType=INTEGER}
     where id = #{id,jdbcType=INTEGER}

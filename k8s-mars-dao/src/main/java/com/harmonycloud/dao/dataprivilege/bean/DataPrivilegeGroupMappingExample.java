@@ -514,62 +514,52 @@ public class DataPrivilegeGroupMappingExample {
             return (Criteria) this;
         }
 
-        public Criteria andPrivilegeTypeEqualTo(String value) {
+        public Criteria andPrivilegeTypeEqualTo(Integer value) {
             addCriterion("privilege_type =", value, "privilegeType");
             return (Criteria) this;
         }
 
-        public Criteria andPrivilegeTypeNotEqualTo(String value) {
+        public Criteria andPrivilegeTypeNotEqualTo(Integer value) {
             addCriterion("privilege_type <>", value, "privilegeType");
             return (Criteria) this;
         }
 
-        public Criteria andPrivilegeTypeGreaterThan(String value) {
+        public Criteria andPrivilegeTypeGreaterThan(Integer value) {
             addCriterion("privilege_type >", value, "privilegeType");
             return (Criteria) this;
         }
 
-        public Criteria andPrivilegeTypeGreaterThanOrEqualTo(String value) {
+        public Criteria andPrivilegeTypeGreaterThanOrEqualTo(Integer value) {
             addCriterion("privilege_type >=", value, "privilegeType");
             return (Criteria) this;
         }
 
-        public Criteria andPrivilegeTypeLessThan(String value) {
+        public Criteria andPrivilegeTypeLessThan(Integer value) {
             addCriterion("privilege_type <", value, "privilegeType");
             return (Criteria) this;
         }
 
-        public Criteria andPrivilegeTypeLessThanOrEqualTo(String value) {
+        public Criteria andPrivilegeTypeLessThanOrEqualTo(Integer value) {
             addCriterion("privilege_type <=", value, "privilegeType");
             return (Criteria) this;
         }
 
-        public Criteria andPrivilegeTypeLike(String value) {
-            addCriterion("privilege_type like", value, "privilegeType");
-            return (Criteria) this;
-        }
-
-        public Criteria andPrivilegeTypeNotLike(String value) {
-            addCriterion("privilege_type not like", value, "privilegeType");
-            return (Criteria) this;
-        }
-
-        public Criteria andPrivilegeTypeIn(List<String> values) {
+        public Criteria andPrivilegeTypeIn(List<Integer> values) {
             addCriterion("privilege_type in", values, "privilegeType");
             return (Criteria) this;
         }
 
-        public Criteria andPrivilegeTypeNotIn(List<String> values) {
+        public Criteria andPrivilegeTypeNotIn(List<Integer> values) {
             addCriterion("privilege_type not in", values, "privilegeType");
             return (Criteria) this;
         }
 
-        public Criteria andPrivilegeTypeBetween(String value1, String value2) {
+        public Criteria andPrivilegeTypeBetween(Integer value1, Integer value2) {
             addCriterion("privilege_type between", value1, value2, "privilegeType");
             return (Criteria) this;
         }
 
-        public Criteria andPrivilegeTypeNotBetween(String value1, String value2) {
+        public Criteria andPrivilegeTypeNotBetween(Integer value1, Integer value2) {
             addCriterion("privilege_type not between", value1, value2, "privilegeType");
             return (Criteria) this;
         }
@@ -711,11 +701,6 @@ public class DataPrivilegeGroupMappingExample {
 
         public Criteria andNamespaceLikeInsensitive(String value) {
             addCriterion("upper(namespace) like", value.toUpperCase(), "namespace");
-            return (Criteria) this;
-        }
-
-        public Criteria andPrivilegeTypeLikeInsensitive(String value) {
-            addCriterion("upper(privilege_type) like", value.toUpperCase(), "privilegeType");
             return (Criteria) this;
         }
     }

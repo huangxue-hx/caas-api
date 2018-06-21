@@ -28,5 +28,15 @@ public interface DataPrivilegeGroupMemberService {
      * @param groupId
      * @return
      */
-    List<DataPrivilegeGroupMember> listMemberInGroup(String groupId) throws Exception;
+    List<DataPrivilegeGroupMember> listMemberInGroup(Integer groupId) throws Exception;
+
+    /**
+     * 初始化权限组成员
+     * @param groupId
+     * @param userId
+     * @param projectId
+     * @throws Exception
+     */
+    void initGroupMember(int groupId, Long userId, String projectId) throws Exception;
+
 }

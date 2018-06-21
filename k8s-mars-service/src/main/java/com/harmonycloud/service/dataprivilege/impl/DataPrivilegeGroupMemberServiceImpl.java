@@ -6,7 +6,7 @@ import com.harmonycloud.dao.dataprivilege.DataPrivilegeGroupMemberMapper;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMember;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMemberExample;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
-import com.harmonycloud.service.tenant.impl.TenantServiceImpl;
+import com.harmonycloud.service.tenant.ProjectService;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +27,9 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
     @Autowired
     DataPrivilegeGroupMemberMapper dataPrivilegeGroupMemberMapper;
 
+    @Autowired
+    ProjectService projectService;
+
     private static final Integer MEMBER_TYPE_USER = 0;//用户
 
     private static final Integer MEMBER_TYPE_GROUP = 1;//组
@@ -42,10 +45,10 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
     @Transactional(propagation = Propagation.REQUIRED)
     public void addMemberToGroup(DataPrivilegeGroupMember dataPrivilegeGroupMember) throws Exception {
 
-        String groupId = dataPrivilegeGroupMember.getGroupId();
+        Integer groupId = dataPrivilegeGroupMember.getGroupId();
         Integer memberId = dataPrivilegeGroupMember.getMemberId();
 
-        if(StringUtils.isNotBlank(groupId) && StringUtils.isNotBlank(memberId.toString())) {
+        if(groupId != null && StringUtils.isNotBlank(memberId.toString())) {
 
             dataPrivilegeGroupMember.setMemberType(MEMBER_TYPE_USER);
             dataPrivilegeGroupMemberMapper.insert(dataPrivilegeGroupMember);
@@ -64,10 +67,10 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
     @Transactional(propagation = Propagation.REQUIRED)
     public void delMemberFromGroup(DataPrivilegeGroupMember dataPrivilegeGroupMember) throws Exception {
 
-        String groupId = dataPrivilegeGroupMember.getGroupId();
+        Integer groupId = dataPrivilegeGroupMember.getGroupId();
         Integer memberId = dataPrivilegeGroupMember.getMemberId();
 
-        if(StringUtils.isNotBlank(groupId) && StringUtils.isNotBlank(memberId.toString())){
+        if(groupId != null && StringUtils.isNotBlank(memberId.toString())){
 
             DataPrivilegeGroupMemberExample example = new DataPrivilegeGroupMemberExample();
             example.createCriteria().andGroupIdEqualTo(groupId)
@@ -86,9 +89,9 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
      * @return
      */
     @Override
-    public List<DataPrivilegeGroupMember> listMemberInGroup(String groupId) throws Exception {
+    public List<DataPrivilegeGroupMember> listMemberInGroup(Integer groupId) throws Exception {
 
-        if(StringUtils.isNotBlank(groupId)) {
+        if(groupId != null) {
 
             DataPrivilegeGroupMemberExample example = new DataPrivilegeGroupMemberExample();
             example.createCriteria().andGroupIdEqualTo(groupId)
@@ -99,6 +102,22 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
             return memberList;
         }else{
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+
+    }
+
+    @Override
+    public void initGroupMember(int groupId, Long userId, String projectId) throws Exception {
+        if(StringUtils.isBlank(projectId) && userId != null){
+            DataPrivilegeGroupMember dataPrivilegeGroupMember = new DataPrivilegeGroupMember();
+            dataPrivilegeGroupMember.setGroupId(groupId);
+            dataPrivilegeGroupMember.setMemberType(MEMBER_TYPE_USER);
+            dataPrivilegeGroupMember.setMemberId(userId.intValue());
+            this.addMemberToGroup(dataPrivilegeGroupMember);
+        }else if(StringUtils.isNotBlank(projectId) && userId == null){
+            //DataPrivilegeGroupMember
+        }else if(StringUtils.isNotBlank(projectId) && userId != null){
+
         }
 
     }

@@ -38,7 +38,7 @@ public class TenantServiceImplTest {
         TenantDto tenantDto = new TenantDto();
         tenantDto.setAliasName("张三");
         tenantDto.setTenantName("zhangsan");
-        tenantDto.setStrategy(CommonConstant.DATCLOSED_STRATEGY);
+        tenantDto.setStrategy(CommonConstant.DATA_CLOSED_STRATEGY);
         tenantService.createTenant(tenantDto);
 
     }
@@ -52,7 +52,7 @@ public class TenantServiceImplTest {
         session.setAttribute(CommonConstant.ROLEID,1);
         String tenantId = "12e5523162474a02970f034830329c27";
         TenantDto tenantDto = tenantService.getTenantDetail(tenantId);
-        assertTrue(tenantDto.getStrategy() == CommonConstant.DATCLOSED_STRATEGY);
+        assertTrue(tenantDto.getStrategy() == CommonConstant.DATA_CLOSED_STRATEGY);
     }
 
     /**
@@ -62,7 +62,7 @@ public class TenantServiceImplTest {
     @Test
     public void updateTenantStrategy() throws Exception{
         String tenantId = "12e5523162474a02970f034830329c27";
-        Integer strategy = CommonConstant.OPEN_STRATEGY;
+        Integer strategy = CommonConstant.DATA_OPEN_STRATEGY;
         tenantService.updateTenantStrategy(tenantId,strategy);
     }
 

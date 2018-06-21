@@ -15,7 +15,7 @@ public class DataPrivilegeGroupMapping implements Serializable {
 
     private String namespace;
 
-    private String privilegeType;
+    private Integer privilegeType;
 
     private Integer parentId;
 
@@ -71,12 +71,12 @@ public class DataPrivilegeGroupMapping implements Serializable {
         this.namespace = namespace == null ? null : namespace.trim();
     }
 
-    public String getPrivilegeType() {
+    public Integer getPrivilegeType() {
         return privilegeType;
     }
 
-    public void setPrivilegeType(String privilegeType) {
-        this.privilegeType = privilegeType == null ? null : privilegeType.trim();
+    public void setPrivilegeType(Integer privilegeType) {
+        this.privilegeType = privilegeType;
     }
 
     public Integer getParentId() {

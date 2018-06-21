@@ -174,62 +174,52 @@ public class DataPrivilegeGroupMemberExample {
             return (Criteria) this;
         }
 
-        public Criteria andGroupIdEqualTo(String value) {
+        public Criteria andGroupIdEqualTo(Integer value) {
             addCriterion("group_id =", value, "groupId");
             return (Criteria) this;
         }
 
-        public Criteria andGroupIdNotEqualTo(String value) {
+        public Criteria andGroupIdNotEqualTo(Integer value) {
             addCriterion("group_id <>", value, "groupId");
             return (Criteria) this;
         }
 
-        public Criteria andGroupIdGreaterThan(String value) {
+        public Criteria andGroupIdGreaterThan(Integer value) {
             addCriterion("group_id >", value, "groupId");
             return (Criteria) this;
         }
 
-        public Criteria andGroupIdGreaterThanOrEqualTo(String value) {
+        public Criteria andGroupIdGreaterThanOrEqualTo(Integer value) {
             addCriterion("group_id >=", value, "groupId");
             return (Criteria) this;
         }
 
-        public Criteria andGroupIdLessThan(String value) {
+        public Criteria andGroupIdLessThan(Integer value) {
             addCriterion("group_id <", value, "groupId");
             return (Criteria) this;
         }
 
-        public Criteria andGroupIdLessThanOrEqualTo(String value) {
+        public Criteria andGroupIdLessThanOrEqualTo(Integer value) {
             addCriterion("group_id <=", value, "groupId");
             return (Criteria) this;
         }
 
-        public Criteria andGroupIdLike(String value) {
-            addCriterion("group_id like", value, "groupId");
-            return (Criteria) this;
-        }
-
-        public Criteria andGroupIdNotLike(String value) {
-            addCriterion("group_id not like", value, "groupId");
-            return (Criteria) this;
-        }
-
-        public Criteria andGroupIdIn(List<String> values) {
+        public Criteria andGroupIdIn(List<Integer> values) {
             addCriterion("group_id in", values, "groupId");
             return (Criteria) this;
         }
 
-        public Criteria andGroupIdNotIn(List<String> values) {
+        public Criteria andGroupIdNotIn(List<Integer> values) {
             addCriterion("group_id not in", values, "groupId");
             return (Criteria) this;
         }
 
-        public Criteria andGroupIdBetween(String value1, String value2) {
+        public Criteria andGroupIdBetween(Integer value1, Integer value2) {
             addCriterion("group_id between", value1, value2, "groupId");
             return (Criteria) this;
         }
 
-        public Criteria andGroupIdNotBetween(String value1, String value2) {
+        public Criteria andGroupIdNotBetween(Integer value1, Integer value2) {
             addCriterion("group_id not between", value1, value2, "groupId");
             return (Criteria) this;
         }
@@ -351,11 +341,6 @@ public class DataPrivilegeGroupMemberExample {
 
         public Criteria andMemberIdNotBetween(Integer value1, Integer value2) {
             addCriterion("member_id not between", value1, value2, "memberId");
-            return (Criteria) this;
-        }
-
-        public Criteria andGroupIdLikeInsensitive(String value) {
-            addCriterion("upper(group_id) like", value.toUpperCase(), "groupId");
             return (Criteria) this;
         }
     }

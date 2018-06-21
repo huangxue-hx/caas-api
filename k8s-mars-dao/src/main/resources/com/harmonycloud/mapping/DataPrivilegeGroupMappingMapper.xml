@@ -8,7 +8,7 @@
     <result column="project_id" jdbcType="VARCHAR" property="projectId" />
     <result column="cluster_id" jdbcType="VARCHAR" property="clusterId" />
     <result column="namespace" jdbcType="VARCHAR" property="namespace" />
-    <result column="privilege_type" jdbcType="VARCHAR" property="privilegeType" />
+    <result column="privilege_type" jdbcType="INTEGER" property="privilegeType" />
     <result column="parent_id" jdbcType="INTEGER" property="parentId" />
     <result column="group_id" jdbcType="INTEGER" property="groupId" />
   </resultMap>
@@ -135,7 +135,7 @@
         #{namespace,jdbcType=VARCHAR},
       </if>
       <if test="privilegeType != null">
-        #{privilegeType,jdbcType=VARCHAR},
+        #{privilegeType,jdbcType=INTEGER},
       </if>
       <if test="parentId != null">
         #{parentId,jdbcType=INTEGER},
@@ -164,7 +164,7 @@
         namespace = #{namespace,jdbcType=VARCHAR},
       </if>
       <if test="privilegeType != null">
-        privilege_type = #{privilegeType,jdbcType=VARCHAR},
+        privilege_type = #{privilegeType,jdbcType=INTEGER},
       </if>
       <if test="parentId != null">
         parent_id = #{parentId,jdbcType=INTEGER},
@@ -182,7 +182,7 @@
       project_id = #{projectId,jdbcType=VARCHAR},
       cluster_id = #{clusterId,jdbcType=VARCHAR},
       namespace = #{namespace,jdbcType=VARCHAR},
-      privilege_type = #{privilegeType,jdbcType=VARCHAR},
+      privilege_type = #{privilegeType,jdbcType=INTEGER},
       parent_id = #{parentId,jdbcType=INTEGER},
       group_id = #{groupId,jdbcType=INTEGER}
     where id = #{id,jdbcType=INTEGER}

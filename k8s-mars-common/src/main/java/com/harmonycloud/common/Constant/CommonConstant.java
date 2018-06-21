@@ -515,8 +515,20 @@ public class CommonConstant {
     public static final int ES_MAX_RESULT_WINDOW = 300000;
 
     //数据权限策略
-    public static final int DATCLOSED_STRATEGY = 1;
-    public static final int SEMIOPEN_STRATEGY = 2;
-    public static final int OPEN_STRATEGY = 3;
+    public static final int DATA_CLOSED_STRATEGY = 1;
+    public static final int DATA_SEMIOPEN_STRATEGY = 2;
+    public static final int DATA_OPEN_STRATEGY = 3;
+
+    //数据权限类型
+    public static final int DATA_READONLY = 1;
+    public static final int DATA_READWRITE = 2;
+
+    //数据权限组类型
+    public static final int DATA_GROUP = 1;
+    public static final int DATA_GROUP_SYSTEM_ADMIN = 2;
+    public static final int DATA_GROUP_TENANT_ADMIN = 3;
+    public static final int DATA_GROUP_PROJECT_ADMIN = 4;
+
+
 
 }
