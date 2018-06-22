@@ -424,6 +424,18 @@ public class K8sResultConvert {
                     labelMap.put(LABEL_INGRESS_SERVICE, serviceType);
                     tMap.put("labels", labelMap);
                 }
+
+                //获取自动伸缩标签
+                //获取自动伸缩标签
+                String autoscaleStatus = null;
+                if(dep.getMetadata().getLabels() != null && dep.getMetadata().getLabels().containsKey(NODESELECTOR_LABELS_PRE + LABEL_AUTOSCALE)) {
+                    autoscaleStatus = dep.getMetadata().getLabels().get(NODESELECTOR_LABELS_PRE + LABEL_AUTOSCALE).toString();
+                }
+                if(!StringUtils.isEmpty(autoscaleStatus)){
+                    labelMap.put(LABEL_AUTOSCALE, autoscaleStatus);
+                    tMap.put("labels", labelMap);
+                }
+
                 tMap.put("status", getDeploymentStatus(dep));
                 if (dep.getMetadata().getAnnotations() != null && dep.getMetadata().getAnnotations().containsKey("deployment.kubernetes.io/revision")) {
                     tMap.put("version", "v" + dep.getMetadata().getAnnotations().get("deployment.kubernetes.io/revision"));
