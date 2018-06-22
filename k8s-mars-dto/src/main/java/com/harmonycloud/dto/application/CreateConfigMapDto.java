@@ -11,7 +11,7 @@ public class CreateConfigMapDto implements Serializable{
 	 */
 	private static final long serialVersionUID = 1L;
 
-	private String name;//配置组名字
+	private String configMapId;//配置组id
 	
 	private String path;
 	
@@ -21,12 +21,12 @@ public class CreateConfigMapDto implements Serializable{
 	
 	private Object value;
 
-	public String getName() {
-		return name;
+	public String getConfigMapId() {
+		return configMapId;
 	}
 
-	public void setName(String name) {
-		this.name = name;
+	public void setConfigMapId(String configMapId) {
+		this.configMapId = configMapId;
 	}
 
 	public String getPath() {

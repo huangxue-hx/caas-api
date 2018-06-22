@@ -1332,7 +1332,7 @@ public class K8sResultConvert {
                                 filename = cm.getPath().substring(in + 1, cm.getPath().length());
                             }
                             Volume cMap = new Volume();
-                            cMap.setName((cm.getName()+"#"+cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
+                            cMap.setName((cm.getFile()+"-"+cm.getConfigMapId()).replace(".", "-"));
                             ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
                             coMap.setName(name + c.getName());
                             List<KeyToPath> items = new LinkedList<KeyToPath>();
@@ -1344,7 +1344,7 @@ public class K8sResultConvert {
                             cMap.setConfigMap(coMap);
                             volumes.add(cMap);
                             VolumeMount volm = new VolumeMount();
-                            volm.setName((cm.getName()+"#"+cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
+                            volm.setName((cm.getFile()+"-"+cm.getConfigMapId()).replace(".", "-"));
                             volm.setMountPath(cm.getPath());
                             volm.setSubPath(filename);
                             volumeMounts.add(volm);
@@ -1674,7 +1674,7 @@ public class K8sResultConvert {
                                 filename = cm.getPath().substring(in + 1, cm.getPath().length());
                             }
                             Volume cMap = new Volume();
-                            cMap.setName((cm.getName()+"#"+cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
+                            cMap.setName((cm.getFile()+"-"+cm.getConfigMapId()).replace(".", "-"));
                             ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
                             coMap.setName(job.getMetadata().getName() + c.getName());
                             List<KeyToPath> items = new LinkedList<KeyToPath>();
@@ -1686,7 +1686,7 @@ public class K8sResultConvert {
                             cMap.setConfigMap(coMap);
                             volumes.add(cMap);
                             VolumeMount volm = new VolumeMount();
-                            volm.setName((cm.getName()+"#"+cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
+                            volm.setName((cm.getFile()+"-"+cm.getConfigMapId()).replace(".", "-"));
                             volm.setMountPath(cm.getPath());
                             volm.setSubPath(filename);
                             volumeMounts.add(volm);
@@ -2049,7 +2049,7 @@ public class K8sResultConvert {
                                 filename = cm.getPath().substring(in + 1, cm.getPath().length());
                             }
                             Volume cMap = new Volume();
-                            cMap.setName((cm.getName()+"#"+cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
+                            cMap.setName((cm.getFile()+"-"+cm.getConfigMapId()).replace(".", "-"));
                             ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
                             coMap.setName(name + c.getName());
                             List<KeyToPath> items = new LinkedList<KeyToPath>();
@@ -2061,7 +2061,7 @@ public class K8sResultConvert {
                             cMap.setConfigMap(coMap);
                             volumes.add(cMap);
                             VolumeMount volm = new VolumeMount();
-                            volm.setName((cm.getName()+"#"+cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
+                            volm.setName((cm.getFile()+"-"+cm.getConfigMapId()).replace(".", "-"));
                             volm.setMountPath(cm.getPath());
                             volm.setSubPath(filename);
                             volumeMounts.add(volm);

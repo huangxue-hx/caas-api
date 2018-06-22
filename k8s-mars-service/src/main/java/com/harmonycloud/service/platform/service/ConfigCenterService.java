@@ -142,5 +142,5 @@ public interface ConfigCenterService {
      * @param projectId
      * @return
      */
-    ActionReturnUtil getConfigMapByName(String name, String clusterId, String projectId);
+    ActionReturnUtil getConfigMapByName(String name, String clusterId, String projectId) throws Exception;
 }

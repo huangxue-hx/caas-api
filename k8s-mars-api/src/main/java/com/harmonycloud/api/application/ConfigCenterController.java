@@ -124,8 +124,8 @@ public class ConfigCenterController {
 	 * @throws Exception
 	 */
 	@ResponseBody
-	@RequestMapping(value = "/{configMapName}", method = RequestMethod.GET)
-	public ActionReturnUtil getConfigMapByName(@PathVariable("tenantId") String tenantId,
+	@RequestMapping(value = "/{configMapName}/detail", method = RequestMethod.GET)
+	public ActionReturnUtil listConfigMapByName(@PathVariable("tenantId") String tenantId,
 										 @PathVariable("projectId") String projectId,
 										 @PathVariable("configMapName") String configMapName,
 										 @RequestParam(value = "clusterId")String clusterId) throws Exception {

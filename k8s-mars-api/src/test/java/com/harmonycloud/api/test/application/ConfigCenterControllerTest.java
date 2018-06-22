@@ -44,13 +44,13 @@ public class ConfigCenterControllerTest extends BaseTest {
 
     @Test
     public void testUpdateConfigMap() throws Exception {
-        String url = "/tenants/103303bb68ea4511abce4b5da0c054f4/projects/aabc0a6f31d543e6a27f6042cddd91ad/configmap";
+        String url = "/tenants/6faf1e76d992450aa111bc700cf3ca4f/projects/ac6d46a2a39b47de9e10a1ec763e95bc/configmap";
 
         String result = mockMvc.perform(put(url).contentType(MediaType.APPLICATION_JSON)
                 .param("clusterId","cluster-top--dev")
 //                .param("repoName",null)
                 .param("description","test")
-                .param("id","336245d83c6d461897d94685497d8053")
+                .param("id","24b0a22cea9146b59b9470a6f3d41a73")
                 .param("configFileItemList[0].content","asas22")
                 .param("configFileItemList[0].fileName","config12")
 //                .param("configFileItemList[0].path",null)
@@ -102,10 +102,12 @@ public class ConfigCenterControllerTest extends BaseTest {
 
     @Test
     public void testGetLatestConfigMap() throws Exception {
-        String url = "/tenants/e258a14748f24eab8fcc257a8a9c33e8/projects/60204e022ed9468d9d41dfff59405b2a/configmap/latest";
+        String url = "/tenants/6faf1e76d992450aa111bc700cf3ca4f/projects/ac6d46a2a39b47de9e10a1ec763e95bc/configmap/latest";
         String result = mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON)
-                .param("name","pa")
-                .param("reponame","library/net-test")
+                .param("name","config2")
+                .param("reponame","onlineshop/tomcat")
+                .param("clusterId","cluster-top--dev")
+                .param("tags","1.0")
                 .accept(MediaType.APPLICATION_JSON))
                 .andDo(print()).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
@@ -124,6 +126,20 @@ public class ConfigCenterControllerTest extends BaseTest {
         Map resultMap = JsonUtil.convertJsonToMap(result);
         assertTrue((boolean)resultMap.get("success"));
     }
+
+    @Test
+    public void testGetConfigMapByName() throws Exception {
+        String url = "/tenants/6faf1e76d992450aa111bc700cf3ca4f/projects/ac6d46a2a39b47de9e10a1ec763e95bc/configmap/listTags/config2";
+        String result = mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON)
+                .param("clusterId","cluster-top--dev")
+                .accept(MediaType.APPLICATION_JSON))
+                .andDo(print()).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        Map resultMap = JsonUtil.convertJsonToMap(result);
+        assertTrue((boolean)resultMap.get("success"));
+    }
+
+
 
 
 

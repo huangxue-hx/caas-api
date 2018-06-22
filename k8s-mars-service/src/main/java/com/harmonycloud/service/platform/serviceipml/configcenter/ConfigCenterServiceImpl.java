@@ -352,8 +352,8 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     }
 
     @Override
-    public ActionReturnUtil getConfigMapByName(String name, String clusterId, String projectId) {
-        List<ConfigFile> configFileList =  configFileMapper.getConfigMapByName( name,  clusterId,  projectId);
+    public ActionReturnUtil getConfigMapByName(String name, String clusterId, String projectId) throws Exception  {
+        List<ConfigFile> configFileList =  configFileMapper.getConfigMapByName(name,clusterId,projectId);
         return ActionReturnUtil.returnSuccessWithData(configFileList);
     }
 
