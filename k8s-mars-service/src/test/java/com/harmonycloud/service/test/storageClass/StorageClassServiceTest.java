@@ -1,3 +1,4 @@
+/*
 package com.harmonycloud.service.test.storageClass;
 
 import com.harmonycloud.dto.application.StorageClassDto;
@@ -17,9 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 
+*/
 /**
  * Created by lenovo on 2018/6/19.
- */
+ *//*
+
 @RunWith(JUnit4ClassRunner.class)
 @ContextConfiguration(locations={"classpath:applicationContext.xml"})
 @Transactional
@@ -55,3 +58,4 @@ public class StorageClassServiceTest {
 
     }
 }
+*/
