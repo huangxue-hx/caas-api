@@ -529,6 +529,14 @@ public class CommonConstant {
     public static final int DATA_GROUP_TENANT_ADMIN = 3;
     public static final int DATA_GROUP_PROJECT_ADMIN = 4;
 
+    //数据权限
+    public static final byte SCOPE_TENANT = 0;
+    public static final byte SCOPE_PROJECT = 1;
 
+    //数据权限字段类型
+    public static final int DATA_FIELD = 1;
+    public static final int NAMESPACE_FIELD = 2;
+    public static final int PROJECTID_FIELD = 3;
+    public static final int CLUSTERID_FIELD = 4;
 
 }

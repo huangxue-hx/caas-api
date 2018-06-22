@@ -1,12 +1,15 @@
 package com.harmonycloud.service.dataprivilege.impl;
 
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.dao.dataprivilege.DataPrivilegeGroupMemberMapper;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMember;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMemberExample;
+import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
 import com.harmonycloud.service.tenant.ProjectService;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.*;
 
 /**
  * Created by chencheng on 18-6-20
@@ -48,7 +51,7 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
         Integer groupId = dataPrivilegeGroupMember.getGroupId();
         Integer memberId = dataPrivilegeGroupMember.getMemberId();
 
-        if(groupId != null && StringUtils.isNotBlank(memberId.toString())) {
+        if(groupId != null) {
 
             dataPrivilegeGroupMember.setMemberType(MEMBER_TYPE_USER);
             dataPrivilegeGroupMemberMapper.insert(dataPrivilegeGroupMember);
@@ -57,6 +60,12 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
         }
 
 
+    }
+
+    public void addMemberListToGroup(List<DataPrivilegeGroupMember> dataPrivilegeGroupMemberList) {
+        if (CollectionUtils.isNotEmpty(dataPrivilegeGroupMemberList)) {
+            dataPrivilegeGroupMemberMapper.insertList(dataPrivilegeGroupMemberList);
+        }
     }
 
     /**
@@ -70,7 +79,7 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
         Integer groupId = dataPrivilegeGroupMember.getGroupId();
         Integer memberId = dataPrivilegeGroupMember.getMemberId();
 
-        if(groupId != null && StringUtils.isNotBlank(memberId.toString())){
+        if(groupId != null){
 
             DataPrivilegeGroupMemberExample example = new DataPrivilegeGroupMemberExample();
             example.createCriteria().andGroupIdEqualTo(groupId)
@@ -107,18 +116,41 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
     }
 
     @Override
-    public void initGroupMember(int groupId, Long userId, String projectId) throws Exception {
-        if(StringUtils.isBlank(projectId) && userId != null){
+    public void initGroupMember(int groupId, String username, String projectId) throws Exception {
+        if(StringUtils.isBlank(projectId) && StringUtils.isNotBlank(username)){
             DataPrivilegeGroupMember dataPrivilegeGroupMember = new DataPrivilegeGroupMember();
             dataPrivilegeGroupMember.setGroupId(groupId);
             dataPrivilegeGroupMember.setMemberType(MEMBER_TYPE_USER);
-            dataPrivilegeGroupMember.setMemberId(userId.intValue());
+            dataPrivilegeGroupMember.setUsername(username);
             this.addMemberToGroup(dataPrivilegeGroupMember);
-        }else if(StringUtils.isNotBlank(projectId) && userId == null){
-            //DataPrivilegeGroupMember
-        }else if(StringUtils.isNotBlank(projectId) && userId != null){
+        }else if(StringUtils.isNotBlank(projectId)){
+            //项目成员加到权限组中
+            Project project = projectService.getProjectByProjectId(projectId);
+            List<Map<String,Object>> userRoles = projectService.listProjectUser(project.getTenantId(), projectId);
+            Set<String> userSet = new HashSet();
+            userRoles.stream().forEach(userRole ->{
+                userSet.add((String)userRole.get(CommonConstant.USERNAME));
+            });
+            List<DataPrivilegeGroupMember> dataPrivilegeGroupMemberList = new ArrayList<>();
+            userSet.stream().forEach(user ->{
+                if(!user.equalsIgnoreCase(username)) {
+                    DataPrivilegeGroupMember dataPrivilegeGroupMember = new DataPrivilegeGroupMember();
+                    dataPrivilegeGroupMember.setGroupId(groupId);
+                    dataPrivilegeGroupMember.setMemberType(MEMBER_TYPE_USER);
+                    dataPrivilegeGroupMember.setUsername(user);
+                    dataPrivilegeGroupMemberList.add(dataPrivilegeGroupMember);
+                }
+            });
+            this.addMemberListToGroup(dataPrivilegeGroupMemberList);
 
         }
 
+    }
+
+    @Override
+    public void deleteAllMemberFromGroup(int groupId) throws Exception {
+        DataPrivilegeGroupMemberExample example = new DataPrivilegeGroupMemberExample();
+        example.createCriteria().andGroupIdEqualTo(groupId);
+        dataPrivilegeGroupMemberMapper.deleteByExample(example);
     }
 }

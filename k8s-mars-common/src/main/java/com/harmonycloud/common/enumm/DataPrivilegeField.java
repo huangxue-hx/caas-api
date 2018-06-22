@@ -6,10 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Created by anson on 18/6/20.
+ * Created by anson on 18/6/21.
  */
-@Target({ElementType.TYPE})
+@Target({ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface DataPrivilegeType {
-    DataResourceTypeEnum type();
+public @interface DataPrivilegeField {
+    int type();
 }

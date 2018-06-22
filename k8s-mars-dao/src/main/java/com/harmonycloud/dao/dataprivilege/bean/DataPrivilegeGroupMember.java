@@ -11,6 +11,8 @@ public class DataPrivilegeGroupMember implements Serializable {
 
     private Integer memberId;
 
+    private String username;
+
     private static final long serialVersionUID = 1L;
 
     public Integer getId() {
@@ -45,6 +47,14 @@ public class DataPrivilegeGroupMember implements Serializable {
         this.memberId = memberId;
     }
 
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username == null ? null : username.trim();
+    }
+
     @Override
     public boolean equals(Object that) {
         if (this == that) {
@@ -60,7 +70,8 @@ public class DataPrivilegeGroupMember implements Serializable {
         return (this.getId() == null ? other.getId() == null : this.getId().equals(other.getId()))
             && (this.getGroupId() == null ? other.getGroupId() == null : this.getGroupId().equals(other.getGroupId()))
             && (this.getMemberType() == null ? other.getMemberType() == null : this.getMemberType().equals(other.getMemberType()))
-            && (this.getMemberId() == null ? other.getMemberId() == null : this.getMemberId().equals(other.getMemberId()));
+            && (this.getMemberId() == null ? other.getMemberId() == null : this.getMemberId().equals(other.getMemberId()))
+            && (this.getUsername() == null ? other.getUsername() == null : this.getUsername().equals(other.getUsername()));
     }
 
     @Override
@@ -71,6 +82,7 @@ public class DataPrivilegeGroupMember implements Serializable {
         result = prime * result + ((getGroupId() == null) ? 0 : getGroupId().hashCode());
         result = prime * result + ((getMemberType() == null) ? 0 : getMemberType().hashCode());
         result = prime * result + ((getMemberId() == null) ? 0 : getMemberId().hashCode());
+        result = prime * result + ((getUsername() == null) ? 0 : getUsername().hashCode());
         return result;
     }
 }

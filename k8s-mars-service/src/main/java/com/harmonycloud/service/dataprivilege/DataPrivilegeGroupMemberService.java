@@ -37,6 +37,13 @@ public interface DataPrivilegeGroupMemberService {
      * @param projectId
      * @throws Exception
      */
-    void initGroupMember(int groupId, Long userId, String projectId) throws Exception;
+    void initGroupMember(int groupId, String userId, String projectId) throws Exception;
+
+    /**
+     * 删除权限组中所有成员
+     * @param groupId
+     * @throws Exception
+     */
+    void deleteAllMemberFromGroup(int groupId) throws Exception;
 
 }

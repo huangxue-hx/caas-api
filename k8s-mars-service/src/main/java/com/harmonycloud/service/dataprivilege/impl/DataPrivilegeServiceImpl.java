@@ -1,17 +1,20 @@
 package com.harmonycloud.service.dataprivilege.impl;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DataPrivilegeField;
 import com.harmonycloud.common.enumm.DataPrivilegeType;
 import com.harmonycloud.common.enumm.DataResourceTypeEnum;
 import com.harmonycloud.dao.dataprivilege.DataPrivilegeStrategyMapper;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMapping;
+import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMappingExample;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategy;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategyExample;
-import com.harmonycloud.dao.user.bean.User;
+import com.harmonycloud.dto.dataprivilege.DataPrivilegeDto;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMappingService;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupService;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeService;
+import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.UserService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -19,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.servlet.http.HttpSession;
 import java.lang.reflect.Field;
 import java.util.List;
 
@@ -29,10 +31,6 @@ import java.util.List;
 @Service
 public class DataPrivilegeServiceImpl implements DataPrivilegeService{
     private static Logger logger = LoggerFactory.getLogger(DataPrivilegeServiceImpl.class);
-
-    final static String PROJECTID = "projectId";
-    final static String NAMESPACE = "namespace";
-    final static String CLUSTERID = "clusterId";
 
     @Autowired
     DataPrivilegeStrategyMapper dataPrivilegeStrategyMapper;
@@ -47,7 +45,7 @@ public class DataPrivilegeServiceImpl implements DataPrivilegeService{
     DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
 
     @Autowired
-    HttpSession session;
+    TenantService tenantService;
 
     @Autowired
     UserService userService;
@@ -58,37 +56,23 @@ public class DataPrivilegeServiceImpl implements DataPrivilegeService{
      * @param <T>
      * @throws Exception
      */
-    public <T> void addResource(T t) throws Exception {
-        String data = null;
-        String projectId = null;
-        String namespace = null;
-        String clusterId = null;
-        String username = (String)session.getAttribute(CommonConstant.USERNAME);
-        User user = userService.getUser(username);
+    @Override
+    public <T> void addResource(T t, String parentData, DataResourceTypeEnum type) throws Exception {
+        String username = userService.getCurrentUsername();
+        String projectId = userService.getCurrentProjectId();
+        String tenantId = userService.getCurrentTenantId();
         int strategy = CommonConstant.DATA_OPEN_STRATEGY;
-        DataPrivilegeType anotation = t.getClass().getDeclaredAnnotation(DataPrivilegeType.class);
-        DataResourceTypeEnum dataPrivilegeType = anotation.type();
-        String dataField = anotation.field().toString();
-        Field[] fields = t.getClass().getDeclaredFields();
-        for(Field field : fields){
-            field.setAccessible(true);
-            String value = field.get(t) == null ? null:field.get(t).toString();
-            if(dataField.equalsIgnoreCase(field.getName())){
-                data = value;
-            }else if(PROJECTID.equalsIgnoreCase(field.getName())){
-                projectId = value;
-            }else if(NAMESPACE.equalsIgnoreCase(field.getName())){
-                namespace = value;
-            }else if(CLUSTERID.equalsIgnoreCase(field.getName())){
-                clusterId = value;
-            }
 
-
+        DataPrivilegeDto dataPrivilegeDto = this.getDataPrivilegeDto(t);
+        dataPrivilegeDto.setParentData(parentData);
+        if(type != null){
+            dataPrivilegeDto.setParentDataResourceType(type.getCode());
         }
 
-        if(StringUtils.isNotBlank(projectId)) {
+
+        if(StringUtils.isNotBlank(tenantId)) {
             DataPrivilegeStrategyExample example = new DataPrivilegeStrategyExample();
-            example.createCriteria().andScopeTypeEqualTo((byte) 2).andScopeIdEqualTo(projectId);
+            example.createCriteria().andScopeTypeEqualTo(CommonConstant.SCOPE_TENANT).andScopeIdEqualTo(tenantId);
             List<DataPrivilegeStrategy> dataPrivilegeStrategyList = dataPrivilegeStrategyMapper.selectByExample(example);
 
             if(dataPrivilegeStrategyList != null && dataPrivilegeStrategyList.size() == 1){
@@ -102,41 +86,100 @@ public class DataPrivilegeServiceImpl implements DataPrivilegeService{
         int roGroupId = dataPrivilegeGroupService.addGroup(CommonConstant.DATA_GROUP ,null,null);
         int rwGroupId = dataPrivilegeGroupService.addGroup(CommonConstant.DATA_GROUP ,null,null);
 
-        //新建数据与只读组、读写组的关联
-        DataPrivilegeGroupMapping dataPrivilegeGroupMapping = new DataPrivilegeGroupMapping();
-        dataPrivilegeGroupMapping.setDataName(data);
-        dataPrivilegeGroupMapping.setResourceTypeId(dataPrivilegeType.getCode());
-        dataPrivilegeGroupMapping.setProjectId(projectId);
-        dataPrivilegeGroupMapping.setClusterId(clusterId);
-        dataPrivilegeGroupMapping.setNamespace(namespace);
-        dataPrivilegeGroupMapping.setGroupId(roGroupId);
-        dataPrivilegeGroupMapping.setPrivilegeType(CommonConstant.DATA_READONLY);
-        dataPrivilegeGroupMappingService.addMapping(dataPrivilegeGroupMapping);
-        dataPrivilegeGroupMapping.setGroupId(rwGroupId);
-        dataPrivilegeGroupMapping.setPrivilegeType(CommonConstant.DATA_READWRITE);
-        dataPrivilegeGroupMappingService.addMapping(dataPrivilegeGroupMapping);
+        //初始化数据与只读组、读写组的关联
+        dataPrivilegeGroupMappingService.initMapping(roGroupId, rwGroupId, dataPrivilegeDto);
 
 
         //根据策略增加读写组与只读组的成员
         switch(strategy){
             case CommonConstant.DATA_CLOSED_STRATEGY:
-                dataPrivilegeGroupMemberService.initGroupMember(rwGroupId, user.getId(), null);
+                dataPrivilegeGroupMemberService.initGroupMember(rwGroupId, username, null);
                 break;
             case CommonConstant.DATA_SEMIOPEN_STRATEGY:
-                dataPrivilegeGroupMemberService.initGroupMember(rwGroupId, user.getId(), null);
-                dataPrivilegeGroupMemberService.initGroupMember(roGroupId, user.getId(), projectId);
+                dataPrivilegeGroupMemberService.initGroupMember(rwGroupId, username, null);
+                dataPrivilegeGroupMemberService.initGroupMember(roGroupId, username, projectId);
                 break;
             case CommonConstant.DATA_OPEN_STRATEGY:
                 dataPrivilegeGroupMemberService.initGroupMember(rwGroupId, null, projectId);
                 break;
         }
 
+    }
+
+    /**
+     * 删除资源数据
+     * @param t
+     * @param <T>
+     * @throws Exception
+     */
+    @Override
+    public <T> void deleteResource(T t) throws Exception {
+        DataPrivilegeDto dataPrivilegeDto = this.getDataPrivilegeDto(t);
+        DataPrivilegeGroupMappingExample example = new DataPrivilegeGroupMappingExample();
+        DataPrivilegeGroupMappingExample.Criteria criteria = example.createCriteria().andDataNameEqualTo(dataPrivilegeDto.getData())
+                .andResourceTypeIdEqualTo(dataPrivilegeDto.getDataResourceType());
+        if(StringUtils.isNotBlank(dataPrivilegeDto.getProjectId())) {
+            criteria.andProjectIdEqualTo(dataPrivilegeDto.getProjectId());
+        }
+        if(StringUtils.isNotBlank(dataPrivilegeDto.getClusterId())) {
+            criteria.andClusterIdEqualTo(dataPrivilegeDto.getClusterId());
+        }
+        if(StringUtils.isNotBlank(dataPrivilegeDto.getNamespace())) {
+            criteria.andNamespaceEqualTo(dataPrivilegeDto.getNamespace());
+        }
+        List<DataPrivilegeGroupMapping> list = dataPrivilegeGroupMappingService.getDataPrivilegeGroupMapping(example);
+        for(DataPrivilegeGroupMapping dataPrivilegeGroupMapping : list){
+            int groupId = dataPrivilegeGroupMapping.getGroupId();
+            dataPrivilegeGroupService.deleteGroupWithMember(groupId);
+            dataPrivilegeGroupMappingService.deleteMappingById(dataPrivilegeGroupMapping.getId());
+        }
 
     }
 
-    public <T> void deleteResource(T t){
+    public void deleteResource(String name, String clusterId, String projectId, String namespace){
 
     }
 
+    /**
+     * 获取数据的值与过滤字段的值
+     * @param t
+     * @param <T>
+     * @return
+     * @throws IllegalAccessException
+     */
+    private <T> DataPrivilegeDto getDataPrivilegeDto(T t) throws IllegalAccessException {
+        DataPrivilegeDto dataPrivilegeDto = new DataPrivilegeDto();
+        DataPrivilegeType anotation = t.getClass().getDeclaredAnnotation(DataPrivilegeType.class);
+        DataResourceTypeEnum dataPrivilegeType = anotation.type();
+        dataPrivilegeDto.setDataResourceType(dataPrivilegeType.getCode());
+        Field[] fields = t.getClass().getDeclaredFields();
 
+        for(Field field : fields){
+            DataPrivilegeField fieldAnnotation = field.getAnnotation(DataPrivilegeField.class);
+            if(fieldAnnotation == null){
+                continue;
+            }
+            field.setAccessible(true);
+            String value = field.get(t) == null ? null:field.get(t).toString();
+            switch(fieldAnnotation.type()){
+                case CommonConstant.DATA_FIELD:
+                    dataPrivilegeDto.setData(value);
+                    break;
+                case CommonConstant.PROJECTID_FIELD:
+                    dataPrivilegeDto.setProjectId(value);
+                    break;
+                case CommonConstant.CLUSTERID_FIELD:
+                    dataPrivilegeDto.setClusterId(value);
+                    break;
+                case CommonConstant.NAMESPACE_FIELD:
+                    dataPrivilegeDto.setNamespace(value);
+                    break;
+            }
+        }
+        return dataPrivilegeDto;
+    }
+
+    public static void main(String[] args) {
+
+    }
 }

@@ -22,6 +22,7 @@ import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.cluster.LoadbalanceService;
 import com.harmonycloud.service.common.PrivilegeHelper;
+import com.harmonycloud.service.dataprivilege.DataPrivilegeService;
 import com.harmonycloud.service.platform.bean.ApplicationList;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
@@ -122,6 +123,9 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
 
     @Autowired
     private RoleLocalService roleLocalService;
+
+    @Autowired
+    private DataPrivilegeService dataPrivilegeService;
 
     /**
      * get application by tenant namespace name status service implement
@@ -638,6 +642,10 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             if (tpr != null && tpr.getItems() != null && tpr.getItems().size() > 0) {
                 for (BaseResource br : tpr.getItems()) {
                     if (br != null && br.getMetadata() != null && br.getMetadata().getName() != null) {
+                        ApplicationDeployDto delObj = new ApplicationDeployDto();
+                        delObj.setAppName(br.getMetadata().getName());
+                        delObj.setNamespace(br.getMetadata().getNamespace());
+                        dataPrivilegeService.deleteResource(delObj);
                         boolean appFlag = true;
                         List<Deployment> items = new ArrayList<>();
                         //labels
@@ -1531,6 +1539,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
      * @throws Exception
      */
     private synchronized void deployApplication(ApplicationDeployDto appDeploy, String username, Cluster cluster) throws Exception {
+        dataPrivilegeService.addResource(appDeploy, null, null);
         String topoLabel = TOPO + SIGN + appDeploy.getProjectId() + SIGN + appDeploy.getAppName();
         String namespaceLabel = appDeploy.getNamespace();
         Set<String> deployments = new HashSet<>();

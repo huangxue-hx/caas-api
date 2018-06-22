@@ -1,6 +1,7 @@
 package com.harmonycloud.service.application.impl;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
@@ -13,7 +14,6 @@ import com.harmonycloud.dto.application.*;
 import com.harmonycloud.dto.scale.AutoScaleDto;
 import com.harmonycloud.dto.scale.HPADto;
 import com.harmonycloud.dto.scale.ResourceMetricScaleDto;
-import com.harmonycloud.dto.user.PrivilegeApplicationFieldDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8SClient;
@@ -29,6 +29,7 @@ import com.harmonycloud.service.application.FileUploadToContainerService;
 import com.harmonycloud.service.application.RouterService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.common.PrivilegeHelper;
+import com.harmonycloud.service.dataprivilege.DataPrivilegeService;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
@@ -135,6 +136,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
     @Autowired
     private FileUploadToContainerService fileUploadToContainerService;
+
+    @Autowired
+    private DataPrivilegeService dataPrivilegeService;
 
     public ActionReturnUtil listDeployments(String tenantId, String name, String namespace, String labels, String projectId, String clusterId) throws Exception {
         //参数判空
@@ -765,6 +769,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
     @Override
     public ActionReturnUtil createDeployment(DeploymentDetailDto detail, String userName, String app, Cluster cluster) throws Exception {
+        dataPrivilegeService.addResource(detail, app, DataResourceTypeEnum.APPLICATION);
         List<CreateContainerDto> containers = detail.getContainers();
         if (containers != null && !containers.isEmpty()) {
             for (CreateContainerDto c : containers) {
@@ -823,6 +828,10 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
     @Override
     public ActionReturnUtil deleteDeployment(String name, String namespace, String userName, Cluster cluster) throws Exception {
+        DeploymentDetailDto delObj = new DeploymentDetailDto();
+        delObj.setName(name);
+        delObj.setNamespace(namespace);
+        dataPrivilegeService.deleteResource(delObj);
         //先删除自动伸缩控制
         boolean scaleDeleted = autoScaleService.delete(namespace, name);
         if (!scaleDeleted) {

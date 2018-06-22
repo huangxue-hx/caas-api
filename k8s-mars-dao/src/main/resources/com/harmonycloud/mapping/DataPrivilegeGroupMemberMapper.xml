@@ -6,6 +6,7 @@
     <result column="group_id" jdbcType="INTEGER" property="groupId" />
     <result column="member_type" jdbcType="INTEGER" property="memberType" />
     <result column="member_id" jdbcType="INTEGER" property="memberId" />
+    <result column="username" jdbcType="VARCHAR" property="username" />
   </resultMap>
   <sql id="Example_Where_Clause">
     <where>
@@ -37,7 +38,7 @@
     </where>
   </sql>
   <sql id="Base_Column_List">
-    id, group_id, member_type, member_id
+    id, group_id, member_type, member_id, username
   </sql>
   <select id="selectByExample" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMemberExample" resultMap="BaseResultMap">
     select
@@ -74,10 +75,10 @@
     <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
       SELECT LAST_INSERT_ID()
     </selectKey>
-    insert into data_privilege_group_member (group_id, member_type, member_id
-      )
-    values (#{groupId,jdbcType=INTEGER}, #{memberType,jdbcType=INTEGER}, #{memberId,jdbcType=INTEGER}
-      )
+    insert into data_privilege_group_member (group_id, member_type, member_id, 
+      username)
+    values (#{groupId,jdbcType=INTEGER}, #{memberType,jdbcType=INTEGER}, #{memberId,jdbcType=INTEGER}, 
+      #{username,jdbcType=VARCHAR})
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMember">
     <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
@@ -94,6 +95,9 @@
       <if test="memberId != null">
         member_id,
       </if>
+      <if test="username != null">
+        username,
+      </if>
     </trim>
     <trim prefix="values (" suffix=")" suffixOverrides=",">
       <if test="groupId != null">
@@ -104,6 +108,9 @@
       </if>
       <if test="memberId != null">
         #{memberId,jdbcType=INTEGER},
+      </if>
+      <if test="username != null">
+        #{username,jdbcType=VARCHAR},
       </if>
     </trim>
   </insert>
@@ -119,6 +126,9 @@
       <if test="memberId != null">
         member_id = #{memberId,jdbcType=INTEGER},
       </if>
+      <if test="username != null">
+        username = #{username,jdbcType=VARCHAR},
+      </if>
     </set>
     where id = #{id,jdbcType=INTEGER}
   </update>
@@ -126,7 +136,21 @@
     update data_privilege_group_member
     set group_id = #{groupId,jdbcType=INTEGER},
       member_type = #{memberType,jdbcType=INTEGER},
-      member_id = #{memberId,jdbcType=INTEGER}
+      member_id = #{memberId,jdbcType=INTEGER},
+      username = #{username,jdbcType=VARCHAR}
     where id = #{id,jdbcType=INTEGER}
   </update>
+  <insert id="insertList" parameterType="java.util.List">
+      insert into data_privilege_group_member (group_id, member_type, member_id,
+      username)
+      values
+      <foreach collection="list" item="item" index= "index" separator =",">
+          (
+          #{item.groupId},
+          #{item.memberType},
+          #{item.memberId},
+          #{item.username}
+          )
+      </foreach>
+  </insert>
 </mapper>

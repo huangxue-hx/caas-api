@@ -20,4 +20,6 @@ public interface DataPrivilegeGroupMemberMapper {
     int updateByPrimaryKeySelective(DataPrivilegeGroupMember record);
 
     int updateByPrimaryKey(DataPrivilegeGroupMember record);
+
+    void insertList(List<DataPrivilegeGroupMember> list);
 }
