@@ -49,8 +49,6 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
     public void addMemberToGroup(DataPrivilegeGroupMember dataPrivilegeGroupMember) throws Exception {
 
         Integer groupId = dataPrivilegeGroupMember.getGroupId();
-        Integer memberId = dataPrivilegeGroupMember.getMemberId();
-
         if(groupId != null) {
 
             dataPrivilegeGroupMember.setMemberType(MEMBER_TYPE_USER);
@@ -77,13 +75,13 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
     public void delMemberFromGroup(DataPrivilegeGroupMember dataPrivilegeGroupMember) throws Exception {
 
         Integer groupId = dataPrivilegeGroupMember.getGroupId();
-        Integer memberId = dataPrivilegeGroupMember.getMemberId();
+        String username = dataPrivilegeGroupMember.getUsername();
 
         if(groupId != null){
 
             DataPrivilegeGroupMemberExample example = new DataPrivilegeGroupMemberExample();
             example.createCriteria().andGroupIdEqualTo(groupId)
-                    .andMemberIdEqualTo(memberId)
+                    .andUsernameEqualTo(username)
                     .andMemberTypeEqualTo(MEMBER_TYPE_USER);
 
             dataPrivilegeGroupMemberMapper.deleteByExample(example);

@@ -64,6 +64,28 @@ public class DataPrivilegeGroupMappingServiceImpl implements DataPrivilegeGroupM
         this.addMapping(dataPrivilegeGroupMapping);
     }
 
+
+    @Override
+    public List<DataPrivilegeGroupMapping> listDataPrivilegeGroupMapping(DataPrivilegeDto dataPrivilegeDto) {
+        if(!StringUtils.isAnyBlank(dataPrivilegeDto.getData(),dataPrivilegeDto.getNamespace())){
+            DataPrivilegeGroupMappingExample example = new DataPrivilegeGroupMappingExample();
+            DataPrivilegeGroupMappingExample.Criteria criteria = example.createCriteria().andDataNameEqualTo(dataPrivilegeDto.getData())
+                    .andNamespaceEqualTo(dataPrivilegeDto.getNamespace());
+            if(StringUtils.isNotBlank(dataPrivilegeDto.getProjectId())) {
+                criteria.andProjectIdEqualTo(dataPrivilegeDto.getProjectId());
+            }
+            if(StringUtils.isNotBlank(dataPrivilegeDto.getClusterId())) {
+                criteria.andClusterIdEqualTo(dataPrivilegeDto.getClusterId());
+            }
+            if(StringUtils.isNotBlank(dataPrivilegeDto.getNamespace())) {
+                criteria.andNamespaceEqualTo(dataPrivilegeDto.getNamespace());
+            }
+            return this.getDataPrivilegeGroupMapping(example);
+        }
+
+         return null;
+    }
+
     @Override
     public void addMapping(DataPrivilegeGroupMapping dataPrivilegeGroupMapping) {
         dataPrivilegeGroupMappingMapper.insert(dataPrivilegeGroupMapping);

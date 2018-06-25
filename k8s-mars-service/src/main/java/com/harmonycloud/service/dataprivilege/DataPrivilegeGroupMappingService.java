@@ -37,4 +37,11 @@ public interface DataPrivilegeGroupMappingService {
      * @param id
      */
     void deleteMappingById(int id);
+
+    /**
+     * 查询数据权限关联
+     * @param dataPrivilegeDto
+     * @return
+     */
+    List<DataPrivilegeGroupMapping> listDataPrivilegeGroupMapping(DataPrivilegeDto dataPrivilegeDto);
 }
