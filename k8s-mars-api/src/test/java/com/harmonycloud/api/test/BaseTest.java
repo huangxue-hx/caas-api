@@ -25,7 +25,7 @@ import java.util.List;
  */
 @Test
 @WebAppConfiguration
-@ContextConfiguration(locations={"classpath:applicationContext-test.xml"})
+@ContextConfiguration(locations={"classpath:applicationContext.xml"})
 public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
     protected Logger logger= LoggerFactory.getLogger(BaseTest.class);
     protected MockMvc mockMvc;
