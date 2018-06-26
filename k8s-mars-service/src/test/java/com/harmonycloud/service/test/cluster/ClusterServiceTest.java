@@ -1,6 +1,5 @@
 package com.harmonycloud.service.test.cluster;
 
-import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.test.BaseTest;
@@ -39,7 +38,6 @@ public class ClusterServiceTest extends BaseTest {
         assertNotNull(cluster.getHarborServer());
         assertTrue(cluster.getIsEnable());
         assertEquals(String.valueOf(cluster.getLevel()),"0");
-        logger.info("test get platform cluster:{}", JSONObject.toJSONString(cluster));
     }
 
     @Test

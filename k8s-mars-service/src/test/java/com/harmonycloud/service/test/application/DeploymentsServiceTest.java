@@ -5,6 +5,7 @@ import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.test.BaseTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +17,7 @@ import java.util.Map;
 
 import static org.testng.Assert.*;
 
-public class DeploymentsServiceTest {
+public class DeploymentsServiceTest extends BaseTest {
     protected Logger logger = LoggerFactory.getLogger(DeploymentsServiceTest.class);
 
     @Autowired
