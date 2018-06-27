@@ -140,6 +140,7 @@
         <mapper resource="com/harmonycloud/mapping/DataPrivilegeGroupMemberMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/DataPrivilegeStrategyMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/DataResourceUrlMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/ConfigFileItemMapper.xml" />
     </mappers>
 </configuration>
 

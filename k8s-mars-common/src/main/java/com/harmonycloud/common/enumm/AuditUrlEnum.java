@@ -222,7 +222,12 @@ public enum AuditUrlEnum {
     START_LOG_BACKUP("/snapshotrules/([^//]+)/start_PUT", "启动日志备份规则", "startLogBackupRule", 1, "LogBackupRuleMapper", null, "LOG"),
     CREATE_SNAPSHOT("/snapshotrules/snapshots_POST", "创建日志备份快照", "createLogBackupSnapshot", null, null, "snapshotName", "LOG"),
     DELETE_SNAPSHOT("/snapshotrules/snapshots_DELETE", "删除日志备份快照", "deleteLogBackupSnapshot", null, null, "snapshotName", "LOG"),
-    RECOVER_SNAPSHOT("/snapshotrules/snapshots_PUT", "恢复日志备份快照", "recoverLogBackupSnapshot", null, null, "snapshotName", "LOG");
+    RECOVER_SNAPSHOT("/snapshotrules/snapshots_PUT", "恢复日志备份快照", "recoverLogBackupSnapshot", null, null, "snapshotName", "LOG"),
+
+    ADD_CONFIG("/tenants/([^//]+)/projects/([^//]+)/configmap_POST", "新增配置文件", "addConfigurationFile", 2, null, null, "CONFIG_CENTET"),
+    UPDATE_CONFIG("/tenants/([^//]+)/projects/([^//]+)/configmap_PUT", "修改配置文件", "addConfigurationFile", 2, null, null, "CONFIG_CENTET"),
+    DELETE_CONFIG("/tenants/([^//]+)/projects/([^//]+)/configmap_DELETE", "删除配置文件", "addConfigurationFile", 2, null, null, "CONFIG_CENTET");
+
 
     //url正则表达式
     private final String urlRegex;

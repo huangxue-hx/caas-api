@@ -171,7 +171,8 @@ public class DeploymentsServiceImpl implements DeploymentsService {
                     DeploymentList deployment = getDeployments(ns[i], bodys, cluster);
                     String aliasNamespace = namespaceLocalService.getNamespaceByName(ns[i]).getAliasName();
                     if (deployment != null && deployment.getItems().size() > 0) {
-                        result.addAll(K8sResultConvert.convertAppList(deployment, cluster, aliasNamespace));
+                        List<Map<String, Object>> res = K8sResultConvert.convertAppList(deployment, cluster, aliasNamespace);
+                        result.addAll(res);
                     }
                 }catch (Exception e){
                     LOGGER.error("查询deployment列表失败，namespace：{}", ns[i],e);
@@ -768,7 +769,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
     }
 
     @Override
-    public ActionReturnUtil createDeployment(DeploymentDetailDto detail, String userName, String app, Cluster cluster) throws Exception {
+    public ActionReturnUtil createDeployment(DeploymentDetailDto detail, String userName, String app, Cluster cluster, List<IngressDto> ingress) throws Exception {
         dataPrivilegeService.addResource(detail, app, DataResourceTypeEnum.APPLICATION);
         List<CreateContainerDto> containers = detail.getContainers();
         if (containers != null && !containers.isEmpty()) {
@@ -795,7 +796,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             nodeAffinityList = this.setNamespaceLabelAffinity(detail.getNamespace(), nodeAffinityList);
             detail.setNodeAffinity(nodeAffinityList);
         }
-        Deployment dep = K8sResultConvert.convertAppCreate(detail, userName, app);
+        Deployment dep = K8sResultConvert.convertAppCreate(detail, userName, app, ingress);
         K8SURL k8surl = new K8SURL();
         k8surl.setNamespace(detail.getNamespace()).setResource(Resource.DEPLOYMENT);
         Map<String, Object> headers = new HashMap<String, Object>();
@@ -1260,5 +1261,40 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
             throw new MarsRuntimeException(status.getMessage());
         }
+    }
+
+    @Override
+    public ActionReturnUtil updateLabels(String namespace, String deploymentName, Cluster cluster, Map<String, Object> label) throws Exception {
+        if(label.isEmpty()){
+            return ActionReturnUtil.returnError();
+        }
+
+        K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, deploymentName, null, null, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
+            return ActionReturnUtil.returnErrorWithData(depRes.getBody());
+        }
+
+        Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+        Map<String, Object> depLabels = dep.getMetadata().getLabels();
+        for(Map.Entry<String, Object> entry : label.entrySet()){
+            if (entry.getValue() != null){
+                depLabels.put(entry.getKey(), entry.getValue());
+            }else{
+                depLabels.remove(entry.getKey());
+            }
+        }
+        dep.getMetadata().setLabels(depLabels);
+
+        Map<String, Object> bodys = CollectionUtil.transBean2Map(dep);
+        Map<String, Object> headers = new HashMap<String, Object>();
+        headers.put("Content-type","application/json");
+
+        K8SClientResponse putRes = dpService.doSpecifyDeployment(namespace, deploymentName, headers, bodys, HTTPMethod.PUT, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(putRes.getStatus())) {
+            return ActionReturnUtil.returnErrorWithData(putRes.getBody());
+        }
+
+        return ActionReturnUtil.returnSuccess();
+
     }
 }

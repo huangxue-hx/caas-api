@@ -21,6 +21,7 @@ import com.harmonycloud.k8s.service.HorizontalPodAutoscalerService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.AutoScaleService;
+import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.RouterService;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
@@ -36,7 +37,7 @@ import java.util.*;
 
 import static com.harmonycloud.common.Constant.CommonConstant.CPU;
 import static com.harmonycloud.common.Constant.CommonConstant.MEMORY;
-import static com.harmonycloud.service.platform.constant.Constant.DEPLOYMENT_API_VERSION;
+import static com.harmonycloud.service.platform.constant.Constant.*;
 
 @Service
 @Transactional(rollbackFor = Exception.class)
@@ -65,12 +66,17 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 	@Autowired
 	HorizontalPodAutoscalerService hpaService;
 
+	@Autowired
+	DeploymentsService dpsService;
+
 	@Override
 	public ActionReturnUtil create(AutoScaleDto autoScaleDto) throws Exception {
+		ActionReturnUtil  result;
 		Cluster cluster = namespaceLocalService.getClusterByNamespaceName(autoScaleDto.getNamespace());
 		if(autoScaleDto.getTargetTps() != null){
 			checkDeploymentCreatedService(autoScaleDto.getNamespace(), autoScaleDto.getDeploymentName(), cluster);
 		}
+
 		//自定义或时间段自动伸缩，使用crd
 		if(!CollectionUtils.isEmpty(autoScaleDto.getCustomMetricScales())
 				|| !CollectionUtils.isEmpty(autoScaleDto.getTimeMetricScales())){
@@ -78,10 +84,17 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 			if (errorCodeMessage != null ){
 					return ActionReturnUtil.returnErrorWithMsg(errorCodeMessage);
 			}
-			return this.createCpa(autoScaleDto, cluster);
+			result = this.createCpa(autoScaleDto, cluster);
 		}else {
-			return this.createHpa(autoScaleDto, cluster);
+			result = this.createHpa(autoScaleDto, cluster);
 		}
+
+		if(result.isSuccess()){
+			updateAutoscaleLabel(autoScaleDto.getNamespace(), autoScaleDto.getDeploymentName(), cluster, STATUS_ON);
+		}
+
+		return result;
+
 	}
 
 	@Override
@@ -121,6 +134,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 
 	@Override
 	public boolean delete(String namespace, String deploymentName) throws Exception {
+		boolean result = false;
 		Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
 		if (cluster == null) {
 			throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
@@ -130,11 +144,18 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 			LOGGER.info("删除自动伸缩，未找到。 namespace:{}, deployment:{}",namespace,deploymentName);
 			return true;
 		}
+
         if(autoScaleDto.getControllerType().equals(SCALE_CONTROLLER_TYPE_CPA)){
-			return this.deleteCpa(namespace, deploymentName, cluster);
+			result = this.deleteCpa(namespace, deploymentName, cluster);
 		}else {
-			return this.deleteHpa(namespace, deploymentName, cluster);
+			result = this.deleteHpa(namespace, deploymentName, cluster);
 		}
+
+		if(result){
+			updateAutoscaleLabel(namespace, deploymentName, cluster, STATUS_OFF);
+		}
+
+		return result;
 	}
 
 	@Override
@@ -651,5 +672,18 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 
 	private String getScaleName(String deploymentName){
 		return deploymentName + "-" + SCALE_CONTROLLER_TYPE_CPA;
+	}
+
+	//更新AutoScale标签
+	private void updateAutoscaleLabel(String namespace, String name, Cluster cluster , String status) throws Exception{
+		ActionReturnUtil actionReturnUtil;
+		Map<String, Object> label = new HashMap<>();
+		label.put(NODESELECTOR_LABELS_PRE + LABEL_AUTOSCALE, status);
+		actionReturnUtil = dpsService.updateLabels(namespace, name, cluster, label);
+
+		if(!actionReturnUtil.isSuccess()){
+			LOGGER.error("更新自动伸缩标签失败, DeploymentName:{}, label:{}", name, LABEL_AUTOSCALE + " switch to " + status);
+			throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_AUTOSCALE_LABEL_UPDATE_FAILURE);
+		}
 	}
 }

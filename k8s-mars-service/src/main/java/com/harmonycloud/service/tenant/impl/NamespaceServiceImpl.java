@@ -1,6 +1,54 @@
 package com.harmonycloud.service.tenant.impl;
 
-import static com.harmonycloud.common.enumm.RolebindingsEnum.DEV_RB;
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.RolebindingsEnum;
+import com.harmonycloud.common.exception.K8sAuthException;
+import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.*;
+import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.network.bean.NamespceBindSubnet;
+import com.harmonycloud.dao.network.bean.NetworkTopology;
+import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
+import com.harmonycloud.dao.tenant.bean.TenantBinding;
+import com.harmonycloud.dto.tenant.ClusterQuotaDto;
+import com.harmonycloud.dto.tenant.NamespaceDto;
+import com.harmonycloud.dto.tenant.QuotaDto;
+import com.harmonycloud.dto.tenant.SubnetDto;
+import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
+import com.harmonycloud.dto.tenant.show.QuotaDetailShowDto;
+import com.harmonycloud.dto.tenant.show.RolebindingShowDto;
+import com.harmonycloud.k8s.bean.*;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.service.DeploymentService;
+import com.harmonycloud.k8s.service.NetworkPolicyService;
+import com.harmonycloud.k8s.service.ResourceQuotaService;
+import com.harmonycloud.k8s.service.RoleBindingService;
+import com.harmonycloud.k8s.util.K8SClientResponse;
+import com.harmonycloud.service.application.ApplicationDeployService;
+import com.harmonycloud.service.application.DaemonSetsService;
+import com.harmonycloud.service.application.SecretService;
+import com.harmonycloud.service.application.ServiceService;
+import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.integration.MicroServiceService;
+import com.harmonycloud.service.platform.bean.NodeDetailDto;
+import com.harmonycloud.service.platform.bean.NodeDto;
+import com.harmonycloud.service.platform.bean.PodDto;
+import com.harmonycloud.service.platform.service.DashboardService;
+import com.harmonycloud.service.platform.service.NodeService;
+import com.harmonycloud.service.platform.service.PodService;
+import com.harmonycloud.service.tenant.*;
+import com.harmonycloud.service.user.RoleService;
+import com.harmonycloud.service.user.UserService;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -13,57 +61,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
-import com.harmonycloud.common.enumm.ErrorCodeMessage;
-import com.harmonycloud.common.enumm.DictEnum;
-import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.*;
-import com.harmonycloud.common.util.date.DateUtil;
-import com.harmonycloud.dao.tenant.bean.NamespaceLocalExample;
-import com.harmonycloud.dto.tenant.ClusterQuotaDto;
-import com.harmonycloud.k8s.bean.*;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
-import com.harmonycloud.service.application.ApplicationDeployService;
-import com.harmonycloud.service.application.DaemonSetsService;
-import com.harmonycloud.service.application.SecretService;
-import com.harmonycloud.service.application.ServiceService;
-import com.harmonycloud.service.cluster.ClusterService;
-import com.harmonycloud.service.integration.MicroServiceService;
-import com.harmonycloud.service.platform.bean.NodeDto;
-import com.harmonycloud.service.platform.bean.PodDto;
-import com.harmonycloud.service.platform.service.PodService;
-import com.harmonycloud.service.tenant.*;
-import com.harmonycloud.service.user.UserService;
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import com.harmonycloud.common.Constant.CommonConstant;
-import com.harmonycloud.common.enumm.RolebindingsEnum;
-import com.harmonycloud.common.exception.K8sAuthException;
-import com.harmonycloud.dao.network.bean.NamespceBindSubnet;
-import com.harmonycloud.dao.network.bean.NetworkTopology;
-import com.harmonycloud.dao.tenant.bean.TenantBinding;
-import com.harmonycloud.dto.tenant.NamespaceDto;
-import com.harmonycloud.dto.tenant.QuotaDto;
-import com.harmonycloud.dto.tenant.SubnetDto;
-import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
-import com.harmonycloud.dto.tenant.show.QuotaDetailShowDto;
-import com.harmonycloud.dto.tenant.show.RolebindingShowDto;
-import com.harmonycloud.k8s.constant.HTTPMethod;
-import com.harmonycloud.k8s.service.DeploymentService;
-import com.harmonycloud.k8s.service.NetworkPolicyService;
-import com.harmonycloud.k8s.service.ResourceQuotaService;
-import com.harmonycloud.k8s.service.RoleBindingService;
-import com.harmonycloud.k8s.util.K8SClientResponse;
-import com.harmonycloud.service.platform.bean.NodeDetailDto;
-import com.harmonycloud.service.platform.service.DashboardService;
-import com.harmonycloud.service.platform.service.NodeService;
-import com.harmonycloud.service.user.RoleService;
-import org.springframework.util.CollectionUtils;
+import static com.harmonycloud.common.enumm.RolebindingsEnum.DEV_RB;
 
 /**
  * Created by andy on 17-1-20.
@@ -374,7 +372,8 @@ public class NamespaceServiceImpl implements NamespaceService {
         if (!namespaceDto.isPrivate()
                 && (namespaceDto.getQuota() == null
                     || StringUtils.isEmpty(namespaceDto.getQuota().getCpu())
-                    || StringUtils.isEmpty(namespaceDto.getQuota().getMemory()))) {
+                    || StringUtils.isEmpty(namespaceDto.getQuota().getMemory()))
+                ) {
             throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_QUOTA_NOT_BLANK);
         }
         // 初始化判断3
@@ -443,6 +442,8 @@ public class NamespaceServiceImpl implements NamespaceService {
             
             namespaceDto.setQuota(quota2);
         }
+
+
 
 
         // 2.创建namespace
@@ -1342,6 +1343,14 @@ public class NamespaceServiceImpl implements NamespaceService {
         if (namespaceDto.getQuota().getMemory() != null) {
             hard.put("memory", namespaceDto.getQuota().getMemory());
         }
+
+
+        for(int i=0;i<namespaceDto.getStorageClassDtos().size();i++){
+            if(!StringUtils.isBlank(namespaceDto.getStorageClassDtos().get(i).getName())&&namespaceDto.getStorageClassDtos().get(i).getQuotaLimit()!=null){
+                hard.put(namespaceDto.getStorageClassDtos().get(i).getName()+".storageclass.storage.k8s.io/requests.storage",namespaceDto.getStorageClassDtos().get(i).getQuotaLimit());
+            }
+        }
+
         // if(namespaceDto.getQuota().getConfigmaps()!=null){
         // hard.put("configmaps", namespaceDto.getQuota().getConfigmaps());
         // }

@@ -4,8 +4,10 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.application.ConfigFileItemMapper;
 import com.harmonycloud.dao.application.ConfigFileMapper;
 import com.harmonycloud.dao.application.bean.ConfigFile;
+import com.harmonycloud.dao.application.bean.ConfigFileItem;
 import com.harmonycloud.dto.config.ConfigDetailDto;
 import com.harmonycloud.k8s.bean.ConfigMap;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -36,318 +38,323 @@ import java.util.*;
 @Transactional(rollbackFor = Exception.class)
 public class ConfigCenterServiceImpl implements ConfigCenterService {
 
-	DecimalFormat decimalFormat = new DecimalFormat("######0.0");
+    DecimalFormat decimalFormat = new DecimalFormat("######0.0");
 
-	@Autowired
-	private ConfigFileMapper configFileMapper;
-	@Autowired
-	private ClusterService clusterService;
-	@Autowired
-	private RoleLocalService roleLocalService;
-	@Autowired
-	private UserService userService;
+    @Autowired
+    private ConfigFileMapper configFileMapper;
+    @Autowired
+    private ConfigFileItemMapper configFileItemMapper;
+    @Autowired
+    private ClusterService clusterService;
+    @Autowired
+    private RoleLocalService roleLocalService;
+    @Autowired
+    private UserService userService;
 
-	@Autowired
-	private ConfigmapService configmapService;
+    @Autowired
+    private ConfigmapService configmapService;
 
-	@Autowired
-	private NamespaceLocalService namespaceLocalService;
+    @Autowired
+    private NamespaceLocalService namespaceLocalService;
 
-	/**
-	 * add or update config serviceImpl on 17/03/24.
-	 * 
-	 * @author gurongyun
-	 * @param configDetail
-	 *            required
-	 * @return ActionReturnUtil
-	 */
-	@Override
-	public ActionReturnUtil saveConfig(ConfigDetailDto configDetail, String userName) throws Exception {
+    /**
+     * add or update config serviceImpl on 17/03/24.
+     *
+     * @param configDetail required
+     * @return ActionReturnUtil
+     * @author gurongyun
+     */
+    @Override
+    public ActionReturnUtil saveConfig(ConfigDetailDto configDetail, String userName) throws Exception {
         Assert.notNull(configDetail);
-		double tags = Constant.TEMPLATE_TAG;
-		// 检查数据库有没有存在
-		List<ConfigFile> list=configFileMapper.listConfigByName(configDetail.getName(), configDetail.getProjectId(),configDetail.getClusterId(),null);
-		if (Objects.nonNull(configDetail.getIsCreate()) && Boolean.valueOf(configDetail.getIsCreate())) {
-			if (!CollectionUtils.isEmpty(list)) {
-				return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CONFIGMAP_NAME_DUPLICATE);
-			}
-		}
-		ConfigFile configFile = ObjConverter.convert(configDetail, ConfigFile.class);
-		// 随机生成64位字符串
-		configFile.setId(UUIDUtil.getUUID());
-		configFile.setCreateTime(DateUtil.timeFormat.format(new Date()));
-		configFile.setUser(userName);
-		if (!CollectionUtils.isEmpty(list)) {
-			// 存在版本号+0.1
-			tags = Double.valueOf(list.get(0).getTags()) + Constant.TEMPLATE_TAG_INCREMENT;
-		}
-		configFile.setTags(decimalFormat.format(tags) + "");
-		configFile.setClusterId(configFile.getClusterId());
-		if(StringUtils.isNotBlank(configFile.getClusterId())) {
-			configFile.setClusterName(clusterService.findClusterById(configFile.getClusterId()).getName());
-		}
-		// 入库
-		configFileMapper.saveConfigFile(configFile);
-		JSONObject resultJson = new JSONObject();
-		resultJson.put("filename", configDetail.getName());
-		resultJson.put("tag", tags);
-		return ActionReturnUtil.returnSuccessWithData(resultJson);
-	}
-	
-	/**
-	 * update config serviceImpl on 17/03/24.
-	 * 
-	 * @author gurongyun
-	 * @param configDetail
-	 *            required
-	 * @return ActionReturnUtil
-	 */
-	@Override
-	public ActionReturnUtil updateConfig(ConfigDetailDto configDetail, String userName) throws Exception {
+        double tags = Constant.TEMPLATE_TAG;
+        // 检查数据库有没有存在
+        List<ConfigFile> list = configFileMapper.listConfigByName(configDetail.getName(), configDetail.getProjectId(), configDetail.getClusterId(), null);
+        if (Objects.nonNull(configDetail.getIsCreate()) && Boolean.valueOf(configDetail.getIsCreate())) {
+            if (!CollectionUtils.isEmpty(list)) {
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CONFIGMAP_NAME_DUPLICATE);
+            }
+        }
+        ConfigFile configFile = ObjConverter.convert(configDetail, ConfigFile.class);
+        // 随机生成64位字符串
+        configFile.setId(UUIDUtil.getUUID());
+        configFile.setCreateTime(DateUtil.timeFormat.format(new Date()));
+        configFile.setUser(userName);
+        if (!CollectionUtils.isEmpty(list)) {
+            // 存在版本号+0.1
+            tags = Double.valueOf(list.get(0).getTags()) + Constant.TEMPLATE_TAG_INCREMENT;
+        }
+        configFile.setTags(decimalFormat.format(tags) + "");
+        configFile.setClusterId(configFile.getClusterId());
+        if (StringUtils.isNotBlank(configFile.getClusterId())) {
+            configFile.setClusterName(clusterService.findClusterById(configFile.getClusterId()).getName());
+        }
+        // 入库
+        configFileMapper.saveConfigFile(configFile);
+        //配置文件的明细
+        List<ConfigFileItem> configFileItemList = configFile.getConfigFileItemList();
+        for (ConfigFileItem configFileItem : configFileItemList) {
+            configFileItem.setConfigfileId(configFile.getId());
+            configFileItemMapper.insert(configFileItem);
+        }
 
-		ConfigFile configFile = ObjConverter.convert(configDetail, ConfigFile.class);
-		configFile.setUser(userName);
-		// 入库
-		configFileMapper.updateConfig(configFile);
-		JSONObject resultJson = new JSONObject();
-		resultJson.put("filename", configDetail.getName());
-		return ActionReturnUtil.returnSuccessWithData(resultJson);
-	}
+        JSONObject resultJson = new JSONObject();
+        resultJson.put("filename", configDetail.getName());
+        resultJson.put("tag", tags);
+        return ActionReturnUtil.returnSuccessWithData(resultJson);
+    }
 
-	/**
-	 * delete config serviceImpl on 17/03/24.
-	 * 
-	 * @author gurongyun
-	 * @param id
-	 *            required
-	 * @param projectId
-	 *            required
-	 * @return ActionReturnUtil
-	 */
-	@Override
-	public void deleteConfig(String id, String projectId) throws Exception {
-		Assert.hasText(id);
-		Assert.hasText(projectId);
-		configFileMapper.deleteConfig(id, projectId);
+    /**
+     * update config serviceImpl on 17/03/24.
+     *
+     * @param configDetail required
+     * @return ActionReturnUtil
+     * @author gurongyun
+     */
+    @Override
+    public ActionReturnUtil updateConfig(ConfigDetailDto configDetail, String userName) throws Exception {
 
-	}
+        ConfigFile configFile = ObjConverter.convert(configDetail, ConfigFile.class);
+        configFile.setUser(userName);
 
-	/**
-	 * find config lists for center serviceImpl on 17/03/24.
-	 * 
-	 * @author gurongyun
-	 * @return ActionReturnUtil
-	 */
-	@Override
-	public ActionReturnUtil searchConfig(String projectId, String clusterId,  String repoName, String keyword) throws Exception {
-		JSONArray array = new JSONArray();
-		Set<String> clusterIds = null;
-		Map<String, Cluster> userCluster = userService.getCurrentUserCluster();
-		// 查询项目下所有的配置文件
-		if(StringUtils.isBlank(clusterId)){
-			clusterIds = userCluster.keySet();
-		}else{
-			clusterIds = new HashSet<>();
-			clusterIds.add(clusterId);
-		}
-		List<ConfigFile> list = configFileMapper.listConfigSearch(projectId, clusterIds,repoName, keyword);
-		if (CollectionUtils.isEmpty(list)) {
-			return ActionReturnUtil.returnSuccess();
-		} else {
-			// 存在-遍历
-			for (ConfigFile configFile : list) {
-				JSONObject json = new JSONObject();
-				json.put("name", configFile.getName());
-				json.put("reponame", configFile.getRepoName());
-				json.put("tenantId", configFile.getTenantId());
-				json.put("projectId",configFile.getProjectId());
-				JSONArray configFileTagsArray = new JSONArray();
-				// 查询同一配置文件不同版本
-				List<ConfigFile> lis = configFileMapper.listConfigByName(configFile.getName(),
-						configFile.getProjectId(), configFile.getClusterId(), repoName);
-				int count = 0;
-				if (lis != null && lis.size() > 0) {
-					count = lis.size();
-					for (ConfigFile c : lis) {
-						JSONObject tags = new JSONObject();
-						// 添加版本号Id
-						tags.put("id", c.getId());
-						tags.put("tag", c.getTags());
-						tags.put("path", c.getPath());
-						tags.put("item", c.getItems());
-						tags.put("desc", c.getDescription());
-						tags.put("path", c.getPath());
-						tags.put("reponame",c.getRepoName());
-						tags.put("clusterId",c.getClusterId());
-						tags.put("clusterName",c.getClusterName());
-						tags.put("clusterAliasName",userCluster.get(c.getClusterId()).getAliasName());
-						tags.put("create_time", c.getCreateTime());
+        //根据configFile的id删除明细中对应的数据
+        configFileItemMapper.deleteConfigFileItem(configFile.getId());
+        // 入库
+        configFileMapper.updateConfig(configFile);
 
-						configFileTagsArray.add(tags);
-					}
-				}
-				json.put("tagcount", count);
-				json.put("tags", configFileTagsArray);
-				array.add(json);
-			}
-		}
-		return ActionReturnUtil.returnSuccessWithData(array);
-	}
+        //配置文件的明细
+        List<ConfigFileItem> configFileItemList = configFile.getConfigFileItemList();
+        for (ConfigFileItem configFileItem : configFileItemList) {
+            configFileItem.setConfigfileId(configFile.getId());
+            configFileItemMapper.insert(configFileItem);
+        }
 
-	/**
-	 * find config overview lists serviceImpl on 17/03/24.
-	 * 
-	 * @author gurongyun
-	 * @param projectId
-	 *            required
-	 * @return ActionReturnUtil
-	 */
-	@Override
-	public ActionReturnUtil listConfig(String projectId, String repoName) throws Exception {
-		JSONArray array = new JSONArray();
-		Map<String, Cluster> userCluster = userService.getCurrentUserCluster();
-		// 查询同一repo下的所有配置文件
-		List<ConfigFile> lists = configFileMapper.listConfigOverview(projectId, repoName, userCluster.keySet());
-		if (CollectionUtils.isEmpty(lists)) {
-			return ActionReturnUtil.returnSuccess();
-		} else {
-			for (int i = 0; i < lists.size(); i++) {
-				JSONObject json = new JSONObject();
-				json.put("name", lists.get(i).getName());
-				json.put("tenantId", lists.get(i).getTenantId());
-				json.put("projectId", lists.get(i).getProjectId());
-				json.put("repo", lists.get(i).getRepoName());
-				JSONArray jsarr=new JSONArray();
-				List<ConfigFile> configli=configFileMapper.listConfigByName(lists.get(i).getName(),lists.get(i).getProjectId(),lists.get(i).getClusterId(),lists.get(i).getRepoName());
-				if(configli != null && configli.size() > 0){
-					for(ConfigFile con : configli){
-						JSONObject js=new JSONObject();
-						js.put("id", con.getId());
-						js.put("tag", con.getTags());
-						js.put("item", con.getItems());
-						js.put("desc", con.getDescription());
-						js.put("path", con.getPath());
-						js.put("reponame",con.getRepoName());
-						js.put("createTime",con.getCreateTime());
-						js.put("clusterId",con.getClusterId());
-						js.put("clusterName",con.getClusterName());
-						js.put("clusterAliasName",userCluster.get(con.getClusterId()).getAliasName());
-						jsarr.add(js);
-					}	
-				}
-				json.put("tags", jsarr);
-				array.add(json);
-			}
-		}
-		return ActionReturnUtil.returnSuccessWithData(array);
-	}
+        JSONObject resultJson = new JSONObject();
+        resultJson.put("filename", configDetail.getName());
+        return ActionReturnUtil.returnSuccessWithData(resultJson);
+    }
 
-	/**
-	 * find configMap serviceImpl on 17/03/24.
-	 * 
-	 * @author gurongyun
-	 * @param id
-	 *            required
-	 * @return ActionReturnUtil
-	 */
-	@Override
-	public ActionReturnUtil getConfigMap(String id) throws Exception {
-		// 查找配置文件
-		return ActionReturnUtil.returnSuccessWithData(configFileMapper.getConfig(id));
-	}
+    /**
+     * delete config serviceImpl on 17/03/24.
+     *
+     * @param id        required
+     * @param projectId required
+     * @return ActionReturnUtil
+     * @author gurongyun
+     */
+    @Override
+    public void deleteConfig(String id, String projectId) throws Exception {
+        Assert.hasText(id);
+        Assert.hasText(projectId);
+        //删除配置信息
+        configFileMapper.deleteConfig(id, projectId);
 
-	/**
-	 * delete configs service on 17/03/24.
-	 * 
-	 * @author gurongyun
-	 * @param name
-	 *            required
-	 * @return ActionReturnUtil
-	 */
-	@Override
-	public ActionReturnUtil deleteConfigMap(String name, String projectId, String clusterId) throws Exception {
-		Assert.hasText(name);
-		Assert.hasText(projectId);
-		Assert.hasText(clusterId);
-		configFileMapper.deleteConfigByName(name, projectId, clusterId);
-		return ActionReturnUtil.returnSuccess();
-	}
-	
-	/**
-	 * delete configs service on 17/03/24.
-	 *
-	 * @author gurongyun
-	 * @return ActionReturnUtil
-	 */
-	@Override
-	public ActionReturnUtil deleteConfigByProject(String projectId) throws Exception {
-		Assert.hasText(projectId);
-		configFileMapper.deleteConfigByProject(projectId);
-		return ActionReturnUtil.returnSuccess();
-	}
+    }
 
-	@Override
-	public int deleteByClusterId(String clusterId){
-		return configFileMapper.deleteByClusterId(clusterId);
-	}
+    /**
+     * find config lists for center serviceImpl on 17/03/24.
+     *
+     * @return ActionReturnUtil
+     * @author gurongyun
+     */
+    @Override
+    public ActionReturnUtil searchConfig(String projectId, String clusterId, String repoName, String keyword) throws Exception {
+        JSONArray array = new JSONArray();
+        Set<String> clusterIds = null;
+        Map<String, Cluster> userCluster = userService.getCurrentUserCluster();
 
-	/**
-	 * find a lastest config service on 17/03/24.
-	 * 
-	 * @author gurongyun
-	 * @param name
-	 *            required
-	 * @param tenant
-	 *            required
-	 * @return ActionReturnUtil
-	 */
-	@Override
-	public ActionReturnUtil getLatestConfigMap(String name, String tenant, String repoName) throws Exception {
-		return ActionReturnUtil.returnSuccessWithData(configFileMapper.getLatestConfig(name, tenant, repoName));
-	}
+        // 查询项目下所有的配置文件
+        if (StringUtils.isBlank(clusterId)) {
+            clusterIds = userCluster.keySet();
+        } else {
+            clusterIds = new HashSet<>();
+            clusterIds.add(clusterId);
+        }
+        List<ConfigFile> list = configFileMapper.listConfigSearch(projectId, clusterIds, repoName, keyword);
+        if (CollectionUtils.isEmpty(list)) {
+            return ActionReturnUtil.returnSuccess();
+        } else {
 
-	@Override
-	public ActionReturnUtil checkDuplicateName(String name, String projectId) throws Exception {
-		Assert.hasText(name);
-		Assert.hasText(projectId);
+            Map<String, ConfigFile> configFileMap = getConfigFileMap(list);
+            Collection<ConfigFile> values = configFileMap.values();
+            for (ConfigFile value : values) {
+                value.setClusterAliasName(userCluster.get(value.getClusterId()).getAliasName());
+            }
+            return ActionReturnUtil.returnSuccessWithData(values);
+        }
+    }
 
-		// validate name
-		List<ConfigFile> configFiles = configFileMapper.listConfigByName(name, projectId,null, null);
-		if (CollectionUtils.isEmpty(configFiles)) {
-			return ActionReturnUtil.returnSuccessWithData(false);
-		} else {
-			return ActionReturnUtil.returnSuccessWithData(true);
-		}
-	}
+    /**
+     * 获取不同配置中每个tag最新的配置存放在configFileMap
+     *
+     * @param list          根据条件获取的所有配置
+     */
+    public Map<String, ConfigFile> getConfigFileMap(List<ConfigFile> list) {
+        Map<String, ConfigFile> configFileMap = new HashMap<>();
+        for (ConfigFile configFile : list) {
+            String key = configFile.getName() + configFile.getProjectId() + configFile.getClusterId();
+            ConfigFile configFileValue = configFileMap.get(key);
+            if (configFileValue == null) {
+                configFileMap.put(key, configFile);
+                continue;
+            }
+            if (Float.parseFloat(configFile.getTags()) > Float.parseFloat(configFileValue.getTags())) {
+                configFileMap.put(key, configFile);
+            }
+        }
+        return configFileMap;
 
-	public ActionReturnUtil getConfigMapByName(String namespace, String name) throws Exception {
-		Assert.hasText(namespace);
-		Assert.hasText(name);
-		List<String> names = new ArrayList<>();
-		if(name.contains(CommonConstant.COMMA)){
-			String [] n = name.split(CommonConstant.COMMA);
-			names = Arrays.asList(n);
-		}else{
-			names.add(name);
-		}
-		List<ConfigMap> list = new ArrayList<>();
-		Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
-		if(names != null && names.size() > 0){
-			for(String n : names){
-				K8SClientResponse response = configmapService.doSepcifyConfigmap(namespace, n, cluster);
-				if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-					return ActionReturnUtil.returnErrorWithMsg(response.getBody());
-				}
-				ConfigMap configMap = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
-				list.add(configMap);
-			}
-		}
-		return ActionReturnUtil.returnSuccessWithData(list);
-	}
+    }
 
-	@Override
-	public ConfigFile getConfigByNameAndTag(String name, String tag, String projectId, String clusterId){
-		return configFileMapper.getConfigByNameAndTag(name, tag, projectId, clusterId);
-	}
+    /**
+     * find config overview lists serviceImpl on 17/03/24.
+     *
+     * @param projectId required
+     * @return ActionReturnUtil
+     * @author gurongyun
+     */
+    @Override
+    public ActionReturnUtil listConfig(String projectId, String repoName) throws Exception {
+        JSONArray array = new JSONArray();
+        Map<String, Cluster> userCluster = userService.getCurrentUserCluster();
+        // 查询同一repo下的所有配置文件
+        List<ConfigFile> lists = configFileMapper.listConfigOverview(projectId, repoName, userCluster.keySet());
+        if (CollectionUtils.isEmpty(lists)) {
+            return ActionReturnUtil.returnSuccess();
+        } else {
+            Map<String, ConfigFile> configFileMap = getConfigFileMap(lists);
+            Collection<ConfigFile> configFiles = configFileMap.values();
+            for (ConfigFile configFile : configFiles) {
+                configFile.setClusterAliasName(userCluster.get(configFile.getClusterId()).getAliasName());
+            }
+            return ActionReturnUtil.returnSuccessWithData(configFiles);
+
+        }
+    }
+
+    /**
+     * find configMap serviceImpl on 17/03/24.
+     *
+     * @param id required
+     * @return ActionReturnUtil
+     * @author gurongyun
+     */
+    @Override
+    public ActionReturnUtil getConfigMap(String id) throws Exception {
+
+        ConfigFile configFile = configFileMapper.getConfig(id);
+        List<ConfigFileItem> configFileItemList = configFileItemMapper.getConfigFileItem(id);
+        configFile.setConfigFileItemList(configFileItemList);
+        ConfigDetailDto configDetailDto = ObjConverter.convert(configFile, ConfigDetailDto.class);
+        // 查找配置文件
+        return ActionReturnUtil.returnSuccessWithData(configDetailDto);
+    }
+
+    /**
+     * delete configs service on 17/03/24.
+     *
+     * @param name required
+     * @return ActionReturnUtil
+     * @author gurongyun
+     */
+    @Override
+    public ActionReturnUtil deleteConfigMap(String name, String projectId, String clusterId) throws Exception {
+        Assert.hasText(name);
+        Assert.hasText(projectId);
+        Assert.hasText(clusterId);
+        configFileMapper.deleteConfigByName(name, projectId, clusterId);
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    /**
+     * delete configs service on 17/03/24.
+     *
+     * @return ActionReturnUtil
+     * @author gurongyun
+     */
+    @Override
+    public ActionReturnUtil deleteConfigByProject(String projectId) throws Exception {
+        Assert.hasText(projectId);
+        configFileMapper.deleteConfigByProject(projectId);
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    @Override
+    public int deleteByClusterId(String clusterId) {
+        return configFileMapper.deleteByClusterId(clusterId);
+    }
+
+    /**
+     * find a lastest config service on 17/03/24.
+     * @param name required
+     * @param projectId  required
+     * @param repoName
+     * @param clusterId  required
+     * @param tags  required
+     * @return ActionReturnUtil
+     * @throws Exception
+     */
+    @Override
+    public ActionReturnUtil getLatestConfigMap(String name, String projectId, String repoName,String clusterId,String tags) throws Exception {
+
+        ConfigFile latestConfig = configFileMapper.getLatestConfig(name, projectId, repoName,clusterId,tags);
+        List<ConfigFileItem> configFileItemList = configFileItemMapper.getConfigFileItem(latestConfig.getId());
+        latestConfig.setConfigFileItemList(configFileItemList);
+        ConfigDetailDto configDetailDto = ObjConverter.convert(latestConfig, ConfigDetailDto.class);
+        return ActionReturnUtil.returnSuccessWithData(configDetailDto);
+    }
+
+    @Override
+    public ActionReturnUtil checkDuplicateName(String name, String projectId) throws Exception {
+        Assert.hasText(name);
+        Assert.hasText(projectId);
+
+        // validate name
+        List<ConfigFile> configFiles = configFileMapper.listConfigByName(name, projectId, null, null);
+        if (CollectionUtils.isEmpty(configFiles)) {
+            return ActionReturnUtil.returnSuccessWithData(false);
+        } else {
+            return ActionReturnUtil.returnSuccessWithData(true);
+        }
+    }
+
+    public ActionReturnUtil getConfigMapByName(String namespace, String name) throws Exception {
+        Assert.hasText(namespace);
+        Assert.hasText(name);
+        List<String> names = new ArrayList<>();
+        if (name.contains(CommonConstant.COMMA)) {
+            String[] n = name.split(CommonConstant.COMMA);
+            names = Arrays.asList(n);
+        } else {
+            names.add(name);
+        }
+        List<ConfigMap> list = new ArrayList<>();
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        if (names != null && names.size() > 0) {
+            for (String n : names) {
+                K8SClientResponse response = configmapService.doSepcifyConfigmap(namespace, n, cluster);
+                if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                    return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+                }
+                ConfigMap configMap = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
+                list.add(configMap);
+            }
+        }
+        return ActionReturnUtil.returnSuccessWithData(list);
+    }
+
+    @Override
+    public ConfigFile getConfigByNameAndTag(String name,String tag, String projectId, String clusterId) {
+        ConfigFile configFile = configFileMapper.getConfigByNameAndTag(name, tag, projectId, clusterId);
+        List<ConfigFileItem> configFileItemList = configFileItemMapper.getConfigFileItem(configFile.getId());
+        configFile.setConfigFileItemList(configFileItemList);
+        return configFile;
+    }
+
+    @Override
+    public ActionReturnUtil getConfigMapByName(String name, String clusterId, String projectId) throws Exception  {
+        List<ConfigFile> configFileList =  configFileMapper.getConfigMapByName(name,clusterId,projectId);
+        return ActionReturnUtil.returnSuccessWithData(configFileList);
+    }
 
 }

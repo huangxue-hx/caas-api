@@ -1189,7 +1189,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                     c.setImg(cluster.getHarborServer().getHarborHost() + "/" + c.getImg());
                 }
                 service.getDeploymentDetail().setProjectId(appDeploy.getProjectId());
-                deploymentsService.createDeployment(service.getDeploymentDetail(), username, appDeploy.getAppName(), cluster);
+                deploymentsService.createDeployment(service.getDeploymentDetail(), username, appDeploy.getAppName(), cluster,service.getIngress());
             } catch (Exception e) {
                 Map<String, Object> map = new HashMap<String, Object>();
                 map.put("Deployment:", service.getDeploymentDetail().getName());
@@ -1582,7 +1582,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 }
                 svcTemplate.getDeploymentDetail().setProjectId(appDeploy.getProjectId());
                 ActionReturnUtil depRes = deploymentsService.createDeployment(svcTemplate.getDeploymentDetail(), username, appDeploy.getAppName(),
-                        cluster);
+                        cluster,svcTemplate.getIngress());
                 deployments.add(svcTemplate.getDeploymentDetail().getName());
                 if (!depRes.isSuccess()) {
                     Map<String, Object> map = new HashMap<String, Object>();

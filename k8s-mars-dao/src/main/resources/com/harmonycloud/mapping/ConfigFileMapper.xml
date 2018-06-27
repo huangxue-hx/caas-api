@@ -4,39 +4,49 @@
 <mapper namespace="com.harmonycloud.dao.application.ConfigFileMapper">
 
     <resultMap id="configfileMap" type="com.harmonycloud.dao.application.bean.ConfigFile">
-        <id property="id" column="id" />
-        <result property="name" column="name" />
-        <result property="tenantId" column="tenant_id" />
-        <result property="projectId" column="project_id" />
-        <result property="clusterId" column="cluster_id" />
-        <result property="clusterName" column="cluster_name" />
-        <result property="description" column="description" />
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="tenantId" column="tenant_id"/>
+        <result property="projectId" column="project_id"/>
+        <result property="clusterId" column="cluster_id"/>
+        <result property="clusterName" column="cluster_name"/>
+        <result property="description" column="description"/>
         <result property="tags" column="tags"/>
         <result property="createTime" column="create_time"/>
         <result property="user" column="creator"/>
         <result property="repoName" column="reponame"/>
-        <result property="items" column="item"/>
-        <result property="path" column="path"/>
     </resultMap>
 
     <!-- 添加ConfigFile -->
     <insert id="saveConfigFile" parameterType="com.harmonycloud.dao.application.bean.ConfigFile">
-        insert into configfile(id,name,tenant_id,project_id,cluster_id,cluster_name,description,tags,create_time,creator,reponame,item,path)
-        values(#{id},#{name},#{tenantId},#{projectId},#{clusterId},#{clusterName},#{description},#{tags},#{createTime},#{user},#{repoName},#{items},#{path})
+        INSERT INTO configfile (id, name, tenant_id, project_id, cluster_id, cluster_name, description, tags, create_time, creator, reponame)
+        VALUES (#{id}, #{name}, #{tenantId}, #{projectId}, #{clusterId}, #{clusterName}, #{description}, #{tags}, #{createTime}, #{user}, #{repoName}
+                )
     </insert>
 
     <select id="getConfig" parameterType="java.lang.String" resultMap="configfileMap">
-        select * from configfile where id=#{id}
+        SELECT *
+        FROM configfile
+        WHERE id = #{id}
     </select>
 
     <!-- 根据项目、文件名称，repo名称查找安照时间倒叙  -->
     <select id="getLatestConfig" parameterType="java.lang.String" resultMap="configfileMap">
-        select * from configfile where project_id=#{projectId} and name=#{name} and reponame=#{repoName} order by create_time desc limit 1
+        SELECT *
+        FROM configfile
+        WHERE project_id = #{projectId} AND name = #{name} AND reponame = #{repoName}
+              AND cluster_id=#{clusterId} AND tags=#{tags}
+        ORDER BY create_time DESC
+        LIMIT 1
     </select>
 
     <!-- 根据配置文件名称，tenant,repo名称版本号最大的 -->
     <select id="getLatestTagConfig" parameterType="java.lang.String" resultMap="configfileMap">
-        SELECT * FROM configfile where name=#{name} and project_id=#{projectId} and reponame=#{repoName} order by tags desc limit 1
+        SELECT *
+        FROM configfile
+        WHERE name = #{name} AND project_id = #{projectId} AND reponame = #{repoName}
+        ORDER BY tags DESC
+        LIMIT 1
     </select>
 
     <!-- 根据项目、文件名称，repo名称查找安照版本号倒叙 -->
@@ -52,80 +62,90 @@
         </if>
         order by tags desc
     </select>
-    
+
     <!-- 根据tenant keyword模糊查找 -->
     <select id="listConfigSearch" resultMap="configfileMap">
-        select distinct name,cluster_id,project_id from configfile
+        select * from configfile
         <where>
-          <if test="projectId !=null  and projectId != ''  ">
-            project_id=#{projectId}
-          </if>
-          <if test="repoName !=null  and repoName != ''  ">
-            and reponame=#{repoName}
-          </if>
-          <if test="keyword !=null  and keyword != ''  ">  
-            and ( name like concat (concat('%',#{keyword}),'%') or reponame like concat (concat('%',#{keyword}),'%') )
-          </if>
-          <if test="clusterIds != null ">
-            and cluster_id in
-            <foreach item="item" index="index" collection="clusterIds" open="(" separator="," close=")">
-                #{item}
-            </foreach>
-          </if>
+            <if test="projectId !=null  and projectId != ''  ">
+                project_id=#{projectId}
+            </if>
+            <if test="repoName !=null  and repoName != ''  ">
+                and reponame=#{repoName}
+            </if>
+            <if test="keyword !=null  and keyword != ''  ">
+                and ( name like concat('%',#{keyword},'%') or reponame like concat('%',#{keyword},'%'))
+            </if>
+            <if test="clusterIds != null ">
+                and cluster_id in
+                <foreach item="item" index="index" collection="clusterIds" open="(" separator="," close=")">
+                    #{item}
+                </foreach>
+            </if>
         </where>
     </select>
- 
+
     <!-- 根据tenant,reponame查找listsOverview -->
     <select id="listConfigOverview" resultMap="configfileMap">
-        select distinct name,project_id,cluster_id from configfile
+        select * from configfile
         <where>
-          <if test="projectId != null and projectId !=''">
-            project_id=#{projectId}
-          </if>
-          <if test="repoName != null and repoName !=''">
-           and reponame=#{repoName}
-          </if>
-          <if test="clusterIds !=null  and clusterIds.size > 0">
-              and cluster_id in
-              <foreach item="item" index="index" collection="clusterIds" open="(" separator="," close=")">
-                  #{item}
-              </foreach>
-          </if>
-        </where> 
+            <if test="projectId != null and projectId !=''">
+                project_id=#{projectId}
+            </if>
+            <if test="repoName != null and repoName !=''">
+                and reponame=#{repoName}
+            </if>
+            <if test="clusterIds !=null  and clusterIds.size > 0">
+                and cluster_id in
+                <foreach item="item" index="index" collection="clusterIds" open="(" separator="," close=")">
+                    #{item}
+                </foreach>
+            </if>
+        </where>
         order by name
     </select>
 
     <!-- 删除根据name,tent,reponame删除 -->
     <delete id="deleteConfigByName" parameterType="java.lang.String">
-        delete from configfile where  project_id=#{projectId} and name=#{name}
+        DELETE conItem, con FROM configfile_item conItem
+        right JOIN configfile con
+        ON conItem.configfile_id = con.id
+        where con.project_id=#{projectId} and con.name=#{name}
         <if test="clusterId !=null  and clusterId != ''  ">
-            and cluster_id=#{clusterId}
+            and con.cluster_id=#{clusterId}
         </if>
     </delete>
 
     <delete id="deleteConfig">
-        delete from configfile where id=#{id} and project_id = #{projectId}
+        DELETE conItem, con FROM configfile_item conItem
+            right JOIN configfile con
+                ON conItem.configfile_id = con.id
+        WHERE con.id = #{id} AND con.project_id = #{projectId}
     </delete>
 
-	<delete id="deleteConfigByProject" parameterType="java.lang.String">
-		delete from configfile where project_id=#{projectId}
-	</delete>
+    <delete id="deleteConfigByProject" parameterType="java.lang.String">
+        DELETE conItem, con FROM configfile_item conItem
+            right JOIN configfile con
+                ON conItem.configfile_id = con.id
+        WHERE con.project_id = #{projectId}
+    </delete>
 
     <delete id="deleteByClusterId">
-        delete from configfile where cluster_id = #{clusterId}
+        DELETE conItem, con FROM configfile_item conItem
+            right JOIN configfile con
+                ON conItem.configfile_id = con.id
+        WHERE con.cluster_id = #{clusterId}
     </delete>
 
-	<update id="updateConfig">
-    	update configfile
-    	<set>
-        	description = #{description},
-        	reponame = #{repoName},
-        	creator = #{user},
-        	item = #{items},
-        	path = #{path}
-    	</set>
-    	where id = #{id}
-  </update>
+    <update id="updateConfig">
+        update configfile
+        <set>
+            description = #{description},
+            reponame = #{repoName},
+            creator = #{user}
+        </set>
+        where id = #{id}
+    </update>
 
     <select id="getConfigByNameAndTag" resultMap="configfileMap">
         select * from configfile
@@ -138,6 +158,20 @@
             </if>
             <if test="tag !=null  and tag != ''  ">
                 and tags=#{tag}
+            </if>
+            <if test="clusterId != null and clusterId != ''">
+                and cluster_id=#{clusterId}
+            </if>
+        </where>
+    </select>
+    <select id="getConfigMapByName" resultMap="configfileMap">
+        select * from configfile
+        <where>
+            <if test="projectId !=null  and projectId != ''  ">
+                project_id=#{projectId}
+            </if>
+            <if test="name !=null  and name != ''  ">
+                and name=#{name}
             </if>
             <if test="clusterId != null and clusterId != ''">
                 and cluster_id=#{clusterId}

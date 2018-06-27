@@ -10,14 +10,24 @@ public class CreateConfigMapDto implements Serializable{
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
+
+	private String configMapId;//配置组id
 	
 	private String path;
 	
-	private String file;
+	private String file;//配置文件名称
 	
 	private String tag;
 	
 	private Object value;
+
+	public String getConfigMapId() {
+		return configMapId;
+	}
+
+	public void setConfigMapId(String configMapId) {
+		this.configMapId = configMapId;
+	}
 
 	public String getPath() {
 		return path;
