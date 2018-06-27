@@ -39,6 +39,8 @@ public class Constant {
 	public final static String BATCH_V1BRTA1 = "batch/v1beta1";
 	
 	public final static String BATCH_V2ALPHA1_VERSION="/batch/v2alpha1";
+
+	public final static String STORAGECLASS_V1="storage.k8s.io/v1";
 	
 	//避免各资源对象改版
 	public final static String DEPLOYMENT_VERSION = APIS_EXTENTIONS_V1BETA1_VERSION;

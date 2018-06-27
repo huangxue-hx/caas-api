@@ -1345,9 +1345,9 @@ public class NamespaceServiceImpl implements NamespaceService {
         }
 
 
-        for(int i=0;i<namespaceDto.getStorageClassDtos().size();i++){
-            if(!StringUtils.isBlank(namespaceDto.getStorageClassDtos().get(i).getName())&&namespaceDto.getStorageClassDtos().get(i).getQuotaLimit()!=null){
-                hard.put(namespaceDto.getStorageClassDtos().get(i).getName()+".storageclass.storage.k8s.io/requests.storage",namespaceDto.getStorageClassDtos().get(i).getQuotaLimit());
+        for(int i=0;i<namespaceDto.getStorageClassQuotaList().size();i++){
+            if(!StringUtils.isBlank(namespaceDto.getStorageClassQuotaList().get(i).getName())&&namespaceDto.getStorageClassQuotaList().get(i).getQuota()!=null){
+                hard.put(namespaceDto.getStorageClassQuotaList().get(i).getName()+".storageclass.storage.k8s.io/requests.storage",namespaceDto.getStorageClassQuotaList().get(i).getQuota());
             }
         }
 
