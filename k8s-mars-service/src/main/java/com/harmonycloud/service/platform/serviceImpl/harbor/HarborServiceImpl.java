@@ -830,6 +830,10 @@ public class HarborServiceImpl implements HarborService {
     private HarborManifest getHarborManifestLite(ActionReturnUtil maniResponse) throws Exception {
         HarborManifest tagDetail = (HarborManifest) maniResponse.get("data");
         tagDetail.setVulnerabilityNum(-1);
+        if(tagDetail.getVulnerabilitySummary() == null){
+            tagDetail.setAbnormal(true);
+            return tagDetail;
+        }
         if(tagDetail.getVulnerabilitySummary().get("success") != null){
             tagDetail.setVulnerabilityNum(0);
         }else if(tagDetail.getVulnerabilitySummary().get("abnormal") != null){
