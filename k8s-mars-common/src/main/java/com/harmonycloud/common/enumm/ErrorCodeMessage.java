@@ -294,7 +294,9 @@ public enum ErrorCodeMessage {
     PV_CAN_NOT_DELETE(402006, "PV status is bound， not to delete.", "PV状态为bound，不允许删除"),
     PV_PROVIDER_NOT_EXIST(402005, "PV is not provided.", "PV存储未提供"),
     PV_RELEASE_FAIL(402006, "PV released failed.", "PV释放失败"),
-
+    NFS_PROVISIONER_CREATE_FAIL(402007, "NFS server address or directory parameter error.", "NFS服务器地址或目录参数错误"),
+    STORAGECLASS_TYPE_ERROR(402008, "The storage type is currently only supported by NFS", "StorageClass使用的存储类型目前仅支持NFS"),
+    STORAGECLASS_DELETE_ERROR(402009, "Failed to delete StorageClass. StorageClass is already used. Please delete related storage volume first.", "StorageClass删除失败，StorageClass已经被使用，请先删除相关存储卷"),
     //弹性伸缩 403xxx
     SERVICE_AUTOSCALE_CREATE_FAILURE(403001, "Create autoScale failure.", "自动伸缩创建失败"),
     SERVICE_AUTOSCALE_DELETE_FAILURE(403002, "Delete autoScale failure.", "自动伸缩删除失败"),

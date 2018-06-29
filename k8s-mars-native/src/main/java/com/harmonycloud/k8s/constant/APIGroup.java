@@ -24,6 +24,8 @@ public class APIGroup {
 	
 	public final static String APIS_HARMONYCLOUD = "/apis/harmonycloud.cn/v1";
 
+	public final static String APIS_STORAGECLASS_VERSION="/apis/storage.k8s.io/v1";
+
 	public final static String APIS_SERVICEACCOUNT_VERSION= "/apis/authorization.k8s.io/v1beta1";
 	
 	public final static String APIS_BATCH_V2ALPHA1_VERSION= "/apis/batch/v2alpha1";
