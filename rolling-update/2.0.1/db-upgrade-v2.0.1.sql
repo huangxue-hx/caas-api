@@ -6,3 +6,5 @@ CREATE TABLE `configfile_item` (
   `file_name` varchar(128) DEFAULT NULL COMMENT '文件名',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8;
+
+UPDATE `k8s_auth_server`.`user` SET `real_name`='admin' WHERE `id`='1';
