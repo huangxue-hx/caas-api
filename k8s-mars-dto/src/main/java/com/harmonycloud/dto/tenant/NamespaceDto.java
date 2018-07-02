@@ -1,7 +1,5 @@
 package com.harmonycloud.dto.tenant;
 
-import com.harmonycloud.dto.application.StorageClassDto;
-
 import java.util.List;
 
 /**
@@ -32,17 +30,8 @@ public class NamespaceDto {
     private NetworkDto network;
     //分区配额
     private QuotaDto quota;
-    //存储服务名称
-    private List<StorageClassDto> storageClassDtos;
-
-    public List<StorageClassDto> getStorageClassDtos() {
-        return storageClassDtos;
-    }
-
-    public void setStorageClassDtos(List<StorageClassDto> storageClassDtos) {
-        this.storageClassDtos = storageClassDtos;
-    }
-
+    //存储服务名称与限额的list
+    private List<StorageClassQuotaDto> storageClassQuotaList;
     //集群id
     private String clusterId;
     //主机名列表
@@ -159,6 +148,15 @@ public class NamespaceDto {
     public void setQuota(QuotaDto quota) {
         this.quota = quota;
     }
+
+    public List<StorageClassQuotaDto> getStorageClassQuotaList() {
+        return storageClassQuotaList;
+    }
+
+    public void setStorageClassQuotaList(List<StorageClassQuotaDto> storageClassQuotaList) {
+        this.storageClassQuotaList = storageClassQuotaList;
+    }
+
     public boolean isPrivate() {
         return Private;
     }

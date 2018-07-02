@@ -25,6 +25,8 @@ public class Resource {
 	public final static String NODE = "nodes";
 	
 	public final static String EVENT = "events";
+
+	public final static String STORAGECLASS = "storageclasses";
 	
 	public final static String PERSISTENTVOLUME = "persistentvolumes";
 	
@@ -52,7 +54,7 @@ public class Resource {
 	
 	public final static String VOLUMEPROVIDER = "volumeproviders";
 
-	public final static String SERVICEACCOUNT = "serviceaccount";
+	public final static String SERVICEACCOUNT = "serviceaccounts";
 
 	public final static String ENDPOINT = "endpoints";
 
@@ -117,6 +119,9 @@ public class Resource {
 			break;
 		case com.harmonycloud.k8s.constant.Resource.NETWORKPOLICY:
 			group = APIGroup.APIS_NETWORKING_VERSION;
+			break;
+		case Resource.STORAGECLASS:
+			group = APIGroup.APIS_STORAGECLASS_VERSION;
 			break;
 		case Resource.COMPLEXPODSCALER:
 			group = APIGroup.APIS_HARMONYCLOUD;

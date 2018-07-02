@@ -7,6 +7,8 @@ import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.platform.service.harbor.HarborService;
 import com.harmonycloud.service.platform.service.harbor.HarborUserService;
 import com.harmonycloud.service.user.UserService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 /**
  * Created by andy on 17-1-19.
  */
+@Api(description = "Harbor总览")
 @Controller
 public class HarborController {
 
@@ -47,6 +50,7 @@ public class HarborController {
      * @return
      * @throws Exception
      */
+    @ApiOperation(value = "获取平台所有镜像仓库的总览", notes = "", httpMethod = "GET")
     @RequestMapping(value = "/harbor/harborprojects/overview", method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil getHarborProjectsOverview() throws Exception{
@@ -58,6 +62,7 @@ public class HarborController {
      * @return
      * @throws Exception
      */
+    @ApiOperation(value = "取某个harbor相关的总览信息", notes = "", httpMethod = "GET")
     @RequestMapping(value = "/harbor/{harborHost}/overview", method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil getHarborOverview(@PathVariable(value="harborHost") String harborHost) throws Exception{

@@ -31,6 +31,7 @@ public enum DictEnum {
     ROLE("role", "角色"),
     NAMESPACE("namespace", "分区"),
     CLUSTER("cluster", "集群"),
+    CLUSTER_ID("clusterId", "集群id"),
     POD("pod", "pod"),
     NODE("node", "节点"),
     TENANT("tenant", "租户"),
@@ -72,7 +73,8 @@ public enum DictEnum {
     AUTO_SCALE("auto scale", "自动伸缩"),
     LOCAL_ROLE_ID("local role id", "局部角色编号"),
     LOG_INDEX("log index", "日志索引"),
-    CONFIG_MAP("configmap","配置文件");
+    CONFIG_MAP("configmap","配置文件"),
+    STORAGE_CLASS("storage class", "存储");
 
 
     private final String enPhrase;

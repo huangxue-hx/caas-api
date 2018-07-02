@@ -3,6 +3,7 @@ package com.harmonycloud.interceptors;
 import com.harmonycloud.api.user.AuthController;
 import com.harmonycloud.common.util.DicUtil;
 import com.harmonycloud.common.util.SsoClient;
+import com.harmonycloud.filters.UrlWhiteListHandler;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,23 +12,37 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
 
+import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 认证拦截器，
  */
 public class AuthInterceptor extends HandlerInterceptorAdapter {
-    private static final List<String> WHITE_URL_LIST = Arrays.asList(new String[]{"users/auth/login","validation",
-            "getToken","/clusters","system/configs/trialtime","cicd/trigger/webhookTrigger","users/auth/token","/testcallback"});
+    private static final List<String> WHITE_URL_LIST = Arrays.asList(new String[]{"users/auth/login","validation","swagger-resources",
+            "api-docs","/webjars","getToken","/clusters","system/configs/trialtime","cicd/trigger/webhookTrigger","users/auth/token","/testcallback"});
+    private static List<Pattern> whilteList = new ArrayList<>();
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthInterceptor.class);
     @Value("#{propertiesReader['api.access.allow.origin']}")
     private String allowOrigin;
+    @Value("#{propertiesReader['api.url.whitelist']}")
+    private String urlWhiteList;
     @Autowired
     AuthController AuthController;
+
+    @PostConstruct
+    public void initWhiteList(){
+        UrlWhiteListHandler.initUrlPattern(urlWhiteList);
+    }
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         //判断是否开启sso，开启则不执行拦截器的逻辑
@@ -54,7 +69,10 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         }
         // 获取请求的URL
         String url = request.getRequestURI();
-        //路径包含openapi的不需要验证是否登陆，oam task定时任务没有用户
+        if(UrlWhiteListHandler.isWhiteUrl(url)){
+            return true;
+        }
+       /* //路径包含openapi的不需要验证是否登陆，oam task定时任务没有用户
         if(url.indexOf("/openapi/")>-1){
             return true;
         }
@@ -63,10 +81,9 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
             if(url.indexOf(whiteUrl)>-1){
                 return true;
             }
-        }
+        }*/
         // 获取Session
         HttpSession session = request.getSession();
-//        this.AuthController.Login("admin","Ab123456",null);//仅供调试使用
         String username = (String) session.getAttribute("username");
         if (username != null) {
             return true;

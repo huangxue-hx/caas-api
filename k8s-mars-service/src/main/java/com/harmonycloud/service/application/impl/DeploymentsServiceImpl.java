@@ -298,11 +298,13 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         }
         Map<String, Object> bodys = new HashMap<String, Object>();
 
+        /*
         //先删除自动伸缩控制
         boolean scaleDeleted = autoScaleService.delete(namespace, name);
         if (!scaleDeleted) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_AUTOSCALE_DELETE_FAILURE);
         }
+        */
         // String lrv = watchService.getLatestVersion(namespace);
         // watchAppEvent(name, namespace, null, lrv, userName);
 

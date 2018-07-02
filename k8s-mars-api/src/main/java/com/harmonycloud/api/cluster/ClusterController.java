@@ -9,6 +9,7 @@ import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.cluster.impl.ClusterTemplateServiceImpl;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.UserService;
+import io.swagger.annotations.*;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +27,7 @@ import static com.harmonycloud.common.Constant.CommonConstant.COUNT;
  *
  * @author jmi
  */
-
+@Api(description = "查询集群相关信息，以及集群缓存更新")
 @RestController
 @RequestMapping(value = "/clusters")
 public class ClusterController {
@@ -45,6 +46,10 @@ public class ClusterController {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
+    @ApiOperation(value = "获取集群列表", notes = "根据条件过滤查询集群列表")
+    @ApiImplicitParams ({
+            @ApiImplicitParam(name = "dataCenter", value = "数据中心", paramType = "query",dataType = "String"),
+            @ApiImplicitParam(name = "includePlatformCluster", value = "是否包括上层集群", paramType = "query", dataType = "Boolean") })
     @RequestMapping(method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil listCluster(@RequestParam(value = "dataCenter", required = false) String dataCenter,
@@ -65,13 +70,14 @@ public class ClusterController {
         return ActionReturnUtil.returnSuccessWithData(clusters);
     }
 
+    @ApiOperation(value = "查询某个集群详情", notes = "查询某个集群的信息信息")
     @RequestMapping(value = "/{clusterId}", method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil getCluster(@PathVariable("clusterId") String clusterId) throws Exception {
         return ActionReturnUtil.returnSuccessWithData(clusterService.findClusterById(clusterId));
     }
 
-
+    @ApiOperation(value = "获取集群数量", notes = "获取状态为开启的业务集群数量，不包括上层平台集群")
     @ResponseBody
     @RequestMapping(value = "/count", method = RequestMethod.GET)
     public ActionReturnUtil clusterCounter() throws Exception {

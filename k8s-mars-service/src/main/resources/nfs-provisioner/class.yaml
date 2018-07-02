@@ -1,0 +1,11 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: scName
+  annotations:
+      storageLimit: limitNum
+      type: storageType
+      storageUsed: usedNum
+      NFSADDR: nfsAddr
+      NFSPATH: nfsPath
+provisioner: nfs-client-provisioner-scName

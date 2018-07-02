@@ -1,11 +1,14 @@
 package com.harmonycloud.service.platform.bean;
 
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import org.hibernate.validator.constraints.NotBlank;
 
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.util.Date;
 
+@ApiModel(value="存储信息")
 public class PvDto implements Serializable{
 
 	private static final long serialVersionUID = 5202810321695795037L;
@@ -16,9 +19,11 @@ public class PvDto implements Serializable{
 	/**
 	 * 该pv资源所在的集群名称
 	 */
+	@ApiModelProperty(value="集群名",name="clusterName",example="开发集群")
 	private String clusterName;
 	private String clusterAliasName;
 	@NotBlank
+	@ApiModelProperty(value="集群id",name="clusterId",example="cluster-top--dev",required = true)
 	private String clusterId;
 	@NotBlank
 	private String capacity;

@@ -3,6 +3,8 @@ package com.harmonycloud.service.application;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.StorageClassDto;
 
+import java.util.List;
+
 /**
  * 存储服务类
  * @author xc
@@ -12,9 +14,11 @@ public interface StorageClassService {
 
     ActionReturnUtil createStorageClass(StorageClassDto storageClassDto) throws Exception;
 
-    ActionReturnUtil deleteStorageClass(String name) throws Exception;
+    //ActionReturnUtil getNfsProvisionerStatus(String name, String clusterId) throws Exception;
 
-    ActionReturnUtil getStorageClass(String name) throws Exception;
+    ActionReturnUtil deleteStorageClass(String name, String clusterId) throws Exception;
+
+    ActionReturnUtil getStorageClass(String name, String clusterId) throws Exception;
 
     ActionReturnUtil listStorageClass(String clusterId) throws Exception;
 }

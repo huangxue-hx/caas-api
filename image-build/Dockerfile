@@ -1,7 +1,7 @@
 FROM  10.10.124.151/library/tomcat-8-jdk-8:latest
 
 
-#RUN apt-get install -y git
+RUN apt-get install -y git
 
 ADD k8s-mars-api/target/k8s-mars-api.war /usr/local/
 ADD image-build/ROOT.xml /usr/local/tomcat/conf/Catalina/localhost/

@@ -865,6 +865,18 @@ public class DateUtil {
         return (int) time / (24 * 60 * 60 * 1000);
     }
 
+    /**
+     * 获取两个日期相差的秒数
+     *
+     * @param date 日期的秒数
+     * @param otherDate 另一个日期的秒数
+     * @return 相差秒数
+     */
+    public static int getIntervalSeconds(long date, long otherDate){
+        long time = Math.abs(date - otherDate);
+        return (int) time / 1000;
+    }
+
     public static String getWeekFromDate(Date date){
         Calendar c = Calendar.getInstance();
         c.setTime(date);
