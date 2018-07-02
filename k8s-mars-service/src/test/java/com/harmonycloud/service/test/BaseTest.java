@@ -5,16 +5,16 @@ import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.tenant.ProjectService;
-import org.springframework.test.context.testng.AbstractTransactionalTestNGSpringContextTests;
-import org.springframework.test.context.web.WebAppConfiguration;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.testng.AbstractTransactionalTestNGSpringContextTests;
+import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.util.CollectionUtils;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
 import java.util.List;
 
 /**
@@ -28,6 +28,7 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
     protected List<Cluster> clusters;
     protected String devClusterId;
     protected String qasClusterId;
+    protected String platfromClusterId;
     protected String tenantId;
     protected String projectId;
     protected String adminUserName = "admin";
@@ -36,6 +37,7 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
     ClusterService clusterService;
     @Autowired
     ProjectService projectService;
+
 
     @BeforeClass
     public void initTestData() throws Exception{
@@ -53,6 +55,8 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
                 devClusterId = cluster.getId();
             }else if(cluster.getLevel() == ClusterLevelEnum.QAS.getLevel()){
                 qasClusterId = cluster.getId();
+            }else if(cluster.getLevel() == ClusterLevelEnum.PLATFORM.getLevel()){
+                platfromClusterId = cluster.getId();
             }
         }
         //初始化项目数据

@@ -2,24 +2,31 @@ package com.harmonycloud.api.log;
 
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dto.log.LogQueryDto;
+import com.harmonycloud.service.application.DeploymentsService;
+import com.harmonycloud.service.platform.bean.LogQuery;
 import com.harmonycloud.service.platform.service.LogService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiImplicitParam;
+import io.swagger.annotations.ApiImplicitParams;
+import io.swagger.annotations.ApiOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.date.DateUtil;
-import com.harmonycloud.dto.log.LogQueryDto;
-import com.harmonycloud.service.platform.bean.LogQuery;
-import com.harmonycloud.service.application.DeploymentsService;
+
 import javax.servlet.http.HttpServletResponse;
+import java.util.List;
 
 /**
  * 应用日志相关控制器
  * @author zhangkui
  */
 @Controller
+@Api(description = "应用日志相关控制器")
 @RequestMapping("/tenants/{tenantId}/projects/{projectId}/deploys/{deployName}/applogs")
 public class LogController {
 
@@ -116,5 +123,24 @@ public class LogController {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.UNKNOWN);
         }
     }
+
+    @ApiOperation(value = "获取日志目录下的列表", notes = "根据条件过滤查询集群列表")
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "pod", value = "pod容器", paramType = "query",dataType = "String"),
+            @ApiImplicitParam(name = "namespace", value = "命名空间", paramType = "query", dataType = "String"),
+            @ApiImplicitParam(name = "path", value = "日志目录", paramType = "query", dataType = "String"),
+            @ApiImplicitParam(name = "clusterId", value = "集群id", paramType = "query", dataType = "String") })
+    @ResponseBody
+    @RequestMapping(value="/containerfiles", method= RequestMethod.GET)
+    public ActionReturnUtil queryLogFile(@RequestParam(value="pod") String pod,
+                                         @RequestParam(value="namespace") String namespace,
+                                         @RequestParam(value="path") String path,
+                                         @RequestParam(value="clusterId") String clusterId) throws Exception{
+       List<String> logfile =  logService.queryLogFile(pod,namespace,path,clusterId);
+
+       return ActionReturnUtil.returnSuccessWithData(logfile);
+
+    }
+
 
 }

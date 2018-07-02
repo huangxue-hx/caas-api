@@ -8,7 +8,6 @@ import com.harmonycloud.dto.config.ConfigDetailDto;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
 import com.harmonycloud.service.test.BaseTest;
 import net.sf.json.JSONObject;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +20,7 @@ import java.util.Collection;
 import java.util.List;
 
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Created by zqf on 2018/6/13.
@@ -58,6 +58,7 @@ public class ConfigCenterServiceTest extends BaseTest {
         configFileItemList.add(1,configFileItem1);
         configDetail.setConfigFileItemList(configFileItemList);
     }
+
 
     @Test
     public void testSaveConfig() throws Exception {
@@ -139,46 +140,82 @@ public class ConfigCenterServiceTest extends BaseTest {
         assertTrue(configFiles.size() == 1);
     }
 
-   /* @Test
+    @Test
     public void testDeleteConfig() throws Exception {
-        configCenterService.deleteConfig("13e54a9ddcaa41d9ae860a4ec6cfe558","1");
+        ActionReturnUtil response = configCenterService.saveConfig(configDetail,adminUserName);
+        assertTrue(response.isSuccess());
+        JSONObject jsonObject = (JSONObject)response.getData();
+        String tag = jsonObject.get("tag").toString();
+        ActionReturnUtil configMap = configCenterService.getLatestConfigMap(testConfigName,projectId,testRepoName,devClusterId,tag);
+        assertTrue(configMap.isSuccess());
+        assertNotNull(configMap.getData());
+        ConfigDetailDto data = (ConfigDetailDto) configMap.getData();
+        configCenterService.deleteConfig(data.getId(),configDetail.getProjectId());
+        assertNotNull(data.getId());
     }
-
     @Test
     public void testDeleteConfigByProject() throws Exception {
-        configCenterService.deleteConfigByProject(projectId);
+        assertNotNull(configDetail.getProjectId());
+        ActionReturnUtil response = configCenterService.deleteConfigByProject(projectId);
+        assertTrue(response.isSuccess());
     }
+
 
     @Test
     public void testDeleteConfigMap() throws Exception {
-        configCenterService.deleteConfigMap("az","aabc0a6f31d543e6a27f6042cddd91ad",devClusterId);
+        ActionReturnUtil response = configCenterService.deleteConfigMap(testConfigName, configDetail.getProjectId(), devClusterId);
+        assertTrue(response.isSuccess());
     }
+
     @Test
     public void testGetConfigMap() throws Exception {
-        ActionReturnUtil configMap = configCenterService.getConfigMap("05d7e9f4769642c2aaa73f1741168495");
-        String toJSONString = JSONObject.toJSONString(configMap.getData());
-        System.out.println(toJSONString);
+        ActionReturnUtil response = configCenterService.saveConfig(configDetail,adminUserName);
+        assertTrue(response.isSuccess());
+        JSONObject jsonObject = (JSONObject)response.getData();
+        String tag = jsonObject.get("tag").toString();
+        ActionReturnUtil configMap = configCenterService.getLatestConfigMap(testConfigName,projectId,testRepoName,devClusterId,tag);
+        assertTrue(configMap.isSuccess());
+        assertNotNull(configMap.getData());
+        ConfigDetailDto data = (ConfigDetailDto) configMap.getData();
+        ActionReturnUtil config = configCenterService.getConfigMap(data.getId());
+        assertTrue(config.isSuccess());
+        assertNotNull(config.getData());
     }
+
     @Test
     public void testGetLatestConfigMap() throws Exception {
-        ActionReturnUtil configMap = configCenterService.getLatestConfigMap("asas","aabc0a6f31d543e6a27f6042cddd91ad","library/jftomcat",devClusterId,"1.1");
-        String toJSONString = JSONObject.toJSONString(configMap.getData());
-        System.out.println(toJSONString);
+        ActionReturnUtil response = configCenterService.saveConfig(configDetail,adminUserName);
+        assertTrue(response.isSuccess());
+        JSONObject jsonObject = (JSONObject)response.getData();
+        String tag = jsonObject.get("tag").toString();
+        ActionReturnUtil configMap = configCenterService.getLatestConfigMap(testConfigName,projectId,testRepoName,devClusterId,tag);
+        assertTrue(configMap.isSuccess());
+        assertNotNull(configMap.getData());
     }
+
+
     @Test
     public void testDeleteByClusterId() throws Exception {
         configCenterService.deleteByClusterId(devClusterId);
     }
+
+
     @Test
     public void testGetConfigByNameAndTag() throws Exception {
-        ConfigFile configFile = configCenterService.getConfigByNameAndTag("test", "1.0", "136ce5cb971948d48a29432209fc8533", devClusterId);
-        System.out.println(JSONObject.toJSONString(configFile));
+        ActionReturnUtil response = configCenterService.saveConfig(configDetail,adminUserName);
+        assertTrue(response.isSuccess());
+        JSONObject jsonObject = (JSONObject)response.getData();
+        String tag = jsonObject.get("tag").toString();
+        ConfigFile configFile = configCenterService.getConfigByNameAndTag(testConfigName, tag, configDetail.getProjectId(), devClusterId);
+        assertNotNull(configFile);
     }
+
     @Test
     public void testGetConfigMapByName() throws Exception {
-        ActionReturnUtil configMapByName = configCenterService.getConfigMapByName("asas", devClusterId, "aabc0a6f31d543e6a27f6042cddd91ad");
-        System.out.println(JSONObject.toJSONString(configMapByName));
-    }*/
+        ActionReturnUtil configMapByName = configCenterService.getConfigMapByName(testConfigName, devClusterId, configDetail.getProjectId());
+        assertTrue(configMapByName.isSuccess());
+        assertNotNull(configMapByName.getData());
+    }
 
 
 

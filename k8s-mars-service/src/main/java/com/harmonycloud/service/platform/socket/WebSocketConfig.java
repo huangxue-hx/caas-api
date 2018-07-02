@@ -26,6 +26,15 @@ public class WebSocketConfig extends WebMvcConfigurerAdapter implements WebSocke
 		//registry.addHandler(systemWebSocketHandler(), "/notification").addInterceptors(webSocketInterceptor())
 		//		.setAllowedOrigins("*").withSockJS();
 
+        registry.addHandler(systemWebSocketHandler(), "/app/stderrlogs").addInterceptors(webSocketInterceptor())
+        		.setAllowedOrigins("*");
+        registry.addHandler(systemWebSocketHandler(), "/app/stderrlogs").addInterceptors(webSocketInterceptor())
+        		.setAllowedOrigins("*").withSockJS();
+
+        registry.addHandler(systemWebSocketHandler(), "/app/filelogs").addInterceptors(webSocketInterceptor())
+        		.setAllowedOrigins("*");
+        registry.addHandler(systemWebSocketHandler(), "/app/filelogs").addInterceptors(webSocketInterceptor())
+        		.setAllowedOrigins("*").withSockJS();
 
 
         registry.addHandler(cicdWebSocketHandler(), "/cicd/job/log").addInterceptors(webSocketInterceptor())
