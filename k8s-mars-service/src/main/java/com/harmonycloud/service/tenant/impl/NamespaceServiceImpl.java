@@ -12,10 +12,7 @@ import com.harmonycloud.dao.network.bean.NamespceBindSubnet;
 import com.harmonycloud.dao.network.bean.NetworkTopology;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
-import com.harmonycloud.dto.tenant.ClusterQuotaDto;
-import com.harmonycloud.dto.tenant.NamespaceDto;
-import com.harmonycloud.dto.tenant.QuotaDto;
-import com.harmonycloud.dto.tenant.SubnetDto;
+import com.harmonycloud.dto.tenant.*;
 import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
 import com.harmonycloud.dto.tenant.show.QuotaDetailShowDto;
 import com.harmonycloud.dto.tenant.show.RolebindingShowDto;
@@ -1344,10 +1341,11 @@ public class NamespaceServiceImpl implements NamespaceService {
             hard.put("memory", namespaceDto.getQuota().getMemory());
         }
 
-
-        for(int i=0;i<namespaceDto.getStorageClassQuotaList().size();i++){
-            if(!StringUtils.isBlank(namespaceDto.getStorageClassQuotaList().get(i).getName())&&namespaceDto.getStorageClassQuotaList().get(i).getQuota()!=null){
-                hard.put(namespaceDto.getStorageClassQuotaList().get(i).getName()+".storageclass.storage.k8s.io/requests.storage",namespaceDto.getStorageClassQuotaList().get(i).getQuota());
+        if (namespaceDto.getStorageClassQuotaList() != null) {
+            for (StorageClassQuotaDto storageClassQuotaDto : namespaceDto.getStorageClassQuotaList()) {
+                if (!StringUtils.isBlank(storageClassQuotaDto.getName()) && !StringUtils.isBlank(storageClassQuotaDto.getQuota())) {
+                    hard.put(storageClassQuotaDto.getName() + ".storageclass.storage.k8s.io/requests.storage", storageClassQuotaDto.getQuota());
+                }
             }
         }
 
