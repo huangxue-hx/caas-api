@@ -409,5 +409,10 @@
   <delete id="deleteUserByName" parameterType="java.lang.String">
     delete from user where username=#{username}
   </delete>
-
+  <select id="listUserByProjectId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select distinct user.id, user.username, user.real_name from user_role_relationship
+    join user on user_role_relationship.username=user.username
+    and user_role_relationship.project_id=#{projectId}
+    order by username
+  </select>
 </mapper>

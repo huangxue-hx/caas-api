@@ -18,6 +18,7 @@ public class ApplicationDeployDto {
 
     private String nodeSelector;
 
+    @DataPrivilegeField(type = CommonConstant.PROJECTID_FIELD)
 	private String projectId;
 //
 //    private String capacity;

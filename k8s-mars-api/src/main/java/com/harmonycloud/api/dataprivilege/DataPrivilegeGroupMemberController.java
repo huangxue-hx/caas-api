@@ -1,29 +1,29 @@
 package com.harmonycloud.api.dataprivilege;
 
-import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMapping;
-import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMember;
 import com.harmonycloud.dto.dataprivilege.DataPrivilegeDto;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMappingService;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiImplicitParam;
+import io.swagger.annotations.ApiImplicitParams;
+import io.swagger.annotations.ApiOperation;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.List;
+import java.util.Map;
 
 
 /**
  * Created by chencheng on 18-6-20
  */
+@Api(description = "查询及增删数据权限用户列表")
 @Controller
 @RequestMapping("privilege")
 public class DataPrivilegeGroupMemberController {
@@ -42,46 +42,11 @@ public class DataPrivilegeGroupMemberController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/resources/",method = RequestMethod.GET)
+    @ApiOperation(value = "获取资源数据全险列表", notes = "根据数据名称和相关条件")
+    @RequestMapping(value = "/group",method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil listMemberInGroup(@ModelAttribute DataPrivilegeDto dataPrivilegeDto) throws Exception{
-
-
-        if (StringUtils.isBlank(dataPrivilegeDto.getData())){
-            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
-        }
-
-        Integer roGroupId = null;//只读权限列表groupId
-
-        Integer rwGruopId = null;//可读写权限列表groupId
-
-
-        List<DataPrivilegeGroupMapping> mappingList = dataPrivilegeGroupMappingService.listDataPrivilegeGroupMapping(dataPrivilegeDto);
-
-        if(CollectionUtils.isEmpty(mappingList)){
-            return null;
-        }
-        for (DataPrivilegeGroupMapping mapping : mappingList) {
-            if(mapping.getPrivilegeType() == CommonConstant.DATA_READONLY){
-                roGroupId = mapping.getGroupId();
-            }else if(mapping.getPrivilegeType() == CommonConstant.DATA_READWRITE){
-                rwGruopId = mapping.getGroupId();
-            }
-
-        }
-
-
-        HashMap<String,Object> resultMap = new HashMap<String,Object>();
-        if(roGroupId != null) {
-            List<DataPrivilegeGroupMember> roMemberList = dataPrivilegeGroupMemberService.listMemberInGroup(roGroupId);
-            resultMap.put("roList",roMemberList);
-        }
-
-        if(rwGruopId != null) {
-            List<DataPrivilegeGroupMember> rwMemberList = dataPrivilegeGroupMemberService.listMemberInGroup(rwGruopId);
-            resultMap.put("rwList",rwMemberList);
-        }
-
+        Map<String,Object> resultMap = dataPrivilegeGroupMemberService.listGroupMemberForData(dataPrivilegeDto);
         return ActionReturnUtil.returnSuccessWithData(resultMap);
     }
 
@@ -91,20 +56,25 @@ public class DataPrivilegeGroupMemberController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/group/{groupId}/user/{username}",method = RequestMethod.POST)
+    @ApiOperation(value = "数据权限成员列表中新增用户")
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "groupId", value = "组Id", paramType = "path",dataType = "Integer"),
+            @ApiImplicitParam(name = "userId", value = "用户Id", paramType = "query", dataType = "Integer"),
+            @ApiImplicitParam(name = "username", value = "用户名", paramType = "query", dataType = "String"),
+            @ApiImplicitParam(name = "otherGroupId", value = "另一个组Id", paramType = "query", dataType = "Integer")})
+    @RequestMapping(value = "/group/{groupId}/user",method = RequestMethod.POST)
     @ResponseBody
     public ActionReturnUtil addMemberToGroup(@PathVariable("groupId") Integer groupId,
-                                             @PathVariable("username") String username)throws Exception{
-
-        if (username != null && groupId != null ){
+                                             @RequestParam(value = "groupType", required = false) Integer groupType,
+                                             @RequestParam(value = "userId") Integer userId,
+                                             @RequestParam(value = "username") String username,
+                                             @RequestParam(value = "otherGroupId") Integer otherGroupId)throws Exception{
+        if (StringUtils.isBlank(username)){
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
-
-        DataPrivilegeGroupMember dataPrivilegeGroupMember = new DataPrivilegeGroupMember();
-        dataPrivilegeGroupMember.setGroupId(groupId);
-        dataPrivilegeGroupMember.setUsername(username);
-
-        dataPrivilegeGroupMemberService.addMemberToGroup(dataPrivilegeGroupMember);
+        dataPrivilegeGroupMemberService.verifyMember(groupId, otherGroupId, username, true);
+        dataPrivilegeGroupMemberService.delMemberFromPrivilegeGroup(Integer.valueOf(otherGroupId), username);
+        dataPrivilegeGroupMemberService.addMemberToPrivilegeGroup(groupId, userId, username);
 
         return  ActionReturnUtil.returnSuccess();
     }
@@ -116,21 +86,22 @@ public class DataPrivilegeGroupMemberController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/group/{groupId}/user/{userId}",method = RequestMethod.DELETE)
+    @ApiOperation(value = "数据权限成员列表中删除用户")
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "groupId", value = "组Id", paramType = "path",dataType = "Integer"),
+            @ApiImplicitParam(name = "username", value = "用户名", paramType = "query", dataType = "String"),
+            @ApiImplicitParam(name = "otherGroupId", value = "另一个组Id", paramType = "query", dataType = "Integer")})
+    @RequestMapping(value = "/group/{groupId}/user",method = RequestMethod.DELETE)
     @ResponseBody
     public ActionReturnUtil delMemberFromGroup(@PathVariable("groupId") Integer groupId,
-                                               @PathVariable("username") String username)throws Exception{
+                                               @RequestParam(value = "username") String username,
+                                               @RequestParam(value = "otherGroupId") Integer otherGroupId)throws Exception{
 
-        if (username != null && groupId != null ){
+        if (StringUtils.isBlank(username) || groupId == null ){
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
-
-        DataPrivilegeGroupMember dataPrivilegeGroupMember = new DataPrivilegeGroupMember();
-        dataPrivilegeGroupMember.setGroupId(groupId);
-        dataPrivilegeGroupMember.setUsername(username);
-
-        dataPrivilegeGroupMemberService.delMemberFromGroup(dataPrivilegeGroupMember);
-
+        dataPrivilegeGroupMemberService.verifyMember(groupId, otherGroupId, username, false);
+        dataPrivilegeGroupMemberService.delMemberFromPrivilegeGroup(groupId, username);
 
         return ActionReturnUtil.returnSuccess();
     }

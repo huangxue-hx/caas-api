@@ -5,7 +5,12 @@ package com.harmonycloud.common.enumm;
  */
 public enum DataResourceTypeEnum {
     APPLICATION(1),
-    SERVICE(2);
+    SERVICE(2),
+    CONFIGFILE(3),
+    EXTERNALSERVICE(4),
+    STORAGE(5),
+    PIPELINE(6);
+
 
     private final int code;
 

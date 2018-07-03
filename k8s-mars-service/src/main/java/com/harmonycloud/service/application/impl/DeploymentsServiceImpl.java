@@ -11,6 +11,7 @@ import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dto.application.*;
+import com.harmonycloud.dto.dataprivilege.DataPrivilegeDto;
 import com.harmonycloud.dto.scale.AutoScaleDto;
 import com.harmonycloud.dto.scale.HPADto;
 import com.harmonycloud.dto.scale.ResourceMetricScaleDto;
@@ -28,6 +29,7 @@ import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.FileUploadToContainerService;
 import com.harmonycloud.service.application.RouterService;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.common.DataPrivilegeHelper;
 import com.harmonycloud.service.common.PrivilegeHelper;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeService;
 import com.harmonycloud.service.platform.bean.*;
@@ -140,6 +142,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
     @Autowired
     private DataPrivilegeService dataPrivilegeService;
 
+    @Autowired
+    private DataPrivilegeHelper dataPrivilegeHelper;
+
     public ActionReturnUtil listDeployments(String tenantId, String name, String namespace, String labels, String projectId, String clusterId) throws Exception {
         //参数判空
         if (StringUtils.isBlank(projectId)) {
@@ -180,17 +185,19 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             }
         }
         //数据过滤
-        ApplicationDto applicationDto = new ApplicationDto();
+        DataPrivilegeDto dataPrivilegeDto = new DataPrivilegeDto();
+        dataPrivilegeDto.setProjectId(projectId);
         Iterator<Map<String, Object>> iterator = result.iterator();
         while (iterator.hasNext()) {
             Map<String, Object> map = iterator.next();
-//            applicationFieldDto.setNameInSelectService(map.get("name").toString());
-            if (Objects.nonNull(map.get("appName"))) {
-                applicationDto.setName(map.get("appName").toString());
-            }
-            boolean isMatch = privilegeHelper.isAnyMatched(applicationDto);
-            if (!isMatch) {
+            dataPrivilegeDto.setData((String) map.get(CommonConstant.NAME));
+            dataPrivilegeDto.setNamespace((String) map.get(CommonConstant.DATA_NAMESPACE));
+            dataPrivilegeDto.setDataResourceType(DataResourceTypeEnum.SERVICE.getCode());
+            Map filteredMap = dataPrivilegeHelper.filterMap(map, dataPrivilegeDto);
+            if (filteredMap == null) {
                 iterator.remove();
+            }else{
+                map = filteredMap;
             }
         }
         return ActionReturnUtil.returnSuccessWithData(result);
@@ -487,7 +494,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             isOperationable = userService.checkCurrentUserIsAdmin();
         }
         res.setOperationable(isOperationable);
-        return ActionReturnUtil.returnSuccessWithData(res);
+        return ActionReturnUtil.returnSuccessWithData(dataPrivilegeHelper.filter(res));
     }
 
     @Override

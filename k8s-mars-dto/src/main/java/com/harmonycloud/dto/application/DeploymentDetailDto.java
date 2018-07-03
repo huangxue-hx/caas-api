@@ -54,6 +54,7 @@ public class DeploymentDetailDto {
 	/**pod 是否分散*/
 	private AffinityDto podDisperse;
 
+    @DataPrivilegeField(type = CommonConstant.PROJECTID_FIELD)
 	private String projectId;
 
 	private String nodeSelector;

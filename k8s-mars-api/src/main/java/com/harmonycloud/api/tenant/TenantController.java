@@ -18,6 +18,10 @@ import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.RolePrivilegeService;
 import com.harmonycloud.service.user.UserService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiImplicitParam;
+import io.swagger.annotations.ApiImplicitParams;
+import io.swagger.annotations.ApiOperation;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +39,7 @@ import java.util.Map;
 /**
  * Created by andy on 17-1-9.
  */
+@Api(description = "租户相关查询及操作")
 @RequestMapping("/tenants")
 @Controller
 public class TenantController {
@@ -102,8 +107,8 @@ public class TenantController {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         //策略空值判断
-        if(StringUtils.isBlank(tenantDto.getStrategy().toString())){
-            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        if(tenantDto.getStrategy() == null){
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         tenantService.createTenant(tenantDto);
         return ActionReturnUtil.returnSuccess();
@@ -423,10 +428,14 @@ public class TenantController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value="/{tenantId}/strategy/{strategy}")
+    @ApiOperation(value = "修改租户策略")
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "tenantId", value = "租户Id", paramType = "path",dataType = "String"),
+            @ApiImplicitParam(name = "strategy", value = "策略", paramType = "query", dataType = "Integer")})
+    @RequestMapping(value="/{tenantId}/strategy",method = RequestMethod.PUT)
     @ResponseBody
     public ActionReturnUtil updateTenantStrategy(@PathVariable("tenantId") String tenantId,
-                                                 @PathVariable("strategy") Integer strategy) throws Exception {
+                                                 @RequestParam(value = "strategy") Integer strategy) throws Exception {
 
         //空值判断
         if (StringUtils.isAnyEmpty(tenantId,strategy.toString())) {

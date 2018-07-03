@@ -11,6 +11,7 @@
     <result column="privilege_type" jdbcType="INTEGER" property="privilegeType" />
     <result column="parent_id" jdbcType="INTEGER" property="parentId" />
     <result column="group_id" jdbcType="INTEGER" property="groupId" />
+    <result column="creator_id" jdbcType="BIGINT" property="creatorId" />
   </resultMap>
   <sql id="Example_Where_Clause">
     <where>
@@ -43,7 +44,7 @@
   </sql>
   <sql id="Base_Column_List">
     id, data_name, resource_type_id, project_id, cluster_id, namespace, privilege_type, 
-    parent_id, group_id
+    parent_id, group_id, creator_id
   </sql>
   <select id="selectByExample" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMappingExample" resultMap="BaseResultMap">
     select
@@ -82,10 +83,12 @@
     </selectKey>
     insert into data_privilege_group_mapping (data_name, resource_type_id, project_id, 
       cluster_id, namespace, privilege_type, 
-      parent_id, group_id)
+      parent_id, group_id, creator_id
+      )
     values (#{dataName,jdbcType=VARCHAR}, #{resourceTypeId,jdbcType=INTEGER}, #{projectId,jdbcType=VARCHAR}, 
-      #{clusterId,jdbcType=VARCHAR}, #{namespace,jdbcType=VARCHAR}, #{privilegeType,jdbcType=VARCHAR}, 
-      #{parentId,jdbcType=INTEGER}, #{groupId,jdbcType=INTEGER})
+      #{clusterId,jdbcType=VARCHAR}, #{namespace,jdbcType=VARCHAR}, #{privilegeType,jdbcType=INTEGER}, 
+      #{parentId,jdbcType=INTEGER}, #{groupId,jdbcType=INTEGER}, #{creatorId,jdbcType=BIGINT}
+      )
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMapping">
     <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
@@ -117,6 +120,9 @@
       <if test="groupId != null">
         group_id,
       </if>
+      <if test="creatorId != null">
+        creator_id,
+      </if>
     </trim>
     <trim prefix="values (" suffix=")" suffixOverrides=",">
       <if test="dataName != null">
@@ -142,6 +148,9 @@
       </if>
       <if test="groupId != null">
         #{groupId,jdbcType=INTEGER},
+      </if>
+      <if test="creatorId != null">
+        #{creatorId,jdbcType=BIGINT},
       </if>
     </trim>
   </insert>
@@ -172,6 +181,9 @@
       <if test="groupId != null">
         group_id = #{groupId,jdbcType=INTEGER},
       </if>
+      <if test="creatorId != null">
+        creator_id = #{creatorId,jdbcType=BIGINT},
+      </if>
     </set>
     where id = #{id,jdbcType=INTEGER}
   </update>
@@ -184,7 +196,17 @@
       namespace = #{namespace,jdbcType=VARCHAR},
       privilege_type = #{privilegeType,jdbcType=INTEGER},
       parent_id = #{parentId,jdbcType=INTEGER},
-      group_id = #{groupId,jdbcType=INTEGER}
+      group_id = #{groupId,jdbcType=INTEGER},
+      creator_id = #{creatorId,jdbcType=BIGINT}
     where id = #{id,jdbcType=INTEGER}
   </update>
+  <select id="getChildDataMappingGroupWithoutUser" resultType="java.lang.Integer">
+      select map2.group_id from data_privilege_group_mapping map1
+      join data_privilege_group_mapping map2 on map1.id=map2.parent_id
+      and map1.group_id=#{groupId}
+      <if test="username != null">
+      where not exists (select * from data_privilege_group_member mem
+      where map2.group_id=mem.group_id and mem.username=#{username})
+      </if>
+  </select>
 </mapper>

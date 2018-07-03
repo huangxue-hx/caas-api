@@ -7,6 +7,7 @@
     <result column="member_type" jdbcType="INTEGER" property="memberType" />
     <result column="member_id" jdbcType="INTEGER" property="memberId" />
     <result column="username" jdbcType="VARCHAR" property="username" />
+    <result column="real_name" jdbcType="VARCHAR" property="realName" />
   </resultMap>
   <sql id="Example_Where_Clause">
     <where>
@@ -144,7 +145,7 @@
       insert into data_privilege_group_member (group_id, member_type, member_id,
       username)
       values
-      <foreach collection="list" item="item" index= "index" separator =",">
+      <foreach collection="list" item="item" index= "index" separator=",">
           (
           #{item.groupId},
           #{item.memberType},
@@ -153,4 +154,56 @@
           )
       </foreach>
   </insert>
+  <insert id="insertUserList">
+      insert into data_privilege_group_member (group_id, member_type, member_id,
+      username)
+      select #{groupId}, #{memberType}, id, username from user
+      where username in (
+      <foreach collection="userList" item="username" index="index" separator=",">
+          #{username}
+      </foreach>
+      )
+  </insert>
+  <delete id="deleteList" parameterType="java.util.List">
+      delete from data_privilege_group_member
+      where
+      <foreach collection="list" item="item" separator="or">
+          (group_id=#{item.groupId} and username=#{item.username})
+      </foreach>
+  </delete>
+  <delete id="deleteUserInProject">
+      delete from data_privilege_group_member
+      where username=#{username}
+      and group_id in (
+      select group_id from data_privilege_group_mapping
+      where project_id=#{projectId}
+      )
+  </delete>
+  <select id="selectGroupMemberWithRealName" resultMap="BaseResultMap">
+      select data_privilege_group_member.*, user.real_name from data_privilege_group_member
+      left join user on data_privilege_group_member.username = user.username
+      where data_privilege_group_member.group_id=#{groupId}
+  </select>
+  <insert id="copyGroupMember">
+      insert into data_privilege_group_member (group_id, member_type, member_id,
+      username)
+      select #{destGroupId}, member_type,member_id,username
+      from data_privilege_group_member
+      where group_id=#{srcGroupId};
+  </insert>
+  <delete id="deleteUserInGroupList">
+      delete from data_privilege_group_member
+      where username=#{username}
+      and group_id in (
+      <foreach collection="list" item="item" separator=",">
+          #{item}
+      </foreach>
+      )
+  </delete>
+  <select id="selectParentDataGroupUser" resultType="java.lang.String">
+      select mem.username from data_privilege_group_mapping map1
+      join data_privilege_group_mapping map2 on map1.id=map2.parent_id
+      and map2.group_id=#{groupId}
+      join data_privilege_group_member mem on map1.group_id=mem.group_id
+  </select>
 </mapper>

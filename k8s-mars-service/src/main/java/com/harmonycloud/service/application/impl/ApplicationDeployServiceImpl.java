@@ -21,6 +21,7 @@ import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.cluster.LoadbalanceService;
+import com.harmonycloud.service.common.DataPrivilegeHelper;
 import com.harmonycloud.service.common.PrivilegeHelper;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeService;
 import com.harmonycloud.service.platform.bean.ApplicationList;
@@ -127,6 +128,9 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     @Autowired
     private DataPrivilegeService dataPrivilegeService;
 
+    @Autowired
+    private DataPrivilegeHelper dataPrivilegeHelper;
+
     /**
      * get application by tenant namespace name status service implement
      *
@@ -176,7 +180,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         }
 
         //数据权限过滤
-        return ActionReturnUtil.returnSuccessWithData(privilegeHelper.filter(array));
+        return ActionReturnUtil.returnSuccessWithData(dataPrivilegeHelper.filter(array));
     }
     private void getAllAppList(List<BaseResource> appCrdList,Map<String, Object> bodys)throws Exception{
         final List<Cluster> clusterList = this.roleLocalService.listCurrentUserRoleCluster();
@@ -566,7 +570,8 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         } else {
             return ActionReturnUtil.returnSuccessWithData(null);
         }
-        return ActionReturnUtil.returnSuccessWithData(applicationDetailDto);
+        Map filterMap = dataPrivilegeHelper.filter(applicationDetailDto);
+        return ActionReturnUtil.returnSuccessWithData(filterMap);
     }
 
     /**

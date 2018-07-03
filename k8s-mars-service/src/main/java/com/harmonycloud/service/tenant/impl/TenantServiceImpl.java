@@ -28,6 +28,8 @@ import com.harmonycloud.k8s.service.RoleBindingService;
 import com.harmonycloud.service.application.PersistentVolumeService;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
+import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupService;
 import com.harmonycloud.service.platform.bean.NodeDto;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
 import com.harmonycloud.service.platform.service.ExternalService;
@@ -111,6 +113,12 @@ public class TenantServiceImpl implements TenantService {
     private RolePrivilegeService rolePrivilegeService;
     @Autowired
     DataPrivilegeStrategyMapper dataPrivilegeStrategyMapper;
+
+    @Autowired
+    DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
+
+    @Autowired
+    DataPrivilegeGroupService dataPrivilegeGroupService;
 
     public static final String PROJECTMGR = "0005";
     //租户类型
@@ -1475,7 +1483,11 @@ public class TenantServiceImpl implements TenantService {
             dataPrivilegeStrategy.setStrategy(strategy.byteValue());
             dataPrivilegeStrategyMapper.updateByPrimaryKeySelective(dataPrivilegeStrategy);
         }else{
-            throw new MarsRuntimeException(ErrorCodeMessage.TENANT_STRATEGY_NOT_EXIST);
+            DataPrivilegeStrategy dataPrivilegeStrategy = new DataPrivilegeStrategy();
+            dataPrivilegeStrategy.setScopeType(SCOPE_TENANT);
+            dataPrivilegeStrategy.setScopeId(tenantId);
+            dataPrivilegeStrategy.setStrategy(strategy.byteValue());
+            dataPrivilegeStrategyMapper.insert(dataPrivilegeStrategy);
         }
 
     }

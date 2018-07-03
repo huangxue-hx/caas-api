@@ -1,5 +1,9 @@
 package com.harmonycloud.service.dataprivilege;
 
+import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroup;
+
+import java.util.List;
+
 /**
  * Created by anson on 18/6/20.
  */
@@ -25,4 +29,14 @@ public interface DataPrivilegeGroupService {
      * @param groupId
      */
     void deleteGroupWithMember(int groupId) throws Exception;
+
+    /**
+     * 查询权限组
+     * @param dataPrivilegeGroup
+     * @return
+     * @throws Exception
+     */
+    List<DataPrivilegeGroup> getGroup(DataPrivilegeGroup dataPrivilegeGroup) throws Exception;
+
+
 }

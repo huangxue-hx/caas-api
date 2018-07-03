@@ -4,6 +4,8 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DataPrivilegeField;
 import com.harmonycloud.common.enumm.DataPrivilegeType;
 import com.harmonycloud.common.enumm.DataResourceTypeEnum;
+import com.harmonycloud.common.util.CollectionUtil;
+import com.harmonycloud.common.util.StringUtil;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMapping;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMember;
 import com.harmonycloud.dto.dataprivilege.DataPrivilegeDto;
@@ -18,9 +20,7 @@ import org.springframework.util.CollectionUtils;
 
 import javax.servlet.http.HttpSession;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -41,18 +41,26 @@ public class DataPrivilegeHelper {
     @Autowired
     private HttpSession session;
 
+    private final String DATA_PRIVILEGE = "dataPrivilege";
+    private final String READONLY = "ro";
+    private final String READWRITE = "rw";
+    private final String DATA_FILED = "name";
+    private final String CLUSTERID_FIELD = "clusterId";
+    private final String PROJECTID_FIELD = "projectId";
+    private final String NAMESPACE_FIELD = "namespace";
 
     /**
-     * 过滤结果
+     * 过滤对象列表结果
      * @param list
      * @param <T>
      * @return
      * @throws Exception
      */
-    public <T> List<T> filter(List<T> list) throws Exception{
-
-        if(CollectionUtils.isEmpty(list)){
-            return list;
+    public <T> List<Map> filter(List<T> list) throws Exception{
+        if(list == null){
+            return null;
+        }else if(CollectionUtils.isEmpty(list)){
+            return Collections.EMPTY_LIST;
         }
 
         T obj = null;
@@ -63,59 +71,161 @@ public class DataPrivilegeHelper {
             }
         }
         if (Objects.isNull(obj)){
-            return list;
+            return null;
         }
-
-        //当前用户的用户名
-        String username = (String)session.getAttribute(CommonConstant.USERNAME);
-        List<T> resultList = new ArrayList<>();
-
-        Integer roGroupId = null;//只读权限列表groupId
-        Integer rwGroupId = null;//可读写权限列表groupId
+        List<Map> resultList = new ArrayList<>();
 
         for (T t:list) {
-            DataPrivilegeDto dataPrivilegeDto = this.getDataPrivilegeDto(t);
-
-            List<DataPrivilegeGroupMapping> mappingList = dataPrivilegeGroupMappingService.listDataPrivilegeGroupMapping(dataPrivilegeDto);
-
-            if(CollectionUtils.isEmpty(mappingList)){
-                return null;
+            Map map = filter(t);
+            if(map != null){
+                resultList.add(map);
             }
-            for (DataPrivilegeGroupMapping mapping : mappingList) {
-                if(mapping.getPrivilegeType() == CommonConstant.DATA_READONLY){
-                    roGroupId = mapping.getGroupId();
-                }else if(mapping.getPrivilegeType() == CommonConstant.DATA_READWRITE){
-                    rwGroupId = mapping.getGroupId();
-                }
-
-            }
-
-            List<DataPrivilegeGroupMember> roList = dataPrivilegeGroupMemberService.listMemberInGroup(roGroupId);
-            List<DataPrivilegeGroupMember> rwList = dataPrivilegeGroupMemberService.listMemberInGroup(rwGroupId);
-
-            if(!CollectionUtils.isEmpty(roList)){
-                List<DataPrivilegeGroupMember> members = null;
-                members = roList.stream().filter(member->{ return username.equals(member.getUsername());}).collect(Collectors.toList());
-                if(!CollectionUtils.isEmpty(members)){
-                    resultList.add(t);
-                    continue;
-                }
-            }
-
-            if(!CollectionUtils.isEmpty(rwList)){
-                List<DataPrivilegeGroupMember> members = null;
-                members = rwList.stream().filter(member->{ return username.equals(member.getUsername());}).collect(Collectors.toList());
-                if(!CollectionUtils.isEmpty(members)){
-                    resultList.add(t);
-                    continue;
-                }
-            }
-
         }
 
         return resultList;
     }
 
+    /**
+     * 过滤对象
+     * @param t
+     * @param <T>
+     * @return
+     * @throws Exception
+     */
+    public <T> Map filter(T t) throws Exception {
+        if(Objects.isNull(t)){
+            return null;
+        }
+
+        int currentRoleId = userService.getCurrentRoleId();
+        if(currentRoleId <= CommonConstant.NUM_ROLE_PM){
+            Map dataMap = CollectionUtil.transBean2Map(t);
+            dataMap.put(DATA_PRIVILEGE, READWRITE);
+            return dataMap;
+        }
+
+        String username = (String)session.getAttribute(CommonConstant.USERNAME);
+        Map dataMap = null;
+
+        Integer roGroupId = null;//只读权限列表groupId
+        Integer rwGroupId = null;//可读写权限列表groupId
+
+        DataPrivilegeDto dataPrivilegeDto = this.getDataPrivilegeDto(t);
+
+        List<DataPrivilegeGroupMapping> mappingList = dataPrivilegeGroupMappingService.listDataPrivilegeGroupMapping(dataPrivilegeDto);
+
+        if(CollectionUtils.isEmpty(mappingList)){
+            return null;
+        }
+        for (DataPrivilegeGroupMapping mapping : mappingList) {
+            if(mapping.getPrivilegeType() == CommonConstant.DATA_READONLY){
+                roGroupId = mapping.getGroupId();
+            }else if(mapping.getPrivilegeType() == CommonConstant.DATA_READWRITE){
+                rwGroupId = mapping.getGroupId();
+            }
+
+        }
+
+        List<DataPrivilegeGroupMember> roList = dataPrivilegeGroupMemberService.listMemberInGroup(roGroupId);
+
+
+        if(!CollectionUtils.isEmpty(roList)){
+            List<DataPrivilegeGroupMember> members = null;
+            members = roList.stream().filter(member->{ return username.equals(member.getUsername());}).collect(Collectors.toList());
+            if(!CollectionUtils.isEmpty(members)){
+                dataMap = CollectionUtil.transBean2Map(t);
+                dataMap.put(DATA_PRIVILEGE, READONLY);
+            }
+        }
+
+        List<DataPrivilegeGroupMember> rwList = dataPrivilegeGroupMemberService.listMemberInGroup(rwGroupId);
+
+        if(!CollectionUtils.isEmpty(rwList)){
+            List<DataPrivilegeGroupMember> members = null;
+            members = rwList.stream().filter(member->{ return username.equals(member.getUsername());}).collect(Collectors.toList());
+            if(!CollectionUtils.isEmpty(members)){
+                dataMap = CollectionUtil.transBean2Map(t);
+                dataMap.put(DATA_PRIVILEGE, READWRITE);
+            }
+        }
+
+        return dataMap;
+    }
+
+
+    public List<Map> filterMap(List<Map> list) throws Exception {
+        List<Map> resultList = new ArrayList<>();
+
+        for(Map<String, Object> map : list){
+            DataPrivilegeDto dataPrivilegeDto = this.getDataPrivilegeDto(map);
+
+            Map resultMap = this.filterMap(map, dataPrivilegeDto);
+            if(resultMap != null){
+                resultList.add(resultMap);
+            }
+        }
+        return resultList;
+    }
+
+
+    /**
+     * 过滤map
+     * @param map
+     * @param dataPrivilegeDto
+     * @return
+     * @throws Exception
+     */
+    public Map filterMap(Map map, DataPrivilegeDto dataPrivilegeDto) throws Exception {
+        if(Objects.isNull(map)){
+            return null;
+        }
+        int currentRoleId = userService.getCurrentRoleId();
+        if(currentRoleId <= CommonConstant.NUM_ROLE_PM){
+            map.put(DATA_PRIVILEGE, READWRITE);
+            return map;
+        }
+
+        String username = (String)session.getAttribute(CommonConstant.USERNAME);
+        Integer roGroupId = null;//只读权限列表groupId
+        Integer rwGroupId = null;//可读写权限列表groupId
+
+        List<DataPrivilegeGroupMapping> mappingList = dataPrivilegeGroupMappingService.listDataPrivilegeGroupMapping(dataPrivilegeDto);
+
+        if(CollectionUtils.isEmpty(mappingList)){
+            return null;
+        }
+        for (DataPrivilegeGroupMapping mapping : mappingList) {
+            if(mapping.getPrivilegeType() == CommonConstant.DATA_READONLY){
+                roGroupId = mapping.getGroupId();
+            }else if(mapping.getPrivilegeType() == CommonConstant.DATA_READWRITE){
+                rwGroupId = mapping.getGroupId();
+            }
+
+        }
+
+        List<DataPrivilegeGroupMember> roList = dataPrivilegeGroupMemberService.listMemberInGroup(roGroupId);
+        List<DataPrivilegeGroupMember> rwList = dataPrivilegeGroupMemberService.listMemberInGroup(rwGroupId);
+
+        if(!CollectionUtils.isEmpty(rwList)){
+            List<DataPrivilegeGroupMember> members = null;
+            members = rwList.stream().filter(member->{ return username.equals(member.getUsername());}).collect(Collectors.toList());
+            if(!CollectionUtils.isEmpty(members)){
+                map.put(DATA_PRIVILEGE, READWRITE);
+            }
+        }
+        if(!CollectionUtils.isEmpty(roList)){
+            List<DataPrivilegeGroupMember> members = null;
+            members = roList.stream().filter(member->{ return username.equals(member.getUsername());}).collect(Collectors.toList());
+            if(!CollectionUtils.isEmpty(members)){
+                map.put(DATA_PRIVILEGE, READONLY);
+            }
+        }
+        if(map.get(DATA_PRIVILEGE) == null){
+            return  null;
+        }
+
+        return map;
+    }
 
 
 
@@ -155,6 +265,15 @@ public class DataPrivilegeHelper {
                     break;
             }
         }
+        return dataPrivilegeDto;
+    }
+
+    private DataPrivilegeDto getDataPrivilegeDto(Map map){
+        DataPrivilegeDto dataPrivilegeDto = new DataPrivilegeDto();
+        dataPrivilegeDto.setData(StringUtil.valueOf(map.get(DATA_FILED)));
+        dataPrivilegeDto.setProjectId(StringUtil.valueOf(map.get(PROJECTID_FIELD)));
+        dataPrivilegeDto.setClusterId(StringUtil.valueOf(map.get(CLUSTERID_FIELD)));
+        dataPrivilegeDto.setNamespace(StringUtil.valueOf(map.get(NAMESPACE_FIELD)));
         return dataPrivilegeDto;
     }
 

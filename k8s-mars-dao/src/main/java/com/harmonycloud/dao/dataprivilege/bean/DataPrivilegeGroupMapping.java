@@ -21,6 +21,8 @@ public class DataPrivilegeGroupMapping implements Serializable {
 
     private Integer groupId;
 
+    private Long creatorId;
+
     private static final long serialVersionUID = 1L;
 
     public Integer getId() {
@@ -95,6 +97,14 @@ public class DataPrivilegeGroupMapping implements Serializable {
         this.groupId = groupId;
     }
 
+    public Long getCreatorId() {
+        return creatorId;
+    }
+
+    public void setCreatorId(Long creatorId) {
+        this.creatorId = creatorId;
+    }
+
     @Override
     public boolean equals(Object that) {
         if (this == that) {
@@ -115,7 +125,8 @@ public class DataPrivilegeGroupMapping implements Serializable {
             && (this.getNamespace() == null ? other.getNamespace() == null : this.getNamespace().equals(other.getNamespace()))
             && (this.getPrivilegeType() == null ? other.getPrivilegeType() == null : this.getPrivilegeType().equals(other.getPrivilegeType()))
             && (this.getParentId() == null ? other.getParentId() == null : this.getParentId().equals(other.getParentId()))
-            && (this.getGroupId() == null ? other.getGroupId() == null : this.getGroupId().equals(other.getGroupId()));
+            && (this.getGroupId() == null ? other.getGroupId() == null : this.getGroupId().equals(other.getGroupId()))
+            && (this.getCreatorId() == null ? other.getCreatorId() == null : this.getCreatorId().equals(other.getCreatorId()));
     }
 
     @Override
@@ -131,6 +142,7 @@ public class DataPrivilegeGroupMapping implements Serializable {
         result = prime * result + ((getPrivilegeType() == null) ? 0 : getPrivilegeType().hashCode());
         result = prime * result + ((getParentId() == null) ? 0 : getParentId().hashCode());
         result = prime * result + ((getGroupId() == null) ? 0 : getGroupId().hashCode());
+        result = prime * result + ((getCreatorId() == null) ? 0 : getCreatorId().hashCode());
         return result;
     }
 }

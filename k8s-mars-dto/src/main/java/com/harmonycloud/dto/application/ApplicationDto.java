@@ -34,12 +34,10 @@ public class ApplicationDto {
 
     private Integer total;
 
-    @DataPrivilegeField(type = CommonConstant.CLUSTERID_FIELD)
     private String clusterId;
 
     private boolean isMsf;
-
-    @DataPrivilegeField(type = CommonConstant.PROJECTID_FIELD)
+    
     private String projectId;
 
     private Integer starting;

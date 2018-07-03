@@ -48,4 +48,8 @@ public class StringUtil {
         String id = str.replaceAll(CommonConstant.LINE, CommonConstant.EMPTYSTRING);
         return id;
     }
+
+    public static String valueOf(Object obj){
+        return obj == null?null:obj.toString();
+    }
 }

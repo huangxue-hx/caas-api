@@ -8,9 +8,11 @@ import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
-import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
-import com.harmonycloud.dao.user.*;
+import com.harmonycloud.dao.user.AuthUserMapper;
+import com.harmonycloud.dao.user.UserGroupMapper;
+import com.harmonycloud.dao.user.UserGroupRelationMapper;
+import com.harmonycloud.dao.user.UserMapper;
 import com.harmonycloud.dao.user.bean.*;
 import com.harmonycloud.dto.tenant.TenantDto;
 import com.harmonycloud.dto.tenant.show.UserShowDto;
@@ -19,8 +21,8 @@ import com.harmonycloud.dto.user.SummaryUserInfo;
 import com.harmonycloud.dto.user.UserDetailDto;
 import com.harmonycloud.dto.user.UserGroupDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import com.harmonycloud.service.cache.ClusterCacheManager;
+import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
 import com.harmonycloud.service.platform.bean.harbor.HarborUser;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.harbor.HarborUserService;
@@ -104,6 +106,8 @@ public class UserServiceImpl implements UserService {
     UserRoleRelationshipService userRoleRelationshipService;
     @Autowired
     ClusterCacheManager clusterCacheManager;
+    @Autowired
+    DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
 
     private String newPassWord;
 
@@ -1891,5 +1895,31 @@ public class UserServiceImpl implements UserService {
      */
     public void updateUser(User user) throws Exception {
         userMapper.updateByPrimaryKeySelective(user);
+    }
+
+    /**
+     * 根据用户名列表查询用户列表
+     * @param usernameList
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public List<User> getUserByUsernameList(List<String> usernameList) throws Exception{
+        UserExample example = new UserExample();
+        example.createCriteria().andUsernameIn(usernameList);
+        return userMapper.selectByExample(example);
+    }
+
+    /**
+     * 查询项目下的用户列表
+     * @param projectId
+     * @return
+     */
+    @Override
+    public List<User> listUserByProjectId(String projectId) {
+        if(StringUtils.isBlank(projectId)){
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        return userMapper.listUserByProjectId(projectId);
     }
 }

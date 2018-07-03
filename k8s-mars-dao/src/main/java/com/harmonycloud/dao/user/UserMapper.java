@@ -137,4 +137,6 @@ public interface UserMapper {
 
     //判断用户是否授权
     User findAthorizeByUsername(String username);
+
+    List<User> listUserByProjectId(String projectId);
 }

@@ -13,6 +13,8 @@ public class DataPrivilegeGroupMember implements Serializable {
 
     private String username;
 
+    private String realName;
+
     private static final long serialVersionUID = 1L;
 
     public Integer getId() {
@@ -53,6 +55,14 @@ public class DataPrivilegeGroupMember implements Serializable {
 
     public void setUsername(String username) {
         this.username = username == null ? null : username.trim();
+    }
+
+    public String getRealName() {
+        return realName;
+    }
+
+    public void setRealName(String realName) {
+        this.realName = realName;
     }
 
     @Override

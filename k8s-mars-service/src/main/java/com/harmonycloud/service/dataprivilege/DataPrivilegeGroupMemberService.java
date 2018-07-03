@@ -1,8 +1,11 @@
 package com.harmonycloud.service.dataprivilege;
 
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMember;
+import com.harmonycloud.dao.tenant.bean.Project;
+import com.harmonycloud.dto.dataprivilege.DataPrivilegeDto;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 权限组与成员接口
@@ -33,11 +36,12 @@ public interface DataPrivilegeGroupMemberService {
     /**
      * 初始化权限组成员
      * @param groupId
-     * @param userId
      * @param projectId
+     * @param parentGroupId
+     * @param privilegeType
      * @throws Exception
      */
-    void initGroupMember(int groupId, String userId, String projectId) throws Exception;
+    void initGroupMember(int groupId, String projectId, Integer parentGroupId, int privilegeType) throws Exception;
 
     /**
      * 删除权限组中所有成员
@@ -46,4 +50,52 @@ public interface DataPrivilegeGroupMemberService {
      */
     void deleteAllMemberFromGroup(int groupId) throws Exception;
 
+
+    /**
+     *
+     * @param project
+     * @param userList
+     * @throws Exception
+     */
+    void addNewProjectMemberToGroup(Project project, List<String> userList) throws Exception;
+
+    /**
+     * 删除项目成员时删除数据权限组中成员
+     * @param projectId
+     * @param username
+     * @throws Exception
+     */
+    void deleteProjectMemberFromGroup(String projectId, String username) throws Exception;
+
+    /**
+     * 数据权限组中新增成员
+     * @param groupId
+     * @param userId
+     * @param username
+     * @throws Exception
+     */
+    void addMemberToPrivilegeGroup(Integer groupId, int userId, String username) throws Exception;
+
+    /**
+     * 数据权限组中删除成员
+     * @param groupId
+     * @param username
+     * @throws Exception
+     */
+    void delMemberFromPrivilegeGroup(int groupId, String username) throws Exception;
+
+    /**
+     * 查询资源的数据权限成员列表
+     * @param dataPrivilegeDto
+     * @return
+     * @throws Exception
+     */
+    Map<String,Object> listGroupMemberForData(DataPrivilegeDto dataPrivilegeDto) throws Exception;
+
+    /**
+     * 校验增删数据权限成员
+     * @param groupId
+     * @param username
+     */
+    void verifyMember(Integer groupId, Integer otherGroupId, String username, boolean isAdd) throws Exception;
 }

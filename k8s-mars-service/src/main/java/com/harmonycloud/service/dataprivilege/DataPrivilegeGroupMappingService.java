@@ -5,6 +5,7 @@ import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMappingExample;
 import com.harmonycloud.dto.dataprivilege.DataPrivilegeDto;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by anson on 18/6/20.
@@ -17,7 +18,7 @@ public interface DataPrivilegeGroupMappingService {
      * @param rwGroupId
      * @param dataPrivilegeDto
      */
-    void initMapping(int roGroupId, int rwGroupId, DataPrivilegeDto dataPrivilegeDto);
+    Map<Integer, Object> initMapping(int roGroupId, int rwGroupId, DataPrivilegeDto dataPrivilegeDto);
 
     /**
      * 新建数据与权限组的关联
@@ -27,10 +28,18 @@ public interface DataPrivilegeGroupMappingService {
 
     /**
      * 查询数据权限关联
-     * @param dataPrivilegeGroupMapping
+     * @param example
      * @return
      */
-    List<DataPrivilegeGroupMapping> getDataPrivilegeGroupMapping(DataPrivilegeGroupMappingExample dataPrivilegeGroupMapping);
+    List<DataPrivilegeGroupMapping> getDataPrivilegeGroupMapping(DataPrivilegeGroupMappingExample example);
+
+
+    /**
+     * 查询数据权限管理
+     * @param dataPrivilegeDto
+     * @return
+     */
+    List<DataPrivilegeGroupMapping> getDataPrivilegeGroupMapping(DataPrivilegeDto dataPrivilegeDto);
 
     /**
      * 根据主键id删除关联
@@ -44,4 +53,10 @@ public interface DataPrivilegeGroupMappingService {
      * @return
      */
     List<DataPrivilegeGroupMapping> listDataPrivilegeGroupMapping(DataPrivilegeDto dataPrivilegeDto);
+
+    /**
+     * 查询组对应数据的子数据的关联组
+     * @param groupId
+     */
+    List<Integer> getChildDataMappingGroupWithoutUser(int groupId, String username);
 }

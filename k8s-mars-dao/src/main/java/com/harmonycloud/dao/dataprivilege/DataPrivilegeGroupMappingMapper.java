@@ -2,6 +2,8 @@ package com.harmonycloud.dao.dataprivilege;
 
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMapping;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMappingExample;
+import org.apache.ibatis.annotations.Param;
+
 import java.util.List;
 
 public interface DataPrivilegeGroupMappingMapper {
@@ -20,4 +22,6 @@ public interface DataPrivilegeGroupMappingMapper {
     int updateByPrimaryKeySelective(DataPrivilegeGroupMapping record);
 
     int updateByPrimaryKey(DataPrivilegeGroupMapping record);
+
+    List<Integer> getChildDataMappingGroupWithoutUser(@Param("groupId")int groupId, @Param("username")String username);
 }

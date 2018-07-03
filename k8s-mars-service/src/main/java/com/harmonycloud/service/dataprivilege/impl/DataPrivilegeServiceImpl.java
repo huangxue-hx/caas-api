@@ -22,8 +22,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.servlet.http.HttpSession;
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by anson on 18/6/20.
@@ -50,6 +52,9 @@ public class DataPrivilegeServiceImpl implements DataPrivilegeService{
     @Autowired
     UserService userService;
 
+    @Autowired
+    HttpSession session;
+
     /**
      * 增加资源数据
      * @param t
@@ -58,7 +63,7 @@ public class DataPrivilegeServiceImpl implements DataPrivilegeService{
      */
     @Override
     public <T> void addResource(T t, String parentData, DataResourceTypeEnum type) throws Exception {
-        String username = userService.getCurrentUsername();
+        Long userId = (Long)session.getAttribute(CommonConstant.USERID);
         String projectId = userService.getCurrentProjectId();
         String tenantId = userService.getCurrentTenantId();
         int strategy = CommonConstant.DATA_OPEN_STRATEGY;
@@ -68,7 +73,7 @@ public class DataPrivilegeServiceImpl implements DataPrivilegeService{
         if(type != null){
             dataPrivilegeDto.setParentDataResourceType(type.getCode());
         }
-
+        dataPrivilegeDto.setCreatorId(userId);
 
         if(StringUtils.isNotBlank(tenantId)) {
             DataPrivilegeStrategyExample example = new DataPrivilegeStrategyExample();
@@ -83,26 +88,31 @@ public class DataPrivilegeServiceImpl implements DataPrivilegeService{
         }
 
         //新建只读组与读写组
-        int roGroupId = dataPrivilegeGroupService.addGroup(CommonConstant.DATA_GROUP ,null,null);
-        int rwGroupId = dataPrivilegeGroupService.addGroup(CommonConstant.DATA_GROUP ,null,null);
+        int roGroupId = dataPrivilegeGroupService.addGroup(CommonConstant.DATA_GROUP, null, null);
+        int rwGroupId = dataPrivilegeGroupService.addGroup(CommonConstant.DATA_GROUP, null, null);
+
 
         //初始化数据与只读组、读写组的关联
-        dataPrivilegeGroupMappingService.initMapping(roGroupId, rwGroupId, dataPrivilegeDto);
-
+        Map<Integer, Object> parentGroupMap = dataPrivilegeGroupMappingService.initMapping(roGroupId, rwGroupId, dataPrivilegeDto);
+        Integer parentRoGroupId = (Integer)parentGroupMap.get(CommonConstant.DATA_READONLY);
+        Integer parentRwGroupId = (Integer)parentGroupMap.get(CommonConstant.DATA_READWRITE);
 
         //根据策略增加读写组与只读组的成员
         switch(strategy){
             case CommonConstant.DATA_CLOSED_STRATEGY:
-                dataPrivilegeGroupMemberService.initGroupMember(rwGroupId, username, null);
+                dataPrivilegeGroupMemberService.initGroupMember(rwGroupId, null, parentRwGroupId, CommonConstant.DATA_READWRITE);
                 break;
             case CommonConstant.DATA_SEMIOPEN_STRATEGY:
-                dataPrivilegeGroupMemberService.initGroupMember(rwGroupId, username, null);
-                dataPrivilegeGroupMemberService.initGroupMember(roGroupId, username, projectId);
+                dataPrivilegeGroupMemberService.initGroupMember(rwGroupId, null, parentRwGroupId, CommonConstant.DATA_READWRITE);
+                dataPrivilegeGroupMemberService.initGroupMember(roGroupId, projectId, parentRoGroupId, CommonConstant.DATA_READONLY);
                 break;
             case CommonConstant.DATA_OPEN_STRATEGY:
-                dataPrivilegeGroupMemberService.initGroupMember(rwGroupId, null, projectId);
+                dataPrivilegeGroupMemberService.initGroupMember(rwGroupId, projectId, parentRwGroupId, CommonConstant.DATA_READWRITE);
                 break;
         }
+
+        //读写组中加入管理员权限组
+        //dataPrivilegeGroupMemberService.addAdminGroupToGroup(rwGroupId);
 
     }
 
@@ -136,9 +146,6 @@ public class DataPrivilegeServiceImpl implements DataPrivilegeService{
 
     }
 
-    public void deleteResource(String name, String clusterId, String projectId, String namespace){
-
-    }
 
     /**
      * 获取数据的值与过滤字段的值
@@ -180,6 +187,7 @@ public class DataPrivilegeServiceImpl implements DataPrivilegeService{
     }
 
     public static void main(String[] args) {
+
 
     }
 }

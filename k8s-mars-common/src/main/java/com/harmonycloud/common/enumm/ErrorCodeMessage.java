@@ -156,6 +156,11 @@ public enum ErrorCodeMessage {
     ROLE_PRIVILEGE_CANNOT_UPDATE(203026, "Admin role privilege can not be update.","管理员角色权限不能被修改"),
     ADMIN_ROLE_CANNOT_DISABLE(203027, "Admin cannot be disabled.","不能禁用管理员"),
 
+    //数据权限204xxx
+    GROUP_EDIT_NO_PRIVILEGE(204001, "You cannot edit the privilege group for this data.", "无权限修改该数据的用户权限列表"),
+    GROUP_USER_EXIST(204002, "User already exist in group.", "列表中已存在该用户"),
+    PARENT_GROUP_USER_DELETE_FIRST(204003, "User in parent data privilege group, remove it first", "请先删除父资源数据权限列表中的此用户"),
+
     //集群相关错误代码 300xxx
     CLUSTER_NAME_DUPLICATE(300001, "Cluster Name Duplicate.", "集群名称已存在"),
     CLUSTER_HOST_EXIST(300002, "Cluster Host Exist.","集群主机已存在"),
