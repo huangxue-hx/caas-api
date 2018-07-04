@@ -2640,7 +2640,7 @@ public class JobServiceImpl implements JobService {
                     String image = buildEnvironment.getImage();
                     if(image.split("/").length<CommonConstant.NUM_THREE){
                         Cluster topCluster = clusterService.getPlatformCluster();
-                        image = topCluster.getHarborServer().getHarborHost() + "/" + image;
+                        image = topCluster.getHarborServer().getHarborHost() + ":" + topCluster.getHarborServer().getHarborPort() + "/" + image;
                     }
                     newStageDto.setEnvironmentChange(true);
                     newStageDto.setBuildEnvironment(image);

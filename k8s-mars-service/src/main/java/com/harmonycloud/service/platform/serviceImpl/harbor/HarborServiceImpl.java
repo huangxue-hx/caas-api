@@ -775,6 +775,7 @@ public class HarborServiceImpl implements HarborService {
      */
     public HarborRepositoryMessage getHarborRepositoryDetail(String harborHost, String repoName) throws Exception {
         Assert.hasText(repoName);
+        HarborServer harborServer = clusterService.findHarborByHost(harborHost);
         HarborRepositoryMessage harborRepository = new HarborRepositoryMessage();
         List<HarborManifest> repositoryDet = new ArrayList<>();
         Date lastUpdateDate = null;
@@ -799,7 +800,7 @@ public class HarborServiceImpl implements HarborService {
             repositoryDet.sort((manifest1, manifest2) -> manifest2.getCreateTime().compareTo(manifest1.getCreateTime()));
 
         }
-        harborRepository.setFullNameRepo(harborHost+"/"+repoName);
+        harborRepository.setFullNameRepo(harborHost + COLON + harborServer.getHarborPort() + "/"+repoName);
         harborRepository.setRepository(repoName);
         harborRepository.setRepositoryDetial(repositoryDet);
         harborRepository.setTags(repositoryDet.stream().map(HarborManifest::getTag).collect(Collectors.toList()));
