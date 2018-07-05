@@ -2638,6 +2638,7 @@ public class JobServiceImpl implements JobService {
     private String generateScript(Job job, List<Stage> stageList) throws Exception {
         Map dataModel = new HashMap();
         dataModel.put("harborHost", clusterService.findClusterById(job.getClusterId()).getHarborServer().getHarborHost());
+        dataModel.put("harborPort", String.valueOf(clusterService.findClusterById(job.getClusterId()).getHarborServer().getHarborPort()));
         List<StageDto> stageDtoList = new ArrayList<>();
         List<StageDto> imageBuildStages = new ArrayList<>();
         Map<Integer, DockerFile> dockerFileMap = new HashedMap();
@@ -2654,7 +2655,7 @@ public class JobServiceImpl implements JobService {
                     String image = buildEnvironment.getImage();
                     if (image.split("/").length < CommonConstant.NUM_THREE) {
                         Cluster topCluster = clusterService.getPlatformCluster();
-                        image = topCluster.getHarborServer().getHarborHost() + "/" + image;
+                        image = topCluster.getHarborServer().getHarborHost() + ":" + topCluster.getHarborServer().getHarborPort() + "/" + image;
                     }
                     newStageDto.setEnvironmentChange(true);
                     newStageDto.setBuildEnvironment(image);

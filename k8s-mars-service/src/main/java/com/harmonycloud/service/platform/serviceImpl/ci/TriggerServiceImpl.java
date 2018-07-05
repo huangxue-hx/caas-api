@@ -131,7 +131,7 @@ public class TriggerServiceImpl implements TriggerService{
             Job job = jobService.getJobById(trigger.getJobId());
             Cluster cluster = clusterService.findClusterById(job.getClusterId());
             if(cluster.getHarborServer() != null){
-                trigger.setTriggerImage(cluster.getHarborServer().getHarborHost() + "/" + trigger.getTriggerImage());
+                trigger.setTriggerImage(cluster.getHarborServer().getHarborHost() + ":" + cluster.getHarborServer().getHarborPort() + "/" + trigger.getTriggerImage());
             }
         }
         if(trigger.getId() == null){
