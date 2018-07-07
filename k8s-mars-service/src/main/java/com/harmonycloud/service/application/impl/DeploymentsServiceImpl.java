@@ -42,6 +42,7 @@ import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
+import io.swagger.annotations.ApiImplicitParam;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -135,6 +136,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
     @Autowired
     private FileUploadToContainerService fileUploadToContainerService;
+
+    @Autowired
+    private PodDisruptionBudgetService pdbService;
 
     public ActionReturnUtil listDeployments(String tenantId, String name, String namespace, String labels, String projectId, String clusterId) throws Exception {
         //参数判空
@@ -820,9 +824,24 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         Map<String, Object> resMap = new HashMap<String, Object>();
         resMap.put("deployment", resD);
         resMap.put("service", resS);
-        return ActionReturnUtil.returnSuccessWithData(resMap);
 
+
+        //create pdb
+        K8SClientResponse pdbRes =
+                pdbService.createPdbByMinAvilable(detail.getNamespace(), dep.getMetadata().getName() + "-pdb", dep.getSpec().getSelector(), dep.getSpec().getReplicas(), cluster);
+        if(!HttpStatusUtil.isSuccessStatus((pdbRes.getStatus()))){
+            UnversionedStatus status = JsonUtil.jsonToPojo(pdbRes.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+        }
+        com.harmonycloud.k8s.bean.PodDisruptionBudget resPdb =
+                JsonUtil.jsonToPojo(pdbRes.getBody(), com.harmonycloud.k8s.bean.PodDisruptionBudget.class);
+        resMap.put("podDisruptionBudget", resPdb);
+
+        return ActionReturnUtil.returnSuccessWithData(resMap);
     }
+
+
+
 
     @Override
     public ActionReturnUtil deleteDeployment(String name, String namespace, String userName, Cluster cluster) throws Exception {
@@ -830,6 +849,15 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         boolean scaleDeleted = autoScaleService.delete(namespace, name);
         if (!scaleDeleted) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_AUTOSCALE_DELETE_FAILURE);
+        }
+
+        //删除pdb
+        if(pdbService.existPdb(namespace ,name + "-pdb", cluster)){
+            K8SClientResponse pdbRes = pdbService.deletePdb(namespace, name + "-pdb", cluster);
+            if(!HttpStatusUtil.isSuccessStatus((pdbRes.getStatus()))){
+                UnversionedStatus status = JsonUtil.jsonToPojo(pdbRes.getBody(), UnversionedStatus.class);
+                return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            }
         }
 
         // 获取deployment

@@ -38,6 +38,6 @@ public class APIGroup {
 
 	public final static String APIS_APPS_V1BETA1 = "/apis/apps/v1beta1";
 	
-
+	public final static String APIS_POLICY_V1BETA1 = "/apis/policy/v1beta1";
 	
 }

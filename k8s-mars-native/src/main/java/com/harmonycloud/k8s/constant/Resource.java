@@ -74,7 +74,11 @@ public class Resource {
 	public final static String CLUSTERTEMPLATE = "clustertemplates";
 
 	public final static String CLUSTERBASE = "clusterbases";
-
+	
+	public final static String POD_DISRUPTION_BUDGET = "poddisruptionbudgets";
+	
+	
+	
 	
 	/**
 	 * 根据resource获取apigroup
@@ -139,7 +143,14 @@ public class Resource {
 		case com.harmonycloud.k8s.constant.Resource.JOB:
 			group = APIGroup.APIS_BATCH_V1_VERSION;
 			break;
-
+			
+			
+		case Resource.POD_DISRUPTION_BUDGET:
+            group = APIGroup.APIS_POLICY_V1BETA1;
+            break;
+			
+			
+			
 		case Resource.CLUSTERBASE:
 		case com.harmonycloud.k8s.constant.Resource.APP:
 			group = APIGroup.APIS_HARMONYCLOUD;
