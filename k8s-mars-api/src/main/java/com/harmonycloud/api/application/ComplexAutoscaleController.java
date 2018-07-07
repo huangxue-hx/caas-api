@@ -119,7 +119,9 @@ public class ComplexAutoscaleController {
         if(autoScale == null){
             return MessageUtil.getMessage(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
-        if(autoScale.getTargetCpuUsage() == null && autoScale.getTargetTps() == null
+        if(autoScale.getTargetCpuUsage() == null
+                && autoScale.getTargetMemoryUsage() == null
+                && autoScale.getTargetTps() == null
                 && CollectionUtils.isEmpty(autoScale.getTimeMetricScales())
                 && CollectionUtils.isEmpty(autoScale.getCustomMetricScales())){
             return MessageUtil.getMessage(ErrorCodeMessage.INDICATOR);
