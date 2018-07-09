@@ -42,6 +42,9 @@ public class Constant {
 
 	public final static String STORAGECLASS_V1="storage.k8s.io/v1";
 	
+	public final static String APIS_POLICY_V1BETA1 = "policy/v1beta1";
+	
+	
 	//避免各资源对象改版
 	public final static String DEPLOYMENT_VERSION = APIS_EXTENTIONS_V1BETA1_VERSION;
 
@@ -82,6 +85,8 @@ public class Constant {
 	public final static String INGRESS_VERSION = EXTENTIONS_V1BETA1_VERSION;
 
 	public final static String SERVICE_VERSION = V1_VERSION;
+	
+	public final static String POD_DISRUPTION_VERSION = APIS_POLICY_V1BETA1;
 	
 	public static String HTTP_401 = "401";
 	
