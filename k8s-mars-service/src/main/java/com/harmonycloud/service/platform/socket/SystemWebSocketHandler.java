@@ -24,11 +24,7 @@ public class SystemWebSocketHandler implements WebSocketHandler{
 	
 	private static final Logger logger = LoggerFactory.getLogger(SystemWebSocketHandler.class);
 
-	//标准输出
-	public  static final String LOG_TYPE_STDOUT = "0";
 
-	//日志文件
-	public static final String LOG_TYPE_LOGFILE = "1";
 
 
 	public static final Map<String, WebSocketSession> userSocketSessionMap = new HashMap<>();
@@ -61,7 +57,7 @@ public class SystemWebSocketHandler implements WebSocketHandler{
 			logQueryDto.setNamespace(namespace);
 			logQueryDto.setContainer(container);
 			logQueryDto.setClusterId(clusterId);
-			logQueryDto.setLogSource(LOG_TYPE_STDOUT);
+			logQueryDto.setLogSource(LogService.LOG_TYPE_STDOUT);
 			logService.logRealTimeRefresh(session,logQueryDto);
 		}
 		if("/rest/app/filelogs".equals(path)){
@@ -78,7 +74,7 @@ public class SystemWebSocketHandler implements WebSocketHandler{
 			logQueryDto.setLogDir(logDir);
 			logQueryDto.setLogFile(logFile);
 			logQueryDto.setClusterId(clusterId);
-			logQueryDto.setLogSource(LOG_TYPE_LOGFILE);
+			logQueryDto.setLogSource(LogService.LOG_TYPE_LOGFILE);
 			logService.logRealTimeRefresh(session,logQueryDto);
 		}
 

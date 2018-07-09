@@ -366,9 +366,21 @@ public class K8sResultConvert {
                                 } else if (volume.getConfigMap() != null) {
                                     Map<String, Object> configMap = new HashMap<String, Object>();
                                     configMap.put("name", volume.getConfigMap().getName());
-                                    configMap.put("path", vm.getMountPath());
+
+                                    String mountPath = null;
+                                    if(vm.getMountPath().contains(vm.getSubPath())){
+                                        int lastIndexOf = vm.getMountPath().lastIndexOf("/");
+                                        String subLastPath = vm.getMountPath().substring(lastIndexOf + 1);
+                                        if(subLastPath.equals(vm.getSubPath())){
+                                            mountPath = vm.getMountPath().substring(0, lastIndexOf);
+                                        }
+
+                                    }
+
+                                    configMap.put("path", mountPath);
                                     vmExt.setType("configMap");
                                     vmExt.setConfigMapName(volume.getConfigMap().getName());
+                                    vmExt.setMountPath(mountPath);
                                 } else if (volume.getHostPath() != null) {
                                     vmExt.setType("hostPath");
                                     vmExt.setHostPath(volume.getHostPath().getPath());
@@ -1327,10 +1339,10 @@ public class K8sResultConvert {
                     for (CreateConfigMapDto cm : c.getConfigmap()) {
                         if (cm != null && !StringUtils.isEmpty(cm.getPath())) {
                             String filename = cm.getFile();
-                            if (cm.getPath().contains("/")) {
-                                int in = cm.getPath().lastIndexOf("/");
-                                filename = cm.getPath().substring(in + 1, cm.getPath().length());
-                            }
+//                            if (cm.getPath().contains("/")) {
+//                                int in = cm.getPath().lastIndexOf("/");
+//                                filename = cm.getPath().substring(in + 1, cm.getPath().length());
+//                            }
                             Volume cMap = new Volume();
                             cMap.setName((cm.getFile()+"-"+cm.getConfigMapId()).replace(".", "-"));
                             ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
@@ -1345,7 +1357,7 @@ public class K8sResultConvert {
                             volumes.add(cMap);
                             VolumeMount volm = new VolumeMount();
                             volm.setName((cm.getFile()+"-"+cm.getConfigMapId()).replace(".", "-"));
-                            volm.setMountPath(cm.getPath());
+                            volm.setMountPath(cm.getPath() + "/" + filename);
                             volm.setSubPath(filename);
                             volumeMounts.add(volm);
                             container.setVolumeMounts(volumeMounts);
@@ -1669,10 +1681,10 @@ public class K8sResultConvert {
                     for (CreateConfigMapDto cm : c.getConfigmap()) {
                         if (cm != null && !StringUtils.isEmpty(cm.getPath())) {
                             String filename = cm.getFile();
-                            if (cm.getPath().contains("/")) {
-                                int in = cm.getPath().lastIndexOf("/");
-                                filename = cm.getPath().substring(in + 1, cm.getPath().length());
-                            }
+//                            if (cm.getPath().contains("/")) {
+//                                int in = cm.getPath().lastIndexOf("/");
+//                                filename = cm.getPath().substring(in + 1, cm.getPath().length());
+//                            }
                             Volume cMap = new Volume();
                             cMap.setName((cm.getFile()+"-"+cm.getConfigMapId()).replace(".", "-"));
                             ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
@@ -1687,7 +1699,7 @@ public class K8sResultConvert {
                             volumes.add(cMap);
                             VolumeMount volm = new VolumeMount();
                             volm.setName((cm.getFile()+"-"+cm.getConfigMapId()).replace(".", "-"));
-                            volm.setMountPath(cm.getPath());
+                            volm.setMountPath(cm.getPath() + "/" + filename);
                             volm.setSubPath(filename);
                             volumeMounts.add(volm);
                             container.setVolumeMounts(volumeMounts);
@@ -2044,10 +2056,10 @@ public class K8sResultConvert {
                     for (CreateConfigMapDto cm : c.getConfigmap()) {
                         if (cm != null && !StringUtils.isEmpty(cm.getPath())) {
                             String filename = cm.getFile();
-                            if (cm.getPath().contains("/")) {
-                                int in = cm.getPath().lastIndexOf("/");
-                                filename = cm.getPath().substring(in + 1, cm.getPath().length());
-                            }
+//                            if (cm.getPath().contains("/")) {
+//                                int in = cm.getPath().lastIndexOf("/");
+//                                filename = cm.getPath().substring(in + 1, cm.getPath().length());
+//                            }
                             Volume cMap = new Volume();
                             cMap.setName((cm.getFile()+"-"+cm.getConfigMapId()).replace(".", "-"));
                             ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
@@ -2062,7 +2074,7 @@ public class K8sResultConvert {
                             volumes.add(cMap);
                             VolumeMount volm = new VolumeMount();
                             volm.setName((cm.getFile()+"-"+cm.getConfigMapId()).replace(".", "-"));
-                            volm.setMountPath(cm.getPath());
+                            volm.setMountPath(cm.getPath()+ "/" + filename);
                             volm.setSubPath(filename);
                             volumeMounts.add(volm);
                             container.setVolumeMounts(volumeMounts);

@@ -2376,6 +2376,9 @@ public class JobServiceImpl implements JobService {
                     configMapList = new ArrayList<>();
                     for (CreateConfigMapDto createConfigMapDto : stageDto.getConfigMaps()) {
                         //ConfigFile configFile = configCenterService.getConfigByNameAndTag(createConfigMapDto.getName(), createConfigMapDto.getTag(), job.getProjectId(), job.getClusterId());
+//                        String fileName = createConfigMapDto.getFile();
+//                        String path = createConfigMapDto.getPath();
+//                        createConfigMapDto.setPath(path+"/"+fileName);
                         ActionReturnUtil configMapUtil = configCenterService.getConfigMap(createConfigMapDto.getConfigMapId());
                         if(configMapUtil==null || !configMapUtil.isSuccess()){
                             throw new MarsRuntimeException("未找到配置文件");

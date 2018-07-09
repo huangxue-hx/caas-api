@@ -14,6 +14,16 @@ import java.util.List;
 public interface LogService {
 
     /**
+     * 标准输出
+     */
+    public  static final String LOG_TYPE_STDOUT = "0";
+
+    /**
+     * 日志文件
+     */
+    public static final String LOG_TYPE_LOGFILE = "1";
+
+    /**
      * 导出主机上的日志文件
      */
     void exportLog(String namespace, String podName, String clusterId, String logName, HttpServletResponse response) throws Exception;

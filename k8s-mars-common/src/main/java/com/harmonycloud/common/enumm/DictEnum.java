@@ -76,8 +76,8 @@ public enum DictEnum {
     CONFIG_MAP("configmap","配置文件"),
     STORAGE_CLASS("storage class", "存储"),
     CONTAINER("container","容器"),
-    LogDir("logDir","日志目录"),
-    LogFile("logFile","目录文件");
+    LOG_DIR("logDir","日志目录"),
+    LOG_FILE("logFile","目录文件");
 
 
     private final String enPhrase;
