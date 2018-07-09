@@ -1,5 +1,7 @@
 package com.harmonycloud.service.platform.socket;
 
+import com.harmonycloud.dto.log.LogQueryDto;
+import com.harmonycloud.service.platform.service.LogService;
 import com.harmonycloud.service.platform.service.ci.JobService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,18 +19,24 @@ public class SystemWebSocketHandler implements WebSocketHandler{
 	
     @Autowired
     JobService jobService;
+    @Autowired
+    LogService logService;
 	
 	private static final Logger logger = LoggerFactory.getLogger(SystemWebSocketHandler.class);
-	
-	public static final Map<String, WebSocketSession> userSocketSessionMap = new HashMap<>();
 
+	//标准输出
+	public  static final String LOG_TYPE_STDOUT = "0";
+
+	//日志文件
+	public static final String LOG_TYPE_LOGFILE = "1";
+
+
+	public static final Map<String, WebSocketSession> userSocketSessionMap = new HashMap<>();
 
     
 	@Override
 	public void afterConnectionClosed(WebSocketSession session, CloseStatus arg1) throws Exception {
 		logger.debug("连接已关闭");
-		String username = session.getAttributes().get("userName").toString();
-		userSocketSessionMap.remove(username);
 	}
 
 
@@ -42,13 +50,36 @@ public class SystemWebSocketHandler implements WebSocketHandler{
 
 	@Override
 	public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-		String username = session.getAttributes().get("userName").toString();
-		userSocketSessionMap.put(username, session);
-		if(userSocketSessionMap != null && userSocketSessionMap.containsKey(username)){
-			userSocketSessionMap.remove(username);
-			userSocketSessionMap.put(username, session);
-		} else {
-			userSocketSessionMap.put(username, session);
+		String path = session.getUri().getPath();
+		if("/rest/app/stderrlogs".equals(path)){
+			String pod = (String) session.getAttributes().get("pod");
+			String namespace = (String) session.getAttributes().get("namespace");
+			String container = (String) session.getAttributes().get("container");
+			String clusterId = (String) session.getAttributes().get("clusterId");
+			LogQueryDto logQueryDto = new LogQueryDto();
+			logQueryDto.setPod(pod);
+			logQueryDto.setNamespace(namespace);
+			logQueryDto.setContainer(container);
+			logQueryDto.setClusterId(clusterId);
+			logQueryDto.setLogSource(LOG_TYPE_STDOUT);
+			logService.logRealTimeRefresh(session,logQueryDto);
+		}
+		if("/rest/app/filelogs".equals(path)){
+
+			//kubectl exec webapi-6cf47949c8-kwddh -n kube-system -- tail -200f /opt/logs/webapi-info.2018-06-29.log
+			String pod = (String) session.getAttributes().get("pod");
+			String namespace = (String) session.getAttributes().get("namespace");
+			String logDir = (String) session.getAttributes().get("logDir");
+			String logFile = (String) session.getAttributes().get("logFile");
+			String clusterId = (String) session.getAttributes().get("clusterId");
+			LogQueryDto logQueryDto = new LogQueryDto();
+			logQueryDto.setPod(pod);
+			logQueryDto.setNamespace(namespace);
+			logQueryDto.setLogDir(logDir);
+			logQueryDto.setLogFile(logFile);
+			logQueryDto.setClusterId(clusterId);
+			logQueryDto.setLogSource(LOG_TYPE_LOGFILE);
+			logService.logRealTimeRefresh(session,logQueryDto);
 		}
 
 
@@ -62,8 +93,6 @@ public class SystemWebSocketHandler implements WebSocketHandler{
 	@Override
 	public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) throws Exception {
         TextMessage returnMessage = new TextMessage(message.getPayload()+" received at server");// 获取提交过来的消息
-
-		// template.convertAndSend("/topic/getLog", text); // 这里用于广播
 		session.sendMessage(returnMessage);
 	}
 

@@ -74,7 +74,10 @@ public enum DictEnum {
     LOCAL_ROLE_ID("local role id", "局部角色编号"),
     LOG_INDEX("log index", "日志索引"),
     CONFIG_MAP("configmap","配置文件"),
-    STORAGE_CLASS("storage class", "存储");
+    STORAGE_CLASS("storage class", "存储"),
+    CONTAINER("container","容器"),
+    LogDir("logDir","日志目录"),
+    LogFile("logFile","目录文件");
 
 
     private final String enPhrase;

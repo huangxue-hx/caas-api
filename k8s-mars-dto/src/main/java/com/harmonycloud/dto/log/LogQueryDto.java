@@ -30,6 +30,7 @@ public class LogQueryDto{
      */
     private String logTimeEnd;
     private String logDir;
+    private String logFile;
     /**
      * Elasticsearch分页id
      */
@@ -52,6 +53,14 @@ public class LogQueryDto{
     private String clusterId;
 
     private String searchType;
+
+    public String getLogFile() {
+        return logFile;
+    }
+
+    public void setLogFile(String logFile) {
+        this.logFile = logFile;
+    }
 
     public String getNamespace() {
         return namespace;
@@ -140,6 +149,7 @@ public class LogQueryDto{
     public void setPageSize(Integer pageSize) {
         this.pageSize = pageSize;
     }
+
 
     @Override
     public String toString() {
