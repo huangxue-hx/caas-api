@@ -208,20 +208,22 @@ public class DependenceServiceImpl implements DependenceService {
 
         Process p = null;
         String res;
-        String shellPath = classLoader.getResource("shell/mkdirDependence.sh").getPath();
-        ProcessBuilder proc = new ProcessBuilder("sh", shellPath, fileUploadPodName, remoteDirectory,CommonConstant.KUBE_SYSTEM, topCluster.getMachineToken(), server);
+        String mkdirCmd = "mkdir -p";
+        String lsDependenceCommand = String.format("kubectl exec %s -n %s --token=%s --server=%s --insecure-skip-tls-verify=true -- %s %s",
+                fileUploadPodName, CommonConstant.KUBE_SYSTEM, topCluster.getMachineToken(), server, mkdirCmd, remoteDirectory);
+
         try {
-            p = proc.start();
+            p = Runtime.getRuntime().exec(lsDependenceCommand);
             BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
             BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
             while ((res = stdInput.readLine()) != null) {
-                logger.info("执行创建目录脚本：" + res);
+                logger.info("执行创建目录命令：" + res);
             }
             while ((res = stdError.readLine()) != null) {
-                logger.error("执行创建目录脚本错误：" + res);
+                logger.error("执行创建目录命令错误：" + res);
             }
             int runningStatus = p.waitFor();
-            logger.info("执行创建目录脚本结果：" + runningStatus);
+            logger.info("执行创建目录命令结果：" + runningStatus);
         }finally{
             if(p != null){
                 p.destroy();
@@ -403,22 +405,23 @@ public class DependenceServiceImpl implements DependenceService {
         ProcessBuilder proc;
         Process p = null;
         String res;
+
+        String uploadDependenceCommand = String.format("kubectl cp %s %s/%s:%s --token=%s --server=%s --insecure-skip-tls-verify=true",
+                localFile, CommonConstant.KUBE_SYSTEM, fileUploadPodName, remoteDirectory, topCluster.getMachineToken(), server);
         boolean error = false;
         try {
             if (!dependenceFileDto.isDecompressed()) {
-                String shellPath = classLoader.getResource("shell/uploadDependence.sh").getPath();
-                proc = new ProcessBuilder("sh", shellPath, localFile, CommonConstant.KUBE_SYSTEM, fileUploadPodName, remoteDirectory, topCluster.getMachineToken(), server);
-                p = proc.start();
+                p = Runtime.getRuntime().exec(uploadDependenceCommand);
                 BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
                 BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
                 while ((res = stdInput.readLine()) != null) {
-                    logger.info("执行上传文件脚本：" + res);
+                    logger.info("执行上传文件命令：" + res);
                 }
                 while ((res = stdError.readLine()) != null) {
                     if(res.contains("in the future")){
-                        logger.warn("执行上传文件脚本警告：" + res);
+                        logger.warn("执行上传文件命令警告：" + res);
                     }else {
-                        logger.error("执行上传文件脚本错误：" + res);
+                        logger.error("执行上传文件命令错误：" + res);
                         error = true;
                     }
                 }
@@ -426,7 +429,7 @@ public class DependenceServiceImpl implements DependenceService {
                     throw new Exception();
                 }
                 int runningStatus = p.waitFor();
-                logger.info("执行容器文件目录结果：" + runningStatus);
+                logger.info("执行容器文件命令结果：" + runningStatus);
 
             } else {
                 String localDirectory;
@@ -479,65 +482,7 @@ public class DependenceServiceImpl implements DependenceService {
      * @throws Exception
      */
     public List listFile(String dependenceName, String projectId, String clusterId, String path) throws Exception {
-
-        Cluster topCluster = clusterService.getPlatformCluster();
-        String server = topCluster.getProtocol() + "://" + topCluster.getHost() + ":" + topCluster.getPort();
-
-        String targetDir;
-        if(StringUtils.isNotBlank(clusterId)){
-            String projectName = projectService.getProjectNameByProjectId(projectId);
-            String clusterName = clusterService.getClusterNameByClusterId(clusterId);
-            targetDir = "/nfs/" + projectName + "-" + clusterName + "-" + dependenceName + "/" + path;
-        }else{
-            targetDir = "/nfs/" + dependenceName + "/" + path;
-        }
-
-        Pod fileUploadPod = getFileUploadPod(topCluster);
-        String fileUploadPodName = fileUploadPod.getMetadata().getName();
-        Process p = null;
-        boolean error = false;
-        try {
-            String shellPath = classLoader.getResource("shell/lsDependence.sh").getPath();
-            ProcessBuilder proc = new ProcessBuilder("sh", shellPath, fileUploadPodName, targetDir, CommonConstant.KUBE_SYSTEM, topCluster.getMachineToken(), server);
-            p = proc.start();
-
-            String res;
-            List<Map<String, Object>> files = new ArrayList();
-            BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
-
-            while ((res = stdInput.readLine()) != null) {
-                Map<String, Object> file = new HashMap();
-                String[] fileAttributes = res.split("\\s+", 9);
-                if (fileAttributes.length < 9) {
-                    continue;
-                }
-                if (CommonConstant.DIRECTORY_TYPE.equals(fileAttributes[0].charAt(0))) {
-                    file.put("directory", true);
-                } else {
-                    file.put("directory", false);
-                }
-                file.put("name", fileAttributes[8]);
-                files.add(file);
-            }
-            while ((res = stdError.readLine()) != null) {
-                logger.error("执行容器文件目录脚本错误" + res);
-                error = true;
-            }
-            if(error){
-                throw new Exception();
-            }
-            int runningStatus = p.waitFor();
-            logger.info("执行容器文件目录结果：" + runningStatus);
-            return files;
-        } catch (Exception e) {
-            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_DIRECTORY_LIST_FAIL);
-        } finally {
-            if (null != p) {
-                p.destroy();
-            }
-        }
-
+        return getFileList(dependenceName, projectId, clusterId, path, false);
     }
 
     /**
@@ -550,50 +495,40 @@ public class DependenceServiceImpl implements DependenceService {
      * @throws Exception
      */
     public void deleteFile(String dependenceName, String projectId, String clusterId, String path) throws Exception {
-
         Cluster topCluster = clusterService.getPlatformCluster();
-        String server = topCluster.getProtocol() + "://" + topCluster.getHost() + ":" + topCluster.getPort();
+        String fileUploadPodName = getFileUploadPod(topCluster).getMetadata().getName();
 
-        String targetPath;
-        if(StringUtils.isNotBlank(clusterId)){
-            String projectName = projectService.getProjectNameByProjectId(projectId);
-            String clusterName = clusterService.getClusterNameByClusterId(clusterId);
-            targetPath = "/nfs/" + projectName + "-" + clusterName + "-" + dependenceName + "/" + path;
-        }else{
-            targetPath = "/nfs/" + dependenceName + "/" + path;
+        String remoteDependencedir = getRemoteDependenceDir(dependenceName, projectId, clusterId);
+        String targetPath = remoteDependencedir + "/" + path;
+
+        deleteFile(fileUploadPodName, targetPath, topCluster);
+    }
+
+    /**
+     * 根据文件或目录的名称关键词查询依赖目录下的文件或目录
+     *
+     * @param dependenceName 依赖名
+     * @param projectId      项目id
+     * @param clusterId      集群id
+     * @param keyWord
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public List findDependenceFileByKeyword(String dependenceName, String projectId, String clusterId, String keyWord) throws Exception {
+        keyWord = keyWord.toLowerCase();
+        List<Map<String, Object>> list = getFileList(dependenceName, projectId, clusterId, "", true);
+        List<Map<String, Object>> result = new ArrayList();
+
+        for (Map<String, Object> file : list) {
+            String fileName = file.get("fileName").toString().toLowerCase();
+            if (fileName.contains(keyWord)){
+                result.add(file);
+            }
+
         }
 
-        String shellPath = classLoader.getResource("shell/rmDependence.sh").getPath();
-
-        Pod fileUploadPod = getFileUploadPod(topCluster);
-        String fileUploadPodName = fileUploadPod.getMetadata().getName();
-        Process p = null;
-        try {
-            ProcessBuilder proc = new ProcessBuilder("sh", shellPath, fileUploadPodName, targetPath, CommonConstant.KUBE_SYSTEM, topCluster.getMachineToken(), server);
-            p = proc.start();
-            String res;
-            boolean error = false;
-            BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
-            while ((res = stdInput.readLine()) != null) {
-                logger.info("删除文件或目录：" + res);
-            }
-            while ((res = stdError.readLine()) != null) {
-                logger.error("删除文件或目录失败：" + res);
-                error = true;
-            }
-            if (error) {
-                throw new Exception();
-            }
-            int runningStatus = p.waitFor();
-            logger.info("删除文件或目录结果：" + runningStatus);
-        } catch (Exception e) {
-            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_FILE_RM_FAIL);
-        } finally {
-            if (null != p) {
-                p.destroy();
-            }
-        }
+        return result;
     }
 
     /**
@@ -658,21 +593,30 @@ public class DependenceServiceImpl implements DependenceService {
     private void deleteFile(String fileUploadPodName, String directory, Cluster topCluster){
         String server = topCluster.getProtocol() + "://" + topCluster.getHost() + ":" + topCluster.getPort();
         Process p = null;
-        String res;
-        String shellPath = classLoader.getResource("shell/rmDependence.sh").getPath();
-        ProcessBuilder proc = new ProcessBuilder("sh", shellPath, fileUploadPodName, directory, CommonConstant.KUBE_SYSTEM, topCluster.getMachineToken(), server);
+
+        String rmCmd = "rm -rf";
+        String rmDependenceCommand = String.format("kubectl exec %s -n %s --token=%s --server=%s --insecure-skip-tls-verify=true -- %s %s",
+                fileUploadPodName, CommonConstant.KUBE_SYSTEM, topCluster.getMachineToken(), server, rmCmd,directory);
+
+
         try {
-            p = proc.start();
+            p = Runtime.getRuntime().exec(rmDependenceCommand);
             BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
             BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+            String res;
+            boolean error = false;
             while ((res = stdInput.readLine()) != null) {
-                logger.info("执行删除目录脚本：" + res);
+                logger.info("执行删除命令：" + res);
             }
             while ((res = stdError.readLine()) != null) {
-                logger.error("执行删除目录脚本错误：" + res);
+                logger.error("执行删除命令错误：" + res);
+                error =true;
+            }
+            if(error){
+                throw new Exception();
             }
             int runningStatus = p.waitFor();
-            logger.info("执行删除目录脚本结果：" + runningStatus);
+            logger.info("执行删除命令结果：" + runningStatus);
         } catch (Exception e) {
             throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_FILE_RM_FAIL);
         } finally {
@@ -680,5 +624,101 @@ public class DependenceServiceImpl implements DependenceService {
                 p.destroy();
             }
         }
+    }
+
+
+    private List getFileList(String dependenceName, String projectId, String clusterId, String path, boolean isRecurse) throws Exception {
+        Cluster topCluster = clusterService.getPlatformCluster();
+        String server = topCluster.getProtocol() + "://" + topCluster.getHost() + ":" + topCluster.getPort();
+
+        String remoteDependenceDir = getRemoteDependenceDir(dependenceName, projectId, clusterId);
+        String targetDir = remoteDependenceDir + "/" +path;
+
+        Pod fileUploadPod = getFileUploadPod(topCluster);
+        String fileUploadPodName = fileUploadPod.getMetadata().getName();
+        Process p = null;
+        boolean error = false;
+        try {
+            String lsCmd;
+            if(isRecurse){
+                lsCmd = "ls -lhRe ";
+            }else {
+                lsCmd = "ls -lhe ";
+            }
+            String lsDependenceCommand = String.format("kubectl exec %s -n %s --token=%s --server=%s --insecure-skip-tls-verify=true -- %s %s",
+                    fileUploadPodName, CommonConstant.KUBE_SYSTEM, topCluster.getMachineToken(), server, lsCmd, targetDir);
+            p = Runtime.getRuntime().exec(lsDependenceCommand);
+
+            String res;
+            List<Map<String, Object>> files = new ArrayList();
+            BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+
+
+
+            String tmpParentDirectory = "/";
+            while ((res = stdInput.readLine()) != null) {
+                Map<String, Object> file = new HashMap();
+                String[] fileAttributes = res.split("\\s+", 11);
+                if (fileAttributes.length < 9) {
+                    if(fileAttributes[0].endsWith(":")){
+                        tmpParentDirectory = fileAttributes[0].substring(fileAttributes[0].lastIndexOf(remoteDependenceDir)+remoteDependenceDir.length());
+                        tmpParentDirectory = tmpParentDirectory.substring(0,tmpParentDirectory.length()-1);
+                    }
+                    continue;
+                }
+                if(fileAttributes[0].startsWith(CommonConstant.DIRECTORY_TYPE)){
+                    file.put("type", "directory");
+                    file.put("isDirectory",true);
+                } else {
+                    file.put("isDirectory", false);
+                    file.put("type", fileAttributes[10].substring(fileAttributes[10].lastIndexOf(".")+1));
+                    file.put("prefixFilename", fileAttributes[10].substring(0, fileAttributes[10].lastIndexOf(".")));
+                }
+
+                file.put("fileName", fileAttributes[10]);
+
+                char c = fileAttributes[4].charAt(fileAttributes[4].length()-1);
+                if( c >= '0' && c <= '9'){
+                    fileAttributes[4] += "Byte";
+                }
+                file.put("size", fileAttributes[4]);
+                file.put("lastModified", fileAttributes[9] + "-" + fileAttributes[6] + "-" + fileAttributes[7] + " " + fileAttributes[8]) ;
+                if(isRecurse){
+                    file.put("parentDirectory", tmpParentDirectory);
+                }
+                files.add(file);
+            }while ((res = stdError.readLine()) != null) {
+                logger.error("执行容器文件目录ls命令错误" + res);
+                error = true;
+            }
+            if(error){
+                throw new Exception();
+            }
+            int runningStatus = p.waitFor();
+            logger.info("执行容器文件目录ls命令结果：" + runningStatus);
+            return files;
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_DIRECTORY_LIST_FAIL);
+        } finally {
+            if (null != p) {
+                p.destroy();
+            }
+        }
+    }
+
+    private String getRemoteDependenceDir(String dependenceName, String projectId, String clusterId) throws Exception {
+        String targetDir;
+        if(StringUtils.isNotBlank(clusterId)){
+            String projectName = projectService.getProjectNameByProjectId(projectId);
+            String clusterName = clusterService.getClusterNameByClusterId(clusterId);
+            targetDir = "/nfs/" + projectName + "-" + clusterName + "-" + dependenceName;
+        }else{
+            targetDir = "/nfs/" + dependenceName;
+        }
+
+        return targetDir;
+
     }
 }

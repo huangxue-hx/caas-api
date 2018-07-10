@@ -75,4 +75,15 @@ public interface DependenceService {
      * @param projectId 项目id
      */
     void deleteDependenceByProject(String projectId);
+
+    /**
+     * 根据文件或目录的名称关键词查询依赖目录下的文件或目录
+     * @param dependenceName    依赖名
+     * @param projectId     项目id
+     * @param clusterId     集群id
+     * @return
+     * @throws Exception
+     */
+    List findDependenceFileByKeyword(String dependenceName, String projectId, String clusterId , String keyWord) throws Exception;
+
 }
