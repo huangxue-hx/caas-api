@@ -18,7 +18,6 @@ import com.harmonycloud.service.application.EsService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.LogQuery;
 import com.harmonycloud.service.platform.service.LogService;
-import com.harmonycloud.service.platform.socket.SystemWebSocketHandler;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.ChannelSftp;
@@ -464,7 +463,7 @@ public class LogServiceImpl implements LogService {
     public List<String> queryLogFile(String pod, String namespace, String LogDir, String clusterId) {
         AssertUtil.notBlank(pod,DictEnum.POD);
         AssertUtil.notBlank(namespace,DictEnum.NAMESPACE);
-        AssertUtil.notBlank(LogDir,DictEnum.LogDir);
+        AssertUtil.notBlank(LogDir,DictEnum.LOG_DIR);
 
         Cluster cluster = null;
         boolean error = false;
@@ -482,9 +481,6 @@ public class LogServiceImpl implements LogService {
 
             //kubectl exec webapi-6cf47949c8-kwddh -n kube-system ls /opt/logs
 
-//            String command = "kubectl exec " + pod + " -n " + namespace + " --server=" + cluster.getApiServerUrl()
-//                    + " --token=" + cluster.getMachineToken() + " --insecure-skip-tls-verify=true"
-//                    + " -- ls " + LogDir +" -F";
             String command = MessageFormat.format("kubectl exec {0} -n {1} --server={2} --token={3} --insecure-skip-tls-verify=true -- ls {4} -F",
                     pod,namespace,cluster.getApiServerUrl(),cluster.getMachineToken(),LogDir);
 
@@ -511,6 +507,7 @@ public class LogServiceImpl implements LogService {
 
 
         } catch (Exception e) {
+            logger.error("出现异常:",e);
             throw new MarsRuntimeException(ErrorCodeMessage.RUN_COMMAND_ERROR);
         } finally {
             if (null != process) {
@@ -538,15 +535,15 @@ public class LogServiceImpl implements LogService {
                 throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
             }
             //标准输出
-            if(logQueryDto.getLogSource()== SystemWebSocketHandler.LOG_TYPE_STDOUT){
+            if(logQueryDto.getLogSource()== LogService.LOG_TYPE_STDOUT){
                 AssertUtil.notBlank(logQueryDto.getContainer(),DictEnum.CONTAINER);
                  command = MessageFormat.format("kubectl logs {0} -c {1} -n {2} --tail={3} -f --server={4} --token={5} --insecure-skip-tls-verify=true",
                         logQueryDto.getPod(),logQueryDto.getContainer(),logQueryDto.getNamespace(),MAX_LOG_LINES,cluster.getApiServerUrl(), cluster.getMachineToken());
 
 
-            }else if(logQueryDto.getLogSource()==SystemWebSocketHandler.LOG_TYPE_LOGFILE){
-                AssertUtil.notBlank(logQueryDto.getLogDir(), DictEnum.LogDir);
-                AssertUtil.notBlank(logQueryDto.getLogFile(),DictEnum.LogFile);
+            }else if(logQueryDto.getLogSource()==LogService.LOG_TYPE_LOGFILE){
+                AssertUtil.notBlank(logQueryDto.getLogDir(), DictEnum.LOG_DIR);
+                AssertUtil.notBlank(logQueryDto.getLogFile(),DictEnum.LOG_FILE);
                 //kubectl exec webapi-6cf47949c8-kwddh -n kube-system -- tail -200f /opt/logs/webapi-info.2018-06-29.log
                 command = MessageFormat.format("kubectl exec {0} -n {1} --server={2} --token={3} --insecure-skip-tls-verify=true -- tail -f -n {4} {5}/{6}",
                         logQueryDto.getPod(),logQueryDto.getNamespace(),cluster.getApiServerUrl(),cluster.getMachineToken(),MAX_LOG_LINES,logQueryDto.getLogDir(),logQueryDto.getLogFile());
@@ -571,6 +568,7 @@ public class LogServiceImpl implements LogService {
                 }
             }
         } catch (Exception e) {
+            logger.error("出现异常:",e);
             throw new MarsRuntimeException(ErrorCodeMessage.RUN_COMMAND_ERROR);
         } finally {
             if (null != process) {
