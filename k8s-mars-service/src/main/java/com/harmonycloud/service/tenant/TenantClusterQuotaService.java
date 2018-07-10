@@ -4,6 +4,7 @@ import com.harmonycloud.dto.tenant.ClusterQuotaDto;
 import jnr.ffi.annotations.In;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by zgl on 17-12-10.
@@ -30,6 +31,15 @@ public interface TenantClusterQuotaService {
      * @throws Exception
      */
     public void getClusterUsage(String tenantId,String clusterId,ClusterQuotaDto clusterQuotaDto) throws Exception;
+
+
+    /**
+     * 获取集群存储已使用的值
+     * @param tenantId
+     * @param clusterId
+     * @throws Exception
+     */
+    public Map<String, Integer> getStorageUsage(String tenantId, String clusterId) throws Exception;
     /**
      * 根据id查询租户某个集群下的配额
      * @param

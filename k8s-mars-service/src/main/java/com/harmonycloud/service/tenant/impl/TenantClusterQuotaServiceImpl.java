@@ -5,6 +5,7 @@ import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
+import com.harmonycloud.dto.tenant.StorageDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.tenant.TenantClusterQuotaMapper;
 import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
@@ -51,6 +52,7 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
 
     private static final Logger logger = LoggerFactory.getLogger(TenantClusterQuotaServiceImpl.class);
     private static final String MEMORYGB = "memoryGb";
+    private static final String STORAGE = "storageclasses";
 
     /**
      * 根据租户id查询集群配额列表 clusterId 为空查询该租户下的所有集群配额
@@ -114,6 +116,22 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
             double cpuQuota = tenantClusterQuota.getCpuQuota();
             clusterQuotaDto.setCpuQuota(Double.valueOf(nf.format(cpuQuota % CommonConstant.NUM_ONE_DOUBLE == 0 ? (long) cpuQuota : cpuQuota)));
             clusterQuotaDto.setCpuQuotaType(CommonConstant.CORE);
+            //租户集群存储配额
+            if (tenantClusterQuota.getStorageQuotas() != null && !tenantClusterQuota.getStorageQuotas().equals("")) {
+                List<StorageDto> storageDtoList = new ArrayList<>();
+                String[] storageQuotasArray = tenantClusterQuota.getStorageQuotas().split(",");
+                for (String storageQuota : storageQuotasArray) {
+                    String[] storageQuotaArray = storageQuota.split("_");
+                    StorageDto storageDto = new StorageDto();
+                    storageDto.setName(storageQuotaArray[0]);
+                    storageDto.setStorageQuota(storageQuotaArray[1]);
+                    storageDto.setTotalStorage(storageQuotaArray[2]);
+                    storageDto.setUsedStorage(storageQuotaArray[1]);
+                    storageDto.setUnUsedStorage(Double.toString(Double.parseDouble(storageQuotaArray[2]) - Double.parseDouble(storageQuotaArray[1])));
+                    storageDtoList.add(storageDto);
+                }
+                clusterQuotaDto.setStorageQuota(storageDtoList);
+            }
             //租户集群使用量
             getClusterUsage(tenantId,currentClusterId,clusterQuotaDto);
             quotaDtos.add(clusterQuotaDto);
@@ -200,6 +218,33 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
         }
 
     }
+
+    @Override
+    public Map<String, Integer> getStorageUsage(String tenantId, String clusterId) throws Exception {
+        //根据tenantId查询集群资源使用列表
+        Map<String, List> clusterQuotaListByTenantId = namespaceService.getClusterQuotaListByTenantid(tenantId,clusterId);
+        Map<String, Integer> allStorageUsedMap = new HashMap<>();
+        if (!Objects.isNull(clusterId)) {
+            List<Map> list = clusterQuotaListByTenantId.get(clusterId);
+            for (Map map : list) {
+                //分区中storage已使用资源统计
+                Map<String, LinkedList<String>> storageMap = (Map<String, LinkedList<String>>) map.get(STORAGE);
+                if (storageMap != null && storageMap.size() >0) {
+                    for (String storageName : storageMap.keySet()) {
+                        LinkedList<String> storageSetNew = storageMap.get(storageName);
+                        if (allStorageUsedMap.get(storageName) != null) {
+                            Integer storageUsed = allStorageUsedMap.get(storageName) + Integer.parseInt(storageSetNew.get(0));
+                            allStorageUsedMap.put(storageName, storageUsed);
+                        } else {
+                            allStorageUsedMap.put(storageName, Integer.parseInt(storageSetNew.get(0)));
+                        }
+                    }
+                }
+            }
+        }
+        return allStorageUsedMap;
+    }
+
     private Map<String,Object> generateClusterUseage(List<Map> list){
         Map<String,Object> result = new HashMap();
         double mem = 0;

@@ -101,6 +101,7 @@ public class CommonConstant {
     public static final String HARDTYPE = "hardType";
     public static final String CPUTYPE = "cpuType";
     public static final String MEMORYTYPE = "memoryType";
+    public static final String STORAGE_USED = "storageUsed";
     public static final String USEDTYPE = "usedType";
     public static final String TYPE = "type";
     public static final String APPLICATION_JSON = "application/json";

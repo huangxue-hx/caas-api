@@ -11,11 +11,13 @@ import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.dao.user.bean.*;
+import com.harmonycloud.dto.application.StorageClassDto;
 import com.harmonycloud.dto.user.UserGroupDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.tenant.bean.*;
 import com.harmonycloud.dto.tenant.*;
 import com.harmonycloud.service.application.PersistentVolumeService;
+import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.platform.bean.NodeDto;
 import com.harmonycloud.service.platform.service.NodeService;
@@ -23,7 +25,7 @@ import com.harmonycloud.service.tenant.*;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.RolePrivilegeService;
 import com.harmonycloud.service.user.UserRoleRelationshipService;
-import jnr.ffi.annotations.Synchronized;
+import freemarker.ext.beans.HashAdapter;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,6 +62,8 @@ public class TenantServiceImpl implements TenantService {
     TenantBindingMapper tenantBindingMapper;
     @Autowired
     NamespaceService namespaceService;
+    @Autowired
+    StorageClassService storageClassService;
     @Autowired
     com.harmonycloud.k8s.service.NamespaceService namespaceService1;
     @Autowired
@@ -464,11 +468,12 @@ public class TenantServiceImpl implements TenantService {
             throw new MarsRuntimeException(ErrorCodeMessage.UPDATE_CLUSTERQUOTA_INCORRECT);
         }
         for (ClusterQuotaDto clusterQuotaDto:clusterQuota) {
-            this.updateClusterQuotaByTenantid(clusterQuotaDto.getId(),clusterQuotaDto.getCpuQuota(),clusterQuotaDto.getMemoryQuota());
+            this.updateClusterQuotaByTenantid(clusterQuotaDto.getId(), clusterQuotaDto.getCpuQuota(),
+                    clusterQuotaDto.getMemoryQuota(), clusterQuotaDto.getStorageQuota());
         }
     }
     //根据id更新集群配额
-    private void updateClusterQuotaByTenantid(Integer id,Double cpu,Double memory) throws Exception{
+    private void updateClusterQuotaByTenantid(Integer id, Double cpu, Double memory, List<StorageDto> storageDtoList) throws Exception{
         //使用用户分配的配额更新集群配额
         TenantClusterQuota quota = tenantClusterQuotaService.getClusterQuotaById(id);
         if (quota == null){
@@ -478,10 +483,24 @@ public class TenantServiceImpl implements TenantService {
         quota.setMemoryQuota(memory);
         Date date = DateUtil.getCurrentUtcTime();
         quota.setUpdateTime(date);
+        //若用户设定存储配额，将配额信息更新到数据库中
+        if (storageDtoList != null) {
+            String storageQuotasString = "";
+            for (StorageDto storageDto : storageDtoList) {
+                storageQuotasString = storageDto.getName() + "_" + storageDto.getStorageQuota() + "_" +
+                        storageDto.getTotalStorage() + "," + storageQuotasString;
+            }
+            if (!storageQuotasString.equals("")) {
+                storageQuotasString = storageQuotasString.substring(0, storageQuotasString.length() - 1);
+            }
+            quota.setStorageQuotas(storageQuotasString);
+        } else {
+            quota.setStorageQuotas("");
+        }
         tenantClusterQuotaService.updateClusterQuota(quota);
     }
     //修改配额有效值检查
-    private Boolean checkClusterQuota(List<ClusterQuotaDto> clusterQuota,String tenantId) throws Exception{
+    private Boolean checkClusterQuota(List<ClusterQuotaDto> clusterQuota, String tenantId) throws Exception{
         Lock lock = new ReentrantLock();
         lock.lock();
         try{
@@ -545,6 +564,55 @@ public class TenantServiceImpl implements TenantService {
                         || changeMemoryValue - (clusterMemoryAllocatedResources * 1024) >= 0.1
                         || memoryQuota < usedMemory){
                     status = Boolean.FALSE;
+                }
+                //存储配额有效值检查
+                List<StorageDto> storageDtoList = clusterQuotaDto.getStorageQuota();
+                //租户内已经使用的存储
+                Map<String, Integer> storageUsedMap = this.tenantClusterQuotaService.getStorageUsage(tenantId, clusterId);
+                if (storageUsedMap.size() > 0) {
+                    if (storageDtoList == null) {
+                        throw new MarsRuntimeException("删除集群配额失败，集群分区中已使用存储！");
+                    }
+                    for (String storageName : storageUsedMap.keySet()) {
+                        Boolean hasStorage = false;
+                        for (int i = 0; i < storageDtoList.size(); i++) {
+                            if (storageName.equals(storageDtoList.get(i).getName())) {
+                                if (Integer.parseInt(storageDtoList.get(i).getStorageQuota()) >= storageUsedMap.get(storageName)) {
+                                    hasStorage = true;
+                                }
+                            }
+                        }
+                        if (!hasStorage) {
+                            throw new MarsRuntimeException(ErrorCodeMessage.RESOURCE_OVER_FLOOR);
+                        }
+                    }
+                }
+                if (storageDtoList != null) {
+                    for (StorageDto storageDto : storageDtoList) {
+                        //用户设定的存储配额
+                        Double storageQuota = Double.parseDouble(storageDto.getStorageQuota());
+                        Double totalStorage = Double.parseDouble(storageDto.getTotalStorage());
+                        //用户设定的存储配额值必须不大于总的存储配额
+                        if (storageQuota > totalStorage) {
+                            status = Boolean.FALSE;
+                        }
+                        ActionReturnUtil scResponse = storageClassService.getStorageClass(storageDto.getName(), clusterQuotaDto.getClusterId());
+                        if (scResponse == null || scResponse.getData() == null) {
+                            logger.error("查询StorageClass失败，StorageClass名称为 {}", storageDto.getName());
+                            throw new MarsRuntimeException(ErrorCodeMessage.UNKNOWN);
+                        } else {
+                            StorageClassDto storageClassDto = (StorageClassDto) scResponse.getData();
+                            //系统中StorageClass设定的存储最大值
+                            Double storageLimit = Double.parseDouble(storageClassDto.getStorageLimit());
+                            //集群配额中对该StorageClass设定的配额  小于等于  storageClass设定的最大存储值，否则检查不通过
+                            if (storageQuota > storageLimit) {
+                                status = Boolean.FALSE;
+                            }
+                            if (totalStorage > storageLimit) {
+                                status = Boolean.FALSE;
+                            }
+                        }
+                    }
                 }
             }
             return status;
@@ -743,6 +811,17 @@ public class TenantServiceImpl implements TenantService {
                 ClusterQuotaDto clusterQuotaDto = clusterQuotaMap.get(cluster.getId().toString());
                 quota.setCpuQuota(clusterQuotaDto.getCpuQuota());
                 quota.setMemoryQuota(clusterQuotaDto.getMemoryQuota());
+                //设定存储配额
+                List<StorageDto> storageDtoList = clusterQuotaDto.getStorageQuota();
+                String storageQuotasString = null;
+                for (StorageDto storageDto : storageDtoList) {
+                    storageQuotasString = storageDto.getName() + "_" + storageDto.getStorageQuota() + "_" +
+                            storageDto.getTotalStorage() + ",";
+                }
+                if (storageQuotasString != null) {
+                    storageQuotasString = storageQuotasString.substring(0, storageQuotasString.length() - 1);
+                }
+                quota.setStorageQuotas(storageQuotasString);
             }else {
                 //使用默认配额创建集群配额 0
                 quota.setCpuQuota(0d);

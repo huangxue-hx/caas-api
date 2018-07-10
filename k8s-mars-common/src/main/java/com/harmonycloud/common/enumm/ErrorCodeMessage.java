@@ -196,6 +196,7 @@ public enum ErrorCodeMessage {
     LIST_CLUSTERQUOTA_INCORRECT(300038, "Get cluster quota failed.","获取配额失败"),
     RESOURCE_OVER_FLOOR(300039, "Resource quotas should not be less than allocated quotas.","资源配额不能少于已分配的配额"),
     UPDATE_CLUSTERQUOTA_INCORRECT(300040, "Cluster quota incorrect，please refresh the page resource.","配额不正确,请重新刷新页面资源"),
+    STORAGE_QUOTA_OVER_FLOOR(300041, "Storage quotas exceed available quotas.","分区存储配额超过可使用的配额"),
 
     //主机节点 301xxx
     NODE_LABEL_CREATE_ERROR(301001, "Node label create failed.","主机标签创建失败"),
@@ -297,6 +298,7 @@ public enum ErrorCodeMessage {
     NFS_PROVISIONER_CREATE_FAIL(402007, "NFS server address or directory parameter error.", "NFS服务器地址或目录参数错误"),
     STORAGECLASS_TYPE_ERROR(402008, "The storage type is currently only supported by NFS", "StorageClass使用的存储类型目前仅支持NFS"),
     STORAGECLASS_DELETE_ERROR(402009, "Failed to delete StorageClass. StorageClass is already used. Please delete related storage volume first.", "StorageClass删除失败，StorageClass已经被使用，请先删除相关存储卷"),
+    PVC_CAN_NOT_DELETE(402010, "The storage has been used, not to delete.", "该存储已经被使用，不允许删除"),
     //弹性伸缩 403xxx
     SERVICE_AUTOSCALE_CREATE_FAILURE(403001, "Create autoScale failure.", "自动伸缩创建失败"),
     SERVICE_AUTOSCALE_DELETE_FAILURE(403002, "Delete autoScale failure.", "自动伸缩删除失败"),
