@@ -455,6 +455,76 @@ public class TenantClusterQuotaExample {
             return (Criteria) this;
         }
 
+        public Criteria andStorageQuotasIsNull() {
+            addCriterion("storage_quotas is null");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasIsNotNull() {
+            addCriterion("storage_quotas is not null");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasEqualTo(String value) {
+            addCriterion("storage_quotas =", value, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasNotEqualTo(String value) {
+            addCriterion("storage_quotas <>", value, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasGreaterThan(String value) {
+            addCriterion("storage_quotas >", value, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasGreaterThanOrEqualTo(String value) {
+            addCriterion("storage_quotas >=", value, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasLessThan(String value) {
+            addCriterion("storage_quotas <", value, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasLessThanOrEqualTo(String value) {
+            addCriterion("storage_quotas <=", value, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasLike(String value) {
+            addCriterion("storage_quotas like", value, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasNotLike(String value) {
+            addCriterion("storage_quotas not like", value, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasIn(List<String> values) {
+            addCriterion("storage_quotas in", values, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasNotIn(List<String> values) {
+            addCriterion("storage_quotas not in", values, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasBetween(String value1, String value2) {
+            addCriterion("storage_quotas between", value1, value2, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasNotBetween(String value1, String value2) {
+            addCriterion("storage_quotas not between", value1, value2, "storageQuotas");
+            return (Criteria) this;
+        }
+
         public Criteria andUpdateTimeIsNull() {
             addCriterion("update_time is null");
             return (Criteria) this;
@@ -717,6 +787,11 @@ public class TenantClusterQuotaExample {
 
         public Criteria andTenantIdLikeInsensitive(String value) {
             addCriterion("upper(tenant_id) like", value.toUpperCase(), "tenantId");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasLikeInsensitive(String value) {
+            addCriterion("upper(storage_quotas) like", value.toUpperCase(), "storageQuotas");
             return (Criteria) this;
         }
 

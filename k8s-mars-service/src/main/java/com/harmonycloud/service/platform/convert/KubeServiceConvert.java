@@ -143,10 +143,10 @@ public class KubeServiceConvert {
                 for (CreateConfigMapDto cm : cc.getConfigmap()) {
                     if (cm != null && !StringUtils.isEmpty(cm.getPath())) {
                         String filename = cm.getFile();
-                        if(cm.getPath().contains("/")){
-                            int in = cm.getPath().lastIndexOf("/");
-                            filename = cm.getPath().substring(in+1, cm.getPath().length());
-                        }
+//                        if(cm.getPath().contains("/")){
+//                            int in = cm.getPath().lastIndexOf("/");
+//                            filename = cm.getPath().substring(in+1, cm.getPath().length());
+//                        }
                         Volume cMap = new Volume();
                         cMap.setName(cm.getFile() + "-" + cm.getConfigMapId().replace(".", "-"));
                         ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
@@ -161,7 +161,7 @@ public class KubeServiceConvert {
                         volumes.add(cMap);
                         VolumeMount volm = new VolumeMount();
                         volm.setName(cm.getFile() + "-" + cm.getConfigMapId().replace(".", "-"));
-                        volm.setMountPath(cm.getPath());
+                        volm.setMountPath(cm.getPath()+"/"+filename);
                         volm.setSubPath(filename);
                         volumeMounts.add(volm);
                     }

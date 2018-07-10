@@ -8,3 +8,8 @@ CREATE TABLE `configfile_item` (
 ) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8;
 
 UPDATE `k8s_auth_server`.`user` SET `real_name`='admin' WHERE `id`='1';
+
+ALTER TABLE k8s_auth_server.`configfile`
+  DROP COLUMN `item`,
+  DROP COLUMN `path`;
+

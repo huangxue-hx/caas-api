@@ -34,6 +34,7 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
     protected String qasClusterId;
     protected String tenantId;
     protected String projectId;
+    protected String pmUsername;
     protected String adminUserName = "admin";
 
 
@@ -69,6 +70,14 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
         }else{
             projectId = projects.get(0).getProjectId();
             tenantId = projects.get(0).getTenantId();
+            //获取系统中的某个PmUsername
+            for (Project project : projects) {
+                if (project.getPmUsernames() == null) {
+                    continue;
+                }
+                pmUsername = project.getPmUsernames().split(",")[0];
+                break;
+            }
         }
         mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
     }

@@ -30,6 +30,7 @@ public enum DictEnum {
     USER_ID("user id", "用户id"),
     ROLE("role", "角色"),
     NAMESPACE("namespace", "分区"),
+    NAMESPACE_NAME("namespace name", "分区名称"),
     CLUSTER("cluster", "集群"),
     CLUSTER_ID("clusterId", "集群id"),
     POD("pod", "pod"),
@@ -76,8 +77,10 @@ public enum DictEnum {
     CONFIG_MAP("configmap","配置文件"),
     STORAGE_CLASS("storage class", "存储"),
     CONTAINER("container","容器"),
-    LogDir("logDir","日志目录"),
-    LogFile("logFile","目录文件");
+    LOG_DIR("logDir","日志目录"),
+    LOG_FILE("logFile","目录文件"),
+    PV("PersistentVolume", "存储卷"),
+    PVC("PersistentVolumeClaim", "存储卷索取");
 
 
     private final String enPhrase;

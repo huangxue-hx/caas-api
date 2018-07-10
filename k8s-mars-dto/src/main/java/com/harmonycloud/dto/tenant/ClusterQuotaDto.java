@@ -62,6 +62,8 @@ public class ClusterQuotaDto implements Serializable {
     private Double clusterUsedMemory = 0D;
     //集群使用的memory类型
     private String clusterUsedMemoryType;
+    //集群的存储配额
+    private List<StorageDto> storageQuota;
 
     public String getClusterAliasName() {
         return clusterAliasName;
@@ -266,5 +268,13 @@ public class ClusterQuotaDto implements Serializable {
 
     public void setUsedMemoryType(String usedMemoryType) {
         this.usedMemoryType = usedMemoryType;
+    }
+
+    public List<StorageDto> getStorageQuota() {
+        return storageQuota;
+    }
+
+    public void setStorageQuota(List<StorageDto> storageQuota) {
+        this.storageQuota = storageQuota;
     }
 }

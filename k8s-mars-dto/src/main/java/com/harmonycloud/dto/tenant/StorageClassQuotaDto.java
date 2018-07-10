@@ -7,7 +7,9 @@ package com.harmonycloud.dto.tenant;
 public class StorageClassQuotaDto {
     private String name;
 
-    private String quota;
+    private String quota = "0";
+
+    private String totalQuota = "0";
 
     public String getName() {
         return name;
@@ -23,5 +25,13 @@ public class StorageClassQuotaDto {
 
     public void setQuota(String quota) {
         this.quota = quota;
+    }
+
+    public String getTotalQuota() {
+        return totalQuota;
+    }
+
+    public void setTotalQuota(String totalQuota) {
+        this.totalQuota = totalQuota;
     }
 }

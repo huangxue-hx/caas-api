@@ -34,10 +34,7 @@ import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.text.SimpleDateFormat;
 import java.util.*;
-
-import static com.harmonycloud.service.platform.constant.Constant.TIME_ZONE_UTC;
 
 /**
  * @author xc
@@ -222,18 +219,26 @@ public class StorageClassServiceImpl implements StorageClassService {
         StorageClassDto storageClassDto = new StorageClassDto();
         storageClassDto.setName(sc.getMetadata().getName());
         storageClassDto.setClusterId(cluster.getId());
-        storageClassDto.setType((String)(sc.getMetadata().getAnnotations().get("type")));
-        storageClassDto.setStorageLimit((String)(sc.getMetadata().getAnnotations().get("storageLimit")));
-        //SimpleDateFormat sdf =  new SimpleDateFormat(DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
-//        Date utcDate = sdf.parse(sc.getMetadata().getCreationTimestamp());
-        Date utcDate = DateUtil.stringToDate(sc.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue(), TIME_ZONE_UTC);
+        Date utcDate = DateUtil.StringToDate(sc.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
         storageClassDto.setCreateTime(utcDate);
         ActionReturnUtil nfsProvisioner = getNfsProvisionerStatus(sc.getMetadata().getName(), cluster);
         storageClassDto.setStatus((int)(nfsProvisioner.get("count")));
-        Map<String, String> configMap = new HashMap<>();
-        configMap.put("NFS_SERVER", (String )(sc.getMetadata().getAnnotations().get("NFSADDR")));
-        configMap.put("NFS_PATH", (String )(sc.getMetadata().getAnnotations().get("NFSPATH")));
-        storageClassDto.setConfigMap(configMap);
+        if (sc.getMetadata().getAnnotations() != null) {
+            if (sc.getMetadata().getAnnotations().get("type") != null) {
+                storageClassDto.setType((String)(sc.getMetadata().getAnnotations().get("type")));
+            }
+            if (sc.getMetadata().getAnnotations().get("storageLimit") != null) {
+                storageClassDto.setStorageLimit((String)(sc.getMetadata().getAnnotations().get("storageLimit")));
+            }
+            Map<String, String> configMap = new HashMap<>();
+            if (sc.getMetadata().getAnnotations().get("NFSADDR") != null) {
+                configMap.put("NFS_SERVER", (String )(sc.getMetadata().getAnnotations().get("NFSADDR")));
+            }
+            if (sc.getMetadata().getAnnotations().get("NFSPATH") != null) {
+                configMap.put("NFS_PATH", (String )(sc.getMetadata().getAnnotations().get("NFSPATH")));
+            }
+            storageClassDto.setConfigMap(configMap);
+        }
         return storageClassDto;
     }
 
