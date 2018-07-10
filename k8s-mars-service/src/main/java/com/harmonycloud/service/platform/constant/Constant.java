@@ -349,5 +349,7 @@ public class Constant {
 	public final static String INGRESS_SERVICE_TRUE = "true";
 	public final static String INGRESS_SERVICE_FALSE = "false";
 
+	public final static Integer MAX_QUERY_COUNT_100 = 100;
+
 
 }

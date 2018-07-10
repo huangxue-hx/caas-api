@@ -16,10 +16,7 @@ import com.harmonycloud.dao.user.UserMapper;
 import com.harmonycloud.dao.user.bean.*;
 import com.harmonycloud.dto.tenant.TenantDto;
 import com.harmonycloud.dto.tenant.show.UserShowDto;
-import com.harmonycloud.dto.user.ExcelUtil;
-import com.harmonycloud.dto.user.SummaryUserInfo;
-import com.harmonycloud.dto.user.UserDetailDto;
-import com.harmonycloud.dto.user.UserGroupDto;
+import com.harmonycloud.dto.user.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
@@ -47,6 +44,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.DigestUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.mail.internet.MimeMessage;
@@ -60,9 +58,11 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.harmonycloud.common.Constant.CommonConstant.COMMA;
 import static com.harmonycloud.common.Constant.CommonConstant.FLAG_FALSE;
 import static com.harmonycloud.common.Constant.CommonConstant.FLAG_TRUE;
 import static com.harmonycloud.service.platform.constant.Constant.DB_BATCH_INSERT_COUNT;
+import static com.harmonycloud.service.platform.constant.Constant.MAX_QUERY_COUNT_100;
 
 /**
  * @Author w_kyzhang
@@ -1082,28 +1082,33 @@ public class UserServiceImpl implements UserService {
      *
      * @throws Exception
      */
-    public ActionReturnUtil listUsers(Boolean isAdmin, Boolean isMachine, Boolean isCommon, Boolean all) throws Exception {
+    public ActionReturnUtil listUsers(UserQueryDto userQueryDto) throws Exception {
 
         // 查询k8s用户
         List<UserShowDto> userNameList = new ArrayList<UserShowDto>();
         List<User> users = null ;
-        if(all != null && all){
+        if(userQueryDto.getAll() != null && userQueryDto.getAll()){
             users = userMapper.listAllUsers();
         }else{
-            users = userMapper.listUser(isAdmin, isMachine, isCommon);
+            //根据userid列表查询用户列表
+            List<Integer> userIds = new ArrayList<>();
+            if(StringUtils.isNotBlank(userQueryDto.getUserIds())){
+                String[] userIdArr = userQueryDto.getUserIds().split(COMMA);
+                if(userIdArr.length > MAX_QUERY_COUNT_100) {
+                    return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.EXCEED_MAX_QUERY_COUNT);
+                }
+                for(String userId : userIdArr){
+                    userIds.add(Integer.parseInt(userId));
+                }
+            }
+            users = userMapper.listUser(userQueryDto.getIsAdmin(), userQueryDto.getIsMachine(),
+                    userQueryDto.getIsCommon(), userIds);
         }
 
         for (User user : users) {
             UserGroupRelationExample ugr = new UserGroupRelationExample();
             ugr.createCriteria().andUseridEqualTo(user.getId());
             UserShowDto u = new UserShowDto();
-//            List<UserGroupRelation> userGroupRelations = usergrouprelationMapper.selectByExample(ugr);
-//
-//            if (!CollectionUtils.isEmpty(userGroupRelations)) {
-//                int groupid = userGroupRelations.get(0).getGroupid();
-//                String groupname = usergroupMapper.selectByPrimaryKey(groupid).getGroupname();
-//                u.setGroupName(groupname);
-//            }
             u.setId(user.getId());
             u.setIsAdmin(user.getIsAdmin() == FLAG_TRUE);
             u.setIsMachine(user.getIsMachine() == FLAG_TRUE);

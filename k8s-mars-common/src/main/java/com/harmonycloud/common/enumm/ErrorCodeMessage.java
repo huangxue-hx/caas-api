@@ -63,6 +63,7 @@ public enum ErrorCodeMessage {
     SYSTEM_IN_MAINTENANCE(100041, "System is under maintenance.", "系统维护中"),
     RESPONSE_TIMEOUT(100042,"Response timeout", "请求获取响应超时"),
     DATE_FORMAT_ERROR(100043,"Date format error", "日期格式错误"),
+    EXCEED_MAX_QUERY_COUNT(100044,"Can not query over 100 records at once", "一次查询不能超过100条记录"),
 
     //用户相关 200xxx
     USER_DISABLED(200001, "User is disabled.","该用户暂时停止使用，请联系管理员|User is disabled."),

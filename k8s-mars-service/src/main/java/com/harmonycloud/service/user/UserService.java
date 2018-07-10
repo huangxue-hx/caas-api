@@ -9,6 +9,7 @@ import com.harmonycloud.dao.user.bean.UserGroupRelation;
 import com.harmonycloud.dto.user.SummaryUserInfo;
 import com.harmonycloud.dto.user.UserDetailDto;
 import com.harmonycloud.dto.user.UserGroupDto;
+import com.harmonycloud.dto.user.UserQueryDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -84,7 +85,7 @@ public interface UserService {
 
     ActionReturnUtil listAdmin() throws Exception;
 
-    ActionReturnUtil listUsers(Boolean isAdmin, Boolean isMachine, Boolean isCommon, Boolean all) throws Exception;
+    ActionReturnUtil listUsers(UserQueryDto userQueryDto) throws Exception;
 
     ActionReturnUtil listCommonUsers() throws Exception;
 
