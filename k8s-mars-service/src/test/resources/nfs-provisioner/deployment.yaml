@@ -17,7 +17,7 @@ spec:
       serviceAccountName: nfs-client-provisioner
       containers:
         - name: nfs-client-provisioner-scName
-          image: library/nfs-client-provisioner:v2.1.0
+          image: imageName
           volumeMounts:
             - name: nfs-client-scName-root
               mountPath: /persistentvolumes

@@ -1753,7 +1753,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         String tenantId = (String) namespace.getMetadata().getLabels().get(TENANTID);
         TenantClusterQuota tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(tenantId, cluster.getId());
         Map<String, String> storageQuotaMap = new HashMap<>();
-        if (tenantClusterQuota != null) {
+        if (tenantClusterQuota != null && !StringUtils.isBlank(tenantClusterQuota.getStorageQuotas())) {
             String[] storageQuotasArray = tenantClusterQuota.getStorageQuotas().split(",");
             for (String storageQuota : storageQuotasArray) {
                 String[] storageQuotaArray = storageQuota.split("_");
