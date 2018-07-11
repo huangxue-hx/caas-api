@@ -63,6 +63,7 @@ public enum ErrorCodeMessage {
     SYSTEM_IN_MAINTENANCE(100041, "System is under maintenance.", "系统维护中"),
     RESPONSE_TIMEOUT(100042,"Response timeout", "请求获取响应超时"),
     DATE_FORMAT_ERROR(100043,"Date format error", "日期格式错误"),
+    EXCEED_MAX_QUERY_COUNT(100044,"Can not query over 100 records at once", "一次查询不能超过100条记录"),
 
     //用户相关 200xxx
     USER_DISABLED(200001, "User is disabled.","该用户暂时停止使用，请联系管理员|User is disabled."),
@@ -108,6 +109,7 @@ public enum ErrorCodeMessage {
     TENANT_NETWORK_EXIST(201006, "Tenant network was existed.","租户网络已创建"),
     TENANT_NODE_EXIST(201007, "Tenant private node was existed.","租户独占主机已经存在"),
     TENANT_NODE_NOT_EXIST(201008, "Tenant private node was not existed.","租户独占主机不存在"),
+    TENANT_STRATEGY_NOT_EXIST(201009, "Tenant strategy was not existed.","租户策略不存在"),
 
     //项目 202xxx
     PROJECT_EXIST(202001, "Project was existed.","项目已经存在"),
@@ -154,6 +156,11 @@ public enum ErrorCodeMessage {
     ROLE_PRIVILEGE_NOT_BLANK(203025, "Role privilege can not be blank.","角色权限不能为空!"),
     ROLE_PRIVILEGE_CANNOT_UPDATE(203026, "Admin role privilege can not be update.","管理员角色权限不能被修改"),
     ADMIN_ROLE_CANNOT_DISABLE(203027, "Admin cannot be disabled.","不能禁用管理员"),
+
+    //数据权限204xxx
+    GROUP_EDIT_NO_PRIVILEGE(204001, "You cannot edit the privilege group for this data.", "无权限修改该数据的用户权限列表"),
+    GROUP_USER_EXIST(204002, "User already exist in group.", "列表中已存在该用户"),
+    PARENT_GROUP_USER_DELETE_FIRST(204003, "User in parent data privilege group, remove it first", "请先删除父资源数据权限列表中的此用户"),
 
     //集群相关错误代码 300xxx
     CLUSTER_NAME_DUPLICATE(300001, "Cluster Name Duplicate.", "集群名称已存在"),

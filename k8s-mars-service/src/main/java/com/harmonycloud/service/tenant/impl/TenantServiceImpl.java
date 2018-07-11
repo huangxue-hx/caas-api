@@ -1,31 +1,43 @@
 package com.harmonycloud.service.tenant.impl;
 
-import java.math.RoundingMode;
-import java.text.NumberFormat;
-import java.util.*;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Collectors;
-import javax.servlet.http.HttpSession;
-import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.exception.K8sAuthException;
+import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.dataprivilege.DataPrivilegeStrategyMapper;
+import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategy;
+import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategyExample;
+import com.harmonycloud.dao.network.NetworkCalicoMapper;
+import com.harmonycloud.dao.tenant.TenantBindingMapper;
+import com.harmonycloud.dao.tenant.bean.*;
 import com.harmonycloud.dao.user.bean.*;
 import com.harmonycloud.dto.application.StorageClassDto;
+import com.harmonycloud.dto.tenant.*;
 import com.harmonycloud.dto.user.UserGroupDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.dao.tenant.bean.*;
-import com.harmonycloud.dto.tenant.*;
+import com.harmonycloud.k8s.constant.Constant;
+import com.harmonycloud.k8s.service.NetworkPolicyService;
+import com.harmonycloud.k8s.service.PersistentvolumeService;
+import com.harmonycloud.k8s.service.RoleBindingService;
 import com.harmonycloud.service.application.PersistentVolumeService;
 import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cache.ClusterCacheManager;
+import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
+import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupService;
 import com.harmonycloud.service.platform.bean.NodeDto;
+import com.harmonycloud.service.platform.service.ConfigCenterService;
+import com.harmonycloud.service.platform.service.ExternalService;
 import com.harmonycloud.service.platform.service.NodeService;
 import com.harmonycloud.service.tenant.*;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.RolePrivilegeService;
 import com.harmonycloud.service.user.UserRoleRelationshipService;
-import freemarker.ext.beans.HashAdapter;
+import com.harmonycloud.service.user.UserService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,22 +45,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import com.harmonycloud.common.Constant.CommonConstant;
-import com.harmonycloud.common.exception.K8sAuthException;
-import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.date.DateUtil;
-import com.harmonycloud.dao.network.NetworkCalicoMapper;
-import com.harmonycloud.dao.tenant.TenantBindingMapper;
-import com.harmonycloud.k8s.constant.Constant;
-import com.harmonycloud.k8s.service.NetworkPolicyService;
-import com.harmonycloud.k8s.service.PersistentvolumeService;
-import com.harmonycloud.k8s.service.RoleBindingService;
-import com.harmonycloud.service.cluster.ClusterService;
-import com.harmonycloud.service.platform.service.ConfigCenterService;
-import com.harmonycloud.service.platform.service.ExternalService;
-import com.harmonycloud.service.user.UserService;
 import org.springframework.util.CollectionUtils;
+
+import javax.servlet.http.HttpSession;
+import java.math.RoundingMode;
+import java.text.NumberFormat;
+import java.util.*;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 /**
  * Created by andy on 17-1-9.
@@ -107,12 +112,23 @@ public class TenantServiceImpl implements TenantService {
     ClusterCacheManager clusterCacheManager;
     @Autowired
     private RolePrivilegeService rolePrivilegeService;
+    @Autowired
+    DataPrivilegeStrategyMapper dataPrivilegeStrategyMapper;
+
+    @Autowired
+    DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
+
+    @Autowired
+    DataPrivilegeGroupService dataPrivilegeGroupService;
 
     public static final String PROJECTMGR = "0005";
     //租户类型
     public static final String CATEGORY_TENANT = "0";
     //项目类型
     public static final String CATEGORY_PROJECT = "1";
+
+    //租户类型
+    public static final Byte SCOPE_TENANT = 0;
 
 //    @Value("#{propertiesReader['network.networkFlag']}")
     private String networkFlag;
@@ -277,6 +293,12 @@ public class TenantServiceImpl implements TenantService {
         TenantBinding tenantBinding = list.get(0);
         //组装tenantDto
         TenantDto tenantDto = this.generateTenantDto(tenantBinding);
+        DataPrivilegeStrategyExample strategyExample = new DataPrivilegeStrategyExample();
+        strategyExample.createCriteria().andScopeIdEqualTo(tenantId).andScopeTypeEqualTo(SCOPE_TENANT);
+        List<DataPrivilegeStrategy> strategyList = dataPrivilegeStrategyMapper.selectByExample(strategyExample);
+        if(!CollectionUtils.isEmpty(strategyList)){
+            tenantDto.setStrategy(strategyList.get(0).getStrategy().intValue());
+        }
         return tenantDto;
     }
 
@@ -340,6 +362,7 @@ public class TenantServiceImpl implements TenantService {
 //        countDownLatchApp.await();
         return tenantDto;
     }
+
     @Override
     @Transactional(propagation = Propagation.REQUIRED)
     public void createTenant(TenantDto tenantDto) throws Exception {
@@ -397,6 +420,12 @@ public class TenantServiceImpl implements TenantService {
             // 创建租户管理员
             this.createTm(tenantId,tmList);
         }
+        //创建租户策略
+        DataPrivilegeStrategy privilegeStrategy = new DataPrivilegeStrategy();
+        privilegeStrategy.setScopeType(SCOPE_TENANT);
+        privilegeStrategy.setScopeId(tenantId);
+        privilegeStrategy.setStrategy(tenantDto.getStrategy().byteValue());
+        dataPrivilegeStrategyMapper.insertSelective(privilegeStrategy);
     }
 
     @Override
@@ -1511,5 +1540,31 @@ public class TenantServiceImpl implements TenantService {
     }
     private TenantBindingExample getExample(){
         return new TenantBindingExample();
+    }
+
+
+    /**
+     * 修改租户策略
+     * @param tenantId
+     * @param strategy
+     */
+    @Override
+    public void updateTenantStrategy(String tenantId, Integer strategy) throws Exception {
+        DataPrivilegeStrategyExample example = new DataPrivilegeStrategyExample();
+        example.createCriteria().andScopeIdEqualTo(tenantId).andScopeTypeEqualTo(SCOPE_TENANT.byteValue());
+        List<DataPrivilegeStrategy> list = dataPrivilegeStrategyMapper.selectByExample(example);
+
+        if(!CollectionUtils.isEmpty(list)){
+            DataPrivilegeStrategy dataPrivilegeStrategy = list.get(0);
+            dataPrivilegeStrategy.setStrategy(strategy.byteValue());
+            dataPrivilegeStrategyMapper.updateByPrimaryKeySelective(dataPrivilegeStrategy);
+        }else{
+            DataPrivilegeStrategy dataPrivilegeStrategy = new DataPrivilegeStrategy();
+            dataPrivilegeStrategy.setScopeType(SCOPE_TENANT);
+            dataPrivilegeStrategy.setScopeId(tenantId);
+            dataPrivilegeStrategy.setStrategy(strategy.byteValue());
+            dataPrivilegeStrategyMapper.insert(dataPrivilegeStrategy);
+        }
+
     }
 }

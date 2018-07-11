@@ -3,7 +3,8 @@ package com.harmonycloud.service.tenant.impl;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.*;
+import com.harmonycloud.common.util.SsoClient;
+import com.harmonycloud.common.util.StringUtil;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dao.tenant.ProjectMapper;
@@ -20,6 +21,8 @@ import com.harmonycloud.service.application.ApplicationService;
 import com.harmonycloud.service.application.PersistentVolumeService;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
+import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupService;
 import com.harmonycloud.service.platform.bean.RepositoryInfo;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
 import com.harmonycloud.service.platform.service.ExternalService;
@@ -29,7 +32,8 @@ import com.harmonycloud.service.platform.service.ci.DockerFileService;
 import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.platform.service.harbor.HarborService;
-import com.harmonycloud.service.tenant.*;
+import com.harmonycloud.service.tenant.ProjectService;
+import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.LocalRoleService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserRoleRelationshipService;
@@ -41,6 +45,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+
 import javax.servlet.http.HttpSession;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -92,6 +97,10 @@ public class ProjectServiceImpl implements ProjectService {
     DependenceService dependenceService;
     @Autowired
     BuildEnvironmentService buildEnvironmentService;
+    @Autowired
+    DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
+    @Autowired
+    DataPrivilegeGroupService dataPrivilegeGroupService;
 
     private static final Logger logger = LoggerFactory.getLogger(ProjectServiceImpl.class);
 
@@ -646,6 +655,9 @@ public class ProjectServiceImpl implements ProjectService {
         if (!CollectionUtils.isEmpty(userRoleRelationships)){
             userRoleRelationships.stream().forEach(pm -> {pmMap.put(pm.getUsername(),pm.getUsername());});
         }
+
+        dataPrivilegeGroupMemberService.addNewProjectMemberToGroup(project, pmList);
+
         //处理添加多个项目管理员
         for (String userName:pmList) {
             User user1 = this.userService.getUser(userName);
@@ -720,6 +732,11 @@ public class ProjectServiceImpl implements ProjectService {
         }
         //删除项目角色
         this.userRoleRelationshipService.deleteUserRoleRelationshipById(pmUserRoleRelationship.getId());
+        //删除所有数据权限组中该用户
+        List<UserRoleRelationship> list = userRoleRelationshipService.getUserRoleRelationshipByUsernameAndProjectId(username, projectId);
+        if(CollectionUtils.isEmpty(list)){
+            dataPrivilegeGroupMemberService.deleteProjectMemberFromGroup(projectId, username);
+        }
     }
     /**
      * 向项目下删除项目管理员
@@ -785,6 +802,8 @@ public class ProjectServiceImpl implements ProjectService {
         }
         List<Integer> roleIdList = userRoleDto.getRoleIdList();
         List<String> usernameList = userRoleDto.getUsernameList();
+
+        dataPrivilegeGroupMemberService.addNewProjectMemberToGroup(project, usernameList);
         //根据用户列表循环创建用户在项目的角色
         for (String username:usernameList) {
             for (Integer roleId:roleIdList) {

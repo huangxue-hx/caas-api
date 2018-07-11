@@ -11,8 +11,11 @@ import javax.servlet.http.HttpSession;
 
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.dto.user.UserQueryDto;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.user.*;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +34,7 @@ import com.harmonycloud.dto.user.UserGroupDto;
 import com.harmonycloud.service.tenant.TenantService;
 
 @Controller
+@Api(description = "用户相关操作")
 @RequestMapping("/users")
 public class UserController {
 
@@ -170,38 +174,7 @@ public class UserController {
         }
     }
 
-    // 归并到restPassword方法里
-    /**
-     * 重置用户密码
-     * 
-     * @param userName
-     * @return
-     * @throws Exception
-     */
-//    @ResponseBody
-//    @RequestMapping(value = "/{username}/userReset", method = RequestMethod.PUT)
-//    public ActionReturnUtil userReset(@PathVariable(value = "username") final String userName, @RequestParam(value = "newPassword") final String newPassword) throws Exception{
-//        Object user = session.getAttribute("username");
-//        if (userService.isAdmin(user.toString())) {
-//            ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.ONLY_FOR_MANAGER);
-//        }
-//        return userService.userReset(userName, newPassword);
-//
-//    }
 
-    // 不需要提供接口api调用，后台自动发送
-    /**
-     * 重置用户密码后发送邮箱
-     *
-     * @param userName
-     * @return
-     * @throws Exception
-     */
-//    @ResponseBody
-//    @RequestMapping(value = "/{username}/userResetSendEmail", method = RequestMethod.PUT)
-//    public ActionReturnUtil userResetSendEmail(@RequestParam(value = "username") final String userName) throws Exception{
-//        return userService.sendEmail(userName);
-//    }
     /**
      * 删除用户
      * 
@@ -233,57 +206,14 @@ public class UserController {
 
     }
 
-    //合并到listUser
-    /**
-     * 获取所有机器账号
-     * 
-     * @return
-     * @throws Exception
-     */
-//    @RequestMapping(value = "/clusterrolebinding/machineList", method = RequestMethod.GET)
-//    @ResponseBody
-//    public ActionReturnUtil machineList() throws Exception{
-//        return userService.listMachineUsers();
-//    }
 
-    //合并到listUser
-    /**
-     * 获取所有管理员/
-     * 
-     * @return
-     * @throws Exception
-     */
-//    @RequestMapping( method = RequestMethod.GET)
-//    @ResponseBody
-//    public ActionReturnUtil adminList() throws Exception{
-//        return userService.listAdmin();
-//    }
-
-    /**
-     * 用户列表 如果没有用户名则查询所有用户, 如果有用户名,则查询该用户
-     * 
-     * @return
-     * @throws Exception
-     */
+    @ApiOperation(value = "查询用户列表", notes = "根据条件筛选用户列表")
     @RequestMapping( method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil listUser(@RequestParam(value = "isAdmin",required = false) Boolean isAdmin,
-                                     @RequestParam(value="isMachine",required = false) Boolean isMachine,
-                                     @RequestParam(value="isCommon",required = false) Boolean isCommon,
-                                     @RequestParam(value="all",required = false) Boolean all) throws Exception{
-        return userService.listUsers(isAdmin, isMachine, isCommon, all);
+    public ActionReturnUtil listUser(@ModelAttribute UserQueryDto userQueryDto) throws Exception{
+        return userService.listUsers(userQueryDto);
     }
-    //合并到listUser
-    /**
-     * 获取普通用户
-     * @return
-     * @throws Exception
-     */
-//    @RequestMapping(value = "/listCommonUsers", method = RequestMethod.GET)
-//    @ResponseBody
-//    public ActionReturnUtil listCommonUsers() throws Exception{
-//        return userService.listCommonUsers();
-//    }
+
     /**
      * 获取当前用户
      * 1、从单点服务器同步用户信息至容器云平台数据库user
@@ -366,47 +296,7 @@ public class UserController {
         return ActionReturnUtil.returnSuccess();
 
     }
-    // 合并到updateUserStatus
-    /**
-     * 更新用户状态为normal
-     * 
-     * @param username
-     * @return
-     * @throws Exception
-     */
-//    @RequestMapping(value = "/user/updateUserStatusNormal", method = RequestMethod.PUT)
-//    public @ResponseBody ActionReturnUtil updateUserStatusNormal(@RequestParam(value = "username") String username) throws Exception{
-//        User user = userService.updateUserStatus(username, CommonConstant.NORMAL);
-//        if (user == null) {
-//            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.OPERATION_FAILED);
-//        }
-//        return ActionReturnUtil.returnSuccess();
-//    }
-    // 合并到updateUserType
-    /**
-     * 更改普通用户为admin
-     * 
-     * @param username
-     * @return
-     * @throws Exception
-     */
-//    @RequestMapping(value = "/user/updateUserToAdmin", method = RequestMethod.PUT)
-//    public @ResponseBody ActionReturnUtil updateUserToAdmin(@RequestParam(value = "username") String username) throws Exception{
-//        Object user = session.getAttribute("username");
-//        if (user == null) {
-//            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.USER_NOT_LOGIN);
-//        }
-//        int isadmin = (Integer) session.getAttribute("isAdmin");
-//        if (isadmin != 1) {
-//            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.ONLY_FOR_MANAGER);
-//        }
-//        User user2 = userService.updateUserToAdmin(username, 1);
-//        if (user2 == null) {
-//            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.OPERATION_FAILED);
-//        }
-//        return ActionReturnUtil.returnSuccess();
-//
-//    }
+
     /**
      * 更新用户类型
      *
@@ -443,26 +333,7 @@ public class UserController {
         return ActionReturnUtil.returnSuccess();
 
     }
-    // 合并到updateUserType
-//    @RequestMapping(value = "/user/updateAdminToNormal", method = RequestMethod.PUT)
-//    public @ResponseBody ActionReturnUtil updateAdminToNormal(@RequestParam(value = "username") String username) throws Exception{
-//        Object user = session.getAttribute("username");
-//        if (user == null) {
-//            throw new K8sAuthException(Constant.HTTP_401);
-//        }
-//        int isadmin = (Integer) session.getAttribute("isAdmin");
-//        if (isadmin != 1) {
-//            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.ONLY_FOR_MANAGER);
-//        }
-//        if (username.equals(user.toString())) {
-//            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.CANNOT_OPERATE_YOURSELF);
-//        }
-//        User user2 = userService.updateUserToAdmin(username, 0);
-//        if (user2 == null) {
-//            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.OPERATION_FAILED);
-//        }
-//        return ActionReturnUtil.returnSuccess();
-//    }
+
     /**
      * 获取所有pause的用户
      *
@@ -601,11 +472,7 @@ public class UserController {
         return ActionReturnUtil.returnSuccessWithData(list);
 
     }
-//    @RequestMapping(value = "/user/testTime", method = RequestMethod.GET)
-//    public @ResponseBody ActionReturnUtil getActiveUserListuu(@RequestParam(value = "domain") Integer domain) throws Exception {
-//        List<TenantBinding> list = tenantService.testTime(domain);
-//        return ActionReturnUtil.returnSuccessWithData(list);
-//    }
+
 
     @RequestMapping(value = "/groups", method = RequestMethod.POST)
     @ResponseBody

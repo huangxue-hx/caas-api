@@ -169,6 +169,12 @@
       <if test="isCommon != null and isCommon !=true" >
         and (is_admin = true or is_machine = true)
       </if>
+      <if test="userIds != null and userIds.size > 0" >
+        and id in
+        <foreach collection="userIds" item="id" open="(" close=")" separator="," >
+          #{id}
+        </foreach>
+      </if>
   </select>
 
   <select id="selectByExample" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.user.bean.UserExample" >
@@ -409,5 +415,10 @@
   <delete id="deleteUserByName" parameterType="java.lang.String">
     delete from user where username=#{username}
   </delete>
-
+  <select id="listUserByProjectId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select distinct user.id, user.username, user.real_name from user_role_relationship
+    join user on user_role_relationship.username=user.username
+    and user_role_relationship.project_id=#{projectId}
+    order by username
+  </select>
 </mapper>

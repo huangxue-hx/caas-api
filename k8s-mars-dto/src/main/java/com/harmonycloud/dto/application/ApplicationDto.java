@@ -1,7 +1,7 @@
 package com.harmonycloud.dto.application;
 
-import com.harmonycloud.common.enumm.PrivilegeField;
-import com.harmonycloud.common.enumm.PrivilegeType;
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.*;
 
 /**
  * @Author jiangmi
@@ -10,15 +10,18 @@ import com.harmonycloud.common.enumm.PrivilegeType;
  * @Modified
  */
 @PrivilegeType(name = "app", cnDesc = "应用", enDesc = "application")
+@DataPrivilegeType(type = DataResourceTypeEnum.APPLICATION)
 public class ApplicationDto {
 
     @PrivilegeField(name = "appName", cnDesc = "应用名称", enDesc = "name")
+    @DataPrivilegeField(type = CommonConstant.DATA_FIELD)
     private String name;
 
     private String id;
 
     private String desc;
 
+    @DataPrivilegeField(type = CommonConstant.NAMESPACE_FIELD)
     private String namespace;
 
     private String createTime;
@@ -34,7 +37,7 @@ public class ApplicationDto {
     private String clusterId;
 
     private boolean isMsf;
-
+    
     private String projectId;
 
     private Integer starting;

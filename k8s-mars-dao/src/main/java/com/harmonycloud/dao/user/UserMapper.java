@@ -92,7 +92,8 @@ public interface UserMapper {
      */
     List<User> listAdmin();
 
-    List<User> listUser(@Param("isAdmin")Boolean isAdmin, @Param("isMachine")Boolean isMachine, @Param("isCommon")Boolean isCommon);
+    List<User> listUser(@Param("isAdmin")Boolean isAdmin, @Param("isMachine")Boolean isMachine,
+                        @Param("isCommon")Boolean isCommon, @Param("userIds")List userIds);
     /**
      * 获取所有被pause的用户
      * @return
@@ -137,4 +138,6 @@ public interface UserMapper {
 
     //判断用户是否授权
     User findAthorizeByUsername(String username);
+
+    List<User> listUserByProjectId(String projectId);
 }

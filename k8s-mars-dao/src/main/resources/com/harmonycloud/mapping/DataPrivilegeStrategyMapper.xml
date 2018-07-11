@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.dataprivilege.DataPrivilegeStrategyMapper">
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategy">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="scope_type" jdbcType="TINYINT" property="scopeType" />
+    <result column="scope_id" jdbcType="VARCHAR" property="scopeId" />
+    <result column="resource_type_id" jdbcType="VARCHAR" property="resourceTypeId" />
+    <result column="strategy" jdbcType="TINYINT" property="strategy" />
+  </resultMap>
+  <sql id="Example_Where_Clause">
+    <where>
+      <foreach collection="oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List">
+    id, scope_type, scope_id, resource_type_id, strategy
+  </sql>
+  <select id="selectByExample" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategyExample" resultMap="BaseResultMap">
+    select
+    <if test="distinct">
+      distinct
+    </if>
+    'false' as QUERYID,
+    <include refid="Base_Column_List" />
+    from data_privilege_strategy
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null">
+      order by ${orderByClause}
+    </if>
+  </select>
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from data_privilege_strategy
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from data_privilege_strategy
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <delete id="deleteByExample" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategyExample">
+    delete from data_privilege_strategy
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </delete>
+  <insert id="insert" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategy">
+    <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
+      SELECT LAST_INSERT_ID()
+    </selectKey>
+    insert into data_privilege_strategy (scope_type, scope_id, resource_type_id, 
+      strategy)
+    values (#{scopeType,jdbcType=TINYINT}, #{scopeId,jdbcType=VARCHAR}, #{resourceTypeId,jdbcType=VARCHAR}, 
+      #{strategy,jdbcType=TINYINT})
+  </insert>
+  <insert id="insertSelective" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategy">
+    <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
+      SELECT LAST_INSERT_ID()
+    </selectKey>
+    insert into data_privilege_strategy
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="scopeType != null">
+        scope_type,
+      </if>
+      <if test="scopeId != null">
+        scope_id,
+      </if>
+      <if test="resourceTypeId != null">
+        resource_type_id,
+      </if>
+      <if test="strategy != null">
+        strategy,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="scopeType != null">
+        #{scopeType,jdbcType=TINYINT},
+      </if>
+      <if test="scopeId != null">
+        #{scopeId,jdbcType=VARCHAR},
+      </if>
+      <if test="resourceTypeId != null">
+        #{resourceTypeId,jdbcType=VARCHAR},
+      </if>
+      <if test="strategy != null">
+        #{strategy,jdbcType=TINYINT},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategy">
+    update data_privilege_strategy
+    <set>
+      <if test="scopeType != null">
+        scope_type = #{scopeType,jdbcType=TINYINT},
+      </if>
+      <if test="scopeId != null">
+        scope_id = #{scopeId,jdbcType=VARCHAR},
+      </if>
+      <if test="resourceTypeId != null">
+        resource_type_id = #{resourceTypeId,jdbcType=VARCHAR},
+      </if>
+      <if test="strategy != null">
+        strategy = #{strategy,jdbcType=TINYINT},
+      </if>
+    </set>
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategy">
+    update data_privilege_strategy
+    set scope_type = #{scopeType,jdbcType=TINYINT},
+      scope_id = #{scopeId,jdbcType=VARCHAR},
+      resource_type_id = #{resourceTypeId,jdbcType=VARCHAR},
+      strategy = #{strategy,jdbcType=TINYINT}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+</mapper>

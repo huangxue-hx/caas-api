@@ -4,6 +4,10 @@
         <packages>
             <package name="com.harmonycloud.service.test.application" />
             <package name="com.harmonycloud.service.test.cluster" />
+            <package name="com.harmonycloud.service.test.storageClass" />
+            <package name="com.harmonycloud.service.test.dataprivilege" />
+            <package name="com.harmonycloud.service.test.user" />
+            <package name="com.harmonycloud.service.test.tenant" />
         </packages>
     </test>
 

@@ -21,7 +21,9 @@ import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.cluster.LoadbalanceService;
+import com.harmonycloud.service.common.DataPrivilegeHelper;
 import com.harmonycloud.service.common.PrivilegeHelper;
+import com.harmonycloud.service.dataprivilege.DataPrivilegeService;
 import com.harmonycloud.service.platform.bean.ApplicationList;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
@@ -123,6 +125,12 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     @Autowired
     private RoleLocalService roleLocalService;
 
+    @Autowired
+    private DataPrivilegeService dataPrivilegeService;
+
+    @Autowired
+    private DataPrivilegeHelper dataPrivilegeHelper;
+
     /**
      * get application by tenant namespace name status service implement
      *
@@ -172,7 +180,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         }
 
         //数据权限过滤
-        return ActionReturnUtil.returnSuccessWithData(privilegeHelper.filter(array));
+        return ActionReturnUtil.returnSuccessWithData(dataPrivilegeHelper.filter(array));
     }
     private void getAllAppList(List<BaseResource> appCrdList,Map<String, Object> bodys)throws Exception{
         final List<Cluster> clusterList = this.roleLocalService.listCurrentUserRoleCluster();
@@ -562,7 +570,8 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         } else {
             return ActionReturnUtil.returnSuccessWithData(null);
         }
-        return ActionReturnUtil.returnSuccessWithData(applicationDetailDto);
+        Map filterMap = dataPrivilegeHelper.filter(applicationDetailDto);
+        return ActionReturnUtil.returnSuccessWithData(filterMap);
     }
 
     /**
@@ -638,6 +647,10 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             if (tpr != null && tpr.getItems() != null && tpr.getItems().size() > 0) {
                 for (BaseResource br : tpr.getItems()) {
                     if (br != null && br.getMetadata() != null && br.getMetadata().getName() != null) {
+                        ApplicationDeployDto delObj = new ApplicationDeployDto();
+                        delObj.setAppName(br.getMetadata().getName());
+                        delObj.setNamespace(br.getMetadata().getNamespace());
+                        dataPrivilegeService.deleteResource(delObj);
                         boolean appFlag = true;
                         List<Deployment> items = new ArrayList<>();
                         //labels
@@ -1531,6 +1544,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
      * @throws Exception
      */
     private synchronized void deployApplication(ApplicationDeployDto appDeploy, String username, Cluster cluster) throws Exception {
+        dataPrivilegeService.addResource(appDeploy, null, null);
         String topoLabel = TOPO + SIGN + appDeploy.getProjectId() + SIGN + appDeploy.getAppName();
         String namespaceLabel = appDeploy.getNamespace();
         Set<String> deployments = new HashSet<>();

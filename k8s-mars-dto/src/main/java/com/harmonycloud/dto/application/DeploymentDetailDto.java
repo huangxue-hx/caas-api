@@ -1,12 +1,20 @@
 package com.harmonycloud.dto.application;
 
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DataPrivilegeField;
+import com.harmonycloud.common.enumm.DataPrivilegeType;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
+
 import java.util.List;
 
+@DataPrivilegeType(type = DataResourceTypeEnum.SERVICE)
 public class DeploymentDetailDto {
 
-	private String name;
+    @DataPrivilegeField(type = CommonConstant.DATA_FIELD)
+    private String name;
 
-	private String namespace;
+    @DataPrivilegeField(type = CommonConstant.NAMESPACE_FIELD)
+    private String namespace;
 
 	private String labels;
 
@@ -46,6 +54,7 @@ public class DeploymentDetailDto {
 	/**pod 是否分散*/
 	private AffinityDto podDisperse;
 
+    @DataPrivilegeField(type = CommonConstant.PROJECTID_FIELD)
 	private String projectId;
 
 	private String nodeSelector;

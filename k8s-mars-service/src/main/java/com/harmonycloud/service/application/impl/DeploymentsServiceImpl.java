@@ -1,6 +1,7 @@
 package com.harmonycloud.service.application.impl;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
@@ -10,10 +11,10 @@ import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dto.application.*;
+import com.harmonycloud.dto.dataprivilege.DataPrivilegeDto;
 import com.harmonycloud.dto.scale.AutoScaleDto;
 import com.harmonycloud.dto.scale.HPADto;
 import com.harmonycloud.dto.scale.ResourceMetricScaleDto;
-import com.harmonycloud.dto.user.PrivilegeApplicationFieldDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8SClient;
@@ -28,7 +29,9 @@ import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.FileUploadToContainerService;
 import com.harmonycloud.service.application.RouterService;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.common.DataPrivilegeHelper;
 import com.harmonycloud.service.common.PrivilegeHelper;
+import com.harmonycloud.service.dataprivilege.DataPrivilegeService;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
@@ -140,6 +143,12 @@ public class DeploymentsServiceImpl implements DeploymentsService {
     @Autowired
     private PodDisruptionBudgetService pdbService;
 
+    @Autowired
+    private DataPrivilegeService dataPrivilegeService;
+
+    @Autowired
+    private DataPrivilegeHelper dataPrivilegeHelper;
+
     public ActionReturnUtil listDeployments(String tenantId, String name, String namespace, String labels, String projectId, String clusterId) throws Exception {
         //参数判空
         if (StringUtils.isBlank(projectId)) {
@@ -180,17 +189,19 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             }
         }
         //数据过滤
-        ApplicationDto applicationDto = new ApplicationDto();
+        DataPrivilegeDto dataPrivilegeDto = new DataPrivilegeDto();
+        dataPrivilegeDto.setProjectId(projectId);
         Iterator<Map<String, Object>> iterator = result.iterator();
         while (iterator.hasNext()) {
             Map<String, Object> map = iterator.next();
-//            applicationFieldDto.setNameInSelectService(map.get("name").toString());
-            if (Objects.nonNull(map.get("appName"))) {
-                applicationDto.setName(map.get("appName").toString());
-            }
-            boolean isMatch = privilegeHelper.isAnyMatched(applicationDto);
-            if (!isMatch) {
+            dataPrivilegeDto.setData((String) map.get(CommonConstant.NAME));
+            dataPrivilegeDto.setNamespace((String) map.get(CommonConstant.DATA_NAMESPACE));
+            dataPrivilegeDto.setDataResourceType(DataResourceTypeEnum.SERVICE.getCode());
+            Map filteredMap = dataPrivilegeHelper.filterMap(map, dataPrivilegeDto);
+            if (filteredMap == null) {
                 iterator.remove();
+            }else{
+                map = filteredMap;
             }
         }
         return ActionReturnUtil.returnSuccessWithData(result);
@@ -487,7 +498,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             isOperationable = userService.checkCurrentUserIsAdmin();
         }
         res.setOperationable(isOperationable);
-        return ActionReturnUtil.returnSuccessWithData(res);
+        return ActionReturnUtil.returnSuccessWithData(dataPrivilegeHelper.filter(res));
     }
 
     @Override
@@ -772,6 +783,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
     @Override
     public ActionReturnUtil createDeployment(DeploymentDetailDto detail, String userName, String app, Cluster cluster, List<IngressDto> ingress) throws Exception {
+        dataPrivilegeService.addResource(detail, app, DataResourceTypeEnum.APPLICATION);
         List<CreateContainerDto> containers = detail.getContainers();
         if (containers != null && !containers.isEmpty()) {
             for (CreateContainerDto c : containers) {
@@ -845,6 +857,10 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
     @Override
     public ActionReturnUtil deleteDeployment(String name, String namespace, String userName, Cluster cluster) throws Exception {
+        DeploymentDetailDto delObj = new DeploymentDetailDto();
+        delObj.setName(name);
+        delObj.setNamespace(namespace);
+        dataPrivilegeService.deleteResource(delObj);
         //先删除自动伸缩控制
         boolean scaleDeleted = autoScaleService.delete(namespace, name);
         if (!scaleDeleted) {

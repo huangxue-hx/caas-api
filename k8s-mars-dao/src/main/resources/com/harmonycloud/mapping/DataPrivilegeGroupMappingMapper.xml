@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.dataprivilege.DataPrivilegeGroupMappingMapper">
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMapping">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="data_name" jdbcType="VARCHAR" property="dataName" />
+    <result column="resource_type_id" jdbcType="INTEGER" property="resourceTypeId" />
+    <result column="project_id" jdbcType="VARCHAR" property="projectId" />
+    <result column="cluster_id" jdbcType="VARCHAR" property="clusterId" />
+    <result column="namespace" jdbcType="VARCHAR" property="namespace" />
+    <result column="privilege_type" jdbcType="INTEGER" property="privilegeType" />
+    <result column="parent_id" jdbcType="INTEGER" property="parentId" />
+    <result column="group_id" jdbcType="INTEGER" property="groupId" />
+    <result column="creator_id" jdbcType="BIGINT" property="creatorId" />
+  </resultMap>
+  <sql id="Example_Where_Clause">
+    <where>
+      <foreach collection="oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List">
+    id, data_name, resource_type_id, project_id, cluster_id, namespace, privilege_type, 
+    parent_id, group_id, creator_id
+  </sql>
+  <select id="selectByExample" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMappingExample" resultMap="BaseResultMap">
+    select
+    <if test="distinct">
+      distinct
+    </if>
+    'false' as QUERYID,
+    <include refid="Base_Column_List" />
+    from data_privilege_group_mapping
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null">
+      order by ${orderByClause}
+    </if>
+  </select>
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from data_privilege_group_mapping
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from data_privilege_group_mapping
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <delete id="deleteByExample" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMappingExample">
+    delete from data_privilege_group_mapping
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </delete>
+  <insert id="insert" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMapping">
+    <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
+      SELECT LAST_INSERT_ID()
+    </selectKey>
+    insert into data_privilege_group_mapping (data_name, resource_type_id, project_id, 
+      cluster_id, namespace, privilege_type, 
+      parent_id, group_id, creator_id
+      )
+    values (#{dataName,jdbcType=VARCHAR}, #{resourceTypeId,jdbcType=INTEGER}, #{projectId,jdbcType=VARCHAR}, 
+      #{clusterId,jdbcType=VARCHAR}, #{namespace,jdbcType=VARCHAR}, #{privilegeType,jdbcType=INTEGER}, 
+      #{parentId,jdbcType=INTEGER}, #{groupId,jdbcType=INTEGER}, #{creatorId,jdbcType=BIGINT}
+      )
+  </insert>
+  <insert id="insertSelective" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMapping">
+    <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
+      SELECT LAST_INSERT_ID()
+    </selectKey>
+    insert into data_privilege_group_mapping
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="dataName != null">
+        data_name,
+      </if>
+      <if test="resourceTypeId != null">
+        resource_type_id,
+      </if>
+      <if test="projectId != null">
+        project_id,
+      </if>
+      <if test="clusterId != null">
+        cluster_id,
+      </if>
+      <if test="namespace != null">
+        namespace,
+      </if>
+      <if test="privilegeType != null">
+        privilege_type,
+      </if>
+      <if test="parentId != null">
+        parent_id,
+      </if>
+      <if test="groupId != null">
+        group_id,
+      </if>
+      <if test="creatorId != null">
+        creator_id,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="dataName != null">
+        #{dataName,jdbcType=VARCHAR},
+      </if>
+      <if test="resourceTypeId != null">
+        #{resourceTypeId,jdbcType=INTEGER},
+      </if>
+      <if test="projectId != null">
+        #{projectId,jdbcType=VARCHAR},
+      </if>
+      <if test="clusterId != null">
+        #{clusterId,jdbcType=VARCHAR},
+      </if>
+      <if test="namespace != null">
+        #{namespace,jdbcType=VARCHAR},
+      </if>
+      <if test="privilegeType != null">
+        #{privilegeType,jdbcType=INTEGER},
+      </if>
+      <if test="parentId != null">
+        #{parentId,jdbcType=INTEGER},
+      </if>
+      <if test="groupId != null">
+        #{groupId,jdbcType=INTEGER},
+      </if>
+      <if test="creatorId != null">
+        #{creatorId,jdbcType=BIGINT},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMapping">
+    update data_privilege_group_mapping
+    <set>
+      <if test="dataName != null">
+        data_name = #{dataName,jdbcType=VARCHAR},
+      </if>
+      <if test="resourceTypeId != null">
+        resource_type_id = #{resourceTypeId,jdbcType=INTEGER},
+      </if>
+      <if test="projectId != null">
+        project_id = #{projectId,jdbcType=VARCHAR},
+      </if>
+      <if test="clusterId != null">
+        cluster_id = #{clusterId,jdbcType=VARCHAR},
+      </if>
+      <if test="namespace != null">
+        namespace = #{namespace,jdbcType=VARCHAR},
+      </if>
+      <if test="privilegeType != null">
+        privilege_type = #{privilegeType,jdbcType=INTEGER},
+      </if>
+      <if test="parentId != null">
+        parent_id = #{parentId,jdbcType=INTEGER},
+      </if>
+      <if test="groupId != null">
+        group_id = #{groupId,jdbcType=INTEGER},
+      </if>
+      <if test="creatorId != null">
+        creator_id = #{creatorId,jdbcType=BIGINT},
+      </if>
+    </set>
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMapping">
+    update data_privilege_group_mapping
+    set data_name = #{dataName,jdbcType=VARCHAR},
+      resource_type_id = #{resourceTypeId,jdbcType=INTEGER},
+      project_id = #{projectId,jdbcType=VARCHAR},
+      cluster_id = #{clusterId,jdbcType=VARCHAR},
+      namespace = #{namespace,jdbcType=VARCHAR},
+      privilege_type = #{privilegeType,jdbcType=INTEGER},
+      parent_id = #{parentId,jdbcType=INTEGER},
+      group_id = #{groupId,jdbcType=INTEGER},
+      creator_id = #{creatorId,jdbcType=BIGINT}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <select id="getChildDataMappingGroupWithoutUser" resultType="java.lang.Integer">
+      select map2.group_id from data_privilege_group_mapping map1
+      join data_privilege_group_mapping map2 on map1.id=map2.parent_id
+      and map1.group_id=#{groupId}
+      <if test="username != null">
+      where not exists (select * from data_privilege_group_member mem
+      where map2.group_id=mem.group_id and mem.username=#{username})
+      </if>
+  </select>
+</mapper>

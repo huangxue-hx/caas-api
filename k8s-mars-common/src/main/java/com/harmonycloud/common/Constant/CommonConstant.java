@@ -515,4 +515,33 @@ public class CommonConstant {
 
     public static final int ES_MAX_RESULT_WINDOW = 300000;
 
+    //数据权限策略
+    public static final int DATA_CLOSED_STRATEGY = 1;
+    public static final int DATA_SEMIOPEN_STRATEGY = 2;
+    public static final int DATA_OPEN_STRATEGY = 3;
+
+    //数据权限类型
+    public static final int DATA_READONLY = 1;
+    public static final int DATA_READWRITE = 2;
+
+    //数据权限组类型
+    public static final int DATA_GROUP = 1;
+    public static final int DATA_GROUP_SYSTEM_ADMIN = 2;
+    public static final int DATA_GROUP_TENANT_ADMIN = 3;
+    public static final int DATA_GROUP_PROJECT_ADMIN = 4;
+
+    //数据权限
+    public static final byte SCOPE_TENANT = 0;
+    public static final byte SCOPE_PROJECT = 1;
+
+    //数据权限过滤字段类型
+    public static final int DATA_FIELD = 1;
+    public static final int NAMESPACE_FIELD = 2;
+    public static final int PROJECTID_FIELD = 3;
+    public static final int CLUSTERID_FIELD = 4;
+
+    //数据权限过滤字段
+    public static final String DATA_NAMESPACE = "namespace";
+
+
 }

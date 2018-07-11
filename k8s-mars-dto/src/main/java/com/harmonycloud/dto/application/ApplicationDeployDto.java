@@ -1,20 +1,24 @@
 package com.harmonycloud.dto.application;
 
-import com.harmonycloud.common.enumm.PrivilegeField;
-import com.harmonycloud.common.enumm.PrivilegeType;
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.*;
 
 /**
  * Created by root on 4/10/17.
  */
 @PrivilegeType(name = "app", cnDesc = "应用发布")
+@DataPrivilegeType(type = DataResourceTypeEnum.APPLICATION)
 public class ApplicationDeployDto {
+    @DataPrivilegeField(type = CommonConstant.NAMESPACE_FIELD)
     private String namespace;
 
 	@PrivilegeField(name = "appName", cnDesc = "应用名称")
+    @DataPrivilegeField(type = CommonConstant.DATA_FIELD)
     private String appName;
 
     private String nodeSelector;
 
+    @DataPrivilegeField(type = CommonConstant.PROJECTID_FIELD)
 	private String projectId;
 //
 //    private String capacity;

@@ -2,7 +2,6 @@ package com.harmonycloud.service.user;
 
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.user.bean.LocalRolePrivilege;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.bean.UserGroup;
@@ -10,6 +9,7 @@ import com.harmonycloud.dao.user.bean.UserGroupRelation;
 import com.harmonycloud.dto.user.SummaryUserInfo;
 import com.harmonycloud.dto.user.UserDetailDto;
 import com.harmonycloud.dto.user.UserGroupDto;
+import com.harmonycloud.dto.user.UserQueryDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -85,7 +85,7 @@ public interface UserService {
 
     ActionReturnUtil listAdmin() throws Exception;
 
-    ActionReturnUtil listUsers(Boolean isAdmin, Boolean isMachine, Boolean isCommon, Boolean all) throws Exception;
+    ActionReturnUtil listUsers(UserQueryDto userQueryDto) throws Exception;
 
     ActionReturnUtil listCommonUsers() throws Exception;
 
@@ -243,4 +243,19 @@ public interface UserService {
     public boolean checkCurrentUserIsAdmin();
 
     Map getcurrentUser(HttpServletRequest request, HttpServletResponse response) throws Exception;
+
+    /**
+     * 根据用户名列表查询用户列表
+     * @param usernameList
+     * @return
+     * @throws Exception
+     */
+    List<User> getUserByUsernameList(List<String> usernameList) throws Exception;
+
+    /**
+     * 查询项目下的用户列表
+     * @param projectId
+     * @return
+     */
+    List<User> listUserByProjectId(String projectId);
 }

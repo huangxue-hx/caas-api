@@ -1,8 +1,5 @@
 package com.harmonycloud.dto.tenant;
 
-import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
-import com.harmonycloud.dao.tenant.bean.Project;
-import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
 import com.harmonycloud.dao.tenant.bean.TenantPrivateNode;
 import com.harmonycloud.dao.user.bean.User;
 
@@ -97,6 +94,15 @@ public class TenantDto implements Serializable {
     private String useOrganiseId;
     private String useOrganiseName;
     private String shortFlag;
+    private Integer strategy;
+
+    public Integer getStrategy() {
+        return strategy;
+    }
+
+    public void setStrategy(Integer strategy) {
+        this.strategy = strategy;
+    }
 
     public List<User> getTmUserList() {
         return tmUserList;

@@ -1,5 +1,9 @@
 package com.harmonycloud.service.platform.bean;
 
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DataPrivilegeField;
+import com.harmonycloud.common.enumm.DataPrivilegeType;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
 import com.harmonycloud.dto.application.AffinityDto;
 import com.harmonycloud.dto.scale.AutoScaleDto;
 import com.harmonycloud.k8s.bean.Event;
@@ -13,6 +17,7 @@ import java.util.Map;
  * @author jmi
  *
  */
+@DataPrivilegeType(type = DataResourceTypeEnum.SERVICE)
 public class AppDetail {
 
 	private String clusterIP;
@@ -22,9 +27,9 @@ public class AppDetail {
 	private List<ServicePort> internalPorts;
 
 	private String sessionAffinity;
-
+    @DataPrivilegeField(type = CommonConstant.DATA_FIELD)
 	private String name;
-
+    @DataPrivilegeField(type = CommonConstant.NAMESPACE_FIELD)
 	private String namespace;
 
 	private String clusterId;
