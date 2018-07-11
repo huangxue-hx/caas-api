@@ -116,7 +116,7 @@ public class DependenceController {
             @ApiImplicitParam(name = "decompressed", value = "是否解压", paramType = "query", dataType = "boolean")})
     @RequestMapping(value = "/{dependenceName}/file", method = RequestMethod.POST)
     public ActionReturnUtil uploadFile(@PathVariable("projectId") String projectId,
-                                       @RequestParam(value = "clusterId" ) String clusterId,
+                                       @RequestParam(value = "clusterId", required = false) String clusterId,
                                        @PathVariable("dependenceName") String dependenceName,
                                        @RequestParam(value = "file") MultipartFile file,
                                        @RequestParam(value = "path") String path,
@@ -150,7 +150,7 @@ public class DependenceController {
             @ApiImplicitParam(name = "path", value = "欲删除文件或目录的路径，以“/”开始", paramType = "query", dataType = "String")})
     @RequestMapping(value = "/{dependenceName}/file", method = RequestMethod.DELETE)
     public ActionReturnUtil deleteFile(@PathVariable("projectId") String projectId,
-                                       @RequestParam(value = "clusterId" ) String clusterId,
+                                       @RequestParam(value = "clusterId", required = false) String clusterId,
                                        @PathVariable("dependenceName") String dependenceName,
                                        @RequestParam(value = "path") String path) throws Exception {
         dependenceService.deleteFile(dependenceName, projectId, clusterId, path);
@@ -175,7 +175,7 @@ public class DependenceController {
             @ApiImplicitParam(name = "path", value = "欲获取文件或目录的路径，以“/”开始", required = true ,paramType = "query", dataType = "String")})
     @RequestMapping(value = "/{dependenceName}/filelist", method = RequestMethod.GET)
     public ActionReturnUtil listFile(@PathVariable("projectId") String projectId,
-                                     @RequestParam(value = "clusterId" ) String clusterId,
+                                     @RequestParam(value = "clusterId", required = false) String clusterId,
                                      @PathVariable("dependenceName") String dependenceName,
                                      @RequestParam(value = "path") String path) throws Exception {
         return ActionReturnUtil.returnSuccessWithData(dependenceService.listFile(dependenceName, projectId, clusterId, path));
@@ -198,7 +198,7 @@ public class DependenceController {
             @ApiImplicitParam(name = "keyWord", value = "欲查询的关键词", required = true, paramType = "query", dataType = "String")})
     @RequestMapping(value = "/{dependenceName}/file", method = RequestMethod.GET)
     public ActionReturnUtil findDependenceFileByKeyword(@PathVariable("projectId") String projectId,
-                                                        @RequestParam(value = "clusterId" ) String clusterId,
+                                                        @RequestParam(value = "clusterId", required = false) String clusterId,
                                                         @PathVariable("dependenceName") String dependenceName,
                                                         @RequestParam(value = "keyWord") String keyWord) throws Exception {
         return ActionReturnUtil.returnSuccessWithData(dependenceService.findDependenceFileByKeyword(dependenceName, projectId, clusterId , keyWord));

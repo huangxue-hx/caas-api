@@ -73,6 +73,7 @@ public class DependenceServiceTest extends BaseTest {
 
     @Test(priority = 5)
     public void testDeleteFile() throws Exception {
+        dependenceService.deleteFile("dependence-private-testng", projectId, devClusterId, "/test");
 
     }
 

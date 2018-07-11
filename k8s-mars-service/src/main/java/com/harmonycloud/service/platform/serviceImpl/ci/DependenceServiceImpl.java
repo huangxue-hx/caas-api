@@ -672,9 +672,17 @@ public class DependenceServiceImpl implements DependenceService {
                     file.put("isDirectory",true);
                 } else {
                     file.put("isDirectory", false);
+                }
+
+                //处理无后缀的文件
+                if(!(boolean)file.get("isDirectory") && fileAttributes[10].contains(".")){
                     file.put("type", fileAttributes[10].substring(fileAttributes[10].lastIndexOf(".")+1));
                     file.put("prefixFilename", fileAttributes[10].substring(0, fileAttributes[10].lastIndexOf(".")));
+                }else if(!(boolean)file.get("isDirectory") && !fileAttributes[10].contains(".")){
+                    file.put("type", "");
+                    file.put("prefixFilename", fileAttributes[10]);
                 }
+
 
                 file.put("fileName", fileAttributes[10]);
 
