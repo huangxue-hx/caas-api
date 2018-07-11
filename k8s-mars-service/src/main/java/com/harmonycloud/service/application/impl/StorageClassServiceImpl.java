@@ -6,12 +6,10 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.AssertUtil;
-import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dto.application.StorageClassDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -25,6 +23,7 @@ import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.system.SystemConfigService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,11 +46,13 @@ public class StorageClassServiceImpl implements StorageClassService {
 
     private static final String NFS_STORAGE = "NFS";
 
-    private static final String NFS_PROVISIONER_YAML_PATH = "nfs-provisioner";
+    private static final String NFS_PROVISIONER = "nfs-provisioner";
 
     private static final String NFS_PROVISIONER_NAME = "nfs-client-provisioner";
 
     private static final int NFS_PROVISIONER_USED_TIME = 180;
+
+    private static final String IMAGE_NAME = "imageName";
 
     private static final int CREATE_FAIL_NUM = -1;
 
@@ -67,6 +68,9 @@ public class StorageClassServiceImpl implements StorageClassService {
 
     @Autowired
     DeploymentService deploymentService;
+
+    @Autowired
+    SystemConfigService systemConfigService;
 
     @Override
     public ActionReturnUtil createStorageClass(StorageClassDto storageClass) throws Exception {
@@ -91,8 +95,19 @@ public class StorageClassServiceImpl implements StorageClassService {
             if (StringUtils.isBlank(nfsAddr) || StringUtils.isBlank(nfsPath)){
                 throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
             }
+            List<SystemConfig> systemConfigList = systemConfigService.findByConfigType(NFS_PROVISIONER);
+            String provisionerImage = "";
+            for (SystemConfig systemConfig : systemConfigList) {
+                if (IMAGE_NAME.equals(systemConfig.getConfigName())) {
+                    provisionerImage = cluster.getHarborServer().getHarborHost() + ":" +
+                            cluster.getHarborServer().getHarborPort() + systemConfig.getConfigValue();
+                }
+            }
+            if (StringUtils.isBlank(provisionerImage)) {
+                throw new MarsRuntimeException(ErrorCodeMessage.NFS_PROVISIONER_CONFIG_ERROR);
+            }
             //K8S Storage Class不支持NFS存储，这里需创建支持NFS的插件
-            Map<String, Object> nfsProvisionerMap = buildNfsProvisionerMap(storageClass.getName(), nfsAddr, nfsPath);
+            Map<String, Object> nfsProvisionerMap = buildNfsProvisionerMap(storageClass.getName(), nfsAddr, nfsPath, provisionerImage);
             ((Map<String, Object>)nfsProvisionerMap.get("spec")).put("replicas", 1);
             String createTime = Long.toString((new Date()).getTime());
             ((Map<String, Object>)((Map<String, Object>)nfsProvisionerMap.get("metadata")).get("annotations")).put("createTime", createTime);
@@ -117,17 +132,17 @@ public class StorageClassServiceImpl implements StorageClassService {
         }
     }
 
-    private Map<String, Object> buildNfsProvisionerMap(String scName, String nfsAddr, String nfsPath) throws Exception {
-        Map<String, Object> jsonMap = yamlToMap(NFS_PROVISIONER_YAML_PATH + "/deployment.yaml");
+    private Map<String, Object> buildNfsProvisionerMap(String scName, String nfsAddr, String nfsPath, String provisionerImage) throws Exception {
+        Map<String, Object> jsonMap = yamlToMap(NFS_PROVISIONER + "/deployment.yaml");
         Gson gson = new Gson();
         String jsonString = gson.toJson(jsonMap);
-        String nfsProvisionerString = jsonString.replaceAll("nfsAddr", nfsAddr)
-                .replaceAll("nfsPath", nfsPath).replaceAll("scName", scName);
+        String nfsProvisionerString = jsonString.replaceAll("nfsAddr", nfsAddr).replaceAll("nfsPath", nfsPath)
+                .replaceAll("scName", scName).replace("imageName", provisionerImage);
         return gson.fromJson(nfsProvisionerString, new TypeToken<Map<String, Object>>(){}.getType());
     }
 
     private Map<String, Object> buildStorageClassMap(StorageClassDto sc, String nfsAddr, String nfsPath) throws Exception {
-        Map<String, Object> jsonMap = yamlToMap(NFS_PROVISIONER_YAML_PATH + "/class.yaml");
+        Map<String, Object> jsonMap = yamlToMap(NFS_PROVISIONER + "/class.yaml");
         Gson gson = new Gson();
         String jsonString = gson.toJson(jsonMap);
         String storageClassString = jsonString.replace("scName", sc.getName())
