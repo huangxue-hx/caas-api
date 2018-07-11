@@ -38,6 +38,9 @@ public class CommonConstant {
     // 逗号（字符）
     public static final char COMMA_CHAR = ',';
 
+    //百分号
+    public static final String PERCENT = "%";
+
     public static final String RPID = "rpid";
 
     public static final String DEFAULT = "default";

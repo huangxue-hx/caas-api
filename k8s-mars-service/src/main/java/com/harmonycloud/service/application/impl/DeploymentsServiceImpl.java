@@ -37,6 +37,7 @@ import com.harmonycloud.service.platform.convert.KubeServiceConvert;
 import com.harmonycloud.service.platform.dto.PodDto;
 import com.harmonycloud.service.platform.dto.ReplicaSetDto;
 import com.harmonycloud.service.platform.service.WatchService;
+import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.TenantService;
@@ -139,6 +140,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
     @Autowired
     private PodDisruptionBudgetService pdbService;
+
+    @Autowired
+    private SystemConfigService systemConfigService;
 
     public ActionReturnUtil listDeployments(String tenantId, String name, String namespace, String labels, String projectId, String clusterId) throws Exception {
         //参数判空
@@ -825,10 +829,10 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         resMap.put("deployment", resD);
         resMap.put("service", resS);
 
-
-        //create pdb
+        //创建pdb，minAvailable与maxUnavailable值从系统配置表system_config中获取
+        String minAvailableValue = systemConfigService.findConfigValueByName(Constant.SYSTEM_CONFIG_PDB_MIN_AVAILABLE);
         K8SClientResponse pdbRes =
-                pdbService.createPdbByMinAvilable(detail.getNamespace(), dep.getMetadata().getName() + "-pdb", dep.getSpec().getSelector(), dep.getSpec().getReplicas(), cluster);
+                pdbService.createPdbByType(detail.getNamespace(), dep.getMetadata().getName() + Constant.PDB_SUFFIX, dep.getSpec().getSelector(), Constant.PDB_TYPE_MIN_AVAILABLE, minAvailableValue, cluster);
         if(!HttpStatusUtil.isSuccessStatus((pdbRes.getStatus()))){
             UnversionedStatus status = JsonUtil.jsonToPojo(pdbRes.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
@@ -852,8 +856,8 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         }
 
         //删除pdb
-        if(pdbService.existPdb(namespace ,name + "-pdb", cluster)){
-            K8SClientResponse pdbRes = pdbService.deletePdb(namespace, name + "-pdb", cluster);
+        if(pdbService.existPdb(namespace ,name + Constant.PDB_SUFFIX, cluster)){
+            K8SClientResponse pdbRes = pdbService.deletePdb(namespace, name + Constant.PDB_SUFFIX, cluster);
             if(!HttpStatusUtil.isSuccessStatus((pdbRes.getStatus()))){
                 UnversionedStatus status = JsonUtil.jsonToPojo(pdbRes.getBody(), UnversionedStatus.class);
                 return ActionReturnUtil.returnErrorWithData(status.getMessage());

@@ -101,6 +101,13 @@ public class Constant {
 
 	public final static String STATUS_NORMAL = "0";
 	public final static String STATUS_ABNORMAL = "1";
+
+	//PodDisruptionBudget
+	public final static String PDB_TYPE_MIN_AVAILABLE = "minAvailable";
+	public final static String PDB_TYPE_MAX_UNAVAILABLE = "maxUnavailable";
+	public final static String SYSTEM_CONFIG_PDB_MIN_AVAILABLE = "pdb.minAvailable";
+	public final static String SYSTEM_CONFIG_PDB_MAX_UNAVAILABLE = "pdb.maxUnavailable";
+	public final static String PDB_SUFFIX = "-pdb";
 	
 	//stroge
 	public final static String VOLUME_TYPE_PV = "nfs";
