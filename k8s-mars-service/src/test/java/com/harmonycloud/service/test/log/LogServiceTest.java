@@ -16,7 +16,6 @@ import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.service.LogService;
 import com.harmonycloud.service.test.BaseTest;
-import com.harmonycloud.service.test.application.DeploymentsServiceTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +30,7 @@ import static org.testng.Assert.assertTrue;
  * Created by zqf on 2018/6/28.
  */
 public class LogServiceTest extends BaseTest {
-    protected Logger logger = LoggerFactory.getLogger(DeploymentsServiceTest.class);
+    protected Logger logger = LoggerFactory.getLogger(LogServiceTest.class);
 
     @Autowired
     LogService logService;

@@ -4,29 +4,35 @@ package com.harmonycloud.k8s.bean;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+/**
+ *
+ * @param <T> 泛型参数： maxUnavailable与minAvailable均可设置为整数（Integer）或百分数（String）
+ *           maxUnavailable与minAvailable二选一。
+ *           示例：1（Integer），50%（String）
+ */
 @JsonInclude(value=JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class PodDisruptionBudgetSpec {
-    private Integer maxUnavailable;
+public class PodDisruptionBudgetSpec <T> {
+    private T maxUnavailable;
 
-    private Integer minAvailable;
+    private T minAvailable;
 
     private LabelSelector selector;
 
 
-    public Integer getMaxUnavailable() {
+    public T getMaxUnavailable() {
         return maxUnavailable;
     }
 
-    public void setMaxUnavailable(Integer maxUnavailable) {
+    public void setMaxUnavailable(T maxUnavailable) {
         this.maxUnavailable = maxUnavailable;
     }
 
-    public Integer getMinAvailable() {
+    public T getMinAvailable() {
         return minAvailable;
     }
 
-    public void setMinAvailable(Integer minAvailable) {
+    public void setMinAvailable(T minAvailable) {
         this.minAvailable = minAvailable;
     }
 
