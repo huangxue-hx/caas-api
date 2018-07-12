@@ -1,6 +1,7 @@
 package com.harmonycloud.service.platform.bean;
 
 import com.harmonycloud.dto.application.AffinityDto;
+import com.harmonycloud.k8s.bean.HostAlias;
 
 import java.util.List;
 
@@ -41,6 +42,16 @@ public class UpdateDeployment {
 	private AffinityDto podDisperse;
 
 	private String projectId;
+
+	private List<HostAlias> hostAliases;
+
+	public List<HostAlias> getHostAliases() {
+		return hostAliases;
+	}
+
+	public void setHostAliases(List<HostAlias> hostAliases) {
+		this.hostAliases = hostAliases;
+	}
 
 	public String getProjectId() {
 		return projectId;

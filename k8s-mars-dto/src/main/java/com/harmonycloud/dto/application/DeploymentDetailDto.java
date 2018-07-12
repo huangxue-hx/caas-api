@@ -4,6 +4,7 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DataPrivilegeField;
 import com.harmonycloud.common.enumm.DataPrivilegeType;
 import com.harmonycloud.common.enumm.DataResourceTypeEnum;
+import com.harmonycloud.k8s.bean.HostAlias;
 
 import java.util.List;
 
@@ -58,6 +59,16 @@ public class DeploymentDetailDto {
 	private String projectId;
 
 	private String nodeSelector;
+
+	private List<HostAlias> hostAliases;
+
+	public List<HostAlias> getHostAliases() {
+		return hostAliases;
+	}
+
+	public void setHostAliases(List<HostAlias> hostAliases) {
+		this.hostAliases = hostAliases;
+	}
 
 	public String getNamespace() {
 		return namespace;

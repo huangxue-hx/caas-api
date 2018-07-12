@@ -7,6 +7,7 @@ import com.harmonycloud.common.enumm.DataResourceTypeEnum;
 import com.harmonycloud.dto.application.AffinityDto;
 import com.harmonycloud.dto.scale.AutoScaleDto;
 import com.harmonycloud.k8s.bean.Event;
+import com.harmonycloud.k8s.bean.HostAlias;
 import com.harmonycloud.k8s.bean.ServicePort;
 
 import java.util.List;
@@ -89,6 +90,16 @@ public class AppDetail {
 	private String realName;
 
 	private String aliasNamespace;
+
+	private List<HostAlias> hostAliases;
+
+	public List<HostAlias> getHostAliases() {
+		return hostAliases;
+	}
+
+	public void setHostAliases(List<HostAlias> hostAliases) {
+		this.hostAliases = hostAliases;
+	}
 
 	public String getRealName() {
 		return realName;

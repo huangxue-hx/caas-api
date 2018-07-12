@@ -17,3 +17,9 @@ ALTER TABLE tenant_cluster_quota ADD storage_quotas VARCHAR(255) SET utf8 COLLAT
 
 INSERT INTO system_config (config_name, config_value, config_type, create_user)
 VALUES ('imageName', '/k8s-deploy/nfs-client-provisioner:v2.1.0', 'nfs-provisioner', 'admin');
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`)
+VALUES ('/tenants/*/projects/*/dependence/*/filelist', 'cicd', 'env');
+
+INSERT INTO `k8s_auth_server`.`system_config`(`config_name`, `config_value`, `config_type`)
+VALUES ('pdb.minAvailable', '50%', 'pdb'), ('pdb.maxUnavailable', '50%', 'pdb');

@@ -496,6 +496,8 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         res.setClusterId(cluster.getId());
         res.setAliasNamespace(namespaceLocalService.getNamespaceByName(res.getNamespace()).getAliasName());
         res.setRealName(userService.getUser(res.getOwner()).getRealName());
+        res.setHostAliases(dep.getSpec().getTemplate().getSpec().getHostAliases());
+
         //判断是否是微服务组件应用是否有权限操作
         boolean isOperationable = true;
         if (res.isMsf()) {
@@ -814,6 +816,11 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             detail.setNodeAffinity(nodeAffinityList);
         }
         Deployment dep = K8sResultConvert.convertAppCreate(detail, userName, app, ingress);
+
+        //HostAlias-自定义 hosts file
+        dep.getSpec().getTemplate().getSpec().setHostAliases(detail.getHostAliases());
+
+
         K8SURL k8surl = new K8SURL();
         k8surl.setNamespace(detail.getNamespace()).setResource(Resource.DEPLOYMENT);
         Map<String, Object> headers = new HashMap<String, Object>();
@@ -1193,7 +1200,18 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         nodeAffinityList = setNamespaceLabelAffinity(namespace, nodeAffinityList);
         affinity = KubeAffinityConvert.convertAffinity(nodeAffinityList, deploymentDetail.getPodAffinity(), list);
         dep.getSpec().getTemplate().getSpec().setAffinity(affinity);
-        dep.getMetadata().getAnnotations().put("nephele/annotation", deploymentDetail.getAnnotation());
+
+        //更新备注
+        if(null != deploymentDetail.getAnnotation()){
+            dep.getMetadata().getAnnotations().put("nephele/annotation", deploymentDetail.getAnnotation());
+        }
+
+        //更新HostAlias（自定义hosts file）
+        if(CollectionUtils.isNotEmpty(deploymentDetail.getHostAliases())){
+            dep.getSpec().getTemplate().getSpec().setHostAliases(deploymentDetail.getHostAliases());
+        }
+
+
         Map<String, Object> bodys = CollectionUtil.transBean2Map(dep);
         Map<String, Object> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
