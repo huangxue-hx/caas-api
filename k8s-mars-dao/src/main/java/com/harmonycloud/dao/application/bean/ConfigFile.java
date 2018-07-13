@@ -1,6 +1,7 @@
 package com.harmonycloud.dao.application.bean;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * Created by gurongyun on 17/03/24.
@@ -19,8 +20,24 @@ public class ConfigFile implements Serializable {
 	private String repoName; // 镜像repo
 	private String user; // 创建者
 	private String createTime; // 创建时间
-	private String items; //配置文件内容
-	private String path; //容器内部挂载路径
+	private List<ConfigFileItem> configFileItemList;//配置文件的明細列表
+	private String clusterAliasName;//集群的别名
+
+	public String getClusterAliasName() {
+		return clusterAliasName;
+	}
+
+	public void setClusterAliasName(String clusterAliasName) {
+		this.clusterAliasName = clusterAliasName;
+	}
+
+	public List<ConfigFileItem> getConfigFileItemList() {
+		return configFileItemList;
+	}
+
+	public void setConfigFileItemList(List<ConfigFileItem> configFileItemList) {
+		this.configFileItemList = configFileItemList;
+	}
 
 	public ConfigFile() {
 		super();
@@ -66,14 +83,6 @@ public class ConfigFile implements Serializable {
 		this.user = user;
 	}
 
-	public String getItems() {
-		return items;
-	}
-
-	public void setItems(String items) {
-		this.items = items;
-	}
-
 	public String getRepoName() {
 		return repoName;
 	}
@@ -88,14 +97,6 @@ public class ConfigFile implements Serializable {
 
 	public void setCreateTime(String createTime) {
 		this.createTime = createTime;
-	}
-
-	public String getPath() {
-		return path;
-	}
-
-	public void setPath(String path) {
-		this.path = path;
 	}
 
 	public String getTenantId() {
@@ -128,5 +129,25 @@ public class ConfigFile implements Serializable {
 
 	public void setClusterName(String clusterName) {
 		this.clusterName = clusterName;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+
+		ConfigFile that = (ConfigFile) o;
+
+		if (name != null ? !name.equals(that.name) : that.name != null) return false;
+		if (projectId != null ? !projectId.equals(that.projectId) : that.projectId != null) return false;
+		return clusterId != null ? clusterId.equals(that.clusterId) : that.clusterId == null;
+	}
+
+	@Override
+	public int hashCode() {
+		int result = name != null ? name.hashCode() : 0;
+		result = 31 * result + (projectId != null ? projectId.hashCode() : 0);
+		result = 31 * result + (clusterId != null ? clusterId.hashCode() : 0);
+		return result;
 	}
 }

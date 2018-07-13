@@ -135,6 +135,7 @@
         <mapper resource="com/harmonycloud/mapping/UrlDicMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/ResourceMenuMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/ResourceMenuRoleMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/ConfigFileItemMapper.xml" />
     </mappers>
 </configuration>
 

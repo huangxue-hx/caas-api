@@ -561,7 +561,7 @@ public class ServiceServiceImpl implements ServiceService {
         }
         service.getDeploymentDetail().setProjectId(serviceDeploy.getServiceTemplate().getProjectId());
         ActionReturnUtil depRes = deploymentsService.createDeployment(service.getDeploymentDetail(), userName, null,
-                cluster);
+                cluster, service.getIngress());
         if (!depRes.isSuccess()) {
             Map<String, Object> map = new HashMap<String, Object>();
             map.put(service.getName(), depRes.get("data"));

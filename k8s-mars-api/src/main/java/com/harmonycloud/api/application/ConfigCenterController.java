@@ -1,16 +1,15 @@
 package com.harmonycloud.api.application;
 
-import javax.servlet.http.HttpSession;
-
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.config.ConfigDetailDto;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+
+import javax.servlet.http.HttpSession;
 
 /**
  * Created by gurongyun on 17/03/24.
@@ -116,6 +115,24 @@ public class ConfigCenterController {
 	}
 
 	/**
+	 * 返回当前配置组的所有版本信息
+	 * @param tenantId
+	 * @param projectId
+	 * @param configMapName
+	 * @param clusterId
+	 * @return
+	 * @throws Exception
+	 */
+	@ResponseBody
+	@RequestMapping(value = "/{configMapName}", method = RequestMethod.GET)
+	public ActionReturnUtil getConfigMapByName(@PathVariable("tenantId") String tenantId,
+										 @PathVariable("projectId") String projectId,
+										 @PathVariable("configMapName") String configMapName,
+										 @RequestParam(value = "clusterId")String clusterId) throws Exception {
+		return configCenterService.getConfigMapByName(configMapName,clusterId,projectId);
+	}
+
+	/**
 	 * find a lastest config on 17/03/24.
 	 * 
 	 * @author gurongyun
@@ -128,8 +145,10 @@ public class ConfigCenterController {
 	public ActionReturnUtil getLatestConfigMap(@PathVariable("tenantId") String tenantId,
 											@PathVariable("projectId") String projectId,
 											@RequestParam(value = "name") String name,
-											@RequestParam(value = "reponame") String repoName) throws Exception {
-		return configCenterService.getLatestConfigMap(name, projectId, repoName);
+											@RequestParam(value = "reponame") String repoName,
+											   @RequestParam(value = "clusterId",required = false)String clusterId,
+											   @RequestParam(value = "tags") String tags) throws Exception {
+		return configCenterService.getLatestConfigMap(name, projectId, repoName,clusterId,tags);
 	}
 
 	/**

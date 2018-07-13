@@ -2,6 +2,7 @@ package com.harmonycloud.service.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.DeploymentDetailDto;
+import com.harmonycloud.dto.application.IngressDto;
 import com.harmonycloud.dto.scale.HPADto;
 import com.harmonycloud.k8s.bean.DeploymentList;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -157,7 +158,7 @@ public interface DeploymentsService {
 	 * @return
 	 * @throws Exception
 	 */
-	public ActionReturnUtil createDeployment(DeploymentDetailDto detail, String userName, String app, Cluster cluster) throws Exception;
+	public ActionReturnUtil createDeployment(DeploymentDetailDto detail, String userName, String app, Cluster cluster, List<IngressDto> ingress) throws Exception;
 
 	/**
 	 * 删除deployment
@@ -243,4 +244,18 @@ public interface DeploymentsService {
 	 * @throws Exception
 	 */
 	Map<String, String> createConfigMapInUpdate(String namespace, String depName, Cluster cluster, List<UpdateContainer> containers) throws Exception;
+
+	/**
+	 * 更新Deployment的labels。
+	 * 可同时操作多个label，通过Entry的Value值是否为null来判断具体动作为添加/更新还是删除。
+	 * @author bilongchen@harmonycloud.cn
+	 * @date 2018.6.14
+	 * @param namespace
+	 * @param deploymentName
+	 * @param cluster
+	 * @param label 若Entry的Key与Value均不为null,则添加或更新label；若Entry的Key不为null、Value为null则删除此Key对应的label
+	 * @return ActionReturnUtil
+	 * @throws Exception
+	 */
+	public ActionReturnUtil updateLabels(String  namespace, String deploymentName, Cluster cluster, Map<String, Object> label) throws Exception;
 }

@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.application.ConfigFileItemMapper">
+    <resultMap id="BaseResultMap" type="com.harmonycloud.dao.application.bean.ConfigFileItem">
+        <id column="id" property="id"/>
+        <result column="configfile_id" property="configfileId"/>
+        <result column="path" property="path"/>
+        <result column="file_name" property="fileName"/>
+    </resultMap>
+    <resultMap extends="BaseResultMap" id="ResultMapWithBLOBs" type="com.harmonycloud.dao.application.bean.ConfigFileItem">
+        <result column="content" property="content"/>
+    </resultMap>
+    <sql id="Example_Where_Clause">
+        <where>
+            <foreach collection="oredCriteria" item="criteria" separator="or">
+                <if test="criteria.valid">
+                    <trim prefix="(" prefixOverrides="and" suffix=")">
+                        <foreach collection="criteria.criteria" item="criterion">
+                            <choose>
+                                <when test="criterion.noValue">
+                                    and ${criterion.condition}
+                                </when>
+                                <when test="criterion.singleValue">
+                                    and ${criterion.condition} #{criterion.value}
+                                </when>
+                                <when test="criterion.betweenValue">
+                                    and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                                </when>
+                                <when test="criterion.listValue">
+                                    and ${criterion.condition}
+                                    <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                                        #{listItem}
+                                    </foreach>
+                                </when>
+                            </choose>
+                        </foreach>
+                    </trim>
+                </if>
+            </foreach>
+        </where>
+    </sql>
+    <sql id="Base_Column_List">
+        id, configfile_id, path, file_name
+    </sql>
+    <sql id="Blob_Column_List">
+        content
+    </sql>
+    <select id="selectByExampleWithBLOBs" resultMap="ResultMapWithBLOBs">
+        select
+        <if test="distinct">
+            distinct
+        </if>
+        'false' as QUERYID,
+        <include refid="Base_Column_List"/>
+        ,
+        <include refid="Blob_Column_List"/>
+        from configfile_item
+        <if test="_parameter != null">
+            <include refid="Example_Where_Clause"/>
+        </if>
+        <if test="orderByClause != null">
+            order by ${orderByClause}
+        </if>
+    </select>
+    <select id="selectByExample" resultMap="BaseResultMap">
+        select
+        <if test="distinct">
+            distinct
+        </if>
+        'false' as QUERYID,
+        <include refid="Base_Column_List"/>
+        from configfile_item
+        <if test="_parameter != null">
+            <include refid="Example_Where_Clause"/>
+        </if>
+        <if test="orderByClause != null">
+            order by ${orderByClause}
+        </if>
+    </select>
+    <select id="selectByPrimaryKey" resultMap="ResultMapWithBLOBs">
+        select
+        <include refid="Base_Column_List"/>
+        ,
+        <include refid="Blob_Column_List"/>
+        from configfile_item
+        where id = #{id}
+    </select>
+    <select id="getConfigFileItem" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        ,
+        <include refid="Blob_Column_List"/>
+        from configfile_item
+        where configfile_id = #{ConfigFileId}
+    </select>
+    <delete id="deleteByPrimaryKey">
+        DELETE FROM configfile_item
+        WHERE id = #{id}
+    </delete>
+    <delete id="deleteByExample">
+        delete from configfile_item
+        <if test="_parameter != null">
+            <include refid="Example_Where_Clause"/>
+        </if>
+    </delete>
+    <delete id="deleteConfigFileItem">
+        DELETE FROM configfile_item
+        WHERE configfile_id = #{ConfigFileId}
+    </delete>
+    <insert id="insert">
+        <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
+            SELECT LAST_INSERT_ID()
+        </selectKey>
+        insert into configfile_item (configfile_id, path, file_name, content)
+        values (#{configfileId}, #{path}, #{fileName}, #{content})
+    </insert>
+    <insert id="insertSelective">
+        <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
+            SELECT LAST_INSERT_ID()
+        </selectKey>
+        insert into configfile_item
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="configfileId != null">
+                configfile_id,
+            </if>
+            <if test="path != null">
+                path,
+            </if>
+            <if test="fileName != null">
+                file_name,
+            </if>
+            <if test="content != null">
+                content,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="configfileId != null">
+                #{configfileId},
+            </if>
+            <if test="path != null">
+                #{path},
+            </if>
+            <if test="fileName != null">
+                #{fileName},
+            </if>
+            <if test="content != null">
+                #{content},
+            </if>
+        </trim>
+    </insert>
+    <update id="updateByPrimaryKeySelective">
+        update configfile_item
+        <set>
+            <if test="configfileId != null">
+                configfile_id = #{configfileId},
+            </if>
+            <if test="path != null">
+                path = #{path},
+            </if>
+            <if test="fileName != null">
+                file_name = #{fileName},
+            </if>
+            <if test="content != null">
+                content = #{content},
+            </if>
+        </set>
+        where id = #{id}
+    </update>
+    <update id="updateByPrimaryKeyWithBLOBs">
+        UPDATE configfile_item
+        SET configfile_id = #{configfileId},
+            path          = #{path},
+            file_name     = #{fileName},
+            content       = #{content}
+        WHERE id = #{id}
+    </update>
+    <update id="updateByPrimaryKey">
+        UPDATE configfile_item
+        SET configfile_id = #{configfileId},
+            path          = #{path},
+            file_name     = #{fileName}
+        WHERE id = #{id}
+    </update>
+
+</mapper>

@@ -340,4 +340,14 @@ public class Constant {
 
 	public final static String INGRESS_MULTIPLE_PORT_ANNOTATION = "nginx.ingress.listen";
 
+	//autoscale
+	public final static String LABEL_AUTOSCALE = "autoscale";
+	public final static String STATUS_ON = "true";
+	public final static String STATUS_OFF = "false";
+	//ingress service
+	public final static String LABEL_INGRESS_SERVICE = "ingress";
+	public final static String INGRESS_SERVICE_TRUE = "true";
+	public final static String INGRESS_SERVICE_FALSE = "false";
+
+
 }

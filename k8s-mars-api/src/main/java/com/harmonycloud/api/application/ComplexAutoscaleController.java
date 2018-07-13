@@ -124,6 +124,7 @@ public class ComplexAutoscaleController {
                 && autoScale.getTargetTps() == null
                 && CollectionUtils.isEmpty(autoScale.getTimeMetricScales())
                 && CollectionUtils.isEmpty(autoScale.getCustomMetricScales())){
+
             return MessageUtil.getMessage(ErrorCodeMessage.INDICATOR);
         }
         List<CustomMetricScaleDto> customMetrics = autoScale.getCustomMetricScales();

@@ -4,7 +4,6 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.dto.application.AffinityDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
-import com.sun.tools.internal.jxc.ap.Const;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 

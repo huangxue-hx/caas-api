@@ -3,17 +3,12 @@ package com.harmonycloud.service.test.cluster;
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.service.cluster.ClusterService;
-import com.harmonycloud.service.test.JUnit4ClassRunner;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import com.harmonycloud.service.test.BaseTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.annotation.Rollback;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.web.WebAppConfiguration;
-import org.springframework.transaction.annotation.Transactional;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 import java.util.List;
 
@@ -23,11 +18,7 @@ import static org.junit.Assert.*;
 /**
  * Created by lucia on 2018/6/7.
  */
-@RunWith(JUnit4ClassRunner.class)
-@ContextConfiguration(locations={"classpath:applicationContext.xml"})
-@Transactional
-@WebAppConfiguration
-public class ClusterServiceTest {
+public class ClusterServiceTest extends BaseTest {
 
     protected Logger logger= LoggerFactory.getLogger(ClusterServiceTest.class);
 
@@ -36,7 +27,7 @@ public class ClusterServiceTest {
 
     private List<Cluster> clusters;
 
-    @Before
+    @BeforeMethod
     public void setCluster() throws Exception{
         clusters = clusterService.listAllCluster(null);
     }

@@ -117,64 +117,34 @@ public class UserAuditServiceImpl implements UserAuditService {
         if(org.apache.commons.lang3.StringUtils.isNotBlank(sessionLanguage) && !"null".equals(sessionLanguage)){
             language = sessionLanguage;
         }
-        List<String> searchResults = new ArrayList<>();
-        List<String> enModules = new ArrayList<>();
-        String regex = "[a-zA-Z]+";
-        Pattern pattern = Pattern.compile(regex);
-        for (AuditModuleEnum oneModule : EnumSet.allOf(AuditModuleEnum.class)) {
-            switch (language) {
-                case CommonConstant.LANGUAGE_ENGLISH:
-                    searchResults.add(oneModule.getEnDesc());
-                    break;
-                case CommonConstant.LANGUAGE_CHINESE:
-                    Matcher matcher = pattern.matcher(oneModule.getChDesc());
-                    if (matcher.find()) {
-                        enModules.add(oneModule.getChDesc());
-                    } else {
-                        searchResults.add(oneModule.getChDesc());
-                    }
-                    break;
-                default:
-                    searchResults.add(oneModule.getChDesc());
-                    break;
-            }
+        List<String> modules = null;
+        switch (language) {
+            case CommonConstant.LANGUAGE_ENGLISH:
+                modules = AuditModuleEnum.getAllEnDesc();
+                break;
+            case CommonConstant.LANGUAGE_CHINESE:
+                modules = AuditModuleEnum.getAllChDesc();
+                break;
+            default:
+                modules = AuditModuleEnum.getAllChDesc();
+                break;
         }
-        Set<String> searchResults1 = new HashSet<String>();
-        searchResults.addAll(searchResults1);
-        Collections.sort(searchResults, new Comparator<String>() {
-            @Override
-            public int compare(String o1, String o2) {
-                int len1 = o1.length();
-                int len2 = o2.length();
-                return len1 - len2;
-            }
-        });
-        if (CommonConstant.LANGUAGE_CHINESE.equals(language) && CollectionUtils.isNotEmpty(searchResults)) {
-            List<String> tmpModules = new ArrayList<>();
-            tmpModules.add(searchResults.get(0));
-            for (String enM : enModules) {
-                for (int i = CommonConstant.NUM_ONE; i<searchResults.size(); i++) {
-                    String insertModule = enM.length() == searchResults.get(i).length()
-                            && searchResults.get(i).length() != searchResults.get(i - CommonConstant.NUM_ONE).length()? enM : searchResults.get(i);
-                    tmpModules.add(insertModule);
-                }
-            }
-            searchResults = tmpModules;
-        }
-        searchResults.add(0, searchResults.size() > 0 &&CommonConstant.LANGUAGE_ENGLISH.equals(language)? "all" : "全部模块");
-        return ActionReturnUtil.returnSuccessWithData(searchResults);
+        List<String> moduleDesc = new ArrayList<>();
+        moduleDesc.add(CommonConstant.LANGUAGE_ENGLISH.equals(language)? "all" : "全部模块");
+        moduleDesc.addAll(modules);
+        return ActionReturnUtil.returnSuccessWithData(moduleDesc);
 
     }
 
-	@Override
-	public ActionReturnUtil getAuditCount(UserAuditSearch userAuditSearch) throws Exception {
-		BoolQueryBuilder query = generateQuery(userAuditSearch);
+    @Override
+    public ActionReturnUtil getAuditCount(UserAuditSearch userAuditSearch) throws Exception {
+        BoolQueryBuilder query = generateQuery(userAuditSearch);
         String startTime = userAuditSearch.getStartTime();
         String endTime = userAuditSearch.getEndTime();
         //根据时间范围判断落在哪几个索引
         List<String> indexList = getExistIndexNames(startTime, endTime);
-		return this.getTotalCounts(query, indexList);
-	}
+        return this.getTotalCounts(query, indexList);
+    }
 
     /**
      * 插入数据到ES.
@@ -349,7 +319,7 @@ public class UserAuditServiceImpl implements UserAuditService {
         }
         return ActionReturnUtil.returnSuccessWithData(searchResults);
     }
-    
+
     public ActionReturnUtil getTotalCounts(BoolQueryBuilder query, List<String> indexList) throws Exception {
         SearchRequestBuilder searchRequestBuilder = mulitIndexSearch(indexList);
         // 计算页数对应的数据行数，先查询出来总的记录个数，计算
@@ -399,35 +369,36 @@ public class UserAuditServiceImpl implements UserAuditService {
         platformEsClient.admin().indices().putMapping(mapping).actionGet();
         LOGGER.debug("创建mapping结束:" + mappingType);
     }
-	
-	private BoolQueryBuilder getQueryBuildersByKeywords(String keyWords) throws Exception {
-		//判断是不是中文
-    	String regex = "[\u4e00-\u9fa5]";
-    	Pattern pattern = Pattern.compile(regex);
-    	Matcher matcher = pattern.matcher(keyWords);
-    	BoolQueryBuilder queryCh = QueryBuilders.boolQuery();
+
+    private BoolQueryBuilder getQueryBuildersByKeywords(String keyWords) throws Exception {
+        //判断是不是中文
+        String regex = "[\u4e00-\u9fa5]";
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(keyWords);
+        BoolQueryBuilder queryCh = QueryBuilders.boolQuery();
         if (matcher.find()) {
             String decodeWords = URLDecoder.decode(keyWords, "UTF-8");
-        	queryCh.should(QueryBuilders.matchPhraseQuery("actionChDesc", decodeWords));
-        	queryCh.should(QueryBuilders.matchPhraseQuery("user", decodeWords));
-        	queryCh.should(QueryBuilders.matchPhraseQuery("tenant", decodeWords));
-        	queryCh.should(QueryBuilders.matchPhraseQuery("moduleChDesc", decodeWords));
-        	queryCh.should(QueryBuilders.matchPhraseQuery("subject", decodeWords));
-        	return queryCh;
-        }else{
-        	//判断是否有斜杠
-        	Pattern slashPattern = Pattern.compile(".*/");
-        	Matcher slashMatcher = slashPattern.matcher(keyWords);
-        	if (slashMatcher.find()) {
-        		return queryCh.must(QueryBuilders.matchPhraseQuery("url", keyWords));
-        	} else {
-        		return queryCh.must(QueryBuilders.queryStringQuery("*"+keyWords+"*").field("user")
-            			.field("actionChDesc").field("tenant").field("moduleChDesc").field("subject").field("remoteIp"));
-        	}
-        }  
-	}
+            queryCh.should(QueryBuilders.matchPhraseQuery("actionChDesc", decodeWords));
+            queryCh.should(QueryBuilders.matchPhraseQuery("user", decodeWords));
+            queryCh.should(QueryBuilders.matchPhraseQuery("tenant", decodeWords));
+            queryCh.should(QueryBuilders.matchPhraseQuery("moduleChDesc", decodeWords));
+            queryCh.should(QueryBuilders.matchPhraseQuery("subject", decodeWords));
+            return queryCh;
 
-	private BoolQueryBuilder generateQuery(UserAuditSearch userAuditSearch) throws Exception {
+        }else{
+            //判断是否有斜杠
+            Pattern slashPattern = Pattern.compile(".*/");
+            Matcher slashMatcher = slashPattern.matcher(keyWords);
+            if (slashMatcher.find()) {
+                return queryCh.must(QueryBuilders.matchPhraseQuery("url", keyWords));
+            } else {
+                return queryCh.must(QueryBuilders.queryStringQuery("*"+keyWords+"*").field("user")
+                        .field("actionChDesc").field("tenant").field("moduleChDesc").field("subject").field("remoteIp"));
+            }
+        }
+    }
+
+    private BoolQueryBuilder generateQuery(UserAuditSearch userAuditSearch) throws Exception {
         String startTime = userAuditSearch.getStartTime();
         String endTime = userAuditSearch.getEndTime();
         String moduleName = userAuditSearch.getModuleName();

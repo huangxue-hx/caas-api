@@ -43,7 +43,7 @@ public interface ConfigFileMapper {
      * @description finds configfiles order by create_time
      * @return List
      */
-    ConfigFile getLatestConfig(@Param("name") String name, @Param("projectId") String projectId, @Param("repoName") String repoName);
+    ConfigFile getLatestConfig(@Param("name") String name, @Param("projectId") String projectId, @Param("repoName") String repoName,@Param("clusterId")String clusterId,@Param("tags")String tags);
     
     /**
      * on 17/03/24.
@@ -116,4 +116,5 @@ public interface ConfigFileMapper {
 
     ConfigFile getConfigByNameAndTag(@Param("name") String name, @Param("tag") String tag, @Param("projectId") String projectId, @Param("clusterId") String clusterId);
 
+    List<ConfigFile> getConfigMapByName(@Param("name") String name, @Param("clusterId") String clusterId, @Param("projectId") String projectId);
 }

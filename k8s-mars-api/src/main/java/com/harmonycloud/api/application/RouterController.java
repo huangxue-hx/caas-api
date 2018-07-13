@@ -87,11 +87,12 @@ public class RouterController {
 	@ResponseBody
 	@RequestMapping(value = "/{deployName}/ingress", method = RequestMethod.DELETE)
 	public ActionReturnUtil deleteIng(@RequestParam(value = "namespace", required = true) String namespace,
+									  @PathVariable(value = "deployName") String deployName,
                                       @RequestParam(value = "name", required = true) String name) throws Exception{
 
 		try {
 			logger.info("删除http路由");
-			return routerService.ingDelete(namespace, name);
+			return routerService.ingDelete(namespace, name, deployName);
 		} catch (Exception e) {
 			logger.error("删除http路由错误，namespace="+namespace+",name="+name+",e="+e.getMessage());
 			throw e;
@@ -136,9 +137,9 @@ public class RouterController {
 
 	@ResponseBody
 	@RequestMapping(value="/{deployName}/rules", method = RequestMethod.DELETE)
-	public ActionReturnUtil deleteTcpUdpRule(@ModelAttribute TcpDeleteDto tcpDeleteDto)throws Exception {
+	public ActionReturnUtil deleteTcpUdpRule(@ModelAttribute TcpDeleteDto tcpDeleteDto,@PathVariable(value = "deployName") String deployName)throws Exception {
 		logger.info("删除服务对外的规则");
-		return routerService.deleteSystemRouteRule(tcpDeleteDto);
+		return routerService.deleteSystemRouteRule(tcpDeleteDto,deployName);
 	}
 
 	@ResponseBody

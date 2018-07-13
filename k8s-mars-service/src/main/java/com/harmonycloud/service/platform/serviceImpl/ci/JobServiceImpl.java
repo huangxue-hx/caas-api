@@ -7,19 +7,22 @@ import com.harmonycloud.common.enumm.DockerfileTypeEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.StageTemplateTypeEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.application.bean.ConfigFile;
+import com.harmonycloud.dao.application.bean.ConfigFileItem;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dao.ci.*;
 import com.harmonycloud.dao.ci.bean.*;
 import com.harmonycloud.dao.ci.bean.Job;
-import com.harmonycloud.dto.application.*;
-import com.harmonycloud.dto.cicd.*;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.tenant.bean.Project;
+import com.harmonycloud.dto.application.*;
+import com.harmonycloud.dto.cicd.CicdConfigDto;
+import com.harmonycloud.dto.cicd.JobDto;
+import com.harmonycloud.dto.cicd.ParameterDto;
+import com.harmonycloud.dto.cicd.StageDto;
 import com.harmonycloud.k8s.bean.*;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
@@ -61,28 +64,21 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.DefaultTransactionDefinition;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.yaml.snakeyaml.Yaml;
-
 
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeUtility;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
-import java.sql.Connection;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
 /**
@@ -2336,13 +2332,21 @@ public class JobServiceImpl implements JobService {
                         CreateConfigMapDto configMap = new CreateConfigMapDto();
                         configMap.setPath(volumeMountExt.getMountPath());
                         if (volumeMountExt.getName() != null && volumeMountExt.getName().lastIndexOf("v") > 0) {
+                            int indexByName = volumeMountExt.getName().indexOf("#");
                             configMap.setTag(volumeMountExt.getName().substring(volumeMountExt.getName().lastIndexOf("v") + 1).replace("-", "."));
-                            configMap.setFile(volumeMountExt.getName().substring(0, volumeMountExt.getName().lastIndexOf("v")));
+                            configMap.setFile(volumeMountExt.getName().substring(indexByName+1, volumeMountExt.getName().lastIndexOf("v")));
+                            configMap.setName(volumeMountExt.getName().substring(0,indexByName));
                         }
                         //升级时从数据库读取配置文件的内容
-                        ConfigFile configFile = configCenterService.getConfigByNameAndTag(configMap.getFile(), configMap.getTag(), job.getProjectId(), job.getClusterId());
+                        ConfigFile configFile = configCenterService.getConfigByNameAndTag(configMap.getName(),configMap.getTag(), job.getProjectId(), job.getClusterId());
                         if(configFile != null){
-                            configMap.setValue(configFile.getItems());
+                            List<ConfigFileItem> configFileItemList = configFile.getConfigFileItemList();
+                            for (ConfigFileItem configFileItem : configFileItemList) {
+                                if(configMap.getFile().equals(configFileItem.getFileName())){
+                                    configMap.setValue(configFileItem.getContent());
+                                }
+                            }
+
                         }else{
                             configMap.setValue(null);
                         }
@@ -2363,9 +2367,14 @@ public class JobServiceImpl implements JobService {
                 if(CollectionUtils.isNotEmpty(stageDto.getConfigMaps())){
                     configMapList = new ArrayList<>();
                     for(CreateConfigMapDto createConfigMapDto : stageDto.getConfigMaps()) {
-                        ConfigFile configFile = configCenterService.getConfigByNameAndTag(createConfigMapDto.getFile(), createConfigMapDto.getTag(), job.getProjectId(), job.getClusterId());
+                        ConfigFile configFile = configCenterService.getConfigByNameAndTag(createConfigMapDto.getName(), createConfigMapDto.getTag(), job.getProjectId(), job.getClusterId());
                         if(configFile != null){
-                            createConfigMapDto.setValue(configFile.getItems());
+                            List<ConfigFileItem> configFileItemList = configFile.getConfigFileItemList();
+                            for (ConfigFileItem configFileItem : configFileItemList) {
+                                if(createConfigMapDto.getFile().equals(configFileItem.getFileName())){
+                                    createConfigMapDto.setValue(configFileItem.getContent());
+                                }
+                            }
                         }else{
                             createConfigMapDto.setValue(null);
                         }

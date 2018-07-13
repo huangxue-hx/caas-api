@@ -20,7 +20,7 @@ public interface RouterService {
 
     public ActionReturnUtil ingUpdate(ParsedIngressListUpdateDto parsedIngressList) throws Exception;
 
-    public ActionReturnUtil ingDelete(String namespace, String name) throws Exception;
+    public ActionReturnUtil ingDelete(String namespace, String name, String depName) throws Exception;
 
     public ActionReturnUtil svcList(String namespace) throws Exception;
 
@@ -120,7 +120,7 @@ public interface RouterService {
      * @return ActionReturnUtil
      * @throws Exception
      */
-    ActionReturnUtil deleteSystemRouteRule(TcpDeleteDto tcpDeleteDto) throws Exception;
+    ActionReturnUtil deleteSystemRouteRule(TcpDeleteDto tcpDeleteDto, String deployName) throws Exception;
 
     /**
      * 保存

@@ -94,7 +94,7 @@ public class AuditRequestHandle {
 
     private static final String CDP_DEFAULT_USER = "cdp_default_user";
 
-    protected static final Map<String, AuditUrlEnum> AUDIT_URL_MAP = new ConcurrentHashMap<>(
+    protected static final Map<String, AuditUrlEnum> AUDIT_URL_MAP = new LinkedHashMap<>(
             AuditUrlEnum.values().length);
 
     static {
