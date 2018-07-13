@@ -213,6 +213,6 @@ public interface UserRoleRelationshipService {
      * @return
      * @throws Exception
      */
-    public void deleteUserRoleRelationshipByProjectUserName(String userName) throws Exception;
+    public void deleteByUserName(String userName) throws Exception;
 
 }

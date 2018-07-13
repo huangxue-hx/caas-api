@@ -573,7 +573,7 @@ public class UserRoleRelationshipServiceImpl implements UserRoleRelationshipServ
     }
 
     @Override
-    public void deleteUserRoleRelationshipByProjectUserName(String userName) throws Exception {
+    public void deleteByUserName(String userName) throws Exception {
         //根据用户名删除
         UserRoleRelationshipExample example = this.getExample();
         example.createCriteria().andUsernameEqualTo(userName);

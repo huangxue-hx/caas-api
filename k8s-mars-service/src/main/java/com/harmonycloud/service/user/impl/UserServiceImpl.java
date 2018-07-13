@@ -652,7 +652,7 @@ public class UserServiceImpl implements UserService {
             UserGroupRelationExample example =new UserGroupRelationExample();
             example.createCriteria().andUseridEqualTo(userDb.getId());
             usergrouprelationMapper.deleteByExample(example);//删除用户组关联关系 user_group_relation
-            userRoleRelationshipService.deleteUserRoleRelationshipByProjectUserName(userName);//删除user_role_relationship表中关联数据
+            userRoleRelationshipService.deleteByUserName(userName);//删除user_role_relationship表中关联数据
         }else {
             throw new MarsRuntimeException(ErrorCodeMessage.USER_NOT_EXIST);
         }
