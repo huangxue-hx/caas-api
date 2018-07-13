@@ -4,7 +4,6 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DataPrivilegeField;
 import com.harmonycloud.common.enumm.DataPrivilegeType;
 import com.harmonycloud.common.enumm.DataResourceTypeEnum;
-import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.StringUtil;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMapping;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMember;
@@ -49,6 +48,8 @@ public class DataPrivilegeHelper {
     private final String PROJECTID_FIELD = "projectId";
     private final String NAMESPACE_FIELD = "namespace";
 
+    private final String SETDATAPRIVILEGE_METHOD = "setDataPrivilege";
+
     /**
      * 过滤对象列表结果
      * @param list
@@ -56,7 +57,7 @@ public class DataPrivilegeHelper {
      * @return
      * @throws Exception
      */
-    public <T> List<Map> filter(List<T> list) throws Exception{
+    public <T> List<T> filter(List<T> list) throws Exception{
         if(list == null){
             return null;
         }else if(CollectionUtils.isEmpty(list)){
@@ -73,12 +74,12 @@ public class DataPrivilegeHelper {
         if (Objects.isNull(obj)){
             return null;
         }
-        List<Map> resultList = new ArrayList<>();
+        List<T> resultList = new ArrayList<T>();
 
         for (T t:list) {
-            Map map = filter(t);
-            if(map != null){
-                resultList.add(map);
+            T filterT = filter(t);
+            if(filterT != null){
+                resultList.add(filterT);
             }
         }
 
@@ -92,20 +93,18 @@ public class DataPrivilegeHelper {
      * @return
      * @throws Exception
      */
-    public <T> Map filter(T t) throws Exception {
+    public <T> T filter(T t) throws Exception {
         if(Objects.isNull(t)){
             return null;
         }
 
         int currentRoleId = userService.getCurrentRoleId();
         if(currentRoleId <= CommonConstant.NUM_ROLE_PM){
-            Map dataMap = CollectionUtil.transBean2Map(t);
-            dataMap.put(DATA_PRIVILEGE, READWRITE);
-            return dataMap;
+            t.getClass().getMethod(SETDATAPRIVILEGE_METHOD, String.class).invoke(t, READWRITE);
+            return t;
         }
 
         String username = (String)session.getAttribute(CommonConstant.USERNAME);
-        Map dataMap = null;
 
         Integer roGroupId = null;//只读权限列表groupId
         Integer rwGroupId = null;//可读写权限列表groupId
@@ -126,6 +125,8 @@ public class DataPrivilegeHelper {
 
         }
 
+        boolean readable = false;
+
         List<DataPrivilegeGroupMember> roList = dataPrivilegeGroupMemberService.listMemberInGroup(roGroupId);
 
 
@@ -133,8 +134,8 @@ public class DataPrivilegeHelper {
             List<DataPrivilegeGroupMember> members = null;
             members = roList.stream().filter(member->{ return username.equals(member.getUsername());}).collect(Collectors.toList());
             if(!CollectionUtils.isEmpty(members)){
-                dataMap = CollectionUtil.transBean2Map(t);
-                dataMap.put(DATA_PRIVILEGE, READONLY);
+                readable = true;
+                t.getClass().getMethod(SETDATAPRIVILEGE_METHOD, String.class).invoke(t, READONLY);
             }
         }
 
@@ -144,12 +145,14 @@ public class DataPrivilegeHelper {
             List<DataPrivilegeGroupMember> members = null;
             members = rwList.stream().filter(member->{ return username.equals(member.getUsername());}).collect(Collectors.toList());
             if(!CollectionUtils.isEmpty(members)){
-                dataMap = CollectionUtil.transBean2Map(t);
-                dataMap.put(DATA_PRIVILEGE, READWRITE);
+                readable = true;
+                t.getClass().getMethod(SETDATAPRIVILEGE_METHOD, String.class).invoke(t, READWRITE);
             }
         }
-
-        return dataMap;
+        if(!readable){
+            return null;
+        }
+        return t;
     }
 
 

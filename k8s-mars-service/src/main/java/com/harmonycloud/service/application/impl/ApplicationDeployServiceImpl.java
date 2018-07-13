@@ -565,13 +565,11 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
 //                }
 //
 //            }
-
-            applicationDetailDto.setServiceList(svcArray);
+            applicationDetailDto.setServiceList(dataPrivilegeHelper.filter(svcArray));
         } else {
             return ActionReturnUtil.returnSuccessWithData(null);
         }
-        Map filterMap = dataPrivilegeHelper.filter(applicationDetailDto);
-        return ActionReturnUtil.returnSuccessWithData(filterMap);
+        return ActionReturnUtil.returnSuccessWithData(dataPrivilegeHelper.filter(applicationDetailDto));
     }
 
     /**

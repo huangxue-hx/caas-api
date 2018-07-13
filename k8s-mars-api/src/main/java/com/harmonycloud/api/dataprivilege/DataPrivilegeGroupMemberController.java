@@ -72,7 +72,7 @@ public class DataPrivilegeGroupMemberController {
         if (StringUtils.isBlank(username)){
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
-        dataPrivilegeGroupMemberService.verifyMember(groupId, otherGroupId, username, true);
+        dataPrivilegeGroupMemberService.verifyMember(groupId, otherGroupId, username, true, groupType);
         dataPrivilegeGroupMemberService.delMemberFromPrivilegeGroup(Integer.valueOf(otherGroupId), username);
         dataPrivilegeGroupMemberService.addMemberToPrivilegeGroup(groupId, userId, username);
 
@@ -100,7 +100,7 @@ public class DataPrivilegeGroupMemberController {
         if (StringUtils.isBlank(username) || groupId == null ){
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
-        dataPrivilegeGroupMemberService.verifyMember(groupId, otherGroupId, username, false);
+        dataPrivilegeGroupMemberService.verifyMember(groupId, otherGroupId, username, false, null);
         dataPrivilegeGroupMemberService.delMemberFromPrivilegeGroup(groupId, username);
 
         return ActionReturnUtil.returnSuccess();

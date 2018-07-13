@@ -42,6 +42,8 @@ public class ApplicationDetailDto {
 
     private List<ServiceDetailInApplicationDto> serviceList;
 
+    private String dataPrivilege;
+
     public String getClusterId() {
         return clusterId;
     }
@@ -144,5 +146,13 @@ public class ApplicationDetailDto {
 
     public void setServiceList(List<ServiceDetailInApplicationDto> serviceList) {
         this.serviceList = serviceList;
+    }
+
+    public String getDataPrivilege() {
+        return dataPrivilege;
+    }
+
+    public void setDataPrivilege(String dataPrivilege) {
+        this.dataPrivilege = dataPrivilege;
     }
 }

@@ -21,6 +21,7 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,9 +61,6 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
     @Autowired
     HttpSession session;
 
-    private static final Integer MEMBER_TYPE_USER = 0;//用户
-
-    private static final Integer MEMBER_TYPE_GROUP = 1;//组
 
     private static final String RO_GROUP_ID = "roGroupId";
     private static final String RW_GROUP_ID = "rwGroupId";
@@ -82,7 +80,7 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
         Integer groupId = dataPrivilegeGroupMember.getGroupId();
         if(groupId != null) {
 
-            dataPrivilegeGroupMember.setMemberType(MEMBER_TYPE_USER);
+            dataPrivilegeGroupMember.setMemberType(CommonConstant.MEMBER_TYPE_USER);
             dataPrivilegeGroupMemberMapper.insert(dataPrivilegeGroupMember);
         }else{
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
@@ -108,7 +106,7 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
      */
     private void addUserListToGroup(int groupId, List<String> userList){
         if(CollectionUtils.isNotEmpty(userList)) {
-            dataPrivilegeGroupMemberMapper.insertUserList(groupId, MEMBER_TYPE_USER, userList);
+            dataPrivilegeGroupMemberMapper.insertUserList(groupId, CommonConstant.MEMBER_TYPE_USER, userList);
         }
     }
 
@@ -128,7 +126,7 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
             DataPrivilegeGroupMemberExample example = new DataPrivilegeGroupMemberExample();
             example.createCriteria().andGroupIdEqualTo(groupId)
                     .andUsernameEqualTo(username)
-                    .andMemberTypeEqualTo(MEMBER_TYPE_USER);
+                    .andMemberTypeEqualTo(CommonConstant.MEMBER_TYPE_USER);
             dataPrivilegeGroupMemberMapper.deleteByExample(example);
         }else{
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
@@ -149,7 +147,7 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
 
             DataPrivilegeGroupMemberExample example = new DataPrivilegeGroupMemberExample();
             example.createCriteria().andGroupIdEqualTo(groupId)
-                    .andMemberTypeEqualTo(MEMBER_TYPE_USER);
+                    .andMemberTypeEqualTo(CommonConstant.MEMBER_TYPE_USER);
 
             List<DataPrivilegeGroupMember> memberList = dataPrivilegeGroupMemberMapper.selectByExample(example);
 
@@ -177,37 +175,32 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
      * @throws Exception
      */
     @Override
-    public void initGroupMember(int groupId, String projectId, Integer parentGroupId, int privilegeType) throws Exception {
+    public List<String> initGroupMember(int groupId, String projectId, Integer parentGroupId, int privilegeType, List<String> rwUserlist) throws Exception {
         String currentUsername = userService.getCurrentUsername();
-        Long currentUserId = (Long) session.getAttribute(CommonConstant.USERID);
         List<String> userList = new ArrayList<>();
-        //含有父资源的数据，先拷贝父资源的数据权限组
+        //含有父资源的数据，先获取父资源的数据权限组
         if(parentGroupId != null){
-            dataPrivilegeGroupMemberMapper.copyGroupMember(parentGroupId, groupId);
-            userList = this.listAllUserInGroup(groupId);
+            userList = this.listAllUserInGroup(parentGroupId);
         }
+        //获取项目组成员
         if(StringUtils.isNotBlank(projectId)){
-            //项目成员加到权限组中
             Project project = projectService.getProjectByProjectId(projectId);
             List<Map<String,Object>> userRoles = projectService.listProjectUser(project.getTenantId(), projectId);
-            Set<String> userSet = new HashSet();
-            userRoles.stream().forEach(userRole -> userSet.add((String) userRole.get(CommonConstant.USERNAME)));
-            userSet.addAll(userList);
-            if(CommonConstant.DATA_READONLY == privilegeType){
-                userSet.remove(currentUsername);
-            }else if(CommonConstant.DATA_READWRITE == privilegeType){
-                userSet.add(currentUsername);
-            }
-            this.addUserListToGroup(groupId, new ArrayList<>(userSet));
-        }else if(CommonConstant.DATA_READWRITE == privilegeType){
-            //创建者加到权限组中
-            DataPrivilegeGroupMember dataPrivilegeGroupMember = new DataPrivilegeGroupMember();
-            dataPrivilegeGroupMember.setGroupId(groupId);
-            dataPrivilegeGroupMember.setMemberType(MEMBER_TYPE_USER);
-            dataPrivilegeGroupMember.setMemberId(currentUserId.intValue());
-            dataPrivilegeGroupMember.setUsername(currentUsername);
-            this.addMemberToGroup(dataPrivilegeGroupMember);
+            List projectUsers = userRoles.stream().map(userRole->userRole.get(CommonConstant.USERNAME)).collect(Collectors.toList());
+            userList.addAll(projectUsers);
         }
+
+        if(CommonConstant.DATA_READWRITE == privilegeType) {
+            //读写组加入创建者
+            userList.add(currentUsername);
+        }else if(CommonConstant.DATA_READONLY == privilegeType){
+            //只读组去掉创建者及读写组成员
+            userList.removeAll(Arrays.asList(currentUsername));
+            userList.removeAll(rwUserlist);
+        }
+        this.addUserListToGroup(groupId, userList.stream().distinct().collect(Collectors.toList()));
+
+        return userList;
 
     }
 
@@ -267,7 +260,10 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
         Map<Integer, DataPrivilegeGroupMapping> dataPrivilegeGroupMappingMap = list.stream().collect(Collectors.toMap(DataPrivilegeGroupMapping::getId, dataPrivilegeGroupMapping->dataPrivilegeGroupMapping));
 
         for(DataPrivilegeGroupMapping dataPrivilegeGroupMapping : list){
-            int creatorId = dataPrivilegeGroupMapping.getCreatorId().intValue();
+            int creatorId = 0;
+            if(dataPrivilegeGroupMapping.getCreatorId() != null){
+                creatorId = dataPrivilegeGroupMapping.getCreatorId().intValue();
+            }
             Integer parentCreatorId = null;
             Integer parentId = dataPrivilegeGroupMapping.getParentId();
             DataPrivilegeGroupMapping parentMapping;
@@ -282,8 +278,8 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
                     if(parentCreatorId != null && parentCreatorId == creatorId){
                         continue;
                     }
-                    if(CommonConstant.DATA_READWRITE == dataPrivilegeGroupMapping.getPrivilegeType()){
-                        User creator = userMap.get(creatorId);
+                    if(CommonConstant.DATA_READWRITE == dataPrivilegeGroupMapping.getPrivilegeType()) {
+                        User creator = userMap.get((long)creatorId);
                         if(creator != null){
                             this.addMemberToPrivilegeGroup(groupId, creatorId, creator.getUsername());
                         }
@@ -335,6 +331,17 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
     }
 
     /**
+     * 删除所有权限组中的某成员
+     * @param dataPrivilegeGroupMember
+     * @throws Exception
+     */
+    public void deleteMemberInAllGroup(DataPrivilegeGroupMember dataPrivilegeGroupMember) throws Exception {
+        DataPrivilegeGroupMemberExample example = new DataPrivilegeGroupMemberExample();
+        example.createCriteria().andMemberIdEqualTo(dataPrivilegeGroupMember.getMemberId()).andMemberTypeEqualTo(dataPrivilegeGroupMember.getMemberType());
+        dataPrivilegeGroupMemberMapper.deleteByExample(example);
+    }
+
+    /**
      * 数据权限组中增加成员
      * @param groupId
      * @param userId
@@ -349,13 +356,17 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
         groupList.stream().forEach(id ->{
             DataPrivilegeGroupMember dataPrivilegeGroupMember = new DataPrivilegeGroupMember();
             dataPrivilegeGroupMember.setGroupId(id);
-            dataPrivilegeGroupMember.setMemberType(MEMBER_TYPE_USER);
+            dataPrivilegeGroupMember.setMemberType(CommonConstant.MEMBER_TYPE_USER);
             dataPrivilegeGroupMember.setMemberId(userId);
             dataPrivilegeGroupMember.setUsername(username);
             dataPrivilegeGroupMemberList.add(dataPrivilegeGroupMember);
 
         });
-        this.addListToGroup(dataPrivilegeGroupMemberList);
+        try {
+            this.addListToGroup(dataPrivilegeGroupMemberList);
+        }catch (DuplicateKeyException e){
+            throw new MarsRuntimeException(ErrorCodeMessage.GROUP_USER_EXIST);
+        }
     }
 
     /**
@@ -429,10 +440,11 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
      * 校验增删数据权限成员
      * @param groupId
      * @param username
+     * @param groupType
      * @throws Exception
      */
     @Override
-    public void verifyMember(Integer groupId, Integer otherGroupId, String username, boolean isAdd) throws Exception {
+    public void verifyMember(Integer groupId, Integer otherGroupId, String username, boolean isAdd, Integer groupType) throws Exception {
         Integer rwGroupId = null;
         List<String> userList = null;
         String currentUser = (String)session.getAttribute(CommonConstant.USERNAME);
@@ -464,6 +476,12 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
             if(userList.contains(username)){
                 throw new MarsRuntimeException(ErrorCodeMessage.GROUP_USER_EXIST);
             }
+            if(groupType == CommonConstant.DATA_READONLY){
+                List<String> parentUserList = dataPrivilegeGroupMemberMapper.selectParentDataGroupUser(otherGroupId);
+                if(parentUserList.contains(username)){
+                    throw new MarsRuntimeException(ErrorCodeMessage.PARENT_RW_GROUP_USER_DELETE_FIRST);
+                }
+            }
         }else{
             //删除用户时校验父资源中是否有此用户
             List<String> parentUserList = dataPrivilegeGroupMemberMapper.selectParentDataGroupUser(groupId);
@@ -485,13 +503,13 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
         List<String> userList = new ArrayList<>();
         List<DataPrivilegeGroupMember> list = this.listMemberInGroup(groupId);
         list.stream().forEach(dataPrivilegeGroupMember->{
-            if(dataPrivilegeGroupMember.getMemberType() == MEMBER_TYPE_USER) {
+            if(dataPrivilegeGroupMember.getMemberType() == CommonConstant.MEMBER_TYPE_USER) {
                 userList.add(dataPrivilegeGroupMember.getUsername());
-            }else if (dataPrivilegeGroupMember.getMemberType() == MEMBER_TYPE_GROUP) {
+            }else if (dataPrivilegeGroupMember.getMemberType() == CommonConstant.MEMBER_TYPE_GROUP) {
                 try {
                     userList.addAll(this.listAllUserInGroup(dataPrivilegeGroupMember.getMemberId()));
                 } catch (Exception e) {
-                    throw new MarsRuntimeException();
+                    throw new MarsRuntimeException(ErrorCodeMessage.GROUP_QUERY_ERROR);
                 }
             }
         });

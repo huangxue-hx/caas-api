@@ -160,7 +160,9 @@ public enum ErrorCodeMessage {
     //数据权限204xxx
     GROUP_EDIT_NO_PRIVILEGE(204001, "You cannot edit the privilege group for this data.", "无权限修改该数据的用户权限列表"),
     GROUP_USER_EXIST(204002, "User already exist in group.", "列表中已存在该用户"),
-    PARENT_GROUP_USER_DELETE_FIRST(204003, "User in parent data privilege group, remove it first", "请先删除父资源数据权限列表中的此用户"),
+    PARENT_GROUP_USER_DELETE_FIRST(204003, "User in parent data privilege group, remove it first", "请先删除父资源对应数据权限列表中的此用户"),
+    PARENT_RW_GROUP_USER_DELETE_FIRST(204004, "User in parent data read-write privilege group, remove it first", "请先删除父资源读写数据权限列表中的此用户"),
+    GROUP_QUERY_ERROR(204005, "Privilege group query failed", "数据权限组查询失败"),
 
     //集群相关错误代码 300xxx
     CLUSTER_NAME_DUPLICATE(300001, "Cluster Name Duplicate.", "集群名称已存在"),

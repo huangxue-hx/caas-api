@@ -1,5 +1,9 @@
 package com.harmonycloud.dto.application;
 
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DataPrivilegeField;
+import com.harmonycloud.common.enumm.DataPrivilegeType;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
 import com.harmonycloud.k8s.bean.LabelSelector;
 
 import java.util.List;
@@ -11,10 +15,12 @@ import java.util.Map;
  * @Date created in 2018-5-15
  * @Modified
  */
+@DataPrivilegeType(type = DataResourceTypeEnum.SERVICE)
 public class ServiceDetailInApplicationDto {
 
     private String isExternal;
 
+    @DataPrivilegeField(type = CommonConstant.DATA_FIELD)
     private String name;
 
     private Map<String, String> labels;
@@ -35,11 +41,14 @@ public class ServiceDetailInApplicationDto {
 
     private String createTime;
 
+    @DataPrivilegeField(type = CommonConstant.NAMESPACE_FIELD)
     private String namespace;
 
     private String aliasNamespace;
 
     private LabelSelector selector;
+
+    private String dataPrivilege;
 
     public String getIsExternal() {
         return isExternal;
@@ -151,5 +160,13 @@ public class ServiceDetailInApplicationDto {
 
     public void setSelector(LabelSelector selector) {
         this.selector = selector;
+    }
+
+    public String getDataPrivilege() {
+        return dataPrivilege;
+    }
+
+    public void setDataPrivilege(String dataPrivilege) {
+        this.dataPrivilege = dataPrivilege;
     }
 }

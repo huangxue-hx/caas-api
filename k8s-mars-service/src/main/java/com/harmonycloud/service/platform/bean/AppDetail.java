@@ -91,6 +91,8 @@ public class AppDetail {
 
 	private String aliasNamespace;
 
+    private String dataPrivilege;
+
 	private List<HostAlias> hostAliases;
 
 	public List<HostAlias> getHostAliases() {
@@ -100,6 +102,7 @@ public class AppDetail {
 	public void setHostAliases(List<HostAlias> hostAliases) {
 		this.hostAliases = hostAliases;
 	}
+
 
 	public String getRealName() {
 		return realName;
@@ -364,4 +367,12 @@ public class AppDetail {
 	public void setClusterId(String clusterId) {
 		this.clusterId = clusterId;
 	}
+
+    public String getDataPrivilege() {
+        return dataPrivilege;
+    }
+
+    public void setDataPrivilege(String dataPrivilege) {
+        this.dataPrivilege = dataPrivilege;
+    }
 }

@@ -48,6 +48,8 @@ public class ApplicationDto {
 
     private String realName;
 
+    private String dataPrivilege;
+
     public String getRealName() {
         return realName;
     }
@@ -174,5 +176,13 @@ public class ApplicationDto {
 
     public void setUser(String user) {
         this.user = user;
+    }
+
+    public String getDataPrivilege() {
+        return dataPrivilege;
+    }
+
+    public void setDataPrivilege(String dataPrivilege) {
+        this.dataPrivilege = dataPrivilege;
     }
 }
