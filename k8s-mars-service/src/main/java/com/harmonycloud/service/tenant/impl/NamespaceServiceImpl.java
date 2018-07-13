@@ -269,7 +269,10 @@ public class NamespaceServiceImpl implements NamespaceService {
                         String storageName = storageClassQuotaDto.getName();
                         for (StorageDto storageDto : storageDtoList) {
                             if (storageDto.getName().equals(storageName)) {
-                                int namespaceUsed = namespaceStorageUsed.get(storageName);
+                                int namespaceUsed = 0;
+                                if (namespaceStorageUsed.size() > 0 && namespaceStorageUsed.get(storageName) != null) {
+                                    namespaceUsed = namespaceStorageUsed.get(storageName);
+                                }
                                 int resource = Integer.parseInt(storageClassQuotaDto.getQuota()) + namespaceUsed - Integer.parseInt(storageDto.getStorageQuota());
                                 if (resource > 0) {
                                     throw new MarsRuntimeException(ErrorCodeMessage.STORAGE_QUOTA_OVER_FLOOR, DictEnum.NAMESPACE.phrase() + ": " + namespaceDto.getName(), Boolean.FALSE);

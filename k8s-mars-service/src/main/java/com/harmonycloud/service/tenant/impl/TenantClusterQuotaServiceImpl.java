@@ -116,22 +116,42 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
             double cpuQuota = tenantClusterQuota.getCpuQuota();
             clusterQuotaDto.setCpuQuota(Double.valueOf(nf.format(cpuQuota % CommonConstant.NUM_ONE_DOUBLE == 0 ? (long) cpuQuota : cpuQuota)));
             clusterQuotaDto.setCpuQuotaType(CommonConstant.CORE);
+            //获取集群中除此租户还有多少存储资源可用
+            Map<String, Integer> storageClassUnusedMap = tenantService.getStorageClassUnused(tenantId, currentClusterId);
+            List<StorageDto> storageDtoList = new ArrayList<>();
             //租户集群存储配额
             if (tenantClusterQuota.getStorageQuotas() != null && !tenantClusterQuota.getStorageQuotas().equals("")) {
-                List<StorageDto> storageDtoList = new ArrayList<>();
+                //获取集群中分区已使用的存储
+                Map<String, Integer> storageUsageMap= getStorageUsage(tenantId, currentClusterId);
                 String[] storageQuotasArray = tenantClusterQuota.getStorageQuotas().split(",");
                 for (String storageQuota : storageQuotasArray) {
                     String[] storageQuotaArray = storageQuota.split("_");
                     StorageDto storageDto = new StorageDto();
                     storageDto.setName(storageQuotaArray[0]);
                     storageDto.setStorageQuota(storageQuotaArray[1]);
-                    storageDto.setTotalStorage(storageQuotaArray[2]);
-                    storageDto.setUsedStorage(storageQuotaArray[1]);
-                    storageDto.setUnUsedStorage(Double.toString(Double.parseDouble(storageQuotaArray[2]) - Double.parseDouble(storageQuotaArray[1])));
+                    if (storageClassUnusedMap.get(storageQuotaArray[0]) != null) {
+                        storageDto.setTotalStorage(String.valueOf(storageClassUnusedMap.get(storageQuotaArray[0])));
+                        storageDto.setUnUsedStorage(Integer.toString(storageClassUnusedMap.get(storageQuotaArray[0]) - Integer.parseInt(storageQuotaArray[1])));
+                    } else {
+                        storageDto.setTotalStorage(storageQuotaArray[2]);
+                        storageDto.setUnUsedStorage(Integer.toString(Integer.parseInt(storageQuotaArray[2]) - Integer.parseInt(storageQuotaArray[1])));
+                    }
+                    if (storageUsageMap.get(storageQuotaArray[0]) != null) {
+                        storageDto.setUsedStorage(Integer.toString(storageUsageMap.get(storageQuotaArray[0])));
+                    } else {
+                        storageDto.setUsedStorage(storageQuotaArray[1]);
+                    }
                     storageDtoList.add(storageDto);
                 }
-                clusterQuotaDto.setStorageQuota(storageDtoList);
+            } else {
+                for (String storageClassName : storageClassUnusedMap.keySet()) {
+                    StorageDto storageDto = new StorageDto();
+                    storageDto.setName(storageClassName);
+                    storageDto.setTotalStorage(Integer.toString(storageClassUnusedMap.get(storageClassName)));
+                    storageDtoList.add(storageDto);
+                }
             }
+            clusterQuotaDto.setStorageQuota(storageDtoList);
             //租户集群使用量
             getClusterUsage(tenantId,currentClusterId,clusterQuotaDto);
             quotaDtos.add(clusterQuotaDto);
@@ -224,7 +244,7 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
         //根据tenantId查询集群资源使用列表
         Map<String, List> clusterQuotaListByTenantId = namespaceService.getClusterQuotaListByTenantid(tenantId,clusterId);
         Map<String, Integer> allStorageUsedMap = new HashMap<>();
-        if (!Objects.isNull(clusterId)) {
+        if (!Objects.isNull(clusterId) && clusterQuotaListByTenantId.size() > 0) {
             List<Map> list = clusterQuotaListByTenantId.get(clusterId);
             for (Map map : list) {
                 //分区中storage已使用资源统计

@@ -89,6 +89,14 @@ public interface TenantService {
     public TenantBinding getTenantByTenantid(String tenantid) throws Exception;
 
     /**
+     * 根据集群id，租户id获取该租户还可以使用的存储资源
+     * @param clusterId
+     * @return
+     * @throws Exception
+     */
+    public Map<String, Integer> getStorageClassUnused(String tenantId, String clusterId) throws Exception;
+
+    /**
      * 查询tenant下所有Tm用户
      * @param tenantid
      * @return
