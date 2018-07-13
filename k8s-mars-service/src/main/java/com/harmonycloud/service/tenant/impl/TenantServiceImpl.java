@@ -600,7 +600,7 @@ public class TenantServiceImpl implements TenantService {
                 Map<String, Integer> storageUsedMap = this.tenantClusterQuotaService.getStorageUsage(tenantId, clusterId);
                 if (storageUsedMap.size() > 0) {
                     if (storageDtoList == null) {
-                        throw new MarsRuntimeException("删除集群配额失败，集群分区中已使用存储！");
+                        throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_QUOTA_DELETE_FAIL);
                     }
                     for (String storageName : storageUsedMap.keySet()) {
                         Boolean hasStorage = false;
@@ -612,19 +612,28 @@ public class TenantServiceImpl implements TenantService {
                             }
                         }
                         if (!hasStorage) {
-                            throw new MarsRuntimeException(ErrorCodeMessage.RESOURCE_OVER_FLOOR);
+                            throw new MarsRuntimeException(ErrorCodeMessage.RESOURCE_BEHIND_FLOOR);
                         }
                     }
                 }
                 if (storageDtoList != null) {
+                    //同集群下其他租户对StorageClass使用情况
+                    Map<String, Integer> storageClassUnusedMap = getStorageClassUnused(tenantId, clusterId);
+                    //对用户设定的存储配额进行验证
                     for (StorageDto storageDto : storageDtoList) {
                         //用户设定的存储配额
-                        Double storageQuota = Double.parseDouble(storageDto.getStorageQuota());
-                        Double totalStorage = Double.parseDouble(storageDto.getTotalStorage());
+                        Integer storageQuota = Integer.parseInt(storageDto.getStorageQuota());
+                        Integer totalStorage = Integer.parseInt(storageDto.getTotalStorage());
                         //用户设定的存储配额值必须不大于总的存储配额
                         if (storageQuota > totalStorage) {
                             status = Boolean.FALSE;
                         }
+                        if (storageClassUnusedMap.size() > 0 && storageClassUnusedMap.get(storageDto.getName()) != null) {
+                            if (Integer.parseInt(storageDto.getStorageQuota()) > storageClassUnusedMap.get(storageDto.getName())) {
+                                throw new MarsRuntimeException(ErrorCodeMessage.RESOURCE_OVER_FLOOR);
+                            }
+                        }
+                        //如果当前租户使用的StorageClass其他租户未使用，获取k8s中StorageClass相关信息
                         ActionReturnUtil scResponse = storageClassService.getStorageClass(storageDto.getName(), clusterQuotaDto.getClusterId());
                         if (scResponse == null || scResponse.getData() == null) {
                             logger.error("查询StorageClass失败，StorageClass名称为 {}", storageDto.getName());
@@ -1022,6 +1031,32 @@ public class TenantServiceImpl implements TenantService {
         }
         return list.get(0);
 
+    }
+
+    @Override
+    public Map<String, Integer> getStorageClassUnused(String tenantId , String clusterId) throws Exception {
+        List<TenantClusterQuota> tenantClusterQuotaList = tenantClusterQuotaService.getClusterQuotaByClusterId(clusterId, false);
+        //StorageClass剩余的存储容量
+        Map<String, Integer> storageClassUnusedMap = new HashMap<>();
+        for (TenantClusterQuota tenantClusterQuota : tenantClusterQuotaList) {
+            String storageQuotas = tenantClusterQuota.getStorageQuotas();
+            if (!StringUtils.isBlank(storageQuotas)) {
+                if (tenantId.equals(tenantClusterQuota.getTenantId())) {
+                    continue;
+                }
+                String[] storageQuotasArray = storageQuotas.split(",");
+                for (String storageQuota : storageQuotasArray) {
+                    String[] storageQuotaArray = storageQuota.split("_");
+                    if (storageClassUnusedMap.get(storageQuotaArray[0]) == null) {
+                        storageClassUnusedMap.put(storageQuotaArray[0], Integer.parseInt(storageQuotaArray[2]) - Integer.parseInt(storageQuotaArray[1]));
+                    } else {
+                        Integer tmpUnused = storageClassUnusedMap.get(storageQuotaArray[0]);
+                        storageClassUnusedMap.put(storageQuotaArray[0], tmpUnused - Integer.parseInt(storageQuotaArray[1]));
+                    }
+                }
+            }
+        }
+        return storageClassUnusedMap;
     }
 
     @Override

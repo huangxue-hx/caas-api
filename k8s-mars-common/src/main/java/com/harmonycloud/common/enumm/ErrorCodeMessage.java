@@ -201,9 +201,11 @@ public enum ErrorCodeMessage {
     DATACENTER_NICENAME_SAME(300036,"New nickname is same with old nickname.","别名一致"),
     DATACENTER_UPDATE_FAIL(300037,"Datacenter update fail","该数据中心更新失败"),
     LIST_CLUSTERQUOTA_INCORRECT(300038, "Get cluster quota failed.","获取配额失败"),
-    RESOURCE_OVER_FLOOR(300039, "Resource quotas should not be less than allocated quotas.","资源配额不能少于已分配的配额"),
-    UPDATE_CLUSTERQUOTA_INCORRECT(300040, "Cluster quota incorrect，please refresh the page resource.","配额不正确,请重新刷新页面资源"),
-    STORAGE_QUOTA_OVER_FLOOR(300041, "Storage quotas exceed available quotas.","分区存储配额超过可使用的配额"),
+    RESOURCE_OVER_FLOOR(300039, "Tenant cluster quota cannot be greater than the available storage capacity.","租户集群配额不能大于可使用的存储容量"),
+    RESOURCE_BEHIND_FLOOR(300040, "Tenant cluster quota cannot be less than the used storage capacity.","租户集群配额不能小于于已使用的存储容量"),
+    UPDATE_CLUSTERQUOTA_INCORRECT(300041, "Cluster quota incorrect，please refresh the page resource.","配额不正确,请重新刷新页面资源"),
+    STORAGE_QUOTA_OVER_FLOOR(300042, "Storage quotas exceed available quotas.","分区存储配额超过可使用的配额"),
+    CLUSTER_QUOTA_DELETE_FAIL(300043, "Failed to delete cluster quota, storage in quota used in cluster partition", "删除集群配额失败，集群分区中已使用配额中的存储"),
 
     //主机节点 301xxx
     NODE_LABEL_CREATE_ERROR(301001, "Node label create failed.","主机标签创建失败"),
@@ -307,6 +309,8 @@ public enum ErrorCodeMessage {
     STORAGECLASS_DELETE_ERROR(402009, "Failed to delete StorageClass. StorageClass is already used. Please delete related storage volume first.", "StorageClass删除失败，StorageClass已经被使用，请先删除相关存储卷"),
     PVC_CAN_NOT_DELETE(402010, "The storage has been used, not to delete.", "该存储已经被使用，不允许删除"),
     NFS_PROVISIONER_CONFIG_ERROR(402011, "The configuration of the nfs plugin image is not found in the system configuration", "系统配置中没有找到nfs插件镜像的配置"),
+    RECYCLE_POD_CONFIG_ERROR(402012, "The configuration to clear the storage plugin image was not found in the system configuration.", "系统配置中没有找到清空存储插件镜像的配置"),
+
     //弹性伸缩 403xxx
     SERVICE_AUTOSCALE_CREATE_FAILURE(403001, "Create autoScale failure.", "自动伸缩创建失败"),
     SERVICE_AUTOSCALE_DELETE_FAILURE(403002, "Delete autoScale failure.", "自动伸缩删除失败"),
