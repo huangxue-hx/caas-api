@@ -16,7 +16,16 @@ ALTER TABLE k8s_auth_server.`configfile`
 ALTER TABLE tenant_cluster_quota ADD storage_quotas VARCHAR(255) SET utf8 COLLATE utf8_general_ci DEFAULT '' COMMENT '集群租户的所有存储配额信息（name1_quota1_total1，name2_quota2_total2...）'
 
 INSERT INTO system_config (config_name, config_value, config_type, create_user)
-VALUES ('imageName', '/k8s-deploy/nfs-client-provisioner:v2.1.0', 'nfs-provisioner', 'admin');
+VALUES ('provisionerImageName', '/k8s-deploy/nfs-client-provisioner:v2.1.0', 'nfs-provisioner', 'admin');
+
+INSERT INTO system_config (config_name, config_value, config_type, create_user)
+VALUES ('recycleImageName', '/k8s-deploy/busybox', 'recycle-pod', 'admin');
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`)
+VALUES ('/tenants/*/projects/*/pvc', 'appcenter', 'volume');
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`)
+VALUES ('/tenants/*/projects/*/pvc/*/recycle', 'appcenter', 'volume');
 
 INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`)
 VALUES ('/tenants/*/projects/*/dependence/*/filelist', 'cicd', 'env');

@@ -11,16 +11,26 @@ public class PvcDto implements Serializable {
 
     private String name;
 
-    private String clusterName;
+    private String clusterId;
+
+    private String clusterAliasName;
 
     private String namespace;
 
+    private String namespaceAliasName;
+
     //容量
     private String capacity;
+
+    //storageClass name
+    private String storageClassName;
+
     //状态
     private String status;
     //绑定的服务（多个的话以“，”分割）
     private String bindingServices;
+
+    private Boolean readOnly;
 
     private Date createTime;
 
@@ -32,12 +42,20 @@ public class PvcDto implements Serializable {
         this.name = name;
     }
 
-    public String getClusterName() {
-        return clusterName;
+    public String getClusterId() {
+        return clusterId;
     }
 
-    public void setClusterName(String clusterName) {
-        this.clusterName = clusterName;
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
+    }
+
+    public String getClusterAliasName() {
+        return clusterAliasName;
+    }
+
+    public void setClusterAliasName(String clusterAliasName) {
+        this.clusterAliasName = clusterAliasName;
     }
 
     public String getNamespace() {
@@ -48,12 +66,28 @@ public class PvcDto implements Serializable {
         this.namespace = namespace;
     }
 
+    public String getNamespaceAliasName() {
+        return namespaceAliasName;
+    }
+
+    public void setNamespaceAliasName(String namespaceAliasName) {
+        this.namespaceAliasName = namespaceAliasName;
+    }
+
     public String getCapacity() {
         return capacity;
     }
 
     public void setCapacity(String capacity) {
         this.capacity = capacity;
+    }
+
+    public String getStorageClassName() {
+        return storageClassName;
+    }
+
+    public void setStorageClassName(String storageClassName) {
+        this.storageClassName = storageClassName;
     }
 
     public String getStatus() {
@@ -70,6 +104,14 @@ public class PvcDto implements Serializable {
 
     public void setBindingServices(String bindingServices) {
         this.bindingServices = bindingServices;
+    }
+
+    public Boolean getReadOnly() {
+        return readOnly;
+    }
+
+    public void setReadOnly(Boolean readOnly) {
+        this.readOnly = readOnly;
     }
 
     public Date getCreateTime() {

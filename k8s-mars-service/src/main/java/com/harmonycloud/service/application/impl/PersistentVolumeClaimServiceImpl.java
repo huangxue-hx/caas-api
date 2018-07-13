@@ -7,6 +7,8 @@ import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.system.bean.SystemConfig;
+import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dto.application.PersistentVolumeClaimDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -23,6 +25,8 @@ import com.harmonycloud.service.application.PersistentVolumeClaimService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.PvcDto;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.system.SystemConfigService;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.RoleLocalService;
 import org.apache.commons.lang3.StringUtils;
@@ -51,6 +55,12 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
 
     private final static String STORAGE_CAPACITY = "storage";
 
+    private final static String READWRITE = "ReadWrite";
+
+    private final static String RECYCLE_POD_NAME = "recycle-pod";
+
+    private static final String IMAGE_NAME = "recycleImageName";
+
     private static final int SLEEP_TIME_TWO_SECONDS = 2000;
 
     @Autowired
@@ -69,10 +79,16 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
     TenantService tenantService;
 
     @Autowired
+    NamespaceLocalService namespaceLocalService;
+
+    @Autowired
     com.harmonycloud.k8s.service.NamespaceService namespaceService;
 
     @Autowired
     RoleLocalService roleLocalService;
+
+    @Autowired
+    SystemConfigService systemConfigService;
 
     @Override
     public ActionReturnUtil createPersistentVolumeClaim(PersistentVolumeClaimDto persistentVolumeClaim) throws Exception {
@@ -101,7 +117,7 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         labels.put(LABEL_PROJECT_ID, persistentVolumeClaim.getProjectId());
         metaObject.setLabels(labels);
         Map<String, Object> annotations = new HashMap<>();
-        annotations.put(STORAGE_ANNOTATION, persistentVolumeClaim.getStorageName());
+        annotations.put(STORAGE_ANNOTATION, persistentVolumeClaim.getStorageClassName());
         metaObject.setAnnotations(annotations);
         pvClaim.setMetadata(metaObject);
         PersistentVolumeClaimSpec persistentVolumeClaimSpec = new PersistentVolumeClaimSpec();
@@ -136,17 +152,12 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         List<PvcDto> pvcDtoList = new ArrayList<>();
         //遍历每个集群，查找每个集群下 租户对应的分区下的 所有PVC
         for (Cluster cluster : clusters) {
-            bodys = new HashMap<>();
-            //将projectId塞到bodys中，后面查找PVC使用
-            bodys.put("labelSelector", "nephele_tenantid=" + tenantId);
-            K8SClientResponse namespaceResponse = namespaceService.list(null, bodys, HTTPMethod.GET, cluster);
-            if (HttpStatusUtil.isSuccessStatus(namespaceResponse.getStatus())) {
-                NamespaceList namespaceList = JsonUtil.jsonToPojo(namespaceResponse.getBody(), NamespaceList.class);
-                //遍历每个分区，查找到租户所拥有的PVC
-                for (Namespace namespace : namespaceList.getItems()) {
+            List<NamespaceLocal> namespaceLocalList = namespaceLocalService.getNamespaceListByTenantId(tenantId);
+            if (namespaceLocalList.size() > 0) {
+                for (NamespaceLocal namespaceLocal : namespaceLocalList) {
                     K8SURL k8SURL = new K8SURL();
                     k8SURL.setApiGroup(APIGroup.API_V1_VERSION);
-                    k8SURL.setNamespace(namespace.getMetadata().getName());
+                    k8SURL.setNamespace(namespaceLocal.getNamespaceName());
                     k8SURL.setResource(Resource.PERSISTENTVOLUMECLAIM);
                     bodys = new HashMap<>();
                     bodys.put("labelSelector", LABEL_PROJECT_ID + "=" + projectId);
@@ -157,13 +168,22 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                         for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaimList.getItems()) {
                             PvcDto pvcDto = new PvcDto();
                             pvcDto.setName(persistentVolumeClaim.getMetadata().getName());
-                            pvcDto.setClusterName(cluster.getName());
-                            pvcDto.setNamespace(namespace.getMetadata().getName());
+                            pvcDto.setClusterId(cluster.getId());
+                            pvcDto.setClusterAliasName(cluster.getAliasName());
+                            pvcDto.setNamespace(namespaceLocal.getNamespaceName());
+                            pvcDto.setNamespaceAliasName(namespaceLocal.getAliasName());
                             pvcDto.setCapacity(((Map<String, String>)(persistentVolumeClaim.getSpec().getResources().getRequests())).get(STORAGE_CAPACITY));
+                            pvcDto.setStorageClassName((String) (persistentVolumeClaim.getMetadata().getAnnotations().get(STORAGE_ANNOTATION)));
                             pvcDto.setStatus(persistentVolumeClaim.getStatus().getPhase());
                             //TODO 使用该存储的服务
                             pvcDto.setBindingServices("");
                             pvcDto.setCreateTime(DateUtil.StringToDate(persistentVolumeClaim.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue()));
+                            //ReadWriteOne,ReadWriteMany, split("ReadWrite")  > 1
+                            if (persistentVolumeClaim.getSpec().getAccessModes().get(0).split(READWRITE).length > 1) {
+                                pvcDto.setReadOnly(false);
+                            } else {
+                                pvcDto.setReadOnly(true);
+                            }
                             pvcDtoList.add(pvcDto);
                         }
                     }
@@ -188,8 +208,7 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         k8SURL.setNamespace(namespace);
         k8SURL.setResource(Resource.PERSISTENTVOLUMECLAIM);
         k8SURL.setSubpath(pvcName);
-        K8SClientResponse pvcResponse = namespaceService.list(null, null, HTTPMethod.DELETE, cluster);
-
+        K8SClientResponse pvcResponse = new K8sMachineClient().exec(k8SURL, HTTPMethod.DELETE, null, null, cluster);
         if (HttpStatusUtil.isSuccessStatus(pvcResponse.getStatus())) {
             return ActionReturnUtil.returnSuccess();
         } else {
@@ -216,9 +235,19 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         if (pv == null) {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PV_QUERY_FAIL, DictEnum.PV.phrase(), true);
         }
-        String podName = "recycle-pod";
-        String imageName = cluster.getHarborServer().getHarborHost() + cluster.getHarborServer().getHarborPort() + "/k8s-deploy/busybox";
-        Pod pod = buildRecyclePod(podName, imageName,pv.getSpec().getNfs());
+        String podName = RECYCLE_POD_NAME;
+        List<SystemConfig> systemConfigList = systemConfigService.findByConfigType(RECYCLE_POD_NAME);
+        String recycleImage = "";
+        for (SystemConfig systemConfig : systemConfigList) {
+            if (IMAGE_NAME.equals(systemConfig.getConfigName())) {
+                recycleImage = cluster.getHarborServer().getHarborHost() + ":" +
+                        cluster.getHarborServer().getHarborPort() + systemConfig.getConfigValue();
+            }
+        }
+        if (StringUtils.isBlank(recycleImage)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.RECYCLE_POD_CONFIG_ERROR);
+        }
+        Pod pod = buildRecyclePod(podName, recycleImage, pv.getSpec().getNfs());
         //创建回收空间的Pod
         ActionReturnUtil recyclePodReturn = createRecyclePod(pod, cluster);
         //循环监听Pod创建状态，完成后回收Pod

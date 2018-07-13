@@ -11,7 +11,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.List;
-import java.util.Map;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -32,38 +31,38 @@ public class PersistentVolumeClaimServiceTest extends BaseTest {
     @BeforeClass
     public void createPersistentVolumeClaimData() {
         persistentVolumeClaimDto = new PersistentVolumeClaimDto();
-        persistentVolumeClaimDto.setName("test2-claim");  //test-xc
+        persistentVolumeClaimDto.setName("test-xc");
         persistentVolumeClaimDto.setClusterId("cluster-top--dev");
-        persistentVolumeClaimDto.setNamespace("test-xc-abc");
-        persistentVolumeClaimDto.setStorageName("xc-test7");
+        persistentVolumeClaimDto.setNamespace("ttsx-estr");
+        persistentVolumeClaimDto.setStorageName("xc-test1");
         persistentVolumeClaimDto.setCapacity("1Gi");
         persistentVolumeClaimDto.setReadOnly(false);
         persistentVolumeClaimDto.setBindOne(false);
-        persistentVolumeClaimDto.setProjectId("b655fe76fb3e43799469c518c6751cf3");
-        persistentVolumeClaimDto.setTenantId("0c2ae6230a6643bd857a5da19c19ecb3");
+        persistentVolumeClaimDto.setProjectId("6dfdd158e414456fb40b2ea586fa63f8");
+        persistentVolumeClaimDto.setTenantId("5bde05df703449e5b183d81423322e2c");
     }
 
-    @Test
+    @Test(priority = 0)
     public void createPersistentVolumeClaim() throws Exception {
         assertTrue(persistentVolumeClaimService.createPersistentVolumeClaim(persistentVolumeClaimDto).isSuccess());
     }
 
-    @Test
+    @Test(priority = 1)
     public void listPersistentVolumeClaim() throws Exception {
         assertEquals(((List<PvcDto>)
                 (persistentVolumeClaimService.listPersistentVolumeClaim(persistentVolumeClaimDto.getProjectId(),
                 persistentVolumeClaimDto.getTenantId(), persistentVolumeClaimDto.getClusterId()).getData())).size(), 1);
     }
 
-    @Test
-    public void deletePersistentVolumeClaim() throws Exception {
-        assertTrue(persistentVolumeClaimService.deletePersistentVolumeClaim(persistentVolumeClaimDto.getNamespace(),
+    @Test(priority = 2)
+    public void recyclePersistentVolumeClaimTest() throws Exception {
+        assertTrue(persistentVolumeClaimService.recyclePersistentVolumeClaim(persistentVolumeClaimDto.getNamespace(),
                 persistentVolumeClaimDto.getName(), persistentVolumeClaimDto.getClusterId()).isSuccess());
     }
 
-    @Test
-    public void recyclePersistentVolumeClaimTest() throws Exception {
-        assertTrue(persistentVolumeClaimService.recyclePersistentVolumeClaim(persistentVolumeClaimDto.getNamespace(),
+    @Test(priority = 3)
+    public void deletePersistentVolumeClaim() throws Exception {
+        assertTrue(persistentVolumeClaimService.deletePersistentVolumeClaim(persistentVolumeClaimDto.getNamespace(),
                 persistentVolumeClaimDto.getName(), persistentVolumeClaimDto.getClusterId()).isSuccess());
     }
 }

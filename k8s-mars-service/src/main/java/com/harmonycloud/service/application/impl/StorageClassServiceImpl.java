@@ -52,7 +52,7 @@ public class StorageClassServiceImpl implements StorageClassService {
 
     private static final int NFS_PROVISIONER_USED_TIME = 180;
 
-    private static final String IMAGE_NAME = "imageName";
+    private static final String IMAGE_NAME = "provisionerImageName";
 
     private static final int CREATE_FAIL_NUM = -1;
 

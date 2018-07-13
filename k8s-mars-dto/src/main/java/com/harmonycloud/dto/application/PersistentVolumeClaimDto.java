@@ -15,8 +15,8 @@ public class PersistentVolumeClaimDto {
     private String clusterId;
     @ApiModelProperty(value = "PVC所属分区", name = "namespace", example = "kube-system", required = true)
     private String namespace;
-    @ApiModelProperty(value = "PVC所用存储类名称", name = "storageName", example = "storageClass-test", required = true)
-    private String storageName;
+    @ApiModelProperty(value = "PVC所用存储类名称", name = "storageClassName", example = "storageClass-test", required = true)
+    private String storageClassName;
     @ApiModelProperty(value = "PVC容量值", name = "capacity", example = "2", required = true)
     private String capacity;
     @ApiModelProperty(value = "PVC是否只读", name = "readOnly", example = "true/false")
@@ -52,12 +52,12 @@ public class PersistentVolumeClaimDto {
         this.namespace = namespace;
     }
 
-    public String getStorageName() {
-        return storageName;
+    public String getStorageClassName() {
+        return storageClassName;
     }
 
-    public void setStorageName(String storageName) {
-        this.storageName = storageName;
+    public void setStorageClassName(String storageClassName) {
+        this.storageClassName = storageClassName;
     }
 
     public String getCapacity() {

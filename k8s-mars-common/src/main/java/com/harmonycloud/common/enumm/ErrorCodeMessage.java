@@ -202,7 +202,7 @@ public enum ErrorCodeMessage {
     DATACENTER_UPDATE_FAIL(300037,"Datacenter update fail","该数据中心更新失败"),
     LIST_CLUSTERQUOTA_INCORRECT(300038, "Get cluster quota failed.","获取配额失败"),
     RESOURCE_OVER_FLOOR(300039, "Tenant cluster quota cannot be greater than the available storage capacity.","租户集群配额不能大于可使用的存储容量"),
-    RESOURCE_BEHIND_FLOOR(300040, "Tenant cluster quota cannot be less than the used storage capacity.","租户集群配额不能小于于已使用的存储容量"),
+    RESOURCE_BEHIND_FLOOR(300040, "Tenant cluster quota cannot be less than the used storage capacity.","租户集群配额不能小于已使用的存储容量"),
     UPDATE_CLUSTERQUOTA_INCORRECT(300041, "Cluster quota incorrect，please refresh the page resource.","配额不正确,请重新刷新页面资源"),
     STORAGE_QUOTA_OVER_FLOOR(300042, "Storage quotas exceed available quotas.","分区存储配额超过可使用的配额"),
     CLUSTER_QUOTA_DELETE_FAIL(300043, "Failed to delete cluster quota, storage in quota used in cluster partition", "删除集群配额失败，集群分区中已使用配额中的存储"),
