@@ -207,4 +207,12 @@ public interface UserRoleRelationshipService {
      * @throws Exception
      */
     public List<UserRoleRelationship> getUserRoleRelationshipList(String username,String tenantId) throws Exception;
+    /**
+     * 根据用户名删除
+     * @param userName
+     * @return
+     * @throws Exception
+     */
+    public void deleteUserRoleRelationshipByProjectUserName(String userName) throws Exception;
+
 }

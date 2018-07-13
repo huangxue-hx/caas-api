@@ -572,6 +572,14 @@ public class UserRoleRelationshipServiceImpl implements UserRoleRelationshipServ
         return userRoleRelationships;
     }
 
+    @Override
+    public void deleteUserRoleRelationshipByProjectUserName(String userName) throws Exception {
+        //根据用户名删除
+        UserRoleRelationshipExample example = this.getExample();
+        example.createCriteria().andUsernameEqualTo(userName);
+        userRoleRelationshipMapper.deleteByExample(example);
+    }
+
     private UserRoleRelationshipExample getExample() throws Exception {
         UserRoleRelationshipExample example = new UserRoleRelationshipExample();
         return example;
