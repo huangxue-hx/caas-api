@@ -8,6 +8,7 @@ import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMember;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.user.AuthUserMapper;
 import com.harmonycloud.dao.user.UserGroupMapper;
@@ -44,7 +45,6 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.DigestUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.mail.internet.MimeMessage;
@@ -58,9 +58,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.harmonycloud.common.Constant.CommonConstant.COMMA;
-import static com.harmonycloud.common.Constant.CommonConstant.FLAG_FALSE;
-import static com.harmonycloud.common.Constant.CommonConstant.FLAG_TRUE;
+import static com.harmonycloud.common.Constant.CommonConstant.*;
 import static com.harmonycloud.service.platform.constant.Constant.DB_BATCH_INSERT_COUNT;
 import static com.harmonycloud.service.platform.constant.Constant.MAX_QUERY_COUNT_100;
 
@@ -653,6 +651,10 @@ public class UserServiceImpl implements UserService {
         User userDb = userMapper.findByUsername(userName);
         if (!Objects.isNull(userDb)){
             userMapper.deleteUserByName(userName);
+            DataPrivilegeGroupMember dataPrivilegeGroupMember = new DataPrivilegeGroupMember();
+            dataPrivilegeGroupMember.setMemberType(CommonConstant.MEMBER_TYPE_USER);
+            dataPrivilegeGroupMember.setMemberId(userDb.getId().intValue());
+            dataPrivilegeGroupMemberService.deleteMemberInAllGroup(dataPrivilegeGroupMember);
         }else {
             throw new MarsRuntimeException(ErrorCodeMessage.USER_NOT_EXIST);
         }

@@ -41,7 +41,7 @@ public interface DataPrivilegeGroupMemberService {
      * @param privilegeType
      * @throws Exception
      */
-    void initGroupMember(int groupId, String projectId, Integer parentGroupId, int privilegeType) throws Exception;
+    List<String> initGroupMember(int groupId, String projectId, Integer parentGroupId, int privilegeType, List<String> rwUserList) throws Exception;
 
     /**
      * 删除权限组中所有成员
@@ -66,6 +66,13 @@ public interface DataPrivilegeGroupMemberService {
      * @throws Exception
      */
     void deleteProjectMemberFromGroup(String projectId, String username) throws Exception;
+
+    /**
+     * 删除所有权限组中的某成员
+     * @param dataPrivilegeGroupMember
+     * @throws Exception
+     */
+    void deleteMemberInAllGroup(DataPrivilegeGroupMember dataPrivilegeGroupMember) throws Exception;
 
     /**
      * 数据权限组中新增成员
@@ -96,6 +103,7 @@ public interface DataPrivilegeGroupMemberService {
      * 校验增删数据权限成员
      * @param groupId
      * @param username
+     * @param groupType
      */
-    void verifyMember(Integer groupId, Integer otherGroupId, String username, boolean isAdd) throws Exception;
+    void verifyMember(Integer groupId, Integer otherGroupId, String username, boolean isAdd, Integer groupType) throws Exception;
 }

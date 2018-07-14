@@ -92,31 +92,37 @@ public class DataPrivilegeHelperTest extends BaseTest{
         applicationDetailDto.setName("nginx");
         applicationDetailDto.setNamespace("test-ns");
 
+        deploymentDetailDto = new DeploymentDetailDto();
+        deploymentDetailDto.setName("nginx-service");
+        deploymentDetailDto.setNamespace("test-ns");
+        deploymentDetailDto.setProjectId(projectId);
+
         dataPrivilegeDto = new DataPrivilegeDto();
-        dataPrivilegeDto.setData("nginx");
+        dataPrivilegeDto.setData("nginx-service");
         dataPrivilegeDto.setProjectId(projectId);
         dataPrivilegeDto.setNamespace("test-ns");
         dataPrivilegeDto.setDataResourceType(DataResourceTypeEnum.SERVICE.getCode());
 
         dataPrivilegeService.addResource(applicationDeployDto, null, null);
+        dataPrivilegeService.addResource(deploymentDetailDto, null, null);
     }
 
     @Test
     public void testFilter() throws Exception {
 
-        Map map = dataPrivilegeHelper.filter(applicationDetailDto);
-        assertNotNull(map);
-        assertEquals(map.get("dataPrivilege"), "rw");
+        ApplicationDetailDto filterApplicationDetailDto = dataPrivilegeHelper.filter(applicationDetailDto);
+        assertNotNull(filterApplicationDetailDto);
+        assertEquals(filterApplicationDetailDto.getDataPrivilege(), "rw");
 
         session.setAttribute(CommonConstant.USERNAME, user2.getUsername());
         session.setAttribute(CommonConstant.USERID, user2.getId());
-        map = dataPrivilegeHelper.filter(applicationDetailDto);
-        assertNull(map);
+        filterApplicationDetailDto = dataPrivilegeHelper.filter(applicationDetailDto);
+        assertNull(filterApplicationDetailDto);
 
         session.setAttribute(CommonConstant.ROLEID, CommonConstant.ADMIN_ROLEID);
-        map = dataPrivilegeHelper.filter(applicationDetailDto);
-        assertNotNull(map);
-        assertEquals(map.get("dataPrivilege"), "rw");
+        filterApplicationDetailDto = dataPrivilegeHelper.filter(applicationDetailDto);
+        assertNotNull(filterApplicationDetailDto);
+        assertEquals(filterApplicationDetailDto.getDataPrivilege(), "rw");
     }
 
     @Test
@@ -124,26 +130,26 @@ public class DataPrivilegeHelperTest extends BaseTest{
         List<ApplicationDetailDto> list = new ArrayList<>();
         list.add(applicationDetailDto);
 
-        List<Map> mapList = dataPrivilegeHelper.filter(list);
-        assertEquals(mapList.size(), 1);
-        Map map = mapList.get(0);
-        assertEquals(map.get("dataPrivilege"),"rw");
+        List<ApplicationDetailDto> filterList = dataPrivilegeHelper.filter(list);
+        assertEquals(filterList.size(), 1);
+        ApplicationDetailDto filterApplicationDetailDto = filterList.get(0);
+        assertEquals(filterApplicationDetailDto.getDataPrivilege(),"rw");
 
         session.setAttribute(CommonConstant.USERNAME, user2.getUsername());
-        mapList = dataPrivilegeHelper.filter(list);
-        assertEquals(mapList.size(), 0);
+        filterList = dataPrivilegeHelper.filter(list);
+        assertEquals(filterList.size(), 0);
 
         session.setAttribute(CommonConstant.ROLEID, CommonConstant.ADMIN_ROLEID);
-        mapList = dataPrivilegeHelper.filter(list);
-        assertEquals(mapList.size(), 1);
-        map = mapList.get(0);
-        assertEquals(map.get("dataPrivilege"),"rw");
+        filterList = dataPrivilegeHelper.filter(list);
+        assertEquals(filterList.size(), 1);
+        filterApplicationDetailDto = filterList.get(0);
+        assertEquals(filterApplicationDetailDto.getDataPrivilege(),"rw");
     }
 
     @Test
     public void testFilterMap() throws Exception {
         Map<String, Object> map = new HashMap<>();
-        map.put("name", "nginx");
+        map.put("name", "nginx-service");
         map.put("namespace", "test-ns");
 
         dataPrivilegeDto.setData((String) map.get(CommonConstant.NAME));

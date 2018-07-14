@@ -533,6 +533,9 @@ public class CommonConstant {
     public static final int DATA_GROUP_TENANT_ADMIN = 3;
     public static final int DATA_GROUP_PROJECT_ADMIN = 4;
 
+    public static final Integer MEMBER_TYPE_USER = 0;//用户
+    public static final Integer MEMBER_TYPE_GROUP = 1;//组
+
     //数据权限
     public static final byte SCOPE_TENANT = 0;
     public static final byte SCOPE_PROJECT = 1;

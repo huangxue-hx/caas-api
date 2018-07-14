@@ -83,8 +83,7 @@ public class DataPrivilegeGroupMappingServiceImpl implements DataPrivilegeGroupM
     public List<DataPrivilegeGroupMapping> listDataPrivilegeGroupMapping(DataPrivilegeDto dataPrivilegeDto) {
         if(!StringUtils.isAnyBlank(dataPrivilegeDto.getData(),dataPrivilegeDto.getNamespace())){
             DataPrivilegeGroupMappingExample example = new DataPrivilegeGroupMappingExample();
-            DataPrivilegeGroupMappingExample.Criteria criteria = example.createCriteria().andDataNameEqualTo(dataPrivilegeDto.getData())
-                    .andNamespaceEqualTo(dataPrivilegeDto.getNamespace());
+            DataPrivilegeGroupMappingExample.Criteria criteria = example.createCriteria().andDataNameEqualTo(dataPrivilegeDto.getData());
             if(StringUtils.isNotBlank(dataPrivilegeDto.getProjectId())) {
                 criteria.andProjectIdEqualTo(dataPrivilegeDto.getProjectId());
             }
@@ -93,6 +92,9 @@ public class DataPrivilegeGroupMappingServiceImpl implements DataPrivilegeGroupM
             }
             if(StringUtils.isNotBlank(dataPrivilegeDto.getNamespace())) {
                 criteria.andNamespaceEqualTo(dataPrivilegeDto.getNamespace());
+            }
+            if(dataPrivilegeDto.getDataResourceType() != null){
+                criteria.andResourceTypeIdEqualTo(dataPrivilegeDto.getDataResourceType());
             }
             return this.getDataPrivilegeGroupMapping(example);
         }
