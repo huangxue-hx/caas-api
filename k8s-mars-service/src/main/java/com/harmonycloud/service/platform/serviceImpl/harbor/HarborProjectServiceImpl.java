@@ -431,7 +431,9 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		try {
 			List<HarborProject> harborProjects = harborService.listProject(imageRepository.getHarborHost(), imageRepository.getHarborProjectName(),null,null);
 			if(!CollectionUtils.isEmpty(harborProjects)) {
-				imageRepository.setImageCount(harborProjects.get(0).getRepoCount());
+				List<HarborProject> projects = harborProjects.stream().filter(project -> imageRepository
+						.getHarborProjectName().equals(project.getProjectName())).collect(Collectors.toList());
+				imageRepository.setImageCount(projects.get(0).getRepoCount());
 			}
 		}catch (Exception e){
 			logger.error("查询镜像仓库下的镜像数量失败，image：{}",JSONObject.toJSONString(imageRepository),e);
@@ -616,6 +618,16 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		ImageRepository imageRepository = imageRepositoryMapper.findRepositoryById(repositoryId);
 		return harborService.deleteRepo(imageRepository.getHarborHost(), image,tag);
 
+	}
+
+	@Override
+	public ActionReturnUtil getImage(Integer repositoryId, String image) throws Exception {
+		ImageRepository imageRepository = imageRepositoryMapper.findRepositoryById(repositoryId);
+		HarborRepositoryMessage harborRepositoryMessage = imageCacheManager.freshRepositoryByTags(imageRepository.getHarborHost(), image);
+		if(harborRepositoryMessage == null){
+			return ActionReturnUtil.returnErrorWithData(DictEnum.IMAGE.phrase(),ErrorCodeMessage.NOT_EXIST);
+		}
+        return ActionReturnUtil.returnSuccessWithData(harborRepositoryMessage);
 	}
 
 	@Override
