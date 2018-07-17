@@ -1142,7 +1142,10 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         nodeAffinityList = setNamespaceLabelAffinity(namespace, nodeAffinityList);
         affinity = KubeAffinityConvert.convertAffinity(nodeAffinityList, deploymentDetail.getPodAffinity(), list);
         dep.getSpec().getTemplate().getSpec().setAffinity(affinity);
-        dep.getMetadata().getAnnotations().put("nephele/annotation", deploymentDetail.getAnnotation());
+        //更新备注
+        if(null != deploymentDetail.getAnnotation()){
+            dep.getMetadata().getAnnotations().put("nephele/annotation", deploymentDetail.getAnnotation());
+        }
         Map<String, Object> bodys = CollectionUtil.transBean2Map(dep);
         Map<String, Object> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
