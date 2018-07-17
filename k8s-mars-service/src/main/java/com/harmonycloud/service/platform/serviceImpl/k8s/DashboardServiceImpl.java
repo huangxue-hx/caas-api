@@ -246,8 +246,7 @@ public class DashboardServiceImpl implements DashboardService {
 				if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) == null) {
 					continue;
 				}
-				if ( !labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)
-						&& !labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_E)) {
+				if ( !labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
 					continue;
 				}
 				Object object = node.getStatus().getAllocatable();
