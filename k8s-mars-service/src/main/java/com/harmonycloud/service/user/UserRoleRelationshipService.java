@@ -207,4 +207,6 @@ public interface UserRoleRelationshipService {
      * @throws Exception
      */
     public List<UserRoleRelationship> getUserRoleRelationshipList(String username,String tenantId) throws Exception;
+
+    public void deleteByUserName(String userName) throws Exception;
 }
