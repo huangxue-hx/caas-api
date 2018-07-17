@@ -34,7 +34,7 @@ public class PersistentVolumeClaimServiceTest extends BaseTest {
         persistentVolumeClaimDto.setName("test-xc");
         persistentVolumeClaimDto.setClusterId("cluster-top--dev");
         persistentVolumeClaimDto.setNamespace("ttsx-estr");
-        persistentVolumeClaimDto.setStorageName("xc-test1");
+        persistentVolumeClaimDto.setStorageClassName("xc-test1");
         persistentVolumeClaimDto.setCapacity("1Gi");
         persistentVolumeClaimDto.setReadOnly(false);
         persistentVolumeClaimDto.setBindOne(false);

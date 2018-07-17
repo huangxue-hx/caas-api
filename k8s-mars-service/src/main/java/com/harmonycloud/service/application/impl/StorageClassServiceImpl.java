@@ -225,7 +225,7 @@ public class StorageClassServiceImpl implements StorageClassService {
         StorageClass sc = scService.getScByName(name, cluster);
         if (sc == null) {
             LOGGER.info("StorageClass不存在,storageClassName:{},clusterName:{}", name, cluster.getName());
-            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.QUERY_FAIL, DictEnum.STORAGE_CLASS.phrase(), true);
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.QUERY_FAIL, DictEnum.STORAGE_CLASS.phrase(), true);
         }
         return ActionReturnUtil.returnSuccessWithData(convertScDto(sc, cluster));
     }

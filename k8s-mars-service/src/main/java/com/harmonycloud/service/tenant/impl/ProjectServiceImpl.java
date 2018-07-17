@@ -576,6 +576,9 @@ public class ProjectServiceImpl implements ProjectService {
                 //获取用户角色
                 Role role = roleLocalService.getRoleById(userRoleRelationship.getRoleId());
                 User user = userService.getUser(userRoleRelationship.getUsername());
+                if(user == null){
+                    continue;
+                }
                 Map<String,Object> result = new HashMap<>();
                 result.put(CommonConstant.USERNAME,userRoleRelationship.getUsername());
                 result.put(CommonConstant.ID,userRoleRelationship.getId());

@@ -84,8 +84,6 @@ public class NamespaceServiceImpl implements NamespaceService {
     @Autowired
     private TenantService tenantService;
     @Autowired
-    private RoleService roleService;
-    @Autowired
     private DeploymentService deploymentService;
     @Autowired
     private NetworkService networkService;
@@ -99,15 +97,11 @@ public class NamespaceServiceImpl implements NamespaceService {
     @Autowired
     private NodeService nodeService;
     @Autowired
-    private DashboardService dashboardService;
-    @Autowired
     private NamespaceLocalService namespaceLocalService;
     @Autowired
     private TenantClusterQuotaService tenantClusterQuotaService;
     @Autowired
     private SecretService secretService;
-    @Autowired
-    private UserService userService;
     @Autowired
     private PodService podService;
     @Autowired
@@ -1786,7 +1780,7 @@ public class NamespaceServiceImpl implements NamespaceService {
                             if (storageQuotaMap.get(key.split("\\.")[0]) != null) {
                                 storage.add(storageQuotaMap.get(key.split("\\.")[0]));
                             } else {
-                                throw new MarsRuntimeException(ErrorCodeMessage.UNKNOWN);
+                                logger.error("集群设置存储配额错误，namespace：{}",namespace);
                             }
                             storageClass.put(key.split("\\.")[0], storage);
                         }
