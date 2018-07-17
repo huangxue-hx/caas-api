@@ -1776,12 +1776,14 @@ public class UserServiceImpl implements UserService {
                 user.setIsAdmin(Constant.NON_MACHINE_ACCOUNT);
                 users.add(user);
             }
-            if (users.size() > DB_BATCH_INSERT_COUNT) {
+            if (users.size() > 0) {
+                users.stream().forEach(user -> user.setIsMachine(Constant.NON_MACHINE_ACCOUNT));
                 //批量插入，每次插入DB_BATCH_INSERT_COUNT条数据，计算分多少次插入数据库
                 int count = users.size() % DB_BATCH_INSERT_COUNT == 0 ? users.size() / DB_BATCH_INSERT_COUNT : users.size() / DB_BATCH_INSERT_COUNT + 1;
                 for (int i = 0; i < count; i++) {
                     if (i == count - 1) {
-                        userMapper.batchInsert(users.subList(i * DB_BATCH_INSERT_COUNT, users.size() - 1));
+                        userMapper.batchInsert(users.subList(i * DB_BATCH_INSERT_COUNT, users.size() ));
+                        continue;
                     }
                     userMapper.batchInsert(users.subList(i * DB_BATCH_INSERT_COUNT, (i + 1) * DB_BATCH_INSERT_COUNT));
                 }

@@ -13,7 +13,7 @@ public interface UserMapper {
 
     int insert(User record);
 
-    int batchInsert(List<User> records);
+    int batchInsert(@Param("records") List<User> records);
 
     int insertSelective(User record);
 
