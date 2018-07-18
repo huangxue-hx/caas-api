@@ -10,6 +10,7 @@ import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dto.application.PersistentVolumeClaimDto;
+import com.harmonycloud.dto.application.StorageClassDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8sMachineClient;
@@ -21,7 +22,9 @@ import com.harmonycloud.k8s.service.PodService;
 import com.harmonycloud.k8s.service.PvService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
+import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.PersistentVolumeClaimService;
+import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.PvcDto;
 import com.harmonycloud.service.platform.constant.Constant;
@@ -89,6 +92,12 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
 
     @Autowired
     SystemConfigService systemConfigService;
+
+    @Autowired
+    StorageClassService storageClassService;
+
+    @Autowired
+    DeploymentsService deploymentsService;
 
     @Override
     public ActionReturnUtil createPersistentVolumeClaim(PersistentVolumeClaimDto persistentVolumeClaim) throws Exception {
@@ -174,9 +183,38 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                             pvcDto.setNamespaceAliasName(namespaceLocal.getAliasName());
                             pvcDto.setCapacity(((Map<String, String>)(persistentVolumeClaim.getSpec().getResources().getRequests())).get(STORAGE_CAPACITY));
                             pvcDto.setStorageClassName((String) (persistentVolumeClaim.getMetadata().getAnnotations().get(STORAGE_ANNOTATION)));
+                            if (!StringUtils.isBlank(pvcDto.getStorageClassName())) {
+                                ActionReturnUtil storageClassReturn = storageClassService.getStorageClass(pvcDto.getStorageClassName(), cluster.getId());
+                                if (!storageClassReturn.isSuccess()) {
+                                    throw new MarsRuntimeException(ErrorCodeMessage.QUERY_FAIL, DictEnum.STORAGE_CLASS.phrase(), true);
+                                }
+                                StorageClassDto storageClassDto = (StorageClassDto)storageClassReturn.getData();
+                                if (storageClassDto != null) {
+                                    pvcDto.setStorageClassType(storageClassDto.getType());
+                                }
+                            } else {
+                                pvcDto.setStorageClassType("");
+                            }
                             pvcDto.setStatus(persistentVolumeClaim.getStatus().getPhase());
-                            //TODO 使用该存储的服务
-                            pvcDto.setBindingServices("");
+                            //TODO 添加使用该存储类的DaemonSet
+                            List<Map<String, Object>> deploymentList = (List<Map<String, Object>>) deploymentsService.listDeployments(tenantId, null, namespaceLocal.getNamespaceName(), null, projectId, cluster.getId()).getData();
+                            List<String> serviceNameList = new ArrayList<>();
+                            if (deploymentList.size() > 0) {
+                                for (Map<String, Object> deployment : deploymentList) {
+                                    if (deployment.get("pvcNameList") != null) {
+                                        List<String> pvcNameList = (List<String>) deployment.get("pvcNameList");
+                                        for (String pvcName : pvcNameList) {
+                                            if (pvcName.equals(pvcDto.getName())) {
+                                                serviceNameList.add((String)deployment.get("name"));
+                                            }
+                                        }
+                                    }
+                                }
+                                pvcDto.setBindingServices(StringUtils.join(serviceNameList.toArray(), ","));
+                            }
+                            if (serviceNameList.size() == 0) {
+                                pvcDto.setBindingServices("");
+                            }
                             pvcDto.setCreateTime(DateUtil.StringToDate(persistentVolumeClaim.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue()));
                             //ReadWriteOne,ReadWriteMany, split("ReadWrite")  > 1
                             if (persistentVolumeClaim.getSpec().getAccessModes().get(0).split(READWRITE).length > 1) {

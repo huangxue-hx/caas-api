@@ -21,9 +21,12 @@ import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.k8s.service.ScService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
+import com.harmonycloud.service.application.PersistentVolumeClaimService;
 import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.system.SystemConfigService;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,6 +74,12 @@ public class StorageClassServiceImpl implements StorageClassService {
 
     @Autowired
     SystemConfigService systemConfigService;
+
+    @Autowired
+    PersistentVolumeClaimService persistentVolumeClaimService;
+
+    @Autowired
+    NamespaceLocalService namespaceLocalService;
 
     @Override
     public ActionReturnUtil createStorageClass(StorageClassDto storageClass) throws Exception {
@@ -227,10 +236,87 @@ public class StorageClassServiceImpl implements StorageClassService {
             LOGGER.info("StorageClass不存在,storageClassName:{},clusterName:{}", name, cluster.getName());
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.QUERY_FAIL, DictEnum.STORAGE_CLASS.phrase(), true);
         }
-        return ActionReturnUtil.returnSuccessWithData(convertScDto(sc, cluster));
+        //storageClass关联的PVC
+        List<String> pvcNameList = new ArrayList<>();
+        List<PersistentVolumeClaim> persistentVolumeClaimList = listPvc(cluster).getItems();
+        for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaimList) {
+            String storageClassName = (String ) persistentVolumeClaim.getMetadata().getAnnotations().get("volume.beta.kubernetes.io/storage-class");
+            if (name.equals(storageClassName)) {
+                pvcNameList.add(persistentVolumeClaim.getMetadata().getName());
+            }
+        }
+        //TODO PVC关联的DaemonSet
+
+        //PVC关联的服务
+        List serviceList = new ArrayList<>();
+        List<Deployment> deploymentList = listDeployment(cluster).getItems();
+        for (String pvcName : pvcNameList) {
+            for (Deployment deployment : deploymentList) {
+                if (deployment.getSpec().getTemplate().getSpec().getVolumes() != null && deployment.getSpec().getTemplate().getSpec().getVolumes().size() > 0) {
+                    List<Volume> volumeList = deployment.getSpec().getTemplate().getSpec().getVolumes();
+                    for (Volume volume : volumeList) {
+                        if (volume.getPersistentVolumeClaim() != null && pvcName.equals(volume.getPersistentVolumeClaim().getClaimName())) {
+                            Map<String, Object> serviceItem = new HashMap<>();
+                            serviceItem.put("name", deployment.getMetadata().getName());
+                            serviceItem.put("status", K8sResultConvert.getDeploymentStatus(deployment));
+                            serviceItem.put("instance", deployment.getSpec().getReplicas());
+                            String aliasNamespace = namespaceLocalService.getNamespaceByName(deployment.getMetadata().getNamespace()).getAliasName();
+                            serviceItem.put("aliasNamespace", aliasNamespace);
+                            List<String> img = new ArrayList<String>();
+                            List<String> cpu = new ArrayList<String>();
+                            List<String> memory = new ArrayList<String>();
+                            List<Container> containers = deployment.getSpec().getTemplate().getSpec().getContainers();
+                            for (Container container : containers) {
+                                img.add(container.getImage());
+                                if (container.getResources() != null && container.getResources().getRequests() != null) {
+                                    Map<String, String> res1 = (Map<String, String>) container.getResources().getRequests();
+                                    cpu.add(res1.get("cpu"));
+                                    memory.add(res1.get("memory"));
+                                } else if (container.getResources() != null && container.getResources().getLimits() != null) {
+                                    Map<String, String> res1 = (Map<String, String>) container.getResources().getLimits();
+                                    cpu.add(res1.get("cpu"));
+                                    memory.add(res1.get("memory"));
+                                }
+                            }
+                            serviceItem.put("img", img);
+                            serviceItem.put("cpu", cpu);
+                            serviceItem.put("memory", memory);
+                            Map<String, Object> labels = deployment.getMetadata().getLabels();
+                            serviceItem.put("labels", labels);
+                            Date utcDate = DateUtil.StringToDate(deployment.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
+                            serviceItem.put("createTime", utcDate);
+                            serviceList.add(serviceItem);
+                        }
+                    }
+                }
+            }
+        }
+        return ActionReturnUtil.returnSuccessWithData(convertScDto(sc, serviceList, cluster));
     }
 
-    private StorageClassDto convertScDto(StorageClass sc, Cluster cluster) throws Exception {
+    private PersistentVolumeClaimList listPvc(Cluster cluster) {
+        K8SURL k8SURL = new K8SURL();
+        k8SURL.setApiGroup(APIGroup.API_V1_VERSION);
+        k8SURL.setResource(Resource.PERSISTENTVOLUMECLAIM);
+        K8SClientResponse pvcResponse = new K8sMachineClient().exec(k8SURL, HTTPMethod.GET, null, null, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(pvcResponse.getStatus())) {
+            throw new MarsRuntimeException("查询PVC失败！");
+        }
+        return JsonUtil.jsonToPojo(pvcResponse.getBody(), PersistentVolumeClaimList.class);
+    }
+
+    private DeploymentList listDeployment(Cluster cluster) {
+        K8SURL k8SURL = new K8SURL();
+        k8SURL.setApiGroup(APIGroup.API_V1_VERSION);
+        k8SURL.setResource(Resource.DEPLOYMENT);
+        K8SClientResponse depResponse = new K8sMachineClient().exec(k8SURL, HTTPMethod.GET, null, null, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(depResponse.getStatus())) {
+            throw new MarsRuntimeException("查询Deployment失败！");
+        }
+        return JsonUtil.jsonToPojo(depResponse.getBody(), DeploymentList.class);
+    }
+
+    private StorageClassDto convertScDto(StorageClass sc, List serviceList , Cluster cluster) throws Exception {
         StorageClassDto storageClassDto = new StorageClassDto();
         storageClassDto.setName(sc.getMetadata().getName());
         storageClassDto.setClusterId(cluster.getId());
@@ -254,6 +340,9 @@ public class StorageClassServiceImpl implements StorageClassService {
             }
             storageClassDto.setConfigMap(configMap);
         }
+        if (serviceList != null && serviceList.size() > 0) {
+            storageClassDto.setServiceList(serviceList);
+        }
         return storageClassDto;
     }
 
@@ -270,7 +359,7 @@ public class StorageClassServiceImpl implements StorageClassService {
         List<StorageClass> storageClasses = scService.litStorageClassByClusterId(cluster);
         if (!Objects.isNull(storageClasses)) {
             for (StorageClass sc  : storageClasses) {
-                StorageClassDto storageClassDto = convertScDto(sc, cluster);
+                StorageClassDto storageClassDto = convertScDto(sc, null, cluster);
                 storageClassDtos.add(storageClassDto);
             }
         }

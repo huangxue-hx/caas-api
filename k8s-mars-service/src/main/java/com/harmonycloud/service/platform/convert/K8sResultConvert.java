@@ -2,11 +2,19 @@ package com.harmonycloud.service.platform.convert;
 
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.dto.scale.HPADto;
 import com.harmonycloud.dto.scale.ResourceMetricScaleDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
+import com.harmonycloud.k8s.constant.APIGroup;
+import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.constant.Resource;
+import com.harmonycloud.k8s.util.K8SClientResponse;
+import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.k8s.util.RandomNum;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
@@ -406,6 +414,152 @@ public class K8sResultConvert {
         return res;
     }
 
+    //重写了一个方法，供查看服务详情（使用PVC创建的服务）使用
+    public static List<ContainerOfPodDetail> convertContainer(Deployment deployment, Cluster cluster) throws Exception {
+        List<ContainerOfPodDetail> res = new ArrayList<ContainerOfPodDetail>();
+        List<Container> containers = deployment.getSpec().getTemplate().getSpec().getContainers();
+        if (containers != null && containers.size() > 0) {
+            for (Container ct : containers) {
+                ContainerOfPodDetail cOfPodDetail = new ContainerOfPodDetail(ct.getName(), ct.getImage(),
+                        ct.getLivenessProbe(), ct.getReadinessProbe(), ct.getPorts(), ct.getArgs(), ct.getEnv(),
+                        ct.getCommand());
+                if (ct.getImagePullPolicy() != null) {
+                    cOfPodDetail.setImagePullPolicy(ct.getImagePullPolicy());
+                }
+                cOfPodDetail.setDeploymentName(deployment.getMetadata().getName());
+                //SecurityContext
+                if (ct.getSecurityContext() != null) {
+                    SecurityContextDto newsc = new SecurityContextDto();
+                    SecurityContext sc = ct.getSecurityContext();
+                    boolean flag = false;
+                    newsc.setPrivileged(sc.isPrivileged());
+                    if (sc.isPrivileged()) {
+                        flag = true;
+                    }
+                    if (sc.getCapabilities() != null) {
+                        if (sc.getCapabilities().getAdd() != null && sc.getCapabilities().getAdd().size() > 0) {
+                            flag = true;
+                            newsc.setAdd(sc.getCapabilities().getAdd());
+                        }
+                        if (sc.getCapabilities().getDrop() != null && sc.getCapabilities().getDrop().size() > 0) {
+                            flag = true;
+                            newsc.setDrop(sc.getCapabilities().getDrop());
+                        }
+                    }
+                    newsc.setSecurity(flag);
+                    cOfPodDetail.setSecurityContext(newsc);
+
+                }
+                if (ct.getResources().getLimits() != null) {
+                    String pattern = ".*m.*";
+                    Pattern r = Pattern.compile(pattern);
+                    String cpu = ((Map<Object, Object>) ct.getResources().getLimits()).get("cpu").toString();
+                    Matcher m = r.matcher(cpu);
+                    if (!m.find()) {
+                        ((Map<Object, Object>) ct.getResources().getLimits()).put("cpu",
+                                Integer.valueOf(cpu) * 1000 + "m");
+                    }
+                    cOfPodDetail.setLimit(((Map<String, Object>) ct.getResources().getLimits()));
+
+                } else {
+                    cOfPodDetail.setLimit(null);
+                }
+                if (ct.getResources().getRequests() != null) {
+                    String pattern = ".*m.*";
+                    Pattern r = Pattern.compile(pattern);
+                    String cpu = ((Map<Object, Object>) ct.getResources().getRequests()).get("cpu").toString();
+                    Matcher m = r.matcher(cpu);
+                    if (!m.find()) {
+                        ((Map<Object, Object>) ct.getResources().getRequests()).put("cpu",
+                                Integer.valueOf(cpu) * 1000 + "m");
+                    }
+                    cOfPodDetail.setResource(((Map<String, Object>) ct.getResources().getRequests()));
+                } else {
+                    cOfPodDetail.setResource(cOfPodDetail.getLimit());
+                }
+
+                List<VolumeMount> volumeMounts = ct.getVolumeMounts();
+                List<VolumeMountExt> vms = new ArrayList<VolumeMountExt>();
+                if (volumeMounts != null && volumeMounts.size() > 0) {
+                    for (VolumeMount vm : volumeMounts) {
+                        VolumeMountExt vmExt = new VolumeMountExt(vm.getName(), vm.isReadOnly(), vm.getMountPath(),
+                                vm.getSubPath());
+                        for (Volume volume : deployment.getSpec().getTemplate().getSpec().getVolumes()) {
+                            if (vm.getName().equals(volume.getName())) {
+                                if (volume.getSecret() != null) {
+                                    vmExt.setType("secret");
+                                } else if (volume.getPersistentVolumeClaim() != null) {
+                                    PersistentVolumeClaim persistentVolumeClaim = getPvcByName(deployment.getMetadata().getNamespace(), volume.getPersistentVolumeClaim().getClaimName(), cluster);
+                                    if (persistentVolumeClaim != null && persistentVolumeClaim.getMetadata().getAnnotations().get("volume.beta.kubernetes.io/storage-class") != null) {
+                                        String storageClassName = (String) persistentVolumeClaim.getMetadata().getAnnotations().get("volume.beta.kubernetes.io/storage-class");
+                                        vmExt.setStorageClassName(storageClassName);
+                                    }
+                                    vmExt.setType("nfs");
+                                    vmExt.setPvcname(volume.getPersistentVolumeClaim().getClaimName());
+                                } else if (volume.getEmptyDir() != null) {
+                                    vmExt.setType("emptyDir");
+                                    if (volume.getEmptyDir() != null) {
+                                        vmExt.setEmptyDir(volume.getEmptyDir().getMedium());
+                                    } else {
+                                        vmExt.setEmptyDir(null);
+                                    }
+
+                                    if (vm.getName().indexOf("logdir") == 0) {
+                                        vmExt.setType("logDir");
+                                    }
+                                } else if (volume.getConfigMap() != null) {
+                                    Map<String, Object> configMap = new HashMap<String, Object>();
+                                    configMap.put("name", volume.getConfigMap().getName());
+
+                                    String mountPath = null;
+                                    if(vm.getMountPath().contains(vm.getSubPath())){
+                                        int lastIndexOf = vm.getMountPath().lastIndexOf("/");
+                                        String subLastPath = vm.getMountPath().substring(lastIndexOf + 1);
+                                        if(subLastPath.equals(vm.getSubPath())){
+                                            mountPath = vm.getMountPath().substring(0, lastIndexOf);
+                                        }
+
+                                    }
+
+                                    configMap.put("path", mountPath);
+                                    vmExt.setType("configMap");
+                                    vmExt.setConfigMapName(volume.getConfigMap().getName());
+                                    vmExt.setMountPath(mountPath);
+                                } else if (volume.getHostPath() != null) {
+                                    vmExt.setType("hostPath");
+                                    vmExt.setHostPath(volume.getHostPath().getPath());
+                                    if (vm.getName().indexOf("logdir") == 0) {
+                                        vmExt.setType("logDir");
+                                    }
+                                }
+                                if (vmExt.getReadOnly() == null) {
+                                    vmExt.setReadOnly(false);
+                                }
+                                vms.add(vmExt);
+                                break;
+                            }
+                        }
+                    }
+                    cOfPodDetail.setStorage(vms);
+                }
+                res.add(cOfPodDetail);
+            }
+        }
+        return res;
+    }
+    private static PersistentVolumeClaim getPvcByName(String namespace, String pvcName, Cluster cluster) {
+        K8SURL url = new K8SURL();
+        url.setApiGroup(APIGroup.API_V1_VERSION);
+        url.setNamespace(namespace);
+        url.setResource(Resource.PERSISTENTVOLUMECLAIM);
+        url.setSubpath(pvcName);
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,null,cluster);
+        if(HttpStatusUtil.isSuccessStatus(response.getStatus())){
+            return K8SClient.converToBean(response, PersistentVolumeClaim.class);
+        }
+        return null;
+    }
+
     public static List<Map<String, Object>> convertAppList(DeploymentList depList, Cluster cluster, String aliasNamespace) throws Exception {
         List<Deployment> deps = depList.getItems();
         List<Map<String, Object>> res = new ArrayList<Map<String, Object>>();
@@ -426,6 +580,20 @@ public class K8sResultConvert {
                         labelMap.put(tmp[0], tmp[1]);
                     }
                     tMap.put("labels", labelMap);
+                }
+                //服务如果使用PVC，获取PVC名称
+                List<Volume> volumeList = dep.getSpec().getTemplate().getSpec().getVolumes();
+                if (volumeList != null) {
+                    List<String> pvcNameList = new ArrayList<>();
+                    for (Volume volume : volumeList) {
+                        if (volume.getPersistentVolumeClaim() != null) {
+                            pvcNameList.add(volume.getPersistentVolumeClaim().getClaimName());
+
+                        }
+                    }
+                    if (pvcNameList.size() > 0) {
+                        tMap.put("pvcNameList", pvcNameList);
+                    }
                 }
                 //获取对外服务标签
                 String serviceType = null;
@@ -1955,27 +2123,18 @@ public class K8sResultConvert {
                         if (vm.getType() != null) {
                             switch (vm.getType()) {
                                 case Constant.VOLUME_TYPE_PV:
-                                    if (!volFlag.containsKey(vm.getPvcName())) {
-                                        PersistentVolumeClaimVolumeSource pvClaim = new PersistentVolumeClaimVolumeSource();
-                                        volFlag.put(vm.getPvcName(), vm.getPvcName());
-                                        if (vm.getReadOnly().equals("true")) {
-                                            pvClaim.setReadOnly(true);
-                                        }
-                                        if (vm.getReadOnly().equals("false")) {
-                                            pvClaim.setReadOnly(false);
-                                        }
-                                        pvClaim.setClaimName(vm.getPvcName());
-                                        Volume vol = new Volume();
-                                        vol.setPersistentVolumeClaim(pvClaim);
-                                        vol.setName(vm.getPvcName().replace(".", "-"));
-                                        volumes.add(vol);
-                                    }
-                                    VolumeMount volm = new VolumeMount();
-                                    volm.setName(vm.getPvcName().replace(".", "-"));
-                                    volm.setReadOnly(vm.getReadOnly());
-                                    volm.setMountPath(vm.getPath());
-                                    volumeMounts.add(volm);
-                                    container.setVolumeMounts(volumeMounts);
+                                    //构建spec.containers.volumeMounts
+                                    VolumeMount volumeMount = new VolumeMount();
+                                    volumeMount.setName(vm.getPvcName());
+                                    volumeMount.setMountPath(vm.getPath());
+                                    volumeMounts.add(volumeMount);
+                                    //构建spec.volumes
+                                    Volume pvcVolume = new Volume();
+                                    pvcVolume.setName(vm.getPvcName());
+                                    PersistentVolumeClaimVolumeSource persistentVolumeClaimVolumeSource = new PersistentVolumeClaimVolumeSource();
+                                    persistentVolumeClaimVolumeSource.setClaimName(vm.getPvcName());
+                                    pvcVolume.setPersistentVolumeClaim(persistentVolumeClaimVolumeSource);
+                                    volumes.add(pvcVolume);
                                     break;
                                 case Constant.VOLUME_TYPE_GITREPO:
                                     if (!volFlag.containsKey(vm.getGitUrl())) {

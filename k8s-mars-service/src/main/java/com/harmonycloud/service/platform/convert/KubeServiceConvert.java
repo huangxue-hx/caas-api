@@ -182,7 +182,7 @@ public class KubeServiceConvert {
                 volumeMounts.add(volm);
             }
 
-            //如果voume有更新
+            //如果volume有更新
             if (cc.getStorage() != null && !cc.getStorage().isEmpty()) {
                 List<PersistentVolumeDto> newVolume = cc.getStorage();
                 Map<String, Object> volFlag = new HashMap<String, Object>();
@@ -191,23 +191,16 @@ public class KubeServiceConvert {
                     switch (vol.getType()) {
                         case Constant.VOLUME_TYPE_PV:
                             if (!volFlag.containsKey(vol.getPvcName())) {
-                                PersistentVolumeClaimVolumeSource pvClaim = new PersistentVolumeClaimVolumeSource();
                                 volFlag.put(vol.getPvcName(), vol.getPvcName());
-                                if (vol.getReadOnly().equals("true")) {
-                                    pvClaim.setReadOnly(true);
-                                }
-                                if (vol.getReadOnly().equals("false")) {
-                                    pvClaim.setReadOnly(false);
-                                }
+                                PersistentVolumeClaimVolumeSource pvClaim = new PersistentVolumeClaimVolumeSource();
                                 pvClaim.setClaimName(vol.getPvcName());
                                 Volume vole = new Volume();
                                 vole.setPersistentVolumeClaim(pvClaim);
-                                vole.setName(vol.getPvcName().replace(".", "-"));
+                                vole.setName(vol.getPvcName());
                                 volumes.add(vole);
                             }
                             VolumeMount volm = new VolumeMount();
-                            volm.setName(vol.getPvcName().replace(".", "-"));
-                            volm.setReadOnly(vol.getReadOnly());
+                            volm.setName(vol.getPvcName());
                             volm.setMountPath(vol.getPath());
                             volumeMounts.add(volm);
                             container.setVolumeMounts(volumeMounts);

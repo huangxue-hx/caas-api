@@ -524,29 +524,7 @@ public class ServiceServiceImpl implements ServiceService {
         if (!res.isSuccess()) {
             return res;
         }
-        // creat pvc
-        for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
-            if (c.getStorage() != null) {
-                for (PersistentVolumeDto pvc : c.getStorage()) {
-                    if (pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())) {
-                        if (StringUtils.isBlank(pvc.getPvcName())) {
-                            continue;
-                        }
-                        pvc.setNamespace(namespace);
-                        pvc.setServiceName(serviceDeploy.getServiceTemplate().getDeploymentDetail().getName());
-                        pvc.setProjectId(serviceDeploy.getServiceTemplate().getProjectId());
-                        pvc.setVolumeName(pvc.getPvcName());
-                        ActionReturnUtil pvcres = volumeSerivce.createVolume(pvc);
-                        pvcList.add(pvc.getPvcName());
-                        if (!pvcres.isSuccess()) {
-                            Map<String, Object> map = new HashMap<String, Object>();
-                            map.put(pvc.getPvcName(), pvcres.get("data"));
-                            message.add(map);
-                        }
-                    }
-                }
-            }
-        }
+
         // creat ingress
         if (service.getIngress() != null) {
             message.addAll(routerService.createExternalRule(service, serviceDeploy.getNamespace()));

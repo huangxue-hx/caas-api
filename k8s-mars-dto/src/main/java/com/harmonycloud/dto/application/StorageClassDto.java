@@ -4,6 +4,7 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -26,6 +27,8 @@ public class StorageClassDto {
     private int status;
     @ApiModelProperty(value = "StorageClass相关配置", name = "configMap", example = "{'NFS_SERVER': '10.10.101.91', 'NFS_PATH' : '/nfs/top'}")
     private Map<String, String> configMap;
+    @ApiModelProperty(value = "StorageClass相关服务", name = "serviceList")
+    private List serviceList;
 
     public String getName() {
         return name;
@@ -81,5 +84,13 @@ public class StorageClassDto {
 
     public void setConfigMap(Map<String, String> configMap) {
         this.configMap = configMap;
+    }
+
+    public List getServiceList() {
+        return serviceList;
+    }
+
+    public void setServiceList(List serviceList) {
+        this.serviceList = serviceList;
     }
 }

@@ -1551,28 +1551,6 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         // loop appTemplate
         if (appDeploy.getAppTemplate() != null && appDeploy.getAppTemplate().getServiceList().size() > 0) {
             for (ServiceTemplateDto svcTemplate : appDeploy.getAppTemplate().getServiceList()) {
-                // creat pvc
-                for (CreateContainerDto c : svcTemplate.getDeploymentDetail().getContainers()) {
-                    if (c.getStorage() != null) {
-                        for (PersistentVolumeDto pvc : c.getStorage()) {
-                            if (pvc == null) {
-                                continue;
-                            }
-                            if (pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())) {
-                                pvc.setNamespace(appDeploy.getNamespace());
-                                pvc.setServiceName(svcTemplate.getDeploymentDetail().getName());
-                                pvc.setVolumeName(pvc.getPvcName());
-                                pvc.setProjectId(appDeploy.getProjectId());
-                                ActionReturnUtil pvcres = volumeSerivce.createVolume(pvc);
-                                if (!pvcres.isSuccess()) {
-                                    Map<String, Object> map = new HashMap<String, Object>();
-                                    map.put(pvc.getPvcName(), pvcres.get("data"));
-                                    message.add(map);
-                                }
-                            }
-                        }
-                    }
-                }
                 // creat ingress
                 if (svcTemplate.getIngress() != null) {
                     message.addAll(routerService.createExternalRule(svcTemplate, appDeploy.getNamespace()));

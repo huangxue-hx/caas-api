@@ -28,6 +28,8 @@ public class VolumeMountExt {
 	private String configMapName;
 	
 	private String pvcname;
+
+	private String storageClassName;
 	
 	public VolumeMountExt() {
 		
@@ -128,4 +130,11 @@ public class VolumeMountExt {
 		this.pvcname = pvcname;
 	}
 
+	public String getStorageClassName() {
+		return storageClassName;
+	}
+
+	public void setStorageClassName(String storageClassName) {
+		this.storageClassName = storageClassName;
+	}
 }

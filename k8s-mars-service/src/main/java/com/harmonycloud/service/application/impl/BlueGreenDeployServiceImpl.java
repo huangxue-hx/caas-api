@@ -129,7 +129,8 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         if (!isExistLabel) {
             throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_BLUE_GREEN_FAILURE);
         }
-        checkPvAndCreateVolume(updateDeployment.getContainers(), name, namespace, cluster, projectId);
+        //引入StorageClass后无需创建pv
+        //checkPvAndCreateVolume(updateDeployment.getContainers(), name, namespace, cluster, projectId);
 
         // 创建configmap
         Map<String, String> containerToConfigMap = deploymentsService.createConfigMapInUpdate(namespace, name, cluster, updateDeployment.getContainers());

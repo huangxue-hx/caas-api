@@ -25,6 +25,8 @@ public class PvcDto implements Serializable {
     //storageClass name
     private String storageClassName;
 
+    private String storageClassType;
+
     //状态
     private String status;
     //绑定的服务（多个的话以“，”分割）
@@ -88,6 +90,14 @@ public class PvcDto implements Serializable {
 
     public void setStorageClassName(String storageClassName) {
         this.storageClassName = storageClassName;
+    }
+
+    public String getStorageClassType() {
+        return storageClassType;
+    }
+
+    public void setStorageClassType(String storageClassType) {
+        this.storageClassType = storageClassType;
     }
 
     public String getStatus() {

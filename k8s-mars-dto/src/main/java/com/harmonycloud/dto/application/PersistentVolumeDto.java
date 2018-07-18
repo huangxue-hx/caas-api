@@ -43,6 +43,10 @@ public class PersistentVolumeDto {
 
 	private String clusterId;
 
+	private String storageClassType;
+
+	private String storageClassName;
+
 	public String getType() {
 		return type;
 	}
@@ -178,5 +182,21 @@ public class PersistentVolumeDto {
 
 	public void setClusterId(String clusterId) {
 		this.clusterId = clusterId;
+	}
+
+	public String getStorageClassType() {
+		return storageClassType;
+	}
+
+	public void setStorageClassType(String storageClassType) {
+		this.storageClassType = storageClassType;
+	}
+
+	public String getStorageClassName() {
+		return storageClassName;
+	}
+
+	public void setStorageClassName(String storageClassName) {
+		this.storageClassName = storageClassName;
 	}
 }

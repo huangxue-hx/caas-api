@@ -124,6 +124,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     private static final String PHASE = "phase";
     private static final String STORAGE_RESOURCE = "storage";
     private static final String STORAGE_TYPE = "storageType";
+    private static final String STORAGECLASSES = "storageclasses";
 
     //检查配额的有效值
     private void checkQuota(Cluster cluster, NamespaceDto namespaceDto) throws Exception {
@@ -1584,6 +1585,35 @@ public class NamespaceServiceImpl implements NamespaceService {
         List<Map<String, Object>> namespaceData = new ArrayList<Map<String, Object>>();
         List<NamespaceLocal> namespaceList = this.namespaceLocalService.getAllNamespaceListByTenantId(tenantid);
         this.getNameSpaceDetailByNamespaceLocalList(namespaceList,namespaceData);
+        //算出所有分区已使用的存储值
+        Map<String,Integer> nsStorageUsed = new HashMap<>();
+        for (Map<String,Object> data : namespaceData) {
+            Map<String,LinkedList<String>> storageClassData = (Map<String, LinkedList<String>>) data.get(STORAGECLASSES);
+            for (String storageClassName : storageClassData.keySet()) {
+                if (nsStorageUsed.get(storageClassName) == null) {
+                    nsStorageUsed.put(storageClassName, Integer.parseInt(storageClassData.get(storageClassName).get(0)));
+                } else {
+                    nsStorageUsed.put(storageClassName, nsStorageUsed.get(storageClassName) + Integer.parseInt(storageClassData.get(storageClassName).get(0)));
+                }
+            }
+        }
+        //设定每个分区最大存储值
+        for (Map<String,Object> data : namespaceData) {
+            Map<String,LinkedList<String>> storageClassData = (Map<String, LinkedList<String>>) data.get(STORAGECLASSES);
+            for (String storageClassName : storageClassData.keySet()) {
+
+                if (nsStorageUsed.get(storageClassName) != null) {
+                    LinkedList<String> oldQuotaList = storageClassData.get(storageClassName);
+                    LinkedList<String> newQuotaList = new LinkedList<>();
+                    newQuotaList.add(oldQuotaList.get(0));
+                    newQuotaList.add(oldQuotaList.get(1));
+                    newQuotaList.add(String.valueOf(Integer.parseInt(oldQuotaList.get(0)) + Integer.parseInt(oldQuotaList.get(2)) - nsStorageUsed.get(storageClassName)));
+                    newQuotaList.add(String.valueOf(Integer.parseInt(newQuotaList.get(2)) - Integer.parseInt(newQuotaList.get(0))));
+                    storageClassData.put(storageClassName, newQuotaList);
+                }
+
+            }
+        }
         return namespaceData;
     }
     /**

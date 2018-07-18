@@ -656,7 +656,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             return ActionReturnUtil.returnErrorWithData(depRes.getBody());
         }
         Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
-        return ActionReturnUtil.returnSuccessWithData(K8sResultConvert.convertContainer(dep));
+        return ActionReturnUtil.returnSuccessWithData(K8sResultConvert.convertContainer(dep, cluster));
     }
 
     @Override
