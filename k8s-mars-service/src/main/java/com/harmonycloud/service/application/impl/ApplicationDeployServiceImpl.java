@@ -409,12 +409,13 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         }
         String newNamespace = StringUtils.isBlank(namespace) ? namespaces[1] : namespace;
 
-        BaseResource tpr = new BaseResource();
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(newNamespace);
         K8SClientResponse response = tprApplication.getApplicationByName(newNamespace, appName, null, null, HTTPMethod.GET, cluster);
-        if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            tpr = JsonUtil.jsonToPojo(response.getBody(), BaseResource.class);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            LOGGER.error("查询应用失败，namespace:{},appName:{},response:{}",new String[]{namespace,appName, com.alibaba.fastjson.JSONObject.toJSONString(response)});
+            return ActionReturnUtil.returnErrorWithData(DictEnum.APPLICATION.phrase(),ErrorCodeMessage.QUERY_FAIL);
         }
+        BaseResource tpr = JsonUtil.jsonToPojo(response.getBody(), BaseResource.class);
 
         if (tpr != null) {
             //判断是否是微服务组件应用是否有权限操作
