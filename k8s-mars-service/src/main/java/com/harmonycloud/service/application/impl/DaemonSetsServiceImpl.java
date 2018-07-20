@@ -141,7 +141,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                     }
                 }
             }
-            c.setImg(cluster.getHarborServer().getHarborHost() + "/" + c.getImg());
+            c.setImg(cluster.getHarborServer().getHarborHost() + ":" + cluster.getHarborServer().getHarborPort() +  "/" + c.getImg());
         }
         //创建组装DaemonSet
         DaemonSet daemonSet = new DaemonSet();

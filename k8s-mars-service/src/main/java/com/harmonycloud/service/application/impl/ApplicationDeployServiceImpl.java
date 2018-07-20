@@ -1178,7 +1178,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 //todo so bad
                 service.getDeploymentDetail().setNamespace(namespace);
                 for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
-                    c.setImg(cluster.getHarborServer().getHarborHost() + "/" + c.getImg());
+                    c.setImg(cluster.getHarborServer().getHarborHost() + ":" + cluster.getHarborServer().getHarborPort() + "/" + c.getImg());
                 }
                 service.getDeploymentDetail().setProjectId(appDeploy.getProjectId());
                 deploymentsService.createDeployment(service.getDeploymentDetail(), username, appDeploy.getAppName(), cluster);
@@ -1569,7 +1569,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 // namespace
                 svcTemplate.getDeploymentDetail().setNamespace(appDeploy.getNamespace());
                 for (CreateContainerDto c : svcTemplate.getDeploymentDetail().getContainers()) {
-                    c.setImg(cluster.getHarborServer().getHarborHost() + "/" + c.getImg());
+                    c.setImg(cluster.getHarborServer().getHarborHost() + ":" + cluster.getHarborServer().getHarborPort() + "/" + c.getImg());
                 }
                 svcTemplate.getDeploymentDetail().setProjectId(appDeploy.getProjectId());
                 ActionReturnUtil depRes = deploymentsService.createDeployment(svcTemplate.getDeploymentDetail(), username, appDeploy.getAppName(),

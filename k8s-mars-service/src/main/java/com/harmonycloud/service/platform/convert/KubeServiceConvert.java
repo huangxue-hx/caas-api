@@ -108,9 +108,9 @@ public class KubeServiceConvert {
             }
             container.setName(cc.getName());
             if (StringUtils.isEmpty(cc.getTag())) {
-                container.setImage(cluster.getHarborServer().getHarborHost()+"/"+ cc.getImg());
+                container.setImage(cluster.getHarborServer().getHarborHost() + ":" + cluster.getHarborServer().getHarborPort() +"/"+ cc.getImg());
             } else {
-                container.setImage(cluster.getHarborServer().getHarborHost()+"/" + cc.getImg() + ":" + cc.getTag());
+                container.setImage(cluster.getHarborServer().getHarborHost() + ":" + cluster.getHarborServer().getHarborPort() +"/" + cc.getImg() + ":" + cc.getTag());
             }
 
             //set cpu memory

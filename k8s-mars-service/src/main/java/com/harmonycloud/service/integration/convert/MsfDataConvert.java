@@ -204,8 +204,8 @@ public class MsfDataConvert {
         Container container = new Container();
         container.setName(deployment.getMetadata().getDeployment_name());
         String harborHost = cluster.getHarborServer().getHarborHost();
-        container.setImage(harborHost + "/" + deployment.getTemplate().getRepo() + "/" + deployment.getTemplate().getImage());
-
+        String harborPort = cluster.getHarborServer().getHarborHost();
+        container.setImage(harborHost + ":" + harborPort + "/" + deployment.getTemplate().getRepo() + "/" + deployment.getTemplate().getImage());
         //设置容器端口
         List<ContainerPort> ps = new ArrayList<ContainerPort>();
         for (MsfDeploymentPort p : deployment.getPorts()) {

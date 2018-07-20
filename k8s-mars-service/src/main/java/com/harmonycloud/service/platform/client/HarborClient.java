@@ -74,17 +74,6 @@ public class HarborClient {
         return cookieMap.get(COOKIE);
     }
 
-    public static String getHarborHost(String repoFullName){
-        if(StringUtils.isBlank(repoFullName)){
-            return null;
-        }
-        String[] repoPart = repoFullName.split("/");
-        if(repoPart.length >= 2){
-            return repoPart[0];
-        }
-        return null;
-    }
-
     public static String loginWithAdmin(HarborServer harborServer) throws Exception {
         String url = getHarborUrl(harborServer) + "/login";
         Map<String, Object> params = new HashMap<String, Object>();

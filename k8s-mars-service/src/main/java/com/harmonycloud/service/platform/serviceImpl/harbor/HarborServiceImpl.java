@@ -758,7 +758,8 @@ public class HarborServiceImpl implements HarborService {
             }
             repositoryDet = imageCacheManager.sort(repositoryDet);
         }
-        harborRepository.setFullNameRepo(harborHost+"/"+repoName);
+        HarborServer harborServer = clusterService.findHarborByHost(harborHost);
+        harborRepository.setFullNameRepo(harborHost + COLON + harborServer.getHarborPort() + "/"+repoName);
         harborRepository.setRepository(repoName);
         harborRepository.setRepositoryDetial(repositoryDet);
         harborRepository.setTags(repositoryDet.stream().map(HarborManifest::getTag).collect(Collectors.toList()));
