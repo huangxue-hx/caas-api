@@ -365,7 +365,7 @@ public enum ErrorCodeMessage {
             "镜像仓库正在清理镜像垃圾文件，请稍后再试"),
     PUBLIC_HARBOR_PROJECT_CLEAN_ACCESS(405038, "Public harbor project image clean rule is only allow for admin",
             "公共镜像仓库清理规则需要系统管理员权限可以设置"),
-    HARBOR_COOKIE_INVALID(405039, "Harbor login timeout, please retry.", "Harbor登录超时，请重试"),
+    HARBOR_COOKIE_INVALID(405039, "Harbor unauthorized or login timeout, please retry.", "Harbor验证失败或登录超时，请重试"),
     HARBOR_PROTOCOL_INVALID(405040, "If harbor enabled https protocol, please use https replace http",
             "如果harbor启用https协议，请用https访问harbor"),
     IMAGE_DELETE_TIMEOUT(405041, "Maybe image file is too large to delete within 1 minutes, please check result later.",

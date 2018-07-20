@@ -1,6 +1,7 @@
 package com.harmonycloud.service.platform.serviceImpl.harbor;
 
 
+import java.net.URLEncoder;
 import java.util.*;
 
 import com.alibaba.fastjson.JSONObject;
@@ -125,7 +126,8 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
         AssertUtil.notBlank(targetusername, DictEnum.USERNAME);
 		AssertUtil.notBlank(targetusername, DictEnum.PASSWORD);
 		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
-        String url = HarborClient.getHarborUrl(harborServer) + "/api/targets/ping?endpoint="+endpoint+"&username="+targetusername+"&password="+targetuserpassword;
+		String url = HarborClient.getHarborUrl(harborServer) + "/api/targets/ping?endpoint="+endpoint+"&username="
+								+targetusername+"&password="+URLEncoder.encode(targetuserpassword,"UTF-8");
 
         Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 
