@@ -212,4 +212,12 @@ public class ConfigCenterController {
 											   @RequestParam(value = "name")String name) throws Exception {
 		return configCenterService.getConfigMapByName(namespace, name);
 	}
+
+//	@ResponseBody
+//	@RequestMapping(value = "/services", method = RequestMethod.GET)
+//	public ActionReturnUtil getServiceList( @PathVariable("projectId") String projectId,
+//											@PathVariable("tenantId") String tenantId,
+//										    @RequestParam(value = "configMapId")String configMapId) throws Exception {
+//		return configCenterService.getServiceList(projectId, tenantId,configMapId);
+//	}
 }

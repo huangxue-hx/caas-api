@@ -70,8 +70,8 @@ public class LogServiceImpl implements LogService {
     //每次只能查询100个POD的文件
     private static final int MAX_POD_FETCH_COUNT = 100;
     private static final int MAX_EXPORT_LENGTH = 100000;
-    //日志最多查询的数量为500
-    private static final int MAX_LOG_LINES = 500;
+    //日志最多查询的数量为200
+    private static final int MAX_LOG_LINES = 200;
 
     @Autowired
     private NamespaceLocalService namespaceLocalService;

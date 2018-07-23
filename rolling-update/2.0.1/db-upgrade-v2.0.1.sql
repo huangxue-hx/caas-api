@@ -1,4 +1,4 @@
-CREATE TABLE `configfile_item` (
+CREATE TABLE `k8s_auth_server`.`configfile_item` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'id主键,自动生成',
   `configfile_id` varchar(64) NOT NULL COMMENT '外键,配置id',
   `path` varchar(512) DEFAULT NULL COMMENT '路径',
@@ -12,6 +12,8 @@ UPDATE `k8s_auth_server`.`user` SET `real_name`='admin' WHERE `id`='1';
 ALTER TABLE k8s_auth_server.`configfile`
   DROP COLUMN `item`,
   DROP COLUMN `path`;
+
+INSERT into k8s_auth_server.configfile_item(`configfile_id`, `path`, `content`, `file_name`) select id,path,item,name FROM `k8s_auth_server`.configfile
 
 ALTER TABLE tenant_cluster_quota ADD storage_quotas VARCHAR(255) SET utf8 COLLATE utf8_general_ci DEFAULT '' COMMENT '集群租户的所有存储配额信息（name1_quota1_total1，name2_quota2_total2...）'
 

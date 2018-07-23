@@ -2342,6 +2342,10 @@ public class JobServiceImpl implements JobService {
                         if (configMapUtil.getData() == null || !configMapUtil.isSuccess()) {
                             throw new MarsRuntimeException("未找到配置文件");
                         }
+
+//                        Map<String,Object> data =(Map<String,Object>)configMapUtil.getData();
+//                        ConfigDetailDto configDetailDto = (ConfigDetailDto) data.get("configMapDetail");
+
                         ConfigDetailDto configDetailDto = (ConfigDetailDto) configMapUtil.getData();
                         ConfigFile configFile = ObjConverter.convert(configDetailDto, ConfigFile.class);
                         configMap.setTag(configFile.getTags());
@@ -2383,6 +2387,9 @@ public class JobServiceImpl implements JobService {
                         if(configMapUtil==null || !configMapUtil.isSuccess()){
                             throw new MarsRuntimeException("未找到配置文件");
                         }
+//                        Map<String,Object> data =(Map<String,Object>)configMapUtil.getData();
+//                        ConfigDetailDto configDetailDto = (ConfigDetailDto) data.get("configMapDetail");
+
                         ConfigDetailDto configDetailDto = (ConfigDetailDto) configMapUtil.getData();
                         ConfigFile configFile = ObjConverter.convert(configDetailDto, ConfigFile.class);
                         if (configFile != null) {

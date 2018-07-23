@@ -1,6 +1,7 @@
 package com.harmonycloud.dto.config;
 
 import com.harmonycloud.dao.application.bean.ConfigFileItem;
+import com.harmonycloud.k8s.bean.Deployment;
 
 import java.io.Serializable;
 import java.util.List;
@@ -19,6 +20,15 @@ public class ConfigDetailDto implements Serializable {
     private String isCreate;
     private String tags;
     private List<ConfigFileItem> configFileItemList;
+    private List<Deployment> deploymentList;
+
+    public List<Deployment> getDeploymentList() {
+        return deploymentList;
+    }
+
+    public void setDeploymentList(List<Deployment> deploymentList) {
+        this.deploymentList = deploymentList;
+    }
 
     public List<ConfigFileItem> getConfigFileItemList() {
         return configFileItemList;

@@ -3,6 +3,9 @@ package com.harmonycloud.service.platform.service;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.application.bean.ConfigFile;
 import com.harmonycloud.dto.config.ConfigDetailDto;
+import com.harmonycloud.k8s.bean.Deployment;
+
+import java.util.List;
 
 
 /**
@@ -86,7 +89,7 @@ public interface ConfigCenterService {
      *            required
      * @return ActionReturnUtil
      */
-    ActionReturnUtil getConfigMap(String id) throws Exception;
+    ActionReturnUtil getConfigMap(String configMapId) throws Exception;
 
     /**
      * find a lastest config service on 17/03/24.
@@ -143,4 +146,13 @@ public interface ConfigCenterService {
      * @return
      */
     ActionReturnUtil getConfigMapByName(String name, String clusterId, String projectId) throws Exception;
+
+    /**
+     * 返回当前配置组的服务列表
+     * @param projectId
+     * @param tenantId
+     * @param configMapId
+     * @return
+     */
+    List<Deployment> getServiceList(String projectId, String tenantId, String configMapId) throws Exception;
 }

@@ -1,6 +1,7 @@
 package com.harmonycloud.service.platform.serviceipml.configcenter;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
@@ -8,11 +9,16 @@ import com.harmonycloud.dao.application.ConfigFileItemMapper;
 import com.harmonycloud.dao.application.ConfigFileMapper;
 import com.harmonycloud.dao.application.bean.ConfigFile;
 import com.harmonycloud.dao.application.bean.ConfigFileItem;
+import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dto.config.ConfigDetailDto;
 import com.harmonycloud.k8s.bean.ConfigMap;
+import com.harmonycloud.k8s.bean.Deployment;
+import com.harmonycloud.k8s.bean.DeploymentList;
+import com.harmonycloud.k8s.bean.Volume;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.service.ConfigmapService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
+import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
@@ -56,6 +62,9 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 
     @Autowired
     private NamespaceLocalService namespaceLocalService;
+
+    @Autowired
+    private DeploymentsService deploymentsService;
 
     /**
      * add or update config serviceImpl on 17/03/24.
@@ -235,17 +244,20 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     /**
      * find configMap serviceImpl on 17/03/24.
      *
-     * @param id required
+     *
      * @return ActionReturnUtil
      * @author gurongyun
      */
     @Override
-    public ActionReturnUtil getConfigMap(String id) throws Exception {
+    public ActionReturnUtil getConfigMap(String configMapId) throws Exception {
 
-        ConfigFile configFile = configFileMapper.getConfig(id);
-        List<ConfigFileItem> configFileItemList = configFileItemMapper.getConfigFileItem(id);
+        ConfigFile configFile = configFileMapper.getConfig(configMapId);
+        List<ConfigFileItem> configFileItemList = configFileItemMapper.getConfigFileItem(configMapId);
         configFile.setConfigFileItemList(configFileItemList);
         ConfigDetailDto configDetailDto = ObjConverter.convert(configFile, ConfigDetailDto.class);
+
+        List<Deployment> deploymentList = getServiceList(configDetailDto.getProjectId(), configDetailDto.getTenantId(), configMapId);
+        configDetailDto.setDeploymentList(deploymentList);
         // 查找配置文件
         return ActionReturnUtil.returnSuccessWithData(configDetailDto);
     }
@@ -301,6 +313,9 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         List<ConfigFileItem> configFileItemList = configFileItemMapper.getConfigFileItem(latestConfig.getId());
         latestConfig.setConfigFileItemList(configFileItemList);
         ConfigDetailDto configDetailDto = ObjConverter.convert(latestConfig, ConfigDetailDto.class);
+
+        List<Deployment> serviceList = getServiceList(configDetailDto.getProjectId(), configDetailDto.getTenantId(), configDetailDto.getId());
+        configDetailDto.setDeploymentList(serviceList);
         return ActionReturnUtil.returnSuccessWithData(configDetailDto);
     }
 
@@ -355,6 +370,41 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     public ActionReturnUtil getConfigMapByName(String name, String clusterId, String projectId) throws Exception  {
         List<ConfigFile> configFileList =  configFileMapper.getConfigMapByName(name,clusterId,projectId);
         return ActionReturnUtil.returnSuccessWithData(configFileList);
+    }
+
+    @Override
+    public  List<Deployment> getServiceList(String projectId, String tenantId, String configMapId) throws Exception {
+        AssertUtil.notBlank(projectId, DictEnum.PROJECT);
+        AssertUtil.notBlank(tenantId,DictEnum.TENANT_ID);
+        AssertUtil.notBlank(configMapId,DictEnum.CONFIG_MAP_ID);
+
+        List<NamespaceLocal> namespaceListByTenantId = namespaceLocalService.getNamespaceListByTenantId(tenantId);
+        List<Deployment> deploymentsList = new ArrayList<>();
+        for (NamespaceLocal namespaceLocal : namespaceListByTenantId) {
+            String namespace = namespaceLocal.getNamespaceName();
+
+            DeploymentList deploymentList = deploymentsService.listDeployments(namespace, projectId);
+            if(!CollectionUtils.isEmpty(deploymentList.getItems())){
+                List<Deployment> deployments = deploymentList.getItems();
+                for (Deployment deployment : deployments) {
+                    List<Volume> volumes = deployment.getSpec().getTemplate().getSpec().getVolumes();
+                    if(!CollectionUtils.isEmpty(volumes)){
+                        Volume volume = volumes.get(0);
+                        String name = volume.getName();
+                        if(!StringUtils.isEmpty(name)){
+                            int lastIndexOf = name.lastIndexOf("-");
+                            String subConfigMapId = name.substring(lastIndexOf + 1);
+                            if(configMapId.equals(subConfigMapId)){
+                                deploymentsList.add(deployment);
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+
+        return deploymentsList;
     }
 
 }
