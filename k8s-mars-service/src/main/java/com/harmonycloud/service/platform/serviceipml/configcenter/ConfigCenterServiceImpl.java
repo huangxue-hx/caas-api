@@ -361,6 +361,9 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     @Override
     public ConfigFile getConfigByNameAndTag(String name,String tag, String projectId, String clusterId) {
         ConfigFile configFile = configFileMapper.getConfigByNameAndTag(name, tag, projectId, clusterId);
+        if(configFile == null){
+            return null;
+        }
         List<ConfigFileItem> configFileItemList = configFileItemMapper.getConfigFileItem(configFile.getId());
         configFile.setConfigFileItemList(configFileItemList);
         return configFile;

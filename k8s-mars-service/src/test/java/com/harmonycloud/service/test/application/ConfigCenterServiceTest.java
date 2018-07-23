@@ -3,11 +3,9 @@ package com.harmonycloud.service.test.application;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.ObjConverter;
 import com.harmonycloud.dao.application.bean.ConfigFile;
 import com.harmonycloud.dao.application.bean.ConfigFileItem;
 import com.harmonycloud.dto.config.ConfigDetailDto;
-import com.harmonycloud.k8s.bean.Deployment;
 import com.harmonycloud.k8s.bean.NamespaceList;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8SClient;
@@ -247,32 +245,16 @@ public class ConfigCenterServiceTest extends BaseTest {
 
     @Test
     public void testGetServiceList() throws Exception {
+
         session.setAttribute(CommonConstant.ROLEID,1);
 
-        ActionReturnUtil configMapUtil = configCenterService.getConfigMap("bd8f84d488d042be9e3ac87f2fa6baeb");
+        ActionReturnUtil configMapUtil = configCenterService.getConfigMap(configMap.getId());
+        assertNotNull(configMapUtil);
+        assertNotNull(((ConfigDetailDto)configMapUtil.getData()).getDeploymentList());
 
-
-        ConfigDetailDto configDetailDto = (ConfigDetailDto) configMapUtil.getData();
-        ConfigFile configFile = ObjConverter.convert(configDetailDto, ConfigFile.class);
-        System.out.println(com.alibaba.fastjson.JSON.toJSONString(configFile));
-
-
-//        List<Deployment>  data = (List<Deployment>) configMapByName.getData();
-        for (Deployment datum : configDetailDto.getDeploymentList()) {
-            System.out.println(datum.getMetadata().getName());
-            System.out.println(datum.getSpec().getTemplate().getSpec().getVolumes().get(0).getName());
-        }
-        System.out.println("----------------------");
-
-        ActionReturnUtil latestConfigMap = configCenterService.getLatestConfigMap("cm01", "aabc0a6f31d543e6a27f6042cddd91ad", "library/jftomcat", "cluster-top--dev", "1.0");
-        ConfigDetailDto data = (ConfigDetailDto) latestConfigMap.getData();
-
-        for (Deployment datum : data.getDeploymentList()) {
-            System.out.println(datum.getMetadata().getName());
-            System.out.println(datum.getSpec().getTemplate().getSpec().getVolumes().get(0).getName());
-        }
-//        configCenterService.getServiceList("aabc0a6f31d543e6a27f6042cddd91ad", "103303bb68ea4511abce4b5da0c054f4", "bd8f84d488d042be9e3ac87f2fa6baeb");
-
+        ActionReturnUtil latestConfigMap = configCenterService.getLatestConfigMap(configMap.getName(), projectId, configMap.getRepoName(), configMap.getClusterId(), configMap.getTags());
+        assertNotNull(latestConfigMap);
+        assertNotNull(((ConfigDetailDto) latestConfigMap.getData()).getDeploymentList());
 
     }
 

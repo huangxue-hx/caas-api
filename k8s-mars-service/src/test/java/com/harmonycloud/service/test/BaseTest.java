@@ -3,11 +3,15 @@ package com.harmonycloud.service.test;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ClusterLevelEnum;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.ObjConverter;
+import com.harmonycloud.dao.application.bean.ConfigFile;
+import com.harmonycloud.dao.application.bean.ConfigFileItem;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dto.application.*;
+import com.harmonycloud.dto.config.ConfigDetailDto;
 import com.harmonycloud.dto.tenant.*;
 import com.harmonycloud.k8s.bean.Deployment;
 import com.harmonycloud.k8s.bean.DeploymentList;
@@ -17,6 +21,7 @@ import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.ServiceService;
 import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.platform.service.ConfigCenterService;
 import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.tenant.TenantService;
@@ -32,10 +37,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import javax.servlet.http.HttpSession;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static com.harmonycloud.common.Constant.CommonConstant.FLAG_FALSE;
 import static com.harmonycloud.common.Constant.CommonConstant.FLAG_TRUE;
@@ -52,6 +54,9 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
     protected static final String TEST_NAME = "unittest";
     protected static final String TEST_ALISA_NAME = "单元测试";
     protected static final String DEFAULT_SERVICE_NAME = "tomcat";
+    protected static final String DEFAULT_CONFIG_NAME = "configMapName";
+    protected static final String TEST_REPONAME = "onlineshop/tomcat";
+    protected static final String DEFAULT_CONFIG_TAG = "1.0";
     protected List<Cluster> clusters;
     protected String devClusterId;
     protected Cluster devCluster;
@@ -63,6 +68,7 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
     protected String testUserName = TEST_NAME;
     protected List<NamespaceLocal> namespaces;
     protected String namespaceName;
+    protected ConfigFile configMap;
 
 
     @Autowired
@@ -83,6 +89,8 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
     ApplicationDeployService applicationDeployService;
     @Autowired
     DeploymentsService deploymentsService;
+    @Autowired
+    ConfigCenterService configCenterService;
     @Autowired
     HttpSession session;
 
@@ -119,7 +127,12 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
         }
         namespaceName = namespaces.get(0).getNamespaceName();
         projectId = getProject().getProjectId();
+        configMap = getConfigMap();
+        if(configMap == null){
+            throw new Exception("创建测试配置组失败.");
+        }
         getTomcatService();
+
 
     }
 
@@ -249,6 +262,40 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
         return storageClassDto;
     }
 
+    private ConfigFile getConfigMap() throws Exception{
+        ConfigFile configByNameAndTag = configCenterService.getConfigByNameAndTag(DEFAULT_CONFIG_NAME, DEFAULT_CONFIG_TAG, projectId, devClusterId);
+        if(configByNameAndTag != null){
+            return configByNameAndTag;
+        }
+        logger.info("创建单元测试配置组......");
+        configByNameAndTag = new ConfigFile();
+        configByNameAndTag.setClusterId(devClusterId);
+        Date local_date = new Date();
+        configByNameAndTag.setName(DEFAULT_CONFIG_NAME);
+        configByNameAndTag.setProjectId(projectId);
+        configByNameAndTag.setTags(DEFAULT_CONFIG_TAG);
+        configByNameAndTag.setTenantId(tenantId);
+        configByNameAndTag.setRepoName(TEST_REPONAME);
+
+        List<ConfigFileItem> configFileItemList = new ArrayList<>();
+        ConfigFileItem configFileItem = new ConfigFileItem();
+        configFileItem.setContent("a=b");
+        configFileItem.setFileName("config1");
+        configFileItem.setPath(null);
+        ConfigFileItem configFileItem1 = new ConfigFileItem();
+        configFileItem1.setContent("b=c");
+        configFileItem1.setFileName("config2");
+        configFileItem1.setPath("/tmp");
+        configFileItemList.add(0,configFileItem);
+        configFileItemList.add(1,configFileItem1);
+        configByNameAndTag.setConfigFileItemList(configFileItemList);
+
+        ConfigDetailDto configDetailDto = ObjConverter.convert(configByNameAndTag, ConfigDetailDto.class);
+        ActionReturnUtil actionReturnUtil = configCenterService.saveConfig(configDetailDto, adminUserName);
+        System.out.println(actionReturnUtil.getData());
+        return configCenterService.getConfigByNameAndTag(DEFAULT_CONFIG_NAME, DEFAULT_CONFIG_TAG, projectId, devClusterId);
+    }
+
     private Deployment getTomcatService() throws Exception{
         DeploymentList deploymentList = deploymentsService.listDeployments(namespaceName, projectId);
         if(deploymentList != null || !CollectionUtils.isEmpty(deploymentList.getItems())){
@@ -286,6 +333,20 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
 
         List<CreateContainerDto> containers = new ArrayList<>();
         CreateContainerDto createContainerDto = new CreateContainerDto();
+
+        List<CreateConfigMapDto> CreateConfigMapDtoList = new ArrayList<>();
+        List<ConfigFileItem> configFileItemList = configMap.getConfigFileItemList();
+        for (ConfigFileItem configFileItem : configFileItemList) {
+            CreateConfigMapDto createConfigMapDto = new CreateConfigMapDto();
+            createConfigMapDto.setPath(configFileItem.getPath());
+            createConfigMapDto.setTag(configMap.getTags());
+            createConfigMapDto.setConfigMapId(configFileItem.getConfigfileId());
+            createConfigMapDto.setFile(configFileItem.getFileName());
+            createConfigMapDto.setValue(configFileItem.getContent());
+            CreateConfigMapDtoList.add(createConfigMapDto);
+        }
+        createContainerDto.setConfigmap(CreateConfigMapDtoList);
+
         List<CreateEnvDto> env = new ArrayList<>();
         CreateEnvDto createEnvDto = new CreateEnvDto();
         createEnvDto.setKey("JAVA_OPT");
