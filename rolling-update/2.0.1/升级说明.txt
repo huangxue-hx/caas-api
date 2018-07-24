@@ -1,0 +1,5 @@
+1.webapi-config配置变更
+删除配置sso.exclusion
+增加配置api.url.whitelist=*login*,*token*,*/system/configs/trialtime*,*/openapi/*,*/clusters,*/clusters/cache,*/testcallback*,*/tenants/addProject*,*/tenants/addUser*,*/tenants/project/addUser*,*/tenants/project/removeUser*,*/msf/tasks*,*/msf/queryInstances*,*/webhook,*/swagger-resources*,*/api-docs*,*/webjars*
+
+

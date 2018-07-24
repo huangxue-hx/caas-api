@@ -47,6 +47,17 @@
         <scope>test</scope>
     </dependency>
 
+      <dependency>
+          <groupId>io.springfox</groupId>
+          <artifactId>springfox-swagger2</artifactId>
+          <version>${swagger.version}</version>
+      </dependency>
+      <dependency>
+          <groupId>io.springfox</groupId>
+          <artifactId>springfox-swagger-ui</artifactId>
+          <version>${swagger.version}</version>
+      </dependency>
+
     </dependencies>
     <build>
         <finalName>k8s-mars-api</finalName>

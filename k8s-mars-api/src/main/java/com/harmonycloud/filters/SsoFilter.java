@@ -82,7 +82,7 @@ public class SsoFilter implements Filter {
     public static String getExclusion() {
         return exclusion;
     }
-    @Value("#{propertiesReader['sso.exclusion']}")
+    @Value("#{propertiesReader['api.url.whitelist']}")
     public void setExclusion(String exclusion) {
         this.exclusion = exclusion;
     }
