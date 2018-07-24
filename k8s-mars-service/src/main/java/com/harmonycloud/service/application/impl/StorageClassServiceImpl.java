@@ -6,7 +6,10 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.*;
+import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.HttpStatusUtil;
+import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.system.bean.SystemConfig;
@@ -90,6 +93,7 @@ public class StorageClassServiceImpl implements StorageClassService {
         if (Objects.isNull(cluster)) {
             throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
+        Cluster topCluster = clusterService.getPlatformCluster();
         //判断Storage class是否已经存在
         StorageClass sc = scService.getScByName(storageClass.getName(), cluster);
         if (sc != null) {
@@ -134,6 +138,10 @@ public class StorageClassServiceImpl implements StorageClassService {
                 LOGGER.error("创建NfsProvisioner ClusterRole失败，data:{}", storageClassReturn.getData());
                 return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.DELETE_FAIL, DictEnum.STORAGE_CLASS.phrase(), true);
             }
+            if(storageClass.getClusterId().equalsIgnoreCase(topCluster.getId())) {
+                setupUploadPod(storageClass);
+            }
+
             return storageClassReturn;
         } else {
             LOGGER.error("Storage class使用的存储暂时仅支持NFS");
@@ -197,7 +205,9 @@ public class StorageClassServiceImpl implements StorageClassService {
                 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.STORAGECLASS_DELETE_ERROR);
             }
         }
-
+        if(clusterId.equalsIgnoreCase(clusterService.getPlatformCluster().getId())) {
+            removeUploadPod(name);
+        }
         K8SClientResponse response = scService.deleteStorageClassByName(name, cluster);
         if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             return ActionReturnUtil.returnSuccess();
@@ -260,6 +270,7 @@ public class StorageClassServiceImpl implements StorageClassService {
                             serviceItem.put("name", deployment.getMetadata().getName());
                             serviceItem.put("status", K8sResultConvert.getDeploymentStatus(deployment));
                             serviceItem.put("instance", deployment.getSpec().getReplicas());
+                            serviceItem.put("namespace", deployment.getMetadata().getNamespace());
                             String aliasNamespace = namespaceLocalService.getNamespaceByName(deployment.getMetadata().getNamespace()).getAliasName();
                             serviceItem.put("aliasNamespace", aliasNamespace);
                             List<String> img = new ArrayList<String>();
@@ -281,8 +292,20 @@ public class StorageClassServiceImpl implements StorageClassService {
                             serviceItem.put("img", img);
                             serviceItem.put("cpu", cpu);
                             serviceItem.put("memory", memory);
-                            Map<String, Object> labels = deployment.getMetadata().getLabels();
-                            serviceItem.put("labels", labels);
+
+                            Map<String, Object> labelsMap = new HashMap<>();
+                            if (deployment.getMetadata().getAnnotations() != null && deployment.getMetadata().getAnnotations().containsKey("nephele/labels")) {
+                                String labels = deployment.getMetadata().getAnnotations().get("nephele/labels").toString();
+                                if (!StringUtils.isEmpty(labels)) {
+                                    String[] arrLabel = labels.split(",");
+                                    for (String l : arrLabel) {
+                                        String[] tmp = l.split("=");
+                                        labelsMap.put(tmp[0], tmp[1]);
+                                    }
+                                }
+                            }
+
+                            serviceItem.put("labels", labelsMap);
                             Date utcDate = DateUtil.StringToDate(deployment.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
                             serviceItem.put("createTime", utcDate);
                             serviceList.add(serviceItem);
@@ -347,7 +370,7 @@ public class StorageClassServiceImpl implements StorageClassService {
     }
 
     @Override
-    public ActionReturnUtil listStorageClass(String clusterId) throws Exception {
+    public List<StorageClassDto> listStorageClass(String clusterId) throws Exception {
         AssertUtil.notBlank(clusterId, DictEnum.CLUSTER_ID);
         //获取集群
         Cluster cluster = clusterService.findClusterById(clusterId);
@@ -363,7 +386,7 @@ public class StorageClassServiceImpl implements StorageClassService {
                 storageClassDtos.add(storageClassDto);
             }
         }
-        return ActionReturnUtil.returnSuccessWithData(storageClassDtos);
+        return storageClassDtos;
     }
 
     private ActionReturnUtil getNfsProvisionerStatus(String name, Cluster cluster) throws Exception {
@@ -399,4 +422,73 @@ public class StorageClassServiceImpl implements StorageClassService {
         is.close();
         return yamlMap;
     }
+
+    /**
+     * 创建file-upload pod
+     * @param storageClass
+     * @throws Exception
+     */
+    private void setupUploadPod(StorageClassDto storageClass) throws Exception{
+        Cluster topCluster = clusterService.getPlatformCluster();
+        Gson gson = new Gson();
+        String deployString = "";
+        //NFS存储
+        if (NFS_STORAGE.equals(storageClass.getType())) {
+            String nfsAddr = storageClass.getConfigMap().get(CommonConstant.NFS_SERVER);
+            String nfsPath = storageClass.getConfigMap().get(CommonConstant.NFS_PATH);
+            if (StringUtils.isBlank(nfsAddr) || StringUtils.isBlank(nfsPath)) {
+                throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+            }
+            List<SystemConfig> systemConfigList = systemConfigService.findByConfigType("dependence");
+            String dependenceImage = "";
+            String dependenceImageCmd = "";
+            for (SystemConfig systemConfig : systemConfigList) {
+                if ("dependenceUploadImageName".equals(systemConfig.getConfigName())) {
+                    dependenceImage = topCluster.getHarborServer().getHarborHost() + ":" +
+                            topCluster.getHarborServer().getHarborPort() + systemConfig.getConfigValue();
+                } else if ("dependenceUploadImageCmd".equals(systemConfig.getConfigName())) {
+                    dependenceImageCmd = systemConfig.getConfigValue();
+                }
+            }
+
+
+            Map<String, Object> jsonMap = yamlToMap("dependence/deployment-nfs.yaml");
+
+            String jsonString = gson.toJson(jsonMap);
+            deployString = jsonString.replaceAll("nfsAddr", nfsAddr).replaceAll("nfsPath", nfsPath)
+                    .replaceAll("scName", storageClass.getName()).replace("imageName", dependenceImage).replace("\"imageCmd\"", dependenceImageCmd);
+        }
+        Map<String, Object> deployMap = gson.fromJson(deployString, new TypeToken<Map<String, Object>>(){}.getType());
+        ((Map<String, Object>)deployMap.get("spec")).put("replicas", 1);
+
+        K8SURL k8surl = new K8SURL();
+        k8surl.setNamespace(CommonConstant.KUBE_SYSTEM).setResource(Resource.DEPLOYMENT).setApiGroup(APIGroup.APIS_EXTENSIONS_V1BETA1_VERSION);
+        Map<String, Object> headers = new HashMap<String, Object>();
+        headers.put("Content-type", "application/json");
+        Map<String, Object> bodys = new HashMap<String, Object>();
+        K8SClientResponse response = new K8sMachineClient().exec(k8surl, HTTPMethod.POST, headers, deployMap, topCluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            LOGGER.error("create upload pod failed: {}", status.getMessage());
+            throw new MarsRuntimeException(ErrorCodeMessage.FILE_UPLOAD_POD_CREATE_ERROR);
+        }
+    }
+
+    /**
+     * 删除file-upload pod
+     * @param name
+     * @throws Exception
+     */
+    private void removeUploadPod(String name) throws Exception{
+        Cluster topCluster = clusterService.getPlatformCluster();
+        String deployName = CommonConstant.FILE_UPLOAD_POD_NAME_PREFIX + "-" + name;
+        K8SClientResponse delRes = deploymentService.doSpecifyDeployment(CommonConstant.KUBE_SYSTEM, deployName, null, null, HTTPMethod.DELETE, topCluster);
+        if(!HttpStatusUtil.isSuccessStatus(delRes.getStatus())){
+            UnversionedStatus status = JsonUtil.jsonToPojo(delRes.getBody(), UnversionedStatus.class);
+            LOGGER.error("delete upload pod failed: {}", status.getMessage());
+            throw new MarsRuntimeException(ErrorCodeMessage.FILE_UPLOAD_POD_REMOVE_ERROR);
+        }
+    }
+
+
 }

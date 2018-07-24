@@ -471,6 +471,8 @@ public enum ErrorCodeMessage {
     STAGE_CONFIG_ERROR(406065, "Stage configuration is wrong, please check", "流水线步骤配置有误，请检查步骤"),
     ORIGIN_STAGE_NOT_EXIST(406066, "Stage or pipeline is deleted in deploy stage, please configure", "部署步骤中镜像来源处的流水线或其步骤已被删除，请重新设置"),
     EXECUTE_TEST_SUITE_ERROR(406067, "Test suite execute failed.", "执行测试套件失败"),
+    FILE_UPLOAD_POD_CREATE_ERROR(406068, "Create file upload pod failed", "创建上传文件pod失败"),
+    FILE_UPLOAD_POD_REMOVE_ERROR(406069, "Remove file upload pod failed", "删除上传文件pod失败"),
 
     //配置文件 407xxx
     CONFIGMAP_NAME_DUPLICATE(407001, "ConfigMap name duplicate.", "配置文件名称已存在"),

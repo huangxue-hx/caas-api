@@ -213,6 +213,9 @@ public class CommonConstant {
     public static final String PERSISTENTVOLUME = "PersistentVolume";
     public static final String STORAGE = "storage";
     public static final String NFS = "nfs";
+    public static final String NFS_SERVER = "NFS_SERVER";
+    public static final String NFS_PATH = "NFS_PATH";
+
     public static final String READONLYMANY = "ReadOnlyMany";
     public static final String READWRITEMANY = "ReadWriteMany";
     public static final String READWRITEONCE = "ReadWriteOnce";
@@ -347,6 +350,7 @@ public class CommonConstant {
     public static final String REFERENCES_TAG = "tag";
     //文件上传POD的label
     public static final String FILE_UPLOAD_POD_LABEL = "app=file-upload";
+    public static final String FILE_UPLOAD_POD_NAME_PREFIX = "file-upload";
     //文件类型
     public static final String DIRECTORY_TYPE = "d";
     //镜像tag类型

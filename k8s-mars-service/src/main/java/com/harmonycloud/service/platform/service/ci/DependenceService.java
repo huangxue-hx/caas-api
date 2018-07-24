@@ -1,6 +1,6 @@
 package com.harmonycloud.service.platform.service.ci;
 
-import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.application.StorageClassDto;
 import com.harmonycloud.dto.cicd.DependenceDto;
 import com.harmonycloud.dto.cicd.DependenceFileDto;
 
@@ -86,4 +86,9 @@ public interface DependenceService {
      */
     List findDependenceFileByKeyword(String dependenceName, String projectId, String clusterId , String keyWord) throws Exception;
 
+    /**
+     * 获取依赖可用的storageclass
+     * @return
+     */
+    List<StorageClassDto> listStorageClass() throws Exception;
 }

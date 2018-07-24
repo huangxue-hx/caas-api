@@ -204,4 +204,18 @@ public class DependenceController {
         return ActionReturnUtil.returnSuccessWithData(dependenceService.findDependenceFileByKeyword(dependenceName, projectId, clusterId , keyWord));
 
     }
+
+    /**
+     * 获取依赖可用的storageclass
+     * @return
+     * @throws Exception
+     */
+    @ApiOperation(value = "查询依赖可用存储类", notes = "获取上层集群下的storageClass" )
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "tenantId", value = "租户ID", required = false, paramType = "path", dataType = "String"),
+            @ApiImplicitParam(name = "projectId", value = "项目ID", required = false, paramType = "path", dataType = "String")})
+    @RequestMapping(value = "/storage", method = RequestMethod.GET)
+    public ActionReturnUtil getDependenceStorage() throws Exception {
+        return ActionReturnUtil.returnSuccessWithData(dependenceService.listStorageClass());
+    }
 }

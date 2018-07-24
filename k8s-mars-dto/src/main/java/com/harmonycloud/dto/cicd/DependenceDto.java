@@ -21,6 +21,8 @@ public class DependenceDto {
     @ApiModelProperty(value = "公有依赖/私有依赖", name = "common")
     private boolean common;
 
+    private String storageClassName;
+
 
     public String getName() {
         return name;
@@ -68,5 +70,13 @@ public class DependenceDto {
 
     public void setCommon(boolean common) {
         this.common = common;
+    }
+
+    public String getStorageClassName() {
+        return storageClassName;
+    }
+
+    public void setStorageClassName(String storageClassName) {
+        this.storageClassName = storageClassName;
     }
 }

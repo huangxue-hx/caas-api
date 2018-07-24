@@ -3,10 +3,11 @@ package com.harmonycloud.api.application;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.StorageClassDto;
 import com.harmonycloud.service.application.StorageClassService;
-import com.harmonycloud.service.platform.bean.PvDto;
-import io.swagger.annotations.*;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiImplicitParam;
+import io.swagger.annotations.ApiImplicitParams;
+import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -90,6 +91,6 @@ public class StorageClassController {
     @RequestMapping(method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil listStorageClass(@PathVariable("clusterId") String clusterId) throws Exception {
-        return storageClassService.listStorageClass(clusterId);
+        return ActionReturnUtil.returnSuccessWithData(storageClassService.listStorageClass(clusterId));
     }
 }

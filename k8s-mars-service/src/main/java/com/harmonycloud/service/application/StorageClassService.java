@@ -20,5 +20,5 @@ public interface StorageClassService {
 
     ActionReturnUtil getStorageClass(String name, String clusterId) throws Exception;
 
-    ActionReturnUtil listStorageClass(String clusterId) throws Exception;
+    List<StorageClassDto> listStorageClass(String clusterId) throws Exception;
 }
