@@ -1,16 +1,15 @@
 package com.harmonycloud.service.test.platform.service.ci;
 
+import com.harmonycloud.dto.application.StorageClassDto;
 import com.harmonycloud.dto.cicd.DependenceDto;
 import com.harmonycloud.service.platform.service.ci.DependenceService;
 import com.harmonycloud.service.test.BaseTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.testng.annotations.Test;
 
-import javax.validation.constraints.AssertTrue;
-
 import java.util.List;
 
-import static org.testng.Assert.*;
+import static org.junit.Assert.assertNotNull;
 
 public class DependenceServiceTest extends BaseTest {
     /*test order
@@ -85,6 +84,11 @@ public class DependenceServiceTest extends BaseTest {
     @Test(priority = 4)
     public void testFindDependenceFileByKeyword() throws Exception {
         dependenceService.findDependenceFileByKeyword("dependence-private-testng", projectId, devClusterId, "test");
+    }
+
+    public void testListStorageClass() throws Exception {
+        List<StorageClassDto> storageClassDtos = dependenceService.listStorageClass();
+        assertNotNull(storageClassDtos);
     }
 
 }

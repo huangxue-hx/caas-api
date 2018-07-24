@@ -34,3 +34,12 @@ VALUES ('/tenants/*/projects/*/dependence/*/filelist', 'cicd', 'env');
 
 INSERT INTO `k8s_auth_server`.`system_config`(`config_name`, `config_value`, `config_type`)
 VALUES ('pdb.minAvailable', '50%', 'pdb'), ('pdb.maxUnavailable', '50%', 'pdb');
+
+INSERT INTO `k8s_auth_server`.`url_dic`(`url`, `module`, `resource`)
+VALUES ('/tenants/*/projects/*/dependence/storage', 'cicd', 'cicdmgr');
+
+INSERT INTO system_config (config_name, config_value, config_type, create_user)
+VALUES ('dependenceUploadImageName', '/k8s-deploy/busybox:latest', 'dependence', 'admin');
+
+INSERT INTO system_config (config_name, config_value, config_type, create_user)
+VALUES ('dependenceUploadImageCmd', '["/bin/sh","-c","top"]', 'dependence', 'admin');

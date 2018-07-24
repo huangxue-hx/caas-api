@@ -12,8 +12,10 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -30,6 +32,8 @@ public class storageClassServiceTest extends BaseTest {
 
     private static StorageClassDto storageClassDto;
 
+    private static StorageClassDto storageClassDto2;
+
     @BeforeClass
     public void createStorageClassData() {
         Map<String, String> configMap = new HashMap<>();
@@ -41,11 +45,20 @@ public class storageClassServiceTest extends BaseTest {
         storageClassDto.setClusterId(devClusterId);
         storageClassDto.setStorageLimit("10");
         storageClassDto.setConfigMap(configMap);
+
+        storageClassDto2 = new StorageClassDto();
+        storageClassDto.setName("dependence-storage-class");
+        storageClassDto.setType("NFS");
+        storageClassDto.setClusterId(platformClusterId);
+        storageClassDto.setStorageLimit("10");
+        storageClassDto.setConfigMap(configMap);
+
     }
 
     @Test(priority = 0)
     public void createStorageClassTest() throws Exception {
         assertTrue(storageClassService.createStorageClass(storageClassDto).isSuccess());
+        assertTrue(storageClassService.createStorageClass(storageClassDto2).isSuccess());
     }
 
     @Test(priority = 1)
@@ -61,10 +74,10 @@ public class storageClassServiceTest extends BaseTest {
     @Test(priority = 2)
     public void listStorageClassByNameTest() throws Exception {
         String clusterId = storageClassDto.getClusterId();
-        ActionReturnUtil actionReturnUtil = storageClassService.listStorageClass(clusterId);
+        List<StorageClassDto> storageClassDtos= storageClassService.listStorageClass(clusterId);
         Gson gson = new Gson();
-        LOGGER.info("StorageClass List: {}", gson.toJson(actionReturnUtil.getData()));
-        assertTrue(actionReturnUtil.isSuccess());
+        LOGGER.info("StorageClass List: {}", gson.toJson(storageClassDtos));
+        assertNotNull(storageClassDtos);
     }
 
     @Test(priority = 3)
@@ -72,5 +85,7 @@ public class storageClassServiceTest extends BaseTest {
         String clusterId = storageClassDto.getClusterId();
         String scName = storageClassDto.getName();
         assertTrue(storageClassService.deleteStorageClass(scName, clusterId).isSuccess());
+
+        assertTrue(storageClassService.deleteStorageClass(storageClassDto2.getName(), platformClusterId).isSuccess());
     }
 }
