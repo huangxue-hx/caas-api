@@ -164,73 +164,73 @@ public class DataResourceUrlExample {
             return (Criteria) this;
         }
 
-        public Criteria andUrlIdIsNull() {
-            addCriterion("url_id is null");
+        public Criteria andUrlIsNull() {
+            addCriterion("url is null");
             return (Criteria) this;
         }
 
-        public Criteria andUrlIdIsNotNull() {
-            addCriterion("url_id is not null");
+        public Criteria andUrlIsNotNull() {
+            addCriterion("url is not null");
             return (Criteria) this;
         }
 
-        public Criteria andUrlIdEqualTo(String value) {
-            addCriterion("url_id =", value, "urlId");
+        public Criteria andUrlEqualTo(String value) {
+            addCriterion("url =", value, "url");
             return (Criteria) this;
         }
 
-        public Criteria andUrlIdNotEqualTo(String value) {
-            addCriterion("url_id <>", value, "urlId");
+        public Criteria andUrlNotEqualTo(String value) {
+            addCriterion("url <>", value, "url");
             return (Criteria) this;
         }
 
-        public Criteria andUrlIdGreaterThan(String value) {
-            addCriterion("url_id >", value, "urlId");
+        public Criteria andUrlGreaterThan(String value) {
+            addCriterion("url >", value, "url");
             return (Criteria) this;
         }
 
-        public Criteria andUrlIdGreaterThanOrEqualTo(String value) {
-            addCriterion("url_id >=", value, "urlId");
+        public Criteria andUrlGreaterThanOrEqualTo(String value) {
+            addCriterion("url >=", value, "url");
             return (Criteria) this;
         }
 
-        public Criteria andUrlIdLessThan(String value) {
-            addCriterion("url_id <", value, "urlId");
+        public Criteria andUrlLessThan(String value) {
+            addCriterion("url <", value, "url");
             return (Criteria) this;
         }
 
-        public Criteria andUrlIdLessThanOrEqualTo(String value) {
-            addCriterion("url_id <=", value, "urlId");
+        public Criteria andUrlLessThanOrEqualTo(String value) {
+            addCriterion("url <=", value, "url");
             return (Criteria) this;
         }
 
-        public Criteria andUrlIdLike(String value) {
-            addCriterion("url_id like", value, "urlId");
+        public Criteria andUrlLike(String value) {
+            addCriterion("url like", value, "url");
             return (Criteria) this;
         }
 
-        public Criteria andUrlIdNotLike(String value) {
-            addCriterion("url_id not like", value, "urlId");
+        public Criteria andUrlNotLike(String value) {
+            addCriterion("url not like", value, "url");
             return (Criteria) this;
         }
 
-        public Criteria andUrlIdIn(List<String> values) {
-            addCriterion("url_id in", values, "urlId");
+        public Criteria andUrlIn(List<String> values) {
+            addCriterion("url in", values, "url");
             return (Criteria) this;
         }
 
-        public Criteria andUrlIdNotIn(List<String> values) {
-            addCriterion("url_id not in", values, "urlId");
+        public Criteria andUrlNotIn(List<String> values) {
+            addCriterion("url not in", values, "url");
             return (Criteria) this;
         }
 
-        public Criteria andUrlIdBetween(String value1, String value2) {
-            addCriterion("url_id between", value1, value2, "urlId");
+        public Criteria andUrlBetween(String value1, String value2) {
+            addCriterion("url between", value1, value2, "url");
             return (Criteria) this;
         }
 
-        public Criteria andUrlIdNotBetween(String value1, String value2) {
-            addCriterion("url_id not between", value1, value2, "urlId");
+        public Criteria andUrlNotBetween(String value1, String value2) {
+            addCriterion("url not between", value1, value2, "url");
             return (Criteria) this;
         }
 
@@ -364,8 +364,8 @@ public class DataResourceUrlExample {
             return (Criteria) this;
         }
 
-        public Criteria andUrlIdLikeInsensitive(String value) {
-            addCriterion("upper(url_id) like", value.toUpperCase(), "urlId");
+        public Criteria andUrlLikeInsensitive(String value) {
+            addCriterion("upper(url) like", value.toUpperCase(), "url");
             return (Criteria) this;
         }
 
