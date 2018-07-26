@@ -136,7 +136,7 @@ CREATE TABLE `cicd_build_environment` (
 -- Records of cicd_build_environment
 -- ----------------------------
 INSERT INTO `cicd_build_environment`(id,name,image,is_public) VALUES(0, 'default', 'library/jenkins-slave-java:latest', NULL);
-UPDATE `cicd_build_environment` SET id=0 WHERE name='default' AND project_id is null AND cluster_id is NULL;
+
 -- ----------------------------
 -- Table structure for cicd_docker_file
 -- ----------------------------
