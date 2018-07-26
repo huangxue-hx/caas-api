@@ -130,10 +130,12 @@ public class NodeServiceImpl implements NodeService {
 
                 if (labels.get(CommonConstant.MASTERNODELABEL) != null) {
                     master.add(node);
+                    continue;
                 } else {
                     if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) == null
                             && labels.get(CommonConstant.HARMONYCLOUD_STATUS_LBS) == null) {
                         statusN.add(node);
+                        continue;
                     }
                 }
 
@@ -146,18 +148,22 @@ public class NodeServiceImpl implements NodeService {
                 if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
                         && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_E)) {
                     build.add(node);
+                    continue;
                 }
 
                 if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
                     statusB.add(node);
+                    continue;
                 }
 
                 if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
                     statusC.add(node);
+                    continue;
                 }
 
                 if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_D)) {
                     statusD.add(node);
+                    continue;
                 }
 
                 if ((labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
@@ -213,14 +219,12 @@ public class NodeServiceImpl implements NodeService {
             // } else {
             // nodeDto.setType("DataNode");
             // }
+            nodeDto.setType(CommonConstant.DATANODE);
             Map<String, Object> labels = node.getMetadata().getLabels();
             if (labels.get(CommonConstant.MASTERNODELABEL) != null) {
                 nodeDto.setType(CommonConstant.MASTERNODE);
                 nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_MASTER));
-            } else {
-                nodeDto.setType(CommonConstant.DATANODE);
-            }
-            if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
+            } else if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
                 nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_IDLE));
             } else if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
                 nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_PUBLIC));
