@@ -33,34 +33,34 @@ public class PersistentVolumeClaimServiceTest extends BaseTest {
         persistentVolumeClaimDto = new PersistentVolumeClaimDto();
         persistentVolumeClaimDto.setName("test-xc");
         persistentVolumeClaimDto.setClusterId("cluster-top--dev");
-        persistentVolumeClaimDto.setNamespace("ttsx-estr");
-        persistentVolumeClaimDto.setStorageClassName("xc-test1");
+        persistentVolumeClaimDto.setNamespace(namespaceName);
+        persistentVolumeClaimDto.setStorageClassName("test-storage-class");
         persistentVolumeClaimDto.setCapacity("1Gi");
         persistentVolumeClaimDto.setReadOnly(false);
         persistentVolumeClaimDto.setBindOne(false);
-        persistentVolumeClaimDto.setProjectId("6dfdd158e414456fb40b2ea586fa63f8");
-        persistentVolumeClaimDto.setTenantId("5bde05df703449e5b183d81423322e2c");
+        persistentVolumeClaimDto.setProjectId(projectId);
+        persistentVolumeClaimDto.setTenantId(tenantId);
     }
 
-    @Test(priority = 0)
+    @Test(priority = 3)
     public void createPersistentVolumeClaim() throws Exception {
         assertTrue(persistentVolumeClaimService.createPersistentVolumeClaim(persistentVolumeClaimDto).isSuccess());
     }
 
-    @Test(priority = 1)
+    @Test(priority = 4)
     public void listPersistentVolumeClaim() throws Exception {
         assertEquals(((List<PvcDto>)
                 (persistentVolumeClaimService.listPersistentVolumeClaim(persistentVolumeClaimDto.getProjectId(),
-                persistentVolumeClaimDto.getTenantId(), persistentVolumeClaimDto.getClusterId()).getData())).size(), 1);
+                persistentVolumeClaimDto.getTenantId(), persistentVolumeClaimDto.getClusterId(), null).getData())).size(), 1);
     }
 
-    @Test(priority = 2)
+    @Test(priority = 5)
     public void recyclePersistentVolumeClaimTest() throws Exception {
         assertTrue(persistentVolumeClaimService.recyclePersistentVolumeClaim(persistentVolumeClaimDto.getNamespace(),
                 persistentVolumeClaimDto.getName(), persistentVolumeClaimDto.getClusterId()).isSuccess());
     }
 
-    @Test(priority = 3)
+    @Test(priority = 6)
     public void deletePersistentVolumeClaim() throws Exception {
         assertTrue(persistentVolumeClaimService.deletePersistentVolumeClaim(persistentVolumeClaimDto.getNamespace(),
                 persistentVolumeClaimDto.getName(), persistentVolumeClaimDto.getClusterId()).isSuccess());

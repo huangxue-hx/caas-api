@@ -5,14 +5,14 @@ import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.MicroServiceCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.exception.MsfException;
-import com.harmonycloud.common.util.*;
+import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.common.util.SsoClient;
 import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dao.user.bean.LocalRolePrivilege;
 import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.dao.user.bean.UrlDic;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dto.tenant.TenantDto;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.common.PrivilegeHelper;
 import com.harmonycloud.service.system.SystemConfigService;
@@ -20,7 +20,9 @@ import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.*;
 import org.apache.commons.lang3.StringUtils;
 import org.aspectj.lang.JoinPoint;
-import org.aspectj.lang.annotation.*;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.Pointcut;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +32,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.servlet.HandlerMapping;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -359,7 +362,7 @@ public class PrivilegeAspect {
 		//如果带有集群信息，检查对应作用域
 		String[] clusterIdParameter = parameterMap.get(CommonConstant.CLUSTERID);
 		String clusterIdUrl = attribute.get(CommonConstant.CLUSTERID);
-		if ((!Objects.isNull(clusterIdParameter) && clusterIdParameter.length > 0)|| StringUtils.isNotBlank(clusterIdUrl)){
+		if ((!Objects.isNull(clusterIdParameter) && StringUtils.isNoneBlank(clusterIdParameter) && clusterIdParameter.length > 0)|| StringUtils.isNotBlank(clusterIdUrl)){
 			String clusterId = Objects.isNull(clusterIdParameter)?clusterIdUrl:clusterIdParameter[0];
 			Set<String> currentUserCluster = roleLocalService.listCurrentUserRoleClusterIds();
 			//与传入的集群id与当前角色的作用域不匹配

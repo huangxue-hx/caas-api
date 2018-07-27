@@ -47,11 +47,11 @@ public class storageClassServiceTest extends BaseTest {
         storageClassDto.setConfigMap(configMap);
 
         storageClassDto2 = new StorageClassDto();
-        storageClassDto.setName("dependence-storage-class");
-        storageClassDto.setType("NFS");
-        storageClassDto.setClusterId(platformClusterId);
-        storageClassDto.setStorageLimit("10");
-        storageClassDto.setConfigMap(configMap);
+        storageClassDto2.setName("dependence-storage-class");
+        storageClassDto2.setType("NFS");
+        storageClassDto2.setClusterId(platformClusterId);
+        storageClassDto2.setStorageLimit("10");
+        storageClassDto2.setConfigMap(configMap);
 
     }
 
@@ -80,7 +80,7 @@ public class storageClassServiceTest extends BaseTest {
         assertNotNull(storageClassDtos);
     }
 
-    @Test(priority = 3)
+    @Test(priority = 7)
     public void deleteStorageClassTest() throws Exception {
         String clusterId = storageClassDto.getClusterId();
         String scName = storageClassDto.getName();

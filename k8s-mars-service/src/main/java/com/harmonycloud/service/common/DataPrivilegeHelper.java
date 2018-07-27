@@ -280,4 +280,54 @@ public class DataPrivilegeHelper {
         return dataPrivilegeDto;
     }
 
+    /**
+     * 过滤服务名
+     * @param serviceName
+     * @param namespace
+     * @return
+     * @throws Exception
+     */
+    public boolean filterServiceName(String serviceName, String namespace) throws Exception {
+        DataPrivilegeDto dataPrivilegeDto = new DataPrivilegeDto();
+        dataPrivilegeDto.setData(serviceName);
+        dataPrivilegeDto.setNamespace(namespace);
+        dataPrivilegeDto.setDataResourceType(DataResourceTypeEnum.SERVICE.getCode());
+        return isReadable(dataPrivilegeDto);
+    }
+
+    /**
+     * 判断资源是否可读
+     * @param dataPrivilegeDto
+     * @return
+     * @throws Exception
+     */
+    private boolean isReadable(DataPrivilegeDto dataPrivilegeDto) throws Exception {
+        List<DataPrivilegeGroupMapping> mappingList = dataPrivilegeGroupMappingService.listDataPrivilegeGroupMapping(dataPrivilegeDto);
+        Integer roGroupId = null;
+        Integer rwGroupId = null;
+        if(CollectionUtils.isEmpty(mappingList)){
+            return true;
+        }
+        for (DataPrivilegeGroupMapping mapping : mappingList) {
+            if(mapping.getPrivilegeType() == CommonConstant.DATA_READONLY){
+                roGroupId = mapping.getGroupId();
+            }else if(mapping.getPrivilegeType() == CommonConstant.DATA_READWRITE){
+                rwGroupId = mapping.getGroupId();
+            }
+
+        }
+        List<DataPrivilegeGroupMember> roList = dataPrivilegeGroupMemberService.listMemberInGroup(roGroupId);
+        List<DataPrivilegeGroupMember> rwList = dataPrivilegeGroupMemberService.listMemberInGroup(rwGroupId);
+        List<DataPrivilegeGroupMember> userList = new ArrayList<>();
+        userList.addAll(roList);
+        userList.addAll(rwList);
+        List<Integer> userIdList = userList.stream().map(DataPrivilegeGroupMember::getMemberId).collect(Collectors.toList());
+        int currentUserId = ((Long)session.getAttribute(CommonConstant.USERID)).intValue();
+        if(userIdList.contains(currentUserId)){
+            return true;
+        }else {
+            return false;
+        }
+    }
+
 }

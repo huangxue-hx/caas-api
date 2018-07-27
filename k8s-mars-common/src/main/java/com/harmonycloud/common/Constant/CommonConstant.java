@@ -250,6 +250,8 @@ public class CommonConstant {
     public static final String NORMAL = "normal";
     //label key
     public static final String LABEL_KEY_APP = "app";
+    public static final String LABEL_KEY_DAEMONSET = "daemonset";
+
 
     //用户权限模块
     public static final String PRIVILEGE_TENANT = "tenant";
@@ -507,6 +509,7 @@ public class CommonConstant {
     public static final String DELIVERY = "delivery";
     public static final String LOG = "log";
     public static final String ALARM = "alarm";
+    public static final String DAEMONSET = "daemonset";
     //默认查询日志30分钟内
     public static final int DEFAULT_LOG_QUERY_TIME = 30;
     public static final String TIME_UNIT_MINUTES = "m";

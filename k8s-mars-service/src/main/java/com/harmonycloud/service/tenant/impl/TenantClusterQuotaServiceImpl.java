@@ -118,38 +118,40 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
             clusterQuotaDto.setCpuQuotaType(CommonConstant.CORE);
             //获取集群中除此租户还有多少存储资源可用
             Map<String, Integer> storageClassUnusedMap = tenantService.getStorageClassUnused(tenantId, currentClusterId);
+            //获取集群中分区已使用的存储
+            Map<String, Integer> storageUsageMap= getStorageUsage(tenantId, currentClusterId);
             List<StorageDto> storageDtoList = new ArrayList<>();
             //租户集群存储配额
             if (tenantClusterQuota.getStorageQuotas() != null && !tenantClusterQuota.getStorageQuotas().equals("")) {
-                //获取集群中分区已使用的存储
-                Map<String, Integer> storageUsageMap= getStorageUsage(tenantId, currentClusterId);
+
                 String[] storageQuotasArray = tenantClusterQuota.getStorageQuotas().split(",");
                 for (String storageQuota : storageQuotasArray) {
                     String[] storageQuotaArray = storageQuota.split("_");
                     StorageDto storageDto = new StorageDto();
                     storageDto.setName(storageQuotaArray[0]);
                     storageDto.setStorageQuota(storageQuotaArray[1]);
-                    if (storageClassUnusedMap.get(storageQuotaArray[0]) != null) {
-                        storageDto.setTotalStorage(String.valueOf(storageClassUnusedMap.get(storageQuotaArray[0])));
-                        storageDto.setUnUsedStorage(Integer.toString(storageClassUnusedMap.get(storageQuotaArray[0]) - Integer.parseInt(storageQuotaArray[1])));
-                    } else {
-                        storageDto.setTotalStorage(storageQuotaArray[2]);
-                        storageDto.setUnUsedStorage(Integer.toString(Integer.parseInt(storageQuotaArray[2]) - Integer.parseInt(storageQuotaArray[1])));
-                    }
+                    storageDto.setTotalStorage(String.valueOf(storageClassUnusedMap.get(storageQuotaArray[0])));
                     if (storageUsageMap.get(storageQuotaArray[0]) != null) {
                         storageDto.setUsedStorage(Integer.toString(storageUsageMap.get(storageQuotaArray[0])));
                     } else {
-                        storageDto.setUsedStorage(storageQuotaArray[1]);
+                        storageDto.setUsedStorage("0");
                     }
+                    storageDto.setUnUsedStorage(String.valueOf(Integer.valueOf(storageDto.getTotalStorage()) - Integer.valueOf(storageDto.getUsedStorage())));
                     storageDtoList.add(storageDto);
+                    storageClassUnusedMap.remove(storageDto.getName());
                 }
-            } else {
-                for (String storageClassName : storageClassUnusedMap.keySet()) {
-                    StorageDto storageDto = new StorageDto();
-                    storageDto.setName(storageClassName);
-                    storageDto.setTotalStorage(Integer.toString(storageClassUnusedMap.get(storageClassName)));
-                    storageDtoList.add(storageDto);
+
+            }
+
+            for(String storageClassName : storageClassUnusedMap.keySet()){
+                StorageDto storageDto = new StorageDto();
+                storageDto.setName(storageClassName);
+                storageDto.setTotalStorage(String.valueOf(storageClassUnusedMap.get(storageClassName)));
+                if (storageUsageMap.get(storageClassName) != null) {
+                    storageDto.setUsedStorage(Integer.toString(storageUsageMap.get(storageClassName)));
                 }
+                storageDto.setUnUsedStorage(String.valueOf(Integer.valueOf(storageDto.getTotalStorage()) - Integer.valueOf(storageDto.getUsedStorage())));
+                storageDtoList.add(storageDto);
             }
             clusterQuotaDto.setStorageQuota(storageDtoList);
             //租户集群使用量

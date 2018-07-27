@@ -128,4 +128,9 @@ public interface NamespaceLocalService {
 
     NamespaceLocal getNamespaceByTenantIdAndName(String tenantId, String namespace) throws Exception;
 
+    /**
+     * 获取kube-system namespace for Daemonset
+     * @return
+     */
+    NamespaceLocal getKubeSystemNamespace() throws Exception;
 }

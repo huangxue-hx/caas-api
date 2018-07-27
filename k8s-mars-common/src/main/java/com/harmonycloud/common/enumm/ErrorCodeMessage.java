@@ -312,6 +312,7 @@ public enum ErrorCodeMessage {
     PVC_CAN_NOT_DELETE(402010, "The storage has been used, not to delete.", "该存储已经被使用，不允许删除"),
     NFS_PROVISIONER_CONFIG_ERROR(402011, "The configuration of the nfs plugin image is not found in the system configuration", "系统配置中没有找到nfs插件镜像的配置"),
     RECYCLE_POD_CONFIG_ERROR(402012, "The configuration to clear the storage plugin image was not found in the system configuration.", "系统配置中没有找到清空存储插件镜像的配置"),
+    PVC_UPDATE_ERROR(402013, "PVC update failed", "PVC更新失败"),
 
     //弹性伸缩 403xxx
     SERVICE_AUTOSCALE_CREATE_FAILURE(403001, "Create autoScale failure.", "自动伸缩创建失败"),

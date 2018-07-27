@@ -1,4 +1,6 @@
 package com.harmonycloud.service.tenant.impl;
+
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
@@ -7,13 +9,16 @@ import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dao.tenant.NamespaceLocalMapper;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocalExample;
+import com.harmonycloud.dao.user.bean.Privilege;
 import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.user.ResourceMenuRoleService;
 import com.harmonycloud.service.user.RoleLocalService;
+import com.harmonycloud.service.user.RolePrivilegeService;
 import com.harmonycloud.service.user.UserService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -47,6 +52,10 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
     private UserService userService;
     @Autowired
     private HarborProjectService harborProjectService;
+    @Autowired
+    private ResourceMenuRoleService resourceMenuRoleService;
+    @Autowired
+    private RolePrivilegeService rolePrivilegeService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -363,4 +372,22 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
     private  NamespaceLocalExample getExample(){
         return  new NamespaceLocalExample();
     }
+
+    public NamespaceLocal getKubeSystemNamespace() throws Exception {
+        NamespaceLocal namespaceLocal = null;
+        Integer roleId = userService.getCurrentRoleId();
+
+        Map<String, Object> privilegeMap = rolePrivilegeService.getAvailablePrivilegeByRoleId(roleId);
+        if(privilegeMap.get(CommonConstant.APPCENTER) != null){
+            List<Privilege> privileges = (List<Privilege>)((Map)privilegeMap.get(CommonConstant.APPCENTER)).get(CommonConstant.DAEMONSET);
+            Privilege daemonsetPrivilege = privileges.stream().filter(privilege -> privilege.getStatus()).findAny().orElse(null);
+            if(daemonsetPrivilege != null){
+                namespaceLocal = new NamespaceLocal();
+                namespaceLocal.setNamespaceName(CommonConstant.KUBE_SYSTEM);
+                namespaceLocal.setAliasName(CommonConstant.KUBE_SYSTEM);
+            }
+        }
+        return namespaceLocal;
+    }
+
 }

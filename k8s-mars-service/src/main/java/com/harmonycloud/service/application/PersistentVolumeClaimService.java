@@ -11,7 +11,7 @@ public interface PersistentVolumeClaimService {
 
     ActionReturnUtil createPersistentVolumeClaim(PersistentVolumeClaimDto persistentVolumeClaimDto) throws Exception;
 
-    ActionReturnUtil listPersistentVolumeClaim(String projectId, String tenantId, String clusterId) throws Exception;
+    ActionReturnUtil listPersistentVolumeClaim(String projectId, String tenantId, String clusterId, String namespace) throws Exception;
 
     ActionReturnUtil deletePersistentVolumeClaim(String namespace, String pvcName, String clusterId) throws Exception;
 

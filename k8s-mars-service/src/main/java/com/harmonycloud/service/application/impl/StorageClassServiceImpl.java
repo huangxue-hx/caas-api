@@ -24,12 +24,14 @@ import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.k8s.service.ScService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
+import com.harmonycloud.service.application.DaemonSetsService;
 import com.harmonycloud.service.application.PersistentVolumeClaimService;
 import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,6 +85,9 @@ public class StorageClassServiceImpl implements StorageClassService {
 
     @Autowired
     NamespaceLocalService namespaceLocalService;
+
+    @Autowired
+    DaemonSetsService daemonSetsService;
 
     @Override
     public ActionReturnUtil createStorageClass(StorageClassDto storageClass) throws Exception {
@@ -232,6 +237,7 @@ public class StorageClassServiceImpl implements StorageClassService {
         return ActionReturnUtil.returnSuccessWithData(response.getBody());
     }
 
+
     @Override
     public ActionReturnUtil getStorageClass(String name, String clusterId) throws Exception {
         AssertUtil.notBlank(name, DictEnum.NAME);
@@ -247,12 +253,12 @@ public class StorageClassServiceImpl implements StorageClassService {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.QUERY_FAIL, DictEnum.STORAGE_CLASS.phrase(), true);
         }
         //storageClass关联的PVC
-        List<String> pvcNameList = new ArrayList<>();
+        List<PersistentVolumeClaim> pvcList = new ArrayList<>();
         List<PersistentVolumeClaim> persistentVolumeClaimList = listPvc(cluster).getItems();
         for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaimList) {
             String storageClassName = (String ) persistentVolumeClaim.getMetadata().getAnnotations().get("volume.beta.kubernetes.io/storage-class");
             if (name.equals(storageClassName)) {
-                pvcNameList.add(persistentVolumeClaim.getMetadata().getName());
+                pvcList.add(persistentVolumeClaim);
             }
         }
         //TODO PVC关联的DaemonSet
@@ -260,13 +266,18 @@ public class StorageClassServiceImpl implements StorageClassService {
         //PVC关联的服务
         List serviceList = new ArrayList<>();
         List<Deployment> deploymentList = listDeployment(cluster).getItems();
-        for (String pvcName : pvcNameList) {
+        List<DaemonSet> daemonSetList = daemonSetsService.listDaemonSets(cluster);
+        for (PersistentVolumeClaim pvc : pvcList) {
             for (Deployment deployment : deploymentList) {
-                if (deployment.getSpec().getTemplate().getSpec().getVolumes() != null && deployment.getSpec().getTemplate().getSpec().getVolumes().size() > 0) {
+                if (pvc.getMetadata().getNamespace().equalsIgnoreCase(deployment.getMetadata().getNamespace()) && deployment.getSpec().getTemplate().getSpec().getVolumes() != null && deployment.getSpec().getTemplate().getSpec().getVolumes().size() > 0) {
                     List<Volume> volumeList = deployment.getSpec().getTemplate().getSpec().getVolumes();
+                    if(deployment.getMetadata().getName().equalsIgnoreCase("tomcat")){
+                        System.out.println("sss");
+                    }
                     for (Volume volume : volumeList) {
-                        if (volume.getPersistentVolumeClaim() != null && pvcName.equals(volume.getPersistentVolumeClaim().getClaimName())) {
+                        if (volume.getPersistentVolumeClaim() != null && pvc.getMetadata().getName().equals(volume.getPersistentVolumeClaim().getClaimName())) {
                             Map<String, Object> serviceItem = new HashMap<>();
+                            serviceItem.put("type", CommonConstant.LABEL_KEY_APP);
                             serviceItem.put("name", deployment.getMetadata().getName());
                             serviceItem.put("status", K8sResultConvert.getDeploymentStatus(deployment));
                             serviceItem.put("instance", deployment.getSpec().getReplicas());
@@ -309,6 +320,48 @@ public class StorageClassServiceImpl implements StorageClassService {
                             Date utcDate = DateUtil.StringToDate(deployment.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
                             serviceItem.put("createTime", utcDate);
                             serviceList.add(serviceItem);
+                        }
+                    }
+                }
+            }
+            if(CommonConstant.KUBE_SYSTEM.equalsIgnoreCase(pvc.getMetadata().getNamespace())){
+                for(DaemonSet daemonSet : daemonSetList){
+                    List<Volume> volumeList = daemonSet.getSpec().getTemplate().getSpec().getVolumes();
+                    if(CollectionUtils.isEmpty(volumeList)){
+                        continue;
+                    }
+                    for (Volume volume : volumeList) {
+                        if (volume.getPersistentVolumeClaim() != null && pvc.getMetadata().getName().equals(volume.getPersistentVolumeClaim().getClaimName())) {
+                            Map<String, Object> serviceItem = new HashMap<>();
+                            serviceItem.put("type", CommonConstant.LABEL_KEY_DAEMONSET);
+                            serviceItem.put("name", daemonSet.getMetadata().getName());
+                            serviceItem.put("status", daemonSetsService.convertDaemonStatus(daemonSet));
+                            serviceItem.put("namespace", daemonSet.getMetadata().getNamespace());
+                            serviceItem.put("aliasNamespace", daemonSet.getMetadata().getNamespace());
+                            Map<String, Object> annotation = daemonSet.getMetadata().getAnnotations();
+                            if (annotation != null && !annotation.isEmpty()) {
+                                if (annotation.containsKey("nephele/labels")) {
+                                    serviceItem.put("labels", annotation.get("nephele/labels").toString());
+                                }
+                            }
+                            Date utcDate = DateUtil.StringToDate(daemonSet.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
+                            serviceItem.put("createTime", utcDate);
+                            List<String> img = new ArrayList<>();
+                            List<String> cpu = new ArrayList<>();
+                            List<String> memory = new ArrayList<>();
+                            for (Container c : daemonSet.getSpec().getTemplate().getSpec().getContainers()) {
+                                img.add(c.getImage());
+                                if (c.getResources() != null) {
+                                    Map<String, Object> map = (Map<String, Object>) c.getResources().getLimits();
+                                    if (Objects.nonNull(map)) {
+                                        cpu.add(map.get("cpu").toString());
+                                        memory.add(map.get("memory").toString());
+                                    }
+                                }
+                            }
+                            serviceItem.put("img", img);
+                            serviceItem.put("cpu", cpu);
+                            serviceItem.put("memory", memory);
                         }
                     }
                 }

@@ -46,7 +46,6 @@ import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
-import io.swagger.annotations.ApiImplicitParam;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -60,6 +59,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static com.harmonycloud.common.Constant.CommonConstant.LABEL_KEY_APP;
 import static com.harmonycloud.service.platform.constant.Constant.TYPE_DEPLOYMENT;
 
 @Service
@@ -860,6 +860,26 @@ public class DeploymentsServiceImpl implements DeploymentsService {
                 JsonUtil.jsonToPojo(pdbRes.getBody(), com.harmonycloud.k8s.bean.PodDisruptionBudget.class);
         resMap.put("podDisruptionBudget", resPdb);
 
+        //pvc打标签
+        if(CollectionUtils.isNotEmpty(detail.getContainers())){
+            for(CreateContainerDto container : detail.getContainers()){
+                if(container.getStorage() != null){
+                    for(PersistentVolumeDto persistentVolumeDto : container.getStorage()){
+                        PersistentVolumeClaim pvc = pvcService.getPvcByName(detail.getNamespace(), persistentVolumeDto.getPvcName(), cluster);
+                        if(pvc != null){
+                            Map<String, Object> labels = pvc.getMetadata().getLabels();
+                            labels.put(LABEL_KEY_APP + CommonConstant.SLASH + detail.getName(), detail.getName());
+                            K8SClientResponse pvcResponse = pvcService.updatePvcByName(pvc, cluster);
+                            if(!HttpStatusUtil.isSuccessStatus((pvcResponse.getStatus()))){
+                                UnversionedStatus status = JsonUtil.jsonToPojo(pvcResponse.getBody(), UnversionedStatus.class);
+                                return ActionReturnUtil.returnErrorWithData(status.getMessage());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         return ActionReturnUtil.returnSuccessWithData(resMap);
     }
 
@@ -926,9 +946,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
                 throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
             }
 
-            // delete pvc
+            // update pvc
             Map<String, Object> pvclabel = new HashMap<String, Object>();
-            pvclabel.put("labelSelector", "app=" + name);
+            pvclabel.put("labelSelector", LABEL_KEY_APP + CommonConstant.SLASH + name + "=" + name);
 
             K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, pvclabel, HTTPMethod.GET, cluster);
             if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
@@ -942,44 +962,13 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             if (persistentVolumeList != null && persistentVolumeList.getItems() != null) {
 
                 for (PersistentVolumeClaim onePvc : persistentVolumeList.getItems()) {
-                    K8SURL url = new K8SURL();
-                    url.setName(onePvc.getMetadata().getName()).setNamespace(namespace).setResource(Resource.PERSISTENTVOLUMECLAIM);
-                    Map<String, Object> headers = new HashMap<>();
-                    headers.put("Content-Type", "application/json");
-                    Map<String, Object> bodys = new HashMap<>();
-                    bodys.put("gracePeriodSeconds", 1);
-                    K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, bodys, cluster);
+                    onePvc.getMetadata().getLabels().remove(LABEL_KEY_APP + CommonConstant.SLASH + name);
+                    K8SClientResponse response = pvcService.updatePvcByName(onePvc,cluster);
                     if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
-                        LOGGER.error("删除PVC失败,DeploymentName:{}, error:{}", name, response.getBody());
+                        LOGGER.error("更新PVC失败,DeploymentName:{}, error:{}", name, response.getBody());
                         throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
                     }
 
-                    // update pv
-                    if (response.getStatus() != Constant.HTTP_404 && onePvc.getSpec() != null && onePvc.getSpec().getVolumeName() != null) {
-                        String pvname = onePvc.getSpec().getVolumeName();
-                        PersistentVolume pv = pvService.getPvByName(pvname, null);
-                        if (pv != null) {
-                            Map<String, Object> bodysPV = new HashMap<String, Object>();
-                            Map<String, Object> metadata = new HashMap<String, Object>();
-                            metadata.put("name", pv.getMetadata().getName());
-                            metadata.put("labels", pv.getMetadata().getLabels());
-                            bodysPV.put("metadata", metadata);
-                            Map<String, Object> spec = new HashMap<String, Object>();
-                            spec.put("capacity", pv.getSpec().getCapacity());
-                            spec.put("nfs", pv.getSpec().getNfs());
-                            spec.put("accessModes", pv.getSpec().getAccessModes());
-                            bodysPV.put("spec", spec);
-                            K8SURL urlPV = new K8SURL();
-                            urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pvname);
-                            Map<String, Object> headersPV = new HashMap<>();
-                            headersPV.put("Content-Type", "application/json");
-                            K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT, headersPV, bodysPV, cluster);
-                            if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
-                                LOGGER.error("更新PV失败,DeploymentName:{}, error:{}", name, responsePV.getBody());
-                                throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
-                            }
-                        }
-                    }
                 }
             }
 

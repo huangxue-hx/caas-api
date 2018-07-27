@@ -2,6 +2,8 @@ package com.harmonycloud.service.platform.bean;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author xc
@@ -30,7 +32,7 @@ public class PvcDto implements Serializable {
     //状态
     private String status;
     //绑定的服务（多个的话以“，”分割）
-    private String bindingServices;
+    private List<Map<String, Object>> bindingServices;
 
     private Boolean readOnly;
 
@@ -108,11 +110,11 @@ public class PvcDto implements Serializable {
         this.status = status;
     }
 
-    public String getBindingServices() {
+    public List<Map<String, Object>> getBindingServices() {
         return bindingServices;
     }
 
-    public void setBindingServices(String bindingServices) {
+    public void setBindingServices(List<Map<String, Object>> bindingServices) {
         this.bindingServices = bindingServices;
     }
 

@@ -352,6 +352,8 @@ public class TenantServiceImpl implements TenantService {
         }
         tenantDto.setClusterQuota(tenantClusterQuotas);
         List<Map<String, Object>> namespaceListByTenantid = namespaceService.getNamespaceListByTenantid(tenantId);
+
+
         //设置租户分区列表
         tenantDto.setNamespaceList(namespaceListByTenantid);
         tenantDto.setNamespaceNum(namespaceListByTenantid.size());
@@ -1035,9 +1037,10 @@ public class TenantServiceImpl implements TenantService {
 
     @Override
     public Map<String, Integer> getStorageClassUnused(String tenantId , String clusterId) throws Exception {
+        List<StorageClassDto> storageClassDtoList = storageClassService.listStorageClass(clusterId);
+        Map<String, Integer> storageClassUnusedMap = storageClassDtoList.stream().filter(storageDto -> storageDto.getStorageLimit() != null).collect(Collectors.toMap(StorageClassDto::getName, storageDto -> Integer.valueOf(storageDto.getStorageLimit())));
         List<TenantClusterQuota> tenantClusterQuotaList = tenantClusterQuotaService.getClusterQuotaByClusterId(clusterId, false);
         //StorageClass剩余的存储容量
-        Map<String, Integer> storageClassUnusedMap = new HashMap<>();
         for (TenantClusterQuota tenantClusterQuota : tenantClusterQuotaList) {
             String storageQuotas = tenantClusterQuota.getStorageQuotas();
             if (!StringUtils.isBlank(storageQuotas)) {
@@ -1047,11 +1050,8 @@ public class TenantServiceImpl implements TenantService {
                 String[] storageQuotasArray = storageQuotas.split(",");
                 for (String storageQuota : storageQuotasArray) {
                     String[] storageQuotaArray = storageQuota.split("_");
-                    if (storageClassUnusedMap.get(storageQuotaArray[0]) == null) {
-                        storageClassUnusedMap.put(storageQuotaArray[0], Integer.parseInt(storageQuotaArray[2]) - Integer.parseInt(storageQuotaArray[1]));
-                    } else {
-                        Integer tmpUnused = storageClassUnusedMap.get(storageQuotaArray[0]);
-                        storageClassUnusedMap.put(storageQuotaArray[0], tmpUnused - Integer.parseInt(storageQuotaArray[1]));
+                    if (storageClassUnusedMap.get(storageQuotaArray[0]) != null) {
+                        storageClassUnusedMap.put(storageQuotaArray[0], storageClassUnusedMap.get(storageQuotaArray[0]) - Integer.parseInt(storageQuotaArray[1]));
                     }
                 }
             }

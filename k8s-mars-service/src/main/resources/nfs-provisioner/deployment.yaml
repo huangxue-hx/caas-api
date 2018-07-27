@@ -14,6 +14,8 @@ spec:
       labels:
         app: nfs-client-provisioner-scName
     spec:
+      nodeSelector:
+              HarmonyCloud_Status: A
       containers:
         - name: nfs-client-provisioner-scName
           image: imageName

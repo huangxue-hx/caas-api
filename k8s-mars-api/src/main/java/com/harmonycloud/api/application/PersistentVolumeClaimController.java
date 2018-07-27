@@ -46,14 +46,16 @@ public class PersistentVolumeClaimController {
     @ApiImplicitParams({
             @ApiImplicitParam(name = "tenantId", value = "租户ID", required = true, paramType = "path", dataType = "String"),
             @ApiImplicitParam(name = "projectId", value = "项目ID", required = true, paramType = "path", dataType = "String"),
-            @ApiImplicitParam(name = "clusterId", value = "集群ID", paramType = "query", dataType = "String")
+            @ApiImplicitParam(name = "clusterId", value = "集群ID", paramType = "query", dataType = "String"),
+            @ApiImplicitParam(name = "namespace", value = "分区", paramType = "query", dataType = "String")
     })
     @RequestMapping(method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil listPersistentVolumeClaim(@PathVariable("tenantId") String tenantId,
                                                       @PathVariable("projectId") String projectId,
-                                                      @RequestParam(value = "clusterId", required = false) String clusterId) throws Exception {
-        return  persistentVolumeClaimService.listPersistentVolumeClaim(projectId, tenantId, clusterId);
+                                                      @RequestParam(value = "clusterId", required = false) String clusterId,
+                                                      @RequestParam(value = "namespace", required = false) String namespace) throws Exception {
+        return  persistentVolumeClaimService.listPersistentVolumeClaim(projectId, tenantId, clusterId, namespace);
     }
 
     @ApiOperation(value = "根据名称删除PersistentVolumeClaim", notes = "从集群内K8S上根据名称删除存储卷索取")
@@ -62,7 +64,7 @@ public class PersistentVolumeClaimController {
             @ApiImplicitParam(name = "namespace", value = "所属分区", required = true, paramType = "query", dataType = "String"),
             @ApiImplicitParam(name = "clusterId", value = "集群ID", required = true, paramType = "query", dataType = "String")
     })
-    @RequestMapping(value = "/{pvcName}", method = RequestMethod.DELETE)
+    @RequestMapping(value = "/{pvcName:.+}", method = RequestMethod.DELETE)
     @ResponseBody
     public ActionReturnUtil deletePersistentVolumeClaim(@PathVariable("pvcName") String pvcName,
                                                         @RequestParam(value = "namespace") String namespace,

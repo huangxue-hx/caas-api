@@ -13,6 +13,7 @@ import com.harmonycloud.dao.network.bean.NetworkTopology;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
+import com.harmonycloud.dto.application.StorageClassDto;
 import com.harmonycloud.dto.tenant.*;
 import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
 import com.harmonycloud.dto.tenant.show.QuotaDetailShowDto;
@@ -26,21 +27,15 @@ import com.harmonycloud.k8s.service.NetworkPolicyService;
 import com.harmonycloud.k8s.service.ResourceQuotaService;
 import com.harmonycloud.k8s.service.RoleBindingService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
-import com.harmonycloud.service.application.ApplicationDeployService;
-import com.harmonycloud.service.application.DaemonSetsService;
-import com.harmonycloud.service.application.SecretService;
-import com.harmonycloud.service.application.ServiceService;
+import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.integration.MicroServiceService;
 import com.harmonycloud.service.platform.bean.NodeDetailDto;
 import com.harmonycloud.service.platform.bean.NodeDto;
 import com.harmonycloud.service.platform.bean.PodDto;
-import com.harmonycloud.service.platform.service.DashboardService;
 import com.harmonycloud.service.platform.service.NodeService;
 import com.harmonycloud.service.platform.service.PodService;
 import com.harmonycloud.service.tenant.*;
-import com.harmonycloud.service.user.RoleService;
-import com.harmonycloud.service.user.UserService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,6 +104,8 @@ public class NamespaceServiceImpl implements NamespaceService {
 
     @Autowired
     private MicroServiceService microServiceService;
+    @Autowired
+    private StorageClassService storageClassService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -1585,9 +1582,18 @@ public class NamespaceServiceImpl implements NamespaceService {
         List<Map<String, Object>> namespaceData = new ArrayList<Map<String, Object>>();
         List<NamespaceLocal> namespaceList = this.namespaceLocalService.getAllNamespaceListByTenantId(tenantid);
         this.getNameSpaceDetailByNamespaceLocalList(namespaceList,namespaceData);
+        Map<String, Map<String, StorageClassDto>> clusterStorageMap = new HashMap<>();
         //算出所有分区已使用的存储值
         Map<String,Integer> nsStorageUsed = new HashMap<>();
         for (Map<String,Object> data : namespaceData) {
+            //String namespace = data.get(CommonConstant.NAME).toString();
+            String clusterId = data.get(CommonConstant.CLUSTERID).toString();
+            Map<String, StorageClassDto> storageClassDtoMap = clusterStorageMap.get(clusterId);
+            if(storageClassDtoMap == null){
+                List<StorageClassDto> storageClassDtoList = storageClassService.listStorageClass(clusterId);
+                clusterStorageMap.put(clusterId, storageClassDtoList.stream().collect(Collectors.toMap(StorageClassDto::getName, storageClassDto->storageClassDto)));
+            }
+
             Map<String,LinkedList<String>> storageClassData = (Map<String, LinkedList<String>>) data.get(STORAGECLASSES);
             for (String storageClassName : storageClassData.keySet()) {
                 if (nsStorageUsed.get(storageClassName) == null) {
@@ -1599,6 +1605,8 @@ public class NamespaceServiceImpl implements NamespaceService {
         }
         //设定每个分区最大存储值
         for (Map<String,Object> data : namespaceData) {
+            String clusterId = data.get(CommonConstant.CLUSTERID).toString();
+            Map<String, StorageClassDto> storageClassDtoMap = clusterStorageMap.get(clusterId);
             Map<String,LinkedList<String>> storageClassData = (Map<String, LinkedList<String>>) data.get(STORAGECLASSES);
             for (String storageClassName : storageClassData.keySet()) {
 
@@ -1613,6 +1621,7 @@ public class NamespaceServiceImpl implements NamespaceService {
                 }
 
             }
+
         }
         return namespaceData;
     }
@@ -1813,7 +1822,13 @@ public class NamespaceServiceImpl implements NamespaceService {
                                 logger.error("集群设置存储配额错误，namespace：{}",namespace);
                             }
                             storageClass.put(key.split("\\.")[0], storage);
+                            storageQuotaMap.remove(key.split("\\.")[0]);
                         }
+                    }
+                    for(String storageClassName : storageQuotaMap.keySet()){
+                        List<Object> storage = new LinkedList<>();
+                        storage.addAll(Arrays.asList("0", "0", storageQuotaMap.get(storageClassName)));
+                        storageClass.put(storageClassName, storage);
                     }
                     namespaceMap.put(Resource.STORAGECLASS, storageClass);
                     namespaceMap.put(STORAGE_TYPE, CommonConstant.GB);

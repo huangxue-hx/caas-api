@@ -1,22 +1,18 @@
 package com.harmonycloud.api.tenant;
 
-import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.dto.tenant.NamespaceDto;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.tenant.NamespaceService;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
-
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dto.tenant.NamespaceDto;
-import com.harmonycloud.service.tenant.NamespaceService;
 
 import javax.servlet.http.HttpSession;
 import java.util.ArrayList;
@@ -103,7 +99,8 @@ public class NamespaceController {
     @ResponseBody
     public ActionReturnUtil listNamespace(@PathVariable("tenantId") String tenantId,
                                           @RequestParam(value="clusterId", required = false)String clusterId,
-                                          @RequestParam(value="repositoryId", required = false) Integer repositoryId) throws Exception {
+                                          @RequestParam(value="repositoryId", required = false) Integer repositoryId,
+                                          @RequestParam(value="storage", required = false) Boolean isStorage) throws Exception {
         List<NamespaceLocal> namespaceList = new ArrayList<>();
         //查询镜像可以部署的分区列表
         if(repositoryId != null){
@@ -120,6 +117,13 @@ public class NamespaceController {
                 clusterIds.add(clusterId);
             }
             namespaceList.addAll(namespaceLocalService.getNamespaceListByTenantIdAndClusterId(tenantId, clusterIds));
+        }
+        //存储页面的分区根据权限增加kube-system
+        if(isStorage != null && isStorage){
+            NamespaceLocal namespaceLocal = namespaceLocalService.getKubeSystemNamespace();
+            if(namespaceLocal != null) {
+                namespaceList.add(namespaceLocal);
+            }
         }
         return ActionReturnUtil.returnSuccessWithData(namespaceList);
     }

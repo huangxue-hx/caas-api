@@ -7,9 +7,9 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.date.DateUtil;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.k8s.bean.*;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
@@ -35,7 +35,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.harmonycloud.service.platform.constant.Constant.NODESELECTOR_LABELS_PRE;
 
@@ -125,19 +124,19 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                         detail.getName(), cluster, Constant.TYPE_DAEMONSET, username);
             }
 
-            //创建PVC
+            //PVC打标签
             if (Objects.nonNull(c.getStorage()) && c.getStorage().size() > 0) {
                 for (PersistentVolumeDto volume : c.getStorage()) {
-                    if (Constant.VOLUME_TYPE_PV.equals(volume.getType())) {
-                        if (StringUtils.isEmpty(volume.getPvcName())) {
-                            continue;
+                    PersistentVolumeClaim pvc = pvcService.getPvcByName(Constant.NAMESPACE_SYSTEM, volume.getPvcName(), cluster);
+                    if(pvc != null){
+                        Map<String, Object> labels = pvc.getMetadata().getLabels();
+                        labels.put(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_DAEMONSET + CommonConstant.LINE + detail.getName(), detail.getName());
+                        K8SClientResponse pvcResponse = pvcService.updatePvcByName(pvc, cluster);
+                        if(!HttpStatusUtil.isSuccessStatus((pvcResponse.getStatus()))){
+                            UnversionedStatus status = JsonUtil.jsonToPojo(pvcResponse.getBody(), UnversionedStatus.class);
+                            logger.error("更新pvc失败：{}", status.getMessage());
+                            throw new MarsRuntimeException(ErrorCodeMessage.PVC_UPDATE_ERROR);
                         }
-                        volume.setNamespace(Constant.NAMESPACE_SYSTEM);
-                        volume.setServiceType(Constant.TYPE_DAEMONSET);
-                        volume.setServiceName(detail.getName());
-                        volume.setClusterId(detail.getClusterId());
-                        volume.setVolumeName(volume.getPvcName());
-                        volumeSerivce.createVolume(volume);
                     }
                 }
             }
@@ -626,11 +625,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                         }
                     }
                     //状态
-                    if (daemonSet.getStatus() != null && daemonSet.getStatus().getDesiredNumberScheduled() != null && daemonSet.getStatus().getNumberAvailable() != null && daemonSet.getStatus().getDesiredNumberScheduled().equals(daemonSet.getStatus().getNumberAvailable())) {
-                        daemonSetDto.setStatus(Constant.SERVICE_START);
-                    } else {
-                        daemonSetDto.setStatus(Constant.SERVICE_STARTING);
-                    }
+                    daemonSetDto.setStatus(convertDaemonStatus(daemonSet));
                     Map<String, Object> l = daemonSet.getMetadata().getLabels();
                     boolean isSystem = true;
                     if (l != null && !l.isEmpty()) {
@@ -675,5 +670,13 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
             }
         }
         return ActionReturnUtil.returnSuccessWithData(list);
+    }
+
+    public String convertDaemonStatus(DaemonSet daemonSet){
+        if (daemonSet.getStatus() != null && daemonSet.getStatus().getDesiredNumberScheduled() != null && daemonSet.getStatus().getNumberAvailable() != null && daemonSet.getStatus().getDesiredNumberScheduled().equals(daemonSet.getStatus().getNumberAvailable())) {
+            return Constant.SERVICE_START;
+        } else {
+            return Constant.SERVICE_STARTING;
+        }
     }
 }

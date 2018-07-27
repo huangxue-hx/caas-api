@@ -4,7 +4,10 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.*;
+import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.HttpStatusUtil;
+import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.system.bean.SystemConfig;
@@ -26,6 +29,7 @@ import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.PersistentVolumeClaimService;
 import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.common.DataPrivilegeHelper;
 import com.harmonycloud.service.platform.bean.PvcDto;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.system.SystemConfigService;
@@ -38,10 +42,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.servlet.http.HttpSession;
 import java.util.*;
+import java.util.stream.Collectors;
 
-import static com.harmonycloud.common.Constant.CommonConstant.POD_STATUS_PENDING;
-import static com.harmonycloud.common.Constant.CommonConstant.POD_STATUS_RUNNING;
+import static com.harmonycloud.common.Constant.CommonConstant.*;
 
 /**
  * @author xc
@@ -99,6 +104,12 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
     @Autowired
     DeploymentsService deploymentsService;
 
+    @Autowired
+    HttpSession session;
+
+    @Autowired
+    DataPrivilegeHelper dataPrivilegeHelper;
+
     @Override
     public ActionReturnUtil createPersistentVolumeClaim(PersistentVolumeClaimDto persistentVolumeClaim) throws Exception {
         //参数判空
@@ -123,7 +134,10 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         metaObject.setName(persistentVolumeClaim.getName());
         metaObject.setNamespace(persistentVolumeClaim.getNamespace());
         Map<String, Object> labels = new HashMap<>();
-        labels.put(LABEL_PROJECT_ID, persistentVolumeClaim.getProjectId());
+        if(!CommonConstant.KUBE_SYSTEM.equalsIgnoreCase(persistentVolumeClaim.getNamespace())) {
+            labels.put(LABEL_PROJECT_ID, persistentVolumeClaim.getProjectId());
+        }
+        labels.put(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.TYPE, CommonConstant.STORAGE);
         metaObject.setLabels(labels);
         Map<String, Object> annotations = new HashMap<>();
         annotations.put(STORAGE_ANNOTATION, persistentVolumeClaim.getStorageClassName());
@@ -147,7 +161,7 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
     }
 
     @Override
-    public ActionReturnUtil listPersistentVolumeClaim(String projectId, String tenantId, String clusterId) throws Exception {
+    public ActionReturnUtil listPersistentVolumeClaim(String projectId, String tenantId, String clusterId, String namespace) throws Exception {
         AssertUtil.notBlank(projectId, DictEnum.PROJECT_ID);
         AssertUtil.notBlank(tenantId, DictEnum.TENANT_ID);
         Map<String, Object> bodys;
@@ -157,19 +171,44 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
             clusters.add(clusterService.findClusterById(clusterId));
         } else {
             clusters = roleLocalService.listCurrentUserRoleCluster();
+
         }
         List<PvcDto> pvcDtoList = new ArrayList<>();
-        //遍历每个集群，查找每个集群下 租户对应的分区下的 所有PVC
+        List<NamespaceLocal> namespaceLocalList = new ArrayList<>();
+        if(StringUtils.isNotBlank(namespace)){
+            namespaceLocalList.add(namespaceLocalService.getNamespaceByName(namespace));
+            if(CommonConstant.KUBE_SYSTEM.equalsIgnoreCase(namespace)){
+                NamespaceLocal namespaceLocal = new NamespaceLocal();
+                namespaceLocal.setNamespaceName(CommonConstant.KUBE_SYSTEM);
+                namespaceLocal.setAliasName(CommonConstant.KUBE_SYSTEM);
+                namespaceLocalList.add(namespaceLocal);
+            }
+        }else{
+            namespaceLocalList.addAll(namespaceLocalService.getNamespaceListByTenantId(tenantId));
+            NamespaceLocal namespaceLocal = namespaceLocalService.getKubeSystemNamespace();
+            if(namespaceLocal != null) {
+                namespaceLocalList.add(namespaceLocal);
+            }
+        }
+
         for (Cluster cluster : clusters) {
-            List<NamespaceLocal> namespaceLocalList = namespaceLocalService.getNamespaceListByTenantId(tenantId);
             if (namespaceLocalList.size() > 0) {
+                List<StorageClassDto> storageClassDtoList = storageClassService.listStorageClass(cluster.getId());
+                Map<String, StorageClassDto> storageClassDtoMap = storageClassDtoList.stream().collect(Collectors.toMap(StorageClassDto::getName, storageClassDto->storageClassDto));
                 for (NamespaceLocal namespaceLocal : namespaceLocalList) {
+                    if(namespaceLocal == null || (!KUBE_SYSTEM.equalsIgnoreCase(namespaceLocal.getNamespaceName()) && !namespaceLocal.getClusterId().equalsIgnoreCase(cluster.getId()))){
+                        continue;
+                    }
                     K8SURL k8SURL = new K8SURL();
                     k8SURL.setApiGroup(APIGroup.API_V1_VERSION);
                     k8SURL.setNamespace(namespaceLocal.getNamespaceName());
                     k8SURL.setResource(Resource.PERSISTENTVOLUMECLAIM);
                     bodys = new HashMap<>();
-                    bodys.put("labelSelector", LABEL_PROJECT_ID + "=" + projectId);
+                    String labelSelector = Constant.NODESELECTOR_LABELS_PRE + CommonConstant.TYPE + "=" + CommonConstant.STORAGE;
+                    if(!KUBE_SYSTEM.equalsIgnoreCase(namespaceLocal.getNamespaceName())){
+                        labelSelector += "," + LABEL_PROJECT_ID + "=" + projectId;
+                    }
+                    bodys.put("labelSelector", labelSelector);
                     K8SClientResponse pvcResponse = new K8sMachineClient().exec(k8SURL, HTTPMethod.GET, null, bodys, cluster);
                     if (HttpStatusUtil.isSuccessStatus(pvcResponse.getStatus())) {
                         PersistentVolumeClaimList persistentVolumeClaimList = JsonUtil.jsonToPojo(pvcResponse.getBody(), PersistentVolumeClaimList.class);
@@ -184,11 +223,7 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                             pvcDto.setCapacity(((Map<String, String>)(persistentVolumeClaim.getSpec().getResources().getRequests())).get(STORAGE_CAPACITY));
                             pvcDto.setStorageClassName((String) (persistentVolumeClaim.getMetadata().getAnnotations().get(STORAGE_ANNOTATION)));
                             if (!StringUtils.isBlank(pvcDto.getStorageClassName())) {
-                                ActionReturnUtil storageClassReturn = storageClassService.getStorageClass(pvcDto.getStorageClassName(), cluster.getId());
-                                if (!storageClassReturn.isSuccess()) {
-                                    throw new MarsRuntimeException(ErrorCodeMessage.QUERY_FAIL, DictEnum.STORAGE_CLASS.phrase(), true);
-                                }
-                                StorageClassDto storageClassDto = (StorageClassDto)storageClassReturn.getData();
+                                StorageClassDto storageClassDto = storageClassDtoMap.get(pvcDto.getStorageClassName());
                                 if (storageClassDto != null) {
                                     pvcDto.setStorageClassType(storageClassDto.getType());
                                 }
@@ -196,25 +231,24 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                                 pvcDto.setStorageClassType("");
                             }
                             pvcDto.setStatus(persistentVolumeClaim.getStatus().getPhase());
-                            //TODO 添加使用该存储类的DaemonSet
-                            List<Map<String, Object>> deploymentList = (List<Map<String, Object>>) deploymentsService.listDeployments(tenantId, null, namespaceLocal.getNamespaceName(), null, projectId, cluster.getId()).getData();
-                            List<String> serviceNameList = new ArrayList<>();
-                            if (deploymentList.size() > 0) {
-                                for (Map<String, Object> deployment : deploymentList) {
-                                    if (deployment.get("pvcNameList") != null) {
-                                        List<String> pvcNameList = (List<String>) deployment.get("pvcNameList");
-                                        for (String pvcName : pvcNameList) {
-                                            if (pvcName.equals(pvcDto.getName())) {
-                                                serviceNameList.add((String)deployment.get("name"));
-                                            }
-                                        }
+                            List<Map<String, Object>> serviceNameList = new ArrayList<>();
+                            Map<String, Object> labelMap = persistentVolumeClaim.getMetadata().getLabels();
+                            for(String key : labelMap.keySet()){
+                                Map<String, Object> map = new HashMap<>();
+                                if(key.contains(LABEL_KEY_APP + CommonConstant.SLASH)){
+                                    if(dataPrivilegeHelper.filterServiceName(labelMap.get(key).toString(), namespaceLocal.getNamespaceName())) {
+                                        map.put(CommonConstant.TYPE, CommonConstant.LABEL_KEY_APP);
+                                        map.put(CommonConstant.NAME, labelMap.get(key).toString());
+                                        serviceNameList.add(map);
                                     }
+                                }else if(key.contains(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_DAEMONSET)){
+                                    map.put(CommonConstant.TYPE, CommonConstant.LABEL_KEY_DAEMONSET);
+                                    map.put(CommonConstant.NAME, labelMap.get(key).toString());
+                                    serviceNameList.add(map);
                                 }
-                                pvcDto.setBindingServices(StringUtils.join(serviceNameList.toArray(), ","));
                             }
-                            if (serviceNameList.size() == 0) {
-                                pvcDto.setBindingServices("");
-                            }
+                            pvcDto.setBindingServices(serviceNameList);
+
                             pvcDto.setCreateTime(DateUtil.StringToDate(persistentVolumeClaim.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue()));
                             //ReadWriteOne,ReadWriteMany, split("ReadWrite")  > 1
                             if (persistentVolumeClaim.getSpec().getAccessModes().get(0).split(READWRITE).length > 1) {
