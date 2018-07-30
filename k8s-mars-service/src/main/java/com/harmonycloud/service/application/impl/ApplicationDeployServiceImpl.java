@@ -390,20 +390,18 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     @SuppressWarnings("unchecked")
     @Override
     public ActionReturnUtil selectApplicationById(String id, String appName, String namespace) throws Exception {
-        AssertUtil.notNull(id, DictEnum.APPLICATION_ID);
         ApplicationDetailDto applicationDetailDto = new ApplicationDetailDto();
-        JSONObject js = new JSONObject();
-        // get application
-        String[] namespaces = {};
-
-        if (id.contains(SIGN) && id.contains(SIGN_EQUAL)) {
-            namespaces = id.split(SIGN_EQUAL);
+        if(StringUtils.isBlank(namespace)){
+            if(StringUtils.isBlank(id) || !id.contains(SIGN) || !id.contains(SIGN_EQUAL)){
+                return ActionReturnUtil.returnErrorWithData(DictEnum.NAMESPACE.phrase(),ErrorCodeMessage.NOT_BLANK);
+            }
+            String[] namespaces = id.split(SIGN_EQUAL);
+            namespace = namespaces[1];
         }
-        String newNamespace = StringUtils.isBlank(namespace) ? namespaces[1] : namespace;
-
+        String namespaceAliasName = namespaceLocalService.getNamespaceByName(namespace).getAliasName();
         BaseResource tpr = new BaseResource();
-        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(newNamespace);
-        K8SClientResponse response = tprApplication.getApplicationByName(newNamespace, appName, null, null, HTTPMethod.GET, cluster);
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        K8SClientResponse response = tprApplication.getApplicationByName(namespace, appName, null, null, HTTPMethod.GET, cluster);
         if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             tpr = JsonUtil.jsonToPojo(response.getBody(), BaseResource.class);
         }
@@ -431,15 +429,23 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             applicationDetailDto.setDesc(anno);
             applicationDetailDto.setNamespace(tpr.getMetadata().getNamespace());
             applicationDetailDto.setUser(String.valueOf(tpr.getMetadata().getLabels().get("creater")));
+            if(StringUtils.isBlank(id)) {
+                for (Map.Entry<String, Object> vo : tpr.getMetadata().getLabels().entrySet()) {
+                    if (vo.getKey().startsWith(TOPO)) {
+                        id = vo.getKey() + SIGN_EQUAL + vo.getValue();
+                        break;
+                    }
+                }
+            }
             applicationDetailDto.setId(id);
             applicationDetailDto.setRealName(userService.getUser(applicationDetailDto.getUser()).getRealName());
-            applicationDetailDto.setAliasNamespace(namespaceLocalService.getNamespaceByName(tpr.getMetadata().getNamespace()).getAliasName());
+            applicationDetailDto.setAliasNamespace(namespaceAliasName);
 
             List<ServiceDetailInApplicationDto> svcArray = new ArrayList<>();
             Map<String, Object> bodys = new HashMap<>();
             bodys.put("labelSelector", id);
             K8SURL url = new K8SURL();
-            url.setNamespace(newNamespace).setResource(Resource.DEPLOYMENT);
+            url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
             K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
             if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
                     && depRes.getStatus() != Constant.HTTP_404) {
@@ -520,43 +526,12 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                         serviceDetail.setInstance(dep.getSpec().getReplicas());
                         serviceDetail.setCreateTime(dep.getMetadata().getCreationTimestamp());
                         serviceDetail.setNamespace(dep.getMetadata().getNamespace());
-                        serviceDetail.setAliasNamespace(namespaceLocalService.getNamespaceByName(dep.getMetadata().getNamespace()).getAliasName());
+                        serviceDetail.setAliasNamespace(namespaceAliasName);
                         serviceDetail.setSelector(dep.getSpec().getSelector());
                         svcArray.add(serviceDetail);
                     }
                 }
             }
-
-            //get external service by label
-//            K8SURL urlExternal = new K8SURL();
-//            urlExternal.setNamespace(Resource.EXTERNALNAMESPACE).setResource(Resource.SERVICE);
-//            K8SClientResponse serviceRe = new K8sMachineClient().exec(urlExternal, HTTPMethod.GET, null, bodys, cluster);
-//            if (!HttpStatusUtil.isSuccessStatus(serviceRe.getStatus())
-//                    && serviceRe.getStatus() != Constant.HTTP_404) {
-//                UnversionedStatus sta = JsonUtil.jsonToPojo(serviceRe.getBody(), UnversionedStatus.class);
-//                return ActionReturnUtil.returnErrorWithData(sta.getMessage());
-//            }
-//            ServiceList svclist = JsonUtil.jsonToPojo(serviceRe.getBody(), ServiceList.class);
-//            if (svclist != null && svclist.getItems() != null) {
-//                List<com.harmonycloud.k8s.bean.Service> svcs = svclist.getItems();
-//                if (svcs != null && svcs.size() > 0) {
-//
-//                    for (com.harmonycloud.k8s.bean.Service svc : svcs) {
-//                        JSONObject json = new JSONObject();
-//                        // service info
-//                        json.put("isExternal", "1");
-//                        json.put("name", svc.getMetadata().getName());
-//                        json.put("ip", svc.getMetadata().getLabels().get("ip").toString());
-//                        json.put("port", svc.getSpec().getPorts().get(0).getTargetPort());
-//                        json.put("type", svc.getMetadata().getLabels().get("type").toString());
-//                        json.put("createTime", svc.getMetadata().getCreationTimestamp());
-//                        json.put("status", Constant.SERVICE_START);
-//
-//                        serarray.add(json);
-//                    }
-//                }
-//
-//            }
 
             applicationDetailDto.setServiceList(svcArray);
         } else {

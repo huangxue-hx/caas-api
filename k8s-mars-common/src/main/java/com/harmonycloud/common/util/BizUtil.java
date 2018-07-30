@@ -4,12 +4,13 @@ import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import org.apache.commons.lang3.StringUtils;
+import java.util.Set;
 
 import static com.harmonycloud.common.Constant.CommonConstant.COLON;
 
 public class BizUtil {
 
-    public static boolean isPodWithDeployment(String podName, String deployment) throws IllegalArgumentException{
+    public static boolean isPodWithDeployment(String podName, Set<String> deployments) throws IllegalArgumentException{
         String[] podNamePart = podName.split("-");
         if(podNamePart.length <3){
             throw new IllegalArgumentException("pod名称格式错误： " + podName);
@@ -19,7 +20,7 @@ public class BizUtil {
             //舍弃倒数第二个“-”后面的字符串，剩下的是deployment名称
             deploymentByPodName = deploymentByPodName.substring(0, deploymentByPodName.lastIndexOf("-"));
             //根据容器查询的判断pod名称前缀是不是服务名称deployment
-            if(!deployment.equals(deploymentByPodName)){
+            if(!deployments.contains(deploymentByPodName)){
                 return false;
             }
             return true;
