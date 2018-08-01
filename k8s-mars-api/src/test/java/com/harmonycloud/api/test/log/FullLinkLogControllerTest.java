@@ -63,14 +63,6 @@ public class FullLinkLogControllerTest extends BaseTest {
     @Test
     public void testGetErrorTransaction() throws Exception {
         String url = "/tenants/9297e547411948cbb313a2ddfbc7d0db/projects/a98eac503a7c4ee4a22fa2d2d96a27ae/apps/jeeshop/linklogs/errortransactions";
-        FullLinkQueryDto fullLinkQueryDto = new FullLinkQueryDto();
-        fullLinkQueryDto.setFromTime("2018-07-18 12:56:26");
-        fullLinkQueryDto.setToTime("2018-07-24 12:56:26");
-        fullLinkQueryDto.setNamespace("aby0605-test");
-        fullLinkQueryDto.setServerUrl("/jeeshopclient/");
-        fullLinkQueryDto.setOrder("desc");
-        fullLinkQueryDto.setOrderedField("interval");
-        String requestJson = JSONObject.toJSONString(fullLinkQueryDto);
         String result = mockMvc.perform(get(url)
                 .param("fromTime","2018-07-18 12:56:26")
                 .param("toTime","2018-07-24 12:56:26")
@@ -89,6 +81,23 @@ public class FullLinkLogControllerTest extends BaseTest {
     public void testGetTransactionTrace() throws Exception {
         String url = "/tenants/9297e547411948cbb313a2ddfbc7d0db/projects/a98eac503a7c4ee4a22fa2d2d96a27ae/apps/jeeshop/linklogs/transactiontraces/65e62bd702a6040c99b50db592d7a86a1^2";
         String result = mockMvc.perform(get(url)
+                .accept(MediaType.APPLICATION_JSON))
+                .andDo(print()).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        Map resultMap = JsonUtil.convertJsonToMap(result);
+        assertTrue((boolean)resultMap.get("success"));
+    }
+
+    @Test
+    public void testGetLinkLogInfo() throws Exception {
+        String url = "/tenants/9297e547411948cbb313a2ddfbc7d0db/projects/a98eac503a7c4ee4a22fa2d2d96a27ae/apps/jeeshop/linklogs";
+        String result = mockMvc.perform(get(url)
+                .param("deployName","webapi")
+                .param("namespace","kube-system")
+                .param("clusterId","cluster-top--top")
+                .param("transactionId","2220e31952a284cdbb4ef49534934851d^19482")
+                .param("pod","webapi-589797488b-8hdlk")
+                .param("fromTime","2018-07-31 10:50:44")
                 .accept(MediaType.APPLICATION_JSON))
                 .andDo(print()).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();

@@ -2,20 +2,26 @@ package com.harmonycloud.api.log;
 
 
 import com.alibaba.fastjson.JSONObject;
-import com.harmonycloud.common.Constant.CommonConstant;
-import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.EsSearchTypeEnum;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.date.DateStyle;
+import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dto.log.FullLinkQueryDto;
+import com.harmonycloud.dto.log.LogQueryDto;
 import com.harmonycloud.service.platform.bean.LogQuery;
 import com.harmonycloud.service.platform.service.FullLinkLogService;
 import com.harmonycloud.service.platform.service.LogService;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+import java.util.Date;
+import java.util.TimeZone;
+
 import static com.harmonycloud.common.Constant.CommonConstant.DEFAULT_PAGE_SIZE_200;
+import static com.harmonycloud.common.Constant.CommonConstant.NUM_TWO;
 
 /**
  * 全链路日志相关控制器
@@ -68,22 +74,41 @@ public class FullLinkLogController {
             @RequestParam(value="namespace") String namespace,
             @RequestParam(value="size",required = false) Integer size,
             @RequestParam(value="scrollId",required = false) String scrollId,
+            @RequestParam(value="clusterId",required = false) String clusterId,
             @RequestParam(value="transactionId") String transactionId,
+            @RequestParam(value="fromTime",required = false) String fromTime,
             @RequestParam(value="pod",required = false) String pod) throws Exception{
-        if(transactionId.indexOf(CommonConstant.AT) == -1 || transactionId.indexOf(CommonConstant.COLON) == -1){
-            logger.error("transactionId：{} 格式错误", transactionId);
-            return ActionReturnUtil.returnErrorWithData("transactionId", ErrorCodeMessage.FORMAT_ERROR);
-        }
-        LogQuery logQuery = new LogQuery();
-        logQuery.setNamespace(namespace);
-        logQuery.setDeployment(deployName);
-        logQuery.setPod(pod);
-        logQuery.setSearchType(EsSearchTypeEnum.MATCH_PHRASE.getCode());
-        logQuery.setSearchWord(transactionId);
-        logQuery.setPageSize(size==null?DEFAULT_PAGE_SIZE_200:size);
-        logQuery.setScrollId(scrollId);
+        LogQueryDto logQueryDto = new LogQueryDto();
+        logQueryDto.setNamespace(namespace);
+        logQueryDto.setClusterId(clusterId);
+        logQueryDto.setDeployment(deployName);
+        logQueryDto.setPod(pod);
+        logQueryDto.setSearchType(EsSearchTypeEnum.MATCH_PHRASE.getCode());
+        logQueryDto.setSearchWord(transactionId);
+        logQueryDto.setPageSize(size==null?DEFAULT_PAGE_SIZE_200:size);
+        logQueryDto.setScrollId(scrollId);
+        logQueryDto.setLogTimeStart(fromTime);
+        formatQueryTime(logQueryDto);
+        LogQuery logQuery = logService.transLogQuery(logQueryDto);
         ActionReturnUtil result = logService.fileLog(logQuery);
         return result;
+    }
+
+    /**
+     * 根据transactionId的开始时间计算查询日志内容的区间，为前后两小时
+     * @param logQueryDto
+     * @return
+     */
+    private void formatQueryTime(LogQueryDto logQueryDto){
+        if(StringUtils.isBlank(logQueryDto.getLogTimeStart())){
+            return;
+        }
+        Date fromTime = DateUtil.StringToDate(logQueryDto.getLogTimeStart(),DateStyle.YYYY_MM_DD_HH_MM_SS);
+        Date toTime = DateUtil.addHour(fromTime, NUM_TWO);
+        fromTime = DateUtil.addHour(fromTime, -NUM_TWO);
+        String style = DateUtil.getTimezoneFormatStyle(TimeZone.getDefault());
+        logQueryDto.setLogTimeStart(DateUtil.DateToString(fromTime, style));
+        logQueryDto.setLogTimeEnd(DateUtil.DateToString(toTime, style));
     }
 
 
