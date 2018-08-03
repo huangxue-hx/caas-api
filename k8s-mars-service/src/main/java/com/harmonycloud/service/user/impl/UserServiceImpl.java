@@ -659,11 +659,6 @@ public class UserServiceImpl implements UserService {
             dataPrivilegeGroupMember.setMemberType(CommonConstant.MEMBER_TYPE_USER);
             dataPrivilegeGroupMember.setMemberId(userDb.getId().intValue());
             dataPrivilegeGroupMemberService.deleteMemberInAllGroup(dataPrivilegeGroupMember);
-            UserGroupRelationExample example =new UserGroupRelationExample();
-            example.createCriteria().andUseridEqualTo(userDb.getId());
-            usergrouprelationMapper.deleteByExample(example);//删除用户组关联关系 user_group_relation
-            userRoleRelationshipService.deleteByUserName(userName);//删除user_role_relationship表中关联数据
-
         }else {
             throw new MarsRuntimeException(ErrorCodeMessage.USER_NOT_EXIST);
         }
