@@ -262,19 +262,24 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
             if (manifestMap.get("Author") != null) {
                 harborManifest.setAuthor(manifestMap.get("Author").toString());
             }
-            if (manifestMap.get("manifest") != null) {
+            if (manifestMap.get("manifest") != null && ((Map)manifestMap.get("manifest")).get("config") != null) {
                 String digest = ((Map)((Map)manifestMap.get("manifest")).get("config")).get("digest").toString();
                 harborManifest.setDigest(digest);
+            }else{
+                //获取不到digest，用tag代替，digest在镜像清理的使用判断是否同一镜像的时候使用
+                harborManifest.setDigest(tag);
             }
             if (manifestMap.get("config") != null) {
                 String manifestTime = manifestMap.get("config").toString();
                 Integer start =manifestTime.indexOf("created");
-                harborManifest.setCreateTime(manifestTime.substring(start+10,start+29).replace("T", " "));
-                //个别特殊情况 created 后有空格，根据位置截取截取的时间不对，需要先去除空格
-                if(!harborManifest.getCreateTime().startsWith("2")){
-                    manifestTime = manifestTime.replaceAll(" ","");
-                    start = manifestTime.indexOf("created");
-                    harborManifest.setCreateTime(manifestTime.substring(start+10,start+29).replace("T", " "));
+                if(start >=0 ) {
+                    harborManifest.setCreateTime(manifestTime.substring(start + 10, start + 29).replace("T", " "));
+                    //个别特殊情况 created 后有空格，根据位置截取截取的时间不对，需要先去除空格
+                    if (!harborManifest.getCreateTime().startsWith("2")) {
+                        manifestTime = manifestTime.replaceAll(" ", "");
+                        start = manifestTime.indexOf("created");
+                        harborManifest.setCreateTime(manifestTime.substring(start + 10, start + 29).replace("T", " "));
+                    }
                 }
             }
             if (vulnerabilitySummaryResponse.isSuccess()) {

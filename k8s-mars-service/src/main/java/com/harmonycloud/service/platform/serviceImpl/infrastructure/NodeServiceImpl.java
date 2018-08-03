@@ -16,6 +16,7 @@ import com.harmonycloud.dao.cluster.bean.NodeDrainProgress;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.TenantPrivateNode;
+import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.NodeDrainProgressService;
@@ -52,9 +53,7 @@ import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import org.springframework.util.CollectionUtils;
 
-import static com.harmonycloud.common.Constant.CommonConstant.KEEP_DECIMAL_3;
-import static com.harmonycloud.common.Constant.CommonConstant.PERCENT_HUNDRED;
-import static com.harmonycloud.common.Constant.CommonConstant.SEMICOLON;
+import static com.harmonycloud.common.Constant.CommonConstant.*;
 import static com.harmonycloud.service.platform.constant.Constant.NODESELECTOR_LABELS_PRE;
 
 @Service
@@ -130,10 +129,12 @@ public class NodeServiceImpl implements NodeService {
 
                 if (labels.get(CommonConstant.MASTERNODELABEL) != null) {
                     master.add(node);
+                    continue;
                 } else {
                     if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) == null
                             && labels.get(CommonConstant.HARMONYCLOUD_STATUS_LBS) == null) {
                         statusN.add(node);
+                        continue;
                     }
                 }
 
@@ -146,18 +147,22 @@ public class NodeServiceImpl implements NodeService {
                 if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
                         && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_E)) {
                     build.add(node);
+                    continue;
                 }
 
                 if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
                     statusB.add(node);
+                    continue;
                 }
 
                 if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
                     statusC.add(node);
+                    continue;
                 }
 
                 if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_D)) {
                     statusD.add(node);
+                    continue;
                 }
 
                 if ((labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
@@ -213,14 +218,12 @@ public class NodeServiceImpl implements NodeService {
             // } else {
             // nodeDto.setType("DataNode");
             // }
+            nodeDto.setType(CommonConstant.DATANODE);
             Map<String, Object> labels = node.getMetadata().getLabels();
             if (labels.get(CommonConstant.MASTERNODELABEL) != null) {
                 nodeDto.setType(CommonConstant.MASTERNODE);
                 nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_MASTER));
-            } else {
-                nodeDto.setType(CommonConstant.DATANODE);
-            }
-            if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
+            } else if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
                 nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_IDLE));
             } else if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
                 nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_PUBLIC));
@@ -839,12 +842,13 @@ public class NodeServiceImpl implements NodeService {
             nodeInstallProgressService.updateNodeInLineInfo(nodeInstall);
         }
         Cluster cluster = clusterService.findClusterById(clusterId);
+        HarborServer harborServer = clusterService.findClusterById(clusterId).getHarborServer();
         Map<String, Object> params = new HashMap<>();
         params.put("host", host);
         params.put("user", user);
         params.put("passwd", passwd);
         params.put("masterIp", cluster.getHost());
-        params.put("harborIp", clusterService.findClusterById(clusterId).getHarborServer().getHarborHost());
+        params.put("harborIp", harborServer.getHarborHost() + COLON + harborServer.getHarborPort());
 
 
         Runnable worker = new Runnable() {

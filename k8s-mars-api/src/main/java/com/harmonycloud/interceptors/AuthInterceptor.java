@@ -35,11 +35,16 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
     private String allowOrigin;
     @Value("#{propertiesReader['api.url.whitelist']}")
     private String urlWhiteList;
+    @Value("#{propertiesReader['sso.exclusion']}")
+    private String urlExclusion;
     @Autowired
     AuthController AuthController;
 
     @PostConstruct
     public void initWhiteList(){
+        if(StringUtils.isBlank(urlWhiteList) || !urlWhiteList.contains("login")){
+            urlWhiteList = urlExclusion;
+        }
         UrlWhiteListHandler.initUrlPattern(urlWhiteList);
     }
 

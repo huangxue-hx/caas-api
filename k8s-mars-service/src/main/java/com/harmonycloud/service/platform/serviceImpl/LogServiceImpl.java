@@ -1,5 +1,6 @@
 package com.harmonycloud.service.platform.serviceImpl;
 
+import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.*;
 import com.harmonycloud.common.exception.MarsRuntimeException;
@@ -191,6 +192,7 @@ public class LogServiceImpl implements LogService {
         if (StringUtils.isBlank(logQuery.getNamespace())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
+        logger.info("查询日志，query:{}",JSONObject.toJSONString(logQuery));
         Map<String, Object> data = new HashMap<String, Object>();
         if (logQuery.getIndexes() == null || logQuery.getIndexes().length == 0) {
             data.put("log", "");

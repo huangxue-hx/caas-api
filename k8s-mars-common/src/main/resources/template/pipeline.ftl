@@ -78,6 +78,7 @@ podTemplate(
             </#if>
             sh "docker build --no-cache <#if stage.dockerfileType == 1> -f ./${stage.dockerfilePath}</#if><#if stage.dockerfileType == 2> -f dockerfile@tmp${stage.id}/<#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if> -t ${harborHost!}:${harborPort!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!} ."
             sh "docker push ${harborHost!}:${harborPort!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}"
+
 </#if>
 <#if stage.stageTemplateType == 2>
             httpRequest url:"${apiUrl!}/rest/openapi/cicdjobs/stages/${stage.id!}?buildNum=${r'${currentBuild.number}'}",consoleLogResponseBody: true, timeout: ${timeout}

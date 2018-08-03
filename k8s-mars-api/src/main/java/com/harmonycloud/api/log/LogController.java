@@ -1,5 +1,6 @@
 package com.harmonycloud.api.log;
 
+import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
@@ -43,7 +44,7 @@ public class LogController {
     public ActionReturnUtil queryLog(@PathVariable("deployName") String deployName,
                                      @ModelAttribute LogQueryDto logQueryDto){
         try {
-//            logger.info("根据日志路径获取container日志, params: " + logQueryDto.toString());
+            logger.info("查询文件日志内容,logQuery:{}",JSONObject.toJSONString(logQueryDto));
             logQueryDto.setDeployment(deployName);
             LogQuery logQuery = logService.transLogQuery(logQueryDto);
             return logService.fileLog(logQuery);
@@ -81,8 +82,8 @@ public class LogController {
 
         try {
             logQueryDto.setDeployment(deployName);
+            logger.info("获取服务的日志文件列表,logQuery:{}",JSONObject.toJSONString(logQueryDto));
             LogQuery logQuery = logService.transLogQuery(logQueryDto);
-//            logger.info("获取服务的日志文件列表");
             return logService.listfileName(logQuery);
         } catch (Exception e) {
             logger.error("获取服务日志文件列表失败：deploymentName:{}", deployName, e);

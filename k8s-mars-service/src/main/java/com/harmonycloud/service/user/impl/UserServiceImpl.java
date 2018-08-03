@@ -650,6 +650,10 @@ public class UserServiceImpl implements UserService {
 
         User userDb = userMapper.findByUsername(userName);
         if (!Objects.isNull(userDb)){
+            UserGroupRelationExample example =new UserGroupRelationExample();
+            example.createCriteria().andUseridEqualTo(userDb.getId());
+            usergrouprelationMapper.deleteByExample(example);//删除用户组关联关系 user_group_relation
+            userRoleRelationshipService.deleteByUserName(userName);//删除user_role_relationship表中关联数据
             userMapper.deleteUserByName(userName);
             DataPrivilegeGroupMember dataPrivilegeGroupMember = new DataPrivilegeGroupMember();
             dataPrivilegeGroupMember.setMemberType(CommonConstant.MEMBER_TYPE_USER);

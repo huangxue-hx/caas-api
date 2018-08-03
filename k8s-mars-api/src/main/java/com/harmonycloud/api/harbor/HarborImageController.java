@@ -62,6 +62,20 @@ public class HarborImageController {
 		String image = URLDecoder.decode(imageName,"UTF-8");
 		return harborProjectService.deleteImage(repositoryId, image, tagName);
 	}
+
+	/**
+	 * 删除镜像
+	 *
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping(value = "/{repositoryId}/images/{imageName}", method = RequestMethod.GET)
+	public ActionReturnUtil getImage(@PathVariable(value = "repositoryId") Integer repositoryId,
+										@PathVariable(value="imageName") String imageName) throws Exception{
+		String image = URLDecoder.decode(imageName,"UTF-8");
+		return harborProjectService.getImage(repositoryId, image);
+	}
+
 	/**
 	 * tag detail
 	 *
