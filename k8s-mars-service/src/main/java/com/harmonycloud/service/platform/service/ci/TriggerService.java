@@ -48,7 +48,7 @@ public interface TriggerService {
      * @param uuid 流水线uuid
      * @throws Exception
      */
-    void triggerJob(String uuid, String ref) throws Exception;
+    void triggerJob(String uuid, String ref, int repositoryType) throws Exception;
 
     /**
      * 根据流水线id删除触发规则

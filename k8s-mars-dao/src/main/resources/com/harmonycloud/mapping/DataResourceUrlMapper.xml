@@ -3,7 +3,7 @@
 <mapper namespace="com.harmonycloud.dao.dataprivilege.DataResourceUrlMapper">
   <resultMap id="BaseResultMap" type="com.harmonycloud.dao.dataprivilege.bean.DataResourceUrl">
     <id column="id" jdbcType="INTEGER" property="id" />
-    <result column="url_id" jdbcType="VARCHAR" property="urlId" />
+    <result column="url" jdbcType="VARCHAR" property="url" />
     <result column="method" jdbcType="VARCHAR" property="method" />
     <result column="resource_type_id" jdbcType="INTEGER" property="resourceTypeId" />
   </resultMap>
@@ -37,7 +37,7 @@
     </where>
   </sql>
   <sql id="Base_Column_List">
-    id, url_id, method, resource_type_id
+    id, url, method, resource_type_id
   </sql>
   <select id="selectByExample" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataResourceUrlExample" resultMap="BaseResultMap">
     select
@@ -74,9 +74,9 @@
     <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
       SELECT LAST_INSERT_ID()
     </selectKey>
-    insert into data_resource_url (url_id, method, resource_type_id
+    insert into data_resource_url (url, method, resource_type_id
       )
-    values (#{urlId,jdbcType=VARCHAR}, #{method,jdbcType=VARCHAR}, #{resourceTypeId,jdbcType=INTEGER}
+    values (#{url,jdbcType=VARCHAR}, #{method,jdbcType=VARCHAR}, #{resourceTypeId,jdbcType=INTEGER}
       )
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataResourceUrl">
@@ -85,8 +85,8 @@
     </selectKey>
     insert into data_resource_url
     <trim prefix="(" suffix=")" suffixOverrides=",">
-      <if test="urlId != null">
-        url_id,
+      <if test="url != null">
+        url,
       </if>
       <if test="method != null">
         method,
@@ -96,8 +96,8 @@
       </if>
     </trim>
     <trim prefix="values (" suffix=")" suffixOverrides=",">
-      <if test="urlId != null">
-        #{urlId,jdbcType=VARCHAR},
+      <if test="url != null">
+        #{url,jdbcType=VARCHAR},
       </if>
       <if test="method != null">
         #{method,jdbcType=VARCHAR},
@@ -110,8 +110,8 @@
   <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataResourceUrl">
     update data_resource_url
     <set>
-      <if test="urlId != null">
-        url_id = #{urlId,jdbcType=VARCHAR},
+      <if test="url != null">
+        url = #{url,jdbcType=VARCHAR},
       </if>
       <if test="method != null">
         method = #{method,jdbcType=VARCHAR},
@@ -124,7 +124,7 @@
   </update>
   <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.dataprivilege.bean.DataResourceUrl">
     update data_resource_url
-    set url_id = #{urlId,jdbcType=VARCHAR},
+    set url = #{url,jdbcType=VARCHAR},
       method = #{method,jdbcType=VARCHAR},
       resource_type_id = #{resourceTypeId,jdbcType=INTEGER}
     where id = #{id,jdbcType=INTEGER}

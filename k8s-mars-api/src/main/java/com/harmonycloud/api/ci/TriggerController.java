@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.*;
  */
 @Controller
 public class TriggerController {
+    private static final int GIT = 1;
+    private static final int SVN = 2;
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
@@ -62,10 +64,16 @@ public class TriggerController {
      */
     @RequestMapping(value="/cicd/jobs/{uuid}/webhook", method = RequestMethod.POST)
     @ResponseBody
-    public ActionReturnUtil triggerByWebhook(@PathVariable("uuid") String uuid,@RequestBody JSONObject requestBody) throws Exception {
-//        logger.info("webhook trigger job", uuid);
-        String ref = (String)requestBody.get("ref");
-        triggerService.triggerJob(uuid, ref);
+    public ActionReturnUtil triggerByWebhook(@PathVariable("uuid") String uuid,@RequestBody(required = false) JSONObject requestBody,@RequestParam(value = "ref", required = false) String svnref) throws Exception {
+        logger.info("webhook trigger job", uuid);
+        if(svnref != null){
+            triggerService.triggerJob(uuid, svnref, SVN);
+        }else if(requestBody != null){
+            String gitref = (String)requestBody.get("ref");
+            triggerService.triggerJob(uuid, gitref, GIT);
+        }else{
+            triggerService.triggerJob(uuid, null, 0);
+        }
         return ActionReturnUtil.returnSuccess();
     }
 
