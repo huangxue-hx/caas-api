@@ -892,8 +892,6 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         }
 //        Deployment dep = K8sResultConvert.convertAppCreate(detail, userName, app, ingress);
 
-
-
         K8SURL k8surl = new K8SURL();
         k8surl.setNamespace(detail.getNamespace()).setResource(Resource.DEPLOYMENT);
         Map<String, Object> headers = new HashMap<String, Object>();
@@ -930,6 +928,19 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         if(CollectionUtils.isNotEmpty(detail.getHostAliases())){
             dep.getSpec().getTemplate().getSpec().setHostAliases(detail.getHostAliases());
         }
+        //service account
+        if(detail.isAutomountServiceAccountToken()){
+            dep.getSpec().getTemplate().getSpec().setAutomountServiceAccountToken(detail.isAutomountServiceAccountToken());
+            if(null != detail.getServiceAccount()){
+                dep.getSpec().getTemplate().getSpec().setServiceAccount(detail.getServiceAccount());
+            }
+            if(null != detail.getServiceAccountName()){
+                dep.getSpec().getTemplate().getSpec().setServiceAccountName(detail.getServiceAccountName());
+            }
+        }
+
+        //处理集群组件
+        dealWithClusterComponent(dep, service);
 
         bodys = CollectionUtil.transBean2Map(dep);
         K8SClientResponse response = dpService.doSpecifyDeployment(detail.getNamespace(),null, headers, bodys, HTTPMethod.POST,cluster);
@@ -1677,5 +1688,63 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             e.printStackTrace();
         }
         return yaml.dump(depRes.getBody());
+    }
+
+    //处理集群组件
+    private void dealWithClusterComponent(Deployment deployment, com.harmonycloud.k8s.bean.Service service){
+        List<Container> containers = deployment.getSpec().getTemplate().getSpec().getContainers();
+        int containerIndex = 0;
+        for(Container c : containers){
+
+            //deal with elasticsearch
+            if (c.getImage().contains("elasticsearch")){
+                dealWithElasticSearch(deployment, service, containerIndex);
+            }
+
+            containerIndex++;
+        }
+
+    }
+
+    //处理ElasticSearch
+    private void dealWithElasticSearch(Deployment deployment, com.harmonycloud.k8s.bean.Service service, int containerIndex){
+        //add env
+        EnvVar env = new EnvVar();
+        env.setName("NAMESPACE");
+        EnvVarSource valueFrom = new EnvVarSource();
+        ObjectFieldSelector fieldRef = new ObjectFieldSelector();
+        fieldRef.setFieldPath("metadata.namespace");
+        valueFrom.setFieldRef(fieldRef);
+        env.setValueFrom(valueFrom);
+        deployment.getSpec().getTemplate().getSpec().getContainers().get(containerIndex).getEnv().add(env);
+        env = new EnvVar();
+        env.setName("ELASTICSEARCH_SERVICE_NAME");
+        env.setValue(service.getMetadata().getName());
+        deployment.getSpec().getTemplate().getSpec().getContainers().get(containerIndex).getEnv().add(env);
+
+        //add initContainers
+        String image = deployment.getSpec().getTemplate().getSpec().getContainers().get(containerIndex).getImage();
+        List<Container> initContainers = new ArrayList<>();
+        Container container = new Container();
+        container.setName(deployment.getMetadata().getName() + "-init");
+        String harborHost = image.substring(0,image.lastIndexOf("/")+1);
+        container.setImage(harborHost + Constant.INIT_CONTAINER_IMAGE + ":" + Constant.INIT_CONTAINER_IMAGE_TAG);
+        List<String> command = new ArrayList<>();
+        command.add("/sbin/sysctl");
+        command.add("-w");
+        command.add("vm.max_map_count=262144");
+        container.setCommand(command);
+        SecurityContext securityContext = new SecurityContext();
+        securityContext.setPrivileged(true);
+        container.setSecurityContext(securityContext);
+        ResourceRequirements resources = new ResourceRequirements();
+        Map<String, Object> limits = new HashMap<>();
+        limits.put("memory","100Mi");
+        limits.put("cpu","100m");
+        resources.setLimits(limits);
+        resources.setRequests(limits);
+        container.setResources(resources);
+        initContainers.add(container);
+        deployment.getSpec().getTemplate().getSpec().setInitContainers(initContainers);
     }
 }

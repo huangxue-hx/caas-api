@@ -18,6 +18,7 @@
     <result column="is_public" property="isPublic" jdbcType="BOOLEAN" />
     <result column="project_id" property="projectId" jdbcType="VARCHAR"/>
     <result column="cluster_id" property="clusterId" jdbcType="VARCHAR"/>
+    <result column="service_account" property="serviceAccount" jdbcType="VARCHAR"/>
   </resultMap>
 
 
@@ -187,6 +188,9 @@
       </if>
       <if test="imageList != null">
         image_list = #{imageList},
+      </if>
+      <if test="serviceAccount != null">
+        service_account = #{serviceAccount},
       </if>
         ingress_content = #{ingressContent},
         node_selector = #{nodeSelector},

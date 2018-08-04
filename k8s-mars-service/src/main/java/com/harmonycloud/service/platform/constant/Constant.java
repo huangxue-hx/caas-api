@@ -112,7 +112,21 @@ public class Constant {
 	public final static String SYSTEM_CONFIG_PDB_MIN_AVAILABLE = "pdb.minAvailable";
 	public final static String SYSTEM_CONFIG_PDB_MAX_UNAVAILABLE = "pdb.maxUnavailable";
 	public final static String PDB_SUFFIX = "-pdb";
-	
+
+
+	//onlineshop
+	public final static String CLUSTER_ROLE_ONLINESHOP = "onlineshop";
+	public final static String CLUSTER_ROLE_BINDING_ONLINESHOP = "onlineshop";
+	public final static String SERVICE_ACCOUNT_ONLINESHOP = "onlineshop";
+	public final static String INIT_CONTAINER_IMAGE = "alpine";
+	public final static String INIT_CONTAINER_IMAGE_TAG = "3.6";
+
+	//verbs
+	public final static String GET = "get";
+	public final static String LIST = "list";
+	public final static String WATCH = "watch";
+
+
 	//stroge
 	public final static String VOLUME_TYPE_PV = "nfs";
     public final static String VOLUME_TYPE_PVC = "pvc";

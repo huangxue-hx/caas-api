@@ -21,7 +21,7 @@ public class Resource {
 	public final static String DEPLOYMENT = "deployments";
 
     public final static String STATEFULSET = "statefulsets";
-	
+
 	public final static String SERVICE = "services";
 	
 	public final static String NODE = "nodes";
@@ -29,7 +29,7 @@ public class Resource {
 	public final static String EVENT = "events";
 
 	public final static String STORAGECLASS = "storageclasses";
-	
+
 	public final static String PERSISTENTVOLUME = "persistentvolumes";
 	
 	public final static String PERSISTENTVOLUMECLAIM = "persistentvolumeclaims";
@@ -76,12 +76,12 @@ public class Resource {
 	public final static String CLUSTERTEMPLATE = "clustertemplates";
 
 	public final static String CLUSTERBASE = "clusterbases";
-	
+
 	public final static String POD_DISRUPTION_BUDGET = "poddisruptionbudgets";
 
     public final static String CONTROLLERREVISION = "controllerrevisions";
-	
-	
+
+
 	/**
 	 * 根据resource获取apigroup
 	 * @param resource
@@ -147,14 +147,14 @@ public class Resource {
 		case com.harmonycloud.k8s.constant.Resource.JOB:
 			group = APIGroup.APIS_BATCH_V1_VERSION;
 			break;
-			
-			
+
+
 		case Resource.POD_DISRUPTION_BUDGET:
             group = APIGroup.APIS_POLICY_V1BETA1;
             break;
-			
-			
-			
+
+
+
 		case Resource.CLUSTERBASE:
 		case com.harmonycloud.k8s.constant.Resource.APP:
 			group = APIGroup.APIS_HARMONYCLOUD;

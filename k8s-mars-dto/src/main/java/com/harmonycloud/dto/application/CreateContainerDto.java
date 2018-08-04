@@ -1,6 +1,7 @@
 package com.harmonycloud.dto.application;
 
 
+import com.harmonycloud.k8s.bean.Lifecycle;
 import com.harmonycloud.k8s.bean.Probe;
 
 import java.io.Serializable;
@@ -45,10 +46,20 @@ public class CreateContainerDto implements Serializable {
 
 	private String imagePullPolicy;
 
+	private Lifecycle lifecycle;
+
 	/**
 	 * 同步主机时区
 	 */
 	private boolean syncTimeZone;
+
+	public Lifecycle getLifecycle() {
+		return lifecycle;
+	}
+
+	public void setLifecycle(Lifecycle lifecycle) {
+		this.lifecycle = lifecycle;
+	}
 
 	public boolean isSyncTimeZone() {
 		return syncTimeZone;

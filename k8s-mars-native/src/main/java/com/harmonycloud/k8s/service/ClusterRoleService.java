@@ -3,6 +3,10 @@ package com.harmonycloud.k8s.service;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.harmonycloud.common.util.CollectionUtil;
+import com.harmonycloud.common.util.HttpStatusUtil;
+import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import org.springframework.stereotype.Service;
 
 import com.harmonycloud.k8s.bean.ClusterRole;
@@ -55,6 +59,28 @@ public class ClusterRoleService {
 		bodys.put("rules", clusterRole.getRules());
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, header, bodys,null);
 		return response;
+	}
+
+	public K8SClientResponse createClusterRole(ClusterRole clusterRole, Cluster cluster) throws Exception{
+		K8SURL k8SURL = new K8SURL();
+		k8SURL.setResource(Resource.CLUSTERROLE);
+
+		Map<String, Object> bodys = CollectionUtil.transBean2Map(clusterRole);
+		Map<String, Object> headers = new HashMap<String, Object>();
+		headers.put("Content-type", "application/json");
+
+		return new K8sMachineClient().exec(k8SURL, HTTPMethod.POST, headers, bodys, cluster);
+	}
+
+	public ClusterRole getClusterRoleByName(String name, Cluster cluster){
+		K8SURL k8SURL = new K8SURL();
+		k8SURL.setResource(Resource.CLUSTERROLE).setName(name);
+		K8SClientResponse response = new K8sMachineClient().exec(k8SURL, HTTPMethod.GET, null, null, cluster);
+		if(HttpStatusUtil.isSuccessStatus(response.getStatus())){
+			return JsonUtil.jsonToPojo(response.getBody(), ClusterRole.class);
+		}else {
+			return null;
+		}
 	}
 	
 	/**

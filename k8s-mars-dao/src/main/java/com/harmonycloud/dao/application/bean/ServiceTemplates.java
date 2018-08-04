@@ -42,6 +42,16 @@ public class ServiceTemplates implements Serializable {
 
     private String clusterId;
 
+    private String serviceAccount;
+
+    public String getServiceAccount() {
+        return serviceAccount;
+    }
+
+    public void setServiceAccount(String serviceAccount) {
+        this.serviceAccount = serviceAccount;
+    }
+
     public String getClusterId() {
         return clusterId;
     }

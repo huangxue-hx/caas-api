@@ -5,6 +5,8 @@ import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
+import com.harmonycloud.dao.application.ServiceTemplatesMapper;
+import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
@@ -17,11 +19,13 @@ import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.k8s.service.IcService;
 import com.harmonycloud.k8s.service.TprApplication;
+import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.cluster.LoadbalanceService;
+import com.harmonycloud.service.cluster.RBACService;
 import com.harmonycloud.service.common.DataPrivilegeHelper;
 import com.harmonycloud.service.common.PrivilegeHelper;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeService;
@@ -30,6 +34,7 @@ import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.tenant.*;
+import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
 import com.harmonycloud.service.util.BizUtil;
@@ -139,6 +144,18 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
 
     @Autowired
     private StatefulSetsService statefulsetsService;
+
+    @Autowired
+    ClusterRoleBindingService clusterRoleBindingService;
+
+    @Autowired
+    ClusterRoleService clusterRoleService;
+
+    @Autowired
+    RBACService rbacService;
+
+    @Autowired
+    private ServiceTemplatesMapper serviceTemplatesMapper;
 
     /**
      * get application by tenant namespace name status service implement
@@ -1569,6 +1586,14 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                     containers = svcTemplate.getDeploymentDetail().getContainers();
                     initContainers = svcTemplate.getDeploymentDetail().getInitContainers();
                     svcTemplate.getDeploymentDetail().setProjectId(appDeploy.getProjectId());
+                    ServiceTemplates serviceTemplates = serviceTemplatesMapper.getServiceTemplatesByID(svcTemplate.getId());
+                    if(null != serviceTemplates.getServiceAccount() && serviceTemplates.getServiceAccount().equals(Constant.SERVICE_ACCOUNT_ONLINESHOP)){
+                        //deal with cluster component
+                        svcTemplate.getDeploymentDetail().setServiceAccount(Constant.SERVICE_ACCOUNT_ONLINESHOP);
+                        svcTemplate.getDeploymentDetail().setServiceAccountName(Constant.SERVICE_ACCOUNT_ONLINESHOP);
+                        svcTemplate.getDeploymentDetail().setAutomountServiceAccountToken(true);
+                        dealWithClusterComponent(Constant.SERVICE_ACCOUNT_ONLINESHOP, appDeploy.getNamespace(), cluster);
+                    }
                 }else if(svcTemplate.getStatefulSetDetail() != null){
                     svcTemplate.getStatefulSetDetail().setNamespace(appDeploy.getNamespace());
                     containers = svcTemplate.getStatefulSetDetail().getContainers();
@@ -1744,4 +1769,21 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         }
         return ActionReturnUtil.returnSuccess();
     }
+
+    private void dealWithClusterComponent(String serviceAccountName, String namespace, Cluster cluster) throws Exception{
+        //deal with service account
+        if(!rbacService.getServiceAccount(namespace, serviceAccountName, cluster).isSuccess()){
+            rbacService.createServiceAccount(namespace, serviceAccountName, cluster);
+        }
+
+        //deal with clusterrole
+        if(!rbacService.getClusterRole(Constant.CLUSTER_ROLE_ONLINESHOP, cluster).isSuccess()){
+            rbacService.createCluserRole(Constant.CLUSTER_ROLE_ONLINESHOP, cluster);
+        }
+
+        //deal with clusterrolebinding
+        rbacService.bindServiceWithClusterRole(namespace, Constant.CLUSTER_ROLE_BINDING_ONLINESHOP, Constant.CLUSTER_ROLE_ONLINESHOP, serviceAccountName, cluster);
+
+    }
+
 }

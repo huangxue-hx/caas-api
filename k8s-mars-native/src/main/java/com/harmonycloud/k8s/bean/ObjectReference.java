@@ -25,6 +25,17 @@ public class ObjectReference {
 	
 	String fieldPath;
 
+	String apiGroup;
+
+	public String getApiGroup() {
+		return apiGroup;
+	}
+
+	public void setApiGroup(String apiGroup) {
+		this.apiGroup = apiGroup;
+	}
+
+
 	public String getKind() {
 		return kind;
 	}

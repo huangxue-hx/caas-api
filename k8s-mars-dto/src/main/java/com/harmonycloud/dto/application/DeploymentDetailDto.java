@@ -61,9 +61,40 @@ public class DeploymentDetailDto {
 	private AffinityDto podGroupSchedule;
 
     @DataPrivilegeField(type = CommonConstant.PROJECTID_FIELD)
+	//Service Account
+	private boolean automountServiceAccountToken;
+
+	private String serviceAccount;
+
+	private String serviceAccountName;
+
 	private String projectId;
 
 	private String nodeSelector;
+
+	public String getServiceAccount() {
+		return serviceAccount;
+	}
+
+	public void setServiceAccount(String serviceAccount) {
+		this.serviceAccount = serviceAccount;
+	}
+
+	public String getServiceAccountName() {
+		return serviceAccountName;
+	}
+
+	public void setServiceAccountName(String serviceAccountName) {
+		this.serviceAccountName = serviceAccountName;
+	}
+
+	public boolean isAutomountServiceAccountToken() {
+		return automountServiceAccountToken;
+	}
+
+	public void setAutomountServiceAccountToken(boolean automountServiceAccountToken) {
+		this.automountServiceAccountToken = automountServiceAccountToken;
+	}
 
 	private List<HostAlias> hostAliases;
 
