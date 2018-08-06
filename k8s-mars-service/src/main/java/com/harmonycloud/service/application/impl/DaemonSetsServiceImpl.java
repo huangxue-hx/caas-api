@@ -403,7 +403,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
 
         //delete configmap
         Map<String, Object> queryP = new HashMap<>();
-        queryP.put("labelSelector", Constant.TYPE_DAEMONSET + "=" + name);
+        queryP.put("labelSelector", Constant.LABEL_DAEMONSET+"-"+name + "=" + name);
         K8SClientResponse conRes = configmapService.doSepcifyConfigmap(namespace, null, queryP, HTTPMethod.DELETE, cluster);
         if (!HttpStatusUtil.isSuccessStatus(conRes.getStatus()) && conRes.getStatus() != Constant.HTTP_404) {
             UnversionedStatus status = JsonUtil.jsonToPojo(conRes.getBody(), UnversionedStatus.class);
@@ -416,17 +416,13 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
             UnversionedStatus status = JsonUtil.jsonToPojo(pvcsRes.getBody(), UnversionedStatus.class);
             throw new MarsRuntimeException(status.getMessage());
         }
-        //delete pvc
-        K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, queryP, HTTPMethod.DELETE, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
-            UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
-            throw new MarsRuntimeException(status.getMessage());
-        }
-        //update pv
-        PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(pvcsRes.getBody(), PersistentVolumeClaimList.class);
-        //调用更新PV接口
-        if (Objects.nonNull(pvcList)) {
-            volumeSerivce.updatePVList(pvcList, cluster);
+
+        PersistentVolumeClaimList persistentVolumeClaimList = JsonUtil.jsonToPojo(pvcsRes.getBody(), PersistentVolumeClaimList.class);
+        List<PersistentVolumeClaim> persistentVolumeClaims = persistentVolumeClaimList.getItems();
+        for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaims) {
+            Map<String, Object> labels = persistentVolumeClaim.getMetadata().getLabels();
+            labels.remove(Constant.LABEL_DAEMONSET+"-"+name );
+            pvcService.updatePvcByName(persistentVolumeClaim,cluster);
         }
         return ActionReturnUtil.returnSuccess();
     }
