@@ -58,6 +58,7 @@ import javax.servlet.http.HttpSession;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.harmonycloud.common.Constant.CommonConstant.LABEL_KEY_APP;
 import static com.harmonycloud.service.platform.constant.Constant.TYPE_DEPLOYMENT;
@@ -491,12 +492,38 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             return ActionReturnUtil.returnErrorWithData(podRes.getBody());
         }
         PodList podList = JsonUtil.jsonToPojo(podRes.getBody(), PodList.class);
+        PodSpec podSpec = dep.getSpec().getTemplate().getSpec();
         AppDetail res = K8sResultConvert.convertAppDetail(dep, serviceList, eventList, hapEve, podList);
         res.setAutoScale(scaleDto);
         res.setClusterId(cluster.getId());
         res.setAliasNamespace(namespaceLocalService.getNamespaceByName(res.getNamespace()).getAliasName());
         res.setRealName(userService.getUser(res.getOwner()).getRealName());
-        res.setHostAliases(dep.getSpec().getTemplate().getSpec().getHostAliases());
+        res.setHostAliases(podSpec.getHostAliases());
+
+        Map<String, Object> annotations = dep.getMetadata().getAnnotations();
+        String repoUrl = (String)annotations.get("pulldep/repoUrl");
+        String branch = (String)annotations.get("pulldep/branch");
+        String tag = (String)annotations.get("pulldep/tag");
+        String containerName = (String)annotations.get("pulldep/container");
+        branch = (StringUtils.isBlank(branch) ? tag : branch);
+        String containerMonutPath = null;
+
+        List<Container> containers = podSpec.getContainers();
+        List<Container> collect = containers.stream().filter(c -> {
+            return c.getName().equals(containerName);
+        }).collect(Collectors.toList());
+        if(CollectionUtils.isNotEmpty(collect)){
+            List<VolumeMount> volumeMounts = collect.get(0).getVolumeMounts();
+            List<VolumeMount> empty = volumeMounts.stream().filter(v -> {
+                return v.getName().equals("empty");
+            }).collect(Collectors.toList());
+            if(CollectionUtils.isNotEmpty(empty)){
+                containerMonutPath = empty.get(0).getMountPath();
+            }
+        }
+
+
+        res.setPullDependence(repoUrl + ":" + branch+"---->" + containerName + ":" + containerMonutPath);
 
         //判断是否是微服务组件应用是否有权限操作
         boolean isOperationable = true;
@@ -819,6 +846,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
         //HostAlias-自定义 hosts file
         dep.getSpec().getTemplate().getSpec().setHostAliases(detail.getHostAliases());
+
 
 
         K8SURL k8surl = new K8SURL();

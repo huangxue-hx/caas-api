@@ -358,5 +358,9 @@ public class Constant {
 
 	public final static Integer MAX_QUERY_COUNT_100 = 100;
 
+	public final static String VCS_IMAGE = "/library/gitsvn";
+	public final static String VCS_IMAGE_TAG = "1.0";
+	public final static String PULL_WAY_GIT = "git";
+	public final static String PULL_WAY_SVN = "svn";
 
 }

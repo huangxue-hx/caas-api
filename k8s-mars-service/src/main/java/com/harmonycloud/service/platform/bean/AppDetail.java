@@ -95,6 +95,16 @@ public class AppDetail {
 
 	private List<HostAlias> hostAliases;
 
+	private String pullDependence;
+
+	public String getPullDependence() {
+		return pullDependence;
+	}
+
+	public void setPullDependence(String pullDependence) {
+		this.pullDependence = pullDependence;
+	}
+
 	public List<HostAlias> getHostAliases() {
 		return hostAliases;
 	}

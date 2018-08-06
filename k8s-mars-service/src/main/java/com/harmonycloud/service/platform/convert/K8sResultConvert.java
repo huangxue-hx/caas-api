@@ -24,6 +24,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -708,10 +709,25 @@ public class K8sResultConvert {
         if (!StringUtils.isEmpty(annotation) && annotation.lastIndexOf(",") == 0) {
             annotation = annotation.substring(0, annotation.length() - 1);
         }
+
         anno.put("nephele/annotation", annotation == null ? "" : annotation);
         anno.put("nephele/status", Constant.STARTING);
         anno.put("nephele/replicas", detail.getInstance());
         anno.put("nephele/labels", detail.getLabels() == null ? "" : detail.getLabels());
+
+        PullDependenceDto pullDependence = detail.getPullDependence();
+        if(pullDependence !=null){
+            String repoUrl = pullDependence.getRepoUrl();
+            String branch = pullDependence.getBranch();
+            String tag = pullDependence.getTag();
+            String container = pullDependence.getContainer();
+            anno.put("pulldep/repoUrl",repoUrl == null ? "" : repoUrl);
+            anno.put("pulldep/branch",branch == null ? "" : branch);
+            anno.put("pulldep/tag",tag == null ? "" : tag);
+            anno.put("pulldep/container",container == null ? "" : container);
+        }
+
+
         meta.setAnnotations(anno);
         dep.setMetadata(meta);
 
@@ -790,6 +806,13 @@ public class K8sResultConvert {
                 }
             }
         }
+
+        //拉取依赖
+        if(pullDependence != null){
+            makePullDependence(detail, meta, cs, podSpec);
+        }
+
+
         labels.put(Constant.NODESELECTOR_LABELS_PRE + "bluegreen", detail.getName() + "-1");
         metadata.setLabels(labels);
         metadata.setAnnotations(convertQosAnnotation(annotation));
@@ -797,7 +820,114 @@ public class K8sResultConvert {
         podTemplateSpec.setSpec(podSpec);
         depSpec.setTemplate(podTemplateSpec);
         dep.setSpec(depSpec);
+
         return dep;
+    }
+
+    private static void makePullDependence(DeploymentDetailDto detail, ObjectMeta meta, List<Container> cs, PodSpec podSpec) {
+        String image = cs.get(0).getImage();
+        String harborUrl = image.substring(0,image.indexOf("/"));
+        //创建InitContainers
+        List<Container> initContainers = new ArrayList<>();
+        Container c = new Container();
+        c.setName(meta.getName()+"-init");
+        c.setImage(harborUrl + Constant.VCS_IMAGE + ":" + Constant.VCS_IMAGE_TAG);
+        List<String> cmdList = new ArrayList<>();
+        PullDependenceDto pullDependence = detail.getPullDependence();
+        String projectName = null;
+        cmdList.add("/bin/bash");
+        cmdList.add("-c");
+        StringBuffer sb = new StringBuffer();
+        if(pullDependence.getPullWay().equals(Constant.PULL_WAY_GIT)){
+            String gitUrl = pullDependence.getRepoUrl();
+            String protocol = gitUrl.substring(0,gitUrl.indexOf("://")+3);
+            gitUrl = gitUrl.substring(gitUrl.indexOf("://")+3,gitUrl.length());
+
+            sb.append("git clone " + protocol + pullDependence.getUsername() + ":" + pullDependence.getPassword()
+                    + "@" + gitUrl);
+            projectName = gitUrl.substring(gitUrl.lastIndexOf("/")+1,gitUrl.lastIndexOf(".git"));
+            //指定了分支
+            if(StringUtils.isNotBlank(pullDependence.getBranch())){
+
+                sb.append(" && cd " + projectName);
+                sb.append(" && git checkout -b " + pullDependence.getBranch() + " origin/" + pullDependence.getBranch());
+
+            }
+            //指定了tag
+            if(StringUtils.isNotBlank(pullDependence.getTag())){
+                sb.append(" && cd " + projectName);
+                sb.append(" && git checkout " + pullDependence.getTag());
+            }
+            cmdList.add(sb.toString());
+
+        }else if(pullDependence.getPullWay().equals(Constant.PULL_WAY_SVN)){
+            String svnURL = pullDependence.getRepoUrl();
+            sb.append("svn co " + svnURL);
+            //指定了分支
+            if(StringUtils.isNotBlank(pullDependence.getBranch())){
+                sb.append("/" + pullDependence.getBranch());
+            }
+            //指定了tag
+            if(StringUtils.isNotBlank(pullDependence.getTag())){
+                sb.append("/" + pullDependence.getTag());
+            }
+
+            sb.append("--username");
+            sb.append(pullDependence.getUsername());
+            sb.append("--password");
+            sb.append(pullDependence.getPassword());
+            cmdList.add(sb.toString());
+        }
+        c.setCommand(cmdList);
+
+        if(StringUtils.isNotBlank(pullDependence.getContainer())){
+            List<Volume> volumeList = null;
+            volumeList = podSpec.getVolumes();
+            if(Objects.isNull(volumeList)){
+                volumeList = new ArrayList<>();
+            }
+            Volume volume = new Volume();
+            volume.setName("empty");
+            volume.setEmptyDir(null);
+            volumeList.add(volume);
+            podSpec.setVolumes(volumeList);
+
+            for (Container container : cs) {
+                if(container.getName().equals(pullDependence.getContainer())){
+                    List<VolumeMount> volumeMounts = container.getVolumeMounts();
+                    VolumeMount vm = new VolumeMount();
+                    if(Objects.isNull(volumeMounts)){
+                        volumeMounts = new ArrayList<>();
+                        container.setVolumeMounts(volumeMounts);
+                    }
+                    vm.setMountPath(pullDependence.getMountPath()+"/"+projectName);
+                    vm.setName("empty");
+                    volumeMounts.add(vm);
+                }
+            }
+
+
+            List<VolumeMount> volumeMounts = new ArrayList<>();
+            VolumeMount vm = new VolumeMount();
+            vm.setMountPath(projectName);
+            vm.setName("empty");
+            volumeMounts.add(vm);
+            c.setVolumeMounts(volumeMounts);
+
+        }
+
+
+        ResourceRequirements resources = new ResourceRequirements();
+        Map<String, Object> limits = new ConcurrentHashMap<>();
+        limits.put("memory","100Mi");
+        limits.put("cpu","100m");
+        Map<String, Object> requests = limits;
+        resources.setLimits(limits);
+        resources.setRequests(requests);
+        c.setResources(resources);
+
+        initContainers.add(c);
+        podSpec.setInitContainers(initContainers);
     }
 
     public static Service convertAppCreateOfService(DeploymentDetailDto detail, String application) throws Exception {

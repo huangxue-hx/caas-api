@@ -62,6 +62,10 @@ public class DeploymentDetailDto {
 
 	private List<HostAlias> hostAliases;
 
+	private PullDependenceDto pullDependence;
+
+	private ServiceDependenceDto serviceDependence;
+
 	public List<HostAlias> getHostAliases() {
 		return hostAliases;
 	}
@@ -236,5 +240,21 @@ public class DeploymentDetailDto {
 
 	public void setNodeSelector(String nodeSelector) {
 		this.nodeSelector = nodeSelector;
+	}
+
+	public PullDependenceDto getPullDependence() {
+		return pullDependence;
+	}
+
+	public void setPullDependence(PullDependenceDto pullDependence) {
+		this.pullDependence = pullDependence;
+	}
+
+	public ServiceDependenceDto getServiceDependence() {
+		return serviceDependence;
+	}
+
+	public void setServiceDependence(ServiceDependenceDto serviceDependence) {
+		this.serviceDependence = serviceDependence;
 	}
 }
