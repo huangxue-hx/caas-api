@@ -251,10 +251,15 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
 
                             pvcDto.setCreateTime(DateUtil.StringToDate(persistentVolumeClaim.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue()));
                             //ReadWriteOne,ReadWriteMany, split("ReadWrite")  > 1
-                            if (persistentVolumeClaim.getSpec().getAccessModes().get(0).split(READWRITE).length > 1) {
-                                pvcDto.setReadOnly(false);
-                            } else {
+                            if (persistentVolumeClaim.getSpec().getAccessModes().get(0).equalsIgnoreCase(CommonConstant.READONLYMANY)) {
                                 pvcDto.setReadOnly(true);
+                                pvcDto.setBindOne(false);
+                            } else if (persistentVolumeClaim.getSpec().getAccessModes().get(0).equalsIgnoreCase(CommonConstant.READWRITEONCE)){
+                                pvcDto.setReadOnly(false);
+                                pvcDto.setBindOne(true);
+                            } else if (persistentVolumeClaim.getSpec().getAccessModes().get(0).equalsIgnoreCase(CommonConstant.READWRITEMANY)) {
+                                pvcDto.setReadOnly(false);
+                                pvcDto.setBindOne(false);
                             }
                             pvcDtoList.add(pvcDto);
                         }

@@ -36,6 +36,8 @@ public class PvcDto implements Serializable {
 
     private Boolean readOnly;
 
+    private Boolean bindOne;
+
     private Date createTime;
 
     public String getName() {
@@ -132,5 +134,13 @@ public class PvcDto implements Serializable {
 
     public void setCreateTime(Date createTime) {
         this.createTime = createTime;
+    }
+
+    public Boolean getBindOne() {
+        return bindOne;
+    }
+
+    public void setBindOne(Boolean bindOne) {
+        this.bindOne = bindOne;
     }
 }

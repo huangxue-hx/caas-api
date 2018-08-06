@@ -6,16 +6,14 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.AssertUtil;
-import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dto.application.StorageClassDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.APIGroup;
 import com.harmonycloud.k8s.constant.HTTPMethod;
@@ -26,6 +24,7 @@ import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.DaemonSetsService;
 import com.harmonycloud.service.application.PersistentVolumeClaimService;
+import com.harmonycloud.k8s.service.SecretService;
 import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
@@ -54,13 +53,21 @@ public class StorageClassServiceImpl implements StorageClassService {
 
     private static final String NFS_STORAGE = "NFS";
 
+    private static final String CEPH_RBD_STORAGE = "CEPH-RBD";
+
     private static final String NFS_PROVISIONER = "nfs-provisioner";
 
+    private static final String CEPH_RBD_PROVISIONER = "ceph-rbd-provisioner";
+
     private static final String NFS_PROVISIONER_NAME = "nfs-client-provisioner";
+
+    private static final String CEPH_RBD_PROVISIONER_DEPLOYMENTNAME = "ceph-rbd-provisioner";
 
     private static final int NFS_PROVISIONER_USED_TIME = 180;
 
     private static final String IMAGE_NAME = "provisionerImageName";
+
+    private static final String CEPH_RBD_IMAGE_NAME = "cephRBDImageName";
 
     private static final int CREATE_FAIL_NUM = -1;
 
@@ -88,6 +95,9 @@ public class StorageClassServiceImpl implements StorageClassService {
 
     @Autowired
     DaemonSetsService daemonSetsService;
+
+    @Autowired
+    SecretService secretService;
 
     @Override
     public ActionReturnUtil createStorageClass(StorageClassDto storageClass) throws Exception {
@@ -148,11 +158,62 @@ public class StorageClassServiceImpl implements StorageClassService {
             }
 
             return storageClassReturn;
-        } else {
-            LOGGER.error("Storage class使用的存储暂时仅支持NFS");
-            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.STORAGECLASS_TYPE_ERROR, DictEnum.STORAGE_CLASS.phrase(), true);
+        }    else if (CEPH_RBD_STORAGE.equals(storageClass.getType())) {
+        String monitors = configMap.get("monitors");
+        String pool = configMap.get("pool");
+        String adminId = configMap.get("adminId");
+        String userId = configMap.get("userId");
+        String cephAdminSecret = configMap.get("cephAdminSecret");
+        String cephUserSecret = configMap.get("cephUserSecret");
+        if (StringUtils.isBlank(monitors) || StringUtils.isBlank(cephAdminSecret) || StringUtils.isBlank(cephUserSecret)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
+
+        // 检查ceph rbd 检查是否存在，不存在则需创建
+        if(getDeployment(cluster, CEPH_RBD_PROVISIONER_DEPLOYMENTNAME) == null) {
+            List<SystemConfig> systemConfigList = systemConfigService.findByConfigType(CEPH_RBD_PROVISIONER);
+            String provisionerImage = "";
+            for (SystemConfig systemConfig : systemConfigList) {
+                if (CEPH_RBD_IMAGE_NAME.equals(systemConfig.getConfigName())) {
+                    provisionerImage = cluster.getHarborServer().getHarborHost() + ":" +
+                            cluster.getHarborServer().getHarborPort() + systemConfig.getConfigValue();
+                }
+            }
+            if (StringUtils.isBlank(provisionerImage)) {
+                throw new MarsRuntimeException(ErrorCodeMessage.CEPH_RBD_PROVISIONER_CONFIG_ERROR);
+            }
+            Map<String, Object> cephRBDProvisionerMap = buildCephRBDProvisionerMap(provisionerImage);
+            ((Map<String, Object>)cephRBDProvisionerMap.get("spec")).put("replicas", 1);
+//                String createTime = Long.toString((new Date()).getTime());
+//                ((Map<String, Object>)((Map<String, Object>)cephRBDProvisionerMap.get("metadata")).get("annotations")).put("createTime", createTime);
+            K8SURL k8SURL = new K8SURL();
+            k8SURL.setNamespace(CommonConstant.KUBE_SYSTEM);
+            ActionReturnUtil cephRBDProvisionerReturn = createK8sResource(k8SURL, cephRBDProvisionerMap, APIGroup.APIS_EXTENSIONS_V1BETA1_VERSION, Resource.DEPLOYMENT, cluster);
+            if (!cephRBDProvisionerReturn.isSuccess()) {
+                LOGGER.error("创建CephRBDProvisioner失败，data:{}", cephRBDProvisionerReturn.getData());
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CEPH_RBD_PROVISIONER_CREATE_FAIL);
+            }
+        }
+
+        // 创建StrorageCLass 和secret
+        String uuid = StringUtil.getId();
+        String cephAdminSecretName = "ceph-admin-secret-" + uuid;
+        String cephUserSecretName = "ceph-user-secret"  + uuid;
+        ActionReturnUtil result = createCephRBDStorageClass(cephAdminSecretName, cephAdminSecret, cephUserSecretName, cephUserSecret, storageClass, monitors, pool, adminId, userId, cluster);
+        if (!result.isSuccess()) {
+            rollBackCephRBDStorageClass(cephAdminSecretName, cephUserSecretName, storageClass.getName(), cluster);
+            throw new MarsRuntimeException(result.getData().toString());
+        }
+        return result;
+
+
+    }else {
+        LOGGER.error("Storage class使用的存储暂不支持");
+        return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.STORAGECLASS_TYPE_ERROR, DictEnum.STORAGE_CLASS.phrase(), true);
     }
+
+
+}
 
     private Map<String, Object> buildNfsProvisionerMap(String scName, String nfsAddr, String nfsPath, String provisionerImage) throws Exception {
         Map<String, Object> jsonMap = yamlToMap(NFS_PROVISIONER + "/deployment.yaml");
@@ -163,6 +224,33 @@ public class StorageClassServiceImpl implements StorageClassService {
         return gson.fromJson(nfsProvisionerString, new TypeToken<Map<String, Object>>(){}.getType());
     }
 
+    private Map<String, Object> buildCephRBDProvisionerMap(String provisionerImage) throws Exception {
+        Map<String, Object> jsonMap = yamlToMap(CEPH_RBD_PROVISIONER + "/deployment.yaml");
+        Gson gson = new Gson();
+        String jsonString = gson.toJson(jsonMap);
+        String nfsProvisionerString = jsonString.replace("imageName", provisionerImage);
+        return gson.fromJson(nfsProvisionerString, new TypeToken<Map<String, Object>>(){}.getType());
+    }
+
+    private Map<String, Object> buildCephRBDAdminSecretMap(String cephAdminSecretName, String cephAdminSecretKey) throws Exception {
+        Map<String, Object> jsonMap = yamlToMap(CEPH_RBD_PROVISIONER + "/admin-secret.yaml");
+        Gson gson = new Gson();
+        String jsonString = gson.toJson(jsonMap);
+        String provisionerString = jsonString.replace("cephAdminSecretName", cephAdminSecretName)
+                .replace("cephAdminSecretKey", cephAdminSecretKey);
+        return gson.fromJson(provisionerString, new TypeToken<Map<String, Object>>(){}.getType());
+    }
+
+    private Map<String, Object> buildCephRBDUserSecretMap(String cephUserSecretName, String cephUserSecretKey) throws Exception {
+        Map<String, Object> jsonMap = yamlToMap(CEPH_RBD_PROVISIONER + "/user-secret.yaml");
+        Gson gson = new Gson();
+        String jsonString = gson.toJson(jsonMap);
+        String provisionerString = jsonString.replace("cephUserSecretName", cephUserSecretName)
+                .replace("cephUserSecretKey", cephUserSecretKey);
+        return gson.fromJson(provisionerString, new TypeToken<Map<String, Object>>(){}.getType());
+    }
+
+
     private Map<String, Object> buildStorageClassMap(StorageClassDto sc, String nfsAddr, String nfsPath) throws Exception {
         Map<String, Object> jsonMap = yamlToMap(NFS_PROVISIONER + "/class.yaml");
         Gson gson = new Gson();
@@ -170,6 +258,19 @@ public class StorageClassServiceImpl implements StorageClassService {
         String storageClassString = jsonString.replace("scName", sc.getName())
                 .replace("limitNum", sc.getStorageLimit()).replace("storageType", sc.getType())
                 .replace("nfsAddr", nfsAddr).replace("nfsPath", nfsPath);
+        return gson.fromJson(storageClassString, new TypeToken<Map<String, Object>>(){}.getType());
+    }
+
+    private Map<String, Object> buildCephRBDStorageClassMap(StorageClassDto sc, String monitors, String pool, String adminId, String adminSecretName, String userId, String userSecretName) throws Exception {
+        Map<String, Object> jsonMap = yamlToMap(CEPH_RBD_PROVISIONER + "/class.yaml");
+        Gson gson = new Gson();
+        String jsonString = gson.toJson(jsonMap);
+        String storageClassString = jsonString.replace("scName", sc.getName())
+                .replace("limitNum", sc.getStorageLimit()).replace("storageType", sc.getType())
+                .replace("monitorsAddr", monitors).replace("poolName", pool)
+                .replace("adminIdValue", adminId).replace("adminSecretNameValue", adminSecretName)
+                .replace("userIdValue", userId).replace("userSecretNameValue", userSecretName);
+
         return gson.fromJson(storageClassString, new TypeToken<Map<String, Object>>(){}.getType());
     }
 
@@ -185,6 +286,39 @@ public class StorageClassServiceImpl implements StorageClassService {
         }
         return ActionReturnUtil.returnSuccess();
     }
+
+    private ActionReturnUtil createCephRBDStorageClass(String cephAdminSecretName, String cephAdminSecret, String cephUserSecretName, String cephUserSecret, StorageClassDto storageClass,
+                                                       String monitors, String pool, String adminId, String userId, Cluster cluster) throws Exception {
+        // 创建admin secret
+        Map<String, Object> adminSecretMap = buildCephRBDAdminSecretMap(cephAdminSecretName, cephAdminSecret);
+        K8SURL adminK8SURL = new K8SURL();
+        adminK8SURL.setNamespace(CommonConstant.KUBE_SYSTEM);
+        ActionReturnUtil adminSecretReturn = createK8sResource(adminK8SURL, adminSecretMap, APIGroup.API_V1_VERSION, Resource.SECRET, cluster);
+        if (!adminSecretReturn.isSuccess()) {
+            LOGGER.error("创建ceph rbd admin secret失败，data:{}", adminSecretReturn.getData());
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CEPH_RBD_SECRET_CREATE_FAIL);
+        }
+
+        // 创建user secret
+        Map<String, Object> userSecretMap = buildCephRBDUserSecretMap(cephUserSecretName, cephUserSecret);
+        K8SURL userK8SURL = new K8SURL();
+        userK8SURL.setNamespace(CommonConstant.KUBE_SYSTEM);
+        ActionReturnUtil userSecretReturn = createK8sResource(userK8SURL, userSecretMap, APIGroup.API_V1_VERSION, Resource.SECRET, cluster);
+        if (!userSecretReturn.isSuccess()) {
+            LOGGER.error("创建ceph rbd user secret失败，data:{}", userSecretReturn.getData());
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CEPH_RBD_SECRET_CREATE_FAIL);
+        }
+        //创建StorageClass
+        Map<String, Object> storageClassMap = buildCephRBDStorageClassMap(storageClass, monitors, pool, adminId, cephAdminSecretName, userId, cephUserSecretName);
+
+        ActionReturnUtil storageClassReturn = createK8sResource(new K8SURL(), storageClassMap, APIGroup.APIS_STORAGECLASS_VERSION, Resource.STORAGECLASS, cluster);
+        if (!storageClassReturn.isSuccess()) {
+            LOGGER.error("创建StorageClass失败，data:{}", storageClassReturn.getData());
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.DELETE_FAIL, DictEnum.STORAGE_CLASS.phrase(), true);
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
+
 
     @Override
     public ActionReturnUtil deleteStorageClass(String name, String clusterId) throws Exception {
@@ -215,10 +349,59 @@ public class StorageClassServiceImpl implements StorageClassService {
         }
         K8SClientResponse response = scService.deleteStorageClassByName(name, cluster);
         if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            // 删除secret
+            StorageClass storageClass = K8SClient.converToBean(response, StorageClass.class);
+            if(storageClass != null && storageClass.getParameters() != null) {
+                String adminSecretName = storageClass.getParameters().getAdminSecretName();
+                String userSecretName = storageClass.getParameters().getUserSecretName();
+                K8SClientResponse adminSecretResponse = secretService.getSpecifiedSecret(adminSecretName, CommonConstant.KUBE_SYSTEM, cluster);
+                if (HttpStatusUtil.isSuccessStatus(adminSecretResponse.getStatus())) {
+                    Secret secret = K8SClient.converToBean(adminSecretResponse, Secret.class);
+                    if (secret != null) {
+                        secretService.deleteSecret(adminSecretName, CommonConstant.KUBE_SYSTEM, cluster);
+                    }
+                }
+
+                K8SClientResponse userSecretRes = secretService.getSpecifiedSecret(userSecretName, CommonConstant.KUBE_SYSTEM, cluster);
+                if (HttpStatusUtil.isSuccessStatus(userSecretRes.getStatus())) {
+                    Secret userSecret = K8SClient.converToBean(userSecretRes, Secret.class);
+                    if(userSecret != null) {
+                        secretService.deleteSecret(userSecretName, CommonConstant.KUBE_SYSTEM, cluster);
+                    }
+                }
+            }
             return ActionReturnUtil.returnSuccess();
         } else {
             return ActionReturnUtil.returnErrorWithData(response.getBody());
         }
+
+    }
+
+    private void rollBackCephRBDStorageClass(String cephAdminrSecretName, String cephUserSecretName, String storageClassName, Cluster cluster) throws Exception {
+
+        StorageClass sc = scService.getScByName(storageClassName, cluster);
+        if(sc != null) {
+            scService.deleteStorageClassByName(storageClassName, cluster);
+        }
+
+        K8SClientResponse adminSecretResponse = secretService.getSpecifiedSecret(cephAdminrSecretName, CommonConstant.KUBE_SYSTEM, cluster);
+        if (HttpStatusUtil.isSuccessStatus(adminSecretResponse.getStatus())) {
+            Secret secret = K8SClient.converToBean(adminSecretResponse, Secret.class);
+            if(secret != null) {
+                secretService.deleteSecret(cephAdminrSecretName, CommonConstant.KUBE_SYSTEM, cluster);
+            }
+        }
+
+        K8SClientResponse userSecretRes = secretService.getSpecifiedSecret(cephUserSecretName, CommonConstant.KUBE_SYSTEM, cluster);
+        if (HttpStatusUtil.isSuccessStatus(userSecretRes.getStatus())) {
+            Secret userSecret = K8SClient.converToBean(userSecretRes, Secret.class);
+            if(userSecret != null) {
+                secretService.deleteSecret(cephUserSecretName, CommonConstant.KUBE_SYSTEM, cluster);
+            }
+        }
+
+
+
     }
 
     private ActionReturnUtil getStorageClassPVC(String scName, Cluster cluster) {
@@ -398,28 +581,96 @@ public class StorageClassServiceImpl implements StorageClassService {
         storageClassDto.setClusterId(cluster.getId());
         Date utcDate = DateUtil.StringToDate(sc.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
         storageClassDto.setCreateTime(utcDate);
-        ActionReturnUtil nfsProvisioner = getNfsProvisionerStatus(sc.getMetadata().getName(), cluster);
-        storageClassDto.setStatus((int)(nfsProvisioner.get("count")));
         if (sc.getMetadata().getAnnotations() != null) {
             if (sc.getMetadata().getAnnotations().get("type") != null) {
-                storageClassDto.setType((String)(sc.getMetadata().getAnnotations().get("type")));
+                if (sc.getMetadata().getAnnotations().get("type").equals(NFS_STORAGE)) {
+                    ActionReturnUtil nfsProvisioner = getNfsProvisionerStatus(sc.getMetadata().getName(), cluster);
+                    storageClassDto.setStatus((int)(nfsProvisioner.get("count")));
+                    if (sc.getMetadata().getAnnotations() != null) {
+                        if (sc.getMetadata().getAnnotations().get("type") != null) {
+                            storageClassDto.setType((String)(sc.getMetadata().getAnnotations().get("type")));
+                        }
+                        if (sc.getMetadata().getAnnotations().get("storageLimit") != null) {
+                            storageClassDto.setStorageLimit((String)(sc.getMetadata().getAnnotations().get("storageLimit")));
+                        }
+                        Map<String, String> configMap = new HashMap<>();
+                        if (sc.getMetadata().getAnnotations().get("NFSADDR") != null) {
+                            configMap.put("NFS_SERVER", (String )(sc.getMetadata().getAnnotations().get("NFSADDR")));
+                        }
+                        if (sc.getMetadata().getAnnotations().get("NFSPATH") != null) {
+                            configMap.put("NFS_PATH", (String )(sc.getMetadata().getAnnotations().get("NFSPATH")));
+                        }
+                        storageClassDto.setConfigMap(configMap);
+                    }
+                } else if (sc.getMetadata().getAnnotations().get("type").equals(CEPH_RBD_STORAGE)) {
+                    storageClassDto.setStatus(CREATE_SUCCESS_NUM);
+                    if (sc.getMetadata().getAnnotations() != null) {
+                        if (sc.getMetadata().getAnnotations().get("type") != null) {
+                            storageClassDto.setType((String)(sc.getMetadata().getAnnotations().get("type")));
+                        }
+                        if (sc.getMetadata().getAnnotations().get("storageLimit") != null) {
+                            storageClassDto.setStorageLimit((String)(sc.getMetadata().getAnnotations().get("storageLimit")));
+                        }
+                        Map<String, String> configMap = new HashMap<>();
+                        if (sc.getParameters().getMonitors() != null) {
+                            configMap.put("monitors", (String )(sc.getParameters().getMonitors()));
+                        }
+                        if (sc.getParameters().getPool() != null) {
+                            configMap.put("pool", (String )(sc.getParameters().getPool()));
+                        }
+                        if (sc.getParameters().getAdminId() != null) {
+                            configMap.put("adminId", (String )(sc.getParameters().getAdminId()));
+                        }
+                        if (sc.getParameters().getUserId() != null) {
+                            configMap.put("userId", (String )(sc.getParameters().getUserId()));
+                        }
+
+                        if (sc.getParameters().getAdminSecretName() != null) {
+                            K8SClientResponse adminSecretResponse = secretService.getSpecifiedSecret(sc.getParameters().getAdminSecretName(), CommonConstant.KUBE_SYSTEM, cluster);
+                            if (HttpStatusUtil.isSuccessStatus(adminSecretResponse.getStatus())) {
+                                Secret secret = K8SClient.converToBean(adminSecretResponse, Secret.class);
+                                if(secret != null) {
+                                    Map<String, Object> data = (Map<String, Object>) secret.getData();
+                                    configMap.put("cephAdminSecret", data.get("key").toString());
+                                }
+                            }
+                        }
+
+                        if (sc.getParameters().getUserSecretName() != null) {
+                            K8SClientResponse userSecretResponse = secretService.getSpecifiedSecret(sc.getParameters().getUserSecretName(), CommonConstant.KUBE_SYSTEM, cluster);
+                            if (HttpStatusUtil.isSuccessStatus(userSecretResponse.getStatus())) {
+                                Secret secret = K8SClient.converToBean(userSecretResponse, Secret.class);
+                                if(secret != null) {
+                                    Map<String, Object> data = (Map<String, Object>) secret.getData();
+                                    configMap.put("cephUserSecret", data.get("key").toString());
+                                }
+                            }
+                        }
+
+                        storageClassDto.setConfigMap(configMap);
+                    }
+                }
             }
-            if (sc.getMetadata().getAnnotations().get("storageLimit") != null) {
-                storageClassDto.setStorageLimit((String)(sc.getMetadata().getAnnotations().get("storageLimit")));
-            }
-            Map<String, String> configMap = new HashMap<>();
-            if (sc.getMetadata().getAnnotations().get("NFSADDR") != null) {
-                configMap.put("NFS_SERVER", (String )(sc.getMetadata().getAnnotations().get("NFSADDR")));
-            }
-            if (sc.getMetadata().getAnnotations().get("NFSPATH") != null) {
-                configMap.put("NFS_PATH", (String )(sc.getMetadata().getAnnotations().get("NFSPATH")));
-            }
-            storageClassDto.setConfigMap(configMap);
+
         }
+
         if (serviceList != null && serviceList.size() > 0) {
             storageClassDto.setServiceList(serviceList);
         }
         return storageClassDto;
+    }
+
+
+    private Deployment getDeployment(Cluster cluster, String name) throws Exception {
+        K8SURL k8SURL = new K8SURL();
+        k8SURL.setApiGroup(APIGroup.API_V1_VERSION);
+        k8SURL.setNamespace(CommonConstant.KUBE_SYSTEM);
+        k8SURL.setResource(Resource.DEPLOYMENT).setSubpath(name);
+        K8SClientResponse response = new K8sMachineClient().exec(k8SURL, HTTPMethod.GET, null, null, cluster);
+        if(HttpStatusUtil.isSuccessStatus(response.getStatus())){
+            return JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
+        }
+        return null;
     }
 
     @Override
