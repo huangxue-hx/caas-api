@@ -11,11 +11,11 @@ INSERT INTO `k8s_auth_server`.`service_templates` (`name`, `tag`, `deployment_co
 
 INSERT INTO `k8s_auth_server`.`application_templates` (`name`, `tag`, `status`, `tenant`, `create_user`, `create_time`, `image_list`, `is_public`, `project_id`) VALUES ('rocketmq', '1.0', '0', 'all', 'admin', '2018-08-06 18:11:03', 'onlineshop/rocketmq-broker,onlineshop/rocketmq-namesrv', '0', 'all');
 INSERT INTO `k8s_auth_server`.`application_templates` (`name`, `tag`, `status`, `tenant`, `create_user`, `create_time`, `image_list`, `is_public`, `project_id`) VALUES ('mysql-cluster', '1.0', '0', 'all', 'admin', '2018-08-06 19:06:51', 'onlineshop/mysql-master,onlineshop/mysql-slave', '0', 'all');
-UPDATE `k8s_auth_server`.`application_templates` SET `tag`='v6.2.5-1' WHERE (`id`='11' AND `name` = `Elasticsearch`)
+UPDATE `k8s_auth_server`.`application_templates` SET `tag`='v6.2.5-1' WHERE (`id`='11' AND `name` = 'Elasticsearch');
 
 INSERT INTO `k8s_auth_server`.`app_store` (`name`, `tag`, `type`, `create_user`, `create_time`) VALUES ('Rocketmq', '4.2.0-k8s', 'am', 'admin', '2018-08-06 18:18:04');
 INSERT INTO `k8s_auth_server`.`app_store` (`name`, `tag`, `type`, `create_user`, `create_time`) VALUES ('Mysql-Cluster', '0.1', 'database', 'admin', '2018-08-06 19:13:07');
-UPDATE `k8s_auth_server`.`app_store` SET `tag` = 'v6.2.5-1' WHERE (`id` = '11' AND `name` = `Elasticsearch`);
+UPDATE `k8s_auth_server`.`app_store` SET `tag` = 'v6.2.5-1' WHERE (`id` = '11' AND `name` = 'Elasticsearch');
 
 INSERT INTO `k8s_auth_server`.`application_service` (`application_id`, `service_id`, `status`, `is_external`) VALUES((SELECT `id` FROM `k8s_auth_server`.`application_templates` WHERE (`name` = 'rocketmq')),(SELECT `id` FROM `k8s_auth_server`.`service_templates` WHERE (`name` = 'rocketmq')),0,0);
 INSERT INTO `k8s_auth_server`.`application_service` (`application_id`, `service_id`, `status`, `is_external`) VALUES((SELECT `id` FROM `k8s_auth_server`.`application_templates` WHERE (`name` = 'mysql-cluster')),(SELECT `id` FROM `k8s_auth_server`.`service_templates` WHERE (`name` = 'mysql-master')),0,0);
