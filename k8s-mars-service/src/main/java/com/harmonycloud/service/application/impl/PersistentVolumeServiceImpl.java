@@ -217,7 +217,12 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         // 设置spec
         PersistentVolumeSpec spec = new PersistentVolumeSpec();
         Map<String, Object> cap = new HashMap<>();
-        cap.put(CommonConstant.STORAGE, volume.getCapacity() + CommonConstant.GI);
+        String capacity = volume.getCapacity();
+        if(capacity.contains(CommonConstant.GI) || capacity.contains(CommonConstant.MI)){
+            cap.put(CommonConstant.STORAGE, volume.getCapacity());
+        }else {
+            cap.put(CommonConstant.STORAGE, volume.getCapacity() + CommonConstant.GI);
+        }
         spec.setCapacity(cap);
         ClusterStorage storage = this.getProvider(cluster.getId(), CommonConstant.NFS);
         if (storage == null) {
@@ -508,11 +513,17 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         } else {
             limits.put(CommonConstant.STORAGE, volume.getCapacity() + CommonConstant.GI);
         }
+        String projectName = projectService.getProjectByProjectId(volume.getProjectId()).getProjectName();
+
         ResourceRequirements resources = new ResourceRequirements();
         resources.setLimits(limits);
         resources.setRequests(limits);
         pvSpec.setResources(resources);
-        pvSpec.setVolumeName(volume.getVolumeName());
+        if(volume.getVolumeName().startsWith(projectName + CommonConstant.DOT)){
+            pvSpec.setVolumeName(volume.getVolumeName());
+        }else {
+            pvSpec.setVolumeName(projectName + CommonConstant.DOT + volume.getVolumeName());
+        }
         pVolumeClaim.setMetadata(meta);
         pVolumeClaim.setSpec(pvSpec);
         K8SClientResponse response = pvService.createPvc(volume.getNamespace(), pVolumeClaim, cluster);
