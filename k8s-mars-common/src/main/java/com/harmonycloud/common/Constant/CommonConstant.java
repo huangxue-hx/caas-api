@@ -328,6 +328,7 @@ public class CommonConstant {
     public static final String PROTOCOL_HTTP = "http";
     public static final Integer DEFAULT_KUBE_APISERVER_PORT = 6443;
     public static final Integer DEFAULT_HARBOR_PORT = 80;
+    public static final Integer DEFAULT_HTTPS_PORT= 443;
     public static final String DEFAULT_NAMESPACE = "default";
     //cicd
     public static final String CICD_NAMESPACE = "cicd";

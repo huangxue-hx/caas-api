@@ -21,7 +21,7 @@ podTemplate(
             args: '',
             command: '',
             envVars: [
-                containerEnvVar(key: 'DOCKER_DAEMON_ARGS', value: '--insecure-registry=${harborHost!}'),containerEnvVar(key: 'GIT_SSL_NO_VERIFY', value: 'true')<#list stage.environmentVariables! as environmentVariable>,containerEnvVar(key: '${environmentVariable.key}', value: '${environmentVariable.value}')</#list>
+                containerEnvVar(key: 'DOCKER_DAEMON_ARGS', value: '--insecure-registry=${harborAddress!}'),containerEnvVar(key: 'GIT_SSL_NO_VERIFY', value: 'true')<#list stage.environmentVariables! as environmentVariable>,containerEnvVar(key: '${environmentVariable.key}', value: '${environmentVariable.value}')</#list>
             ],
             image: '${stage.buildEnvironment!}',
             name: 'jnlp',
@@ -72,12 +72,12 @@ podTemplate(
             tag${stage.stageOrder!} = dateTime
             </#if>
             withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harbor', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']])
-            { sh 'docker login ${harborHost!}:${harborPort!} --username=$USERNAME --password=$PASSWORD' }
+            { sh 'docker login ${harborAddress!} --username=$USERNAME --password=$PASSWORD' }
             <#if stage.dockerfileType == 2>
             sh "cp -r ${'/opt/dockerfile'+stage.id} ./dockerfile@tmp${stage.id}"
             </#if>
-            sh "docker build --no-cache <#if stage.dockerfileType == 1> -f ./${stage.dockerfilePath}</#if><#if stage.dockerfileType == 2> -f dockerfile@tmp${stage.id}/<#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if> -t ${harborHost!}:${harborPort!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!} ."
-            sh "docker push ${harborHost!}:${harborPort!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}"
+            sh "docker build --no-cache <#if stage.dockerfileType == 1> -f ./${stage.dockerfilePath}</#if><#if stage.dockerfileType == 2> -f dockerfile@tmp${stage.id}/<#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if> -t ${harborAddress!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!} ."
+            sh "docker push ${harborAddress!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}"
 
 </#if>
 <#if stage.stageTemplateType == 2>

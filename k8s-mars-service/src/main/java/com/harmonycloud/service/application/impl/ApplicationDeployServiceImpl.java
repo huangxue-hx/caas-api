@@ -50,6 +50,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static com.harmonycloud.common.Constant.CommonConstant.DEFAULT_HTTPS_PORT;
+
 
 /**
  * Created by root on 4/10/17.
@@ -1165,7 +1167,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 //todo so bad
                 service.getDeploymentDetail().setNamespace(namespace);
                 for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
-                    c.setImg(cluster.getHarborServer().getHarborHost() + ":" + cluster.getHarborServer().getHarborPort() + "/" + c.getImg());
+                    c.setImg(cluster.getHarborServer().getHarborAddress() + "/" + c.getImg());
                 }
                 service.getDeploymentDetail().setProjectId(appDeploy.getProjectId());
                 deploymentsService.createDeployment(service.getDeploymentDetail(), username, appDeploy.getAppName(), cluster,service.getIngress());
@@ -1535,7 +1537,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 // namespace
                 svcTemplate.getDeploymentDetail().setNamespace(appDeploy.getNamespace());
                 for (CreateContainerDto c : svcTemplate.getDeploymentDetail().getContainers()) {
-                    c.setImg(cluster.getHarborServer().getHarborHost() + ":" + cluster.getHarborServer().getHarborPort() + "/" + c.getImg());
+                    c.setImg(cluster.getHarborServer().getHarborAddress() + "/" + c.getImg());
                 }
                 svcTemplate.getDeploymentDetail().setProjectId(appDeploy.getProjectId());
                 ActionReturnUtil depRes = deploymentsService.createDeployment(svcTemplate.getDeploymentDetail(), username, appDeploy.getAppName(),
