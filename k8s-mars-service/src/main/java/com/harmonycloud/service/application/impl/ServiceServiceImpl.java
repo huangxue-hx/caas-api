@@ -557,7 +557,7 @@ public class ServiceServiceImpl implements ServiceService {
         // todo so bad
         service.getDeploymentDetail().setNamespace(namespace);
         for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
-            c.setImg(cluster.getHarborServer().getHarborHost() + ":" + cluster.getHarborServer().getHarborPort() + "/" + c.getImg());
+            c.setImg(cluster.getHarborServer().getHarborAddress() + "/" + c.getImg());
         }
         service.getDeploymentDetail().setProjectId(serviceDeploy.getServiceTemplate().getProjectId());
         ActionReturnUtil depRes = deploymentsService.createDeployment(service.getDeploymentDetail(), userName, null,

@@ -236,7 +236,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         NFSVolumeSource createPvNfs = new NFSVolumeSource();
         createPvNfs.setPath(storage.getPath());
         createPvNfs.setServer(storage.getIp());
-        Pod pod = createPod(podName, "pv-dir-create", command, createPvNfs);
+        Pod pod = createPod(podName, "pv-dir-create", command, createPvNfs, cluster);
         ActionReturnUtil res = podService.addPod(CommonConstant.DEFAULT_NAMESPACE, pod, cluster);
         startThreadDeletePod(podName, cluster);
         return res;
@@ -331,7 +331,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         NFSVolumeSource pvNfs = new NFSVolumeSource();
         pvNfs.setPath(storage.getPath());
         pvNfs.setServer(storage.getIp());
-        Pod pod = createPod(podName, "pv-dir-delete", command, pvNfs);
+        Pod pod = createPod(podName, "pv-dir-delete", command, pvNfs, cluster);
         ActionReturnUtil res = podService.addPod(CommonConstant.DEFAULT_NAMESPACE, pod, cluster);
         startThreadDeletePod(podName, cluster);
         return res;
@@ -388,7 +388,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PV_QUERY_FAIL, name, true);
         }
         String command = "test -e /scrub && rm -rf /scrub/..?* /scrub/.[!.]* /scrub/*  && test -z \"$(ls-A /scrub)\" || exit 1";
-        Pod pod = createPod(CommonConstant.PV_RECYCLE_POD_NAME + name, "pv-recycler", command, pv.getSpec().getNfs());
+        Pod pod = createPod(CommonConstant.PV_RECYCLE_POD_NAME + name, "pv-recycler", command, pv.getSpec().getNfs(), cluster);
         ActionReturnUtil res = podService.addPod(CommonConstant.DEFAULT_NAMESPACE, pod, cluster);
         startThreadDeletePod(CommonConstant.PV_RECYCLE_POD_NAME + name, cluster);
         return res;
@@ -558,7 +558,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         return pvDto;
     }
 
-    private Pod createPod(String podName, String containerName, String shCommand, NFSVolumeSource nfsVolumeSource) throws Exception {
+    private Pod createPod(String podName, String containerName, String shCommand, NFSVolumeSource nfsVolumeSource, Cluster cluster) throws Exception {
         Pod pod = new Pod();
         //metadata
         ObjectMeta metadata = new ObjectMeta();
@@ -572,7 +572,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         List<Container> cs = new ArrayList<Container>();
         Container con = new Container();
         con.setName(containerName);
-        con.setImage("k8s-deploy/busybox");
+        con.setImage(cluster.getHarborServer().getHarborAddress() + "/k8s-deploy/busybox");
         con.setImagePullPolicy("IfNotPresent");
         List<String> command = new ArrayList<String>();
         command.add("/bin/sh");

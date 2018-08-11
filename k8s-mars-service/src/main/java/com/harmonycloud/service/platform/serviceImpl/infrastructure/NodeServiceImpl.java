@@ -848,7 +848,7 @@ public class NodeServiceImpl implements NodeService {
         params.put("user", user);
         params.put("passwd", passwd);
         params.put("masterIp", cluster.getHost());
-        params.put("harborIp", harborServer.getHarborHost() + COLON + harborServer.getHarborPort());
+        params.put("harborIp", harborServer.getHarborAddress());
 
 
         Runnable worker = new Runnable() {

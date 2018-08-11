@@ -252,6 +252,7 @@ public class JobServiceImpl implements JobService {
             dataModel.put("job", job);
             dataModel.put("apiUrl", apiUrl);
             dataModel.put("timeout", jenkinsTimeout);
+            dataModel.put("harborAddress", clusterService.findClusterById(jobDto.getClusterId()).getHarborServer().getHarborAddress());
             String script = TemplateUtil.generate("pipeline.ftl", dataModel);
             dataModel.put("script", script);
             String body = TemplateUtil.generate("jobConfig.ftl", dataModel);
@@ -2614,8 +2615,7 @@ public class JobServiceImpl implements JobService {
 
     private String generateScript(Job job, List<Stage> stageList) throws Exception {
         Map dataModel = new HashMap();
-        dataModel.put("harborHost", clusterService.findClusterById(job.getClusterId()).getHarborServer().getHarborHost());
-        dataModel.put("harborPort", String.valueOf(clusterService.findClusterById(job.getClusterId()).getHarborServer().getHarborPort()));
+        dataModel.put("harborAddress", clusterService.findClusterById(job.getClusterId()).getHarborServer().getHarborAddress());
         List<StageDto> stageDtoList = new ArrayList<>();
         List<StageDto> imageBuildStages = new ArrayList<>();
         Map<Integer, DockerFile> dockerFileMap = new HashedMap();
@@ -2632,7 +2632,7 @@ public class JobServiceImpl implements JobService {
                     String image = buildEnvironment.getImage();
                     if(image.split("/").length<CommonConstant.NUM_THREE){
                         Cluster topCluster = clusterService.getPlatformCluster();
-                        image = topCluster.getHarborServer().getHarborHost() + ":" + topCluster.getHarborServer().getHarborPort() + "/" + image;
+                        image = topCluster.getHarborServer().getHarborAddress() + "/" + image;
                     }
                     newStageDto.setEnvironmentChange(true);
                     newStageDto.setBuildEnvironment(image);

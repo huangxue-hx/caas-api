@@ -651,7 +651,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		}
 		HarborServer harborServer = clusterService.findHarborByHost(repository.getHarborHost());
 		File imageFile = null;
-		String imageFullName = harborServer.getHarborHost() + COLON + harborServer.getHarborPort() + SLASH + repository.getHarborProjectName()
+		String imageFullName = harborServer.getHarborAddress() + SLASH + repository.getHarborProjectName()
 				+ SLASH + imageName + COLON + tag;
 		String filePath = uploadPath + File.separator + IMAGE_FILE_UPLOAD_PATH + File.separator
                             + imageName + File.separator + tag + File.separator;
@@ -682,7 +682,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		AssertUtil.notBlank(tag, DictEnum.IMAGE_TAG);
 		ImageRepository repository = imageRepositoryMapper.findRepositoryById(repositoryId);
 		HarborServer harborServer = clusterService.findHarborByHost(repository.getHarborHost());
-		String imageFullName = harborServer.getHarborHost() + COLON + harborServer.getHarborPort() + SLASH + imageName + CommonConstant.COLON + tag;
+		String imageFullName = harborServer.getHarborAddress() + SLASH + imageName + CommonConstant.COLON + tag;
 		String fileName = this.getTarFileName(imageFullName);
 		//如果镜像已经在拉取中，不能重复提交拉取
 		BoundHashOperations<String, String, String> statusHashOps = stringRedisTemplate
@@ -787,8 +787,8 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		}else{
 			HarborServer sourceHarborServer = clusterService.findHarborByHost(sourceRepository.getHarborHost());
 			HarborServer destHarborServer = clusterService.findHarborByHost(destRepository.getHarborHost());
-			String sourceImageName = sourceHarborServer.getHarborHost() + COLON + sourceHarborServer.getHarborPort() + SLASH + repoName + COLON + tag;
-			String destImageName = destRepository.getHarborHost() + COLON + destHarborServer.getHarborPort() + SLASH + destRepoName + COLON + tag;
+			String sourceImageName = sourceHarborServer.getHarborAddress() + SLASH + repoName + COLON + tag;
+			String destImageName = destHarborServer.getHarborAddress() + SLASH + destRepoName + COLON + tag;
 			//登录源harbor服务器
 			HarborClient.checkHarborAdminCookie(sourceHarborServer);
 			//登录目标harbor服务器
@@ -1148,7 +1148,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 
 	private RegistryAuth dockerAuth(HarborServer harborServer) throws Exception{
 		return RegistryAuth.builder()
-				.serverAddress(harborServer.getHarborProtocol() + "://" + harborServer.getHarborHost() + ":" + harborServer.getHarborPort())
+				.serverAddress(harborServer.getHarborUrl())
 				.username(harborServer.getHarborAdminAccount())
 				.password(harborServer.getHarborAdminPassword())
 				.build();
@@ -1200,7 +1200,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		AssertUtil.notBlank(tag, DictEnum.IMAGE_TAG);
 		ImageRepository repository = imageRepositoryMapper.findRepositoryById(repositoryId);
 		HarborServer harborServer = clusterService.findHarborByHost(repository.getHarborHost());
-		String imageFullName = harborServer.getHarborHost() + COLON + harborServer.getHarborPort() + SLASH + imageName + CommonConstant.COLON + tag;
+		String imageFullName = harborServer.getHarborAddress() + SLASH + imageName + CommonConstant.COLON + tag;
 		return imageFullName;
 	}
 
@@ -1239,7 +1239,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 					imageCacheManager.addRepoTag(harborLog.getHarborHost(),harborLog.getRepoName(),harborManifest);
 					HarborServer harborServer = clusterService.findHarborByHost(harborLog.getHarborHost());
 					//更新镜像触发流水线构建
-					triggerService.triggerJobByImage(harborLog.getHarborHost()+COLON+harborServer.getHarborPort()+SLASH+harborLog.getRepoName(),harborLog.getRepoTag());
+					triggerService.triggerJobByImage(harborServer.getHarborAddress()+SLASH+harborLog.getRepoName(),harborLog.getRepoTag());
 					continue;
 				}
 				//上传之后检查10分钟，超过10分钟不再继续
