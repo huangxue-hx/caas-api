@@ -1,0 +1,4 @@
+# with plugin ik: https://github.com/medcl/elasticsearch-analysis-ik
+FROM k8s.gcr.io/elasticsearch:v6.2.5
+COPY ik /usr/share/elasticsearch/plugins/
+COPY ik/config /usr/share/elasticsearch/config
