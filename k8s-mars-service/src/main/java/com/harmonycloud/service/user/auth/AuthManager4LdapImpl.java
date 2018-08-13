@@ -4,18 +4,17 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
-import javax.naming.NamingException;
-import javax.naming.directory.Attributes;
+import javax.naming.Name;
+
 
 import com.harmonycloud.dao.user.UserMapper;
 import com.harmonycloud.dto.user.LdapConfigDto;
 import com.harmonycloud.service.user.AuthManager4Ldap;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.ldap.core.AttributesMapper;
+import org.springframework.ldap.core.ContextMapper;
+import org.springframework.ldap.core.DirContextAdapter;
 import org.springframework.ldap.core.LdapTemplate;
 import org.springframework.ldap.core.support.LdapContextSource;
-import org.springframework.ldap.filter.AndFilter;
-import org.springframework.ldap.filter.EqualsFilter;
 import org.springframework.stereotype.Service;
 
 import com.harmonycloud.common.util.StringUtil;
@@ -77,8 +76,6 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
     }
 
     private boolean isUserInLdap(String userName, String password, LdapConfigDto ldapConfigDto) {
-        AndFilter filter = new AndFilter();
-        filter.and(new EqualsFilter("objectclass", object_class)).and(new EqualsFilter(searchType, userName)).and(new EqualsFilter("userPassword", password));
         LdapContextSource contextSource = new LdapContextSource();
         contextSource.setUrl("ldap://"+ldapConfigDto.getIp()+":"+ldapConfigDto.getPort()+"");
         contextSource.setBase(ldapConfigDto.getBase());
@@ -95,17 +92,7 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
         LdapTemplate template = new LdapTemplate();
 
         template.setContextSource(contextSource);
-        @SuppressWarnings("rawtypes")
-        List search = template.search("", filter.encode(), new AttributesMapper() {
-            @Override
-            public Object mapFromAttributes(Attributes attributes) throws NamingException {
-                return attributes;
-            }
-        });
-        if (search.size() == 1) {
-            return true;
-        }
-        return false;
+        return template.authenticate(getDnForUser(userName,contextSource), "(objectclass="+object_class+")", password);
     }
 
     // 插入Harbor用户
@@ -133,5 +120,31 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
 
     public void setObject_class(String object_class) {
         this.object_class = object_class;
+    }
+
+    @SuppressWarnings({"unused", "unchecked"})
+    private String getDnForUser(String cn,LdapContextSource contextSource) {
+        LdapTemplate template = new LdapTemplate();
+        template.setContextSource(contextSource);
+        List<String> results = template.search("", "(&(objectclass="+object_class+")("+searchType+"=" + cn + "))", new DnMapper());
+
+        if (results.size() != 1) {
+
+            throw new RuntimeException("User not found or not unique");
+        }
+        return results.get(0);
+    }
+
+    /**
+     * 节点的 Dn映射
+     */
+    class DnMapper implements ContextMapper {
+        @Override
+        public String mapFromContext(Object ctx) {
+            DirContextAdapter context = (DirContextAdapter) ctx;
+            Name name = context.getDn();
+            String dn = name.toString();
+            return dn;
+        }
     }
 }

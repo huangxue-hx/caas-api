@@ -62,7 +62,7 @@
 	<!-- 配置认证方式为ldap,searchType为查找的用户名字段-->
 	<bean id="authManager4Ldap" class="com.harmonycloud.service.user.auth.AuthManager4LdapImpl">
 		<property name="object_class" value="person"></property>
-		<property name="searchType" value="uid"></property>
+		<property name="searchType" value="cn"></property>
 	</bean>
 
 	<!-- 默认认证方式mysql -->
