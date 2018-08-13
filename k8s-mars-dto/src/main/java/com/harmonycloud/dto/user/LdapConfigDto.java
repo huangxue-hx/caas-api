@@ -1,7 +1,6 @@
 package com.harmonycloud.dto.user;
 
 import java.io.Serializable;
-import java.util.Date;
 
 public class LdapConfigDto implements Serializable {
     private Integer id;
@@ -17,6 +16,10 @@ public class LdapConfigDto implements Serializable {
     private String password;
 
     private Integer isOn;
+
+    private String objectClass;
+
+    private String searchAttribute;
 
 
     public Integer getId() {
@@ -73,5 +76,21 @@ public class LdapConfigDto implements Serializable {
 
     public void setIsOn(Integer isOn) {
         this.isOn = isOn;
+    }
+
+    public String getObjectClass() {
+        return objectClass;
+    }
+
+    public void setObjectClass(String objectClass) {
+        this.objectClass = objectClass;
+    }
+
+    public String getSearchAttribute() {
+        return searchAttribute;
+    }
+
+    public void setSearchAttribute(String searchAttribute) {
+        this.searchAttribute = searchAttribute;
     }
 }

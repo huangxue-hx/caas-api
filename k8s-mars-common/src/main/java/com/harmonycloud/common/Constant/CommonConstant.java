@@ -299,6 +299,8 @@ public class CommonConstant {
     public static final String LDAP_USERDN = "ldap_userdn";
     public static final String LDAP_PASSWORD = "ldap_password";
     public static final String LDAP_IS_ON = "ldap_is_on";
+    public static final String LDAP_OBJECT_CLASS = "ldap_object_class";
+    public static final String LDAP_SEARCH_ATTR = "ldap_search_attribute";
     public static final String CONFIG_TYPE_FULLLINK = "fulllink";
     public static final String CONFIG_TYPE_LDAP = "ldap";
 

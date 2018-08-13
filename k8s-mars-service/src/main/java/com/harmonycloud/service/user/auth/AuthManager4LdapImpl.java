@@ -2,14 +2,16 @@ package com.harmonycloud.service.user.auth;
 
 import java.util.Date;
 import java.util.List;
-import java.util.Objects;
 
 import javax.naming.Name;
 
 
+import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.dao.user.UserMapper;
 import com.harmonycloud.dto.user.LdapConfigDto;
 import com.harmonycloud.service.user.AuthManager4Ldap;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.ldap.core.ContextMapper;
 import org.springframework.ldap.core.DirContextAdapter;
@@ -23,6 +25,9 @@ import com.harmonycloud.dao.user.bean.AuthUser;
 import com.harmonycloud.dao.user.bean.AuthUserExample;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.service.user.UserService;
+
+import static com.harmonycloud.common.Constant.CommonConstant.FLAG_FALSE;
+import static com.harmonycloud.common.Constant.CommonConstant.NORMAL;
 
 /**
  * @Title AuthManager4LdapImpl.java
@@ -50,12 +55,13 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
 
     @Override
     public String auth(String userName, String password, LdapConfigDto ldapConfigDto) throws Exception {
-        // ladp 认证
-        if (searchType == null || userName == null || password == null || object_class == null) {
-            throw new RuntimeException();
+        AssertUtil.notBlank(userName, DictEnum.USERNAME);
+        AssertUtil.notBlank(password, DictEnum.PASSWORD);
+        if(StringUtils.isBlank(ldapConfigDto.getObjectClass())){
+            ldapConfigDto.setObjectClass(object_class);
         }
-        if (Objects.equals("admin", userName)) {
-            return "admin";
+        if(StringUtils.isBlank(ldapConfigDto.getSearchAttribute())){
+            ldapConfigDto.setSearchAttribute(searchType);
         }
         if (!this.isUserInLdap(userName, password, ldapConfigDto)) {
             return null;
@@ -66,11 +72,6 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
         List<AuthUser> isFound = this.authUserMapper.selectByExample(example);
         if (isFound == null || isFound.size() == 0) {
             return insertUser(userName, password);
-        }
-        if (isFound != null) {
-            if (!isFound.get(0).getPassword().equals(password)) {
-                userService.updateLdapUser(userName, password);
-            }
         }
         return userName;
     }
@@ -92,17 +93,25 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
         LdapTemplate template = new LdapTemplate();
 
         template.setContextSource(contextSource);
-        return template.authenticate(getDnForUser(userName,contextSource), "(objectclass="+object_class+")", password);
+        return template.authenticate(getDnForUser(userName,contextSource,ldapConfigDto),
+                "(objectclass="+ldapConfigDto.getObjectClass()+")", password);
     }
 
     // 插入Harbor用户
     private String insertUser(String userName, String password) throws Exception {
-        String md5Password = StringUtil.convertToMD5(password);
-        User user = new User();
-        user.setPassword(md5Password);
-        user.setCreateTime(new Date());
-        userMapper.insert(user);
-        userService.addLdapUser(userName, password, null);
+        User existUser = userService.getUser(userName);
+        if(existUser == null) {
+            String md5Password = StringUtil.convertToMD5(password);
+            User user = new User();
+            user.setUsername(userName);
+            user.setPassword(md5Password);
+            user.setIsAdmin(FLAG_FALSE);
+            user.setIsMachine(FLAG_FALSE);
+            user.setCreateTime(new Date());
+            user.setPause(NORMAL);
+            userMapper.insert(user);
+        }
+        userService.addLdapUser(userName, null, null);
         return userName;
     }
 
@@ -123,10 +132,11 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
     }
 
     @SuppressWarnings({"unused", "unchecked"})
-    private String getDnForUser(String cn,LdapContextSource contextSource) {
+    private String getDnForUser(String cn,LdapContextSource contextSource, LdapConfigDto ldapConfigDto) {
         LdapTemplate template = new LdapTemplate();
         template.setContextSource(contextSource);
-        List<String> results = template.search("", "(&(objectclass="+object_class+")("+searchType+"=" + cn + "))", new DnMapper());
+        List<String> results = template.search("", "(&(objectclass="+ldapConfigDto.getObjectClass()+")("
+                +ldapConfigDto.getSearchAttribute()+"=" + cn + "))", new DnMapper());
 
         if (results.size() != 1) {
 
