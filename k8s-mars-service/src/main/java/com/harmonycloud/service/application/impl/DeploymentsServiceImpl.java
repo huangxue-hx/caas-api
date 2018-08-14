@@ -55,11 +55,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.servlet.http.HttpSession;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static com.harmonycloud.common.Constant.CommonConstant.LABEL_KEY_APP;
+import org.yaml.snakeyaml.Yaml;
+
 import static com.harmonycloud.service.platform.constant.Constant.TYPE_DEPLOYMENT;
 
 @Service
@@ -1344,5 +1349,40 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
         return ActionReturnUtil.returnSuccess();
 
+    }
+
+    @Override
+    public String getDeploymentDetailYaml(String namespace, String name,String path) throws Exception {
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        // 获取特定的deployment
+        Map<String, Object> headers=new HashMap<String, Object>();
+        headers.put("Accept","application/yaml");
+
+        K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, headers, null, HTTPMethod.GET, cluster);
+        System.out.println(depRes.getBody());
+        //  Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+        // JSONObject json = JSONObject.fromObject(dep);
+        //   return dep;
+        Yaml yaml = new Yaml();
+        FileWriter writer;
+        try {
+            File file2= new File(path);
+            if (!file2.exists()) {
+                try {
+                    file2.createNewFile(); // 文件的创建，注意与文件夹创建的区别
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+            }
+
+            writer = new FileWriter(file2,false);
+            writer.write(yaml.dump(depRes.getBody()));
+            writer.flush();
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return yaml.dump(depRes.getBody());
     }
 }

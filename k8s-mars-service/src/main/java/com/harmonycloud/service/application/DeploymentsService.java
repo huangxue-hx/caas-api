@@ -13,13 +13,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 
+ *
  * @author jmi
  *
  */
 public interface DeploymentsService {
-	
-	
+
+
 	/**
 	 * 获取当前namespace的应用（name参数目前没有用）
 	 * 可对label进行搜索
@@ -47,7 +47,7 @@ public interface DeploymentsService {
 	 * @throws Exception
 	 */
 	public ActionReturnUtil startDeployments(String name, String namespace, String userName) throws Exception;
-	
+
 	/**
 	 * 停止应用（需要进行消息推送 watch）
 	 * @param name
@@ -56,7 +56,7 @@ public interface DeploymentsService {
 	 * @throws Exception
 	 */
 	public ActionReturnUtil stopDeployments(String name, String namespace, String userName) throws Exception;
-	
+
 	/**
 	 * 获取pod信息（包括事件）
 	 * @param name
@@ -65,7 +65,7 @@ public interface DeploymentsService {
 	 * @throws Exception
 	 */
 	public ActionReturnUtil getPodDetail(String name, String namespace) throws Exception;
-	
+
 	/**
 	 * 获取pod列表（先获取deployment）
 	 * @param name
@@ -74,7 +74,7 @@ public interface DeploymentsService {
 	 * @throws Exception
 	 */
 	public ActionReturnUtil podList(String name, String namespace) throws Exception;
-	
+
 	/**
 	 * 获取deployment详情
 	 * @param namespace
@@ -83,7 +83,7 @@ public interface DeploymentsService {
 	 * @throws Exception
 	 */
 	public ActionReturnUtil getDeploymentDetail(String namespace, String name) throws Exception;
-	
+
 	/**
 	 * 获取deployment事件
 	 * @param namespace
@@ -92,7 +92,7 @@ public interface DeploymentsService {
 	 * @throws Exception
 	 */
 	public ActionReturnUtil getDeploymentEvents(String namespace, String name) throws Exception;
-	
+
 	/**
 	 * 扩展deployment实例
 	 * @param namespace
@@ -233,6 +233,15 @@ public interface DeploymentsService {
 	 * @throws Exception
 	 */
     ActionReturnUtil checkDeploymentName(String name, String namespace, boolean isTpl) throws Exception;
+
+	/**
+	 * 获取deployment详情
+	 * @param namespace
+	 * @param name
+	 * @return
+	 * @throws Exception
+	 */
+	public String getDeploymentDetailYaml(String namespace, String name,String path) throws Exception;
 
 	/**
 	 * 创建配置文件（）

@@ -148,3 +148,8 @@ INSERT INTO `k8s_auth_server`.`data_resource_url` VALUES ('34', '/tenants/*/proj
 INSERT INTO `k8s_auth_server`.`data_resource_url` VALUES ('35', '/tenants/*/projects/*/deploys/*/rules', 'DELETE', '2');
 INSERT INTO `k8s_auth_server`.`data_resource_url` VALUES ('36', '/tenants/*/projects/*/deploys/*/ingress', 'DELETE', '2');
 INSERT INTO `k8s_auth_server`.`data_resource_url` VALUES ('37', '/tenants/*/projects/*/deploys/*/bluegreen', 'PUT', '2');
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/roles/initHarborRole', 'system', 'system');
+
+ALTER TABLE `k8s_auth_server`.`user`
+ADD COLUMN `is_ldap_user` TINYINT(1) NULL COMMENT '是否通过ldap登录记录的用户' AFTER `phone`;

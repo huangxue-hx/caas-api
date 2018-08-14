@@ -31,7 +31,7 @@ public class RoleController {
 
 	@Autowired
 	private RoleLocalService roleLocalService;
-	
+
 	@Autowired
 	private ResourceService resourceService;
 	@Autowired
@@ -636,5 +636,10 @@ public class RoleController {
 		privilegeApplicationFieldDtos.add(privilegeApplicationFieldDto1);
 		return ActionReturnUtil.returnSuccessWithData(privilegeHelper.matchAny(privilegeApplicationFieldDtos));
 	}
-
+	@RequestMapping(value = "/roles/initHarborRole", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil initHarborRole() throws Exception {
+		this.roleLocalService.initHarborRole();
+		return ActionReturnUtil.returnSuccess();
+	}
 }

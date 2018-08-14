@@ -18,6 +18,10 @@ public class LdapConfigDto implements Serializable {
 
     private Integer isOn;
 
+    private String objectClass;
+
+    private String searchAttribute;
+
 
     public Integer getId() {
         return id;
@@ -73,5 +77,21 @@ public class LdapConfigDto implements Serializable {
 
     public void setIsOn(Integer isOn) {
         this.isOn = isOn;
+    }
+
+    public String getObjectClass() {
+        return objectClass;
+    }
+
+    public void setObjectClass(String objectClass) {
+        this.objectClass = objectClass;
+    }
+
+    public String getSearchAttribute() {
+        return searchAttribute;
+    }
+
+    public void setSearchAttribute(String searchAttribute) {
+        this.searchAttribute = searchAttribute;
     }
 }

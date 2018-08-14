@@ -2,11 +2,13 @@ package com.harmonycloud.service.user.impl;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.common.util.UUIDUtil;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.user.RoleMapper;
 import com.harmonycloud.dao.user.bean.*;
@@ -15,6 +17,10 @@ import com.harmonycloud.dto.user.RoleDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.platform.bean.harbor.HarborRole;
+import com.harmonycloud.service.platform.bean.harbor.HarborUser;
+import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
+import com.harmonycloud.service.platform.service.harbor.HarborUserService;
 import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.user.*;
 import org.apache.commons.lang3.StringUtils;
@@ -48,6 +54,12 @@ public class RoleLocalServiceImpl implements RoleLocalService {
     private ResourceMenuRoleService resourceMenuRoleService;
     @Autowired
     private ClusterCacheManager clusterCacheManager;
+    @Autowired
+    private HarborUserService harborUserService;
+    @Autowired
+    private HarborProjectService harborProjectService;
+    @Autowired
+    ProjectService projectService;
 
     private static final Logger log = LoggerFactory.getLogger(RolePrivilegeServiceImpl.class);
 
@@ -436,8 +448,57 @@ public class RoleLocalServiceImpl implements RoleLocalService {
         role.setAvailable(Boolean.FALSE);
         roleMapper.updateByPrimaryKey(role);
         clusterCacheManager.updateRolePrivilegeStatus(roleId,null,Boolean.TRUE);
+        // 删除所有相关user的对应harbor权限
+        List<UserRoleRelationship> users = this.userRoleRelationshipService.listUserByRoleId(roleId);
+        updateHarborMember(HarborMemberEnum.NONE,users);
+
     }
 
+    public void updateHarborMember(HarborMemberEnum targetMember , List<UserRoleRelationship> users) throws Exception{
+        for (UserRoleRelationship userRoleRelationship : users) {
+            this.updateHarborUserRole(targetMember,userRoleRelationship.getProjectId(),userRoleRelationship.getUsername());
+        }
+    }
+    public void updateHarborUserRole(HarborMemberEnum targetMember,String projectId,String userName)throws Exception{
+        List<ImageRepository> imageRepositories = harborProjectService.listRepository(projectId,null,Objects.isNull(projectId)?null:Boolean.FALSE, null);
+        for(ImageRepository repository : imageRepositories) {
+            List<HarborUser>  harborUsers =  harborUserService.usersOfProjectByUsername(repository.getHarborHost(), repository.getHarborProjectId(),userName);
+            Integer currentlevel = 0;
+            Integer userId = 0;
+            if (!CollectionUtils.isEmpty(harborUsers)) {
+                HarborUser harborUser = harborUsers.get(0);
+                String rolename = harborUser.getRoleName();
+                userId = harborUser.getUserId();
+                currentlevel = HarborMemberEnum.getMemberLevel(rolename).getLevel();
+            } else {
+                continue;
+            }
+            Integer level = targetMember.getLevel();
+            List<Map> userRoleList = userRoleRelationshipService.getRoleByUsernameAndProject(userName,repository.getProjectId());
+            for(Map<String,Object> userRole : userRoleList) {
+                Integer id = Integer.valueOf(userRole.get(CommonConstant.ROLEID).toString());
+                if (id <= CommonConstant.PM_ROLEID && id >= CommonConstant.ADMIN_ROLEID) {
+                    level = HarborMemberEnum.PROJECTADMIN.getLevel() ;
+                    continue;
+                }
+                HarborMemberEnum  findMember = rolePrivilegeService.getHarborRole(id);
+                if (findMember.getLevel() < level) {
+                    level = findMember.getLevel();
+                }
+            }
+            if (level == HarborMemberEnum.NONE.getLevel()) {
+                // delete
+                harborUserService.deleteRole(repository.getHarborHost(),repository.getHarborProjectId(),userId);
+                continue;
+            }
+            HarborRole harborRole = new HarborRole();
+            harborRole.setUsername(userName);
+            List<Integer> roleList = new ArrayList<>();
+            roleList.add(level);
+            harborRole.setRoleList(roleList);
+            harborUserService.updateRole(repository.getHarborHost(),repository.getHarborProjectId(),userId,harborRole );
+        }
+    }
     /**
      * 根据角色id复制新角色
      *
@@ -549,18 +610,18 @@ public class RoleLocalServiceImpl implements RoleLocalService {
         }
 
         if (StringUtils.isNotBlank(clusterIds) && roleId > spType){//初始化管理员类不给设置作用域
-           //去除无效的集群id
-           String[] split = clusterIds.split(CommonConstant.COMMA);
-           List<String> clusteridList = Arrays.stream(split).
-                   filter(clusterId -> StringUtils.isNotBlank(clusterId)).collect(Collectors.toList());
-           String newClusterIds = StringUtils.join(clusteridList, CommonConstant.COMMA);
-           //设置作用域
-           role.setClusterIds(newClusterIds);
-       }
-       if (StringUtils.isBlank(clusterIds) && roleId > spType ){
+            //去除无效的集群id
+            String[] split = clusterIds.split(CommonConstant.COMMA);
+            List<String> clusteridList = Arrays.stream(split).
+                    filter(clusterId -> StringUtils.isNotBlank(clusterId)).collect(Collectors.toList());
+            String newClusterIds = StringUtils.join(clusteridList, CommonConstant.COMMA);
+            //设置作用域
+            role.setClusterIds(newClusterIds);
+        }
+        if (StringUtils.isBlank(clusterIds) && roleId > spType ){
             //当非全局作用域角色为未启用的角色时，在启用时如果作用域为空必须要选择作用域
-           throw new MarsRuntimeException(ErrorCodeMessage.ROLE_SCOPE_NOT_BLANK);
-       }
+            throw new MarsRuntimeException(ErrorCodeMessage.ROLE_SCOPE_NOT_BLANK);
+        }
         role.setUpdateTime(DateUtil.getCurrentUtcTime());
         //更新状态
         role.setAvailable(Boolean.TRUE);
@@ -568,6 +629,49 @@ public class RoleLocalServiceImpl implements RoleLocalService {
         Boolean status = clusterCacheManager.getRolePrivilegeStatus(roleId,null);
         if (status){
             clusterCacheManager.updateRolePrivilegeStatus(roleId,null,Boolean.FALSE);
+        }
+        //创建、更新 harbor  权限
+        HarborMemberEnum targetMember =  rolePrivilegeService.getHarborRole(roleId);
+        List<UserRoleRelationship> users = this.userRoleRelationshipService.listUserByRoleId(roleId);
+        addHarborMember(targetMember,users );
+    }
+    public void addHarborUserRole(HarborMemberEnum targetMember,String projectId,String username,Integer roleId) throws Exception{
+//        UserRoleRelationship user = this.userRoleRelationshipService.getUser(projectId, username, roleId);
+
+        // 根据project id  获取harbor project列表
+        List<ImageRepository> imageRepositories = harborProjectService.listRepository(projectId, null, Objects.isNull(projectId)?null:Boolean.FALSE, null);
+        for (ImageRepository repository : imageRepositories) {
+            List<HarborUser> harborUsers = harborUserService.usersOfProjectByUsername(repository.getHarborHost(), repository.getHarborProjectId(), username);
+            Integer targetlevel = targetMember.getLevel();
+            boolean updateStatus = false;
+            boolean createStatus = false;
+            if (!CollectionUtils.isEmpty(harborUsers)) {
+                String rolename = harborUsers.get(0).getRoleName();
+                Integer currentlevel = HarborMemberEnum.getMemberLevel(rolename).getLevel();
+                if (currentlevel <= targetlevel) {
+                    targetlevel = currentlevel;
+                } else {
+                    updateStatus = true;
+                }
+            } else {
+                createStatus = true;
+            }
+            HarborRole harborRole = new HarborRole();
+            harborRole.setUsername(username);
+            List<Integer> roleList = new ArrayList<>();
+            roleList.add(targetlevel);
+            harborRole.setRoleList(roleList);
+            if (createStatus) {
+                harborUserService.createRole(repository.getHarborHost(), repository.getHarborProjectId(), harborRole);
+            } else if (updateStatus) {
+                harborUserService.updateRole(repository.getHarborHost(), repository.getHarborProjectId(), harborUsers.get(0).getUserId(), harborRole);
+            }
+
+        }
+    }
+    public void addHarborMember(HarborMemberEnum targetMember, List<UserRoleRelationship> users) throws Exception{
+        for (UserRoleRelationship userRoleRelationship : users) {
+            this.addHarborUserRole(targetMember,userRoleRelationship.getProjectId(),userRoleRelationship.getUsername(),userRoleRelationship.getRoleId());
         }
     }
     /**
@@ -679,10 +783,33 @@ public class RoleLocalServiceImpl implements RoleLocalService {
         this.roleMapper.updateByPrimaryKeySelective(oriRole);
         //3 update role_privilege
         List<PrivilegeDto> rolePrivilegeList = roleDto.getRolePrivilegeList();
+
+        //   获取当前角色的镜像权限
+        HarborMemberEnum currentMember =   rolePrivilegeService.getHarborRole(roleId);
+
         if(!CollectionUtils.isEmpty(rolePrivilegeList)){
             rolePrivilegeService.updateRolePrivilege(roleId, rolePrivilegeList);
             clusterCacheManager.updateRolePrivilegeStatus(roleId,null,Boolean.TRUE);
         }
+        List<UserRoleRelationship> users = this.userRoleRelationshipService.listUserByRoleId(roleId);
+        if (CollectionUtils.isEmpty(users)){
+            return ;
+        }
+
+        //   获取修改角色的镜像权限
+        HarborMemberEnum  targetMember = rolePrivilegeService.getHarborRole(roleId);
+        // 判定修改角色 是否导致人员关于镜像库权限变更
+        if (currentMember.getLevel() != targetMember.getLevel()) {
+            if (currentMember == HarborMemberEnum.NONE) {
+                //add
+                addHarborMember(targetMember, users);
+            }  else {
+                //update or delete
+                updateHarborMember(targetMember,users);
+            }
+
+        }
+
     }
 
     /**
@@ -715,6 +842,36 @@ public class RoleLocalServiceImpl implements RoleLocalService {
             return  roles.get(0);
         }
         return null;
+    }
+
+    @Override
+    public void initHarborRole() throws Exception {
+        List<Role> availableRoleList = this.getAvailableRoleList();
+        for (Role role : availableRoleList) {
+            Integer roleId = role.getId();
+            List<UserRoleRelationship> userRoleRelationships = this.userRoleRelationshipService.listUserByRoleId(roleId);
+            for (UserRoleRelationship userRoleRelationship : userRoleRelationships) {
+                //处理harbor的角色权限关系
+                if (roleId <= CommonConstant.NUM_ROLE_PM){
+                    if (roleId == CommonConstant.TM_ROLEID){
+                        try {
+                            List<Project> projectList = this.projectService.listTenantProjectByTenantidInner(userRoleRelationship.getTenantId());
+                            for (Project project : projectList) {
+                                this.addHarborUserRole(HarborMemberEnum.PROJECTADMIN,project.getProjectId(),userRoleRelationship.getUsername(),roleId);
+                            }
+                        }catch (Exception e){
+                            log.error("sync harbor member failed",e);
+                        }
+                    }else{
+                        this.addHarborUserRole(HarborMemberEnum.PROJECTADMIN,userRoleRelationship.getProjectId(),userRoleRelationship.getUsername(),roleId);
+                    }
+                }else {
+                    HarborMemberEnum targetMember =  rolePrivilegeService.getHarborRole(roleId);
+                    this.addHarborUserRole(targetMember,userRoleRelationship.getProjectId(),userRoleRelationship.getUsername(),roleId);
+                }
+            }
+        }
+
     }
 
     private RoleExample getExample() throws Exception {

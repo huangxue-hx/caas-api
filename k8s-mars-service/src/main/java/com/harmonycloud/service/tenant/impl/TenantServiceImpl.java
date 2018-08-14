@@ -6,6 +6,7 @@ import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.dataprivilege.DataPrivilegeStrategyMapper;
@@ -130,7 +131,7 @@ public class TenantServiceImpl implements TenantService {
     //租户类型
     public static final Byte SCOPE_TENANT = 0;
 
-//    @Value("#{propertiesReader['network.networkFlag']}")
+    //    @Value("#{propertiesReader['network.networkFlag']}")
     private String networkFlag;
 
     private static final Logger logger = LoggerFactory.getLogger(TenantServiceImpl.class);
@@ -942,6 +943,18 @@ public class TenantServiceImpl implements TenantService {
                 addUsers.add(user.trim());
                 this.updateTenantMember(tenantId,addUsers,null);
             }
+
+            // deal harbor user privilege
+            try {
+                List<Project> projectList = this.projectService.listTenantProjectByTenantidInner(tenantId);
+                if (!CollectionUtils.isEmpty(projectList)){
+                    for (Project project : projectList) {
+                        this.roleLocalService.addHarborUserRole(HarborMemberEnum.PROJECTADMIN,project.getProjectId(),user,CommonConstant.TM_ROLEID);
+                    }
+                }
+            }catch (Exception e){
+                logger.error("sync harbor member failed",e);
+            }
         }
         //更新TM关系至租户表
         String tms = tenantBinding.getTmUsernames();
@@ -1011,6 +1024,17 @@ public class TenantServiceImpl implements TenantService {
         }
         //更新redis中用户的状态
         clusterCacheManager.updateRolePrivilegeStatusForTenantOrProject(roleId,username,tenantId,null,Boolean.TRUE);
+        //处理harbor的角色权限关系
+        try {
+            List<Project> projectList = this.projectService.listTenantProjectByTenantidInner(tenantId);
+            if (!CollectionUtils.isEmpty(projectList)){
+                for (Project project : projectList) {
+                    this.roleLocalService.updateHarborUserRole(HarborMemberEnum.NONE,project.getProjectId(),username);
+                }
+            }
+        }catch (Exception e){
+            logger.error("sync harbor member failed",e);
+        }
     }
 
     public String getid() {

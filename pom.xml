@@ -198,7 +198,7 @@
 			<groupId>org.testng</groupId>
 			<artifactId>testng</artifactId>
 			<scope>test</scope>
-			<version>6.9.6</version>
+			<version>${testng.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.influxdb</groupId>

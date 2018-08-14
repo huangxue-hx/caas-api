@@ -10,7 +10,6 @@ import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMember;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
-import com.harmonycloud.dao.user.AuthUserMapper;
 import com.harmonycloud.dao.user.UserGroupMapper;
 import com.harmonycloud.dao.user.UserGroupRelationMapper;
 import com.harmonycloud.dao.user.UserMapper;
@@ -90,9 +89,6 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private HarborUserService harborUserService;
-
-    @Autowired
-    private AuthUserMapper authUserMapper;
 
     @Autowired
     TenantService tenantService;
@@ -1198,35 +1194,6 @@ public class UserServiceImpl implements UserService {
         return ActionReturnUtil.returnSuccessWithDataAndCount(userNameList, userNameList.size());
     }
 
-    public String getPassword(String userName) {
-        AuthUserExample example = new AuthUserExample();
-        example.createCriteria().andNameEqualTo(userName);
-        List<AuthUser> authUsers = this.authUserMapper.selectByExample(example);
-        if (authUsers == null || authUsers.size() <= 0) {
-            return null;
-        }
-        return authUsers.get(0).getPassword();
-    }
-
-    public void addLdapUser(String userName, String password, String harborId) {
-        AuthUser user = new AuthUser();
-        user.setName(userName);
-        user.setHarborId(harborId);
-        user.setPassword(password);
-        authUserMapper.insertSelective(user);
-    }
-
-    public void updateLdapUser(String userName, String password) throws Exception {
-        AuthUserExample example = new AuthUserExample();
-        example.createCriteria().andNameEqualTo(userName);
-        List<AuthUser> authUsers = authUserMapper.selectByExample(example);
-        if (authUsers != null && authUsers.size() >= 0) {
-            AuthUser ldapUser = authUsers.get(0);
-            ldapUser.setPassword(password);
-            authUserMapper.updateByPrimaryKey(ldapUser);
-            harborUserService.updatePassword(userName, ldapUser.getPassword(), password);
-        }
-    }
 
     /**
      * 检查用户名是否已存在,存在返回true,不存在返回false

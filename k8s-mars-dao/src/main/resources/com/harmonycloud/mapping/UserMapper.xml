@@ -16,6 +16,7 @@
     <result column="comment" property="comment" jdbcType="VARCHAR" />
     <result column="pause" property="pause" jdbcType="VARCHAR" />
     <result column="phone" property="phone" jdbcType="VARCHAR" />
+    <result column="is_ldap_user" property="isLdapUser" jdbcType="INTEGER" />
   </resultMap>
 
   <sql id="Example_Where_Clause" >
@@ -49,7 +50,7 @@
   </sql>
   <sql id="Base_Column_List" >
     id, username, password, token, create_time, token_create, is_admin, update_time,
-    email, real_name, is_machine, comment, pause,phone
+    email, real_name, is_machine, comment, pause,phone,is_ldap_user
   </sql>
   <select id="selectLikeUsername" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.user.bean.User" >
     select
@@ -85,7 +86,9 @@
     from user where is_machine = '1';
   </select>
   <select id="listCommonUsers" resultType="com.harmonycloud.dao.user.bean.User">
-    select id,username,password,token,create_time,token_create,is_admin,update_time,email,real_name,is_machine,comment,pause,phone from user where is_admin != '1';
+    select
+    <include refid="Base_Column_List" />
+    from user where is_admin != '1';
   </select>
   <select id="getUserPausedListByDepartmnet" resultType="com.harmonycloud.dao.user.bean.User" parameterType="java.lang.String">
     SELECT
@@ -104,7 +107,7 @@
     from user where is_admin = '1';
   </select>
   <select id="getActiveUserList" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.user.bean.User">
-    select 'false' as QUERYID,id,username,password,token,create_time,token_create,is_admin,update_time,email,real_name,is_machine,comment,pause,phone from user
+    select 'false' as QUERYID,id,username,password,token,create_time,token_create,is_admin,update_time,email,real_name,is_machine,comment,pause,phone,is_ldap_user from user
     WHERE ( token_create between #{leftTime} and #{rightTime}  and token_create is not null);
   </select>
 
@@ -214,26 +217,26 @@
       token, create_time, token_create, 
       is_admin, update_time, email,
       real_name, is_machine, comment,
-      pause,phone)
+      pause,phone,is_ldap_user)
     values (#{username,jdbcType=VARCHAR}, #{password,jdbcType=VARCHAR},
       #{token,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{tokenCreate,jdbcType=TIMESTAMP}, 
       #{isAdmin,jdbcType=BIT}, #{updateTime,jdbcType=TIMESTAMP}, #{email,jdbcType=VARCHAR},
       #{realName,jdbcType=VARCHAR}, #{isMachine,jdbcType=BIT}, #{comment,jdbcType=VARCHAR},
-      #{pause,jdbcType=VARCHAR},#{phone,jdbcType=VARCHAR})
+      #{pause,jdbcType=VARCHAR},#{phone,jdbcType=VARCHAR},#{isLdapUser})
   </insert>
   <insert id="batchInsert" parameterType="java.util.List" >
     insert into user (username, password,
     token, create_time, token_create,
     is_admin, update_time, email,
     real_name, is_machine, comment,
-    pause,phone)
+    pause,phone,is_ldap_user)
     values
     <foreach collection="records" item="record" index="index" separator=",">
       (#{record.username,jdbcType=VARCHAR}, #{record.password,jdbcType=VARCHAR},
       #{record.token,jdbcType=VARCHAR}, #{record.createTime,jdbcType=TIMESTAMP}, #{record.tokenCreate,jdbcType=TIMESTAMP},
       #{record.isAdmin,jdbcType=BIT}, #{record.updateTime,jdbcType=TIMESTAMP}, #{record.email,jdbcType=VARCHAR},
       #{record.realName,jdbcType=VARCHAR}, #{record.isMachine,jdbcType=BIT}, #{record.comment,jdbcType=VARCHAR},
-      #{record.pause,jdbcType=VARCHAR},#{record.phone,jdbcType=VARCHAR})
+      #{record.pause,jdbcType=VARCHAR},#{record.phone,jdbcType=VARCHAR},#{isLdapUser})
     </foreach>
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.user.bean.User" >

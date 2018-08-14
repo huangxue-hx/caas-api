@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -64,37 +65,6 @@ public class AuthController {
     HttpServletRequest request;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
-    /**
-     * 用户认证
-     * 
-     * @param username
-     * @param password
-     * @return
-     * @throws Exception
-     */
-    /*
-     * @ResponseBody
-     * 
-     * @RequestMapping(value="/login")
-     * 
-     * @Deprecated public ActionReturnUtil Login(@RequestParam(value="username")
-     * final String username,@RequestParam(value="password") final String
-     * password) throws Exception{ User authUser =
-     * authService.AuthUser(username, password); if(authUser != null){
-     * session.setAttribute("username", authUser.getUsername());
-     * session.setAttribute("password", authUser.getPassword());
-     * session.setAttribute("isAdmin", authUser.getIsAdmin());
-     * session.setAttribute("isMachine", authUser.getIsMachine());
-     * session.setAttribute("userId", authUser.getId()); Map<String, Object>
-     * data = new HashMap<String,Object>(); User user =
-     * userService.getUser(username); Map<String, Object> token =
-     * authService.generateToken(user); K8SClient.tokenMap.put(username,
-     * token.get("token")); data.put("username", authUser.getUsername());
-     * data.put("isSuperAdmin", authUser.getIsAdmin());
-     * JsonUtil.objectToJson(data); return
-     * ActionReturnUtil.returnSuccessWithData(data); }else{ return
-     * ActionReturnUtil.returnError(); } }
-     */
 
     @ResponseBody
     @RequestMapping(value = "/login",method = RequestMethod.POST)
@@ -109,7 +79,8 @@ public class AuthController {
         }
         LdapConfigDto ldapConfigDto = this.systemConfigService.findLdapConfig();
         String res = null;
-        if(ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1) {
+        if(ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1
+                && !CommonConstant.ADMIN.equals(username)) {
             res = this.authManager4Ldap.auth(username, password, ldapConfigDto);
         } else {
             res = authManagerDefault.auth(username, password);

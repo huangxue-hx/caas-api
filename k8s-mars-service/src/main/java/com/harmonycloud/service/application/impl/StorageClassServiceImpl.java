@@ -631,7 +631,9 @@ public class StorageClassServiceImpl implements StorageClassService {
                                 Secret secret = K8SClient.converToBean(adminSecretResponse, Secret.class);
                                 if(secret != null) {
                                     Map<String, Object> data = (Map<String, Object>) secret.getData();
-                                    configMap.put("cephAdminSecret", data.get("key").toString());
+                                    if(data != null) {
+                                        configMap.put("cephAdminSecret", data.get("key").toString());
+                                    }
                                 }
                             }
                         }
@@ -642,7 +644,9 @@ public class StorageClassServiceImpl implements StorageClassService {
                                 Secret secret = K8SClient.converToBean(userSecretResponse, Secret.class);
                                 if(secret != null) {
                                     Map<String, Object> data = (Map<String, Object>) secret.getData();
-                                    configMap.put("cephUserSecret", data.get("key").toString());
+                                    if(data != null) {
+                                        configMap.put("cephUserSecret", data.get("key").toString());
+                                    }
                                 }
                             }
                         }
