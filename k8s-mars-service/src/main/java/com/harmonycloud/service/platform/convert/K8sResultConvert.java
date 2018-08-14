@@ -728,6 +728,17 @@ public class K8sResultConvert {
         }
 
 
+        ServiceDependenceDto serviceDependence = detail.getServiceDependence();
+        if(serviceDependence != null){
+            String serviceName = serviceDependence.getServiceName();
+            String port = serviceDependence.getPort();
+            String url = serviceDependence.getUrl();
+
+            anno.put("svcDepend/name",serviceName == null ? "" : serviceName);
+            anno.put("svcDepend/port",port == null ? "" : port);
+            anno.put("svcDepend/url",url == null ? "" : url);
+        }
+
         meta.setAnnotations(anno);
         dep.setMetadata(meta);
 
@@ -813,6 +824,10 @@ public class K8sResultConvert {
         }
 
 
+        if(serviceDependence !=null){
+            makeServiceDependence(meta, cs, podSpec, serviceDependence);
+        }
+
         labels.put(Constant.NODESELECTOR_LABELS_PRE + "bluegreen", detail.getName() + "-1");
         metadata.setLabels(labels);
         metadata.setAnnotations(convertQosAnnotation(annotation));
@@ -824,13 +839,67 @@ public class K8sResultConvert {
         return dep;
     }
 
+
+    private static void makeServiceDependence(ObjectMeta meta, List<Container> cs, PodSpec podSpec, ServiceDependenceDto serviceDependence) {
+        String image = cs.get(0).getImage();
+        String harborUrl = image.substring(0,image.indexOf("/"));
+        //创建InitContainers
+        List<Container> initContainers = podSpec.getInitContainers();
+        if(initContainers == null){
+            initContainers = new ArrayList<>();
+        }
+        Container c = new Container();
+        c.setName(meta.getName()+"-svc");
+        c.setImage(harborUrl + Constant.SERVICE_DEPENDENCE_IMAGE + ":" + Constant.SERVICE_DEPENDENCE_IMAGE_TAG);
+        List<String> cmdList = new ArrayList<>();
+        cmdList.add("/bin/bash");
+        cmdList.add("-c");
+        StringBuffer sb = new StringBuffer();
+
+        sb.append("cd /root/shell_script ");
+
+        //如果是http
+        if(serviceDependence.getDetectWay().equals(Constant.SERVICE_DETECT_WAY_HTTP)){
+            sb.append("&& ./curl.sh ");
+            sb.append(serviceDependence.getServiceName());
+            sb.append(":" + serviceDependence.getPort());
+        }
+        //如果是tcp
+        if(serviceDependence.getDetectWay().equals(Constant.SERVICE_DETECT_WAY_TCP)){
+            sb.append("&& ./ncat.sh ");
+            sb.append(serviceDependence.getServiceName());
+            sb.append(" " + serviceDependence.getPort());
+        }
+
+
+        if(StringUtils.isNotBlank(serviceDependence.getUrl())){
+            sb.append("/"+ serviceDependence.getUrl());
+        }
+        sb.append(" " + serviceDependence.getIntervalTime() + " " + serviceDependence.getSuccessThreshold()
+                + " " + serviceDependence.getFailThreshold());
+        cmdList.add(sb.toString());
+        c.setCommand(cmdList);
+
+        ResourceRequirements resources = new ResourceRequirements();
+        Map<String, Object> limits = new ConcurrentHashMap<>();
+        limits.put("memory","100Mi");
+        limits.put("cpu","100m");
+        Map<String, Object> requests = limits;
+        resources.setLimits(limits);
+        resources.setRequests(requests);
+        c.setResources(resources);
+
+        initContainers.add(c);
+        podSpec.setInitContainers(initContainers);
+    }
+
     private static void makePullDependence(DeploymentDetailDto detail, ObjectMeta meta, List<Container> cs, PodSpec podSpec) {
         String image = cs.get(0).getImage();
         String harborUrl = image.substring(0,image.indexOf("/"));
         //创建InitContainers
         List<Container> initContainers = new ArrayList<>();
         Container c = new Container();
-        c.setName(meta.getName()+"-init");
+        c.setName(meta.getName()+"-vcs");
         c.setImage(harborUrl + Constant.VCS_IMAGE + ":" + Constant.VCS_IMAGE_TAG);
         List<String> cmdList = new ArrayList<>();
         PullDependenceDto pullDependence = detail.getPullDependence();

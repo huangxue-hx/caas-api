@@ -97,6 +97,16 @@ public class AppDetail {
 
 	private String pullDependence;
 
+	private String serviceDependence;
+
+	public String getServiceDependence() {
+		return serviceDependence;
+	}
+
+	public void setServiceDependence(String serviceDependence) {
+		this.serviceDependence = serviceDependence;
+	}
+
 	public String getPullDependence() {
 		return pullDependence;
 	}

@@ -525,6 +525,10 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
         res.setPullDependence(repoUrl + ":" + branch+"---->" + containerName + ":" + containerMonutPath);
 
+        String serviceName = (String)annotations.get("svcDepend/name");
+
+        res.setServiceDependence(serviceName);
+
         //判断是否是微服务组件应用是否有权限操作
         boolean isOperationable = true;
         if (res.isMsf()) {
