@@ -98,7 +98,7 @@ public class SecretSeviceImpl implements SecretService {
             // 更新
             url.setName(name);
             K8SClientResponse update = new K8sMachineClient().exec(url, HTTPMethod.PUT, headers, produceBodys(namespace, name, userName, password,
-                    cluster.getHarborServer().getHarborHost()),cluster);
+                    cluster.getHarborServer().getHarborAddress()),cluster);
             if (!HttpStatusUtil.isSuccessStatus(update.getStatus())) {
                 return ActionReturnUtil.returnErrorWithMsg(update.getBody());
             }
@@ -107,7 +107,7 @@ public class SecretSeviceImpl implements SecretService {
         } else {
             // 创建
             K8SClientResponse create = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, produceBodys(namespace, name, userName, password,
-                    cluster.getHarborServer().getHarborHost()),cluster);
+                    cluster.getHarborServer().getHarborAddress()),cluster);
             if (!HttpStatusUtil.isSuccessStatus(create.getStatus())) {
                 return ActionReturnUtil.returnErrorWithMsg(create.getBody());
             }
