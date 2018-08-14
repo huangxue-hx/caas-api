@@ -17,13 +17,13 @@ INSERT INTO `k8s_auth_server`.`app_store` (`name`, `tag`, `type`, `create_user`,
 INSERT INTO `k8s_auth_server`.`app_store` (`name`, `tag`, `type`, `create_user`, `create_time`) VALUES ('Mysql-Cluster', '5.7.22', 'database', 'admin', '2018-08-06 19:13:07');
 UPDATE `k8s_auth_server`.`app_store` SET `tag` = 'v6.2.5-1' WHERE (`id` = '11' AND `name` = 'Elasticsearch');
 
-INSERT INTO `k8s_auth_server`.`application_service` (`application_id`, `service_id`, `status`, `is_external`) VALUES((SELECT `id` FROM `k8s_auth_server`.`application_templates` WHERE (`name` = 'rocketmq')),(SELECT `id` FROM `k8s_auth_server`.`service_templates` WHERE (`name` = 'rocketmq')),0,0);
-INSERT INTO `k8s_auth_server`.`application_service` (`application_id`, `service_id`, `status`, `is_external`) VALUES((SELECT `id` FROM `k8s_auth_server`.`application_templates` WHERE (`name` = 'mysql-cluster')),(SELECT `id` FROM `k8s_auth_server`.`service_templates` WHERE (`name` = 'mysql-master')),0,0);
-INSERT INTO `k8s_auth_server`.`application_service` (`application_id`, `service_id`, `status`, `is_external`) VALUES((SELECT `id` FROM `k8s_auth_server`.`application_templates` WHERE (`name` = 'mysql-cluster')),(SELECT `id` FROM `k8s_auth_server`.`service_templates` WHERE (`name` = 'mysql-slave')),0,0);
+INSERT INTO `k8s_auth_server`.`application_service` (`application_id`, `service_id`, `status`, `is_external`) VALUES((SELECT `id` FROM `k8s_auth_server`.`application_templates` WHERE (`name` = 'Rocketmq')),(SELECT `id` FROM `k8s_auth_server`.`service_templates` WHERE (`name` = 'rocketmq')),0,0);
+INSERT INTO `k8s_auth_server`.`application_service` (`application_id`, `service_id`, `status`, `is_external`) VALUES((SELECT `id` FROM `k8s_auth_server`.`application_templates` WHERE (`name` = 'Mysql-Cluster')),(SELECT `id` FROM `k8s_auth_server`.`service_templates` WHERE (`name` = 'mysql-master')),0,0);
+INSERT INTO `k8s_auth_server`.`application_service` (`application_id`, `service_id`, `status`, `is_external`) VALUES((SELECT `id` FROM `k8s_auth_server`.`application_templates` WHERE (`name` = 'Mysql-Cluster')),(SELECT `id` FROM `k8s_auth_server`.`service_templates` WHERE (`name` = 'mysql-slave')),0,0);
 
-INSERT INTO `k8s_auth_server`.`app_store_service` (`app_id`, `service_id`) VALUES((SELECT `id` FROM `k8s_auth_server`.`application_templates` WHERE (`name` = 'rocketmq')),(SELECT `id` FROM `k8s_auth_server`.`service_templates` WHERE (`name` = 'rocketmq')));
-INSERT INTO `k8s_auth_server`.`app_store_service` (`app_id`, `service_id`) VALUES((SELECT `id` FROM `k8s_auth_server`.`application_templates` WHERE (`name` = 'mysql-cluster')),(SELECT `id` FROM `k8s_auth_server`.`service_templates` WHERE (`name` = 'mysql-master')));
-INSERT INTO `k8s_auth_server`.`app_store_service` (`app_id`, `service_id`) VALUES((SELECT `id` FROM `k8s_auth_server`.`application_templates` WHERE (`name` = 'mysql-cluster')),(SELECT `id` FROM `k8s_auth_server`.`service_templates` WHERE (`name` = 'mysql-slave')));
+INSERT INTO `k8s_auth_server`.`app_store_service` (`app_id`, `service_id`) VALUES((SELECT `id` FROM `k8s_auth_server`.`application_templates` WHERE (`name` = 'Rocketmq')),(SELECT `id` FROM `k8s_auth_server`.`service_templates` WHERE (`name` = 'rocketmq')));
+INSERT INTO `k8s_auth_server`.`app_store_service` (`app_id`, `service_id`) VALUES((SELECT `id` FROM `k8s_auth_server`.`application_templates` WHERE (`name` = 'Mysql-Cluster')),(SELECT `id` FROM `k8s_auth_server`.`service_templates` WHERE (`name` = 'mysql-master')));
+INSERT INTO `k8s_auth_server`.`app_store_service` (`app_id`, `service_id`) VALUES((SELECT `id` FROM `k8s_auth_server`.`application_templates` WHERE (`name` = 'Mysql-Cluster')),(SELECT `id` FROM `k8s_auth_server`.`service_templates` WHERE (`name` = 'mysql-slave')));
 
 
 
