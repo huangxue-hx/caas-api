@@ -941,9 +941,9 @@ public class K8sResultConvert {
                 sb.append("/" + pullDependence.getTag());
             }
 
-            sb.append("--username");
+            sb.append(" --username ");
             sb.append(pullDependence.getUsername());
-            sb.append("--password");
+            sb.append(" --password ");
             sb.append(pullDependence.getPassword());
             cmdList.add(sb.toString());
         }
