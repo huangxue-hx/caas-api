@@ -53,6 +53,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.yaml.snakeyaml.Yaml;
 
 import javax.servlet.http.HttpSession;
 import java.io.File;
@@ -63,8 +64,6 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static com.harmonycloud.common.Constant.CommonConstant.LABEL_KEY_APP;
-import org.yaml.snakeyaml.Yaml;
-
 import static com.harmonycloud.service.platform.constant.Constant.TYPE_DEPLOYMENT;
 
 @Service
@@ -445,7 +444,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
     }
 
     @Override
-    public ActionReturnUtil getDeploymentDetail(String namespace, String name) throws Exception {
+    public ActionReturnUtil getDeploymentDetail(String namespace, String name,boolean isFilter) throws Exception {
         if (StringUtils.isEmpty(namespace) || StringUtils.isEmpty(name)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }

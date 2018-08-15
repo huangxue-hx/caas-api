@@ -82,7 +82,7 @@ public interface DeploymentsService {
 	 * @return
 	 * @throws Exception
 	 */
-	public ActionReturnUtil getDeploymentDetail(String namespace, String name) throws Exception;
+	public ActionReturnUtil getDeploymentDetail(String namespace, String name,boolean isFilter) throws Exception;
 
 	/**
 	 * 获取deployment事件

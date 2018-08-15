@@ -61,7 +61,7 @@ public class MsfApplicationController {
     @RequestMapping(value = "/msf/deploys/{deployName}", method = RequestMethod.GET)
     public ActionReturnUtil deploymentDetail(@PathVariable(value = "deployName") String name,
                                              @RequestParam(value = "namespace", required = true) String namespace) throws Exception {
-        return dpService.getDeploymentDetail(namespace, name);
+        return dpService.getDeploymentDetail(namespace, name,true);
     }
 
     @ResponseBody

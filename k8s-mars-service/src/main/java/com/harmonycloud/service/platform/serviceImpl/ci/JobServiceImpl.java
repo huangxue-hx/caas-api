@@ -1597,7 +1597,7 @@ public class JobServiceImpl implements JobService {
                     Thread.sleep(Constant.THREAD_SLEEP_TIME_10000);
                     serviceStarted = true;
                     repeat--;
-                    ActionReturnUtil result = deploymentsService.getDeploymentDetail(namespace, serviceName);
+                    ActionReturnUtil result = deploymentsService.getDeploymentDetail(namespace, serviceName,false);
                     if (result.isSuccess()) {
                         //获取服务状态，并判断
                         AppDetail appDetail = (AppDetail) result.get("data");
@@ -2720,7 +2720,7 @@ public class JobServiceImpl implements JobService {
 
     private void verifyUpgrade(String service, String namespace, boolean manually) throws Exception {
         //判断服务是否启动
-        ActionReturnUtil deploymentDetailResult = deploymentsService.getDeploymentDetail(namespace, service);
+        ActionReturnUtil deploymentDetailResult = deploymentsService.getDeploymentDetail(namespace, service,false);
         if (deploymentDetailResult.isSuccess()) {
             AppDetail appDetail = (AppDetail) deploymentDetailResult.getData();
             if (appDetail != null) {
