@@ -20,16 +20,17 @@ import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.k8s.service.ScService;
+import com.harmonycloud.k8s.service.SecretService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.DaemonSetsService;
 import com.harmonycloud.service.application.PersistentVolumeClaimService;
-import com.harmonycloud.k8s.service.SecretService;
 import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.tenant.NamespaceService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -98,6 +99,9 @@ public class StorageClassServiceImpl implements StorageClassService {
 
     @Autowired
     SecretService secretService;
+
+    @Autowired
+    NamespaceService namespaceService;
 
     @Override
     public ActionReturnUtil createStorageClass(StorageClassDto storageClass) throws Exception {
@@ -694,7 +698,29 @@ public class StorageClassServiceImpl implements StorageClassService {
                 storageClassDtos.add(storageClassDto);
             }
         }
-        return storageClassDtos;
+        return  storageClassDtos;
+    }
+
+    @Override
+    public List<StorageClassDto> listStorageClass(String clusterId, String namespaceName) throws Exception {
+        AssertUtil.notBlank(clusterId, DictEnum.CLUSTER_ID);
+        //获取集群
+        Cluster cluster = clusterService.findClusterById(clusterId);
+        List<StorageClassDto> storageClassDtos = listStorageClass(clusterId);
+        if(StringUtils.isBlank(namespaceName)){
+            return storageClassDtos;
+        }
+        List<StorageClassDto> storageClassDtoList =  new ArrayList<>();
+        ResourceQuotaList resouceQuotaList = namespaceService.getResouceQuota(namespaceName, cluster);
+        ResourceQuota resourceQuota = resouceQuotaList.getItems().get(0);
+        LinkedHashMap<String,Object> hards = (LinkedHashMap<String, Object>) resourceQuota.getSpec().getHard();
+        for (StorageClassDto storageClassDto : storageClassDtos) {
+            String name = storageClassDto.getName();
+            if(hards.containsKey(name+".storageclass.storage.k8s.io/requests.storage")){
+                storageClassDtoList.add(storageClassDto);
+            }
+        }
+        return storageClassDtoList;
     }
 
     private ActionReturnUtil getNfsProvisionerStatus(String name, Cluster cluster) throws Exception {

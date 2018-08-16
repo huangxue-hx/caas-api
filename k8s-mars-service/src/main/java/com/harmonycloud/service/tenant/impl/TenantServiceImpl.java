@@ -607,15 +607,17 @@ public class TenantServiceImpl implements TenantService {
                     }
                     for (String storageName : storageUsedMap.keySet()) {
                         Boolean hasStorage = false;
-                        for (int i = 0; i < storageDtoList.size(); i++) {
-                            if (storageName.equals(storageDtoList.get(i).getName())) {
-                                if (Integer.parseInt(storageDtoList.get(i).getStorageQuota()) >= storageUsedMap.get(storageName)) {
-                                    hasStorage = true;
+                        if(storageUsedMap.get(storageName)!=0) {
+                            for (int i = 0; i < storageDtoList.size(); i++) {
+                                if (storageName.equals(storageDtoList.get(i).getName())) {
+                                    if (Integer.parseInt(storageDtoList.get(i).getStorageQuota()) >= storageUsedMap.get(storageName)) {
+                                        hasStorage = true;
+                                    }
                                 }
                             }
-                        }
-                        if (!hasStorage) {
-                            throw new MarsRuntimeException(ErrorCodeMessage.RESOURCE_BEHIND_FLOOR);
+                            if (!hasStorage) {
+                                throw new MarsRuntimeException(ErrorCodeMessage.RESOURCE_BEHIND_FLOOR);
+                            }
                         }
                     }
                 }
