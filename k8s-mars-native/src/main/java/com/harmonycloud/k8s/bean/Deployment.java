@@ -13,7 +13,7 @@ import com.harmonycloud.k8s.constant.Constant;
 public class Deployment extends BaseResource{
 
 	private DeploymentSpec spec;
-	
+
 	private DeploymentStatus status;
 
 	public DeploymentStatus getStatus() {

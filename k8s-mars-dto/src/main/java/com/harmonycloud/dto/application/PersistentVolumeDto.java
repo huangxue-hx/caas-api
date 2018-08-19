@@ -47,6 +47,7 @@ public class PersistentVolumeDto {
 
 	private String storageClassName;
 
+
 	public String getType() {
 		return type;
 	}

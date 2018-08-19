@@ -1549,7 +1549,8 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         Set<String> deployments = new HashSet<>();
 
         List<Map<String, Object>> message = new ArrayList<>();
-        // loop appTemplate
+        // loop appTemplate】
+
         if (appDeploy.getAppTemplate() != null && appDeploy.getAppTemplate().getServiceList().size() > 0) {
             for (ServiceTemplateDto svcTemplate : appDeploy.getAppTemplate().getServiceList()) {
                 // creat ingress

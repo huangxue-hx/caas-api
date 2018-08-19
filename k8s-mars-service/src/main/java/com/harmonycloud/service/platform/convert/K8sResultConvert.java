@@ -1656,6 +1656,9 @@ public class K8sResultConvert {
                                         if (vm.getEmptyDir() != null && "Memory".equals(vm.getEmptyDir())) {
                                             ed.setMedium(vm.getEmptyDir());//Memory
                                         }
+                                        if (vm.getCapacity() != null){
+                                            ed.setSizeLimit(vm.getCapacity());//sizeLimit
+                                        }
                                         empty.setEmptyDir(ed);
                                         volumes.add(empty);
                                     }
@@ -1997,6 +2000,9 @@ public class K8sResultConvert {
                                         EmptyDirVolumeSource ed = new EmptyDirVolumeSource();
                                         if (vm.getEmptyDir() != null && "Memory".equals(vm.getEmptyDir())) {
                                             ed.setMedium(vm.getEmptyDir());//Memory
+                                        }
+                                        if (vm.getCapacity() != null){
+                                            ed.setSizeLimit(vm.getCapacity());//sizeLimit
                                         }
                                         empty.setEmptyDir(ed);
                                         volumes.add(empty);
@@ -2361,6 +2367,9 @@ public class K8sResultConvert {
                                         EmptyDirVolumeSource ed = new EmptyDirVolumeSource();
                                         if (vm.getEmptyDir() != null && "Memory".equals(vm.getEmptyDir())) {
                                             ed.setMedium(vm.getEmptyDir());//Memory
+                                        }
+                                        if (vm.getCapacity() != null){
+                                            ed.setSizeLimit(vm.getCapacity());//sizeLimit
                                         }
                                         empty.setEmptyDir(ed);
                                         volumes.add(empty);

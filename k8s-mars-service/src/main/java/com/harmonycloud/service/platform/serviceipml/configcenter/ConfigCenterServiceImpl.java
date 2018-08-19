@@ -11,10 +11,7 @@ import com.harmonycloud.dao.application.bean.ConfigFile;
 import com.harmonycloud.dao.application.bean.ConfigFileItem;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dto.config.ConfigDetailDto;
-import com.harmonycloud.k8s.bean.ConfigMap;
-import com.harmonycloud.k8s.bean.Deployment;
-import com.harmonycloud.k8s.bean.DeploymentList;
-import com.harmonycloud.k8s.bean.Volume;
+import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.service.ConfigmapService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
@@ -392,8 +389,8 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
                 for (Deployment deployment : deployments) {
                     List<Volume> volumes = deployment.getSpec().getTemplate().getSpec().getVolumes();
                     if(!CollectionUtils.isEmpty(volumes)){
-                        Volume volume = volumes.get(0);
-                        String name = volume.getName();
+                        Volume volume = volumes.get(0);//获取到Volume
+                        String name = volume.getName();//获取volume名字
                         if(!StringUtils.isEmpty(name)){
                             int lastIndexOf = name.lastIndexOf("-");
                             String subConfigMapId = name.substring(lastIndexOf + 1);
