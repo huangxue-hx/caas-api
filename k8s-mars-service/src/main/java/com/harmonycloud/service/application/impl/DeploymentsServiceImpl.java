@@ -522,8 +522,13 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             }
         }
 
+        Map<String, Object> pullDependence = new HashMap<>();
+        pullDependence.put("repoUrl", repoUrl);
+        pullDependence.put("branch", branch);
+        pullDependence.put("containerName", containerName);
+        pullDependence.put("containerMonutPath", containerMonutPath);
+        res.setPullDependence(pullDependence);
 
-        res.setPullDependence(repoUrl + ":" + branch+"---->" + containerName + ":" + containerMonutPath);
 
         String serviceName = (String)annotations.get("svcDepend/name");
 

@@ -844,9 +844,9 @@ public class K8sResultConvert {
         String image = cs.get(0).getImage();
         String harborUrl = image.substring(0,image.indexOf("/"));
         //创建InitContainers
-        List<Container> initContainers = podSpec.getInitContainers();
-        if(initContainers == null){
-            initContainers = new ArrayList<>();
+        List<Container> initContainers = new ArrayList<>();
+        if (null != podSpec.getInitContainers()){
+            initContainers = podSpec.getInitContainers();
         }
         Container c = new Container();
         c.setName(meta.getName()+"-svc");
@@ -898,6 +898,9 @@ public class K8sResultConvert {
         String harborUrl = image.substring(0,image.indexOf("/"));
         //创建InitContainers
         List<Container> initContainers = new ArrayList<>();
+        if(null != podSpec.getInitContainers()){
+            initContainers = podSpec.getInitContainers();
+        }
         Container c = new Container();
         c.setName(meta.getName()+"-vcs");
         c.setImage(harborUrl + Constant.VCS_IMAGE + ":" + Constant.VCS_IMAGE_TAG);
@@ -911,16 +914,14 @@ public class K8sResultConvert {
             String gitUrl = pullDependence.getRepoUrl();
             String protocol = gitUrl.substring(0,gitUrl.indexOf("://")+3);
             gitUrl = gitUrl.substring(gitUrl.indexOf("://")+3,gitUrl.length());
-
-            sb.append("git clone " + protocol + pullDependence.getUsername() + ":" + pullDependence.getPassword()
-                    + "@" + gitUrl);
             projectName = gitUrl.substring(gitUrl.lastIndexOf("/")+1,gitUrl.lastIndexOf(".git"));
+            sb.append(" rm -rf ./.*");
+            sb.append(" && git clone " + protocol + pullDependence.getUsername() + ":" + pullDependence.getPassword()
+                    + "@" + gitUrl);
             //指定了分支
-            if(StringUtils.isNotBlank(pullDependence.getBranch())){
-
+            if(StringUtils.isNotBlank(pullDependence.getBranch()) && !pullDependence.getBranch().equals("master")){
                 sb.append(" && cd " + projectName);
                 sb.append(" && git checkout -b " + pullDependence.getBranch() + " origin/" + pullDependence.getBranch());
-
             }
             //指定了tag
             if(StringUtils.isNotBlank(pullDependence.getTag())){
@@ -931,7 +932,8 @@ public class K8sResultConvert {
 
         }else if(pullDependence.getPullWay().equals(Constant.PULL_WAY_SVN)){
             String svnURL = pullDependence.getRepoUrl();
-            sb.append("svn co " + svnURL);
+            sb.append(" rm -rf ./.*");
+            sb.append(" && svn co " + svnURL);
             //指定了分支
             if(StringUtils.isNotBlank(pullDependence.getBranch())){
                 sb.append("/" + pullDependence.getBranch());
