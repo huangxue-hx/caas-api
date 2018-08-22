@@ -1,0 +1,27 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: rbd-provisioner
+  name: ceph-rbd-provisioner
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rbd-provisioner
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: rbd-provisioner
+    spec:
+      containers:
+      - env:
+        - name: PROVISIONER_NAME
+          value: ceph.com/rbd
+        image: imageName
+        imagePullPolicy: Always
+        name: rbd-provisioner
