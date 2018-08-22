@@ -95,9 +95,10 @@ public class AppDetail {
 
 	private List<HostAlias> hostAliases;
 
-	private String pullDependence;
+	private Map<String, Object> pullDependence;
 
 	private String serviceDependence;
+
 
 	public String getServiceDependence() {
 		return serviceDependence;
@@ -107,11 +108,11 @@ public class AppDetail {
 		this.serviceDependence = serviceDependence;
 	}
 
-	public String getPullDependence() {
+	public Map<String, Object> getPullDependence() {
 		return pullDependence;
 	}
 
-	public void setPullDependence(String pullDependence) {
+	public void setPullDependence(Map<String, Object> pullDependence) {
 		this.pullDependence = pullDependence;
 	}
 

@@ -358,11 +358,12 @@ public class Constant {
 
 	public final static Integer MAX_QUERY_COUNT_100 = 100;
 
-	public final static String VCS_IMAGE = "/library/gitsvn";
+//	public final static String VCS_IMAGE = "/library/gitsvn";
+	public final static String VCS_IMAGE = "/library/alpine-gitsvn";
 	public final static String VCS_IMAGE_TAG = "1.0";
 	public final static String PULL_WAY_GIT = "git";
 	public final static String PULL_WAY_SVN = "svn";
-	public final static String SERVICE_DEPENDENCE_IMAGE = "/library/ubuntu-net";
+	public final static String SERVICE_DEPENDENCE_IMAGE = "/library/alpine-net";
 	public final static String SERVICE_DEPENDENCE_IMAGE_TAG = "1.0";
 	public final static String SERVICE_DETECT_WAY_HTTP = "HTTP";
 	public final static String SERVICE_DETECT_WAY_TCP = "TCP";
