@@ -50,6 +50,15 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        //crsf漏洞 HTTP referer验证
+        String referrer = request.getHeader("Referer");
+        StringBuffer stringBuffer = new StringBuffer();
+        stringBuffer.append(request.getScheme()).append("://").append(request.getServerName());
+        if(StringUtils.isNotBlank(referrer) ){
+            if(referrer.lastIndexOf(String.valueOf(stringBuffer)) != 0){//原站点不是第一个位置就是跨域 如http://localhost:8080/  http://lxlocalhost
+                return false; //验证失败
+            }
+        }
         //判断是否开启sso，开启则不执行拦截器的逻辑
         if(SsoClient.isOpen()){
             return true;

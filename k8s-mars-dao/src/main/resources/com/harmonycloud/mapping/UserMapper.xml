@@ -16,6 +16,8 @@
     <result column="comment" property="comment" jdbcType="VARCHAR" />
     <result column="pause" property="pause" jdbcType="VARCHAR" />
     <result column="phone" property="phone" jdbcType="VARCHAR" />
+    <result column="login_fail_time" property="loginFailTime" jdbcType="VARCHAR" />
+    <result column="login_fail_count" property="loginFailCount" jdbcType="INTEGER" />
   </resultMap>
 
   <sql id="Example_Where_Clause" >
@@ -49,7 +51,7 @@
   </sql>
   <sql id="Base_Column_List" >
     id, username, password, token, create_time, token_create, is_admin, update_time,
-    email, real_name, is_machine, comment, pause,phone
+    email, real_name, is_machine, comment, pause, phone, login_fail_time, login_fail_count
   </sql>
   <select id="selectLikeUsername" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.user.bean.User" >
     select
@@ -380,7 +382,9 @@
       is_machine = #{isMachine,jdbcType=BIT},
       comment = #{comment,jdbcType=VARCHAR},
       pause = #{pause,jdbcType=VARCHAR},
-      phone = #{phone,jdbcType=VARCHAR}
+      phone = #{phone,jdbcType=VARCHAR},
+      login_fail_time = #{loginFailTime,jdbcType=VARCHAR},
+      login_fail_count = #{loginFailCount,jdbcType=INTEGER}
     where id = #{id,jdbcType=BIGINT}
   </update>
   <update id="updateUserByUsername" parameterType="com.harmonycloud.dao.user.bean.User">

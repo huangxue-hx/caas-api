@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -18,6 +19,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -34,6 +36,8 @@ import com.harmonycloud.service.application.SecretService;
 @RequestMapping(value = "/users/auth")
 @Controller
 public class AuthController {
+
+    public static final int SESSION_TIMEOUT_HOURS = 8;
 
     @Autowired
     private AuthService authService;
@@ -62,6 +66,8 @@ public class AuthController {
     RolePrivilegeService rolePrivilegeService;
     @Autowired
     HttpServletRequest request;
+    @Autowired
+    StringRedisTemplate stringRedisTemplate;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     /**
@@ -139,7 +145,8 @@ public class AuthController {
             if(!(hasRole || admin)){
                 return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_NOT_AUTH);
             }
-
+            //sessionId存放redis统一管理 默认7小时数据销毁
+            stringRedisTemplate.opsForValue().set("sessionid:sessionid-"+username,session.getId(),SESSION_TIMEOUT_HOURS,TimeUnit.HOURS);
             //TODO 后续
 //            ActionReturnUtil checkedSecret = this.secretService.checkedSecret(username, password);
             
@@ -159,6 +166,8 @@ public class AuthController {
     @RequestMapping(value = "/logout", method = RequestMethod.POST)
     @ResponseBody
     public ActionReturnUtil logout() throws Exception {
+        //移除redis中sessionid
+        stringRedisTemplate.delete("sessionid:sessionid-"+session.getAttribute("username"));
         // 清除session
         session.invalidate();
         String data = "message" + ":" + "logout successfully!";

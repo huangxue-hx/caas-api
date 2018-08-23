@@ -41,7 +41,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.session.data.redis.RedisOperationsSessionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -104,6 +106,10 @@ public class UserServiceImpl implements UserService {
     UserRoleRelationshipService userRoleRelationshipService;
     @Autowired
     ClusterCacheManager clusterCacheManager;
+    @Autowired
+    RedisOperationsSessionRepository redisOperationsSessionRepository;
+    @Autowired
+    StringRedisTemplate stringRedisTemplate;
 
     public String getCurrentUsername() {
         return (String) session.getAttribute("username");
@@ -646,6 +652,11 @@ public class UserServiceImpl implements UserService {
             usergrouprelationMapper.deleteByExample(example);//删除用户组关联关系 user_group_relation
             userRoleRelationshipService.deleteByUserName(userName);//删除user_role_relationship表中关联数据
             userMapper.deleteUserByName(userName);
+            String sessionId = stringRedisTemplate.opsForValue().get("sessionid:sessionid-"+userName);//获取redis存放的sessionid
+            if(StringUtils.isNotBlank(sessionId)){
+                redisOperationsSessionRepository.delete(sessionId);//session过期设置
+                stringRedisTemplate.delete("sessionid:sessionid-"+userName);//移除redis中sessionid
+            }
         }else {
             throw new MarsRuntimeException(ErrorCodeMessage.USER_NOT_EXIST);
         }
