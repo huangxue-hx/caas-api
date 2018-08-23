@@ -132,16 +132,18 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         if (pvc != null) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NAME_EXIST, persistentVolumeClaim.getName(), true);
         }
-        //判断分区下存储配额是否为0
-        String name = persistentVolumeClaim.getNamespace();
-        // 1.查询namespace
-        String storageClassName = persistentVolumeClaim.getStorageClassName();
-        ResourceQuotaList resouceQuotaList = nsService.getResouceQuota(name, cluster);
-        List<ResourceQuota> items = resouceQuotaList.getItems();
-        ResourceQuota resourceQuota = items.get(0);
-       LinkedHashMap<String,Object> hards = (LinkedHashMap<String, Object>) resourceQuota.getSpec().getHard();
-        if(hards.get(storageClassName + ".storageclass.storage.k8s.io/requests.storage")==null){
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.STORAGE_QUOTA_OVER_FLOOR);
+        if(!CommonConstant.KUBE_SYSTEM.equalsIgnoreCase(persistentVolumeClaim.getNamespace())) {
+            //判断分区下存储配额是否为0
+            String name = persistentVolumeClaim.getNamespace();
+            // 1.查询namespace
+            String storageClassName = persistentVolumeClaim.getStorageClassName();
+            ResourceQuotaList resouceQuotaList = nsService.getResouceQuota(name, cluster);
+            List<ResourceQuota> items = resouceQuotaList.getItems();
+            ResourceQuota resourceQuota = items.get(0);
+            LinkedHashMap<String, Object> hards = (LinkedHashMap<String, Object>) resourceQuota.getSpec().getHard();
+            if (hards.get(storageClassName + ".storageclass.storage.k8s.io/requests.storage") == null) {
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.STORAGE_QUOTA_OVER_FLOOR);
+            }
         }
         //构造PersistentVolumeClaim对象
         PersistentVolumeClaim pvClaim = new PersistentVolumeClaim();

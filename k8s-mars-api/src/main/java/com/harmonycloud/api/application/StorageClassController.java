@@ -91,7 +91,7 @@ public class StorageClassController {
     @RequestMapping(method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil listStorageClass(@PathVariable("clusterId") String clusterId,
-                                             @RequestParam(value = "namespaceName", required = false)String namespaceName) throws Exception {
-        return ActionReturnUtil.returnSuccessWithData(storageClassService.listStorageClass(clusterId));
+                                             @RequestParam(value = "namespace", required = false)String namespace) throws Exception {
+        return ActionReturnUtil.returnSuccessWithData(storageClassService.listStorageClass(clusterId, namespace));
     }
 }

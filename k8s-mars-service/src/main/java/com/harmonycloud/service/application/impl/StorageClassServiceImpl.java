@@ -42,6 +42,7 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author xc
@@ -344,7 +345,7 @@ public class StorageClassServiceImpl implements StorageClassService {
         List<PersistentVolumeClaim> persistentVolumeClaims = persistentVolumeClaimList.getItems();
         for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaims) {
             Map<String,Object> PVCAnnotations = persistentVolumeClaim.getMetadata().getAnnotations();
-            if (name.equals(PVCAnnotations.get("volume.beta.kubernetes.io/storage-class"))) {
+            if (PVCAnnotations != null && name.equals(PVCAnnotations.get("volume.beta.kubernetes.io/storage-class"))) {
                 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.STORAGECLASS_DELETE_ERROR);
             }
         }
@@ -443,14 +444,15 @@ public class StorageClassServiceImpl implements StorageClassService {
         List<PersistentVolumeClaim> pvcList = new ArrayList<>();
         List<PersistentVolumeClaim> persistentVolumeClaimList = listPvc(cluster).getItems();
         for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaimList) {
-            String storageClassName = (String ) persistentVolumeClaim.getMetadata().getAnnotations().get("volume.beta.kubernetes.io/storage-class");
-            if (name.equals(storageClassName)) {
-                pvcList.add(persistentVolumeClaim);
+            if(persistentVolumeClaim.getMetadata().getAnnotations() != null) {
+                String storageClassName = (String) persistentVolumeClaim.getMetadata().getAnnotations().get("volume.beta.kubernetes.io/storage-class");
+                if (name.equals(storageClassName)) {
+                    pvcList.add(persistentVolumeClaim);
+                }
             }
         }
-        //TODO PVC关联的DaemonSet
 
-        //PVC关联的服务
+        //PVC关联的服务,DaemonSet
         List serviceList = new ArrayList<>();
         List<Deployment> deploymentList = listDeployment(cluster).getItems();
         List<DaemonSet> daemonSetList = daemonSetsService.listDaemonSets(cluster);
@@ -458,9 +460,6 @@ public class StorageClassServiceImpl implements StorageClassService {
             for (Deployment deployment : deploymentList) {
                 if (pvc.getMetadata().getNamespace().equalsIgnoreCase(deployment.getMetadata().getNamespace()) && deployment.getSpec().getTemplate().getSpec().getVolumes() != null && deployment.getSpec().getTemplate().getSpec().getVolumes().size() > 0) {
                     List<Volume> volumeList = deployment.getSpec().getTemplate().getSpec().getVolumes();
-                    if(deployment.getMetadata().getName().equalsIgnoreCase("tomcat")){
-                        System.out.println("sss");
-                    }
                     for (Volume volume : volumeList) {
                         if (volume.getPersistentVolumeClaim() != null && pvc.getMetadata().getName().equals(volume.getPersistentVolumeClaim().getClaimName())) {
                             Map<String, Object> serviceItem = new HashMap<>();
@@ -522,15 +521,23 @@ public class StorageClassServiceImpl implements StorageClassService {
                             Map<String, Object> serviceItem = new HashMap<>();
                             serviceItem.put("type", CommonConstant.LABEL_KEY_DAEMONSET);
                             serviceItem.put("name", daemonSet.getMetadata().getName());
+                            serviceItem.put("instance", daemonSet.getStatus().getDesiredNumberScheduled());
                             serviceItem.put("status", daemonSetsService.convertDaemonStatus(daemonSet));
                             serviceItem.put("namespace", daemonSet.getMetadata().getNamespace());
                             serviceItem.put("aliasNamespace", daemonSet.getMetadata().getNamespace());
-                            Map<String, Object> annotation = daemonSet.getMetadata().getAnnotations();
-                            if (annotation != null && !annotation.isEmpty()) {
-                                if (annotation.containsKey("nephele/labels")) {
-                                    serviceItem.put("labels", annotation.get("nephele/labels").toString());
+                            Map<String, Object> labelsMap = new HashMap<>();
+                            if (daemonSet.getMetadata().getAnnotations() != null && daemonSet.getMetadata().getAnnotations().containsKey("nephele/labels")) {
+                                String labels = daemonSet.getMetadata().getAnnotations().get("nephele/labels").toString();
+                                if (!StringUtils.isEmpty(labels)) {
+                                    String[] arrLabel = labels.split(",");
+                                    for (String l : arrLabel) {
+                                        String[] tmp = l.split("=");
+                                        labelsMap.put(tmp[0], tmp[1]);
+                                    }
                                 }
                             }
+
+                            serviceItem.put("labels", labelsMap);
                             Date utcDate = DateUtil.StringToDate(daemonSet.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
                             serviceItem.put("createTime", utcDate);
                             List<String> img = new ArrayList<>();
@@ -549,6 +556,7 @@ public class StorageClassServiceImpl implements StorageClassService {
                             serviceItem.put("img", img);
                             serviceItem.put("cpu", cpu);
                             serviceItem.put("memory", memory);
+                            serviceList.add(serviceItem);
                         }
                     }
                 }
@@ -702,25 +710,36 @@ public class StorageClassServiceImpl implements StorageClassService {
     }
 
     @Override
-    public List<StorageClassDto> listStorageClass(String clusterId, String namespaceName) throws Exception {
+    public List<StorageClassDto> listStorageClass(String clusterId, String namespace) throws Exception {
         AssertUtil.notBlank(clusterId, DictEnum.CLUSTER_ID);
         //获取集群
         Cluster cluster = clusterService.findClusterById(clusterId);
-        List<StorageClassDto> storageClassDtos = listStorageClass(clusterId);
-        if(StringUtils.isBlank(namespaceName)){
-            return storageClassDtos;
+        if (Objects.isNull(cluster)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
-        List<StorageClassDto> storageClassDtoList =  new ArrayList<>();
-        ResourceQuotaList resouceQuotaList = namespaceService.getResouceQuota(namespaceName, cluster);
-        ResourceQuota resourceQuota = resouceQuotaList.getItems().get(0);
-        LinkedHashMap<String,Object> hards = (LinkedHashMap<String, Object>) resourceQuota.getSpec().getHard();
-        for (StorageClassDto storageClassDto : storageClassDtos) {
-            String name = storageClassDto.getName();
-            if(hards.containsKey(name+".storageclass.storage.k8s.io/requests.storage")){
-                storageClassDtoList.add(storageClassDto);
+        List<StorageClassDto> storageClassDtos = new ArrayList<>();
+
+        List<StorageClass> storageClasses = scService.litStorageClassByClusterId(cluster);
+
+        //根据分区过滤storageClass
+        if(StringUtils.isNotBlank(namespace) && !CommonConstant.KUBE_SYSTEM.equalsIgnoreCase(namespace)){
+            ResourceQuotaList resourceQuotaList = namespaceService.getResouceQuota(namespace, cluster);
+            ResourceQuota resourceQuota = resourceQuotaList.getItems().get(0);
+            LinkedHashMap<String,Object> hards = (LinkedHashMap<String, Object>) resourceQuota.getSpec().getHard();
+            storageClasses = storageClasses.stream().filter(storageClass -> {
+                String name = storageClass.getMetadata().getName();
+                return hards.containsKey(name + ".storageclass.storage.k8s.io/requests.storage");
+            }).collect(Collectors.toList());
+        }
+
+        if (!Objects.isNull(storageClasses)) {
+            for (StorageClass sc  : storageClasses) {
+                StorageClassDto storageClassDto = convertScDto(sc, null, cluster);
+                storageClassDtos.add(storageClassDto);
             }
         }
-        return storageClassDtoList;
+
+        return storageClassDtos;
     }
 
     private ActionReturnUtil getNfsProvisionerStatus(String name, Cluster cluster) throws Exception {
