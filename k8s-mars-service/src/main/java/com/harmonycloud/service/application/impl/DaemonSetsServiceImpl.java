@@ -7,9 +7,9 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.date.DateUtil;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.k8s.bean.*;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
@@ -35,7 +35,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.harmonycloud.service.platform.constant.Constant.NODESELECTOR_LABELS_PRE;
 
@@ -284,8 +283,12 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                     CreateResourceDto rs = new CreateResourceDto();
                     Map<String, Object> map = (Map<String, Object>) container.getResources().getRequests();
                     if (map != null) {
-                        rs.setCpu(map.get("cpu").toString());
-                        rs.setMemory(map.get("memory").toString());
+                        if(map.get("cpu") != null) {
+                            rs.setCpu(map.get("cpu").toString());
+                        }
+                        if(map.get("memory") != null) {
+                            rs.setMemory(map.get("memory").toString());
+                        }
                         c.setResource(rs);
                     }
                 }
