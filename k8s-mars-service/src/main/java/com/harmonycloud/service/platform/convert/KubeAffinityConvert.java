@@ -208,7 +208,11 @@ public class KubeAffinityConvert {
              labelSelector.setMatchExpressions(matchExpressions);
              podAffinityTerm.setLabelSelector(labelSelector);
              //topologyKey
-             podAffinityTerm.setTopologyKey(Constant.AFFINITY_TOPOLOGYKEY);
+             if(Objects.nonNull(podAffinityDto.getType()) && podAffinityDto.getType().equals(Constant.ANTIAFFINITY_TYPE_GROUP_SCHEDULE)){
+                 podAffinityTerm.setTopologyKey(Constant.AFFINITY_TOPOLOGYKEY_GROUP_SCHEDULE);
+             }else {
+                 podAffinityTerm.setTopologyKey(Constant.AFFINITY_TOPOLOGYKEY_POD_DISPERSE);
+             }
          }
          return podAffinityTerm;
     }

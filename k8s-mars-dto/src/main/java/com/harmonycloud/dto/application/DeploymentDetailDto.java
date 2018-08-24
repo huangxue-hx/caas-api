@@ -55,6 +55,9 @@ public class DeploymentDetailDto {
 	/**pod 是否分散*/
 	private AffinityDto podDisperse;
 
+	/**pod 按主机分组调度**/
+	private AffinityDto podGroupSchedule;
+
     @DataPrivilegeField(type = CommonConstant.PROJECTID_FIELD)
 	private String projectId;
 
@@ -65,6 +68,14 @@ public class DeploymentDetailDto {
 	private PullDependenceDto pullDependence;
 
 	private ServiceDependenceDto serviceDependence;
+
+	public AffinityDto getPodGroupSchedule() {
+		return podGroupSchedule;
+	}
+
+	public void setPodGroupSchedule(AffinityDto podGroupSchedule) {
+		this.podGroupSchedule = podGroupSchedule;
+	}
 
 	public List<HostAlias> getHostAliases() {
 		return hostAliases;
