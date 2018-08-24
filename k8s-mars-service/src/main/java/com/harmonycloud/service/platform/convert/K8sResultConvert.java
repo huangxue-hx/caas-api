@@ -767,6 +767,15 @@ public class K8sResultConvert {
         Affinity affinity = new Affinity();
         List<AffinityDto> list = new ArrayList<>();
         list.add(detail.getPodAntiAffinity());
+        //pod 按主机分组调度
+        if(Objects.nonNull(detail.getPodGroupSchedule())){
+            AffinityDto aff = new AffinityDto();
+            aff.setRequired(detail.getPodGroupSchedule().isRequired());
+            aff.setLabel(Constant.TYPE_DEPLOYMENT + Constant.EQUAL + detail.getName());
+            aff.setType(detail.getPodGroupSchedule().getType());
+            list.add(aff);
+        }
+        //pod 分散
         if (Objects.nonNull(detail.getPodDisperse())) {
             AffinityDto aff = new AffinityDto();
             aff.setRequired(detail.getPodDisperse().isRequired());
@@ -775,6 +784,7 @@ public class K8sResultConvert {
         }
         affinity = KubeAffinityConvert.convertAffinity(detail.getNodeAffinity(), detail.getPodAffinity(), list);
         podSpec.setAffinity(affinity);
+
         //hostIPC hostPID
         podSpec.setHostIPC(detail.isHostIPC());
         podSpec.setHostPID(detail.isHostPID());

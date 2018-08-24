@@ -144,7 +144,10 @@ public class Constant {
 	
 	public final static String AFFINITY_WEIGHT = "weight";
 	
-	public final static String AFFINITY_TOPOLOGYKEY = "kubernetes.io/hostname";
+	public final static String AFFINITY_TOPOLOGYKEY_POD_DISPERSE = "kubernetes.io/hostname";
+	public final static String AFFINITY_TOPOLOGYKEY_GROUP_SCHEDULE = "harmonycloud.cn/group";
+
+	public final static String ANTIAFFINITY_TYPE_GROUP_SCHEDULE = "group_schedule";
 	
 	public final static String SPACE_TRANS = "%20";
 	
