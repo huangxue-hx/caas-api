@@ -4,7 +4,7 @@ rm -rf $1
 mkdir -p $1
 if [ "${2##*.}"x = "zip"x ];
 then
-    unzip -O GBK -q "$2" -d "$1"
+    unzip -q "$2" -d "$1"
 elif [ "${2##*.}"x = "tar"x ];
 then
     tar xfo "$2" -C "$1"

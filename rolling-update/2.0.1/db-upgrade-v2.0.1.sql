@@ -42,10 +42,10 @@ INSERT INTO `k8s_auth_server`.`url_dic`(`url`, `module`, `resource`)
 VALUES ('/tenants/*/projects/*/dependence/storage', 'cicd', 'cicdmgr');
 
 INSERT INTO system_config (config_name, config_value, config_type, create_user)
-VALUES ('dependenceUploadImageName', '/k8s-deploy/busybox:latest', 'dependence', 'admin');
+VALUES ('dependenceUploadImageName', '/k8s-deploy/centos:7', 'dependence', 'admin');
 
 INSERT INTO system_config (config_name, config_value, config_type, create_user)
-VALUES ('dependenceUploadImageCmd', '["/bin/sh","-c","top"]', 'dependence', 'admin');
+VALUES ('dependenceUploadImageCmd', '["tail","-f","/etc/hosts"]', 'dependence', 'admin');
 
 INSERT INTO `k8s_auth_server`.`url_dic`(`url`, `module`, `resource`)
 VALUES ('/privilege/group', 'whitelist', 'whitelist');

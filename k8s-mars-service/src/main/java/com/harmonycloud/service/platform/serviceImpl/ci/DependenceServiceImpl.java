@@ -351,7 +351,7 @@ public class DependenceServiceImpl implements DependenceService {
                     logger.info("执行上传文件命令：" + res);
                 }
                 while ((res = stdError.readLine()) != null) {
-                    if(res.contains("in the future")){
+                    if(res.contains("in the future") || res.contains("implausibly old time stamp")){
                         logger.warn("执行上传文件命令警告：" + res);
                     }else {
                         logger.error("执行上传文件命令错误：" + res);
@@ -380,8 +380,12 @@ public class DependenceServiceImpl implements DependenceService {
                     logger.info("执行解压文件脚本：" + res);
                 }
                 while ((res = stdError.readLine()) != null) {
-                    logger.error("执行解压文件脚本错误：" + res);
-                    error = true;
+                    if(res.contains("in the future") || res.contains("implausibly old time stamp")){
+                        logger.warn("执行解压文件脚本警告：" + res);
+                    }else {
+                        logger.error("执行解压文件脚本错误：" + res);
+                        error = true;
+                    }
                 }
                 if (error) {
                     throw new Exception();
@@ -429,7 +433,6 @@ public class DependenceServiceImpl implements DependenceService {
      */
     public void deleteFile(String dependenceName, String projectId, String clusterId, String path) throws Exception {
         Cluster topCluster = clusterService.getPlatformCluster();
-        String fileUploadPodName = getFileUploadPod(dependenceName, topCluster).getMetadata().getName();
         String pvcName;
         if(StringUtils.isNotBlank(clusterId)) {
             String projectName = projectService.getProjectNameByProjectId(projectId);
@@ -439,6 +442,11 @@ public class DependenceServiceImpl implements DependenceService {
             pvcName = dependenceName;
         }
         PersistentVolumeClaim pvc = pvcService.getPvcByName(CommonConstant.CICD_NAMESPACE, pvcName, topCluster);
+        String storageClassName = pvc.getSpec().getStorageClassName();
+        if(StringUtils.isBlank(storageClassName)){
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_FILE_RM_FAIL);
+        }
+        String fileUploadPodName = getFileUploadPod(storageClassName, topCluster).getMetadata().getName();
         String remoteDependenceDir = getRemoteDependenceDir(pvc);
         String targetPath = remoteDependenceDir + "/" + path;
 
@@ -517,30 +525,14 @@ public class DependenceServiceImpl implements DependenceService {
     }
 
     @Override
-    public void deleteDependenceByProject(String projectId) {
-        try {
-            Cluster topCluster = clusterService.getPlatformCluster();
-            String label = "projectId = " + projectId;
-            K8SClientResponse response = pvService.listPvBylabel(label, topCluster);
-            if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                PersistentVolumeList persistentVolumeList = K8SClient.converToBean(response, PersistentVolumeList.class);
-                List<PersistentVolume> items = persistentVolumeList.getItems();
-                for (PersistentVolume pv : items) {
-                    String pvName = pv.getMetadata().getName();
-                    String remoteDirectory = "/nfs/" + pvName.replace(CommonConstant.DEPENDENCE_PREFIX + ".", "");
-                    pvService.delPvByName(pvName, topCluster);
-
-                    Map<String, Object> query = new HashMap<>();
-                    query.put(CommonConstant.LABELSELECTOR, "name=" + pvName);
-                    pvcService.doSepcifyPVC(CommonConstant.CICD_NAMESPACE, query, HTTPMethod.DELETE, topCluster);
-
-                    Pod fileUploadPod = this.getFileUploadPod("sss",topCluster);
-                    String fileUploadPodName = fileUploadPod.getMetadata().getName();
-                    deleteFile(fileUploadPodName, remoteDirectory, topCluster);
-                }
-            }
-        }catch(Exception e){
-            logger.error("删除依赖目录失败：" + e);
+    public void deleteDependenceByProject(String projectId) throws Exception {
+        Cluster topCluster = clusterService.getPlatformCluster();
+        String label = "projectId = " + projectId;
+        Map<String, Object> pvclabel = new HashMap<String, Object>();
+        pvclabel.put("labelSelector", label);
+        K8SClientResponse response = pvcService.doSepcifyPVC(CommonConstant.CICD_NAMESPACE, pvclabel, HTTPMethod.DELETE,topCluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            logger.error("删除依赖失败：{}", response.getBody());
         }
     }
 
@@ -595,7 +587,7 @@ public class DependenceServiceImpl implements DependenceService {
         }
         PersistentVolumeClaim pvc = pvcService.getPvcByName(CommonConstant.CICD_NAMESPACE, pvcName, topCluster);
         String remoteDependenceDir = getRemoteDependenceDir(pvc);
-        String targetDir = remoteDependenceDir + "/" +path;
+        String targetDir = remoteDependenceDir + "/" + path;
 
         Pod fileUploadPod = getFileUploadPod(pvc.getSpec().getStorageClassName(), topCluster);
         String fileUploadPodName = fileUploadPod.getMetadata().getName();
@@ -604,9 +596,9 @@ public class DependenceServiceImpl implements DependenceService {
         try {
             String[] lsCmd;
             if(isRecurse){
-                lsCmd = new String[]{"ls", "-lhRe", targetDir};
+                lsCmd = new String[]{"ls", "-lhR", "--full-time", targetDir};
             }else {
-                lsCmd = new String[]{"ls", "-lhe", targetDir};
+                lsCmd = new String[]{"ls", "-lh", "--full-time", targetDir};
             }
             String[] lsDependenceCommand = ArrayUtils.addAll(new String[]{
                             "kubectl",
@@ -629,14 +621,16 @@ public class DependenceServiceImpl implements DependenceService {
 
 
             String tmpParentDirectory = "/";
+            String lastLine = null;
             while ((res = stdInput.readLine()) != null) {
                 Map<String, Object> file = new HashMap();
-                String[] fileAttributes = res.split("\\s+", 11);
-                if (fileAttributes.length < 9) {
-                    if(fileAttributes[0].endsWith(":")){
-                        tmpParentDirectory = fileAttributes[0].substring(fileAttributes[0].lastIndexOf(remoteDependenceDir)+remoteDependenceDir.length());
+                String[] fileAttributes = res.split("\\s+", 9);
+                if(fileAttributes.length < 9 || StringUtils.isBlank(lastLine)){
+                    if (fileAttributes.length == 2 && "total".equalsIgnoreCase(fileAttributes[0]) && StringUtils.isNotBlank(lastLine)){
+                        tmpParentDirectory = lastLine.substring(lastLine.lastIndexOf(remoteDependenceDir) + remoteDependenceDir.length());
                         tmpParentDirectory = tmpParentDirectory.substring(0,tmpParentDirectory.length()-1);
                     }
+                    lastLine = res;
                     continue;
                 }
                 if(fileAttributes[0].startsWith(CommonConstant.DIRECTORY_TYPE)){
@@ -647,23 +641,27 @@ public class DependenceServiceImpl implements DependenceService {
                 }
 
                 //处理无后缀的文件
-                if(!(boolean)file.get("isDirectory") && fileAttributes[10].contains(".")){
-                    file.put("type", fileAttributes[10].substring(fileAttributes[10].lastIndexOf(".")+1));
-                    file.put("prefixFilename", fileAttributes[10].substring(0, fileAttributes[10].lastIndexOf(".")));
-                }else if(!(boolean)file.get("isDirectory") && !fileAttributes[10].contains(".")){
+                if(!(boolean)file.get("isDirectory") && fileAttributes[8].contains(".")){
+                    file.put("type", fileAttributes[8].substring(fileAttributes[8].lastIndexOf(".")+1));
+                    file.put("prefixFilename", fileAttributes[8].substring(0, fileAttributes[8].lastIndexOf(".")));
+                }else if(!(boolean)file.get("isDirectory") && !fileAttributes[8].contains(".")){
                     file.put("type", "");
-                    file.put("prefixFilename", fileAttributes[10]);
+                    file.put("prefixFilename", fileAttributes[8]);
                 }
 
 
-                file.put("fileName", fileAttributes[10]);
+                file.put("fileName", fileAttributes[8]);
 
                 char c = fileAttributes[4].charAt(fileAttributes[4].length()-1);
                 if( c >= '0' && c <= '9'){
                     fileAttributes[4] += "Byte";
                 }
                 file.put("size", fileAttributes[4]);
-                file.put("lastModified", fileAttributes[9] + "-" + fileAttributes[6] + "-" + fileAttributes[7] + " " + fileAttributes[8]) ;
+                if(!fileAttributes[6].contains(".")){
+                    file.put("lastModified", fileAttributes[5] + " " +fileAttributes[6]) ;
+                }else {
+                    file.put("lastModified", fileAttributes[5] + " " +fileAttributes[6].substring(0, fileAttributes[6].lastIndexOf("."))) ;
+                }
                 if(isRecurse){
                     file.put("parentDirectory", tmpParentDirectory);
                 }
@@ -689,7 +687,7 @@ public class DependenceServiceImpl implements DependenceService {
     }
 
     private String getRemoteDependenceDir(PersistentVolumeClaim pvc) throws Exception {
-        return "/dependence/" + pvc.getMetadata().getNamespace() + "-" + pvc.getMetadata().getName() + "-" + pvc.getSpec().getVolumeName() + "/";
+        return "/dependence/" + pvc.getMetadata().getNamespace() + "-" + pvc.getMetadata().getName() + "-" + pvc.getSpec().getVolumeName();
 
     }
 }

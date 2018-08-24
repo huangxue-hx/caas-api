@@ -5,5 +5,4 @@
 2. webpage-cloudterminal-config配置变更
  更新cloudterminal.js配置文件，注意文件中的ws url
 
-
-
+3.file-upload镜像更新为centos:7,需要提前放置在harbor的k8s-deploy仓库下，部署时无需再安装file-upload组件
