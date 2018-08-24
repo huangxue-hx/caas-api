@@ -915,7 +915,7 @@ public class K8sResultConvert {
             String protocol = gitUrl.substring(0,gitUrl.indexOf("://")+3);
             gitUrl = gitUrl.substring(gitUrl.indexOf("://")+3,gitUrl.length());
             projectName = gitUrl.substring(gitUrl.lastIndexOf("/")+1,gitUrl.lastIndexOf(".git"));
-            sb.append(" rm -rf ./.*");
+            sb.append(" rm -rf " + projectName + "/.*");
             sb.append(" && git clone " + protocol + pullDependence.getUsername() + ":" + pullDependence.getPassword()
                     + "@" + gitUrl);
             //指定了分支
@@ -932,8 +932,7 @@ public class K8sResultConvert {
 
         }else if(pullDependence.getPullWay().equals(Constant.PULL_WAY_SVN)){
             String svnURL = pullDependence.getRepoUrl();
-            sb.append(" rm -rf ./.*");
-            sb.append(" && svn co " + svnURL);
+            sb.append(" svn co " + svnURL);
             //指定了分支
             if(StringUtils.isNotBlank(pullDependence.getBranch())){
                 sb.append("/" + pullDependence.getBranch());
