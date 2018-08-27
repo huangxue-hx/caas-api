@@ -1098,11 +1098,29 @@ public class NodeServiceImpl implements NodeService {
                 node.getMetadata().getName());
         Object object = node.getStatus().getAllocatable();
         if (object != null) {
-            nodeDto.setCpu(((Map<String, Object>) object).get("cpu").toString());
+
+            String cpuStr = ((Map<String, Object>) object).get("cpu").toString();
+            if(cpuStr.contains("m")) {
+                cpuStr = cpuStr.substring(0, cpuStr.indexOf("m"));
+                nodeDto.setCpu((Double.valueOf(cpuStr) / 1000) + "");
+            } else {
+                nodeDto.setCpu(Double.valueOf(cpuStr) + "");
+            }
             String memory = ((Map<String, Object>) object).get("memory").toString();
-            memory = memory.substring(0, memory.indexOf("Ki"));
-            double memoryDouble = Double.parseDouble(memory);
-            nodeDto.setMemory(String.format("%.1f", memoryDouble / 1024 / 1024));
+            if(memory.contains("Ki")) {
+                memory = memory.substring(0, memory.indexOf("Ki"));
+                double memoryDouble = Double.parseDouble(memory);
+                nodeDto.setMemory(String.format("%.1f", memoryDouble / 1024 / 1024));
+            } else if (memory.contains("Mi")) {
+                memory = memory.substring(0, memory.indexOf("Mi"));
+                double memoryDouble = Double.parseDouble(memory);
+                nodeDto.setMemory(String.format("%.1f", memoryDouble / 1024));
+            } else if (memory.contains("Gi")) {
+                memory = memory.substring(0, memory.indexOf("Gi"));
+                double memoryDouble = Double.parseDouble(memory);
+                nodeDto.setMemory(String.format("%.1f", memoryDouble));
+            }
+
             nodeDto.setDisk(String.format("%.1f", (nodeFilesystemCapacity / 1024 / 1024
                     / 1024)/** 1.024*1.024*1.024 */
             ));
