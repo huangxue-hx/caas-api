@@ -156,3 +156,17 @@ INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/
 
 ALTER TABLE `k8s_auth_server`.`user`
 ADD COLUMN `is_ldap_user` TINYINT(1) NULL COMMENT '是否通过ldap登录记录的用户' AFTER `phone`;
+
+INSERT INTO `k8s_auth_server`.`system_config` (config_name, config_value, config_type, create_user)
+VALUES ('cicd_type_merge', 'true', 'cicd', 'admin');
+
+ALTER TABLE `k8s_auth_server`.`cicd_stage_type` ADD COLUMN `index` TINYINT(4);
+ALTER TABLE `k8s_auth_server`.`cicd_stage_type` ADD COLUMN `status` TINYINT(4);
+UPDATE `k8s_auth_server`.`cicd_stage_type` SET `index`=1, `status`=1 WHERE template_type=0;
+UPDATE `k8s_auth_server`.`cicd_stage_type` SET `index`=2, `status`=1 WHERE template_type=3;
+UPDATE `k8s_auth_server`.`cicd_stage_type` SET `index`=3, `status`=1 WHERE template_type=1;
+UPDATE `k8s_auth_server`.`cicd_stage_type` SET `index`=4, `status`=0 WHERE template_type=5;
+UPDATE `k8s_auth_server`.`cicd_stage_type` SET `index`=10, `status`=1 WHERE template_type=6;
+UPDATE `k8s_auth_server`.`cicd_stage_type` SET `index`=8, `status`=1 WHERE template_type=2;
+UPDATE `k8s_auth_server`.`cicd_stage_type` SET `index`=9, `status`=0 WHERE template_type=8;
+UPDATE `k8s_auth_server`.`cicd_stage_type` SET `index`=10, `status`=1 WHERE template_type=6;

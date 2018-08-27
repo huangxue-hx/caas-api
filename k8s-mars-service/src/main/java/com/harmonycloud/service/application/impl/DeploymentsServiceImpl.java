@@ -508,7 +508,10 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             isOperationable = userService.checkCurrentUserIsAdmin();
         }
         res.setOperationable(isOperationable);
-        return ActionReturnUtil.returnSuccessWithData(dataPrivilegeHelper.filter(res));
+        if(isFilter) {
+            return ActionReturnUtil.returnSuccessWithData(dataPrivilegeHelper.filter(res));
+        }
+        return ActionReturnUtil.returnSuccessWithData(res);
     }
 
     @Override

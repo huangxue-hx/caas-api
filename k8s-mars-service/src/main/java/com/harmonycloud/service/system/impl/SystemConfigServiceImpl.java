@@ -268,6 +268,8 @@ public class SystemConfigServiceImpl implements SystemConfigService {
             for(SystemConfig sc : list) {
                 if (CommonConstant.CICD_RESULT_REMAIN_NUM.equals(sc.getConfigName())) {
                     cicdConfigDto.setRemainNumber(StringUtils.isBlank(sc.getConfigValue()) ? null : Integer.valueOf(sc.getConfigValue()));
+                }else if(CommonConstant.CICD_IS_TYPE_MERGE.equals(sc.getConfigName())){
+                    cicdConfigDto.setTypeMerge(Boolean.valueOf(sc.getConfigValue()));
                 }
             }
         }

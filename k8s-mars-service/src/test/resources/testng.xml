@@ -8,6 +8,8 @@
             <package name="com.harmonycloud.service.test.dataprivilege" />
             <package name="com.harmonycloud.service.test.user" />
             <package name="com.harmonycloud.service.test.tenant" />
+            <package name="com.harmonycloud.service.test.platform.service.ci" />
+            <package name="com.harmonycloud.service.test.system" />
         </packages>
     </test>
 

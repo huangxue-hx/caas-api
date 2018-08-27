@@ -312,7 +312,7 @@ public class DependenceServiceImpl implements DependenceService {
 
         PersistentVolumeClaim pvc = pvcService.getPvcByName(CommonConstant.CICD_NAMESPACE, pvcName, topCluster);
         String storageClassName = pvc.getSpec().getStorageClassName();
-        String remoteDirectory = getRemoteDependenceDir(pvc);
+        String remoteDirectory = getRemoteDependenceDir(pvc) + "/";
 
         //创建临时目录下的项目目录
 

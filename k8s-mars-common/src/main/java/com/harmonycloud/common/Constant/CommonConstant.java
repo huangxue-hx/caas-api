@@ -318,6 +318,7 @@ public class CommonConstant {
 
     public static final String CONFIG_TYPE_CICD = "cicd";
     public static final String CICD_RESULT_REMAIN_NUM = "cicd_remain_num";
+    public static final String CICD_IS_TYPE_MERGE = "cicd_type_merge";
 
     public static final String TRIAL_TIME = "trial_time";
 
