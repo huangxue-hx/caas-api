@@ -66,11 +66,11 @@ public class DataPrivilegeGroupMemberController {
     @ResponseBody
     public ActionReturnUtil addMemberToGroup(@PathVariable("groupId") Integer groupId,
                                              @RequestParam(value = "groupType", required = false) Integer groupType,
-                                             @RequestParam(value = "userId") Integer userId,
-                                             @RequestParam(value = "username") String username,
-                                             @RequestParam(value = "otherGroupId") Integer otherGroupId)throws Exception{
-        if (StringUtils.isBlank(username)){
-            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+                                             @RequestParam(value = "userId", required = false) Integer userId,
+                                             @RequestParam(value = "username", required = false) String username,
+                                             @RequestParam(value = "otherGroupId", required = false) Integer otherGroupId)throws Exception{
+        if (StringUtils.isBlank(username) || userId == null){
+            throw new MarsRuntimeException(ErrorCodeMessage.USER_NOT_EXIST);
         }
         dataPrivilegeGroupMemberService.verifyMember(groupId, otherGroupId, username, true, groupType);
         dataPrivilegeGroupMemberService.delMemberFromPrivilegeGroup(Integer.valueOf(otherGroupId), username);
