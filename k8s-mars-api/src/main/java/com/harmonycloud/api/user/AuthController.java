@@ -115,7 +115,8 @@ public class AuthController {
         }
         LdapConfigDto ldapConfigDto = this.systemConfigService.findLdapConfig();
         String res = null;
-        if(ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1) {
+        if(ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1
+                && !CommonConstant.ADMIN.equals(username)) {
             res = this.authManager4Ldap.auth(username, password, ldapConfigDto);
         } else {
             res = authManagerDefault.auth(username, password);
