@@ -456,11 +456,28 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 				if (object != null) {
 					Map<String, Object> resourceMap = new HashMap<String, Object>();
 					resourceMap.put("ip", node.getMetadata().getName());
-					resourceMap.put("cpu", ((Map<String, Object>) object).get("cpu").toString());
+					String cpuStr = ((Map<String, Object>) object).get("cpu").toString();
+					if(cpuStr.contains("m")) {
+						cpuStr = cpuStr.substring(0, cpuStr.indexOf("m"));
+						resourceMap.put("cpu", Double.valueOf(cpuStr) / 1000);
+					} else {
+						resourceMap.put("cpu", Double.valueOf(cpuStr));
+					}
 					String memory = ((Map<String, Object>) object).get("memory").toString();
-					memory = memory.substring(0, memory.indexOf("Ki"));
-					double memoryDouble = Double.parseDouble(memory);
-					resourceMap.put("memory", String.format("%.1f", memoryDouble/1024/1024));
+					if(memory.contains("Ki")) {
+						memory = memory.substring(0, memory.indexOf("Ki"));
+						double memoryDouble = Double.parseDouble(memory);
+						resourceMap.put("memory", String.format("%.1f", memoryDouble/1024/1024));
+					} else if(memory.contains("Mi")) {
+						memory = memory.substring(0, memory.indexOf("Mi"));
+						double memoryDouble = Double.parseDouble(memory);
+						resourceMap.put("memory", String.format("%.1f", memoryDouble/1024));
+					} else if(memory.contains("Gi")) {
+						memory = memory.substring(0, memory.indexOf("Gi"));
+						double memoryDouble = Double.parseDouble(memory);
+						resourceMap.put("memory", String.format("%.1f", memoryDouble));
+					}
+
 					resourceMap.put("disk", String.format("%.0f", nodeFilesystemCapacity/1024/1024/1024));
 					res.add(resourceMap);
 				}
