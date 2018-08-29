@@ -20,9 +20,6 @@ import org.springframework.ldap.core.support.LdapContextSource;
 import org.springframework.stereotype.Service;
 
 import com.harmonycloud.common.util.StringUtil;
-import com.harmonycloud.dao.user.AuthUserMapper;
-import com.harmonycloud.dao.user.bean.AuthUser;
-import com.harmonycloud.dao.user.bean.AuthUserExample;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.service.user.UserService;
 
@@ -46,9 +43,6 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
     @Autowired
     private UserMapper userMapper;
 
-    @Autowired
-    private AuthUserMapper authUserMapper;
-
     private String searchType;
 
     private String object_class;
@@ -66,11 +60,9 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
         if (!this.isUserInLdap(userName, password, ldapConfigDto)) {
             return null;
         }
-        // 对ldap认证通过的用户,判断是否已经记录,如果已记录并且已修改,修改记录,并且更新Harbor
-        AuthUserExample example = new AuthUserExample();
-        example.createCriteria().andNameEqualTo(userName);
-        List<AuthUser> isFound = this.authUserMapper.selectByExample(example);
-        if (isFound == null || isFound.size() == 0) {
+        // 对ldap认证通过的用户,判断是否已经记录,如果没有，则记录用户
+        User user = userService.getUser(userName);
+        if (user == null) {
             return insertUser(userName, password);
         }
         return userName;
@@ -99,19 +91,16 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
 
     // 插入Harbor用户
     private String insertUser(String userName, String password) throws Exception {
-        User existUser = userService.getUser(userName);
-        if(existUser == null) {
-            String md5Password = StringUtil.convertToMD5(password);
-            User user = new User();
-            user.setUsername(userName);
-            user.setPassword(md5Password);
-            user.setIsAdmin(FLAG_FALSE);
-            user.setIsMachine(FLAG_FALSE);
-            user.setCreateTime(new Date());
-            user.setPause(NORMAL);
-            userMapper.insert(user);
-        }
-        userService.addLdapUser(userName, null, null);
+        String md5Password = StringUtil.convertToMD5(password);
+        User user = new User();
+        user.setUsername(userName);
+        user.setPassword(md5Password);
+        user.setIsAdmin(FLAG_FALSE);
+        user.setIsMachine(FLAG_FALSE);
+        user.setCreateTime(new Date());
+        user.setPause(NORMAL);
+        user.setRealName(userName);
+        userMapper.insert(user);
         return userName;
     }
 
