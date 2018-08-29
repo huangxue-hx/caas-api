@@ -1954,7 +1954,11 @@ public class JobServiceImpl implements JobService {
             }
             jobBuildService.update(jobBuild);
             if((Constant.PIPELINE_STATUS_BUILDING.equals(preStatus) || StringUtils.isBlank(preStatus))&& (Constant.PIPELINE_STATUS_FAILURE.equals(jobBuild.getStatus()) || Constant.PIPELINE_STATUS_SUCCESS.equals(jobBuild.getStatus()))){
-                sendNotification(job, buildNum);
+                try {
+                    sendNotification(job, buildNum);
+                }catch(Exception e){
+                    logger.error("流水线邮件通知发送失败,jobId: {}, {}", job.getId(), e.getMessage());
+                }
             }
             if (logResult.isSuccess()) {
                 jobBuild.setLog((String) logResult.get("data"));
