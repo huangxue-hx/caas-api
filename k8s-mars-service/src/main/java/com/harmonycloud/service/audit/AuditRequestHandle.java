@@ -26,6 +26,7 @@ import com.harmonycloud.service.platform.service.ci.DockerFileService;
 import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.LocalRoleService;
 import com.harmonycloud.service.user.RoleLocalService;
@@ -89,6 +90,9 @@ public class AuditRequestHandle {
 
     @Autowired
     LogBackupRuleMapper logBackupRuleMapper;
+
+    @Autowired
+    ProjectService projectService;
 
     private static final String CDP = "Continue Deliver Platform";
 
@@ -285,6 +289,8 @@ public class AuditRequestHandle {
                     LogBackupRule logBackupRule = logBackupRuleMapper.selectByPrimaryKey(Integer.valueOf(query));
                     Cluster cluster2 = clusterService.findClusterById(logBackupRule.getClusterId());
                     return cluster2.getAliasName();
+                case CommonConstant.NUM_TWELVE:
+                    return projectService.getProjectNameByProjectId(query);
                 default: return null;
             }
         } catch (Exception e) {

@@ -202,6 +202,11 @@ public enum AuditUrlEnum {
     ADD_RELATIONSHIP("/tenants/project/addUser_POST", "添加项目与用户的关系", "addRelationshipBetweenProjectAndUser", null, null, "userAccount", "CDP"),
     DELETE_RELATIONSHIP("/tenants/project/removeUser_POST", "删除项目与用户的关系", "deleteRelationshipBetweenProjectAndUser", null, null, "userAccount", "CDP"),
 
+    CREATE_PROJECT("/tenants/([^//]+)/projects_POST", "创建项目", "createProject", null, null, "projectName", "PROJECT"),
+    DELETE_PROJECT("/tenants/([^//]+)/projects/([^//]+)_DELETE", "删除项目", "deleteProject", 2, "project", null, "PROJECT"),
+    UPDATE_PROJECT("/tenants/([^//]+)/projects/([^//]+)_PUT", "修改项目", "updateProject", 2, "project", null, "PROJECT"),
+
+
     ADD_CLUSTER("/clusters_POST", "添加集群", "addCluster", null, null, "nickname", "CLUSTER"),
     UPDATE_CLUSTER("/clusters/([^//]+)_PUT", "修改集群", "updateCluster", null, null, "nickname", "CLUSTER"),
     DELETE_CLUSTER("/clusters/([^//]+)_DELETE", "删除集群", "deleteCluster", 1, "ClusterService", null, "CLUSTER"),

@@ -22,8 +22,8 @@ public enum AuditModuleEnum {
     STORAGE("/tenants/[^//]+/projects/[^//]+/pvs", "存储", "storage"),
     HARBOR("/harbor", "镜像仓库", "repository"),
     CICD("/tenants/{tenantId}/projects/{projectId}/env|dependence|dockerfile|cicdjobs", "CICD", "CICD"),
-    MSF("/msf", "微服务平台", "microServicePlatform"),
-    CDP("/tenants/addProject", "持续交付平台", "Continue Deliver Platform"),
+    /*MSF("/msf", "微服务平台", "microServicePlatform"),
+    CDP("/tenants/addProject", "持续交付平台", "Continue Deliver Platform"),*/
     CLUSTER("/clusters", "集群", "cluster"),
     LOG("/snapshotrules", "日志管理", "Log Management"),
     ALARM("/oam", "告警", "alarm");
