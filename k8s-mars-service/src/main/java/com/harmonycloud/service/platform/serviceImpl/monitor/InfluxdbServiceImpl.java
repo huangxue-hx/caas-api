@@ -341,16 +341,16 @@ public class InfluxdbServiceImpl implements InfluxdbService{
 					if (null != values.get(0).get(CommonConstant.NUM_ONE)){
 						result = Double.parseDouble(values.get(0).get(CommonConstant.NUM_ONE).toString());
 					}
-					if (result == 0.0 && null != values.get(CommonConstant.NUM_ONE).get(CommonConstant.NUM_ONE)){
+					if (result == 0.0 && values.size() > CommonConstant.NUM_ONE && null != values.get(CommonConstant.NUM_ONE).get(CommonConstant.NUM_ONE)) {
 						result = Double.parseDouble(values.get(CommonConstant.NUM_ONE).get(CommonConstant.NUM_ONE).toString());
 					}
-					if (result == 0.0 && null != values.get(CommonConstant.NUM_TWO).get(CommonConstant.NUM_ONE)){
+					if (result == 0.0 && values.size() > CommonConstant.NUM_TWO && null != values.get(CommonConstant.NUM_TWO).get(CommonConstant.NUM_ONE)) {
 						result = Double.parseDouble(values.get(CommonConstant.NUM_TWO).get(CommonConstant.NUM_ONE).toString());
 					}
-					if (result == 0.0 && null != values.get(CommonConstant.NUM_THREE).get(CommonConstant.NUM_ONE)){
+					if (result == 0.0 && values.size() > CommonConstant.NUM_THREE && null != values.get(CommonConstant.NUM_THREE).get(CommonConstant.NUM_ONE)) {
 						result = Double.parseDouble(values.get(CommonConstant.NUM_THREE).get(CommonConstant.NUM_ONE).toString());
 					}
-					if (result == 0.0 && null != values.get(CommonConstant.NUM_FOUR).get(CommonConstant.NUM_ONE)){
+					if (result == 0.0 && values.size() > CommonConstant.NUM_FOUR && null != values.get(CommonConstant.NUM_FOUR).get(CommonConstant.NUM_ONE)) {
 						result = Double.parseDouble(values.get(CommonConstant.NUM_FOUR).get(CommonConstant.NUM_ONE).toString());
 					}
 				}
