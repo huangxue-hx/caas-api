@@ -20,6 +20,7 @@ public class ConfigFile implements Serializable {
 	private String repoName; // 镜像repo
 	private String user; // 创建者
 	private String createTime; // 创建时间
+	private String updateTime;	//更新时间
 	private List<ConfigFileItem> configFileItemList;//配置文件的明細列表
 	private String clusterAliasName;//集群的别名
 
@@ -98,6 +99,10 @@ public class ConfigFile implements Serializable {
 	public void setCreateTime(String createTime) {
 		this.createTime = createTime;
 	}
+
+	public String getUpdateTime() { return updateTime; }
+
+	public void setUpdateTime(String updateTime) { this.updateTime = updateTime; }
 
 	public String getTenantId() {
 		return tenantId;

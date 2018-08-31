@@ -67,6 +67,16 @@ public class StageDto {
     private List<ConditionDto> conditionDtos;
     private String sonarProperty;
 
+    private String clusterId;
+
+    public String getClusterId() {
+        return clusterId;
+    }
+
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
+    }
+
     public Integer getId() {
         return id;
     }

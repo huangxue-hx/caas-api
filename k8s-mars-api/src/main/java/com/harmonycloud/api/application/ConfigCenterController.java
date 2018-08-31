@@ -1,6 +1,7 @@
 package com.harmonycloud.api.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.application.ConfigServiceUpdateDto;
 import com.harmonycloud.dto.config.ConfigDetailDto;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
 import org.slf4j.Logger;
@@ -112,6 +113,40 @@ public class ConfigCenterController {
 										  @PathVariable("projectId") String projectId,
 										  @PathVariable("configMapId") String configMapId) throws Exception {
 		return configCenterService.getConfigMap(configMapId);
+	}
+
+	/**
+	 * 根据配置名称获取配置名称关联的所有服务
+	 */
+	@ResponseBody
+	@RequestMapping(value = "/{configMapName}/serviceList", method = RequestMethod.GET)
+	public ActionReturnUtil getAllServiceByConfigName(@PathVariable("configMapName") String configName,
+													  @PathVariable("projectId") String projectId,
+													  @PathVariable("tenantId") String tenantId) throws Exception{
+		return configCenterService.getAllServiceByConfigName(configName,projectId,tenantId);
+	}
+
+	/**
+	 * 更新所选服务配置版本
+	 */
+	@ResponseBody
+	@RequestMapping(value = "/{configMapName}/updateEdition", method = RequestMethod.POST,consumes = "application/json")
+	public ActionReturnUtil updateConfigEdition(@RequestBody ConfigServiceUpdateDto configServiceUpdateDto,
+												@PathVariable("configMapName") String configName,
+												@PathVariable("projectId") String projectId,
+												@PathVariable("tenantId") String tenantId) throws Exception{
+		return configCenterService.updateConfigEdition(configServiceUpdateDto.getServiceNameList(),configServiceUpdateDto.getEdition(),configName,projectId,tenantId);
+	}
+
+	/**
+	 * 根据配置名称获取所有版本
+	 */
+	@ResponseBody
+	@RequestMapping(value = "/{configMapName}/tags", method = RequestMethod.GET)
+	public ActionReturnUtil getEditionByConfigName(@PathVariable("configMapName") String configName,
+												   @PathVariable("projectId") String projectId,
+												   @PathVariable("tenantId") String tenantId){
+		return configCenterService.getEditionByConfigName(configName,projectId,tenantId);
 	}
 
 	/**

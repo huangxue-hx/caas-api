@@ -28,6 +28,7 @@ import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedList;
 import java.util.List;
 
 import static org.junit.Assert.*;
@@ -260,8 +261,23 @@ public class ConfigCenterServiceTest extends BaseTest {
 
 
 
+    @Test
+    public void testUpdateConfigEdition() throws Exception{
+        ActionReturnUtil rs = configCenterService.getAllServiceByConfigName(testConfigName,projectId,tenantId);
+        List<String> serviceNames = (List<String>)rs.getData();
+        assertNotNull(configCenterService.updateConfigEdition(serviceNames,DEFAULT_CONFIG_TAG,testConfigName,projectId,tenantId));
+    }
 
+    @Test
+    public void testGetEditionByConfigName(){
+        ActionReturnUtil tagsUtil= configCenterService.getEditionByConfigName(testConfigName,projectId,tenantId);
+        assertNotNull(tagsUtil);
+    }
 
-
+    @Test
+    public void testGetAllServiceByConfigName() throws Exception{
+        ActionReturnUtil serviceList = configCenterService.getAllServiceByConfigName(testConfigName,projectId,tenantId);
+        assertNotNull(serviceList);
+    }
 
 }

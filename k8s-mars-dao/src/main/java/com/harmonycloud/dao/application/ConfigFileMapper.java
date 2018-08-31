@@ -3,6 +3,7 @@ package com.harmonycloud.dao.application;
 import java.util.List;
 import java.util.Set;
 
+import com.harmonycloud.dao.application.bean.ConfigService;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.stereotype.Repository;
 
@@ -86,7 +87,6 @@ public interface ConfigFileMapper {
      * @author gurongyun
      * @param name required
      * @param projectId required
-     * @param repoName required
      * @description delete configfiles
      */
     int deleteConfigByName(@Param("name") String name, @Param("projectId") String projectId,
@@ -117,4 +117,13 @@ public interface ConfigFileMapper {
     ConfigFile getConfigByNameAndTag(@Param("name") String name, @Param("tag") String tag, @Param("projectId") String projectId, @Param("clusterId") String clusterId);
 
     List<ConfigFile> getConfigMapByName(@Param("name") String name, @Param("clusterId") String clusterId, @Param("projectId") String projectId);
+
+    List<String> getEditionByConfigName(@Param("configName") String configName,@Param("projectId") String projectId,@Param("tenantId") String tenantId);
+
+    String getConfigIdByNameAndTagAndIds(@Param("configName") String configName,@Param("tags") String tags,@Param("projectId") String projectId,@Param("tenantId") String tenantId);
+
+    List<String> getConfigMapIdByNameAndId(@Param("configName") String configName,@Param("projectId") String projectId,@Param("tenantId") String tenantId);
+
+    void updateUpdateTime(@Param("updateTime") String updateTime,@Param("configName")String configName);
+
 }

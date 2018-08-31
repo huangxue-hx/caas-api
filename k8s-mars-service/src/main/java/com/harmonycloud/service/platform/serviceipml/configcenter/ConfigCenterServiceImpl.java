@@ -3,24 +3,28 @@ package com.harmonycloud.service.platform.serviceipml.configcenter;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.application.ConfigFileItemMapper;
 import com.harmonycloud.dao.application.ConfigFileMapper;
 import com.harmonycloud.dao.application.bean.ConfigFile;
 import com.harmonycloud.dao.application.bean.ConfigFileItem;
+import com.harmonycloud.dao.application.bean.ConfigService;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
+import com.harmonycloud.dto.application.*;
 import com.harmonycloud.dto.config.ConfigDetailDto;
-import com.harmonycloud.k8s.bean.ConfigMap;
-import com.harmonycloud.k8s.bean.Deployment;
-import com.harmonycloud.k8s.bean.DeploymentList;
-import com.harmonycloud.k8s.bean.Volume;
+import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.service.ConfigmapService;
+import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.application.DeploymentsService;
+import com.harmonycloud.service.application.VersionControlService;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.user.RoleLocalService;
@@ -34,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
+import javax.servlet.http.HttpSession;
 import java.text.DecimalFormat;
 import java.util.*;
 
@@ -66,6 +71,14 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     @Autowired
     private DeploymentsService deploymentsService;
 
+    @Autowired
+    private VersionControlService versionControlService;
+
+    @Autowired
+    private HttpSession session;
+
+
+
     /**
      * add or update config serviceImpl on 17/03/24.
      *
@@ -87,7 +100,6 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         ConfigFile configFile = ObjConverter.convert(configDetail, ConfigFile.class);
         // 随机生成64位字符串
         configFile.setId(UUIDUtil.getUUID());
-        configFile.setCreateTime(DateUtil.timeFormat.format(new Date()));
         configFile.setUser(userName);
         if (!CollectionUtils.isEmpty(list)) {
             // 存在版本号+0.1
@@ -95,16 +107,29 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         }
         configFile.setTags(decimalFormat.format(tags) + "");
         configFile.setClusterId(configFile.getClusterId());
-        if (StringUtils.isNotBlank(configFile.getClusterId())) {
+        //查询数据库中是否有该配置组（若没有，则为创建配置;若有，则为保存修改的配置）
+        if(list.isEmpty()){
+            configFile.setCreateTime(DateUtil.timeFormat.format(new Date()));//创建配置时，添加创建时间字段
+        }else {
+            configFile.setCreateTime(list.get(list.size()-1).getCreateTime());
+        }
+        String updateTime = DateUtil.timeFormat.format(new Date());
+        configFile.setUpdateTime(updateTime);
+        //设置同配置组updateTime为同一值
+        configFileMapper.updateUpdateTime(updateTime,configDetail.getName());
+        //if (StringUtils.isNotBlank(configFile.getClusterId())) {
+        if ("".equals(configFile.getClusterId()) && configFile.getClusterId().length()>0) {
             configFile.setClusterName(clusterService.findClusterById(configFile.getClusterId()).getName());
         }
         // 入库
         configFileMapper.saveConfigFile(configFile);
         //配置文件的明细
         List<ConfigFileItem> configFileItemList = configFile.getConfigFileItemList();
-        for (ConfigFileItem configFileItem : configFileItemList) {
-            configFileItem.setConfigfileId(configFile.getId());
-            configFileItemMapper.insert(configFileItem);
+        if(configFileItemList != null && configFileItemList.size() >0){
+            for (ConfigFileItem configFileItem : configFileItemList) {
+                configFileItem.setConfigfileId(configFile.getId());
+                configFileItemMapper.insert(configFileItem);
+            }
         }
 
         JSONObject resultJson = new JSONObject();
@@ -112,6 +137,8 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         resultJson.put("tag", tags);
         return ActionReturnUtil.returnSuccessWithData(resultJson);
     }
+
+
 
     /**
      * update config serviceImpl on 17/03/24.
@@ -125,6 +152,10 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 
         ConfigFile configFile = ObjConverter.convert(configDetail, ConfigFile.class);
         configFile.setUser(userName);
+        String updateTime = DateUtil.timeFormat.format(new Date());
+        configFile.setUpdateTime(updateTime);
+        //设置同配置组updateTime为同一值
+        configFileMapper.updateUpdateTime(updateTime,configDetail.getName());
 
         //根据configFile的id删除明细中对应的数据
         configFileItemMapper.deleteConfigFileItem(configFile.getId());
@@ -316,6 +347,12 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 
         List<Deployment> serviceList = getServiceList(configDetailDto.getProjectId(), configDetailDto.getTenantId(), configDetailDto.getId());
         configDetailDto.setDeploymentList(serviceList);
+
+        String clusterName = clusterService.getClusterNameByClusterId(clusterId);
+        configDetailDto.setClusterName(clusterName);
+
+        Cluster cluster = clusterService.findClusterById(clusterId);
+        configDetailDto.setClusterAliasName(cluster.getAliasName());
         return ActionReturnUtil.returnSuccessWithData(configDetailDto);
     }
 
@@ -394,6 +431,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
                     if(!CollectionUtils.isEmpty(volumes)){
                         Volume volume = volumes.get(0);
                         String name = volume.getName();
+                        //不挂存储的情况下，volume的名字形式是xxx-configMapId形式，可以据此来判断是否关联
                         if(!StringUtils.isEmpty(name)){
                             int lastIndexOf = name.lastIndexOf("-");
                             String subConfigMapId = name.substring(lastIndexOf + 1);
@@ -401,7 +439,6 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
                                 deploymentsList.add(deployment);
                             }
                         }
-
                     }
                 }
             }
@@ -410,4 +447,225 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         return deploymentsList;
     }
 
+
+    @Override
+    public ActionReturnUtil updateConfigEdition(List<String> serviceNameList, String edition, String configName, String projectId,String tenantId) throws Exception {
+
+        //根据服务名和projectId、tenantId返回对应服务
+        List<String> configMapIds= configFileMapper.getConfigMapIdByNameAndId(configName,projectId,tenantId);
+        List<Deployment> deploymentList = new LinkedList<Deployment>();
+
+        for(String serviceName : serviceNameList){
+            for(String configMapId : configMapIds){
+                List<Deployment> deployments = getServiceList(projectId,tenantId,configMapId);
+                for(Deployment deployment : deployments){
+                    if(deployment.getMetadata().getName().equals(serviceName)){
+                        deploymentList.add(deployment);
+                    }
+                }
+            }
+        }
+        //对选中的每个服务进行滚动升级
+        for (Deployment deployment : deploymentList) {
+            //设置每个服务的configMap为最新的
+            List<Volume> volumes = deployment.getSpec().getTemplate().getSpec().getVolumes();
+
+            String userName = (String) session.getAttribute("username");
+            //versionControlService.canaryUpdate(,,userName);
+            //将滚动升级的容器参数给到CanaryDeployment，修改configMap
+            CanaryDeployment canaryDeployment = new CanaryDeployment();
+            canaryDeployment.setInstances(deployment.getStatus().getUpdatedReplicas());//更新的实例数与当前实例数相同时为滚动升级
+            canaryDeployment.setSeconds(5);
+            canaryDeployment.setName(deployment.getMetadata().getName());
+            canaryDeployment.setMaxSurge(0);
+            canaryDeployment.setMaxUnavailable(1);
+            canaryDeployment.setNamespace(deployment.getMetadata().getNamespace());
+            canaryDeployment.setProjectId(projectId);
+            List<UpdateContainer> updateContainers = getUpdateContainerList(deployment,configName,edition,projectId,tenantId);
+            canaryDeployment.setContainers(updateContainers);
+            //进行滚动升级
+            versionControlService.canaryUpdate(canaryDeployment,deployment.getStatus().getUpdatedReplicas(),userName);
+        }
+
+        return ActionReturnUtil.returnSuccessWithData("success");
+    }
+
+
+    private  List<UpdateContainer> getUpdateContainerList(Deployment dep,String configName,String edition,String projectid,String tenantId) throws Exception{
+
+        List<ContainerOfPodDetail> containerList = K8sResultConvert.convertContainer(dep);
+        List<UpdateContainer> updateContainerList = new ArrayList<>();
+
+        for (ContainerOfPodDetail containerOfPodDetail : containerList) {
+            UpdateContainer updateContainer = new UpdateContainer();
+            updateContainer.setName(containerOfPodDetail.getName());
+            updateContainer.setArgs(containerOfPodDetail.getArgs());
+            String tempImg = containerOfPodDetail.getImg();
+            int indexOflastMH = tempImg.lastIndexOf(":");
+            String tag = tempImg.substring(indexOflastMH+1);
+            updateContainer.setTag(tag);
+
+            updateContainer.setCommand(containerOfPodDetail.getCommand());
+            updateContainer.setLivenessProbe(containerOfPodDetail.getLivenessProbe());
+            updateContainer.setReadinessProbe(containerOfPodDetail.getReadinessProbe());
+            CreateResourceDto createResourceDto = new CreateResourceDto();
+            createResourceDto.setCpu((String) containerOfPodDetail.getResource().get("cpu"));
+            createResourceDto.setMemory((String) containerOfPodDetail.getResource().get("memory"));
+            updateContainer.setResource(createResourceDto);
+            CreateResourceDto limit = new CreateResourceDto();
+            limit.setCpu((String) containerOfPodDetail.getLimit().get("cpu"));
+            limit.setMemory((String) containerOfPodDetail.getLimit().get("memory"));
+            updateContainer.setLimit(limit);
+            updateContainer.setSecurityContext(containerOfPodDetail.getSecurityContext());
+            updateContainer.setImagePullPolicy(containerOfPodDetail.getImagePullPolicy());
+
+            List<CreateEnvDto> envList = new ArrayList<>();
+            if (containerOfPodDetail.getEnv() != null) {
+                for (EnvVar envVar : containerOfPodDetail.getEnv()) {
+                    CreateEnvDto createEnvDto = new CreateEnvDto();
+                    createEnvDto.setKey(envVar.getName());
+                    createEnvDto.setName(envVar.getName());
+                    createEnvDto.setValue(envVar.getValue());
+                    envList.add(createEnvDto);
+                }
+                updateContainer.setEnv(envList);
+            }
+            List<CreatePortDto> portList = new ArrayList<>();
+            for (ContainerPort containerPort : containerOfPodDetail.getPorts()) {
+                CreatePortDto createPortDto = new CreatePortDto();
+                createPortDto.setProtocol(containerPort.getProtocol());
+                createPortDto.setPort(String.valueOf(containerPort.getContainerPort()));
+                createPortDto.setContainerPort(String.valueOf(containerPort.getContainerPort()));
+                portList.add(createPortDto);
+            }
+            updateContainer.setPorts(portList);
+            List<PersistentVolumeDto> updateVolumeList = new ArrayList<>();
+            List<CreateConfigMapDto> configMapList = new ArrayList<>();
+            if (containerOfPodDetail.getStorage() != null) {
+                //获取要更新成的configMap的configMapId
+                String configMapId = configFileMapper.getConfigIdByNameAndTagAndIds(configName,edition,projectid,tenantId);
+                //获取服务的configMapId(更新之前的configMapId)
+                int indexOfLastV = dep.getSpec().getTemplate().getSpec().getVolumes().get(0).getConfigMap().getItems().get(0).getKey().lastIndexOf("v");
+                String oldEdition = dep.getSpec().getTemplate().getSpec().getVolumes().get(0).getConfigMap().getItems().get(0).getKey().substring(indexOfLastV+1);
+                String oldConfigMapId = configFileMapper.getConfigIdByNameAndTagAndIds(configName,oldEdition,projectid,tenantId);
+                //获取新版本的所有配置文件
+                List<ConfigFileItem> configFileItems = configFileItemMapper.getConfigFileItem(configMapId);
+                //获取老版本的所有配置文件
+                List<ConfigFileItem> oldConfigFileItems = configFileItemMapper.getConfigFileItem(oldConfigMapId);
+                //用于删除元素的而临时数组
+                List<ConfigFileItem> tempList = new LinkedList<ConfigFileItem>();
+                /* 将之前版本中没有加入的配置文件剔除 */
+                //新版本和老版本中都有的配置文件，老版本中删除，新版本中也需要做删除处理
+                for(ConfigFileItem configFileItemIndex : configFileItems){
+                    for(ConfigFileItem oldConfigFileItemIndex : oldConfigFileItems){
+                        //确定新旧版本都存在的配置文件
+                        if(configFileItemIndex.getFileName().equals(oldConfigFileItemIndex.getFileName())
+                                && configFileItemIndex.getPath().equals(oldConfigFileItemIndex.getPath())
+                                && configFileItemIndex.getContent().equals(oldConfigFileItemIndex.getContent())){
+
+                            List<VolumeMount> volumeMountList = dep.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts();
+                            for(VolumeMount volumeMount : volumeMountList){
+                                int indexBeforeId = volumeMount.getName().lastIndexOf("-");
+                                String configFileId = volumeMount.getName().substring(indexBeforeId+1);
+                                String name = volumeMount.getSubPath();
+                                if(configFileId.equals(oldConfigFileItemIndex.getConfigfileId()) && name.equals(oldConfigFileItemIndex.getFileName())){
+                                    continue;
+                                }else {
+                                    tempList.add(configFileItemIndex);
+                                }
+                            }
+                        }
+                    }
+                }
+                configFileItems.removeAll(tempList);
+                /* 配置configMap */
+
+                for(ConfigFileItem configFileItemIndex : configFileItems) {
+
+                    CreateConfigMapDto configMap = new CreateConfigMapDto();
+                    configMap.setPath(configFileItemIndex.getPath());
+
+                    configMap.setFile(configFileItemIndex.getFileName());
+                    configMap.setConfigMapId(configFileItemIndex.getConfigfileId());
+
+                    ActionReturnUtil configMapUtil = getConfigMap(configMap.getConfigMapId());
+                    if (configMapUtil.getData() == null || !configMapUtil.isSuccess()) {
+                        throw new MarsRuntimeException("未找到配置文件");
+                    }
+
+                    ConfigDetailDto configDetailDto = (ConfigDetailDto) configMapUtil.getData();
+                    ConfigFile configFile = ObjConverter.convert(configDetailDto, ConfigFile.class);
+                    configMap.setTag(configFile.getTags());//将版本号设置为所选版本
+
+                    if (configFile != null) {
+                        List<ConfigFileItem> configFileItemList = configFile.getConfigFileItemList();
+                        for (ConfigFileItem configFileItem : configFileItemList) {
+                            if (configMap.getFile().equals(configFileItem.getFileName())) {
+                                configMap.setValue(configFileItem.getContent());
+                            }
+                        }
+                    } else {
+                        configMap.setValue(null);
+                    }
+                    configMapList.add(configMap);
+                }
+                    /*configMap配置结束*/
+            }
+
+            updateContainer.setStorage(updateVolumeList);
+            updateContainer.setConfigmap(configMapList);
+
+            if (updateContainer.getLog() == null) {
+                updateContainer.setLog(new LogVolume());
+            }
+            //更新镜像
+            String imagesAllPath = containerOfPodDetail.getImg();
+            int firstIndex = imagesAllPath.indexOf("/");
+            int lastIndex = imagesAllPath.lastIndexOf(":");
+            String image = imagesAllPath.substring(firstIndex+1,lastIndex);
+            updateContainer.setImg(imagesAllPath.substring(firstIndex+1,lastIndex));
+            updateContainer.setImagePullPolicy(CommonConstant.IMAGEPULLPOLICY_ALWAYS);
+
+            updateContainerList.add(updateContainer);
+        }
+        return updateContainerList;
+    }
+
+    @Override
+    public ActionReturnUtil getEditionByConfigName(String configName,String projectId,String tenantId) {
+        List<String> edition = configFileMapper.getEditionByConfigName(configName,projectId,tenantId);
+        return ActionReturnUtil.returnSuccessWithData(edition);
+    }
+
+    @Override
+    public ActionReturnUtil  getAllServiceByConfigName(String configName,String projectId,String tenantId) throws Exception{
+        //根据configName获取所有configMapId
+        List<String> configMapIds= configFileMapper.getConfigMapIdByNameAndId(configName,projectId,tenantId);
+        List<Deployment> deploymentList = new LinkedList<Deployment>();
+        List<ConfigService> configServices = new LinkedList<ConfigService>();
+        for(String configMapId : configMapIds){
+            List<Deployment> deployments = getServiceList(projectId,tenantId,configMapId);
+            deploymentList.addAll(deployments);
+            for(Deployment deployment : deployments) {
+                ConfigService configService = new ConfigService();
+                configService.setServiceName(deployment.getMetadata().getName());
+                int tempIndex = deployment.getSpec().getTemplate().getSpec().getVolumes().get(0).getConfigMap().getItems().get(0).getKey().lastIndexOf("v");
+                String tag = deployment.getSpec().getTemplate().getSpec().getVolumes().get(0).getConfigMap().getItems().get(0).getKey().substring(tempIndex+1);
+                configService.setTag(tag);
+                configService.setImage(deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getImage());
+                configService.setServiceDomainName(deployment.getMetadata().getName()+"."+deployment.getMetadata().getNamespace());
+
+                ActionReturnUtil rs = deploymentsService.getDeploymentDetail(deployment.getMetadata().getNamespace(),deployment.getMetadata().getName(),true);
+               AppDetail appDetail= (AppDetail)rs.getData();
+                configService.setCreateTime(appDetail.getCreateTime());
+                configService.setUpdateTime(appDetail.getUpdateTime());
+
+                configService.setConfigName(configName);
+                configService.setProjectId(projectId);
+                configService.setTenantId(tenantId);
+                configServices.add(configService);
+            }
+        }
+        return ActionReturnUtil.returnSuccessWithData(configServices);
+    }
 }

@@ -85,8 +85,7 @@ public interface ConfigCenterService {
      * find configMap on 17/03/24.
      * 
      * @author gurongyun
-     * @param id
-     *            required
+     * @param configMapId required
      * @return ActionReturnUtil
      */
     ActionReturnUtil getConfigMap(String configMapId) throws Exception;
@@ -155,4 +154,24 @@ public interface ConfigCenterService {
      * @return
      */
     List<Deployment> getServiceList(String projectId, String tenantId, String configMapId) throws Exception;
+
+    /**
+     * 更新服务的配置组版本
+     * @param serviceNameList
+     * @return
+     */
+    ActionReturnUtil updateConfigEdition(List<String> serviceNameList, String edition, String configName, String projectId, String tenantId) throws Exception;
+
+    /**
+     * 返回所有版本号
+     * @param configName
+     * @return
+     */
+    ActionReturnUtil getEditionByConfigName(String configName,String projectId,String tenantId);
+
+    /**
+     * 根据配置文件名获取服务列表
+     * @return
+     */
+    ActionReturnUtil getAllServiceByConfigName(String configName,String projectId,String tenantId) throws Exception;
 }
