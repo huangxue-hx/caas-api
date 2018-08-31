@@ -497,11 +497,6 @@ public class JobServiceImpl implements JobService {
                     stage.setImageBaseTag(generateTag(stage));
                     stageMapper.updateStage(stage);
                 }
-            } else if (StageTemplateTypeEnum.DEPLOY.getCode() == stage.getStageTemplateType()) {
-                if (StringUtils.isNotBlank(image) && image.equals(stage.getImageName())) {
-                    stage.setImageTag(tag);
-                }
-                updateDeployStageBuild(stage, stageBuild);
             }
             stageBuildMapper.insert(stageBuild);
         }
@@ -835,6 +830,7 @@ public class JobServiceImpl implements JobService {
         jobbuild.setBuildNum(buildNum);
         List<JobBuild> jobBuildList = jobBuildMapper.queryByObject(jobbuild);
         List<Stage> stageList = stageService.getStageByJobId(id);
+        Map<String, String> buildImageMap = new HashMap<>();
         if (jobBuildList == null || jobBuildList.size() == 0) {
             Map params = new HashMap<>();
             params.put("tree", "number,timestamp");
@@ -882,12 +878,15 @@ public class JobServiceImpl implements JobService {
                         } else {
                             stageBuild.setImage(stage.getHarborProject() + "/" + stage.getImageName() + ":" + tagMap.get("tag" + stage.getStageOrder()));
                         }
+                        buildImageMap.put(stageBuild.getImage().split(":")[0], stageBuild.getImage().split(":")[1]);
                         if (CommonConstant.IMAGE_TAG_RULE.equals(stage.getImageTagType())) {
                             stage.setImageBaseTag(generateTag(stage));
                             stageMapper.updateStage(stage);
                         }
-                    }
-                    if (StageTemplateTypeEnum.DEPLOY.getCode() == stage.getStageTemplateType()) {
+                    } else if (StageTemplateTypeEnum.DEPLOY.getCode() == stage.getStageTemplateType()) {
+                        if(buildImageMap.get(stage.getImageName()) != null && stage.getOriginStageId() != null && StringUtils.isBlank(stage.getImageTag())){
+                            stage.setImageTag(buildImageMap.get(stage.getImageName()));
+                        }
                         updateDeployStageBuild(stage, stageBuild);
                     }
                     stageBuildMapper.insert(stageBuild);
@@ -911,8 +910,11 @@ public class JobServiceImpl implements JobService {
                         } else {
                             stageBuild.setImage(stage.getHarborProject() + "/" + stage.getImageName() + ":" + tagMap.get("tag" + stage.getStageOrder()));
                         }
-
+                        buildImageMap.put(stageBuild.getImage().split(":")[0], stageBuild.getImage().split(":")[1]);
                     } else if (StageTemplateTypeEnum.DEPLOY.getCode() == stage.getStageTemplateType() && StringUtils.isBlank(stageBuild.getImage())) {
+                        if(buildImageMap.get(stage.getImageName()) != null && stage.getOriginStageId() == null && StringUtils.isBlank(stage.getImageTag())){
+                            stage.setImageTag(buildImageMap.get(stage.getImageName()));
+                        }
                         updateDeployStageBuild(stage, stageBuild);
                     }
                     stageBuildMapper.updateByStageOrderAndBuildNum(stageBuild);
