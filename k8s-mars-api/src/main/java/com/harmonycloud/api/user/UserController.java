@@ -92,6 +92,10 @@ public class UserController {
     @RequestMapping(value = "/{username}/password", method = RequestMethod.PUT)
     public ActionReturnUtil changePwd(@RequestParam(value = "newPassword") final String newPassword, @RequestParam(value = "oldPassword") final String oldPassword,
             @PathVariable(value = "username") final String userName) throws Exception{
+        Object user = session.getAttribute("username");
+        if (!userName.equals(user.toString())) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_PASSWORD_CHANGE_SELF);
+        }
         return userService.changePwd(userName, oldPassword, newPassword);
     }
 

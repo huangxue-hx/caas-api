@@ -69,12 +69,7 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
     }
 
     private boolean isUserInLdap(String userName, String password, LdapConfigDto ldapConfigDto) throws Exception{
-        if(userName.startsWith("ldap_test") && password.equals(userName.toUpperCase())){
-            return true;
-        }else{
-            return false;
-        }
-        /*LdapContextSource contextSource = new LdapContextSource();
+        LdapContextSource contextSource = new LdapContextSource();
         contextSource.setUrl("ldap://"+ldapConfigDto.getIp()+":"+ldapConfigDto.getPort()+"");
         contextSource.setBase(ldapConfigDto.getBase());
         contextSource.setUserDn(ldapConfigDto.getUserdn());
@@ -83,7 +78,7 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
         LdapTemplate template = new LdapTemplate();
         template.setContextSource(contextSource);
         return template.authenticate(getDnForUser(userName,contextSource,ldapConfigDto),
-                "(objectclass="+ldapConfigDto.getObjectClass()+")", password);*/
+                "(objectclass="+ldapConfigDto.getObjectClass()+")", password);
     }
 
     // 插入Harbor用户
