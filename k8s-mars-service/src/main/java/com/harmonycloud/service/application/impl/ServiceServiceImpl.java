@@ -568,6 +568,22 @@ public class ServiceServiceImpl implements ServiceService {
             message.add(map);
         }
         if (message.size() > 0) {
+            //释放已绑定存储
+            for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
+                if (c.getStorage() != null) {
+                    for (PersistentVolumeDto pvc : c.getStorage()) {
+                        if (pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())) {
+                            if (StringUtils.isBlank(pvc.getPvcName())) {
+                                continue;
+                            }
+                            ActionReturnUtil result = volumeSerivce.releasePv(pvc.getPvcName(),cluster.getId(),namespace,serviceDeploy.getServiceTemplate().getDeploymentDetail().getName());
+                            if (!result.isSuccess()){
+                                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PV_RELEASE_FAIL);
+                            }
+                        }
+                    }
+                }
+            }
             ActionReturnUtil rollbackRes = applicationDeployService.rollBackDeployment(deployments, namespace, userName, cluster);
             if (!rollbackRes.isSuccess()) {
                 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_CREATE_ROLLBACK_FAILURE);
