@@ -8,9 +8,11 @@ import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
-import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
-import com.harmonycloud.dao.user.*;
+import com.harmonycloud.dao.user.AuthUserMapper;
+import com.harmonycloud.dao.user.UserGroupMapper;
+import com.harmonycloud.dao.user.UserGroupRelationMapper;
+import com.harmonycloud.dao.user.UserMapper;
 import com.harmonycloud.dao.user.bean.*;
 import com.harmonycloud.dto.tenant.TenantDto;
 import com.harmonycloud.dto.tenant.show.UserShowDto;
@@ -19,7 +21,6 @@ import com.harmonycloud.dto.user.SummaryUserInfo;
 import com.harmonycloud.dto.user.UserDetailDto;
 import com.harmonycloud.dto.user.UserGroupDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.platform.bean.harbor.HarborUser;
 import com.harmonycloud.service.platform.constant.Constant;
@@ -29,8 +30,6 @@ import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.RoleService;
 import com.harmonycloud.service.user.UserRoleRelationshipService;
 import com.harmonycloud.service.user.UserService;
-import com.whchem.sso.common.utils.SSOConstants;
-import com.whchem.sso.common.utils.SSOUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFRow;
@@ -221,108 +220,19 @@ public class UserServiceImpl implements UserService {
     @Override
     public Map getcurrentUser(HttpServletRequest request, HttpServletResponse response) throws Exception{
         Map<String, Object> res = new HashMap<String, Object>();
-        if(SsoClient.isOpen()) {
-            //同步用户信息至容器云平台数据库
-            User user = syncUser(request);
-            if (null == user) {
-                SsoClient.setRedirectResponse(response);
-                session.invalidate();
-                SsoClient.clearToken(response);
-                return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_NOT_AUTH_OR_TIMEOUT);
-            }
-            //用户信息写入session
-            request.getSession().setAttribute("userId", user.getId());
-            request.getSession().setAttribute("username", user.getUsername());
-            request.getSession().setAttribute("isAdmin", user.getIsAdmin());
-            String token = SSOUtil.getCookieValue(request, SSOConstants.SSO_TOKEN);
-            request.getSession().setAttribute(SSOConstants.SSO_TOKEN, token);
 
-            if (CommonConstant.PAUSE.equals(user.getPause())) {
-                SsoClient.setRedirectResponse(response);
-                session.invalidate();
-                SsoClient.clearToken(response);
-                return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_DISABLED);
-            }
+        Object user = session.getAttribute("username");
+        if (user == null) {throw new K8sAuthException(com.harmonycloud.k8s.constant.Constant.HTTP_401);}
+        String userName = user.toString();
+        User u = this.userMapper.findByUsername(userName);
+        String userId = session.getAttribute("userId").toString();
+        res.put("username", userName);
+        res.put("userId", userId);
+        res.put("realName", u.getRealName());
+        List<TenantDto> tenantDtos = tenantService.tenantList();
+        if (org.springframework.util.CollectionUtils.isEmpty(tenantDtos)){List<Role> roleList = this.roleLocalService.getRoleListByUsernameAndTenantIdAndProjectId(userName, null, null);res.put("roleList", roleList);if (!org.springframework.util.CollectionUtils.isEmpty(roleList)){res.put("role", roleList.get(0));}}
+        res.put("tenants", tenantDtos);
 
-            //获取用户的租户信息
-            List<TenantDto> tenantDtos = tenantService.tenantList();
-            if (CommonConstant.IS_NOT_ADMIN == user.getIsAdmin() && org.apache.commons.collections.CollectionUtils.isEmpty(tenantDtos)) {
-                SsoClient.setRedirectResponse(response);
-                session.invalidate();
-                SsoClient.clearToken(response);
-                throw new MarsRuntimeException(ErrorCodeMessage.USER_NOT_AUTH);
-            }
-            List<Role> roleList = null;
-            if (!CollectionUtils.isEmpty(tenantDtos) && CommonConstant.IS_NOT_ADMIN == user.getIsAdmin()){
-                roleList = this.roleLocalService.getRoleListByUsername(user.getUsername());
-//                List<Role> availableRoleList = roleList.stream().filter(role -> role.getAvailable()).collect(Collectors.toList());
-                if (roleList.size() <= 0){
-                    SsoClient.dealHeader(session);
-                    throw new MarsRuntimeException(ErrorCodeMessage.ROLE_DISABLE);
-                }
-                Map<String,Object> map = new HashMap<>();
-                if (!CollectionUtils.isEmpty(roleList)){
-                    Map<String, TenantDto> collect = tenantDtos.stream().collect(Collectors.toMap(TenantDto::getTenantId, tenantDto -> tenantDto));
-                    tenantDtos.clear();
-                    for (Role role:roleList) {
-                        List<UserRoleRelationship> userRoleRelationshipList = this.userRoleRelationshipService.getUserRoleRelationshipList(user.getUsername(), role.getId());
-                        for (UserRoleRelationship userRoleRelationship : userRoleRelationshipList) {
-                            Object object = map.get(userRoleRelationship.getTenantId());
-                            if (Objects.isNull(object)){
-                                TenantDto tenantDto = collect.get(userRoleRelationship.getTenantId());
-                                if (!Objects.isNull(tenantDto)){
-                                    tenantDtos.add(tenantDto);
-                                    map.put(userRoleRelationship.getTenantId(),tenantDto);
-                                }
-                            }
-                        }
-                    }
-                }
-                if (CollectionUtils.isEmpty(roleList)){
-                    //被禁用后该用户在该租户下项目下可用角色为空，处理被禁用的角色
-                    session.setAttribute("roleStatus",Boolean.FALSE);
-                }else {
-                    session.setAttribute("roleStatus",Boolean.TRUE);
-                }
-            }
-            if (CommonConstant.IS_ADMIN == user.getIsAdmin() && roleList == null){
-                roleList = new ArrayList<>();
-                Role role = roleLocalService.getRoleById(CommonConstant.ADMIN_ROLEID);
-                roleList.add(role);
-                res.put("roleList", roleList);
-                if (!org.springframework.util.CollectionUtils.isEmpty(roleList)){
-                    res.put("role", roleList.get(0));
-                }
-            }
-            //返回用户信息
-            res.put("userId", user.getId());
-            res.put("username", user.getUsername());
-            res.put("realName", user.getRealName());
-            res.put("isAdmin", CommonConstant.IS_ADMIN == user.getIsAdmin());
-            res.put("tenants", tenantDtos);
-        }else{
-            Object user = session.getAttribute("username");
-            if (user == null) {
-                throw new K8sAuthException(com.harmonycloud.k8s.constant.Constant.HTTP_401);
-            }
-            String userName = user.toString();
-            User u = this.userMapper.findByUsername(userName);
-            String userId = session.getAttribute("userId").toString();
-            res.put("username", userName);
-            res.put("userId", userId);
-            res.put("realName", u.getRealName());
-            List<TenantDto> tenantDtos = tenantService.tenantList();
-            if (org.springframework.util.CollectionUtils.isEmpty(tenantDtos)){
-                List<Role> roleList = this.roleLocalService.getRoleListByUsernameAndTenantIdAndProjectId(userName, null, null);
-                res.put("roleList", roleList);
-                if (!org.springframework.util.CollectionUtils.isEmpty(roleList)){
-                    res.put("role", roleList.get(0));
-                }
-            }
-
-            res.put("tenants", tenantDtos);
-
-        }
         return res;
     }
 
@@ -1829,45 +1739,6 @@ public class UserServiceImpl implements UserService {
         return machineUsers.get(0).getToken();
     }
 
-    /**
-     * 描述：同步用户信息
-     */
-    public User syncUser(HttpServletRequest request) throws Exception{
-        //根据cookie中的token获取用户信息
-        com.whchem.sso.client.entity.User ssoUser = SsoClient.getUserByCookie(request);
-        if (null == ssoUser) {
-            return null;
-        }
-        //查询容器云平台是否存在该用户
-        User user = userMapper.findByUsername(ssoUser.getName());
-        if (null == user) {
-            //不存在，新增用户
-            user = new User();
-            user.setUsername(ssoUser.getName());
-            user.setRealName(ssoUser.getDisplayName());
-            user.setEmail(ssoUser.getEmail());
-            user.setCreateTime(DateUtil.getCurrentUtcTime());
-            user.setPause(CommonConstant.NORMAL);
-            user.setIsAdmin(0);
-            userMapper.insert(user);
-        } else {
-            //存在，更新用户信息
-            User updateUser = new User();
-            if (null != ssoUser.getDisplayName() && !ssoUser.getDisplayName().equals(user.getRealName())) {
-                updateUser.setRealName(ssoUser.getDisplayName());
-            }
-            if (null != ssoUser.getEmail() && !ssoUser.getEmail().equals(user.getEmail())) {
-                updateUser.setEmail(ssoUser.getEmail());
-            }
-            if (null != updateUser.getRealName() || null != updateUser.getEmail()) {
-                updateUser.setId(user.getId());
-                updateUser.setUsername(user.getUsername());
-                updateUser.setUpdateTime(DateUtil.getCurrentUtcTime());
-                userMapper.updateByPrimaryKeySelective(updateUser);
-            }
-        }
-        return user;
-    }
 
 
     /**

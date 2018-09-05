@@ -2,7 +2,6 @@ package com.harmonycloud.service.user;
 
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.user.bean.LocalRolePrivilege;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.bean.UserGroup;
@@ -158,7 +157,6 @@ public interface UserService {
 
     String getMachineToken() throws MarsRuntimeException;
 
-    User syncUser(HttpServletRequest request) throws Exception;
 
     /**
      * 新增用户，不做用户名及邮箱校验 （持续交互平台同步用户使用）
