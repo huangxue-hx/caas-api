@@ -1,9 +1,0 @@
-<span ng-bind="conEdit" ng-click="edit()" ng-show="!isEdit&&$$type!=='password'" class="pointer blue"></span>
-<span ng-bind="conEdit|password" ng-click="edit()" ng-show="!isEdit&&$$type==='password'" class="pointer blue"></span>
-
-<input ng-model="conEdit" ng-blur="confirm()" ng-class="{'error': error}" ng-show="isEdit&&($$type=='text')" ng-focus=" error = false" type="text" class="j-input hc-con-add" />
-
-<input ng-model="conEdit" ng-blur="confirm()" ng-class="{'error': error}" ng-show="isEdit&&($$type=='password')" ng-focus=" error = false" type="password" class="j-input hc-con-add" />
-<select ng-class="{'error': error}" ng-show="isEdit&&($$type=='select')"  ng-focus=" error = false" ng-model="conEdit" ng-blur="confirm()" class="j-input hc-con-add hc-two-width">
-	<option ng-repeat="item in clList track by $index" ng-bind="item" value="{{item}}" ></option>
-</select>
