@@ -354,62 +354,22 @@ public class HarborServiceImpl implements HarborService {
     }
 
     public ActionReturnUtil deleteRepo(String harborHost, String repo, String tag) throws Exception {
+        AssertUtil.notBlank(repo, DictEnum.IMAGE_NAME);
         if(StringUtils.isBlank(tag)){
             return this.deleteRepo(harborHost,repo);
         }
-        AssertUtil.notBlank(repo, DictEnum.IMAGE_NAME);
-        //查询该tag的digest标识，删除tag，同时将相同digest的tag一并删除
-        String tagDigest = "";
         HarborRepositoryMessage repository = imageCacheManager.getRepoMessage(harborHost, repo);
         if(repository == null || CollectionUtils.isEmpty(repository.getRepositoryDetial())){
             return ActionReturnUtil.returnErrorWithData(DictEnum.IMAGE.phrase(), ErrorCodeMessage.NOT_EXIST);
         }
-        String deleteTag = "";
-        for(HarborManifest harborManifest : repository.getRepositoryDetial()){
-            if(tag.equals(harborManifest.getTag())){
-                tagDigest = harborManifest.getDigest();
-                break;
-            }
-        }
-        for(HarborManifest harborManifest : repository.getRepositoryDetial()){
-            if(tagDigest.equals(harborManifest.getDigest())){
-                deleteTag += harborManifest.getTag() + COMMA;
-            }
-        }
         HarborServer harborServer = clusterService.findHarborByHost(harborHost);
-        String url = HarborClient.getHarborUrl(harborServer) + "/api/repositories/?repo_name=" + repo;
-        if (StringUtils.isNotBlank(tag)) {
-            if (StringUtils.isBlank(deleteTag)){
-                return ActionReturnUtil.returnErrorWithData(DictEnum.IMAGE.phrase(), ErrorCodeMessage.NOT_EXIST);
-            }
-            url = url + "&tag=" + deleteTag.substring(0,deleteTag.length()-1);
-        }
+        String url = HarborClient.getHarborUrl(harborServer) + "/api/repositories/?repo_name=" + repo + "&tag=" + tag;
         Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
-        ActionReturnUtil response = null;
-        response = HarborHttpsClientUtil.httpDoDelete(url, null, headers);
+        ActionReturnUtil response = HarborHttpsClientUtil.httpDoDelete(url, null, headers);
+        //同一digest的镜像的不同tag版本会一并被删除，需要根据最新tag列表更新缓存
+        imageCacheManager.freshRepositoryByTags(harborHost,repo);
         if (!response.isSuccess()) {
             return response;
-        }
-        //将相同digest的tag一并删除
-        List<HarborManifest> repositoryDetail = repository.getRepositoryDetial();
-        Iterator<HarborManifest> iterator = repositoryDetail.iterator();
-        while(iterator.hasNext()){
-            HarborManifest harborManifest = iterator.next();
-            if(tagDigest.equals(harborManifest.getDigest())){
-                //删除缓存之前先查询一下该digest的tag是否已经被删除
-                ActionReturnUtil harborManifestRes = this.getManifests(harborHost, repo, harborManifest.getTag());
-                //如果tag不存在，删除缓存中的tag
-                if (!harborManifestRes.isSuccess() && harborManifestRes.getData() != null
-                        && harborManifestRes.getData().toString().indexOf("MANIFEST_UNKNOWN") > 0){
-                    iterator.remove();
-                }
-                continue;
-            }
-        }
-        if(CollectionUtils.isEmpty(repository.getRepositoryDetial())){
-            imageCacheManager.deleteRepoMessage(harborHost, repo);
-        }else {
-            imageCacheManager.putRepoMessage(harborHost, repo, repository);
         }
         return ActionReturnUtil.returnSuccess();
 
@@ -775,7 +735,6 @@ public class HarborServiceImpl implements HarborService {
      */
     public HarborRepositoryMessage getHarborRepositoryDetail(String harborHost, String repoName) throws Exception {
         Assert.hasText(repoName);
-        HarborServer harborServer = clusterService.findHarborByHost(harborHost);
         HarborRepositoryMessage harborRepository = new HarborRepositoryMessage();
         List<HarborManifest> repositoryDet = new ArrayList<>();
         Date lastUpdateDate = null;
@@ -797,10 +756,10 @@ public class HarborServiceImpl implements HarborService {
                     lastUpdateDate = operateDate;
                 }
             }
-            repositoryDet.sort((manifest1, manifest2) -> manifest2.getCreateTime().compareTo(manifest1.getCreateTime()));
-
+            repositoryDet = imageCacheManager.sort(repositoryDet);
         }
-        harborRepository.setFullNameRepo(harborHost + COLON + harborServer.getHarborPort() + "/"+repoName);
+        HarborServer harborServer = clusterService.findHarborByHost(harborHost);
+        harborRepository.setFullNameRepo(harborServer.getHarborAddress() + "/"+repoName);
         harborRepository.setRepository(repoName);
         harborRepository.setRepositoryDetial(repositoryDet);
         harborRepository.setTags(repositoryDet.stream().map(HarborManifest::getTag).collect(Collectors.toList()));
@@ -1034,7 +993,7 @@ public class HarborServiceImpl implements HarborService {
                 return Collections.emptyList();
             }
         }else{
-            LOGGER.error("listTag错误,harborHost:{},repoName:{}",harborHost, repoName);
+            LOGGER.error("listTag错误,harborHost:{},repoName:{}，response:{}",new String[]{harborHost, repoName, JSONObject.toJSONString(tagResponse)});
             throw new MarsRuntimeException(DictEnum.IMAGE_TAG.phrase(),ErrorCodeMessage.QUERY_FAIL);
         }
     }

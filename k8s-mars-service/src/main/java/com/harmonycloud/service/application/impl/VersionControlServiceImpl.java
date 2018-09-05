@@ -7,7 +7,6 @@ import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.cluster.bean.RollbackBean;
-import com.harmonycloud.dto.application.CreateConfigMapDto;
 import com.harmonycloud.dto.application.PersistentVolumeDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -141,6 +140,48 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         }
         deped.getSpec().setPaused(false);
 
+        //获取pvc
+        String namespace = detail.getNamespace();
+        String name = detail.getName();
+        Map<String, Object> queryP = new HashMap<>();
+        queryP.put("labelSelector",CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name+"="+ name);
+
+        K8SClientResponse pvcsRes = pvcService.doSepcifyPVC(namespace, queryP, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(pvcsRes.getStatus()) && pvcsRes.getStatus() != Constant.HTTP_404) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(pvcsRes.getBody(), UnversionedStatus.class);
+            throw new MarsRuntimeException(status.getMessage());
+        }
+        //获取所有带有标签的pvc
+        PersistentVolumeClaimList persistentVolumeClaimList = JsonUtil.jsonToPojo(pvcsRes.getBody(), PersistentVolumeClaimList.class);
+        List<PersistentVolumeClaim> persistentVolumeClaims = persistentVolumeClaimList.getItems();
+
+        //获取传过来的pvc
+        List<UpdateContainer> containers = detail.getContainers();
+        for (UpdateContainer container : containers) {
+            List<PersistentVolumeDto> storage = container.getStorage();
+            if(storage.size()==0){
+                for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaims) {
+                    Map<String, Object> labels = persistentVolumeClaim.getMetadata().getLabels();
+                    labels.remove(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name);
+                    pvcService.updatePvcByName(persistentVolumeClaim,cluster);
+                }
+            }else{
+                for (PersistentVolumeDto persistentVolumeDto : storage) {
+                    String pvcName = persistentVolumeDto.getPvcName();
+                    PersistentVolumeClaim pvcByName = pvcService.getPvcByName(namespace, pvcName, cluster);
+                    Map<String, Object> newLabels = pvcByName.getMetadata().getLabels();
+                    newLabels.put(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name,name);
+                    pvcService.updatePvcByName(pvcByName,cluster);
+                    for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaims) {
+                        Map<String, Object> labels = persistentVolumeClaim.getMetadata().getLabels();
+                        if(!pvcByName.equals(persistentVolumeClaim)){
+                            labels.remove(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name);
+                        }
+                        pvcService.updatePvcByName(persistentVolumeClaim,cluster);
+                    }
+                }
+            }
+        }
         //将页面上填写的数据保存到annotation中
         Map<String, Object> anno = deped.getMetadata().getAnnotations();
         anno.put("deployment.canaryupdate/maxsurge", String.valueOf(detail.getMaxSurge()));
@@ -846,7 +887,7 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
             UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
             throw new MarsRuntimeException(status.getMessage());
         }
-        PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(pvcRes.getBody(), com.harmonycloud.k8s.bean.PersistentVolumeClaimList.class);
+        PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(pvcRes.getBody(), PersistentVolumeClaimList.class);
         return pvcList;
     }
 

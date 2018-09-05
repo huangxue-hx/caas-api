@@ -21,6 +21,8 @@ public class StorageClass extends BaseResource {
 
     private String reclaimPolicy;
 
+    private StorageClassParameters parameters;
+
     public String getProvisioner() {
         return provisioner;
     }
@@ -35,5 +37,13 @@ public class StorageClass extends BaseResource {
 
     public void setReclaimPolicy(String reclaimPolicy) {
         this.reclaimPolicy = reclaimPolicy;
+    }
+
+    public StorageClassParameters getParameters() {
+        return parameters;
+    }
+
+    public void setParameters(StorageClassParameters parameters) {
+        this.parameters = parameters;
     }
 }

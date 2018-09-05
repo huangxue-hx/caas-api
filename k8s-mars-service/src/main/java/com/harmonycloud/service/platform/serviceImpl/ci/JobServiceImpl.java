@@ -249,6 +249,7 @@ public class JobServiceImpl implements JobService {
             dataModel.put("job", job);
             dataModel.put("apiUrl", apiUrl);
             dataModel.put("timeout", jenkinsTimeout);
+            dataModel.put("harborAddress", clusterService.findClusterById(jobDto.getClusterId()).getHarborServer().getHarborAddress());
             String script = TemplateUtil.generate("pipeline.ftl", dataModel);
             dataModel.put("script", script);
             String body = TemplateUtil.generate("jobConfig.ftl", dataModel);
@@ -496,11 +497,6 @@ public class JobServiceImpl implements JobService {
                     stage.setImageBaseTag(generateTag(stage));
                     stageMapper.updateStage(stage);
                 }
-            } else if (StageTemplateTypeEnum.DEPLOY.getCode() == stage.getStageTemplateType()) {
-                if (StringUtils.isNotBlank(image) && image.equals(stage.getImageName())) {
-                    stage.setImageTag(tag);
-                }
-                updateDeployStageBuild(stage, stageBuild);
             }
             stageBuildMapper.insert(stageBuild);
         }
@@ -834,6 +830,7 @@ public class JobServiceImpl implements JobService {
         jobbuild.setBuildNum(buildNum);
         List<JobBuild> jobBuildList = jobBuildMapper.queryByObject(jobbuild);
         List<Stage> stageList = stageService.getStageByJobId(id);
+        Map<String, String> buildImageMap = new HashMap<>();
         if (jobBuildList == null || jobBuildList.size() == 0) {
             Map params = new HashMap<>();
             params.put("tree", "number,timestamp");
@@ -881,12 +878,15 @@ public class JobServiceImpl implements JobService {
                         } else {
                             stageBuild.setImage(stage.getHarborProject() + "/" + stage.getImageName() + ":" + tagMap.get("tag" + stage.getStageOrder()));
                         }
+                        buildImageMap.put(stageBuild.getImage().split(":")[0], stageBuild.getImage().split(":")[1]);
                         if (CommonConstant.IMAGE_TAG_RULE.equals(stage.getImageTagType())) {
                             stage.setImageBaseTag(generateTag(stage));
                             stageMapper.updateStage(stage);
                         }
-                    }
-                    if (StageTemplateTypeEnum.DEPLOY.getCode() == stage.getStageTemplateType()) {
+                    } else if (StageTemplateTypeEnum.DEPLOY.getCode() == stage.getStageTemplateType()) {
+                        if(buildImageMap.get(stage.getImageName()) != null && stage.getOriginStageId() != null && StringUtils.isBlank(stage.getImageTag())){
+                            stage.setImageTag(buildImageMap.get(stage.getImageName()));
+                        }
                         updateDeployStageBuild(stage, stageBuild);
                     }
                     stageBuildMapper.insert(stageBuild);
@@ -910,8 +910,11 @@ public class JobServiceImpl implements JobService {
                         } else {
                             stageBuild.setImage(stage.getHarborProject() + "/" + stage.getImageName() + ":" + tagMap.get("tag" + stage.getStageOrder()));
                         }
-
+                        buildImageMap.put(stageBuild.getImage().split(":")[0], stageBuild.getImage().split(":")[1]);
                     } else if (StageTemplateTypeEnum.DEPLOY.getCode() == stage.getStageTemplateType() && StringUtils.isBlank(stageBuild.getImage())) {
+                        if(buildImageMap.get(stage.getImageName()) != null && stage.getOriginStageId() == null && StringUtils.isBlank(stage.getImageTag())){
+                            stage.setImageTag(buildImageMap.get(stage.getImageName()));
+                        }
                         updateDeployStageBuild(stage, stageBuild);
                     }
                     stageBuildMapper.updateByStageOrderAndBuildNum(stageBuild);
@@ -1596,7 +1599,7 @@ public class JobServiceImpl implements JobService {
                     Thread.sleep(Constant.THREAD_SLEEP_TIME_10000);
                     serviceStarted = true;
                     repeat--;
-                    ActionReturnUtil result = deploymentsService.getDeploymentDetail(namespace, serviceName);
+                    ActionReturnUtil result = deploymentsService.getDeploymentDetail(namespace, serviceName,false);
                     if (result.isSuccess()) {
                         //获取服务状态，并判断
                         AppDetail appDetail = (AppDetail) result.get("data");
@@ -2647,8 +2650,7 @@ public class JobServiceImpl implements JobService {
 
     private String generateScript(Job job, List<Stage> stageList) throws Exception {
         Map dataModel = new HashMap();
-        dataModel.put("harborHost", clusterService.findClusterById(job.getClusterId()).getHarborServer().getHarborHost());
-        dataModel.put("harborPort", String.valueOf(clusterService.findClusterById(job.getClusterId()).getHarborServer().getHarborPort()));
+        dataModel.put("harborAddress", clusterService.findClusterById(job.getClusterId()).getHarborServer().getHarborAddress());
         List<StageDto> stageDtoList = new ArrayList<>();
         List<StageDto> imageBuildStages = new ArrayList<>();
         Map<Integer, DockerFile> dockerFileMap = new HashedMap();
@@ -2665,7 +2667,7 @@ public class JobServiceImpl implements JobService {
                     String image = buildEnvironment.getImage();
                     if (image.split("/").length < CommonConstant.NUM_THREE) {
                         Cluster topCluster = clusterService.getPlatformCluster();
-                        image = topCluster.getHarborServer().getHarborHost() + ":" + topCluster.getHarborServer().getHarborPort() + "/" + image;
+                        image = topCluster.getHarborServer().getHarborAddress() + "/" + image;
                     }
                     newStageDto.setEnvironmentChange(true);
                     newStageDto.setBuildEnvironment(image);
@@ -2720,7 +2722,7 @@ public class JobServiceImpl implements JobService {
 
     private void verifyUpgrade(String service, String namespace, boolean manually) throws Exception {
         //判断服务是否启动
-        ActionReturnUtil deploymentDetailResult = deploymentsService.getDeploymentDetail(namespace, service);
+        ActionReturnUtil deploymentDetailResult = deploymentsService.getDeploymentDetail(namespace, service,false);
         if (deploymentDetailResult.isSuccess()) {
             AppDetail appDetail = (AppDetail) deploymentDetailResult.getData();
             if (appDetail != null) {

@@ -34,6 +34,8 @@ public class storageClassServiceTest extends BaseTest {
 
     private static StorageClassDto storageClassDto2;
 
+    private static StorageClassDto storageClassDto3;
+
     @BeforeClass
     public void createStorageClassData() {
         Map<String, String> configMap = new HashMap<>();
@@ -47,18 +49,34 @@ public class storageClassServiceTest extends BaseTest {
         storageClassDto.setConfigMap(configMap);
 
         storageClassDto2 = new StorageClassDto();
-        storageClassDto2.setName("dependence-storage-class");
-        storageClassDto2.setType("NFS");
-        storageClassDto2.setClusterId(platformClusterId);
-        storageClassDto2.setStorageLimit("10");
-        storageClassDto2.setConfigMap(configMap);
+        storageClassDto.setName("dependence-storage-class");
+        storageClassDto.setType("NFS");
+        storageClassDto.setClusterId(platformClusterId);
+        storageClassDto.setStorageLimit("10");
+        storageClassDto.setConfigMap(configMap);
+
+        Map<String, String> cephConfigMap = new HashMap<>();
+        cephConfigMap.put("monitors", "10.10.101.9:6789,10.10.101.10:6789,10.10.101.11:6789");
+        cephConfigMap.put("pool", "kube");
+        cephConfigMap.put("adminId", "admin");
+        cephConfigMap.put("userId", "kube");
+        cephConfigMap.put("cephAdminSecret", "QVFCQTRWWmI5b0RoTVJBQUg1T0tDa3ZDcTMzUlJvTEsyWUIydmc9PQ==");
+        cephConfigMap.put("cephUserSecret", "QVFDUDUxWmJOUGZCR2hBQUJKbjROWlI1TDZNNEJmNmtldmJMM2c9PQ==");
+        storageClassDto3 = new StorageClassDto();
+        storageClassDto3.setName("test-ceph-rbd");
+        storageClassDto3.setType("CEPH-RBD");
+        storageClassDto3.setClusterId(devClusterId);
+        storageClassDto3.setStorageLimit("10");
+        storageClassDto3.setConfigMap(configMap);
 
     }
+
 
     @Test(priority = 0)
     public void createStorageClassTest() throws Exception {
         assertTrue(storageClassService.createStorageClass(storageClassDto).isSuccess());
         assertTrue(storageClassService.createStorageClass(storageClassDto2).isSuccess());
+        assertTrue(storageClassService.createStorageClass(storageClassDto3).isSuccess());
     }
 
     @Test(priority = 1)

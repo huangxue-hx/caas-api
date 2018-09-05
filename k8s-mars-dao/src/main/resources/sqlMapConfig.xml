@@ -103,7 +103,6 @@
 <!--         <mapper resource="com/harmonycloud/mapping/ConfigItemMapper.xml" /> -->
         <!--  配置中心 gurongyun end -->
          <mapper resource="com/harmonycloud/mapping/NetworkTopologyMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/AuthUserMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/NodeDrainProgressMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/NodeInstallProgressMapper.xml" />
          <mapper resource="com/harmonycloud/mapping/JobMapper.xml" />

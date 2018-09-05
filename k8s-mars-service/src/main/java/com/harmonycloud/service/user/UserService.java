@@ -89,12 +89,6 @@ public interface UserService {
 
     ActionReturnUtil listCommonUsers() throws Exception;
 
-    String getPassword(String userName);
-
-    void addLdapUser(String userName, String password, String harborId);
-
-    void updateLdapUser(String userName, String password) throws Exception;
-
     /**
      * 创建用户组
      * @param usergroup

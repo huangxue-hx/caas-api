@@ -3120,6 +3120,14 @@ CREATE TABLE `system_config` (
   UNIQUE KEY `config_name` (`config_name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=45 DEFAULT CHARSET=utf8;
 
+INSERT INTO system_config (config_name, config_value, config_type, create_user)
+VALUES ('provisionerImageName', '/k8s-deploy/nfs-client-provisioner:v2.1.0', 'nfs-provisioner', 'admin');
+
+INSERT INTO system_config (config_name, config_value, config_type, create_user)
+VALUES ('cephRBDImageName', '/k8s-deploy/rbd-provisioner:latest', 'ceph-rbd-provisioner', 'admin');
+
+INSERT INTO system_config (config_name, config_value, config_type, create_user)
+VALUES ('recycleImageName', '/k8s-deploy/busybox', 'recycle-pod', 'admin');
 -- ----------------------------
 -- Records of system_config
 -- ----------------------------

@@ -621,6 +621,16 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	}
 
 	@Override
+	public ActionReturnUtil getImage(Integer repositoryId, String image) throws Exception {
+		ImageRepository imageRepository = imageRepositoryMapper.findRepositoryById(repositoryId);
+		HarborRepositoryMessage harborRepositoryMessage = imageCacheManager.freshRepositoryByTags(imageRepository.getHarborHost(), image);
+		if(harborRepositoryMessage == null){
+			return ActionReturnUtil.returnErrorWithData(DictEnum.IMAGE.phrase(),ErrorCodeMessage.NOT_EXIST);
+		}
+        return ActionReturnUtil.returnSuccessWithData(harborRepositoryMessage);
+	}
+
+	@Override
 	public ActionReturnUtil getManifests(Integer repositoryId, String image, String tag) throws Exception {
 		ImageRepository imageRepository = imageRepositoryMapper.findRepositoryById(repositoryId);
 		return harborService.getManifests(imageRepository.getHarborHost(),image,tag);
@@ -641,7 +651,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		}
 		HarborServer harborServer = clusterService.findHarborByHost(repository.getHarborHost());
 		File imageFile = null;
-		String imageFullName = harborServer.getHarborHost() + COLON + harborServer.getHarborPort() + SLASH + repository.getHarborProjectName()
+		String imageFullName = harborServer.getHarborAddress() + SLASH + repository.getHarborProjectName()
 				+ SLASH + imageName + COLON + tag;
 		String filePath = uploadPath + File.separator + IMAGE_FILE_UPLOAD_PATH + File.separator
                             + imageName + File.separator + tag + File.separator;
@@ -672,7 +682,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		AssertUtil.notBlank(tag, DictEnum.IMAGE_TAG);
 		ImageRepository repository = imageRepositoryMapper.findRepositoryById(repositoryId);
 		HarborServer harborServer = clusterService.findHarborByHost(repository.getHarborHost());
-		String imageFullName = harborServer.getHarborHost() + COLON + harborServer.getHarborPort() + SLASH + imageName + CommonConstant.COLON + tag;
+		String imageFullName = harborServer.getHarborAddress() + SLASH + imageName + CommonConstant.COLON + tag;
 		String fileName = this.getTarFileName(imageFullName);
 		//如果镜像已经在拉取中，不能重复提交拉取
 		BoundHashOperations<String, String, String> statusHashOps = stringRedisTemplate
@@ -770,15 +780,15 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			HarborImageCopy imageCopy = new HarborImageCopy(destHarborHost, repoName, tag, destRepoName, tag);
 			ActionReturnUtil response = harborReplicationService.copyImage(imageCopy);
 			if(!response.isSuccess()){
-				logger.error("镜像推送失败,response:{}",JSONObject.toJSONString(response));
+				logger.error("镜像推送失败,response:{}", JSONObject.toJSONString(response));
 				return false;
 			}
 			imageUpdateQueue.put(new HarborLog(destHarborHost, destRepoName, tag));
 		}else{
 			HarborServer sourceHarborServer = clusterService.findHarborByHost(sourceRepository.getHarborHost());
 			HarborServer destHarborServer = clusterService.findHarborByHost(destRepository.getHarborHost());
-			String sourceImageName = sourceHarborServer.getHarborHost() + COLON + sourceHarborServer.getHarborPort() + SLASH + repoName + COLON + tag;
-			String destImageName = destRepository.getHarborHost() + COLON + destHarborServer.getHarborPort() + SLASH + destRepoName + COLON + tag;
+			String sourceImageName = sourceHarborServer.getHarborAddress() + SLASH + repoName + COLON + tag;
+			String destImageName = destHarborServer.getHarborAddress() + SLASH + destRepoName + COLON + tag;
 			//登录源harbor服务器
 			HarborClient.checkHarborAdminCookie(sourceHarborServer);
 			//登录目标harbor服务器
@@ -930,7 +940,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 				repository.setRepositoryName(harborProject.getProjectName());
 				repository.setIsPublic(Boolean.TRUE);
 				this.insertRepository(repository);
-				logger.info("添加公共镜像仓库:{}",JSONObject.toJSONString(repository));
+				logger.info("添加公共镜像仓库:{}", JSONObject.toJSONString(repository));
 			}
 		}
 	}
@@ -1138,7 +1148,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 
 	private RegistryAuth dockerAuth(HarborServer harborServer) throws Exception{
 		return RegistryAuth.builder()
-				.serverAddress(harborServer.getHarborProtocol() + "://" + harborServer.getHarborHost() + ":" + harborServer.getHarborPort())
+				.serverAddress(harborServer.getHarborUrl())
 				.username(harborServer.getHarborAdminAccount())
 				.password(harborServer.getHarborAdminPassword())
 				.build();
@@ -1190,7 +1200,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		AssertUtil.notBlank(tag, DictEnum.IMAGE_TAG);
 		ImageRepository repository = imageRepositoryMapper.findRepositoryById(repositoryId);
 		HarborServer harborServer = clusterService.findHarborByHost(repository.getHarborHost());
-		String imageFullName = harborServer.getHarborHost() + COLON + harborServer.getHarborPort() + SLASH + imageName + CommonConstant.COLON + tag;
+		String imageFullName = harborServer.getHarborAddress() + SLASH + imageName + CommonConstant.COLON + tag;
 		return imageFullName;
 	}
 
@@ -1219,7 +1229,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 				ActionReturnUtil res = harborService.getManifestsWithVulnerabilitySum(harborLog.getHarborHost(),
 						harborLog.getRepoName(), harborLog.getRepoTag());
 				if(res.isSuccess() && res.getData() != null){
-					logger.info("检查镜像上传结果: 已上传，更新缓存,镜像信息:{}",JSONObject.toJSONString(harborLog));
+					logger.info("检查镜像上传结果: 已上传，更新缓存,镜像信息:{}", JSONObject.toJSONString(harborLog));
 					HarborManifest harborManifest = (HarborManifest)res.getData();
 					//如果镜像扫描结果是异常，可能扫描结果未更新，再检查一次
 					if(harborManifest.getAbnormal() && DateUtil.addSecond(harborLog.getOperationTime(),NUM_FIVE).after(new Date())){
@@ -1229,14 +1239,14 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 					imageCacheManager.addRepoTag(harborLog.getHarborHost(),harborLog.getRepoName(),harborManifest);
 					HarborServer harborServer = clusterService.findHarborByHost(harborLog.getHarborHost());
 					//更新镜像触发流水线构建
-					triggerService.triggerJobByImage(harborLog.getHarborHost()+COLON+harborServer.getHarborPort()+SLASH+harborLog.getRepoName(),harborLog.getRepoTag());
+					triggerService.triggerJobByImage(harborServer.getHarborAddress()+SLASH+harborLog.getRepoName(),harborLog.getRepoTag());
 					continue;
 				}
 				//上传之后检查10分钟，超过10分钟不再继续
 				if(DateUtil.addMinute(harborLog.getOperationTime(),PUSH_IMAGE_GET_TRY_MINUTES).after(new Date())){
 					keepCheckLog.add(harborLog);
 				}else{
-					logger.info("检查镜像上传结果: 未上传，已超过10分钟，放弃,镜像信息:{}",JSONObject.toJSONString(harborLog));
+					logger.info("检查镜像上传结果: 未上传，已超过10分钟，放弃,镜像信息:{}", JSONObject.toJSONString(harborLog));
 				}
 			}catch (Exception e){
 				logger.error("检查镜像上传结果失败，",e);

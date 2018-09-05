@@ -1,4 +1,5 @@
 package com.harmonycloud.service.user;
+import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.dto.user.RoleDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -158,6 +159,24 @@ public interface RoleLocalService {
     public void disableRoleByRoleId(Integer roleId) throws Exception;
 
     /**
+     * 处理添加用户harbor的角色权限
+     * @param targetMember
+     * @param projectId
+     * @param username
+     * @param roleId
+     * @throws Exception
+     */
+    public void addHarborUserRole(HarborMemberEnum targetMember, String projectId, String username, Integer roleId) throws Exception;
+
+    /**
+     * 更新用户harbor的角色权限
+     * @param targetMember
+     * @param projectId
+     * @param userName
+     * @throws Exception
+     */
+    public void updateHarborUserRole(HarborMemberEnum targetMember,String projectId,String userName)throws Exception;
+    /**
      * 根据角色id复制新角色
      * @param roleId
      * @param nickName
@@ -170,4 +189,10 @@ public interface RoleLocalService {
      * @throws Exception
      */
     int deleteRoleCluster(String clusterId) throws Exception;
+
+    /**
+     * 初始化harbor用户角色
+     * @throws Exception
+     */
+    public void initHarborRole() throws Exception;
 }

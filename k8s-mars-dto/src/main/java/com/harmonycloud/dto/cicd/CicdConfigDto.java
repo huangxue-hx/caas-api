@@ -8,6 +8,7 @@ package com.harmonycloud.dto.cicd;
  */
 public class CicdConfigDto {
     Integer remainNumber;
+    boolean isTypeMerge;
 
     public Integer getRemainNumber() {
         return remainNumber;
@@ -15,5 +16,13 @@ public class CicdConfigDto {
 
     public void setRemainNumber(Integer remainNumber) {
         this.remainNumber = remainNumber;
+    }
+
+    public boolean isTypeMerge() {
+        return isTypeMerge;
+    }
+
+    public void setTypeMerge(boolean isTypeMerge) {
+        this.isTypeMerge = isTypeMerge;
     }
 }

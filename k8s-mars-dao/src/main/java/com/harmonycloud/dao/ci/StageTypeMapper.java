@@ -1,6 +1,7 @@
 package com.harmonycloud.dao.ci;
 
 import com.harmonycloud.dao.ci.bean.StageType;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -16,5 +17,5 @@ public interface StageTypeMapper {
 
     StageType queryById(Integer stageTypeId);
 
-    List<StageType> queryByType(String type);
+    List<StageType> queryByType(@Param("type")String type);
 }

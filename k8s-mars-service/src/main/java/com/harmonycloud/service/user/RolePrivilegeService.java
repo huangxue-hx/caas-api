@@ -1,5 +1,6 @@
 package com.harmonycloud.service.user;
 
+import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.dao.user.bean.RolePrivilege;
 import com.harmonycloud.dto.user.PrivilegeDto;
 
@@ -27,6 +28,13 @@ public interface RolePrivilegeService {
      * @throws Exception
      */
     public void updateRolePrivilege(Integer roleId,List<PrivilegeDto> rolePrivilegeList) throws Exception;
+
+    /**
+     * 获取当前角色的harbormember
+     * @param roleId
+     * @throws Exception
+     */
+    public HarborMemberEnum getHarborRole(Integer roleId) throws Exception;
 
     /**
      * 同步角色菜单

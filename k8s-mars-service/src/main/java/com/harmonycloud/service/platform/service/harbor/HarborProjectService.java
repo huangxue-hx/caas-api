@@ -142,6 +142,8 @@ public interface HarborProjectService {
 
 	ActionReturnUtil deleteImage(Integer repositoryId, String image, String tag) throws Exception ;
 
+	ActionReturnUtil getImage(Integer repositoryId, String image) throws Exception ;
+
 	ActionReturnUtil getManifests(Integer repositoryId, String repoName, String tag) throws Exception;
 
 	ActionReturnUtil uploadImage(Integer repositoryId, MultipartFile file, String imageName, String tag) throws Exception;

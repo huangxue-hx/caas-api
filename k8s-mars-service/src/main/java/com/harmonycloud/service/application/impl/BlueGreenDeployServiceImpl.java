@@ -4,18 +4,14 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
-import com.harmonycloud.dto.application.CreateConfigMapDto;
 import com.harmonycloud.dto.application.PersistentVolumeDto;
 import com.harmonycloud.dto.application.SecurityContextDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8SClient;
-import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
-import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
-import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.BlueGreenDeployService;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.PersistentVolumeService;
@@ -91,6 +87,45 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
             throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
         String name = updateDeployment.getName();
+        Map<String, Object> queryP = new HashMap<>();
+        queryP.put("labelSelector",CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name+"="+ name);
+
+        K8SClientResponse pvcsRes = pvcService.doSepcifyPVC(namespace, queryP, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(pvcsRes.getStatus()) && pvcsRes.getStatus() != Constant.HTTP_404) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(pvcsRes.getBody(), UnversionedStatus.class);
+            throw new MarsRuntimeException(status.getMessage());
+        }
+        //获取所有带有标签的pvc
+        PersistentVolumeClaimList persistentVolumeClaimList = JsonUtil.jsonToPojo(pvcsRes.getBody(), PersistentVolumeClaimList.class);
+        List<PersistentVolumeClaim> persistentVolumeClaims = persistentVolumeClaimList.getItems();
+
+        //pvc绑定服务
+        List<UpdateContainer> containers = updateDeployment.getContainers();
+        for (UpdateContainer container : containers) {
+            List<PersistentVolumeDto> storage = container.getStorage();
+            if(storage==null){
+                for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaims) {
+                    Map<String, Object> labels = persistentVolumeClaim.getMetadata().getLabels();
+                    labels.remove(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name);
+                    pvcService.updatePvcByName(persistentVolumeClaim,cluster);
+                }
+            }else{
+                for (PersistentVolumeDto persistentVolumeDto : storage) {
+                    String pvcName = persistentVolumeDto.getPvcName();
+                    PersistentVolumeClaim pvcByName = pvcService.getPvcByName(namespace, pvcName, cluster);
+                    Map<String, Object> newLabels = pvcByName.getMetadata().getLabels();
+                    newLabels.put(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name,name);
+                    pvcService.updatePvcByName(pvcByName,cluster);
+                    for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaims) {
+                        Map<String, Object> labels = persistentVolumeClaim.getMetadata().getLabels();
+                        if(!pvcByName.equals(persistentVolumeClaim)){
+                            labels.remove(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name);
+                        }
+                        pvcService.updatePvcByName(persistentVolumeClaim,cluster);
+                    }
+                }
+            }
+        }
 
         // 获取deployment
         K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
@@ -137,6 +172,8 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
 
         // 更新deployment对象内的数据
         dep = KubeServiceConvert.convertDeploymentUpdate(dep, updateDeployment.getContainers(), name, containerToConfigMap, cluster);
+
+
 
         // 设置蓝绿发布相关的参数
         DeploymentStrategy strategy = new DeploymentStrategy();

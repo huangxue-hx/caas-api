@@ -8,15 +8,10 @@ import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.user.RolePrivilegeMapper;
 import com.harmonycloud.dao.user.bean.*;
-import com.harmonycloud.dao.user.ResourceMapper;
-import com.harmonycloud.dto.user.MenuDto;
+import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.dto.user.PrivilegeDto;
-import com.harmonycloud.dto.user.RoleDto;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.service.platform.serviceImpl.infrastructure.NodeServiceImpl;
 import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.user.*;
-import com.harmonycloud.service.tenant.RoleService;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -27,7 +22,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
 
 import javax.servlet.http.HttpSession;
 
@@ -218,6 +212,34 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
         }
 
     }
+
+    @Override
+    public HarborMemberEnum getHarborRole(Integer roleId) throws Exception {
+        boolean pullStatus = false;
+        boolean pushStatus = false;
+
+        RolePrivilege pullPrivilege = this.getRolePrivilegeByRoleIdAndPid(roleId, 30);
+        RolePrivilege pushPrivilege = this.getRolePrivilegeByRoleIdAndPid(roleId, 31);
+        if (!(Objects.isNull(pullPrivilege))) {
+            pullStatus = pullPrivilege.getStatus();
+        }
+        if (!(Objects.isNull(pushPrivilege))) {
+            pushStatus = pushPrivilege.getStatus();
+        }
+        if( pullStatus || pushStatus ){
+            if (pushStatus) {
+                return HarborMemberEnum.DEVELOPER;
+            }
+            return HarborMemberEnum.GUEST;
+        }
+        return HarborMemberEnum.NONE;
+    }
+
+
+
+
+
+
     public void syncRoleMenu(Integer roleId,Integer privilegeId,Boolean status) throws Exception{
         //获取权限
         Privilege privilege = this.privilegeService.getPrivilegeById(privilegeId);
@@ -459,7 +481,7 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
 
         if (isUpdateSubMenu){
             //如果需要更新子菜单，当子菜单存在的时候更新子菜单
-           this.updateSubRoleMenu(roleId,rmid,status,null);
+            this.updateSubRoleMenu(roleId,rmid,status,null);
         }
 
     }

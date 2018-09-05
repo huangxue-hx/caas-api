@@ -38,6 +38,7 @@ public class User implements Serializable {
     private Date update_time;
     private String groupName;
     private Integer isAuthorize;
+    private Boolean isLdapUser;
 
     public Integer getIsAuthorize() {
         return isAuthorize;
@@ -209,6 +210,15 @@ public class User implements Serializable {
         this.email = email;
     }
 
+
+    public Boolean getIsLdapUser() {
+        return isLdapUser;
+    }
+
+    public void setIsLdapUser(Boolean ldapUser) {
+        isLdapUser = ldapUser;
+    }
+
     @Override
     public String toString() {
         return "User{" +
@@ -235,4 +245,5 @@ public class User implements Serializable {
                 ", isAuthorize=" + isAuthorize +
                 '}';
     }
+
 }

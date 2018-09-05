@@ -92,7 +92,7 @@ public class StageController {
 
     @RequestMapping(value = "/stagetypes", method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil listStageType(@PathVariable("tenantId") String tenantId, @RequestParam(value="type") String type) throws Exception{
+    public ActionReturnUtil listStageType(@PathVariable("tenantId") String tenantId, @RequestParam(value="type", required = false) String type) throws Exception{
         return ActionReturnUtil.returnSuccessWithData(stageService.listStageType(type));
     }
 

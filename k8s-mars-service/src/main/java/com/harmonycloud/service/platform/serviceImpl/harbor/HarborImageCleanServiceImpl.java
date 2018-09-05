@@ -308,6 +308,9 @@ public class HarborImageCleanServiceImpl implements HarborImageCleanService {
                 if (detail.getRule().getTimeBefore() != null && detail.getRule().getTimeBefore() > 0){
                     Date startDate = DateUtils.addDays(DateUtil.getCurrentUtcTime(), -detail.getRule().getTimeBefore());
                     for(HarborManifest harborManifest : harborManifests) {
+                        if(harborManifest.getCreateTime() == null){
+                            continue;
+                        }
                         Date tagCreatedTime = DateUtil.stringToDate(harborManifest.getCreateTime(),
                                 DateStyle.YYYY_MM_DD_HH_MM_SS.getValue(), TIME_ZONE_UTC);
                         if (tagCreatedTime.after(startDate)) {

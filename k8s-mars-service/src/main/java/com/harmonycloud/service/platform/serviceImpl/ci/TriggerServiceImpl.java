@@ -16,7 +16,8 @@ import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.platform.service.ci.StageService;
 import com.harmonycloud.service.platform.service.ci.TriggerService;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang.StringUtils;
+
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
@@ -35,6 +36,8 @@ import java.util.List;
  */
 @Service
 public class TriggerServiceImpl implements TriggerService{
+    private static final int GIT = 1;
+    private static final int SVN = 2;
 
     private static final Logger logger = LoggerFactory.getLogger(TriggerServiceImpl.class);
 
@@ -131,7 +134,7 @@ public class TriggerServiceImpl implements TriggerService{
             Job job = jobService.getJobById(trigger.getJobId());
             Cluster cluster = clusterService.findClusterById(job.getClusterId());
             if(cluster.getHarborServer() != null){
-                trigger.setTriggerImage(cluster.getHarborServer().getHarborHost() + ":" + cluster.getHarborServer().getHarborPort() + "/" + trigger.getTriggerImage());
+                trigger.setTriggerImage(cluster.getHarborServer().getHarborAddress() + "/" + trigger.getTriggerImage());
             }
         }
         if(trigger.getId() == null){
@@ -167,18 +170,52 @@ public class TriggerServiceImpl implements TriggerService{
      * @throws Exception
      */
     @Override
-    public void triggerJob(String uuid, String ref) throws Exception {
+    public void triggerJob(String uuid, String ref, int repositoryType) throws Exception {
         Job job = jobService.getJobByUuid(uuid);
-        String branch = ref.replaceFirst("refs/heads/", "");
         List<Stage> stageList = stageService.getStageByJobId(job.getId());
         boolean checkout = false;
         boolean branchMatch = false;
-        for(Stage stage : stageList){
-            if(StageTemplateTypeEnum.CODECHECKOUT.getCode() == stage.getStageTemplateType()){
-                checkout = true;
-                if(("branch:"+branch).equals(stage.getRepositoryBranch())){
-                    branchMatch = true;
-                    break;
+        if(repositoryType == GIT){
+            String branch = ref.replaceFirst("refs/heads/", "");
+            for(Stage stage : stageList){
+                if(StageTemplateTypeEnum.CODECHECKOUT.getCode() == stage.getStageTemplateType()){
+                    checkout = true;
+                    if(("branch:"+branch).equals(stage.getRepositoryBranch())){
+                        branchMatch = true;
+                        break;
+                    }
+                }
+            }
+        }else if(repositoryType == SVN){
+            for(Stage stage : stageList){
+                if(StageTemplateTypeEnum.CODECHECKOUT.getCode() == stage.getStageTemplateType()){
+                    checkout = true;
+                    //从仓库路径获取分支信息
+                    String[] urlList = stage.getRepositoryUrl().split(CommonConstant.SLASH);
+                    String urlTrunk = "";
+                    String urlBranch = "";
+                    if(urlList.length>0) {
+                        urlTrunk = urlList[urlList.length - 1];
+                    }
+                    if(urlList.length>1) {
+                        urlBranch = urlList[urlList.length - 2] + CommonConstant.SLASH + urlList[urlList.length - 1];
+                    }
+                    //从请求路径获取分支信息
+                    String[] refList = ref.split(CommonConstant.SLASH);
+                    String refTrunk = "";
+                    String refBranch = "";
+                    if(refList.length>0) {
+                        refTrunk = refList[0];
+                    }
+                    if(refList.length>1) {
+                        refBranch = refList[0] + CommonConstant.SLASH + refList[1];
+                    }
+
+                    if((StringUtils.isNoneBlank(urlTrunk, refTrunk) && StringUtils.equalsIgnoreCase(urlTrunk, refTrunk))
+                            ||(StringUtils.isNoneBlank(urlBranch, refBranch) && StringUtils.equalsIgnoreCase(urlBranch, refBranch))){
+                        branchMatch = true;
+                        break;
+                    }
                 }
             }
         }

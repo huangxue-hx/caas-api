@@ -239,6 +239,8 @@ public class Constant {
 	//configmap类型
 	public final static String TYPE_DAEMONSET = "harmonycloud/daemonSets";
 
+	public final static String LABEL_DAEMONSET = "harmonycloud.cn/daemonset";
+
 	public final static String KIND_DAEMONSET = "DaemonSet";
 
 	//volume的logdir的名称:logdir

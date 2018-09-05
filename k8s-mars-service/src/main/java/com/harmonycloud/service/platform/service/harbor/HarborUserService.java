@@ -31,6 +31,15 @@ public interface HarborUserService {
     Integer createUser(HarborServer harborServer, User user) throws Exception;
 
     /**
+     * 登录harbor
+     * @param harborServer
+     * @param user
+     * @return
+     * @throws Exception
+     */
+    void harborUserLogin(HarborServer harborServer, User user) throws Exception;
+
+    /**
      * 根据harbor用户名获取集群对应harbor的用户信息
      * @param harborServer
      * @param userName
@@ -100,6 +109,16 @@ public interface HarborUserService {
      * @throws Exception
      */
     List<HarborUser> usersOfProject(String harborHost, Integer harborProjectId) throws Exception;
+
+    /**
+     * 根据username 查询出在该project的user 权限详情
+     * @param harborHost
+     * @param harborProjectId
+     * @param username
+     * @return
+     * @throws Exception
+     */
+    List<HarborUser> usersOfProjectByUsername(String harborHost, Integer harborProjectId, String username) throws Exception;
 
     /**
      * 创建repository下的role

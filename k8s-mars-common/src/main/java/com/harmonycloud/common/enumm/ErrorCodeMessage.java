@@ -307,12 +307,16 @@ public enum ErrorCodeMessage {
     PV_PROVIDER_NOT_EXIST(402005, "PV is not provided.", "PV存储未提供"),
     PV_RELEASE_FAIL(402006, "PV released failed.", "PV释放失败"),
     NFS_PROVISIONER_CREATE_FAIL(402007, "NFS server address or directory parameter error.", "NFS服务器地址或目录参数错误"),
-    STORAGECLASS_TYPE_ERROR(402008, "The storage type is currently only supported by NFS", "StorageClass使用的存储类型目前仅支持NFS"),
+    STORAGECLASS_TYPE_ERROR(402008, "The storage type is not supported", "StorageClass使用的存储类型目前尚不支持"),
     STORAGECLASS_DELETE_ERROR(402009, "Failed to delete StorageClass. StorageClass is already used. Please delete related storage volume first.", "StorageClass删除失败，StorageClass已经被使用，请先删除相关存储卷"),
     PVC_CAN_NOT_DELETE(402010, "The storage has been used, not to delete.", "该存储已经被使用，不允许删除"),
     NFS_PROVISIONER_CONFIG_ERROR(402011, "The configuration of the nfs plugin image is not found in the system configuration", "系统配置中没有找到nfs插件镜像的配置"),
     RECYCLE_POD_CONFIG_ERROR(402012, "The configuration to clear the storage plugin image was not found in the system configuration.", "系统配置中没有找到清空存储插件镜像的配置"),
     PVC_UPDATE_ERROR(402013, "PVC update failed", "PVC更新失败"),
+    CEPH_RBD_PROVISIONER_CREATE_FAIL(402014, "Create ceph rbd plugin failure.", "ceph rbd 插件创建失败"),
+    CEPH_RBD_PROVISIONER_CONFIG_ERROR(402015, "The configuration of the ceph rbd plugin image is not found in the system configuration", "系统配置中没有找到ceph rbd插件镜像的配置"),
+    CEPH_RBD_SECRET_CREATE_FAIL(402016, "Create ceph rbd secret failure.", "ceph rbd secret创建失败"),
+    CEPH_RBD_PROVISIONER_NOT_EXIST(402017, "Ceph rbd plugin not exist.", "Ceph rbd 插件不存在"),
 
     //弹性伸缩 403xxx
     SERVICE_AUTOSCALE_CREATE_FAILURE(403001, "Create autoScale failure.", "自动伸缩创建失败"),

@@ -2,6 +2,7 @@ package com.harmonycloud.service.tenant.impl;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.SsoClient;
 import com.harmonycloud.common.util.StringUtil;
@@ -38,6 +39,8 @@ import com.harmonycloud.service.user.LocalRoleService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserRoleRelationshipService;
 import com.harmonycloud.service.user.UserService;
+import com.harmonycloud.service.platform.service.harbor.HarborUserService;
+import com.harmonycloud.service.user.*;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,6 +100,10 @@ public class ProjectServiceImpl implements ProjectService {
     DependenceService dependenceService;
     @Autowired
     BuildEnvironmentService buildEnvironmentService;
+    @Autowired
+    HarborUserService harborUserService;
+    @Autowired
+    RolePrivilegeService rolePrivilegeService;
     @Autowired
     DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
     @Autowired
@@ -208,6 +215,22 @@ public class ProjectServiceImpl implements ProjectService {
         List pmList = projectDto.getPmList();
         if (!CollectionUtils.isEmpty(pmList)){
             this.createPm(tenantId,projectId,pmList);
+        }
+
+        // deal harbor user privilege
+        try {
+            String tmUsernames = tenant.getTmUsernames();
+            if (StringUtils.isNotBlank(tmUsernames)){
+                String[] split = tmUsernames.split(CommonConstant.COMMA);
+                if (split.length > 0){
+                    for (String tm : split) {
+                        this.roleLocalService.addHarborUserRole(HarborMemberEnum.PROJECTADMIN,projectId,tm,CommonConstant.TM_ROLEID);
+                    }
+                }
+            }
+
+        }catch (Exception e){
+            logger.error("sync harbor member failed",e);
         }
     }
 
@@ -689,6 +712,8 @@ public class ProjectServiceImpl implements ProjectService {
             if (status){
                 clusterCacheManager.updateRolePrivilegeStatusForTenantOrProject(roleId,userName,null,projectId,Boolean.FALSE);
             }
+            //处理harbor的角色权限关系
+            this.roleLocalService.addHarborUserRole(HarborMemberEnum.PROJECTADMIN,projectId,userName,roleId);
         }
         //更新PM关系至项目表
         String pmUsernames = project.getPmUsernames();
@@ -781,6 +806,8 @@ public class ProjectServiceImpl implements ProjectService {
         }
         //更新redis中用户的状态
         clusterCacheManager.updateRolePrivilegeStatusForTenantOrProject(roleId,username,null,projectId,Boolean.TRUE);
+        //处理harbor的角色权限关系
+        this.roleLocalService.updateHarborUserRole(HarborMemberEnum.NONE,projectId,username);
     }
     private ProjectExample getExample(){
         ProjectExample example = new ProjectExample();
@@ -809,17 +836,20 @@ public class ProjectServiceImpl implements ProjectService {
         dataPrivilegeGroupMemberService.addNewProjectMemberToGroup(project, usernameList);
         //根据用户列表循环创建用户在项目的角色
         for (String username:usernameList) {
-            for (Integer roleId:roleIdList) {
+            for (Integer roleId:roleIdList) {//roleList一般是一个
                 this.createProjectRole(tenantId,projectId,username,roleId);
                 //更新用户角色状态
                 Boolean status = clusterCacheManager.getRolePrivilegeStatusForTenantOrProject(roleId,username,null, projectId);
                 if (status){
                     clusterCacheManager.updateRolePrivilegeStatusForTenantOrProject(roleId,username,null,projectId,Boolean.FALSE);
                 }
+                //处理harbor的角色权限关系
+                HarborMemberEnum targetMember =  rolePrivilegeService.getHarborRole(roleId);
+                this.roleLocalService.addHarborUserRole(targetMember,projectId,username,roleId);
             }
         }
-
     }
+
     /**
      * 删除项目中用户角色
      *
@@ -841,6 +871,9 @@ public class ProjectServiceImpl implements ProjectService {
         this.deleteProjectRole(projectId,username,roleId);
         //更新redis中用户的状态
         clusterCacheManager.updateRolePrivilegeStatusForTenantOrProject(roleId,username,null,projectId,Boolean.TRUE);
+
+        //处理harbor的角色权限关系
+        this.roleLocalService.updateHarborUserRole(HarborMemberEnum.NONE,projectId,username);
     }
 
     @Override

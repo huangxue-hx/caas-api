@@ -96,6 +96,9 @@ public class DataPrivilegeGroupMappingServiceImpl implements DataPrivilegeGroupM
             if(dataPrivilegeDto.getDataResourceType() != null){
                 criteria.andResourceTypeIdEqualTo(dataPrivilegeDto.getDataResourceType());
             }
+            if(dataPrivilegeDto.getPrivilegeType() != null){
+                criteria.andPrivilegeTypeEqualTo(dataPrivilegeDto.getPrivilegeType());
+            }
             return this.getDataPrivilegeGroupMapping(example);
         }
 

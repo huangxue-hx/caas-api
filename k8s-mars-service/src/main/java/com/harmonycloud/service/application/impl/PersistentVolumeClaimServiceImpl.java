@@ -34,6 +34,7 @@ import com.harmonycloud.service.platform.bean.PvcDto;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.RoleLocalService;
 import org.apache.commons.lang3.StringUtils;
@@ -93,6 +94,9 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
     com.harmonycloud.k8s.service.NamespaceService namespaceService;
 
     @Autowired
+    NamespaceService nsService;
+
+    @Autowired
     RoleLocalService roleLocalService;
 
     @Autowired
@@ -127,6 +131,19 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                 persistentVolumeClaim.getNamespace(), cluster);
         if (pvc != null) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NAME_EXIST, persistentVolumeClaim.getName(), true);
+        }
+        if(!CommonConstant.KUBE_SYSTEM.equalsIgnoreCase(persistentVolumeClaim.getNamespace())) {
+            //判断分区下存储配额是否为0
+            String name = persistentVolumeClaim.getNamespace();
+            // 1.查询namespace
+            String storageClassName = persistentVolumeClaim.getStorageClassName();
+            ResourceQuotaList resouceQuotaList = nsService.getResouceQuota(name, cluster);
+            List<ResourceQuota> items = resouceQuotaList.getItems();
+            ResourceQuota resourceQuota = items.get(0);
+            LinkedHashMap<String, Object> hards = (LinkedHashMap<String, Object>) resourceQuota.getSpec().getHard();
+            if (hards.get(storageClassName + ".storageclass.storage.k8s.io/requests.storage") == null) {
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.STORAGE_QUOTA_OVER_FLOOR);
+            }
         }
         //构造PersistentVolumeClaim对象
         PersistentVolumeClaim pvClaim = new PersistentVolumeClaim();
@@ -251,10 +268,15 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
 
                             pvcDto.setCreateTime(DateUtil.StringToDate(persistentVolumeClaim.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue()));
                             //ReadWriteOne,ReadWriteMany, split("ReadWrite")  > 1
-                            if (persistentVolumeClaim.getSpec().getAccessModes().get(0).split(READWRITE).length > 1) {
-                                pvcDto.setReadOnly(false);
-                            } else {
+                            if (persistentVolumeClaim.getSpec().getAccessModes().get(0).equalsIgnoreCase(CommonConstant.READONLYMANY)) {
                                 pvcDto.setReadOnly(true);
+                                pvcDto.setBindOne(false);
+                            } else if (persistentVolumeClaim.getSpec().getAccessModes().get(0).equalsIgnoreCase(CommonConstant.READWRITEONCE)){
+                                pvcDto.setReadOnly(false);
+                                pvcDto.setBindOne(true);
+                            } else if (persistentVolumeClaim.getSpec().getAccessModes().get(0).equalsIgnoreCase(CommonConstant.READWRITEMANY)) {
+                                pvcDto.setReadOnly(false);
+                                pvcDto.setBindOne(false);
                             }
                             pvcDtoList.add(pvcDto);
                         }
@@ -280,6 +302,14 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         k8SURL.setNamespace(namespace);
         k8SURL.setResource(Resource.PERSISTENTVOLUMECLAIM);
         k8SURL.setSubpath(pvcName);
+        //判断pvc是否在使用
+        PersistentVolumeClaim pvcByName = pvcService.getPvcByName(namespace, pvcName, cluster);
+        Map<String, Object> labels = pvcByName.getMetadata().getLabels();
+        for (String s : labels.keySet()) {
+            if(s.contains(CommonConstant.LABEL_KEY_APP)||s.contains(CommonConstant.DAEMONSET)){
+                throw new MarsRuntimeException(ErrorCodeMessage.PVC_CAN_NOT_DELETE);
+            }
+        }
         K8SClientResponse pvcResponse = new K8sMachineClient().exec(k8SURL, HTTPMethod.DELETE, null, null, cluster);
         if (HttpStatusUtil.isSuccessStatus(pvcResponse.getStatus())) {
             return ActionReturnUtil.returnSuccess();

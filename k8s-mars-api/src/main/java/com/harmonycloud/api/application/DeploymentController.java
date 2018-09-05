@@ -109,7 +109,7 @@ public class DeploymentController {
 		if (userName == null) {
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
-		return dpService.getDeploymentDetail(namespace, name);
+		return dpService.getDeploymentDetail(namespace, name,true);
 
 	}
 

@@ -308,6 +308,8 @@ public class CommonConstant {
     public static final String LDAP_USERDN = "ldap_userdn";
     public static final String LDAP_PASSWORD = "ldap_password";
     public static final String LDAP_IS_ON = "ldap_is_on";
+    public static final String LDAP_OBJECT_CLASS = "ldap_object_class";
+    public static final String LDAP_SEARCH_ATTR = "ldap_search_attribute";
     public static final String CONFIG_TYPE_FULLLINK = "fulllink";
     public static final String CONFIG_TYPE_LDAP = "ldap";
 
@@ -316,6 +318,7 @@ public class CommonConstant {
 
     public static final String CONFIG_TYPE_CICD = "cicd";
     public static final String CICD_RESULT_REMAIN_NUM = "cicd_remain_num";
+    public static final String CICD_IS_TYPE_MERGE = "cicd_type_merge";
 
     public static final String TRIAL_TIME = "trial_time";
 
@@ -328,6 +331,7 @@ public class CommonConstant {
     public static final String PROTOCOL_HTTP = "http";
     public static final Integer DEFAULT_KUBE_APISERVER_PORT = 6443;
     public static final Integer DEFAULT_HARBOR_PORT = 80;
+    public static final Integer DEFAULT_HTTPS_PORT= 443;
     public static final String DEFAULT_NAMESPACE = "default";
     //cicd
     public static final String CICD_NAMESPACE = "cicd";

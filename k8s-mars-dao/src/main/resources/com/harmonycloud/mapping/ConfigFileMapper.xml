@@ -177,5 +177,6 @@
                 and cluster_id=#{clusterId}
             </if>
         </where>
+        order by tags desc
     </select>
 </mapper>

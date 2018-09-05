@@ -74,7 +74,7 @@ public interface DependenceService {
      * 删除项目下的依赖
      * @param projectId 项目id
      */
-    void deleteDependenceByProject(String projectId);
+    void deleteDependenceByProject(String projectId) throws Exception;
 
     /**
      * 根据文件或目录的名称关键词查询依赖目录下的文件或目录

@@ -30,6 +30,16 @@ public class DataPrivilegeDto {
     Integer parentDataResourceType;
     Long creatorId;
 
+    public Integer getPrivilegeType() {
+        return privilegeType;
+    }
+
+    public void setPrivilegeType(Integer privilegeType) {
+        this.privilegeType = privilegeType;
+    }
+
+    Integer privilegeType;
+
 
     public String getData() {
         return data;
