@@ -7,7 +7,10 @@ import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.RepositoryTypeEnum;
 import com.harmonycloud.common.enumm.StageTemplateTypeEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.*;
+import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.DesUtil;
+import com.harmonycloud.common.util.HttpJenkinsClientUtil;
+import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.ci.*;
 import com.harmonycloud.dao.ci.bean.*;
 import com.harmonycloud.dto.cicd.StageDto;
@@ -15,28 +18,24 @@ import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.ci.*;
 import com.harmonycloud.service.tenant.ProjectService;
-import com.harmonycloud.sonarqube.webapi.client.SonarProjectService;
-import com.harmonycloud.sonarqube.webapi.client.SonarQualitygatesService;
-import com.harmonycloud.sonarqube.webapi.client.SonarUserTokensService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.DefaultTransactionDefinition;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
-import java.sql.Connection;
 import java.sql.Timestamp;
 import java.util.*;
+
+//import com.harmonycloud.sonarqube.webapi.client.SonarProjectService;
+//import com.harmonycloud.sonarqube.webapi.client.SonarQualitygatesService;
+//import com.harmonycloud.sonarqube.webapi.client.SonarUserTokensService;
 
 /**
  * Created by anson on 17/7/13.
@@ -70,14 +69,14 @@ public class StageServiceImpl implements StageService {
     @Autowired
     DockerFileJobStageMapper dockerFileJobStageMapper;
 
-    @Autowired
-    private SonarProjectService sonarProjectService;
-
-    @Autowired
-    private SonarQualitygatesService sonarQualitygatesService;
-
-    @Autowired
-    private SonarUserTokensService sonarUserTokensService;
+//    @Autowired
+//    private SonarProjectService sonarProjectService;
+//
+//    @Autowired
+//    private SonarQualitygatesService sonarQualitygatesService;
+//
+//    @Autowired
+//    private SonarUserTokensService sonarUserTokensService;
 
     @Autowired
     private TriggerService triggerService;

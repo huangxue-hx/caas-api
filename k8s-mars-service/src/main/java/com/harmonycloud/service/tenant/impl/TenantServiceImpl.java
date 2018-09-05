@@ -15,6 +15,7 @@ import com.harmonycloud.dto.user.UserGroupDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.tenant.bean.*;
 import com.harmonycloud.dto.tenant.*;
+import com.harmonycloud.service.application.ApplicationTemplateService;
 import com.harmonycloud.service.application.PersistentVolumeService;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.platform.bean.NodeDto;
@@ -109,6 +110,8 @@ public class TenantServiceImpl implements TenantService {
     public static final String CATEGORY_TENANT = "0";
     //项目类型
     public static final String CATEGORY_PROJECT = "1";
+    @Autowired
+    ApplicationTemplateService applicationTemplateService;
 
 //    @Value("#{propertiesReader['network.networkFlag']}")
     private String networkFlag;
@@ -1430,7 +1433,42 @@ public class TenantServiceImpl implements TenantService {
         List<TenantBinding> listTenantBinding = tenantBindingMapper.selectByExample(example);
         return listTenantBinding;
     }
+
+    /**
+     * 修改租户在集群下的配额
+     *
+     * @param tenantName
+     * @param tenantId
+     * @param clusterQuota
+     * @throws Exception
+     */
+    @Override
+    public void removeClusterQuota(String tenantName, String tenantId, ClusterQuotaDto clusterQuota) throws Exception {
+        //更新集群配额
+        List<Map<String, Object>> namespaceDataList = namespaceService.getNamespaceListByTenantid(tenantId);
+        List<TenantPrivateNode> tenantPrivateNodeList = tenantPrivateNodeService.listTenantPrivateNode(tenantId);
+        for (Map<String, Object> map:namespaceDataList ) {
+            //移除分区
+            if (map.get("clusterId").toString().equals(clusterQuota.getClusterId())){
+                namespaceService.deleteNamespace(tenantId,map.get("name").toString());
+            }
+            //移除私有节点
+            for (TenantPrivateNode node:tenantPrivateNodeList) {
+                if (map.get("clusterId").toString().equals(node.getClusterId())){
+                    tenantPrivateNodeService.deleteTenantPrivateNode(node.getId());
+                }
+            }
+        }
+        //移除应用模板
+        applicationTemplateService.deleteApplicationTemplate(clusterQuota.getClusterId(),tenantName);
+        //移除配置文件
+        configCenterService.deleteConfigMap(clusterQuota.getClusterId(),tenantId);
+        //更新集群配置
+        this.updateClusterQuotaByTenantid(clusterQuota.getId(),0.0,0.0);
+    }
+
     private TenantBindingExample getExample(){
         return new TenantBindingExample();
     }
+
 }

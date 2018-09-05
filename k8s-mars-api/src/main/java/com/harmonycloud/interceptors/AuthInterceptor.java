@@ -1,8 +1,6 @@
 package com.harmonycloud.interceptors;
 
 import com.harmonycloud.api.user.AuthController;
-import com.harmonycloud.common.util.DicUtil;
-import com.harmonycloud.common.util.SsoClient;
 import com.harmonycloud.filters.UrlWhiteListHandler;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -18,9 +16,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -59,10 +55,6 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
                 return false; //验证失败
             }
         }*/
-        //判断是否开启sso，开启则不执行拦截器的逻辑
-        if(SsoClient.isOpen()){
-            return true;
-        }
         // 设置跨域访问header信息
         if(StringUtils.isNotBlank(allowOrigin)) {
             String origin = allowOrigin;

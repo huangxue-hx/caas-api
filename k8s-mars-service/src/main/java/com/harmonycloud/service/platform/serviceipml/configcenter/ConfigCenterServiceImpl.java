@@ -350,4 +350,8 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 		return configFileMapper.getConfigByNameAndTag(name, tag, projectId, clusterId);
 	}
 
+    @Override
+    public void deleteConfigMap(String clusterId, String tenantId) throws Exception {
+        configFileMapper.delConfByCidAndTid(clusterId, tenantId);
+    }
 }

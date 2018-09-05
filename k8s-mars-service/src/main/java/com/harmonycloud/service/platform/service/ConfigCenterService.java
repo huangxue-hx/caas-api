@@ -137,4 +137,12 @@ public interface ConfigCenterService {
      * @return
      */
     ConfigFile getConfigByNameAndTag(String name, String tag, String projectId, String clusterId);
+
+    /**
+     * 根据租户集群删除配置文件
+     * @param clusterId
+     * @param tenantId
+     * @throws Exception
+     */
+    void deleteConfigMap(String clusterId, String tenantId) throws Exception;
 }
