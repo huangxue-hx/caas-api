@@ -245,4 +245,11 @@ public interface TenantService {
     public void updateTenantMember(String tenantId, List <String> addUsers, List <String> deleteUsers) throws Exception;
     public List<TenantBinding> testTime(Integer domain) throws Exception;
 
+    /**
+     * 移除租户在集群下的配额
+     * @param tenantId
+     * @param clusterQuota
+     * @throws Exception
+     */
+    public void removeClusterQuota(String tenantName, String tenantId, ClusterQuotaDto clusterQuota) throws Exception;
 }

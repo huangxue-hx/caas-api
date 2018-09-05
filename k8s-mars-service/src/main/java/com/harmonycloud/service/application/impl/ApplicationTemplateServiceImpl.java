@@ -147,4 +147,9 @@ public class ApplicationTemplateServiceImpl implements ApplicationTemplateServic
     public void deleteAppTemplateById(Integer id) throws Exception {
         applicationTemplatesMapper.deleteApplicationTemplatesById(id);
     }
+
+    @Override
+    public void deleteApplicationTemplate(String clusterId, String tenant) throws Exception {
+        applicationTemplatesMapper.deleteAppTemplateByCId(tenant, clusterId);
+    }
 }

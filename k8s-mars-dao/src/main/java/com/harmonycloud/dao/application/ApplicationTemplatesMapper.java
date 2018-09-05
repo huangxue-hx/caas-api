@@ -189,4 +189,11 @@ public interface ApplicationTemplatesMapper {
     ApplicationTemplates selectByNamespaceId(@Param("namespaceId") String namespaceId);
 
     void deleteApplicationTemplatesById(@Param("id")Integer id);
+
+    /**
+     * 根据租户集群删除应用模板
+     * @param tenant
+     * @param clusterId
+     */
+    void deleteAppTemplateByCId(@Param("tenant")String tenant, @Param("clusterId")String clusterId);
 }

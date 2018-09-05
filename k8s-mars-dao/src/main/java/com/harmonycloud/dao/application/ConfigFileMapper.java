@@ -116,4 +116,10 @@ public interface ConfigFileMapper {
 
     ConfigFile getConfigByNameAndTag(@Param("name") String name, @Param("tag") String tag, @Param("projectId") String projectId, @Param("clusterId") String clusterId);
 
+    /**
+     * 根据租户 和集群删除配置文件
+     * @param clusterId
+     * @param tenantId
+     */
+    void delConfByCidAndTid(@Param("clusterId") String clusterId, @Param("tenantId")String tenantId);
 }

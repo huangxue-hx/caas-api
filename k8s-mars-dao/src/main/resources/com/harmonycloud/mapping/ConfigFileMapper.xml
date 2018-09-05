@@ -110,7 +110,9 @@
 	<delete id="deleteConfigByProject" parameterType="java.lang.String">
 		delete from configfile where project_id=#{projectId}
 	</delete>
-
+    <delete id="delConfByCidAndTid" parameterType="java.lang.String">
+		delete from configfile where cluster_id=#{clusterId} and tenant_id=#{tenantId}
+	</delete>
     <delete id="deleteByClusterId">
         delete from configfile where cluster_id = #{clusterId}
     </delete>

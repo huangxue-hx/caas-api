@@ -7,3 +7,5 @@ INSERT INTO k8s_auth_server.`system_config` (config_name,config_value,config_typ
 INSERT INTO k8s_auth_server.`system_config` (config_name,config_value,config_type,create_user)  VALUES ('SingleTimeLimit','60','login','admin');
 
 UPDATE k8s_auth_server.url_dic SET module='whitelist',resource='whitelist' WHERE url = '/users/*/password';
+
+INSERT INTO `url_dic` (url,module,resource) VALUE ('/tenants/*/clusterquotas','tenant','tenantmgr');
