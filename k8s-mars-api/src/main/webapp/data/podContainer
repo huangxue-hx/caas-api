@@ -1,4 +1,0 @@
-container: controller-manager
-container:apiserver
-
-podName:k8s-master-master

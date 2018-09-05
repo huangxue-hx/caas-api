@@ -23,7 +23,7 @@ public interface UserService {
 
     String generatePassWord();
 
-    ActionReturnUtil sendEmail(String userName) throws Exception;
+    ActionReturnUtil sendResetPwdEmail(String userName, String newPassword) throws Exception;
 
     ActionReturnUtil isSystemAdmin(String userName);
 
@@ -39,7 +39,7 @@ public interface UserService {
 
     ActionReturnUtil changePwd(String userName, String oldPassword, String newPassword) throws Exception;
 
-    ActionReturnUtil userReset(String userName, String newPassword) throws Exception;
+    ActionReturnUtil resetUserPwd(String userName) throws Exception;
 
     ActionReturnUtil deleteUser(String userName) throws Exception;
 
@@ -153,10 +153,6 @@ public interface UserService {
     String getMachineToken() throws MarsRuntimeException;
 
     User syncUser(HttpServletRequest request) throws Exception;
-
-    String getNewPassWord();
-
-    void setNewPassWord(String newPassWord);
 
     /**
      * 新增用户，不做用户名及邮箱校验 （持续交互平台同步用户使用）

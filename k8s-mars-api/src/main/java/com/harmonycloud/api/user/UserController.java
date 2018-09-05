@@ -42,9 +42,6 @@ public class UserController {
     private UserService userService;
 
     @Autowired
-    private RoleLocalService roleLocalService;
-
-    @Autowired
     ResourceService resourceService;
     @Autowired
     MessageService messageService;
@@ -53,9 +50,6 @@ public class UserController {
 
     @Autowired
     private HttpSession session;
-
-    @Autowired
-    private TenantService tenantService;
 
     @Autowired
     ClusterService clusterService;
@@ -102,6 +96,10 @@ public class UserController {
     @RequestMapping(value = "/{username}/password", method = RequestMethod.PUT)
     public ActionReturnUtil changePwd(@RequestParam(value = "newPassword") final String newPassword, @RequestParam(value = "oldPassword") final String oldPassword,
             @PathVariable(value = "username") final String userName) throws Exception{
+        Object user = session.getAttribute("username");
+        if (!userName.equals(user.toString())) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_PASSWORD_CHANGE_SELF);
+        }
         return userService.changePwd(userName, oldPassword, newPassword);
     }
 
@@ -150,28 +148,20 @@ public class UserController {
     }
 
     /**
-     * 重置admin登入密码
-     * 
-     * @param newPassword
-     * @param oldPassword
+     * 重置用户密码
+     *
      * @param userName
      * @return
      * @throws Exception
      */
     @ResponseBody
     @RequestMapping(value = "/{username}/password/reset", method = RequestMethod.PUT)
-    public ActionReturnUtil resetPassword(@RequestParam(value = "newPassword") final String newPassword, @RequestParam(value = "oldPassword") final String oldPassword,
-            @PathVariable(value = "username") final String userName) throws Exception {
+    public ActionReturnUtil resetPassword(@PathVariable(value = "username") final String userName) throws Exception {
         Object user = session.getAttribute("username");
-        if (userService.isAdmin(user.toString())) {
-            ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.ONLY_FOR_MANAGER);
+        if (!userService.isAdmin(user.toString())) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.ONLY_FOR_MANAGER);
         }
-        if (userService.isAdmin(userName)) {
-            return userService.changePwd(userName, oldPassword, newPassword);
-        }
-        else {
-            return userService.userReset(userName, newPassword);
-        }
+        return userService.resetUserPwd(userName);
     }
 
 
@@ -228,7 +218,6 @@ public class UserController {
     @RequestMapping(value = "/current", method = RequestMethod.GET)
     public ActionReturnUtil getCurrentuser(HttpServletRequest request, HttpServletResponse response,
                                            @RequestParam(value = "isLogin", required = false) boolean isLogin) throws Exception {
-//        logger.info("获取当前用户");
         Map res = userService.getcurrentUser(request, response);
         return ActionReturnUtil.returnSuccessWithData(res);
     }

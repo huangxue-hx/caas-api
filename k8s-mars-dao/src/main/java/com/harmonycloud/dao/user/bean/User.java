@@ -40,6 +40,25 @@ public class User implements Serializable {
     private Integer isAuthorize;
     private Boolean isLdapUser;
 
+    private String loginFailTime;//登陆失败时间
+    private int loginFailCount;//登陆失败次数
+
+    public String getLoginFailTime() {
+        return loginFailTime;
+    }
+
+    public void setLoginFailTime(String loginFailTime) {
+        this.loginFailTime = loginFailTime;
+    }
+
+    public int getLoginFailCount() {
+        return loginFailCount;
+    }
+
+    public void setLoginFailCount(int loginFailCount) {
+        this.loginFailCount = loginFailCount;
+    }
+
     public Integer getIsAuthorize() {
         return isAuthorize;
     }

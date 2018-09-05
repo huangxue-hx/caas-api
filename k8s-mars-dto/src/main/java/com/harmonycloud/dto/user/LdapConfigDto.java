@@ -1,7 +1,6 @@
 package com.harmonycloud.dto.user;
 
 import java.io.Serializable;
-import java.util.Date;
 
 public class LdapConfigDto implements Serializable {
     private Integer id;

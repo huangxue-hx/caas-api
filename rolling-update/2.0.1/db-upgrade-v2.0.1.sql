@@ -170,3 +170,13 @@ UPDATE `k8s_auth_server`.`cicd_stage_type` SET `index`=10, `status`=1 WHERE temp
 UPDATE `k8s_auth_server`.`cicd_stage_type` SET `index`=8, `status`=1 WHERE template_type=2;
 UPDATE `k8s_auth_server`.`cicd_stage_type` SET `index`=9, `status`=0 WHERE template_type=8;
 UPDATE `k8s_auth_server`.`cicd_stage_type` SET `index`=10, `status`=1 WHERE template_type=6;
+
+ALTER TABLE k8s_auth_server.`user` ADD
+login_fail_time VARCHAR(255) COMMENT '登陆失败时间',
+ADD login_fail_count TINYINT(1)COMMENT '登陆失败次数';
+
+INSERT INTO k8s_auth_server.`system_config` (config_name,config_value,config_type,create_user) VALUES ('loginFailTimeLimit','1800','login','admin');
+INSERT INTO k8s_auth_server.`system_config` (config_name,config_value,config_type,create_user)  VALUES ('loginFailCountLimit','10','login','admin');
+INSERT INTO k8s_auth_server.`system_config` (config_name,config_value,config_type,create_user)  VALUES ('SingleTimeLimit','60','login','admin');
+
+UPDATE k8s_auth_server.url_dic SET module='whitelist',resource='whitelist' WHERE url = '/users/*/password';

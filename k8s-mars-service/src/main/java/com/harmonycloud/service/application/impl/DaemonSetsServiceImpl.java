@@ -283,8 +283,12 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                     CreateResourceDto rs = new CreateResourceDto();
                     Map<String, Object> map = (Map<String, Object>) container.getResources().getRequests();
                     if (map != null) {
-                        rs.setCpu(map.get("cpu").toString());
-                        rs.setMemory(map.get("memory").toString());
+                        if(map.get("cpu") != null) {
+                            rs.setCpu(map.get("cpu").toString());
+                        }
+                        if(map.get("memory") != null) {
+                            rs.setMemory(map.get("memory").toString());
+                        }
                         c.setResource(rs);
                     }
                 }

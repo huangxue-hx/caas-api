@@ -1772,7 +1772,10 @@ public class NamespaceServiceImpl implements NamespaceService {
         namespaceMap.put(CommonConstant.CLUSTERID,cluster.getId());
         namespaceMap.put(CommonConstant.CLUSTERALIASID,cluster.getAliasName());
         namespaceMap.put(CommonConstant.CLUSTER_NAME,cluster.getName());
-        Object label = namespace.getMetadata().getLabels().get(ISPRIVATE);
+        Object label = null;
+        if(namespace.getMetadata().getLabels() != null) {
+            namespace.getMetadata().getLabels().get(ISPRIVATE);
+        }
         String phase = namespace.getStatus().getPhase();
         String creationTimestamp = namespace.getMetadata().getCreationTimestamp();
         namespaceMap.put(PHASE,phase);

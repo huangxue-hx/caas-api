@@ -1,35 +1,30 @@
 package com.harmonycloud.service.user.auth;
 
-import com.harmonycloud.common.Constant.CommonConstant;
+import java.util.Date;
+import java.util.List;
+
+import javax.naming.Name;
+
+
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.dao.user.UserMapper;
-import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dto.user.LdapConfigDto;
-import com.harmonycloud.k8s.bean.cluster.HarborServer;
-import com.harmonycloud.service.cluster.ClusterService;
-import com.harmonycloud.service.platform.bean.harbor.HarborUser;
-import com.harmonycloud.service.platform.constant.Constant;
-import com.harmonycloud.service.platform.service.harbor.HarborUserService;
 import com.harmonycloud.service.user.AuthManager4Ldap;
-import com.harmonycloud.service.user.UserService;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.ldap.core.ContextMapper;
 import org.springframework.ldap.core.DirContextAdapter;
 import org.springframework.ldap.core.LdapTemplate;
 import org.springframework.ldap.core.support.LdapContextSource;
-import org.springframework.ldap.filter.AndFilter;
-import org.springframework.ldap.filter.EqualsFilter;
 import org.springframework.stereotype.Service;
 
-import javax.naming.Name;
-import java.util.Date;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
+import com.harmonycloud.common.util.StringUtil;
+import com.harmonycloud.dao.user.bean.User;
+import com.harmonycloud.service.user.UserService;
+
+import static com.harmonycloud.common.Constant.CommonConstant.FLAG_FALSE;
+import static com.harmonycloud.common.Constant.CommonConstant.NORMAL;
 
 /**
  * @Title AuthManager4LdapImpl.java
@@ -40,16 +35,10 @@ import java.util.stream.Collectors;
  */
 @Service
 public class AuthManager4LdapImpl implements AuthManager4Ldap {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AuthManager4LdapImpl.class);
+
 
     @Autowired
     private UserService userService;
-
-    @Autowired
-    HarborUserService harborUserService;
-
-    @Autowired
-    ClusterService clusterService;
 
     @Autowired
     private UserMapper userMapper;
@@ -71,76 +60,40 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
         if (!this.isUserInLdap(userName, password, ldapConfigDto)) {
             return null;
         }
-        // 对ldap认证通过的用户,判断是否已经记录,如果已记录并且已修改,修改记录,并且更新Harbor
-
+        // 对ldap认证通过的用户,判断是否已经记录,如果没有，则记录用户
         User user = userService.getUser(userName);
-        if (user != null) {
-            return userName;
+        if (user == null) {
+            return insertUser(userName, password);
         }
-        //向harbor中同步用户
-        Set<HarborServer> harborServers = clusterService.listAllHarbors();
-        List<HarborServer> harborServerList = harborServers.stream().collect(Collectors.toList());
-        for (HarborServer harborServer :harborServerList) {
-            HarborUser harborUser = this.harborUserService.getUserByName(harborServer,userName);
-            if(harborUser == null){
-                User userNew = new User();
-                userNew.setUsername(userName);
-                userNew.setPassword(password);
-                //todo
-                userNew.setUsername("admin");
-                userNew.setPassword("123");
-                try {
-                    harborUserService.harborUserLogin(harborServer, userNew);
-                }catch (Exception e){
-                    LOGGER.error("登录harbor失败，确认harbor是否也启用ladp验证, username:{}", userName, e);
-                }
-            }
-        }
-        insertUser(userName);
         return userName;
     }
 
-    private boolean isUserInLdap(String userName, String password, LdapConfigDto ldapConfigDto) {
-        //todo
-        if(StringUtils.isNotBlank(userName)){
-            return true;
-        }
-        AndFilter filter = new AndFilter();
-        filter.and(new EqualsFilter("objectclass", ldapConfigDto.getObjectClass()))
-                .and(new EqualsFilter(ldapConfigDto.getSearchAttribute(), userName));
+    private boolean isUserInLdap(String userName, String password, LdapConfigDto ldapConfigDto) throws Exception{
         LdapContextSource contextSource = new LdapContextSource();
-        contextSource.setUrl("ldap://" + ldapConfigDto.getIp() + ":" + ldapConfigDto.getPort() + "");
+        contextSource.setUrl("ldap://"+ldapConfigDto.getIp()+":"+ldapConfigDto.getPort()+"");
         contextSource.setBase(ldapConfigDto.getBase());
         contextSource.setUserDn(ldapConfigDto.getUserdn());
         contextSource.setPassword(ldapConfigDto.getPassword());
-
-        try {
-            contextSource.afterPropertiesSet();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-
-
+        contextSource.afterPropertiesSet();
         LdapTemplate template = new LdapTemplate();
-
         template.setContextSource(contextSource);
-
         return template.authenticate(getDnForUser(userName,contextSource,ldapConfigDto),
                 "(objectclass="+ldapConfigDto.getObjectClass()+")", password);
-
     }
 
-    // 插入Harbor用户,不带密码
-    private void insertUser(String userName) throws Exception {
+    // 插入Harbor用户
+    private String insertUser(String userName, String password) throws Exception {
+        String md5Password = StringUtil.convertToMD5(password);
         User user = new User();
         user.setUsername(userName);
-        user.setPause(CommonConstant.NORMAL);
-        user.setIsAdmin(Constant.NON_ADMIN_ACCOUNT);
-        user.setIsMachine(Constant.NON_MACHINE_ACCOUNT);
-        user.setRealName(userName);
-        user.setIsLdapUser(Boolean.TRUE);
+        user.setPassword(md5Password);
+        user.setIsAdmin(FLAG_FALSE);
+        user.setIsMachine(FLAG_FALSE);
         user.setCreateTime(new Date());
+        user.setPause(NORMAL);
+        user.setRealName(userName);
         userMapper.insert(user);
+        return userName;
     }
 
     public String getSearchType() {
@@ -159,24 +112,17 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
         this.object_class = object_class;
     }
 
-    /**
-     * 根据cn 构建出 entry 的 Dn
-     *
-     * @param cn
-     * @return
-     */
-
     @SuppressWarnings({"unused", "unchecked"})
     private String getDnForUser(String cn,LdapContextSource contextSource, LdapConfigDto ldapConfigDto) {
         LdapTemplate template = new LdapTemplate();
         template.setContextSource(contextSource);
         List<String> results = template.search("", "(&(objectclass="+ldapConfigDto.getObjectClass()+")("
                 +ldapConfigDto.getSearchAttribute()+"=" + cn + "))", new DnMapper());
+
         if (results.size() != 1) {
 
             throw new RuntimeException("User not found or not unique");
         }
-        System.out.println(results.get(0));
         return results.get(0);
     }
 
@@ -191,7 +137,5 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
             String dn = name.toString();
             return dn;
         }
-
-
     }
 }

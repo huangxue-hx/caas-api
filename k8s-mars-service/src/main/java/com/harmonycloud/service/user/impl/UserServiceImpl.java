@@ -40,7 +40,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.session.data.redis.RedisOperationsSessionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -102,8 +104,10 @@ public class UserServiceImpl implements UserService {
     ClusterCacheManager clusterCacheManager;
     @Autowired
     DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
-
-    private String newPassWord;
+    @Autowired
+    RedisOperationsSessionRepository redisOperationsSessionRepository;
+    @Autowired
+    StringRedisTemplate stringRedisTemplate;
 
     public String getCurrentUsername() {
         return (String) session.getAttribute("username");
@@ -338,17 +342,15 @@ public class UserServiceImpl implements UserService {
                 matche = newPass.matches(regex);
             }
         }
-        newPassWord = newPass;
-        return newPassWord;
+        return newPass;
     }
 
     /**
      * 向用户发送提示邮箱
      */
-    public ActionReturnUtil sendEmail(String userName) throws Exception {
+    public ActionReturnUtil sendResetPwdEmail(String userName, String newPassWord) throws Exception {
         User userEmail = userMapper.findByUsername(userName);
         String email = userEmail.getEmail();
-        String newPassWord = this.getNewPassWord();
 
         MimeMessage mimeMessage = MailUtil.getJavaMailSender().createMimeMessage();
         try {
@@ -622,15 +624,13 @@ public class UserServiceImpl implements UserService {
      * @param userName
      * @return
      */
-    public ActionReturnUtil userReset(String userName, String newPassword) throws Exception {
+    public ActionReturnUtil resetUserPwd(String userName) throws Exception {
         AssertUtil.notBlank(userName, DictEnum.USERNAME);
-        AssertUtil.notBlank(userName, DictEnum.PASSWORD);
         String newPassWord = generatePassWord();
-        this.setNewPassWord(newPassWord);
         // 更新k8s用户密码
         String MD5newPassword = StringUtil.convertToMD5(newPassWord);
         userMapper.updatePassword(userName, MD5newPassword);
-        //更新harbor用户密码 todo
+        sendResetPwdEmail(userName, newPassWord);
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -643,7 +643,6 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public ActionReturnUtil deleteUser(String userName) throws Exception {
         AssertUtil.notBlank(userName, DictEnum.USERNAME);
-
         User userDb = userMapper.findByUsername(userName);
         if (!Objects.isNull(userDb)){
             UserGroupRelationExample example =new UserGroupRelationExample();
@@ -655,6 +654,11 @@ public class UserServiceImpl implements UserService {
             dataPrivilegeGroupMember.setMemberType(CommonConstant.MEMBER_TYPE_USER);
             dataPrivilegeGroupMember.setMemberId(userDb.getId().intValue());
             dataPrivilegeGroupMemberService.deleteMemberInAllGroup(dataPrivilegeGroupMember);
+            String sessionId = stringRedisTemplate.opsForValue().get("sessionid:sessionid-"+userName);//获取redis存放的sessionid
+            if(StringUtils.isNotBlank(sessionId)){
+                redisOperationsSessionRepository.delete(sessionId);//session过期设置
+                stringRedisTemplate.delete("sessionid:sessionid-"+userName);//移除redis中sessionid
+            }
         }else {
             throw new MarsRuntimeException(ErrorCodeMessage.USER_NOT_EXIST);
         }
@@ -1843,14 +1847,6 @@ public class UserServiceImpl implements UserService {
         return user;
     }
 
-
-    public String getNewPassWord() {
-        return newPassWord;
-    }
-
-    public void setNewPassWord(String newPassWord) {
-        this.newPassWord = newPassWord;
-    }
 
     /**
      * 不做用户名及邮箱校验（持续交互平台同步用户使用）
