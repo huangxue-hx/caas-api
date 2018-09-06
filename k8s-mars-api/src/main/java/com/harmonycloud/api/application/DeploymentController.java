@@ -2,6 +2,7 @@ package com.harmonycloud.api.application;
 
 import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.application.AffinityDto;
 import com.harmonycloud.dto.application.DeployedServiceNamesDto;
 import com.harmonycloud.dto.application.ServiceDeployDto;
 import com.harmonycloud.k8s.constant.Constant;

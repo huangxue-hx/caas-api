@@ -87,6 +87,10 @@ public class KubeAffinityConvert {
             if(CollectionUtils.isNotEmpty(wpat.getPodAffinityTerm().getNamespaces())) {
                 pad.setNamespace(wpat.getPodAffinityTerm().getNamespaces().get(0));
             }
+            if(Objects.nonNull(wpat.getPodAffinityTerm().getTopologyKey())
+                    && wpat.getPodAffinityTerm().getTopologyKey().equals(Constant.AFFINITY_TOPOLOGYKEY_GROUP_SCHEDULE)){
+                pad.setType(Constant.ANTIAFFINITY_TYPE_GROUP_SCHEDULE);
+            }
             for (LabelSelectorRequirement lsq : wpat.getPodAffinityTerm().getLabelSelector().getMatchExpressions()) {
                 pad.setLabel(lsq.getKey() + "=" + lsq.getValues().get(0));
             }
@@ -107,6 +111,10 @@ public class KubeAffinityConvert {
             podAffinityDto.setRequired(true);
             if(CollectionUtils.isNotEmpty(podAffinityTerm.getNamespaces())) {
                 podAffinityDto.setNamespace(podAffinityTerm.getNamespaces().get(0));
+            }
+            if (Objects.nonNull(podAffinityTerm.getTopologyKey())
+                    && podAffinityTerm.getTopologyKey().equals(Constant.AFFINITY_TOPOLOGYKEY_GROUP_SCHEDULE)){
+                podAffinityDto.setType(Constant.ANTIAFFINITY_TYPE_GROUP_SCHEDULE);
             }
             LabelSelector labelSelector = podAffinityTerm.getLabelSelector();
             List<LabelSelectorRequirement> labelSelectorRequirements = labelSelector.getMatchExpressions();

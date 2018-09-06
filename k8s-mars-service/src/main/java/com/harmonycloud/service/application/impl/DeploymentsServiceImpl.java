@@ -1229,6 +1229,13 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             aff.setLabel(TYPE_DEPLOYMENT + Constant.EQUAL + deploymentDetail.getName());
             list.add(aff);
         }
+        if (Objects.nonNull(deploymentDetail.getPodGroupSchedule())) {
+            AffinityDto aff = new AffinityDto();
+            aff.setRequired(deploymentDetail.getPodGroupSchedule().isRequired());
+            aff.setLabel(TYPE_DEPLOYMENT + Constant.EQUAL + deploymentDetail.getName());
+            aff.setType(Constant.ANTIAFFINITY_TYPE_GROUP_SCHEDULE);
+            list.add(aff);
+        }
         List<AffinityDto> nodeAffinityList = deploymentDetail.getNodeAffinity();
         nodeAffinityList = setNamespaceLabelAffinity(namespace, nodeAffinityList);
         affinity = KubeAffinityConvert.convertAffinity(nodeAffinityList, deploymentDetail.getPodAffinity(), list);

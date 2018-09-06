@@ -3,6 +3,7 @@ package com.harmonycloud.service.platform.convert;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.HttpStatusUtil;
+import com.harmonycloud.common.util.StringUtil;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.dto.scale.HPADto;
 import com.harmonycloud.dto.scale.ResourceMetricScaleDto;
@@ -87,7 +88,11 @@ public class K8sResultConvert {
                 if (CollectionUtils.isNotEmpty(podAntiAffinityDtos)) {
                     for (AffinityDto affinityDto : podAntiAffinityDtos) {
                         if (affinityDto.getLabel().equals(Constant.TYPE_DEPLOYMENT + Constant.EQUAL + meta.getName())) {
-                            appDetail.setPodDisperse(affinityDto);
+                            if(null != affinityDto.getType() && affinityDto.getType().equals(Constant.ANTIAFFINITY_TYPE_GROUP_SCHEDULE)){
+                                appDetail.setPodGroupSchedule(affinityDto);
+                            }else {
+                                appDetail.setPodDisperse(affinityDto);
+                            }
                         } else {
                             appDetail.setPodAntiAffinity(affinityDto);
                         }

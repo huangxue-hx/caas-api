@@ -81,6 +81,9 @@ public class AppDetail {
 	/**pod 是否分散*/
 	private AffinityDto podDisperse;
 
+	/**pod 按主机分组调度**/
+	private AffinityDto podGroupSchedule;
+
 	private String nodeSelector;
 
 	private boolean isOperationable;
@@ -99,6 +102,13 @@ public class AppDetail {
 
 	private String serviceDependence;
 
+	public AffinityDto getPodGroupSchedule() {
+		return podGroupSchedule;
+	}
+
+	public void setPodGroupSchedule(AffinityDto podGroupSchedule) {
+		this.podGroupSchedule = podGroupSchedule;
+	}
 
 	public String getServiceDependence() {
 		return serviceDependence;
