@@ -44,4 +44,6 @@ public interface LogService {
     List<String> queryLogFile(String pod, String namespace, String path, String clusterId);
 
     void logRealTimeRefresh(WebSocketSession session, LogQueryDto logQueryDto) throws Exception;
+
+    String getLogCommand(WebSocketSession session, LogQueryDto logQueryDto);
 }

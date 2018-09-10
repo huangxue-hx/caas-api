@@ -4,6 +4,7 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.ci.bean.StageType;
 import com.harmonycloud.dto.cicd.StageDto;
 import com.harmonycloud.service.platform.service.ci.StageService;
+import org.apache.ibatis.annotations.Param;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -116,4 +117,11 @@ public class StageController {
         return ActionReturnUtil.returnSuccess();
     }
 
+
+    @RequestMapping(value = "/getRepositoryId", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getRepositoryId(@RequestParam("repoName") String repoName,@PathVariable("projectId") String projectId,@PathVariable("tenantId") String tenantId) throws Exception{
+        stageService.getRepositoryId(repoName,projectId,tenantId);
+        return ActionReturnUtil.returnSuccess();
+    }
 }

@@ -263,20 +263,24 @@ public class ConfigCenterServiceTest extends BaseTest {
 
     @Test
     public void testUpdateConfigEdition() throws Exception{
-        ActionReturnUtil rs = configCenterService.getAllServiceByConfigName(testConfigName,projectId,tenantId);
-        List<String> serviceNames = (List<String>)rs.getData();
-        assertNotNull(configCenterService.updateConfigEdition(serviceNames,DEFAULT_CONFIG_TAG,testConfigName,projectId,tenantId));
+//        ActionReturnUtil rs = configCenterService.getAllServiceByConfigName(testConfigName,"",projectId,tenantId);
+//        List<String> serviceNames = (List<String>)rs.getData();
+        List<String> serviceNames = new LinkedList<String >();
+        serviceNames.add("configaac");
+
+        assertNotNull(configCenterService.updateConfigTag(serviceNames,"1.1","testconfig","aabc0a6f31d543e6a27f6042cddd91ad","103303bb68ea4511abce4b5da0c054f4","cluster-top--dev"));
     }
 
     @Test
     public void testGetEditionByConfigName(){
-        ActionReturnUtil tagsUtil= configCenterService.getEditionByConfigName(testConfigName,projectId,tenantId);
+        ActionReturnUtil tagsUtil= configCenterService.getTagsByConfigName("log-create","cluster-top--dev","aabc0a6f31d543e6a27f6042cddd91ad");
         assertNotNull(tagsUtil);
     }
 
     @Test
     public void testGetAllServiceByConfigName() throws Exception{
-        ActionReturnUtil serviceList = configCenterService.getAllServiceByConfigName(testConfigName,projectId,tenantId);
+        //ActionReturnUtil serviceList = configCenterService.getAllServiceByConfigName(testConfigName,"clusterId",projectId,tenantId);
+        ActionReturnUtil serviceList = configCenterService.getAllServiceByConfigName("testconfig","cluster-top--dev","aabc0a6f31d543e6a27f6042cddd91ad","103303bb68ea4511abce4b5da0c054f4");
         assertNotNull(serviceList);
     }
 

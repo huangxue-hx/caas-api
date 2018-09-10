@@ -15,6 +15,8 @@ import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dao.ci.*;
 import com.harmonycloud.dao.ci.bean.*;
 import com.harmonycloud.dao.ci.bean.Job;
+import com.harmonycloud.dao.harbor.ImageRepositoryMapper;
+import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.dto.cicd.CicdConfigDto;
@@ -40,6 +42,7 @@ import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
 import com.harmonycloud.service.platform.service.ci.*;
+import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.platform.service.harbor.HarborService;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
@@ -202,6 +205,12 @@ public class JobServiceImpl implements JobService {
     @Autowired
     SecretService secretService;
     private long sleepTime = 2000L;
+
+    @Autowired
+    private HarborProjectService harborProjectService;
+
+    @Autowired
+    private ImageRepositoryMapper imageRepositoryMapper;
 
     DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
@@ -1562,6 +1571,8 @@ public class JobServiceImpl implements JobService {
             scanCodeBySuite(stage, buildNum);
         } else if (StageTemplateTypeEnum.INTEGRATIONTEST.getCode() == stage.getStageTemplateType()) {
             testBySuite(stage, buildNum);
+        } else if (StageTemplateTypeEnum.IMAGEPUSH.getCode() == stage.getStageTemplateType()) {
+            imagePush(stage);
         }
     }
 
@@ -2798,4 +2809,11 @@ public class JobServiceImpl implements JobService {
         jenkinsServer.updateJob(folderJob, job.getName(), doc.asXML(), false);
     }
 
+
+    /**
+     * 镜像推送
+     */
+    private void imagePush(Stage stage) throws Exception{
+        harborProjectService.syncImage(stage.getRepositoryId(),stage.getImageName(),stage.getImageTag(),stage.getDestClusterId(),true);
+    }
 }

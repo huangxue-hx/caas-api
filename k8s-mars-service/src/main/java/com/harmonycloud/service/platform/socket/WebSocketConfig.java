@@ -36,6 +36,11 @@ public class WebSocketConfig extends WebMvcConfigurerAdapter implements WebSocke
         registry.addHandler(systemWebSocketHandler(), "/app/filelogs").addInterceptors(webSocketInterceptor())
         		.setAllowedOrigins("*").withSockJS();
 
+        registry.addHandler(LogSocketHandler(), "/app/logs").addInterceptors(webSocketInterceptor())
+                .setAllowedOrigins("*");
+        registry.addHandler(LogSocketHandler(), "/app/logs").addInterceptors(webSocketInterceptor())
+                .setAllowedOrigins("*").withSockJS();
+
 
         registry.addHandler(cicdWebSocketHandler(), "/cicd/job/log").addInterceptors(webSocketInterceptor())
                 .setAllowedOrigins("*");
@@ -70,9 +75,14 @@ public class WebSocketConfig extends WebMvcConfigurerAdapter implements WebSocke
 	}
 
 	@Bean
-	public WebSocketHandler systemWebSocketHandler(){
+	public WebSocketHandler LogSocketHandler(){
 		return new SystemWebSocketHandler();
 	}
+
+    @Bean
+    public WebSocketHandler systemWebSocketHandler(){
+        return new SystemWebSocketHandler();
+    }
 
     @Bean
     public CicdWebSocketHandler cicdWebSocketHandler(){

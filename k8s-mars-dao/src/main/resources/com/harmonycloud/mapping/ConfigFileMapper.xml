@@ -18,17 +18,6 @@
         <result property="repoName" column="reponame"/>
     </resultMap>
 
-    <resultMap id="configServiceMap" type="com.harmonycloud.dao.application.bean.ConfigService">
-        <id property="serviceName" column="service_name"/>
-        <result property="tag" column="tag"/>
-        <result property="image" column="image"/>
-        <result property="serviceDomainName" column="service_domain_name"/>
-        <result property="createTime" column="create_time"/>
-        <result property="updateTime" column="update_time"/>
-        <result property="configFileName" column="configfile_name"/>
-        <result property="projectId" column="project_id"/>
-        <result property="tenantId" column="tenant_id"/>
-    </resultMap>
 
     <!-- 添加ConfigFile -->
     <insert id="saveConfigFile" parameterType="com.harmonycloud.dao.application.bean.ConfigFile">
@@ -192,48 +181,6 @@
             </if>
         </where>
         order by tags desc
-    </select>
-    <select id="getEditionByConfigName" resultType="java.lang.String">
-        select tags from configfile
-        <where>
-            <if test="configName !=null and configName != ''"></if>
-                name=#{configName}
-            <if test="projectId !=null and projectId != ''">
-                and project_id=#{projectId}
-            </if>
-            <if test="tenantId !=null and tenantId != ''">
-                and tenant_id=#{tenantId}
-            </if>
-        </where>
-    </select>
-    <select id="getConfigIdByNameAndTagAndIds"  resultType="java.lang.String">
-        select id from configfile
-        <where>
-            <if test="configName !=null and configName != ''"></if>
-               name=#{configName}
-            <if test="tags !=null and tags != ''"></if>
-                and tags=#{tags}
-            <if test="projectId !=null and projectId != ''">
-                and project_id=#{projectId}
-            </if>
-            <if test="tenantId !=null and tenantId != ''">
-                and tenant_id=#{tenantId}
-            </if>
-        </where>
-    </select>
-    <select id="getConfigMapIdByNameAndId" resultType="java.lang.String">
-        select id from configfile
-        <where>
-            <if test="configName !=null and configName != ''">
-                name=#{configName}
-            </if>
-            <if test="projectId !=null and projectId != ''">
-                and project_id=#{projectId}
-            </if>
-            <if test="tenantId !=null and tenantId != ''">
-                and tenant_id=#{tenantId}
-            </if>
-        </where>
     </select>
     <update id="updateUpdateTime" parameterType="java.lang.String">
         update configfile

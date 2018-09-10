@@ -171,8 +171,8 @@ UPDATE `k8s_auth_server`.`cicd_stage_type` SET `index`=8, `status`=1 WHERE templ
 UPDATE `k8s_auth_server`.`cicd_stage_type` SET `index`=9, `status`=0 WHERE template_type=8;
 UPDATE `k8s_auth_server`.`cicd_stage_type` SET `index`=10, `status`=1 WHERE template_type=6;
 
-INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/configmap/*/serviceList', 'appcenter', 'configmap');
-INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/configmap/*/updateEdition', 'appcenter', 'configmap');
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/configmap/*/services', 'appcenter', 'configmap');
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/configmap/*/deploy', 'appcenter', 'configmap');
 INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/configmap/*/tags', 'appcenter', 'configmap');
 
 INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/privilege/groupNames', 'whitelist', 'whitelist');
@@ -181,3 +181,11 @@ ALTER TABLE `k8s_auth_server`.`configfile`
 ADD COLUMN `update_time` VARCHAR(255) AFTER `create_time`;
 
 
+ALTER TABLE `k8s_auth_server`.`cicd_stage`
+ADD COLUMN `dest_cluster_id` VARCHAR(255) NULL AFTER `update_time`;
+
+ALTER TABLE `k8s_auth_server`.`cicd_stage`
+ADD COLUMN `repository_id` VARCHAR(255) NULL AFTER `dest_cluster_id`;
+
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`) VALUES ('/tenants/*/projects/*/cicdjobs/*/stages/getRepositoryId', 'cicd');

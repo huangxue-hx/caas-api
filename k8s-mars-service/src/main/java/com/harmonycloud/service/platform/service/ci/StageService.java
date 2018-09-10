@@ -55,4 +55,6 @@ public interface StageService {
     List<Stage> getStageByJobId(Integer id);
 
     void verifyStageResource(Job job, StageDto stageDto) throws Exception;
+
+    int getRepositoryId(String repoName,String projectId,String tenantId);
 }

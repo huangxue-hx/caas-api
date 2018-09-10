@@ -160,18 +160,18 @@ public interface ConfigCenterService {
      * @param serviceNameList
      * @return
      */
-    ActionReturnUtil updateConfigEdition(List<String> serviceNameList, String edition, String configName, String projectId, String tenantId) throws Exception;
+    ActionReturnUtil updateConfigTag(List<String> serviceNameList, String edition, String configName, String projectId, String tenantId,String clusterId) throws Exception;
 
     /**
      * 返回所有版本号
      * @param configName
      * @return
      */
-    ActionReturnUtil getEditionByConfigName(String configName,String projectId,String tenantId);
+    ActionReturnUtil getTagsByConfigName(String configName,String clusterId,String projectId);
 
     /**
      * 根据配置文件名获取服务列表
      * @return
      */
-    ActionReturnUtil getAllServiceByConfigName(String configName,String projectId,String tenantId) throws Exception;
+    ActionReturnUtil getAllServiceByConfigName(String configName,String clusterId,String projectId,String tenantId) throws Exception;
 }

@@ -45,6 +45,8 @@
         <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
         <result column="update_user" jdbcType="VARCHAR" property="updateUser" />
         <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+        <result column="dest_cluster_id" jdbcType="VARCHAR" property="destClusterId" />
+        <result column="repository_id" jdbcType="VARCHAR" property="repositoryId" />
     </resultMap>
 
     <sql id="selectAllColumns">
@@ -89,6 +91,8 @@
         s.suite_id,
         s.create_time,
         s.update_time,
+        s.dest_cluster_id,
+        s.repository_id,
         cicd_stage_type.template_type stage_template_type
         FROM cicd_stage s
         JOIN cicd_stage_type ON s.stage_type_id = cicd_stage_type.id
@@ -136,7 +140,9 @@
         create_user,
         create_time,
         update_user,
-        update_time
+        update_time,
+        dest_cluster_id,
+        repository_id
         )
         VALUES(
         #{jobId},
@@ -179,7 +185,9 @@
         #{createUser},
         #{createTime},
         #{updateUser},
-        #{updateTime}
+        #{updateTime},
+        #{destClusterId},
+        #{repositoryId}
         )
     </insert>
 
@@ -237,7 +245,9 @@
         command = #{command},
         suite_id = #{suiteId},
         update_user = #{updateUser},
-        update_time = #{updateTime}
+        update_time = #{updateTime},
+        dest_cluster_id = #{destClusterId},
+        repository_id = #{repositoryId}
         WHERE id = #{id}
     </update>
 

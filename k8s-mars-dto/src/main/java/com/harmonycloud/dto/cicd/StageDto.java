@@ -67,15 +67,34 @@ public class StageDto {
     private List<ConditionDto> conditionDtos;
     private String sonarProperty;
 
-    private String clusterId;
+    private String projectId;
+    private String destClusterId;
+    private String repositoryId;
 
-    public String getClusterId() {
-        return clusterId;
+    public String getRepositoryId() {
+        return repositoryId;
     }
 
-    public void setClusterId(String clusterId) {
-        this.clusterId = clusterId;
+    public void setRepositoryId(String repositoryId) {
+        this.repositoryId = repositoryId;
     }
+
+    public String getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
+    }
+
+    public String getDestClusterId() {
+        return destClusterId;
+    }
+
+    public void setDestClusterId(String destClusterId) {
+        this.destClusterId = destClusterId;
+    }
+
 
     public Integer getId() {
         return id;

@@ -9,7 +9,26 @@ import java.util.List;
  */
 public class ConfigServiceUpdateDto {
     List<String> serviceNameList;
-    String edition;
+
+    String tag;
+
+    String clusterId;
+
+    public String getClusterId() {
+        return clusterId;
+    }
+
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
+    }
+
+    public String getTag() {
+        return tag;
+    }
+
+    public void setTag(String tag) {
+        this.tag = tag;
+    }
 
     public List<String> getServiceNameList() {
         return serviceNameList;
@@ -17,14 +36,6 @@ public class ConfigServiceUpdateDto {
 
     public void setServiceNameList(List<String> serviceNameList) {
         this.serviceNameList = serviceNameList;
-    }
-
-    public String getEdition() {
-        return edition;
-    }
-
-    public void setEdition(String edition) {
-        this.edition = edition;
     }
 
 

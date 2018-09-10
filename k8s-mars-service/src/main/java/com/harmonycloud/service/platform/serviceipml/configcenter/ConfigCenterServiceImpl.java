@@ -110,15 +110,13 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         //查询数据库中是否有该配置组（若没有，则为创建配置;若有，则为保存修改的配置）
         if(list.isEmpty()){
             configFile.setCreateTime(DateUtil.timeFormat.format(new Date()));//创建配置时，添加创建时间字段
-        }else {
-            configFile.setCreateTime(list.get(list.size()-1).getCreateTime());
         }
         String updateTime = DateUtil.timeFormat.format(new Date());
         configFile.setUpdateTime(updateTime);
         //设置同配置组updateTime为同一值
         configFileMapper.updateUpdateTime(updateTime,configDetail.getName());
-        //if (StringUtils.isNotBlank(configFile.getClusterId())) {
-        if ("".equals(configFile.getClusterId()) && configFile.getClusterId().length()>0) {
+
+        if (!"".equals(configFile.getClusterId()) && configFile.getClusterId().length() > 0) {
             configFile.setClusterName(clusterService.findClusterById(configFile.getClusterId()).getName());
         }
         // 入库
@@ -348,10 +346,10 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         List<Deployment> serviceList = getServiceList(configDetailDto.getProjectId(), configDetailDto.getTenantId(), configDetailDto.getId());
         configDetailDto.setDeploymentList(serviceList);
 
-        String clusterName = clusterService.getClusterNameByClusterId(clusterId);
+        Cluster cluster = clusterService.findClusterById(clusterId);
+        String clusterName = cluster.getName();
         configDetailDto.setClusterName(clusterName);
 
-        Cluster cluster = clusterService.findClusterById(clusterId);
         configDetailDto.setClusterAliasName(cluster.getAliasName());
         return ActionReturnUtil.returnSuccessWithData(configDetailDto);
     }
@@ -422,7 +420,6 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         List<Deployment> deploymentsList = new ArrayList<>();
         for (NamespaceLocal namespaceLocal : namespaceListByTenantId) {
             String namespace = namespaceLocal.getNamespaceName();
-
             DeploymentList deploymentList = deploymentsService.listDeployments(namespace, projectId);
             if(!CollectionUtils.isEmpty(deploymentList.getItems())){
                 List<Deployment> deployments = deploymentList.getItems();
@@ -449,29 +446,30 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 
 
     @Override
-    public ActionReturnUtil updateConfigEdition(List<String> serviceNameList, String edition, String configName, String projectId,String tenantId) throws Exception {
+    public ActionReturnUtil updateConfigTag(List<String> serviceNameList, String edition, String configName, String projectId,String tenantId,String clusterId) throws Exception {
 
         //根据服务名和projectId、tenantId返回对应服务
-        List<String> configMapIds= configFileMapper.getConfigMapIdByNameAndId(configName,projectId,tenantId);
+        List<ConfigFile> configFiles = configFileMapper.getConfigMapByName(configName,clusterId,projectId);
+        List<String> configMapIds = new LinkedList<String>();
+        for(ConfigFile configFile : configFiles){
+            configMapIds.add(configFile.getId());
+        }
         List<Deployment> deploymentList = new LinkedList<Deployment>();
 
-        for(String serviceName : serviceNameList){
             for(String configMapId : configMapIds){
                 List<Deployment> deployments = getServiceList(projectId,tenantId,configMapId);
                 for(Deployment deployment : deployments){
-                    if(deployment.getMetadata().getName().equals(serviceName)){
+                    if(serviceNameList.contains(deployment.getMetadata().getName())){
                         deploymentList.add(deployment);
                     }
                 }
             }
-        }
         //对选中的每个服务进行滚动升级
         for (Deployment deployment : deploymentList) {
             //设置每个服务的configMap为最新的
             List<Volume> volumes = deployment.getSpec().getTemplate().getSpec().getVolumes();
 
             String userName = (String) session.getAttribute("username");
-            //versionControlService.canaryUpdate(,,userName);
             //将滚动升级的容器参数给到CanaryDeployment，修改configMap
             CanaryDeployment canaryDeployment = new CanaryDeployment();
             canaryDeployment.setInstances(deployment.getStatus().getUpdatedReplicas());//更新的实例数与当前实例数相同时为滚动升级
@@ -481,7 +479,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
             canaryDeployment.setMaxUnavailable(1);
             canaryDeployment.setNamespace(deployment.getMetadata().getNamespace());
             canaryDeployment.setProjectId(projectId);
-            List<UpdateContainer> updateContainers = getUpdateContainerList(deployment,configName,edition,projectId,tenantId);
+            List<UpdateContainer> updateContainers = getUpdateContainerList(deployment,configName,edition,projectId,tenantId,clusterId);
             canaryDeployment.setContainers(updateContainers);
             //进行滚动升级
             versionControlService.canaryUpdate(canaryDeployment,deployment.getStatus().getUpdatedReplicas(),userName);
@@ -491,7 +489,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     }
 
 
-    private  List<UpdateContainer> getUpdateContainerList(Deployment dep,String configName,String edition,String projectid,String tenantId) throws Exception{
+    private  List<UpdateContainer> getUpdateContainerList(Deployment dep,String configName,String tags,String projectid,String tenantId,String clusterId) throws Exception{
 
         List<ContainerOfPodDetail> containerList = K8sResultConvert.convertContainer(dep);
         List<UpdateContainer> updateContainerList = new ArrayList<>();
@@ -504,7 +502,6 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
             int indexOflastMH = tempImg.lastIndexOf(":");
             String tag = tempImg.substring(indexOflastMH+1);
             updateContainer.setTag(tag);
-
             updateContainer.setCommand(containerOfPodDetail.getCommand());
             updateContainer.setLivenessProbe(containerOfPodDetail.getLivenessProbe());
             updateContainer.setReadinessProbe(containerOfPodDetail.getReadinessProbe());
@@ -542,37 +539,39 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
             List<PersistentVolumeDto> updateVolumeList = new ArrayList<>();
             List<CreateConfigMapDto> configMapList = new ArrayList<>();
             if (containerOfPodDetail.getStorage() != null) {
-                //获取要更新成的configMap的configMapId
-                String configMapId = configFileMapper.getConfigIdByNameAndTagAndIds(configName,edition,projectid,tenantId);
+                //获取要更新成configMap的configMapId
+                ConfigFile configFileTemp = configFileMapper.getConfigByNameAndTag(configName,tags,projectid,clusterId);
+                String configMapId = configFileTemp.getId();
                 //获取服务的configMapId(更新之前的configMapId)
                 int indexOfLastV = dep.getSpec().getTemplate().getSpec().getVolumes().get(0).getConfigMap().getItems().get(0).getKey().lastIndexOf("v");
-                String oldEdition = dep.getSpec().getTemplate().getSpec().getVolumes().get(0).getConfigMap().getItems().get(0).getKey().substring(indexOfLastV+1);
-                String oldConfigMapId = configFileMapper.getConfigIdByNameAndTagAndIds(configName,oldEdition,projectid,tenantId);
+                String oldtags = dep.getSpec().getTemplate().getSpec().getVolumes().get(0).getConfigMap().getItems().get(0).getKey().substring(indexOfLastV+1);
+                ConfigFile configFileOld = configFileMapper.getConfigByNameAndTag(configName,oldtags,projectid,clusterId);
+                String oldConfigMapId = configFileOld.getId();
                 //获取新版本的所有配置文件
                 List<ConfigFileItem> configFileItems = configFileItemMapper.getConfigFileItem(configMapId);
                 //获取老版本的所有配置文件
                 List<ConfigFileItem> oldConfigFileItems = configFileItemMapper.getConfigFileItem(oldConfigMapId);
-                //用于删除元素的而临时数组
+                //用于删除元素的临时数组
                 List<ConfigFileItem> tempList = new LinkedList<ConfigFileItem>();
+                //获取服务目前选择的配置文件文件名
+                List<VolumeMount> volumeMountList = dep.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts();
+                List<String> volumeConfigFileNames = new LinkedList<String>();
+                for(VolumeMount volumeMount : volumeMountList){
+                    int indexBeforeId = volumeMount.getName().lastIndexOf("-");
+                    String configFileId = volumeMount.getName().substring(indexBeforeId+1);
+                    String name = volumeMount.getSubPath();
+                    volumeConfigFileNames.add(name);
+                }
                 /* 将之前版本中没有加入的配置文件剔除 */
-                //新版本和老版本中都有的配置文件，老版本中删除，新版本中也需要做删除处理
                 for(ConfigFileItem configFileItemIndex : configFileItems){
                     for(ConfigFileItem oldConfigFileItemIndex : oldConfigFileItems){
-                        //确定新旧版本都存在的配置文件
+                        //判断新老配置组中名字、路径、内容都一致的配置文件（以此条件判断不同版本配置组的配置文件一致）
                         if(configFileItemIndex.getFileName().equals(oldConfigFileItemIndex.getFileName())
                                 && configFileItemIndex.getPath().equals(oldConfigFileItemIndex.getPath())
                                 && configFileItemIndex.getContent().equals(oldConfigFileItemIndex.getContent())){
-
-                            List<VolumeMount> volumeMountList = dep.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts();
-                            for(VolumeMount volumeMount : volumeMountList){
-                                int indexBeforeId = volumeMount.getName().lastIndexOf("-");
-                                String configFileId = volumeMount.getName().substring(indexBeforeId+1);
-                                String name = volumeMount.getSubPath();
-                                if(configFileId.equals(oldConfigFileItemIndex.getConfigfileId()) && name.equals(oldConfigFileItemIndex.getFileName())){
-                                    continue;
-                                }else {
-                                    tempList.add(configFileItemIndex);
-                                }
+                            //若服务的配置组中不存在老配置组的文件名，则删除
+                            if(!volumeConfigFileNames.contains(configFileItemIndex.getFileName())){
+                                tempList.add(configFileItemIndex);
                             }
                         }
                     }
@@ -611,10 +610,8 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
                 }
                     /*configMap配置结束*/
             }
-
             updateContainer.setStorage(updateVolumeList);
             updateContainer.setConfigmap(configMapList);
-
             if (updateContainer.getLog() == null) {
                 updateContainer.setLog(new LogVolume());
             }
@@ -632,15 +629,23 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     }
 
     @Override
-    public ActionReturnUtil getEditionByConfigName(String configName,String projectId,String tenantId) {
-        List<String> edition = configFileMapper.getEditionByConfigName(configName,projectId,tenantId);
-        return ActionReturnUtil.returnSuccessWithData(edition);
+    public ActionReturnUtil getTagsByConfigName(String configName,String clusterId,String projectId) {
+        List<ConfigFile> configFiles = configFileMapper.getConfigMapByName(configName,clusterId,projectId);
+        List<String> tags = new LinkedList<String>();
+        for(ConfigFile configFile : configFiles){
+            tags.add(configFile.getTags());
+        }
+        return ActionReturnUtil.returnSuccessWithData(tags);
     }
 
     @Override
-    public ActionReturnUtil  getAllServiceByConfigName(String configName,String projectId,String tenantId) throws Exception{
+    public ActionReturnUtil  getAllServiceByConfigName(String configName,String clusterId,String projectId,String tenantId) throws Exception{
         //根据configName获取所有configMapId
-        List<String> configMapIds= configFileMapper.getConfigMapIdByNameAndId(configName,projectId,tenantId);
+        List<ConfigFile> configFiles = configFileMapper.getConfigMapByName(configName,clusterId,projectId);
+        List<String> configMapIds = new LinkedList<String>();
+        for(ConfigFile configFile : configFiles){
+            configMapIds.add(configFile.getId());
+        }
         List<Deployment> deploymentList = new LinkedList<Deployment>();
         List<ConfigService> configServices = new LinkedList<ConfigService>();
         for(String configMapId : configMapIds){
@@ -654,12 +659,8 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
                 configService.setTag(tag);
                 configService.setImage(deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getImage());
                 configService.setServiceDomainName(deployment.getMetadata().getName()+"."+deployment.getMetadata().getNamespace());
-
-                ActionReturnUtil rs = deploymentsService.getDeploymentDetail(deployment.getMetadata().getNamespace(),deployment.getMetadata().getName(),true);
-               AppDetail appDetail= (AppDetail)rs.getData();
-                configService.setCreateTime(appDetail.getCreateTime());
-                configService.setUpdateTime(appDetail.getUpdateTime());
-
+                configService.setCreateTime(deployment.getMetadata().getCreationTimestamp());
+                configService.setUpdateTime(deployment.getStatus().getConditions().get(0).getLastUpdateTime());
                 configService.setConfigName(configName);
                 configService.setProjectId(projectId);
                 configService.setTenantId(tenantId);

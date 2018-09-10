@@ -118,12 +118,6 @@ public interface ConfigFileMapper {
 
     List<ConfigFile> getConfigMapByName(@Param("name") String name, @Param("clusterId") String clusterId, @Param("projectId") String projectId);
 
-    List<String> getEditionByConfigName(@Param("configName") String configName,@Param("projectId") String projectId,@Param("tenantId") String tenantId);
-
-    String getConfigIdByNameAndTagAndIds(@Param("configName") String configName,@Param("tags") String tags,@Param("projectId") String projectId,@Param("tenantId") String tenantId);
-
-    List<String> getConfigMapIdByNameAndId(@Param("configName") String configName,@Param("projectId") String projectId,@Param("tenantId") String tenantId);
-
     void updateUpdateTime(@Param("updateTime") String updateTime,@Param("configName")String configName);
 
 }

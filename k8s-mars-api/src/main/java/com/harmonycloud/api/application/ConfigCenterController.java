@@ -119,23 +119,24 @@ public class ConfigCenterController {
 	 * 根据配置名称获取配置名称关联的所有服务
 	 */
 	@ResponseBody
-	@RequestMapping(value = "/{configMapName}/serviceList", method = RequestMethod.GET)
+	@RequestMapping(value = "/{configMapName}/services", method = RequestMethod.GET)
 	public ActionReturnUtil getAllServiceByConfigName(@PathVariable("configMapName") String configName,
 													  @PathVariable("projectId") String projectId,
-													  @PathVariable("tenantId") String tenantId) throws Exception{
-		return configCenterService.getAllServiceByConfigName(configName,projectId,tenantId);
+													  @PathVariable("tenantId") String tenantId,
+													  @RequestParam(value = "clusterId")String clusterId) throws Exception{
+		return configCenterService.getAllServiceByConfigName(configName,clusterId,projectId,tenantId);
 	}
 
 	/**
 	 * 更新所选服务配置版本
 	 */
 	@ResponseBody
-	@RequestMapping(value = "/{configMapName}/updateEdition", method = RequestMethod.POST,consumes = "application/json")
-	public ActionReturnUtil updateConfigEdition(@RequestBody ConfigServiceUpdateDto configServiceUpdateDto,
+	@RequestMapping(value = "/{configMapName}/deploy", method = RequestMethod.POST,consumes = "application/json")
+	public ActionReturnUtil deployConfig(@RequestBody ConfigServiceUpdateDto configServiceUpdateDto,
 												@PathVariable("configMapName") String configName,
 												@PathVariable("projectId") String projectId,
 												@PathVariable("tenantId") String tenantId) throws Exception{
-		return configCenterService.updateConfigEdition(configServiceUpdateDto.getServiceNameList(),configServiceUpdateDto.getEdition(),configName,projectId,tenantId);
+		return configCenterService.updateConfigTag(configServiceUpdateDto.getServiceNameList(),configServiceUpdateDto.getTag(),configName,projectId,tenantId,configServiceUpdateDto.getClusterId());
 	}
 
 	/**
@@ -143,10 +144,11 @@ public class ConfigCenterController {
 	 */
 	@ResponseBody
 	@RequestMapping(value = "/{configMapName}/tags", method = RequestMethod.GET)
-	public ActionReturnUtil getEditionByConfigName(@PathVariable("configMapName") String configName,
+	public ActionReturnUtil getTagsByConfigName(@PathVariable("configMapName") String configName,
 												   @PathVariable("projectId") String projectId,
-												   @PathVariable("tenantId") String tenantId){
-		return configCenterService.getEditionByConfigName(configName,projectId,tenantId);
+												   @PathVariable("tenantId") String tenantId,
+												   @RequestParam(value = "clusterId")String clusterId){
+		return configCenterService.getTagsByConfigName(configName,clusterId,projectId);
 	}
 
 	/**
