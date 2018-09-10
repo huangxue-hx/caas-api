@@ -928,10 +928,14 @@ public class K8sResultConvert {
         if(pullDependence.getPullWay().equals(Constant.PULL_WAY_GIT)){
             String gitUrl = pullDependence.getRepoUrl();
             String protocol = gitUrl.substring(0,gitUrl.indexOf("://")+3);
+            String userName = pullDependence.getUsername();
+            if(userName.contains("@")){
+                userName = userName.replace("@", "%40");
+            }
             gitUrl = gitUrl.substring(gitUrl.indexOf("://")+3,gitUrl.length());
             projectName = gitUrl.substring(gitUrl.lastIndexOf("/")+1,gitUrl.lastIndexOf(".git"));
-            sb.append(" rm -rf " + projectName + "/.*");
-            sb.append(" && git clone " + protocol + pullDependence.getUsername() + ":" + pullDependence.getPassword()
+            sb.append(" rm -rf " + projectName + "/* " + projectName + "/.git*");
+            sb.append(" && git clone " + protocol + userName + ":" + pullDependence.getPassword()
                     + "@" + gitUrl);
             //指定了分支
             if(StringUtils.isNotBlank(pullDependence.getBranch()) && !pullDependence.getBranch().equals("master")){
