@@ -951,9 +951,13 @@ public class K8sResultConvert {
 
         }else if(pullDependence.getPullWay().equals(Constant.PULL_WAY_SVN)){
             String svnURL = pullDependence.getRepoUrl();
+            while (svnURL.endsWith("/")){
+                svnURL = svnURL.substring(0, svnURL.length()-1);
+            }
+            projectName = svnURL.substring(svnURL.lastIndexOf("/")+1, svnURL.length());
             sb.append(" svn co " + svnURL);
             //指定了分支
-            if(StringUtils.isNotBlank(pullDependence.getBranch())){
+            if(StringUtils.isNotBlank(pullDependence.getBranch()) && !pullDependence.getBranch().equals("master")){
                 sb.append("/" + pullDependence.getBranch());
             }
             //指定了tag
