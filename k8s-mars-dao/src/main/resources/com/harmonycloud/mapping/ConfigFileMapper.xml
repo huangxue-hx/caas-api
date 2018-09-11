@@ -13,14 +13,16 @@
         <result property="description" column="description"/>
         <result property="tags" column="tags"/>
         <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
         <result property="user" column="creator"/>
         <result property="repoName" column="reponame"/>
     </resultMap>
 
+
     <!-- 添加ConfigFile -->
     <insert id="saveConfigFile" parameterType="com.harmonycloud.dao.application.bean.ConfigFile">
-        INSERT INTO configfile (id, name, tenant_id, project_id, cluster_id, cluster_name, description, tags, create_time, creator, reponame)
-        VALUES (#{id}, #{name}, #{tenantId}, #{projectId}, #{clusterId}, #{clusterName}, #{description}, #{tags}, #{createTime}, #{user}, #{repoName}
+        INSERT INTO configfile (id, name, tenant_id, project_id, cluster_id, cluster_name, description, tags, create_time,update_time, creator, reponame)
+        VALUES (#{id}, #{name}, #{tenantId}, #{projectId}, #{clusterId}, #{clusterName}, #{description}, #{tags}, #{createTime},#{updateTime}, #{user}, #{repoName}
                 )
     </insert>
 
@@ -142,7 +144,8 @@
         <set>
             description = #{description},
             reponame = #{repoName},
-            creator = #{user}
+            creator = #{user},
+            update_time = #{updateTime}
         </set>
         where id = #{id}
     </update>
@@ -179,4 +182,11 @@
         </where>
         order by tags desc
     </select>
+    <update id="updateUpdateTime" parameterType="java.lang.String">
+        update configfile
+        <set>
+            update_time = #{updateTime}
+        </set>
+        where name = #{configName}
+    </update>
 </mapper>

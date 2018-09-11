@@ -16,6 +16,7 @@ public class ConfigDetailDto implements Serializable {
     private String projectId;
     private String clusterId;
     private String clusterName;
+    private String clusterAliasName;
     private String repoName;
     private String isCreate;
     private String tags;
@@ -68,6 +69,14 @@ public class ConfigDetailDto implements Serializable {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getClusterAliasName() {
+        return clusterAliasName;
+    }
+
+    public void setClusterAliasName(String clusterAliasName) {
+        this.clusterAliasName = clusterAliasName;
     }
 
     public String getDescription() {

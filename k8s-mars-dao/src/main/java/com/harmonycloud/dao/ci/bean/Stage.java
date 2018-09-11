@@ -53,6 +53,42 @@ public class Stage  implements Serializable{
     private Date createTime;
     private String updateUser;
     private Date updateTime;
+    private String destClusterId;
+    private Integer repositoryId;
+    private String projectId;
+    private String tenantId;
+
+    public String getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
+    }
+
+    public String getTenantId() {
+        return tenantId;
+    }
+
+    public void setTenantId(String tenantId) {
+        this.tenantId = tenantId;
+    }
+
+    public Integer getRepositoryId() {
+        return repositoryId;
+    }
+
+    public void setRepositoryId(Integer repositoryId) {
+        this.repositoryId = repositoryId;
+    }
+
+    public String getDestClusterId() {
+        return destClusterId;
+    }
+
+    public void setDestClusterId(String destClusterId) {
+        this.destClusterId = destClusterId;
+    }
 
     public Integer getId() {
         return id;

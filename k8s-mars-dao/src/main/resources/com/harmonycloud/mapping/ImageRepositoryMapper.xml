@@ -175,4 +175,16 @@
         </set>
         where id = #{id,jdbcType=INTEGER}
     </update>
+
+    <select id="findRepositoryByNameAndTenantIdAndProjectId" resultMap="imageRepositoryMap" parameterType="java.lang.String">
+        select
+        <include refid="Base_Column_List" />
+        from image_repository where repository_name=#{repoName}
+        <if test="tenantId != null" >
+            and tenant_id=#{tenantId}
+        </if>
+        <if test="projectId != null" >
+            and project_id=#{projectId}
+        </if>
+    </select>
 </mapper>

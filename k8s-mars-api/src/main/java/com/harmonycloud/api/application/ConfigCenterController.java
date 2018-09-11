@@ -1,6 +1,7 @@
 package com.harmonycloud.api.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.application.ConfigServiceUpdateDto;
 import com.harmonycloud.dto.config.ConfigDetailDto;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
 import org.slf4j.Logger;
@@ -112,6 +113,42 @@ public class ConfigCenterController {
 										  @PathVariable("projectId") String projectId,
 										  @PathVariable("configMapId") String configMapId) throws Exception {
 		return configCenterService.getConfigMap(configMapId);
+	}
+
+	/**
+	 * 根据配置名称获取配置名称关联的所有服务
+	 */
+	@ResponseBody
+	@RequestMapping(value = "/{configMapName}/services", method = RequestMethod.GET)
+	public ActionReturnUtil getAllServiceByConfigName(@PathVariable("configMapName") String configName,
+													  @PathVariable("projectId") String projectId,
+													  @PathVariable("tenantId") String tenantId,
+													  @RequestParam(value = "clusterId")String clusterId) throws Exception{
+		return configCenterService.getAllServiceByConfigName(configName,clusterId,projectId,tenantId);
+	}
+
+	/**
+	 * 更新所选服务配置版本
+	 */
+	@ResponseBody
+	@RequestMapping(value = "/{configMapName}/deploy", method = RequestMethod.POST,consumes = "application/json")
+	public ActionReturnUtil deployConfig(@RequestBody ConfigServiceUpdateDto configServiceUpdateDto,
+												@PathVariable("configMapName") String configName,
+												@PathVariable("projectId") String projectId,
+												@PathVariable("tenantId") String tenantId) throws Exception{
+		return configCenterService.updateConfigTag(configServiceUpdateDto.getServiceNameList(),configServiceUpdateDto.getTag(),configName,projectId,tenantId,configServiceUpdateDto.getClusterId());
+	}
+
+	/**
+	 * 根据配置名称获取所有版本
+	 */
+	@ResponseBody
+	@RequestMapping(value = "/{configMapName}/tags", method = RequestMethod.GET)
+	public ActionReturnUtil getTagsByConfigName(@PathVariable("configMapName") String configName,
+												   @PathVariable("projectId") String projectId,
+												   @PathVariable("tenantId") String tenantId,
+												   @RequestParam(value = "clusterId")String clusterId){
+		return configCenterService.getTagsByConfigName(configName,clusterId,projectId);
 	}
 
 	/**

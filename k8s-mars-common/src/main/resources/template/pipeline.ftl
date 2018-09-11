@@ -86,6 +86,9 @@ podTemplate(
 <#if (stage.stageTemplateType == 7 || stage.stageTemplateType == 8)>
             httpRequest url:"${apiUrl!}/rest/openapi/cicdjobs/stages/${stage.id!}?buildNum=${r'${currentBuild.number}'}",consoleLogResponseBody: true, timeout: ${timeout}
 </#if>
+<#if stage.stageTemplateType == 9>
+             httpRequest url:"${apiUrl!}/rest/openapi/cicdjobs/stages/${stage.id!}?buildNum=${r'${currentBuild.number}'}",consoleLogResponseBody: true, timeout: ${timeout}
+</#if>
 <#if (stage.command!?size>0)>
     sh '''<#list stage.command! as command><![CDATA[${command}]]>
     </#list>'''

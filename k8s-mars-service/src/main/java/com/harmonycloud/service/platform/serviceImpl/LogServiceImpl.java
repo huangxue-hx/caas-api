@@ -23,6 +23,7 @@ import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.Session;
+import com.pty4j.PtyProcess;
 import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
@@ -41,19 +42,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import javax.servlet.http.HttpServletResponse;
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+import java.io.*;
 import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.harmonycloud.common.Constant.CommonConstant.*;
@@ -62,6 +63,7 @@ import static com.harmonycloud.common.Constant.CommonConstant.*;
  * 日志ervice实现类
  */
 @Service
+@Scope("prototype")
 public class LogServiceImpl implements LogService {
 
     private static Logger logger = LoggerFactory.getLogger(LogServiceImpl.class);
@@ -74,6 +76,9 @@ public class LogServiceImpl implements LogService {
     //日志最多查询的数量为200
     private static final int MAX_LOG_LINES = 200;
 
+    @Value("${shell:#{null}}")
+    private String shellStarter;
+
     @Autowired
     private NamespaceLocalService namespaceLocalService;
 
@@ -83,6 +88,18 @@ public class LogServiceImpl implements LogService {
     ClusterService clusterService;
     @Autowired
     EsService esService;
+
+    private boolean isReady;
+    private String[] termCommand;
+    private PtyProcess process;
+    private Integer columns = 20;
+    private Integer rows = 10;
+    private BufferedReader inputReader;
+    private BufferedReader errorReader;
+    private BufferedWriter outputWriter;
+    private WebSocketSession webSocketSession;
+
+    private LinkedBlockingQueue<String> commandQueue = new LinkedBlockingQueue<>();
 
 
     @Override
@@ -648,5 +665,44 @@ public class LogServiceImpl implements LogService {
         }
         return queryBuilder;
     }
+
+    /**
+     * 根据类型获取 获取日志语句
+     * @param session
+     * @param logQueryDto
+     */
+    public String getLogCommand(WebSocketSession session, LogQueryDto logQueryDto) {
+        Cluster cluster = null;
+        String command = null;
+        try {
+            if (StringUtils.isNotBlank(logQueryDto.getNamespace()) && !CommonConstant.KUBE_SYSTEM.equalsIgnoreCase(logQueryDto.getNamespace())) {
+                cluster = namespaceLocalService.getClusterByNamespaceName(logQueryDto.getNamespace());
+            } else if (StringUtils.isNotBlank(logQueryDto.getClusterId())) {
+                cluster = clusterService.findClusterById(logQueryDto.getClusterId());
+            }
+            if (cluster == null) {
+                throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+            }
+            //标准输出
+            if (logQueryDto.getLogSource() == LogService.LOG_TYPE_STDOUT) {
+                AssertUtil.notBlank(logQueryDto.getContainer(), DictEnum.CONTAINER);
+                command = MessageFormat.format("kubectl logs {0} -c {1} -n {2} --tail={3} -f --server={4} --token={5} --insecure-skip-tls-verify=true",
+                        logQueryDto.getPod(), logQueryDto.getContainer(), logQueryDto.getNamespace(), MAX_LOG_LINES, cluster.getApiServerUrl(), cluster.getMachineToken());
+            } else if (logQueryDto.getLogSource() == LogService.LOG_TYPE_LOGFILE) {
+                AssertUtil.notBlank(logQueryDto.getLogDir(), DictEnum.LOG_DIR);
+                AssertUtil.notBlank(logQueryDto.getLogFile(), DictEnum.LOG_FILE);
+                //kubectl exec webapi-6cf47949c8-kwddh -n kube-system -- tail -200f /opt/logs/webapi-info.2018-06-29.log
+                command = MessageFormat.format("kubectl exec {0} -n {1} --server={2} --token={3} --insecure-skip-tls-verify=true -- tail -f -n {4} {5}/{6}",
+                        logQueryDto.getPod(), logQueryDto.getNamespace(), cluster.getApiServerUrl(), cluster.getMachineToken(), MAX_LOG_LINES, logQueryDto.getLogDir(), logQueryDto.getLogFile());
+            }
+        }catch (Exception e){
+            logger.error("出现异常:",e);
+            throw new MarsRuntimeException(ErrorCodeMessage.RUN_COMMAND_ERROR);
+        }
+        return command;
+    }
+
+
+
 
 }

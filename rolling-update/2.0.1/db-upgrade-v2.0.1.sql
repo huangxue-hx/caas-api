@@ -180,3 +180,22 @@ INSERT INTO k8s_auth_server.`system_config` (config_name,config_value,config_typ
 INSERT INTO k8s_auth_server.`system_config` (config_name,config_value,config_type,create_user)  VALUES ('SingleTimeLimit','60','login','admin');
 
 UPDATE k8s_auth_server.url_dic SET module='whitelist',resource='whitelist' WHERE url = '/users/*/password';
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/configmap/*/services', 'appcenter', 'configmap');
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/configmap/*/deploy', 'appcenter', 'configmap');
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/configmap/*/tags', 'appcenter', 'configmap');
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/privilege/groupNames', 'whitelist', 'whitelist');
+
+ALTER TABLE `k8s_auth_server`.`configfile`
+ADD COLUMN `update_time` VARCHAR(255) AFTER `create_time`;
+
+
+ALTER TABLE `k8s_auth_server`.`cicd_stage`
+ADD COLUMN `dest_cluster_id` VARCHAR(255) NULL AFTER `update_time`;
+
+ALTER TABLE `k8s_auth_server`.`cicd_stage`
+ADD COLUMN `repository_id` VARCHAR(255) NULL AFTER `dest_cluster_id`;
+
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`) VALUES ('/tenants/*/projects/*/cicdjobs/*/stages/getRepositoryId', 'cicd');
