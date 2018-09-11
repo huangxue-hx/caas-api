@@ -23,7 +23,6 @@ import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.Session;
-import com.pty4j.PtyProcess;
 import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
@@ -54,7 +53,6 @@ import java.io.*;
 import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.harmonycloud.common.Constant.CommonConstant.*;
@@ -88,18 +86,6 @@ public class LogServiceImpl implements LogService {
     ClusterService clusterService;
     @Autowired
     EsService esService;
-
-    private boolean isReady;
-    private String[] termCommand;
-    private PtyProcess process;
-    private Integer columns = 20;
-    private Integer rows = 10;
-    private BufferedReader inputReader;
-    private BufferedReader errorReader;
-    private BufferedWriter outputWriter;
-    private WebSocketSession webSocketSession;
-
-    private LinkedBlockingQueue<String> commandQueue = new LinkedBlockingQueue<>();
 
 
     @Override

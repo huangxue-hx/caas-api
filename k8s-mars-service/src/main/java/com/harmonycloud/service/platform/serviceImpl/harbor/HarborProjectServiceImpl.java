@@ -748,7 +748,6 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	@Override
 	public boolean syncImage(Integer repositoryId, String repoName, String tag, String destClusterId, Boolean overwrite) throws Exception {
 		ImageRepository sourceRepository = imageRepositoryMapper.findRepositoryById(repositoryId);
-
 		if(sourceRepository == null){
 			return false;
 		}

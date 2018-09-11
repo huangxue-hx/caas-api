@@ -4,7 +4,6 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.ci.bean.StageType;
 import com.harmonycloud.dto.cicd.StageDto;
 import com.harmonycloud.service.platform.service.ci.StageService;
-import org.apache.ibatis.annotations.Param;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

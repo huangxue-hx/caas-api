@@ -130,9 +130,6 @@ public class StageServiceImpl implements StageService {
     private ImageRepositoryMapper imageRepositoryMapper;
 
     @Autowired
-    private HarborService harborService;
-
-    @Autowired
     private ImageCacheManager imageCacheManager;
 
     private long sleepTime = 2000L;
