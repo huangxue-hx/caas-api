@@ -17,7 +17,6 @@ import com.harmonycloud.dto.config.ConfigDetailDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.service.ConfigmapService;
-import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.VersionControlService;
@@ -57,8 +56,6 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     private ConfigFileItemMapper configFileItemMapper;
     @Autowired
     private ClusterService clusterService;
-    @Autowired
-    private RoleLocalService roleLocalService;
     @Autowired
     private UserService userService;
 
@@ -456,14 +453,14 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         }
         List<Deployment> deploymentList = new LinkedList<Deployment>();
 
-            for(String configMapId : configMapIds){
-                List<Deployment> deployments = getServiceList(projectId,tenantId,configMapId);
-                for(Deployment deployment : deployments){
-                    if(serviceNameList.contains(deployment.getMetadata().getName())){
-                        deploymentList.add(deployment);
-                    }
+        for(String configMapId : configMapIds){
+            List<Deployment> deployments = getServiceList(projectId,tenantId,configMapId);
+            for(Deployment deployment : deployments){
+                if(serviceNameList.contains(deployment.getMetadata().getName())){
+                    deploymentList.add(deployment);
                 }
             }
+        }
         //对选中的每个服务进行滚动升级
         for (Deployment deployment : deploymentList) {
             //设置每个服务的configMap为最新的
@@ -608,7 +605,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
                     }
                     configMapList.add(configMap);
                 }
-                    /*configMap配置结束*/
+                /*configMap配置结束*/
             }
             updateContainer.setStorage(updateVolumeList);
             updateContainer.setConfigmap(configMapList);
@@ -668,5 +665,10 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
             }
         }
         return ActionReturnUtil.returnSuccessWithData(configServices);
+    }
+
+    @Override
+    public void deleteConfigMap(String clusterId, String tenantId) throws Exception {
+        configFileMapper.delConfByCidAndTid(clusterId, tenantId);
     }
 }

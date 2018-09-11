@@ -260,4 +260,11 @@ public interface TenantService {
      */
     public void updateTenantStrategy(String tenantId,Integer strategy) throws Exception;
 
+    /**
+     * 移除租户在集群下的配额
+     * @param tenantId
+     * @param clusterQuota
+     * @throws Exception
+     */
+    public void removeClusterQuota(String tenantName, String tenantId, ClusterQuotaDto clusterQuota) throws Exception;
 }

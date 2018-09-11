@@ -142,7 +142,6 @@ public class ProjectServiceImpl implements ProjectService {
         List<LocalRolePrivilege>  localRolePrivileges = localRoleService.listPrivilegeByProject(projectId, userName);
         session.setAttribute(CommonConstant.SESSION_DATA_PRIVILEGE_LIST, localRolePrivileges);
         if (CollectionUtils.isEmpty(roleList)){
-            SsoClient.dealHeader(session);
             throw new MarsRuntimeException(ErrorCodeMessage.ROLE_DISABLE);
         }
         return roleList;

@@ -212,4 +212,13 @@ public interface ApplicationTemplateService {
     ApplicationTemplates selectByNamespaceId(String namespaceId) throws Exception;
 
     void deleteAppTemplateById(Integer id) throws Exception;
+
+    /**
+     * 根据租户集群和三处应用模板
+     * @param clusterId
+     * @param tenantName
+     * @throws Exception
+     */
+    void deleteApplicationTemplate(String clusterId, String tenantName) throws Exception;
+
 }

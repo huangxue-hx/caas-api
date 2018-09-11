@@ -3,7 +3,6 @@ package com.harmonycloud.dao.application;
 import java.util.List;
 import java.util.Set;
 
-import com.harmonycloud.dao.application.bean.ConfigService;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.stereotype.Repository;
 
@@ -120,4 +119,10 @@ public interface ConfigFileMapper {
 
     void updateUpdateTime(@Param("updateTime") String updateTime,@Param("configName")String configName);
 
+    /**
+     * 根据租户 和集群删除配置文件
+     * @param clusterId
+     * @param tenantId
+     */
+    void delConfByCidAndTid(@Param("clusterId") String clusterId, @Param("tenantId")String tenantId);
 }

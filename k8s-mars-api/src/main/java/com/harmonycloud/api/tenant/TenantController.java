@@ -445,4 +445,19 @@ public class TenantController {
         tenantService.updateTenantStrategy(tenantId,strategy);
         return ActionReturnUtil.returnSuccess();
     }
+    /**
+     * 根据租户id修改租户配额
+     * @param tenantId
+     * @param tenantName
+     * @param clusterQuotaDto
+     * @return
+     */
+    @RequestMapping(value = "/{tenantId}/clusterquotas", method = RequestMethod.DELETE)
+    @ResponseBody
+    public ActionReturnUtil removeClusterQuota(@PathVariable(value = "tenantId") String tenantId,
+                                      @RequestParam (value = "tenantName") String tenantName,
+                                      @ModelAttribute ClusterQuotaDto clusterQuotaDto) throws Exception {
+        tenantService.removeClusterQuota(tenantName, tenantId, clusterQuotaDto);
+        return ActionReturnUtil.returnSuccess();
+    }
 }

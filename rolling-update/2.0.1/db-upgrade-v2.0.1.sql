@@ -199,3 +199,5 @@ ADD COLUMN `repository_id` VARCHAR(255) NULL AFTER `dest_cluster_id`;
 
 
 INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`) VALUES ('/tenants/*/projects/*/cicdjobs/*/stages/getRepositoryId', 'cicd');
+
+INSERT INTO `k8s_auth_server`.`url_dic` (url,module,resource) VALUE ('/tenants/*/clusterquotas','tenant','tenantmgr');

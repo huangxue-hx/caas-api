@@ -3,7 +3,6 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.DicUtil;
-import com.harmonycloud.common.util.SsoClient;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.user.RolePrivilegeMapper;
@@ -124,14 +123,12 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
         String currentProjectId = this.userService.getCurrentProjectId();
         Role role = this.roleLocalService.getRoleById(roleId);
         if ( org.apache.commons.lang3.StringUtils.isBlank(username)){
-            SsoClient.dealHeader(session);
             throw new MarsRuntimeException(ErrorCodeMessage.USER_NOT_AUTH_OR_TIMEOUT);
         }
         List<Role> availableRoleList = this.roleLocalService.getRoleListByUsernameAndTenantIdAndProjectId(username, currentTenantId, currentProjectId);
         //检查切换的角色是否在用户能切换的角色范围之内
         boolean contains = availableRoleList.contains(role);
         if (!contains){
-            SsoClient.dealHeader(session);
             throw new MarsRuntimeException(ErrorCodeMessage.SWITCH_ROLE_INCORRECT);
 //            throw new MarsRuntimeException(ErrorCodeMessage.SWITCH_ROLE_INCORRECT,role.getNickName(),Boolean.TRUE);
         }

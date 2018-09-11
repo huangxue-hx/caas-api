@@ -174,4 +174,12 @@ public interface ConfigCenterService {
      * @return
      */
     ActionReturnUtil getAllServiceByConfigName(String configName,String clusterId,String projectId,String tenantId) throws Exception;
+
+    /**
+     * 根据租户集群删除配置文件
+     * @param clusterId
+     * @param tenantId
+     * @throws Exception
+     */
+    void deleteConfigMap(String clusterId, String tenantId) throws Exception;
 }

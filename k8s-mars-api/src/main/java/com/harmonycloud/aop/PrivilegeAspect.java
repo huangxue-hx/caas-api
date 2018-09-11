@@ -6,7 +6,6 @@ import com.harmonycloud.common.enumm.MicroServiceCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.exception.MsfException;
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.common.util.SsoClient;
 import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dao.user.bean.LocalRolePrivilege;
 import com.harmonycloud.dao.user.bean.Role;
@@ -302,16 +301,7 @@ public class PrivilegeAspect {
 	private void dealHeader (ServletRequestAttributes attributes){
 		HttpServletRequest request = attributes.getRequest();
 		HttpSession session = request.getSession();
-		if(SsoClient.isOpen()) {
-			HttpServletResponse response = attributes.getResponse();
-			SsoClient.setRedirectResponse(response);
-			session.invalidate();
-			SsoClient.clearToken(response);
-		}else {
-			//HttpServletResponse response = attributes.getResponse();
-			//SsoClient.setRedirectResponse(response);
-			session.invalidate();
-		}
+        session.invalidate();
 	}
 
 	private void dealHeaderWithMaintenance (HttpServletResponse response){

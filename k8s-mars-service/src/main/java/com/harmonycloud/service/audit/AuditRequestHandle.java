@@ -6,7 +6,6 @@ import com.harmonycloud.common.enumm.AuditQueryDbEnum;
 import com.harmonycloud.common.enumm.AuditUrlEnum;
 import com.harmonycloud.common.util.HttpClientUtil;
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.common.util.SsoClient;
 import com.harmonycloud.dao.application.LogBackupRuleMapper;
 import com.harmonycloud.dao.application.bean.LogBackupRule;
 import com.harmonycloud.dao.ci.bean.BuildEnvironment;
@@ -31,12 +30,10 @@ import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.LocalRoleService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
-import com.whchem.sso.client.entity.User;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -168,18 +165,8 @@ public class AuditRequestHandle {
                 requestInfo.setTenant(tenant);
                 //获取当前用户
                 requestInfo.setUser(userService.getCurrentUsername());
-                //单点登录
-                if ("/users/current_GET".equals(url)) {
-                    if (StringUtils.isNotBlank(subject) && Boolean.valueOf(subject)) {
-                        User user = SsoClient.getUserByCookie(request);
-                        requestInfo.setUser(null != user? user.getName():null);
-                        requestInfo.setSubject(null != user? user.getName():null);
-                    } else {
-                        requestInfo.setUser(null);
-                    }
-                }
                 //如果是登录请求，从参数内获取,并且将参数加密
-                if ("/users/auth/login".equals(url)) {
+                if ("/users/auth/login_POST".equals(url)) {
                     requestInfo.setRequestParams("******");
                     String username = request.getParameter("username");
                     requestInfo.setUser(username);
