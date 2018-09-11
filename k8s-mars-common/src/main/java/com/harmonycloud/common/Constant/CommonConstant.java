@@ -464,8 +464,7 @@ public class CommonConstant {
     public static final String ES_REPOSITORY_TYPE = "fs";
     // 重命名时匹配所有索引，非空
     public static final String ES_RESTORE_RENAME_PATTERN = ".+";
-    // 应用日志在ES里索引的命名前缀
-    public static final String ES_INDEX_LOGSTASH_PREFIX = "logstash-";
+
     public static final String ES_INDEX_SNAPSHOT_RESTORE = "_snapshot";
     public static final String ES_INDEX_LOGSTASH_DATE_FORMAT = "yyyy.MM.dd";
     // 计算索引开始时间时补充一天

@@ -16,6 +16,7 @@ public class ClusterInfo implements Serializable {
     private ClusterMysql mysql;
     private ClusterRedis redis;
     private ClusterHarbor harbor;
+    private ElasticsearchConnect elasticsearch;
     private List<ClusterDomain> domain ;
     private List<ClusterExternal> external ;
     private List<ClusterStorage> nfs ;
@@ -106,5 +107,13 @@ public class ClusterInfo implements Serializable {
 
     public void setNfs(List<ClusterStorage> nfs) {
         this.nfs = nfs;
+    }
+
+    public ElasticsearchConnect getElasticsearch() {
+        return elasticsearch;
+    }
+
+    public void setElasticsearch(ElasticsearchConnect elasticsearch) {
+        this.elasticsearch = elasticsearch;
     }
 }

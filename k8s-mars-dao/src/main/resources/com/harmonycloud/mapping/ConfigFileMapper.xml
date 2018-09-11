@@ -72,7 +72,10 @@
             <if test="projectId !=null  and projectId != ''  ">
                 project_id=#{projectId}
             </if>
-            <if test="repoName !=null  and repoName != ''  ">
+            <if test="repoName !=null  and repoName != ''  and withPublic">
+                and (reponame=#{repoName} or reponame is null)
+            </if>
+            <if test="repoName !=null  and repoName != ''  and !withPublic">
                 and reponame=#{repoName}
             </if>
             <if test="keyword !=null  and keyword != ''  ">

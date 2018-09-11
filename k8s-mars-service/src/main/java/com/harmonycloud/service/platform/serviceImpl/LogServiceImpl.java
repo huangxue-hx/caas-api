@@ -276,7 +276,7 @@ public class LogServiceImpl implements LogService {
             QueryBuilder queryBuilder = QueryBuilders.rangeQuery("timestamp").from(from).to(to);
             QueryBuilder matchBuilder = QueryBuilders.disMaxQuery().add(QueryBuilders.termQuery("tag", processName))
                     .add(QueryBuilders.matchQuery("host_ip", node));
-            SearchResponse searchResponse = client.prepareSearch("logstash-*")
+            SearchResponse searchResponse = client.prepareSearch(esService.getLogIndexPrefix() + "*")
                     .addSort("@timestamp", SortOrder.DESC)
                     .setScroll(new TimeValue(SEARCH_TIME))
                     .setQuery(matchBuilder)
@@ -303,7 +303,7 @@ public class LogServiceImpl implements LogService {
         BoolQueryBuilder queryBuilder = this.getQueryBuilder(logQuery);
         if (StringUtils.isNotBlank(logQuery.getPod())) {
             queryBuilder.must(QueryBuilders.termQuery("pod_name", logQuery.getPod()));
-            scrollResp = client.prepareSearch("logstash-*")
+            scrollResp = client.prepareSearch(esService.getLogIndexPrefix() + "*")
                     .setIndices(logQuery.getIndexes())
                     .setQuery(queryBuilder)
                     .addAggregation(AggregationBuilders.terms("logdir").field("logdir"))
@@ -323,7 +323,7 @@ public class LogServiceImpl implements LogService {
         TermsBuilder logDirTermsBuilder = AggregationBuilders.terms("logdir").field("logdir").size(MAX_POD_FETCH_COUNT);
         TermsBuilder podTermsBuilder = AggregationBuilders.terms("pod_name").field("pod_name").size(MAX_POD_FETCH_COUNT);
         podTermsBuilder.subAggregation(logDirTermsBuilder);
-        scrollResp = client.prepareSearch("logstash-*")
+        scrollResp = client.prepareSearch(esService.getLogIndexPrefix() + "*")
                 .setIndices(logQuery.getIndexes())
                 .addSort("@timestamp", SortOrder.DESC)
                 .setQuery(queryBuilder)
@@ -370,7 +370,7 @@ public class LogServiceImpl implements LogService {
         if (StringUtils.isNotBlank(logQuery.getPod())) {
             queryBuilder.must(QueryBuilders.termQuery("pod_name", logQuery.getPod()));
         }
-        SearchRequestBuilder searchRequestBuilder = client.prepareSearch("logstash-*")
+        SearchRequestBuilder searchRequestBuilder = client.prepareSearch(esService.getLogIndexPrefix() + "*")
                 .setIndices(logQuery.getIndexes())
                 .addSort("log_time", SortOrder.ASC)
                 .setScroll(new TimeValue(SEARCH_TIME))
@@ -542,7 +542,7 @@ public class LogServiceImpl implements LogService {
             //标准输出
             if(logQueryDto.getLogSource()== LogService.LOG_TYPE_STDOUT){
                 AssertUtil.notBlank(logQueryDto.getContainer(),DictEnum.CONTAINER);
-                 command = MessageFormat.format("kubectl logs {0} -c {1} -n {2} --tail={3} -f --server={4} --token={5} --insecure-skip-tls-verify=true",
+                command = MessageFormat.format("kubectl logs {0} -c {1} -n {2} --tail={3} -f --server={4} --token={5} --insecure-skip-tls-verify=true",
                         logQueryDto.getPod(),logQueryDto.getContainer(),logQueryDto.getNamespace(),MAX_LOG_LINES,cluster.getApiServerUrl(), cluster.getMachineToken());
 
 
@@ -594,7 +594,7 @@ public class LogServiceImpl implements LogService {
         Date indexDate = from;
         List<String> existIndexes = esService.getIndexes(clusterId);
         while (indexDate.before(to)) {
-            String index = ES_INDEX_LOGSTASH_PREFIX + DateUtil.DateToString(indexDate, DateStyle.YYYYMMDD_DOT);
+            String index = esService.getLogIndexPrefix() + DateUtil.DateToString(indexDate, DateStyle.YYYYMMDD_DOT);
             String snapshotIndex = index + ES_INDEX_SNAPSHOT_RESTORE;
             if (existIndexes.contains(index)) {
                 indexes.add(index);
@@ -606,7 +606,7 @@ public class LogServiceImpl implements LogService {
             indexDate = DateUtil.addDay(indexDate, 1);
         }
         //添加最后一天的索引
-        String lastIndex = ES_INDEX_LOGSTASH_PREFIX + DateUtil.DateToString(to, DateStyle.YYYYMMDD_DOT);
+        String lastIndex = esService.getLogIndexPrefix() + DateUtil.DateToString(to, DateStyle.YYYYMMDD_DOT);
         String lastSnapshotIndex = lastIndex + ES_INDEX_SNAPSHOT_RESTORE;
         if (existIndexes.contains(lastIndex) && !indexes.contains(lastIndex)) {
             indexes.add(lastIndex);

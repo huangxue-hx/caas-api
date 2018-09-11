@@ -1732,6 +1732,10 @@ public class UserServiceImpl implements UserService {
         if(user.getIsAdmin() == null){
             user.setIsAdmin(FLAG_FALSE);
         }
+        user.setCreateTime(new Date());
+        if(StringUtils.isBlank(user.getPause())) {
+            user.setPause(NORMAL);
+        }
         userMapper.insert(user);
     }
     /**

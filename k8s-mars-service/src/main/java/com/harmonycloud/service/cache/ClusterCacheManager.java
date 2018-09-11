@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 
 import static com.harmonycloud.common.Constant.CommonConstant.NUM_ONE;
 import static com.harmonycloud.common.Constant.CommonConstant.PROTOCOL_HTTP;
+import static com.harmonycloud.k8s.constant.Constant.ES_CLUSTER_NAME;
 
 /**
  * cluster集群信息redis管理
@@ -378,11 +379,6 @@ public class ClusterCacheManager {
                     cluster.setInfluxdbUrl(HttpClientUtil.getHttpUrl(PROTOCOL_HTTP ,cluster.getHost(), INFLUXDB_DEFAULT_PORT) + "/query");
                     cluster.setInfluxdbDb(Constant.INFLUXDB_DB_NAME);
                 }
-                if(ComponentServiceTypeEnum.ES.getName().equalsIgnoreCase(clusterTemplate.getType())){
-                    cluster.setEsHost(cluster.getHost());
-                    cluster.setEsPort(ES_DEFAULT_PORT);
-                    cluster.setEsClusterName(Constant.ES_CLUSTER_NAME);
-                }
             }
             HarborServer harborServer = new HarborServer();
             harborServer.setHarborProtocol(StringUtils.isBlank(clusterTPRDto.getHarborProtocol())? PROTOCOL_HTTP:clusterTPRDto.getHarborProtocol());
@@ -395,6 +391,17 @@ public class ClusterCacheManager {
             harborServer.setReferredClusterNames(harborClusterNames.get(harborServer.getHarborHost()));
             harborServer.setReferredClusterIds(harborClusterIds.get(harborServer.getHarborHost()));
             harborServer.setCreateTime(clusterTPRDto.getCreateTime());
+            //es 可配置集群地址
+            if(clusterTPRDto.getElasticsearch() != null){
+                ElasticsearchConnect elasticsearch = clusterTPRDto.getElasticsearch();
+                cluster.setEsHost(StringUtils.isBlank(elasticsearch.getHost()) ? cluster.getHost():elasticsearch.getHost());
+                cluster.setEsPort(elasticsearch.getPort() == null ? ES_DEFAULT_PORT:elasticsearch.getPort());
+                cluster.setEsClusterName(StringUtils.isBlank(elasticsearch.getName()) ? ES_CLUSTER_NAME:elasticsearch.getName());
+            }else {
+                cluster.setEsHost(cluster.getHost());
+                cluster.setEsPort(ES_DEFAULT_PORT);
+                cluster.setEsClusterName(ES_CLUSTER_NAME);
+            }
             cluster.setHarborServer(harborServer);
             cluster.setExternal(clusterTPRDto.getExternal());
             clusters.add(cluster);

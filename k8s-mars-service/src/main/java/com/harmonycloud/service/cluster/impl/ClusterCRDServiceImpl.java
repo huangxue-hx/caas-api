@@ -467,7 +467,7 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
         clusterCRDDto.setRedis(info.getRedis());
         clusterCRDDto.setNetwork(info.getNetwork());
         clusterCRDDto.setJenkins(info.getJenkins());
-
+        clusterCRDDto.setElasticsearch(info.getElasticsearch());
         clusterCRDDto.setTemplate(template);
         Map<String, Boolean> statusMap = status.getConditions().stream().collect(Collectors.toMap(StatusConditions::getType, condition -> condition.getStatus()));
         clusterCRDDto.setIsEnable(statusMap.get("Ready"));

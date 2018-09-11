@@ -130,4 +130,6 @@ public interface EsService {
 	 */
 	public SnapshotInfoDto getLastSnapshot(String clusterId) throws Exception;
 
+	String getLogIndexPrefix();
+
 }

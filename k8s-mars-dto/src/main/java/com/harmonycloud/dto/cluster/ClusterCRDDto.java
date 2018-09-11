@@ -29,6 +29,8 @@ public class ClusterCRDDto {
     private ClusterRedis redis;
     private ClusterMysql mysql;
     private ClusterJenkins jenkins;
+
+    private ElasticsearchConnect elasticsearch;
     private List<ClusterStorage> nfs ;
     private boolean isEnable;
     private List<ClusterTemplate> template;
@@ -217,4 +219,14 @@ public class ClusterCRDDto {
     public void setCreateTime(Date createTime) {
         this.createTime = createTime;
     }
+
+    public ElasticsearchConnect getElasticsearch() {
+        return elasticsearch;
+    }
+
+    public void setElasticsearch(ElasticsearchConnect elasticsearch) {
+        this.elasticsearch = elasticsearch;
+    }
+
+
 }

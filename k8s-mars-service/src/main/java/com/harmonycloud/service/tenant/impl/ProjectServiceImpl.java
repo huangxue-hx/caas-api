@@ -4,7 +4,6 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.SsoClient;
 import com.harmonycloud.common.util.StringUtil;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;

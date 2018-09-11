@@ -205,7 +205,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
             clusterIds = new HashSet<>();
             clusterIds.add(clusterId);
         }
-        List<ConfigFile> list = configFileMapper.listConfigSearch(projectId, clusterIds, repoName, keyword);
+        List<ConfigFile> list = configFileMapper.listConfigSearch(projectId, clusterIds, repoName, keyword, Boolean.TRUE);
         if (CollectionUtils.isEmpty(list)) {
             return ActionReturnUtil.returnSuccess();
         } else {

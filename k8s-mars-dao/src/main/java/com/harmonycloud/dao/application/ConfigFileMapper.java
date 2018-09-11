@@ -68,7 +68,8 @@ public interface ConfigFileMapper {
     List<ConfigFile> listConfigSearch(@Param("projectId") String projectId,
                                       @Param("clusterIds") Set<String> clusterIds,
                                       @Param("repoName") String repoName,
-                                      @Param("keyword") String keyword);
+                                      @Param("keyword") String keyword,
+                                      @Param("withPublic") Boolean withPublic);
     
     /**
      * on 17/03/24.
