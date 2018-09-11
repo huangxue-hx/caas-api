@@ -1,17 +1,23 @@
-package com.harmonycloud.common.util;
+package com.harmonycloud.service.util;
 
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.util.Assert;
+
 import java.util.Set;
 
 import static com.harmonycloud.common.Constant.CommonConstant.COLON;
+import static com.harmonycloud.common.Constant.CommonConstant.LINE;
+import static com.harmonycloud.service.platform.constant.Constant.TOPO_LABEL_KEY;
 
 import static com.harmonycloud.common.Constant.CommonConstant.COLON;
 import static com.harmonycloud.common.Constant.CommonConstant.COMMA;
 
 public class BizUtil {
+
+    private static final int TOPO_KEY_PROJECT_LENGTH = 16;
 
     public static boolean isPodWithDeployment(String podName, Set<String> deployments) throws IllegalArgumentException{
         String[] podNamePart = podName.split("-");
@@ -44,6 +50,14 @@ public class BizUtil {
         String repo = imageFullName.substring(imageFullName.indexOf("/")+1,imageFullName.lastIndexOf(":"));
         String tag = imageFullName.substring(imageFullName.lastIndexOf(":")+1);
         return new String[]{harborHost, repo,tag};
+    }
+
+    public static String getTopoLabelKey(String projectId, String appName){
+        Assert.hasText(projectId);
+        Assert.hasText(appName);
+        return TOPO_LABEL_KEY + LINE
+                + (projectId.length() > TOPO_KEY_PROJECT_LENGTH?projectId.substring(0,TOPO_KEY_PROJECT_LENGTH):projectId)
+                + LINE + appName;
     }
 
 }

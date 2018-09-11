@@ -32,6 +32,7 @@ import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.tenant.*;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
+import com.harmonycloud.service.util.BizUtil;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.collections.CollectionUtils;
@@ -43,6 +44,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.Assert;
 
 import javax.servlet.http.HttpSession;
 import java.text.SimpleDateFormat;
@@ -50,6 +52,9 @@ import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
+import static com.harmonycloud.common.Constant.CommonConstant.LINE;
+import static com.harmonycloud.service.platform.constant.Constant.TOPO_LABEL_KEY;
 
 
 /**
@@ -109,9 +114,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     @Value("#{propertiesReader['kube.topo']}")
     private String kubeTopo;
 
-    private static final String SIGN = "-";
     private static final String SIGN_EQUAL = "=";
-    private final static String TOPO = "topo";
     private final static String CREATE = "creater";
 
     @Autowired
@@ -291,7 +294,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             boolean isMsf = false;
             String projectId = null;
             for (Map.Entry<String, Object> vo : bs.getMetadata().getLabels().entrySet()) {
-                if (vo.getKey().startsWith(TOPO)) {
+                if (vo.getKey().startsWith(TOPO_LABEL_KEY)) {
                     label = vo.getKey() + "=" + vo.getValue();
                 }
                 if (CREATE.equals(vo.getKey())) {
@@ -407,7 +410,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     public ActionReturnUtil selectApplicationById(String id, String appName, String namespace) throws Exception {
         ApplicationDetailDto applicationDetailDto = new ApplicationDetailDto();
         if(StringUtils.isBlank(namespace)){
-            if(StringUtils.isBlank(id) || !id.contains(SIGN) || !id.contains(SIGN_EQUAL)){
+            if(StringUtils.isBlank(id) || !id.contains(LINE) || !id.contains(SIGN_EQUAL)){
                 return ActionReturnUtil.returnErrorWithData(DictEnum.NAMESPACE.phrase(),ErrorCodeMessage.NOT_BLANK);
             }
             String[] namespaces = id.split(SIGN_EQUAL);
@@ -446,7 +449,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             applicationDetailDto.setUser(String.valueOf(tpr.getMetadata().getLabels().get("creater")));
             if(StringUtils.isBlank(id)) {
                 for (Map.Entry<String, Object> vo : tpr.getMetadata().getLabels().entrySet()) {
-                    if (vo.getKey().startsWith(TOPO)) {
+                    if (vo.getKey().startsWith(TOPO_LABEL_KEY)) {
                         id = vo.getKey() + SIGN_EQUAL + vo.getValue();
                         break;
                     }
@@ -610,8 +613,8 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 }
             }
             String app = "";
-            if (label != null && label.contains(SIGN)) {
-                String[] value = label.split(SIGN);
+            if (label != null && label.contains(LINE)) {
+                String[] value = label.split(LINE);
                 if (value != null) {
                     app = value[2];
                 }
@@ -684,6 +687,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
      * @return ActionReturnUtil
      * @author yanli
      */
+    @SuppressWarnings("unchecked")
     @Override
     public ActionReturnUtil stopApplication(ApplicationList applicationList, String username) throws Exception {
         AssertUtil.notNull(applicationList, DictEnum.APPLICATION);
@@ -718,7 +722,6 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                         if (dep.getSpec().isPaused()) {
                             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.APPLICATION_CAN_NOT_STOP);
                         }
-                        //String serviceType = oneDeployment.containsKey("serviceType") ? String.valueOf(oneDeployment.get("serviceType")) : Constant.DEPLOYMENT;
                         ActionReturnUtil stopDeployReturn = deploymentsService.stopDeployments(depName, oneDeployment.get("namespace").toString(), username);
                         if (!stopDeployReturn.isSuccess()) {
                             errorMessage.add(stopDeployReturn.toString());
@@ -756,11 +759,11 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             if (!deploymentsRes.isSuccess()) {
                 return deploymentsRes;
             }
+            @SuppressWarnings("unchecked")
             List<Map<String, Object>> deployments = (List<Map<String, Object>>) deploymentsRes.get("data");
             if (deployments != null && deployments.size() > 0) {
                 for (Map<String, Object> oneDeployment : deployments) {
                     if (oneDeployment != null && oneDeployment.containsKey("name")) {
-                        //String serviceType = oneDeployment.containsKey("serviceType") ? String.valueOf(oneDeployment.get("serviceType")) : Constant.DEPLOYMENT;
                         ActionReturnUtil stopDeployReturn = deploymentsService.startDeployments(oneDeployment.get("name").toString(), oneDeployment.get("namespace").toString(), username);
                         if (!stopDeployReturn.isSuccess()) {
                             errorMessage.add(stopDeployReturn.toString());
@@ -857,7 +860,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 Map<String, Object> appLable = new HashedMap();
                 String label = "";
                 for (Map.Entry<String, Object> vo : bs.getMetadata().getLabels().entrySet()) {
-                    if (vo.getKey().startsWith(TOPO)) {
+                    if (vo.getKey().startsWith(TOPO_LABEL_KEY)) {
                         appLable.put(vo.getKey(), vo.getValue());
                         label = vo.getKey() + SIGN_EQUAL + vo.getValue();
                     }
@@ -953,7 +956,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             }
             for (String labelKey : lables.keySet()) {
                 String label = labelKey + SIGN_EQUAL + lables.get(labelKey).toString();
-                if (labelKey.startsWith(TOPO)) {
+                if (labelKey.startsWith(TOPO_LABEL_KEY)) {
                     if (deploymentMap.get(label) == null) {
                         List<Deployment> deploys = new ArrayList<>();
                         deploys.add(deployment);
@@ -1278,7 +1281,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
 
     @Override
     public ActionReturnUtil unbindApplication(String appName, String tenantId, String name, String namespace, Cluster cluster) throws Exception {
-        String labelKey = TOPO + SIGN + tenantId + SIGN + appName;
+        String labelKey = BizUtil.getTopoLabelKey(tenantId, appName);
         //更新Deployment label
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.DEPLOYMENT).setName(name);
@@ -1338,7 +1341,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
 
     @Override
     public ActionReturnUtil bindApplication(String appName, String tenantId, String name, String namespace, Cluster cluster) throws Exception {
-        String labelKey = TOPO + SIGN + tenantId + SIGN + appName;
+        String labelKey = BizUtil.getTopoLabelKey(tenantId, appName);
         //更新Deployment label
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.DEPLOYMENT).setName(name);
@@ -1421,7 +1424,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 Map<String, Object> bodys = new HashMap<>();
                 bodys.put("labelSelector", id);
                 String[] namespace = {};
-                if (id.contains(SIGN) && id.contains(SIGN_EQUAL)) {
+                if (id.contains(LINE) && id.contains(SIGN_EQUAL)) {
                     namespace = id.split(SIGN_EQUAL);
                 }
                 Cluster cluster = (Cluster) session.getAttribute("currentCluster");
@@ -1492,7 +1495,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                             //Map<String,Object> appLable = new HashedMap();
                             String label = "";
                             for (Map.Entry<String, Object> vo : b.getMetadata().getLabels().entrySet()) {
-                                if (vo.getKey().startsWith(TOPO)) {
+                                if (vo.getKey().startsWith(TOPO_LABEL_KEY)) {
                                     //appLable.put(vo.getKey(),vo.getValue());
                                     label = vo.getKey() + "=" + vo.getValue();
                                 }
@@ -1535,8 +1538,8 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
      * @throws Exception
      */
     private synchronized void deployApplication(ApplicationDeployDto appDeploy, String username, Cluster cluster) throws Exception {
+        String topoLabel = BizUtil.getTopoLabelKey(appDeploy.getProjectId(),appDeploy.getAppName());
         dataPrivilegeService.addResource(appDeploy, null, null);
-        String topoLabel = TOPO + SIGN + appDeploy.getProjectId() + SIGN + appDeploy.getAppName();
         String namespaceLabel = appDeploy.getNamespace();
         Set<String> deployments = new HashSet<>();
 
@@ -1652,7 +1655,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                     for (BaseResource bs : appCrdList) {
                         String label = "";
                         for (Map.Entry<String, Object> vo : bs.getMetadata().getLabels().entrySet()) {
-                            if (vo.getKey().startsWith(TOPO)) {
+                            if (vo.getKey().startsWith(TOPO_LABEL_KEY)) {
                                 label = vo.getKey() + "=" + vo.getValue();
                                 idList.add(label);
                                 break;

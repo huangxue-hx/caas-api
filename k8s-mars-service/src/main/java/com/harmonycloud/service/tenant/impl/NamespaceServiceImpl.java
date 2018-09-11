@@ -576,7 +576,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     private void createLocalNamespace(NamespaceDto namespaceDto) throws Exception{
         NamespaceLocal namespaceLocal = new NamespaceLocal();
         //组装分区参数
-        namespaceLocal.setNamespaceId(StringUtil.getId());
+        namespaceLocal.setNamespaceId(UUIDUtil.get16UUID());
         namespaceLocal.setNamespaceName(namespaceDto.getName());
         namespaceLocal.setClusterId(namespaceDto.getClusterId());
         namespaceLocal.setIsPrivate(namespaceDto.isPrivate());
@@ -1055,6 +1055,9 @@ public class NamespaceServiceImpl implements NamespaceService {
             if (!Objects.isNull(message) && message.toString().contains("object is being deleted")){
                 throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_CREATE_ERROR_DELETED,namespaceDto.getAliasName(),Boolean.TRUE);
             }
+            if (!Objects.isNull(message) && message.toString().contains("no more than 63 characters")){
+                throw new MarsRuntimeException(DictEnum.NAMESPACE.phrase(), ErrorCodeMessage.NAME_LENGTH_LIMIT);
+            }
             throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_CREATE_ERROR);
         }
         return ActionReturnUtil.returnSuccess();
@@ -1069,7 +1072,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         Date date = DateUtil.getCurrentUtcTime();
         namespaceLocal.setCreateTime(date);
         namespaceLocal.setIsPrivate(namespaceDto.isPrivate());
-        namespaceLocal.setNamespaceId(StringUtil.getId());
+        namespaceLocal.setNamespaceId(UUIDUtil.get16UUID());
         return namespaceLocal;
     }
 

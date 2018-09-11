@@ -27,7 +27,7 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
+import com.harmonycloud.service.util.BizUtil;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -1201,7 +1201,7 @@ public class K8sResultConvert {
             lmMap.put(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE, INGRESS_SERVICE_TRUE);
         }
         if (!StringUtils.isEmpty(applicationName)) {
-            lmMap.put("topo-" + detail.getProjectId() + "-" + applicationName, detail.getNamespace());
+            lmMap.put(BizUtil.getTopoLabelKey(detail.getProjectId(), applicationName), detail.getNamespace());
         }
         return lmMap;
 
@@ -1544,7 +1544,7 @@ public class K8sResultConvert {
         labels.put(label, detail.getName());
 
         if (!StringUtils.isEmpty(application)) {
-            labels.put("topo-" + detail.getProjectId() + "-" + application, detail.getNamespace());
+            labels.put(BizUtil.getTopoLabelKey(detail.getProjectId(), application), detail.getNamespace());
         }
         meta.setLabels(labels);
         ServiceSpec ss = new ServiceSpec();
@@ -1569,7 +1569,7 @@ public class K8sResultConvert {
                             sPort.setProtocol(port.getProtocol());
                         }
                         sPort.setPort(Integer.valueOf(port.getPort()));
-                        sPort.setName(detail.getName() + "-" + c.getName() + "-port" + i);
+                        sPort.setName(c.getName() + "-port" + i);
                         spList.add(sPort);
                     }
                 }

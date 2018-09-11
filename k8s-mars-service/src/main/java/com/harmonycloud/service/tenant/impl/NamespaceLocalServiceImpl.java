@@ -5,6 +5,7 @@ import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.UUIDUtil;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dao.tenant.NamespaceLocalMapper;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
@@ -69,7 +70,7 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
     @Override
     public void createNamespace(NamespaceLocal namespaceLocal) throws Exception {
         //设置namespaces id
-        namespaceLocal.setNamespaceId(this.getid());
+        namespaceLocal.setNamespaceId(UUIDUtil.get16UUID());
         String clusterId = namespaceLocal.getClusterId();
         Cluster cluster = this.clusterService.findClusterById(clusterId);
         if (Objects.isNull(cluster)){
@@ -80,14 +81,7 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
         //设置数据库
         namespaceLocalMapper.insertSelective(namespaceLocal);
     }
-    private String getid() {
-        // 通过uuid生成token
-        UUID uuid = UUID.randomUUID();
-        String str = uuid.toString();
-        // 去掉"-"符号
-        String id = str.substring(0, 8) + str.substring(9, 13) + str.substring(14, 18) + str.substring(19, 23) + str.substring(24);
-        return id;
-    }
+
 
     /**
      * 根据id删除分区

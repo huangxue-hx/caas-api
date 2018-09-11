@@ -357,7 +357,7 @@ public class RoleLocalServiceImpl implements RoleLocalService {
         //组装角色
         role = new Role();
         String namespaceNames = roleDto.getNamespaceNames();
-        String name = UUIDUtil.getUUID();
+        String name = UUIDUtil.get16UUID();
         role.setName(name);
         if (Objects.isNull(roleDto.getAvailable())){
             role.setAvailable(Boolean.FALSE);
@@ -525,7 +525,7 @@ public class RoleLocalServiceImpl implements RoleLocalService {
         //创建新角色
         newRole = new Role();
         newRole.setNickName(nickName);
-        String name = UUIDUtil.getUUID();
+        String name = UUIDUtil.get16UUID();
         newRole.setName(name);
         newRole.setAvailable(Boolean.FALSE);
         newRole.setClusterIds(role.getClusterIds());

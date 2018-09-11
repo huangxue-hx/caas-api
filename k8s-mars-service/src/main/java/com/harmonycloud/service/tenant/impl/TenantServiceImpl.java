@@ -8,6 +8,7 @@ import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.UUIDUtil;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.cluster.bean.IngressControllerPort;
 import com.harmonycloud.dao.dataprivilege.DataPrivilegeStrategyMapper;
@@ -392,7 +393,7 @@ public class TenantServiceImpl implements TenantService {
         }
         // 如果没有tenantId生成tenantId
         if (StringUtils.isBlank(tenantId)){
-            tenantId = this.getid();
+            tenantId = UUIDUtil.get16UUID();
         }
         tenantDto.setTenantId(tenantId);
 
@@ -1046,15 +1047,6 @@ public class TenantServiceImpl implements TenantService {
         }catch (Exception e){
             logger.error("sync harbor member failed",e);
         }
-    }
-
-    public String getid() {
-        // 通过uuid生成token
-        UUID uuid = UUID.randomUUID();
-        String str = uuid.toString();
-        // 去掉"-"符号
-        String id = str.replaceAll(CommonConstant.LINE, CommonConstant.EMPTYSTRING);
-        return id;
     }
 
     @Override

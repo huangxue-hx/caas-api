@@ -96,7 +96,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         }
         ConfigFile configFile = ObjConverter.convert(configDetail, ConfigFile.class);
         // 随机生成64位字符串
-        configFile.setId(UUIDUtil.getUUID());
+        configFile.setId(UUIDUtil.get16UUID());
         configFile.setUser(userName);
         if (!CollectionUtils.isEmpty(list)) {
             // 存在版本号+0.1

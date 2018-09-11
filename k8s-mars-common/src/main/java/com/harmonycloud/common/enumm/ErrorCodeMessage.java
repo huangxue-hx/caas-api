@@ -64,6 +64,7 @@ public enum ErrorCodeMessage {
     RESPONSE_TIMEOUT(100042,"Response timeout", "请求获取响应超时"),
     DATE_FORMAT_ERROR(100043,"Date format error", "日期格式错误"),
     EXCEED_MAX_QUERY_COUNT(100044,"Can not query over 100 records at once", "一次查询不能超过100条记录"),
+    NAME_LENGTH_LIMIT(100045,"name length must be no more than 63 characters", "名称长度不能超过63个字符"),
 
     //用户相关 200xxx
     USER_DISABLED(200001, "User is disabled.","该用户暂时停止使用，请联系管理员|User is disabled."),
@@ -588,9 +589,9 @@ public enum ErrorCodeMessage {
         switch (language){
             case LANGUAGE_CHINESE:
                 if(prefix){
-                    message = extendMessage + split +  error.getReasonChPhrase();
+                    message = extendMessage +  error.getReasonChPhrase();
                 }else{
-                    message = error.getReasonChPhrase() + split +  extendMessage;
+                    message = error.getReasonChPhrase() +  extendMessage;
                 }
                 return message;
             case LANGUAGE_ENGLISH:

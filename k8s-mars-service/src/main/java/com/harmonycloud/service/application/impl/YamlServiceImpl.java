@@ -20,6 +20,7 @@ import com.harmonycloud.service.application.YamlService;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
+import com.harmonycloud.service.util.BizUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -66,7 +67,7 @@ public class YamlServiceImpl implements YamlService{
     final static String MAP_NAME = "name";
 
     private static final String SIGN = "-";
-   // private static final String SIGN_EQUAL = "=";
+    // private static final String SIGN_EQUAL = "=";
     private final static String TOPO = "topo";
     private final static String CREATE = "creater";
 
@@ -83,7 +84,7 @@ public class YamlServiceImpl implements YamlService{
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NAMESPACE_NOT_FOUND);
         }
         @SuppressWarnings("unchecked")
-		List<NamespaceShowDto> namespaceList = (List<NamespaceShowDto>) namespacesrep.get("data");
+        List<NamespaceShowDto> namespaceList = (List<NamespaceShowDto>) namespacesrep.get("data");
         Map<String,String> mes = new HashMap<String,String>();
         String tenantId = session.getAttribute("tenantId").toString();
         String username = session.getAttribute("username").toString();
@@ -92,7 +93,8 @@ public class YamlServiceImpl implements YamlService{
 
         Yaml yaml = new Yaml();
 
-        String topoLabel = TOPO + SIGN + tenantId + SIGN + yamlDto.getAppName();
+        String topoLabel = BizUtil.getTopoLabelKey(tenantId, yamlDto.getAppName());
+
         String namespaceLabel = "";
 
         boolean flagTPR = true;
@@ -161,9 +163,9 @@ public class YamlServiceImpl implements YamlService{
                         Map<String, Object> headers = new HashMap<String, Object>();
                         headers.put("Content-type", "application/json");
                         @SuppressWarnings("rawtypes")
-						Map bodys = (Map) yaml.load(oneData.get(MAP_DATA).toString());
+                        Map bodys = (Map) yaml.load(oneData.get(MAP_DATA).toString());
                         @SuppressWarnings("unchecked")
-						K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
+                        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
                         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
                             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
                             mes.put("数据" +i+ "创建失败:",status.getMessage()+ "\n");
@@ -180,23 +182,23 @@ public class YamlServiceImpl implements YamlService{
                                     mes.put("数据" +i+ "更新失败:",k8sresbody.getMessage()+ "\n");
                                 }
                                 com.harmonycloud.k8s.bean.Service svc = JsonUtil.jsonToPojo(serRes.getBody(), com.harmonycloud.k8s.bean.Service.class);
-                                    if(svc != null){
-                                            if(svc != null && svc.getMetadata() != null && svc.getMetadata().getLabels() != null){
-                                                Map<String, Object> labels = new HashMap<String, Object>();
-                                                labels = svc.getMetadata().getLabels();
-                                                labels.put(topoLabel, namesp);
-                                                svc.getMetadata().setLabels(labels);
-                                                Map<String, Object> bodyss = new HashMap<String, Object>();
-                                                bodyss = CollectionUtil.transBean2Map(svc);
-                                                Map<String, Object> headerss = new HashMap<String, Object>();
-                                                headerss.put("Content-type", "application/json");
-                                                K8SClientResponse newRes = new K8sMachineClient().exec(url, HTTPMethod.PUT, headerss, bodyss, cluster);
-                                                if(!HttpStatusUtil.isSuccessStatus(newRes.getStatus())){
-                                                    UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(newRes.getBody(), UnversionedStatus.class);
-                                                    mes.put("数据" +i+ "更新失败:",k8sresbody.getMessage()+ "\n");
-                                                }
-                                            }
+                                if(svc != null){
+                                    if(svc != null && svc.getMetadata() != null && svc.getMetadata().getLabels() != null){
+                                        Map<String, Object> labels = new HashMap<String, Object>();
+                                        labels = svc.getMetadata().getLabels();
+                                        labels.put(topoLabel, namesp);
+                                        svc.getMetadata().setLabels(labels);
+                                        Map<String, Object> bodyss = new HashMap<String, Object>();
+                                        bodyss = CollectionUtil.transBean2Map(svc);
+                                        Map<String, Object> headerss = new HashMap<String, Object>();
+                                        headerss.put("Content-type", "application/json");
+                                        K8SClientResponse newRes = new K8sMachineClient().exec(url, HTTPMethod.PUT, headerss, bodyss, cluster);
+                                        if(!HttpStatusUtil.isSuccessStatus(newRes.getStatus())){
+                                            UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(newRes.getBody(), UnversionedStatus.class);
+                                            mes.put("数据" +i+ "更新失败:",k8sresbody.getMessage()+ "\n");
+                                        }
                                     }
+                                }
 
                             } else if ("deployments".equals(kind)){
                                 //更新Deployment label
@@ -210,21 +212,21 @@ public class YamlServiceImpl implements YamlService{
                                 }
                                 Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
                                 if(dep != null){
-                                            if(dep != null && dep.getMetadata() != null && dep.getMetadata().getLabels() != null){
-                                                Map<String, Object> labels = new HashMap<String, Object>();
-                                                labels = dep.getMetadata().getLabels();
-                                                labels.put(topoLabel, namesp);
-                                                dep.getMetadata().setLabels(labels);
-                                                Map<String, Object> bodysd = new HashMap<String, Object>();
-                                                bodysd = CollectionUtil.transBean2Map(dep);
-                                                Map<String, Object> headersd = new HashMap<String, Object>();
-                                                headersd.put("Content-type", "application/json");
-                                                K8SClientResponse newRes = dpService.doSpecifyDeployment(namesp, devName, headersd, bodysd, HTTPMethod.PUT, cluster);
-                                                if(!HttpStatusUtil.isSuccessStatus(newRes.getStatus())){
-                                                    UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(newRes.getBody(), UnversionedStatus.class);
-                                                    mes.put("数据" +i+ "更新失败:",k8sresbody.getMessage()+ "\n");
-                                                }
-                                            }
+                                    if(dep != null && dep.getMetadata() != null && dep.getMetadata().getLabels() != null){
+                                        Map<String, Object> labels = new HashMap<String, Object>();
+                                        labels = dep.getMetadata().getLabels();
+                                        labels.put(topoLabel, namesp);
+                                        dep.getMetadata().setLabels(labels);
+                                        Map<String, Object> bodysd = new HashMap<String, Object>();
+                                        bodysd = CollectionUtil.transBean2Map(dep);
+                                        Map<String, Object> headersd = new HashMap<String, Object>();
+                                        headersd.put("Content-type", "application/json");
+                                        K8SClientResponse newRes = dpService.doSpecifyDeployment(namesp, devName, headersd, bodysd, HTTPMethod.PUT, cluster);
+                                        if(!HttpStatusUtil.isSuccessStatus(newRes.getStatus())){
+                                            UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(newRes.getBody(), UnversionedStatus.class);
+                                            mes.put("数据" +i+ "更新失败:",k8sresbody.getMessage()+ "\n");
+                                        }
+                                    }
                                 }
                             }
 
