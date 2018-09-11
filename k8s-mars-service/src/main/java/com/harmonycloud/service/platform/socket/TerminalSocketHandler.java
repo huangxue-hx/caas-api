@@ -1,5 +1,6 @@
 package com.harmonycloud.service.platform.socket;
 
+import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.harmonycloud.dto.log.LogQueryDto;
@@ -45,7 +46,9 @@ public class TerminalSocketHandler extends TextWebSocketHandler {
                     break;
                 case "TERMINAL_READY":
                     Object terminalType = session.getAttributes().get("terminalType");
+
                     if(terminalType != null){
+                        logger.info("terminal type:", terminalType);
                         if(terminalType.toString().equalsIgnoreCase("stdoutlog")){
                             String pod = (String) session.getAttributes().get("pod");
                             String namespace = (String) session.getAttributes().get("namespace");
@@ -74,6 +77,7 @@ public class TerminalSocketHandler extends TextWebSocketHandler {
                             terminalService.onLogTerminalReady(logQueryDto);
                         }
                     }else {
+                        logger.info("terminal type is null, enter pod terminal");
                         String scriptType = session.getAttributes().get("scriptType").toString();
                         String container = session.getAttributes().get("container").toString();
                         String pod = session.getAttributes().get("pod").toString();

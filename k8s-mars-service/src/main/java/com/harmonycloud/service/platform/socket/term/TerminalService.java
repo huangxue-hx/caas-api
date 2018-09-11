@@ -180,7 +180,6 @@ public class TerminalService {
             AssertUtil.notBlank(logQueryDto.getContainer(),DictEnum.CONTAINER);
             command = MessageFormat.format("kubectl logs {0} -c {1} -n {2} --tail={3} -f --server={4} --token={5} --insecure-skip-tls-verify=true",
                     logQueryDto.getPod(),logQueryDto.getContainer(),logQueryDto.getNamespace(),MAX_LOG_LINES,cluster.getApiServerUrl(), cluster.getMachineToken());
-            command = "tail -200f /Users/zhangkui/document/elasticsearch.yml";
 
         }else if(logQueryDto.getLogSource()==LogService.LOG_TYPE_LOGFILE){
             AssertUtil.notBlank(logQueryDto.getLogDir(), DictEnum.LOG_DIR);
@@ -212,7 +211,7 @@ public class TerminalService {
             printReader(errorReader);
         });
 
-        //process.waitFor();
+        process.waitFor();
 
     }
 
