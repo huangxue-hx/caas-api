@@ -1633,7 +1633,7 @@ public class TenantServiceImpl implements TenantService {
         //移除配置文件
         configCenterService.deleteConfigMap(clusterQuota.getClusterId(),tenantId);
         //更新集群配置
-        this.updateClusterQuotaByTenantid(clusterQuota.getId(),0.0,0.0);
+        this.updateClusterQuotaByTenantid(clusterQuota.getId(),0.0,0.0, null);
     }
 
     private TenantBindingExample getExample(){
