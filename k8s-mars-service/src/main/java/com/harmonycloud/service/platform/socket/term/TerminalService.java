@@ -1,11 +1,16 @@
 package com.harmonycloud.service.platform.socket.term;
 
+import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.dto.log.LogQueryDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.platform.service.LogService;
 import com.harmonycloud.service.platform.socket.term.helper.IOHelper;
 import com.harmonycloud.service.platform.socket.term.helper.ThreadHelper;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
@@ -27,6 +32,7 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.CodeSource;
+import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -37,6 +43,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class TerminalService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TerminalService.class);
+
+    //日志最多查询的数量为200
+    private static final int MAX_LOG_LINES = 500;
 
     @Value("${shell:#{null}}")
     private String shellStarter;
@@ -70,6 +79,19 @@ public class TerminalService {
                 initializeProcess(container,pod,namespace,clusterId,scriptType);
             } catch (Exception e) {
                 LOGGER.error("服务web控制台初始化失败,namespace:{},pod:{}",new String[]{namespace,pod},e);
+            }
+        });
+
+    }
+
+    public void onLogTerminalReady(LogQueryDto logQueryDto) {
+
+        ThreadHelper.start(() -> {
+            isReady = true;
+            try {
+                initializeProcess(logQueryDto);
+            } catch (Exception e) {
+                LOGGER.error("日式刷新初始化失败,logQueryDto:{},pod:{}",JSONObject.toJSONString(logQueryDto),e);
             }
         });
 
@@ -127,6 +149,70 @@ public class TerminalService {
         });
 
         process.waitFor();
+
+    }
+
+    private void initializeProcess(LogQueryDto logQueryDto) throws Exception {
+        AssertUtil.notBlank(logQueryDto.getPod(),DictEnum.POD);
+        AssertUtil.notBlank(logQueryDto.getNamespace(),DictEnum.NAMESPACE);
+        String userHome = System.getProperty("user.home");
+        /*Path dataDir = Paths.get(userHome).resolve(".terminalfx");
+        IOHelper.copyLibPty(dataDir);*/
+
+        String libPath = getJarContainingFolderPath(TerminalService.class);
+        if(libPath.endsWith("lib")){
+            Path ptyLibDir = Paths.get(libPath);
+            IOHelper.copyLibPty(ptyLibDir);
+        }
+        Cluster cluster = null;
+
+        if (StringUtils.isNotBlank(logQueryDto.getNamespace()) && !CommonConstant.KUBE_SYSTEM.equalsIgnoreCase(logQueryDto.getNamespace())) {
+            cluster = namespaceLocalService.getClusterByNamespaceName(logQueryDto.getNamespace());
+        } else if (StringUtils.isNotBlank(logQueryDto.getClusterId())) {
+            cluster = clusterService.findClusterById(logQueryDto.getClusterId());
+        }
+        if (cluster == null) {
+            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+        }
+        //标准输出
+        String command = "";
+        if(logQueryDto.getLogSource()== LogService.LOG_TYPE_STDOUT){
+            AssertUtil.notBlank(logQueryDto.getContainer(),DictEnum.CONTAINER);
+            command = MessageFormat.format("kubectl logs {0} -c {1} -n {2} --tail={3} -f --server={4} --token={5} --insecure-skip-tls-verify=true",
+                    logQueryDto.getPod(),logQueryDto.getContainer(),logQueryDto.getNamespace(),MAX_LOG_LINES,cluster.getApiServerUrl(), cluster.getMachineToken());
+            command = "tail -200f /Users/zhangkui/document/elasticsearch.yml";
+
+        }else if(logQueryDto.getLogSource()==LogService.LOG_TYPE_LOGFILE){
+            AssertUtil.notBlank(logQueryDto.getLogDir(), DictEnum.LOG_DIR);
+            AssertUtil.notBlank(logQueryDto.getLogFile(),DictEnum.LOG_FILE);
+            command = MessageFormat.format("kubectl exec {0} -n {1} --server={2} --token={3} --insecure-skip-tls-verify=true -- tail -f -n {4} {5}/{6}",
+                    logQueryDto.getPod(),logQueryDto.getNamespace(),cluster.getApiServerUrl(),cluster.getMachineToken(),MAX_LOG_LINES,logQueryDto.getLogDir(),logQueryDto.getLogFile());
+
+        }
+        this.termCommand = command.split("\\s+");
+        if(Objects.nonNull(shellStarter)){
+            this.termCommand = shellStarter.split("\\s+");
+        }
+
+        Map<String, String> envs = new HashMap<>(System.getenv());
+        envs.put("TERM", "xterm");
+        //System.setProperty("PTY_LIB_FOLDER", dataDir.resolve("libpty").toString());
+        LOGGER.info("pty4j lib dir:{}",System.getProperty("PTY_LIB_FOLDER"));
+        this.process = PtyProcess.exec(termCommand, envs, userHome);
+        process.setWinSize(new WinSize(columns, rows));
+        this.inputReader = new BufferedReader(new InputStreamReader(process.getInputStream(),"UTF-8"));
+        this.errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream(),"UTF-8"));
+        this.outputWriter = new BufferedWriter(new OutputStreamWriter(process.getOutputStream(),"UTF-8"));
+
+        ThreadHelper.start(() -> {
+            printReader(inputReader);
+        });
+
+        ThreadHelper.start(() -> {
+            printReader(errorReader);
+        });
+
+        //process.waitFor();
 
     }
 
