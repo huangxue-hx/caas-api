@@ -3,16 +3,19 @@ package com.harmonycloud.service.application.impl;
 
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
-import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.ServiceTypeEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
-import com.harmonycloud.dto.scale.*;
+import com.harmonycloud.dto.scale.AutoScaleDto;
+import com.harmonycloud.dto.scale.CustomMetricScaleDto;
+import com.harmonycloud.dto.scale.TimeMetricScaleDto;
+import com.harmonycloud.k8s.bean.CrossVersionObjectReference;
 import com.harmonycloud.k8s.bean.HorizontalPodAutoscaler;
 import com.harmonycloud.k8s.bean.HorizontalPodAutoscalerSpec;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.k8s.bean.CrossVersionObjectReference;
 import com.harmonycloud.k8s.bean.ObjectMeta;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.scale.*;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
@@ -23,9 +26,11 @@ import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.AutoScaleService;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.RouterService;
+import com.harmonycloud.service.application.StatefulSetsService;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import net.sf.json.JSONArray;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +38,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+
 import java.util.*;
 
 import static com.harmonycloud.common.Constant.CommonConstant.CPU;
@@ -69,6 +75,9 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 	@Autowired
 	DeploymentsService dpsService;
 
+    @Autowired
+    StatefulSetsService statefulSetsService;
+
 	@Override
 	public ActionReturnUtil create(AutoScaleDto autoScaleDto) throws Exception {
 		ActionReturnUtil  result;
@@ -90,7 +99,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		}
 
 		if(result.isSuccess()){
-			updateAutoscaleLabel(autoScaleDto.getNamespace(), autoScaleDto.getDeploymentName(), cluster, STATUS_ON);
+			updateAutoscaleLabel(autoScaleDto.getNamespace(), autoScaleDto.getDeploymentName(), cluster, STATUS_ON, autoScaleDto.getServiceType());
 		}
 
 		return result;
@@ -152,7 +161,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		}
 
 		if(result){
-			updateAutoscaleLabel(namespace, deploymentName, cluster, STATUS_OFF);
+			updateAutoscaleLabel(namespace, deploymentName, cluster, STATUS_OFF, null);
 		}
 
 		return result;
@@ -366,21 +375,16 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		complexPodScale.setApiVersion(AUTO_SCALE_API_VERSION);
 		// 设置hpa对象的metadata
 		ObjectMeta meta = new ObjectMeta();
-		Map<String, Object> labels = new HashMap<String, Object>();
-		labels.put("app", autoScaleDto.getDeploymentName());
 		meta.setName(getScaleName(autoScaleDto.getDeploymentName()));
-		meta.setLabels(labels);
 		complexPodScale.setMetadata(meta);
 
 		// 设置hpa对象的spec
 		ComplexPodScaleSpec cpaSpec = new ComplexPodScaleSpec();
 		cpaSpec.setMinReplicas(autoScaleDto.getMinPods());
 		cpaSpec.setMaxReplicas(autoScaleDto.getMaxPods());
-		CrossVersionObjectReference targetRef = new CrossVersionObjectReference();
-		targetRef.setApiVersion(DEPLOYMENT_API_VERSION);
-		targetRef.setKind(Constant.DEPLOYMENT);
-		targetRef.setName(autoScaleDto.getDeploymentName());
-		cpaSpec.setScaleTargetRef(targetRef);
+        Map<String, Object> convertResult = convertTargetRef(autoScaleDto.getDeploymentName(), autoScaleDto.getServiceType());
+        meta.setLabels((Map<String, Object>) convertResult.get("label"));
+        cpaSpec.setScaleTargetRef((CrossVersionObjectReference)convertResult.get("targetRef"));
 
 		List<MetricSpec> metricSpecs = new ArrayList<>();
 		//cpu伸缩 转为资源指标伸缩类型
@@ -434,10 +438,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		complexPodScale.setApiVersion(AUTO_SCALE_API_VERSION);
 		// 设置hpa对象的metadata
 		ObjectMeta meta = complex.getMetadata();
-		Map<String, Object> labels = new HashMap<String, Object>();
-		labels.put(Constant.TYPE_DEPLOYMENT, autoScaleDto.getDeploymentName());
 		meta.setName(getScaleName(autoScaleDto.getDeploymentName()));
-		meta.setLabels(labels);
 		complexPodScale.setMetadata(meta);
 
 		// 设置hpa对象的spec
@@ -445,11 +446,9 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		cpaSpec.setMinReplicas(autoScaleDto.getMinPods());
 		cpaSpec.setMaxReplicas(autoScaleDto.getMaxPods());
 
-		CrossVersionObjectReference targetRef = new CrossVersionObjectReference();
-		targetRef.setApiVersion(DEPLOYMENT_API_VERSION);
-		targetRef.setKind(Constant.DEPLOYMENT);
-		targetRef.setName(autoScaleDto.getDeploymentName());
-		cpaSpec.setScaleTargetRef(targetRef);
+        Map<String, Object> convertResult = convertTargetRef(autoScaleDto.getDeploymentName(), autoScaleDto.getServiceType());
+        meta.setLabels((Map<String, Object>) convertResult.get("label"));
+        cpaSpec.setScaleTargetRef((CrossVersionObjectReference)convertResult.get("targetRef"));
 
 		List<MetricSpec> metricSpecs = new ArrayList<>();
 		//cpu伸缩 转为资源指标伸缩类型
@@ -630,10 +629,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 
 		// 设置hpa对象的metadata
 		ObjectMeta meta = new ObjectMeta();
-		Map<String, Object> labels = new HashMap<String, Object>();
-		labels.put("app", autoScaleDto.getDeploymentName());
 		meta.setName(autoScaleDto.getDeploymentName() + "-" + SCALE_CONTROLLER_TYPE_HPA);
-		meta.setLabels(labels);
 		meta.setCreationTimestamp(null);
 		meta.setDeletionGracePeriodSeconds(null);
 		meta.setDeletionTimestamp(null);
@@ -643,11 +639,9 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		HorizontalPodAutoscalerSpec hpaSpec = new HorizontalPodAutoscalerSpec();
 		hpaSpec.setMinReplicas(autoScaleDto.getMinPods());
 		hpaSpec.setMaxReplicas(autoScaleDto.getMaxPods());
-		CrossVersionObjectReference targetRef = new CrossVersionObjectReference();
-		targetRef.setKind(Constant.DEPLOYMENT);
-		targetRef.setName(autoScaleDto.getDeploymentName());
-		targetRef.setApiVersion(Constant.DEPLOYMENT_API_VERSION);
-		hpaSpec.setScaleTargetRef(targetRef);
+        Map<String, Object> convertResult = convertTargetRef(autoScaleDto.getDeploymentName(), autoScaleDto.getServiceType());
+        meta.setLabels((Map<String, Object>) convertResult.get("label"));
+        hpaSpec.setScaleTargetRef((CrossVersionObjectReference)convertResult.get("targetRef"));
 		List<com.harmonycloud.k8s.bean.MetricSpec> metricSpecList = new ArrayList<com.harmonycloud.k8s.bean.MetricSpec>();
 		if(autoScaleDto.getTargetCpuUsage() != null && autoScaleDto.getTargetCpuUsage() > 0){
 			metricSpecList.add(createMetricSpec(CPU, autoScaleDto.getTargetCpuUsage()));
@@ -675,15 +669,54 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 	}
 
 	//更新AutoScale标签
-	private void updateAutoscaleLabel(String namespace, String name, Cluster cluster , String status) throws Exception{
-		ActionReturnUtil actionReturnUtil;
+	private void updateAutoscaleLabel(String namespace, String name, Cluster cluster , String status, String serviceType) throws Exception{
+		ActionReturnUtil actionReturnUtil = null;
 		Map<String, Object> label = new HashMap<>();
 		label.put(NODESELECTOR_LABELS_PRE + LABEL_AUTOSCALE, status);
-		actionReturnUtil = dpsService.updateLabels(namespace, name, cluster, label);
+        ServiceTypeEnum serviceTypeEnum = ServiceTypeEnum.STATEFULSET;
+        if(StringUtils.isNotBlank(serviceType)) {
+            serviceTypeEnum.valueOf(serviceType.toUpperCase());
+        }
+        switch(serviceTypeEnum){
+            case DEPLOYMENT:
+                actionReturnUtil = dpsService.updateLabels(namespace, name, cluster, label);
+                break;
+            case STATEFULSET:
+                actionReturnUtil = statefulSetsService.updateLabels(namespace, name, cluster, label);
+                break;
+        }
 
 		if(!actionReturnUtil.isSuccess()){
 			LOGGER.error("更新自动伸缩标签失败, DeploymentName:{}, label:{}", name, LABEL_AUTOSCALE + " switch to " + status);
 			throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_AUTOSCALE_LABEL_UPDATE_FAILURE);
 		}
 	}
+
+    private Map<String, Object> convertTargetRef(String name, String serviceType) throws MarsRuntimeException{
+        Map<String, Object> result = new HashMap<>();
+        Map<String, Object> labels = new HashMap<>();
+        CrossVersionObjectReference targetRef = new CrossVersionObjectReference();
+        targetRef.setName(name);
+        ServiceTypeEnum typeEnum = ServiceTypeEnum.STATEFULSET;
+        if(StringUtils.isNotBlank(serviceType)) {
+            typeEnum = ServiceTypeEnum.valueOf(serviceType.toUpperCase());
+        }
+        switch (typeEnum) {
+            case DEPLOYMENT:
+                labels.put(Constant.TYPE_DEPLOYMENT, name);
+                targetRef.setApiVersion(DEPLOYMENT_API_VERSION);
+                targetRef.setKind(Constant.DEPLOYMENT);
+                break;
+            case STATEFULSET:
+                labels.put(Constant.TYPE_STATEFULSET, name);
+                targetRef.setApiVersion(STATEFULSET_API_VERSION);
+                targetRef.setKind(Constant.STATEFULSET);
+                break;
+            default:
+                throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_TYPE_NOT_EXIST);
+        }
+        result.put("label", labels);
+        result.put("targetRef", targetRef);
+        return result;
+    }
 }

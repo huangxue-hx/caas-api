@@ -21,6 +21,8 @@ public class SvcRouterDto {
     private SelectorDto selector;
     
     private List<TcpRuleDto> rules = new ArrayList<>();
+
+    private String serviceType;
     
 	public String getNamespace() {
 		return namespace;
@@ -88,8 +90,11 @@ public class SvcRouterDto {
 		this.annotaion = annotaion;
 	}
 
+    public String getServiceType() {
+        return serviceType;
+    }
 
-
-	
-
+    public void setServiceType(String serviceType) {
+        this.serviceType = serviceType;
+    }
 }

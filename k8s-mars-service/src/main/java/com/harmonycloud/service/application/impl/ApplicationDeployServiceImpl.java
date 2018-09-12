@@ -50,8 +50,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import static com.harmonycloud.common.Constant.CommonConstant.DEFAULT_HTTPS_PORT;
-
 
 /**
  * Created by root on 4/10/17.
@@ -132,6 +130,9 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
 
     @Autowired
     private DataPrivilegeHelper dataPrivilegeHelper;
+
+    @Autowired
+    private StatefulSetsService statefulsetsService;
 
     /**
      * get application by tenant namespace name status service implement
@@ -713,6 +714,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                         if (dep.getSpec().isPaused()) {
                             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.APPLICATION_CAN_NOT_STOP);
                         }
+                        //String serviceType = oneDeployment.containsKey("serviceType") ? String.valueOf(oneDeployment.get("serviceType")) : Constant.DEPLOYMENT;
                         ActionReturnUtil stopDeployReturn = deploymentsService.stopDeployments(depName, oneDeployment.get("namespace").toString(), username);
                         if (!stopDeployReturn.isSuccess()) {
                             errorMessage.add(stopDeployReturn.toString());
@@ -754,6 +756,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             if (deployments != null && deployments.size() > 0) {
                 for (Map<String, Object> oneDeployment : deployments) {
                     if (oneDeployment != null && oneDeployment.containsKey("name")) {
+                        //String serviceType = oneDeployment.containsKey("serviceType") ? String.valueOf(oneDeployment.get("serviceType")) : Constant.DEPLOYMENT;
                         ActionReturnUtil stopDeployReturn = deploymentsService.startDeployments(oneDeployment.get("name").toString(), oneDeployment.get("namespace").toString(), username);
                         if (!stopDeployReturn.isSuccess()) {
                             errorMessage.add(stopDeployReturn.toString());
@@ -1159,7 +1162,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             }
             // creat ingress
             if (service.getIngress() != null) {
-                message.addAll(routerService.createExternalRule(service, appDeploy.getNamespace()));
+                message.addAll(routerService.createExternalRule(service, appDeploy.getNamespace(), null));
             }
             // creat config map & deploy service deployment & get node label by
             // namespace
@@ -1532,15 +1535,35 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             for (ServiceTemplateDto svcTemplate : appDeploy.getAppTemplate().getServiceList()) {
                 // creat ingress
                 if (svcTemplate.getIngress() != null) {
-                    message.addAll(routerService.createExternalRule(svcTemplate, appDeploy.getNamespace()));
+                    message.addAll(routerService.createExternalRule(svcTemplate, appDeploy.getNamespace(), null));
                 }
                 // creat config map & deploy service deployment & get node label by
-                // namespace
-                svcTemplate.getDeploymentDetail().setNamespace(appDeploy.getNamespace());
-                for (CreateContainerDto c : svcTemplate.getDeploymentDetail().getContainers()) {
+                List<CreateContainerDto> containers;
+                List<CreateContainerDto> initContainers;
+                if(svcTemplate.getDeploymentDetail() != null) {
+                    // namespace
+                    svcTemplate.getDeploymentDetail().setNamespace(appDeploy.getNamespace());
+                    containers = svcTemplate.getDeploymentDetail().getContainers();
+                    initContainers = svcTemplate.getDeploymentDetail().getInitContainers();
+                    svcTemplate.getDeploymentDetail().setProjectId(appDeploy.getProjectId());
+                }else if(svcTemplate.getStatefulSetDetail() != null){
+                    svcTemplate.getStatefulSetDetail().setNamespace(appDeploy.getNamespace());
+                    containers = svcTemplate.getStatefulSetDetail().getContainers();
+                    initContainers = svcTemplate.getStatefulSetDetail().getInitContainers();
+                    svcTemplate.getStatefulSetDetail().setProjectId(appDeploy.getProjectId());
+                }else{
+                    throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+                }
+
+                for (CreateContainerDto c : containers) {
                     c.setImg(cluster.getHarborServer().getHarborAddress() + "/" + c.getImg());
                 }
-                svcTemplate.getDeploymentDetail().setProjectId(appDeploy.getProjectId());
+                if(initContainers != null){
+                    for (CreateContainerDto c : initContainers) {
+                        c.setImg(cluster.getHarborServer().getHarborAddress() + "/" + c.getImg());
+                    }
+                }
+
                 ActionReturnUtil depRes = deploymentsService.createDeployment(svcTemplate.getDeploymentDetail(), username, appDeploy.getAppName(),
                         cluster,svcTemplate.getIngress());
                 deployments.add(svcTemplate.getDeploymentDetail().getName());
@@ -1684,5 +1707,18 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         annotation.put("updateTimestamp", updateTime);
         appCrd.getMetadata().setAnnotations(annotation);
         return tprApplication.updateApplication(namespace, appName, appCrd, cluster);
+    }
+
+    @Override
+    public ActionReturnUtil rollBackStatefulSet(Set<String> names, String namespace, String userName, Cluster cluster) throws Exception{
+        if (names != null && names.size() > 0) {
+            for (String dep : names) {
+                ActionReturnUtil deleteDeployReturn = statefulsetsService.deleteStatefulSet(dep, namespace, userName, cluster);
+                if (!deleteDeployReturn.isSuccess()) {
+                    return deleteDeployReturn;
+                }
+            }
+        }
+        return ActionReturnUtil.returnSuccess();
     }
 }

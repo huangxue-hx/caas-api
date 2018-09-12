@@ -86,7 +86,8 @@ public class StorageClassController {
      */
     @ApiOperation(value = "查询某个集群下StorageClass存储列表", notes = "在集群内K8S上根据集群名称查询该集群下所有StorageClass存储")
     @ApiImplicitParams({
-            @ApiImplicitParam(name = "clusterId", value = "集群ID", required = true, paramType = "path", dataType = "String")
+            @ApiImplicitParam(name = "clusterId", value = "集群ID", required = true, paramType = "path", dataType = "String"),
+            @ApiImplicitParam(name = "namespace", value = "分区", required = false, paramType = "query", dataType = "String")
     })
     @RequestMapping(method = RequestMethod.GET)
     @ResponseBody

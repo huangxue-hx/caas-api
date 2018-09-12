@@ -61,12 +61,14 @@ public class VersionController {
      */
     @ResponseBody
     @RequestMapping(value = "/updatestatus", method = RequestMethod.GET)
-    public ActionReturnUtil getUpdateStatus(@RequestParam(value = "namespace") String namespace, @PathVariable(value = "deployName") String name) throws Exception {
+    public ActionReturnUtil getUpdateStatus(@RequestParam(value = "namespace") String namespace,
+                                            @PathVariable(value = "deployName") String name,
+                                            @RequestParam(value = "serviceType", required = false) String serviceType) throws Exception {
     	String userName = (String) session.getAttribute("username");
         if(userName == null){
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
-        return versionControlService.getUpdateStatus(namespace, name);
+        return versionControlService.getUpdateStatus(namespace, name, serviceType);
     }
 
 

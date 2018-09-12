@@ -10,6 +10,7 @@ import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.system.bean.SystemConfig;
+import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dto.application.StorageClassDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -21,6 +22,7 @@ import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.k8s.service.ScService;
 import com.harmonycloud.k8s.service.SecretService;
+import com.harmonycloud.k8s.service.StatefulSetService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.DaemonSetsService;
@@ -103,6 +105,9 @@ public class StorageClassServiceImpl implements StorageClassService {
 
     @Autowired
     NamespaceService namespaceService;
+
+    @Autowired
+    StatefulSetService statefulSetService;
 
     @Override
     public ActionReturnUtil createStorageClass(StorageClassDto storageClass) throws Exception {
@@ -456,55 +461,31 @@ public class StorageClassServiceImpl implements StorageClassService {
         List serviceList = new ArrayList<>();
         List<Deployment> deploymentList = listDeployment(cluster).getItems();
         List<DaemonSet> daemonSetList = daemonSetsService.listDaemonSets(cluster);
+        List<StatefulSet> statefulSetList = statefulSetService.listStatefulSets(null, null, null, cluster).getItems();
         for (PersistentVolumeClaim pvc : pvcList) {
             for (Deployment deployment : deploymentList) {
                 if (pvc.getMetadata().getNamespace().equalsIgnoreCase(deployment.getMetadata().getNamespace()) && deployment.getSpec().getTemplate().getSpec().getVolumes() != null && deployment.getSpec().getTemplate().getSpec().getVolumes().size() > 0) {
                     List<Volume> volumeList = deployment.getSpec().getTemplate().getSpec().getVolumes();
                     for (Volume volume : volumeList) {
                         if (volume.getPersistentVolumeClaim() != null && pvc.getMetadata().getName().equals(volume.getPersistentVolumeClaim().getClaimName())) {
-                            Map<String, Object> serviceItem = new HashMap<>();
+                            Map<String, Object> serviceItem = convertServiceItem(deployment.getMetadata(), deployment.getSpec().getTemplate());
                             serviceItem.put("type", CommonConstant.LABEL_KEY_APP);
-                            serviceItem.put("name", deployment.getMetadata().getName());
                             serviceItem.put("status", K8sResultConvert.getDeploymentStatus(deployment));
                             serviceItem.put("instance", deployment.getSpec().getReplicas());
-                            serviceItem.put("namespace", deployment.getMetadata().getNamespace());
-                            String aliasNamespace = namespaceLocalService.getNamespaceByName(deployment.getMetadata().getNamespace()).getAliasName();
-                            serviceItem.put("aliasNamespace", aliasNamespace);
-                            List<String> img = new ArrayList<String>();
-                            List<String> cpu = new ArrayList<String>();
-                            List<String> memory = new ArrayList<String>();
-                            List<Container> containers = deployment.getSpec().getTemplate().getSpec().getContainers();
-                            for (Container container : containers) {
-                                img.add(container.getImage());
-                                if (container.getResources() != null && container.getResources().getRequests() != null) {
-                                    Map<String, String> res1 = (Map<String, String>) container.getResources().getRequests();
-                                    cpu.add(res1.get("cpu"));
-                                    memory.add(res1.get("memory"));
-                                } else if (container.getResources() != null && container.getResources().getLimits() != null) {
-                                    Map<String, String> res1 = (Map<String, String>) container.getResources().getLimits();
-                                    cpu.add(res1.get("cpu"));
-                                    memory.add(res1.get("memory"));
-                                }
-                            }
-                            serviceItem.put("img", img);
-                            serviceItem.put("cpu", cpu);
-                            serviceItem.put("memory", memory);
-
-                            Map<String, Object> labelsMap = new HashMap<>();
-                            if (deployment.getMetadata().getAnnotations() != null && deployment.getMetadata().getAnnotations().containsKey("nephele/labels")) {
-                                String labels = deployment.getMetadata().getAnnotations().get("nephele/labels").toString();
-                                if (!StringUtils.isEmpty(labels)) {
-                                    String[] arrLabel = labels.split(",");
-                                    for (String l : arrLabel) {
-                                        String[] tmp = l.split("=");
-                                        labelsMap.put(tmp[0], tmp[1]);
-                                    }
-                                }
-                            }
-
-                            serviceItem.put("labels", labelsMap);
-                            Date utcDate = DateUtil.StringToDate(deployment.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
-                            serviceItem.put("createTime", utcDate);
+                            serviceList.add(serviceItem);
+                        }
+                    }
+                }
+            }
+            for (StatefulSet statefulset : statefulSetList){
+                if (pvc.getMetadata().getNamespace().equalsIgnoreCase(statefulset.getMetadata().getNamespace()) && CollectionUtils.isNotEmpty(statefulset.getSpec().getTemplate().getSpec().getVolumes())) {
+                    List<Volume> volumeList = statefulset.getSpec().getTemplate().getSpec().getVolumes();
+                    for (Volume volume : volumeList) {
+                        if (volume.getPersistentVolumeClaim() != null && pvc.getMetadata().getName().equals(volume.getPersistentVolumeClaim().getClaimName())) {
+                            Map<String, Object> serviceItem = convertServiceItem(statefulset.getMetadata(), statefulset.getSpec().getTemplate());
+                            serviceItem.put("type", CommonConstant.LABEL_KEY_STATEFULSET);
+                            serviceItem.put("status", K8sResultConvert.getStatefulSetStatus(statefulset));
+                            serviceItem.put("instance", statefulset.getSpec().getReplicas());
                             serviceList.add(serviceItem);
                         }
                     }
@@ -518,44 +499,9 @@ public class StorageClassServiceImpl implements StorageClassService {
                     }
                     for (Volume volume : volumeList) {
                         if (volume.getPersistentVolumeClaim() != null && pvc.getMetadata().getName().equals(volume.getPersistentVolumeClaim().getClaimName())) {
-                            Map<String, Object> serviceItem = new HashMap<>();
+                            Map<String, Object> serviceItem = convertServiceItem(daemonSet.getMetadata(), daemonSet.getSpec().getTemplate());
                             serviceItem.put("type", CommonConstant.LABEL_KEY_DAEMONSET);
-                            serviceItem.put("name", daemonSet.getMetadata().getName());
-                            serviceItem.put("instance", daemonSet.getStatus().getDesiredNumberScheduled());
                             serviceItem.put("status", daemonSetsService.convertDaemonStatus(daemonSet));
-                            serviceItem.put("namespace", daemonSet.getMetadata().getNamespace());
-                            serviceItem.put("aliasNamespace", daemonSet.getMetadata().getNamespace());
-                            Map<String, Object> labelsMap = new HashMap<>();
-                            if (daemonSet.getMetadata().getAnnotations() != null && daemonSet.getMetadata().getAnnotations().containsKey("nephele/labels")) {
-                                String labels = daemonSet.getMetadata().getAnnotations().get("nephele/labels").toString();
-                                if (!StringUtils.isEmpty(labels)) {
-                                    String[] arrLabel = labels.split(",");
-                                    for (String l : arrLabel) {
-                                        String[] tmp = l.split("=");
-                                        labelsMap.put(tmp[0], tmp[1]);
-                                    }
-                                }
-                            }
-
-                            serviceItem.put("labels", labelsMap);
-                            Date utcDate = DateUtil.StringToDate(daemonSet.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
-                            serviceItem.put("createTime", utcDate);
-                            List<String> img = new ArrayList<>();
-                            List<String> cpu = new ArrayList<>();
-                            List<String> memory = new ArrayList<>();
-                            for (Container c : daemonSet.getSpec().getTemplate().getSpec().getContainers()) {
-                                img.add(c.getImage());
-                                if (c.getResources() != null) {
-                                    Map<String, Object> map = (Map<String, Object>) c.getResources().getLimits();
-                                    if (Objects.nonNull(map)) {
-                                        cpu.add(map.get("cpu").toString());
-                                        memory.add(map.get("memory").toString());
-                                    }
-                                }
-                            }
-                            serviceItem.put("img", img);
-                            serviceItem.put("cpu", cpu);
-                            serviceItem.put("memory", memory);
                             serviceList.add(serviceItem);
                         }
                     }
@@ -563,6 +509,54 @@ public class StorageClassServiceImpl implements StorageClassService {
             }
         }
         return ActionReturnUtil.returnSuccessWithData(convertScDto(sc, serviceList, cluster));
+    }
+
+    private Map<String, Object> convertServiceItem(ObjectMeta objectMeta, PodTemplateSpec podTemplateSpec) throws Exception {
+        Map<String, Object> serviceItem = new HashMap<>();
+        serviceItem.put("name", objectMeta.getName());
+        serviceItem.put("namespace", objectMeta.getNamespace());
+        NamespaceLocal namespace = namespaceLocalService.getNamespaceByName(objectMeta.getNamespace());
+        if(namespace != null) {
+            serviceItem.put("aliasNamespace", namespace.getAliasName());
+        }else{
+            serviceItem.put("aliasNamespace", objectMeta.getNamespace());
+        }
+        List<String> img = new ArrayList<String>();
+        List<String> cpu = new ArrayList<String>();
+        List<String> memory = new ArrayList<String>();
+        List<Container> containers = podTemplateSpec.getSpec().getContainers();
+        for (Container container : containers) {
+            img.add(container.getImage());
+            if (container.getResources() != null && container.getResources().getRequests() != null) {
+                Map<String, String> res1 = (Map<String, String>) container.getResources().getRequests();
+                cpu.add(res1.get("cpu"));
+                memory.add(res1.get("memory"));
+            } else if (container.getResources() != null && container.getResources().getLimits() != null) {
+                Map<String, String> res1 = (Map<String, String>) container.getResources().getLimits();
+                cpu.add(res1.get("cpu"));
+                memory.add(res1.get("memory"));
+            }
+        }
+        serviceItem.put("img", img);
+        serviceItem.put("cpu", cpu);
+        serviceItem.put("memory", memory);
+
+        Map<String, Object> labelsMap = new HashMap<>();
+        if (objectMeta.getAnnotations() != null && objectMeta.getAnnotations().containsKey("nephele/labels")) {
+            String labels = objectMeta.getAnnotations().get("nephele/labels").toString();
+            if (!StringUtils.isEmpty(labels)) {
+                String[] arrLabel = labels.split(",");
+                for (String l : arrLabel) {
+                    String[] tmp = l.split("=");
+                    labelsMap.put(tmp[0], tmp[1]);
+                }
+            }
+        }
+
+        serviceItem.put("labels", labelsMap);
+        Date utcDate = DateUtil.StringToDate(objectMeta.getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
+        serviceItem.put("createTime", utcDate);
+        return serviceItem;
     }
 
     private PersistentVolumeClaimList listPvc(Cluster cluster) {
@@ -666,10 +660,11 @@ public class StorageClassServiceImpl implements StorageClassService {
                         storageClassDto.setConfigMap(configMap);
                     }
                 }
+                if (sc.getMetadata().getAnnotations().get("remain") != null) {
+                    storageClassDto.setNamespaceRemainLimit((Integer)sc.getMetadata().getAnnotations().get("remain"));
+                }
             }
-
         }
-
         if (serviceList != null && serviceList.size() > 0) {
             storageClassDto.setServiceList(serviceList);
         }
@@ -706,7 +701,7 @@ public class StorageClassServiceImpl implements StorageClassService {
                 storageClassDtos.add(storageClassDto);
             }
         }
-        return  storageClassDtos;
+        return storageClassDtos;
     }
 
     @Override
@@ -726,9 +721,20 @@ public class StorageClassServiceImpl implements StorageClassService {
             ResourceQuotaList resourceQuotaList = namespaceService.getResouceQuota(namespace, cluster);
             ResourceQuota resourceQuota = resourceQuotaList.getItems().get(0);
             LinkedHashMap<String,Object> hards = (LinkedHashMap<String, Object>) resourceQuota.getSpec().getHard();
+            Map<String, Object> used = (Map<String, Object>) resourceQuota.getStatus().getUsed();
             storageClasses = storageClasses.stream().filter(storageClass -> {
                 String name = storageClass.getMetadata().getName();
-                return hards.containsKey(name + ".storageclass.storage.k8s.io/requests.storage");
+                if (hards.containsKey(name + ".storageclass.storage.k8s.io/requests.storage")) {
+                    String usedStorage = (String) used.get(name + ".storageclass.storage.k8s.io/requests.storage");
+                    String hardStorage = (String) hards.get(name + ".storageclass.storage.k8s.io/requests.storage");
+                    if (StringUtils.isNotBlank(usedStorage) && StringUtils.isNotBlank(hardStorage)) {
+                        Integer usedAmount = Integer.valueOf(usedStorage.replace(CommonConstant.GI, StringUtils.EMPTY));
+                        Integer hardAmount = Integer.valueOf(hardStorage.replace(CommonConstant.GI, StringUtils.EMPTY));
+                        storageClass.getMetadata().getAnnotations().put("remain", hardAmount - usedAmount);
+                    }
+                    return true;
+                }
+                return false;
             }).collect(Collectors.toList());
         }
 

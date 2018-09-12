@@ -39,4 +39,6 @@ public interface ConfigMapService {
      */
     public void updateConfigmap(ConfigMap configMap, Cluster cluster) throws Exception;
 
+    public void createConfigMap(String namespace, String configMapName, String serviceName, List<CreateConfigMapDto> configMaps, Cluster cluster) throws Exception;
+
 }

@@ -171,6 +171,17 @@ public interface DeploymentsService {
 	public ActionReturnUtil deleteDeployment(String name, String namespace, String userName, Cluster cluster) throws Exception;
 
 	/**
+     * 删除statefulset
+     * @param name
+     * @param namespace
+     * @param userName
+     * @param cluster
+     * @return
+     * @throws Exception
+     */
+    ActionReturnUtil deleteStatefulSet(String name, String namespace, String userName, Cluster cluster) throws Exception;
+
+    /**
 	 * 更新deployment
 	 * @param detail
 	 * @param userName

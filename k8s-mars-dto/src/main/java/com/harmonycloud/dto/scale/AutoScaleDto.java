@@ -42,6 +42,7 @@ public class AutoScaleDto {
 	private Integer currentReplicas;
     List<TimeMetricScaleDto> timeMetricScales;
 	List<CustomMetricScaleDto> customMetricScales;
+    private String serviceType;
 
 	public List<CustomMetricScaleDto> getCustomMetricScales() {
 		return customMetricScales;
@@ -170,4 +171,12 @@ public class AutoScaleDto {
 	public void setControllerType(String controllerType) {
 		this.controllerType = controllerType;
 	}
+
+    public String getServiceType() {
+        return serviceType;
+    }
+
+    public void setServiceType(String serviceType) {
+        this.serviceType = serviceType;
+    }
 }

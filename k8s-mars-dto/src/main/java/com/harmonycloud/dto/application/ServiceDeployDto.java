@@ -1,9 +1,9 @@
 package com.harmonycloud.dto.application;
 
 public class ServiceDeployDto {
-	
+
 	private String namespace;
-	
+
 	private ServiceTemplateDto serviceTemplate;
 
 	public String getNamespace() {

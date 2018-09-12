@@ -85,6 +85,13 @@ public enum AuditUrlEnum {
     KEEP_OLD_VERSION("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)/bluegreen/cancel_POST", "蓝绿发布保留旧版本",
             "keepOldVersionInBlueGreenDeploy", 3, null, null, "SERVICE"),
 
+    DEPLOY_STATEFUL_SERVICE("/tenants/([^//]+)/projects/([^//]+)/statefulsets_POST", "发布服务", "deployService",
+            null, null, "serviceTemplate.statefulSetDetail.name", "SERVICE"),
+    START_STATEFUL_SERVICE("/tenants/([^//]+)/projects/([^//]+)/statefulsets/([^//]+)/start_POST", "启动服务", "startService", 3, null, null, "SERVICE"),
+    STOP_STATEFUL_SERVICE("/tenants/([^//]+)/projects/([^//]+)/statefulsets/([^//]+)/stop_POST", "停止服务", "stopService", 3, null, null, "SERVICE"),
+    SCALE_STATEFUL_SERVICE("/tenants/([^//]+)/projects/([^//]+)/statefulsets/([^//]+)/scale_POST", "服务实例伸缩", "scaleService", 3, null, null, "SERVICE"),
+    DELETE_STATEFUL_SERVICE("/tenants/([^//]+)/projects/([^//]+)/statefulsets_DELETE", "删除服务", "deleteService", null, null, "serviceList[0].name", "SERVICE"),
+
     CREATE_DAEMONSET("/clusters/([^//]+)/daemonsets_POST", "创建守护进程服务", "createDaemonSet", null, null, "name", "DAEMONSET"),
     DELETE_DAEMONSET("/clusters/([^//]+)/daemonsets/([^//]+)_DELETE", "删除守护进程服务", "deleteDaemonSet", 2, null, null, "DAEMONSET"),
     UPDATE_DAEMONSET("/clusters/([^//]+)/daemonsets/([^//]+)_PUT", "更新守护进程服务", "updateDaemonSet", 2, null, null, "DAEMONSET"),
@@ -115,10 +122,13 @@ public enum AuditUrlEnum {
     UPDATE_NAMESPACE("/tenants/([^//]+)/namespaces_PUT", "更新分区", "updateNamespace", null, null, "name", "NAMESPACE"),
     DELETE_NAMESPACE("/tenants/([^//]+)/namespaces/([^//]+)_DELETE", "删除分区", "deleteNamespace", 2, null, null, "NAMESPACE"),
 
-    CREATE_PV("/tenants/([^//]+)/projects/([^//]+)/pvs_POST", "创建存储", "createStory", null, null, "name", "STORAGE"),
-    DELETE_PV("/tenants/([^//]+)/projects/([^//]+)/([^//]+)_DELETE", "删除存储", "deleteStory", 3, null, null, "STORAGE"),
-    UPDATE_PV("/tenants/([^//]+)/projects/([^//]+)/pvs_PUT", "修改存储", "updateStory", null, null, "name", "STORAGE"),
-    RECYCLE_PV("/tenants/([^//]+)/projects/([^//]+)/pvs/([^//]+)/recycle_PUT", "回收存储", "recycleStory", 3, null, null, "STORAGE"),
+    CREATE_STORAGECLASS("/clusters/([^//]+)/storage_POST", "创建存储服务", "createStorageService", null, null, "name", "STORAGE"),
+    DELETE_STORAGECLASS("/clusters/([^//]+)/storage_DELETE", "删除存储服务", "deleteStorageService", null, null, "name", "STORAGE"),
+
+    CREATE_PV("/tenants/([^//]+)/projects/([^//]+)/pvc_POST", "创建存储", "createStory", null, null, "name", "STORAGE"),
+    DELETE_PV("/tenants/([^//]+)/projects/([^//]+)/pvc/([^//]+)_DELETE", "删除存储", "deleteStory", 3, null, null, "STORAGE"),
+    UPDATE_PV("/tenants/([^//]+)/projects/([^//]+)/pvc_PUT", "修改存储", "updateStory", null, null, "name", "STORAGE"),
+    RECYCLE_PV("/tenants/([^//]+)/projects/([^//]+)/pvc/([^//]+)/recycle_PUT", "回收存储", "recycleStory", 3, null, null, "STORAGE"),
 
     CREATE_CICD_ENV("/tenants/([^//]+)/projects/([^//]+)/env_POST", "新增环境", "createEnv", null, null, "name", "CICD"),
     UPDATE_CICD_ENV("/tenants/([^//]+)/projects/([^//]+)/env_PUT", "修改环境", "updateEnv", null, null, "name", "CICD"),

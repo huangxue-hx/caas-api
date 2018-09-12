@@ -76,7 +76,11 @@ public class Constant {
 	
 	public final static String DEPLOYMENT = "Deployment";
 
-	public final static String DEPLOYMENT_API_VERSION = "apps/v1";
+    public  final static String STATEFULSET = "StatefulSet";
+
+    public final static String DEPLOYMENT_API_VERSION = "apps/v1";
+
+    public final static String STATEFULSET_API_VERSION = "apps/v1";
 
 	public final static Integer ADMIN_ACCOUNT = 1;
 	public final static Integer NON_ADMIN_ACCOUNT = 0;
@@ -111,6 +115,8 @@ public class Constant {
 	
 	//stroge
 	public final static String VOLUME_TYPE_PV = "nfs";
+    public final static String VOLUME_TYPE_PVC = "pvc";
+    public final static String VOLUME_TYPE_STORAGECLASS = "storageClass";
 	public final static String VOLUME_TYPE_HOSTPASTH = "hostPath";
 	public final static String VOLUME_TYPE_GITREPO = "gitRepo";
 	public final static String VOLUME_TYPE_EMPTYDIR = "emptyDir";
@@ -118,8 +124,10 @@ public class Constant {
 	//labels资源类型
 	public final static String TYPE_JOB = "jobs";
 	public final static String TYPE_DEPLOYMENT = "app";
-	public final static String TYPE_DATACENTER = "dataCenter";
+    public final static String TYPE_STATEFULSET = "harmonycloud.cn/statefulset";
+    public final static String TYPE_DATACENTER = "dataCenter";
 	public final static String TOP_DATACENTER = "cluster-top";
+    public final static String TYPE_CONTROLLERREVISIONNAME = "controller-revision-hash";
 	//重启策略
 	public final static String RESTARTPOLICY_ALWAYS = "Always";
 	public final static String RESTARTPOLICY_NERVER = "Never";

@@ -159,11 +159,10 @@ public class DataPrivilegeServiceImpl implements DataPrivilegeService{
      */
     private <T> DataPrivilegeDto getDataPrivilegeDto(T t) throws IllegalAccessException {
         DataPrivilegeDto dataPrivilegeDto = new DataPrivilegeDto();
-        DataPrivilegeType anotation = t.getClass().getDeclaredAnnotation(DataPrivilegeType.class);
+        DataPrivilegeType anotation = t.getClass().getAnnotation(DataPrivilegeType.class);
         DataResourceTypeEnum dataPrivilegeType = anotation.type();
         dataPrivilegeDto.setDataResourceType(dataPrivilegeType.getCode());
         Field[] fields = t.getClass().getDeclaredFields();
-
         for(Field field : fields){
             DataPrivilegeField fieldAnnotation = field.getAnnotation(DataPrivilegeField.class);
             if(fieldAnnotation == null){

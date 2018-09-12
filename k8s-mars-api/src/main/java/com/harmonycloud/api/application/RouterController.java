@@ -3,7 +3,6 @@ package com.harmonycloud.api.application;
 import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.ParsedIngressListDto;
-import com.harmonycloud.dto.application.ParsedIngressListUpdateDto;
 import com.harmonycloud.dto.application.SvcRouterDto;
 import com.harmonycloud.dto.application.TcpDeleteDto;
 import com.harmonycloud.k8s.constant.Constant;
@@ -88,11 +87,12 @@ public class RouterController {
 	@RequestMapping(value = "/{deployName}/ingress", method = RequestMethod.DELETE)
 	public ActionReturnUtil deleteIng(@RequestParam(value = "namespace", required = true) String namespace,
 									  @PathVariable(value = "deployName") String deployName,
-                                      @RequestParam(value = "name", required = true) String name) throws Exception{
+                                      @RequestParam(value = "name", required = true) String name,
+                                      @RequestParam(value = "serviceType", required = false) String serviceType) throws Exception{
 
 		try {
 			logger.info("删除http路由");
-			return routerService.ingDelete(namespace, name, deployName);
+			return routerService.ingDelete(namespace, name, deployName, serviceType);
 		} catch (Exception e) {
 			logger.error("删除http路由错误，namespace="+namespace+",name="+name+",e="+e.getMessage());
 			throw e;

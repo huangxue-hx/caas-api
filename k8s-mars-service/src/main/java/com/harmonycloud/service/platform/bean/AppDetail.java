@@ -20,8 +20,9 @@ import java.util.Map;
  */
 @DataPrivilegeType(type = DataResourceTypeEnum.SERVICE)
 public class AppDetail {
+    private String serviceType;
 
-	private String clusterIP;
+    private String clusterIP;
 
 	private String serviceAddress;
 
@@ -98,6 +99,10 @@ public class AppDetail {
 
 	private List<HostAlias> hostAliases;
 
+    private List<ContainerOfPodDetail> initContainers;
+
+    private String podManagementPolicy;
+
 	private Map<String, Object> pullDependence;
 
 	private String serviceDependence;
@@ -133,7 +138,6 @@ public class AppDetail {
 	public void setHostAliases(List<HostAlias> hostAliases) {
 		this.hostAliases = hostAliases;
 	}
-
 
 	public String getRealName() {
 		return realName;
@@ -405,5 +409,29 @@ public class AppDetail {
 
     public void setDataPrivilege(String dataPrivilege) {
         this.dataPrivilege = dataPrivilege;
+    }
+
+    public String getServiceType() {
+        return serviceType;
+    }
+
+    public void setServiceType(String serviceType) {
+        this.serviceType = serviceType;
+    }
+
+    public List<ContainerOfPodDetail> getInitContainers() {
+        return initContainers;
+    }
+
+    public void setInitContainers(List<ContainerOfPodDetail> initContainers) {
+        this.initContainers = initContainers;
+    }
+
+    public String getPodManagementPolicy() {
+        return podManagementPolicy;
+    }
+
+    public void setPodManagementPolicy(String podManagementPolicy) {
+        this.podManagementPolicy = podManagementPolicy;
     }
 }

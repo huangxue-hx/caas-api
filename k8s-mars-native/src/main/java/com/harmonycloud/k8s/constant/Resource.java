@@ -19,6 +19,8 @@ public class Resource {
 	public final static String POD = "pods";
 	
 	public final static String DEPLOYMENT = "deployments";
+
+    public final static String STATEFULSET = "statefulsets";
 	
 	public final static String SERVICE = "services";
 	
@@ -76,8 +78,8 @@ public class Resource {
 	public final static String CLUSTERBASE = "clusterbases";
 	
 	public final static String POD_DISRUPTION_BUDGET = "poddisruptionbudgets";
-	
-	
+
+    public final static String CONTROLLERREVISION = "controllerrevisions";
 	
 	
 	/**
@@ -113,6 +115,8 @@ public class Resource {
 		case com.harmonycloud.k8s.constant.Resource.DEPLOYMENT:
 		case Resource.DAEMONTSET:
 		case com.harmonycloud.k8s.constant.Resource.REPLICASET:
+        case Resource.STATEFULSET:
+        case Resource.CONTROLLERREVISION:
 			group = APIGroup.APIS_APPS_V1;
 			break;
 		case com.harmonycloud.k8s.constant.Resource.INGRESS:

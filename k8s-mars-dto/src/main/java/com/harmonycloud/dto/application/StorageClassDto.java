@@ -29,6 +29,7 @@ public class StorageClassDto {
     private Map<String, String> configMap;
     @ApiModelProperty(value = "StorageClass相关服务", name = "serviceList")
     private List serviceList;
+    private Integer namespaceRemainLimit;
 
     public String getName() {
         return name;
@@ -92,5 +93,13 @@ public class StorageClassDto {
 
     public void setServiceList(List serviceList) {
         this.serviceList = serviceList;
+    }
+
+    public Integer getNamespaceRemainLimit() {
+        return namespaceRemainLimit;
+    }
+
+    public void setNamespaceRemainLimit(Integer namespaceRemainLimit) {
+        this.namespaceRemainLimit = namespaceRemainLimit;
     }
 }

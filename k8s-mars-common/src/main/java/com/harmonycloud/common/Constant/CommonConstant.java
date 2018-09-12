@@ -215,6 +215,7 @@ public class CommonConstant {
     public static final String NFS = "nfs";
     public static final String NFS_SERVER = "NFS_SERVER";
     public static final String NFS_PATH = "NFS_PATH";
+    public static final String AUTO_PROVISION_LABEL = "autoProvision";
 
     public static final String READONLYMANY = "ReadOnlyMany";
     public static final String READWRITEMANY = "ReadWriteMany";
@@ -251,6 +252,7 @@ public class CommonConstant {
     //label key
     public static final String LABEL_KEY_APP = "app";
     public static final String LABEL_KEY_DAEMONSET = "daemonset";
+    public static final String LABEL_KEY_STATEFULSET = "statefulset";
 
 
     //用户权限模块
@@ -271,6 +273,8 @@ public class CommonConstant {
     //   public static final String NETWORKNAMETO = "networknameto";
     public static final Boolean FALSE = false;
     public static final Boolean TRUE = true;
+    public static final String TRUE_STRING = "true";
+    public static final String FALSE_STRING = "false";
 
     public static final String ZERONUM = "0";
     public static final String ONENUMSTRING = "1";

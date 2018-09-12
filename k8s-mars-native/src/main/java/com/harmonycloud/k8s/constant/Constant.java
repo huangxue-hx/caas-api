@@ -87,6 +87,10 @@ public class Constant {
 	public final static String SERVICE_VERSION = V1_VERSION;
 	
 	public final static String POD_DISRUPTION_VERSION = APIS_POLICY_V1BETA1;
+
+    public final static String STATEFULSET_VERSION = APPS_V1_VERSION;
+
+    public final static String CONTROLLER_REVISION_VERSION = APPS_V1_VERSION;
 	
 	public static String HTTP_401 = "401";
 	

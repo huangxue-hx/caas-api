@@ -21,6 +21,8 @@ public class ServiceTemplateDto {
 
     private DeploymentDetailDto deploymentDetail;
 
+    private StatefulSetDetailDto statefulSetDetail;
+
     private List<IngressDto> ingress;
     
     private int type;  //1保存为删除模式；0保存为用户模式
@@ -32,6 +34,16 @@ public class ServiceTemplateDto {
     private String projectId;
 
     private String clusterId;
+
+    private String serviceType;
+
+    public String getServiceType() {
+        return serviceType;
+    }
+
+    public void setServiceType(String serviceType) {
+        this.serviceType = serviceType;
+    }
 
     public String getClusterId() {
         return clusterId;
@@ -135,5 +147,13 @@ public class ServiceTemplateDto {
 
     public void setProjectId(String projectId) {
         this.projectId = projectId;
+    }
+
+    public StatefulSetDetailDto getStatefulSetDetail() {
+        return statefulSetDetail;
+    }
+
+    public void setStatefulSetDetail(StatefulSetDetailDto statefulSetDetail) {
+        this.statefulSetDetail = statefulSetDetail;
     }
 }

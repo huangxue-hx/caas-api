@@ -12,6 +12,8 @@ public class TcpDeleteDto {
 
 	private String protocol;
 
+    private String serviceType;
+
 	public String getName() {
 		return name;
 	}
@@ -44,4 +46,11 @@ public class TcpDeleteDto {
 		this.protocol = protocol;
 	}
 
+    public String getServiceType() {
+        return serviceType;
+    }
+
+    public void setServiceType(String serviceType) {
+        this.serviceType = serviceType;
+    }
 }

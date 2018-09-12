@@ -140,4 +140,39 @@ public class ConfigMapServiceImpl implements ConfigMapService {
 			throw new MarsRuntimeException(status.getMessage());
 		}
 	}
+
+    @Override
+    public void createConfigMap(String namespace, String configMapName, String serviceName, List<CreateConfigMapDto> configMaps, Cluster cluster) throws Exception {
+        K8SURL url = new K8SURL();
+        url.setNamespace(namespace).setResource(Resource.CONFIGMAP);
+        Map<String, Object> bodys = new HashMap<String, Object>();
+        Map<String, Object> meta = new HashMap<String, Object>();
+        meta.put("namespace", namespace);
+        meta.put("name", configMapName);
+        Map<String, Object> label = new HashMap<String, Object>();
+        label.put("app", serviceName);
+        meta.put("labels", label);
+        bodys.put("metadata", meta);
+        Map<String, Object> data = new HashMap<String, Object>();
+        for (CreateConfigMapDto configMap : configMaps) {
+            if (configMap != null && !StringUtils.isEmpty(configMap.getPath())) {
+                if (Objects.isNull(configMap.getValue())){
+                    throw new MarsRuntimeException(ErrorCodeMessage.CONFIGMAP_IS_EMPTY);
+                }
+                if (StringUtils.isEmpty(configMap.getFile())) {
+                    data.put("config.json", configMap.getValue().toString());
+                } else {
+                    data.put(configMap.getFile() + "v" + configMap.getTag(), configMap.getValue().toString());
+                }
+            }
+        }
+        bodys.put("data", data);
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("Content-type", "application/json");
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            throw new MarsRuntimeException(status.getMessage());
+        }
+    }
 }

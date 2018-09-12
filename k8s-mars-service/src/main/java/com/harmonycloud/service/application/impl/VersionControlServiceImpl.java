@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.ServiceTypeEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.cluster.bean.RollbackBean;
@@ -19,6 +20,7 @@ import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.PersistentVolumeService;
+import com.harmonycloud.service.application.StatefulSetVersionControlService;
 import com.harmonycloud.service.application.VersionControlService;
 import com.harmonycloud.service.platform.bean.CanaryDeployment;
 import com.harmonycloud.service.platform.bean.PvDto;
@@ -29,7 +31,6 @@ import com.harmonycloud.service.platform.dto.PodDto;
 import com.harmonycloud.service.platform.dto.ReplicaSetDto;
 import com.harmonycloud.service.platform.service.WatchService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
-import net.sf.json.JSONObject;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.lang3.StringUtils;
@@ -40,6 +41,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
@@ -85,6 +87,9 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
     @Autowired
     private DeploymentsService deploymentsService;
 
+    @Autowired
+    private StatefulSetVersionControlService statefulSetVersionControlService;
+
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
 
@@ -95,13 +100,37 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         if (Objects.isNull(detail) || CollectionUtils.isEmpty(detail.getContainers()) || StringUtils.isBlank(detail.getName()) || StringUtils.isBlank(detail.getNamespace())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
-        CountDownLatch mCountDownLatch = new CountDownLatch(1);
 
-        final RequestAttributes request = RequestContextHolder.getRequestAttributes();
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(detail.getNamespace());
         if (Objects.isNull(cluster)) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
+        ServiceTypeEnum serviceTypeEnum;
+        if(StringUtils.isBlank(detail.getServiceType())){
+            serviceTypeEnum = ServiceTypeEnum.DEPLOYMENT;
+        }else {
+            serviceTypeEnum = ServiceTypeEnum.valueOf(detail.getServiceType().toUpperCase());
+        }
+        switch (serviceTypeEnum){
+            case DEPLOYMENT:
+                return this.canaryUpdateForDeployment(detail, instances, cluster);
+            case STATEFULSET:
+                StatefulSet statefulSet = statefulSetVersionControlService.canaryUpdateForStatefulSet(detail, instances, cluster);
+                //更新service端口
+                increaseServiceByDeployment(statefulSet.getMetadata(), statefulSet.getSpec().getTemplate(), cluster);
+                return ActionReturnUtil.returnSuccessWithData("success");
+            default:
+                break;
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    //更新Deployment的时候不断查询状态
+    private ActionReturnUtil canaryUpdateForDeployment(CanaryDeployment detail, int instances, Cluster cluster) throws Exception {
+
+        CountDownLatch mCountDownLatch = new CountDownLatch(CommonConstant.NUM_ONE);
+
+        final RequestAttributes request = RequestContextHolder.getRequestAttributes();
         // 获取deployment
         K8SClientResponse depRes = dpService.doSpecifyDeployment(detail.getNamespace(), detail.getName(), null, null,
                 HTTPMethod.GET, cluster);
@@ -115,17 +144,24 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         Map<String, String> containerToConfigMap = deploymentsService.createConfigMapInUpdate(detail.getNamespace(), detail.getName(), cluster, detail.getContainers());
 
         //更新旧的Deployment对象
-        Deployment deped = KubeServiceConvert.convertDeploymentUpdate(dep, detail.getContainers(), detail.getName(), containerToConfigMap, cluster);
-
+        PodTemplateSpec podTemplateSpec = KubeServiceConvert.convertDeploymentUpdate(dep.getSpec().getTemplate(), detail.getContainers(), detail.getName(), containerToConfigMap, cluster);
+        dep.getSpec().setTemplate(podTemplateSpec);
+        Date now = new Date();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+        String updateTime = sdf.format(now);
+        Map<String, Object> anno = dep.getMetadata().getAnnotations();
+        anno.put("updateTimestamp", updateTime);
+        dep.getMetadata().setAnnotations(anno);
         //设置灰度升级相关的参数
         DeploymentStrategy strategy = new DeploymentStrategy();
         strategy.setType("RollingUpdate");
         //当实例数目不为0时才需要灰度更新
         if (detail.getInstances() != 0) {
             if (detail.getSeconds() < Constant.POD_MIN_READY_FIVE_SECONDS) {
-                deped.getSpec().setMinReadySeconds(Constant.POD_MIN_READY_FIVE_SECONDS);
+                dep.getSpec().setMinReadySeconds(Constant.POD_MIN_READY_FIVE_SECONDS);
             } else {
-                deped.getSpec().setMinReadySeconds(detail.getSeconds());
+                dep.getSpec().setMinReadySeconds(detail.getSeconds());
             }
             RollingUpdateDeployment ru = new RollingUpdateDeployment();
             if (detail.getMaxSurge() == 0 && detail.getMaxUnavailable() == 0) {
@@ -136,9 +172,9 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
                 ru.setMaxUnavailable(detail.getMaxUnavailable());
             }
             strategy.setRollingUpdate(ru);
-            deped.getSpec().setStrategy(strategy);
+            dep.getSpec().setStrategy(strategy);
         }
-        deped.getSpec().setPaused(false);
+        dep.getSpec().setPaused(false);
 
         //获取pvc
         String namespace = detail.getNamespace();
@@ -183,12 +219,11 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
             }
         }
         //将页面上填写的数据保存到annotation中
-        Map<String, Object> anno = deped.getMetadata().getAnnotations();
         anno.put("deployment.canaryupdate/maxsurge", String.valueOf(detail.getMaxSurge()));
         anno.put("deployment.canaryupdate/maxunavailable", String.valueOf(detail.getMaxUnavailable()));
         anno.put("deployment.canaryupdate/instances", String.valueOf(detail.getInstances()));
-        deped.getMetadata().setAnnotations(anno);
-        Map<String, Object> bodys = CollectionUtil.transBean2Map(deped);
+        dep.getMetadata().setAnnotations(anno);
+        Map<String, Object> bodys = CollectionUtil.transBean2Map(dep);
         Map<String, Object> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
@@ -211,12 +246,9 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
                             logger.error("灰度升级查询Deployment报错");
                         }
                         Deployment dep1 = JsonUtil.jsonToPojo(dp.getBody(), Deployment.class);
-//                        if (dep1.getStatus() != null) {
-//                            System.out.println("更新的实例数量..." + dep1.getStatus().getUpdatedReplicas());
-//                        }
 
                         //如果实例数量是副本数的话就说明没有更新必要
-                        if (dep1.getStatus() != null && dep1.getStatus().getUpdatedReplicas() != null && dep1.getStatus().getUpdatedReplicas() == dep1.getSpec().getReplicas()) {
+                        if (dep1.getStatus() != null && dep1.getStatus().getUpdatedReplicas() != null && dep1.getStatus().getUpdatedReplicas().equals(dep1.getSpec().getReplicas())) {
                             break;
                         }
                         //升级达到指定个数
@@ -250,7 +282,6 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
             }
         }));
 
-
         //触发灰度升级
         K8SClientResponse putRes = dpService.doSpecifyDeployment(detail.getNamespace(), detail.getName(), headers,
                 bodys, HTTPMethod.PUT, cluster);
@@ -263,15 +294,14 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         mCountDownLatch.await();
 
         //更新service端口
-        increaseServiceByDeployment(deped, cluster);
+        increaseServiceByDeployment(dep.getMetadata(), dep.getSpec().getTemplate(), cluster);
 
         return ActionReturnUtil.returnSuccessWithData("success");
-
     }
 
 
     @Override
-    public ActionReturnUtil getUpdateStatus(String namespace, String name) throws Exception {
+    public ActionReturnUtil getUpdateStatus(String namespace, String name, String serviceType) throws Exception {
         if (StringUtils.isBlank(namespace) || StringUtils.isBlank(name)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
@@ -279,76 +309,22 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         if (Objects.isNull(cluster)) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
-        // 获取deployment
-        K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null,
-                HTTPMethod.GET, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
-            logger.error("获取灰度升级进程:获得进度出错", depRes.getBody());
-            throw new MarsRuntimeException(depRes.getBody());
+        Map<String, Object> jsonObject = new HashMap<>();
+        if(StringUtils.isBlank(serviceType)){
+            serviceType = Constant.DEPLOYMENT;
         }
-        Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
-
-        //返回当前列表中新老实例,格式,顺序为:新实例,老实例,总共实例,当新的实例等于总的实例的时候终止前端定时器
-        JSONObject json = new JSONObject();
-        json.put("maxSurge", CommonConstant.NUM_ONE);
-        json.put("maxUnavailable", 0);
-        json.put("instances", 0);
-        List<Integer> counts = new ArrayList<>();
-        //排除蓝绿
-        if ("RollingUpdate".equals(dep.getSpec().getStrategy().getType())) {
-            String maxSurge = String.valueOf(dep.getSpec().getStrategy().getRollingUpdate().getMaxSurge());
-            if (!maxSurge.equals(Constant.ROLLINGUPDATE_MAX_UNAVAILABLE)) {
-                Integer updateCounts = 0;
-                if (dep.getStatus().getUpdatedReplicas() != null && dep.getStatus().getUpdatedReplicas() != 0) {
-                    updateCounts = dep.getStatus().getUpdatedReplicas();
-                    counts.add(updateCounts);
-                    counts.add(dep.getSpec().getReplicas() - updateCounts);
-                } else {
-                    if (dep.getStatus().getUnavailableReplicas() != null) {
-                        int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
-                        updateCounts = dep.getSpec().getReplicas() - unavailableReplicas;
-                        if (updateCounts < 0) {
-                            updateCounts = 0;
-                        }
-                        counts.add(updateCounts);
-                        counts.add(unavailableReplicas);
-                    }
-                }
-            }
-            if (counts != null && counts.size() > 0 && counts.get(CommonConstant.NUM_ONE) > 0) {
-                Map<String, Object> anno = dep.getMetadata().getAnnotations();
-                if (Objects.nonNull(anno.get("deployment.canaryupdate/maxsurge"))) {
-                    json.put("maxSurge", Integer.valueOf(anno.get("deployment.canaryupdate/maxsurge").toString()));
-                }
-                if (Objects.nonNull(anno.get("deployment.canaryupdate/maxunavailable"))) {
-                    json.put("maxUnavailable", Integer.valueOf(anno.get("deployment.canaryupdate/maxunavailable").toString()));
-                }
-                if (Objects.nonNull(anno.get("deployment.canaryupdate/instances"))) {
-                    json.put("instances", Integer.valueOf(anno.get("deployment.canaryupdate/instances").toString()));
-                }
-            }
-        } else {
-            Integer updateCounts = 0;
-            if (dep.getStatus().getUpdatedReplicas() != null && dep.getStatus().getUpdatedReplicas() != 0) {
-                updateCounts = dep.getStatus().getUpdatedReplicas();
-                counts.add(updateCounts);
-                counts.add(0);
-            } else {
-                if (dep.getStatus().getUnavailableReplicas() != null) {
-                    int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
-                    updateCounts = dep.getSpec().getReplicas() - unavailableReplicas;
-                    if (updateCounts < 0) {
-                        updateCounts = 0;
-                    }
-                    counts.add(updateCounts);
-                    counts.add(0);
-                }
-            }
+        ServiceTypeEnum typeEnum = ServiceTypeEnum.valueOf(serviceType.toUpperCase());
+        switch (typeEnum) {
+            case DEPLOYMENT:
+                jsonObject = this.getDeploymentUpdateStatus(name, namespace, cluster);
+                break;
+            case STATEFULSET:
+                jsonObject = statefulSetVersionControlService.getUpdateStatus(name, namespace, cluster);
+                break;
+            default:
+                break;
         }
-        json.put("pause", dep.getSpec().isPaused());
-        json.put("counts", counts);
-        json.put("message", dep.getStatus().getConditions());
-        return ActionReturnUtil.returnSuccessWithData(json);
+        return ActionReturnUtil.returnSuccessWithData(jsonObject);
     }
 
     @Override
@@ -839,15 +815,15 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
     }
 
 
-    private ActionReturnUtil increaseServiceByDeployment(Deployment dep, Cluster cluster) throws Exception {
+    private ActionReturnUtil increaseServiceByDeployment(ObjectMeta meta, PodTemplateSpec podTemplateSpec, Cluster cluster) throws Exception {
 
         Map<String, Object> query = new HashMap<String, Object>();
         Map<String, Object> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
 
-        K8SClientResponse rsRes = sService.doSepcifyService(dep.getMetadata().getNamespace(),
-                dep.getMetadata().getName(), null, null, HTTPMethod.GET, cluster);
+        K8SClientResponse rsRes = sService.doSepcifyService(meta.getNamespace(),
+                meta.getName(), null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus())) {
             return ActionReturnUtil.returnErrorWithData(rsRes.getBody());
         }
@@ -865,7 +841,7 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         for (ServicePort port : ports) {
             portsMapping.put(port.getTargetPort(), port);
         }
-        ports = KubeServiceConvert.convertServicePort(dep.getSpec().getTemplate().getSpec().getContainers());
+        ports = KubeServiceConvert.convertServicePort(podTemplateSpec.getSpec().getContainers());
         service.getSpec().setPorts(ports);
 
         Map<String, Object> bodys = CollectionUtil.transBean2Map(service);
@@ -897,5 +873,78 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         pv.setServiceName(name);
         pv.setNamespace(namespace);
         volumeSerivce.createVolume(pv);
+    }
+
+    private Map<String, Object> getDeploymentUpdateStatus(String name, String namespace, Cluster cluster) throws Exception {
+        // 获取deployment
+        K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null,
+                HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
+            logger.error("获取灰度升级进程:获得进度出错", depRes.getBody());
+            throw new MarsRuntimeException(depRes.getBody());
+        }
+        Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+
+        //返回当前列表中新老实例,格式,顺序为:新实例,老实例,总共实例,当新的实例等于总的实例的时候终止前端定时器
+        Map<String, Object> resultMap = new HashMap<>();
+        resultMap.put("maxSurge", CommonConstant.NUM_ONE);
+        resultMap.put("maxUnavailable", 0);
+        resultMap.put("instances", 0);
+        List<Integer> counts = new ArrayList<>();
+        //排除蓝绿
+        if ("RollingUpdate".equals(dep.getSpec().getStrategy().getType())) {
+            String maxSurge = String.valueOf(dep.getSpec().getStrategy().getRollingUpdate().getMaxSurge());
+            if (!maxSurge.equals(Constant.ROLLINGUPDATE_MAX_UNAVAILABLE)) {
+                Integer updateCounts = 0;
+                if (dep.getStatus().getUpdatedReplicas() != null && dep.getStatus().getUpdatedReplicas() != 0) {
+                    updateCounts = dep.getStatus().getUpdatedReplicas();
+                    counts.add(updateCounts);
+                    counts.add(dep.getSpec().getReplicas() - updateCounts);
+                } else {
+                    if (dep.getStatus().getUnavailableReplicas() != null) {
+                        int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
+                        updateCounts = dep.getSpec().getReplicas() - unavailableReplicas;
+                        if (updateCounts < 0) {
+                            updateCounts = 0;
+                        }
+                        counts.add(updateCounts);
+                        counts.add(unavailableReplicas);
+                    }
+                }
+            }
+            if (counts != null && counts.size() > 0 && counts.get(CommonConstant.NUM_ONE) > 0) {
+                Map<String, Object> anno = dep.getMetadata().getAnnotations();
+                if (Objects.nonNull(anno.get("deployment.canaryupdate/maxsurge"))) {
+                    resultMap.put("maxSurge", Integer.valueOf(anno.get("deployment.canaryupdate/maxsurge").toString()));
+                }
+                if (Objects.nonNull(anno.get("deployment.canaryupdate/maxunavailable"))) {
+                    resultMap.put("maxUnavailable", Integer.valueOf(anno.get("deployment.canaryupdate/maxunavailable").toString()));
+                }
+                if (Objects.nonNull(anno.get("deployment.canaryupdate/instances"))) {
+                    resultMap.put("instances", Integer.valueOf(anno.get("deployment.canaryupdate/instances").toString()));
+                }
+            }
+        } else {
+            Integer updateCounts = 0;
+            if (dep.getStatus().getUpdatedReplicas() != null && dep.getStatus().getUpdatedReplicas() != 0) {
+                updateCounts = dep.getStatus().getUpdatedReplicas();
+                counts.add(updateCounts);
+                counts.add(0);
+            } else {
+                if (dep.getStatus().getUnavailableReplicas() != null) {
+                    int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
+                    updateCounts = dep.getSpec().getReplicas() - unavailableReplicas;
+                    if (updateCounts < 0) {
+                        updateCounts = 0;
+                    }
+                    counts.add(updateCounts);
+                    counts.add(0);
+                }
+            }
+        }
+        resultMap.put("pause", dep.getSpec().isPaused());
+        resultMap.put("counts", counts);
+        resultMap.put("message", dep.getStatus().getConditions());
+        return resultMap;
     }
 }

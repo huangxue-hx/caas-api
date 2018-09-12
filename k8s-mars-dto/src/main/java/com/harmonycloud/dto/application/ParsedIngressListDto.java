@@ -20,6 +20,7 @@ public class ParsedIngressListDto {
 	private String exposePort;
 	private Boolean external;
 	private String serviceName;
+    private String serviceType;
 
 	public String getNamespace() {
 		return namespace;
@@ -107,4 +108,12 @@ public class ParsedIngressListDto {
 	public void setServiceName(String serviceName) {
 		this.serviceName = serviceName;
 	}
+
+    public String getServiceType() {
+        return serviceType;
+    }
+
+    public void setServiceType(String serviceType) {
+        this.serviceType = serviceType;
+    }
 }

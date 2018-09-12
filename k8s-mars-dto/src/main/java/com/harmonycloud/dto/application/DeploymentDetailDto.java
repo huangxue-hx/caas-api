@@ -43,6 +43,8 @@ public class DeploymentDetailDto {
 
 	private boolean hostNetwork;
 
+    private List<CreateContainerDto> initContainers;
+
 	/**节点亲和*/
 	private List<AffinityDto> nodeAffinity;
 
@@ -268,4 +270,12 @@ public class DeploymentDetailDto {
 	public void setServiceDependence(ServiceDependenceDto serviceDependence) {
 		this.serviceDependence = serviceDependence;
 	}
+
+    public List<CreateContainerDto> getInitContainers() {
+        return initContainers;
+    }
+
+    public void setInitContainers(List<CreateContainerDto> initContainers) {
+        this.initContainers = initContainers;
+    }
 }

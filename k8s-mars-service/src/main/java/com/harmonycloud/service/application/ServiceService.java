@@ -86,4 +86,18 @@ public interface ServiceService {
      * @throws Exception
      */
     ActionReturnUtil checkServiceTemplateName(String name, String projectId, String clusterId) throws Exception;
+
+    /**
+     * 服务停止，启动时 修改metadata中的annotations
+     * @param anno
+     * @param name
+     * @param action
+     * @return
+     * @throws Exception
+     */
+    Map<String, Object> updateAnnotation(Map<String, Object> anno, String name, String action) throws Exception;
+
+    Map<String, Object> updateAnnotationInScale(Map<String, Object> annotation, Integer scale, Integer replicas) throws Exception;
+
+    ActionReturnUtil deleteServiceResource(String name, String namespace, Cluster cluster, Map<String, Object> queryP, String serviceType) throws Exception;
 }

@@ -171,10 +171,8 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         Map<String, String> containerToConfigMap = deploymentsService.createConfigMapInUpdate(namespace, name, cluster, updateDeployment.getContainers());
 
         // 更新deployment对象内的数据
-        dep = KubeServiceConvert.convertDeploymentUpdate(dep, updateDeployment.getContainers(), name, containerToConfigMap, cluster);
-
-
-
+        PodTemplateSpec podTemplateSpec = KubeServiceConvert.convertDeploymentUpdate(dep.getSpec().getTemplate(), updateDeployment.getContainers(), name, containerToConfigMap, cluster);
+        dep.getSpec().setTemplate(podTemplateSpec);
         // 设置蓝绿发布相关的参数
         DeploymentStrategy strategy = new DeploymentStrategy();
         strategy.setType("RollingUpdate");

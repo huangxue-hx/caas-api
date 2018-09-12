@@ -3,6 +3,7 @@ package com.harmonycloud.service.application.impl;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.ServiceTypeEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.AssertUtil;
@@ -11,13 +12,13 @@ import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.application.ServiceTemplatesMapper;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dto.application.*;
-import com.harmonycloud.k8s.bean.Deployment;
-import com.harmonycloud.k8s.bean.DeploymentList;
-import com.harmonycloud.k8s.bean.UnversionedStatus;
+import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
+import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.*;
@@ -34,6 +35,8 @@ import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +46,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
+
 /**
  * Created by root on 3/29/17.
  */
@@ -50,6 +54,7 @@ import java.util.stream.Collectors;
 @Service
 @Transactional(rollbackFor = Exception.class)
 public class ServiceServiceImpl implements ServiceService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ServiceServiceImpl.class);
 
     @Autowired
     private ServiceTemplatesMapper serviceTemplatesMapper;
@@ -91,6 +96,30 @@ public class ServiceServiceImpl implements ServiceService {
 
     @Autowired
     private ClusterService clusterService;
+
+    @Autowired
+    DeploymentService dpService;
+
+    @Autowired
+    StatefulSetService statefulSetService;
+
+    @Autowired
+    StatefulSetsService statefulSetsService;
+
+    @Autowired
+    AutoScaleService autoScaleService;
+
+    @Autowired
+    PodDisruptionBudgetService pdbService;
+
+    @Autowired
+    PVCService pvcService;
+
+    @Autowired
+    ServicesService sService;
+
+    @Autowired
+    FileUploadToContainerService fileUploadToContainerService;
 
     /**
      * create Service Template implement
@@ -334,44 +363,50 @@ public class ServiceServiceImpl implements ServiceService {
     @Override
     public ActionReturnUtil deleteDeployedService(DeployedServiceNamesDto deployedServiceNamesDto, String userName)
             throws Exception {
-
         // check value
         if (deployedServiceNamesDto == null || CollectionUtils.isEmpty(deployedServiceNamesDto.getServiceList())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
 
-        List<String> errorMessage = new ArrayList<>();
-        //获取serviceList
+        //获取serviceList(deployment和statefulset)
+        List<StatefulSet> statefulSetList = new ArrayList<>();
         List<Deployment> items = new ArrayList<>();
-
+        
         for (ServiceNameNamespace nn : deployedServiceNamesDto.getServiceList()) {
             //获取集群
             Cluster cluster = namespaceLocalService.getClusterByNamespaceName(nn.getNamespace());
             if (Objects.isNull(cluster)) {
                 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
             }
-            K8SURL url = new K8SURL();
-            url.setResource(Resource.DEPLOYMENT);
 
-            //labels
-            Map<String, Object> bodys = new HashMap<String, Object>();
-            url.setNamespace(nn.getNamespace());
-            url.setName(nn.getName());
-            K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
-            if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus()) && depRes.getStatus() != Constant.HTTP_404) {
-                UnversionedStatus sta = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
-                return ActionReturnUtil.returnErrorWithData(sta.getMessage());
+            //判断k8s中是否存在被删除的服务
+            // 判断有状态和无状态的类型（Deployment/Statefulset）
+            if(StringUtils.isBlank(nn.getServiceType())){
+                nn.setServiceType(Constant.DEPLOYMENT);
             }
-            Deployment deployment = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
-            if (deployment != null) {
-                items.add(deployment);
+            ServiceTypeEnum typeEnum = ServiceTypeEnum.valueOf(nn.getServiceType().toUpperCase());
+            switch (typeEnum) {
+                case DEPLOYMENT:
+                    K8SClientResponse depRes = dpService.doSpecifyDeployment(nn.getNamespace(), nn.getName(), null, null, HTTPMethod.GET, cluster);
+                    if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus()) && depRes.getStatus() != Constant.HTTP_404) {
+                        UnversionedStatus sta = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+                        return ActionReturnUtil.returnErrorWithData(sta.getMessage());
+                    }
+                    Deployment deployment = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+                    if (deployment != null) {
+                        items.add(deployment);
+                    }
+                    break;
+                case STATEFULSET:
+                    StatefulSet statefulSet = statefulSetService.getStatefulSet(nn.getNamespace(), nn.getName(), cluster);
+                    statefulSetList.add(statefulSet);
+                    break;
+                default:
+                    break;
             }
         }
-
-        if (items.size() > 0) {
-
+        if (!CollectionUtils.isEmpty(items)) {
             for (Deployment dev : items) {
-
                 String namespace = dev.getMetadata().getNamespace();
                 String devName = dev.getMetadata().getName();
                 //获取集群
@@ -379,13 +414,21 @@ public class ServiceServiceImpl implements ServiceService {
                 if (Objects.isNull(cluster)) {
                     return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
                 }
-
                 // delete config map & deploy service deployment pvc ingress
                 deploymentsService.deleteDeployment(devName, namespace, userName, cluster);
             }
         }
+        if (!CollectionUtils.isEmpty(statefulSetList)) {
+            for (StatefulSet statefulSet : statefulSetList) {
+                String namespace = statefulSet.getMetadata().getNamespace();
+                Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+                if (Objects.isNull(cluster)) {
+                    return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+                }
+                statefulSetsService.deleteStatefulSet(statefulSet.getMetadata().getName(), namespace, userName, cluster);
+            }
+        }
         return ActionReturnUtil.returnSuccess();
-
     }
 
     @Override
@@ -493,7 +536,7 @@ public class ServiceServiceImpl implements ServiceService {
 
     @Override
     public ActionReturnUtil deployService(ServiceDeployDto serviceDeploy, String userName) throws Exception {
-        if (serviceDeploy == null || StringUtils.isBlank(serviceDeploy.getNamespace()) || Objects.isNull(serviceDeploy.getServiceTemplate()) || Objects.isNull(serviceDeploy.getServiceTemplate().getDeploymentDetail())) {
+        if (serviceDeploy == null || StringUtils.isBlank(serviceDeploy.getNamespace()) || Objects.isNull(serviceDeploy.getServiceTemplate())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
 
@@ -501,8 +544,30 @@ public class ServiceServiceImpl implements ServiceService {
         if (StringUtils.isBlank(serviceDeploy.getServiceTemplate().getProjectId()) || "null".equals(serviceDeploy.getServiceTemplate().getProjectId())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_NOT_EXIST);
         }
+        ServiceTemplateDto service = serviceDeploy.getServiceTemplate();
+        String namespace = serviceDeploy.getNamespace();
+        String serviceType = null;
         //判断镜像是否为空
-        for (CreateContainerDto c : serviceDeploy.getServiceTemplate().getDeploymentDetail().getContainers()) {
+        List<CreateContainerDto> containers;
+        List<CreateContainerDto> initContainers;
+        Set<String> services = new HashSet<>();
+        if (serviceDeploy.getServiceTemplate().getDeploymentDetail() != null) {
+            serviceType = Constant.DEPLOYMENT;
+            containers = service.getDeploymentDetail().getContainers();
+            initContainers = service.getDeploymentDetail().getInitContainers();
+            service.getDeploymentDetail().setNamespace(namespace);
+            services.add(service.getDeploymentDetail().getName());
+        }else if (serviceDeploy.getServiceTemplate().getStatefulSetDetail() != null) {
+            serviceType = Constant.STATEFULSET;
+            containers = service.getStatefulSetDetail().getContainers();
+            initContainers = service.getStatefulSetDetail().getInitContainers();
+            service.getStatefulSetDetail().setNamespace(namespace);
+            services.add(service.getStatefulSetDetail().getName());
+        }else{
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+
+        for (CreateContainerDto c : containers) {
             if (StringUtils.isBlank(c.getImg())) {
                 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_TEMPLATE_IMAGE_INFO_NOT_NULL);
             }
@@ -513,12 +578,10 @@ public class ServiceServiceImpl implements ServiceService {
         if (Objects.isNull(cluster)) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
-        List<String> pvcList = new ArrayList<>();
+
         List<Map<String, Object>> message = new ArrayList<>();
-        String namespace = serviceDeploy.getNamespace();
-        Set<String> deployments = new HashSet<>();
-        ServiceTemplateDto service = serviceDeploy.getServiceTemplate();
-        deployments.add(service.getDeploymentDetail().getName());
+
+
         //check name
         ActionReturnUtil res = checkService(service, cluster, namespace);
         if (!res.isSuccess()) {
@@ -527,42 +590,59 @@ public class ServiceServiceImpl implements ServiceService {
 
         // creat ingress
         if (service.getIngress() != null) {
-            message.addAll(routerService.createExternalRule(service, serviceDeploy.getNamespace()));
+            message.addAll(routerService.createExternalRule(service, serviceDeploy.getNamespace(), serviceType));
         }
 
         // creat config map & deploy service deployment & get node label by
         // namespace
         // todo so bad
-        service.getDeploymentDetail().setNamespace(namespace);
-        for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
+
+        for (CreateContainerDto c : containers) {
             c.setImg(cluster.getHarborServer().getHarborAddress() + "/" + c.getImg());
         }
-        service.getDeploymentDetail().setProjectId(serviceDeploy.getServiceTemplate().getProjectId());
-        ActionReturnUtil depRes = deploymentsService.createDeployment(service.getDeploymentDetail(), userName, null,
-                cluster, service.getIngress());
-        if (!depRes.isSuccess()) {
+        if(initContainers != null) {
+            for (CreateContainerDto c : initContainers) {
+                c.setImg(cluster.getHarborServer().getHarborAddress() + "/" + c.getImg());
+            }
+        }
+
+        if(service.getDeploymentDetail() != null) {
+            service.getDeploymentDetail().setProjectId(serviceDeploy.getServiceTemplate().getProjectId());
+            res = deploymentsService.createDeployment(service.getDeploymentDetail(), userName, null,
+                    cluster, service.getIngress());
+        }else if(service.getStatefulSetDetail() != null) {
+            service.getStatefulSetDetail().setProjectId(serviceDeploy.getServiceTemplate().getProjectId());
+            res = statefulSetsService.createStatefulSet(service.getStatefulSetDetail(), userName, null,
+                    cluster, service.getIngress());
+        }
+        if (!res.isSuccess()) {
             Map<String, Object> map = new HashMap<String, Object>();
-            map.put(service.getName(), depRes.get("data"));
+            map.put(service.getName(), res.get("data"));
             message.add(map);
         }
         if (message.size() > 0) {
-            //释放已绑定存储
-            for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
-                if (c.getStorage() != null) {
-                    for (PersistentVolumeDto pvc : c.getStorage()) {
-                        if (pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())) {
-                            if (StringUtils.isBlank(pvc.getPvcName())) {
-                                continue;
-                            }
-                            ActionReturnUtil result = volumeSerivce.releasePv(pvc.getPvcName(),cluster.getId(),namespace,serviceDeploy.getServiceTemplate().getDeploymentDetail().getName());
-                            if (!result.isSuccess()){
-                                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PV_RELEASE_FAIL);
+            ActionReturnUtil rollbackRes = null;
+            if(service.getDeploymentDetail() != null) {
+                //释放已绑定存储
+                for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
+                    if (c.getStorage() != null) {
+                        for (PersistentVolumeDto pvc : c.getStorage()) {
+                            if (pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())) {
+                                if (StringUtils.isBlank(pvc.getPvcName())) {
+                                    continue;
+                                }
+                                ActionReturnUtil result = volumeSerivce.releasePv(pvc.getPvcName(),cluster.getId(),namespace,serviceDeploy.getServiceTemplate().getDeploymentDetail().getName());
+                                if (!result.isSuccess()){
+                                    return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PV_RELEASE_FAIL);
+                                }
                             }
                         }
                     }
                 }
+                rollbackRes = applicationDeployService.rollBackDeployment(services, namespace, userName, cluster);
+            }else if(service.getStatefulSetDetail() != null){
+                rollbackRes = applicationDeployService.rollBackStatefulSet(services, namespace, userName, cluster);
             }
-            ActionReturnUtil rollbackRes = applicationDeployService.rollBackDeployment(deployments, namespace, userName, cluster);
             if (!rollbackRes.isSuccess()) {
                 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_CREATE_ROLLBACK_FAILURE);
             }
@@ -784,6 +864,175 @@ public class ServiceServiceImpl implements ServiceService {
             int svcTmpId = serviceTemplateList.get(0).getId();
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_TEMPLATE_NAME_DUPLICATE, String.valueOf(svcTmpId));
         }
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    /**
+     * 服务停止，启动时 修改metadata中的annotations
+     * @param anno
+     * @param name
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public Map<String, Object> updateAnnotation(Map<String, Object> anno, String name, String action) throws Exception {
+        Map<String, Object> annotation = anno;
+        Date now = new Date();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+        String updateTime = sdf.format(now);
+        annotation.put("updateTimestamp", updateTime);
+        switch (action) {
+            case Constant.STOPPING:
+                if (anno.containsKey("nephele/status")) {
+                    String status = anno.get("nephele/status").toString();
+                    if (status.equals(Constant.STOPPING)) {
+                        throw new MarsRuntimeException(ErrorCodeMessage.STOPPED, DictEnum.SERVICE.phrase() + name, true);
+                    } else {
+                        anno.put("nephele/status", Constant.STOPPING);
+                    }
+                } else {
+                    anno.put("nephele/status", Constant.STOPPING);
+                }
+                break;
+            case Constant.STARTING:
+                if (anno.containsKey("nephele/status") && anno.get("nephele/status") != null) {
+                    String status = anno.get("nephele/status").toString();
+                    if (status.equals(Constant.STARTING)) {
+                        throw new MarsRuntimeException(ErrorCodeMessage.STARTED,
+                                        DictEnum.SERVICE.phrase() + name, true);
+                    } else {
+                        anno.put("nephele/status", Constant.STARTING);
+                        if (anno.get("nephele/replicas") != null) {
+                            anno.put("nephele/replicas", anno.get("nephele/replicas").toString());
+                        } else {
+                            anno.put("nephele/replicas", "1");
+                        }
+                    }
+                } else {
+                    anno.put("nephele/status", Constant.STARTING);
+                    if (anno.get("nephele/replicas") != null) {
+                        anno.put("nephele/replicas", anno.get("nephele/replicas").toString());
+                    } else {
+                        anno.put("nephele/replicas", "1");
+                    }
+
+                }
+                break;
+            default:
+                break;
+        }
+        return annotation;
+    }
+
+    @Override
+    public Map<String, Object> updateAnnotationInScale(Map<String, Object> annotation, Integer scale, Integer replicas) throws Exception {
+        Map<String, Object> newAnnotation = annotation;
+        if (scale == 0) {
+            newAnnotation.put("nephele/status", Constant.STOPPING);
+            newAnnotation.put("nephele/replicas", replicas.toString());
+        } else if (replicas == 0) {
+            newAnnotation.put("nephele/status", Constant.STARTING);
+            newAnnotation.put("nephele/replicas", scale.toString());
+        } else {
+            newAnnotation.put("nephele/replicas", scale.toString());
+        }
+        return newAnnotation;
+    }
+
+    @Override
+    public ActionReturnUtil deleteServiceResource(String name, String namespace, Cluster cluster, Map<String, Object> queryP, String serviceType) throws Exception {
+        //先删除自动伸缩控制
+        boolean scaleDeleted = autoScaleService.delete(namespace, name);
+        if (!scaleDeleted) {
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_AUTOSCALE_DELETE_FAILURE);
+        }
+
+        //删除pdb
+        if(pdbService.existPdb(namespace ,name + Constant.PDB_SUFFIX, cluster)){
+            K8SClientResponse pdbRes = pdbService.deletePdb(namespace, name + Constant.PDB_SUFFIX, cluster);
+            if(!HttpStatusUtil.isSuccessStatus((pdbRes.getStatus()))){
+                UnversionedStatus status = JsonUtil.jsonToPojo(pdbRes.getBody(), UnversionedStatus.class);
+                return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            }
+        }
+
+        // 获取deployment
+        K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus()) && depRes.getStatus() != Constant.HTTP_404) {
+            LOGGER.error("获取Deployment失败,DeploymentName:{}, error:{}", name, depRes.getBody());
+            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
+        }
+
+        // 删除configmap
+        K8SURL cUrl = new K8SURL();
+        cUrl.setNamespace(namespace).setResource(Resource.CONFIGMAP);
+        K8SClientResponse conRes = new K8sMachineClient().exec(cUrl, HTTPMethod.DELETE, null, queryP, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(conRes.getStatus()) && conRes.getStatus() != Constant.HTTP_404) {
+            LOGGER.error("删除configmap失败,DeploymentName:{}, error:{}", name, conRes.getBody());
+            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
+        }
+
+        // 删除ingress
+        cUrl.setResource(Resource.INGRESS);
+        K8SClientResponse ingRes = new K8sMachineClient().exec(cUrl, HTTPMethod.DELETE, null, queryP, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(ingRes.getStatus()) && ingRes.getStatus() != Constant.HTTP_404) {LOGGER.error("删除Ingress失败,DeploymentName:{}, error:{}", name, ingRes.getBody());throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);}
+        // update pvc
+        Map<String, Object> pvclabel = new HashMap<String, Object>();
+        ServiceTypeEnum serviceTypeEnum = ServiceTypeEnum.valueOf(serviceType.toUpperCase());
+        String key = null;
+        switch(serviceTypeEnum){
+            case DEPLOYMENT:
+                key = CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name;
+                break;
+            case STATEFULSET:
+                key = Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET + CommonConstant.LINE + name;
+                break;
+        }
+        pvclabel.put("labelSelector", key + "=" + name);
+        K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, pvclabel, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+        }
+        PersistentVolumeClaimList persistentVolumeList = K8SClient.converToBean(pvcRes, PersistentVolumeClaimList.class);
+        if (persistentVolumeList != null && persistentVolumeList.getItems() != null) {
+            for (PersistentVolumeClaim onePvc : persistentVolumeList.getItems()) {
+                onePvc.getMetadata().getLabels().remove(key);
+                K8SClientResponse response = pvcService.updatePvcByName(onePvc,cluster);
+                if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
+                    LOGGER.error("更新PVC失败,ServiceName:{}, error:{}", name, response.getBody());
+                    throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
+                }
+            }
+        }
+        //删除对外暴露端口（nginx和数据库）
+        routerService.deleteRulesByName(namespace, name, cluster);
+
+
+        // 获取service
+        K8SClientResponse svcRes = sService.doServiceByNamespace(namespace, null, queryP, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(svcRes.getStatus())) {
+            LOGGER.error("获取Service失败,DeploymentName:{}, error:{}", name, svcRes.getBody());
+            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
+        }
+        ServiceList svcs = JsonUtil.jsonToPojo(svcRes.getBody(), ServiceList.class);
+
+        // 循环删除service,在k8s中service只能根据名称删除
+        List<com.harmonycloud.k8s.bean.Service> svc = svcs.getItems();
+        K8SURL svcUrl = new K8SURL();
+        svcUrl.setNamespace(namespace).setResource(Resource.SERVICE);
+        for (int i = 0; i < svc.size(); i++) {
+            svcUrl.setName(svc.get(i).getMetadata().getName());
+            K8SClientResponse serviceRes = new K8sMachineClient().exec(svcUrl, HTTPMethod.DELETE, null, null, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(serviceRes.getStatus()) && serviceRes.getStatus() != Constant.HTTP_404) {
+                LOGGER.error("删除Service失败,ServiceName:{}, error:{}", svc.get(i).getMetadata().getName(), serviceRes.getBody());
+                throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
+            }
+        }
+
+        //删除文件上传到容器记录
+        fileUploadToContainerService.deleteUploadRecord(namespace, name);
         return ActionReturnUtil.returnSuccess();
     }
 }

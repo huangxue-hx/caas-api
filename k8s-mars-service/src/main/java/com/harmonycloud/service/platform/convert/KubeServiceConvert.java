@@ -11,7 +11,6 @@ import com.harmonycloud.service.platform.bean.UpdateContainer;
 import com.harmonycloud.service.platform.constant.Constant;
 import org.apache.commons.lang3.StringUtils;
 
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -78,9 +77,9 @@ public class KubeServiceConvert {
         return newContainer;
     }
 
-    public static Deployment convertDeploymentUpdate(Deployment deployment, List<UpdateContainer> newContainers, String name, Map<String, String> containerToConfigMap, Cluster cluster) throws Exception {
+    public static PodTemplateSpec convertDeploymentUpdate(PodTemplateSpec podTemplateSpec, List<UpdateContainer> newContainers, String name, Map<String, String> containerToConfigMap, Cluster cluster) throws Exception {
         Map<String, Container> ct = new HashMap<String, Container>();
-        List<Container> containers = deployment.getSpec().getTemplate().getSpec().getContainers();
+        List<Container> containers = podTemplateSpec.getSpec().getContainers();
         for (Container c : containers) {
             ct.put(c.getName(), c);
         }
@@ -286,16 +285,9 @@ public class KubeServiceConvert {
             newC.add(container);
         }
 
-        deployment.getSpec().getTemplate().getSpec().setContainers(newC);
-        deployment.getSpec().getTemplate().getSpec().setVolumes(volumes);
-        Date now = new Date();
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-        sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
-        String updateTime = sdf.format(now);
-        Map<String, Object> anno = deployment.getMetadata().getAnnotations();
-        anno.put("updateTimestamp", updateTime);
-        deployment.getMetadata().setAnnotations(anno);
-        return deployment;
+        podTemplateSpec.getSpec().setContainers(newC);
+        podTemplateSpec.getSpec().setVolumes(volumes);
+        return podTemplateSpec;
     }
 
     public static Container convertProbe(UpdateContainer cc, Container container) throws Exception {

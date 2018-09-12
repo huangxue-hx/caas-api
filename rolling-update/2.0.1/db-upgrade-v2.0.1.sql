@@ -200,4 +200,28 @@ ADD COLUMN `repository_id` VARCHAR(255) NULL AFTER `dest_cluster_id`;
 
 INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`) VALUES ('/tenants/*/projects/*/cicdjobs/*/stages/getRepositoryId', 'cicd');
 
-INSERT INTO `k8s_auth_server`.`url_dic` (url,module,resource) VALUE ('/tenants/*/clusterquotas','tenant','tenantmgr');
+INSERT INTO `k8s_auth_server`.`url_dic` (url,module,resource) VALUE ('/tenants/*/clusterquotas','tenant','tenantmgr');UPDATE k8s_auth_server.url_dic SET module='whitelist',resource='whitelist' WHERE url = '/users/*/password';
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`)
+VALUES ('/tenants/*/projects/*/statefulsets', 'appcenter', 'app');
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`)
+VALUES ('/tenants/*/projects/*/statefulsets/*', 'appcenter', 'app');
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`)
+VALUES ('/tenants/*/projects/*/statefulsets/*/start', 'appcenter', 'app');
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`)
+VALUES ('/tenants/*/projects/*/statefulsets/*/stop', 'appcenter', 'app');
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`)
+VALUES ('/tenants/*/projects/*/statefulsets/*/scale', 'appcenter', 'app');
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`)
+VALUES ('/tenants/*/projects/*/statefulsets/*/containers', 'appcenter', 'app');
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`)
+VALUES ('/tenants/*/projects/*/statefulsets/*/events', 'appcenter', 'app');
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`)
+VALUES ('/tenants/*/projects/*/statefulsets/*/pods', 'appcenter', 'app');

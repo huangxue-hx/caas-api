@@ -2764,7 +2764,7 @@ public class JobServiceImpl implements JobService {
             }
         }
         //判断是否在灰度升级中
-        ActionReturnUtil updateStatusResult = versionControlService.getUpdateStatus(namespace, service);
+        ActionReturnUtil updateStatusResult = versionControlService.getUpdateStatus(namespace, service, Constant.DEPLOYMENT);
         if (updateStatusResult.isSuccess()) {
             Map data = (Map) updateStatusResult.getData();
             if (data != null) {

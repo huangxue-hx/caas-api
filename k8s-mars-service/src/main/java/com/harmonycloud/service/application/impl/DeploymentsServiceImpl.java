@@ -62,7 +62,6 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.harmonycloud.common.Constant.CommonConstant.LABEL_KEY_APP;
 import static com.harmonycloud.service.platform.constant.Constant.TYPE_DEPLOYMENT;
@@ -158,6 +157,10 @@ public class DeploymentsServiceImpl implements DeploymentsService {
     @Autowired
     private DataPrivilegeHelper dataPrivilegeHelper;
 
+    @Autowired
+    StatefulSetService statefulSetService;
+
+
     public ActionReturnUtil listDeployments(String tenantId, String name, String namespace, String labels, String projectId, String clusterId) throws Exception {
         //参数判空
         if (StringUtils.isBlank(projectId)) {
@@ -245,6 +248,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         if (Objects.isNull(cluster)) {
             throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
+        Map<String, Object> anno = new HashMap<>();
         K8SClientResponse response = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
         if (response.getStatus() == Constant.HTTP_404) {
             return ActionReturnUtil.returnSuccess();
@@ -253,47 +257,12 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             return ActionReturnUtil.returnErrorWithData(response.getBody());
         }
         Deployment dep = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
-
         // status code :0 stop 1:start 2:stopping 3:starting
         // 先判断状态
-        if (dep != null && !dep.equals("")) {
-            Map<String, Object> anno = ((Map<String, Object>) dep.getMetadata().getAnnotations());
-            Date now = new Date();
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-            sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
-            String updateTime = sdf.format(now);
-            anno.put("updateTimestamp", updateTime);
-            if (anno.containsKey("nephele/status") && anno.get("nephele/status") != null) {
-                String status = anno.get("nephele/status").toString();
-                if (status.equals(Constant.STARTING)) {
-                    return ActionReturnUtil
-                            .returnErrorWithData(ErrorCodeMessage.STARTED,
-                                    DictEnum.SERVICE.phrase() + dep.getMetadata().getName(), true);
-                } else {
-                    int rep = 1;
-                    if (anno.get("nephele/replicas") != null) {
-                        rep = Integer.valueOf(anno.get("nephele/replicas").toString());
-                    }
-
-                    anno.put("nephele/status", Constant.STARTING);
-                    dep.getSpec().setReplicas(rep == 0 ? 1 : rep);
-                    if (anno.get("nephele/replicas") != null) {
-                        anno.put("nephele/replicas", anno.get("nephele/replicas").toString());
-                    } else {
-                        anno.put("nephele/replicas", "1");
-                    }
-                }
-            } else {
-                anno.put("nephele/status", Constant.STARTING);
-                dep.getSpec().setReplicas(1);
-                if (anno.get("nephele/replicas") != null) {
-                    anno.put("nephele/replicas", anno.get("nephele/replicas").toString());
-                } else {
-                    anno.put("nephele/replicas", "1");
-                }
-
-            }
-
+        if (Objects.nonNull(dep)) {
+            anno = updateAnnotation((Map<String, Object>) dep.getMetadata().getAnnotations(), dep.getMetadata().getName(), Constant.STARTING);
+            dep.getSpec().setReplicas(Integer.valueOf(anno.get("nephele/replicas").toString()));
+            dep.getMetadata().setAnnotations(anno);
             Map<String, Object> bodys = CollectionUtil.transBean2Map(dep);
             Map<String, Object> headers = new HashMap<String, Object>();
             headers.put("Content-type", "application/json");
@@ -316,7 +285,6 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         if (Objects.isNull(cluster)) {
             throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
-        Map<String, Object> bodys = new HashMap<String, Object>();
 
         /*
         //先删除自动伸缩控制
@@ -328,6 +296,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         // String lrv = watchService.getLatestVersion(namespace);
         // watchAppEvent(name, namespace, null, lrv, userName);
 
+        Map<String, Object> anno = new HashMap<>();
         // 将实例减为0
         // dep状态：status code :0 ：stop 1:start 2:stopping 3:starting
         K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
@@ -338,29 +307,11 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             return ActionReturnUtil.returnErrorWithData(depRes.getBody());
         }
         Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
-        if (dep != null && !dep.equals("")) {
-            Map<String, Object> anno = (Map<String, Object>) dep.getMetadata().getAnnotations();
-            Date now = new Date();
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-            sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
-            String updateTime = sdf.format(now);
-            anno.put("updateTimestamp", updateTime);
-            if (anno.containsKey("nephele/status")) {
-                String status = anno.get("nephele/status").toString();
-                if (status.equals(Constant.STOPPING)) {
-                    return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.STOPPED,
-                            DictEnum.SERVICE.phrase() + dep.getMetadata().getName(), true);
-                } else {
-                    anno.put("nephele/status", Constant.STOPPING);
-                    dep.getSpec().setReplicas(0);
-                }
-            } else {
-                anno.put("nephele/status", Constant.STOPPING);
-                dep.getSpec().setReplicas(0);
-            }
-
-            bodys.clear();
-            bodys = CollectionUtil.transBean2Map(dep);
+        if (Objects.nonNull(dep)) {
+            anno = updateAnnotation((Map<String, Object>) dep.getMetadata().getAnnotations(), dep.getMetadata().getName(), Constant.STOPPING);
+            dep.getSpec().setReplicas(0);
+            dep.getMetadata().setAnnotations(anno);
+            Map<String, Object> bodys = CollectionUtil.transBean2Map(dep);
             Map<String, Object> headers = new HashMap<>();
             headers.put("Content-type", "application/json");
             K8SClientResponse newRes = dpService.doSpecifyDeployment(namespace, name, headers, bodys, HTTPMethod.PUT, cluster);
@@ -370,6 +321,64 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             return ActionReturnUtil.returnSuccess();
         }
         return ActionReturnUtil.returnError();
+    }
+
+    /**
+     * 服务停止，启动时 修改metadata中的annotations
+     * @param anno
+     * @param name
+     * @return
+     * @throws Exception
+     */
+    private Map<String, Object> updateAnnotation(Map<String, Object> anno, String name, String action) throws Exception {
+        Map<String, Object> annotation = anno;
+        Date now = new Date();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+        String updateTime = sdf.format(now);
+        annotation.put("updateTimestamp", updateTime);
+        switch (action) {
+            case Constant.STOPPING:
+                if (anno.containsKey("nephele/status")) {
+                    String status = anno.get("nephele/status").toString();
+                    if (status.equals(Constant.STOPPING)) {
+                        return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.STOPPED, DictEnum.SERVICE.phrase() + name, true);
+                    } else {
+                        anno.put("nephele/status", Constant.STOPPING);
+                    }
+                } else {
+                    anno.put("nephele/status", Constant.STOPPING);
+                }
+                break;
+            case Constant.STARTING:
+                if (anno.containsKey("nephele/status") && anno.get("nephele/status") != null) {
+                    String status = anno.get("nephele/status").toString();
+                    if (status.equals(Constant.STARTING)) {
+                        return ActionReturnUtil
+                                .returnErrorWithData(ErrorCodeMessage.STARTED,
+                                        DictEnum.SERVICE.phrase() + name, true);
+                    } else {
+                        anno.put("nephele/status", Constant.STARTING);
+                        if (anno.get("nephele/replicas") != null) {
+                            anno.put("nephele/replicas", anno.get("nephele/replicas").toString());
+                        } else {
+                            anno.put("nephele/replicas", "1");
+                        }
+                    }
+                } else {
+                    anno.put("nephele/status", Constant.STARTING);
+                    if (anno.get("nephele/replicas") != null) {
+                        anno.put("nephele/replicas", anno.get("nephele/replicas").toString());
+                    } else {
+                        anno.put("nephele/replicas", "1");
+                    }
+
+                }
+                break;
+            default:
+                break;
+        }
+        return annotation;
     }
 
     public ActionReturnUtil getPodDetail(String name, String namespace) throws Exception {
@@ -450,6 +459,21 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        Map<String, Object> bodys = new HashMap<String, Object>();
+
+        // 获取cpaEvents
+        bodys.clear();
+        AutoScaleDto scaleDto  = autoScaleService.get(namespace, name);
+        EventList hapEve = new EventList();
+        if (scaleDto != null ){
+            bodys.put("fieldSelector", "involvedObject.uid=" + scaleDto.getUid());
+            K8SClientResponse hpaeRes = eventService.doEventByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(hpaeRes.getStatus())) {
+                return ActionReturnUtil.returnErrorWithData(hpaeRes.getBody());
+            }
+            hapEve = JsonUtil.jsonToPojo(hpaeRes.getBody(), EventList.class);
+        }
+
         // 获取特定的deployment
         K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
@@ -458,8 +482,8 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
 
         // 获取service
-        Map<String, Object> bodys = new HashMap<String, Object>();
-        bodys.put("labelSelector", "app=" + name);
+        bodys.clear();
+        bodys.put("labelSelector", Constant.TYPE_DEPLOYMENT + "=" + name);
         K8SClientResponse sRes = sService.doServiceByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(sRes.getStatus())) {
             return ActionReturnUtil.returnErrorWithData(sRes.getBody());
@@ -475,22 +499,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         }
         EventList eventList = JsonUtil.jsonToPojo(deResponse.getBody(), EventList.class);
 
-        // 获取cpaEvents
-        bodys.clear();
-        AutoScaleDto scaleDto  = autoScaleService.get(namespace, name);
-        EventList hapEve = new EventList();
-        if (scaleDto != null ){
-            bodys.put("fieldSelector", "involvedObject.uid=" + scaleDto.getUid());
-            K8SClientResponse hpaeRes = eventService.doEventByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
-            if (!HttpStatusUtil.isSuccessStatus(hpaeRes.getStatus())) {
-                return ActionReturnUtil.returnErrorWithData(hpaeRes.getBody());
-            }
-            hapEve = JsonUtil.jsonToPojo(hpaeRes.getBody(), EventList.class);
-        }
-
         // 获取pod
         bodys.clear();
-        bodys.put("labelSelector", K8sResultConvert.convertExpression(dep, name));
+        bodys.put("labelSelector", K8sResultConvert.convertDeploymentExpression(dep, name));
         K8SClientResponse podRes = podService.getPodByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(podRes.getStatus())) {
             return ActionReturnUtil.returnErrorWithData(podRes.getBody());
@@ -503,40 +514,6 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         res.setAliasNamespace(namespaceLocalService.getNamespaceByName(res.getNamespace()).getAliasName());
         res.setRealName(userService.getUser(res.getOwner()).getRealName());
         res.setHostAliases(podSpec.getHostAliases());
-
-        Map<String, Object> annotations = dep.getMetadata().getAnnotations();
-        String repoUrl = (String)annotations.get("pulldep/repoUrl");
-        String branch = (String)annotations.get("pulldep/branch");
-        String tag = (String)annotations.get("pulldep/tag");
-        String containerName = (String)annotations.get("pulldep/container");
-        branch = (StringUtils.isBlank(branch) ? tag : branch);
-        String containerMonutPath = null;
-
-        List<Container> containers = podSpec.getContainers();
-        List<Container> collect = containers.stream().filter(c -> {
-            return c.getName().equals(containerName);
-        }).collect(Collectors.toList());
-        if(CollectionUtils.isNotEmpty(collect)){
-            List<VolumeMount> volumeMounts = collect.get(0).getVolumeMounts();
-            List<VolumeMount> empty = volumeMounts.stream().filter(v -> {
-                return v.getName().equals("empty");
-            }).collect(Collectors.toList());
-            if(CollectionUtils.isNotEmpty(empty)){
-                containerMonutPath = empty.get(0).getMountPath();
-            }
-        }
-
-        Map<String, Object> pullDependence = new HashMap<>();
-        pullDependence.put("repoUrl", repoUrl);
-        pullDependence.put("branch", branch);
-        pullDependence.put("containerName", containerName);
-        pullDependence.put("containerMonutPath", containerMonutPath);
-        res.setPullDependence(pullDependence);
-
-
-        String serviceName = (String)annotations.get("svcDepend/name");
-
-        res.setServiceDependence(serviceName);
 
         //判断是否是微服务组件应用是否有权限操作
         boolean isOperationable = true;
@@ -557,7 +534,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         }
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
         List<EventDetail> allEvents = new ArrayList<EventDetail>();
-
+        Map<String, Object> bodys = new HashMap<String, Object>();
+        String selExp = new String();
+        String uid = new String();
         // 可利用异步操作，线程
         K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
 
@@ -565,9 +544,13 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             return ActionReturnUtil.returnErrorWithData(depRes.getBody());
         }
         Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+        Map<String, Object> deploymentSelector = dep.getSpec().getSelector().getMatchLabels();
+        if (deploymentSelector == null || deploymentSelector.isEmpty()) {
+            deploymentSelector.put(Constant.TYPE_DEPLOYMENT, name);
+        }
+        selExp = K8sResultConvert.convertExpression(deploymentSelector);
+        uid = dep.getMetadata().getUid();
 
-        Map<String, Object> bodys = new HashMap<String, Object>();
-        String selExp = K8sResultConvert.convertExpression(dep, name);
         bodys.put("labelSelector", selExp);
         K8SClientResponse podRes = podService.getPodByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(podRes.getStatus())) {
@@ -597,7 +580,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
         // 获取dep事件
         bodys.clear();
-        bodys.put("fieldSelector", "involvedObject.uid=" + dep.getMetadata().getUid());
+        bodys.put("fieldSelector", "involvedObject.uid=" + uid);
         K8SClientResponse evRes = eventService.doEventByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(evRes.getStatus())) {
             return ActionReturnUtil.returnErrorWithData(evRes.getBody());
@@ -650,34 +633,19 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         if (Objects.isNull(cluster)) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
+        Integer replicas;
         K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
-
         if (depRes.getStatus() == Constant.HTTP_404) {
             throw new MarsRuntimeException(ErrorCodeMessage.DEPLOYMENT_NOT_FIND);
         }
-
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
             return ActionReturnUtil.returnErrorWithData(depRes.getBody());
         }
         Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
-        Map<String, Object> bodys = new HashMap<String, Object>();
-
-        Integer replicas = dep.getSpec().getReplicas();
-        if (replicas == scale) {
-            return ActionReturnUtil.returnSuccess();
-        } else if (scale == 0) {
-            dep.getMetadata().getAnnotations().put("nephele/status", Constant.STOPPING);
-            dep.getMetadata().getAnnotations().put("nephele/replicas", replicas.toString());
-            dep.getSpec().setReplicas(scale);
-        } else if (replicas == 0) {
-            dep.getMetadata().getAnnotations().put("nephele/status", Constant.STARTING);
-            dep.getMetadata().getAnnotations().put("nephele/replicas", scale.toString());
-            dep.getSpec().setReplicas(scale);
-        } else {
-            dep.getMetadata().getAnnotations().put("nephele/replicas", scale.toString());
-            dep.getSpec().setReplicas(scale);
-        }
-        bodys = CollectionUtil.transBean2Map(dep);
+        replicas = dep.getSpec().getReplicas();
+        dep.getSpec().setReplicas(scale);
+        dep.getMetadata().setAnnotations(updateAnnotationInScale(dep.getMetadata().getAnnotations(), scale, replicas));
+        Map<String, Object> bodys = CollectionUtil.transBean2Map(dep);
         Map<String, Object> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
         K8SClientResponse newRes = dpService.doSpecifyDeployment(namespace, name, headers, bodys, HTTPMethod.PUT, cluster);
@@ -685,7 +653,22 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             LOGGER.error("实例伸缩失败：", newRes.getBody());
             throw new MarsRuntimeException(ErrorCodeMessage.DEPLOYMENT_SCALE_INSTANCE_FAILURE);
         }
+
         return ActionReturnUtil.returnSuccess();
+    }
+
+    private Map<String, Object> updateAnnotationInScale(Map<String, Object> annotation, Integer scale, Integer replicas) throws Exception {
+        Map<String, Object> newAnnotation = annotation;
+        if (scale == 0) {
+            newAnnotation.put("nephele/status", Constant.STOPPING);
+            newAnnotation.put("nephele/replicas", replicas.toString());
+        } else if (replicas == 0) {
+            newAnnotation.put("nephele/status", Constant.STARTING);
+            newAnnotation.put("nephele/replicas", scale.toString());
+        } else {
+            newAnnotation.put("nephele/replicas", scale.toString());
+        }
+        return newAnnotation;
     }
 
     @Override
@@ -694,12 +677,15 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        PodTemplateSpec podTemplateSpec = new PodTemplateSpec();
+        List<ContainerOfPodDetail> containerOfPodDetails = null;
         K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
             return ActionReturnUtil.returnErrorWithData(depRes.getBody());
         }
         Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
-        return ActionReturnUtil.returnSuccessWithData(K8sResultConvert.convertContainer(dep, cluster));
+        containerOfPodDetails = K8sResultConvert.convertDeploymentContainer(dep, dep.getSpec().getTemplate().getSpec().getContainers(), cluster);
+        return ActionReturnUtil.returnSuccessWithData(containerOfPodDetails);
     }
 
     @Override
@@ -858,10 +844,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             nodeAffinityList = this.setNamespaceLabelAffinity(detail.getNamespace(), nodeAffinityList);
             detail.setNodeAffinity(nodeAffinityList);
         }
-        Deployment dep = K8sResultConvert.convertAppCreate(detail, userName, app, ingress);
-
-        //HostAlias-自定义 hosts file
-        dep.getSpec().getTemplate().getSpec().setHostAliases(detail.getHostAliases());
+//        Deployment dep = K8sResultConvert.convertAppCreate(detail, userName, app, ingress);
 
 
 
@@ -870,16 +853,16 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         Map<String, Object> headers = new HashMap<String, Object>();
         headers.put("Content-type", "application/json");
         Map<String, Object> bodys = new HashMap<String, Object>();
-        bodys = CollectionUtil.transBean2Map(dep);
-        K8SClientResponse response = new K8sMachineClient().exec(k8surl, HTTPMethod.POST, headers, bodys, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithData(status.getMessage());
-        }
-        Deployment resD = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
-        com.harmonycloud.k8s.bean.Service service = K8sResultConvert.convertAppCreateOfService(detail, app);
+//        bodys = CollectionUtil.transBean2Map(dep);
+//        K8SClientResponse response = new K8sMachineClient().exec(k8surl, HTTPMethod.POST, headers, bodys, cluster);
+//        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+//            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+//            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+//        }
+//        Deployment resD = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
+        com.harmonycloud.k8s.bean.Service service = K8sResultConvert.convertAppCreateOfService(detail, app, Constant.DEPLOYMENT);
         k8surl.setNamespace(detail.getNamespace()).setResource(Resource.SERVICE);
-        bodys.clear();
+//        bodys.clear();
         bodys = CollectionUtil.transBean2Map(service);
         K8SClientResponse sResponse = new K8sMachineClient().exec(k8surl, HTTPMethod.POST, headers, bodys, cluster);
         if (!HttpStatusUtil.isSuccessStatus(sResponse.getStatus())) {
@@ -888,14 +871,34 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         }
         com.harmonycloud.k8s.bean.Service resS = JsonUtil.jsonToPojo(sResponse.getBody(),
                 com.harmonycloud.k8s.bean.Service.class);
-        Map<String, Object> resMap = new HashMap<String, Object>();
-        resMap.put("deployment", resD);
-        resMap.put("service", resS);
+
+        bodys.clear();
+        Object result = new Object();
 
         //创建pdb，minAvailable与maxUnavailable值从系统配置表system_config中获取
         String minAvailableValue = systemConfigService.findConfigValueByName(Constant.SYSTEM_CONFIG_PDB_MIN_AVAILABLE);
-        K8SClientResponse pdbRes =
-                pdbService.createPdbByType(detail.getNamespace(), dep.getMetadata().getName() + Constant.PDB_SUFFIX, dep.getSpec().getSelector(), Constant.PDB_TYPE_MIN_AVAILABLE, minAvailableValue, cluster);
+        K8SClientResponse pdbRes = null;
+        Deployment dep = K8sResultConvert.convertAppCreate(detail, userName, app, ingress);
+
+        //HostAlias-自定义 hosts file
+        dep.getSpec().getTemplate().getSpec().setHostAliases(detail.getHostAliases());
+
+        bodys = CollectionUtil.transBean2Map(dep);
+        K8SClientResponse response = dpService.doSpecifyDeployment(detail.getNamespace(),null, headers, bodys, HTTPMethod.POST,cluster);
+
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+        }
+        result = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
+
+        pdbRes = pdbService.createPdbByType(detail.getNamespace(), dep.getMetadata().getName() + Constant.PDB_SUFFIX, dep.getSpec().getSelector(), Constant.PDB_TYPE_MIN_AVAILABLE, minAvailableValue, cluster);
+
+
+        Map<String, Object> resMap = new HashMap<String, Object>();
+        resMap.put("deployment", result);
+        resMap.put("service", resS);
+
         if(!HttpStatusUtil.isSuccessStatus((pdbRes.getStatus()))){
             UnversionedStatus status = JsonUtil.jsonToPojo(pdbRes.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
@@ -1044,6 +1047,163 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         //删除文件上传到容器记录
         fileUploadToContainerService.deleteUploadRecord(namespace, name);
         return ActionReturnUtil.returnSuccess();
+    }
+
+    //删除statefulset
+    @Override
+    public ActionReturnUtil deleteStatefulSet(String name, String namespace, String userName, Cluster cluster) throws Exception {
+        //先删除自动伸缩控制
+        boolean scaleDeleted = autoScaleService.delete(namespace, name);
+        if (!scaleDeleted) {
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_AUTOSCALE_DELETE_FAILURE);
+        }
+
+        //删除pdb
+        if(pdbService.existPdb(namespace ,name + Constant.PDB_SUFFIX, cluster)){
+            K8SClientResponse pdbRes = pdbService.deletePdb(namespace, name + Constant.PDB_SUFFIX, cluster);
+            if(!HttpStatusUtil.isSuccessStatus((pdbRes.getStatus()))){
+                UnversionedStatus status = JsonUtil.jsonToPojo(pdbRes.getBody(), UnversionedStatus.class);
+                return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            }
+        }
+
+        try {
+            String label = Constant.TYPE_STATEFULSET + "=" + name;
+            String errorName = "StatefulSetName";
+            Map<String, Object> queryStatefulSet = new HashMap<>();
+            queryStatefulSet.put("labelSelector", label);
+            //获取StatefulSet
+            K8SClientResponse statefulSetRes = statefulSetService.doSpecifyStatefulSet(namespace, name, null, null, HTTPMethod.GET, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(statefulSetRes.getStatus()) && statefulSetRes.getStatus() != Constant.HTTP_404) {
+                LOGGER.error("获取StatefulSet失败,StatefulSetName:{}, error:{}", name, statefulSetRes.getBody());
+                throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
+            }
+            deleteConfigmap(name, namespace, queryStatefulSet, cluster, errorName);
+            StatefulSet statefulSet = new StatefulSet();
+            if (statefulSetRes.getStatus() != Constant.HTTP_404) {
+                statefulSet = JsonUtil.jsonToPojo(statefulSetRes.getBody(), StatefulSet.class);
+            }
+            if (statefulSet != null && statefulSet.getSpec() != null) {
+                // 删除StatefulSet
+                K8SClientResponse deleteResult = statefulSetService.doSpecifyStatefulSet(namespace, name, null, null, HTTPMethod.DELETE, cluster);
+                if (!HttpStatusUtil.isSuccessStatus(deleteResult.getStatus()) && deleteResult.getStatus() != Constant.HTTP_404) {
+                    LOGGER.error("删除StatefulSet失败,StatefulSetName:{}, error:{}", name, deleteResult.getBody());
+                    throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
+                }
+
+                deleteResource(name, namespace, queryStatefulSet, cluster, label, errorName);
+            }
+            deleteService(name, namespace, queryStatefulSet, cluster, errorName);
+            //删除文件上传到容器记录
+            fileUploadToContainerService.deleteUploadRecord(namespace, name);
+        } catch (Exception e) {
+            LOGGER.error("删除StatefulSet失败");
+            return ActionReturnUtil.returnErrorWithData(e.getMessage());
+        }
+        return ActionReturnUtil.returnSuccess();
+
+    }
+
+    /**
+     * 删除configmap
+     * @param name
+     * @param namespace
+     * @param queryP
+     * @param cluster
+     * @param errorName
+     */
+    private void deleteConfigmap(String name, String namespace, Map<String, Object> queryP, Cluster cluster, String errorName) {
+        K8SURL cUrl = new K8SURL();
+        cUrl.setNamespace(namespace).setResource(Resource.CONFIGMAP);
+        K8SClientResponse conRes = new K8sMachineClient().exec(cUrl, HTTPMethod.DELETE, null, queryP, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(conRes.getStatus()) && conRes.getStatus() != Constant.HTTP_404) {
+            LOGGER.error("删除configmap失败," + errorName + ":{}, error:{}", name, conRes.getBody());
+            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
+        }
+    }
+
+    /**
+     * 获取并删除service
+     * @param name
+     * @param namespace
+     * @param queryP
+     * @param cluster
+     * @param errorName
+     * @throws Exception
+     */
+    private void deleteService(String name, String namespace, Map<String, Object> queryP, Cluster cluster, String errorName) throws Exception {
+        // 获取service
+        K8SClientResponse svcRes = sService.doServiceByNamespace(namespace, null, queryP, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(svcRes.getStatus())) {
+            LOGGER.error("获取Service失败," + errorName +":{}, error:{}", name, svcRes.getBody());
+            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
+        }
+        ServiceList svcs = JsonUtil.jsonToPojo(svcRes.getBody(), ServiceList.class);
+
+        // 循环删除service,在k8s中service只能根据名称删除
+        List<com.harmonycloud.k8s.bean.Service> svc = svcs.getItems();
+        K8SURL svcUrl = new K8SURL();
+        svcUrl.setNamespace(namespace).setResource(Resource.SERVICE);
+        for (int i = 0; i < svc.size(); i++) {
+            svcUrl.setName(svc.get(i).getMetadata().getName());
+            K8SClientResponse serviceRes = new K8sMachineClient().exec(svcUrl, HTTPMethod.DELETE, null, null, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(serviceRes.getStatus()) && serviceRes.getStatus() != Constant.HTTP_404) {
+                LOGGER.error("删除Service失败,ServiceName:{}, error:{}", svc.get(i).getMetadata().getName(), serviceRes.getBody());
+                throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
+            }
+        }
+    }
+
+    /**
+     * 删除ingress,pvc,对外暴露端口,升级pv
+     * @param name
+     * @param namespace
+     * @param queryP
+     * @param cluster
+     * @param label
+     * @param errorName
+     * @return
+     * @throws Exception
+     */
+    private ActionReturnUtil deleteResource(String name, String namespace, Map<String, Object> queryP, Cluster cluster, String label, String errorName) throws Exception {
+        K8SURL cUrl = new K8SURL();
+        // 删除ingress
+        cUrl.setNamespace(namespace).setResource(Resource.INGRESS);
+        K8SClientResponse ingRes = new K8sMachineClient().exec(cUrl, HTTPMethod.DELETE, null, queryP, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(ingRes.getStatus()) && ingRes.getStatus() != Constant.HTTP_404) {
+            LOGGER.error("删除Ingress失败," + errorName + ":{}, error:{}", name, ingRes.getBody());
+            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
+        }
+
+        // update pvc
+        Map<String, Object> pvclabel = new HashMap<String, Object>();
+        pvclabel.put("labelSelector", LABEL_KEY_APP + CommonConstant.SLASH + name + "=" + name);
+
+        K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, pvclabel, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+        }
+
+        PersistentVolumeClaimList persistentVolumeClaimList = K8SClient.converToBean(pvcRes, PersistentVolumeClaimList.class);
+
+
+        if (persistentVolumeClaimList != null && persistentVolumeClaimList.getItems() != null) {
+
+            for (PersistentVolumeClaim onePvc : persistentVolumeClaimList.getItems()) {
+                onePvc.getMetadata().getLabels().remove(LABEL_KEY_APP + CommonConstant.SLASH + name);
+                K8SClientResponse response = pvcService.updatePvcByName(onePvc,cluster);
+                if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
+                    LOGGER.error("更新PVC失败,DeploymentName:{}, error:{}", name, response.getBody());
+                    throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
+                }
+
+            }
+        }
+
+        //删除对外暴露端口（nginx和数据库）
+        routerService.deleteRulesByName(namespace, name, cluster);
+        return null;
     }
 
     @Override
@@ -1292,6 +1452,23 @@ public class DeploymentsServiceImpl implements DeploymentsService {
                     }
                 }
             }
+            K8SClientResponse stsRes = statefulSetService.doSpecifyStatefulSet(namespace, null, null, null, HTTPMethod.GET, cluster);
+            if(!HttpStatusUtil.isSuccessStatus(stsRes.getStatus())){
+                UnversionedStatus sta = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+                return ActionReturnUtil.returnErrorWithData(sta.getMessage());
+            }
+            StatefulSetList statefulSetList = JsonUtil.jsonToPojo(stsRes.getBody(), StatefulSetList.class);
+            if (Objects.nonNull(statefulSetList)) {
+                List<StatefulSet> list = statefulSetList.getItems();
+                if (CollectionUtils.isNotEmpty(list)) {
+                    for (StatefulSet dep : list) {
+                        if (name.equals(dep.getMetadata().getName())) {
+                            return ActionReturnUtil.returnSuccessWithData(true);
+                        }
+                    }
+                }
+            }
+
         }
         return ActionReturnUtil.returnSuccessWithData(false);
     }

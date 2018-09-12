@@ -3,6 +3,7 @@ package com.harmonycloud.service.application.Util;
 import com.harmonycloud.dto.application.DeploymentDetailDto;
 import com.harmonycloud.k8s.bean.Deployment;
 import com.harmonycloud.k8s.bean.Service;
+import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
 
 /**
@@ -24,7 +25,7 @@ public class TemplateToYamlUtil {
     public static Service templateToService(DeploymentDetailDto deploymentDetailDto){
         Service service = new Service();
         try {
-            service = K8sResultConvert.convertAppCreateOfService(deploymentDetailDto,null);
+            service = K8sResultConvert.convertAppCreateOfService(deploymentDetailDto,null, Constant.DEPLOYMENT);
         } catch (Exception e) {
             e.printStackTrace();
         }

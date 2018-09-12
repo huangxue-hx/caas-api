@@ -152,7 +152,7 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         metaObject.setNamespace(persistentVolumeClaim.getNamespace());
         Map<String, Object> labels = new HashMap<>();
         if(!CommonConstant.KUBE_SYSTEM.equalsIgnoreCase(persistentVolumeClaim.getNamespace())) {
-            labels.put(LABEL_PROJECT_ID, persistentVolumeClaim.getProjectId());
+            labels.put(Constant.NODESELECTOR_LABELS_PRE + LABEL_PROJECT_ID, persistentVolumeClaim.getProjectId());
         }
         labels.put(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.TYPE, CommonConstant.STORAGE);
         metaObject.setLabels(labels);
@@ -221,9 +221,11 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                     k8SURL.setNamespace(namespaceLocal.getNamespaceName());
                     k8SURL.setResource(Resource.PERSISTENTVOLUMECLAIM);
                     bodys = new HashMap<>();
-                    String labelSelector = Constant.NODESELECTOR_LABELS_PRE + CommonConstant.TYPE + "=" + CommonConstant.STORAGE;
+                    String labelSelector = "";//Constant.NODESELECTOR_LABELS_PRE + CommonConstant.TYPE + "=" + CommonConstant.STORAGE;
                     if(!KUBE_SYSTEM.equalsIgnoreCase(namespaceLocal.getNamespaceName())){
-                        labelSelector += "," + LABEL_PROJECT_ID + "=" + projectId;
+                        labelSelector += Constant.NODESELECTOR_LABELS_PRE + LABEL_PROJECT_ID + "=" + projectId;
+                    }else{
+                        labelSelector += Constant.NODESELECTOR_LABELS_PRE + CommonConstant.TYPE + "=" + CommonConstant.STORAGE;
                     }
                     bodys.put("labelSelector", labelSelector);
                     K8SClientResponse pvcResponse = new K8sMachineClient().exec(k8SURL, HTTPMethod.GET, null, bodys, cluster);
@@ -250,18 +252,26 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                             pvcDto.setStatus(persistentVolumeClaim.getStatus().getPhase());
                             List<Map<String, Object>> serviceNameList = new ArrayList<>();
                             Map<String, Object> labelMap = persistentVolumeClaim.getMetadata().getLabels();
-                            for(String key : labelMap.keySet()){
-                                Map<String, Object> map = new HashMap<>();
-                                if(key.contains(LABEL_KEY_APP + CommonConstant.SLASH)){
-                                    if(dataPrivilegeHelper.filterServiceName(labelMap.get(key).toString(), namespaceLocal.getNamespaceName())) {
-                                        map.put(CommonConstant.TYPE, CommonConstant.LABEL_KEY_APP);
+                            if(labelMap != null) {
+                                for (String key : labelMap.keySet()) {
+                                    Map<String, Object> map = new HashMap<>();
+                                    if (key.contains(LABEL_KEY_APP + CommonConstant.SLASH)) {
+                                        if (dataPrivilegeHelper.filterServiceName(labelMap.get(key).toString(), namespaceLocal.getNamespaceName())) {
+                                            map.put(CommonConstant.TYPE, CommonConstant.LABEL_KEY_APP);
+                                            map.put(CommonConstant.NAME, labelMap.get(key).toString());
+                                            serviceNameList.add(map);
+                                        }
+                                    } else if (key.contains(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_DAEMONSET)) {
+                                        map.put(CommonConstant.TYPE, CommonConstant.LABEL_KEY_DAEMONSET);
                                         map.put(CommonConstant.NAME, labelMap.get(key).toString());
                                         serviceNameList.add(map);
+                                    } else if (key.contains(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET)){
+                                        if (dataPrivilegeHelper.filterServiceName(labelMap.get(key).toString(), namespaceLocal.getNamespaceName())) {
+                                            map.put(CommonConstant.TYPE, CommonConstant.LABEL_KEY_STATEFULSET);
+                                            map.put(CommonConstant.NAME, labelMap.get(key).toString());
+                                            serviceNameList.add(map);
+                                        }
                                     }
-                                }else if(key.contains(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_DAEMONSET)){
-                                    map.put(CommonConstant.TYPE, CommonConstant.LABEL_KEY_DAEMONSET);
-                                    map.put(CommonConstant.NAME, labelMap.get(key).toString());
-                                    serviceNameList.add(map);
                                 }
                             }
                             pvcDto.setBindingServices(serviceNameList);

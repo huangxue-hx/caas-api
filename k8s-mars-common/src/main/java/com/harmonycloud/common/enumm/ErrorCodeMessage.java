@@ -289,6 +289,7 @@ public enum ErrorCodeMessage {
     APPLICATION_NAME_CONFLICT_MSF(400043, "Application name belong to micro service component", "应用名称所属于微服务组件"),
     SERVICE_EXPOSE_NGINX_FAILED(400044, "Port and protocol is different from in containers.", "选择的端口或协议与容器内的不一致"),
     APPLICATION_CAN_NOT_STOP(400045, "Service in application in the upgrade.", "所属服务的状态处于灰度或蓝绿升级中."),
+    SERVICE_TYPE_NOT_EXIST(400046, "ServiceType was not existed.", "服务类型不存在"),
 
     //模板 401xxx
     SERVICE_TEMPLATE_NOT_EXIST(401001, "Service template not exist.", "服务模板不存在"),
