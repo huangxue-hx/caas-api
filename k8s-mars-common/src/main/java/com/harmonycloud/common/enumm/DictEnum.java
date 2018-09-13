@@ -80,6 +80,7 @@ public enum DictEnum {
     CONTAINER("container","容器"),
     LOG_DIR("logDir","日志目录"),
     LOG_FILE("logFile","目录文件"),
+    STROAGE("stroage","存储"),
     PV("PersistentVolume", "存储卷"),
     PVC("PersistentVolumeClaim", "存储卷索取"),
     CONFIG_MAP_ID("configMapId","配置组id");

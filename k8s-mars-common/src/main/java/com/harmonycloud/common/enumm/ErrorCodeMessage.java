@@ -318,7 +318,6 @@ public enum ErrorCodeMessage {
     PV_CREATE_FAIL(402002, "Fail to create PV.", "PV创建失败"),
     PV_NAME_FORMAT_ERROR(402003, "PV name format error.", "PV名称格式错误"),
     PV_QUERY_FAIL(402004, "PV query fail.", "PV查询失败"),
-    PV_CAN_NOT_DELETE(402006, "PV status is bound， not to delete.", "PV状态为bound，不允许删除"),
     PV_PROVIDER_NOT_EXIST(402005, "PV is not provided.", "PV存储未提供"),
     PV_RELEASE_FAIL(402006, "PV released failed.", "PV释放失败"),
     NFS_PROVISIONER_CREATE_FAIL(402007, "NFS server address or directory parameter error.", "NFS服务器地址或目录参数错误"),
@@ -332,6 +331,7 @@ public enum ErrorCodeMessage {
     CEPH_RBD_PROVISIONER_CONFIG_ERROR(402015, "The configuration of the ceph rbd plugin image is not found in the system configuration", "系统配置中没有找到ceph rbd插件镜像的配置"),
     CEPH_RBD_SECRET_CREATE_FAIL(402016, "Create ceph rbd secret failure.", "ceph rbd secret创建失败"),
     CEPH_RBD_PROVISIONER_NOT_EXIST(402017, "Ceph rbd plugin not exist.", "Ceph rbd 插件不存在"),
+    PV_CAN_NOT_DELETE(402018, "PV status is bound， not to delete.", "PV状态为bound，不允许删除"),
 
     //弹性伸缩 403xxx
     SERVICE_AUTOSCALE_CREATE_FAILURE(403001, "Create autoScale failure.", "自动伸缩创建失败"),

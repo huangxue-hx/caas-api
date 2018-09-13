@@ -2,6 +2,7 @@ package com.harmonycloud.service.application.impl;
 
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
@@ -200,6 +201,10 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NAME_EXIST, volume.getVolumeName() + " pv", true);
         }
         String projectName = projectService.getProjectByProjectId(volume.getProjectId()).getProjectName();
+        if ((projectName.length()+volume.getVolumeName().length()) > CommonConstant. K8S_NAME_LENGTH_LIMIT){
+            LOGGER.info("创建pv失败，pv存储卷名称长度需小于63位");
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NAME_LENGTH_LIMIT, DictEnum.STROAGE.phrase(),true);
+        }
         PersistentVolume persistentVolume = new PersistentVolume();
         // 设置metadata
         ObjectMeta metadata = new ObjectMeta();
