@@ -226,6 +226,7 @@ public class UserServiceImpl implements UserService {
         res.put("username", userName);
         res.put("userId", userId);
         res.put("realName", u.getRealName());
+        res.put("isAdmin", u.getIsAdmin() == FLAG_TRUE);
         List<TenantDto> tenantDtos = tenantService.tenantList();
         if (org.springframework.util.CollectionUtils.isEmpty(tenantDtos)){List<Role> roleList = this.roleLocalService.getRoleListByUsernameAndTenantIdAndProjectId(userName, null, null);res.put("roleList", roleList);if (!org.springframework.util.CollectionUtils.isEmpty(roleList)){res.put("role", roleList.get(0));}}
         res.put("tenants", tenantDtos);
