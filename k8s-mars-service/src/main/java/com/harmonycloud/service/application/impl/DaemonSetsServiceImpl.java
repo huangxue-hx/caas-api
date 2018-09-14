@@ -495,10 +495,12 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
             tag = ds.getMetadata().getGeneration();
         }
         List<PodDetail> podDetailList = new ArrayList<>();
-        String labelSelector = "";
+        List<String> labelSelectors = new ArrayList<>();
+
         for (Map.Entry<String, Object> map : dsLabel.entrySet()) {
-            labelSelector = String.join(CommonConstant.COMMA, map.getKey() + CommonConstant.EQUALITY_SIGN + map.getValue().toString());
+            labelSelectors.add(map.getKey() + CommonConstant.EQUALITY_SIGN + map.getValue().toString());
         }
+        String labelSelector = String.join(CommonConstant.COMMA, labelSelectors);
         //获取DaemonSet的pod列表
         Map<String, Object> bodys = new HashMap<String, Object>();
         bodys.put("labelSelector", labelSelector);
