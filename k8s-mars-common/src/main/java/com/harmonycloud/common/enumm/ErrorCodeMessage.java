@@ -332,6 +332,8 @@ public enum ErrorCodeMessage {
     SERVICE_AUTOSCALE_UPDATE_FAILURE(403008, "Create autoScale failure.", "自动伸缩升级失败"),
     AUTOSCALE_NOT_FOUND(403009, "Can not found autoscale.", "自动伸缩找寻不到"),
     SERVICE_AUTOSCALE_LABEL_UPDATE_FAILURE(403010, "Update autoscale label failure.", "更新自动伸缩标签失败"),
+    AUTOSCALE_TIME_PODS_ERROR(403011,"Time based pods num should be greater than min pods and smaller than max pods.",
+            "时间段实例数应大于或等于最小实例数，并小于或等于最大实例数"),
 
 
     //日志管理 404xxx

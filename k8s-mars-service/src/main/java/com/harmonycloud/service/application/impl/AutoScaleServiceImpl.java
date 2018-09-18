@@ -82,10 +82,9 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 	public ActionReturnUtil create(AutoScaleDto autoScaleDto) throws Exception {
 		ActionReturnUtil  result;
 		Cluster cluster = namespaceLocalService.getClusterByNamespaceName(autoScaleDto.getNamespace());
-		if(autoScaleDto.getTargetTps() != null){
+		/*if(autoScaleDto.getTargetTps() != null){
 			checkDeploymentCreatedService(autoScaleDto.getNamespace(), autoScaleDto.getDeploymentName(), cluster);
-		}
-
+		}*/
 		//自定义或时间段自动伸缩，使用crd
 		if(!CollectionUtils.isEmpty(autoScaleDto.getCustomMetricScales())
 				|| !CollectionUtils.isEmpty(autoScaleDto.getTimeMetricScales())){
@@ -93,7 +92,14 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 			if (errorCodeMessage != null ){
 					return ActionReturnUtil.returnErrorWithMsg(errorCodeMessage);
 			}
+
+		}
+		//如果有非cpu和内存的指标伸缩，用自定义的controller处理弹性伸缩，如果只有cpu和内存则用k8s的hpa
+		if(isCustomMetricEnabled(autoScaleDto)){
 			result = this.createCpa(autoScaleDto, cluster);
+			if(!result.isSuccess()){
+				return result;
+			}
 		}else {
 			result = this.createHpa(autoScaleDto, cluster);
 		}
@@ -110,12 +116,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 	public ActionReturnUtil update(AutoScaleDto autoScaleDto) throws Exception {
 		AssertUtil.notBlank(autoScaleDto.getNamespace(),DictEnum.NAMESPACE);
 		AssertUtil.notBlank(autoScaleDto.getDeploymentName(),DictEnum.DEPLOYMENT_NAME);
-		if(!CollectionUtils.isEmpty(autoScaleDto.getCustomMetricScales())
-				|| !CollectionUtils.isEmpty(autoScaleDto.getTimeMetricScales())){
-			autoScaleDto.setControllerType(SCALE_CONTROLLER_TYPE_CPA);
-		}else{
-			autoScaleDto.setControllerType(SCALE_CONTROLLER_TYPE_HPA);
-		}
+
 		Cluster cluster = namespaceLocalService.getClusterByNamespaceName(autoScaleDto.getNamespace());
 		if (cluster == null) {
 			throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
@@ -124,26 +125,33 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		if(existScale == null){
 			throw new MarsRuntimeException(DictEnum.AUTO_SCALE.phrase(),ErrorCodeMessage.NOT_FOUND);
 		}
-		//更新之后的伸缩控制器和更新之前是否相同，如果相同更新资源，不相同则删除资源重新创建对应的自动伸缩资源
-		if(autoScaleDto.getControllerType().equals(existScale.getControllerType())){
-			if(autoScaleDto.getControllerType().equals(SCALE_CONTROLLER_TYPE_HPA)){
-				return this.updateHpa(autoScaleDto, cluster);
-			}else{
+		if(isCustomMetricEnabled(existScale)){
+			if(isCustomMetricEnabled(autoScaleDto)){
 				ErrorCodeMessage errorCodeMessage = checkCpaData(autoScaleDto);
 				if (errorCodeMessage != null ){
 					return ActionReturnUtil.returnErrorWithMsg(errorCodeMessage);
 				}
-				return this.updateCpa(autoScaleDto, cluster);
+				this.updateCpa(autoScaleDto, cluster);
+			}else{
+				this.deleteCpa(autoScaleDto.getNamespace(), autoScaleDto.getDeploymentName(), cluster);
+				this.create(autoScaleDto);
 			}
-		}else {
-			this.delete(autoScaleDto.getNamespace(), autoScaleDto.getDeploymentName());
-			return this.create(autoScaleDto);
+		}else if(isCustomMetricEnabled(autoScaleDto)){
+			ErrorCodeMessage errorCodeMessage = checkCpaData(autoScaleDto);
+			if (errorCodeMessage != null ){
+				return ActionReturnUtil.returnErrorWithMsg(errorCodeMessage);
+			}
+			this.deleteHpa(autoScaleDto.getNamespace(), autoScaleDto.getDeploymentName(), cluster);
+			this.create(autoScaleDto);
+		}else{
+			this.updateHpa(autoScaleDto, cluster);
 		}
+		return ActionReturnUtil.returnSuccess();
 	}
 
 	@Override
 	public boolean delete(String namespace, String deploymentName) throws Exception {
-		boolean result = false;
+		boolean result;
 		Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
 		if (cluster == null) {
 			throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
@@ -154,7 +162,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 			return true;
 		}
 
-        if(autoScaleDto.getControllerType().equals(SCALE_CONTROLLER_TYPE_CPA)){
+        if(isCustomMetricEnabled(autoScaleDto)){
 			result = this.deleteCpa(namespace, deploymentName, cluster);
 		}else {
 			result = this.deleteHpa(namespace, deploymentName, cluster);
@@ -173,18 +181,35 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		if (cluster == null) {
 			throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
 		}
-		AutoScaleDto autoScaleDto = getCpa(namespace, deploymentName, cluster);
-		if(autoScaleDto != null){
+		AutoScaleDto autoScaleDto = getCpa(namespace, deploymentName, cluster, null);
+		if(autoScaleDto != null ){
 			return autoScaleDto;
 		}
-		return this.getHpa(namespace, deploymentName, cluster);
+		return this.getHpa(namespace, deploymentName, cluster, autoScaleDto);
 	}
 
-	private ActionReturnUtil createCpa(AutoScaleDto autoScaleDto, Cluster cluster) throws Exception{
+	private boolean isCpuOrMemoryEnabled(AutoScaleDto autoScaleDto){
+		return (autoScaleDto.getTargetCpuUsage() != null && autoScaleDto.getTargetCpuUsage() > 0)
+				|| (autoScaleDto.getTargetMemoryUsage() != null && autoScaleDto.getTargetMemoryUsage() > 0);
+	}
 
+	private boolean isCustomMetricEnabled(AutoScaleDto autoScaleDto){
+		return !CollectionUtils.isEmpty(autoScaleDto.getCustomMetricScales())
+				|| !CollectionUtils.isEmpty(autoScaleDto.getTimeMetricScales())
+				|| (autoScaleDto.getTargetTps()!= null && autoScaleDto.getTargetTps() > 0);
+
+	}
+
+
+
+	private ActionReturnUtil createCpa(AutoScaleDto autoScaleDto, Cluster cluster) throws Exception{
+		ComplexPodScale complexPodScale = this.convertCpa(autoScaleDto);
+		if(complexPodScale == null){
+			return ActionReturnUtil.returnSuccess();
+		}
 		Map<String, Object> headers = new HashMap<>();
 		headers.put("Content-Type", "application/json");
-		Map<String, Object> body = CollectionUtil.transBean2Map(this.convertCpa(autoScaleDto));
+		Map<String, Object> body = CollectionUtil.transBean2Map(complexPodScale);
 		K8SURL url = new K8SURL();
 		url.setNamespace(autoScaleDto.getNamespace()).setResource(Resource.COMPLEXPODSCALER);
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, body,cluster);
@@ -210,6 +235,9 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 				if (podsNum[0] == null ){
 					podsNum[0] = timeMetricScale.getNormalPods();
 				}
+				if(timeMetricScale.getTargetPods() > maxPods || timeMetricScale.getTargetPods() < minPods){
+					return ErrorCodeMessage.AUTOSCALE_TIME_PODS_ERROR ;
+				}
 				podsNum[i+1] = timeMetricScale.getTargetPods();
 				String weekday = timeMetricScale.getWeekday();
 				String[] days = weekday.split(",");
@@ -226,13 +254,13 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 					}
 				}
 			}
-			Arrays.sort(podsNum);
+			/*Arrays.sort(podsNum);
 			if (podsNum[0] != minPods) {
 				return ErrorCodeMessage.AUTOSCALE_TIME_MAX_MIN_ERROR;
 			}
 			if (podsNum[podsNum.length-1] != maxPods) {
 				return ErrorCodeMessage.AUTOSCALE_TIME_MAX_MIN_ERROR ;
-			}
+			}*/
 
 		}
 		return null;
@@ -243,9 +271,13 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 
 
 	private ActionReturnUtil createHpa(AutoScaleDto autoScaleDto, Cluster cluster) throws Exception {
+		HorizontalPodAutoscaler hpAutoscaler = this.convertHpa(autoScaleDto);
+		if(hpAutoscaler == null){
+			return ActionReturnUtil.returnSuccess();
+		}
 		Map<String, Object> headers = new HashMap<String, Object>();
 		headers.put("Content-Type", "application/json");
-		Map<String, Object> body = CollectionUtil.transBean2Map(this.convertHpa(autoScaleDto));
+		Map<String, Object> body = CollectionUtil.transBean2Map(hpAutoscaler);
 		K8SClientResponse response = hpaService.postHpautoscalerByNamespace(autoScaleDto.getNamespace(), headers, body, HTTPMethod.POST, cluster);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			LOGGER.error("创建自动伸缩hpa失败，response：{}",JSONObject.toJSONString(response));
@@ -254,7 +286,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		return ActionReturnUtil.returnSuccess();
 	}
 
-	private AutoScaleDto getCpa(String namespace, String deploymentName, Cluster cluster) throws Exception{
+	private AutoScaleDto getCpa(String namespace, String deploymentName, Cluster cluster, AutoScaleDto autoScaleDto) throws Exception{
 		Map<String, Object> bodys = new HashMap<String, Object>();
 		bodys.put("labelSelector", "app=" + deploymentName);
 		K8SURL url = new K8SURL();
@@ -266,7 +298,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 			if(complexPodScale == null){
 				return null;
 			}
-			return this.convertScale(complexPodScale);
+			return this.convertScale(complexPodScale, autoScaleDto);
 		}else if(response.getStatus() == HttpStatus.NOT_FOUND.value()){
 			return null;
 		}else{
@@ -276,7 +308,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 	}
 
 
-	private AutoScaleDto getHpa(String namespace, String name, Cluster cluster) throws Exception {
+	private AutoScaleDto getHpa(String namespace, String name, Cluster cluster, AutoScaleDto autoScaleDto) throws Exception {
 		K8SClientResponse response = hpaService.doSpecifyHpautoscaler(namespace, name, null, null, HTTPMethod.GET, cluster);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 			if(response.getStatus() == HttpStatus.NOT_FOUND.value()){
@@ -290,7 +322,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 			if(hpa == null){
 				return null;
 			}
-			return this.convertDto(hpa);
+			return this.convertDto(hpa, autoScaleDto);
 		}else if(response.getStatus() == HttpStatus.NOT_FOUND.value()){
 			return null;
 		}else{
@@ -390,7 +422,12 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		//cpu伸缩 转为资源指标伸缩类型
 		if(autoScaleDto.getTargetCpuUsage() != null && autoScaleDto.getTargetCpuUsage() > 0){
 			MetricSpec metricSpec = new MetricSpec(METRIC_SOURCE_TYPE_RESOURCE);
-			metricSpec.setResource(new ResourceMetricSource("cpu", autoScaleDto.getTargetCpuUsage()));
+			metricSpec.setResource(new ResourceMetricSource(CPU, autoScaleDto.getTargetCpuUsage()));
+			metricSpecs.add(metricSpec);
+		}
+		if(autoScaleDto.getTargetMemoryUsage() != null && autoScaleDto.getTargetMemoryUsage() > 0){
+			MetricSpec metricSpec = new MetricSpec(METRIC_SOURCE_TYPE_RESOURCE);
+			metricSpec.setResource(new ResourceMetricSource(MEMORY, autoScaleDto.getTargetMemoryUsage()));
 			metricSpecs.add(metricSpec);
 		}
 		//tps伸缩 转为自定义指标伸缩类型
@@ -425,7 +462,8 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 			}
 		}
 		if(metricSpecs.size() == 0){
-			throw new MarsRuntimeException(ErrorCodeMessage.AUTOSCALE_NOT_SELECTED);
+			return null;
+			//throw new MarsRuntimeException(ErrorCodeMessage.AUTOSCALE_NOT_SELECTED);
 		}
 		cpaSpec.setMetrics(metricSpecs);
 		complexPodScale.setSpec(cpaSpec);
@@ -454,7 +492,12 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		//cpu伸缩 转为资源指标伸缩类型
 		if(autoScaleDto.getTargetCpuUsage() != null && autoScaleDto.getTargetCpuUsage() > 0){
 			MetricSpec metricSpec = new MetricSpec(METRIC_SOURCE_TYPE_RESOURCE);
-			metricSpec.setResource(new ResourceMetricSource("cpu", autoScaleDto.getTargetCpuUsage()));
+			metricSpec.setResource(new ResourceMetricSource(CPU, autoScaleDto.getTargetCpuUsage()));
+			metricSpecs.add(metricSpec);
+		}
+		if(autoScaleDto.getTargetMemoryUsage() != null && autoScaleDto.getTargetMemoryUsage() > 0){
+			MetricSpec metricSpec = new MetricSpec(METRIC_SOURCE_TYPE_RESOURCE);
+			metricSpec.setResource(new ResourceMetricSource(MEMORY, autoScaleDto.getTargetMemoryUsage()));
 			metricSpecs.add(metricSpec);
 		}
 		//tps伸缩 转为自定义指标伸缩类型
@@ -496,8 +539,13 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		return complexPodScale;
 	}
 
-	private AutoScaleDto convertScale(ComplexPodScale complexPodScale) throws MarsRuntimeException {
-		AutoScaleDto autoScaleDto = new AutoScaleDto();
+	private AutoScaleDto convertScale(ComplexPodScale complexPodScale, AutoScaleDto autoScaleDto) throws MarsRuntimeException {
+		if(complexPodScale == null){
+			return autoScaleDto;
+		}
+		if(autoScaleDto == null){
+			autoScaleDto = new AutoScaleDto();
+		}
 		autoScaleDto.setUid(complexPodScale.getMetadata().getUid());
 		autoScaleDto.setMinPods(complexPodScale.getSpec().getMinReplicas());
 		autoScaleDto.setMaxPods(complexPodScale.getSpec().getMaxReplicas());
@@ -536,12 +584,19 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		for(MetricSpec metricSpec : metricSpecs){
 			switch (metricSpec.getType()){
 				case METRIC_SOURCE_TYPE_RESOURCE:
-					if(metricSpec.getResource().getName().equalsIgnoreCase("cpu")){
+					if(metricSpec.getResource().getName().equalsIgnoreCase(CPU)){
 						autoScaleDto.setTargetCpuUsage(metricSpec.getResource().getTargetAverageUtilization());
 						Object currentCpuUsage = statusMap.get(METRIC_SOURCE_TYPE_RESOURCE
 								+ "-" + metricSpec.getResource().getName());
 						if(currentCpuUsage != null){
 							autoScaleDto.setCurrentCpuUsage((Integer)currentCpuUsage);
+						}
+					}else if(metricSpec.getResource().getName().equalsIgnoreCase(MEMORY)){
+						autoScaleDto.setTargetMemoryUsage(metricSpec.getResource().getTargetAverageUtilization());
+						Object currentMemoryUsage = statusMap.get(METRIC_SOURCE_TYPE_RESOURCE
+								+ "-" + metricSpec.getResource().getName());
+						if(currentMemoryUsage != null){
+							autoScaleDto.setCurrentMemoryUsage((Integer)currentMemoryUsage);
 						}
 					}else{
 						throw new MarsRuntimeException(ErrorCodeMessage.AUTOSCALE_METRIC_NOT_SUPPORT);
@@ -596,8 +651,13 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 	}
 
 
-	public AutoScaleDto convertDto(HorizontalPodAutoscaler hpa) throws Exception {
-		AutoScaleDto dto = new AutoScaleDto();
+	public AutoScaleDto convertDto(HorizontalPodAutoscaler hpa, AutoScaleDto dto) throws Exception {
+		if(hpa == null){
+			return dto;
+		}
+		if(dto == null){
+			dto = new AutoScaleDto();
+		}
 		dto.setUid(hpa.getMetadata().getUid());
 		HorizontalPodAutoscalerSpec hpaSpec = hpa.getSpec();
 		dto.setMaxPods(hpaSpec.getMaxReplicas());
@@ -673,7 +733,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		ActionReturnUtil actionReturnUtil = null;
 		Map<String, Object> label = new HashMap<>();
 		label.put(NODESELECTOR_LABELS_PRE + LABEL_AUTOSCALE, status);
-        ServiceTypeEnum serviceTypeEnum = ServiceTypeEnum.STATEFULSET;
+        ServiceTypeEnum serviceTypeEnum = ServiceTypeEnum.DEPLOYMENT;
         if(StringUtils.isNotBlank(serviceType)) {
             serviceTypeEnum.valueOf(serviceType.toUpperCase());
         }
@@ -687,8 +747,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
         }
 
 		if(!actionReturnUtil.isSuccess()){
-			LOGGER.error("更新自动伸缩标签失败, DeploymentName:{}, label:{}", name, LABEL_AUTOSCALE + " switch to " + status);
-			throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_AUTOSCALE_LABEL_UPDATE_FAILURE);
+			LOGGER.error("更新自动伸缩标签失败, DeploymentName:{}, message:{}", name, actionReturnUtil.getData());
 		}
 	}
 
@@ -697,7 +756,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
         Map<String, Object> labels = new HashMap<>();
         CrossVersionObjectReference targetRef = new CrossVersionObjectReference();
         targetRef.setName(name);
-        ServiceTypeEnum typeEnum = ServiceTypeEnum.STATEFULSET;
+        ServiceTypeEnum typeEnum = ServiceTypeEnum.DEPLOYMENT;
         if(StringUtils.isNotBlank(serviceType)) {
             typeEnum = ServiceTypeEnum.valueOf(serviceType.toUpperCase());
         }
