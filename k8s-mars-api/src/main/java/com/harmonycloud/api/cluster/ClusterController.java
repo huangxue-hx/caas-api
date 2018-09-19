@@ -158,4 +158,18 @@ public class ClusterController {
         return ActionReturnUtil.returnSuccessWithData(clusterService.getEntry(namespace));
     }
 
+    /**
+     * 获取集群存储信息
+     *
+     * @return
+     */
+    @ApiResponse(code = 200, message = "sucess", response = ActionReturnUtil.class)
+    @ApiOperation(value = "获取集群存储信息", response = ActionReturnUtil.class, httpMethod = "GET", consumes = "", produces = "", notes = "")
+    @ResponseBody
+    @RequestMapping(value = "/storages", method = RequestMethod.GET)
+    public ActionReturnUtil getClustersStorageCapacity(){
+        Map<String, String> clustersMap = clusterService.getClustersStorageCapacity();
+        return ActionReturnUtil.returnSuccessWithData(clustersMap);
+    }
+
 }

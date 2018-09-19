@@ -104,15 +104,15 @@ public class ActionReturnUtil extends HashMap<String, Object>{
         return returnMap;
     }
 
-    public static ActionReturnUtil returnErrorWithMsg(ErrorCodeMessage error) throws Exception{
+    public static ActionReturnUtil returnErrorWithMsg(ErrorCodeMessage error) throws MarsRuntimeException{
         return returnErrorWithMsg(error, "", false);
     }
 
-    public static ActionReturnUtil returnErrorWithMsg(ErrorCodeMessage error, String extendMessage, boolean prefix) throws Exception{
+    public static ActionReturnUtil returnErrorWithMsg(ErrorCodeMessage error, String extendMessage, boolean prefix) throws MarsRuntimeException{
         throw new MarsRuntimeException(ErrorCodeMessage.getMessageWithLanguage(error, extendMessage, prefix));
     }
 
-    public static ActionReturnUtil returnErrorWithMsg(String errMsg) throws Exception{
+    public static ActionReturnUtil returnErrorWithMsg(String errMsg) throws MarsRuntimeException{
         throw new MarsRuntimeException(errMsg);
     }
     

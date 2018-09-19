@@ -99,6 +99,7 @@ public interface PersistentVolumeService {
 
 	ActionReturnUtil updatePvByName(PersistentVolumeDto volumeDto) throws Exception;
 
+	boolean isFsPv(String type);
 
 	/**
 	 * 根据name清空数据

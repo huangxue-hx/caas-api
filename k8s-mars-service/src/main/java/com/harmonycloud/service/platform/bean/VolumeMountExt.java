@@ -30,7 +30,9 @@ public class VolumeMountExt {
 	private String pvcname;
 
 	private String storageClassName;
-	
+
+    private String capacity;
+
 	public VolumeMountExt() {
 		
 	}
@@ -137,4 +139,12 @@ public class VolumeMountExt {
 	public void setStorageClassName(String storageClassName) {
 		this.storageClassName = storageClassName;
 	}
+
+    public String getCapacity() {
+        return capacity;
+    }
+
+    public void setCapacity(String capacity) {
+        this.capacity = capacity;
+    }
 }

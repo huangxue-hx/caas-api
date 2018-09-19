@@ -24,6 +24,7 @@ import com.harmonycloud.service.application.PersistentVolumeService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.PvDto;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.platform.service.InfluxdbService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.user.RoleLocalService;
@@ -68,6 +69,8 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
     UserService userService;
     @Autowired
     RoleLocalService roleLocalService;
+    @Autowired
+    InfluxdbService influxdbService;
 
     @SuppressWarnings("unchecked")
     @Override
@@ -296,6 +299,9 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
                     pvDto.setClusterName(cluster.getName());
                     pvDto.setClusterAliasName(cluster.getAliasName());
                     pvDto.setClusterId(cluster.getId());
+                    double pvused = this.influxdbService.getPvResourceUsage("volume/usage", cluster, pvDto.getName());
+                    pvused = pvused / 1024 / 1024 / 1024;
+                    pvDto.setUsed(String.format("%.2f", pvused) + "Gi");
                     pvDtos.add(pvDto);
                 }
 
@@ -378,6 +384,26 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         pvDto.setCapacity(volumeDto.getCapacity());
         pvDto.setClusterId(cluster.getId());
         return this.updatePv(pvDto);
+    }
+
+    @Override
+    public boolean isFsPv(String type) {
+        if (type == null) {
+            return false;
+        }
+        if (type.equalsIgnoreCase(Constant.VOLUME_TYPE_LOGDIR)) {
+            return false;
+        }
+        if (type.equalsIgnoreCase(Constant.VOLUME_TYPE_CONFIGMAP)) {
+            return false;
+        }
+        if (type.equalsIgnoreCase(Constant.VOLUME_TYPE_EMPTYDIR)) {
+            return false;
+        }
+        if (type.equalsIgnoreCase(Constant.VOLUME_TYPE_HOSTPASTH)) {
+            return false;
+        }
+        return true;
     }
 
     @Override

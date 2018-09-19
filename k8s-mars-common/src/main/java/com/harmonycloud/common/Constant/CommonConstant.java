@@ -52,7 +52,7 @@ public class CommonConstant {
     public static final String HARBOR_PROJECT = "/api/projects";
 
     public static final String NEPHELE_TENANT = "nephele_tenant_";
-    
+
     public static final String ZERO = "ZERO";
 
     public static final String ONE = "ONE";
@@ -73,6 +73,8 @@ public class CommonConstant {
     public static final String MONIT_TYPE = "pod_container";
 
     public static final String MONIT_NETWORK_TYPE = "pod";
+
+    public static final String MONIT_VOLUME = "pvc";
 
     public static final String NOTI = "noti";
     public static final String ID = "id";
@@ -385,33 +387,33 @@ public class CommonConstant {
 
     public static final String PV_DELETE = "Delete";
 
-    public static final String PV_STATUS_RELEASED= "Released";
+    public static final String PV_STATUS_RELEASED = "Released";
 
-    public static final String PV_RECYCLE_POD_NAME= "pv-recycler-";
+    public static final String PV_RECYCLE_POD_NAME = "pv-recycler-";
 
-    public static final String PV_CREATE_POD_NAME= "pv-dir-create-";
+    public static final String PV_CREATE_POD_NAME = "pv-dir-create-";
 
-    public static final String PV_DELETE_POD_NAME= "pv-dir-delete-";
+    public static final String PV_DELETE_POD_NAME = "pv-dir-delete-";
 
-    public static final String RESTARTPOLICY_NEVER= "Never";
+    public static final String RESTARTPOLICY_NEVER = "Never";
 
-    public static final String IMAGEPULLPOLICY_ALWAYS= "Always";
+    public static final String IMAGEPULLPOLICY_ALWAYS = "Always";
 
     public static final String DEFAULT_LANGUAGE_CHINESE = LANGUAGE_CHINESE;
 
     public static final String DEFAULT_LOG_MOUNT_PATH = "/var/log/containers/";
     //角色id
-    public static final String ROLEID= "roleId";
+    public static final String ROLEID = "roleId";
     //用户角色名
-    public static final String ROLENAME= "roleName";
+    public static final String ROLENAME = "roleName";
     //用户角色
-    public static final String ROLE= "role";
+    public static final String ROLE = "role";
     //用户邮箱
-    public static final String EMAIL= "email";
+    public static final String EMAIL = "email";
     //用户手机
-    public static final String MOBILEPHONE= "mobilePhone";
+    public static final String MOBILEPHONE = "mobilePhone";
     //用户姓名
-    public static final String NICKNAME= "nickName";
+    public static final String NICKNAME = "nickName";
     //devops平台推送用户初始密码
     public static final String INITPASSWORD = "Ab123456";
     //模块
@@ -490,11 +492,11 @@ public class CommonConstant {
     //集群
     public static final String CLUSTER = "cluster";
     //系统管理员角色id
-    public static final Integer ADMIN_ROLEID= 1;
+    public static final Integer ADMIN_ROLEID = 1;
     //租户管理员角色id
-    public static final Integer TM_ROLEID= 2;
+    public static final Integer TM_ROLEID = 2;
     //项目管理员角色id
-    public static final Integer PM_ROLEID= 3;
+    public static final Integer PM_ROLEID = 3;
 
     public static final int ROUND_SCALE_2 = 2;
 
@@ -504,7 +506,7 @@ public class CommonConstant {
     public static final String REPOSITORY_TYPE_PUBLIC = "public";
     public static final String REPOSITORY_TYPE_PRIVATE = "private";
 
-    public  static final long ORIGINAL_DATE_MILL_SECOND = 0L;
+    public static final long ORIGINAL_DATE_MILL_SECOND = 0L;
     public static final String HARBOR_PROJECT_NAME_MSF = "msf-component";
     public static final String HARBOR_PROJECT_NAME_PLATFORM = "k8s-deploy";
     //uat角色id

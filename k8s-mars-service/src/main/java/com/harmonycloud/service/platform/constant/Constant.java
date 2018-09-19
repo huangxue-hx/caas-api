@@ -265,6 +265,8 @@ public class Constant {
 
 	public final static String VOLUME_TYPE_LOGDIR = "logdir";
 
+	public final static String VOLUME_TYPE_CONFIGMAP = "configMap";
+
 	public final static String NAMESPACE_SYSTEM = "kube-system";
 
 	public final static String LABEL_PROJECT_ID = "projectId";

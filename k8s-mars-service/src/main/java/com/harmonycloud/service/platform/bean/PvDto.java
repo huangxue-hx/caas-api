@@ -11,167 +11,177 @@ import java.util.Date;
 @ApiModel(value="存储信息")
 public class PvDto implements Serializable{
 
-	private static final long serialVersionUID = 5202810321695795037L;
-	/**
-	 * 是否已绑定服务
-	 */
-	private Boolean isBind;
-	/**
-	 * 该pv资源所在的集群名称
-	 */
-	@ApiModelProperty(value="集群名",name="clusterName",example="开发集群")
-	private String clusterName;
-	private String clusterAliasName;
-	@NotBlank
-	@ApiModelProperty(value="集群id",name="clusterId",example="cluster-top--dev",required = true)
-	private String clusterId;
-	@NotBlank
-	private String capacity;
-	@NotNull
-	private Boolean isBindOne;
-	@NotBlank
-	private String name;
-	@NotNull
-	private Boolean isReadonly;
-	private String tenantId;
-	@NotBlank
-	private String projectId;
-	private Date createTime;
-	@NotBlank
-	private String type;
-	/**
-	 * pv将被绑定的服务名
-	 */
-	private String serviceName;
+    private static final long serialVersionUID = 5202810321695795037L;
+    /**
+     * 是否已绑定服务
+     */
+    private Boolean isBind;
+    /**
+     * 该pv资源所在的集群名称
+     */
+    @ApiModelProperty(value="集群名",name="clusterName",example="开发集群")
+    private String clusterName;
+    private String clusterAliasName;
+    @NotBlank
+    @ApiModelProperty(value="集群id",name="clusterId",example="cluster-top--dev",required = true)
+    private String clusterId;
+    @NotBlank
+    private String capacity;
+    @NotNull
+    private Boolean isBindOne;
+    @NotBlank
+    private String name;
+    @NotNull
+    private Boolean isReadonly;
+    private String tenantId;
+    @NotBlank
+    private String projectId;
+    private Date createTime;
+    @NotBlank
+    private String type;
+    /**
+     * pv将被绑定的服务名
+     */
+    private String serviceName;
 
-	private String serviceNamespace;
-	private String status;
+    private String serviceNamespace;
+    private String status;
 
-	public String getCapacity() {
-		return capacity;
-	}
+    private String used;
 
-	public void setCapacity(String capacity) {
-		this.capacity = capacity;
-	}
+    public String getUsed() {
+        return used;
+    }
 
-	public String getName() {
-		return name;
-	}
+    public void setUsed(String used) {
+        this.used = used;
+    }
 
-	public void setName(String name) {
-		this.name = name;
-	}
+    public String getCapacity() {
+        return capacity;
+    }
 
-	public Boolean isReadonly() {
-		return isReadonly;
-	}
+    public void setCapacity(String capacity) {
+        this.capacity = capacity;
+    }
 
-	public Boolean getIsReadonly() {
-		return isReadonly;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public void setIsReadonly(Boolean readOnly) {
-		this.isReadonly = readOnly;
-	}
+    public void setName(String name) {
+        this.name = name;
+    }
 
-	public String getType() {
-		return type;
-	}
+    public Boolean isReadonly() {
+        return isReadonly;
+    }
 
-	public void setType(String type) {
-		this.type = type;
-	}
+    public Boolean getIsReadonly() {
+        return isReadonly;
+    }
 
-	public String getProjectId() {
-		return projectId;
-	}
+    public void setIsReadonly(Boolean readOnly) {
+        this.isReadonly = readOnly;
+    }
 
-	public void setProjectId(String projectId) {
-		this.projectId = projectId;
-	}
+    public String getType() {
+        return type;
+    }
 
-	public String getClusterName() {
-		return clusterName;
-	}
+    public void setType(String type) {
+        this.type = type;
+    }
 
-	public void setClusterName(String clusterName) {
-		this.clusterName = clusterName;
-	}
+    public String getProjectId() {
+        return projectId;
+    }
 
-	public String getClusterId() {
-		return clusterId;
-	}
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
+    }
 
-	public void setClusterId(String clusterId) {
-		this.clusterId = clusterId;
-	}
+    public String getClusterName() {
+        return clusterName;
+    }
 
-	public Boolean getIsBind() {
-		return isBind;
-	}
+    public void setClusterName(String clusterName) {
+        this.clusterName = clusterName;
+    }
 
-	public void setIsBind(Boolean bind) {
-		isBind = bind;
-	}
+    public String getClusterId() {
+        return clusterId;
+    }
 
-	public String getTenantId() {
-		return tenantId;
-	}
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
+    }
 
-	public void setTenantId(String tenantId) {
-		this.tenantId = tenantId;
-	}
+    public Boolean getIsBind() {
+        return isBind;
+    }
 
-	public Date getCreateTime() {
-		return createTime;
-	}
+    public void setIsBind(Boolean bind) {
+        isBind = bind;
+    }
 
-	public void setCreateTime(Date createTime) {
-		this.createTime = createTime;
-	}
+    public String getTenantId() {
+        return tenantId;
+    }
 
-	public String getServiceName() {
-		return serviceName;
-	}
+    public void setTenantId(String tenantId) {
+        this.tenantId = tenantId;
+    }
 
-	public void setServiceName(String serviceName) {
-		this.serviceName = serviceName;
-	}
+    public Date getCreateTime() {
+        return createTime;
+    }
 
-	public Boolean isBindOne() {
-		return isBindOne;
-	}
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
+    }
 
-	public Boolean getIsBindOne() {
-		return isBindOne;
-	}
+    public String getServiceName() {
+        return serviceName;
+    }
 
-	public void setIsBindOne(Boolean bindOne) {
-		isBindOne = bindOne;
-	}
+    public void setServiceName(String serviceName) {
+        this.serviceName = serviceName;
+    }
 
-	public String getServiceNamespace() {
-		return serviceNamespace;
-	}
+    public Boolean isBindOne() {
+        return isBindOne;
+    }
 
-	public void setServiceNamespace(String serviceNamespace) {
-		this.serviceNamespace = serviceNamespace;
-	}
+    public Boolean getIsBindOne() {
+        return isBindOne;
+    }
 
-	public String getStatus() {
-		return status;
-	}
+    public void setIsBindOne(Boolean bindOne) {
+        isBindOne = bindOne;
+    }
 
-	public void setStatus(String status) {
-		this.status = status;
-	}
+    public String getServiceNamespace() {
+        return serviceNamespace;
+    }
 
-	public String getClusterAliasName() {
-		return clusterAliasName;
-	}
+    public void setServiceNamespace(String serviceNamespace) {
+        this.serviceNamespace = serviceNamespace;
+    }
 
-	public void setClusterAliasName(String clusterAliasName) {
-		this.clusterAliasName = clusterAliasName;
-	}
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public String getClusterAliasName() {
+        return clusterAliasName;
+    }
+
+    public void setClusterAliasName(String clusterAliasName) {
+        this.clusterAliasName = clusterAliasName;
+    }
 }

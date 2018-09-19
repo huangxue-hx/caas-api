@@ -183,7 +183,7 @@ public class ClusterServiceImpl implements ClusterService {
             return clusters;
         }else if(StringUtils.isNotBlank(dataCenter) && isEnable != null){
             return clusters.stream().filter(cluster -> cluster.getDataCenter().equals(dataCenter)
-            && cluster.getIsEnable() == isEnable).collect(Collectors.toList());
+                    && cluster.getIsEnable() == isEnable).collect(Collectors.toList());
         }else if(StringUtils.isNotBlank(dataCenter) && isEnable == null){
             return clusters.stream().filter(cluster -> cluster.getDataCenter().equals(dataCenter)).collect(Collectors.toList());
         }else {
@@ -367,6 +367,22 @@ public class ClusterServiceImpl implements ClusterService {
                     clusterFilesystemUsageRate = (double) clusterFilesystemUsage / clusterFilesystemCapacity;
                     clusterFilesystemUsageRate = new BigDecimal(clusterFilesystemUsageRate).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue();
                 }
+                double clusterVolumeCapacity = 0;
+                for (ClusterStorage storage : cluster.getStorages()) {
+                    if (StringUtils.isNoneEmpty(storage.getCapacity())) {
+                        clusterVolumeCapacity += Double.parseDouble(storage.getCapacity());
+                    }
+                }
+//                默认单位为TB，转为GB
+                clusterVolumeCapacity *= 1024;
+                double clusterVolumeUsage = this.influxdbService.getClusterResourceUsage("pvc", "volume/usage", "", cluster, notWorkNodeList, nodename);
+                double clusterVolumeUsageRateValue = 0;
+                if (clusterVolumeUsage > 0) {
+                    clusterVolumeUsage = clusterVolumeUsage / 1024 / 1024 / 1024;
+                    clusterVolumeUsage = BigDecimal.valueOf(clusterVolumeUsage).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue();
+                    clusterVolumeUsageRateValue = clusterVolumeUsage / clusterVolumeCapacity;
+                    clusterVolumeUsageRateValue = BigDecimal.valueOf(clusterVolumeUsageRateValue).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue();
+                }
                 Map<String, Object> map = new HashMap<String, Object>();
 
                 map.put("clusterCpuUsageRateName", String.format("%.0f", clusterCpuUsageRate*100) + "%");
@@ -387,6 +403,10 @@ public class ClusterServiceImpl implements ClusterService {
                 map.put("clusterMemoryUsage", clusterMemoryUsage);
                 map.put("clusterFilesystemCapacity", clusterFilesystemCapacity);
                 map.put("clusterFilesystemUsage", clusterFilesystemUsage);
+                map.put("clusterVolumeCapacity", String.format("%.1f", clusterVolumeCapacity));
+                map.put("clusterVolumeUsage", clusterVolumeUsage);
+                map.put("clusterVolumeUsageRateValue", new String[]{Double.toString(clusterVolumeUsageRateValue), Double.toString((double) (1 - clusterVolumeUsageRateValue))});
+                map.put("clusterVolumeUsageRateName", String.format("%.0f", clusterVolumeUsageRateValue * 100) + "%");
                 mapClusterResourceUsage.put(cluster.getId(), map);
             }
 
@@ -581,5 +601,21 @@ public class ClusterServiceImpl implements ClusterService {
         }
     }
 
+    @Override
+    public Map<String, String> getClustersStorageCapacity(){
+        List<Cluster> clusters = clusterCacheManager.listCluster();
+        Map<String, String> clustersMap = new HashMap<>();
+        for (Cluster cluster: clusters) {
+            Double capacity = 0.0;
+            for(ClusterStorage storage: cluster.getStorages()){
+                if(storage.getCapacity() != null) {
+                    capacity = capacity + Double.parseDouble(storage.getCapacity()) * 1024;
+                }
+            }
+            clustersMap.put(cluster.getId(),capacity.toString()+"GB");
+        }
+        return clustersMap;
+    }
 
 }
+

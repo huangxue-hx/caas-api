@@ -20,6 +20,7 @@ import com.harmonycloud.k8s.service.ClusterTemplateCRDService;
 import com.harmonycloud.k8s.util.DefaultClient;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.k8sUtil;
+import com.harmonycloud.service.application.DataCenterService;
 import com.harmonycloud.service.application.SecretService;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.cluster.ClusterCRDService;
@@ -35,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -268,9 +270,9 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
     }
 
     @Override
-    public ActionReturnUtil updateCluster(String name, ClusterCRDDto clusterCRDDto) throws Exception {
+    public ActionReturnUtil updateCluster(Cluster clusterInfo, ClusterCRDDto clusterCRDDto) throws Exception {
         // 不允许修改集群 name
-        if (!name.equals(clusterCRDDto.getName())) {
+        if (!clusterInfo.getName().equals(clusterCRDDto.getName())) {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.CLUSTER_NAME_UNUPDATE);
         }
         // 验证数据是否异常
@@ -288,7 +290,10 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
         }else {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
-        ClusterCRD clusterCRD = this.convertCRD(clusterCRDDto);
+
+        //获取当前要被修改的cluster
+
+        ClusterCRD clusterCRD = this.convertCRD(clusterCRDDto,clusterInfo);
         if (null != clusterCRD.getStatus()) {
 
             List<StatusConditions> newConditions = clusterCRD.getStatus().getConditions();
@@ -381,7 +386,7 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
      * @return ClusterCRD
      * @throws Exception null
      */
-    private ClusterCRD convertCRD(ClusterCRDDto clusterCRDDto) throws Exception {
+    private ClusterCRD convertCRD(ClusterCRDDto clusterCRDDto, Cluster clusterInfo) throws Exception {
         ClusterCRD clusterCRD = new ClusterCRD();
         clusterCRD = resourceObject(clusterCRD);
 

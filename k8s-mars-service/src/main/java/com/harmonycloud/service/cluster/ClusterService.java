@@ -102,4 +102,6 @@ public interface ClusterService {
 	Map<String, Object> getClusterComponentStatus(String clusterId) throws Exception;
 
 	void deleteClusterData(String clusterId) throws Exception;
+
+	Map<String, String> getClustersStorageCapacity();
 }

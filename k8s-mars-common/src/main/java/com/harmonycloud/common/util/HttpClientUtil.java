@@ -1,6 +1,9 @@
 package com.harmonycloud.common.util;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -46,7 +49,7 @@ public class HttpClientUtil {
 	 * @return
 	 * @throws Exception 
 	 */
-	private static CloseableHttpClient getHttpClient() throws Exception {
+	private static CloseableHttpClient getHttpClient()  {
 		/*return HttpSslClientUtil.createHttpsClient();*/
 		return HttpClients.createDefault();
 	}
@@ -61,7 +64,7 @@ public class HttpClientUtil {
 	 * @throws Exception
 	 */
 	public static ActionReturnUtil httpGetRequest(String url, Map<String, Object> headers,
-												  Map<String, Object> params,int timeOut) throws Exception{
+												  Map<String, Object> params,int timeOut) throws IOException{
 		HttpClientResponse httpClientResponse = new HttpClientResponse();
 		URIBuilder ub = new URIBuilder();
 		ub.setPath(url);
@@ -98,7 +101,7 @@ public class HttpClientUtil {
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.CONNECT_FAIL,e.getMessage(),false);
+			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.CONNECT_FAIL,e.getMessage(),false);
 		} finally {
 			try {
 				if (httpClient != null)
@@ -120,12 +123,12 @@ public class HttpClientUtil {
 	 * @return
 	 */
 	public static ActionReturnUtil httpGetRequest(String url, Map<String, Object> headers,
-			Map<String, Object> params) throws Exception{
+			Map<String, Object> params) throws IOException{
 		return httpGetRequest(url,headers,params,TIMEOUT);
 	}
 	
 	public static HttpClientResponse httpGetRequestNew(String url, Map<String, Object> headers,
-			Map<String, Object> params) throws Exception{
+			Map<String, Object> params) throws IOException, URISyntaxException {
 		HttpClientResponse httpClientResponse = new HttpClientResponse();
 		URIBuilder ub = new URIBuilder();
 		ub.setPath(url);
@@ -156,7 +159,7 @@ public class HttpClientUtil {
 				response.close();
 			}
 			return httpClientResponse;
-		} catch (Exception e) {
+		} catch (IOException e) {
 			throw e;
 		}finally {
 			try {
@@ -445,7 +448,7 @@ public class HttpClientUtil {
 	 * @throws Exception
 	 */
 	public static HttpClientResponse httpPostJsonRequest(String url, Map<String, Object> headers,
-			Map<String, Object> params) throws Exception {
+			Map<String, Object> params) throws IOException {
 		HttpClientResponse httpClientResponse = new HttpClientResponse();
 		
 		CloseableHttpClient httpClient = null;
@@ -490,7 +493,7 @@ public class HttpClientUtil {
 	}
 	
 	public static ActionReturnUtil httpDoDelete(String url,
-            Map<String, Object> params, Map<String, Object> headers) throws Exception {
+            Map<String, Object> params, Map<String, Object> headers) throws IOException {
         CloseableHttpClient httpClient = null;
         CloseableHttpResponse response = null;
         HttpDelete httpDelete = null;
@@ -515,7 +518,7 @@ public class HttpClientUtil {
 					return ActionReturnUtil.returnErrorWithData(content);
 				}
 			}
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw e;
         } finally {
             httpDelete.abort();
@@ -567,7 +570,7 @@ public class HttpClientUtil {
 	 * @return
 	 * @throws Exception
 	 */
-	public static HttpClientResponse doGet(String url, Map<String, Object> params, Map<String, Object> headers) throws Exception {
+	public static HttpClientResponse doGet(String url, Map<String, Object> params, Map<String, Object> headers) throws IOException, NoSuchAlgorithmException, KeyManagementException {
         HttpGet httpGet = null;
         CloseableHttpResponse response = null;
         CloseableHttpClient httpClient = null;
@@ -588,7 +591,7 @@ public class HttpClientUtil {
                 content = EntityUtils.toString(resentity, UTF_8);
             }
             return new HttpClientResponse(response.getStatusLine().getStatusCode(), content);
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw e;
         } finally {
             if (httpGet != null) {

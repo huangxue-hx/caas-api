@@ -22,12 +22,10 @@ import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.*;
+import com.harmonycloud.k8s.service.EventService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
-import com.harmonycloud.service.application.AutoScaleService;
-import com.harmonycloud.service.application.DeploymentsService;
-import com.harmonycloud.service.application.FileUploadToContainerService;
-import com.harmonycloud.service.application.RouterService;
+import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.common.DataPrivilegeHelper;
 import com.harmonycloud.service.common.PrivilegeHelper;
@@ -159,6 +157,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
     @Autowired
     StatefulSetService statefulSetService;
+
+    @Autowired
+    PersistentVolumeService persistentVolumeService;
 
 
     public ActionReturnUtil listDeployments(String tenantId, String name, String namespace, String labels, String projectId, String clusterId) throws Exception {
@@ -685,6 +686,26 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         }
         Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
         containerOfPodDetails = K8sResultConvert.convertDeploymentContainer(dep, dep.getSpec().getTemplate().getSpec().getContainers(), cluster);
+        //查询存储容量，并返回新的containerList
+        List<ContainerOfPodDetail> newContainerList = new ArrayList<>();
+        for(ContainerOfPodDetail containers : containerOfPodDetails){
+            List<VolumeMountExt> vms = new ArrayList<>();
+            if(!Objects.isNull(containers.getStorage())) {
+                for (VolumeMountExt vmExt : containers.getStorage()) {
+                    if (persistentVolumeService.isFsPv(vmExt.getType()) && StringUtils.isNotBlank(vmExt.getPvcname())) {
+                        PersistentVolume pvByName = this.pvService.getPvByName(vmExt.getPvcname(), cluster);
+                        if (pvByName == null) {
+                            LOGGER.info("pv存储券不存在,pvname:{},clusterName:{}", name, cluster.getName());
+                            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PV_QUERY_FAIL);
+                        }
+                        vmExt.setCapacity(pvByName.getSpec().getCapacity().toString());
+                    }
+                    vms.add(vmExt);
+                }
+            }
+            containers.setStorage(vms);
+            newContainerList.add(containers);
+        }
         return ActionReturnUtil.returnSuccessWithData(containerOfPodDetails);
     }
 
@@ -698,7 +719,28 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             return ActionReturnUtil.returnErrorWithData(depRes.getBody());
         }
         Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
-        return ActionReturnUtil.returnSuccessWithData(K8sResultConvert.convertContainer(dep));
+        List<ContainerOfPodDetail> containerList = K8sResultConvert.convertContainer(dep);
+        //查询存储容量，并返回新的containerList
+        List<ContainerOfPodDetail> newContainerList = new ArrayList<>();
+        for(ContainerOfPodDetail containers : containerList){
+            List<VolumeMountExt> vms = new ArrayList<>();
+            if(!Objects.isNull(containers.getStorage())) {
+                for (VolumeMountExt vmExt : containers.getStorage()) {
+                    if (persistentVolumeService.isFsPv(vmExt.getType()) && StringUtils.isNotBlank(vmExt.getPvcname())) {
+                        PersistentVolume pvByName = this.pvService.getPvByName(vmExt.getPvcname(), cluster);
+                        if (pvByName == null) {
+                            LOGGER.info("pv存储券不存在,pvname:{},clusterName:{}", name, cluster.getName());
+                            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PV_QUERY_FAIL);
+                        }
+                        vmExt.setCapacity(pvByName.getSpec().getCapacity().toString());
+                    }
+                    vms.add(vmExt);
+                }
+            }
+            containers.setStorage(vms);
+            newContainerList.add(containers);
+        }
+        return ActionReturnUtil.returnSuccessWithData(newContainerList);
     }
 
     @Override

@@ -9,6 +9,9 @@ package com.harmonycloud.common.util;
  * @since [产品/模块版本] （可选）
  */
 
+import java.io.IOException;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.Objects;
 import java.util.Properties;
@@ -53,7 +56,7 @@ public class HttpSslClientUtil {
      * @see [相关类/方法](可选)
      * @since [产品/模块版本](可选)
      */
-    public static CloseableHttpClient createHttpsClient() throws Exception {
+    public static CloseableHttpClient createHttpsClient() throws IOException, KeyManagementException, NoSuchAlgorithmException {
         if (MAX_CONNECTION_NUM == 0){
             if (null == properties){
                 properties = PropertiesLoaderUtils.loadAllProperties(PROPERTIES_RESOURCE);

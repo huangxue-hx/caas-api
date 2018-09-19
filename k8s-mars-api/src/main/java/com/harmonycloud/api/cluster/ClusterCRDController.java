@@ -96,7 +96,7 @@ public class ClusterCRDController {
         if (null == cluster) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
-        return clusterCRDService.updateCluster(cluster.getName(),clusterCRDDto);
+        return clusterCRDService.updateCluster(cluster, clusterCRDDto);
     }
 
     @ResponseBody
