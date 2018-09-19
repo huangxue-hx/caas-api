@@ -225,3 +225,5 @@ INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`)
 VALUES ('/tenants/*/projects/*/statefulsets/*/pods', 'appcenter', 'app');
 
 INSERT INTO k8s_auth_server.`url_dic` (`url`,`module`,`resource`) VALUES ('/tenants/*/projects/*/deploys/*/applogs/containerfiles','log','applog');
+
+INSERT INTO `k8s_auth_server`.`url_dic` ( `url`, `module`, `resource`) VALUES ('/clusters/storages', 'infrastructure', 'clustermgr');

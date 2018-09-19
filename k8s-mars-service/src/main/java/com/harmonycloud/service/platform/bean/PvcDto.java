@@ -40,6 +40,8 @@ public class PvcDto implements Serializable {
 
     private Date createTime;
 
+    private String used;
+
     public String getName() {
         return name;
     }
@@ -142,5 +144,13 @@ public class PvcDto implements Serializable {
 
     public void setBindOne(Boolean bindOne) {
         this.bindOne = bindOne;
+    }
+
+    public String getUsed() {
+        return used;
+    }
+
+    public void setUsed(String used) {
+        this.used = used;
     }
 }

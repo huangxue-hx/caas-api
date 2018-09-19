@@ -375,13 +375,16 @@ public class ClusterServiceImpl implements ClusterService {
                 }
 //                默认单位为TB，转为GB
                 clusterVolumeCapacity *= 1024;
-                double clusterVolumeUsage = this.influxdbService.getClusterResourceUsage("pvc", "volume/usage", "", cluster, notWorkNodeList, nodename);
+                double clusterVolumeUsage = 0;
                 double clusterVolumeUsageRateValue = 0;
-                if (clusterVolumeUsage > 0) {
-                    clusterVolumeUsage = clusterVolumeUsage / 1024 / 1024 / 1024;
-                    clusterVolumeUsage = BigDecimal.valueOf(clusterVolumeUsage).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue();
-                    clusterVolumeUsageRateValue = clusterVolumeUsage / clusterVolumeCapacity;
-                    clusterVolumeUsageRateValue = BigDecimal.valueOf(clusterVolumeUsageRateValue).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue();
+                if(clusterVolumeCapacity > 0) {
+                    clusterVolumeUsage = this.influxdbService.getClusterResourceUsage("pvc", "volume/usage", "", cluster, notWorkNodeList, nodename);
+                    if (clusterVolumeUsage > 0) {
+                        clusterVolumeUsage = clusterVolumeUsage / 1024 / 1024 / 1024;
+                        clusterVolumeUsage = BigDecimal.valueOf(clusterVolumeUsage).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue();
+                        clusterVolumeUsageRateValue = clusterVolumeUsage / clusterVolumeCapacity;
+                        clusterVolumeUsageRateValue = BigDecimal.valueOf(clusterVolumeUsageRateValue).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue();
+                    }
                 }
                 Map<String, Object> map = new HashMap<String, Object>();
 

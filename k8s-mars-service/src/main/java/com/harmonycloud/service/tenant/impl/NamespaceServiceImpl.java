@@ -1697,8 +1697,10 @@ public class NamespaceServiceImpl implements NamespaceService {
         for (Namespace namespace : namespaces) {
             Map<String, Object> namespaceDetail = this.getNamespaceQuota(namespace, cluster);
             if (namespaceDetail != null) {
-                namespaceDetail.put(CommonConstant.NS_ALIASNAME,namespaceLocalMap.get(namespace.getMetadata().getName()).getAliasName());
-                namespaceDetail.put(CommonConstant.TENANT_ID,namespaceLocalMap.get(namespace.getMetadata().getName()).getTenantId());
+                if(namespaceLocalMap.get(namespace.getMetadata().getName()) != null) {
+                    namespaceDetail.put(CommonConstant.NS_ALIASNAME, namespaceLocalMap.get(namespace.getMetadata().getName()).getAliasName());
+                    namespaceDetail.put(CommonConstant.TENANT_ID, namespaceLocalMap.get(namespace.getMetadata().getName()).getTenantId());
+                }
                 namespaceData.add(namespaceDetail);
             }
         }

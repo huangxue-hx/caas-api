@@ -32,6 +32,7 @@ import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.common.DataPrivilegeHelper;
 import com.harmonycloud.service.platform.bean.PvcDto;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.platform.service.InfluxdbService;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
@@ -113,6 +114,8 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
 
     @Autowired
     DataPrivilegeHelper dataPrivilegeHelper;
+    @Autowired
+    InfluxdbService influxdbService;
 
     @Override
     public ActionReturnUtil createPersistentVolumeClaim(PersistentVolumeClaimDto persistentVolumeClaim) throws Exception {
@@ -240,6 +243,9 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                             pvcDto.setNamespace(namespaceLocal.getNamespaceName());
                             pvcDto.setNamespaceAliasName(namespaceLocal.getAliasName());
                             pvcDto.setCapacity(((Map<String, String>)(persistentVolumeClaim.getSpec().getResources().getRequests())).get(STORAGE_CAPACITY));
+                            double pvused = influxdbService.getPvResourceUsage("volume/usage", cluster, pvcDto.getName());
+                            pvused = pvused / 1024 / 1024 / 1024;
+                            pvcDto.setUsed(String.format("%.2f", pvused) + "Gi");
                             pvcDto.setStorageClassName((String) (persistentVolumeClaim.getMetadata().getAnnotations().get(STORAGE_ANNOTATION)));
                             if (!StringUtils.isBlank(pvcDto.getStorageClassName())) {
                                 StorageClassDto storageClassDto = storageClassDtoMap.get(pvcDto.getStorageClassName());
