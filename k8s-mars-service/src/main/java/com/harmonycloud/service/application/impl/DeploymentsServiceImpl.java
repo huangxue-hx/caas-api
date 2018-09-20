@@ -923,7 +923,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         Deployment dep = K8sResultConvert.convertAppCreate(detail, userName, app, ingress);
 
         //HostAlias-自定义 hosts file
-        dep.getSpec().getTemplate().getSpec().setHostAliases(detail.getHostAliases());
+        if(CollectionUtils.isNotEmpty(detail.getHostAliases())){
+            dep.getSpec().getTemplate().getSpec().setHostAliases(detail.getHostAliases());
+        }
 
         bodys = CollectionUtil.transBean2Map(dep);
         K8SClientResponse response = dpService.doSpecifyDeployment(detail.getNamespace(),null, headers, bodys, HTTPMethod.POST,cluster);
@@ -1451,6 +1453,8 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         //更新HostAlias（自定义hosts file）
         if(CollectionUtils.isNotEmpty(deploymentDetail.getHostAliases())){
             dep.getSpec().getTemplate().getSpec().setHostAliases(deploymentDetail.getHostAliases());
+        }else{
+            dep.getSpec().getTemplate().getSpec().setHostAliases(null);
         }
 
 
