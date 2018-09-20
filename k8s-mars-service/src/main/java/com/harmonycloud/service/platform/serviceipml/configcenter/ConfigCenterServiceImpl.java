@@ -404,6 +404,11 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     @Override
     public ActionReturnUtil getConfigMapByName(String name, String clusterId, String projectId) throws Exception  {
         List<ConfigFile> configFileList =  configFileMapper.getConfigMapByName(name,clusterId,projectId);
+        for(ConfigFile configFile : configFileList){
+            Cluster cluster = clusterService.findClusterById(configFile.getClusterId());
+//          ji'qunconfigFile.setClusterAliasName(cluster.getAliasName());
+            configFile.setClusterName(cluster.getAliasName());
+        }
         return ActionReturnUtil.returnSuccessWithData(configFileList);
     }
 
