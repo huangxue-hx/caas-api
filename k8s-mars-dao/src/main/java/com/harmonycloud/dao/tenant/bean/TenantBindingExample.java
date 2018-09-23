@@ -1354,6 +1354,7 @@ public class TenantBindingExample {
             addCriterion("upper(reserve2) like", value.toUpperCase(), "reserve2");
             return (Criteria) this;
         }
+
     }
 
     public static class Criteria extends GeneratedCriteria {

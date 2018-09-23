@@ -2,9 +2,19 @@ package com.harmonycloud.dto.application;
 
 public class ServiceDeployDto {
 
+	private String tenantId;
+
 	private String namespace;
 
 	private ServiceTemplateDto serviceTemplate;
+
+	public String getTenantId() {
+		return tenantId;
+	}
+
+	public void setTenantId(String tenantId) {
+		this.tenantId = tenantId;
+	}
 
 	public String getNamespace() {
 		return namespace;

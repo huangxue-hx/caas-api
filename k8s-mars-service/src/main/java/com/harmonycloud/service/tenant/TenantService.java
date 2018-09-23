@@ -267,4 +267,6 @@ public interface TenantService {
      * @throws Exception
      */
     public void removeClusterQuota(String tenantName, String tenantId, ClusterQuotaDto clusterQuota) throws Exception;
+
+    List<Map<String, String>> getTenantIngressController(String tenantId, String clusterId) throws Exception;
 }

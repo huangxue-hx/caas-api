@@ -5,6 +5,8 @@ import java.util.List;
 public class TcpDeleteDto {
 	
 	private String name;
+
+	private String icName;
 	
 	private String namespace;
 	
@@ -20,6 +22,14 @@ public class TcpDeleteDto {
 
 	public void setName(String name) {
 		this.name = name;
+	}
+
+	public String getIcName() {
+		return icName;
+	}
+
+	public void setIcName(String icName) {
+		this.icName = icName;
 	}
 
 	public String getNamespace() {

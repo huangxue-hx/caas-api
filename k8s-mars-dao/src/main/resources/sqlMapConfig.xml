@@ -63,6 +63,8 @@
         <typeAlias alias="DockerFile" type="com.harmonycloud.dao.ci.bean.DockerFile" />
         <typeAlias alias="DockerFileJobStage" type="com.harmonycloud.dao.ci.bean.DockerFileJobStage" />
         <typeAlias alias="FileUploadContainer" type="com.harmonycloud.dao.application.bean.FileUploadContainer" />
+        <typeAlias alias="IngressControllerPort" type="com.harmonycloud.dao.cluster.bean.IngressControllerPort" />
+        <typeAlias alias="IngressControllerPortExample" type="com.harmonycloud.dao.cluster.bean.IngressControllerPortExample" />
     </typeAliases>
 
     <mappers>
@@ -140,6 +142,7 @@
         <mapper resource="com/harmonycloud/mapping/DataPrivilegeStrategyMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/DataResourceUrlMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/ConfigFileItemMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/IngressControllerPortMapper.xml" />
     </mappers>
 </configuration>
 

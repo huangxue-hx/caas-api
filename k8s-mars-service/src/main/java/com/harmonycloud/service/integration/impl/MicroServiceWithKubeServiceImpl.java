@@ -156,8 +156,8 @@ public class MicroServiceWithKubeServiceImpl implements MicroServiceWithKubeServ
                 }
             }
         }
-        routerService.updateSystemExposeConfigmap(cluster, namespace, serviceName, tcpRules, Constant.PROTOCOL_TCP);
-        routerService.updateSystemExposeConfigmap(cluster, namespace, serviceName, udpRules, Constant.PROTOCOL_UDP);
+        //routerService.updateSystemExposeConfigmap(cluster, namespace, serviceName, icName, tcpRules, Constant.PROTOCOL_TCP);
+        //routerService.updateSystemExposeConfigmap(cluster, namespace, serviceName, icName, udpRules, Constant.PROTOCOL_UDP);
     }
 
     @Override
@@ -239,12 +239,12 @@ public class MicroServiceWithKubeServiceImpl implements MicroServiceWithKubeServ
         List<Map<String, Object>> result = new ArrayList<>();
         List<ServicePort> servicePorts = service.getSpec().getPorts();
         //获取nginx confimap
-        ConfigMap configMap = routerService.getSystemExposeConfigmap(cluster, Constant.PROTOCOL_TCP);
+        //ConfigMap configMap = routerService.getSystemExposeConfigmap(icName, cluster, Constant.PROTOCOL_TCP);
         //获取ip
         String ip = clusterService.getEntry(namespace);
-        result.addAll(getTcpUdpExternalInfo(configMap, namespace, depName, servicePorts, ip, Constant.PROTOCOL_TCP));
-        configMap = routerService.getSystemExposeConfigmap(cluster, Constant.PROTOCOL_UDP);
-        result.addAll(getTcpUdpExternalInfo(configMap, namespace, depName, servicePorts, ip, Constant.PROTOCOL_UDP));
+        //result.addAll(getTcpUdpExternalInfo(configMap, namespace, depName, servicePorts, ip, Constant.PROTOCOL_TCP));
+        //configMap = routerService.getSystemExposeConfigmap(icName, cluster, Constant.PROTOCOL_UDP);
+        //result.addAll(getTcpUdpExternalInfo(configMap, namespace, depName, servicePorts, ip, Constant.PROTOCOL_UDP));
         //获取ingress
         List<Ingress> list = routerService.listHttpIngress(depName, namespace, cluster);
         if (list != null && list.size() > 0) {
@@ -392,7 +392,7 @@ public class MicroServiceWithKubeServiceImpl implements MicroServiceWithKubeServ
     @Override
     public boolean deleteTcpUdpRule(String type, Cluster cluster, String namespace, String serviceName) throws Exception {
         //更新系统configmap
-        ConfigMap configMap = routerService.getSystemExposeConfigmap(cluster, type);
+        ConfigMap configMap = null;//routerService.getSystemExposeConfigmap(icName, cluster, type);
         if (configMap != null) {
             Map<String, Object> data = (Map<String, Object>) configMap.getData();
             if (data == null) {
@@ -446,7 +446,7 @@ public class MicroServiceWithKubeServiceImpl implements MicroServiceWithKubeServ
                 com.harmonycloud.k8s.bean.Service svc = JsonUtil.jsonToPojo(sRes.getBody(), com.harmonycloud.k8s.bean.Service.class);
                 List<ServicePort> ports = svc.getSpec().getPorts();
                 Integer udpPort = ports.stream().filter(sp -> Constant.PROTOCOL_UDP.equals(sp.getProtocol())).collect(Collectors.toList()).get(0).getPort();
-                ConfigMap configMap = routerService.getSystemExposeConfigmap(cluster, Constant.PROTOCOL_UDP);
+                ConfigMap configMap = null;//routerService.getSystemExposeConfigmap(icName, cluster, Constant.PROTOCOL_UDP);
                 for (Map.Entry<String, Object> map : ((Map<String, Object>) configMap.getData()).entrySet()) {
                     String value = map.getValue().toString();
                     String newValue = namespace + CommonConstant.SLASH + Constant.SPRINGCLOUD_CONSUL + CommonConstant.COLON + String.valueOf(udpPort);

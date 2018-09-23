@@ -460,4 +460,11 @@ public class TenantController {
         tenantService.removeClusterQuota(tenantName, tenantId, clusterQuotaDto);
         return ActionReturnUtil.returnSuccess();
     }
+
+    @RequestMapping(value = "/{tenantId}/ingressControllerNames", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getTenantIngressController(@PathVariable(value = "tenantId") String tenantId,
+                                                       @RequestParam(value = "clusterId") String clusterId) throws Exception {
+        return  ActionReturnUtil.returnSuccessWithData(tenantService.getTenantIngressController(tenantId, clusterId));
+    }
 }

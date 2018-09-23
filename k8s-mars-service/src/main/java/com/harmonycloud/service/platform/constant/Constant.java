@@ -195,6 +195,13 @@ public class Constant {
 	//微服务kong组件名称
 	public final static String SPRINGCLOUD_KONG = "msf-kong-service";
 
+	//负载均衡器默认名称
+	public final static String IC_DEFAULT_NAME = "default";
+
+	//负载均衡器默认名称
+	public final static String IC_DEFAULT_PORT = "80";
+
+	public final static String INGRESS_CONTROLLER_DEFAULT_NAME = "nginx-ingress-controller";
 	//系统外部暴露的配置文件名称:TCP 和 UDP
 	public final static String EXPOSE_CONFIGMAP_NAME_TCP = "system-expose-nginx-config-tcp";
 

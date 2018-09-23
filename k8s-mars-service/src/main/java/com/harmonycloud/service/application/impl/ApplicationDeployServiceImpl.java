@@ -15,6 +15,7 @@ import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.DeploymentService;
+import com.harmonycloud.k8s.service.IcService;
 import com.harmonycloud.k8s.service.TprApplication;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
@@ -101,6 +102,9 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
 
     @Autowired
     private LoadbalanceService loadbalanceService;
+
+    @Autowired
+    IcService icService;
 
     @Value("#{propertiesReader['kube.topo']}")
     private String kubeTopo;
@@ -1104,6 +1108,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         if (!checkRes.isSuccess()) {
             return checkRes;
         }
+        appDeploy.setTenantId(tenantId);
         //发布
         deployApplication(appDeploy, userName, cluster);
         return ActionReturnUtil.returnSuccess();
@@ -1160,8 +1165,9 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                     }
                 }
             }
-            // creat ingress
+            // create ingress
             if (service.getIngress() != null) {
+                service.setTenantId(appDeploy.getTenantId());
                 message.addAll(routerService.createExternalRule(service, appDeploy.getNamespace(), null));
             }
             // creat config map & deploy service deployment & get node label by
@@ -1234,6 +1240,12 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             if (CollectionUtils.isNotEmpty(std.getIngress())) {
                 for (IngressDto ing : std.getIngress()) {
                     if (ing.getType() != null && "HTTP".equals(ing.getType())) {
+                        if (!Constant.IC_DEFAULT_NAME.equals(ing.getParsedIngressList().getIcName())) {
+                            K8SClientResponse response = icService.getIngressController(ing.getParsedIngressList().getIcName(), cluster);
+                            if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_NOT_FOUND);
+                            }
+                        }
                         if (routerService.checkIngressName(cluster, ing.getParsedIngressList().getName())) {
                             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.HTTP_INGRESS_NAME_DUPLICATE);
                         }
@@ -1533,8 +1545,9 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
 
         if (appDeploy.getAppTemplate() != null && appDeploy.getAppTemplate().getServiceList().size() > 0) {
             for (ServiceTemplateDto svcTemplate : appDeploy.getAppTemplate().getServiceList()) {
-                // creat ingress
+                // create ingress
                 if (svcTemplate.getIngress() != null) {
+                    svcTemplate.setTenantId(appDeploy.getTenantId());
                     message.addAll(routerService.createExternalRule(svcTemplate, appDeploy.getNamespace(), null));
                 }
                 // creat config map & deploy service deployment & get node label by

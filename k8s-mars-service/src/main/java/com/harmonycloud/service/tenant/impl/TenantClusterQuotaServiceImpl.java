@@ -567,6 +567,20 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
         return tenantClusterQuotaMapper.deleteByClusterId(clusterId);
     }
 
+    /**
+     * 根据租户id查询集群配额列表 clusterId 为空查询该租户下的所有集群配额
+     *
+     * @param icName
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public List<TenantClusterQuota> listClusterQuotaLikeIcName(String icName) throws MarsRuntimeException {
+        TenantClusterQuotaExample example = this.getExample();
+        example.createCriteria().andIcNamesLike("%"+icName+"%");
+        return this.tenantClusterQuotaMapper.selectByExample(example);
+    }
+
     private TenantClusterQuotaExample getExample(){
         return  new TenantClusterQuotaExample();
     }

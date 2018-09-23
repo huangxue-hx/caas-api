@@ -139,7 +139,7 @@ public class Resource {
 			break;
 
 		case com.harmonycloud.k8s.constant.Resource.SERVICEACCOUNT:
-			group = APIGroup.APIS_SERVICEACCOUNT_VERSION;
+			group = APIGroup.API_V1_VERSION;
 			break;
 		case com.harmonycloud.k8s.constant.Resource.CRONJOB:
 			group = APIGroup.APIS_BATCH_V2ALPHA1_VERSION;

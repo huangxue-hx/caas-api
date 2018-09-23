@@ -92,12 +92,15 @@ public class ApplicationDeployController {
      */
     @ResponseBody
     @RequestMapping(value = "/projects/{projectId}/apps", method = RequestMethod.POST)
-    public ActionReturnUtil createDeployments(@ModelAttribute ApplicationDeployDto appDeploy) throws Exception {
+
+    public ActionReturnUtil createDeployments(@PathVariable(value = "tenantId") String tenantId,
+                                              @ModelAttribute ApplicationDeployDto appDeploy) throws Exception {
         logger.info("deploy application");
         String userName = (String) session.getAttribute("username");
         if(userName == null){
             throw new K8sAuthException(Constant.HTTP_401);
         }
+        appDeploy.setTenantId(tenantId);
         return applicationDeployService.deployApplicationTemplate(appDeploy, userName);
     }
 
@@ -128,12 +131,14 @@ public class ApplicationDeployController {
      */
     @ResponseBody
     @RequestMapping(value = "/projects/{projectId}/apps/{appName}/deploys", method = RequestMethod.POST)
-    public ActionReturnUtil deployDeployments(@ModelAttribute ApplicationDeployDto appDeploy) throws Exception {
+    public ActionReturnUtil deployDeployments(@PathVariable(value = "tenantId") String tenantId,
+                                              @ModelAttribute ApplicationDeployDto appDeploy) throws Exception {
         logger.info("deploy service in application");
         String userName = (String) session.getAttribute("username");
         if(userName == null){
             throw new K8sAuthException(Constant.HTTP_401);
         }
+        appDeploy.setTenantId(tenantId);
         return applicationDeployService.addAndDeployApplicationTemplate(appDeploy, userName);
     }
 

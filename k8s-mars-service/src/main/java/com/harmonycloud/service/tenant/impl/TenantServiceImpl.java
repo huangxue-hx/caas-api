@@ -9,6 +9,7 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.cluster.bean.IngressControllerPort;
 import com.harmonycloud.dao.dataprivilege.DataPrivilegeStrategyMapper;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategy;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategyExample;
@@ -29,6 +30,7 @@ import com.harmonycloud.service.application.PersistentVolumeService;
 import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.cluster.IngressControllerPortService;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupService;
 import com.harmonycloud.service.platform.bean.NodeDto;
@@ -122,6 +124,10 @@ public class TenantServiceImpl implements TenantService {
 
     @Autowired
     DataPrivilegeGroupService dataPrivilegeGroupService;
+
+    @Autowired
+    private IngressControllerPortService ingressControllerPortService;
+
 
     public static final String PROJECTMGR = "0005";
     //租户类型
@@ -1634,6 +1640,28 @@ public class TenantServiceImpl implements TenantService {
         configCenterService.deleteConfigMap(clusterQuota.getClusterId(),tenantId);
         //更新集群配置
         this.updateClusterQuotaByTenantid(clusterQuota.getId(),0.0,0.0, null);
+    }
+
+    @Override
+    public List<Map<String, String>> getTenantIngressController(String tenantId, String clusterId) throws Exception {
+        List<Map<String, String>> icNameList = new ArrayList<>();
+        TenantClusterQuota tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(tenantId, clusterId);
+        if (tenantClusterQuota != null && !StringUtils.isBlank(tenantClusterQuota.getIcNames())) {
+            String[] icNamesStr = tenantClusterQuota.getIcNames().split(",");
+            int len = icNamesStr.length;
+            //查询IngressController对应的端口
+            for (String anIcNamesStr : icNamesStr) {
+                IngressControllerPort ingressControllerPort = ingressControllerPortService.getIngressControllerPort(anIcNamesStr, clusterId);
+                if (Objects.isNull(ingressControllerPort)) {
+                    continue;
+                }
+                Map<String, String> icMap = new HashMap<>();
+                icMap.put("icName", anIcNamesStr);
+                icMap.put("icPort", String.valueOf(ingressControllerPort.getHttpPort()));
+                icNameList.add(icMap);
+            }
+        }
+        return icNameList;
     }
 
     private TenantBindingExample getExample(){

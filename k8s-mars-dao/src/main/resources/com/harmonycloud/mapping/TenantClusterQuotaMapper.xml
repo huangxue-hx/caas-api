@@ -12,6 +12,7 @@
     <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
     <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
     <result column="cluster_name" jdbcType="VARCHAR" property="clusterName" />
+    <result column="ic_names" jdbcType="VARCHAR" property="icNames" />
     <result column="reserve1" jdbcType="VARCHAR" property="reserve1" />
   </resultMap>
   <sql id="Example_Where_Clause">
@@ -45,7 +46,7 @@
   </sql>
   <sql id="Base_Column_List">
     id, tenant_id, cluster_id, cpu_quota, memory_quota, pv_quota, storage_quotas, update_time, 
-    create_time, cluster_name, reserve1
+    create_time, cluster_name, ic_names, reserve1
   </sql>
   <select id="selectByExample" parameterType="com.harmonycloud.dao.tenant.bean.TenantClusterQuotaExample" resultMap="BaseResultMap">
     select
@@ -85,11 +86,11 @@
     </selectKey>
     insert into tenant_cluster_quota (tenant_id, cluster_id, cpu_quota, 
       memory_quota, pv_quota, storage_quotas, 
-      update_time, create_time, cluster_name, 
+      update_time, create_time, cluster_name, ic_names,
       reserve1)
     values (#{tenantId,jdbcType=VARCHAR}, #{clusterId,jdbcType=VARCHAR}, #{cpuQuota,jdbcType=DOUBLE}, 
       #{memoryQuota,jdbcType=DOUBLE}, #{pvQuota,jdbcType=DOUBLE}, #{storageQuotas,jdbcType=VARCHAR}, 
-      #{updateTime,jdbcType=TIMESTAMP}, #{createTime,jdbcType=TIMESTAMP}, #{clusterName,jdbcType=VARCHAR}, 
+      #{updateTime,jdbcType=TIMESTAMP}, #{createTime,jdbcType=TIMESTAMP}, #{clusterName,jdbcType=VARCHAR},  #{icNames,jdbcType=VARCHAR},
       #{reserve1,jdbcType=VARCHAR})
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.tenant.bean.TenantClusterQuota">
@@ -125,6 +126,9 @@
       <if test="clusterName != null">
         cluster_name,
       </if>
+      <if test="icNames != null">
+        ic_names,
+      </if>
       <if test="reserve1 != null">
         reserve1,
       </if>
@@ -156,6 +160,9 @@
       </if>
       <if test="clusterName != null">
         #{clusterName,jdbcType=VARCHAR},
+      </if>
+      <if test="icNames != null">
+        #{icNames,jdbcType=VARCHAR},
       </if>
       <if test="reserve1 != null">
         #{reserve1,jdbcType=VARCHAR},
@@ -192,6 +199,9 @@
       <if test="clusterName != null">
         cluster_name = #{clusterName,jdbcType=VARCHAR},
       </if>
+      <if test="icNames != null">
+        ic_names = #{icNames,jdbcType=VARCHAR},
+      </if>
       <if test="reserve1 != null">
         reserve1 = #{reserve1,jdbcType=VARCHAR},
       </if>
@@ -209,6 +219,7 @@
       update_time = #{updateTime,jdbcType=TIMESTAMP},
       create_time = #{createTime,jdbcType=TIMESTAMP},
       cluster_name = #{clusterName,jdbcType=VARCHAR},
+      ic_names = #{icNames,jdbcType=VARCHAR},
       reserve1 = #{reserve1,jdbcType=VARCHAR}
     where id = #{id,jdbcType=INTEGER}
   </update>

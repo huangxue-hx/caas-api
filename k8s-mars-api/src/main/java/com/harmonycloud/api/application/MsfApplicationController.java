@@ -209,8 +209,9 @@ public class MsfApplicationController {
     @ResponseBody
     @RequestMapping(value = "/msf/deploys/rules", method = RequestMethod.GET)
     public ActionReturnUtil listRouter(@RequestParam(value = "namespace") String namespace,
-                                       @RequestParam(value = "nameList") String nameList) throws Exception{
-        return routerService.listExposedRouterWithIngressAndNginx(namespace, nameList);
+                                       @RequestParam(value = "nameList") String nameList,
+                                       @RequestParam(value = "projectId") String projectId) throws Exception{
+        return routerService.listExposedRouterWithIngressAndNginx(namespace, nameList, projectId);
     }
 
     @ResponseBody

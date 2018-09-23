@@ -24,6 +24,8 @@ public class TenantClusterQuota implements Serializable {
 
     private String clusterName;
 
+    private String icNames;
+
     private String reserve1;
 
     private static final long serialVersionUID = 1L;
@@ -106,6 +108,14 @@ public class TenantClusterQuota implements Serializable {
 
     public void setClusterName(String clusterName) {
         this.clusterName = clusterName == null ? null : clusterName.trim();
+    }
+
+    public String getIcNames() {
+        return icNames;
+    }
+
+    public void setIcNames(String icNames) {
+        this.icNames = icNames;
     }
 
     public String getReserve1() {

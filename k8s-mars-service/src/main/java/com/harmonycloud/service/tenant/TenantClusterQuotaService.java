@@ -1,4 +1,5 @@
 package com.harmonycloud.service.tenant;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
 import com.harmonycloud.dto.tenant.ClusterQuotaDto;
 import jnr.ffi.annotations.In;
@@ -105,4 +106,11 @@ public interface TenantClusterQuotaService {
     public void renewClusterQuotaByClusterId(String clusterId) throws Exception;
 
     int deleteByClusterId(String clusterId);
+
+    /**
+     * 根据租户id查询集群配额列表 clusterId 为空查询该租户下的所有集群配额
+     * @return
+     * @throws Exception
+     */
+    public List<TenantClusterQuota> listClusterQuotaLikeIcName(String icName) throws MarsRuntimeException;
 }

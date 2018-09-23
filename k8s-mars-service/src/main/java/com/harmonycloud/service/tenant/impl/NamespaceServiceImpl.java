@@ -1821,10 +1821,12 @@ public class NamespaceServiceImpl implements NamespaceService {
                             //used storage value
                             storage.add(used.get(key).split(CommonConstant.GI)[0]);
                             //集群storage quota
-                            if (storageQuotaMap.get(key.split("\\.")[0]) != null) {
-                                storage.add(storageQuotaMap.get(key.split("\\.")[0]));
-                            } else {
-                                logger.error("集群设置存储配额错误，namespace：{}",namespace);
+                            if(!CollectionUtils.isEmpty(storageQuotaMap)) {
+                                if (storageQuotaMap.get(key.split("\\.")[0]) != null) {
+                                    storage.add(storageQuotaMap.get(key.split("\\.")[0]));
+                                } else {
+                                    logger.error("集群设置存储配额错误，namespace：{}", namespace);
+                                }
                             }
                             storageClass.put(key.split("\\.")[0], storage);
                             storageQuotaMap.remove(key.split("\\.")[0]);

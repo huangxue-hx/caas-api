@@ -9,21 +9,23 @@ public class SvcRouterDto {
 	private String namespace ;
 	
     private String name;
-    
+
+    private String icName;
+
     private Map<String, Object> labels;
     
     private String createTime;
     
     private String app;
     
-    private String annotaion;
+    private String annotation;
     
     private SelectorDto selector;
     
     private List<TcpRuleDto> rules = new ArrayList<>();
 
     private String serviceType;
-    
+
 	public String getNamespace() {
 		return namespace;
 	}
@@ -38,6 +40,14 @@ public class SvcRouterDto {
 
 	public void setName(String name) {
 		this.name = name;
+	}
+
+	public String getIcName() {
+		return icName;
+	}
+
+	public void setIcName(String icName) {
+		this.icName = icName;
 	}
 
 	public Map<String, Object> getLabels() {
@@ -64,8 +74,6 @@ public class SvcRouterDto {
 		this.app = app;
 	}
 
-	
-
 	public SelectorDto getSelector() {
 		return selector;
 	}
@@ -82,12 +90,12 @@ public class SvcRouterDto {
 		this.rules = rules;
 	}
 
-	public String getAnnotaion() {
-		return annotaion;
+	public String getAnnotation() {
+		return annotation;
 	}
 
-	public void setAnnotaion(String annotaion) {
-		this.annotaion = annotaion;
+	public void setAnnotation(String annotation) {
+		this.annotation = annotation;
 	}
 
     public String getServiceType() {

@@ -11,6 +11,7 @@ import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.application.ServiceTemplatesMapper;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
+import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -93,6 +94,9 @@ public class ServiceServiceImpl implements ServiceService {
 
     @Autowired
     UserService userService;
+
+    @Autowired
+    IcService icService;
 
     @Autowired
     private ClusterService clusterService;
@@ -371,7 +375,7 @@ public class ServiceServiceImpl implements ServiceService {
         //获取serviceList(deployment和statefulset)
         List<StatefulSet> statefulSetList = new ArrayList<>();
         List<Deployment> items = new ArrayList<>();
-        
+
         for (ServiceNameNamespace nn : deployedServiceNamesDto.getServiceList()) {
             //获取集群
             Cluster cluster = namespaceLocalService.getClusterByNamespaceName(nn.getNamespace());
@@ -526,6 +530,7 @@ public class ServiceServiceImpl implements ServiceService {
             if (!res.isSuccess()) {
                 return res;
             }
+            serviceDeploy.setTenantId(tenantId);
             return deployService(serviceDeploy, userName);
         } else {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_TEMPLATE_NOT_EXIST);
@@ -588,8 +593,9 @@ public class ServiceServiceImpl implements ServiceService {
             return res;
         }
 
-        // creat ingress
+        // create ingress
         if (service.getIngress() != null) {
+            service.setTenantId(serviceDeploy.getTenantId());
             message.addAll(routerService.createExternalRule(service, serviceDeploy.getNamespace(), serviceType));
         }
 
@@ -691,6 +697,14 @@ public class ServiceServiceImpl implements ServiceService {
         if (service.getIngress() != null && service.getIngress().size() > 0) {
             for (IngressDto ing : service.getIngress()) {
                 if (ing.getType() != null && "HTTP".equals(ing.getType())) {
+                    if (!Constant.IC_DEFAULT_NAME.equals(ing.getParsedIngressList().getIcName())) {
+                        K8SClientResponse response = icService.getIngressController(ing.getParsedIngressList().getIcName(), cluster);
+                        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                            msg.put("Ingress(Http):" + ing.getParsedIngressList().getName(), ErrorCodeMessage.INGRESS_CONTROLLER_NOT_FOUND.phrase());
+                            flag = false;
+                            break;
+                        }
+                    }
                     boolean isExist = routerService.checkIngressName(cluster, ing.getParsedIngressList().getName());
                     if (isExist) {
                         msg.put("Ingress(Http):" + ing.getParsedIngressList().getName(), "重复");
@@ -900,7 +914,7 @@ public class ServiceServiceImpl implements ServiceService {
                     String status = anno.get("nephele/status").toString();
                     if (status.equals(Constant.STARTING)) {
                         throw new MarsRuntimeException(ErrorCodeMessage.STARTED,
-                                        DictEnum.SERVICE.phrase() + name, true);
+                                DictEnum.SERVICE.phrase() + name, true);
                     } else {
                         anno.put("nephele/status", Constant.STARTING);
                         if (anno.get("nephele/replicas") != null) {
@@ -1006,8 +1020,18 @@ public class ServiceServiceImpl implements ServiceService {
                 }
             }
         }
+        NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByName(namespace);
+        List<Map<String, String>> icNameList = new ArrayList<>();
+        if(namespaceLocal != null) {
+            //通过tenantId找icName
+            icNameList.addAll(tenantService.getTenantIngressController(namespaceLocal.getTenantId(), cluster.getId()));
+            Map<String, String> defaultIc = new HashMap<>();
+            defaultIc.put("icName", Constant.IC_DEFAULT_NAME);
+            defaultIc.put("icPort", Constant.IC_DEFAULT_PORT);
+            icNameList.add(defaultIc);
+        }
         //删除对外暴露端口（nginx和数据库）
-        routerService.deleteRulesByName(namespace, name, cluster);
+        routerService.deleteRulesByName(namespace, name, icNameList, cluster);
 
 
         // 获取service

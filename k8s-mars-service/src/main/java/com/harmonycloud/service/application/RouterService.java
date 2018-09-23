@@ -28,10 +28,11 @@ public interface RouterService {
      * 删除服务时删除tcp和udp规则
      * @param namespace
      * @param name
+     * @param icNameList
      * @param cluster
      * @throws Exception
      */
-    void deleteRulesByName(String namespace, String name, Cluster cluster) throws Exception;
+    void deleteRulesByName(String namespace, String name, List<Map<String, String>> icNameList, Cluster cluster) throws Exception;
 
     public ActionReturnUtil svcUpdate(SvcRouterUpdateDto svcRouterUpdate) throws Exception;
 
@@ -84,7 +85,7 @@ public interface RouterService {
      * @return ConfigMap
      * @throws Exception
      */
-    public ConfigMap getSystemExposeConfigmap(Cluster cluster, String protocolType) throws Exception;
+    public ConfigMap getSystemExposeConfigmap(String icName, Cluster cluster, String protocolType) throws Exception;
 
     /**
      * 更新系统nginx的configmap
@@ -95,7 +96,7 @@ public interface RouterService {
      * @return
      * @throws Exception
      */
-    public ActionReturnUtil updateSystemExposeConfigmap(Cluster cluster, String namespace, String service, List<TcpRuleDto> ruleDto, String protocol) throws Exception;
+    public ActionReturnUtil updateSystemExposeConfigmap(Cluster cluster, String namespace, String service, String icName, List<TcpRuleDto> ruleDto, String protocol) throws Exception;
 
     /**
      * 获取所有的对外访问路由
@@ -104,7 +105,7 @@ public interface RouterService {
      * @return ActionReturnUtil
      * @throws Exception
      */
-    public ActionReturnUtil listExposedRouterWithIngressAndNginx(String namespace, String nameList) throws Exception;
+    public ActionReturnUtil listExposedRouterWithIngressAndNginx(String namespace, String nameList, String projectId) throws Exception;
 
     /**
      * 更新集群内的服务外部路由规则

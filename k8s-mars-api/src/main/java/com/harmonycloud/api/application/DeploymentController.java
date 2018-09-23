@@ -76,12 +76,14 @@ public class DeploymentController {
 	 */
 	@ResponseBody
 	@RequestMapping(method = RequestMethod.POST)
-	public ActionReturnUtil deployService(@ModelAttribute ServiceDeployDto serviceDeploy) throws Exception {
+	public ActionReturnUtil deployService(@PathVariable(value = "tenantId") String tenantId,
+										  @ModelAttribute ServiceDeployDto serviceDeploy) throws Exception {
 		logger.info("deploy service");
 		String userName = (String) session.getAttribute("username");
 		if(userName == null){
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
+		serviceDeploy.setTenantId(tenantId);
 		return serviceService.deployService(serviceDeploy, userName);
 	}
 	/*public ActionReturnUtil createDeployments(@ModelAttribute DeploymentDetailDto deploymentDetail) throws Exception {

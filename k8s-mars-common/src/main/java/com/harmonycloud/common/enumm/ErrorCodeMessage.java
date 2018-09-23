@@ -210,6 +210,17 @@ public enum ErrorCodeMessage {
     UPDATE_CLUSTERQUOTA_INCORRECT(300041, "Cluster quota incorrect，please refresh the page resource.","配额不正确,请重新刷新页面资源"),
     STORAGE_QUOTA_OVER_FLOOR(300042, "Storage quotas exceed available quotas.","分区存储配额超过可使用的配额"),
     CLUSTER_QUOTA_DELETE_FAIL(300043, "Failed to delete cluster quota, storage in quota used in cluster partition", "删除集群配额失败，集群分区中已使用配额中的存储"),
+    DATACENTER_NAME_DUPLICATE(300044, "Datacenter Name Duplicate.", "数据中心名称已存在"),
+    INGRESS_CONTROLLER_NOT_FOUND(300045, "Ingress controller not found under the cluster.", "集群下没有找到负载均衡器"),
+    INGRESS_CONTROLLER_PORT_RANGE_NOT_FOUND(300046, "Cannot get the port range of the ingress controller.", "获取不到负载均衡器的端口范围"),
+    INGRESS_CONTROLLER_EXIST(300047, "The ingress controller already exists.", "负载均衡器已经存在"),
+    INGRESS_CONTROLLER_HTTP_PORT_USED(300048, "The http port of the ingress controller has been used.", "负载均衡器HTTP端口已经被使用"),
+    INGRESS_CONTROLLER_OTHER_PORT_USED(300049, "The other port of the ingress controller has been used.", "负载均衡器其他端口已经被使用"),
+    INGRESS_CONTROLLER_SA_NOT_FOUND(300050, "Cannot get the default serviceAccount under the kube-system namespace.", "获取不到kube-system分区下默认的serviceAccount"),
+    INGRESS_CONTROLLER_DEFAULT_NOT_DELETE(300051, "The default ingress controller is not allowed to be deleted.", "默认负载均衡器不允许被删除"),
+    INGRESS_CONTROLLER_HAS_ASSIGN(300052, "The ingress controller has been assigned.", "该负载均衡器已经被分配"),    INGRESS_CONTROLLER_PORT_UPDATE_FAIL(300053, "In the database, the ingress controller port data update failed, please contact the administrator.", "数据库中，ingress controller端口数据更新失败，请联系管理员"),
+    INGRESS_CONTROLLER_HAS_USED_BY_TENANTS(300054, "The assignment was successful. Some tenants have used a ingress controller and cannot remove tenants:", "分配成功。部分租户已使用负载均衡器，无法移除租户："),
+    INGRESS_CONTROLLER_HTTP_PORT_ERROR(300055, "The port of the ingress controller is not in the specified range.", "负载均衡器的端口不在指定范围"),
 
     //主机节点 301xxx
     NODE_LABEL_CREATE_ERROR(301001, "Node label create failed.","主机标签创建失败"),

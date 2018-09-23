@@ -10,6 +10,7 @@ import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
+import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.dto.dataprivilege.DataPrivilegeDto;
 import com.harmonycloud.dto.scale.AutoScaleDto;
@@ -41,6 +42,7 @@ import com.harmonycloud.service.platform.service.WatchService;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
+import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
@@ -121,6 +123,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
     @Autowired
     NamespaceLocalService namespaceLocalService;
+
+    @Autowired
+    ProjectService projectService;
 
     @Autowired
     private PVCService pvcService;
@@ -1063,8 +1068,19 @@ public class DeploymentsServiceImpl implements DeploymentsService {
                 }
             }
 
+            //获取projectId
+            String projectId = (String) dep.getMetadata().getLabels().get("harmonycloud.cn/projectId");
+            //通过projectId查找tenantId
+            Project project = projectService.getProjectByProjectId(projectId);
+            String tenantId = project.getTenantId();
+            //通过tenantId找icName
+            List<Map<String, String>> icNameList = tenantService.getTenantIngressController(tenantId, cluster.getId());
+            Map<String, String> defaultIc = new HashMap<>();
+            defaultIc.put("icName", Constant.IC_DEFAULT_NAME);
+            defaultIc.put("icPort", Constant.IC_DEFAULT_PORT);
+            icNameList.add(defaultIc);
             //删除对外暴露端口（nginx和数据库）
-            routerService.deleteRulesByName(namespace, name, cluster);
+            routerService.deleteRulesByName(namespace, name, icNameList, cluster);
         }
 
         // 获取service
@@ -1244,9 +1260,18 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
             }
         }
-
+        NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByName(namespace);
+        List<Map<String, String>> icNameList = new ArrayList<>();
+        if(namespaceLocal != null) {
+            //通过tenantId找icName
+            icNameList.addAll(tenantService.getTenantIngressController(namespaceLocal.getTenantId(), cluster.getId()));
+            Map<String, String> defaultIc = new HashMap<>();
+            defaultIc.put("icName", Constant.IC_DEFAULT_NAME);
+            defaultIc.put("icPort", Constant.IC_DEFAULT_PORT);
+            icNameList.add(defaultIc);
+        }
         //删除对外暴露端口（nginx和数据库）
-        routerService.deleteRulesByName(namespace, name, cluster);
+        routerService.deleteRulesByName(namespace, name, icNameList, cluster);
         return null;
     }
 

@@ -10,11 +10,12 @@ public class ParsedIngressListDto {
 
 	private String namespace;
 	private String name;
+	//负载均衡器名称
+	private String icName;
 	private Map<String, Object> labels;
-	// private List<HttpLabel> labels;
 	private String createTime;
 	private String host;
-	private Object annotaion;
+	private Object annotation;
 	private List<HttpRuleDto> rules;
 	private String protocol;
 	private String exposePort;
@@ -36,6 +37,14 @@ public class ParsedIngressListDto {
 
 	public void setName(String name) {
 		this.name = name;
+	}
+
+	public String getIcName() {
+		return icName;
+	}
+
+	public void setIcName(String icName) {
+		this.icName = icName;
 	}
 
 	public Map<String, Object> getLabels() {
@@ -70,12 +79,12 @@ public class ParsedIngressListDto {
 		this.host = host;
 	}
 
-	public Object getAnnotaion() {
-		return annotaion;
+	public Object getAnnotation() {
+		return annotation;
 	}
 
-	public void setAnnotaion(Object annotaion) {
-		this.annotaion = annotaion;
+	public void setAnnotation(Object annotation) {
+		this.annotation = annotation;
 	}
 
 	public String getProtocol() {

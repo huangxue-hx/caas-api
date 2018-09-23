@@ -17,6 +17,8 @@ public class ServiceTemplateDto {
 
     private String tenant;
 
+    private String tenantId;
+
     private Integer external;// 1:external
 
     private DeploymentDetailDto deploymentDetail;
@@ -101,7 +103,15 @@ public class ServiceTemplateDto {
         this.tenant = tenant;
     }
 
-	public DeploymentDetailDto getDeploymentDetail() {
+    public String getTenantId() {
+        return tenantId;
+    }
+
+    public void setTenantId(String tenantId) {
+        this.tenantId = tenantId;
+    }
+
+    public DeploymentDetailDto getDeploymentDetail() {
 		return deploymentDetail;
 	}
 

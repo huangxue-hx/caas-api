@@ -23,7 +23,7 @@ public class ApplicationDeployDto {
 //
 //    private String capacity;
 //
-//    private String tenantid;
+    private String tenantId;
 //
 //    private String readonly;
 //
@@ -71,6 +71,14 @@ public class ApplicationDeployDto {
 		this.projectId = projectId;
 	}
 
+	public String getTenantId() {
+		return tenantId;
+	}
+
+	public void setTenantId(String tenantId) {
+		this.tenantId = tenantId;
+	}
+
 	//    public String getName() {
 //        return name;
 //    }
@@ -85,14 +93,6 @@ public class ApplicationDeployDto {
 //
 //    public void setCapacity(String capacity) {
 //        this.capacity = capacity;
-//    }
-//
-//    public String getTenantid() {
-//        return tenantid;
-//    }
-//
-//    public void setTenantid(String tenantid) {
-//        this.tenantid = tenantid;
 //    }
 //
 //    public String getReadonly() {
