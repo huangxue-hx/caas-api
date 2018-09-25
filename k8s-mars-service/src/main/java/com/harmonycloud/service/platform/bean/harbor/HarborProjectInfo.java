@@ -18,6 +18,8 @@ public class HarborProjectInfo {
     private String harborHost;
     private String referredClusterNames;
 
+    private Boolean isPublic;
+
     public Integer getProject_id() {
         return project_id;
     }
@@ -96,5 +98,13 @@ public class HarborProjectInfo {
 
     public void setReferredClusterNames(String referredClusterNames) {
         this.referredClusterNames = referredClusterNames;
+    }
+
+    public Boolean getIsPublic() {
+        return isPublic;
+    }
+
+    public void setIsPublic(Boolean isPublic) {
+        this.isPublic = isPublic;
     }
 }

@@ -69,13 +69,13 @@ public class StageDto {
 
     private String projectId;
     private String destClusterId;
-    private String repositoryId;
+    private Integer repositoryId;
 
-    public String getRepositoryId() {
+    public Integer getRepositoryId() {
         return repositoryId;
     }
 
-    public void setRepositoryId(String repositoryId) {
+    public void setRepositoryId(Integer repositoryId) {
         this.repositoryId = repositoryId;
     }
 

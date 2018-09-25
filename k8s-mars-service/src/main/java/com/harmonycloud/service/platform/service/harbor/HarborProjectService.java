@@ -218,6 +218,4 @@ public interface HarborProjectService {
 
 	int deleteByClusterId(String clusterId) throws Exception;
 
-	ImageRepository getRepositoryByName(String repoName, String projectId, String tenantId);
-
 }
