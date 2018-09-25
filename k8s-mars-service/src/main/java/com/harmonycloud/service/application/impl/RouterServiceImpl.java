@@ -734,7 +734,7 @@ public class RouterServiceImpl implements RouterService {
     public ConfigMap getSystemExposeConfigmap(String icName, Cluster cluster, String protocolType) throws Exception {
         ConfigMap configMap = new ConfigMap();
         ActionReturnUtil result = new ActionReturnUtil();
-        if (icName.equals(Constant.IC_DEFAULT_NAME)) {
+        if (StringUtils.isBlank(icName) || icName.equals(Constant.IC_DEFAULT_NAME)) {
             if (Constant.PROTOCOL_TCP.equals(protocolType)) {
                 result = configMapService.getConfigMapByName(CommonConstant.KUBE_SYSTEM, Constant.EXPOSE_CONFIGMAP_NAME_TCP, HTTPMethod.GET, cluster);
             }
