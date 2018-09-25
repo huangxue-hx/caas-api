@@ -9,7 +9,7 @@ package com.harmonycloud.common.enumm;
 public enum EnumMonitorTarget {
 
     CPU("cpu/usage_rate"),
-    MEMORY("memory/usage"),
+    MEMORY("memory/working_set"),
     DISK("filesystem/usage"),
     RX("network/rx_rate"),
     TX("network/tx_rate"),
