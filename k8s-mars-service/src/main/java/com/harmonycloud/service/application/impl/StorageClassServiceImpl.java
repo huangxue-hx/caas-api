@@ -137,8 +137,7 @@ public class StorageClassServiceImpl implements StorageClassService {
             String provisionerImage = "";
             for (SystemConfig systemConfig : systemConfigList) {
                 if (IMAGE_NAME.equals(systemConfig.getConfigName())) {
-                    provisionerImage = cluster.getHarborServer().getHarborHost() + ":" +
-                            cluster.getHarborServer().getHarborPort() + systemConfig.getConfigValue();
+                    provisionerImage = cluster.getHarborServer().getHarborAddress() + systemConfig.getConfigValue();
                 }
             }
             if (StringUtils.isBlank(provisionerImage)) {
@@ -185,8 +184,7 @@ public class StorageClassServiceImpl implements StorageClassService {
             String provisionerImage = "";
             for (SystemConfig systemConfig : systemConfigList) {
                 if (CEPH_RBD_IMAGE_NAME.equals(systemConfig.getConfigName())) {
-                    provisionerImage = cluster.getHarborServer().getHarborHost() + ":" +
-                            cluster.getHarborServer().getHarborPort() + systemConfig.getConfigValue();
+                    provisionerImage = cluster.getHarborServer().getHarborAddress() + systemConfig.getConfigValue();
                 }
             }
             if (StringUtils.isBlank(provisionerImage)) {
@@ -803,8 +801,7 @@ public class StorageClassServiceImpl implements StorageClassService {
             String dependenceImageCmd = "";
             for (SystemConfig systemConfig : systemConfigList) {
                 if ("dependenceUploadImageName".equals(systemConfig.getConfigName())) {
-                    dependenceImage = topCluster.getHarborServer().getHarborHost() + ":" +
-                            topCluster.getHarborServer().getHarborPort() + systemConfig.getConfigValue();
+                    dependenceImage = topCluster.getHarborServer().getHarborAddress() + systemConfig.getConfigValue();
                 } else if ("dependenceUploadImageCmd".equals(systemConfig.getConfigName())) {
                     dependenceImageCmd = systemConfig.getConfigValue();
                 }

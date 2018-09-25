@@ -358,8 +358,7 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         String recycleImage = "";
         for (SystemConfig systemConfig : systemConfigList) {
             if (IMAGE_NAME.equals(systemConfig.getConfigName())) {
-                recycleImage = cluster.getHarborServer().getHarborHost() + ":" +
-                        cluster.getHarborServer().getHarborPort() + systemConfig.getConfigValue();
+                recycleImage = cluster.getHarborServer().getHarborAddress() + systemConfig.getConfigValue();
             }
         }
         if (StringUtils.isBlank(recycleImage)) {

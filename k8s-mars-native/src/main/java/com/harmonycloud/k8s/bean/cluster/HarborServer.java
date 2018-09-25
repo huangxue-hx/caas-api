@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.util.Date;
 
 import static com.harmonycloud.common.Constant.CommonConstant.COLON;
+import static com.harmonycloud.common.Constant.CommonConstant.DEFAULT_HARBOR_PORT;
 import static com.harmonycloud.common.Constant.CommonConstant.DEFAULT_HTTPS_PORT;
 
 /**
@@ -109,7 +110,7 @@ public class HarborServer implements Serializable {
 	}
 
 	public String getHarborAddress(){
-		if(!DEFAULT_HTTPS_PORT.equals(harborPort)){
+		if(!DEFAULT_HTTPS_PORT.equals(harborPort) && !DEFAULT_HARBOR_PORT.equals(harborPort)){
 			return harborHost + COLON + harborPort;
 		}
 		return harborHost;
