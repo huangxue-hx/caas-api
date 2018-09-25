@@ -61,6 +61,10 @@ VALUES ('/privilege/group/*/user', 'whitelist', 'whitelist');
 INSERT INTO `k8s_auth_server`.`url_dic`(`url`, `module`, `resource`)
 VALUES ('/tenants/*/strategy', 'tenant', 'tenantmgr');
 
+INSERT INTO `k8s_auth_server`.`url_dic`(`url`, `module`, `resource`)
+VALUES ('/tenants/*/projects/*/user', 'whitelist', 'whitelist');
+
+
 DROP TABLE IF EXISTS `k8s_auth_server`.`data_privilege_group`;
 CREATE TABLE `k8s_auth_server`.`data_privilege_group` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -254,3 +258,6 @@ CREATE TABLE `ingress_controller_port` (
 
 ALTER TABLE `tenant_cluster_quota`
 ADD COLUMN `ic_names` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '负载均衡器名称，多个以“，”分割';
+
+INSERT INTO k8s_auth_server.`url_dic` (`url`,`module`,`resource`)
+VALUES ('/clusters/*/storage','infrastructure','clustermar');
