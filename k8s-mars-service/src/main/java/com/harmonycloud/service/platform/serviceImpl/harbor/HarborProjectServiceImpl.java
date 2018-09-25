@@ -1024,6 +1024,12 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		return imageRepositoryMapper.deleteByClusterId(clusterId);
 	}
 
+	@Override
+	public ImageRepository getRepositoryByName(String repoName,String projectId,String tenantId){
+		ImageRepository imageRepository = imageRepositoryMapper.findRepositoryByNameAndTenantIdAndProjectId(repoName,projectId,tenantId);
+		return imageRepository;
+	}
+
 	private void pushImage(HarborServer harborServer, File imageFile, String imageFullName) throws Exception{
 		DockerClient docker = this.getDockerClient();
 		Set<String> loadedImages = docker.load(new FileInputStream(imageFile));

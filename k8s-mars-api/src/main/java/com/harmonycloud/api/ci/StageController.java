@@ -116,11 +116,4 @@ public class StageController {
         return ActionReturnUtil.returnSuccess();
     }
 
-
-    @RequestMapping(value = "/getRepositoryId", method = RequestMethod.GET)
-    @ResponseBody
-    public ActionReturnUtil getRepositoryId(@RequestParam("repoName") String repoName,@PathVariable("projectId") String projectId,@PathVariable("tenantId") String tenantId) throws Exception{
-        stageService.getRepositoryId(repoName,projectId,tenantId);
-        return ActionReturnUtil.returnSuccess();
-    }
 }

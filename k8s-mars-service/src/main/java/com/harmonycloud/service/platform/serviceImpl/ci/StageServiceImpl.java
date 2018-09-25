@@ -672,8 +672,4 @@ public class StageServiceImpl implements StageService {
         }
     }
 
-    public int getRepositoryId(String repoName,String projectId,String tenantId){
-        ImageRepository imageRepository = imageRepositoryMapper.findRepositoryByNameAndTenantIdAndProjectId(repoName,projectId,tenantId);
-        return imageRepository.getId();
-    }
 }

@@ -197,6 +197,18 @@ public class HarborProjectController {
 	}
 
 	/**
+	 * 根据仓库名查找某个镜像仓库
+	 * @return
+	 */
+	@RequestMapping(value = "/{harborProjectName}/briefinfo", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil getRepositoryByName(@RequestParam("repoName") String repoName,
+												@PathVariable(value = "tenantId") String tenantId,
+												@PathVariable(value = "projectId") String projectId){
+		return ActionReturnUtil.returnSuccessWithData(harborProjectService.getRepositoryByName(repoName,projectId,tenantId));
+	}
+
+	/**
 	 * 创建镜像清理规则
 	 *
 	 * @param rule
