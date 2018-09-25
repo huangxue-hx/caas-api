@@ -21,6 +21,7 @@ import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.harbor.HarborRepositoryMessage;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.ci.*;
+import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.platform.service.harbor.HarborService;
 import com.harmonycloud.service.tenant.ProjectService;
 import org.apache.commons.collections.CollectionUtils;
@@ -126,7 +127,7 @@ public class StageServiceImpl implements StageService {
     private JobBuildService jobBuildService;
 
     @Autowired
-    private ImageRepositoryMapper imageRepositoryMapper;
+    private HarborProjectService harborProjectService;
 
     @Autowired
     private ImageCacheManager imageCacheManager;
@@ -150,9 +151,7 @@ public class StageServiceImpl implements StageService {
         }else if(StageTemplateTypeEnum.IMAGEPUSH.getCode() == stageDto.getStageTemplateType()){
             if("1".equals(stageDto.getImageTagType())){
                 //如果传回的imageTagType为1，返回最新tag
-                int index = stageDto.getImageName().indexOf("/");
-                String repoName= stageDto.getImageName().substring(0,index);
-                ImageRepository imageRepository = imageRepositoryMapper.findRepositoryByNameAndTenantIdAndProjectId(repoName,stageDto.getTenant(),stageDto.getProjectId());
+                ImageRepository imageRepository = harborProjectService.findRepositoryById(stageDto.getRepositoryId());
                 HarborRepositoryMessage harborRepository = imageCacheManager.getRepoMessage(imageRepository.getHarborHost(),stageDto.getImageName());
                 String latestTag = harborRepository.getTags().get(0);
                 if(!latestTag.isEmpty()){
@@ -193,9 +192,7 @@ public class StageServiceImpl implements StageService {
         }else if(StageTemplateTypeEnum.IMAGEPUSH.getCode() == stageDto.getStageTemplateType()){
             if("1".equals(stageDto.getImageTagType())){
                 //如果传回的imageTagType为1，返回最新tag
-                int index = stageDto.getImageName().indexOf("/");
-                String repoName= stageDto.getImageName().substring(0,index);
-                ImageRepository imageRepository = imageRepositoryMapper.findRepositoryByNameAndTenantIdAndProjectId(repoName,stageDto.getTenant(),stageDto.getProjectId());
+                ImageRepository imageRepository = harborProjectService.findRepositoryById(stageDto.getRepositoryId());
                 HarborRepositoryMessage harborRepository = imageCacheManager.getRepoMessage(imageRepository.getHarborHost(),stageDto.getImageName());
                 String latestTag = harborRepository.getTags().get(0);
                 if(!latestTag.isEmpty()){

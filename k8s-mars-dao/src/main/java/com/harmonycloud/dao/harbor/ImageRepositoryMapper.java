@@ -25,5 +25,4 @@ public interface ImageRepositoryMapper {
     int deleteRepositoryById(Integer id);
     int deleteByClusterId(@Param("clusterId")String clusterId);
 
-    ImageRepository findRepositoryByNameAndTenantIdAndProjectId(@Param("repoName") String repoName,@Param("tenantId") String tenantId,@Param("projectId") String projectId);
 }
