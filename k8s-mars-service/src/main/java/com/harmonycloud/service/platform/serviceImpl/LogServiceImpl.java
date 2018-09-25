@@ -45,9 +45,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
-import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketSession;
-
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.text.MessageFormat;
@@ -66,13 +63,11 @@ public class LogServiceImpl implements LogService {
 
     private static Logger logger = LoggerFactory.getLogger(LogServiceImpl.class);
 
-    //日志查询分页保留30分钟不失效
-    private static final int SEARCH_TIME = 1800000;
+    //日志查询分页保留15分钟不失效
+    private static final int SEARCH_TIME = 900000;
     //每次只能查询100个POD的文件
     private static final int MAX_POD_FETCH_COUNT = 100;
     private static final int MAX_EXPORT_LENGTH = 100000;
-    //日志最多查询的数量为200
-    private static final int MAX_LOG_LINES = 200;
 
     @Value("${shell:#{null}}")
     private String shellStarter;
@@ -522,66 +517,6 @@ public class LogServiceImpl implements LogService {
         return fileList;
     }
 
-    @Override
-    public void logRealTimeRefresh(WebSocketSession session, LogQueryDto logQueryDto) {
-        AssertUtil.notBlank(logQueryDto.getPod(),DictEnum.POD);
-        AssertUtil.notBlank(logQueryDto.getNamespace(),DictEnum.NAMESPACE);
-        Cluster cluster = null;
-        boolean error = false;
-        Process process = null;
-        String command = null;
-        try {
-            if (StringUtils.isNotBlank(logQueryDto.getNamespace()) && !CommonConstant.KUBE_SYSTEM.equalsIgnoreCase(logQueryDto.getNamespace())) {
-                cluster = namespaceLocalService.getClusterByNamespaceName(logQueryDto.getNamespace());
-            } else if (StringUtils.isNotBlank(logQueryDto.getClusterId())) {
-                cluster = clusterService.findClusterById(logQueryDto.getClusterId());
-            }
-            if (cluster == null) {
-                throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
-            }
-            //标准输出
-            if(logQueryDto.getLogSource()== LogService.LOG_TYPE_STDOUT){
-                AssertUtil.notBlank(logQueryDto.getContainer(),DictEnum.CONTAINER);
-                command = MessageFormat.format("kubectl logs {0} -c {1} -n {2} --tail={3} -f --server={4} --token={5} --insecure-skip-tls-verify=true",
-                        logQueryDto.getPod(),logQueryDto.getContainer(),logQueryDto.getNamespace(),MAX_LOG_LINES,cluster.getApiServerUrl(), cluster.getMachineToken());
-
-
-            }else if(logQueryDto.getLogSource()==LogService.LOG_TYPE_LOGFILE){
-                AssertUtil.notBlank(logQueryDto.getLogDir(), DictEnum.LOG_DIR);
-                AssertUtil.notBlank(logQueryDto.getLogFile(),DictEnum.LOG_FILE);
-                //kubectl exec webapi-6cf47949c8-kwddh -n kube-system -- tail -200f /opt/logs/webapi-info.2018-06-29.log
-                command = MessageFormat.format("kubectl exec {0} -n {1} --server={2} --token={3} --insecure-skip-tls-verify=true -- tail -f -n {4} {5}/{6}",
-                        logQueryDto.getPod(),logQueryDto.getNamespace(),cluster.getApiServerUrl(),cluster.getMachineToken(),MAX_LOG_LINES,logQueryDto.getLogDir(),logQueryDto.getLogFile());
-
-            }
-            process = Runtime.getRuntime().exec(command);
-            while (session.isOpen()) {
-                BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-
-                String line;
-                while ((line = stdInput.readLine()) != null) {
-                    session.sendMessage(new TextMessage(line));
-                }
-
-                while ((line = stdError.readLine()) != null) {
-                    logger.error("执行指令错误:{}",line);
-                    error = true;
-                }
-                if (error) {
-                    throw new MarsRuntimeException(ErrorCodeMessage.RUN_COMMAND_ERROR);
-                }
-            }
-        } catch (Exception e) {
-            logger.error("出现异常:",e);
-            throw new MarsRuntimeException(ErrorCodeMessage.RUN_COMMAND_ERROR);
-        } finally {
-            if (null != process) {
-                process.destroy();
-            }
-        }
-    }
-
     /**
      * 根据查询的时间区间 返回该时间段内es的索引列表
      *
@@ -651,44 +586,6 @@ public class LogServiceImpl implements LogService {
         }
         return queryBuilder;
     }
-
-    /**
-     * 根据类型获取 获取日志语句
-     * @param session
-     * @param logQueryDto
-     */
-    public String getLogCommand(WebSocketSession session, LogQueryDto logQueryDto) {
-        Cluster cluster = null;
-        String command = null;
-        try {
-            if (StringUtils.isNotBlank(logQueryDto.getNamespace()) && !CommonConstant.KUBE_SYSTEM.equalsIgnoreCase(logQueryDto.getNamespace())) {
-                cluster = namespaceLocalService.getClusterByNamespaceName(logQueryDto.getNamespace());
-            } else if (StringUtils.isNotBlank(logQueryDto.getClusterId())) {
-                cluster = clusterService.findClusterById(logQueryDto.getClusterId());
-            }
-            if (cluster == null) {
-                throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
-            }
-            //标准输出
-            if (logQueryDto.getLogSource() == LogService.LOG_TYPE_STDOUT) {
-                AssertUtil.notBlank(logQueryDto.getContainer(), DictEnum.CONTAINER);
-                command = MessageFormat.format("kubectl logs {0} -c {1} -n {2} --tail={3} -f --server={4} --token={5} --insecure-skip-tls-verify=true",
-                        logQueryDto.getPod(), logQueryDto.getContainer(), logQueryDto.getNamespace(), MAX_LOG_LINES, cluster.getApiServerUrl(), cluster.getMachineToken());
-            } else if (logQueryDto.getLogSource() == LogService.LOG_TYPE_LOGFILE) {
-                AssertUtil.notBlank(logQueryDto.getLogDir(), DictEnum.LOG_DIR);
-                AssertUtil.notBlank(logQueryDto.getLogFile(), DictEnum.LOG_FILE);
-                //kubectl exec webapi-6cf47949c8-kwddh -n kube-system -- tail -200f /opt/logs/webapi-info.2018-06-29.log
-                command = MessageFormat.format("kubectl exec {0} -n {1} --server={2} --token={3} --insecure-skip-tls-verify=true -- tail -f -n {4} {5}/{6}",
-                        logQueryDto.getPod(), logQueryDto.getNamespace(), cluster.getApiServerUrl(), cluster.getMachineToken(), MAX_LOG_LINES, logQueryDto.getLogDir(), logQueryDto.getLogFile());
-            }
-        }catch (Exception e){
-            logger.error("出现异常:",e);
-            throw new MarsRuntimeException(ErrorCodeMessage.RUN_COMMAND_ERROR);
-        }
-        return command;
-    }
-
-
 
 
 }
