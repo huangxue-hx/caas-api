@@ -639,7 +639,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_NOT_FOUND);
         }
         //获取所有绑定
-        List<TenantClusterQuota> tenantClusterQuotas =  tenantClusterQuotaService.listClusterQuotaLikeIcName(icName);
+        List<TenantClusterQuota> tenantClusterQuotas =  tenantClusterQuotaService.listClusterQuotaLikeIcName(icName, clusterId);
         //Ingress Controller分配给租户后，被使用；这些租户的集合
         List<String> usedTenantList = new ArrayList<>();
         //如果前台传来的租户为空

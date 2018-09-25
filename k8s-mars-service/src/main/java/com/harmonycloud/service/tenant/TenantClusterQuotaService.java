@@ -112,5 +112,5 @@ public interface TenantClusterQuotaService {
      * @return
      * @throws Exception
      */
-    public List<TenantClusterQuota> listClusterQuotaLikeIcName(String icName) throws MarsRuntimeException;
+    public List<TenantClusterQuota> listClusterQuotaLikeIcName(String icName, String clusterId) throws MarsRuntimeException;
 }

@@ -575,9 +575,9 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
      * @throws Exception
      */
     @Override
-    public List<TenantClusterQuota> listClusterQuotaLikeIcName(String icName) throws MarsRuntimeException {
+    public List<TenantClusterQuota> listClusterQuotaLikeIcName(String icName, String clusterId) throws MarsRuntimeException {
         TenantClusterQuotaExample example = this.getExample();
-        example.createCriteria().andIcNamesLike("%"+icName+"%");
+        example.createCriteria().andIcNamesLike("%"+icName+"%").andClusterIdEqualTo(clusterId);
         return this.tenantClusterQuotaMapper.selectByExample(example);
     }
 
