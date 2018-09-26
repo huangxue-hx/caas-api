@@ -47,6 +47,8 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.harmonycloud.common.Constant.CommonConstant.BLANKSTRING;
+
 
 /**
  * Created by root on 3/29/17.
@@ -876,7 +878,7 @@ public class ServiceServiceImpl implements ServiceService {
         List<ServiceTemplates> serviceTemplateList = serviceTemplatesMapper.listTplByNameAndProjectAndCluster(name, clusterId, false, projectId);
         if (serviceTemplateList != null && serviceTemplateList.size() > 0) {
             int svcTmpId = serviceTemplateList.get(0).getId();
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_TEMPLATE_NAME_DUPLICATE, String.valueOf(svcTmpId));
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_TEMPLATE_NAME_DUPLICATE, BLANKSTRING + String.valueOf(svcTmpId));
         }
         return ActionReturnUtil.returnSuccess();
     }

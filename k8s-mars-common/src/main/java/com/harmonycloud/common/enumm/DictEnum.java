@@ -31,6 +31,7 @@ public enum DictEnum {
     ROLE("role", "角色"),
     NAMESPACE("namespace", "分区"),
     NAMESPACE_NAME("namespace name", "分区名称"),
+    NAMESPACE_ENGLISH("namespace english", "分区英文"),
     CLUSTER("cluster", "集群"),
     CLUSTER_ID("clusterId", "集群id"),
     POD("pod", "pod"),

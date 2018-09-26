@@ -1056,7 +1056,7 @@ public class NamespaceServiceImpl implements NamespaceService {
                 throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_CREATE_ERROR_DELETED,namespaceDto.getAliasName(),Boolean.TRUE);
             }
             if (!Objects.isNull(message) && message.toString().contains("no more than 63 characters")){
-                throw new MarsRuntimeException(DictEnum.NAMESPACE.phrase(), ErrorCodeMessage.NAME_LENGTH_LIMIT);
+                throw new MarsRuntimeException(DictEnum.NAMESPACE_ENGLISH.phrase(), ErrorCodeMessage.NAME_LENGTH_LIMIT);
             }
             throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_CREATE_ERROR);
         }

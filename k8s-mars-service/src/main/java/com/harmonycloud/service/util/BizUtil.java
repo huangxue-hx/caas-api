@@ -12,9 +12,6 @@ import static com.harmonycloud.common.Constant.CommonConstant.COLON;
 import static com.harmonycloud.common.Constant.CommonConstant.LINE;
 import static com.harmonycloud.service.platform.constant.Constant.TOPO_LABEL_KEY;
 
-import static com.harmonycloud.common.Constant.CommonConstant.COLON;
-import static com.harmonycloud.common.Constant.CommonConstant.COMMA;
-
 public class BizUtil {
 
     private static final int TOPO_KEY_PROJECT_LENGTH = 16;
