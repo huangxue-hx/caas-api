@@ -204,7 +204,7 @@ public class StorageClassServiceImpl implements StorageClassService {
         }
 
         // 创建StrorageCLass 和secret
-        String uuid = StringUtil.getId();
+        String uuid = UUIDUtil.getUUID();
         String cephAdminSecretName = "ceph-admin-secret-" + uuid;
         String cephUserSecretName = "ceph-user-secret"  + uuid;
         ActionReturnUtil result = createCephRBDStorageClass(cephAdminSecretName, cephAdminSecret, cephUserSecretName, cephUserSecret, storageClass, monitors, pool, adminId, userId, cluster);
