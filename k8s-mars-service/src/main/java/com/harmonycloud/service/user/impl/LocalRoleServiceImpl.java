@@ -72,7 +72,7 @@ public class LocalRoleServiceImpl implements LocalRoleService {
 //        }
         LocalRole localRole = new LocalRole();
         localRole.setProjectId(localRoleDtoIn.getProjectId());
-        localRole.setName(UUIDUtil.getUUID());
+        localRole.setName(UUIDUtil.get16UUID());
         localRole.setDescription(localRoleDtoIn.getRoleDesc());
         localRole.setNamespaces(localRoleDtoIn.getNamespaces());
         localRole.setCreateTime(DateUtil.getCurrentUtcTime());

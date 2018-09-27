@@ -64,7 +64,7 @@ public class LogServiceTest extends BaseTest {
         for (Pod item : items) {
             if(item.getMetadata().getName().startsWith("webapi-")){
                 System.out.println(item.getMetadata().getName());
-                 fileList = logService.queryLogFile(item.getMetadata().getName(), CommonConstant.KUBE_SYSTEM, path, cluster.getId());
+                 fileList = logService.queryLogFile(item.getMetadata().getName(), null, CommonConstant.KUBE_SYSTEM, path, cluster.getId());
             }
         }
         assertTrue(!fileList.isEmpty());

@@ -1,5 +1,6 @@
 package com.harmonycloud.service.platform.convert;
 
+import com.harmonycloud.common.util.UUIDUtil;
 import com.harmonycloud.dto.application.CreateConfigMapDto;
 import com.harmonycloud.dto.application.CreateEnvDto;
 import com.harmonycloud.dto.application.CreatePortDto;
@@ -374,7 +375,7 @@ public class KubeServiceConvert {
         for (Container container : containerList) {
             for (ContainerPort port : container.getPorts()) {
                 ServicePort servicePort = new ServicePort();
-                servicePort.setName("port-" + UUID.randomUUID());
+                servicePort.setName("port-" + UUIDUtil.get16UUID());
                 servicePort.setTargetPort(port.getContainerPort());
                 servicePort.setProtocol(port.getProtocol());
                 servicePort.setPort(port.getContainerPort());

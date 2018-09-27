@@ -41,6 +41,6 @@ public interface LogService {
 
     LogQuery transLogQuery(LogQueryDto logQueryDto) throws Exception;
 
-    List<String> queryLogFile(String pod, String namespace, String path, String clusterId);
+    List<String> queryLogFile(String pod, String container, String namespace, String path, String clusterId);
 
 }

@@ -236,65 +236,43 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	 * @throws Exception
 	 */
 	private ActionReturnUtil createPublicRepository(RepositoryInfo repositoryInfo) throws Exception {
+		AssertUtil.notBlank(repositoryInfo.getHarborHost(),DictEnum.HARBOR_HOST);
+		HarborServer harborServer = clusterService.findHarborByHost(repositoryInfo.getHarborHost());
+		Integer harborProjectId = null;
+		ImageRepository imageRepository = new ImageRepository();
+		imageRepository.setCreateTime(DateUtil.getCurrentUtcTime());
+		imageRepository.setIsNormal(Boolean.TRUE);
+		imageRepository.setHarborHost(harborServer.getHarborHost());
+		imageRepository.setIsDefault(Boolean.FALSE);
+		imageRepository.setIsPublic(repositoryInfo.getIsPublic());
+		imageRepository.setRepositoryName(repositoryInfo.getHarborProjectName());
+		imageRepository.setHarborProjectName(repositoryInfo.getHarborProjectName());
+		//创建harbor project
+		HarborProject harborProject = new HarborProject();
+		harborProject.setProjectName(repositoryInfo.getHarborProjectName());
+		harborProject.setIsPublic(imageRepository.isPublic()?FLAG_TRUE:FLAG_FALSE);
+		harborProject.setQuotaSize(repositoryInfo.getQuotaSize());
+		ActionReturnUtil result = harborService.createProject(harborServer.getHarborHost(), harborProject);
+		//harbor创建镜像仓库是否成功
+		if (!result.isSuccess() || result.getData() == null) {
+			logger.error("创建公共仓库失败，repositoryInfo:{}， message:{}",
+					JSONObject.toJSONString(repositoryInfo),result.getData());
+			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CREATE_FAIL, String.valueOf(result.getData()));
+		}
+		try {
+			Map<String, Object> map = (Map) (result.get("data"));
+			harborProjectId = Integer.valueOf(map.get("harborProjectId").toString());
+			imageRepository.setHarborProjectId(harborProjectId);
+			//记录镜像仓库表
+			imageRepositoryMapper.insert(imageRepository);
+			return ActionReturnUtil.returnSuccess();
+		}catch (Exception e){
+			logger.error("调harbor创建公共仓库成功，保存数据库失败，回滚创建的仓库，harbor:{}， project:{}",
+					harborServer.getHarborHost(),repositoryInfo.getHarborProjectName(),e);
+			harborService.deleteProject(harborServer.getHarborHost(), harborProjectId);
+			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CREATE_FAIL);
+		}
 
-		List<Cluster> clusters = new ArrayList<>();
-		if(StringUtils.isNotBlank(repositoryInfo.getClusterId())){
-			Cluster cluster = clusterService.findClusterById(repositoryInfo.getClusterId());
-			clusters.add(cluster);
-		}else{
-			clusters.addAll(clusterService.listCluster());
-		}
-		String failedCluster = "";
-		List<ImageRepository> createdRepository = new ArrayList<>();
-		Set<HarborServer> harborServers = new HashSet<>();
-		for(Cluster cluster : clusters){
-			harborServers.add(cluster.getHarborServer());
-		}
-		for(HarborServer harborServer : harborServers) {
-			Integer harborProjectId = null;
-			try {
-				ImageRepository imageRepository = new ImageRepository();
-				imageRepository.setCreateTime(DateUtil.getCurrentUtcTime());
-				imageRepository.setIsNormal(Boolean.TRUE);
-				imageRepository.setHarborHost(harborServer.getHarborHost());
-				imageRepository.setIsDefault(Boolean.FALSE);
-				imageRepository.setIsPublic(repositoryInfo.getIsPublic());
-				imageRepository.setRepositoryName(repositoryInfo.getHarborProjectName());
-				imageRepository.setHarborProjectName(repositoryInfo.getHarborProjectName());
-				//创建harbor project
-				HarborProject harborProject = new HarborProject();
-				harborProject.setProjectName(repositoryInfo.getHarborProjectName());
-				harborProject.setIsPublic(imageRepository.isPublic()?FLAG_TRUE:FLAG_FALSE);
-				harborProject.setQuotaSize(repositoryInfo.getQuotaSize());
-				ActionReturnUtil result = harborService.createProject(harborServer.getHarborHost(), harborProject);
-				//harbor创建镜像仓库是否成功
-				if (result.isSuccess()) {
-					Map<String, Object> map = (Map) (result.get("data"));
-					harborProjectId = Integer.valueOf(map.get("harborProjectId").toString());
-					imageRepository.setHarborProjectId(harborProjectId);
-					//记录镜像仓库表
-					imageRepositoryMapper.insert(imageRepository);
-				}
-				createdRepository.add(imageRepository);
-			} catch (Exception e) {
-				logger.error("创建镜像仓库失败,repositoryInfo:{},cluster:{}",
-						new String[]{JSONObject.toJSONString(repositoryInfo), harborServer.getHarborHost()}, e);
-				try {
-					if (harborProjectId != null) {
-						harborService.deleteProject(harborServer.getHarborHost(), harborProjectId);
-					}
-				} catch (Exception ex) {
-					logger.error("删除新建的harbor project失败,harbor:{}",harborServer.getHarborHost(), ex);
-				}
-				failedCluster += harborServer.getHarborHost() + CommonConstant.COMMA;
-			}
-		}
-		if(StringUtils.isBlank(failedCluster)){
-			return ActionReturnUtil.returnSuccessWithData(createdRepository);
-		}else{
-			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.REPOSITORY_CREATE_FAIL,
-					failedCluster.substring(0,failedCluster.length()-1),false);
-		}
 	}
 
 	/**

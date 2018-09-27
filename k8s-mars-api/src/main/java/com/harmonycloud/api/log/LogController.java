@@ -134,10 +134,11 @@ public class LogController {
     @ResponseBody
     @RequestMapping(value="/containerfiles", method= RequestMethod.GET)
     public ActionReturnUtil queryLogFile(@RequestParam(value="pod") String pod,
+                                         @RequestParam(value="container", required = false) String container,
                                          @RequestParam(value="namespace") String namespace,
                                          @RequestParam(value="path") String path,
                                          @RequestParam(value="clusterId") String clusterId) throws Exception{
-       List<String> logfile =  logService.queryLogFile(pod,namespace,path,clusterId);
+       List<String> logfile =  logService.queryLogFile(pod,container,namespace,path,clusterId);
 
        return ActionReturnUtil.returnSuccessWithData(logfile);
 

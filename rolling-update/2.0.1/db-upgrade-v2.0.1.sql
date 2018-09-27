@@ -261,3 +261,5 @@ ADD COLUMN `ic_names` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NU
 
 INSERT INTO k8s_auth_server.`url_dic` (`url`,`module`,`resource`)
 VALUES ('/clusters/*/storage','infrastructure','clustermar');
+
+ALTER TABLE `k8s_auth_server`.`cicd_stage` MODIFY `stage_name` VARCHAR(100);

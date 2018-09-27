@@ -3,11 +3,12 @@ package com.harmonycloud.service.tenant.impl;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.UUIDUtil;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.cluster.bean.IngressControllerPort;
 import com.harmonycloud.dao.dataprivilege.DataPrivilegeStrategyMapper;
@@ -20,11 +21,13 @@ import com.harmonycloud.dao.user.bean.*;
 import com.harmonycloud.dto.application.StorageClassDto;
 import com.harmonycloud.dto.tenant.*;
 import com.harmonycloud.dto.user.UserGroupDto;
+import com.harmonycloud.k8s.bean.StorageClass;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.k8s.service.NetworkPolicyService;
 import com.harmonycloud.k8s.service.PersistentvolumeService;
 import com.harmonycloud.k8s.service.RoleBindingService;
+import com.harmonycloud.k8s.service.ScService;
 import com.harmonycloud.service.application.ApplicationTemplateService;
 import com.harmonycloud.service.application.PersistentVolumeService;
 import com.harmonycloud.service.application.StorageClassService;
@@ -127,6 +130,9 @@ public class TenantServiceImpl implements TenantService {
 
     @Autowired
     private IngressControllerPortService ingressControllerPortService;
+
+    @Autowired
+    ScService scService;
 
 
     public static final String PROJECTMGR = "0005";
@@ -392,7 +398,7 @@ public class TenantServiceImpl implements TenantService {
         }
         // 如果没有tenantId生成tenantId
         if (StringUtils.isBlank(tenantId)){
-            tenantId = this.getid();
+            tenantId = UUIDUtil.get16UUID();
         }
         tenantDto.setTenantId(tenantId);
 
@@ -648,20 +654,25 @@ public class TenantServiceImpl implements TenantService {
                             }
                         }
                         //如果当前租户使用的StorageClass其他租户未使用，获取k8s中StorageClass相关信息
-                        ActionReturnUtil scResponse = storageClassService.getStorageClass(storageDto.getName(), clusterQuotaDto.getClusterId());
-                        if (scResponse == null || scResponse.getData() == null) {
+                        Cluster cluster = clusterService.findClusterById(clusterId);
+                        scService.getScByName(storageDto.getName(), cluster);
+                        StorageClass sc = null;
+
+                        if (sc == null) {
                             logger.error("查询StorageClass失败，StorageClass名称为 {}", storageDto.getName());
                             throw new MarsRuntimeException(ErrorCodeMessage.UNKNOWN);
                         } else {
-                            StorageClassDto storageClassDto = (StorageClassDto) scResponse.getData();
-                            //系统中StorageClass设定的存储最大值
-                            Double storageLimit = Double.parseDouble(storageClassDto.getStorageLimit());
-                            //集群配额中对该StorageClass设定的配额  小于等于  storageClass设定的最大存储值，否则检查不通过
-                            if (storageQuota > storageLimit) {
-                                status = Boolean.FALSE;
-                            }
-                            if (totalStorage > storageLimit) {
-                                status = Boolean.FALSE;
+                            Map<String, Object> annotations = sc.getMetadata().getAnnotations();
+                            if(annotations != null && annotations.get("storageLimit") != null){
+                                //系统中StorageClass设定的存储最大值
+                                Double storageLimit = (Double)annotations.get("storageLimit");
+                                //集群配额中对该StorageClass设定的配额  小于等于  storageClass设定的最大存储值，否则检查不通过
+                                if (storageQuota > storageLimit) {
+                                    status = Boolean.FALSE;
+                                }
+                                if (totalStorage > storageLimit) {
+                                    status = Boolean.FALSE;
+                                }
                             }
                         }
                     }
@@ -1046,15 +1057,6 @@ public class TenantServiceImpl implements TenantService {
         }catch (Exception e){
             logger.error("sync harbor member failed",e);
         }
-    }
-
-    public String getid() {
-        // 通过uuid生成token
-        UUID uuid = UUID.randomUUID();
-        String str = uuid.toString();
-        // 去掉"-"符号
-        String id = str.replaceAll(CommonConstant.LINE, CommonConstant.EMPTYSTRING);
-        return id;
     }
 
     @Override

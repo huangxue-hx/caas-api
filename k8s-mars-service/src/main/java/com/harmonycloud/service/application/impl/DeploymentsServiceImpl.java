@@ -5,10 +5,7 @@ import com.harmonycloud.common.enumm.DataResourceTypeEnum;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.CollectionUtil;
-import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dto.application.*;
@@ -698,12 +695,13 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             if(!Objects.isNull(containers.getStorage())) {
                 for (VolumeMountExt vmExt : containers.getStorage()) {
                     if (persistentVolumeService.isFsPv(vmExt.getType()) && StringUtils.isNotBlank(vmExt.getPvcname())) {
-                        PersistentVolume pvByName = this.pvService.getPvByName(vmExt.getPvcname(), cluster);
-                        if (pvByName == null) {
-                            LOGGER.info("pv存储券不存在,pvname:{},clusterName:{}", name, cluster.getName());
+                        PersistentVolumeClaim pvcByName = this.pvcService.getPvcByName(namespace, vmExt.getPvcname(), cluster);
+                        if (pvcByName == null) {
+                            LOGGER.info("pvc存储券不存在,pvcname:{},clusterName:{}", name, cluster.getName());
                             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PV_QUERY_FAIL);
                         }
-                        vmExt.setCapacity(pvByName.getSpec().getCapacity().toString());
+                        Map<String, String> request = (Map)pvcByName.getSpec().getResources().getRequests();
+                        vmExt.setCapacity(request.get(CommonConstant.STORAGE));
                     }
                     vms.add(vmExt);
                 }
@@ -732,12 +730,13 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             if(!Objects.isNull(containers.getStorage())) {
                 for (VolumeMountExt vmExt : containers.getStorage()) {
                     if (persistentVolumeService.isFsPv(vmExt.getType()) && StringUtils.isNotBlank(vmExt.getPvcname())) {
-                        PersistentVolume pvByName = this.pvService.getPvByName(vmExt.getPvcname(), cluster);
-                        if (pvByName == null) {
-                            LOGGER.info("pv存储券不存在,pvname:{},clusterName:{}", name, cluster.getName());
+                        PersistentVolumeClaim pvcByName = this.pvcService.getPvcByName(namespace, vmExt.getPvcname(), cluster);
+                        if (pvcByName == null) {
+                            LOGGER.info("pvc存储券不存在,pvcname:{},clusterName:{}", name, cluster.getName());
                             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PV_QUERY_FAIL);
                         }
-                        vmExt.setCapacity(pvByName.getSpec().getCapacity().toString());
+                        Map<String, String> request = (Map)pvcByName.getSpec().getResources().getRequests();
+                        vmExt.setCapacity(request.get(CommonConstant.STORAGE));
                     }
                     vms.add(vmExt);
                 }
@@ -1566,7 +1565,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
                 if (c.getConfigmap() != null) {
                     List<CreateConfigMapDto> configMaps = c.getConfigmap();
                     if (configMaps != null && configMaps.size() > 0) {
-                        String configmapName = depName + c.getName() + UUID.randomUUID().toString();
+                        String configmapName = depName + c.getName() + UUIDUtil.get16UUID();
                         this.createConfigMap(namespace, configmapName, depName, configMaps, cluster);
                         containerToConfigmapMap.put(c.getName(), configmapName);
                     }

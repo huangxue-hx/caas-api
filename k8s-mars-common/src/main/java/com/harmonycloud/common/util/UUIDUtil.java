@@ -20,4 +20,12 @@ public class UUIDUtil {
         String id = str.replace("-", "");
         return id;
     }
+
+    /**
+     * 生成随机字符串UUID
+     * @return
+     */
+    public static String get16UUID(){
+        return getUUID().substring(0,16);
+    }
 }

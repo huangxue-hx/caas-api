@@ -224,7 +224,7 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                     k8SURL.setNamespace(namespaceLocal.getNamespaceName());
                     k8SURL.setResource(Resource.PERSISTENTVOLUMECLAIM);
                     bodys = new HashMap<>();
-                    String labelSelector = "";//Constant.NODESELECTOR_LABELS_PRE + CommonConstant.TYPE + "=" + CommonConstant.STORAGE;
+                    String labelSelector = "";
                     if(!KUBE_SYSTEM.equalsIgnoreCase(namespaceLocal.getNamespaceName())){
                         labelSelector += Constant.NODESELECTOR_LABELS_PRE + LABEL_PROJECT_ID + "=" + projectId;
                     }else{
@@ -247,6 +247,9 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                             pvused = pvused / 1024 / 1024 / 1024;
                             pvcDto.setUsed(String.format("%.2f", pvused) + "Gi");
                             pvcDto.setStorageClassName((String) (persistentVolumeClaim.getMetadata().getAnnotations().get(STORAGE_ANNOTATION)));
+                            if(StringUtils.isBlank(pvcDto.getStorageClassName())){
+                                pvcDto.setStorageClassName(persistentVolumeClaim.getSpec().getStorageClassName());
+                            }
                             if (!StringUtils.isBlank(pvcDto.getStorageClassName())) {
                                 StorageClassDto storageClassDto = storageClassDtoMap.get(pvcDto.getStorageClassName());
                                 if (storageClassDto != null) {
@@ -271,7 +274,7 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                                         map.put(CommonConstant.TYPE, CommonConstant.LABEL_KEY_DAEMONSET);
                                         map.put(CommonConstant.NAME, labelMap.get(key).toString());
                                         serviceNameList.add(map);
-                                    } else if (key.contains(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET)){
+                                    } else if (key.contains(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET + CommonConstant.LINE)){
                                         if (dataPrivilegeHelper.filterServiceName(labelMap.get(key).toString(), namespaceLocal.getNamespaceName())) {
                                             map.put(CommonConstant.TYPE, CommonConstant.LABEL_KEY_STATEFULSET);
                                             map.put(CommonConstant.NAME, labelMap.get(key).toString());
@@ -322,7 +325,9 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         PersistentVolumeClaim pvcByName = pvcService.getPvcByName(namespace, pvcName, cluster);
         Map<String, Object> labels = pvcByName.getMetadata().getLabels();
         for (String s : labels.keySet()) {
-            if(s.contains(CommonConstant.LABEL_KEY_APP)||s.contains(CommonConstant.DAEMONSET)){
+            if(s.contains(CommonConstant.LABEL_KEY_APP)
+                    ||s.contains(CommonConstant.LABEL_KEY_DAEMONSET)
+                    ||s.contains(CommonConstant.LABEL_KEY_STATEFULSET)){
                 throw new MarsRuntimeException(ErrorCodeMessage.PVC_CAN_NOT_DELETE);
             }
         }
@@ -520,6 +525,20 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
 
         }
         return accessModes;
+    }
+
+    public ActionReturnUtil updateLabel(String name, String namespace, Cluster cluster, Map<String, Object> label){
+        PersistentVolumeClaim pvc = pvcService.getPvcByName(namespace, name, cluster);
+        if (pvc != null) {
+            Map<String, Object> labels = pvc.getMetadata().getLabels();
+            labels.putAll(label);
+            K8SClientResponse pvcResponse = pvcService.updatePvcByName(pvc, cluster);
+            if (!HttpStatusUtil.isSuccessStatus((pvcResponse.getStatus()))) {
+                UnversionedStatus status = JsonUtil.jsonToPojo(pvcResponse.getBody(), UnversionedStatus.class);
+                return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            }
+        }
+        return ActionReturnUtil.returnSuccess();
     }
 
 }

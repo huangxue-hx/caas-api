@@ -26,6 +26,7 @@ public class RepositoryInfo {
     private String harborProjectName;
     private Boolean isDefault;
     private Boolean isPublic;
+    private String harborHost;
 
     public String getClusterId() {
         return clusterId;
@@ -99,4 +100,11 @@ public class RepositoryInfo {
         this.projectName = projectName;
     }
 
+    public String getHarborHost() {
+        return harborHost;
+    }
+
+    public void setHarborHost(String harborHost) {
+        this.harborHost = harborHost;
+    }
 }

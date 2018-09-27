@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import com.harmonycloud.common.util.UUIDUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -73,11 +74,7 @@ public class AuthService {
                 return data;
             }
         }
-        // 通过uuid生成token
-        UUID uuid = UUID.randomUUID();
-        String str = uuid.toString();
-        // 去掉"-"符号
-        token = str.substring(0, 8) + str.substring(9, 13) + str.substring(14, 18) + str.substring(19, 23) + str.substring(24);
+        token = UUIDUtil.getUUID();
         // 将token存入数据库
         user.setToken(token);
         user.setTokenCreate(new Date());

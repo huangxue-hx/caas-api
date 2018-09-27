@@ -200,6 +200,8 @@ public class CommonConstant {
     public static final String NEPHELE_NETWORKNAME = "nephele/networkname";
     public static final String NEPHELE_SUBNETNAME = "nephele/subnetname";
     public static final String NEPHELE_SUBNETID = "nephele/subnetid";
+    // k8s基础参数长度限制(pv)
+    public static final int K8S_NAME_LENGTH_LIMIT = 63;
     //网络隔离方案
     public static final String NETWORK_POLICY = "net.beta.kubernetes.io/network-policy";
     public static final String NETWORK_POLICY_INGRESS = "{\"ingress\": {\"isolation\": \"DefaultDeny\"}}";

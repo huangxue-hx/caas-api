@@ -5,6 +5,7 @@ import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.StringUtil;
+import com.harmonycloud.common.util.UUIDUtil;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dao.tenant.ProjectMapper;
@@ -174,7 +175,7 @@ public class ProjectServiceImpl implements ProjectService {
         String projectId = projectDto.getProjectId();
         //如果项目id不存在则生成
         if (StringUtils.isBlank(projectId)){
-            projectId = StringUtil.getId();
+            projectId = UUIDUtil.get16UUID();
         }
         Project project = new Project();
         //设置项目名称

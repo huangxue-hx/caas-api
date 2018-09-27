@@ -45,6 +45,8 @@ import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static com.harmonycloud.common.Constant.CommonConstant.BLANKSTRING;
+
 /**
  * Created by root on 3/29/17.
  */
@@ -734,7 +736,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         List<ApplicationTemplates> appTpls = appTemplateService.listApplicationTemplatesByName(name, clusterId, false, projectId);
         if (org.apache.commons.collections.CollectionUtils.isNotEmpty(appTpls)) {
             Integer AppTmpId = appTpls.get(0).getId();
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.APPLICATION_TEMPLATE_NAME_DUPLICATE, String.valueOf(AppTmpId));
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.APPLICATION_TEMPLATE_NAME_DUPLICATE, BLANKSTRING + String.valueOf(AppTmpId));
         }
         return ActionReturnUtil.returnSuccess();
     }
