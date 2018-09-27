@@ -184,8 +184,8 @@ public class TerminalService {
         }else if(logQueryDto.getLogSource()==LogService.LOG_TYPE_LOGFILE){
             AssertUtil.notBlank(logQueryDto.getLogDir(), DictEnum.LOG_DIR);
             AssertUtil.notBlank(logQueryDto.getLogFile(),DictEnum.LOG_FILE);
-            command = MessageFormat.format("kubectl exec {0} -n {1} --server={2} --token={3} --insecure-skip-tls-verify=true -- tail -f -n {4} {5}/{6}",
-                    logQueryDto.getPod(),logQueryDto.getNamespace(),cluster.getApiServerUrl(),cluster.getMachineToken(),MAX_LOG_LINES,logQueryDto.getLogDir(),logQueryDto.getLogFile());
+            command = MessageFormat.format("kubectl exec {0} -c {1} -n {2} --server={3} --token={4} --insecure-skip-tls-verify=true -- tail -f -n {5} {6}/{7}",
+                    logQueryDto.getPod(),logQueryDto.getContainer(),logQueryDto.getNamespace(),cluster.getApiServerUrl(),cluster.getMachineToken(),MAX_LOG_LINES,logQueryDto.getLogDir(),logQueryDto.getLogFile());
 
         }
         this.termCommand = command.split("\\s+");

@@ -64,12 +64,14 @@ public class TerminalSocketHandler extends TextWebSocketHandler {
                         }else if(terminalType.toString().equals("filelog")){
                             String pod = (String) session.getAttributes().get("pod");
                             String namespace = (String) session.getAttributes().get("namespace");
+                            String container = (String) session.getAttributes().get("container");
                             String logDir = (String) session.getAttributes().get("logDir");
                             String logFile = (String) session.getAttributes().get("logFile");
                             String clusterId = (String) session.getAttributes().get("clusterId");
                             LogQueryDto logQueryDto = new LogQueryDto();
                             logQueryDto.setPod(pod);
                             logQueryDto.setNamespace(namespace);
+                            logQueryDto.setContainer(container);
                             logQueryDto.setLogDir(logDir);
                             logQueryDto.setLogFile(logFile);
                             logQueryDto.setClusterId(clusterId);
