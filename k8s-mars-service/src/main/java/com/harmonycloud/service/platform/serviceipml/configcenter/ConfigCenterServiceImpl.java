@@ -460,6 +460,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     }
 
 
+
     @Override
     public ActionReturnUtil updateConfigTag(List<String> serviceNameList, String edition, String configName, String projectId,String tenantId,String clusterId) throws Exception {
 
@@ -483,6 +484,18 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         for (Deployment deployment : deploymentList) {
             //设置每个服务的configMap为最新的
             List<Volume> volumes = deployment.getSpec().getTemplate().getSpec().getVolumes();
+            //对比服务版本和更新到的目标版本
+            boolean isSameEdition = false;
+            String depTag = null;
+            for(Volume volume : volumes){
+                String key = volume.getConfigMap().getItems().get(0).getKey();
+                int index = key.lastIndexOf("v");
+                depTag = key.substring(index+1);
+                if(depTag.equals(edition)){
+                    isSameEdition = true;
+                    break;
+                }
+            }
 
             String userName = (String) session.getAttribute("username");
             //将滚动升级的容器参数给到CanaryDeployment，修改configMap
@@ -494,7 +507,8 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
             canaryDeployment.setMaxUnavailable(1);
             canaryDeployment.setNamespace(deployment.getMetadata().getNamespace());
             canaryDeployment.setProjectId(projectId);
-            List<UpdateContainer> updateContainers = getUpdateContainerList(deployment,configName,edition,projectId,tenantId,clusterId);
+            //之前版本中不用的配置文件，在现版本中也做剔除处理
+            List<UpdateContainer> updateContainers = getUpdateContainerList(deployment,configName,edition,projectId,tenantId,clusterId,isSameEdition);
             canaryDeployment.setContainers(updateContainers);
             //进行滚动升级
             versionControlService.canaryUpdate(canaryDeployment,deployment.getStatus().getUpdatedReplicas(),userName);
@@ -504,7 +518,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     }
 
 
-    private  List<UpdateContainer> getUpdateContainerList(Deployment dep,String configName,String tags,String projectid,String tenantId,String clusterId) throws Exception{
+    private  List<UpdateContainer> getUpdateContainerList(Deployment dep,String configName,String tags,String projectid,String tenantId,String clusterId,boolean isSameEdition) throws Exception{
 
         List<ContainerOfPodDetail> containerList = K8sResultConvert.convertContainer(dep);
         List<UpdateContainer> updateContainerList = new ArrayList<>();
@@ -577,21 +591,26 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
                     String name = volumeMount.getSubPath();
                     volumeConfigFileNames.add(name);
                 }
-                /* 将之前版本中没有加入的配置文件剔除 */
-                for(ConfigFileItem configFileItemIndex : configFileItems){
-                    for(ConfigFileItem oldConfigFileItemIndex : oldConfigFileItems){
-                        //判断新老配置组中名字、路径、内容都一致的配置文件（以此条件判断不同版本配置组的配置文件一致）
-                        if(configFileItemIndex.getFileName().equals(oldConfigFileItemIndex.getFileName())
-                                && configFileItemIndex.getPath().equals(oldConfigFileItemIndex.getPath())
-                                && configFileItemIndex.getContent().equals(oldConfigFileItemIndex.getContent())){
-                            //若服务的配置组中不存在老配置组的文件名，则删除
-                            if(!volumeConfigFileNames.contains(configFileItemIndex.getFileName())){
-                                tempList.add(configFileItemIndex);
+                if(!isSameEdition) {
+                    // 若为不同版本，将之前版本中没有加入的配置文件剔除
+                    for (ConfigFileItem configFileItemIndex : configFileItems) {
+                        for (ConfigFileItem oldConfigFileItemIndex : oldConfigFileItems) {
+                            //判断新老配置组中名字、路径、内容都一致的配置文件（以此条件判断不同版本配置组的配置文件一致）
+                            if (configFileItemIndex.getFileName().equals(oldConfigFileItemIndex.getFileName())
+                                    && configFileItemIndex.getPath().equals(oldConfigFileItemIndex.getPath())
+                                    && configFileItemIndex.getContent().equals(oldConfigFileItemIndex.getContent())) {
+                                //若服务的配置组中不存在老配置组的文件名，则删除
+                                if (!volumeConfigFileNames.contains(configFileItemIndex.getFileName())) {
+                                    tempList.add(configFileItemIndex);
+                                }
                             }
                         }
                     }
+                    if (!tempList.isEmpty()) {
+                        configFileItems.removeAll(tempList);
+                    }
                 }
-                configFileItems.removeAll(tempList);
+
                 /* 配置configMap */
 
                 for(ConfigFileItem configFileItemIndex : configFileItems) {
@@ -671,7 +690,9 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
                 int tempIndex = deployment.getSpec().getTemplate().getSpec().getVolumes().get(0).getConfigMap().getItems().get(0).getKey().lastIndexOf("v");
                 String tag = deployment.getSpec().getTemplate().getSpec().getVolumes().get(0).getConfigMap().getItems().get(0).getKey().substring(tempIndex+1);
                 configService.setTag(tag);
-                configService.setImage(deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getImage());
+                String imageName = deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getImage();
+                int firstg = imageName.indexOf("/");
+                configService.setImage(imageName.substring(firstg+1));
                 configService.setServiceDomainName(deployment.getMetadata().getName()+"."+deployment.getMetadata().getNamespace());
                 configService.setCreateTime(deployment.getMetadata().getCreationTimestamp());
                 configService.setUpdateTime(deployment.getStatus().getConditions().get(0).getLastUpdateTime());
