@@ -460,7 +460,7 @@ public class LogServiceImpl implements LogService {
 
 
     @Override
-    public List<String> queryLogFile(String pod, String namespace, String LogDir, String clusterId) {
+    public List<String> queryLogFile(String pod, String container, String namespace, String LogDir, String clusterId) {
         AssertUtil.notBlank(pod,DictEnum.POD);
         AssertUtil.notBlank(namespace,DictEnum.NAMESPACE);
         AssertUtil.notBlank(LogDir,DictEnum.LOG_DIR);
@@ -480,9 +480,14 @@ public class LogServiceImpl implements LogService {
             }
 
             //kubectl exec webapi-6cf47949c8-kwddh -n kube-system ls /opt/logs
-
-            String command = MessageFormat.format("kubectl exec {0} -n {1} --server={2} --token={3} --insecure-skip-tls-verify=true -- ls {4} -F",
-                    pod,namespace,cluster.getApiServerUrl(),cluster.getMachineToken(),LogDir);
+            String command;
+            if(StringUtils.isBlank(container)){
+                command = MessageFormat.format("kubectl exec {0} -n {1} --server={2} --token={3} --insecure-skip-tls-verify=true -- ls {4} -F",
+                        pod,namespace,cluster.getApiServerUrl(),cluster.getMachineToken(),LogDir);
+            }else {
+                command = MessageFormat.format("kubectl exec {0} -c {1} -n {2} --server={3} --token={4} --insecure-skip-tls-verify=true -- ls {5} -F",
+                        pod, container, namespace, cluster.getApiServerUrl(), cluster.getMachineToken(), LogDir);
+            }
 
             process = Runtime.getRuntime().exec(command);
 
