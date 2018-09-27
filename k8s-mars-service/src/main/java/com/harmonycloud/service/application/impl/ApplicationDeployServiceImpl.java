@@ -53,7 +53,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static com.harmonycloud.common.Constant.CommonConstant.LINE;
-import static com.harmonycloud.service.platform.constant.Constant.TOPO_LABEL_KEY;
+import static com.harmonycloud.service.platform.constant.Constant.*;
 
 
 /**
@@ -163,7 +163,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
 
         //查询应用的第三方资源 http body
         Map<String, Object> bodys = new HashMap<>();
-        String projectLabel = Constant.NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId;
+        String projectLabel = NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId;
         bodys.put("labelSelector", projectLabel);
 
         //当projectId不为空,namespace为空
@@ -299,10 +299,10 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 if (CREATE.equals(vo.getKey())) {
                     user = vo.getValue().toString();
                 }
-                if ((Constant.NODESELECTOR_LABELS_PRE + "springcloud").equals(vo.getKey())) {
+                if ((NODESELECTOR_LABELS_PRE + "springcloud").equals(vo.getKey())) {
                     isMsf = true;
                 }
-                if ((Constant.NODESELECTOR_LABELS_PRE + "projectId").equals(vo.getKey())) {
+                if ((NODESELECTOR_LABELS_PRE + "projectId").equals(vo.getKey())) {
                     projectId = vo.getValue().toString();
                 }
             }
@@ -428,7 +428,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             boolean isOperationable = true;
             boolean isMsf = false;
             Map<String, Object> tprLabels = tpr.getMetadata().getLabels();
-            if (tprLabels.containsKey(Constant.NODESELECTOR_LABELS_PRE + "springcloud")) {
+            if (tprLabels.containsKey(NODESELECTOR_LABELS_PRE + "springcloud")) {
                 isOperationable = userService.checkCurrentUserIsAdmin();
                 isMsf = true;
             }
@@ -501,8 +501,16 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                                 String[] tmp = l.split("=");
                                 labelMap.put(tmp[0], tmp[1]);
                             }
-                            serviceDetail.setLabels(labelMap);
                         }
+                        if ( dep.getMetadata().getLabels().containsKey(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE)) {
+                            labelMap.put(LABEL_INGRESS_SERVICE,
+                                    dep.getMetadata().getLabels().get(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE).toString());
+                        }
+                        if(dep.getMetadata().getLabels().containsKey(NODESELECTOR_LABELS_PRE + LABEL_AUTOSCALE)) {
+                            labelMap.put(LABEL_AUTOSCALE,
+                                    dep.getMetadata().getLabels().get(NODESELECTOR_LABELS_PRE + LABEL_AUTOSCALE).toString());
+                        }
+                        serviceDetail.setLabels(labelMap);
                         // get status
                         // deploment status
                         serviceDetail.setStatus(K8sResultConvert.getDeploymentStatus(dep));
@@ -1612,7 +1620,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         Map<String, Object> appLabels = new HashMap<String, Object>();
         appLabels.put(topoLabel, namespaceLabel);
         appLabels.put(CREATE, username);
-        appLabels.put(Constant.NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID, appDeploy.getProjectId());
+        appLabels.put(NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID, appDeploy.getProjectId());
         mate.setLabels(appLabels);
 
         base.setMetadata(mate);
@@ -1628,7 +1636,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     public List<BaseResource> listApplicationByProject(String projectId) throws Exception {
         List<BaseResource> resList = new ArrayList<>();
         Map<String, Object> bodys = new HashMap<>();
-        String projectLabel = Constant.NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId;
+        String projectLabel = NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId;
         bodys.put("labelSelector", projectLabel);
         this.getAllAppList(resList,bodys);
         return resList;
@@ -1643,7 +1651,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         List<NamespaceLocal> namespaceList = namespaceLocalService.getAllNamespaceListByTenantId(tenantId);
         if (CollectionUtils.isNotEmpty(namespaceList)) {
             Map<String, Object> bodys = new HashMap<>();
-            String projectLabel = Constant.NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId;
+            String projectLabel = NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId;
             bodys.put("labelSelector", projectLabel);
             ApplicationList appList = new ApplicationList();
             List<String> idList = new ArrayList<>();
@@ -1676,7 +1684,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         //判断用户权限
         boolean isPrivilege = userService.checkCurrentUserIsAdminOrTm();
         Map<String, Object> msfBody = new HashMap<>();
-        msfBody.put("labelSelector", Constant.NODESELECTOR_LABELS_PRE + "springcloud=true");
+        msfBody.put("labelSelector", NODESELECTOR_LABELS_PRE + "springcloud=true");
         List<BaseResource> list = getApplicationList(namespace, null);
         Map<String, Object> appListMap = new HashMap<>();
         if (list != null && list.size() > 0) {
