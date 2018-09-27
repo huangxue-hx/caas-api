@@ -37,6 +37,7 @@ import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,6 +110,9 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
 
     @Autowired
     RouterService routerService;
+
+    @Autowired
+    PersistentVolumeClaimService PersistentVolumeClaimService;
 
     @Override
     public AppDetail getStatefulSetDetail(String namespace, String name) throws Exception {
@@ -316,20 +320,30 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
         resMap.put("podDisruptionBudget", resPdb);
 
         //pvc打标签
+        Map<String, Object> pvcLabel = new HashedMap();
+        pvcLabel.put(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET + CommonConstant.LINE + detail.getName(), detail.getName());
         if(CollectionUtils.isNotEmpty(detail.getContainers())){
             for(CreateContainerDto container : detail.getContainers()){
                 if(container.getStorage() != null){
                     for(PersistentVolumeDto persistentVolumeDto : container.getStorage()){
                         if(StringUtils.isNotBlank(persistentVolumeDto.getPvcName())) {
-                            PersistentVolumeClaim pvc = pvcService.getPvcByName(detail.getNamespace(), persistentVolumeDto.getPvcName(), cluster);
-                            if (pvc != null) {
-                                Map<String, Object> labels = pvc.getMetadata().getLabels();
-                                labels.put(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET + CommonConstant.LINE + detail.getName(), detail.getName());
-                                K8SClientResponse pvcResponse = pvcService.updatePvcByName(pvc, cluster);
-                                if (!HttpStatusUtil.isSuccessStatus((pvcResponse.getStatus()))) {
-                                    UnversionedStatus status = JsonUtil.jsonToPojo(pvcResponse.getBody(), UnversionedStatus.class);
-                                    return ActionReturnUtil.returnErrorWithData(status.getMessage());
-                                }
+                            ActionReturnUtil res = PersistentVolumeClaimService.updateLabel(persistentVolumeDto.getPvcName(), detail.getNamespace(), cluster, pvcLabel);
+                            if(!res.isSuccess()){
+                                return res;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if(CollectionUtils.isNotEmpty(detail.getInitContainers())){
+            for(CreateContainerDto container : detail.getInitContainers()){
+                if(container.getStorage() != null){
+                    for(PersistentVolumeDto persistentVolumeDto : container.getStorage()){
+                        if(StringUtils.isNotBlank(persistentVolumeDto.getPvcName())) {
+                            ActionReturnUtil res = PersistentVolumeClaimService.updateLabel(persistentVolumeDto.getPvcName(), detail.getNamespace(), cluster, pvcLabel);
+                            if(!res.isSuccess()){
+                                return res;
                             }
                         }
                     }

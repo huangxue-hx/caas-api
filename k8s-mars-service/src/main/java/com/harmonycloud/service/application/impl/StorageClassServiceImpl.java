@@ -338,8 +338,8 @@ public class StorageClassServiceImpl implements StorageClassService {
             throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
         //查询要被删除的StorageClass是否存在
-        ActionReturnUtil scReturn = getStorageClass(name, clusterId);
-        if (!scReturn.isSuccess()) {
+        StorageClass sc = scService.getScByName(name, cluster);
+        if (sc == null) {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.QUERY_FAIL, DictEnum.STORAGE_CLASS.phrase(), true);
         }
         ActionReturnUtil PVCReturn = getStorageClassPVC(name, cluster);
@@ -427,6 +427,7 @@ public class StorageClassServiceImpl implements StorageClassService {
         }
         return ActionReturnUtil.returnSuccessWithData(response.getBody());
     }
+
 
 
     @Override

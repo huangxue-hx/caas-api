@@ -695,12 +695,13 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             if(!Objects.isNull(containers.getStorage())) {
                 for (VolumeMountExt vmExt : containers.getStorage()) {
                     if (persistentVolumeService.isFsPv(vmExt.getType()) && StringUtils.isNotBlank(vmExt.getPvcname())) {
-                        PersistentVolume pvByName = this.pvService.getPvByName(vmExt.getPvcname(), cluster);
-                        if (pvByName == null) {
-                            LOGGER.info("pv存储券不存在,pvname:{},clusterName:{}", name, cluster.getName());
+                        PersistentVolumeClaim pvcByName = this.pvcService.getPvcByName(namespace, vmExt.getPvcname(), cluster);
+                        if (pvcByName == null) {
+                            LOGGER.info("pvc存储券不存在,pvcname:{},clusterName:{}", name, cluster.getName());
                             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PV_QUERY_FAIL);
                         }
-                        vmExt.setCapacity(pvByName.getSpec().getCapacity().toString());
+                        Map<String, String> request = (Map)pvcByName.getSpec().getResources().getRequests();
+                        vmExt.setCapacity(request.get(CommonConstant.STORAGE));
                     }
                     vms.add(vmExt);
                 }
@@ -729,12 +730,13 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             if(!Objects.isNull(containers.getStorage())) {
                 for (VolumeMountExt vmExt : containers.getStorage()) {
                     if (persistentVolumeService.isFsPv(vmExt.getType()) && StringUtils.isNotBlank(vmExt.getPvcname())) {
-                        PersistentVolume pvByName = this.pvService.getPvByName(vmExt.getPvcname(), cluster);
-                        if (pvByName == null) {
-                            LOGGER.info("pv存储券不存在,pvname:{},clusterName:{}", name, cluster.getName());
+                        PersistentVolumeClaim pvcByName = this.pvcService.getPvcByName(namespace, vmExt.getPvcname(), cluster);
+                        if (pvcByName == null) {
+                            LOGGER.info("pvc存储券不存在,pvcname:{},clusterName:{}", name, cluster.getName());
                             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PV_QUERY_FAIL);
                         }
-                        vmExt.setCapacity(pvByName.getSpec().getCapacity().toString());
+                        Map<String, String> request = (Map)pvcByName.getSpec().getResources().getRequests();
+                        vmExt.setCapacity(request.get(CommonConstant.STORAGE));
                     }
                     vms.add(vmExt);
                 }
