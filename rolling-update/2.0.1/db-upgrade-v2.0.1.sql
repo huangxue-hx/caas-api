@@ -263,3 +263,5 @@ INSERT INTO k8s_auth_server.`url_dic` (`url`,`module`,`resource`)
 VALUES ('/clusters/*/storage','infrastructure','clustermar');
 
 ALTER TABLE `k8s_auth_server`.`cicd_stage` MODIFY `stage_name` VARCHAR(100);
+
+ALTER TABLE `tenant_cluster_quota` MODIFY  COLUMN storage_quotas VARCHAR(512) COMMENT '集群租户的所有存储配额信息（name1-quota1-total1，name2-quota2-total2，···）'
