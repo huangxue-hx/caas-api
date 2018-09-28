@@ -2,6 +2,7 @@ package com.harmonycloud.service.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.CreateConfigMapDto;
+import com.harmonycloud.dto.application.CreateContainerDto;
 import com.harmonycloud.k8s.bean.ConfigMap;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 
@@ -39,6 +40,7 @@ public interface ConfigMapService {
      */
     public void updateConfigmap(ConfigMap configMap, Cluster cluster) throws Exception;
 
-    public void createConfigMap(String namespace, String configMapName, String serviceName, List<CreateConfigMapDto> configMaps, Cluster cluster) throws Exception;
+    public void createConfigMap(String namespace, String configMapName, String serviceName, List<CreateConfigMapDto> configMaps, Cluster cluster, String serviceLabel) throws Exception;
 
+    void createConfigMapForService(String serviceName, List<CreateContainerDto> containers, String namespace, Cluster cluster, String serviceLabel) throws Exception;
 }

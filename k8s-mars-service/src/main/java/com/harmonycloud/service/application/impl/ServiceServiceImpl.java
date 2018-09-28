@@ -973,19 +973,13 @@ public class ServiceServiceImpl implements ServiceService {
             }
         }
 
-        // 获取deployment
-        K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus()) && depRes.getStatus() != Constant.HTTP_404) {
-            LOGGER.error("获取Deployment失败,DeploymentName:{}, error:{}", name, depRes.getBody());
-            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
-        }
 
         // 删除configmap
         K8SURL cUrl = new K8SURL();
         cUrl.setNamespace(namespace).setResource(Resource.CONFIGMAP);
         K8SClientResponse conRes = new K8sMachineClient().exec(cUrl, HTTPMethod.DELETE, null, queryP, cluster);
         if (!HttpStatusUtil.isSuccessStatus(conRes.getStatus()) && conRes.getStatus() != Constant.HTTP_404) {
-            LOGGER.error("删除configmap失败,DeploymentName:{}, error:{}", name, conRes.getBody());
+            LOGGER.error("删除configmap失败,{}:{}, error:{}", serviceType, name, conRes.getBody());
             throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);
         }
 

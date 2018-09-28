@@ -291,18 +291,18 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
                         if(parentCreatorId != null && parentCreatorId == creatorId){
                             continue;
                         }
-                        User creator = userMap.get(creatorId);
+                        User creator = userMap.get((long)creatorId);
                         if(creator != null){
                             this.addMemberToPrivilegeGroup(groupId, creatorId, creator.getUsername());
                         }
                     }else if(CommonConstant.DATA_READONLY == dataPrivilegeGroupMapping.getPrivilegeType()){
                         List<String> cloneList = new ArrayList<>(newProjectUserList);
-                        User creator = userMap.get(creatorId);
+                        User creator = userMap.get((long)creatorId);
                         if(creator != null){
                             cloneList.remove(creator.getUsername());
                         }
                         if(parentCreatorId != null && parentCreatorId != creatorId){
-                            User parentCreator = userMap.get(parentCreatorId);
+                            User parentCreator = userMap.get((long)parentCreatorId);
                             cloneList.remove(parentCreator.getUsername());
                         }
                         this.addUserListToGroup(groupId, cloneList);

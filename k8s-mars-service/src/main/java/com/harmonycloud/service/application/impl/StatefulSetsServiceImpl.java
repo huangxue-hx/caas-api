@@ -2,7 +2,6 @@ package com.harmonycloud.service.application.impl;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DataResourceTypeEnum;
-import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
@@ -243,24 +242,10 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
     @Override
     public ActionReturnUtil createStatefulSet(StatefulSetDetailDto detail, String userName, String app, Cluster cluster, List<IngressDto> ingress) throws Exception {
         dataPrivilegeService.addResource(detail, app, DataResourceTypeEnum.APPLICATION);
-        List<CreateContainerDto> containers = detail.getContainers();
-        if (containers != null && !containers.isEmpty()) {
-            for (CreateContainerDto c : containers) {
-                List<CreateConfigMapDto> configMaps = c.getConfigmap();
-                if (configMaps != null && configMaps.size() > 0) {
-                    K8SURL url1 = new K8SURL();
-                    url1.setNamespace(detail.getNamespace()).setResource(Resource.CONFIGMAP).setName(detail.getName() + c.getName());
-                    K8SClientResponse responses = new K8sMachineClient().exec(url1, HTTPMethod.GET, null, null, cluster);
-                    Map<String, Object> convertJsonToMap = JsonUtil.convertJsonToMap(responses.getBody());
-                    String metadata = convertJsonToMap.get(CommonConstant.METADATA).toString();
-                    if (!CommonConstant.EMPTYMETADATA.equals(metadata)) {
-                        return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NAME_EXIST,
-                                DictEnum.CONFIG_MAP.phrase() + detail.getName() + c.getName(), true);
-                    }
-                    configMapService.createConfigMap(detail.getNamespace(), detail.getName() + c.getName(), detail.getName(), configMaps, cluster);
-                }
-            }
-        }
+        //创建configmap
+        String serviceLabel = Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET;
+        configMapService.createConfigMapForService(detail.getName(), detail.getContainers(), detail.getNamespace(), cluster, serviceLabel);
+        configMapService.createConfigMapForService(detail.getName(), detail.getInitContainers(), detail.getNamespace(), cluster, serviceLabel);
 
         //根据namespace获取节点label，并将label作为节点强制亲和
         if (Objects.nonNull(detail)) {

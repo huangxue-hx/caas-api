@@ -1,12 +1,14 @@
 package com.harmonycloud.service.application.impl;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.dto.application.CreateContainerDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dto.application.CreateConfigMapDto;
 import com.harmonycloud.k8s.bean.ConfigMap;
@@ -142,7 +144,7 @@ public class ConfigMapServiceImpl implements ConfigMapService {
 	}
 
     @Override
-    public void createConfigMap(String namespace, String configMapName, String serviceName, List<CreateConfigMapDto> configMaps, Cluster cluster) throws Exception {
+    public void createConfigMap(String namespace, String configMapName, String serviceName, List<CreateConfigMapDto> configMaps, Cluster cluster, String serviceLabel) throws Exception {
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.CONFIGMAP);
         Map<String, Object> bodys = new HashMap<String, Object>();
@@ -150,7 +152,7 @@ public class ConfigMapServiceImpl implements ConfigMapService {
         meta.put("namespace", namespace);
         meta.put("name", configMapName);
         Map<String, Object> label = new HashMap<String, Object>();
-        label.put("app", serviceName);
+        label.put(serviceLabel, serviceName);
         meta.put("labels", label);
         bodys.put("metadata", meta);
         Map<String, Object> data = new HashMap<String, Object>();
@@ -173,6 +175,27 @@ public class ConfigMapServiceImpl implements ConfigMapService {
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
             throw new MarsRuntimeException(status.getMessage());
+        }
+    }
+
+    @Override
+    public void createConfigMapForService(String serviceName, List<CreateContainerDto> containers, String namespace, Cluster cluster, String serviceLabel) throws Exception {
+        if (containers != null && !containers.isEmpty()) {
+            for (CreateContainerDto c : containers) {
+                List<CreateConfigMapDto> configMaps = c.getConfigmap();
+                if (configMaps != null && configMaps.size() > 0) {
+                    K8SURL url1 = new K8SURL();
+                    url1.setNamespace(namespace).setResource(Resource.CONFIGMAP).setName(serviceName + c.getName());
+                    K8SClientResponse responses = new K8sMachineClient().exec(url1, HTTPMethod.GET, null, null, cluster);
+                    Map<String, Object> convertJsonToMap = JsonUtil.convertJsonToMap(responses.getBody());
+                    String metadata = convertJsonToMap.get(CommonConstant.METADATA).toString();
+                    if (!CommonConstant.EMPTYMETADATA.equals(metadata)) {
+                        throw new MarsRuntimeException(ErrorCodeMessage.NAME_EXIST,
+                                DictEnum.CONFIG_MAP.phrase() + serviceName + c.getName(), true);
+                    }
+                    this.createConfigMap(namespace, serviceName + c.getName(), serviceName, configMaps, cluster, serviceLabel);
+                }
+            }
         }
     }
 }

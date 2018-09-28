@@ -193,6 +193,7 @@ UPDATE k8s_auth_server.url_dic SET module='whitelist',resource='whitelist' WHERE
 INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/configmap/*/services', 'appcenter', 'configmap');
 INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/configmap/*/deploy', 'appcenter', 'configmap');
 INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/configmap/*/tags', 'appcenter', 'configmap');
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/configmap/*/detail', 'appcenter', 'configmap');
 
 INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/privilege/groupNames', 'whitelist', 'whitelist');
 
