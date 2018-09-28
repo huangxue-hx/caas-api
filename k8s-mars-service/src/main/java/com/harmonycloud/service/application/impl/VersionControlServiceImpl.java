@@ -193,7 +193,10 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
 
         //获取传过来的pvc
         List<UpdateContainer> containers = detail.getContainers();
-        for (UpdateContainer container : containers) {
+        List<Volume> volumes = new ArrayList<>();
+        for (int i=0; i<containers.size();i++) {
+            UpdateContainer container = containers.get(i);
+            List<VolumeMount> volumeMounts = new ArrayList<>();
             List<PersistentVolumeDto> storage = container.getStorage();
             if(storage.size()==0){
                 for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaims) {
@@ -213,11 +216,25 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
                         if(!pvcByName.equals(persistentVolumeClaim)){
                             labels.remove(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name);
                         }
+                        //拼装存储卷
+                        Volume volume = new Volume();
+                        PersistentVolumeClaimVolumeSource claim = new PersistentVolumeClaimVolumeSource();
+                        volume.setName(pvcName);
+                        claim.setClaimName(pvcName);
+                        volume.setPersistentVolumeClaim(claim);
+                        volumes.add(volume);
+                        VolumeMount volumeMount = new VolumeMount();
+                        volumeMount.setName(pvcName);
+                        volumeMount.setMountPath(persistentVolumeDto.getPath());
+                        volumeMount.setReadOnly(persistentVolumeDto.getReadOnly());
+                        volumeMounts.add(volumeMount);
                         pvcService.updatePvcByName(persistentVolumeClaim,cluster);
                     }
                 }
             }
+            dep.getSpec().getTemplate().getSpec().getContainers().get(i).setVolumeMounts(volumeMounts);
         }
+        dep.getSpec().getTemplate().getSpec().setVolumes(volumes);
         //将页面上填写的数据保存到annotation中
         anno.put("deployment.canaryupdate/maxsurge", String.valueOf(detail.getMaxSurge()));
         anno.put("deployment.canaryupdate/maxunavailable", String.valueOf(detail.getMaxUnavailable()));
