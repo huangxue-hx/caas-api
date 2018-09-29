@@ -116,17 +116,22 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
                     Map<String, Object> newLabels = pvcByName.getMetadata().getLabels();
                     newLabels.put(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name,name);
                     pvcService.updatePvcByName(pvcByName,cluster);
-                    for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaims) {
-                        Map<String, Object> labels = persistentVolumeClaim.getMetadata().getLabels();
-                        if(!pvcByName.equals(persistentVolumeClaim)){
-                            labels.remove(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name);
+                    for (int j=0; j < persistentVolumeClaims.size(); j++) {
+                        PersistentVolumeClaim persistentVolumeClaim = persistentVolumeClaims.get(j);
+                        if(pvcByName.getMetadata().getName().equals(persistentVolumeClaim.getMetadata().getName())){
+                            persistentVolumeClaims.remove(persistentVolumeClaim);
                         }
-                        pvcService.updatePvcByName(persistentVolumeClaim,cluster);
                     }
                 }
             }
         }
-
+        //移除原pv标签
+        for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaims){
+            Map<String, Object> labels = persistentVolumeClaim.getMetadata().getLabels();
+            labels.remove(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name);
+            persistentVolumeClaim.getMetadata().setLabels(labels);
+            pvcService.updatePvcByName(persistentVolumeClaim,cluster);
+        }
         // 获取deployment
         K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
