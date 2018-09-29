@@ -210,31 +210,41 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
                     PersistentVolumeClaim pvcByName = pvcService.getPvcByName(namespace, pvcName, cluster);
                     Map<String, Object> newLabels = pvcByName.getMetadata().getLabels();
                     newLabels.put(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name,name);
-                    pvcService.updatePvcByName(pvcByName,cluster);
-                    for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaims) {
-                        Map<String, Object> labels = persistentVolumeClaim.getMetadata().getLabels();
-                        if(!pvcByName.equals(persistentVolumeClaim)){
-                            labels.remove(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name);
+                    K8SClientResponse  response = pvcService.updatePvcByName(pvcByName,cluster);
+                    if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                        throw new MarsRuntimeException(response.getBody());
+                    }
+                    //拼装存储卷
+                    Volume volume = new Volume();
+                    PersistentVolumeClaimVolumeSource claim = new PersistentVolumeClaimVolumeSource();
+                    volume.setName(pvcName);
+                    claim.setClaimName(pvcName);
+                    volume.setPersistentVolumeClaim(claim);
+                    volumes.add(volume);
+                    VolumeMount volumeMount = new VolumeMount();
+                    volumeMount.setName(pvcName);
+                    volumeMount.setMountPath(persistentVolumeDto.getPath());
+                    volumeMount.setReadOnly(persistentVolumeDto.getReadOnly());
+                    volumeMounts.add(volumeMount);
+                    for (int j=0; j<persistentVolumeClaims.size();j++) {
+                        PersistentVolumeClaim persistentVolumeClaim = persistentVolumeClaims.get(j);
+                        if(pvcByName.getMetadata().getName().equals(persistentVolumeClaim.getMetadata().getName())){
+                            persistentVolumeClaims.remove(persistentVolumeClaim);
                         }
-                        //拼装存储卷
-                        Volume volume = new Volume();
-                        PersistentVolumeClaimVolumeSource claim = new PersistentVolumeClaimVolumeSource();
-                        volume.setName(pvcName);
-                        claim.setClaimName(pvcName);
-                        volume.setPersistentVolumeClaim(claim);
-                        volumes.add(volume);
-                        VolumeMount volumeMount = new VolumeMount();
-                        volumeMount.setName(pvcName);
-                        volumeMount.setMountPath(persistentVolumeDto.getPath());
-                        volumeMount.setReadOnly(persistentVolumeDto.getReadOnly());
-                        volumeMounts.add(volumeMount);
-                        pvcService.updatePvcByName(persistentVolumeClaim,cluster);
                     }
                 }
+
             }
             dep.getSpec().getTemplate().getSpec().getContainers().get(i).setVolumeMounts(volumeMounts);
         }
         dep.getSpec().getTemplate().getSpec().setVolumes(volumes);
+        //移除原pv标签
+        for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaims){
+            Map<String, Object> labels = persistentVolumeClaim.getMetadata().getLabels();
+            labels.remove(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name);
+            persistentVolumeClaim.getMetadata().setLabels(labels);
+            pvcService.updatePvcByName(persistentVolumeClaim,cluster);
+        }
         //将页面上填写的数据保存到annotation中
         anno.put("deployment.canaryupdate/maxsurge", String.valueOf(detail.getMaxSurge()));
         anno.put("deployment.canaryupdate/maxunavailable", String.valueOf(detail.getMaxUnavailable()));
