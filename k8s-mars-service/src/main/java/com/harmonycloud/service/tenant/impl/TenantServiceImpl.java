@@ -655,8 +655,7 @@ public class TenantServiceImpl implements TenantService {
                         }
                         //如果当前租户使用的StorageClass其他租户未使用，获取k8s中StorageClass相关信息
                         Cluster cluster = clusterService.findClusterById(clusterId);
-                        scService.getScByName(storageDto.getName(), cluster);
-                        StorageClass sc = null;
+                        StorageClass sc = scService.getScByName(storageDto.getName(), cluster);
 
                         if (sc == null) {
                             logger.error("查询StorageClass失败，StorageClass名称为 {}", storageDto.getName());
@@ -665,7 +664,7 @@ public class TenantServiceImpl implements TenantService {
                             Map<String, Object> annotations = sc.getMetadata().getAnnotations();
                             if(annotations != null && annotations.get("storageLimit") != null){
                                 //系统中StorageClass设定的存储最大值
-                                Double storageLimit = (Double)annotations.get("storageLimit");
+                                Double storageLimit = Double.valueOf(annotations.get("storageLimit").toString());
                                 //集群配额中对该StorageClass设定的配额  小于等于  storageClass设定的最大存储值，否则检查不通过
                                 if (storageQuota > storageLimit) {
                                     status = Boolean.FALSE;
