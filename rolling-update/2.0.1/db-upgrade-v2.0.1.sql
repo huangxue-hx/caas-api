@@ -266,3 +266,19 @@ VALUES ('/clusters/*/storage','infrastructure','clustermar');
 ALTER TABLE `k8s_auth_server`.`cicd_stage` MODIFY `stage_name` VARCHAR(100);
 
 ALTER TABLE `tenant_cluster_quota` MODIFY  COLUMN storage_quotas VARCHAR(512) COMMENT '集群租户的所有存储配额信息（name1-quota1-total1，name2-quota2-total2，···）'
+
+
+UPDATE `k8s_auth_server`.`resource_menu` SET `weight` = `weight`+1 WHERE `weight`>=14;
+
+INSERT INTO `k8s_auth_server`.`resource_menu` (`id`,`name`, `name_en`, `type`, `url`, `weight`, `create_time`, `update_time`, `available`, `icon_name`, `isparent`, `parent_rmid`, `module`)
+VALUES ('32', '有状态服务', 'StatefulSet', 'menu', 'statefulSet', '14', NOW(), NOW(), '1', '', '0', '6', 'app');
+
+UPDATE `k8s_auth_server`.`resource_menu_role` SET `weight` = `weight`+1 WHERE `weight`>=14;
+
+INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '1', '32');
+INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '2', '32');
+INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '3', '32');
+INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '4', '32');
+INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '5', '32');
+INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '6', '32');
+INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '7', '32');

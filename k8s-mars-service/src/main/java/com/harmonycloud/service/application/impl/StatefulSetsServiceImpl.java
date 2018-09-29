@@ -335,24 +335,6 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
                 }
             }
         }
-        if(CollectionUtils.isNotEmpty(statefulSet.getSpec().getVolumeClaimTemplates())){
-            for(PersistentVolumeClaim template : statefulSet.getSpec().getVolumeClaimTemplates()){
-                for(int i=0; i<statefulSet.getSpec().getReplicas(); i++) {
-                    String pvcName = template.getMetadata().getName() + CommonConstant.LINE + statefulSet.getMetadata().getName() + CommonConstant.LINE + String.valueOf(i);
-                    PersistentVolumeClaim pvc = pvcService.getPvcByName(detail.getNamespace(), pvcName, cluster);
-                    if (pvc != null) {
-                        Map<String, Object> labels = pvc.getMetadata().getLabels();
-                        labels.put(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET + CommonConstant.LINE + detail.getName(), detail.getName());
-                        labels.put(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.AUTO_PROVISION_LABEL, CommonConstant.TRUE_STRING);
-                        K8SClientResponse pvcResponse = pvcService.updatePvcByName(pvc, cluster);
-                        if (!HttpStatusUtil.isSuccessStatus((pvcResponse.getStatus()))) {
-                            UnversionedStatus status = JsonUtil.jsonToPojo(pvcResponse.getBody(), UnversionedStatus.class);
-                            return ActionReturnUtil.returnErrorWithData(status.getMessage());
-                        }
-                    }
-                }
-            }
-        }
 
         return ActionReturnUtil.returnSuccessWithData(resMap);
     }

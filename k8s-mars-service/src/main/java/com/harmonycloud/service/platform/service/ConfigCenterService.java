@@ -88,7 +88,7 @@ public interface ConfigCenterService {
      * @param configMapId required
      * @return ActionReturnUtil
      */
-    ActionReturnUtil getConfigMap(String configMapId) throws Exception;
+    ConfigDetailDto getConfigMap(String configMapId) throws Exception;
 
     /**
      * find a lastest config service on 17/03/24.
@@ -182,4 +182,6 @@ public interface ConfigCenterService {
      * @throws Exception
      */
     void deleteConfigMap(String clusterId, String tenantId) throws Exception;
+
+    ActionReturnUtil getConfigMapWithService(String configMapId) throws Exception;
 }

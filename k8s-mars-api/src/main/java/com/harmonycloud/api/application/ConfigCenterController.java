@@ -112,7 +112,7 @@ public class ConfigCenterController {
 	public ActionReturnUtil getConfigMap(@PathVariable("tenantId") String tenantId,
 										  @PathVariable("projectId") String projectId,
 										  @PathVariable("configMapId") String configMapId) throws Exception {
-		return configCenterService.getConfigMap(configMapId);
+		return configCenterService.getConfigMapWithService(configMapId);
 	}
 
 	/**
