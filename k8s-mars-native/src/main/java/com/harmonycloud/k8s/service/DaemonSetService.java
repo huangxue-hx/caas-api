@@ -120,7 +120,6 @@ public class DaemonSetService {
         K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,queryParams,cluster);
         if(!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404){
             UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            throw new MarsRuntimeException(sta.getMessage());
         }
         DaemonSetList list = JsonUtil.jsonToPojo(response.getBody(),DaemonSetList.class);
         return list;

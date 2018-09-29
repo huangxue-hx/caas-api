@@ -1,6 +1,7 @@
 package com.harmonycloud.k8s.service;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.k8s.bean.Deployment;
 import com.harmonycloud.k8s.bean.StorageClass;
@@ -97,7 +98,7 @@ public class ScService {
             List<StorageClass> storageClasses = storageClassList.getItems();
             return storageClasses;
         }
-        return null;
+        throw new MarsRuntimeException(response.getBody());
     }
 
 }
