@@ -987,27 +987,50 @@ public class ServiceServiceImpl implements ServiceService {
         cUrl.setResource(Resource.INGRESS);
         K8SClientResponse ingRes = new K8sMachineClient().exec(cUrl, HTTPMethod.DELETE, null, queryP, cluster);
         if (!HttpStatusUtil.isSuccessStatus(ingRes.getStatus()) && ingRes.getStatus() != Constant.HTTP_404) {LOGGER.error("删除Ingress失败,DeploymentName:{}, error:{}", name, ingRes.getBody());throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_DELETE_FAILURE);}
+
         // update pvc
         Map<String, Object> pvclabel = new HashMap<String, Object>();
         ServiceTypeEnum serviceTypeEnum = ServiceTypeEnum.valueOf(serviceType.toUpperCase());
         String key = null;
+        String autoPvcKey = null;
+        List<PersistentVolumeClaim> pvcList = new ArrayList<>();
         switch(serviceTypeEnum){
             case DEPLOYMENT:
                 key = CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name;
                 break;
             case STATEFULSET:
                 key = Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET + CommonConstant.LINE + name;
+                autoPvcKey = Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET;
                 break;
         }
-        pvclabel.put("labelSelector", key + "=" + name);
+        pvclabel.put("labelSelector", key + CommonConstant.EQUALITY_SIGN + name);
         K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, pvclabel, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
             UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
-        PersistentVolumeClaimList persistentVolumeList = K8SClient.converToBean(pvcRes, PersistentVolumeClaimList.class);
-        if (persistentVolumeList != null && persistentVolumeList.getItems() != null) {
-            for (PersistentVolumeClaim onePvc : persistentVolumeList.getItems()) {
+        PersistentVolumeClaimList persistentVolumeClaimList = K8SClient.converToBean(pvcRes, PersistentVolumeClaimList.class);
+        if(persistentVolumeClaimList != null) {
+            pvcList.addAll(persistentVolumeClaimList.getItems());
+        }
+
+        //查询有状态服务自动供应的pvc
+        if(StringUtils.isNotBlank(autoPvcKey)){
+            pvclabel.put("labelSelector", autoPvcKey + CommonConstant.EQUALITY_SIGN + name);
+            K8SClientResponse autoPvcRes = pvcService.doSepcifyPVC(namespace, pvclabel, HTTPMethod.GET, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(autoPvcRes.getStatus()) && autoPvcRes.getStatus() != Constant.HTTP_404) {
+                UnversionedStatus status = JsonUtil.jsonToPojo(autoPvcRes.getBody(), UnversionedStatus.class);
+                return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            }
+            PersistentVolumeClaimList autoPersistentVolumeClaimList = K8SClient.converToBean(autoPvcRes, PersistentVolumeClaimList.class);
+            if(autoPersistentVolumeClaimList != null) {
+                autoPersistentVolumeClaimList.getItems().stream().forEach(pvc->pvc.getMetadata().getLabels().remove(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET));
+                pvcList.addAll(autoPersistentVolumeClaimList.getItems());
+            }
+        }
+
+        if (CollectionUtils.isNotEmpty(pvcList)) {
+            for (PersistentVolumeClaim onePvc : pvcList) {
                 onePvc.getMetadata().getLabels().remove(key);
                 K8SClientResponse response = pvcService.updatePvcByName(onePvc,cluster);
                 if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {

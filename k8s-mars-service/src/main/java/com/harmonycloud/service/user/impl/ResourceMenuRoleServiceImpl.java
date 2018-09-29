@@ -77,6 +77,7 @@ public class ResourceMenuRoleServiceImpl implements ResourceMenuRoleService{
                     MenuDto subMenuDto = this.convertMenuDtoObject(subResourceMenu,resourceMenuIdsMap);
                     subMenu.add(subMenuDto);
                 }
+                Collections.sort(subMenu);
                 menuDto.setSubMenu(subMenu);
                 result.add(menuDto);
             }else if (!CommonConstant.APPCENTER.equals(resourceMenu.getModule())

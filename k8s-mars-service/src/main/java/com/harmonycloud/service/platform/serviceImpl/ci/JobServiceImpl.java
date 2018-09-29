@@ -16,7 +16,6 @@ import com.harmonycloud.dao.ci.*;
 import com.harmonycloud.dao.ci.bean.*;
 import com.harmonycloud.dao.ci.bean.Job;
 import com.harmonycloud.dao.harbor.ImageRepositoryMapper;
-import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.dto.cicd.CicdConfigDto;
@@ -2348,27 +2347,19 @@ public class JobServiceImpl implements JobService {
                         configMap.setPath(volumeMountExt.getMountPath());
                         if (volumeMountExt.getName() != null && volumeMountExt.getName().lastIndexOf("-") > 0) {
                             int indexByFileName = volumeMountExt.getName().lastIndexOf("-");
-//                            configMap.setTag(volumeMountExt.getName().substring(volumeMountExt.getName().lastIndexOf("-") + 1).replace("-", "."));
-//                            configMap.setFile(volumeMountExt.getName().substring(indexByName+1, volumeMountExt.getName().lastIndexOf("-")));
-//                            configMap.setName(volumeMountExt.getName().substring(0,indexByName));
                             configMap.setFile(volumeMountExt.getName().substring(0, indexByFileName));
                             configMap.setConfigMapId(volumeMountExt.getName().substring(indexByFileName + 1));
 
 
                         }
-                        ActionReturnUtil configMapUtil = configCenterService.getConfigMap(configMap.getConfigMapId());
-                        if (configMapUtil.getData() == null || !configMapUtil.isSuccess()) {
-                            throw new MarsRuntimeException("未找到配置文件");
+                        //升级时从数据库读取配置文件的内容
+                        ConfigDetailDto configDetailDto = configCenterService.getConfigMap(configMap.getConfigMapId());
+                        if (configDetailDto == null) {
+                            throw new MarsRuntimeException(ErrorCodeMessage.CONFIGMAP_NOT_EXIST);
                         }
 
-//                        Map<String,Object> data =(Map<String,Object>)configMapUtil.getData();
-//                        ConfigDetailDto configDetailDto = (ConfigDetailDto) data.get("configMapDetail");
-
-                        ConfigDetailDto configDetailDto = (ConfigDetailDto) configMapUtil.getData();
                         ConfigFile configFile = ObjConverter.convert(configDetailDto, ConfigFile.class);
                         configMap.setTag(configFile.getTags());
-                        //升级时从数据库读取配置文件的内容
-//                        ConfigFile configFile = configCenterService.getConfigByNameAndTag(configMap.getName(),configMap.getTag(), job.getProjectId(), job.getClusterId());
                         if (configFile != null) {
                             List<ConfigFileItem> configFileItemList = configFile.getConfigFileItemList();
                             for (ConfigFileItem configFileItem : configFileItemList) {
@@ -2397,18 +2388,12 @@ public class JobServiceImpl implements JobService {
                 if (CollectionUtils.isNotEmpty(stageDto.getConfigMaps())) {
                     configMapList = new ArrayList<>();
                     for (CreateConfigMapDto createConfigMapDto : stageDto.getConfigMaps()) {
-                        //ConfigFile configFile = configCenterService.getConfigByNameAndTag(createConfigMapDto.getName(), createConfigMapDto.getTag(), job.getProjectId(), job.getClusterId());
-//                        String fileName = createConfigMapDto.getFile();
-//                        String path = createConfigMapDto.getPath();
-//                        createConfigMapDto.setPath(path+"/"+fileName);
-                        ActionReturnUtil configMapUtil = configCenterService.getConfigMap(createConfigMapDto.getConfigMapId());
-                        if(configMapUtil==null || !configMapUtil.isSuccess()){
-                            throw new MarsRuntimeException("未找到配置文件");
-                        }
-//                        Map<String,Object> data =(Map<String,Object>)configMapUtil.getData();
-//                        ConfigDetailDto configDetailDto = (ConfigDetailDto) data.get("configMapDetail");
 
-                        ConfigDetailDto configDetailDto = (ConfigDetailDto) configMapUtil.getData();
+                        ConfigDetailDto configDetailDto = configCenterService.getConfigMap(createConfigMapDto.getConfigMapId());
+                        if(configDetailDto==null){
+                            throw new MarsRuntimeException(ErrorCodeMessage.CONFIGMAP_NOT_EXIST);
+                        }
+
                         ConfigFile configFile = ObjConverter.convert(configDetailDto, ConfigFile.class);
                         if (configFile != null) {
                             List<ConfigFileItem> configFileItemList = configFile.getConfigFileItemList();

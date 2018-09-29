@@ -1537,6 +1537,7 @@ public class K8sResultConvert {
                 break;
             case STATEFULSET:
                 label = Constant.TYPE_STATEFULSET;
+                detail.setClusterIP("None");
                 break;
             default:
                 break;

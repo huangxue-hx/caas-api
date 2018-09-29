@@ -21,12 +21,14 @@ import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.VersionControlService;
 import com.harmonycloud.service.cluster.ClusterService;
-import com.harmonycloud.service.platform.bean.*;
+import com.harmonycloud.service.platform.bean.CanaryDeployment;
+import com.harmonycloud.service.platform.bean.ContainerOfPodDetail;
+import com.harmonycloud.service.platform.bean.LogVolume;
+import com.harmonycloud.service.platform.bean.UpdateContainer;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
-import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -275,16 +277,27 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
      * @author gurongyun
      */
     @Override
-    public ActionReturnUtil getConfigMap(String configMapId) throws Exception {
-
+    public ConfigDetailDto getConfigMap(String configMapId) throws Exception {
+        // 查找配置文件
         ConfigFile configFile = configFileMapper.getConfig(configMapId);
         List<ConfigFileItem> configFileItemList = configFileItemMapper.getConfigFileItem(configMapId);
         configFile.setConfigFileItemList(configFileItemList);
         ConfigDetailDto configDetailDto = ObjConverter.convert(configFile, ConfigDetailDto.class);
 
+        return configDetailDto;
+    }
+
+    /**
+     * get configMap with service
+     * @param configMapId
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public ActionReturnUtil getConfigMapWithService(String configMapId) throws Exception {
+        ConfigDetailDto configDetailDto = this.getConfigMap(configMapId);
         List<Deployment> deploymentList = getServiceList(configDetailDto.getProjectId(), configDetailDto.getTenantId(), configMapId);
         configDetailDto.setDeploymentList(deploymentList);
-        // 查找配置文件
         return ActionReturnUtil.returnSuccessWithData(configDetailDto);
     }
 
@@ -589,12 +602,11 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
                     configMap.setFile(configFileItemIndex.getFileName());
                     configMap.setConfigMapId(configFileItemIndex.getConfigfileId());
 
-                    ActionReturnUtil configMapUtil = getConfigMap(configMap.getConfigMapId());
-                    if (configMapUtil.getData() == null || !configMapUtil.isSuccess()) {
-                        throw new MarsRuntimeException("未找到配置文件");
+                    ConfigDetailDto configDetailDto = getConfigMap(configMap.getConfigMapId());
+                    if (configDetailDto == null) {
+                        throw new MarsRuntimeException(ErrorCodeMessage.CONFIGMAP_NOT_EXIST);
                     }
 
-                    ConfigDetailDto configDetailDto = (ConfigDetailDto) configMapUtil.getData();
                     ConfigFile configFile = ObjConverter.convert(configDetailDto, ConfigFile.class);
                     configMap.setTag(configFile.getTags());//将版本号设置为所选版本
 

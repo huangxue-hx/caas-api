@@ -274,7 +274,7 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                                         map.put(CommonConstant.TYPE, CommonConstant.LABEL_KEY_DAEMONSET);
                                         map.put(CommonConstant.NAME, labelMap.get(key).toString());
                                         serviceNameList.add(map);
-                                    } else if (key.contains(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET + CommonConstant.LINE)){
+                                    } else if (key.contains(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET)){
                                         if (dataPrivilegeHelper.filterServiceName(labelMap.get(key).toString(), namespaceLocal.getNamespaceName())) {
                                             map.put(CommonConstant.TYPE, CommonConstant.LABEL_KEY_STATEFULSET);
                                             map.put(CommonConstant.NAME, labelMap.get(key).toString());

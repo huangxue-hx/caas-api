@@ -191,7 +191,7 @@ public class ConfigCenterServiceTest extends BaseTest {
         assertTrue(configMap.isSuccess());
         assertNotNull(configMap.getData());
         ConfigDetailDto data = (ConfigDetailDto) configMap.getData();
-        ActionReturnUtil config = configCenterService.getConfigMap(data.getId());
+        ActionReturnUtil config = configCenterService.getConfigMapWithService(data.getId());
         assertTrue(config.isSuccess());
         assertNotNull(config.getData());
     }
@@ -249,7 +249,7 @@ public class ConfigCenterServiceTest extends BaseTest {
 
         session.setAttribute(CommonConstant.ROLEID,1);
 
-        ActionReturnUtil configMapUtil = configCenterService.getConfigMap(configMap.getId());
+        ActionReturnUtil configMapUtil = configCenterService.getConfigMapWithService(configMap.getId());
         assertNotNull(configMapUtil);
         assertNotNull(((ConfigDetailDto)configMapUtil.getData()).getDeploymentList());
 
