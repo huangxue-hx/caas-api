@@ -345,6 +345,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		for(ImageRepository imageRepository : imageRepositories){
 			imageRepository.setClusterName(clusterService.findHarborByHost(imageRepository.getHarborHost()).getReferredClusterNames());
 			imageRepository.setClusterId(clusterService.findHarborByHost(imageRepository.getHarborHost()).getReferredClusterIds());
+			imageRepository.setIsPublic(true);
 		}
 		return imageRepositories;
 	}
@@ -359,7 +360,11 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		if (CollectionUtils.isEmpty(clusterIds)){
 			throw new MarsRuntimeException(ErrorCodeMessage.ROLE_HAVE_DISABLE_CLUSTER);
 		}
-		return imageRepositoryMapper.selectRepositories(projectId, null,clusterIds, Boolean.FALSE, isNormal);
+		List<ImageRepository> imageRepositoryList = imageRepositoryMapper.selectRepositories(projectId, null,clusterIds, Boolean.FALSE, isNormal);
+		for(ImageRepository imageRepository : imageRepositoryList){
+			imageRepository.setIsPublic(false);
+		}
+		return imageRepositoryList;
 	}
 
 	@Override
