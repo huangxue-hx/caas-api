@@ -109,6 +109,8 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         //查询数据库中是否有该配置组（若没有，则为创建配置;若有，则为保存修改的配置）
         if(list.isEmpty()){
             configFile.setCreateTime(DateUtil.timeFormat.format(new Date()));//创建配置时，添加创建时间字段
+        }else {
+            configFile.setCreateTime(list.get(0).getCreateTime());//创建配置时，添加创建时间字段
         }
         String updateTime = DateUtil.timeFormat.format(new Date());
         configFile.setUpdateTime(updateTime);
@@ -419,8 +421,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         List<ConfigFile> configFileList =  configFileMapper.getConfigMapByName(name,clusterId,projectId);
         for(ConfigFile configFile : configFileList){
             Cluster cluster = clusterService.findClusterById(configFile.getClusterId());
-//          ji'qunconfigFile.setClusterAliasName(cluster.getAliasName());
-            configFile.setClusterName(cluster.getAliasName());
+            configFile.setClusterAliasName(cluster.getAliasName());
         }
         return ActionReturnUtil.returnSuccessWithData(configFileList);
     }
