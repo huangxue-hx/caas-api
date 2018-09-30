@@ -16,12 +16,12 @@ public interface LogService {
     /**
      * 标准输出
      */
-    public  static final String LOG_TYPE_STDOUT = "0";
+    String LOG_TYPE_STDOUT = "stdoutlog";
 
     /**
      * 日志文件
      */
-    public static final String LOG_TYPE_LOGFILE = "1";
+    String LOG_TYPE_LOGFILE = "filelog";
 
     /**
      * 导出主机上的日志文件

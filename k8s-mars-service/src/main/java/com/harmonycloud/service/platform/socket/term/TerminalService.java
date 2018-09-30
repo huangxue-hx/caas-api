@@ -45,7 +45,7 @@ public class TerminalService {
     private static final Logger LOGGER = LoggerFactory.getLogger(TerminalService.class);
 
     //日志最多查询的数量为200
-    private static final int MAX_LOG_LINES = 500;
+    private static final int DEFAULT_LOG_LINES = 500;
 
     @Value("${shell:#{null}}")
     private String shellStarter;
@@ -176,17 +176,21 @@ public class TerminalService {
         }
         //标准输出
         String command = "";
-        if(logQueryDto.getLogSource()== LogService.LOG_TYPE_STDOUT){
+        if(LogService.LOG_TYPE_STDOUT.equalsIgnoreCase(logQueryDto.getLogSource())){
             AssertUtil.notBlank(logQueryDto.getContainer(),DictEnum.CONTAINER);
             command = MessageFormat.format("kubectl logs {0} -c {1} -n {2} --tail={3} -f --server={4} --token={5} --insecure-skip-tls-verify=true",
-                    logQueryDto.getPod(),logQueryDto.getContainer(),logQueryDto.getNamespace(),MAX_LOG_LINES,cluster.getApiServerUrl(), cluster.getMachineToken());
+                    logQueryDto.getPod(),logQueryDto.getContainer(),logQueryDto.getNamespace(),DEFAULT_LOG_LINES,cluster.getApiServerUrl(), cluster.getMachineToken());
 
-        }else if(logQueryDto.getLogSource()==LogService.LOG_TYPE_LOGFILE){
+        }else if(LogService.LOG_TYPE_LOGFILE.equalsIgnoreCase(logQueryDto.getLogSource())){
             AssertUtil.notBlank(logQueryDto.getLogDir(), DictEnum.LOG_DIR);
             AssertUtil.notBlank(logQueryDto.getLogFile(),DictEnum.LOG_FILE);
-            command = MessageFormat.format("kubectl exec {0} -c {1} -n {2} --server={3} --token={4} --insecure-skip-tls-verify=true -- tail -f -n {5} {6}/{7}",
-                    logQueryDto.getPod(),logQueryDto.getContainer(),logQueryDto.getNamespace(),cluster.getApiServerUrl(),cluster.getMachineToken(),MAX_LOG_LINES,logQueryDto.getLogDir(),logQueryDto.getLogFile());
-
+            if(StringUtils.isBlank(logQueryDto.getContainer())){
+                command = MessageFormat.format("kubectl exec {0} -n {1} --server={2} --token={3} --insecure-skip-tls-verify=true -- tail -f -n {4} {5}/{6}",
+                        logQueryDto.getPod(),logQueryDto.getNamespace(),cluster.getApiServerUrl(),cluster.getMachineToken(),DEFAULT_LOG_LINES,logQueryDto.getLogDir(),logQueryDto.getLogFile());
+            }else {
+                command = MessageFormat.format("kubectl exec {0} -c {1} -n {2} --server={3} --token={4} --insecure-skip-tls-verify=true -- tail -f -n {5} {6}/{7}",
+                        logQueryDto.getPod(), logQueryDto.getContainer(), logQueryDto.getNamespace(), cluster.getApiServerUrl(), cluster.getMachineToken(), DEFAULT_LOG_LINES, logQueryDto.getLogDir(), logQueryDto.getLogFile());
+            }
         }
         this.termCommand = command.split("\\s+");
         if(Objects.nonNull(shellStarter)){
