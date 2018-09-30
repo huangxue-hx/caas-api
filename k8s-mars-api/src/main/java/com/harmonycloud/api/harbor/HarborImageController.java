@@ -69,7 +69,7 @@ public class HarborImageController {
 	 * @return
 	 */
 	@ResponseBody
-	@RequestMapping(value = "/{repositoryId}/images/{imageName}", method = RequestMethod.GET)
+	@RequestMapping(value = "/{repositoryId}/images/{imageName:.+}", method = RequestMethod.GET)
 	public ActionReturnUtil getImage(@PathVariable(value = "repositoryId") Integer repositoryId,
 										@PathVariable(value="imageName") String imageName) throws Exception{
 		String image = URLDecoder.decode(imageName,"UTF-8");
