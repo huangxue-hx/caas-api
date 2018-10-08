@@ -79,7 +79,9 @@
       <include refid="Example_Where_Clause" />
     </if>
   </delete>
-    <delete id="deleteByClusterId"></delete>
+  <delete id="deleteByClusterId">
+    delete from tenant_cluster_quota where cluster_id = #{clusterId}
+  </delete>
     <insert id="insert" parameterType="com.harmonycloud.dao.tenant.bean.TenantClusterQuota">
     <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
       SELECT LAST_INSERT_ID()
