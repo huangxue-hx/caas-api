@@ -220,7 +220,7 @@ public enum ErrorCodeMessage {
     INGRESS_CONTROLLER_SA_NOT_FOUND(300050, "Cannot get the default serviceAccount under the kube-system namespace.", "获取不到kube-system分区下默认的serviceAccount"),
     INGRESS_CONTROLLER_DEFAULT_NOT_DELETE(300051, "The default ingress controller is not allowed to be deleted.", "默认负载均衡器不允许被删除"),
     INGRESS_CONTROLLER_HAS_ASSIGN(300052, "The ingress controller has been assigned.", "该负载均衡器已经被分配"),    INGRESS_CONTROLLER_PORT_UPDATE_FAIL(300053, "In the database, the ingress controller port data update failed, please contact the administrator.", "数据库中，ingress controller端口数据更新失败，请联系管理员"),
-    INGRESS_CONTROLLER_HAS_USED_BY_TENANTS(300054, "The assignment was successful. Some tenants have used a ingress controller and cannot remove tenants:", "分配成功。部分租户已使用负载均衡器，无法移除租户："),
+    INGRESS_CONTROLLER_HAS_USED_BY_TENANTS(300054, "These tenants are using this ingress controller and cannot be removed. Tenant name：", "以下租户已使用该负载均衡器，无法移除。租户名称："),
     INGRESS_CONTROLLER_HTTP_PORT_ERROR(300055, "The port of the ingress controller is not in the specified range.", "负载均衡器的端口不在指定范围"),
 
     //主机节点 301xxx

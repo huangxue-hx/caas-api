@@ -10,6 +10,7 @@ import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.cluster.bean.IngressControllerPort;
+import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
 import com.harmonycloud.dto.cluster.IngressControllerDto;
@@ -22,6 +23,7 @@ import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.cluster.IngressControllerPortService;
 import com.harmonycloud.service.cluster.IngressControllerService;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.TenantClusterQuotaService;
 import com.harmonycloud.service.tenant.TenantService;
 import org.apache.commons.collections.CollectionUtils;
@@ -35,6 +37,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.harmonycloud.common.Constant.IngressControllerConstant.*;
 
@@ -73,6 +76,9 @@ public class IngressControllerServiceImpl implements IngressControllerService {
 
     @Autowired
     TenantClusterQuotaService tenantClusterQuotaService;
+
+    @Autowired
+    NamespaceLocalService namespaceLocalService;
 
     @Override
     public ActionReturnUtil listIngressController(String clusterId) throws Exception {
@@ -586,7 +592,14 @@ public class IngressControllerServiceImpl implements IngressControllerService {
     }
 
     //查看ingress-controller是否被使用
-    private Boolean checkIcUsedStatus(String icName, String tenantId, Cluster cluster) {
+    private Boolean checkIcUsedStatus(String icName, String tenantId, Cluster cluster) throws Exception{
+        List<String> clusterIds = new ArrayList<>();
+        clusterIds.add(cluster.getId());
+        List<NamespaceLocal> namespaces = namespaceLocalService.getNamespaceListByTenantIdAndClusterId(tenantId,clusterIds);
+        if(CollectionUtils.isEmpty(namespaces)){
+            return false;
+        }
+        List<String> namespaceNames = namespaces.stream().map(NamespaceLocal::getNamespaceName).collect(Collectors.toList());
         //查看是否被TCP使用
         K8SClientResponse tcpCmResponse = icService.getIcConfigMapByName(TCP + icName, cluster);
         if (!HttpStatusUtil.isSuccessStatus(tcpCmResponse.getStatus())) {
@@ -594,7 +607,8 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             return true;
         }
         ConfigMap tcpConfigMap = JsonUtil.jsonToPojo(tcpCmResponse.getBody(), ConfigMap.class);
-        if(!Objects.isNull(tcpConfigMap.getData())){
+        boolean inUsed = checkIcUsed(namespaceNames, tcpConfigMap);
+        if(inUsed){
             return true;
         }
         //查看是否被UDP使用
@@ -604,7 +618,8 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             return true;
         }
         ConfigMap udpConfigMap = JsonUtil.jsonToPojo(udpCmResponse.getBody(), ConfigMap.class);
-        if(!Objects.isNull(udpConfigMap.getData())){
+        inUsed = checkIcUsed(namespaceNames, udpConfigMap);
+        if(inUsed){
             return true;
         }
         //查看是否被HTTP使用
@@ -626,6 +641,22 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         return flag;
     }
 
+    private boolean checkIcUsed(List<String> namespaceNames, ConfigMap configMap){
+        if(Objects.isNull(configMap.getData())){
+            return false;
+        }
+        LinkedHashMap<String, String> linkedHashMap = (LinkedHashMap)configMap.getData();
+        Collection<String> values = linkedHashMap.values();
+        Set<String> namespaceSet = new HashSet<>();
+        values.stream().forEach( value -> namespaceSet.add(value.substring(0, value.indexOf("/"))));
+        for(String namespace : namespaceSet){
+            if(namespaceNames.contains(namespace)){
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public ActionReturnUtil assignIngressController(String icName, String tenantId, String clusterId) throws Exception {
         //获取集群
@@ -640,77 +671,46 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         }
         //获取所有绑定
         List<TenantClusterQuota> tenantClusterQuotas =  tenantClusterQuotaService.listClusterQuotaLikeIcName(icName, clusterId);
+
+        List<String> newTenantIds = new ArrayList<>();
+        if(tenantId != null){
+            newTenantIds.addAll(Arrays.asList(tenantId.split(",")));
+        }
+        //如果后台查到的租户为空，则对该负载均衡添加租户组tenants
+        if(CollectionUtils.isEmpty(tenantClusterQuotas)){
+           for(String s : newTenantIds){
+               //添加租户
+               addTenants(s, clusterId, icName);
+           }
+           return ActionReturnUtil.returnSuccess();
+        }
+        List<String> oldTenantIds = tenantClusterQuotas.stream().map(TenantClusterQuota::getTenantId).collect(Collectors.toList());
+        List<String> removedTenantIds = oldTenantIds.stream().filter(id -> !newTenantIds.contains(id)).collect(Collectors.toList());
+        //检查要移除的租户是否已经使用该负载均衡器
         //Ingress Controller分配给租户后，被使用；这些租户的集合
         List<String> usedTenantList = new ArrayList<>();
-        //如果前台传来的租户为空
-        if(tenantId == null){
-            //如果后台查到的租户不为空，则移除该负载均衡所分配的所有租户
-            if(CollectionUtils.isNotEmpty(tenantClusterQuotas)){
-                for(TenantClusterQuota t: tenantClusterQuotas){
-                    if (!checkIcUsedStatus(icName, t.getTenantId(), cluster)) {
-                        //移除租户
-                        removeTenants(t, icName);
-                    } else {
-                        TenantBinding tenantBinding = tenantService.getTenantByTenantid(t.getTenantId());
-                        usedTenantList.add(tenantBinding.getAliasName());
-                    }
-                }
-            }
-            //如果后台查到的租户也为空，则直接返回
-            else{
-                return ActionReturnUtil.returnSuccess();
-            }
-        }
-        //如果前台传来的租户不为空
-        if(tenantId != null){
-            //将前台传来的租户组字符串转换为数组
-            String[] tenants = tenantId.split(",");
-            //如果后台查到的租户为空，则对该负载均衡添加租户组tenants
-            if(CollectionUtils.isEmpty(tenantClusterQuotas)){
-               for(String s : tenants){
-                   //添加租户
-                   addTenants(s, clusterId, icName);
-               }
-            }
-            //如果前后台的租户均不为空，分情况操作数据库
-            else {
-                //前台租户id集合
-                Set<String> tenantIdSet = new HashSet<>();
-                //前台租户id备用集合
-                Set<String> newTenantIdSet = new HashSet<>();
-                //后台查到的租户id集合
-                Set<String> tenantClusterQuotaTenantIdSet = new HashSet<>();
-                for (String s : tenants) {
-                    tenantIdSet.add(s);
-                    newTenantIdSet.add(s);
-                }
-                for (TenantClusterQuota t : tenantClusterQuotas) {
-                    tenantClusterQuotaTenantIdSet.add(t.getTenantId());
-                }
-                tenantIdSet.removeAll(tenantClusterQuotaTenantIdSet);
-                for (String s : tenantIdSet) {
-                    //添加租户
-                    addTenants(s, clusterId, icName);
-                }
-                tenantClusterQuotaTenantIdSet.removeAll(newTenantIdSet);
-                for (String s : tenantClusterQuotaTenantIdSet) {
-                    for (TenantClusterQuota t : tenantClusterQuotas) {
-                        if (t.getTenantId().equals(s)) {
-                            if (!checkIcUsedStatus(icName, t.getTenantId(), cluster)) {
-                                //移除租户
-                                removeTenants(t, icName);
-                            } else {
-                                TenantBinding tenantBinding = tenantService.getTenantByTenantid(t.getTenantId());
-                                usedTenantList.add(tenantBinding.getAliasName());
-                            }
-                        }
-                    }
-                }
+        for (String removedTenantId : removedTenantIds) {
+            if (checkIcUsedStatus(icName, removedTenantId, cluster)) {
+                TenantBinding tenantBinding = tenantService.getTenantByTenantid(removedTenantId);
+                usedTenantList.add(tenantBinding.getAliasName());
             }
         }
         if (CollectionUtils.isNotEmpty(usedTenantList)) {
-            String tenants = StringUtils.join(usedTenantList.toArray(), ",");
-            return ActionReturnUtil.returnSuccessWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAS_USED_BY_TENANTS, tenants);
+            String tenantNames = StringUtils.join(usedTenantList.toArray(), ",");
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAS_USED_BY_TENANTS, tenantNames);
+        }
+        //移除负载均衡器分配的租户
+        for (String removedTenantId : removedTenantIds) {
+            for (TenantClusterQuota t : tenantClusterQuotas) {
+                if (t.getTenantId().equals(removedTenantId)) {
+                    removeTenants(t, icName);
+                }
+            }
+        }
+        //添加负载均衡器分配的租户
+        List<String> addedTenantIds = newTenantIds.stream().filter(id -> !oldTenantIds.contains(id)).collect(Collectors.toList());
+        for (String s : addedTenantIds) {
+            addTenants(s, clusterId, icName);
         }
         return ActionReturnUtil.returnSuccess();
     }

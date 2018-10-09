@@ -578,7 +578,16 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
     public List<TenantClusterQuota> listClusterQuotaLikeIcName(String icName, String clusterId) throws MarsRuntimeException {
         TenantClusterQuotaExample example = this.getExample();
         example.createCriteria().andIcNamesLike("%"+icName+"%").andClusterIdEqualTo(clusterId);
-        return this.tenantClusterQuotaMapper.selectByExample(example);
+        List<TenantClusterQuota> tenantClusterQuotas = this.tenantClusterQuotaMapper.selectByExample(example);
+        Iterator<TenantClusterQuota> iterator = tenantClusterQuotas.iterator();
+        while(iterator.hasNext()){
+            TenantClusterQuota tenantClusterQuota = iterator.next();
+            List<String> icNames = Arrays.asList(tenantClusterQuota.getIcNames().split(","));
+            if(!icNames.contains(icName)){
+                iterator.remove();
+            }
+        }
+        return tenantClusterQuotas;
     }
 
     private TenantClusterQuotaExample getExample(){
