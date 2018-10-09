@@ -188,7 +188,7 @@ public class KubeServiceConvert {
                 Map<String, Object> volFlag = new HashMap<String, Object>();
                 for (int i = 0; i < newVolume.size(); i++) {
                     PersistentVolumeDto vol = newVolume.get(i);
-                    switch (vol.getType()) {
+                    switch (vol.getStorageClassType()) {
                         case Constant.VOLUME_TYPE_PV:
                             if (!volFlag.containsKey(vol.getPvcName())) {
                                 volFlag.put(vol.getPvcName(), vol.getPvcName());
