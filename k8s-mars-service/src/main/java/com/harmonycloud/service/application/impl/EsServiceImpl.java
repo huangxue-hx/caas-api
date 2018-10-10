@@ -171,12 +171,11 @@ public class EsServiceImpl implements EsService {
 	/**
 	 * 查询仓库信息
 	 *
-	 * @param clusterId
+	 * @param cluster
 	 * @return
 	 * @throws Exception
 	 */
-	public List<RepositoryMetaData> listSnapshotRepositories(String clusterId) throws Exception {
-		Cluster cluster = clusterService.findClusterById(clusterId);
+	public List<RepositoryMetaData> listSnapshotRepositories(Cluster cluster) throws Exception {
 		TransportClient client = getEsClient(cluster);
 		GetRepositoriesRequestBuilder retRepo
 				= new GetRepositoriesRequestBuilder(client.admin().cluster(), GetRepositoriesAction.INSTANCE);
@@ -193,10 +192,22 @@ public class EsServiceImpl implements EsService {
 	public void createSnapshotWithRepo(EsSnapshotDto esSnapshotDtoIn){
 		try {
 			checkIndexNames(esSnapshotDtoIn);
+			Cluster cluster = clusterService.findClusterById(esSnapshotDtoIn.getClusterId());
 			// 检查仓库，不存在则创建
-			List<RepositoryMetaData> repositoryMetaDatas = listSnapshotRepositories(esSnapshotDtoIn.getClusterId());
+			List<RepositoryMetaData> repositoryMetaDatas = listSnapshotRepositories(cluster);
+
 			if (CollectionUtils.isEmpty(repositoryMetaDatas)){
 				createSnapshotRepository(esSnapshotDtoIn);
+			}else{
+				boolean exist = false;
+				for(RepositoryMetaData repositoryMetaData : repositoryMetaDatas){
+					if(repositoryMetaData.name().equalsIgnoreCase(cluster.getName())){
+						exist = true;
+					}
+				}
+				if(!exist){
+					createSnapshotRepository(esSnapshotDtoIn);
+				}
 			}
 			String snapshotName = esSnapshotDtoIn.getSnapshotName();
 			if (StringUtils.isAnyBlank(snapshotName)){
@@ -262,7 +273,7 @@ public class EsServiceImpl implements EsService {
     	for(Cluster cluster : clusters) {
 			try {
 				// 检查仓库是否已经创建，如果没有，也就没有快照
-				List<RepositoryMetaData> repositoryMetaDatas = listSnapshotRepositories(cluster.getId());
+				List<RepositoryMetaData> repositoryMetaDatas = listSnapshotRepositories(cluster);
 				if (CollectionUtils.isEmpty(repositoryMetaDatas)){
 					continue;
 				}

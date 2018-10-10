@@ -293,7 +293,7 @@ public class AppLogServiceImpl implements AppLogService {
                 continue;
             }
             // 检查仓库，不存在则创建
-            List<RepositoryMetaData> repositoryMetaDatas = esService.listSnapshotRepositories(cluster.getId());
+            List<RepositoryMetaData> repositoryMetaDatas = esService.listSnapshotRepositories(cluster);
             if (CollectionUtils.isEmpty(repositoryMetaDatas)){
                 EsSnapshotDto esSnapshotDto = new EsSnapshotDto();
                 esSnapshotDto.setClusterId(cluster.getId());
