@@ -112,11 +112,15 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			harborServers.add(clusterService.findHarborByHost(harborHost));
 		}
 		for(HarborServer harborServer : harborServers){
-			HarborOverview harborOverview = new HarborOverview();
-			harborServer.setNormal(HarborClient.checkHarborStatus(harborServer));
-			harborOverview.setHarborServer(harborServer);
-			harborOverview.setRepositories(this.getRepositories(harborServer.getHarborHost(), username));
-			harborOverviews.add(harborOverview);
+			try {
+				HarborOverview harborOverview = new HarborOverview();
+				harborServer.setNormal(HarborClient.checkHarborStatus(harborServer));
+				harborOverview.setHarborServer(harborServer);
+				harborOverview.setRepositories(this.getRepositories(harborServer.getHarborHost(), username));
+				harborOverviews.add(harborOverview);
+			}catch (Exception e){
+				logger.error("获取镜像仓库管理总览失败，harborServer:{}",JSONObject.toJSONString(harborServer),e);
+			}
 		}
 		return harborOverviews;
 	}
