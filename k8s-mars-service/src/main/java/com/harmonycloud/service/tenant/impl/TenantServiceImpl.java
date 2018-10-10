@@ -1622,18 +1622,20 @@ public class TenantServiceImpl implements TenantService {
     public void removeClusterQuota(String tenantName, String tenantId, ClusterQuotaDto clusterQuota) throws Exception {
         //更新集群配额
         List<Map<String, Object>> namespaceDataList = namespaceService.getNamespaceListByTenantid(tenantId);
-        List<TenantPrivateNode> tenantPrivateNodeList = tenantPrivateNodeService.listTenantPrivateNode(tenantId);
         for (Map<String, Object> map:namespaceDataList ) {
             //移除分区
             if (map.get("clusterId").toString().equals(clusterQuota.getClusterId())){
-                namespaceService.deleteNamespace(tenantId,map.get("name").toString());
+                throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_DELETE_FIRST);
             }
-            //移除私有节点
-            for (TenantPrivateNode node:tenantPrivateNodeList) {
-                if (map.get("clusterId").toString().equals(node.getClusterId())){
-                    tenantPrivateNodeService.deleteTenantPrivateNode(node.getId());
-                }
-            }
+        }
+        // 有效值判断
+        TenantBinding tenantBinding = this.getTenantByTenantid(tenantId);
+        if (tenantBinding == null){
+            throw new MarsRuntimeException(ErrorCodeMessage.INVALID_TENANTID);
+        }
+        List<TenantPrivateNode> tenantPrivateNodes = tenantPrivateNodeService.listTenantPrivateNode(tenantId);
+        for (TenantPrivateNode tenantPrivateNode:tenantPrivateNodes) {
+            this.dealDeletePrivateNode(tenantPrivateNode,tenantBinding);
         }
         //移除应用模板
         applicationTemplateService.deleteApplicationTemplate(clusterQuota.getClusterId(),tenantName);
