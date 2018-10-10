@@ -737,7 +737,9 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             }
         }
         //刪除最后一个逗号
-        sb.deleteCharAt(sb.length() - 1);
+        if(sb.length() > 0) {
+            sb.deleteCharAt(sb.length() - 1);
+        }
         tenantClusterQuota.setIcNames(sb.toString());
         tenantClusterQuotaService.updateClusterQuota(tenantClusterQuota);
     }
