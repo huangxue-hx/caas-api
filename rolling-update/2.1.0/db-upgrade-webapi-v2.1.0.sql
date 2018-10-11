@@ -3,6 +3,8 @@ use k8s_auth_server;
 ALTER TABLE `k8s_auth_server`.`url_dic`
 ADD UNIQUE INDEX `url_UNIQUE` (`url` ASC);
 
+UPDATE `k8s_auth_server`.`user` SET `real_name`='admin' WHERE `id`='1';
+
 CREATE TABLE `k8s_auth_server`.`configfile_item` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'id主键,自动生成',
   `configfile_id` varchar(64) NOT NULL COMMENT '外键,配置id',
@@ -12,15 +14,13 @@ CREATE TABLE `k8s_auth_server`.`configfile_item` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8;
 
-UPDATE `k8s_auth_server`.`user` SET `real_name`='admin' WHERE `id`='1';
+INSERT into k8s_auth_server.configfile_item(`configfile_id`, `path`, `content`, `file_name`) select id,path,item,name FROM `k8s_auth_server`.configfile;
 
 ALTER TABLE k8s_auth_server.`configfile`
   DROP COLUMN `item`,
   DROP COLUMN `path`;
 
-INSERT into k8s_auth_server.configfile_item(`configfile_id`, `path`, `content`, `file_name`) select id,path,item,name FROM `k8s_auth_server`.configfile;
-
-ALTER TABLE tenant_cluster_quota ADD storage_quotas VARCHAR(255) SET utf8 COLLATE utf8_general_ci DEFAULT '' COMMENT '集群租户的所有存储配额信息（name1_quota1_total1，name2_quota2_total2...）'
+ALTER TABLE tenant_cluster_quota ADD storage_quotas VARCHAR(255) DEFAULT '' COMMENT '集群租户的所有存储配额信息（name1_quota1_total1，name2_quota2_total2...）'
 
 INSERT INTO system_config (config_name, config_value, config_type, create_user)
 VALUES ('provisionerImageName', '/k8s-deploy/nfs-client-provisioner:v2.1.0', 'nfs-provisioner', 'admin');
@@ -208,7 +208,7 @@ ALTER TABLE `k8s_auth_server`.`cicd_stage`
 ADD COLUMN `repository_id` VARCHAR(255) NULL AFTER `dest_cluster_id`;
 
 INSERT INTO `k8s_auth_server`.`url_dic` (url,module,resource) VALUE ('/tenants/*/clusterquotas','tenant','tenantmgr');
-UPDATE k8s_auth_server.url_dic SET module='whitelist',resource='whitelist' WHERE url = '/users/*/password';
+
 
 INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`)
 VALUES ('/tenants/*/projects/*/statefulsets', 'appcenter', 'app');
@@ -282,3 +282,5 @@ INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `up
 INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '5', '32');
 INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '6', '32');
 INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '7', '32');
+
+UPDATE `k8s_auth_server`.`service_templates` SET `deployment_content`='[{\"annotation\":\"\",\"clusterIP\":\"\",\"containers\":[{\"args\":[],\"command\":[],\"configmap\":[],\"env\":[{\"key\":\"TZ\",\"value\":\"Asia/Shanghai\"}],\"img\":\"onlineshop/mysql\",\"livenessProbe\":null,\"log\":\"\",\"name\":\"mysql\",\"ports\":[{\"containerPort\":\"\",\"expose\":\"true\",\"port\":\"3306\",\"protocol\":\"TCP\"}],\"readinessProbe\":null,\"resource\":{\"cpu\":\"1000m\",\"memory\":\"1024\"},\"storage\":[],\"tag\":\"5.7.6\"}],\"hostName\":\"\",\"instance\":\"1\",\"labels\":\"\",\"logPath\":\"\",\"logService\":\"\",\"name\":\"mysql\",\"namespace\":\"\",\"nodeSelector\":\"HarmonyCloud_Status=C\",\"restartPolicy\":\"Always\",\"sessionAffinity\":\"\"}]' WHERE `id`='5';
