@@ -55,7 +55,7 @@ public class HarborImageController {
 	 * @return
 	 */
 	@ResponseBody
-	@RequestMapping(value = "/{repositoryId}/images/{imageName}", method = RequestMethod.DELETE)
+	@RequestMapping(value = "/{repositoryId}/images/{imageName:.+}", method = RequestMethod.DELETE)
 	public ActionReturnUtil deleteImage(@PathVariable(value = "repositoryId") Integer repositoryId,
 										@PathVariable(value="imageName") String imageName,
 										@RequestParam(value="tagName", required=false) String tagName) throws Exception{
@@ -82,7 +82,7 @@ public class HarborImageController {
 	 * @return
 	 */
 	@ResponseBody
-	@RequestMapping(value = "/{repositoryId}/images/{imageName}/tags/{tagName}", method = RequestMethod.GET)
+	@RequestMapping(value = "/{repositoryId}/images/{imageName:.+}/tags/{tagName}", method = RequestMethod.GET)
 	public ActionReturnUtil getManifest(@PathVariable(value = "repositoryId") Integer repositoryId,
 										@PathVariable(value="imageName") String imageName,
 										@PathVariable(value="tagName") String tagName)throws Exception {
@@ -115,7 +115,7 @@ public class HarborImageController {
 	 * @throws Exception
 	 */
 	@ResponseBody
-	@RequestMapping(value="/{repositoryId}/images/{imageName}/pull",method=RequestMethod.GET)
+	@RequestMapping(value="/{repositoryId}/images/{imageName:.+}/pull",method=RequestMethod.GET)
 	public ActionReturnUtil pullImage(@PathVariable(value = "repositoryId") Integer repositoryId,
 							  @PathVariable("imageName") String imageName, @RequestParam("tagName") String tagName) throws Exception{
 		String image = URLDecoder.decode(imageName,"UTF-8");
@@ -131,7 +131,7 @@ public class HarborImageController {
 	 * @param response
 	 * @throws Exception
 	 */
-	@RequestMapping(value="/{repositoryId}/images/{imageName}/download",method=RequestMethod.GET) //匹配的是href中的download请求
+	@RequestMapping(value="/{repositoryId}/images/{imageName:.+}/download",method=RequestMethod.GET) //匹配的是href中的download请求
 	public void downloadImage(@PathVariable(value = "repositoryId") Integer repositoryId,
 							  @PathVariable("imageName") String imageName, @RequestParam("tagName") String tagName,
 							  HttpServletResponse response) throws Exception{
@@ -145,7 +145,7 @@ public class HarborImageController {
 	 * @return
 	 * @throws Exception
 	 */
-	@RequestMapping(value = "/{repositoryId}/images/{imageName}/tags/{tagName}/syncImage", method = RequestMethod.POST)
+	@RequestMapping(value = "/{repositoryId}/images/{imageName:.+}/tags/{tagName}/syncImage", method = RequestMethod.POST)
 	@ResponseBody
 	public ActionReturnUtil syncImage(@PathVariable(value = "repositoryId") Integer repositoryId,
 									  @PathVariable(value = "imageName") String imageName,
@@ -166,7 +166,7 @@ public class HarborImageController {
 	 * @return
 	 * @throws Exception
 	 */
-	@RequestMapping(value = "/{repositoryId}/images/{imageName}/tags/{tagName}/syncclusters", method = RequestMethod.GET)
+	@RequestMapping(value = "/{repositoryId}/images/{imageName:.+}/tags/{tagName}/syncclusters", method = RequestMethod.GET)
 	@ResponseBody
 	public ActionReturnUtil listSyncClusters(@PathVariable(value = "repositoryId") Integer repositoryId,
 									  @PathVariable(value = "imageName") String imageName,
@@ -180,7 +180,7 @@ public class HarborImageController {
 	 *
 	 * @return
 	 */
-	@RequestMapping(value = "/{repositoryId}/images/{imageName}/tags/{tagName}/detail", method = RequestMethod.GET)
+	@RequestMapping(value = "/{repositoryId}/images/{imageName:.+}/tags/{tagName}/detail", method = RequestMethod.GET)
 	@ResponseBody
 	public ActionReturnUtil getTagDetail(@PathVariable(value = "repositoryId") Integer repositoryId,
 										 @PathVariable(value="imageName") String imageName,
@@ -194,7 +194,7 @@ public class HarborImageController {
 	 * @return
 	 * @throws Exception
 	 */
-	@RequestMapping(value = "/{repositoryId}/images/{imageName}/tags", method = RequestMethod.GET)
+	@RequestMapping(value = "/{repositoryId}/images/{imageName:.+}/tags", method = RequestMethod.GET)
 	@ResponseBody
 	public ActionReturnUtil getImageTags(@PathVariable(value = "repositoryId") Integer repositoryId,
 										 @PathVariable(value="imageName") String imageName)throws Exception{
