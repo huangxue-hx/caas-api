@@ -1,7 +1,9 @@
 package com.harmonycloud.service.cluster.impl;
 
+import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
@@ -40,6 +42,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.harmonycloud.common.Constant.IngressControllerConstant.*;
+import static com.harmonycloud.service.platform.constant.Constant.LABEL_INGRESS_CLASS;
 
 /**
  * @author xc
@@ -479,12 +482,12 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         if (Constant.INGRESS_CONTROLLER_DEFAULT_NAME.equals(icName)) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_DEFAULT_NOT_DELETE);
         }
-        //查看是否被占用
-        if(checkIcAssignStatus(icName, clusterId)) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAS_ASSIGN);
-        }
         //获取集群
         Cluster cluster = clusterService.findClusterById(clusterId);
+        //查看是否被占用
+        if(checkIcUsedStatus(icName, cluster)) {
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAD_USED);
+        }
         if (Objects.isNull(cluster)) {
             throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
@@ -537,8 +540,8 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HTTP_PORT_ERROR);
         }
         //查看当前controller是否被占用
-        if(checkIcAssignStatus(icName, clusterId)) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAS_ASSIGN);
+        if(checkIcUsedStatus(icName, cluster)) {
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAD_USED);
         }
         //获取原配置文件
         K8SClientResponse response = icService.getIngressController(icName, cluster);
@@ -591,6 +594,43 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         return false;
     }
 
+    @Override
+    public Boolean checkIcUsedStatus(String icName,  Cluster cluster) throws MarsRuntimeException{
+
+        //查看是否被TCP使用
+        K8SClientResponse tcpCmResponse = icService.getIcConfigMapByName(TCP + icName, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(tcpCmResponse.getStatus())) {
+            LOGGER.error("获取tcpConfigMap失败！稍后重试操作！");
+            throw new MarsRuntimeException(TCP+DictEnum.CONFIG_MAP.phrase(), ErrorCodeMessage.QUERY_FAIL);
+        }
+        ConfigMap tcpConfigMap = JsonUtil.jsonToPojo(tcpCmResponse.getBody(), ConfigMap.class);
+        if(!Objects.isNull(tcpConfigMap.getData())){
+            return true;
+        }
+        //查看是否被UDP使用
+        K8SClientResponse udpCmResponse = icService.getIcConfigMapByName(UDP + icName, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(udpCmResponse.getStatus())) {
+            LOGGER.error("获取udpConfigMap失败！稍后重试操作！");
+            throw new MarsRuntimeException(UDP+DictEnum.CONFIG_MAP.phrase(), ErrorCodeMessage.QUERY_FAIL);
+        }
+        ConfigMap udpConfigMap = JsonUtil.jsonToPojo(udpCmResponse.getBody(), ConfigMap.class);
+        if(!Objects.isNull(udpConfigMap.getData())){
+            return true;
+        }
+        //查看是否被HTTP使用
+        String label = LABEL_INGRESS_CLASS + "=" + icName;
+        K8SClientResponse ingressResponse = icService.getIngressByLabel(label, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(ingressResponse.getStatus())) {
+            LOGGER.error("获取Ingress失败！稍后重试操作！, res:{}", JSONObject.toJSONString(ingressResponse));
+            throw new MarsRuntimeException("ingress", ErrorCodeMessage.QUERY_FAIL);
+        }
+        IngressList ingressList = JsonUtil.jsonToPojo(ingressResponse.getBody(), IngressList.class);
+        if(!CollectionUtils.isEmpty(ingressList.getItems())){
+            return true;
+        }
+        return false;
+    }
+
     //查看ingress-controller是否被使用
     private Boolean checkIcUsedStatus(String icName, String tenantId, Cluster cluster) throws Exception{
         List<String> clusterIds = new ArrayList<>();
@@ -623,22 +663,17 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             return true;
         }
         //查看是否被HTTP使用
-        String label = "tenantId=" + tenantId;
+        String label = "tenantId=" + tenantId + "," + LABEL_INGRESS_CLASS + "=" + icName;
         K8SClientResponse ingressResponse = icService.getIngressByLabel(label, cluster);
         if (!HttpStatusUtil.isSuccessStatus(ingressResponse.getStatus())) {
             LOGGER.error("获取Ingress失败！稍后重试操作！");
             return true;
         }
         IngressList ingressList = JsonUtil.jsonToPojo(ingressResponse.getBody(), IngressList.class);
-        boolean flag = false;
-        for (Ingress ingress : ingressList.getItems()) {
-            if (ingress.getMetadata().getAnnotations() != null &&
-                    icName.equals(ingress.getMetadata().getAnnotations().get("kubernetes.io/ingress.class"))) {
-                flag = true;
-                break;
-            }
+        if(!CollectionUtils.isEmpty(ingressList.getItems())){
+            return true;
         }
-        return flag;
+        return false;
     }
 
     private boolean checkIcUsed(List<String> namespaceNames, ConfigMap configMap){

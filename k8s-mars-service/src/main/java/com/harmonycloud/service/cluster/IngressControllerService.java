@@ -2,6 +2,7 @@ package com.harmonycloud.service.cluster;
 
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 
 import java.io.IOException;
 
@@ -54,5 +55,7 @@ public interface IngressControllerService {
      * @return ActionReturnUtil
      */
     ActionReturnUtil assignIngressController(String icName, String tenantId, String clusterId) throws Exception;
+
+    Boolean checkIcUsedStatus(String icName,  Cluster cluster) throws MarsRuntimeException;
 
 }
