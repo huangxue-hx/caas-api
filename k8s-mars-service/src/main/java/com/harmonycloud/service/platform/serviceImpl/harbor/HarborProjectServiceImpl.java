@@ -267,6 +267,9 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		if (!result.isSuccess() || result.getData() == null) {
 			logger.error("创建公共仓库失败，repositoryInfo:{}， message:{}",
 					JSONObject.toJSONString(repositoryInfo),result.getData());
+			if(result.getData() != null && String.valueOf(result.getData()).contains("contains illegal characters")){
+				return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INVALID_CHARACTER);
+			}
 			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CREATE_FAIL, String.valueOf(result.getData()));
 		}
 		try {
