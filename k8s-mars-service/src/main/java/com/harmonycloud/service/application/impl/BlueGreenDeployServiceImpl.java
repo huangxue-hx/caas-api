@@ -14,6 +14,7 @@ import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.application.BlueGreenDeployService;
 import com.harmonycloud.service.application.DeploymentsService;
+import com.harmonycloud.service.application.PersistentVolumeClaimService;
 import com.harmonycloud.service.application.PersistentVolumeService;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
@@ -21,6 +22,7 @@ import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.platform.convert.KubeServiceConvert;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.ListUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +36,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * @Describe 蓝绿发布实现类
@@ -71,6 +74,9 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
 
     @Autowired
     private DeploymentsService deploymentsService;
+
+    @Autowired
+    private PersistentVolumeClaimService persistentVolumeClaimService;
 
     @Override
     public ActionReturnUtil deployByBlueGreen(UpdateDeployment updateDeployment, String userName, String projectId) throws Exception {
@@ -768,63 +774,46 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
 
     private void checkPvcInNewAndOldDeployment(PodTemplateSpec podTemplateSpec, String namespace, String name, Cluster cluster) throws Exception {
         List<Volume> rollbackVolumes = new ArrayList<>();
+        List<String> rollbackPvc = new ArrayList<>();
         if (null != podTemplateSpec.getSpec() && null != podTemplateSpec.getSpec().getVolumes()) {
             rollbackVolumes = podTemplateSpec.getSpec().getVolumes();
+            rollbackPvc = rollbackVolumes.stream().filter(rv->rv.getPersistentVolumeClaim() != null)
+                    .map(rv->rv.getPersistentVolumeClaim().getClaimName()).collect(Collectors.toList());
         }
 
-        //将PersistentVolumeClaim转成PersistentVolumeDto对象
-        List<PersistentVolumeDto> pvDtoList = new ArrayList<>();
-        rollbackVolumes.stream().forEach(rv -> {
-            if (null != rv.getPersistentVolumeClaim()) {
-                PersistentVolumeClaimVolumeSource pvc = rv.getPersistentVolumeClaim();
-                PersistentVolumeDto pvDto = new PersistentVolumeDto();
-                pvDto.setNamespace(namespace);
-                pvDto.setReadOnly(pvc.isReadOnly());
-                pvDto.setPvcName(pvc.getClaimName());
-                pvDtoList.add(pvDto);
-            }
-        });
 
         // 获取pvc信息
         Map<String, Object> label = new HashMap<>();
-        label.put("labelSelector", "app=" + name);
+        label.put("labelSelector", CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name + CommonConstant.EQUALITY_SIGN + name);
         K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, label, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
             UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
             throw new MarsRuntimeException(status.getMessage());
         }
+
         PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(pvcRes.getBody(), PersistentVolumeClaimList.class);
-        if (Objects.nonNull(pvcList) && CollectionUtils.isNotEmpty(pvcList.getItems())) {
-            if (CollectionUtils.isNotEmpty(pvDtoList)) {
-                for (PersistentVolumeDto onePv : pvDtoList) {
-                    for (PersistentVolumeClaim onePvc : pvcList.getItems()) {
-                        boolean flag = true;
-                        String pvc = onePvc.getMetadata().getName();
-                        if (pvc.equals(onePv.getPvcName())) {
-                            flag = false;
-                        }
-                        if (flag) {
-                            pvcService.deletePVC(namespace, onePvc.getMetadata().getName(), cluster);
-                            if (onePvc.getSpec() != null && onePvc.getSpec().getVolumeName() != null) {
-                                // update pv
-                                String pvName = onePvc.getSpec().getVolumeName();
-                                PersistentVolume pv = pvService.getPvByName(pvName, cluster);
-                                volumeSerivce.updatePV(pv, cluster);
-                            }
-                        }
-                    }
-                }
-            } else {
-                for (PersistentVolumeClaim onePvc : pvcList.getItems()) {
-                    pvcService.deletePVC(namespace, onePvc.getMetadata().getName(), cluster);
-                    if (onePvc.getSpec() != null && onePvc.getSpec().getVolumeName() != null) {
-                        // update pv
-                        String pvName = onePvc.getSpec().getVolumeName();
-                        PersistentVolume pv = pvService.getPvByName(pvName, cluster);
-                        volumeSerivce.updatePV(pv, cluster);
-                    }
+
+        List<String> currentPvc = new ArrayList<>();
+        if (CollectionUtils.isNotEmpty(pvcList.getItems())) {
+            for(PersistentVolumeClaim pvc : pvcList.getItems()){
+                currentPvc.add(pvc.getMetadata().getName());
+                //去掉挂载的pvc删除标签
+                if(!rollbackPvc.contains(pvc.getMetadata().getName())){
+                    pvc.getMetadata().getLabels().remove(CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name);
+                    pvcService.updatePvcByName(pvc, cluster);
                 }
             }
         }
+
+        //新挂载的pvc增加标签
+        label.clear();
+        label.put(CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name, name);
+        if(CollectionUtils.isNotEmpty(rollbackPvc)) {
+            List<String> newAddedPvcList = (List<String>) ListUtils.removeAll(rollbackPvc, currentPvc);
+            for(String pvc : newAddedPvcList){
+                persistentVolumeClaimService.updateLabel(pvc, namespace, cluster, label);
+            }
+        }
+
     }
 }

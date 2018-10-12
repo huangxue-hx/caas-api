@@ -2330,7 +2330,7 @@ public class JobServiceImpl implements JobService {
                         logVolumn.setType(volumeMountExt.getType());
 
                         updateContainer.setLog(logVolumn);
-                    } else if ("nfs".equals(volumeMountExt.getType()) || "emptyDir".equals(volumeMountExt.getType()) || "hostPath".equals(volumeMountExt.getType())) {
+                    } else if (Constant.VOLUME_TYPE_PVC.equals(volumeMountExt.getType()) || "emptyDir".equals(volumeMountExt.getType()) || "hostPath".equals(volumeMountExt.getType())) {
                         PersistentVolumeDto updateVolume = new PersistentVolumeDto();
                         updateVolume.setType(volumeMountExt.getType());
                         updateVolume.setReadOnly(volumeMountExt.getReadOnly());
@@ -2338,7 +2338,7 @@ public class JobServiceImpl implements JobService {
                         updateVolume.setEmptyDir(volumeMountExt.getEmptyDir());
                         updateVolume.setHostPath(volumeMountExt.getHostPath());
                         updateVolume.setRevision(volumeMountExt.getRevision());
-                        if ("nfs".equals(volumeMountExt.getType())) {
+                        if (Constant.VOLUME_TYPE_PVC.equals(volumeMountExt.getType())) {
                             updateVolume.setPvcName(volumeMountExt.getPvcname());
                         }
                         updateVolumeList.add(updateVolume);

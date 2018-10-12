@@ -21,10 +21,7 @@ import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.VersionControlService;
 import com.harmonycloud.service.cluster.ClusterService;
-import com.harmonycloud.service.platform.bean.CanaryDeployment;
-import com.harmonycloud.service.platform.bean.ContainerOfPodDetail;
-import com.harmonycloud.service.platform.bean.LogVolume;
-import com.harmonycloud.service.platform.bean.UpdateContainer;
+import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
@@ -643,6 +640,30 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
                     configMapList.add(configMap);
                 }
                 /*configMap配置结束*/
+
+                for (VolumeMountExt volumeMountExt : containerOfPodDetail.getStorage()) {
+                    if ("logDir".equals(volumeMountExt.getType())) {
+                        LogVolume logVolumn = new LogVolume();
+                        logVolumn.setName(volumeMountExt.getName());
+                        logVolumn.setMountPath(volumeMountExt.getMountPath());
+                        logVolumn.setReadOnly(volumeMountExt.getReadOnly().toString());
+                        logVolumn.setType(volumeMountExt.getType());
+
+                        updateContainer.setLog(logVolumn);
+                    } else if (Constant.VOLUME_TYPE_PVC.equals(volumeMountExt.getType()) || Constant.VOLUME_TYPE_EMPTYDIR.equals(volumeMountExt.getType()) || Constant.VOLUME_TYPE_HOSTPASTH.equals(volumeMountExt.getType())) {
+                        PersistentVolumeDto updateVolume = new PersistentVolumeDto();
+                        updateVolume.setType(volumeMountExt.getType());
+                        updateVolume.setReadOnly(volumeMountExt.getReadOnly());
+                        updateVolume.setPath(volumeMountExt.getMountPath());
+                        updateVolume.setEmptyDir(volumeMountExt.getEmptyDir());
+                        updateVolume.setHostPath(volumeMountExt.getHostPath());
+                        updateVolume.setRevision(volumeMountExt.getRevision());
+                        if (Constant.VOLUME_TYPE_PVC.equals(volumeMountExt.getType())) {
+                            updateVolume.setPvcName(volumeMountExt.getPvcname());
+                        }
+                        updateVolumeList.add(updateVolume);
+                    }
+                }
             }
             updateContainer.setStorage(updateVolumeList);
             updateContainer.setConfigmap(configMapList);

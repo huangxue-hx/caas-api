@@ -18,12 +18,8 @@ import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
-import com.harmonycloud.service.application.DeploymentsService;
-import com.harmonycloud.service.application.PersistentVolumeService;
-import com.harmonycloud.service.application.StatefulSetVersionControlService;
-import com.harmonycloud.service.application.VersionControlService;
+import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.platform.bean.CanaryDeployment;
-import com.harmonycloud.service.platform.bean.PvDto;
 import com.harmonycloud.service.platform.bean.UpdateContainer;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.KubeServiceConvert;
@@ -32,6 +28,7 @@ import com.harmonycloud.service.platform.dto.ReplicaSetDto;
 import com.harmonycloud.service.platform.service.WatchService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.ListUtils;
 import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -89,6 +86,9 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
 
     @Autowired
     private StatefulSetVersionControlService statefulSetVersionControlService;
+
+    @Autowired
+    private PersistentVolumeClaimService persistentVolumeClaimService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -192,59 +192,37 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         List<PersistentVolumeClaim> persistentVolumeClaims = persistentVolumeClaimList.getItems();
 
         //获取传过来的pvc
+        Set<String> currentPvcs = new HashSet<>();
         List<UpdateContainer> containers = detail.getContainers();
-        List<Volume> volumes = new ArrayList<>();
-        for (int i=0; i<containers.size();i++) {
-            UpdateContainer container = containers.get(i);
-            List<VolumeMount> volumeMounts = new ArrayList<>();
-            List<PersistentVolumeDto> storage = container.getStorage();
-            if(storage.size()==0){
-                for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaims) {
-                    Map<String, Object> labels = persistentVolumeClaim.getMetadata().getLabels();
-                    labels.remove(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name);
-                    pvcService.updatePvcByName(persistentVolumeClaim,cluster);
-                }
-            }else{
-                for (PersistentVolumeDto persistentVolumeDto : storage) {
-                    String pvcName = persistentVolumeDto.getPvcName();
-                    PersistentVolumeClaim pvcByName = pvcService.getPvcByName(namespace, pvcName, cluster);
-                    Map<String, Object> newLabels = pvcByName.getMetadata().getLabels();
-                    newLabels.put(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name,name);
-                    K8SClientResponse  response = pvcService.updatePvcByName(pvcByName,cluster);
-                    if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                        throw new MarsRuntimeException(response.getBody());
-                    }
-                    //拼装存储卷
-                    Volume volume = new Volume();
-                    PersistentVolumeClaimVolumeSource claim = new PersistentVolumeClaimVolumeSource();
-                    volume.setName(pvcName);
-                    claim.setClaimName(pvcName);
-                    volume.setPersistentVolumeClaim(claim);
-                    volumes.add(volume);
-                    VolumeMount volumeMount = new VolumeMount();
-                    volumeMount.setName(pvcName);
-                    volumeMount.setMountPath(persistentVolumeDto.getPath());
-                    volumeMount.setReadOnly(persistentVolumeDto.getReadOnly());
-                    volumeMounts.add(volumeMount);
-                    for (int j=0; j<persistentVolumeClaims.size();j++) {
-                        PersistentVolumeClaim persistentVolumeClaim = persistentVolumeClaims.get(j);
-                        if(pvcByName.getMetadata().getName().equals(persistentVolumeClaim.getMetadata().getName())){
-                            persistentVolumeClaims.remove(persistentVolumeClaim);
-                        }
+        for(UpdateContainer container : containers){
+            if(CollectionUtils.isNotEmpty(container.getStorage())){
+                for(PersistentVolumeDto persistentVolumeDto : container.getStorage()){
+                    if(persistentVolumeDto.getPvcName() != null){
+                        currentPvcs.add(persistentVolumeDto.getPvcName());
                     }
                 }
-
             }
-            dep.getSpec().getTemplate().getSpec().getContainers().get(i).setVolumeMounts(volumeMounts);
         }
-        dep.getSpec().getTemplate().getSpec().setVolumes(volumes);
-        //移除原pv标签
-        for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaims){
-            Map<String, Object> labels = persistentVolumeClaim.getMetadata().getLabels();
-            labels.remove(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name);
-            persistentVolumeClaim.getMetadata().setLabels(labels);
-            pvcService.updatePvcByName(persistentVolumeClaim,cluster);
+        //删除去掉的pvc标签
+        for(PersistentVolumeClaim prePvc : persistentVolumeClaims){
+            if(!currentPvcs.contains(prePvc.getMetadata().getName())){
+                Map<String, Object> labels = prePvc.getMetadata().getLabels();
+                labels.remove(CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name);
+                prePvc.getMetadata().setLabels(labels);
+                pvcService.updatePvcByName(prePvc,cluster);
+            }else{
+                currentPvcs.remove(prePvc.getMetadata().getName());
+            }
         }
+
+        //更新新增pvc标签
+        Map<String, Object> label = new HashMap<>();
+        label.put(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name,name);
+        for(String pvcName : currentPvcs){
+            persistentVolumeClaimService.updateLabel(pvcName, namespace, cluster, label);
+        }
+
+
         //将页面上填写的数据保存到annotation中
         anno.put("deployment.canaryupdate/maxsurge", String.valueOf(detail.getMaxSurge()));
         anno.put("deployment.canaryupdate/maxunavailable", String.valueOf(detail.getMaxUnavailable()));
@@ -368,85 +346,45 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         //获取回滚版本的pvc
         PodTemplateSpec podTemplateSpec = JsonUtil.jsonToPojo(podTemplate, PodTemplateSpec.class);
         List<Volume> rollbackVolumes = new ArrayList<>();
+        List<String> rollbackPvc = new ArrayList<>();
         if (null != podTemplateSpec.getSpec() && null != podTemplateSpec.getSpec().getVolumes()) {
             rollbackVolumes = podTemplateSpec.getSpec().getVolumes();
+            rollbackPvc = rollbackVolumes.stream().filter(rv->rv.getPersistentVolumeClaim() != null)
+                    .map(rv->rv.getPersistentVolumeClaim().getClaimName()).collect(Collectors.toList());
         }
 
-        //将PersistentVolumeClaim转成PersistentVolumeDto对象
-        List<PersistentVolumeDto> pvDtoList = new ArrayList<>();
-        rollbackVolumes.stream().forEach(rv -> {
-            if (null != rv.getPersistentVolumeClaim()) {
-                PersistentVolumeClaimVolumeSource pvc = rv.getPersistentVolumeClaim();
-                PersistentVolumeDto pvDto = new PersistentVolumeDto();
-                pvDto.setNamespace(namespace);
-                pvDto.setReadOnly(pvc.isReadOnly());
-                pvDto.setPvcName(pvc.getClaimName());
-                pvDtoList.add(pvDto);
-            }
-        });
+        List<String> currentPvc = new ArrayList<>();
+        PersistentVolumeClaimList currentPvcList = getServicePvcList(name, namespace, cluster);
+        if (CollectionUtils.isNotEmpty(currentPvcList.getItems())) {
+            for(PersistentVolumeClaim pvc : currentPvcList.getItems()){
+                currentPvc.add(pvc.getMetadata().getName());
+                //去掉挂载的pvc删除标签
+                if(!rollbackPvc.contains(pvc.getMetadata().getName())){
+                    pvc.getMetadata().getLabels().remove(CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name);
+                    K8SClientResponse res = pvcService.updatePvcByName(pvc, cluster);
+                    if (!HttpStatusUtil.isSuccessStatus(res.getStatus())) {
+                        UnversionedStatus sta = JsonUtil.jsonToPojo(res.getBody(), UnversionedStatus.class);
+                        return ActionReturnUtil.returnErrorWithData(sta.getMessage());
+                    }
 
-        //获取当前服务的pvc
-        PersistentVolumeClaimList pvcList = getServicePvcList(name, namespace, cluster);
-        if (Objects.nonNull(pvcList) && CollectionUtils.isNotEmpty(pvcList.getItems())) {
-            if (CollectionUtils.isNotEmpty(pvDtoList)) {
-                for (PersistentVolumeDto onePv : pvDtoList) {
-                    for (PersistentVolumeClaim onePvc : pvcList.getItems()) {
-                        boolean flag = true;
-                        String pvc = onePvc.getMetadata().getName();
-                        if (pvc.equals(onePv.getPvcName())) {
-                            flag = false;
-                        }
-                        if (flag) {
-                            ActionReturnUtil volumeRes = volumeSerivce.getPv(onePv.getPvcName(), cluster.getId());
-                            if(!volumeRes.isSuccess()){
-                                return volumeRes;
-                            }
-                            PvDto pvDto = (PvDto) volumeRes.getData();
-                            onePv.setBindOne(pvDto.getIsBindOne());
-                            onePv.setCapacity(pvDto.getCapacity());
-                            handlePersistentVolumeClaimVolume(onePv, projectId, name, namespace);
-                        }
-                    }
-                }
-            }
-            //比较两个pvc删除多的pvc
-            for (PersistentVolumeClaim onePvc : pvcList.getItems()) {
-                String pvc = onePvc.getMetadata().getName();
-                boolean boo = true;
-                if (CollectionUtils.isNotEmpty(pvDtoList)) {
-                    for (PersistentVolumeDto onePv : pvDtoList) {
-                        if (pvc.equals(onePv.getPvcName())) {
-                            boo = false;
-                        }
-                    }
-                }
-                if (boo) {
-                    pvcService.deletePVC(namespace, onePvc.getMetadata().getName(), cluster);
-                    if (onePvc.getSpec() != null && onePvc.getSpec().getVolumeName() != null) {
-                        // update pv
-                        String pvName = onePvc.getSpec().getVolumeName();
-                        PersistentVolume pv = pvService.getPvByName(pvName, cluster);
-                        ActionReturnUtil pvRes = volumeSerivce.updatePV(pv, cluster);
-                        if(!pvRes.isSuccess()){
-                            return pvRes;
-                        }
-                    }
-                }
-            }
-        }else {
-            if (CollectionUtils.isNotEmpty(pvDtoList)) {
-                for (PersistentVolumeDto onePv : pvDtoList) {
-                    ActionReturnUtil volumeRes = volumeSerivce.getPv(onePv.getPvcName(), cluster.getId());
-                    if(!volumeRes.isSuccess()){
-                        return volumeRes;
-                    }
-                    PvDto pvDto = (PvDto) volumeRes.getData();
-                    onePv.setBindOne(pvDto.getIsBindOne());
-                    onePv.setCapacity(pvDto.getCapacity());
-                    handlePersistentVolumeClaimVolume(onePv, projectId, name, namespace);
                 }
             }
         }
+
+        //新挂载的pvc增加标签
+        Map<String, Object> label = new HashMap<>();
+        label.put(CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name, name);
+        if(CollectionUtils.isNotEmpty(rollbackPvc)) {
+            List<String> pvcList = (List<String>) ListUtils.removeAll(rollbackPvc, currentPvc);
+            for(String pvc : pvcList){
+                ActionReturnUtil result = persistentVolumeClaimService.updateLabel(pvc, namespace, cluster, label);
+                if(!result.isSuccess()){
+                    return result;
+                }
+            }
+        }
+
+
         DeploymentRollback deploymentRollback = new DeploymentRollback();
         RollbackConfig rollbackConfig = new RollbackConfig();
         deploymentRollback.setName(name);
@@ -884,7 +822,7 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
 
     private PersistentVolumeClaimList getServicePvcList(String name, String namespace, Cluster cluster) throws Exception {
         Map<String, Object> label = new HashMap<String, Object>();
-        label.put("labelSelector", "app=" + name);
+        label.put("labelSelector", CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name + CommonConstant.EQUALITY_SIGN + name);
         K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, label, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
             UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);

@@ -547,7 +547,7 @@ public class K8sResultConvert {
                                 if (volume.getSecret() != null) {
                                     vmExt.setType("secret");
                                 } else if (volume.getPersistentVolumeClaim() != null) {
-                                    vmExt.setType("nfs");
+                                    vmExt.setType(Constant.VOLUME_TYPE_PVC);
                                     vmExt.setPvcname(volume.getPersistentVolumeClaim().getClaimName());
                                 } else if (volume.getEmptyDir() != null) {
                                     vmExt.setType("emptyDir");
@@ -721,8 +721,11 @@ public class K8sResultConvert {
                                         vmExt.setType("secret");
                                     } else if (volume.getPersistentVolumeClaim() != null) {
                                         PersistentVolumeClaim persistentVolumeClaim = getPvcByName(namespace, volume.getPersistentVolumeClaim().getClaimName(), cluster);
-                                        if (persistentVolumeClaim != null && persistentVolumeClaim.getMetadata().getAnnotations().get("volume.beta.kubernetes.io/storage-class") != null) {
+                                        if (persistentVolumeClaim != null) {
                                             String storageClassName = (String) persistentVolumeClaim.getMetadata().getAnnotations().get("volume.beta.kubernetes.io/storage-class");
+                                            if(StringUtils.isBlank(storageClassName)){
+                                                storageClassName = persistentVolumeClaim.getSpec().getStorageClassName();
+                                            }
                                             vmExt.setStorageClassName(storageClassName);
                                             StorageClassDto storageClass = storageClassMap.get(storageClassName);
                                             if(storageClass != null) {

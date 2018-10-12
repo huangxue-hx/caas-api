@@ -46,6 +46,12 @@ nfs:
 镜像版本为v2.1.0，更新webapi，webpage，oam-api，oam-task的deploy的镜像版本
 
 --------------------------------------------------------------------
+9.  更新kube-controller-manager配置
+kube-controller-manager.yaml的启动命令中增加一行配置
+- --feature-gates=VolumeScheduling=false
+重启kube-controller-manager
+--------------------------------------------------------------------
+
 其他定制修改,非必须
 
 1.	更改kubelet目录
