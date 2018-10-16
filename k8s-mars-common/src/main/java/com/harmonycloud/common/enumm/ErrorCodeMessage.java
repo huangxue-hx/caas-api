@@ -419,6 +419,7 @@ public enum ErrorCodeMessage {
             "同步规则正在使用该备份服务器，请先删除同步规则"),
     IMAGE_IN_DELETING(405043, "This image is in deleting, please check later.", "镜像正在删除中,请稍后查看删除结果"),
     LARGE_IMAGE_DELETE(405044, "As image is large,it take some time to delete, please check later.", "由于镜像文件较大，需要一些时间删除，请稍后查看删除结果"),
+    HARBOR_PROJECT_NOT_FOUND(405045, "Project not found on harbor.", "在harbor上未找到该镜像仓库，或已被删除"),
 
     //CICD 406xxx
     ENVIRONMENT_NAME_NOT_BLANK(406001, "Build environment name can not be blank.", "环境名称不能为空"),

@@ -140,7 +140,13 @@ public class HarborProjectController {
 	@RequestMapping(value = "/{repositoryId}", method = RequestMethod.DELETE)
 	@ResponseBody
 	public ActionReturnUtil deleteRepository(@PathVariable(value = "repositoryId") Integer repositoryId) throws Exception{
-		return ActionReturnUtil.returnSuccessWithData(harborProjectService.deleteRepositoryById(repositoryId));
+		boolean result = harborProjectService.deleteRepositoryById(repositoryId);
+		if(result){
+			return ActionReturnUtil.returnSuccessWithData(result);
+		}else{
+			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.DELETE_FAIL);
+		}
+
 	}
 
 
