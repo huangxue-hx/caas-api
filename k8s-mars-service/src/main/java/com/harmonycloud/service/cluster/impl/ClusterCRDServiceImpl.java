@@ -1,5 +1,6 @@
 package com.harmonycloud.service.cluster.impl;
 
+import com.alibaba.druid.filter.config.ConfigTools;
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ClusterLevelEnum;
@@ -35,6 +36,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
@@ -70,6 +72,8 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
     ClusterService clusterService;
     @Autowired
     SecretService secretService;
+    @Value("${private.key:}")
+    private String privateKey;
 
     @Override
     public ActionReturnUtil getCluster(String dataCenter, String name) throws Exception {
@@ -410,7 +414,8 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
         harbor.setPort(clusterCRDDto.getHarborPort());
         harbor.setProtocol(clusterCRDDto.getHarborProtocol());
         harbor.setUser(clusterCRDDto.getHarborAdminUser());
-        harbor.setPassword(clusterCRDDto.getHarborAdminPwd());
+        harbor.setPassword(StringUtils.isBlank(privateKey) ? clusterCRDDto.getHarborAdminPwd() : ConfigTools.encrypt(privateKey,
+                clusterCRDDto.getHarborAdminPwd()));
         info.setNfs(clusterCRDDto.getNfs());
         info.setHarbor(harbor);
         info.setDomain(clusterCRDDto.getDomain());
