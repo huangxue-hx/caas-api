@@ -138,13 +138,13 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		if(repositoryInfo.getQuotaSize() == null){
 			repositoryInfo.setQuotaSize(QUOTA_SIZE);
 		}
-		ImageRepository imageRepository = new ImageRepository();
-		imageRepository.setHarborProjectName(repositoryInfo.getHarborProjectName());
-		List<ImageRepository> imageRepositories = this.listRepositories(imageRepository);
-		if(!CollectionUtils.isEmpty(imageRepositories)){
-			throw new MarsRuntimeException(DictEnum.REPOSITORY.phrase(), ErrorCodeMessage.EXIST);
-		}
 		if(repositoryInfo.getIsPublic()){
+			ImageRepository imageRepository = new ImageRepository();
+			imageRepository.setHarborProjectName(repositoryInfo.getHarborProjectName());
+			List<ImageRepository> imageRepositories = this.listRepositories(imageRepository);
+			if (!CollectionUtils.isEmpty(imageRepositories)) {
+				throw new MarsRuntimeException(DictEnum.REPOSITORY.phrase(), ErrorCodeMessage.EXIST);
+			}
 			return createPublicRepository(repositoryInfo);
 		}else{
 			return createPrivateRepository(repositoryInfo);
