@@ -130,6 +130,10 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
                     StorageDto storageDto = new StorageDto();
                     storageDto.setName(storageQuotaArray[0]);
                     storageDto.setStorageQuota(storageQuotaArray[1]);
+                    if(storageClassUnusedMap.get(storageQuotaArray[0]) == null){
+                        logger.error("未找到存储:tenantId:{},storageclassname:{},",tenantId, storageQuotaArray[0]);
+                        continue;
+                    }
                     storageDto.setTotalStorage(String.valueOf(storageClassUnusedMap.get(storageQuotaArray[0])));
                     if (storageUsageMap.get(storageQuotaArray[0]) != null) {
                         storageDto.setUsedStorage(Integer.toString(storageUsageMap.get(storageQuotaArray[0])));
