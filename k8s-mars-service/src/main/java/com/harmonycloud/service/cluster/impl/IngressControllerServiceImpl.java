@@ -515,6 +515,11 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         }
         //删除表记录
         ingressControllerPortService.deleteIngressControllerPort(icName, clusterId);
+        //删除tenant_cluster_quota表绑定
+        List<TenantClusterQuota> tenants = tenantClusterQuotaService.listClusterQuotaLikeIcName(icName,clusterId);
+        for (TenantClusterQuota tenantClusterQuota:tenants) {
+            removeTenants(tenantClusterQuota,icName);
+        }
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -753,7 +758,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
     //向租户配额表中，添加租户被分配的负载均衡器名称
     private void addTenants(String tenantId, String clusterId, String icName) throws Exception {
         TenantClusterQuota tenant = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(tenantId, clusterId);
-        if (tenant.getIcNames() != null) {
+        if (StringUtils.isNotBlank(tenant.getIcNames()) ) {
             tenant.setIcNames(tenant.getIcNames() + "," + icName);
         } else {
             tenant.setIcNames(icName);
