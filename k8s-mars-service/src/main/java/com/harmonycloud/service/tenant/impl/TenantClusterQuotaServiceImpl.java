@@ -594,6 +594,19 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
         return tenantClusterQuotas;
     }
 
+    /**
+     * @param Storage
+     * @param clusterId
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public List<TenantClusterQuota> listClusterQuotaLikeStorage(String Storage, String clusterId) throws MarsRuntimeException {
+        TenantClusterQuotaExample example = this.getExample();
+        example.createCriteria().andStorageQuotasLike("%"+Storage+"_%").andClusterIdEqualTo(clusterId);
+        return this.tenantClusterQuotaMapper.selectByExample(example);
+    }
+
     private TenantClusterQuotaExample getExample(){
         return  new TenantClusterQuotaExample();
     }

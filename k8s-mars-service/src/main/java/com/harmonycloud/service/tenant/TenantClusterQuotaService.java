@@ -113,4 +113,11 @@ public interface TenantClusterQuotaService {
      * @throws Exception
      */
     public List<TenantClusterQuota> listClusterQuotaLikeIcName(String icName, String clusterId) throws MarsRuntimeException;
+
+    /**
+     * 根据集群id和存储  获取绑定存储的租户信息
+     * @return
+     * @throws Exception
+     */
+    public List<TenantClusterQuota> listClusterQuotaLikeStorage(String Storage, String clusterId) throws MarsRuntimeException;
 }
