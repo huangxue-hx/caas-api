@@ -11,6 +11,7 @@ import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
+import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
 import com.harmonycloud.dto.application.StorageClassDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -33,6 +34,7 @@ import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
+import com.harmonycloud.service.tenant.TenantClusterQuotaService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -108,6 +110,8 @@ public class StorageClassServiceImpl implements StorageClassService {
 
     @Autowired
     StatefulSetService statefulSetService;
+    @Autowired
+    TenantClusterQuotaService tenantClusterQuotaService;
 
     @Override
     public ActionReturnUtil createStorageClass(StorageClassDto storageClass) throws Exception {
@@ -357,6 +361,11 @@ public class StorageClassServiceImpl implements StorageClassService {
         }
         K8SClientResponse response = scService.deleteStorageClassByName(name, cluster);
         if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            //删除集群配额表中存储绑定
+            List<TenantClusterQuota> tenantClusterQuotas = tenantClusterQuotaService.listClusterQuotaLikeStorage(name,clusterId);
+            for (TenantClusterQuota tenantClusterQuota:tenantClusterQuotas) {
+                removeTenantsStorageQuota(tenantClusterQuota,name);
+            }
             // 删除secret
             StorageClass storageClass = K8SClient.converToBean(response, StorageClass.class);
             if(storageClass != null && storageClass.getParameters() != null) {
@@ -847,5 +856,21 @@ public class StorageClassServiceImpl implements StorageClassService {
         }
     }
 
-
+    //移除租户配额表中存储
+    private void removeTenantsStorageQuota(TenantClusterQuota tenantClusterQuota, String storageName) throws Exception {
+        String[] storageQuotas = tenantClusterQuota.getStorageQuotas().split(",");
+        StringBuilder sb = new StringBuilder();
+        for (String storageQuota : storageQuotas) {
+            if (StringUtils.isNotBlank(storageQuota) && !Arrays.asList(storageQuota.split("_")).contains(storageName)) {
+                sb.append(storageQuota);
+                sb.append(",");
+            }
+        }
+        //刪除最后一个逗号
+        if(sb.length() > 0) {
+            sb.deleteCharAt(sb.length() - 1);
+        }
+        tenantClusterQuota.setStorageQuotas(sb.toString());
+        tenantClusterQuotaService.updateClusterQuota(tenantClusterQuota);
+    }
 }
