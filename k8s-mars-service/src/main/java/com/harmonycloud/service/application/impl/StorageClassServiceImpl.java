@@ -48,6 +48,10 @@ import java.io.InputStream;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.harmonycloud.service.platform.constant.Constant.LABEL_AUTOSCALE;
+import static com.harmonycloud.service.platform.constant.Constant.LABEL_INGRESS_SERVICE;
+import static com.harmonycloud.service.platform.constant.Constant.NODESELECTOR_LABELS_PRE;
+
 /**
  * @author xc
  * @date 2018/6/14 14:36
@@ -560,7 +564,14 @@ public class StorageClassServiceImpl implements StorageClassService {
                 }
             }
         }
-
+        if ( objectMeta.getLabels().containsKey(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE)) {
+            labelsMap.put(LABEL_INGRESS_SERVICE,
+                    objectMeta.getLabels().get(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE).toString());
+        }
+        if(objectMeta.getLabels().containsKey(NODESELECTOR_LABELS_PRE + LABEL_AUTOSCALE)) {
+            labelsMap.put(LABEL_AUTOSCALE,
+                    objectMeta.getLabels().get(NODESELECTOR_LABELS_PRE + LABEL_AUTOSCALE).toString());
+        }
         serviceItem.put("labels", labelsMap);
         Date utcDate = DateUtil.StringToDate(objectMeta.getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
         serviceItem.put("createTime", utcDate);
