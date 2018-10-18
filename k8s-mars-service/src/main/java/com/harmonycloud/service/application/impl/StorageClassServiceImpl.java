@@ -13,6 +13,7 @@ import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
 import com.harmonycloud.dto.application.StorageClassDto;
+import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8SClient;
@@ -20,10 +21,7 @@ import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.APIGroup;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
-import com.harmonycloud.k8s.service.DeploymentService;
-import com.harmonycloud.k8s.service.ScService;
-import com.harmonycloud.k8s.service.SecretService;
-import com.harmonycloud.k8s.service.StatefulSetService;
+import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.DaemonSetsService;
@@ -116,6 +114,8 @@ public class StorageClassServiceImpl implements StorageClassService {
     StatefulSetService statefulSetService;
     @Autowired
     TenantClusterQuotaService tenantClusterQuotaService;
+    @Autowired
+    ResourceQuotaService resourceQuotaService;
 
     @Override
     public ActionReturnUtil createStorageClass(StorageClassDto storageClass) throws Exception {
@@ -368,6 +368,37 @@ public class StorageClassServiceImpl implements StorageClassService {
             //删除集群配额表中存储绑定
             List<TenantClusterQuota> tenantClusterQuotas = tenantClusterQuotaService.listClusterQuotaLikeStorage(name,clusterId);
             for (TenantClusterQuota tenantClusterQuota:tenantClusterQuotas) {
+                //获取分区
+                ActionReturnUtil actionReturnUtil=namespaceService.getNamespaceList(tenantClusterQuota.getTenantId());
+                if (!actionReturnUtil.isSuccess()){
+                    LOGGER.error("查询namespace失败", actionReturnUtil.getErrorCode());
+                }
+                List<NamespaceShowDto> namespaces =(List) actionReturnUtil.getData();
+                for (NamespaceShowDto namespaceShowDto:namespaces ) {
+                    // 根据namespace名称获取分区配额resourceQuota
+                    K8SClientResponse quotaResponse = resourceQuotaService.getByNamespace(namespaceShowDto.getName(), null, null, cluster);
+                    if (!HttpStatusUtil.isSuccessStatus(quotaResponse.getStatus())) {
+                        LOGGER.error("调用k8s接口查询namespace下quota失败", quotaResponse.getBody());
+                        return ActionReturnUtil.returnErrorWithData(quotaResponse.getBody());
+                    }
+                    ResourceQuotaList quotaList = JsonUtil.jsonToPojo(quotaResponse.getBody(), ResourceQuotaList.class);
+                    //移除分区配额hard
+                    List<ResourceQuota> items =  quotaList.getItems();
+                    for (ResourceQuota resourceQuota:items){
+                        Map<String,String> maphit = (Map)resourceQuota.getSpec().getHard();
+                        maphit.remove(name+".storageclass.storage.k8s.io/requests.storage");
+                        resourceQuota.getSpec().setHard(maphit);
+                        Map<String, Object> bodys = generateQuotaBodys(resourceQuota,namespaceShowDto.getName());
+                        Map<String, Object> headers = new HashMap<>();
+                        headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
+                        //更新分区配额
+                        K8SClientResponse response1 = resourceQuotaService.update(namespaceShowDto.getName(),namespaceShowDto.getName()+"quota",headers,bodys,HTTPMethod.PUT,cluster);
+                        if (!HttpStatusUtil.isSuccessStatus(quotaResponse.getStatus())) {
+                            LOGGER.error("调用k8s接口查询namespace下quota失败", quotaResponse.getBody());
+                            return ActionReturnUtil.returnErrorWithData(quotaResponse.getBody());
+                        }
+                    }
+                }
                 removeTenantsStorageQuota(tenantClusterQuota,name);
             }
             // 删除secret
@@ -397,7 +428,20 @@ public class StorageClassServiceImpl implements StorageClassService {
         }
 
     }
-
+    private Map<String, Object> generateQuotaBodys(ResourceQuota resourceQuota,String namespace) throws Exception {
+        ObjectMeta meta = new ObjectMeta();
+        meta.setName(namespace + "quota");
+        ResourceQuotaSpec spec = new ResourceQuotaSpec();
+        Map<String, Object> hard = new HashMap<>();
+        spec.setHard(resourceQuota.getSpec().getHard());
+        Map<String, Object> bodys = new HashMap<>();
+        Map<String, Object> metadata = new HashMap<>();
+        bodys.put(CommonConstant.KIND, CommonConstant.RESOURCEQUOTA);
+        metadata.put(CommonConstant.NAME, namespace + "quota");
+        bodys.put(CommonConstant.METADATA, metadata);
+        bodys.put(CommonConstant.SPEC, spec);
+        return bodys;
+    }
     private void rollBackCephRBDStorageClass(String cephAdminrSecretName, String cephUserSecretName, String storageClassName, Cluster cluster) throws Exception {
 
         StorageClass sc = scService.getScByName(storageClassName, cluster);
