@@ -138,7 +138,8 @@ public class RouterServiceImpl implements RouterService {
             annotation.put("nephele/annotation", parsedIngressList.getAnnotation());
         }
         if (!(Constant.IC_DEFAULT_NAME.equals(icName))) {
-            annotation.put("kubernetes.io/ingress.class", icName);
+            annotation.put(LABEL_INGRESS_CLASS, icName);
+            parsedIngressList.getLabels().put(LABEL_INGRESS_CLASS, icName);
         }
         ingress.getMetadata().setAnnotations(annotation);
         List<HttpRuleDto> rules = parsedIngressList.getRules();
@@ -824,8 +825,8 @@ public class RouterServiceImpl implements RouterService {
                     Map<String, Object> tmp = new HashMap<>();
                     tmp.put("name", in.getMetadata().getName());
                     String icName = Constant.IC_DEFAULT_NAME;
-                    if (in.getMetadata().getAnnotations() != null && in.getMetadata().getAnnotations().get("kubernetes.io/ingress.class") != null) {
-                        icName = in.getMetadata().getAnnotations().get("kubernetes.io/ingress.class").toString();
+                    if (in.getMetadata().getLabels() != null && in.getMetadata().getLabels().get(LABEL_INGRESS_CLASS) != null) {
+                        icName = in.getMetadata().getLabels().get(LABEL_INGRESS_CLASS).toString();
                     }
                     tmp.put("icName", icName);
                     tmp.put("type", "HTTP");

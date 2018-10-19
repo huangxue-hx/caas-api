@@ -65,6 +65,7 @@ public enum ErrorCodeMessage {
     DATE_FORMAT_ERROR(100043,"Date format error", "日期格式错误"),
     EXCEED_MAX_QUERY_COUNT(100044,"Can not query over 100 records at once", "一次查询不能超过100条记录"),
     NAME_LENGTH_LIMIT(100045,"name length must be no more than 63 characters", "名称长度不能超过63个字符"),
+    INVALID_CHARACTER(100046,"Format is not correct, contains illegal characters", "格式错误, 包含非法字符或组合"),
 
     //用户相关 200xxx
     USER_DISABLED(200001, "User is disabled.","该用户暂时停止使用，请联系管理员|User is disabled."),
@@ -219,7 +220,8 @@ public enum ErrorCodeMessage {
     INGRESS_CONTROLLER_OTHER_PORT_USED(300049, "The other port of the ingress controller has been used.", "负载均衡器其他端口已经被使用"),
     INGRESS_CONTROLLER_SA_NOT_FOUND(300050, "Cannot get the default serviceAccount under the kube-system namespace.", "获取不到kube-system分区下默认的serviceAccount"),
     INGRESS_CONTROLLER_DEFAULT_NOT_DELETE(300051, "The default ingress controller is not allowed to be deleted.", "默认负载均衡器不允许被删除"),
-    INGRESS_CONTROLLER_HAS_ASSIGN(300052, "The ingress controller has been assigned.", "该负载均衡器已经被分配"),    INGRESS_CONTROLLER_PORT_UPDATE_FAIL(300053, "In the database, the ingress controller port data update failed, please contact the administrator.", "数据库中，ingress controller端口数据更新失败，请联系管理员"),
+    INGRESS_CONTROLLER_HAD_USED(300052, "The ingress controller is in using, cant not be changed or delete.", "已有服务使用该负载均衡器, 不能修改或删除"),
+    INGRESS_CONTROLLER_PORT_UPDATE_FAIL(300053, "In the database, the ingress controller port data update failed, please contact the administrator.", "数据库中，ingress controller端口数据更新失败，请联系管理员"),
     INGRESS_CONTROLLER_HAS_USED_BY_TENANTS(300054, "These tenants are using this ingress controller and cannot be removed. Tenant name：", "以下租户已使用该负载均衡器，无法移除。租户名称："),
     INGRESS_CONTROLLER_HTTP_PORT_ERROR(300055, "The port of the ingress controller is not in the specified range.", "负载均衡器的端口不在指定范围"),
 
@@ -417,6 +419,7 @@ public enum ErrorCodeMessage {
             "同步规则正在使用该备份服务器，请先删除同步规则"),
     IMAGE_IN_DELETING(405043, "This image is in deleting, please check later.", "镜像正在删除中,请稍后查看删除结果"),
     LARGE_IMAGE_DELETE(405044, "As image is large,it take some time to delete, please check later.", "由于镜像文件较大，需要一些时间删除，请稍后查看删除结果"),
+    HARBOR_PROJECT_NOT_FOUND(405045, "Project not found on harbor.", "在harbor上未找到该镜像仓库，或已被删除"),
 
     //CICD 406xxx
     ENVIRONMENT_NAME_NOT_BLANK(406001, "Build environment name can not be blank.", "环境名称不能为空"),

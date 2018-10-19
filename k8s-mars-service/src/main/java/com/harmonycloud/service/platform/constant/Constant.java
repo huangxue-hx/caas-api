@@ -294,6 +294,8 @@ public class Constant {
 
 	public final static String LABEL_TYPE = "type";
 
+	public final static String LABEL_INGRESS_CLASS = "kubernetes.io/ingress.class";
+
 	//Daemonset 更新设置rollingupdate策略
 	public final static String ROLLINGUPDATE_MAX_UNAVAILABLE = "100%";
 

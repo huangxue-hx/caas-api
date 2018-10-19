@@ -1,5 +1,6 @@
 package com.harmonycloud.service.config;
 
+import com.alibaba.druid.filter.config.ConfigTools;
 import com.alibaba.druid.pool.DruidDataSource;
 import com.github.pagehelper.PageHelper;
 import com.harmonycloud.common.util.JenkinsClient;
@@ -7,6 +8,7 @@ import com.harmonycloud.dto.cluster.ClusterCRDDto;
 import com.harmonycloud.k8s.bean.cluster.*;
 import com.harmonycloud.k8s.util.DefaultClient;
 import com.harmonycloud.service.cluster.ClusterService;
+import org.apache.commons.lang3.StringUtils;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.mybatis.spring.mapper.MapperScannerConfigurer;
 import org.slf4j.Logger;
@@ -15,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
@@ -24,9 +27,11 @@ import org.springframework.session.web.http.HttpSessionStrategy;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import redis.clients.jedis.JedisPoolConfig;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 
 @Configuration
 @EnableRedisHttpSession(maxInactiveIntervalInSeconds = 8 * 60 * 60)
@@ -42,10 +47,20 @@ public class ApplicationConfig {
     private static final int REDIS_TIME_BETWEEN_EVICTION_RUNS_MILLIS = 600000;
     //redis最小空闲连接数
     private static final int JEDIS_MIN_IDLE = 10;
-
+    public static final String PROPERTIES_RESOURCE = "constant.properties";
+    public static Properties systemProperties;
 
     @Autowired
     ClusterService clusterService;
+
+    @Bean
+    public static Properties getSystemProperties() throws IOException{
+        if(systemProperties == null) {
+            systemProperties = PropertiesLoaderUtils.loadAllProperties(PROPERTIES_RESOURCE);
+        }
+        return systemProperties;
+    }
+
 
     @Bean
     public JedisPoolConfig getJedisPoolConfig(){
@@ -84,7 +99,8 @@ public class ApplicationConfig {
                     break;
                 }
             }
-            connection.setPassword(redis.getPassword());
+            connection.setPassword(StringUtils.isBlank(getPublicKey()) ? redis.getPassword() : ConfigTools.decrypt(getPublicKey(),
+                    redis.getPassword()));
             connection.setUsePool(true);
             connection.setPoolConfig(getJedisPoolConfig());
         }catch(Exception e){
@@ -139,7 +155,8 @@ public class ApplicationConfig {
             }
             druidDataSource.setDriverClassName(clusterMysql.getDriverClass());
             druidDataSource.setUsername(clusterMysql.getUsername());
-            druidDataSource.setPassword(clusterMysql.getPassword());
+            druidDataSource.setPassword(StringUtils.isBlank(getPublicKey()) ? clusterMysql.getPassword() : ConfigTools.decrypt(getPublicKey(),
+                    clusterMysql.getPassword()));
             druidDataSource.setInitialSize(clusterMysql.getInitialSize());
             if(clusterMysql.getMaxActive() != null) {
                 druidDataSource.setMaxActive(clusterMysql.getMaxActive());
@@ -201,7 +218,7 @@ public class ApplicationConfig {
         String password = jenkins.getPassword();
 
         jenkinsClient.setHost(host);
-        jenkinsClient.setPassword(password);
+        jenkinsClient.setPassword(StringUtils.isBlank(getPublicKey()) ? password : ConfigTools.decrypt(getPublicKey(), password));
         jenkinsClient.setUsername(username);
         jenkinsClient.setPort(port.toString());
 
@@ -220,6 +237,9 @@ public class ApplicationConfig {
         return null;
     }
 
-
+    private String getPublicKey() throws Exception{
+        String publicKey = getSystemProperties().getProperty("public.key");
+        return publicKey;
+    }
 
 }

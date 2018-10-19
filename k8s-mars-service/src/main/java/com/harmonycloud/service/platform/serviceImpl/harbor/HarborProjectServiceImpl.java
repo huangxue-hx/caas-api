@@ -139,6 +139,12 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			repositoryInfo.setQuotaSize(QUOTA_SIZE);
 		}
 		if(repositoryInfo.getIsPublic()){
+			ImageRepository imageRepository = new ImageRepository();
+			imageRepository.setHarborProjectName(repositoryInfo.getHarborProjectName());
+			List<ImageRepository> imageRepositories = this.listRepositories(imageRepository);
+			if (!CollectionUtils.isEmpty(imageRepositories)) {
+				throw new MarsRuntimeException(DictEnum.REPOSITORY.phrase(), ErrorCodeMessage.EXIST);
+			}
 			return createPublicRepository(repositoryInfo);
 		}else{
 			return createPrivateRepository(repositoryInfo);
@@ -261,6 +267,9 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		if (!result.isSuccess() || result.getData() == null) {
 			logger.error("创建公共仓库失败，repositoryInfo:{}， message:{}",
 					JSONObject.toJSONString(repositoryInfo),result.getData());
+			if(result.getData() != null && String.valueOf(result.getData()).contains("contains illegal characters")){
+				return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INVALID_CHARACTER);
+			}
 			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CREATE_FAIL, String.valueOf(result.getData()));
 		}
 		try {
@@ -372,8 +381,14 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		if(CollectionUtils.isEmpty(imageRepositories)){
 			return imageRepositories;
 		}
-		for(ImageRepository repository : imageRepositories){
-			this.getRepositoryDetail(repository);
+		Iterator<ImageRepository> iterator = imageRepositories.iterator();
+		while(iterator.hasNext()){
+			ImageRepository repository = iterator.next();
+			ActionReturnUtil repoResponse = this.getRepositoryDetail(repository);
+			if(repoResponse.getData() != null && ErrorCodeMessage.HARBOR_PROJECT_NOT_FOUND.value() == repoResponse.getErrorCode()){
+				this.deleteRepositoryById(repository.getId());
+				iterator.remove();
+			}
 		}
 		return imageRepositories;
 	}
@@ -499,6 +514,11 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			ActionReturnUtil response = harborService.deleteProject(imageRepository.getHarborHost(),
 					imageRepository.getHarborProjectId());
 			if (!response.isSuccess()) {
+				if(response.getData() != null && response.getData().toString().contains("project does not exist")){
+					logger.warn("harbor仓库不存在，删除数据库中的记录，imageRepository:{}",JSONObject.toJSONString(imageRepository));
+					imageRepositoryMapper.deleteRepositoryById(id);
+					return true;
+				}
 				logger.error("删除镜像仓库失败，repositoryId：{},response:{}",id,JSONObject.toJSONString(response));
 				return false;
 			}
@@ -1027,14 +1047,14 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		removedImages.stream().forEach( image-> logger.info("删除镜像：{}" ,image.imageId()));
 	}
 
-	private void getRepositoryDetail(ImageRepository repository) throws Exception{
+	private ActionReturnUtil getRepositoryDetail(ImageRepository repository) throws Exception{
 		//获取镜像仓库下的镜像数量
 		ActionReturnUtil response= harborService.repoListById(repository.getHarborHost(), repository.getHarborProjectId());
 		if(response.isSuccess()){
 			List<String> list =(List<String>)response.get("data");
 			repository.setImageCount(list.size());
 		}else{
-			repository.setImageCount(0);
+			return response;
 		}
 		HarborProject harborProject =  harborService.getProjectQuota(repository.getHarborHost(), repository.getHarborProjectName());
 		if(harborProject != null){
@@ -1046,6 +1066,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			repository.setClusterName(clusterService.findHarborByHost(repository.getHarborHost()).getReferredClusterNames());
 			repository.setClusterId(clusterService.findHarborByHost(repository.getHarborHost()).getReferredClusterIds());
 		}
+		return ActionReturnUtil.returnSuccess();
 	}
 
 	private List<ImageRepository> getRepositories(String harborHost, String userName) throws Exception{
@@ -1070,28 +1091,38 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		if(CollectionUtils.isEmpty(dbRepositories)){
 			return Collections.emptyList();
 		}
-		Map<Integer,ImageRepository> repositoryMap = dbRepositories.stream()
-				.filter(repository -> repository.getHarborProjectId() != null)
-				.collect(Collectors.toMap(ImageRepository::getHarborProjectId, repo -> repo));
 		List<HarborProject> harborProjects= harborService.listProject(harborHost,null,null,null);
 		if(CollectionUtils.isEmpty(harborProjects)){
 			return Collections.emptyList();
 		}
-		for(HarborProject harborProject : harborProjects){
-			ImageRepository imageRepository = repositoryMap.get(harborProject.getProjectId());
-			if(imageRepository == null){
+		Map<Integer,HarborProject> projectsMap = harborProjects.stream()
+				.collect(Collectors.toMap(HarborProject::getProjectId, project -> project));
+		for(ImageRepository imageRepository : dbRepositories){
+			if(imageRepository.getHarborProjectId() == null){
 				continue;
 			}
 			//对私有仓库，租户管理员只能查看角色为租户管理员的租户列表下的仓库
 			if(filter && !imageRepository.getIsPublic()
 					&& !tmTenantIds.contains(imageRepository.getTenantId())){
-                continue;
+				continue;
 			}
-			imageRepository.setCreateTime(DateUtil.utcToGmtDate(harborProject.getCreateTime()));
-			imageRepository.setImageCount(harborProject.getRepoCount());
-			imageRepository.setQuotaSize(harborProject.getQuotaSize());
-			imageRepository.setUsageSize(harborProject.getUseSize());
-			imageRepository.setUsageRate(harborProject.getUseRate());
+			HarborProject harborProject = projectsMap.get(imageRepository.getHarborProjectId());
+			if(harborProject == null){
+				ActionReturnUtil response = harborService.deleteProject(imageRepository.getHarborHost(),
+						imageRepository.getHarborProjectId());
+				if (!response.isSuccess() && response.getData() != null
+						&& response.getData().toString().contains("project does not exist")) {
+					logger.warn("harbor上未找到仓库，删除数据库记录，imageRepository:{}", JSONObject.toJSONString(imageRepository));
+					imageRepositoryMapper.deleteRepositoryById(imageRepository.getId());
+					continue;
+				}
+			}else {
+				imageRepository.setCreateTime(DateUtil.utcToGmtDate(harborProject.getCreateTime()));
+				imageRepository.setImageCount(harborProject.getRepoCount());
+				imageRepository.setQuotaSize(harborProject.getQuotaSize());
+				imageRepository.setUsageSize(harborProject.getUseSize());
+				imageRepository.setUsageRate(harborProject.getUseRate());
+			}
 			imageRepositories.add(imageRepository);
 		}
 		return imageRepositories;

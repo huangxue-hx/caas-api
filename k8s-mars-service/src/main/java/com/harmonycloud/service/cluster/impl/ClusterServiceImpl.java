@@ -10,10 +10,17 @@ import com.harmonycloud.common.enumm.K8sModuleEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.StringUtil;
 import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
+import com.harmonycloud.k8s.bean.Deployment;
+import com.harmonycloud.k8s.bean.DeploymentList;
 import com.harmonycloud.k8s.bean.cluster.*;
+import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.k8s.service.NodeService;
+import com.harmonycloud.k8s.service.ResourceQuotaService;
+import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.application.AppLogService;
 import com.harmonycloud.service.application.ApplicationTemplateService;
 import com.harmonycloud.service.application.ServiceService;
@@ -42,8 +49,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -108,6 +121,9 @@ public class ClusterServiceImpl implements ClusterService {
     NodePortClusterUsageService nodePortClusterUsageService;
     @Autowired
     RoleLocalService roleLocalService;
+    @Autowired
+    DeploymentService deploymentService;
+
 
 
     @Override
@@ -511,49 +527,95 @@ public class ClusterServiceImpl implements ClusterService {
         map.put(K8sModuleEnum.SERVICE_LOADBALANCER.getCode(), Constant.STATUS_NORMAL);
         map.put(MODULE_MONITOR, Constant.STATUS_NORMAL);
 
+        //K8s组件用pod运行状态来判断
+        Map<String, Object> k8sMap = new HashMap<>();
+        k8sMap.put(K8sModuleEnum.KUBE_APISERVER.getCode(), Constant.STATUS_NORMAL);
+        k8sMap.put(K8sModuleEnum.KUBE_CONTROLLER_MANAGER.getCode(), Constant.STATUS_NORMAL);
+        k8sMap.put(K8sModuleEnum.KUBE_SCHEDULER.getCode(), Constant.STATUS_NORMAL);
+        k8sMap.put(K8sModuleEnum.ETCD.getCode(), Constant.STATUS_NORMAL);
+        k8sMap.put(K8sModuleEnum.SERVICE_LOADBALANCER.getCode(), Constant.STATUS_NORMAL);
+
+        //平台组件使用deployment的状态来进行判断
+        Map<String, Object> plateformMap = new HashMap<>();
+        plateformMap.put(K8sModuleEnum.ELASTICSEARCH.getCode(), Constant.STATUS_NORMAL);
+        plateformMap.put(K8sModuleEnum.CALICO.getCode(), Constant.STATUS_NORMAL);
+        plateformMap.put(K8sModuleEnum.KUBE_DNS.getCode(), Constant.STATUS_NORMAL);
+        plateformMap.put(K8sModuleEnum.NFS.getCode(),Constant.STATUS_NORMAL);
+        plateformMap.put(MODULE_MONITOR, Constant.STATUS_NORMAL);
+
         Map<String, K8sModuleEnum> moduleEnumMap = K8sModuleEnum.getModuleMap();
         int abnormalCount = 0;
-        boolean heapsterCreated = false;
-        boolean influxdbCreated = false;
+
         Set<String> createdComponent = new HashSet<>();
         for (PodDto pod : podDtoList) {
-
-            for (Map.Entry<String, K8sModuleEnum> entry : moduleEnumMap.entrySet()) {
-                if (pod.getName().contains(entry.getValue().getCode())) {
+            //k8s组件节点
+            for (Map.Entry<String, Object> entry : k8sMap.entrySet()) {
+                if (pod.getName().contains(entry.getKey())) {
                     //设置已经创建的组件列表
-                    if(entry.getValue() == K8sModuleEnum.HEAPSTER ){
-                        heapsterCreated = true;
-                        if(heapsterCreated && influxdbCreated) {
-                            createdComponent.add(MODULE_MONITOR);
-                        }
-                    }else if(entry.getValue() == K8sModuleEnum.INFLUXDB){
-                        influxdbCreated = true;
-                        if(heapsterCreated && influxdbCreated) {
-                            createdComponent.add(MODULE_MONITOR);
-                        }
-                    }else{
-                        createdComponent.add(entry.getValue().getCode());
-                    }
+
+                    createdComponent.add(entry.getKey());
                     if (pod.getStatus().equalsIgnoreCase(Constant.RUNNING)) {
                         continue;
                     }
-                    //设置状态为异常的组件，如果一个组件有多个pod，如calico，每个节点一个pod，如果其中一个pod状态不正常，则该组件状态为异常
-                    if(entry.getValue() == K8sModuleEnum.HEAPSTER || entry.getValue() == K8sModuleEnum.INFLUXDB){
-                        map.put(MODULE_MONITOR, Constant.STATUS_ABNORMAL);
-                    }else{
-                        map.put(entry.getValue().getCode(), Constant.STATUS_ABNORMAL);
-                    }
+                    //设置状态为异常的组件，如果一个组件有多个pod，每个节点一个pod，如果其中一个pod状态不正常，则该组件状态为异常
+                    map.put(entry.getKey(), Constant.STATUS_ABNORMAL);
                     abnormalCount ++;
                 }
             }
         }
         //如果组件没有创建，状态修改为异常
-        for (String componentCode : map.keySet()) {
+        for (String componentCode : k8sMap.keySet()) {
             if(!createdComponent.contains(componentCode)){
                 map.put(componentCode, Constant.STATUS_ABNORMAL);
                 abnormalCount ++;
             }
         }
+
+        boolean heapsterCreated = false;
+        boolean influxdbCreated = false;
+        K8SClientResponse depRes = deploymentService.doDeploymentsByNamespace("kube-system",null,null,HTTPMethod.GET,cluster);
+       // resourceQuotaService.getByNamespace("kube-system",null,bodys,cluster);
+        DeploymentList deploymentList = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+        for(Deployment dep : deploymentList.getItems()){
+            //平台节点
+            for (Map.Entry<String, Object> entry : plateformMap.entrySet()) {
+                if(dep.getMetadata().getName().contains(entry.getKey())){
+                    //设置已经创建的组件列表
+                    if(entry.getKey() == K8sModuleEnum.HEAPSTER.getCode()){
+                        heapsterCreated = true;
+                        if(heapsterCreated && influxdbCreated) {
+                            createdComponent.add(MODULE_MONITOR);
+                        }
+                    }else if(entry.getKey() == K8sModuleEnum.INFLUXDB.getCode()){
+                        influxdbCreated = true;
+                        if(heapsterCreated && influxdbCreated) {
+                            createdComponent.add(MODULE_MONITOR);
+                        }
+                    }else{
+                        createdComponent.add(entry.getKey());
+                    }
+                    //设置状态为异常的组件
+                    if(entry.getKey() == K8sModuleEnum.HEAPSTER.getCode() || entry.getKey() == K8sModuleEnum.INFLUXDB.getCode()){
+                        if(dep.getStatus().getUnavailableReplicas() != null){
+                            map.put(MODULE_MONITOR, Constant.STATUS_ABNORMAL);
+                        }
+                    }
+                    if(dep.getStatus().getUnavailableReplicas() != null){
+                        map.put(entry.getKey(),Constant.STATUS_ABNORMAL);
+                    }
+                    abnormalCount ++;
+                }
+            }
+        }
+
+        //如果组件没有创建，状态修改为异常
+        for (String componentCode : map.keySet()) {
+            if (!createdComponent.contains(componentCode)) {
+                map.put(componentCode, Constant.STATUS_ABNORMAL);
+                abnormalCount++;
+            }
+        }
+
         double totalCount = map.size();
         String health = String.format("%.0f", (totalCount - abnormalCount) / totalCount * PERCENT_HUNDRED);
         Map<String, Object> resultMap = new HashMap<>();

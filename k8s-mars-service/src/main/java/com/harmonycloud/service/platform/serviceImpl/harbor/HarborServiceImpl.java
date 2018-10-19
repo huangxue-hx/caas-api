@@ -197,6 +197,9 @@ public class HarborServiceImpl implements HarborService {
                 }
                 repos.addAll(repoList);
             }else {
+                if(response.getData() != null && response.getData().toString().contains("not found")){
+                    return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.HARBOR_PROJECT_NOT_FOUND);
+                }
                 LOGGER.error("查询镜像repo list失败,harborHost:{},response:{}",harborHost, JSONObject.toJSONString(response));
                 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.QUERY_FAIL);
             }
@@ -236,6 +239,9 @@ public class HarborServiceImpl implements HarborService {
             }
             repos.addAll(repoList);
         }else {
+            if(response.getData() != null && response.getData().toString().contains("not found")){
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.HARBOR_PROJECT_NOT_FOUND);
+            }
             LOGGER.error("查询镜像repo list失败,harborHost:{},response:{}",harborHost, JSONObject.toJSONString(response));
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.QUERY_FAIL);
         }

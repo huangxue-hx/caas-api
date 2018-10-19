@@ -1,5 +1,6 @@
 package com.harmonycloud.service.cache;
 
+import com.alibaba.druid.filter.config.ConfigTools;
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ClusterLevelEnum;
@@ -21,6 +22,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -58,6 +60,8 @@ public class ClusterCacheManager {
     RoleLocalService roleLocalService;
     //容器云平台部署的集群，上层集群
     private static Cluster platformCluster;
+    @Value("${public.key:}")
+    private String publicKey;
 
     /**
      * 初始化获取所有集群列表
@@ -344,7 +348,7 @@ public class ClusterCacheManager {
      * @param clusterCRDDtos
      * @return
      */
-    private List<Cluster> convertCluster(List<ClusterCRDDto> clusterCRDDtos) throws MarsRuntimeException{
+    private List<Cluster> convertCluster(List<ClusterCRDDto> clusterCRDDtos) throws Exception{
         List<Cluster> clusters = new ArrayList<>();
         // 获取每个harbor被哪些集群共用
         List<Map<String,String>> referredClusters = this.getHarborReferredClusters(clusterCRDDtos);
@@ -385,7 +389,8 @@ public class ClusterCacheManager {
             harborServer.setHarborPort(clusterTPRDto.getHarborPort() == null?CommonConstant.DEFAULT_HARBOR_PORT:clusterTPRDto.getHarborPort());
             harborServer.setHarborHost(clusterTPRDto.getHarborAddress());
             harborServer.setHarborAdminAccount(clusterTPRDto.getHarborAdminUser());
-            harborServer.setHarborAdminPassword(clusterTPRDto.getHarborAdminPwd());
+            harborServer.setHarborAdminPassword(StringUtils.isBlank(publicKey) ? clusterTPRDto.getHarborAdminPwd() : ConfigTools.decrypt(publicKey,
+                    clusterTPRDto.getHarborAdminPwd()));
             //harbor登录cookie 15分钟内有效
             harborServer.setHarborLoginTimeOut(Constant.HARBOR_LOGIN_TIMEOUT);
             harborServer.setReferredClusterNames(harborClusterNames.get(harborServer.getHarborHost()));

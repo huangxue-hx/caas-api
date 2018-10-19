@@ -163,5 +163,12 @@ public class ActionReturnUtil extends HashMap<String, Object>{
     public Object getData() {
         return get("data");
     }
-    
+
+    public Integer getErrorCode() {
+        Object code = get("errorCode");
+        if(code != null){
+            return Integer.parseInt(code.toString());
+        }
+        return null;
+    }
 }

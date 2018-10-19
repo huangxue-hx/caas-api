@@ -11,7 +11,9 @@ import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
+import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
 import com.harmonycloud.dto.application.StorageClassDto;
+import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8SClient;
@@ -19,10 +21,7 @@ import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.APIGroup;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
-import com.harmonycloud.k8s.service.DeploymentService;
-import com.harmonycloud.k8s.service.ScService;
-import com.harmonycloud.k8s.service.SecretService;
-import com.harmonycloud.k8s.service.StatefulSetService;
+import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.DaemonSetsService;
@@ -33,6 +32,7 @@ import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
+import com.harmonycloud.service.tenant.TenantClusterQuotaService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -45,6 +45,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.harmonycloud.service.platform.constant.Constant.LABEL_AUTOSCALE;
+import static com.harmonycloud.service.platform.constant.Constant.LABEL_INGRESS_SERVICE;
+import static com.harmonycloud.service.platform.constant.Constant.NODESELECTOR_LABELS_PRE;
 
 /**
  * @author xc
@@ -108,6 +112,10 @@ public class StorageClassServiceImpl implements StorageClassService {
 
     @Autowired
     StatefulSetService statefulSetService;
+    @Autowired
+    TenantClusterQuotaService tenantClusterQuotaService;
+    @Autowired
+    ResourceQuotaService resourceQuotaService;
 
     @Override
     public ActionReturnUtil createStorageClass(StorageClassDto storageClass) throws Exception {
@@ -357,6 +365,42 @@ public class StorageClassServiceImpl implements StorageClassService {
         }
         K8SClientResponse response = scService.deleteStorageClassByName(name, cluster);
         if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            //删除集群配额表中存储绑定
+            List<TenantClusterQuota> tenantClusterQuotas = tenantClusterQuotaService.listClusterQuotaLikeStorage(name,clusterId);
+            for (TenantClusterQuota tenantClusterQuota:tenantClusterQuotas) {
+                //获取分区
+                ActionReturnUtil actionReturnUtil=namespaceService.getNamespaceList(tenantClusterQuota.getTenantId());
+                if (!actionReturnUtil.isSuccess()){
+                    LOGGER.error("查询namespace失败", actionReturnUtil.getErrorCode());
+                }
+                List<NamespaceShowDto> namespaces =(List) actionReturnUtil.getData();
+                for (NamespaceShowDto namespaceShowDto:namespaces ) {
+                    // 根据namespace名称获取分区配额resourceQuota
+                    K8SClientResponse quotaResponse = resourceQuotaService.getByNamespace(namespaceShowDto.getName(), null, null, cluster);
+                    if (!HttpStatusUtil.isSuccessStatus(quotaResponse.getStatus())) {
+                        LOGGER.error("调用k8s接口查询namespace下quota失败", quotaResponse.getBody());
+                        return ActionReturnUtil.returnErrorWithData(quotaResponse.getBody());
+                    }
+                    ResourceQuotaList quotaList = JsonUtil.jsonToPojo(quotaResponse.getBody(), ResourceQuotaList.class);
+                    //移除分区配额hard
+                    List<ResourceQuota> items =  quotaList.getItems();
+                    for (ResourceQuota resourceQuota:items){
+                        Map<String,String> maphit = (Map)resourceQuota.getSpec().getHard();
+                        maphit.remove(name+".storageclass.storage.k8s.io/requests.storage");
+                        resourceQuota.getSpec().setHard(maphit);
+                        Map<String, Object> bodys = generateQuotaBodys(resourceQuota,namespaceShowDto.getName());
+                        Map<String, Object> headers = new HashMap<>();
+                        headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
+                        //更新分区配额
+                        K8SClientResponse response1 = resourceQuotaService.update(namespaceShowDto.getName(),namespaceShowDto.getName()+"quota",headers,bodys,HTTPMethod.PUT,cluster);
+                        if (!HttpStatusUtil.isSuccessStatus(quotaResponse.getStatus())) {
+                            LOGGER.error("调用k8s接口查询namespace下quota失败", quotaResponse.getBody());
+                            return ActionReturnUtil.returnErrorWithData(quotaResponse.getBody());
+                        }
+                    }
+                }
+                removeTenantsStorageQuota(tenantClusterQuota,name);
+            }
             // 删除secret
             StorageClass storageClass = K8SClient.converToBean(response, StorageClass.class);
             if(storageClass != null && storageClass.getParameters() != null) {
@@ -384,7 +428,20 @@ public class StorageClassServiceImpl implements StorageClassService {
         }
 
     }
-
+    private Map<String, Object> generateQuotaBodys(ResourceQuota resourceQuota,String namespace) throws Exception {
+        ObjectMeta meta = new ObjectMeta();
+        meta.setName(namespace + "quota");
+        ResourceQuotaSpec spec = new ResourceQuotaSpec();
+        Map<String, Object> hard = new HashMap<>();
+        spec.setHard(resourceQuota.getSpec().getHard());
+        Map<String, Object> bodys = new HashMap<>();
+        Map<String, Object> metadata = new HashMap<>();
+        bodys.put(CommonConstant.KIND, CommonConstant.RESOURCEQUOTA);
+        metadata.put(CommonConstant.NAME, namespace + "quota");
+        bodys.put(CommonConstant.METADATA, metadata);
+        bodys.put(CommonConstant.SPEC, spec);
+        return bodys;
+    }
     private void rollBackCephRBDStorageClass(String cephAdminrSecretName, String cephUserSecretName, String storageClassName, Cluster cluster) throws Exception {
 
         StorageClass sc = scService.getScByName(storageClassName, cluster);
@@ -551,7 +608,14 @@ public class StorageClassServiceImpl implements StorageClassService {
                 }
             }
         }
-
+        if ( objectMeta.getLabels().containsKey(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE)) {
+            labelsMap.put(LABEL_INGRESS_SERVICE,
+                    objectMeta.getLabels().get(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE).toString());
+        }
+        if(objectMeta.getLabels().containsKey(NODESELECTOR_LABELS_PRE + LABEL_AUTOSCALE)) {
+            labelsMap.put(LABEL_AUTOSCALE,
+                    objectMeta.getLabels().get(NODESELECTOR_LABELS_PRE + LABEL_AUTOSCALE).toString());
+        }
         serviceItem.put("labels", labelsMap);
         Date utcDate = DateUtil.StringToDate(objectMeta.getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
         serviceItem.put("createTime", utcDate);
@@ -847,5 +911,21 @@ public class StorageClassServiceImpl implements StorageClassService {
         }
     }
 
-
+    //移除租户配额表中存储
+    private void removeTenantsStorageQuota(TenantClusterQuota tenantClusterQuota, String storageName) throws Exception {
+        String[] storageQuotas = tenantClusterQuota.getStorageQuotas().split(",");
+        StringBuilder sb = new StringBuilder();
+        for (String storageQuota : storageQuotas) {
+            if (StringUtils.isNotBlank(storageQuota) && !Arrays.asList(storageQuota.split("_")).contains(storageName)) {
+                sb.append(storageQuota);
+                sb.append(",");
+            }
+        }
+        //刪除最后一个逗号
+        if(sb.length() > 0) {
+            sb.deleteCharAt(sb.length() - 1);
+        }
+        tenantClusterQuota.setStorageQuotas(sb.toString());
+        tenantClusterQuotaService.updateClusterQuota(tenantClusterQuota);
+    }
 }

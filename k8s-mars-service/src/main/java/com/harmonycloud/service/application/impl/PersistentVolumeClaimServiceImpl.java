@@ -358,7 +358,7 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         if (pv == null) {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PV_QUERY_FAIL, DictEnum.PV.phrase(), true);
         }
-        String podName = RECYCLE_POD_NAME;
+        String podName = RECYCLE_POD_NAME + pvcName;
         List<SystemConfig> systemConfigList = systemConfigService.findByConfigType(RECYCLE_POD_NAME);
         String recycleImage = "";
         for (SystemConfig systemConfig : systemConfigList) {

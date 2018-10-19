@@ -18,6 +18,7 @@ import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
@@ -542,7 +543,7 @@ public class HarborHttpsClientUtil {
 				result = statusMessage;
 			}
 			//如果是未授权，可能是高可用harbor一台已经挂了，切换到另一台需要再重新登录
-			if(result.contains(Constant.HTTP_UNAUTHORIZED)){
+			if(HttpStatus.UNAUTHORIZED.value() == statusCode){
 				LOGGER.warn("cookie 已经失效,url:{}",url);
 				String harborHost = url.substring(url.indexOf("//")+2);
 				harborHost = harborHost.substring(0,harborHost.indexOf(":"));
