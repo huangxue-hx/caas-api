@@ -122,7 +122,7 @@ public class PrivilegeAspect {
 		while (url.contains(LEFT_BRACKET)){
 			int start = url.indexOf(LEFT_BRACKET);
 			int end = url.indexOf(RIGHT_BRACKET);
-			url = url.replaceAll(BACKSLASH + url.substring(start,end + NUMONE), STAR);
+			url = url.replace(url.substring(start,end + NUMONE), STAR);
 		}
 		if (url.endsWith(POINTSTAR)){
 			int i = url.lastIndexOf(POINTSTAR);
