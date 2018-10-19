@@ -507,6 +507,9 @@ public class StorageClassServiceImpl implements StorageClassService {
         for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaimList) {
             if(persistentVolumeClaim.getMetadata().getAnnotations() != null) {
                 String storageClassName = (String) persistentVolumeClaim.getMetadata().getAnnotations().get("volume.beta.kubernetes.io/storage-class");
+                if(StringUtils.isBlank(storageClassName)){
+                    storageClassName = persistentVolumeClaim.getSpec().getStorageClassName();
+                }
                 if (name.equals(storageClassName)) {
                     pvcList.add(persistentVolumeClaim);
                 }
@@ -520,46 +523,69 @@ public class StorageClassServiceImpl implements StorageClassService {
         List<StatefulSet> statefulSetList = statefulSetService.listStatefulSets(null, null, null, cluster).getItems();
         for (PersistentVolumeClaim pvc : pvcList) {
             for (Deployment deployment : deploymentList) {
+                boolean isUse = false;
                 if (pvc.getMetadata().getNamespace().equalsIgnoreCase(deployment.getMetadata().getNamespace()) && deployment.getSpec().getTemplate().getSpec().getVolumes() != null && deployment.getSpec().getTemplate().getSpec().getVolumes().size() > 0) {
                     List<Volume> volumeList = deployment.getSpec().getTemplate().getSpec().getVolumes();
                     for (Volume volume : volumeList) {
                         if (volume.getPersistentVolumeClaim() != null && pvc.getMetadata().getName().equals(volume.getPersistentVolumeClaim().getClaimName())) {
-                            Map<String, Object> serviceItem = convertServiceItem(deployment.getMetadata(), deployment.getSpec().getTemplate());
-                            serviceItem.put("type", CommonConstant.LABEL_KEY_APP);
-                            serviceItem.put("status", K8sResultConvert.getDeploymentStatus(deployment));
-                            serviceItem.put("instance", deployment.getSpec().getReplicas());
-                            serviceList.add(serviceItem);
+                            isUse = true;
+                            break;
                         }
                     }
                 }
+                if(isUse){
+                    Map<String, Object> serviceItem = convertServiceItem(deployment.getMetadata(), deployment.getSpec().getTemplate());
+                    serviceItem.put("type", CommonConstant.LABEL_KEY_APP);
+                    serviceItem.put("status", K8sResultConvert.getDeploymentStatus(deployment));
+                    serviceItem.put("instance", deployment.getSpec().getReplicas());
+                    serviceList.add(serviceItem);
+                }
             }
             for (StatefulSet statefulset : statefulSetList){
+                boolean isUse = false;
                 if (pvc.getMetadata().getNamespace().equalsIgnoreCase(statefulset.getMetadata().getNamespace()) && CollectionUtils.isNotEmpty(statefulset.getSpec().getTemplate().getSpec().getVolumes())) {
                     List<Volume> volumeList = statefulset.getSpec().getTemplate().getSpec().getVolumes();
                     for (Volume volume : volumeList) {
                         if (volume.getPersistentVolumeClaim() != null && pvc.getMetadata().getName().equals(volume.getPersistentVolumeClaim().getClaimName())) {
-                            Map<String, Object> serviceItem = convertServiceItem(statefulset.getMetadata(), statefulset.getSpec().getTemplate());
-                            serviceItem.put("type", CommonConstant.LABEL_KEY_STATEFULSET);
-                            serviceItem.put("status", K8sResultConvert.getStatefulSetStatus(statefulset));
-                            serviceItem.put("instance", statefulset.getSpec().getReplicas());
-                            serviceList.add(serviceItem);
+                            isUse = true;
+                            break;
                         }
                     }
+                }
+                if(statefulset.getSpec().getVolumeClaimTemplates() != null && !isUse){
+                    for(PersistentVolumeClaim vct : statefulset.getSpec().getVolumeClaimTemplates()){
+                        if(pvc.getMetadata().getName().startsWith(vct.getMetadata().getName() + CommonConstant.LINE + statefulset.getMetadata().getName())){
+                            isUse = true;
+                            break;
+                        }
+                    }
+                }
+                if(isUse){
+                    Map<String, Object> serviceItem = convertServiceItem(statefulset.getMetadata(), statefulset.getSpec().getTemplate());
+                    serviceItem.put("type", CommonConstant.LABEL_KEY_STATEFULSET);
+                    serviceItem.put("status", K8sResultConvert.getStatefulSetStatus(statefulset));
+                    serviceItem.put("instance", statefulset.getSpec().getReplicas());
+                    serviceList.add(serviceItem);
                 }
             }
             if(CommonConstant.KUBE_SYSTEM.equalsIgnoreCase(pvc.getMetadata().getNamespace())){
                 for(DaemonSet daemonSet : daemonSetList){
+                    boolean isUse = false;
                     List<Volume> volumeList = daemonSet.getSpec().getTemplate().getSpec().getVolumes();
                     if(CollectionUtils.isEmpty(volumeList)){
                         continue;
                     }
                     for (Volume volume : volumeList) {
                         if (volume.getPersistentVolumeClaim() != null && pvc.getMetadata().getName().equals(volume.getPersistentVolumeClaim().getClaimName())) {
-                            Map<String, Object> serviceItem = convertServiceItem(daemonSet.getMetadata(), daemonSet.getSpec().getTemplate());
-                            serviceItem.put("type", CommonConstant.LABEL_KEY_DAEMONSET);
-                            serviceItem.put("status", daemonSetsService.convertDaemonStatus(daemonSet));
-                            serviceList.add(serviceItem);
+                            isUse = true;
+                            break;
                         }
+                    }
+                    if(isUse){
+                        Map<String, Object> serviceItem = convertServiceItem(daemonSet.getMetadata(), daemonSet.getSpec().getTemplate());
+                        serviceItem.put("type", CommonConstant.LABEL_KEY_DAEMONSET);
+                        serviceItem.put("status", daemonSetsService.convertDaemonStatus(daemonSet));
+                        serviceList.add(serviceItem);
                     }
                 }
             }

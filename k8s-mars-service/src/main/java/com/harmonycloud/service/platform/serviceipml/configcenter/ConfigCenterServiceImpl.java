@@ -17,7 +17,9 @@ import com.harmonycloud.dto.config.ConfigDetailDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.service.ConfigmapService;
+import com.harmonycloud.k8s.service.DaemonSetService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
+import com.harmonycloud.service.application.DaemonSetsService;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.VersionControlService;
 import com.harmonycloud.service.cluster.ClusterService;
@@ -73,6 +75,11 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     @Autowired
     private HttpSession session;
 
+    @Autowired
+    DaemonSetsService daemonSetsService;
+
+    @Autowired
+    DaemonSetService daemonSetService;
 
 
     /**
@@ -457,6 +464,40 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         return deploymentsList;
     }
 
+    public  List<DaemonSet> getDaemonSetList(String projectId, String tenantId, String configMapId,String clusterId) throws Exception {
+        AssertUtil.notBlank(projectId, DictEnum.PROJECT);
+        AssertUtil.notBlank(tenantId,DictEnum.TENANT_ID);
+        AssertUtil.notBlank(configMapId,DictEnum.CONFIG_MAP_ID);
+
+        List<NamespaceLocal> namespaceListByTenantId = namespaceLocalService.getNamespaceListByTenantId(tenantId);
+        List<DaemonSet> daemonSetList = new ArrayList<>();
+        String userName = (String) session.getAttribute("username");
+        Cluster cluster = clusterService.findClusterById(clusterId);
+        for (NamespaceLocal namespaceLocal : namespaceListByTenantId) {
+            String namespace = namespaceLocal.getNamespaceName();
+            //获取守护进程列表
+            DaemonSetList daemonSets=daemonSetService.listDaemonSet(cluster);
+
+            for(DaemonSet daemonSet : daemonSets.getItems()){
+                String daemonSetName = daemonSet.getMetadata().getName();
+                //获取守护进程详情
+                List<Volume> volumes = daemonSet.getSpec().getTemplate().getSpec().getVolumes();
+                if(!CollectionUtils.isEmpty(volumes)){
+                    Volume volume = volumes.get(0);
+                    String name = volume.getName();
+                    //不挂存储的情况下，volume的名字形式是xxx-configMapId形式，可以据此来判断是否关联
+                    if(!StringUtils.isEmpty(name)){
+                        int lastIndexOf = name.lastIndexOf("-");
+                        String subConfigMapId = name.substring(lastIndexOf + 1);
+                        if(configMapId.equals(subConfigMapId)){
+                            daemonSetList.add(daemonSet);
+                        }
+                    }
+                }
+            }
+        }
+        return daemonSetList;
+    }
 
 
     @Override
@@ -703,9 +744,32 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         }
         List<Deployment> deploymentList = new LinkedList<Deployment>();
         List<ConfigService> configServices = new LinkedList<ConfigService>();
+
         for(String configMapId : configMapIds){
             List<Deployment> deployments = getServiceList(projectId,tenantId,configMapId);
+            List<DaemonSet> daemonSets = getDaemonSetList(projectId,tenantId,configMapId,clusterId);
+
             deploymentList.addAll(deployments);
+            for(DaemonSet daemonSet : daemonSets){
+                ConfigService configService = new ConfigService();
+                configService.setServiceName(daemonSet.getMetadata().getName());
+                int tempIndex = daemonSet.getSpec().getTemplate().getSpec().getVolumes().get(0).getConfigMap().getItems().get(0).getKey().lastIndexOf("v");
+                String tag = daemonSet.getSpec().getTemplate().getSpec().getVolumes().get(0).getConfigMap().getItems().get(0).getKey().substring(tempIndex+1);
+                configService.setTag(tag);
+                String imageName = daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getImage();
+                int firstg = imageName.indexOf("/");
+                configService.setImage(imageName.substring(firstg+1));
+                configService.setServiceDomainName(daemonSet.getMetadata().getName()+"."+daemonSet.getMetadata().getNamespace());
+                configService.setCreateTime(daemonSet.getMetadata().getCreationTimestamp());
+                configService.setUpdateTime(daemonSet.getMetadata().getCreationTimestamp());//守护进程无法更新，更新时间和创建时间保持一致
+                configService.setConfigName(configName);
+                configService.setProjectId(projectId);
+                configService.setTenantId(tenantId);
+                configService.setType("daemonSet");
+
+                configServices.add(configService);
+            }
+
             for(Deployment deployment : deployments) {
                 ConfigService configService = new ConfigService();
                 configService.setServiceName(deployment.getMetadata().getName());
@@ -717,10 +781,23 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
                 configService.setImage(imageName.substring(firstg+1));
                 configService.setServiceDomainName(deployment.getMetadata().getName()+"."+deployment.getMetadata().getNamespace());
                 configService.setCreateTime(deployment.getMetadata().getCreationTimestamp());
-                configService.setUpdateTime(deployment.getStatus().getConditions().get(0).getLastUpdateTime());
+                String updateTime = deployment.getStatus().getConditions().get(0).getLastUpdateTime();
+                if(updateTime.isEmpty()){
+                    configService.setUpdateTime(deployment.getMetadata().getCreationTimestamp());
+                }else {
+                    configService.setUpdateTime(updateTime);
+                }
                 configService.setConfigName(configName);
                 configService.setProjectId(projectId);
                 configService.setTenantId(tenantId);
+                configService.setType("deployment");
+                if (deployment.getStatus().getAvailableReplicas() != null && deployment.getStatus().getUnavailableReplicas() == null ) {
+                    configService.setStatus("available");
+                }else{
+                    configService.setStatus("unavailable");
+                }
+
+
                 configServices.add(configService);
             }
         }

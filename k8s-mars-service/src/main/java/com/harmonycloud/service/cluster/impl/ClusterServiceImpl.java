@@ -524,6 +524,7 @@ public class ClusterServiceImpl implements ClusterService {
         map.put(K8sModuleEnum.ELASTICSEARCH.getCode(), Constant.STATUS_NORMAL);
         map.put(K8sModuleEnum.CALICO.getCode(), Constant.STATUS_NORMAL);
         map.put(K8sModuleEnum.KUBE_DNS.getCode(), Constant.STATUS_NORMAL);
+        map.put(K8sModuleEnum.NFS.getCode(),Constant.STATUS_NORMAL);
         map.put(K8sModuleEnum.SERVICE_LOADBALANCER.getCode(), Constant.STATUS_NORMAL);
         map.put(MODULE_MONITOR, Constant.STATUS_NORMAL);
 
@@ -563,13 +564,6 @@ public class ClusterServiceImpl implements ClusterService {
                 }
             }
         }
-        //如果组件没有创建，状态修改为异常
-        for (String componentCode : k8sMap.keySet()) {
-            if(!createdComponent.contains(componentCode)){
-                map.put(componentCode, Constant.STATUS_ABNORMAL);
-                abnormalCount ++;
-            }
-        }
 
         boolean heapsterCreated = false;
         boolean influxdbCreated = false;
@@ -602,17 +596,21 @@ public class ClusterServiceImpl implements ClusterService {
                     }
                     if(dep.getStatus().getUnavailableReplicas() != null){
                         map.put(entry.getKey(),Constant.STATUS_ABNORMAL);
+                        abnormalCount ++;
                     }
-                    abnormalCount ++;
+
                 }
             }
         }
 
         //如果组件没有创建，状态修改为异常
         for (String componentCode : map.keySet()) {
-            if (!createdComponent.contains(componentCode)) {
-                map.put(componentCode, Constant.STATUS_ABNORMAL);
-                abnormalCount++;
+            //存储只判断deployment的avaiable状态
+            if(componentCode != K8sModuleEnum.NFS.getCode()) {
+                if (!createdComponent.contains(componentCode)) {
+                    map.put(componentCode, Constant.STATUS_ABNORMAL);
+                    abnormalCount++;
+                }
             }
         }
 
