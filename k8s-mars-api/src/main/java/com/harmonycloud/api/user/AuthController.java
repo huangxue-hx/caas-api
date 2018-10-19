@@ -131,7 +131,7 @@ public class AuthController {
             JsonUtil.objectToJson(data);
             return ActionReturnUtil.returnSuccessWithData(data);
         }
-        return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.AUTH_FAIL);
+        return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.AUTH_FAIL);
     }
 
     @RequestMapping(value = "/logout", method = RequestMethod.POST)
