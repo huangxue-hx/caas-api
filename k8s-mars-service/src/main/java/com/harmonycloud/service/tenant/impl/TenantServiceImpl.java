@@ -38,6 +38,7 @@ import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupService;
 import com.harmonycloud.service.platform.bean.NodeDto;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
+import com.harmonycloud.service.platform.service.DashboardService;
 import com.harmonycloud.service.platform.service.ExternalService;
 import com.harmonycloud.service.platform.service.NodeService;
 import com.harmonycloud.service.tenant.*;
@@ -133,7 +134,8 @@ public class TenantServiceImpl implements TenantService {
 
     @Autowired
     ScService scService;
-
+    @Autowired
+    DashboardService dashboardService;
 
     public static final String PROJECTMGR = "0005";
     //租户类型
@@ -562,6 +564,11 @@ public class TenantServiceImpl implements TenantService {
                 }
                 Double cpuQuota = clusterQuotaDto.getCpuQuota();
                 Double memoryQuota = clusterQuotaDto.getMemoryQuota();
+                //不允许超过资源最大值
+                Map<String, Object> allocatableMap = this.dashboardService.getInfraInfoWorkNode(clusterCacheManager.getCluster(clusterQuotaDto.getClusterId()));
+                if(cpuQuota>Double.parseDouble(allocatableMap.get("cpu").toString()) || convertValue(clusterQuotaDto.getMemoryQuotaType(),memoryQuota)>Double.parseDouble(allocatableMap.get("memoryGb").toString())*1024){
+                    return false;
+                }
                 Double lastCpu = 0d;
                 Double lastMemory = 0d;
                 String clusterId = null;
