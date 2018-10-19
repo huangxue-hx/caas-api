@@ -226,7 +226,11 @@ public class K8sResultConvert {
                 if (CollectionUtils.isNotEmpty(podAntiAffinityDtos)) {
                     for (AffinityDto affinityDto : podAntiAffinityDtos) {
                         if (affinityDto.getLabel().equals(Constant.TYPE_STATEFULSET + Constant.EQUAL + meta.getName())) {
-                            appDetail.setPodDisperse(affinityDto);
+                            if(null != affinityDto.getType() && affinityDto.getType().equals(Constant.ANTIAFFINITY_TYPE_GROUP_SCHEDULE)){
+                                appDetail.setPodGroupSchedule(affinityDto);
+                            }else {
+                                appDetail.setPodDisperse(affinityDto);
+                            }
                         } else {
                             appDetail.setPodAntiAffinity(affinityDto);
                         }
@@ -1278,7 +1282,7 @@ public class K8sResultConvert {
         if(Objects.nonNull(detail.getPodGroupSchedule())){
             AffinityDto aff = new AffinityDto();
             aff.setRequired(detail.getPodGroupSchedule().isRequired());
-            aff.setLabel(Constant.TYPE_DEPLOYMENT + Constant.EQUAL + detail.getName());
+            aff.setLabel(serviceType + Constant.EQUAL + detail.getName());
             aff.setType(detail.getPodGroupSchedule().getType());
             list.add(aff);
         }
