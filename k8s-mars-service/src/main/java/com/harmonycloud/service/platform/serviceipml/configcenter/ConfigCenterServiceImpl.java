@@ -781,8 +781,8 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
                 configService.setImage(imageName.substring(firstg+1));
                 configService.setServiceDomainName(deployment.getMetadata().getName()+"."+deployment.getMetadata().getNamespace());
                 configService.setCreateTime(deployment.getMetadata().getCreationTimestamp());
-                String updateTime = deployment.getStatus().getConditions().get(0).getLastTransitionTime();
-                if("".equals(updateTime)){
+                String updateTime = deployment.getStatus().getConditions().get(0).getLastUpdateTime();
+                if(updateTime.isEmpty()){
                     configService.setUpdateTime(deployment.getMetadata().getCreationTimestamp());
                 }else {
                     configService.setUpdateTime(updateTime);
