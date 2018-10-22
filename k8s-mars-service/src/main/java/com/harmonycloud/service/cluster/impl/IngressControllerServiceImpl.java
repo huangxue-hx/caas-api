@@ -561,7 +561,10 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().get(0).setContainerPort(icPort);
         //修改http_port
         daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getArgs().set(1, CONTAINER_ARGS_HTTP + icPort);
-
+        //更新ds更新策略
+        DaemonSetUpdateStrategy dsUpdateStrategy = new DaemonSetUpdateStrategy();
+        dsUpdateStrategy.setType("RollingUpdate");
+        daemonSet.getSpec().setUpdateStrategy(dsUpdateStrategy);
         K8SClientResponse icResponse = icService.updateIngressController(icName, daemonSet, cluster);
         if(!HttpStatusUtil.isSuccessStatus(icResponse.getStatus())) {
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
