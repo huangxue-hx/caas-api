@@ -17,6 +17,8 @@ public class ConfigService implements Serializable {
 	private String configName;
 	private String projectId;
 	private String tenantId;
+	private String type;//判断服务或守护进程
+	private String status;//服务的运行状态
 
 	public ConfigService(){
 		super();
@@ -94,6 +96,19 @@ public class ConfigService implements Serializable {
 		this.tenantId = tenantId;
 	}
 
+	public String getType() {
+		return type;
+	}
 
+	public void setType(String type) {
+		this.type = type;
+	}
 
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
 }
