@@ -20,7 +20,7 @@ ALTER TABLE k8s_auth_server.`configfile`
   DROP COLUMN `item`,
   DROP COLUMN `path`;
 
-ALTER TABLE tenant_cluster_quota ADD storage_quotas VARCHAR(255) DEFAULT '' COMMENT '集群租户的所有存储配额信息（name1_quota1_total1，name2_quota2_total2...）'
+ALTER TABLE tenant_cluster_quota ADD storage_quotas VARCHAR(255) DEFAULT '' COMMENT '集群租户的所有存储配额信息（name1_quota1_total1，name2_quota2_total2...）';
 
 INSERT INTO system_config (config_name, config_value, config_type, create_user)
 VALUES ('provisionerImageName', '/k8s-deploy/nfs-client-provisioner:v2.1.0', 'nfs-provisioner', 'admin');
