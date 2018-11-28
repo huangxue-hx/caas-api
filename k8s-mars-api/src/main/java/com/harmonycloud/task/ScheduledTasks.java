@@ -3,6 +3,7 @@ package com.harmonycloud.task;
 
 import com.harmonycloud.service.cache.ImageCacheManager;
 import com.harmonycloud.service.platform.service.ci.JobService;
+import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +60,8 @@ public class ScheduledTasks {
     @Value("#{propertiesReader['upload.path']}")
     private String tempPath;
 
+    @Autowired
+    private HarborProjectService harborProjectService;
 
     //启动后延迟10秒每30分钟根据harbor的操作日志刷新缓存
     @Scheduled(fixedRate = 30 * 60 * 1000, initialDelay =  10 * 1000)
@@ -198,6 +201,22 @@ public class ScheduledTasks {
         return false ;
     }
 
+
+    /**
+     * 一分钟频率检测harbor日志
+     */
+    //
+    @Scheduled(cron = "0 0/1 * * * ? ")
+    public void syncLocalHarborLog() {
+        long startTime = System.currentTimeMillis();
+        try {
+            harborProjectService.syncLocalHarborLog();
+        }catch (Exception e){
+            log.info("error",e.toString());
+        }
+        long endTime = System.currentTimeMillis();
+        log.info("task[trialtimeTask],execute cost time[" + (endTime - startTime)/1000 + "] s");
+    }
 
 
 }

@@ -284,3 +284,30 @@ INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `up
 INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '7', '32');
 
 UPDATE `k8s_auth_server`.`service_templates` SET `deployment_content`='[{\"annotation\":\"\",\"clusterIP\":\"\",\"containers\":[{\"args\":[],\"command\":[],\"configmap\":[],\"env\":[{\"key\":\"TZ\",\"value\":\"Asia/Shanghai\"}],\"img\":\"onlineshop/mysql\",\"livenessProbe\":null,\"log\":\"\",\"name\":\"mysql\",\"ports\":[{\"containerPort\":\"\",\"expose\":\"true\",\"port\":\"3306\",\"protocol\":\"TCP\"}],\"readinessProbe\":null,\"resource\":{\"cpu\":\"1000m\",\"memory\":\"1024\"},\"storage\":[],\"tag\":\"5.7.6\"}],\"hostName\":\"\",\"instance\":\"1\",\"labels\":\"\",\"logPath\":\"\",\"logService\":\"\",\"name\":\"mysql\",\"namespace\":\"\",\"nodeSelector\":\"HarmonyCloud_Status=C\",\"restartPolicy\":\"Always\",\"sessionAffinity\":\"\"}]' WHERE `id`='5';
+
+/*
+ harbor标签的增删，镜像打label，复制规则重名判断
+*/
+INSERT INTO `url_dic` (`url`, `module`, `resource`)  VALUES  ('/tenants/*/projects/1/repositories/label','delivery','repositorymgr');
+INSERT INTO `url_dic` (`url`, `module`, `resource`) VALUES  ('/tenants/*/projects/*/repositories/img/label','delivery','repositorymgr');
+INSERT INTO `url_dic` (`url`, `module`, `resource`) VALUES  ('/harbor/*/replicationpolicies/checkname','delivery','repositorymgr');
+/*
+ 获取规则详情，手动开启规则复制
+ */
+INSERT INTO `url_dic` (`url`, `module`, `resource`) VALUES  ('/harbor/*/replicationpolicies/*/detail','delivery','repositorymgr');
+INSERT INTO `url_dic` (`url`, `module`, `resource`) VALUES  ('/harbor/*/replicationpolicies/*/copy','delivery','repositorymgr');
+
+CREATE TABLE k8s_auth_server.cicd_repository_user (
+	`id` INT (11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	`name` VARCHAR (255) NOT NULL,
+	`username` VARCHAR (255) NOT NULL,
+	`password` VARCHAR (255) NOT NULL,
+	`type` VARCHAR (255) NOT NULL,
+	`comment` VARCHAR (255)
+);
+INSERT INTO url_dic (url,module,resource) VALUES ('/tenants/*/projects/*/repositry/user','cicd','cicdmgr');
+INSERT INTO url_dic (url,module,resource) VALUES ('/tenants/*/cicd/repositry/user','cicd','cicdmgr');
+
+
+ALTER TABLE `cicd_stage`
+ADD COLUMN `user_id` int(11) AFTER `update_time`;

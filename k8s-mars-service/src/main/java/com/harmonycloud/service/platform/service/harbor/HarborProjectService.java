@@ -3,11 +3,8 @@ package com.harmonycloud.service.platform.service.harbor;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.service.platform.bean.harbor.HarborOverview;
-import com.harmonycloud.service.platform.bean.harbor.HarborProject;
-import com.harmonycloud.service.platform.bean.harbor.HarborProjectQuota;
+import com.harmonycloud.service.platform.bean.harbor.*;
 import com.harmonycloud.service.platform.bean.RepositoryInfo;
-import com.harmonycloud.service.platform.bean.harbor.HarborRepositoryMessage;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
@@ -37,7 +34,7 @@ public interface HarborProjectService {
 
 	void deleteRepositories(ImageRepository imageRepository) throws Exception;
 
-    /**
+	/**
 	 * 根据对象条件查询镜像仓库，属性值设置就作为一个过滤条件
 	 * @param imageRepository 查询条件
 	 * @return
@@ -138,7 +135,7 @@ public interface HarborProjectService {
 	 * @return
 	 * @throws Exception
 	 */
-	ActionReturnUtil listImages(String projectId, String clusterId, Integer pageSize, Integer pageNo) throws Exception ;
+	ActionReturnUtil listImages(String projectId, String clusterId, Integer pageSize, Integer pageNo, Boolean isPublic) throws Exception ;
 
 	ActionReturnUtil deleteImage(Integer repositoryId, String image, String tag) throws Exception ;
 
@@ -218,4 +215,42 @@ public interface HarborProjectService {
 
 	int deleteByClusterId(String clusterId) throws Exception;
 
+	/**镜像选择标签分组
+	 * @param harborHost
+	 * @param repoName
+	 * @param tag
+	 * @param labelId
+	 * @return
+	 * @throws Exception
+	 */
+	ActionReturnUtil addImgLabel(String harborHost, String repoName, String tag, String labelId) throws Exception;
+
+	/**镜像选择标签分组
+	 * @param harborHost
+	 * @param repoName
+	 * @param tag
+	 * @param labelId
+	 * @return
+	 * @throws Exception
+	 */
+	ActionReturnUtil delImgLabel(String harborHost, String repoName, String tag, String labelId) throws Exception;
+
+	/**获取镜像标签分组
+	 * @param harborHost
+	 * @param repoName
+	 * @param tag
+	 * @return
+	 * @throws Exception
+	 */
+	ActionReturnUtil getImgLabel(String harborHost, String repoName, String tag) throws Exception;
+
+	ActionReturnUtil getLable(String harborHost,String repoName, String scope, Long projectId) throws Exception;
+
+	ActionReturnUtil deleteLable(String harborHost, Long lableId)throws Exception;
+
+	ActionReturnUtil addLable(String harborHost, String name, String desc, String color, String scop, Integer projectId) throws Exception;
+
+	ActionReturnUtil updateLabel(String harborHost, Long labelId, HarborProjectLabel harborProjectLabel) throws Exception;
+
+	void syncLocalHarborLog() throws  Exception;
 }

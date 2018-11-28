@@ -249,4 +249,12 @@ public class TriggerServiceImpl implements TriggerService{
             }
         }
     }
+
+    @Override
+    public List<Trigger> findImageTirrger() throws Exception {
+        TriggerExample triggerExample = new TriggerExample();
+        triggerExample.createCriteria().andTriggerImageIsNotNull().andTypeEqualTo(5);
+        return triggerMapper.selectByExample(triggerExample);
+    }
+
 }

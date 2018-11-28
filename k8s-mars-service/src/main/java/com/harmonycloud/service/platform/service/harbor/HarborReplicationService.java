@@ -13,7 +13,7 @@ import java.util.Map;
  * harbor常规接口
  */
 public interface HarborReplicationService {
-	/**
+    /**
      * 新建跨harbor同步对象
      * @return
      * @throws Exception
@@ -56,11 +56,29 @@ public interface HarborReplicationService {
      */
     ActionReturnUtil createPolicy(HarborReplicationPolicy harborReplicationPolicy)throws Exception;
     /**
+     * 新建跨harbor同步任务
+     * @return
+     * @throws Exception
+     */
+    public ActionReturnUtil updatePolicy(HarborReplicationPolicy harborReplicationPolicy,String policyId)throws Exception;
+    /**
+     * 获取跨harbor同步任务详情
+     * @return
+     * @throws Exception
+     */
+    public ActionReturnUtil getPolicyDetail(String harborHost,String policyId)throws Exception;
+    /**
      * 删除跨harbor同步任务
      * @return
      * @throws Exception
      */
     ActionReturnUtil deletePolicy(String harborHost,Integer policyID)throws Exception;
+    /**
+     * 复制某一规则的跨harbor同步任务
+     * @return
+     * @throws Exception
+     */
+    ActionReturnUtil startCopyPolicy(String harborHost,String policyID)throws Exception;
     /**
      * 列举指定project跨harbor同步任务
      * @return
@@ -126,4 +144,14 @@ public interface HarborReplicationService {
      * @throws Exception
      */
     ActionReturnUtil createPartialPolicy(ImagePartialSyncInfo imagePartialSyncInfo)throws Exception;
+
+    /**
+     *检测规则同名
+     * @param harborHost
+     * @param name
+     * @return
+     * @throws Exception
+     */
+    boolean checkUsingPoliciesName(String harborHost, String name) throws Exception;
+
 }

@@ -7,18 +7,22 @@ import java.io.OutputStream;
 import java.io.FileNotFoundException;
 import java.net.URI;
 import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ClusterLevelEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.ci.bean.Trigger;
+import com.harmonycloud.dao.ci.bean.TriggerExample;
 import com.harmonycloud.dao.harbor.ImageRepositoryMapper;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dao.tenant.bean.Project;
@@ -26,6 +30,7 @@ import com.harmonycloud.dao.user.bean.UserRoleRelationship;
 import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import com.harmonycloud.service.cache.ImageCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.common.HarborHttpsClientUtil;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.bean.harbor.*;
 import com.harmonycloud.service.platform.client.HarborClient;
@@ -49,8 +54,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
@@ -112,15 +115,11 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			harborServers.add(clusterService.findHarborByHost(harborHost));
 		}
 		for(HarborServer harborServer : harborServers){
-			try {
-				HarborOverview harborOverview = new HarborOverview();
-				harborServer.setNormal(HarborClient.checkHarborStatus(harborServer));
-				harborOverview.setHarborServer(harborServer);
-				harborOverview.setRepositories(this.getRepositories(harborServer.getHarborHost(), username));
-				harborOverviews.add(harborOverview);
-			}catch (Exception e){
-				logger.error("获取镜像仓库管理总览失败，harborServer:{}",JSONObject.toJSONString(harborServer),e);
-			}
+			HarborOverview harborOverview = new HarborOverview();
+			harborServer.setNormal(HarborClient.checkHarborStatus(harborServer));
+			harborOverview.setHarborServer(harborServer);
+			harborOverview.setRepositories(this.getRepositories(harborServer.getHarborHost(), username));
+			harborOverviews.add(harborOverview);
 		}
 		return harborOverviews;
 	}
@@ -339,7 +338,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		return imageRepositories;
 	}
 
-
+	@Override
 	public List<ImageRepository> listPublicRepository(String clusterId) throws Exception{
 		Set<String> harborHosts = new HashSet<>();
 		if(StringUtils.isBlank(clusterId)){
@@ -430,7 +429,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			if(!CollectionUtils.isEmpty(harborProjects)) {
 				List<HarborProject> projects = harborProjects.stream().filter(project -> imageRepository
 						.getHarborProjectName().equals(project.getProjectName())).collect(Collectors.toList());
-								imageRepository.setImageCount(projects.get(0).getRepoCount());
+				imageRepository.setImageCount(projects.get(0).getRepoCount());
 			}
 		}catch (Exception e){
 			logger.error("查询镜像仓库下的镜像数量失败，image：{}",JSONObject.toJSONString(imageRepository),e);
@@ -559,7 +558,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			return response;
 		}
 		this.setImagePullStatus((List<HarborRepositoryMessage>) response.getData());
-        return response;
+		return response;
 	}
 
 	public void setImagePullStatus(List<HarborRepositoryMessage> harborRepositoryList){
@@ -586,8 +585,8 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	}
 
 	@Override
-	public ActionReturnUtil listImages(String projectId, String clusterId, Integer pageSize, Integer pageNo) throws Exception {
-		List<ImageRepository> imageRepositories = this.listRepositories(projectId, clusterId,null, Boolean.TRUE);
+	public ActionReturnUtil listImages(String projectId, String clusterId, Integer pageSize, Integer pageNo, Boolean isPublic) throws Exception {
+		List<ImageRepository> imageRepositories = this.listRepositories(projectId, clusterId,isPublic, Boolean.TRUE);
 		Map<String, List<HarborRepositoryMessage>> imagesMap = new HashMap<>();
 		for(ImageRepository repository : imageRepositories){
 			ActionReturnUtil response = harborService.getRepositoryDetailByProjectId(repository.getHarborHost(),
@@ -629,7 +628,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		if(harborRepositoryMessage == null){
 			return ActionReturnUtil.returnErrorWithData(DictEnum.IMAGE.phrase(),ErrorCodeMessage.NOT_EXIST);
 		}
-        return ActionReturnUtil.returnSuccessWithData(harborRepositoryMessage);
+		return ActionReturnUtil.returnSuccessWithData(harborRepositoryMessage);
 	}
 
 	@Override
@@ -656,7 +655,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		String imageFullName = harborServer.getHarborAddress() + SLASH + repository.getHarborProjectName()
 				+ SLASH + imageName + COLON + tag;
 		String filePath = uploadPath + File.separator + IMAGE_FILE_UPLOAD_PATH + File.separator
-                            + imageName + File.separator + tag + File.separator;
+				+ imageName + File.separator + tag + File.separator;
 		File dir = new File(filePath);
 		try {
 			if (!dir.exists()) {
@@ -686,11 +685,11 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		HarborServer harborServer = clusterService.findHarborByHost(repository.getHarborHost());
 		String imageFullName = harborServer.getHarborAddress() + SLASH + imageName + CommonConstant.COLON + tag;
 		String fileName = this.getTarFileName(imageFullName);
-		//如果镜像已经在拉取中，不能重复提交拉取
+		//如果镜像已经在拉取中，不能重复提交拉取git reset --hard
 		BoundHashOperations<String, String, String> statusHashOps = stringRedisTemplate
 				.boundHashOps(REDIS_KEY_IMAGE_PULL_STATUS);
 		if(statusHashOps.get(imageFullName) != null){
-           throw new MarsRuntimeException(ErrorCodeMessage.IMAGE_IN_PULLING);
+			throw new MarsRuntimeException(ErrorCodeMessage.IMAGE_IN_PULLING);
 		}
 		DockerClient dockerClient = getDockerClient();
 		statusHashOps.put(imageFullName, IMAGE_PULLING_STATUS_PULLING);
@@ -815,21 +814,21 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		Map<Integer,List<Cluster>> clusterMap = clusters.stream().collect(Collectors.groupingBy(Cluster::getLevel));
 		Set<Cluster> syncCluster = new HashSet<>();
 		//查找下一级别的集群
-        for(int i=cluster.getLevel()+1;i<=ClusterLevelEnum.PRD.getLevel();i++){
-        	if(clusterMap.get(i) != null){
-        		syncCluster.addAll(clusterMap.get(i));
-        		break;
+		for(int i=cluster.getLevel()+1;i<=ClusterLevelEnum.PRD.getLevel();i++){
+			if(clusterMap.get(i) != null){
+				syncCluster.addAll(clusterMap.get(i));
+				break;
 			}
 		}
 		//用户授权的集群
 		Map<String,Cluster> userCluster = userService.getCurrentUserCluster();
 		for(String clusterId : userCluster.keySet()){
 			Cluster clusterValue = userCluster.get(clusterId);
-        	if(!repository.getClusterId().equals(clusterId) && clusterValue.getLevel()>cluster.getLevel()) {
+			if(!repository.getClusterId().equals(clusterId) && clusterValue.getLevel()>cluster.getLevel()) {
 				syncCluster.add(clusterValue);
 			}
 		}
-        return syncCluster;
+		return syncCluster;
 	}
 
 	@Override
@@ -874,12 +873,12 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	public void addClusterHarborProject(String clusterId) throws Exception {
 		String clusterName = clusterService.findClusterById(clusterId).getName();
 		List<Project> projects = projectService.listAllProject();
-        if(CollectionUtils.isEmpty(projects)){
-        	return;
+		if(CollectionUtils.isEmpty(projects)){
+			return;
 		}
 		ImageRepository queryRepository = new ImageRepository();
-        queryRepository.setClusterId(clusterId);
-        queryRepository.setIsPublic(Boolean.FALSE);
+		queryRepository.setClusterId(clusterId);
+		queryRepository.setIsPublic(Boolean.FALSE);
 		List<ImageRepository> imageRepositories = this.listRepositories(queryRepository);
 		List<String> harborProjectNames = new ArrayList<>();
 		if(!CollectionUtils.isEmpty(imageRepositories)){
@@ -887,8 +886,8 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		}
 		for(Project project: projects){
 			//已经有该环境和项目对应的镜像仓库，跳过
-            if(harborProjectNames.contains(project.getProjectName()+ LINE + clusterName)){
-            	continue;
+			if(harborProjectNames.contains(project.getProjectName()+ LINE + clusterName)){
+				continue;
 			}
 			RepositoryInfo repositoryInfo = new RepositoryInfo();
 			repositoryInfo.setIsPublic(Boolean.FALSE);
@@ -1025,6 +1024,211 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		harborImageCleanService.deleteClusterCleanRule(clusterId);
 		return imageRepositoryMapper.deleteByClusterId(clusterId);
 	}
+	/**
+	 * 镜像选择标签分组
+	 *
+	 * @param harborHost
+	 * @param repoName
+	 * @param tag
+	 * @return
+	 * @throws Exception
+	 */
+	@Override
+	public ActionReturnUtil addImgLabel(String harborHost, String repoName, String tag, String  labelId) throws Exception {
+		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
+		String url = HarborClient.getHarborUrl(harborServer) + "/api/repositories/"+repoName+"/tags/"+tag+"/labels";
+		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
+		headers.put("Content-type", "application/json");
+		String json = JsonUtil.convertToJson(getLableDetail(harborHost,labelId));
+		ActionReturnUtil response = HarborHttpsClientUtil.httpPostRequestForHarbor(url, headers, JsonUtil.jsonToMap(json));
+		if(!response.isSuccess()){
+			logger.error("select label error. harborHost:{},res:{}", harborHost, JSONObject.toJSONString(response));
+			throw new MarsRuntimeException(response.getData().toString());
+		}
+		return response;
+	}
+
+	/**
+	 * 移除镜像选择标签分组
+	 *
+	 * @param harborHost
+	 * @param repoName
+	 * @param tag
+	 * @param labelId
+	 * @return
+	 * @throws Exception
+	 */
+	@Override
+	public ActionReturnUtil delImgLabel(String harborHost, String repoName, String tag, String labelId) throws Exception {
+		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
+		String url = HarborClient.getHarborUrl(harborServer) + "/api/repositories/"+repoName+"/tags/"+tag+"/labels"+"/"+labelId;
+		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
+		ActionReturnUtil response = HarborHttpsClientUtil.httpDoDelete(url, null, headers);
+		if(!response.isSuccess()){
+			logger.error("delete img label error. harborHost:{},res:{}", harborHost, JSONObject.toJSONString(response));
+			throw new MarsRuntimeException(response.getData().toString());
+		}
+		return response;
+	}
+
+	/**
+	 * 获取镜像标签分组
+	 *
+	 * @param harborHost
+	 * @param repoName
+	 * @param tag
+	 * @return
+	 * @throws Exception
+	 */
+	@Override
+	public ActionReturnUtil getImgLabel(String harborHost, String repoName, String tag) throws Exception {
+		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
+		String url = HarborClient.getHarborUrl(harborServer) + "/api/repositories/"+repoName+"/tags/"+tag+"/labels";
+		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
+		Map<String, Object> params = new HashMap<>();
+//		params.put("repo_name",repoName);
+//		params.put("tag",tag);
+		ActionReturnUtil response = HarborHttpsClientUtil.httpGetRequest(url, headers, params);
+		if(!response.isSuccess()){
+			logger.error("get img label error. harborHost:{},res:{}", harborHost, JSONObject.toJSONString(response));
+			throw new MarsRuntimeException(response.getData().toString());
+		}
+		return ActionReturnUtil.returnSuccessWithData(JsonUtil.jsonToList(response.getData().toString(),HarborProjectLabel.class));
+	}
+
+	@Override
+	public ActionReturnUtil getLable(String harborHost,String repoName, String scope, Long projectId) throws Exception{
+		AssertUtil.notNull(projectId,DictEnum.PROJECT_ID);
+		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
+		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels";
+		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
+		Map<String, Object> params = new HashMap<>();
+		params.put("scope","p");
+		params.put("project_id",projectId);
+		ActionReturnUtil response = HarborHttpsClientUtil.httpGetRequest(url, headers, params);
+		if(!response.isSuccess()){
+			logger.error("sync registry error. harborHost:{},res:{}", harborHost, JSONObject.toJSONString(response));
+			return response;
+		}
+		return ActionReturnUtil.returnSuccessWithData(JsonUtil.jsonToList(response.getData().toString(),HarborProjectLabel.class));
+	}
+	public HarborProjectLabel getLableDetail(String harborHost,String labelId) throws Exception{
+		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
+		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels/"+labelId;
+		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
+		ActionReturnUtil response = HarborHttpsClientUtil.httpGetRequest(url, headers, null);
+		if(!response.isSuccess()){
+			logger.error("sync registry error. harborHost:{},res:{}", harborHost, JSONObject.toJSONString(response));
+		}
+		return JsonUtil.jsonToPojo(response.getData().toString(),HarborProjectLabel.class);
+	}
+	@Override
+	public ActionReturnUtil deleteLable(String harborHost, Long lableId) throws Exception {
+		AssertUtil.notNull(lableId);
+		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
+		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels/"+lableId;
+		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
+		ActionReturnUtil response = HarborHttpsClientUtil.httpDoDelete(url,null, headers);
+		if(!response.isSuccess()){
+			logger.error("sync registry error. harborHost:{},res:{}", harborHost, JSONObject.toJSONString(response));
+			return response;
+		}
+		return response;
+	}
+
+	@Override
+	public ActionReturnUtil addLable(String harborHost, String name, String desc, String color, String scope, Integer projectId) throws Exception {
+		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
+		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels";
+		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
+		headers.put("Content-type", "application/json");
+		Map<String, Object> params = new HashMap<>();
+		params.put("name",name);
+		params.put("description",desc);
+		params.put("color",color);
+		params.put("scope","p");
+		params.put("project_id",projectId);
+		ActionReturnUtil response = HarborHttpsClientUtil.httpPostRequestForHarbor(url, headers, params);
+		if(!response.isSuccess()){
+			logger.error("sync registry error. harborHost:{},res:{}", harborHost, JSONObject.toJSONString(response));
+			return response;
+		}
+		return response;
+	}
+
+	@Override
+	public ActionReturnUtil updateLabel(String harborHost, Long labelId, HarborProjectLabel harborProjectLabel) throws Exception {
+		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
+		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels/"+labelId;
+		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
+		headers.put("Content-type", "application/json");
+		Map<String, Object> params = new HashMap<>();
+		params.put("id",harborProjectLabel.getId());
+		params.put("name", harborProjectLabel.getName());
+		params.put("description", harborProjectLabel.getDescription());
+		params.put("color", harborProjectLabel.getColor());
+		params.put("scope", harborProjectLabel.getScope());
+		params.put("project_id", harborProjectLabel.getProject_id());
+		params.put("creation_time" , harborProjectLabel.getCreation_time());
+		SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+		params.put("update_time", df.format(System.currentTimeMillis()));
+		params.put("deleted",harborProjectLabel.isDeleted());
+		ActionReturnUtil response = HarborHttpsClientUtil.httpPutRequestForHarbor(url, headers, params);
+		if(!response.isSuccess()){
+			logger.error("sync registry error. harborHost:{},res:{}", harborHost, JSONObject.toJSONString(response));
+			return response;
+		}
+		return response;
+	}
+
+	@Override
+	public void syncLocalHarborLog() throws Exception {
+		Map<String,Object> pams = new HashMap<>();
+		pams.put("begin_timestamp",(System.currentTimeMillis()-70000)/1000);//70秒
+		pams.put("operation","push");
+		//获取分配的cd，仓库,镜像，
+		TriggerExample triggerExample = new TriggerExample();
+		triggerExample.createCriteria().andTriggerImageIsNotNull().andTypeEqualTo(5);
+		List<Trigger> triggers = triggerService.findImageTirrger();
+		for (Trigger erigger:triggers) {
+			String[] str =  erigger.getTriggerImage().split("/");
+			String harborHost = str[0];
+			String repo = str[1];
+			String image = str[2];
+
+			//查询/api/logs接口
+			pams.put("repository",repo+"/"+image);
+			HarborServer harborServer = clusterService.findHarborByHost(harborHost);
+			ActionReturnUtil response=HarborHttpsClientUtil.httpGetRequest(harborServer.getHarborProtocol()+"://"+harborServer.getHarborAddress()+"/api/logs",HarborClient.getAdminCookieHeader(harborServer),pams);
+			//如果是401 则登陆后在查询
+			if ( !response.isSuccess() && response.getErrorCode() == 401){
+				//登录目标harbor服务器
+				HarborClient.loginWithAdmin(harborServer);
+				//登陆目标harbor后查询
+				response = HarborHttpsClientUtil.httpGetRequest(harborServer.getHarborProtocol()+"://"+harborServer.getHarborAddress()+"/api/logs",HarborClient.getAdminCookieHeader(harborServer),pams);
+			}
+			JSONArray array = JSONArray.parseArray(response.getData().toString());
+			if (array.size() != 0){
+				String str_op = array.getJSONObject(0).get("log_id").toString();
+				JSONObject obj = array.getJSONObject(0);
+				//取最新的日志
+				for (int i = 1; i < array.size(); i++) {
+					if (Integer.valueOf(str_op)<Integer.valueOf(array.getJSONObject(i).get("log_id").toString())){
+						str_op=array.getJSONObject(i).get("log_id").toString();
+						obj=array.getJSONObject(i);
+					}
+				}
+				//判断redis中的logid 并及时更新
+				String a = stringRedisTemplate.opsForValue().get(harborHost+"logid");
+				if(StringUtils.isNotBlank(a) && Integer.valueOf(a)>=Integer.valueOf(str_op)){
+					return;
+				}
+				stringRedisTemplate.opsForValue().set(harborHost+"logid",obj.get("log_id").toString());
+				//更新镜像触发流水线构建
+				triggerService.triggerJobByImage(harborServer.getHarborAddress()+SLASH+repo+"/"+image,obj.get("repo_tag").toString());
+			}
+		}
+	}
 
 	private void pushImage(HarborServer harborServer, File imageFile, String imageFullName) throws Exception{
 		DockerClient docker = this.getDockerClient();
@@ -1077,7 +1281,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		}
 		//用户角色为租户管理员的租户列表
 		List<String> tmTenantIds = new ArrayList<>();
-        if(filter){
+		if(filter){
 			List<UserRoleRelationship> userRoleRelationships = roleRelationshipService.getUserRoleRelationshipList(userName, NUM_ROLE_TM);
 			if(!CollectionUtils.isEmpty(userRoleRelationships)){
 				tmTenantIds = userRoleRelationships.stream().map(UserRoleRelationship::getTenantId).collect(Collectors.toList());
@@ -1092,6 +1296,14 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			return Collections.emptyList();
 		}
 		List<HarborProject> harborProjects= harborService.listProject(harborHost,null,null,null);
+		for(HarborProject harborProject : harborProjects){
+			HarborProject tempHarborProject = harborService.getProjectQuota(harborHost,harborProject.getProjectName());
+			if(tempHarborProject != null){
+				harborProject.setQuotaSize(tempHarborProject.getQuotaSize());
+				harborProject.setUseSize(tempHarborProject.getUseSize());
+				harborProject.setUseRate(tempHarborProject.getUseRate());
+			}
+		}
 		if(CollectionUtils.isEmpty(harborProjects)){
 			return Collections.emptyList();
 		}
@@ -1251,8 +1463,8 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 					}
 					imageCacheManager.addRepoTag(harborLog.getHarborHost(),harborLog.getRepoName(),harborManifest);
 					HarborServer harborServer = clusterService.findHarborByHost(harborLog.getHarborHost());
-					//更新镜像触发流水线构建
-					triggerService.triggerJobByImage(harborServer.getHarborAddress()+SLASH+harborLog.getRepoName(),harborLog.getRepoTag());
+//					//更新镜像触发流水线构建
+//					triggerService.triggerJobByImage(harborServer.getHarborAddress()+SLASH+harborLog.getRepoName(),harborLog.getRepoTag());
 					continue;
 				}
 				//上传之后检查10分钟，超过10分钟不再继续

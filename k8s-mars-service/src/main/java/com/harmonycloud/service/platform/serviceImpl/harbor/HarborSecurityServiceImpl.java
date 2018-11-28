@@ -3,13 +3,13 @@ package com.harmonycloud.service.platform.serviceImpl.harbor;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.HarborSecurityFlagNameEnum;
 import com.harmonycloud.common.util.*;
+import com.harmonycloud.dao.harbor.ImageRepositoryMapper;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import com.harmonycloud.k8s.service.RoleBindingService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.common.HarborHttpsClientUtil;
-import com.harmonycloud.service.platform.bean.harbor.HarborManifest;
-import com.harmonycloud.service.platform.bean.harbor.HarborSecurityClairStatistcs;
+import com.harmonycloud.service.platform.bean.harbor.*;
 import com.harmonycloud.service.platform.client.HarborClient;
 import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.platform.service.harbor.HarborSecurityService;
@@ -17,13 +17,14 @@ import com.harmonycloud.service.platform.service.harbor.HarborSecurityService;
 import com.harmonycloud.service.platform.service.harbor.HarborService;
 import com.harmonycloud.service.platform.service.harbor.HarborUserService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.squareup.moshi.Json;
+import freemarker.ext.beans.HashAdapter;
+import net.sf.json.JSONObject;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by zsl on 2017/1/22.
@@ -43,6 +44,8 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
     HarborService harborService;
     @Autowired
     HarborProjectService harborProjectService;
+    @Autowired
+    ImageRepositoryMapper imageRepositoryMapper;
 
     /**
      * 展示Clair对repo的扫描结果
@@ -80,16 +83,16 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
         AssertUtil.notBlank(repoName, DictEnum.IMAGE_NAME);
         AssertUtil.notBlank(tag, DictEnum.IMAGE_TAG);
         HarborServer harborServer = clusterService.findHarborByHost(harborHost);
-        repoName = repoName + ":" + tag;
 
-        String url = HarborClient.getHarborUrl(harborServer) + "/api/repositories/getVulnerabilitySummary";
+//        String url = HarborClient.getHarborUrl(harborServer) + "/api/repositories/getVulnerabilitySummary";
+        String url = HarborClient.getHarborUrl(harborServer) + "/api/repositories/"+repoName+"/tags/"+tag+"/vulnerability/details";
 
         Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 
-        Map<String, Object> params = new HashMap<>();
-        params.put("repo_name", repoName);
+//        Map<String, Object> params = new HashMap<>();
+//        params.put("repo_name", repoName);
 
-        return HarborHttpsClientUtil.httpGetRequest(url, headers, params);
+        return HarborHttpsClientUtil.httpGetRequest(url, headers, null);
     }
 
     /**
@@ -127,16 +130,62 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
     @Override
     public ActionReturnUtil clairStatistcsOfProject(String harborHost, String projectName) throws Exception {
 
-        ActionReturnUtil actionReturnUtil = this.clairStatistcs(harborHost,
-                HarborSecurityFlagNameEnum.PROJECT.getFlagName(), projectName);
+//        ActionReturnUtil actionReturnUtil = this.clairStatistcs(harborHost,
+//                HarborSecurityFlagNameEnum.PROJECT.getFlagName(), projectName);
 
-        if (actionReturnUtil.isSuccess()) {
-            if (actionReturnUtil.get("data") != null) {
-                actionReturnUtil.put("data", getHarborSecurityClairStatistcsResp(actionReturnUtil.get("data").toString()));
+        String projectId = getIdByRepoName(harborHost,projectName);
+        List<ImageRepository> imageRepositoryList = imageRepositoryMapper.selectRepository(projectId,harborHost);
+        Integer id = imageRepositoryList.get(0).getId();
+        //获取project下的镜像列表
+        List<HarborRepositoryMessage> harborRepositoryMessageList = (List<HarborRepositoryMessage>)harborProjectService.listImages(id,null,null).getData();
+        int imageNum = harborRepositoryMessageList.size();
+        int unsecurityNum = 0,notSupportNum = 0,successNum = 0,abnormalNum = 0,mildNum = 0;
+        List<String> severityGrades = new ArrayList<String>(Arrays.asList("1","2","3","4","5"));//漏洞等级数量
+        //对每个镜像进行扫描
+        for(HarborRepositoryMessage harborRepositoryMessage : harborRepositoryMessageList){
+            List<String> tags = harborRepositoryMessage.getTags();
+            String repoName = harborRepositoryMessage.getRepository();
+            for(String tag : tags){
+                ActionReturnUtil vulnerabilitySummaryResponse = this.vulnerabilitySummary(harborHost, repoName, tag);//扫描每个镜像漏洞情况
+                String result = vulnerabilitySummaryResponse.getData().toString();
+                result = result.replace("package","packageName");
+                List<VulnerabilityDetail> vulnerabilityDetailList = JsonUtil.jsonToList(result,VulnerabilityDetail.class);
+                if(vulnerabilityDetailList.size() == 0 && vulnerabilityDetailList.isEmpty()){
+                    successNum++;//漏洞列表为空则为安全镜像
+                    break;
+                }else {
+                    //遍历单个镜像的漏洞列表
+                    for(VulnerabilityDetail vulnerabilityDetail : vulnerabilityDetailList){
+                        if(!severityGrades.contains(vulnerabilityDetail.getSeverity())){//若漏洞等级存在1~5之外的数字，为不支持镜像
+                            notSupportNum++;
+                        }else {
+                            if(vulnerabilityDetail.getSeverity().equals("4") || vulnerabilityDetail.getSeverity().equals("5")){
+                                unsecurityNum++;
+                            }else {
+                                mildNum++;//漏洞等级为1、2、3，设置为中低危镜像
+                            }
+                        }
+                        break;
+                    }
+                }
             }
         }
 
-        return actionReturnUtil;
+        ActionReturnUtil actionReturnUMap = new ActionReturnUtil();
+        Map<String,Object> data = new HashMap<String,Object>();
+
+        data.put("image_num",imageNum);//镜像总数
+        data.put("unsecurity_image_num",unsecurityNum);//不安全镜像
+        data.put("clair_not_Support",notSupportNum);//不支持镜像
+        data.put("clair_success",successNum);//安全镜像
+        data.put("abnormal",abnormalNum);//异常镜像
+        data.put("mild",mildNum);//中低危镜像
+
+        actionReturnUMap.put("data", data);
+        if(imageRepositoryList != null){
+            actionReturnUMap.put("success",true);
+        }
+        return actionReturnUMap;
     }
 
     @Override
@@ -205,7 +254,7 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
 
         if (actionReturnUtil.isSuccess()) {
             if (actionReturnUtil.get("data") != null) {
-                actionReturnUtil.put("data", getHarborSecurityClairStatistcsResp(actionReturnUtil.get("data").toString()));
+                actionReturnUtil.put("data", (actionReturnUtil.get("data").toString()));
             }
         }
 
@@ -218,7 +267,7 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
      * @param dataJson json格式返回的data
      * @return
      */
-    private HarborSecurityClairStatistcs getHarborSecurityClairStatistcsResp(String dataJson) throws Exception{
+    private HarborSecurityClairStatistcs getHarborSecurityClairStgetHarborSecurityClairStatistcsRespatistcsResp(String dataJson) throws Exception{
         HarborSecurityClairStatistcs harborSecurityClairStatistcs = new HarborSecurityClairStatistcs();
         if (StringUtils.isNotEmpty(dataJson)) {
             Map<String, Object> map = JsonUtil.jsonToMap(dataJson);
@@ -282,54 +331,160 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
                     }
                 }
             }
-            if (vulnerabilitySummaryResponse.isSuccess()) {
-                if (vulnerabilitySummaryResponse.get("data") != null) {
-                    //将严重漏洞归到高危漏洞
-                    String result = vulnerabilitySummaryResponse.get("data").toString().replaceAll("\"severity\": \"Critical\"", "\"severity\": \"High\"");
-                    Map<String, Object> resultMap = JsonUtil.convertJsonToMap(result);
-                    if(resultMap.get("vulnerability-suminfo") != null){
-                        Map vulnerabilitySuminfo = (Map)resultMap.get("vulnerability-suminfo");
-                        if(vulnerabilitySuminfo.get("high-level-sum") != null && vulnerabilitySuminfo.get("critical-level-sum")!=null){
-                            Integer highNum = (int)vulnerabilitySuminfo.get("high-level-sum") + (int)vulnerabilitySuminfo.get("critical-level-sum");
-                            vulnerabilitySuminfo.put("high-level-sum",highNum);
-                        }
-                        resultMap.put("vulnerability-suminfo", vulnerabilitySuminfo);
+            Integer highNum = 0,patchesSum = 0;
+            Integer criticalSum=0,highSum=0,mediumSum=0,lowSum=0,negligibleSum=0,unknownSum=0;
+            if (vulnerabilitySummaryResponse.get("data") != null) {
+                String result = vulnerabilitySummaryResponse.get("data").toString().replaceAll("package", "packageName");
+                Map<String, Object> resultMap = new HashMap<String,Object>();
+                List<VulnerabilityDetail> vulnerabilityDetailList = JsonUtil.jsonToList(result,VulnerabilityDetail.class);
+                Map<String,Object> vulnerabilitySuminfo = new HashMap<String,Object>();
+
+                for(VulnerabilityDetail vulnerabilityDetail : vulnerabilityDetailList){
+                    if(vulnerabilityDetail.getFixedVersion() != null){
+                        patchesSum++;
                     }
+                    switch (Integer.parseInt(vulnerabilityDetail.getSeverity())){
+                        case 1:
+                            negligibleSum++;break;
+                        case 2:
+                            lowSum++;break;
+                        case 3:
+                            mediumSum++;break;
+                        case 4:
+                            highNum++;break;
+                        case 5:
+                            criticalSum++;break;
+                        default:
+                            unknownSum++;break;
+                    }
+                }
+                highNum = highSum + criticalSum;
+                if (vulnerabilitySummaryResponse.isSuccess() && !withPackage) {
+                    vulnerabilitySuminfo.put("vulnerability-sum",vulnerabilityDetailList.size());
+                    vulnerabilitySuminfo.put("vulnerability-patches-sum",patchesSum);
+                    vulnerabilitySuminfo.put("critical-level-sum",criticalSum);
+                    vulnerabilitySuminfo.put("high-level-sum",highNum);
+                    vulnerabilitySuminfo.put("medium-level-sum",mediumSum);
+                    vulnerabilitySuminfo.put("low-level-sum",lowSum);
+                    vulnerabilitySuminfo.put("negligible-level",negligibleSum);
+                    vulnerabilitySuminfo.put("unknown-level",unknownSum);
+//                    resultMap.put("vulnerability-suminfo", vulnerabilitySuminfo);
+                    if(vulnerabilityDetailList.size() == unknownSum && unknownSum != 0){
+                        resultMap.put("notsupport",true);
+                    }else {
+                        Map<String,Object> tempMap = new HashMap<String,Object>();
+                        tempMap.put("vulnerability-suminfo",vulnerabilitySuminfo);
+                        resultMap.put("vulnerability",tempMap);
+                    }
+
                     harborManifest.setVulnerabilitySummary(resultMap);
                 }
             }
             //需要获取tag详情的时候查询VulnerabilitiesByPackage
             if(withPackage) {
-                ActionReturnUtil vulnerabilitiesByPackageResponse = this.vulnerabilitiesByPackage(harborHost, repoName, tag);
-                if (vulnerabilitiesByPackageResponse.isSuccess() && vulnerabilitiesByPackageResponse.get("data") != null) {
-                    //将严重漏洞归到高危漏洞
-                    Map<String, Object> resultMap = JsonUtil.convertJsonToMap(vulnerabilitiesByPackageResponse.get("data").toString());
-                    List<Map<String, Object>> packages = (List)resultMap.get("image_packages");
-                    for(Map<String, Object> map : packages){
-                        Map<String, Object> vulnerabilityMap = (Map)map.get("vulnerabilitles");
-                        if(vulnerabilityMap.get("high_level") != null && vulnerabilityMap.get("critical_level") != null){
-                            vulnerabilityMap.put("high_level", (int)vulnerabilityMap.get("high_level") + (int)vulnerabilityMap.get("critical_level"));
-                        }
-
-                    }
-                    Map<String, Object> packagesSummary = (Map)resultMap.get("packages_summary");
-                    Map<String, Object> levelSummaryMap = (Map)packagesSummary.get("level_summary");
-                    if(levelSummaryMap.get("high_level") != null && levelSummaryMap.get("critical_level") != null){
-                        levelSummaryMap.put("high_level", (int)levelSummaryMap.get("high_level") + (int)levelSummaryMap.get("critical_level"));
-                    }
-                    harborManifest.setVulnerabilitiesByPackage(resultMap);
+                String result = vulnerabilitySummaryResponse.get("data").toString();
+                result = result.replace("package","packageName");
+                Map<String, Object> resultMap = new HashMap<String,Object>();
+                Integer packageKindSum = 0;
+                List<VulnerabilityDetail> vulnerabilityDetailList = JsonUtil.jsonToList(result,VulnerabilityDetail.class);
+                Set<String> packageList = new HashSet<String>();
+                for(VulnerabilityDetail vulnerabilityDetail : vulnerabilityDetailList){
+                    packageList.add(vulnerabilityDetail.getPackageName());//package种类名
                 }
+                packageKindSum = packageList.size();
+                Map<String,Object> packagesSummary = new HashMap<String,Object>();
+                Map<String,Object> vulnerabilityMap = new HashMap<String,Object>();
+                vulnerabilityMap.put("critical_level",criticalSum);
+                vulnerabilityMap.put("high_level",highNum + criticalSum);
+                vulnerabilityMap.put("medium_level",mediumSum);
+                vulnerabilityMap.put("low_level",lowSum);
+                vulnerabilityMap.put("negligible_level",negligibleSum);
+                vulnerabilityMap.put("unknown_level",unknownSum);
+
+                packagesSummary.put("sum",packageKindSum);
+                packagesSummary.put("level_summary",vulnerabilityMap);
+                resultMap.put("packages_summary",packagesSummary);
+
+                List<ImagePackage> imagePackages = new LinkedList<ImagePackage>();
+
+                for(String packageName : packageList){
+                    Integer tempCritical = 0,tempHigh = 0,tempMedium = 0,tempLow = 0,tempNeglible = 0,tempUnknown = 0;
+                    String version = null;
+                    String fixedVersion = null;
+                    ImagePackage imagePackage = new ImagePackage();
+                    Map<String,Object> vulnerabilitles = new HashMap<String,Object>();
+                    for(VulnerabilityDetail vulnerabilityDetail : vulnerabilityDetailList){
+                        if(vulnerabilityDetail.getPackageName().equals(packageName)){
+                            if(version == null){
+                                version = vulnerabilityDetail.getVersion();
+                            }
+                            if(fixedVersion == null){
+                                fixedVersion = vulnerabilityDetail.getVersion();
+                            }
+                            if(vulnerabilityDetail.getSeverity().equals("5")){
+                                tempCritical++;
+                            }else if(vulnerabilityDetail.getSeverity().equals("4")){
+                                tempHigh++;
+                            }else if(vulnerabilityDetail.getSeverity().equals("3")){
+                                tempMedium++;
+                            }else if(vulnerabilityDetail.getSeverity().equals("2")){
+                                tempLow++;
+                            }else if(vulnerabilityDetail.getSeverity().equals("1")){
+                                tempNeglible++;
+                            }else {
+                                tempUnknown++;
+                            }
+                        }
+                    }
+                    vulnerabilitles.put("critical_level",tempCritical);
+                    vulnerabilitles.put("high_level",tempHigh);
+                    vulnerabilitles.put("medium_level",tempMedium);
+                    vulnerabilitles.put("low_level",tempLow);
+                    vulnerabilitles.put("negligible_level",tempNeglible);
+                    vulnerabilitles.put("unknown_level",tempUnknown);
+                    imagePackage.setPackageName(packageName);
+                    imagePackage.setPackageVersion(version);
+                    imagePackage.setFixedVersion(fixedVersion);
+                    imagePackage.setVulnerabilitles(vulnerabilitles);
+
+                    imagePackages.add(imagePackage);
+                }
+                resultMap.put("image_packages", imagePackages);
+                harborManifest.setVulnerabilitiesByPackage(resultMap);
             }
         }
         return harborManifest;
     }
 
-	@Override
-	public ActionReturnUtil refreshImageRepo(String harborHost) throws Exception {
+    @Override
+    public ActionReturnUtil refreshImageRepo(String harborHost) throws Exception {
         HarborServer harborServer = clusterService.findHarborByHost(harborHost);
-		String url = HarborClient.getHarborUrl(harborServer) + "/api/internal/syncregistry";
-		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
-	    return HarborHttpsClientUtil.httpPostRequestForHarbor(url, headers, null);
-	}
+        String url = HarborClient.getHarborUrl(harborServer) + "/api/internal/syncregistry";
+        Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
+        return HarborHttpsClientUtil.httpPostRequestForHarbor(url, headers, null);
+    }
+
+
+    public String getIdByRepoName(String harborHost,String projectName) throws Exception {
+        HarborServer harborServer = clusterService.findHarborByHost(harborHost);
+        String url = HarborClient.getHarborUrl(harborServer) + "/api/projects";
+
+        Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("name", projectName);
+
+        ActionReturnUtil projectResult = HarborHttpsClientUtil.httpGetRequest(url, headers, params);
+        List<Map<String,Object>> mapList = JsonUtil.JsonToMapList(projectResult.getData().toString());
+        String projectId = null;
+        for(Map<String,Object> map : mapList){
+            if(map.get("name").toString().equals(projectName)){
+                projectId = map.get("project_id").toString();
+                break;
+            }
+        }
+
+        return projectId;
+    }
 
 }

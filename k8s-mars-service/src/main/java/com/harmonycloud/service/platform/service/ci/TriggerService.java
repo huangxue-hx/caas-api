@@ -3,6 +3,8 @@ package com.harmonycloud.service.platform.service.ci;
 import com.harmonycloud.dao.ci.bean.Trigger;
 import com.harmonycloud.dto.cicd.TriggerDto;
 
+import java.util.List;
+
 /**
  * @Author w_kyzhang
  * @Description 触发规则接口
@@ -63,4 +65,9 @@ public interface TriggerService {
      * @throws Exception
      */
     void triggerJobByImage(String imageName, String imageTag) throws Exception;
+
+    /**
+     * 获取镜像触发
+     * */
+    List<Trigger> findImageTirrger() throws  Exception;
 }
