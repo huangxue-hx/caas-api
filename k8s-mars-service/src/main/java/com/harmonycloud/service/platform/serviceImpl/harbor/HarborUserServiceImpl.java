@@ -570,11 +570,11 @@ public class HarborUserServiceImpl implements HarborUserService {
                 List<HarborUser> harborUserList = new ArrayList<>();
                 for (Map<String, Object> map : mapList) {
                     HarborUser harborUser = new HarborUser();
-                    if (map.get("user_id") != null) {
-                        harborUser.setUserId(Integer.valueOf(map.get("user_id").toString()));
+                    if (map.get("role_id") != null) {
+                        harborUser.setUserId(Integer.valueOf(map.get("role_id").toString()));
                     }
-                    if (map.get("username") != null) {
-                        harborUser.setUsername(map.get("username").toString());
+                    if (map.get("entity_name") != null) {
+                        harborUser.setUsername(map.get("entity_name").toString());
                     }
                     if (map.get("role_name") != null) {
                         harborUser.setRoleName(map.get("role_name").toString());
