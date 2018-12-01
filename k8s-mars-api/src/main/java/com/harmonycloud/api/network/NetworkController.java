@@ -30,7 +30,7 @@ import com.harmonycloud.service.tenant.NetworkService;
 public class NetworkController {
 
     @Autowired
-    NetworkService networkService;
+    private NetworkService networkService;
 
 
 

@@ -18,8 +18,8 @@ public enum EnumLogSeverity {
 	}
 
 	public static String getSeverityName(String severity) {
-		severity = severity.toUpperCase();
-		switch (severity) {
+		String upperCaseSeverity = severity.toUpperCase();
+		switch (upperCaseSeverity) {
 		case "D":
 			return EnumLogSeverity.debug.name();
 		case "I":
@@ -37,7 +37,7 @@ public enum EnumLogSeverity {
 		return severity;
 	}
 
-	public void setSeverity(String severity) {
+	private void setSeverity(String severity) {
 		this.severity = severity;
 	}
 }

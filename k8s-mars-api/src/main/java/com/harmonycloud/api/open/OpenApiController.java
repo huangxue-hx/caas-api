@@ -1,23 +1,29 @@
 package com.harmonycloud.api.open;
 
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.cluster.NodeBriefDto;
 import com.harmonycloud.dto.config.ControllerUrlMapping;
 import com.harmonycloud.dto.container.ContainerBriefDto;
 import com.harmonycloud.dto.event.EventBriefDto;
 import com.harmonycloud.k8s.bean.Event;
+import com.harmonycloud.k8s.bean.NodeCondition;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.EventService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.cluster.LoadbalanceService;
+import com.harmonycloud.service.migrate.DataMigrateService;
 import com.harmonycloud.service.platform.bean.ContainerWithStatus;
 import com.harmonycloud.service.platform.bean.KubeModuleStatus;
 import com.harmonycloud.service.platform.bean.PodDetail;
+import com.harmonycloud.service.platform.service.NodeService;
 import com.harmonycloud.service.platform.service.PodService;
 import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.system.ApiService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.user.UrlDicService;
 import com.harmonycloud.service.user.UserService;
+import jnr.x86asm.CONDITION;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +33,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -44,27 +51,33 @@ import java.util.stream.Collectors;
 public class OpenApiController {
 
 	@Autowired
-	DeploymentsService dpService;
+	private DeploymentsService dpService;
 	
 	@Autowired
-	ClusterService clusterService;
+	private ClusterService clusterService;
 	@Autowired
-	UserService userService;
+	private UserService userService;
 	@Autowired
-	EventService eventService;
+	private EventService eventService;
 	@Autowired
-	PodService podService;
+	private PodService podService;
     @Autowired
-    JobService jobService;
+    private JobService jobService;
     
     @Autowired
-    LoadbalanceService loadbalanceService;
+    private LoadbalanceService loadbalanceService;
     @Autowired
-	NamespaceLocalService namespaceLocalService;
+	private NamespaceLocalService namespaceLocalService;
 	@Autowired
-	UrlDicService urlDicService;
+	private UrlDicService urlDicService;
 	@Autowired
-	ApiService apiService;
+	private ApiService apiService;
+	@Autowired
+	private HttpSession session;
+	@Autowired
+	private DataMigrateService dataMigrateService;
+	@Autowired
+	private NodeService nodeService;
 	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -119,6 +132,23 @@ public class OpenApiController {
 			return new ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
+
+	/**
+	 * 查询所有集群下不可用的节点
+	 * @return
+	 */
+	@RequestMapping(value = "/node/unavailable")
+	public ResponseEntity<List<NodeBriefDto>> getUnavailableNodes(){
+		try {
+			List<NodeBriefDto> nodes = nodeService.listUnavailableNodes();
+			return new ResponseEntity(nodes, HttpStatus.OK);
+		}catch (Exception e){
+			logger.error("查找集群不可用节点失败", e);
+			return new ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+
 	@RequestMapping(value = "/getUrlDic", method = RequestMethod.GET)
 	public ResponseEntity<List<EventBriefDto>> getUrlDic() throws Exception{
 		Map urlMap = urlDicService.getUrlMap();
@@ -184,6 +214,23 @@ public class OpenApiController {
 	public Map<String, ControllerUrlMapping> getUrlMapping(@RequestParam(value = "order",required = false) String order,
 														   HttpServletRequest request) throws Exception{
 		return apiService.generateUrlMapping(order, request);
+	}
+
+	/**
+	 * 数据迁移
+	 * @return
+	 * @throws Exception
+	 */
+	@ResponseBody
+	@RequestMapping(value="/migrate", method = RequestMethod.POST)
+	public ResponseEntity migrate(@RequestParam(value = "version",required = false) String version,
+								  @RequestParam(value = "execute",required = false) boolean execute) throws Exception{
+		String userName = (String) session.getAttribute("username");
+		if(!"admin".equals(userName) && !"xfliang".equals(userName)){
+			return new ResponseEntity(HttpStatus.FORBIDDEN);
+		}
+		List<String> messages = dataMigrateService.migrateData(version,execute);
+		return new ResponseEntity(messages, HttpStatus.OK);
 	}
 
 }

@@ -142,6 +142,7 @@ public class Constant {
     public final static String TYPE_DATACENTER = "dataCenter";
 	public final static String TOP_DATACENTER = "cluster-top";
     public final static String TYPE_CONTROLLERREVISIONNAME = "controller-revision-hash";
+    public final static String TYPE_DEPLOY_VERSION = "version";
 	//重启策略
 	public final static String RESTARTPOLICY_ALWAYS = "Always";
 	public final static String RESTARTPOLICY_NERVER = "Never";
@@ -208,18 +209,6 @@ public class Constant {
 
 	//微服务kong组件名称
 	public final static String SPRINGCLOUD_KONG = "msf-kong-service";
-
-	//负载均衡器默认名称
-	public final static String IC_DEFAULT_NAME = "default";
-
-	//负载均衡器默认名称
-	public final static String IC_DEFAULT_PORT = "80";
-
-	public final static String INGRESS_CONTROLLER_DEFAULT_NAME = "nginx-ingress-controller";
-	//系统外部暴露的配置文件名称:TCP 和 UDP
-	public final static String EXPOSE_CONFIGMAP_NAME_TCP = "system-expose-nginx-config-tcp";
-
-	public final static String EXPOSE_CONFIGMAP_NAME_UDP = "system-expose-nginx-config-udp";
 
 	//微服务kong的环境变量名称
 	public final static String SPRINGCLOUD_KONG_ENV = "KONG_DNS_RESOLVER";

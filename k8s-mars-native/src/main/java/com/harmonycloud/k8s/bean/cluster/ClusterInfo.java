@@ -17,9 +17,10 @@ public class ClusterInfo implements Serializable {
     private ClusterRedis redis;
     private ClusterHarbor harbor;
     private ElasticsearchConnect elasticsearch;
-    private List<ClusterDomain> domain ;
+    private ClusterDomain domain ;
     private List<ClusterExternal> external ;
     private List<ClusterStorage> nfs ;
+    private  ClusterGit  git;
 
     public ClusterNetwork getNetwork() {
         return network;
@@ -85,11 +86,11 @@ public class ClusterInfo implements Serializable {
         this.harbor = harbor;
     }
 
-    public List<ClusterDomain> getDomain() {
+    public ClusterDomain getDomain() {
         return domain;
     }
 
-    public void setDomain(List<ClusterDomain> domain) {
+    public void setDomain(ClusterDomain domain) {
         this.domain = domain;
     }
 
@@ -115,5 +116,13 @@ public class ClusterInfo implements Serializable {
 
     public void setElasticsearch(ElasticsearchConnect elasticsearch) {
         this.elasticsearch = elasticsearch;
+    }
+
+    public ClusterGit getGit() {
+        return git;
+    }
+
+    public void setGit(ClusterGit git) {
+        this.git = git;
     }
 }

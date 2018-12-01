@@ -52,28 +52,28 @@ public class StageServiceImpl implements StageService {
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(StageServiceImpl.class);
 
     @Autowired
-    StageMapper stageMapper;
+    private StageMapper stageMapper;
 
     @Autowired
-    StageTypeMapper stageTypeMapper;
+    private StageTypeMapper stageTypeMapper;
 
     @Autowired
-    StageBuildMapper stageBuildMapper;
+    private StageBuildMapper stageBuildMapper;
 
     @Autowired
-    DockerFileMapper dockerFileMapper;
+    private DockerFileMapper dockerFileMapper;
 
     @Autowired
-    JobMapper jobMapper;
+    private JobMapper jobMapper;
 
     @Autowired
-    BuildEnvironmentMapper buildEnvironmentMapper;
+    private BuildEnvironmentMapper buildEnvironmentMapper;
 
     @Autowired
-    JobService jobService;
+    private JobService jobService;
 
     @Autowired
-    DockerFileJobStageMapper dockerFileJobStageMapper;
+    private DockerFileJobStageMapper dockerFileJobStageMapper;
 
 //    @Autowired
 //    private SonarProjectService sonarProjectService;
@@ -139,9 +139,10 @@ public class StageServiceImpl implements StageService {
     public Integer addStage(StageDto stageDto) throws Exception{
         verifyResource(stageDto);
         verifyTag(stageDto);
-        //increace order for all stages behind this stage
+        //此步骤后的步骤顺序号全部加1
         stageMapper.increaseStageOrder(stageDto.getJobId(), stageDto.getStageOrder());
         Stage stage = stageDto.convertToBean();
+
         if(StageTemplateTypeEnum.CODECHECKOUT.getCode() == stageDto.getStageTemplateType()){
             stage.setCredentialsPassword(DesUtil.encrypt(stage.getCredentialsPassword(), null));
         }else if(StageTemplateTypeEnum.CUSTOM.getCode() == stageDto.getStageTemplateType()){
@@ -164,9 +165,11 @@ public class StageServiceImpl implements StageService {
         stage.setUpdateTime(new Date());
         stageMapper.insertStage(stage);
 
+        //代码检出步骤在Jenkins中增加credentail
         if(StageTemplateTypeEnum.CODECHECKOUT.getCode() == stageDto.getStageTemplateType()){
             createOrUpdateCredential(stage.getId(), stage.getCredentialsUsername(), stageDto.getCredentialsPassword());
         }
+        //更新Jenkins中配置
         ActionReturnUtil result = jobService.updateJenkinsJob(stageDto.getJobId());
         if(!result.isSuccess()){
             throw new MarsRuntimeException(ErrorCodeMessage.STAGE_ADD_ERROR);
@@ -365,9 +368,7 @@ public class StageServiceImpl implements StageService {
             if(!Constant.PIPELINE_STATUS_BUILDING.equals(stageBuild.getStatus()) && !Constant.PIPELINE_STATUS_NOTBUILT.equals(stageBuild.getStatus()) && !Constant.PIPELINE_STATUS_WAITING.equals(stageBuild.getStatus())){
                 return;
             }
-//            stageBuild.setJobId(job.getId());
-//            stageBuild.setBuildNum(buildNum);
-//            stageBuild.setStageOrder(stageOrder);
+            //静态扫描或集成测试的步骤，若步骤最终状态尚未更新，则更新状态
             Stage stage = stageMapper.queryById(stageBuild.getStageId());
             if(StageTemplateTypeEnum.CODESCAN.getCode() == stage.getStageTemplateType() || StageTemplateTypeEnum.INTEGRATIONTEST.getCode() == stage.getStageTemplateType()){
                 if(StringUtils.isNotBlank(stageBuild.getStatus()) && !stageBuild.getStatus().equals(Constant.PIPELINE_STATUS_SUCCESS) && !stageBuild.getStatus().equals(Constant.PIPELINE_STATUS_FAILED)){
@@ -378,6 +379,7 @@ public class StageServiceImpl implements StageService {
                     }
                 }
             }else{
+                //其他步骤则更新Jenkins中获取的状态
                 stageBuild.setStatus(convertStatus((String) stageMap.get("status")));
             }
             if (stageMap.get("startTimeMillis") instanceof Integer) {
@@ -387,6 +389,7 @@ public class StageServiceImpl implements StageService {
             }
             stageBuild.setDuration(String.valueOf(stageMap.get("durationMillis")));
             stageBuildMapper.updateByStageOrderAndBuildNum(stageBuild);
+            //更新构建日志
             stageBuild.setLog(getStageBuildLogFromJenkins(job, buildNum, (String) stageMap.get("id")));
             stageBuildMapper.updateStageLog(stageBuild);
         }
@@ -408,7 +411,9 @@ public class StageServiceImpl implements StageService {
                     Map stageMap = stageMapList.get(stage.getStageOrder() - 1);
                     String log = getStageBuildLogFromJenkins(job, buildNum, (String)stageMap.get("id"));
                     int existLogLength = existingLog.length();
+                    //从之前日志的最终位置处获取新日志
                     String newLog = log.substring(existLogLength);
+                    //若新日志不为空或30秒内没有返回信息，则返回新日志
                     if(!StringUtils.isBlank(newLog) || duration > CommonConstant.CICD_WEBSOCKET_MAX_DURATION) {
                         duration = 0L;
                         existingLog = log;
@@ -487,6 +492,14 @@ public class StageServiceImpl implements StageService {
     }
 
 
+    /**
+     *  获取步骤的构建日志
+     * @param job
+     * @param buildNum
+     * @param stageNodeId
+     * @return
+     * @throws Exception
+     */
     private String getStageBuildLogFromJenkins(Job job, Integer buildNum, String stageNodeId) throws Exception{
         String projectName = projectService.getProjectNameByProjectId(job.getProjectId());
         String clusterName = clusterService.getClusterNameByClusterId(job.getClusterId());
@@ -630,12 +643,14 @@ public class StageServiceImpl implements StageService {
     }
 
     public void verifyStageResource(Job job, StageDto stageDto) throws Exception{
+        //校验环境是否存在
         if(StageTemplateTypeEnum.CODECHECKOUT.getCode() == stageDto.getStageTemplateType() || (StageTemplateTypeEnum.CUSTOM.getCode() == stageDto.getStageTemplateType() && stageDto.getBuildEnvironmentId() != 0 )){
             BuildEnvironment buildEnvironment = buildEnvironmentService.getBuildEnvironment(stageDto.getBuildEnvironmentId());
             if(buildEnvironment == null){
                 throw new MarsRuntimeException(ErrorCodeMessage.ENVIRONMENT_ALREADY_DELETED);
             }
         }
+        //校验依赖是否存在
         if(StageTemplateTypeEnum.CODECHECKOUT.getCode() == stageDto.getStageTemplateType()){
             List<StageDto.Dependence> dependenceList = stageDto.getDependences();
             if(CollectionUtils.isNotEmpty(dependenceList)){
@@ -654,11 +669,13 @@ public class StageServiceImpl implements StageService {
                 }
             }
         }
+        //校验dockerfile是否存在
         if(StageTemplateTypeEnum.IMAGEBUILD.getCode() == stageDto.getStageTemplateType() && DockerfileTypeEnum.PLATFORM.ordinal() == stageDto.getDockerfileType()){
             if(dockerFileService.selectDockerFileById(stageDto.getDockerfileId()) == null){
                 throw new MarsRuntimeException(ErrorCodeMessage.DOCKERFILE_ALREADY_DELETED);
             }
         }
+        //校验部署镜像的来源步骤是否存在
         if(StageTemplateTypeEnum.DEPLOY.getCode() == stageDto.getStageTemplateType()){
             if(stageDto.getOriginStageId() != null){
                 Stage originStage = stageMapper.queryById(stageDto.getOriginStageId());

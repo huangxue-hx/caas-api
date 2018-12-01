@@ -21,6 +21,8 @@ import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.util.BizUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,11 +41,13 @@ import java.util.*;
 @Service
 @Transactional(rollbackFor = Exception.class)
 public class YamlServiceImpl implements YamlService{
-    @Autowired
-    HttpSession session;
+    private static final Logger LOGGER = LoggerFactory.getLogger(YamlServiceImpl.class);
 
     @Autowired
-    NamespaceService namespaceService;
+    private HttpSession session;
+
+    @Autowired
+    private NamespaceService namespaceService;
 
     @Autowired
     private TprApplication tprApplication;
@@ -54,17 +58,17 @@ public class YamlServiceImpl implements YamlService{
     @Autowired
     private NamespaceLocalService namespaceLocalService;
 
-    final static String SPLIT = "---";
-    final static String COLON = ":";
+    final static private String SPLIT = "---";
+    final static private String COLON = ":";
 
-    final static String KIND = "kind:";
-    final static String NAMESPACE = "  namespace:";
-    final static String NAME = "  name:";
+    final static private String KIND = "kind:";
+    final static private String NAMESPACE = "  namespace:";
+    final static private String NAME = "  name:";
 
-    final static String MAP_NAMESPACE = "namespace";
-    final static String MAP_KIND = "kind";
-    final static String MAP_DATA = "data";
-    final static String MAP_NAME = "name";
+    final static private String MAP_NAMESPACE = "namespace";
+    final static private String MAP_KIND = "kind";
+    final static private String MAP_DATA = "data";
+    final static private String MAP_NAME = "name";
 
     private static final String SIGN = "-";
     // private static final String SIGN_EQUAL = "=";
@@ -317,7 +321,7 @@ public class YamlServiceImpl implements YamlService{
             }
 
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.warn("convertYaml失败", e);
         } finally {
             br.close();
             is.close();

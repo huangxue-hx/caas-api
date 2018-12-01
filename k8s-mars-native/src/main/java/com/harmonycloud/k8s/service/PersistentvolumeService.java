@@ -4,6 +4,8 @@ import com.harmonycloud.common.util.HttpK8SClientUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.constant.Constant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -17,6 +19,7 @@ import java.util.Map;
 public class PersistentvolumeService {
 
     private String surfix="/persistentvolumes";
+    private static final Logger LOGGER = LoggerFactory.getLogger(PersistentvolumeService.class);
 
     /**
      * 获取pv,name不为null时,获取单个pv,否则获取所有pv列表
@@ -50,7 +53,7 @@ public class PersistentvolumeService {
             return  c;
 
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.warn("获取pv失败", e);
         }
         return null;
     }

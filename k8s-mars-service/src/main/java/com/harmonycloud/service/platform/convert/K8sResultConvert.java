@@ -25,6 +25,8 @@ import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import com.harmonycloud.service.util.BizUtil;
@@ -43,8 +45,11 @@ import static com.harmonycloud.service.platform.constant.Constant.*;
  */
 @Component
 public class K8sResultConvert {
+    public static final int TAG_LENGTH = 4;
+    public static final String TAG_PATTERN = "v\\d-\\d";
+    private static StorageClassService storageClassService;
+    private static final Logger LOGGER = LoggerFactory.getLogger(K8sResultConvert.class);
 
-    static StorageClassService storageClassService;
 
     @Autowired
     public void setStorageClassService(StorageClassService storageClassService){
@@ -160,6 +165,10 @@ public class K8sResultConvert {
             events.add(eventDetail);
         }
         appDetail.setEvents(events);
+
+        if (dep.getSpec().getTemplate().getMetadata().getLabels().containsKey(Constant.TYPE_DEPLOY_VERSION)){
+            appDetail.setDeployVersion((dep.getSpec().getTemplate().getMetadata().getLabels().get(Constant.TYPE_DEPLOY_VERSION).toString()));
+        }
 
         convertAnnotation(meta.getAnnotations(), dep.getSpec().getTemplate().getSpec().getContainers(), appDetail);
         return appDetail;
@@ -466,7 +475,7 @@ public class K8sResultConvert {
                 try {
                     return Long.valueOf(sdf.parse(o2.getLastTimestamp()).getTime()).compareTo(Long.valueOf(sdf.parse(o1.getLastTimestamp()).getTime()));
                 } catch (ParseException e) {
-                    e.printStackTrace();
+                    LOGGER.warn("sort失败", e);
                     return 0;
                 }
             }
@@ -621,8 +630,10 @@ public class K8sResultConvert {
         List<PersistentVolumeClaim> volumeClaimTemplate = null;
         String name = null;
         String namespace = null;
+        Map<String, Object> annotations = null;
         if(obj instanceof Deployment){
             Deployment deployment = (Deployment)obj;
+            annotations = deployment.getMetadata().getAnnotations();
             DeploymentSpec deploymentSpec = deployment.getSpec();
             podTemplateSpec = deploymentSpec.getTemplate();
             name = deployment.getMetadata().getName();
@@ -730,6 +741,9 @@ public class K8sResultConvert {
                                             if(StringUtils.isBlank(storageClassName)){
                                                 storageClassName = persistentVolumeClaim.getSpec().getStorageClassName();
                                             }
+                                            if(StringUtils.isBlank(storageClassName)){
+                                                storageClassName = (String)persistentVolumeClaim.getMetadata().getAnnotations().get(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.STORAGECLASS);
+                                            }
                                             vmExt.setStorageClassName(storageClassName);
                                             StorageClassDto storageClass = storageClassMap.get(storageClassName);
                                             if(storageClass != null) {
@@ -751,13 +765,22 @@ public class K8sResultConvert {
                                     } else if (volume.getConfigMap() != null) {
                                         Map<String, Object> configMap = new HashMap<String, Object>();
                                         configMap.put("name", volume.getConfigMap().getName());
-
+                                        vmExt.setOldName(vmExt.getName());
+                                        if(volume.getName().length()>TAG_LENGTH){
+                                            //volume名称为版本号结尾的是之前版本格式，改成新版configmapId结尾的格式
+                                            String tag = volume.getName().substring(volume.getName().length() - TAG_LENGTH);
+                                            if(tag.matches(TAG_PATTERN)){
+                                                if(annotations != null && (annotations.get("configmapid-" + ct.getName()) != null)){
+                                                    vmExt.setName(volume.getName().replace(tag, "") + "-" + annotations.get("configmapid-" + ct.getName()).toString());
+                                                }
+                                            }
+                                        }
                                         String mountPath = null;
                                         if (vm.getMountPath().contains(vm.getSubPath())) {
                                             int lastIndexOf = vm.getMountPath().lastIndexOf("/");
                                             String subLastPath = vm.getMountPath().substring(lastIndexOf + 1);
                                             if (subLastPath.equals(vm.getSubPath())) {
-                                                mountPath = vm.getMountPath().substring(0, lastIndexOf);
+                                                mountPath = vm.getMountPath().substring(0, lastIndexOf+1);
                                             }
 
                                         }
@@ -973,7 +996,7 @@ public class K8sResultConvert {
                     }
                 }
 
-                convertLabels(dep.getMetadata().getLabels(), tMap);
+                convertLabels(dep.getMetadata().getLabels(), dep.getSpec().getTemplate().getMetadata().getLabels(), tMap);
 
                 tMap.put("status", getDeploymentStatus(dep));
                 if (dep.getMetadata().getAnnotations() != null && dep.getMetadata().getAnnotations().containsKey("deployment.kubernetes.io/revision")) {
@@ -1066,7 +1089,7 @@ public class K8sResultConvert {
                     }
                     tMap.put("labels", labelMap);
                 }
-                convertLabels(sta.getMetadata().getLabels(), tMap);
+                convertLabels(sta.getMetadata().getLabels(), sta.getSpec().getTemplate().getMetadata().getLabels(), tMap);
                 tMap.put("status", getStatefulSetStatus(sta));
                 List<String> img = new ArrayList<String>();
                 List<String> cpu = new ArrayList<String>();
@@ -1323,6 +1346,10 @@ public class K8sResultConvert {
                 meta.setLabels(lmMap);
             }
         }
+        // istio服务版本标签
+        if (Objects.nonNull(detail.getDeployVersion())){
+            labels.put(Constant.TYPE_DEPLOY_VERSION, detail.getDeployVersion());
+        }
         //labels-QOS
         if (detail.getLabels() != null) {
             if (detail.getLabels().contains(",")) {
@@ -1435,14 +1462,21 @@ public class K8sResultConvert {
             String gitUrl = pullDependence.getRepoUrl();
             String protocol = gitUrl.substring(0,gitUrl.indexOf("://")+3);
             String userName = pullDependence.getUsername();
+            String password = pullDependence.getPassword();
+            //git拉取命令中包含@时需替换为%40
             if(userName.contains("@")){
                 userName = userName.replace("@", "%40");
             }
+            if(password.contains("@")){
+                password = password.replace("@", "%40");
+            }
             gitUrl = gitUrl.substring(gitUrl.indexOf("://")+3,gitUrl.length());
             projectName = gitUrl.substring(gitUrl.lastIndexOf("/")+1,gitUrl.lastIndexOf(".git"));
-            sb.append(" rm -rf " + projectName + "/* " + projectName + "/.git*");
-            sb.append(" && git clone " + protocol + userName + ":" + pullDependence.getPassword()
-                    + "@" + gitUrl);
+            //避免git之https方式unable to get local issuer certificate问题
+            sb.append("git config --global http.sslVerify false");
+            sb.append(" && rm -rf " + projectName + "/* " + projectName + "/.git*");
+            sb.append(" && git clone " + protocol + userName + ":" + password + "@" + gitUrl);
+
             //指定了分支
             if(StringUtils.isNotBlank(pullDependence.getBranch()) && !pullDependence.getBranch().equals("master")){
                 sb.append(" && cd " + projectName);
@@ -2248,36 +2282,7 @@ public class K8sResultConvert {
                     volumeMounts.add(volm);
                     container.setVolumeMounts(volumeMounts);
                 }
-
-                if (c.getConfigmap() != null && c.getConfigmap().size() > 0) {
-                    for (CreateConfigMapDto cm : c.getConfigmap()) {
-                        if (cm != null && !StringUtils.isEmpty(cm.getPath())) {
-                            String filename = cm.getFile();
-//                            if (cm.getPath().contains("/")) {
-//                                int in = cm.getPath().lastIndexOf("/");
-//                                filename = cm.getPath().substring(in + 1, cm.getPath().length());
-//                            }
-                            Volume cMap = new Volume();
-                            cMap.setName((cm.getFile()+"-"+cm.getConfigMapId()).replace(".", "-"));
-                            ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
-                            coMap.setName(name + c.getName());
-                            List<KeyToPath> items = new LinkedList<KeyToPath>();
-                            KeyToPath key = new KeyToPath();
-                            key.setKey(cm.getFile() + "v" + cm.getTag());
-                            key.setPath(filename);
-                            items.add(key);
-                            coMap.setItems(items);
-                            cMap.setConfigMap(coMap);
-                            volumes.add(cMap);
-                            VolumeMount volm = new VolumeMount();
-                            volm.setName((cm.getFile()+"-"+cm.getConfigMapId()).replace(".", "-"));
-                            volm.setMountPath(cm.getPath() + "/" + filename);
-                            volm.setSubPath(filename);
-                            volumeMounts.add(volm);
-                            container.setVolumeMounts(volumeMounts);
-                        }
-                    }
-                }
+                convertConfigMap(name+c.getName(),c.getConfigmap(),volumes,volumeMounts);
                 if (c.getImagePullPolicy() != null) {
                     container.setImagePullPolicy(c.getImagePullPolicy());
                 }
@@ -2593,36 +2598,7 @@ public class K8sResultConvert {
                     volumeMounts.add(volm);
                     container.setVolumeMounts(volumeMounts);
                 }
-
-                if (c.getConfigmap() != null && c.getConfigmap().size() > 0) {
-                    for (CreateConfigMapDto cm : c.getConfigmap()) {
-                        if (cm != null && !StringUtils.isEmpty(cm.getPath())) {
-                            String filename = cm.getFile();
-//                            if (cm.getPath().contains("/")) {
-//                                int in = cm.getPath().lastIndexOf("/");
-//                                filename = cm.getPath().substring(in + 1, cm.getPath().length());
-//                            }
-                            Volume cMap = new Volume();
-                            cMap.setName((cm.getFile()+"-"+cm.getConfigMapId()).replace(".", "-"));
-                            ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
-                            coMap.setName(job.getMetadata().getName() + c.getName());
-                            List<KeyToPath> items = new LinkedList<KeyToPath>();
-                            KeyToPath key = new KeyToPath();
-                            key.setKey(cm.getFile() + "v" + cm.getTag());
-                            key.setPath(filename);
-                            items.add(key);
-                            coMap.setItems(items);
-                            cMap.setConfigMap(coMap);
-                            volumes.add(cMap);
-                            VolumeMount volm = new VolumeMount();
-                            volm.setName((cm.getFile()+"-"+cm.getConfigMapId()).replace(".", "-"));
-                            volm.setMountPath(cm.getPath() + "/" + filename);
-                            volm.setSubPath(filename);
-                            volumeMounts.add(volm);
-                            container.setVolumeMounts(volumeMounts);
-                        }
-                    }
-                }
+                convertConfigMap(job.getMetadata().getName()+c.getName(),c.getConfigmap(),volumes,volumeMounts);
                 cs.add(container);
             }
         }
@@ -2897,16 +2873,17 @@ public class K8sResultConvert {
                         if (vm.getType() != null) {
                             switch (vm.getType()) {
                                 case Constant.VOLUME_TYPE_PVC:
+                                    String volumeName = vm.getPvcName().replace(CommonConstant.DOT, CommonConstant.EMPTYSTRING);
                                     //构建spec.containers.volumeMounts
                                     VolumeMount volumeMount = new VolumeMount();
-                                    volumeMount.setName(vm.getPvcName());
+                                    volumeMount.setName(volumeName);
                                     volumeMount.setMountPath(vm.getPath());
                                     volumeMounts.add(volumeMount);
                                     //构建spec.volumes
                                     if (!volFlag.containsKey(vm.getPvcName())) {
                                         volFlag.put(vm.getPvcName(), vm.getPvcName());
                                         Volume pvcVolume = new Volume();
-                                        pvcVolume.setName(vm.getPvcName());
+                                        pvcVolume.setName(volumeName);
                                         PersistentVolumeClaimVolumeSource persistentVolumeClaimVolumeSource = new PersistentVolumeClaimVolumeSource();
                                         persistentVolumeClaimVolumeSource.setClaimName(vm.getPvcName());
                                         pvcVolume.setPersistentVolumeClaim(persistentVolumeClaimVolumeSource);
@@ -3015,36 +2992,7 @@ public class K8sResultConvert {
                     volumeMounts.add(volm);
                     container.setVolumeMounts(volumeMounts);
                 }
-
-                if (c.getConfigmap() != null && c.getConfigmap().size() > 0) {
-                    for (CreateConfigMapDto cm : c.getConfigmap()) {
-                        if (cm != null && !StringUtils.isEmpty(cm.getPath())) {
-                            String filename = cm.getFile();
-//                            if (cm.getPath().contains("/")) {
-//                                int in = cm.getPath().lastIndexOf("/");
-//                                filename = cm.getPath().substring(in + 1, cm.getPath().length());
-//                            }
-                            Volume cMap = new Volume();
-                            cMap.setName((cm.getFile() + "-" + cm.getConfigMapId()).replace(".", "-"));
-                            ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
-                            coMap.setName(name + c.getName());
-                            List<KeyToPath> items = new LinkedList<KeyToPath>();
-                            KeyToPath key = new KeyToPath();
-                            key.setKey(cm.getFile() + "v" + cm.getTag());
-                            key.setPath(filename);
-                            items.add(key);
-                            coMap.setItems(items);
-                            cMap.setConfigMap(coMap);
-                            volumes.add(cMap);
-                            VolumeMount volm = new VolumeMount();
-                            volm.setName((cm.getFile() + "-" + cm.getConfigMapId()).replace(".", "-"));
-                            volm.setMountPath(cm.getPath() + "/" + filename);
-                            volm.setSubPath(filename);
-                            volumeMounts.add(volm);
-                            container.setVolumeMounts(volumeMounts);
-                        }
-                    }
-                }
+                convertConfigMap(name+c.getName(),c.getConfigmap(),volumes,volumeMounts);
 
                 if (!StringUtils.isEmpty(logService) && !logService.equals("false")) {
                     Volume emp = new Volume();
@@ -3451,7 +3399,7 @@ public class K8sResultConvert {
 
     }
 
-    private static void convertLabels(Map<String, Object> labels, Map<String, Object> tMap){
+    private static void convertLabels(Map<String, Object> labels, Map<String, Object> podLabels ,Map<String, Object> tMap){
         Map<String, Object> labelMap = (Map<String, Object>)tMap.get("labels");
         if(labelMap == null){
             labelMap = new HashMap<>();
@@ -3474,6 +3422,48 @@ public class K8sResultConvert {
         if(!StringUtils.isEmpty(autoscaleStatus)){
             labelMap.put(LABEL_AUTOSCALE, autoscaleStatus);
             tMap.put("labels", labelMap);
+        }
+
+        //获取服务版本标签
+        String deployVersion = null;
+        if(podLabels != null && podLabels.containsKey(Constant.TYPE_DEPLOY_VERSION)) {
+            deployVersion = podLabels.get(Constant.TYPE_DEPLOY_VERSION).toString();
+        }
+        if(!StringUtils.isEmpty(deployVersion)){
+            labelMap.put(Constant.TYPE_DEPLOY_VERSION, deployVersion);
+            tMap.put("labels", labelMap);
+        }
+    }
+
+    public static void convertConfigMap(String name, List<CreateConfigMapDto> configMaps,
+                                  List<Volume> volumes, List<VolumeMount> volumeMounts){
+        if(CollectionUtils.isEmpty(configMaps)){
+            return;
+        }
+        int configMapNo = 1;
+        for (CreateConfigMapDto cm : configMaps) {
+            if (cm == null || StringUtils.isBlank(cm.getPath())) {
+                continue;
+            }
+            String filename = cm.getFile();
+            Volume cMap = new Volume();
+            cMap.setName(configMapNo + "-" + cm.getConfigMapId());
+            ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
+            coMap.setName(name);
+            List<KeyToPath> items = new LinkedList<KeyToPath>();
+            KeyToPath key = new KeyToPath();
+            key.setKey(cm.getFile() + "v" + cm.getTag());
+            key.setPath(filename);
+            items.add(key);
+            coMap.setItems(items);
+            cMap.setConfigMap(coMap);
+            volumes.add(cMap);
+            VolumeMount volm = new VolumeMount();
+            volm.setName(configMapNo + "-" + cm.getConfigMapId());
+            volm.setMountPath((cm.getPath().endsWith("/")?cm.getPath():(cm.getPath() + "/")) + filename);
+            volm.setSubPath(filename);
+            volumeMounts.add(volm);
+            configMapNo++;
         }
     }
 }

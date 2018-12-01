@@ -41,5 +41,9 @@ public class APIGroup {
 	public final static String RBAC = "rbac.authorization.k8s.io";
 	
 	public final static String APIS_POLICY_V1BETA1 = "/apis/policy/v1beta1";
+
+	public final static String APIS_ISTIO = "/apis/config.istio.io/v1alpha2";
+
+	public final static String APIS_ISTIO_NETWORKING = "/apis/networking.istio.io/v1alpha3";
 	
 }

@@ -7,6 +7,7 @@ import com.harmonycloud.dto.application.ServiceDeployDto;
 import com.harmonycloud.dto.application.ServiceTemplateDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -100,4 +101,19 @@ public interface ServiceService {
     Map<String, Object> updateAnnotationInScale(Map<String, Object> annotation, Integer scale, Integer replicas) throws Exception;
 
     ActionReturnUtil deleteServiceResource(String name, String namespace, Cluster cluster, Map<String, Object> queryP, String serviceType) throws Exception;
+
+    /**
+     * 根据id删除应用商店应用下的服务模板
+     * @param appId
+     * @throws Exception
+     */
+    void deleteServiceTemplateByAppId(int appId) throws Exception;
+
+    /**
+     * 根据id获取应用商店应用下的服务模板
+     * @param appId
+     * @return
+     * @throws Exception
+     */
+    List<ServiceTemplates> listServiceTemplateByAppId(int appId) throws Exception;
 }

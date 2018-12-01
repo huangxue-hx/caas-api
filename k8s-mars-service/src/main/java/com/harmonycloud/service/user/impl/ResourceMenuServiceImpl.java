@@ -13,7 +13,7 @@ import java.util.List;
 @Transactional(rollbackFor = Exception.class)
 public class ResourceMenuServiceImpl implements ResourceMenuService{
     @Autowired
-    ResourceMenuMapper resourceMenuMapper;
+    private ResourceMenuMapper resourceMenuMapper;
 
     /**
      * 获取系统基础菜单列表

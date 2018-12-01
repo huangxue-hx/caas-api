@@ -15,6 +15,8 @@ import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.constant.APIGroup;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -25,7 +27,8 @@ import com.harmonycloud.k8s.util.K8SURL;
 
 @Service
 public class PVCService {
-	
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PVCService.class);
 	public K8SClientResponse doSepcifyPVC(String namespace , Map<String, Object> query, String method, Cluster cluster) throws Exception {
         return this.doSepcifyPVC(namespace,null,query,method,cluster);
     }
@@ -94,6 +97,10 @@ public class PVCService {
     }
 
     public PersistentVolumeClaim getPvcByName(String namespace, String pvcName, Cluster cluster) {
+	    if(StringUtils.isBlank(pvcName)){
+            LOGGER.warn("pvcName为空");
+	        return null;
+        }
         K8SURL url = new K8SURL();
         url.setApiGroup(APIGroup.API_V1_VERSION);
         url.setNamespace(namespace);

@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 public class JobController {
 
     @Autowired
-    JobService jobService;
+    private JobService jobService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 

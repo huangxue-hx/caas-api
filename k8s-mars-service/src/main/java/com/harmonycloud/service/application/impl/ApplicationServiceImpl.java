@@ -68,21 +68,21 @@ public class ApplicationServiceImpl implements ApplicationService {
     private ServiceService serviceService;
 
     @Autowired
-    ReplicasetsService rsService;
+    private ReplicasetsService rsService;
 
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
 
     @Autowired
-    NamespaceService namespaceService;
+    private NamespaceService namespaceService;
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    UserService userService;
+    private UserService userService;
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
 
     @Autowired
     private ClusterService clusterService;

@@ -30,7 +30,7 @@ public class JsonUtil {
 		try {
 			return mapper.writeValueAsString(object);
 		} catch (JsonProcessingException e) {
-			e.printStackTrace();
+			logger.warn("objectToJson失败", e);
 		}
 		return null;
 	}
@@ -49,11 +49,11 @@ public class JsonUtil {
 			T t = mapper.readValue(json,beanType);
 			return t;
 		} catch (JsonParseException e) {
-			e.printStackTrace();
+			logger.warn("jsonToPojo失败", e);
 		} catch (JsonMappingException e) {
-			e.printStackTrace();
+			logger.warn("jsonToPojo失败", e);
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.warn("jsonToPojo失败", e);
 		}
 		return null;
 	}
@@ -70,8 +70,8 @@ public class JsonUtil {
 	    		List<T> list = mapper.readValue(jsonData, javaType);
 	    		return list;
 			} catch (Exception e) {
-				e.printStackTrace();
-			} 	
+				logger.warn("jsonToList失败", e);
+			}
 	    	return null;
 	    }
 	 /**
@@ -85,11 +85,11 @@ public class JsonUtil {
 		try {
 			map = mapper.readValue(json, new TypeReference<Map<String,Object>>() {});
 		} catch (JsonParseException e) {
-			e.printStackTrace();
+			logger.warn("jsonToMap失败", e);
 		} catch (JsonMappingException e) {
-			e.printStackTrace();
+			logger.warn("jsonToMap失败", e);
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.warn("jsonToMap失败", e);
 		}
 		return map;
 	 }
@@ -105,7 +105,7 @@ public class JsonUtil {
             try {
                 retList = mapper.readValue(json, new TypeReference<List<Map<String, Object>>>() {});
             } catch (IOException e) {
-                e.printStackTrace();
+				logger.warn("jsonToMapList失败", e);
             }
         }
         return retList;

@@ -263,3 +263,8 @@ CREATE TABLE `resource_usage_rate` (
   PRIMARY KEY (`id`),
   KEY `idx_alarm_id` (`alarm_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='资源告警使用率明细';
+
+-- ----------------------------
+
+
+

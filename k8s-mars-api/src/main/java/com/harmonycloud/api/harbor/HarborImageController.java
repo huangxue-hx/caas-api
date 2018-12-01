@@ -32,7 +32,7 @@ public class HarborImageController {
 	@Autowired
 	private HarborSecurityService harborSecurityService;
 	@Autowired
-	ClusterService clusterService;
+	private ClusterService clusterService;
 	@Autowired
 	private HarborService harborService;
 
@@ -237,9 +237,10 @@ public class HarborImageController {
 	@ResponseBody
 	@RequestMapping(value = "/images", method = RequestMethod.GET)
 	public ActionReturnUtil listImages(@PathVariable(value="projectId") String projectId,
-									   @RequestParam(value = "clusterId") String clusterId,
+									   @RequestParam(value = "clusterId", required = false) String clusterId,
 									   @RequestParam(value = "pageSize", required = false) Integer pageSize,
-									   @RequestParam(value = "pageNo", required = false) Integer pageNo)throws Exception {
-		return harborProjectService.listImages(projectId,clusterId, pageSize, pageNo);
+									   @RequestParam(value = "pageNo", required = false) Integer pageNo,
+									   @RequestParam(value = "isPublic", required = false) Boolean isPublic)throws Exception {
+		return harborProjectService.listImages(projectId,clusterId, pageSize, pageNo, isPublic);
 	}
 }

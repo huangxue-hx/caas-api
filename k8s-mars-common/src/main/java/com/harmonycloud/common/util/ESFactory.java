@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class ESFactory {
 
-	public static ExecutorService executor = Executors.newFixedThreadPool(20);
+	public static final ExecutorService executor = Executors.newFixedThreadPool(20);
 	
 
 

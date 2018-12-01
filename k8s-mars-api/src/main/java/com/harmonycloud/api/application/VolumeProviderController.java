@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 public class VolumeProviderController {
 
     @Autowired
-    PersistentVolumeService persistentVolumeService;
+    private PersistentVolumeService persistentVolumeService;
 
     /**
      * 获取某个集群下存储类型及服务提供地址

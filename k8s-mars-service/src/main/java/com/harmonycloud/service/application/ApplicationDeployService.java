@@ -2,6 +2,7 @@ package com.harmonycloud.service.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.ApplicationDeployDto;
+import com.harmonycloud.dto.application.ApplicationDto;
 import com.harmonycloud.k8s.bean.BaseResource;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.service.platform.bean.ApplicationList;
@@ -19,19 +20,11 @@ public interface ApplicationDeployService {
      * 
      * @author gurongyun
      * 
-     * @param projectId
-     *            project id
-     * @param tenantId
-     *            tenant id
-     * @param namespace
-     *            namespace
-     * @param name
-     *            application name
-     * @param status
-     *            application running status 0:abnormal;1:normal
+     * @param applicationQuery
+     *            查询条件
      * @return ActionReturnUtil
      */
-    ActionReturnUtil searchApplication(String projectId, String tenantId, String namespace, String name, String status) throws Exception;
+    ActionReturnUtil searchApplication(ApplicationDto applicationQuery) throws Exception;
 
     /**
      * get application by id service on 17/04/11.

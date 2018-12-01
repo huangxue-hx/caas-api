@@ -30,7 +30,7 @@ public enum EnumMonitorType {
 		return type;
 	}
 
-	public void setType(String type) {
+	private void setType(String type) {
 		this.type = type;
 	}
 

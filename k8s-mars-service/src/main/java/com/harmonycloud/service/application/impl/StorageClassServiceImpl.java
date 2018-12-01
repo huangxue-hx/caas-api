@@ -28,6 +28,7 @@ import com.harmonycloud.service.application.DaemonSetsService;
 import com.harmonycloud.service.application.PersistentVolumeClaimService;
 import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
@@ -84,38 +85,38 @@ public class StorageClassServiceImpl implements StorageClassService {
     private static final int CREATE_SUCCESS_NUM = 1;
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
     @Autowired
-    ScService scService;
+    private ScService scService;
 
     @Autowired
-    DeploymentService deploymentService;
+    private DeploymentService deploymentService;
 
     @Autowired
-    SystemConfigService systemConfigService;
+    private SystemConfigService systemConfigService;
 
     @Autowired
-    PersistentVolumeClaimService persistentVolumeClaimService;
+    private PersistentVolumeClaimService persistentVolumeClaimService;
 
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
 
     @Autowired
-    DaemonSetsService daemonSetsService;
+    private DaemonSetsService daemonSetsService;
 
     @Autowired
-    SecretService secretService;
+    private SecretService secretService;
 
     @Autowired
-    NamespaceService namespaceService;
+    private NamespaceService namespaceService;
 
     @Autowired
-    StatefulSetService statefulSetService;
+    private StatefulSetService statefulSetService;
     @Autowired
-    TenantClusterQuotaService tenantClusterQuotaService;
+    private TenantClusterQuotaService tenantClusterQuotaService;
     @Autowired
-    ResourceQuotaService resourceQuotaService;
+    private ResourceQuotaService resourceQuotaService;
 
     @Override
     public ActionReturnUtil createStorageClass(StorageClassDto storageClass) throws Exception {
@@ -510,6 +511,9 @@ public class StorageClassServiceImpl implements StorageClassService {
                 if(StringUtils.isBlank(storageClassName)){
                     storageClassName = persistentVolumeClaim.getSpec().getStorageClassName();
                 }
+                if(StringUtils.isBlank(storageClassName)){
+                    storageClassName = (String) persistentVolumeClaim.getMetadata().getAnnotations().get(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.STORAGECLASS);
+                }
                 if (name.equals(storageClassName)) {
                     pvcList.add(persistentVolumeClaim);
                 }
@@ -521,6 +525,7 @@ public class StorageClassServiceImpl implements StorageClassService {
         List<Deployment> deploymentList = listDeployment(cluster).getItems();
         List<DaemonSet> daemonSetList = daemonSetsService.listDaemonSets(cluster);
         List<StatefulSet> statefulSetList = statefulSetService.listStatefulSets(null, null, null, cluster).getItems();
+        List<String> serviceNameList = new ArrayList<>();
         for (PersistentVolumeClaim pvc : pvcList) {
             for (Deployment deployment : deploymentList) {
                 boolean isUse = false;
@@ -533,7 +538,8 @@ public class StorageClassServiceImpl implements StorageClassService {
                         }
                     }
                 }
-                if(isUse){
+                if(isUse && !serviceNameList.contains(deployment.getMetadata().getName() + CommonConstant.DOT  + deployment.getMetadata().getNamespace())){
+                    serviceNameList.add(deployment.getMetadata().getName() + CommonConstant.DOT  + deployment.getMetadata().getNamespace());
                     Map<String, Object> serviceItem = convertServiceItem(deployment.getMetadata(), deployment.getSpec().getTemplate());
                     serviceItem.put("type", CommonConstant.LABEL_KEY_APP);
                     serviceItem.put("status", K8sResultConvert.getDeploymentStatus(deployment));
@@ -560,7 +566,8 @@ public class StorageClassServiceImpl implements StorageClassService {
                         }
                     }
                 }
-                if(isUse){
+                if(isUse && !serviceNameList.contains(statefulset.getMetadata().getName() + CommonConstant.DOT  + statefulset.getMetadata().getNamespace())){
+                    serviceNameList.add(statefulset.getMetadata().getName() + CommonConstant.DOT  + statefulset.getMetadata().getNamespace());
                     Map<String, Object> serviceItem = convertServiceItem(statefulset.getMetadata(), statefulset.getSpec().getTemplate());
                     serviceItem.put("type", CommonConstant.LABEL_KEY_STATEFULSET);
                     serviceItem.put("status", K8sResultConvert.getStatefulSetStatus(statefulset));
@@ -581,7 +588,8 @@ public class StorageClassServiceImpl implements StorageClassService {
                             break;
                         }
                     }
-                    if(isUse){
+                    if(isUse && !serviceNameList.contains(daemonSet.getMetadata().getName() + CommonConstant.DOT  + daemonSet.getMetadata().getNamespace())){
+                        serviceNameList.add(daemonSet.getMetadata().getName() + CommonConstant.DOT  + daemonSet.getMetadata().getNamespace());
                         Map<String, Object> serviceItem = convertServiceItem(daemonSet.getMetadata(), daemonSet.getSpec().getTemplate());
                         serviceItem.put("type", CommonConstant.LABEL_KEY_DAEMONSET);
                         serviceItem.put("status", daemonSetsService.convertDaemonStatus(daemonSet));
@@ -844,6 +852,9 @@ public class StorageClassServiceImpl implements StorageClassService {
             return ActionReturnUtil.returnSuccessWithDataAndCount("", CREATE_FAIL_NUM);
         }
         if (nfsProvisioner.getStatus().getAvailableReplicas() == null) {
+            if(Objects.isNull(nfsProvisioner.getMetadata().getAnnotations().get("createTime"))) {
+                return ActionReturnUtil.returnSuccessWithDataAndCount(ErrorCodeMessage.NFS_PROVISIONER_CREATE_FAIL, CREATE_FAIL_NUM);
+            }
             long createTime = Long.parseLong((String) (nfsProvisioner.getMetadata().getAnnotations().get("createTime")));
             long queryTime = (new Date()).getTime();
             int usedTime = DateUtil.getIntervalSeconds(queryTime, createTime);

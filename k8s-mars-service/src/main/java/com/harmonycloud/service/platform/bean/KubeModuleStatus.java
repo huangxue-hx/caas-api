@@ -3,7 +3,8 @@ package com.harmonycloud.service.platform.bean;
 public class KubeModuleStatus {
 
 	private String name;
-	private String cluster;
+	private String clusterName;
+	private String clusterId;
 	private String namespace;
 	private String startTime;
 	private String status;
@@ -68,12 +69,20 @@ public class KubeModuleStatus {
 		this.restartCount = restartCount;
 	}
 
-	public String getCluster() {
-		return cluster;
+	public String getClusterName() {
+		return clusterName;
 	}
 
-	public void setCluster(String cluster) {
-		this.cluster = cluster;
+	public void setClusterName(String clusterName) {
+		this.clusterName = clusterName;
+	}
+
+	public String getClusterId() {
+		return clusterId;
+	}
+
+	public void setClusterId(String clusterId) {
+		this.clusterId = clusterId;
 	}
 
 	public String getMessage() {

@@ -25,10 +25,10 @@ import javax.servlet.http.HttpSession;
 public class ServiceController {
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    ServiceService serviceService;
+    private ServiceService serviceService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 

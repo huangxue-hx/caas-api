@@ -9,20 +9,20 @@ import java.io.Serializable;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class LogVolume implements Serializable {
-    String configMapName;
-    String gitUrl;
+    private String configMapName;
+    private String gitUrl;
 
-    String mountPath;
+    private String mountPath;
 
-    String name;
+    private String name;
 
-    String readOnly;
+    private String readOnly;
 
-    String revision;
+    private String revision;
 
-    String subPath;
+    private String subPath;
 
-    String type;
+    private String type;
 
     public String getConfigMapName() {
         return configMapName;

@@ -107,6 +107,16 @@ public class AppDetail {
 
 	private String serviceDependence;
 
+	private String deployVersion;
+
+	public String getDeployVersion() {
+		return deployVersion;
+	}
+
+	public void setDeployVersion(String deployVersion) {
+		this.deployVersion = deployVersion;
+	}
+
 	public AffinityDto getPodGroupSchedule() {
 		return podGroupSchedule;
 	}

@@ -38,7 +38,7 @@ import java.util.Properties;
 @EnableTransactionManagement
 public class ApplicationConfig {
 
-    Logger LOGGER = LoggerFactory.getLogger(ApplicationConfig.class);
+    private Logger LOGGER = LoggerFactory.getLogger(ApplicationConfig.class);
     //最大连接数100
     private static final int REDIS_MAX_TOTAL_CONNECTION = 200;
     //请求超时时间 3s
@@ -48,10 +48,10 @@ public class ApplicationConfig {
     //redis最小空闲连接数
     private static final int JEDIS_MIN_IDLE = 10;
     public static final String PROPERTIES_RESOURCE = "constant.properties";
-    public static Properties systemProperties;
+    private static Properties systemProperties;
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
     @Bean
     public static Properties getSystemProperties() throws IOException{
@@ -92,10 +92,10 @@ public class ApplicationConfig {
             ClusterRedis redis = cluster.getRedis();
             Map<String, ClusterTemplate> template = InitClusterConfig.getTemplateMap();
             ClusterTemplate redisTemplate = template.get(redis.getType());
-            connection.setHostName(DefaultClient.isInCluster?redisTemplate.getServiceName():cluster.getK8sAddress());
+            connection.setHostName(DefaultClient.getIsInCluster()?redisTemplate.getServiceName():cluster.getK8sAddress());
             for(ServicePort port :  redisTemplate.getServicePort()) {
                 if ("api".equals(port.getType())) {
-                    connection.setPort(DefaultClient.isInCluster? port.getPort():port.getNodePort());
+                    connection.setPort(DefaultClient.getIsInCluster()? port.getPort():port.getNodePort());
                     break;
                 }
             }
@@ -147,8 +147,8 @@ public class ApplicationConfig {
             ClusterTemplate mysqlTemplate = template.get(clusterMysql.getType());
             for(ServicePort port :  mysqlTemplate.getServicePort()) {
                 if ("api".equals(port.getType())) {
-                    String  host = DefaultClient.isInCluster?mysqlTemplate.getServiceName():cluster.getK8sAddress();
-                    Integer target = DefaultClient.isInCluster?port.getPort():port.getNodePort();
+                    String  host = DefaultClient.getIsInCluster()?mysqlTemplate.getServiceName():cluster.getK8sAddress();
+                    Integer target = DefaultClient.getIsInCluster()?port.getPort():port.getNodePort();
                     druidDataSource.setUrl("jdbc:mysql://"+host+":"+target+"/k8s_auth_server?useUnicode=true&characterEncoding=UTF-8");
                     break;
                 }
@@ -210,10 +210,10 @@ public class ApplicationConfig {
         ClusterJenkins jenkins = cluster.getJenkins();
         Map<String, ClusterTemplate> template = InitClusterConfig.getTemplateMap();
         ClusterTemplate jenkinsTemplate = template.get(jenkins.getType());
-        String  host = DefaultClient.isInCluster?jenkinsTemplate.getServiceName():cluster.getK8sAddress();
+        String  host = DefaultClient.getIsInCluster()?jenkinsTemplate.getServiceName():cluster.getK8sAddress();
         // 若 servicePort 无 type：api的 信息，会出现null Exception
         ServicePort servicePort = getApiPort(jenkinsTemplate.getServicePort());
-        Integer port = DefaultClient.isInCluster?servicePort.getPort():servicePort.getNodePort();
+        Integer port = DefaultClient.getIsInCluster()?servicePort.getPort():servicePort.getNodePort();
         String username = jenkins.getUsername();
         String password = jenkins.getPassword();
 

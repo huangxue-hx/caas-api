@@ -75,9 +75,9 @@ public class EsServiceImpl implements EsService {
 	private String esIndexPrefix;
 	
 	@Autowired
-	ClusterService clusterService;
+	private ClusterService clusterService;
 	@Autowired
-	UserService userService;
+	private UserService userService;
 
 	@Override
 	public TransportClient getEsClient(Cluster cluster) throws Exception{

@@ -26,13 +26,13 @@ import javax.servlet.http.HttpSession;
 @Controller
 public class StatefulSetController {
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    StatefulSetsService statefulSetsService;
+    private StatefulSetsService statefulSetsService;
 
     @Autowired
-    ServiceService serviceService;
+    private ServiceService serviceService;
 
     /**
      * 获取有状态服务列表

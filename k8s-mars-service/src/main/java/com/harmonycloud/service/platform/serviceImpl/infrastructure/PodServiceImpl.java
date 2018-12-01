@@ -34,7 +34,7 @@ public class PodServiceImpl implements PodService {
 	@Autowired
 	private com.harmonycloud.k8s.service.PodService podService;
 	@Autowired
-	ClusterService clusterService;
+	private ClusterService clusterService;
 
 	@Autowired
 	private EventService eventService;
@@ -121,7 +121,8 @@ public class PodServiceImpl implements PodService {
 					}
 					for(ContainerStatus containerStatus : containerStatuses){
 						KubeModuleStatus kubeModuleStatus = new KubeModuleStatus();
-						kubeModuleStatus.setCluster(cluster.getName());
+						kubeModuleStatus.setClusterName(cluster.getName());
+						kubeModuleStatus.setClusterId(cluster.getId());
 						kubeModuleStatus.setName(pod.getMetadata().getName());
 						kubeModuleStatus.setNamespace(pod.getMetadata().getNamespace());
 						kubeModuleStatus.setStartTime(pod.getMetadata().getCreationTimestamp());

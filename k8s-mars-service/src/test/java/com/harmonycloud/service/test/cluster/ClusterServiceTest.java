@@ -22,7 +22,7 @@ public class ClusterServiceTest extends BaseTest {
     protected Logger logger= LoggerFactory.getLogger(ClusterServiceTest.class);
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
     private List<Cluster> clusters;
 

@@ -35,25 +35,25 @@ public class DataPrivilegeServiceImpl implements DataPrivilegeService{
     private static Logger logger = LoggerFactory.getLogger(DataPrivilegeServiceImpl.class);
 
     @Autowired
-    DataPrivilegeStrategyMapper dataPrivilegeStrategyMapper;
+    private DataPrivilegeStrategyMapper dataPrivilegeStrategyMapper;
 
     @Autowired
-    DataPrivilegeGroupService dataPrivilegeGroupService;
+    private DataPrivilegeGroupService dataPrivilegeGroupService;
 
     @Autowired
-    DataPrivilegeGroupMappingService dataPrivilegeGroupMappingService;
+    private DataPrivilegeGroupMappingService dataPrivilegeGroupMappingService;
 
     @Autowired
-    DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
+    private DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
 
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
 
     @Autowired
-    UserService userService;
+    private UserService userService;
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     /**
      * 增加资源数据
@@ -98,26 +98,10 @@ public class DataPrivilegeServiceImpl implements DataPrivilegeService{
         Integer parentRwGroupId = (Integer)parentGroupMap.get(CommonConstant.DATA_READWRITE);
 
         //根据策略增加读写组与只读组的成员
-        List<String> rwUserList;
-        switch(strategy){
-            case CommonConstant.DATA_CLOSED_STRATEGY:
-                rwUserList = dataPrivilegeGroupMemberService.initGroupMember(rwGroupId, null, parentRwGroupId, CommonConstant.DATA_READWRITE, null);
-                dataPrivilegeGroupMemberService.initGroupMember(roGroupId, null, parentRoGroupId, CommonConstant.DATA_READONLY, rwUserList);
-                break;
-            case CommonConstant.DATA_SEMIOPEN_STRATEGY:
-                rwUserList = dataPrivilegeGroupMemberService.initGroupMember(rwGroupId, null, parentRwGroupId, CommonConstant.DATA_READWRITE, null);
-                dataPrivilegeGroupMemberService.initGroupMember(roGroupId, projectId, parentRoGroupId, CommonConstant.DATA_READONLY, rwUserList);
-                break;
-            case CommonConstant.DATA_OPEN_STRATEGY:
-                rwUserList = dataPrivilegeGroupMemberService.initGroupMember(rwGroupId, projectId, parentRwGroupId, CommonConstant.DATA_READWRITE, null);
-                dataPrivilegeGroupMemberService.initGroupMember(roGroupId, null, parentRoGroupId, CommonConstant.DATA_READONLY, rwUserList);
-                break;
-        }
-
-        //读写组中加入管理员权限组
-        //dataPrivilegeGroupMemberService.addAdminGroupToGroup(rwGroupId);
+        dataPrivilegeGroupMemberService.initGroupMemberByStrategy(strategy, projectId, roGroupId, rwGroupId, parentRoGroupId,parentRwGroupId);
 
     }
+
 
     /**
      * 删除资源数据

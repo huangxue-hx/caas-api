@@ -39,7 +39,7 @@ import java.util.Map;
 public class DashboardServiceImpl implements DashboardService {
 
 	@Autowired
-	SystemConfigService systemConfigService;
+	private SystemConfigService systemConfigService;
 
 	@Autowired
 	private PodService podService;

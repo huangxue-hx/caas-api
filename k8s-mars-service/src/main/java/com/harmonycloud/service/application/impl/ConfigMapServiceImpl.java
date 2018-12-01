@@ -33,7 +33,7 @@ import java.util.*;
 public class ConfigMapServiceImpl implements ConfigMapService {
 
 	@Autowired
-	NamespaceLocalService namespaceLocalService;
+	private NamespaceLocalService namespaceLocalService;
     
     @Override
     public ActionReturnUtil getConfigMapByName(String namespace, String name, String method, Cluster cluster) throws Exception {

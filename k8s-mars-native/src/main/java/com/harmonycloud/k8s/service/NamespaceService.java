@@ -42,7 +42,7 @@ public class NamespaceService {
 			NamespaceList cList = K8SClient.converToBean(response, NamespaceList.class);
 			return cList;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("获取namespace list失败，cluster:{}", cluster.getId(), e);
 		}
 		return null;
 	}

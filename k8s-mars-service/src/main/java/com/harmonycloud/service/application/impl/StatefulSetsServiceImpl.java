@@ -54,64 +54,67 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
     private static final Logger LOGGER = LoggerFactory.getLogger(StatefulSetsServiceImpl.class);
 
     @Autowired
-    AutoScaleService autoScaleService;
+    private AutoScaleService autoScaleService;
 
     @Autowired
-    StatefulSetService statefulSetService;
+    private StatefulSetService statefulSetService;
 
     @Autowired
-    DeploymentsService deploymentsService;
+    private DeploymentsService deploymentsService;
 
     @Autowired
-    FileUploadToContainerService fileUploadToContainerService;
+    private FileUploadToContainerService fileUploadToContainerService;
 
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
 
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
 
     @Autowired
-    DataPrivilegeHelper dataPrivilegeHelper;
+    private DataPrivilegeHelper dataPrivilegeHelper;
 
     @Autowired
-    EventService eventService;
+    private EventService eventService;
 
     @Autowired
-    UserService userService;
+    private UserService userService;
 
     @Autowired
-    PodService podService;
+    private PodService podService;
 
     @Autowired
-    ServicesService servicesService;
+    private ServicesService servicesService;
 
     @Autowired
-    SystemConfigService systemConfigService;
+    private SystemConfigService systemConfigService;
 
     @Autowired
-    DataPrivilegeService dataPrivilegeService;
+    private DataPrivilegeService dataPrivilegeService;
+
+    /*@Autowired
+    private PodDisruptionBudgetService pdbService;*/
 
     @Autowired
-    PodDisruptionBudgetService pdbService;
+    private PVCService pvcService;
 
     @Autowired
-    PVCService pvcService;
+    private ConfigMapService configMapService;
 
     @Autowired
-    ConfigMapService configMapService;
+    private NamespaceService namespaceService;
 
     @Autowired
-    NamespaceService namespaceService;
+    private ServiceService serviceService;
 
     @Autowired
-    ServiceService serviceService;
+    private RouterService routerService;
 
     @Autowired
-    RouterService routerService;
+    private PersistentVolumeClaimService PersistentVolumeClaimService;
 
     @Autowired
-    PersistentVolumeClaimService PersistentVolumeClaimService;
+    private IstioService istioService;
 
     @Override
     public AppDetail getStatefulSetDetail(String namespace, String name) throws Exception {
@@ -242,6 +245,12 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
     @Override
     public ActionReturnUtil createStatefulSet(StatefulSetDetailDto detail, String userName, String app, Cluster cluster, List<IngressDto> ingress) throws Exception {
         dataPrivilegeService.addResource(detail, app, DataResourceTypeEnum.APPLICATION);
+        //参数校验
+        Map<String, Object> namespaceIstioStatus = (Map<String, Object>)(istioService.getNamespaceIstioPolicySwitch(detail.getNamespace(), cluster.getId()).getData());
+        if((boolean)namespaceIstioStatus.get("namespaceIstioStatus") && Objects.isNull(detail.getDeployVersion())){
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPLOY_VERSION_IS_NULL_WHEN_ISTIO_ENABLE);
+        }
+
         //创建configmap
         String serviceLabel = Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET;
         configMapService.createConfigMapForService(detail.getName(), detail.getContainers(), detail.getNamespace(), cluster, serviceLabel);
@@ -276,8 +285,8 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
         Object result = new Object();
 
         //创建pdb，minAvailable与maxUnavailable值从系统配置表system_config中获取
-        String minAvailableValue = systemConfigService.findConfigValueByName(Constant.SYSTEM_CONFIG_PDB_MIN_AVAILABLE);
-        K8SClientResponse pdbRes = null;
+        /*String minAvailableValue = systemConfigService.findConfigValueByName(Constant.SYSTEM_CONFIG_PDB_MIN_AVAILABLE);
+        K8SClientResponse pdbRes = null;*/
 
         StatefulSet statefulSet = K8sResultConvert.convertAppCreateForStatefulSet(detail, userName, app, ingress);
         //HostAlias-自定义 hosts file
@@ -288,7 +297,7 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
         }
         result = resultState.getData();
 
-        pdbRes = pdbService.createPdbByType(detail.getNamespace(), statefulSet.getMetadata().getName() + Constant.PDB_SUFFIX, statefulSet.getSpec().getSelector(), Constant.PDB_TYPE_MIN_AVAILABLE, minAvailableValue, cluster);
+        //pdbRes = pdbService.createPdbByType(detail.getNamespace(), statefulSet.getMetadata().getName() + Constant.PDB_SUFFIX, statefulSet.getSpec().getSelector(), Constant.PDB_TYPE_MIN_AVAILABLE, minAvailableValue, cluster);
 
 
 
@@ -296,13 +305,13 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
         resMap.put("statefulSet", result);
         resMap.put("service", resS);
 
-        if(!HttpStatusUtil.isSuccessStatus((pdbRes.getStatus()))){
+        /*if(!HttpStatusUtil.isSuccessStatus((pdbRes.getStatus()))){
             UnversionedStatus status = JsonUtil.jsonToPojo(pdbRes.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
         com.harmonycloud.k8s.bean.PodDisruptionBudget resPdb =
                 JsonUtil.jsonToPojo(pdbRes.getBody(), com.harmonycloud.k8s.bean.PodDisruptionBudget.class);
-        resMap.put("podDisruptionBudget", resPdb);
+        resMap.put("podDisruptionBudget", resPdb);*/
 
         //pvc打标签
         Map<String, Object> pvcLabel = new HashedMap();

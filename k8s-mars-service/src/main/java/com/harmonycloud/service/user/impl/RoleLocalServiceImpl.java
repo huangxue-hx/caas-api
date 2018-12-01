@@ -59,12 +59,12 @@ public class RoleLocalServiceImpl implements RoleLocalService {
     @Autowired
     private HarborProjectService harborProjectService;
     @Autowired
-    ProjectService projectService;
+    private ProjectService projectService;
 
     private static final Logger log = LoggerFactory.getLogger(RolePrivilegeServiceImpl.class);
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 //   租户项目管理员作用域模式
 //   1 租户项目管理员为默认全局作用域不能修改，
 //   2 租户项目管理员为默认全局作用域,租户管理员不能修改作用域，项目管理员作用域可以修改

@@ -3,6 +3,7 @@ package com.harmonycloud.service.platform.serviceImpl.ci;
 import com.alibaba.druid.pool.DruidDataSource;
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
 import com.harmonycloud.common.enumm.DockerfileTypeEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.StageTemplateTypeEnum;
@@ -33,7 +34,9 @@ import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.common.DataPrivilegeHelper;
 import com.harmonycloud.service.common.PrivilegeHelper;
+import com.harmonycloud.service.dataprivilege.DataPrivilegeService;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.bean.harbor.HarborProjectInfo;
 import com.harmonycloud.service.platform.bean.harbor.HarborRepositoryMessage;
@@ -45,6 +48,7 @@ import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.platform.service.harbor.HarborService;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.RoleLocalService;
@@ -57,6 +61,7 @@ import org.apache.commons.beanutils.BeanUtils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
@@ -187,6 +192,9 @@ public class JobServiceImpl implements JobService {
     @Autowired
     private SystemConfigService systemConfigService;
 
+    @Autowired
+    private NamespaceService namespaceService;
+
     @Value("#{propertiesReader['web.url']}")
     private String webUrl;
 
@@ -197,21 +205,19 @@ public class JobServiceImpl implements JobService {
     private String jenkinsTimeout;
 
     @Autowired
-    private DruidDataSource dataSource;
-
-    @Autowired
-    private DataSourceTransactionManager transactionManager;
-    @Autowired
-    SecretService secretService;
+    private SecretService secretService;
     private long sleepTime = 2000L;
 
     @Autowired
     private HarborProjectService harborProjectService;
 
     @Autowired
-    private ImageRepositoryMapper imageRepositoryMapper;
+    private DataPrivilegeService dataPrivilegeService;
 
-    DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    @Autowired
+    private DataPrivilegeHelper dataPrivilegeHelper;
+
+    private DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -291,6 +297,8 @@ public class JobServiceImpl implements JobService {
             }
             jenkinsServer.createJob(folderJob, job.getName(), generateJobBody(job));
         }
+        //初始化数据权限
+        dataPrivilegeService.addResource(job, null, null);
         return job.getId();
     }
 
@@ -325,6 +333,8 @@ public class JobServiceImpl implements JobService {
             logger.error("删除流水线失败", e);
             throw new MarsRuntimeException(ErrorCodeMessage.PIPELINE_DELETE_ERROR);
         }
+        //删除数据权限
+        dataPrivilegeService.deleteResource(job);
     }
 
     @Override
@@ -363,18 +373,7 @@ public class JobServiceImpl implements JobService {
             jobMapList.add(jobMap);
         }
 
-
-        //数据权限过滤
-//        Iterator it = jobMapList.iterator();
-//        while(it.hasNext()){
-//            Map job = (Map)it.next();
-//            PipelinePrivilegeDto pipelinePrivilegeDto = new PipelinePrivilegeDto();
-//            pipelinePrivilegeDto.setName((String)job.get("name"));
-//            if (privilegeHelper.isFiltered(pipelinePrivilegeDto)) {
-//                it.remove();
-//            }
-//        }
-        return jobMapList;
+        return dataPrivilegeHelper.filterMap(jobMapList, DataResourceTypeEnum.PIPELINE);
     }
 
     @Override
@@ -437,7 +436,7 @@ public class JobServiceImpl implements JobService {
 
         job.put("stageList", stageMapList);
 
-        return ActionReturnUtil.returnSuccessWithData(job);
+        return ActionReturnUtil.returnSuccessWithData(dataPrivilegeHelper.filterMap(job, DataResourceTypeEnum.PIPELINE));
     }
 
     @Override
@@ -756,14 +755,14 @@ public class JobServiceImpl implements JobService {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.warn("获取流水线日志失败", e);
         } finally {
             try {
                 if (session.isOpen()) {
                     session.close();
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.warn("session关闭失败", e);
             }
         }
     }
@@ -2220,7 +2219,7 @@ public class JobServiceImpl implements JobService {
 
     private void doCanaryRelease(Job job, StageDto stageDto, Cluster cluster, Integer buildNum) throws Exception {
         verifyUpgrade(stageDto.getServiceName(), stageDto.getNamespace(), false);
-
+        verifyUpgradeResource(stageDto, cluster);
         K8SClientResponse depRes = deploymentService.doSpecifyDeployment(stageDto.getNamespace(), stageDto.getServiceName(), null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
             throw new MarsRuntimeException(ErrorCodeMessage.DEPLOYMENT_GET_FAILURE);
@@ -2410,7 +2409,11 @@ public class JobServiceImpl implements JobService {
                     updateContainer.setConfigmap(configMapList);
                 }
             } else {
-                updateContainer.setImg(containerOfPodDetail.getImg());
+                String[] imageArray = containerOfPodDetail.getImg().split(CommonConstant.SLASH);
+                if(imageArray.length > CommonConstant.NUM_TWO){
+                    imageArray = ArrayUtils.subarray(imageArray, imageArray.length - CommonConstant.NUM_TWO, imageArray.length);
+                }
+                updateContainer.setImg(StringUtils.join(imageArray, CommonConstant.SLASH));
             }
 
             updateContainer.setImagePullPolicy(CommonConstant.IMAGEPULLPOLICY_ALWAYS);
@@ -2804,5 +2807,83 @@ public class JobServiceImpl implements JobService {
      */
     private void imagePush(Stage stage) throws Exception{
         harborProjectService.syncImage(stage.getRepositoryId(),stage.getImageName(),stage.getImageTag(),stage.getDestClusterId(),true);
+    }
+
+    /**
+     * 校验升级时的资源配额
+     * @param stageDto
+     * @param cluster
+     * @throws Exception
+     */
+    private void verifyUpgradeResource(StageDto stageDto, Cluster cluster) throws Exception{
+        //不中断服务升级，需校验剩余资源
+        if(stageDto.getMaxSurge() != null && stageDto.getMaxSurge() == 1){
+            K8SClientResponse depRes = deploymentService.doSpecifyDeployment(stageDto.getNamespace(), stageDto.getServiceName(), null, null, HTTPMethod.GET, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
+                throw new MarsRuntimeException(depRes.getBody());
+            }
+            Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+            List<Container> containerList = dep.getSpec().getTemplate().getSpec().getContainers();
+            double instanceCpu = 0;
+            double instanceMemory = 0;
+            //计算每个容器的资源总和
+            for(Container container:containerList){
+                if(container.getResources() != null && container.getResources().getRequests() !=null){
+                    Map<String, Object> request = (Map<String, Object>)container.getResources().getRequests();
+                    String cpu = (String)request.get(CommonConstant.CPU);
+                    String memory = (String)request.get(CommonConstant.MEMORY);
+                    if(cpu.contains(CommonConstant.SMALLM)){
+                        instanceCpu += Double.parseDouble(cpu.split(CommonConstant.SMALLM)[0])/CommonConstant.NUM_THOUSAND;
+                    }else{
+                        instanceCpu += Double.parseDouble(cpu);
+                    }
+                    if(memory.contains(CommonConstant.SMALLM)){
+                        instanceMemory += Double.parseDouble(memory.split(CommonConstant.SMALLM)[0]);
+                    }else if(memory.contains(CommonConstant.MI)){
+                        instanceMemory += Double.parseDouble(memory.split(CommonConstant.MI)[0]);
+                    }else if(memory.contains(CommonConstant.SMALLG)){
+                        instanceMemory +=Double.parseDouble(memory.split(CommonConstant.SMALLG)[0]) * CommonConstant.NUM_SIZE_MEMORY;
+                    }else if(memory.contains(CommonConstant.GI)){
+                        instanceMemory += Double.parseDouble(memory.split(CommonConstant.GI)[0]) * CommonConstant.NUM_SIZE_MEMORY;
+                    }
+                }
+            }
+
+            //获取分区下的资源配额
+            Map<String, Object> quotaMap = namespaceService.getNamespaceQuota(stageDto.getNamespace());
+            List<Object> cpus = (List<Object>)quotaMap.get(CommonConstant.CPU);
+            List<Object> memorys = (List<Object>)quotaMap.get(CommonConstant.MEMORY);
+            String hardType = (String)quotaMap.get(CommonConstant.HARDTYPE);
+            String usedType = (String)quotaMap.get(CommonConstant.USEDTYPE);
+            //计算cpu剩余量与服务cpu比较
+            if(CollectionUtils.isNotEmpty(cpus) && cpus.size() == 2) {
+                double totalCpu = Double.valueOf((String)cpus.get(0));
+                double usedCpu = Double.valueOf((String)cpus.get(1));
+                double remainCpu = totalCpu - usedCpu;
+                if(remainCpu < instanceCpu){
+                    throw new MarsRuntimeException(ErrorCodeMessage.NO_ENOUGH_RESOURCE);
+                }
+            }
+            //计算内存剩余量与服务内存比较
+            if(CollectionUtils.isNotEmpty(memorys) && memorys.size() == 2) {
+                double totalMemory = Double.valueOf((String)memorys.get(0));
+                if(CommonConstant.GB.equals(hardType)){
+                    totalMemory = totalMemory * CommonConstant.NUM_SIZE_MEMORY;
+                }else if(CommonConstant.TB.equals(hardType)){
+                    totalMemory = totalMemory * CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY;
+                }
+                double usedMemory = Double.valueOf((String)memorys.get(1));
+                if(CommonConstant.GB.equals(usedType)){
+                    usedMemory = usedMemory * CommonConstant.NUM_SIZE_MEMORY;
+                }else if(CommonConstant.TB.equals(usedType)){
+                    usedMemory = usedMemory * CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY;
+                }
+                double remainMemory = totalMemory - usedMemory;
+                if(remainMemory < instanceMemory){
+                    throw new MarsRuntimeException(ErrorCodeMessage.NO_ENOUGH_RESOURCE);
+                }
+            }
+
+        }
     }
 }

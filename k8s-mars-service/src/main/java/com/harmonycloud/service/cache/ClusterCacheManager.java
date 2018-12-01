@@ -12,9 +12,11 @@ import com.harmonycloud.common.util.HttpClientUtil;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.dto.cluster.ClusterCRDDto;
+import com.harmonycloud.dto.cluster.DataCenterDto;
 import com.harmonycloud.k8s.bean.cluster.*;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.k8s.util.DefaultClient;
+import com.harmonycloud.service.application.DataCenterService;
 import com.harmonycloud.service.cluster.ClusterCRDService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
@@ -51,13 +53,15 @@ public class ClusterCacheManager {
     private static final String REDIS_KEY_PRIVILEGE = "privilege";
     private static final String REDIS_KEY_USER = "userStatus";
     @Autowired
-    StringRedisTemplate stringRedisTemplate;
+    private StringRedisTemplate stringRedisTemplate;
     @Autowired
-    ClusterCRDService clusterCRDService;
+    private ClusterCRDService clusterCRDService;
     @Autowired
-    UserService userService;
+    private UserService userService;
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
+    @Autowired
+    private DataCenterService dataCenterService;
     //容器云平台部署的集群，上层集群
     private static Cluster platformCluster;
     @Value("${public.key:}")
@@ -77,8 +81,14 @@ public class ClusterCacheManager {
                 return Collections.emptyMap();
             }
             List<ClusterCRDDto> clusterTPRDtos = (List<ClusterCRDDto>) clusterResponse.get("data");
+            ActionReturnUtil dataCenterResponse = dataCenterService.listDataCenter(false,null);
+            if (!dataCenterResponse.isSuccess() || dataCenterResponse.get("data") == null) {
+                LOGGER.error("获取数据中心列表错误,response:{}", JSONObject.toJSONString(dataCenterResponse));
+                return Collections.emptyMap();
+            }
+            List<DataCenterDto> dataCenters = (List)dataCenterResponse.getData();
             LOGGER.info("初始化cluster集群信息,集群数量：{}", clusterTPRDtos.size());
-            List<Cluster> listClusters = this.convertCluster(clusterTPRDtos);
+            List<Cluster> listClusters = this.convertCluster(clusterTPRDtos, dataCenters);
             if (CollectionUtils.isEmpty(listClusters)) {
                 LOGGER.warn("获取集群列表为空");
                 return Collections.emptyMap();
@@ -348,7 +358,8 @@ public class ClusterCacheManager {
      * @param clusterCRDDtos
      * @return
      */
-    private List<Cluster> convertCluster(List<ClusterCRDDto> clusterCRDDtos) throws Exception{
+    private List<Cluster> convertCluster(List<ClusterCRDDto> clusterCRDDtos, List<DataCenterDto> dataCenters) throws Exception{
+        Map<String,String> dataCenterMap = dataCenters.stream().collect(Collectors.toMap(DataCenterDto::getName, dataCenter -> dataCenter.getAnnotations()));
         List<Cluster> clusters = new ArrayList<>();
         // 获取每个harbor被哪些集群共用
         List<Map<String,String>> referredClusters = this.getHarborReferredClusters(clusterCRDDtos);
@@ -358,6 +369,7 @@ public class ClusterCacheManager {
             Cluster cluster = new Cluster();
             cluster.setId(clusterTPRDto.getUid());
             cluster.setDataCenter(clusterTPRDto.getDataCenter());
+            cluster.setDataCenterName(dataCenterMap.get(cluster.getDataCenter()));
             cluster.setName(clusterTPRDto.getName());
             cluster.setAliasName(clusterTPRDto.getNickname());
             cluster.setHost(clusterTPRDto.getK8sAddress());
@@ -376,6 +388,7 @@ public class ClusterCacheManager {
             cluster.setClusterComponent(clusterTPRDto.getTemplate());
             cluster.setCreateTime(clusterTPRDto.getCreateTime());
             cluster.setIsEnable(clusterTPRDto.getIsEnable());
+            cluster.setGitInfo(clusterTPRDto.getGitInfo());
 
             List<ClusterTemplate> clusterTemplates = clusterTPRDto.getTemplate();
             for(ClusterTemplate clusterTemplate : clusterTemplates){

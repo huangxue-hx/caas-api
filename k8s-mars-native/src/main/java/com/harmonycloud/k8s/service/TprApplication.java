@@ -25,8 +25,8 @@ import java.util.Map;
 @Service
 public class TprApplication {
 
-    static final String KIND_APP = "AppApp";
-    static final String API_VERSION_APP = "harmonycloud.cn/v1";
+    static final private String KIND_APP = "AppApp";
+    static final private String API_VERSION_APP = "harmonycloud.cn/v1";
     /**
      * 创建 application
      * @param application

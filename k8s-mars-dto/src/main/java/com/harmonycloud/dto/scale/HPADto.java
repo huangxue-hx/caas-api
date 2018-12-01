@@ -18,7 +18,7 @@ public class HPADto {
     @NotNull(message="最大实例数不能为空")
     @Min(value=2, message="最大实例数不能小于2")
     private Integer maxPods;
-    List<ResourceMetricScaleDto> resource;
+    private List<ResourceMetricScaleDto> resource;
 
 
     public String getNamespace() {

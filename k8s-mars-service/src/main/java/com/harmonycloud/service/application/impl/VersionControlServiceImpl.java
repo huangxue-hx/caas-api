@@ -52,34 +52,34 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
 
 
     @Autowired
-    DeploymentService dpService;
+    private DeploymentService dpService;
 
     @Autowired
-    ServicesService sService;
+    private ServicesService sService;
 
     @Autowired
-    com.harmonycloud.service.application.ServiceService serviceService;
+    private com.harmonycloud.service.application.ServiceService serviceService;
 
     @Autowired
-    WatchService watchService;
+    private WatchService watchService;
 
     @Autowired
-    PodService podService;
+    private PodService podService;
 
     @Autowired
     private PersistentVolumeService volumeSerivce;
 
     @Autowired
-    ReplicasetsService rsService;
+    private ReplicasetsService rsService;
 
     @Autowired
-    PVCService pvcService;
+    private PVCService pvcService;
 
     @Autowired
     private PvService pvService;
 
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
 
     @Autowired
     private DeploymentsService deploymentsService;
@@ -89,6 +89,9 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
 
     @Autowired
     private PersistentVolumeClaimService persistentVolumeClaimService;
+
+    @Autowired
+    private IstioService istioService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -105,6 +108,13 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         if (Objects.isNull(cluster)) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
+
+        //参数校验
+        Map<String, Object> namespaceIstioStatus = (Map<String, Object>)(istioService.getNamespaceIstioPolicySwitch(detail.getNamespace(), cluster.getId()).getData());
+        if((boolean)namespaceIstioStatus.get("namespaceIstioStatus") && Objects.isNull(detail.getDeployVersion())){
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPLOY_VERSION_IS_NULL_WHEN_ISTIO_ENABLE);
+        }
+
         ServiceTypeEnum serviceTypeEnum;
         if(StringUtils.isBlank(detail.getServiceType())){
             serviceTypeEnum = ServiceTypeEnum.DEPLOYMENT;
@@ -175,6 +185,14 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
             dep.getSpec().setStrategy(strategy);
         }
         dep.getSpec().setPaused(false);
+        //更新服务版本标签
+        if(StringUtils.isNotEmpty(detail.getDeployVersion())){
+            dep.getSpec().getTemplate().getMetadata().getLabels().put(Constant.TYPE_DEPLOY_VERSION, detail.getDeployVersion());
+        }else {
+            if (dep.getSpec().getTemplate().getMetadata().getLabels().containsKey(Constant.TYPE_DEPLOY_VERSION)){
+                dep.getSpec().getTemplate().getMetadata().getLabels().remove(Constant.TYPE_DEPLOY_VERSION);
+            }
+        }
 
         //获取pvc
         String namespace = detail.getNamespace();
@@ -197,21 +215,23 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         for(UpdateContainer container : containers){
             if(CollectionUtils.isNotEmpty(container.getStorage())){
                 for(PersistentVolumeDto persistentVolumeDto : container.getStorage()){
-                    if(persistentVolumeDto.getPvcName() != null){
+                    if(StringUtils.isNotBlank(persistentVolumeDto.getPvcName())){
                         currentPvcs.add(persistentVolumeDto.getPvcName());
                     }
                 }
             }
         }
-        //删除去掉的pvc标签
-        for(PersistentVolumeClaim prePvc : persistentVolumeClaims){
-            if(!currentPvcs.contains(prePvc.getMetadata().getName())){
-                Map<String, Object> labels = prePvc.getMetadata().getLabels();
-                labels.remove(CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name);
-                prePvc.getMetadata().setLabels(labels);
-                pvcService.updatePvcByName(prePvc,cluster);
-            }else{
-                currentPvcs.remove(prePvc.getMetadata().getName());
+        //升级全部实例时，删除去掉的pvc标签
+        if(instances == dep.getSpec().getReplicas()) {
+            for (PersistentVolumeClaim prePvc : persistentVolumeClaims) {
+                if (!currentPvcs.contains(prePvc.getMetadata().getName())) {
+                    Map<String, Object> labels = prePvc.getMetadata().getLabels();
+                    labels.remove(CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name);
+                    prePvc.getMetadata().setLabels(labels);
+                    pvcService.updatePvcByName(prePvc, cluster);
+                } else {
+                    currentPvcs.remove(prePvc.getMetadata().getName());
+                }
             }
         }
 
@@ -315,10 +335,11 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
         Map<String, Object> jsonObject = new HashMap<>();
-        if(StringUtils.isBlank(serviceType)){
-            serviceType = Constant.DEPLOYMENT;
+        String serviceTypeName = serviceType;
+        if(StringUtils.isBlank(serviceTypeName)){
+            serviceTypeName = Constant.DEPLOYMENT;
         }
-        ServiceTypeEnum typeEnum = ServiceTypeEnum.valueOf(serviceType.toUpperCase());
+        ServiceTypeEnum typeEnum = ServiceTypeEnum.valueOf(serviceTypeName.toUpperCase());
         switch (typeEnum) {
             case DEPLOYMENT:
                 jsonObject = this.getDeploymentUpdateStatus(name, namespace, cluster);
@@ -454,7 +475,10 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         Deployment depUpdated = JsonUtil.jsonToPojo(dpUpdated.getBody(), Deployment.class);
 
         updateServiceByDeployment(depUpdated, cluster);
-
+        ActionReturnUtil result = persistentVolumeClaimService.updatePvcByDeployment(depUpdated, cluster);
+        if(!result.isSuccess()){
+            return result;
+        }
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -620,6 +644,11 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
             }
             rollbackBean.setCurrent("false");
             rollbackBean.setRevision(reversion);
+
+            if(rs.getSpec().getTemplate().getMetadata().getLabels().containsKey(Constant.TYPE_DEPLOY_VERSION)){
+                rollbackBean.setDeployVersion(rs.getSpec().getTemplate().getMetadata().getLabels().get(Constant.TYPE_DEPLOY_VERSION).toString());
+            }
+
             if (reversion.equals(dep.getMetadata().getAnnotations().get("deployment.kubernetes.io/revision"))) {
                 rollbackBean.setCurrent("true");
             }
@@ -680,6 +709,11 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
                 return ActionReturnUtil.returnErrorWithData(status.getMessage());
             }
             Deployment depUpdated = JsonUtil.jsonToPojo(dpUpdated.getBody(), Deployment.class);
+            //更新回滚过程中去除的pvc中的服务标签
+            ActionReturnUtil result = persistentVolumeClaimService.updatePvcByDeployment(depUpdated, cluster);
+            if(!result.isSuccess()){
+                return result;
+            }
             return updateServiceByDeployment(depUpdated, cluster);
         }
         return ActionReturnUtil.returnSuccess();
@@ -689,7 +723,7 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
     @SuppressWarnings("unused")
     private void watchAppEvent(String name, String namespace, String kind, String rv, String userName, Cluster cluster)
             throws Exception {
-        String token = String.valueOf(K8SClient.tokenMap.get(userName));
+        String token = String.valueOf(K8SClient.getTokenMap().get(userName));
         Map<String, Object> headers = new HashMap<>();
         headers.put("Authorization", "Bearer " + token);
         Map<String, String> field = new HashMap<String, String>();
@@ -912,4 +946,6 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         resultMap.put("message", dep.getStatus().getConditions());
         return resultMap;
     }
+
+
 }

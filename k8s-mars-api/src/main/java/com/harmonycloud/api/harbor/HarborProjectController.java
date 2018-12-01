@@ -31,7 +31,7 @@ import java.util.List;
 public class HarborProjectController {
 
 	@Autowired
-	HttpSession session;
+	private HttpSession session;
 	@Autowired
 	private HarborProjectService harborProjectService;
 	@Autowired

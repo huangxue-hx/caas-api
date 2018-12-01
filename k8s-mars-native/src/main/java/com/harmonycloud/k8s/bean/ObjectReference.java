@@ -11,21 +11,21 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ObjectReference {
 
-	String kind;
+	private String kind;
 	
-	String namespace;
+	private String namespace;
 	
-	String name;
+	private String name;
 	
-	String uid;
+	private String uid;
 	
-	String apiVersion;
+	private String apiVersion;
 	
-	String resourceVersion;
+	private String resourceVersion;
 	
-	String fieldPath;
+	private String fieldPath;
 
-	String apiGroup;
+	private String apiGroup;
 
 	public String getApiGroup() {
 		return apiGroup;

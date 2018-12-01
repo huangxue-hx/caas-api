@@ -34,6 +34,8 @@ public class Cluster implements Serializable,Comparable<Cluster> {
 	 * 集群所属的数据中心
 	 */
 	private String dataCenter;
+
+	private String dataCenterName;
 	/**
 	 * 集群mater的host或高可用集群vip
 	 */
@@ -87,7 +89,7 @@ public class Cluster implements Serializable,Comparable<Cluster> {
 	/**
 	 * 集群http对外服务的域名，有三级和四级域名
 	 */
-	private List<ClusterDomain> domains;
+	private ClusterDomain domains;
 	/**
 	 * 集群是否可用状态
 	 */
@@ -111,6 +113,11 @@ public class Cluster implements Serializable,Comparable<Cluster> {
 	 * 集群组件服务信息
 	 */
 	private List<ClusterTemplate> clusterComponent;
+
+	/**
+	 * 集群git信息
+	 */
+	private ClusterGit gitInfo;
 
 	public Cluster() {
 		super();
@@ -296,6 +303,14 @@ public class Cluster implements Serializable,Comparable<Cluster> {
 		this.dataCenter = dataCenter;
 	}
 
+	public String getDataCenterName() {
+		return dataCenterName;
+	}
+
+	public void setDataCenterName(String dataCenterName) {
+		this.dataCenterName = dataCenterName;
+	}
+
 	public boolean getIsEnable() {
 		return this.isEnable;
 	}
@@ -304,11 +319,11 @@ public class Cluster implements Serializable,Comparable<Cluster> {
 		this.isEnable = enable;
 	}
 
-	public List<ClusterDomain> getDomains() {
+	public ClusterDomain getDomains() {
 		return domains;
 	}
 
-	public void setDomains(List<ClusterDomain> domains) {
+	public void setDomains(ClusterDomain domains) {
 		this.domains = domains;
 	}
 
@@ -343,7 +358,14 @@ public class Cluster implements Serializable,Comparable<Cluster> {
 	@Override
 	public int compareTo(Cluster c){
 		int lev = this.level - c.getLevel();
-		return lev == 0 ? this.getName().compareTo(c.getName()) : lev;
+		if(lev != 0){
+			return lev;
+		}
+		int dataCenter = this.getDataCenter().compareTo(c.getDataCenter());
+		if(dataCenter != 0){
+			return dataCenter;
+		}
+		return this.getName().compareTo(c.getName());
 	}
 
 	@Override
@@ -354,12 +376,20 @@ public class Cluster implements Serializable,Comparable<Cluster> {
 		Cluster cluster = (Cluster) o;
 
 		if (!id.equals(cluster.id)) return false;
+		if (!name.equals(cluster.name)) return false;
+		if (!aliasName.equals(cluster.aliasName)) return false;
+		if (!dataCenter.equals(cluster.dataCenter)) return false;
+		if (!dataCenterName.equals(cluster.dataCenterName)) return false;
 		return host.equals(cluster.host);
 	}
 
 	@Override
 	public int hashCode() {
 		int result = id.hashCode();
+		result = 31 * result + name.hashCode();
+		result = 31 * result + aliasName.hashCode();
+		result = 31 * result + dataCenter.hashCode();
+		result = 31 * result + dataCenterName.hashCode();
 		result = 31 * result + host.hashCode();
 		return result;
 	}
@@ -370,5 +400,13 @@ public class Cluster implements Serializable,Comparable<Cluster> {
 
 	public void setAliasName(String aliasName) {
 		this.aliasName = aliasName;
+	}
+
+	public ClusterGit getGitInfo() {
+		return gitInfo;
+	}
+
+	public void setGitInfo(ClusterGit gitInfo) {
+		this.gitInfo = gitInfo;
 	}
 }

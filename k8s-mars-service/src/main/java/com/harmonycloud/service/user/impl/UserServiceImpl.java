@@ -28,6 +28,7 @@ import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.RoleService;
 import com.harmonycloud.service.user.UserRoleRelationshipService;
 import com.harmonycloud.service.user.UserService;
+import com.harmonycloud.service.util.SsoClient;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFRow;
@@ -53,6 +54,7 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -91,21 +93,21 @@ public class UserServiceImpl implements UserService {
     private HarborUserService harborUserService;
 
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
     @Autowired
-    HttpSession session;
+    private HttpSession session;
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
     @Autowired
-    UserRoleRelationshipService userRoleRelationshipService;
+    private UserRoleRelationshipService userRoleRelationshipService;
     @Autowired
-    ClusterCacheManager clusterCacheManager;
+    private ClusterCacheManager clusterCacheManager;
     @Autowired
-    DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
+    private DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
     @Autowired
-    RedisOperationsSessionRepository redisOperationsSessionRepository;
+    private RedisOperationsSessionRepository redisOperationsSessionRepository;
     @Autowired
-    StringRedisTemplate stringRedisTemplate;
+    private StringRedisTemplate stringRedisTemplate;
 
     public String getCurrentUsername() {
         return (String) session.getAttribute("username");
@@ -217,20 +219,99 @@ public class UserServiceImpl implements UserService {
     @Override
     public Map getcurrentUser(HttpServletRequest request, HttpServletResponse response) throws Exception{
         Map<String, Object> res = new HashMap<String, Object>();
+        if(SsoClient.isOpen()) {
+            //同步用户信息至容器云平台数据库
+            User user = syncUser(request,response);
+            if (null == user) {
+                SsoClient.redirectLogin(session, request, response);
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.USER_NOT_AUTH_OR_TIMEOUT);
+            }
+            //用户信息写入session
+            request.getSession().setAttribute("userId", user.getId());
+            request.getSession().setAttribute("username", user.getUsername());
+            request.getSession().setAttribute("isAdmin", user.getIsAdmin());
 
-        Object user = session.getAttribute("username");
-        if (user == null) {throw new K8sAuthException(com.harmonycloud.k8s.constant.Constant.HTTP_401);}
-        String userName = user.toString();
-        User u = this.userMapper.findByUsername(userName);
-        String userId = session.getAttribute("userId").toString();
-        res.put("username", userName);
-        res.put("userId", userId);
-        res.put("realName", u.getRealName());
-        res.put("isAdmin", u.getIsAdmin() == FLAG_TRUE);
-        List<TenantDto> tenantDtos = tenantService.tenantList();
-        if (org.springframework.util.CollectionUtils.isEmpty(tenantDtos)){List<Role> roleList = this.roleLocalService.getRoleListByUsernameAndTenantIdAndProjectId(userName, null, null);res.put("roleList", roleList);if (!org.springframework.util.CollectionUtils.isEmpty(roleList)){res.put("role", roleList.get(0));}}
-        res.put("tenants", tenantDtos);
+            if (CommonConstant.PAUSE.equals(user.getPause())) {
+                SsoClient.redirectLogin(session, request, response);
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.USER_DISABLED);
+            }
 
+            //获取用户的租户信息
+            List<TenantDto> tenantDtos = tenantService.tenantList();
+            if (CommonConstant.IS_NOT_ADMIN == user.getIsAdmin() && org.apache.commons.collections.CollectionUtils.isEmpty(tenantDtos)) {
+                SsoClient.redirectLogin(session, request, response);
+                throw new MarsRuntimeException(ErrorCodeMessage.USER_NOT_AUTH);
+            }
+            List<Role> roleList = null;
+            if (!CollectionUtils.isEmpty(tenantDtos) && CommonConstant.IS_NOT_ADMIN == user.getIsAdmin()){
+                roleList = this.roleLocalService.getRoleListByUsername(user.getUsername());
+//                List<Role> availableRoleList = roleList.stream().filter(role -> role.getAvailable()).collect(Collectors.toList());
+                if (roleList.size() <= 0){
+                    SsoClient.redirectLogin(session, request, response);
+                    throw new MarsRuntimeException(ErrorCodeMessage.ROLE_DISABLE);
+                }
+                Map<String,Object> map = new HashMap<>();
+                if (!CollectionUtils.isEmpty(roleList)){
+                    Map<String, TenantDto> collect = tenantDtos.stream().collect(Collectors.toMap(TenantDto::getTenantId, tenantDto -> tenantDto));
+                    tenantDtos.clear();
+                    for (Role role:roleList) {
+                        List<UserRoleRelationship> userRoleRelationshipList = this.userRoleRelationshipService.getUserRoleRelationshipList(user.getUsername(), role.getId());
+                        for (UserRoleRelationship userRoleRelationship : userRoleRelationshipList) {
+                            Object object = map.get(userRoleRelationship.getTenantId());
+                            if (Objects.isNull(object)){
+                                TenantDto tenantDto = collect.get(userRoleRelationship.getTenantId());
+                                if (!Objects.isNull(tenantDto)){
+                                    tenantDtos.add(tenantDto);
+                                    map.put(userRoleRelationship.getTenantId(),tenantDto);
+                                }
+                            }
+                        }
+                    }
+                }
+                if (CollectionUtils.isEmpty(roleList)){
+                    //被禁用后该用户在该租户下项目下可用角色为空，处理被禁用的角色
+                    session.setAttribute("roleStatus",Boolean.FALSE);
+                }else {
+                    session.setAttribute("roleStatus",Boolean.TRUE);
+                }
+            }
+            if (CommonConstant.IS_ADMIN == user.getIsAdmin() && roleList == null){
+                roleList = new ArrayList<>();
+                Role role = roleLocalService.getRoleById(CommonConstant.ADMIN_ROLEID);
+                roleList.add(role);
+                res.put("roleList", roleList);
+                if (!org.springframework.util.CollectionUtils.isEmpty(roleList)){
+                    res.put("role", roleList.get(0));
+                }
+            }
+            //返回用户信息
+            res.put("userId", user.getId());
+            res.put("username", user.getUsername());
+            res.put("realName", user.getRealName());
+            res.put("isAdmin", CommonConstant.IS_ADMIN == user.getIsAdmin());
+            res.put("tenants", tenantDtos);
+        }else {
+            Object user = session.getAttribute("username");
+            if (user == null) {
+                throw new K8sAuthException(com.harmonycloud.k8s.constant.Constant.HTTP_401);
+            }
+            String userName = user.toString();
+            User u = this.userMapper.findByUsername(userName);
+            String userId = session.getAttribute("userId").toString();
+            res.put("username", userName);
+            res.put("userId", userId);
+            res.put("realName", u.getRealName());
+            res.put("isAdmin", u.getIsAdmin() == FLAG_TRUE);
+            List<TenantDto> tenantDtos = tenantService.tenantList();
+            if (org.springframework.util.CollectionUtils.isEmpty(tenantDtos)) {
+                List<Role> roleList = this.roleLocalService.getRoleListByUsernameAndTenantIdAndProjectId(userName, null, null);
+                res.put("roleList", roleList);
+                if (!org.springframework.util.CollectionUtils.isEmpty(roleList)) {
+                    res.put("role", roleList.get(0));
+                }
+            }
+            res.put("tenants", tenantDtos);
+        }
         return res;
     }
 
@@ -241,7 +322,7 @@ public class UserServiceImpl implements UserService {
         String newPass = new String();
         String Base = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         //System.out.println(Base.length());
-        Random random = new Random();
+        Random random = new SecureRandom();
         String regex = "^(?![0-9]+$)(?![a-zA-Z]+$)[0-9A-Za-z]{7,12}$";
         boolean matche = false;
         while (!matche) {
@@ -1717,7 +1798,45 @@ public class UserServiceImpl implements UserService {
         return machineUsers.get(0).getToken();
     }
 
-
+    /**
+     * 描述：同步用户信息
+     */
+    private User syncUser(HttpServletRequest request, HttpServletResponse response) throws Exception{
+        //根据cookie中的token获取用户信息
+        User ssoUser = SsoClient.getLoginUser(request, response);
+        if (null == ssoUser) {
+            return null;
+        }
+        //查询容器云平台是否存在该用户
+        User user = userMapper.findByUsername(ssoUser.getUsername());
+        if (null == user) {
+            //不存在，新增用户
+            user = new User();
+            user.setUsername(ssoUser.getUsername());
+            user.setRealName(ssoUser.getRealName());
+            user.setEmail(ssoUser.getEmail());
+            user.setCreateTime(DateUtil.getCurrentUtcTime());
+            user.setPause(CommonConstant.NORMAL);
+            user.setIsAdmin(0);
+            userMapper.insert(user);
+        } else {
+            //存在，更新用户信息
+            User updateUser = new User();
+            if (null != ssoUser.getRealName() && !ssoUser.getRealName().equals(user.getRealName())) {
+                updateUser.setRealName(ssoUser.getRealName());
+            }
+            if (null != ssoUser.getEmail() && !ssoUser.getEmail().equals(user.getEmail())) {
+                updateUser.setEmail(ssoUser.getEmail());
+            }
+            if (null != updateUser.getRealName() || null != updateUser.getEmail()) {
+                updateUser.setId(user.getId());
+                updateUser.setUsername(user.getUsername());
+                updateUser.setUpdateTime(DateUtil.getCurrentUtcTime());
+                userMapper.updateByPrimaryKeySelective(updateUser);
+            }
+        }
+        return user;
+    }
 
     /**
      * 不做用户名及邮箱校验（持续交互平台同步用户使用）

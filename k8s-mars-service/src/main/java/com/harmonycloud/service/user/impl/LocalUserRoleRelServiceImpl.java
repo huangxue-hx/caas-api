@@ -20,7 +20,7 @@ import java.util.List;
 public class LocalUserRoleRelServiceImpl implements LocalUserRoleRelService {
 
     @Autowired
-    LocalUserRoleRelMapper localUserRoleRelMapper;
+    private LocalUserRoleRelMapper localUserRoleRelMapper;
 
     /**
      * 用户是否存在局部角色

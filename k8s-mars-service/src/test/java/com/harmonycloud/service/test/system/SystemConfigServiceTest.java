@@ -14,7 +14,7 @@ import static org.testng.Assert.assertNotNull;
 public class SystemConfigServiceTest extends BaseTest {
 
     @Autowired
-    SystemConfigService systemConfigService;
+    private SystemConfigService systemConfigService;
 
     @Test
     public void testGetCicdConfig(){

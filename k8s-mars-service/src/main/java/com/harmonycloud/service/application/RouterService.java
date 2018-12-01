@@ -99,7 +99,7 @@ public interface RouterService {
     public ActionReturnUtil updateSystemExposeConfigmap(Cluster cluster, String namespace, String service, String icName, List<TcpRuleDto> ruleDto, String protocol) throws Exception;
 
     /**
-     * 获取所有的对外访问路由
+     * 获取所有的对外访问路由， tcp和udp对外服务通过负载均衡器的tcp和upd的configmap获取，http通过ingress获取
      * @param namespace
      * @param nameList
      * @return ActionReturnUtil

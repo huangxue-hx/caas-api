@@ -9,6 +9,8 @@ import org.apache.maven.scm.provider.git.repository.GitScmProviderRepository;
 import org.codehaus.plexus.util.cli.CommandLineException;
 import org.codehaus.plexus.util.cli.CommandLineUtils;
 import org.codehaus.plexus.util.cli.Commandline;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.tmatesoft.svn.core.SVNException;
 import org.tmatesoft.svn.core.SVNNodeKind;
 import org.tmatesoft.svn.core.SVNURL;
@@ -21,6 +23,7 @@ import org.tmatesoft.svn.core.wc.SVNWCUtil;
  * Created by anson on 17/6/2.
  */
 public class ScmUtil {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ScmUtil.class);
 
     public static ActionReturnUtil checkCredentials(String repositoryType, String repositoryUrl, String username, String password) {
         if(RepositoryTypeEnum.SVN.getType().equalsIgnoreCase(repositoryType)){
@@ -66,9 +69,9 @@ public class ScmUtil {
                 return ActionReturnUtil.returnErrorWithMap("message", systemErr.getOutput());
             }
         } catch (ScmException e) {
-            e.printStackTrace();
+            LOGGER.warn("GitCredential验证失败", e);
         } catch (CommandLineException e) {
-            e.printStackTrace();
+            LOGGER.warn("GitCredential验证失败", e);
         }
         return ActionReturnUtil.returnError();
     }

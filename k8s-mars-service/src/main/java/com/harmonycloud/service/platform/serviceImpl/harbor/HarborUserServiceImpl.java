@@ -49,19 +49,19 @@ public class HarborUserServiceImpl implements HarborUserService {
     private static final String HARBOR_LOGIN = "/login";
 
 	@Autowired
-    SystemConfigService systemConfigService;
+    private SystemConfigService systemConfigService;
 	@Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 	@Autowired
-    UserService userService;
+    private UserService userService;
 	@Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
     @Autowired
-    HarborProjectService harborProjectService;
+    private HarborProjectService harborProjectService;
     @Autowired
-    HarborService harborService;
+    private HarborService harborService;
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
 
     @Override
     public Integer createUser(HarborServer harborServer, User user) throws Exception {

@@ -83,7 +83,17 @@ public enum DictEnum {
     STROAGE("stroage","存储"),
     PV("PersistentVolume", "存储卷"),
     PVC("PersistentVolumeClaim", "存储卷索取"),
-    CONFIG_MAP_ID("configMapId","配置组id");
+    CONFIG_MAP_ID("configMapId","配置组id"),
+    INGRESS_CONTROLLER("ingress controller","负载均衡器"),
+    NODE_MASTER("MASTER","主控"),
+    NODE_SYSTEM("SYSTEM","系统"),
+    NODE_BUILD("BUILDING","构建"),
+    NODE_LB("SLB","负载均衡"),
+    NODE_PRIVATE("PRIVATE","独占"),
+    NODE_IDLE("IDLE","闲置"),
+    NODE_PUBLIC("PUBLIC","共享"),
+    NODE_SYSTEMANDSLB("SYSTEM,SLB","系统,负载均衡"),
+    RULE_ID("IstioRuleId", "策略id");
 
 
     private final String enPhrase;

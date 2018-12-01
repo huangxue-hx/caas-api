@@ -42,9 +42,9 @@ public class UserController {
     private UserService userService;
 
     @Autowired
-    ResourceService resourceService;
+    private ResourceService resourceService;
     @Autowired
-    MessageService messageService;
+    private MessageService messageService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -52,9 +52,9 @@ public class UserController {
     private HttpSession session;
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    RolePrivilegeService rolePrivilegeService;
+    private RolePrivilegeService rolePrivilegeService;
 
 
     /**

@@ -17,6 +17,8 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ApmHttpClient {
 
@@ -29,6 +31,8 @@ public class ApmHttpClient {
     private static CloseableHttpClient httpClient = null;
     private static boolean login = false;
     private static Date lastLoginTime = null;
+    private static final Logger LOGGER = LoggerFactory.getLogger(ApmHttpClient.class);
+
 
     public static String getLoginUrl() {
         return loginUrl;
@@ -120,7 +124,7 @@ public class ApmHttpClient {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.warn("获取http请求失败，url:{}", url, e);
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.HTTP_EXCUTE_FAILED, e.getMessage(), false);
         }
         return ActionReturnUtil.returnError();

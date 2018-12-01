@@ -23,6 +23,7 @@ import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.common.DataPrivilegeHelper;
 import com.harmonycloud.service.platform.service.ci.DockerFileService;
 import com.harmonycloud.service.platform.service.ci.StageService;
 import com.harmonycloud.service.tenant.ProjectService;
@@ -44,7 +45,7 @@ public class DockerFileServiceImpl implements DockerFileService {
     private static final Logger LOGGER = LoggerFactory.getLogger(DockerFileServiceImpl.class);
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
     private DockerFileMapper dockerFileMapper;
@@ -60,6 +61,9 @@ public class DockerFileServiceImpl implements DockerFileService {
 
     @Autowired
     private StageService stageService;
+
+    @Autowired
+    private DataPrivilegeHelper dataPrivilegeHelper;
 
     @Override
     public List<DockerFile> findByAll(DockerFile dockerFile) throws Exception{
@@ -93,6 +97,7 @@ public class DockerFileServiceImpl implements DockerFileService {
             dockerFile.setName(null);
         }
         List clusterIdList = new ArrayList();
+        //集群id为空则查询用户权限范围内所有集群的dockerfile
         if(StringUtils.isBlank(dockerFileDTO.getClusterId())){
             List<Cluster> clusterList = roleLocalService.listCurrentUserRoleCluster();
             for(Cluster cluster:clusterList){
@@ -112,6 +117,7 @@ public class DockerFileServiceImpl implements DockerFileService {
                     it.remove();
                     continue;
                 }
+                //解析查询结果中使用该dockerfile的流水线和步骤信息
                 if(StringUtils.isNotBlank(dockerFilePage.getJobNames()) && StringUtils.isNotBlank(dockerFilePage.getStageNames())){
                     String[] jobIds = dockerFilePage.getJobIds().split(",");
                     String[] jobNames = dockerFilePage.getJobNames().split(",");
@@ -128,6 +134,9 @@ public class DockerFileServiceImpl implements DockerFileService {
                             depend.setJobName(jobNames[i]);
                             depend.setStageId(Integer.parseInt(stageIds[i]));
                             depend.setStageName(stageNames[i]);
+                            depend.setClusterId(dockerFilePage.getClusterId());
+                            depend.setProjectId(dockerFilePage.getProjectId());
+                            dataPrivilegeHelper.filter(depend, true);
                             depends.add(depend);
                         }
                         dockerFilePage.setDepends(depends);
@@ -143,11 +152,13 @@ public class DockerFileServiceImpl implements DockerFileService {
     public void insertDockerFile(DockerFile dockerFile) throws Exception {
         projectService.getProjectNameByProjectId(dockerFile.getProjectId());
         clusterService.getClusterNameByClusterId(dockerFile.getClusterId());
+        //查重
         List<DockerFile> dockerFiles =  dockerFileMapper.selectDockerFile(dockerFile);
         if(CollectionUtils.isNotEmpty(dockerFiles)){
             throw new MarsRuntimeException(ErrorCodeMessage.DOCKERFILE_NAME_DUPLICATE);
         }
         dockerFileMapper.insertDockerFile(dockerFile);
+        //创建condifmap
         this.createConfigMap(dockerFile);
     }
 
@@ -159,6 +170,7 @@ public class DockerFileServiceImpl implements DockerFileService {
         if(dockerFileMapper.selectDockerFileById(dockerFile.getId()) == null){
             throw new MarsRuntimeException(ErrorCodeMessage.DOCKERFILE_NOT_EXIST);
         }
+        //查重
         List<DockerFile> dockerFiles = this.selectDockerFile(dockerFile);
         if(CollectionUtils.isNotEmpty(dockerFiles)){
             if(dockerFiles.get(0).getName().equals(dockerFile.getName()) && !dockerFiles.get(0).getId().equals(dockerFile.getId())){
@@ -166,6 +178,7 @@ public class DockerFileServiceImpl implements DockerFileService {
             }
         }
         dockerFileMapper.updateDockerFile(dockerFile);
+        //更新configmap
         updateConfigMap(dockerFile);
     }
 
@@ -174,6 +187,7 @@ public class DockerFileServiceImpl implements DockerFileService {
         if(dockerFileMapper.selectDockerFileById(id) == null){
             throw new MarsRuntimeException(ErrorCodeMessage.DOCKERFILE_NOT_EXIST);
         }
+        //校验dockerfile是否被流水线使用
         Stage stage = new Stage();
         stage.setDockerfileId(id);
         List stageList = stageService.selectByExample(stage);
@@ -181,6 +195,7 @@ public class DockerFileServiceImpl implements DockerFileService {
             throw new MarsRuntimeException(ErrorCodeMessage.DOCKERFILE_USED_BY_PIPELINE);
         }
         dockerFileMapper.deleteDockerFile(id);
+        //删除configmap
         deleteConfigMap(id);
     }
 

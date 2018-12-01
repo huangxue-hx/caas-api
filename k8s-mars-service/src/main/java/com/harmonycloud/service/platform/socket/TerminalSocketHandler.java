@@ -111,7 +111,7 @@ public class TerminalSocketHandler extends TextWebSocketHandler {
 
             return map;
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.warn("getMessageMap失败", e);
         }
         return new HashMap<>();
     }

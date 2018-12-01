@@ -14,8 +14,6 @@ import static com.harmonycloud.service.platform.constant.Constant.TOPO_LABEL_KEY
 
 public class BizUtil {
 
-    private static final int TOPO_KEY_PROJECT_LENGTH = 16;
-
     public static boolean isPodWithDeployment(String podName, Set<String> deployments) throws IllegalArgumentException{
         String[] podNamePart = podName.split("-");
         if(podNamePart.length <3){
@@ -52,9 +50,7 @@ public class BizUtil {
     public static String getTopoLabelKey(String projectId, String appName){
         Assert.hasText(projectId);
         Assert.hasText(appName);
-        return TOPO_LABEL_KEY + LINE
-                + (projectId.length() > TOPO_KEY_PROJECT_LENGTH?projectId.substring(0,TOPO_KEY_PROJECT_LENGTH):projectId)
-                + LINE + appName;
+        return TOPO_LABEL_KEY + LINE + projectId + LINE + appName;
     }
 
 }

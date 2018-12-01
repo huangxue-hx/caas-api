@@ -53,22 +53,22 @@ public class AuthController {
     private SecretService secretService;
 
     @Autowired
-    SystemConfigService systemConfigService;
+    private SystemConfigService systemConfigService;
 
     @Autowired
-    AuthManagerDefault authManagerDefault;
+    private AuthManagerDefault authManagerDefault;
 
     @Autowired
-    AuthManager4Ldap authManager4Ldap;
+    private AuthManager4Ldap authManager4Ldap;
 
     @Autowired
-    UserRoleRelationshipService userRoleRelationshipService;
+    private UserRoleRelationshipService userRoleRelationshipService;
     @Autowired
-    RolePrivilegeService rolePrivilegeService;
+    private RolePrivilegeService rolePrivilegeService;
     @Autowired
-    HttpServletRequest request;
+    private HttpServletRequest request;
     @Autowired
-    StringRedisTemplate stringRedisTemplate;
+    private StringRedisTemplate stringRedisTemplate;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -123,7 +123,7 @@ public class AuthController {
             
             Map<String, Object> data = new HashMap<String, Object>();
             Map<String, Object> token = authService.generateToken(user);
-            K8SClient.tokenMap.put(username, token.get("token"));
+            K8SClient.getTokenMap().put(username, token.get("token"));
             data.put("username", user.getUsername());
             data.put("isSuperAdmin", user.getIsAdmin());
             data.put("token", session.getId());

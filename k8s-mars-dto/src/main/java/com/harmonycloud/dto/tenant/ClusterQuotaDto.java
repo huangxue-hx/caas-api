@@ -22,6 +22,9 @@ public class ClusterQuotaDto implements Serializable {
     private String clusterName;
     //集群aliasName
     private String clusterAliasName;
+    private String dataCenter;
+
+    private String dataCenterName;
     //cpu配额
     private Double cpuQuota;
     //cpu配额类型
@@ -71,6 +74,22 @@ public class ClusterQuotaDto implements Serializable {
 
     public void setClusterAliasName(String clusterAliasName) {
         this.clusterAliasName = clusterAliasName;
+    }
+
+    public String getDataCenter() {
+        return dataCenter;
+    }
+
+    public void setDataCenter(String dataCenter) {
+        this.dataCenter = dataCenter;
+    }
+
+    public String getDataCenterName() {
+        return dataCenterName;
+    }
+
+    public void setDataCenterName(String dataCenterName) {
+        this.dataCenterName = dataCenterName;
     }
 
     public Double getUnUsedCpu() {

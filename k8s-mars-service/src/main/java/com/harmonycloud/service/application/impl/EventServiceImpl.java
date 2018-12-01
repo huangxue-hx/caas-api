@@ -48,7 +48,7 @@ public class EventServiceImpl implements EventService {
 	@Autowired
 	private WatchService watchService;
 	@Autowired
-	ClusterService clusterService;
+	private ClusterService clusterService;
 
 	@Override
 	public EventList getEvents(String name, String namespace, String type, String clusterId) throws Exception {
@@ -120,7 +120,7 @@ public class EventServiceImpl implements EventService {
 		for(Cluster cluster : clusters){
 			EventList eventResult = this.getEvents(eventQueryMap, cluster);
 			if(eventResult != null && !CollectionUtils.isEmpty(eventResult.getItems())){
-				events.put(cluster.getName(), eventResult.getItems());
+				events.put(cluster.getId(), eventResult.getItems());
 			}
 		}
 		return events;

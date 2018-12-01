@@ -5,8 +5,12 @@ import net.sourceforge.pinyin4j.format.HanyuPinyinCaseType;
 import net.sourceforge.pinyin4j.format.HanyuPinyinOutputFormat;
 import net.sourceforge.pinyin4j.format.HanyuPinyinToneType;
 import net.sourceforge.pinyin4j.format.exception.BadHanyuPinyinOutputFormatCombination;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PinyinUtil {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PinyinUtil.class);
+
 
     /**
      * 汉字转为拼音
@@ -24,7 +28,7 @@ public class PinyinUtil {
                 try {
                     pinyinStr += PinyinHelper.toHanyuPinyinStringArray(newChar[i], defaultFormat)[0];
                 } catch (BadHanyuPinyinOutputFormatCombination e) {
-                    e.printStackTrace();
+                    LOGGER.warn("汉字转拼音失败", e);
                 }
             }else{
                 pinyinStr += newChar[i];

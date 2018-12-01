@@ -2,6 +2,7 @@ package com.harmonycloud.service.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.PersistentVolumeClaimDto;
+import com.harmonycloud.k8s.bean.Deployment;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 
 import java.util.Map;
@@ -25,4 +26,6 @@ public interface PersistentVolumeClaimService {
     ActionReturnUtil updatePersistentVolumeClaim(PersistentVolumeClaimDto persistentVolumeClaimDto) throws Exception;
 
     ActionReturnUtil updateLabel(String name, String namespace, Cluster cluster, Map<String, Object> label);
+
+    ActionReturnUtil updatePvcByDeployment(Deployment dep, Cluster cluster) throws Exception;
 }

@@ -16,7 +16,7 @@ import java.util.List;
 public class LocalPrivilegeServiceImpl implements LocalPrivilegeService {
 
     @Autowired
-    LocalPrivilegeMapper LocalPrivilegeMapper;
+    private LocalPrivilegeMapper LocalPrivilegeMapper;
 
     /**
      * 根据角色id查询局部角色的权限规则

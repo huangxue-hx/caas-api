@@ -25,12 +25,12 @@ public class TenantServiceTest extends BaseTest {
     private Logger LOGGER = LoggerFactory.getLogger(TenantServiceTest.class);
 
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
 
     private static TenantDto tenantDto;
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @BeforeClass
     public void createTenantData() {

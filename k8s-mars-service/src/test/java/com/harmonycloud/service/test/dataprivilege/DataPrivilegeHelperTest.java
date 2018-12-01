@@ -37,29 +37,29 @@ public class DataPrivilegeHelperTest extends BaseTest{
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    DataPrivilegeHelper dataPrivilegeHelper;
+    private DataPrivilegeHelper dataPrivilegeHelper;
 
     @Autowired
-    DataPrivilegeGroupMappingService dataPrivilegeGroupMappingService;
+    private DataPrivilegeGroupMappingService dataPrivilegeGroupMappingService;
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    UserService userService;
+    private UserService userService;
 
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
 
     @Autowired
-    DataPrivilegeService dataPrivilegeService;
+    private DataPrivilegeService dataPrivilegeService;
 
-    User user1 = new User();
-    User user2 = new User();
-    DeploymentDetailDto deploymentDetailDto;
-    DataPrivilegeDto dataPrivilegeDto;
-    ApplicationDeployDto applicationDeployDto;
-    ApplicationDetailDto applicationDetailDto;
+    private User user1 = new User();
+    private User user2 = new User();
+    private DeploymentDetailDto deploymentDetailDto;
+    private DataPrivilegeDto dataPrivilegeDto;
+    private ApplicationDeployDto applicationDeployDto;
+    private ApplicationDetailDto applicationDetailDto;
 
 
 

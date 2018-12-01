@@ -1,6 +1,7 @@
 package com.harmonycloud.interceptors;
 
 import com.harmonycloud.api.user.AuthController;
+import com.harmonycloud.service.util.SsoClient;
 import com.harmonycloud.filters.UrlWhiteListHandler;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -34,7 +35,7 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
     @Value("#{propertiesReader['sso.exclusion']}")
     private String urlExclusion;
     @Autowired
-    AuthController AuthController;
+    private AuthController AuthController;
 
     @PostConstruct
     public void initWhiteList(){
@@ -55,6 +56,9 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
                 return false; //验证失败
             }
         }*/
+        if(SsoClient.isOpen()){
+            return true;
+        }
         // 设置跨域访问header信息
         if(StringUtils.isNotBlank(allowOrigin)) {
             String origin = allowOrigin;

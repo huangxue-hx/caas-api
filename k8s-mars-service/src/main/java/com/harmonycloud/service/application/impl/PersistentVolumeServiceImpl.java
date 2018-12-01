@@ -51,7 +51,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
     private static final int SLEEP_TIME_TWO_SECONDS = 2000;
     public static final String PV_STATUS_BOUND = "Bound";
     @Autowired
-    HttpSession session;
+    private HttpSession session;
     @Autowired
     private NamespaceLocalService namespaceLocalService;
     @Autowired
@@ -59,19 +59,19 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
     @Autowired
     private PVCService pvcService;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
     private PodService podService;
     @Autowired
     private ProjectService projectService;
     @Autowired
-    DeploymentService dpService;
+    private DeploymentService dpService;
     @Autowired
-    UserService userService;
+    private UserService userService;
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
     @Autowired
-    InfluxdbService influxdbService;
+    private InfluxdbService influxdbService;
 
     @SuppressWarnings("unchecked")
     @Override

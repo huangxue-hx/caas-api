@@ -4,8 +4,8 @@ package com.harmonycloud.service.platform.bean;
  * Created by czm on 17-2-23.
  */
 public class Size {
-    String col;
-    String row;
+    private String col;
+    private String row;
 
     public String getCol() {
         return col;

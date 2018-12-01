@@ -62,4 +62,8 @@ public interface ServiceTemplatesMapper {
     List<ServiceTemplates> listPublicNameByTenant(@Param("name") String name, @Param("isPublic") boolean isPublic);
     
     void updateServiceTemplatePublic(@Param("name") String name, @Param("isPublic") boolean isPublic);
+
+    void deleteByAppId(@Param("appId") int appId);
+
+    List<ServiceTemplates> listByAPPId(@Param("appId") int appId);
 }

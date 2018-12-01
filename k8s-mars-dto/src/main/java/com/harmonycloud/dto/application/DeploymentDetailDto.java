@@ -60,7 +60,6 @@ public class DeploymentDetailDto {
 	/**pod 按主机分组调度**/
 	private AffinityDto podGroupSchedule;
 
-    @DataPrivilegeField(type = CommonConstant.PROJECTID_FIELD)
 	//Service Account
 	private boolean automountServiceAccountToken;
 
@@ -68,9 +67,21 @@ public class DeploymentDetailDto {
 
 	private String serviceAccountName;
 
+	@DataPrivilegeField(type = CommonConstant.PROJECTID_FIELD)
 	private String projectId;
 
 	private String nodeSelector;
+
+	//服务版本
+	private String deployVersion;
+
+	public String getDeployVersion() {
+		return deployVersion;
+	}
+
+	public void setDeployVersion(String deployVersion) {
+		this.deployVersion = deployVersion;
+	}
 
 	public String getServiceAccount() {
 		return serviceAccount;

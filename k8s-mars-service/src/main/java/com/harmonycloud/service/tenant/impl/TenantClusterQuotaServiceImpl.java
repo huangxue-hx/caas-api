@@ -53,6 +53,7 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
     private static final Logger logger = LoggerFactory.getLogger(TenantClusterQuotaServiceImpl.class);
     private static final String MEMORYGB = "memoryGb";
     private static final String STORAGE = "storageclasses";
+    private static final int STORAGE_USED_INDEX = 1;
 
     /**
      * 根据租户id查询集群配额列表 clusterId 为空查询该租户下的所有集群配额
@@ -78,8 +79,14 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
         for (TenantClusterQuota tenantClusterQuota:quotaList) {
             String currentClusterId = tenantClusterQuota.getClusterId();
             Cluster cluster = this.clusterService.findClusterById(currentClusterId);
+            //集群关闭状态不查询资源
+            if(!cluster.isEnable()){
+                continue;
+            }
             ClusterQuotaDto clusterQuotaDto = new ClusterQuotaDto();
             clusterQuotaDto.setClusterId(currentClusterId);
+            clusterQuotaDto.setDataCenter(cluster.getDataCenter());
+            clusterQuotaDto.setDataCenterName(cluster.getDataCenterName());
             clusterQuotaDto.setClusterAliasName(cluster.getAliasName());
             clusterQuotaDto.setTenantId(tenantClusterQuota.getTenantId());
             clusterQuotaDto.setId(tenantClusterQuota.getId());
@@ -259,10 +266,10 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
                     for (String storageName : storageMap.keySet()) {
                         LinkedList<String> storageSetNew = storageMap.get(storageName);
                         if (allStorageUsedMap.get(storageName) != null) {
-                            Integer storageUsed = allStorageUsedMap.get(storageName) + Integer.parseInt(storageSetNew.get(0));
+                            Integer storageUsed = allStorageUsedMap.get(storageName) + Integer.parseInt(storageSetNew.get(STORAGE_USED_INDEX));
                             allStorageUsedMap.put(storageName, storageUsed);
                         } else {
-                            allStorageUsedMap.put(storageName, Integer.parseInt(storageSetNew.get(0)));
+                            allStorageUsedMap.put(storageName, Integer.parseInt(storageSetNew.get(STORAGE_USED_INDEX)));
                         }
                     }
                 }

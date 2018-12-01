@@ -110,6 +110,10 @@ public class CommonConstant {
     public static final String USEDTYPE = "usedType";
     public static final String TYPE = "type";
     public static final String APPLICATION_JSON = "application/json";
+    //时间单位
+    public static final String SECOND = "s";
+    public static final String MINUTE = "m";
+    public static final String HOUR = "h";
     //k8s的基础属性
     public static final String KUBE_SYSTEM = "kube-system";
     public static final String METADATA = "metadata";
@@ -220,6 +224,7 @@ public class CommonConstant {
     public static final String NFS_SERVER = "NFS_SERVER";
     public static final String NFS_PATH = "NFS_PATH";
     public static final String AUTO_PROVISION_LABEL = "autoProvision";
+    public static final String STORAGECLASS = "storageClass";
 
     public static final String READONLYMANY = "ReadOnlyMany";
     public static final String READWRITEMANY = "ReadWriteMany";
@@ -239,6 +244,14 @@ public class CommonConstant {
     public static final String HARMONYCLOUD_STATUS_LBS = "lb";
     //node节点子状态
     public static final String HARMONYCLOUD_SUBSTATUS = "HarmonyCloud_SubStatus";
+    //node Condition
+    public static final String NODE_CONDITION_READY = "Ready";
+    public static final String NODE_CONDITION_OUT_OF_DISK = "OutOfDisk";
+    public static final String NODE_CONDITION_DISK_PRESSURE = "DiskPressure";
+    public static final String NODE_CONDITION_MEMORY_PRESSURE = "MemoryPressure";
+    public static final String NODE_CONDITION_STATUS_TRUE = "True";
+    public static final String NODE_CONDITION_STATUS_FALSE = "False";
+    public static final String NODE_CONDITION_STATUS_UNKNOW = "Unknow";
     //begin节点上线开始状态，done节点上线结束状态
     public static final String BEGIN = "begin";
     public static final String DONE = "done";
@@ -567,5 +580,41 @@ public class CommonConstant {
     //数据权限过滤字段
     public static final String DATA_NAMESPACE = "namespace";
 
-
+    //Istio
+    public static final String ISTIO_NAMESPACE = "istio-system";
+    public static final String NETWORKING_ISTIO_V1ALPHA3 = "networking.istio.io/v1alpha3";
+    public static final String DESTINATION_RULE = "DestinationRule";
+    public static final String CONFIG_ISTIO_V1ALPHA2 = "config.istio.io/v1alpha2";
+    public static final String CIRCUIT_BREAKER = "circuitBreaker";
+    public static final String RATE_LIMIT = "rateLimit";
+    public static final String RATE_LIMIT_PREFIX = "ratelimit-";
+    public static final String WHITE_LISTS = "whiteLists";
+    public static final String WHITE_LISTS_PREFIX = "whitelists-";
+    public static final String TIMEOUT_RETRY = "timeoutRetry";
+    public static final String FAULT_INJECTION = "faultInjection";
+    public static final String TRAFFIC_SHIFTING = "trafficShifting";
+    public static final String RATE_LIMIT_QUOTA = "quota";
+    public static final String RATE_LIMIT_REDIS_QUOTA = "redisquota";
+    public static final String RATE_LIMIT_QUOTA_SPEC = "QuotaSpec";
+    public static final String RATE_LIMIT_QUOTA_SPEC_BINDING = "QuotaSpecBinding";
+    public static final String WHITE_LISTS_LIST_CHECKER = "listchecker";
+    public static final String WHITE_LISTS_LIST_ENTRY = "listentry";
+    public static final String ISTIO_RULE = "rule";
+    public static final String ISTIO_RULE_TYPE = "istioRuleType";
+    public static final String ISTIO_SERVER_STATUS = "istioStatus";
+    public static final int OPEN_GLOBAL_STATUS = 1;
+    public static final int CLOSE_GLOBAL_STATUS = 0;
+    public static final String OPEN_ISTIO_AUTOMATIC_INJECTION = "enabled";
+    public static final String CLOSE_ISTIO_AUTOMATIC_INJECTION = "disabled";
+    public static final String ISTIO_INJECTION  =  "istio-injection";
+    public static final String  EXISTS_ISTIO_AUTOMATIC = "集群已有分区开启istio自动注入功能,请关闭分区注入功能后再重试";
+    public static final String  EXISTS_SERVICE = "当前分区有服务，请清空服务后开启istio自动注入";
+    public static final String  ISTIO_GLOBAL_CLOSE = "istio全局开关未开启";
+    public static final int ISTIO_SWITCH_OPEN = 1;
+    public static final int ISTIO_SWITCH_CLOSE = 0;
+    public static final int DATA_IS_OK = 0;//策略数据状态正常
+    public static final int DATA_IS_ERROR = 1;//策略数据异常（灰度后VirtualService版本与DestinationRule版本不一致）
+    public static final int K8S_NO_DATA = 11;
+    public static final int DATA_NOT_SAME = 12;
+    public static final int DATA_NOT_COMPLETE = 13;
 }

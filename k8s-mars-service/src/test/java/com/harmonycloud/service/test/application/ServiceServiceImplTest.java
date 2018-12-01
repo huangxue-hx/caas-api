@@ -22,10 +22,10 @@ public class ServiceServiceImplTest extends BaseTest {
     protected Logger logger = LoggerFactory.getLogger(ServiceServiceImplTest.class);
 
     @Autowired
-    ServiceService serviceService;
+    private ServiceService serviceService;
 
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
 
 
     @Test

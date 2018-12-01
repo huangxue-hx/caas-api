@@ -12,7 +12,7 @@ public class CleanRepoTask {
     private static final Logger LOGGER = LoggerFactory.getLogger(CleanRepoTask.class);
 
     @Autowired
-    HarborImageCleanService harborImageCleanService;
+    private HarborImageCleanService harborImageCleanService;
 
     public void run(){
         try {

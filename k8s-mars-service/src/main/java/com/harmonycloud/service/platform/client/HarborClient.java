@@ -26,7 +26,7 @@ public class HarborClient {
     private static final long COOKIE_TIMEOUT_CHECK = 10000L;
 
     //admin用户登录各个harbor服务器的cookie
-    public static Map<String,Map<String, String>> adminCookies = new ConcurrentHashMap<>();
+    private static Map<String,Map<String, String>> adminCookies = new ConcurrentHashMap<>();
 
     public static String getHarborUrl(HarborServer harborServer) {
         return harborServer.getHarborProtocol() + "://" + harborServer.getHarborHost()+":"+harborServer.getHarborPort();

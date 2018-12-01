@@ -22,6 +22,8 @@ public interface ConfigCenterService {
      * @return ActionReturnUtil
      */
     ActionReturnUtil saveConfig(ConfigDetailDto configDetail, String userName) throws Exception;
+
+    ActionReturnUtil saveConfig(ConfigFile configFile) throws Exception;
     
     /**
      * add config service on 17/03/24.
@@ -142,9 +144,11 @@ public interface ConfigCenterService {
      * @param name
      * @param clusterId
      * @param projectId
+     * @param isFilter
      * @return
+     * @throws Exception
      */
-    ActionReturnUtil getConfigMapByName(String name, String clusterId, String projectId) throws Exception;
+    ActionReturnUtil getConfigMapByName(String name, String clusterId, String projectId, boolean isFilter) throws Exception;
 
     /**
      * 返回当前配置组的服务列表

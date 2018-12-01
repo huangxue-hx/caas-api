@@ -38,6 +38,7 @@ import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.RoleLocalService;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,48 +75,48 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
     private static final int SLEEP_TIME_TWO_SECONDS = 2000;
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
     @Autowired
-    PodService podService;
+    private PodService podService;
 
     @Autowired
-    PvService pvService;
+    private PvService pvService;
 
     @Autowired
-    PVCService pvcService;
+    private PVCService pvcService;
 
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
 
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
 
     @Autowired
-    com.harmonycloud.k8s.service.NamespaceService namespaceService;
+    private com.harmonycloud.k8s.service.NamespaceService namespaceService;
 
     @Autowired
-    NamespaceService nsService;
+    private NamespaceService nsService;
 
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
 
     @Autowired
-    SystemConfigService systemConfigService;
+    private SystemConfigService systemConfigService;
 
     @Autowired
-    StorageClassService storageClassService;
+    private StorageClassService storageClassService;
 
     @Autowired
-    DeploymentsService deploymentsService;
+    private DeploymentsService deploymentsService;
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    DataPrivilegeHelper dataPrivilegeHelper;
+    private DataPrivilegeHelper dataPrivilegeHelper;
     @Autowired
-    InfluxdbService influxdbService;
+    private InfluxdbService influxdbService;
 
     @Override
     public ActionReturnUtil createPersistentVolumeClaim(PersistentVolumeClaimDto persistentVolumeClaim) throws Exception {
@@ -250,6 +251,9 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                             if(StringUtils.isBlank(pvcDto.getStorageClassName())){
                                 pvcDto.setStorageClassName(persistentVolumeClaim.getSpec().getStorageClassName());
                             }
+                            if(StringUtils.isBlank(pvcDto.getStorageClassName())){
+                                pvcDto.setStorageClassName((String)persistentVolumeClaim.getMetadata().getAnnotations().get(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.STORAGECLASS));
+                            }
                             if (!StringUtils.isBlank(pvcDto.getStorageClassName())) {
                                 StorageClassDto storageClassDto = storageClassDtoMap.get(pvcDto.getStorageClassName());
                                 if (storageClassDto != null) {
@@ -265,21 +269,19 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                                 for (String key : labelMap.keySet()) {
                                     Map<String, Object> map = new HashMap<>();
                                     if (key.contains(LABEL_KEY_APP + CommonConstant.SLASH)) {
-                                        if (dataPrivilegeHelper.filterServiceName(labelMap.get(key).toString(), namespaceLocal.getNamespaceName())) {
-                                            map.put(CommonConstant.TYPE, CommonConstant.LABEL_KEY_APP);
-                                            map.put(CommonConstant.NAME, labelMap.get(key).toString());
-                                            serviceNameList.add(map);
-                                        }
+                                        map.put(CommonConstant.TYPE, CommonConstant.LABEL_KEY_APP);
+                                        map.put(CommonConstant.NAME, labelMap.get(key).toString());
+                                        map = dataPrivilegeHelper.filterServiceName(map, labelMap.get(key).toString(), namespaceLocal.getNamespaceName());
+                                        serviceNameList.add(map);
                                     } else if (key.contains(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_DAEMONSET)) {
                                         map.put(CommonConstant.TYPE, CommonConstant.LABEL_KEY_DAEMONSET);
                                         map.put(CommonConstant.NAME, labelMap.get(key).toString());
                                         serviceNameList.add(map);
                                     } else if (key.contains(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET)){
-                                        if (dataPrivilegeHelper.filterServiceName(labelMap.get(key).toString(), namespaceLocal.getNamespaceName())) {
-                                            map.put(CommonConstant.TYPE, CommonConstant.LABEL_KEY_STATEFULSET);
-                                            map.put(CommonConstant.NAME, labelMap.get(key).toString());
-                                            serviceNameList.add(map);
-                                        }
+                                        map.put(CommonConstant.TYPE, CommonConstant.LABEL_KEY_STATEFULSET);
+                                        map.put(CommonConstant.NAME, labelMap.get(key).toString());
+                                        map = dataPrivilegeHelper.filterServiceName(map, labelMap.get(key).toString(), namespaceLocal.getNamespaceName());
+                                        serviceNameList.add(map);
                                     }
                                 }
                             }
@@ -353,7 +355,7 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         if (pvc == null) {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.QUERY_FAIL, DictEnum.PVC.phrase(), true);
         }
-        String pvName = "pvc-" + pvc.getMetadata().getUid();
+        String pvName = pvc.getSpec().getVolumeName();
         PersistentVolume pv = pvService.getPvByName(pvName, cluster);
         if (pv == null) {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PV_QUERY_FAIL, DictEnum.PV.phrase(), true);
@@ -436,7 +438,7 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         //container
         List<Container> containerList = new ArrayList<>();
         Container container = new Container();
-        container.setName(podName);
+        container.setName("recycle");
         container.setImage(imageName);
         container.setImagePullPolicy("IfNotPresent");
         List<String> command = new ArrayList<>();
@@ -536,6 +538,46 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
             if (!HttpStatusUtil.isSuccessStatus((pvcResponse.getStatus()))) {
                 UnversionedStatus status = JsonUtil.jsonToPojo(pvcResponse.getBody(), UnversionedStatus.class);
                 return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            }
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    /**
+     * 根据当前服务绑定的存储，去除未绑定该服务的pvc中的服务标签
+     * @param dep
+     * @param cluster
+     * @return
+     * @throws Exception
+     */
+    public ActionReturnUtil updatePvcByDeployment(Deployment dep, Cluster cluster) throws Exception {
+        List<Volume> volumeList = dep.getSpec().getTemplate().getSpec().getVolumes();
+        List<String> currentBoundPvcList = new ArrayList<>();
+        //获取服务已绑定的pvc列表
+        if(CollectionUtils.isNotEmpty(volumeList)){
+            for(Volume volume : volumeList){
+                if(volume.getPersistentVolumeClaim() != null){
+                    currentBoundPvcList.add(volume.getPersistentVolumeClaim().getClaimName());
+                }
+            }
+        }
+        //查询所有带有该服务标签的pvc，删除其中未被服务绑定的pvc的标签
+        Map<String, Object> bodys = new HashMap<>();
+        String key = CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + dep.getMetadata().getName();
+        String label = key + CommonConstant.EQUALITY_SIGN + dep.getMetadata().getName();
+        bodys.put(CommonConstant.LABELSELECTOR, label);
+        K8SClientResponse response = pvcService.doSepcifyPVC(dep.getMetadata().getNamespace() , bodys, HTTPMethod.GET, cluster);
+        if(!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            return ActionReturnUtil.returnErrorWithData(response.getBody());
+        }else{
+            PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(response.getBody(), PersistentVolumeClaimList.class);
+            if(CollectionUtils.isNotEmpty(pvcList.getItems())){
+                for(PersistentVolumeClaim pvc : pvcList.getItems()){
+                    if(!currentBoundPvcList.contains(pvc.getMetadata().getName())){
+                        pvc.getMetadata().getLabels().remove(key);
+                        pvcService.updatePvcByName(pvc, cluster);
+                    }
+                }
             }
         }
         return ActionReturnUtil.returnSuccess();

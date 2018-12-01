@@ -24,15 +24,15 @@ public class HarborController {
     @Autowired
     private HarborUserService harborUserService;
     @Autowired
-    HarborProjectService harborProjectService;
+    private HarborProjectService harborProjectService;
     @Autowired
-    HarborImageCleanService harborImageCleanService;
+    private HarborImageCleanService harborImageCleanService;
     @Autowired
-    HarborService harborService;
+    private HarborService harborService;
     @Autowired
-    UserService userService;
+    private UserService userService;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
     /**
      * 获取用户权限下的harborServer列表

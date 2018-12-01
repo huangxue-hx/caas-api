@@ -18,7 +18,7 @@ import java.util.List;
 public class JobBuildServiceImpl implements JobBuildService{
 
     @Autowired
-    JobBuildMapper jobBuildMapper;
+    private JobBuildMapper jobBuildMapper;
 
     @Override
     public void insert(JobBuild jobBuild) {

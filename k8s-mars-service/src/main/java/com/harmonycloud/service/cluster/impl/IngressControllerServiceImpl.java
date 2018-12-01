@@ -3,6 +3,7 @@ package com.harmonycloud.service.cluster.impl;
 import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.Constant.IngressControllerConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
@@ -18,18 +19,19 @@ import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
 import com.harmonycloud.dto.cluster.IngressControllerDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.service.ConfigmapService;
 import com.harmonycloud.k8s.service.IcService;
 import com.harmonycloud.k8s.service.ServiceAccountService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.cluster.ClusterService;
-import com.harmonycloud.service.cluster.IngressControllerPortService;
 import com.harmonycloud.service.cluster.IngressControllerService;
+import com.harmonycloud.service.platform.bean.NodeDto;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.platform.service.NodeService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.TenantClusterQuotaService;
 import com.harmonycloud.service.tenant.TenantService;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +43,9 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.harmonycloud.common.Constant.CommonConstant.*;
 import static com.harmonycloud.common.Constant.IngressControllerConstant.*;
+import static com.harmonycloud.common.Constant.IngressControllerConstant.LABEL_KEY_APP;
 import static com.harmonycloud.service.platform.constant.Constant.LABEL_INGRESS_CLASS;
 
 /**
@@ -63,89 +67,116 @@ public class IngressControllerServiceImpl implements IngressControllerService {
     private static final String UDP = "udp-";
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
     @Autowired
-    IcService icService;
+    private IcService icService;
 
     @Autowired
-    IngressControllerPortService ingressControllerPortService;
+    private ServiceAccountService serviceAccountService;
 
     @Autowired
-    ServiceAccountService serviceAccountService;
+    private TenantService tenantService;
 
     @Autowired
-    TenantService tenantService;
+    private TenantClusterQuotaService tenantClusterQuotaService;
 
     @Autowired
-    TenantClusterQuotaService tenantClusterQuotaService;
-
+    private NamespaceLocalService namespaceLocalService;
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NodeService nodeService;
+    @Autowired
+    private ConfigmapService configmapService;
 
     @Override
     public ActionReturnUtil listIngressController(String clusterId) throws Exception {
         //获取集群
         Cluster cluster = clusterService.findClusterById(clusterId);
-        if (Objects.isNull(cluster)) {
-            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
-        }
-        K8SClientResponse response = icService.listIngressController(cluster);
-        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithData(status.getMessage());
-        }
-        DaemonSetList daemonSetList = JsonUtil.jsonToPojo(response.getBody(), DaemonSetList.class);
-
-        List<IngressControllerDto> ingressControllerDtoList = new ArrayList<>();
-        for (DaemonSet daemonSet : daemonSetList.getItems()) {
-            IngressControllerDto ingressControllerDto = new IngressControllerDto();
-            ingressControllerDto.setClusterAliasName(cluster.getAliasName());
-            ingressControllerDto.setClusterId(clusterId);
-            ingressControllerDto.setIcName(daemonSet.getMetadata().getName());
-            ingressControllerDto.setNamespace(daemonSet.getMetadata().getNamespace());
-            //设定tenant租户名称
-            List<String> tenantIdList = new ArrayList<>();
-            List<TenantClusterQuota> tenantClusterQuotaList = tenantClusterQuotaService.getClusterQuotaByClusterId(clusterId, false);
-            if (CollectionUtils.isNotEmpty(tenantClusterQuotaList)) {
-                for (TenantClusterQuota tenantClusterQuota : tenantClusterQuotaList) {
-                    if(StringUtils.isNotEmpty(tenantClusterQuota.getIcNames())) {
-                        String[] icNameArray = tenantClusterQuota.getIcNames().split(",");
-                        if (ArrayUtils.isNotEmpty(icNameArray)) {
-                            for (String icNameExample : icNameArray) {
-                                if (ingressControllerDto.getIcName().equals(icNameExample)) {
-                                    tenantIdList.add(tenantClusterQuota.getTenantId());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        List<IngressControllerDto> ingressControllerDtoList = this.listIngressControllerBrief(clusterId);
+        Map<String, List<String>> icAssignedTenantIds = this.getIcAssignedTenantIds(clusterId);
+        for (IngressControllerDto ingressControllerDto : ingressControllerDtoList) {
+            //设置负载均衡器已分配的租户列表
+            List<String> tenantIdList = icAssignedTenantIds.get(ingressControllerDto.getIcName());
             if (CollectionUtils.isNotEmpty(tenantIdList)) {
                 ingressControllerDto.setTenantInfo(buildTenantInfoByTenantId(tenantIdList));
             }
-            List<ContainerPort> containerPortList = daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts();
-            ingressControllerDto.setHttpPort(containerPortList.get(0).getContainerPort());
-            List<String> icPorts = new ArrayList<>();
-            for (ContainerPort containerPort : containerPortList) {
-                icPorts.add(containerPort.getProtocol() + ": " + containerPort.getContainerPort());
-            }
-            ingressControllerDto.setIcPort(StringUtils.join(icPorts.toArray(), ","));
-            if (daemonSet.getStatus() != null && daemonSet.getStatus().getDesiredNumberScheduled() != null && daemonSet.getStatus().getNumberAvailable() != null && daemonSet.getStatus().getDesiredNumberScheduled().equals(daemonSet.getStatus().getNumberAvailable())) {
-                ingressControllerDto.setStatus(Constant.SERVICE_START);
-            } else {
-                ingressControllerDto.setStatus(Constant.SERVICE_STARTING);
-            }
-            if (Constant.INGRESS_CONTROLLER_DEFAULT_NAME.equals(daemonSet.getMetadata().getName())) {
-                ingressControllerDto.setIsDefault(true);
-            } else {
-                ingressControllerDto.setIsDefault(false);
-            }
-            ingressControllerDto.setCreateTime(DateUtil.StringToDate(daemonSet.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue()));
-            ingressControllerDtoList.add(ingressControllerDto);
+            //设置负载均衡器部署的节点列表
+            ingressControllerDto.setIcNodeNames(this.getIcNodeNames(ingressControllerDto.getIcName(), cluster));
         }
-
         return ActionReturnUtil.returnSuccessWithData(ingressControllerDtoList);
+    }
+
+    @Override
+    public IngressControllerDto getIngressController(String icName, String clusterId) {
+        //获取集群
+        Cluster cluster = clusterService.findClusterById(clusterId);
+        K8SClientResponse response = icService.getIngressController(icName, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            LOGGER.error("查询ingresscontroller失败,response:{}", JSONObject.toJSONString(response));
+            return null;
+        }
+        DaemonSet daemonSet = JsonUtil.jsonToPojo(response.getBody(), DaemonSet.class);
+        return this.convertIngressController(daemonSet, cluster);
+    }
+
+    @Override
+    public List<IngressControllerDto> listIngressControllerBrief(String clusterId) {
+        //获取集群
+        Cluster cluster = clusterService.findClusterById(clusterId);
+        K8SClientResponse response = icService.listIngressController(cluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            LOGGER.error("查询ingresscontroller失败,response:{}", JSONObject.toJSONString(response));
+            return Collections.emptyList();
+        }
+        DaemonSetList daemonSetList = JsonUtil.jsonToPojo(response.getBody(), DaemonSetList.class);
+        List<IngressControllerDto> ingressControllerDtoList = new ArrayList<>();
+        for (DaemonSet daemonSet : daemonSetList.getItems()) {
+            ingressControllerDtoList.add(this.convertIngressController(daemonSet, cluster));
+        }
+        return ingressControllerDtoList;
+    }
+
+    private  IngressControllerDto convertIngressController(DaemonSet daemonSet, Cluster cluster){
+        if(daemonSet == null || cluster == null){
+            return null;
+        }
+        IngressControllerDto ingressControllerDto = new IngressControllerDto();
+        ingressControllerDto.setClusterAliasName(cluster.getAliasName());
+        ingressControllerDto.setClusterId(cluster.getId());
+        ingressControllerDto.setIcName(daemonSet.getMetadata().getName());
+        ingressControllerDto.setNamespace(daemonSet.getMetadata().getNamespace());
+        List<ContainerPort> containerPortList = daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts();
+        ingressControllerDto.setHttpPort(containerPortList.get(0).getContainerPort());
+        List<String> icPorts = new ArrayList<>();
+        for (ContainerPort containerPort : containerPortList) {
+            icPorts.add(containerPort.getProtocol() + ": " + containerPort.getContainerPort());
+        }
+        ingressControllerDto.setIcPort(StringUtils.join(icPorts.toArray(), ","));
+        List<String> containerArgs = daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getArgs();
+        for(String arg : containerArgs){
+            if(arg.contains(CONTAINER_ARGS_HTTP)){
+                ingressControllerDto.setHttpPort(Integer.parseInt(arg.split("=")[1]));
+            }else if(arg.contains(CONTAINER_ARGS_HTTPS)){
+                ingressControllerDto.setHttpsPort(Integer.parseInt(arg.split("=")[1]));
+            }else if(arg.contains(CONTAINER_ARGS_HEALTH)){
+                ingressControllerDto.setHealthPort(Integer.parseInt(arg.split("=")[1]));
+            }else if(arg.contains(CONTAINER_ARGS_STATUS)){
+                ingressControllerDto.setStatusPort(Integer.parseInt(arg.split("=")[1]));
+            }
+        }
+        if (daemonSet.getStatus() != null && daemonSet.getStatus().getDesiredNumberScheduled() != null && daemonSet.getStatus().getNumberAvailable() != null && daemonSet.getStatus().getDesiredNumberScheduled().equals(daemonSet.getStatus().getNumberAvailable())) {
+            ingressControllerDto.setStatus(Constant.SERVICE_START);
+        } else {
+            ingressControllerDto.setStatus(Constant.SERVICE_STARTING);
+        }
+        if (IC_DEFAULT_NAME.equals(daemonSet.getMetadata().getName())) {
+            ingressControllerDto.setIsDefault(true);
+        } else {
+            ingressControllerDto.setIsDefault(false);
+        }
+        ingressControllerDto.setCreateTime(DateUtil.StringToDate(daemonSet.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue()));
+        ingressControllerDto.setIcAliasName(this.getIcAliasName(daemonSet));
+        return ingressControllerDto;
     }
 
     //通过tenantId构造tenantInfo
@@ -177,33 +208,17 @@ public class IngressControllerServiceImpl implements IngressControllerService {
     }
 
     @Override
-    public ActionReturnUtil createIngressController(String clusterId, String icName, int icPort) throws MarsRuntimeException, IOException {
+    public ActionReturnUtil createIngressController(IngressControllerDto ingressControllerDto)
+            throws MarsRuntimeException, IOException {
+        String icName = ingressControllerDto.getIcName();
         //获取集群
-        Cluster cluster = clusterService.findClusterById(clusterId);
-        if (Objects.isNull(cluster)) {
-            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
-        }
-        //判断Ingress-controller是否存在
-        K8SClientResponse response = icService.getIngressController(icName, cluster);
-        if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_EXIST);
-        }
+        Cluster cluster = clusterService.findClusterById(ingressControllerDto.getClusterId());
+        List<IngressControllerDto> existIcDtos = this.listIngressControllerBrief(cluster.getId());
         //获取Ingress-controller-port范围
         Map<String, Integer> portRangeMap = getIngressControllerPortRange(cluster);
-        if (portRangeMap == null) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_PORT_RANGE_NOT_FOUND);
-        }
-        //检查icPort（http）端口是否在指定范围内
-        if (!checkIcHttpPort(icPort, portRangeMap)) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HTTP_PORT_ERROR);
-        }
-        //获取Ingress-controller-port已使用的
-        List<IngressControllerPort> icPortList = checkIcHttpPortAndReturnIcUsedPort(icPort, clusterId);
-        if (icPortList == null) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HTTP_PORT_USED);
-        }
+        this.validateCreate(ingressControllerDto, cluster, existIcDtos, portRangeMap);
         //构建Ingress-controller-port端口
-        IngressControllerPort ingressControllerPort = buildIngressControllerPort(icName, icPort, portRangeMap, icPortList, clusterId);
+        IngressControllerPort ingressControllerPort = buildIngressControllerPort(ingressControllerDto, portRangeMap, existIcDtos);
         if (ingressControllerPort == null) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_OTHER_PORT_USED);
         }
@@ -214,15 +229,17 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         }
         ServiceAccount serviceAccount = JsonUtil.jsonToPojo(saResponse.getBody(), ServiceAccount.class);
         //拼接Ingress-controller
-        DaemonSet daemonSet = buildIngressController(ingressControllerPort, serviceAccount);
+        DaemonSet daemonSet = buildIngressController(ingressControllerDto, ingressControllerPort, serviceAccount);
+        //更新主机节点标签
+        this.updateNodeLabel(icName, cluster, Collections.emptyList(), ingressControllerDto.getIcNodeNames());
         //创建tcp、udp配置文件
-        ConfigMap tcpConfigMap = buildIcConfigMap(icName, "tcp");
+        ConfigMap tcpConfigMap = buildIcConfigMap(icName, Constant.PROTOCOL_TCP.toLowerCase());
         K8SClientResponse tcpCmResponse = icService.createIcConfigMap(tcpConfigMap, cluster);
         if (!HttpStatusUtil.isSuccessStatus(tcpCmResponse.getStatus())) {
             UnversionedStatus status = JsonUtil.jsonToPojo(tcpCmResponse.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
-        ConfigMap udpConfigMap = buildIcConfigMap(icName, "udp");
+        ConfigMap udpConfigMap = buildIcConfigMap(icName, Constant.PROTOCOL_UDP.toLowerCase());
         K8SClientResponse udpCmResponse = icService.createIcConfigMap(udpConfigMap, cluster);
         if (!HttpStatusUtil.isSuccessStatus(udpCmResponse.getStatus())) {
             UnversionedStatus status = JsonUtil.jsonToPojo(udpCmResponse.getBody(), UnversionedStatus.class);
@@ -231,26 +248,36 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         //创建Ingress-controller
         K8SClientResponse createResponse= icService.createIngressController(daemonSet, cluster);
         if (!HttpStatusUtil.isSuccessStatus(createResponse.getStatus())) {
-            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            LOGGER.error("创建ingresscontroller失败,response:{}",JSONObject.toJSONString(createResponse));
+            //创建ingress controller daemonset失败，回退刚才创建或更新的k8s资源
+            this.updateNodeLabel(icName, cluster, ingressControllerDto.getIcNodeNames(), Collections.emptyList());
+            configmapService.delete(CommonConstant.KUBE_SYSTEM, tcpConfigMap.getMetadata().getName(), cluster);
+            configmapService.delete(CommonConstant.KUBE_SYSTEM, udpConfigMap.getMetadata().getName(), cluster);
+            UnversionedStatus status = JsonUtil.jsonToPojo(createResponse.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
-        //创建完成后，更新Ingress-controller-port表
-        ingressControllerPortService.createIngressControllerPort(ingressControllerPort);
 
         return ActionReturnUtil.returnSuccess();
     }
 
     //构建ingress controller对象
-    private DaemonSet buildIngressController(IngressControllerPort ingressControllerPort, ServiceAccount serviceAccount) {
+    private DaemonSet buildIngressController(IngressControllerDto ingressControllerDto,
+                           IngressControllerPort ingressControllerPort, ServiceAccount serviceAccount) {
         DaemonSet daemonSet = new DaemonSet();
         //daemonSet.metadata
         ObjectMeta objectMeta = new ObjectMeta();
         Map<String, Object> labels = new HashMap<>();
         labels.put(LABEL_KEY_NAME, ingressControllerPort.getName());
-        labels.put(LABEL_MARK_KEY, LABEL_MARK_VALUE);
+        labels.put(LABEL_KEY_APP, LABEL_VALUE_APP_NGINX);
         objectMeta.setLabels(labels);
         objectMeta.setNamespace(Constant.NAMESPACE_SYSTEM);
         objectMeta.setName(ingressControllerPort.getName());
+        Map<String, Object> annotations = new HashMap<>();
+        annotations.put(ANNOTATIONS_KEY_ALIAS_NAME, ingressControllerDto.getIcAliasName());
+        if(StringUtils.isBlank(ingressControllerDto.getIcAliasName())){
+            annotations.put(ANNOTATIONS_KEY_ALIAS_NAME, ingressControllerDto.getIcName());
+        }
+        objectMeta.setAnnotations(annotations);
         daemonSet.setMetadata(objectMeta);
         //daemonSet.spec
         DaemonSetSpec daemonSetSpec = new DaemonSetSpec();
@@ -272,7 +299,14 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         PodSpec podSpec = new PodSpec();
         podSpec.setTerminationGracePeriodSeconds(TEMPLATE_SPEC_TERMINATIONGRACEPERIODSECONDS);
         Map<String, Object> nodeSelector = new HashMap<>();
-        nodeSelector.put(TEMPLATE_SPEC_NODESELECTOR_KEY, TEMPLATE_SPEC_NODESELECTOR_VALUE);
+        //如果未指定负载均衡节点，逻辑保持不变,标签为lb=nginx
+        //指定负载均衡的节点，标签为lb=nginx-custom，并增加负载均衡名称的标签
+        if(CollectionUtils.isEmpty(ingressControllerDto.getIcNodeNames())) {
+            nodeSelector.put(TEMPLATE_SPEC_NODESELECTOR_KEY, TEMPLATE_SPEC_NODESELECTOR_VALUE);
+        }else{
+            nodeSelector.put(TEMPLATE_SPEC_NODESELECTOR_KEY, LABEL_VALUE_NGINX_CUSTOM);
+            nodeSelector.put(LABEL_KEY_INGRESS_CONTROLLER_NAME, ingressControllerDto.getIcName());
+        }
         podSpec.setNodeSelector(nodeSelector);
         podSpec.setHostNetwork(TEMPLATE_SPEC_HOSTNETWORK);
         //daemonSet.spec.template.spec.containers
@@ -374,14 +408,13 @@ public class IngressControllerServiceImpl implements IngressControllerService {
     }
 
     //构建ingress controller使用的端口
-    private IngressControllerPort buildIngressControllerPort(String icName,
-                                                             int icPort, Map<String, Integer> portRangeMap,
-                                                             List<IngressControllerPort> icPortList,
-                                                             String clusterId) {
+    private IngressControllerPort buildIngressControllerPort(IngressControllerDto ingressControllerDto,
+                                                             Map<String, Integer> portRangeMap,
+                                                             List<IngressControllerDto> icPortList) {
         IngressControllerPort ingressControllerPort = new IngressControllerPort();
-        ingressControllerPort.setName(icName);
-        ingressControllerPort.setClusterId(clusterId);
-        ingressControllerPort.setHttpPort(icPort);
+        ingressControllerPort.setName(ingressControllerDto.getIcName());
+        ingressControllerPort.setClusterId(ingressControllerDto.getClusterId());
+        ingressControllerPort.setHttpPort(ingressControllerDto.getHttpPort());
         //httpsPort
         int httpsPort = getUnusedPort(portRangeMap.get(HTTPS_MIN_PORT),
                 portRangeMap.get(HTTPS_MAX_PORT),
@@ -407,11 +440,11 @@ public class IngressControllerServiceImpl implements IngressControllerService {
     }
 
     //获取未被使用端口，若未找到可用的端口返回0值
-    private int getUnusedPort(int minPort, int maxPort, List<IngressControllerPort> icPortList, String usedType) {
+    private int getUnusedPort(int minPort, int maxPort, List<IngressControllerDto> icPortList, String usedType) {
         int unUsedPort = 0;
         for (int i = minPort; i <= maxPort; i++) {
             boolean flag = true;
-            for (IngressControllerPort ingressControllerPort : icPortList) {
+            for (IngressControllerDto ingressControllerPort : icPortList) {
                 if (usedType.equals(HTTPS_PORT)) {
                     if (i == ingressControllerPort.getHttpsPort()) {
                         flag = false;
@@ -452,20 +485,6 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         return mapper.readValue(portJson, Map.class);
     }
 
-    //获取ingressController已使用端口
-    private List<IngressControllerPort> checkIcHttpPortAndReturnIcUsedPort(int icPort, String clusterId) {
-        List<IngressControllerPort> icPortList = new ArrayList<>();
-        icPortList = ingressControllerPortService.listIngressControllerPortByClusterId(clusterId);
-        if (CollectionUtils.isNotEmpty(icPortList)) {
-            for (IngressControllerPort icPortExample : icPortList) {
-                if (icPort == icPortExample.getHttpPort()) {
-                    return null;
-                }
-            }
-        }
-        return icPortList;
-    }
-
     //构建ingress controller 所需的 tcp、udp configMap
     private ConfigMap buildIcConfigMap(String icName, String type) {
         ConfigMap configMap = new ConfigMap();
@@ -479,7 +498,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
     @Override
     public ActionReturnUtil deleteIngressController(String icName, String clusterId) throws Exception {
         //系统默认负载均衡器，不允许删除
-        if (Constant.INGRESS_CONTROLLER_DEFAULT_NAME.equals(icName)) {
+        if (IngressControllerConstant.IC_DEFAULT_NAME.equals(icName)) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_DEFAULT_NOT_DELETE);
         }
         //获取集群
@@ -488,33 +507,34 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         if(checkIcUsedStatus(icName, cluster)) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAD_USED);
         }
-        if (Objects.isNull(cluster)) {
-            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
-        }
         //删除ingressController
         K8SClientResponse response = icService.deleteIngressController(icName, cluster);
         if(!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            LOGGER.error("删除ingresscontroller失败,response:{}",JSONObject.toJSONString(response));
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
+        List<String> oldIcNodeNames = this.getIcNodeNames(icName, cluster);
+        this.updateNodeLabel(icName, cluster, oldIcNodeNames, Collections.emptyList());
         //删除ingressController相关的configMap
-        K8SClientResponse response_tcp = icService.deleteConfigMap("tcp-" + icName, cluster);
+        K8SClientResponse response_tcp = icService.deleteConfigMap(TCP + icName, cluster);
         if(!HttpStatusUtil.isSuccessStatus(response_tcp.getStatus())) {
+            LOGGER.error("删除ingresscontroller tcp配置失败,response:{}",JSONObject.toJSONString(response_tcp));
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
-        K8SClientResponse response_udp = icService.deleteConfigMap("udp-" + icName, cluster);
+        K8SClientResponse response_udp = icService.deleteConfigMap(UDP + icName, cluster);
         if(!HttpStatusUtil.isSuccessStatus(response_udp.getStatus())) {
+            LOGGER.error("删除ingresscontroller udp配置失败,response:{}",JSONObject.toJSONString(response_udp));
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
         K8SClientResponse response_leader = icService.deleteConfigMap("ingress-controller-leader-" + icName, cluster);
         if(!HttpStatusUtil.isSuccessStatus(response_leader.getStatus())) {
+            LOGGER.error("删除ingresscontroller leader配置失败,response:{}",JSONObject.toJSONString(response_leader));
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
-        //删除表记录
-        ingressControllerPortService.deleteIngressControllerPort(icName, clusterId);
         //删除tenant_cluster_quota表绑定
         List<TenantClusterQuota> tenants = tenantClusterQuotaService.listClusterQuotaLikeIcName(icName,clusterId);
         for (TenantClusterQuota tenantClusterQuota:tenants) {
@@ -524,79 +544,58 @@ public class IngressControllerServiceImpl implements IngressControllerService {
     }
 
     @Override
-    public ActionReturnUtil updateIngressController(String icName, int icPort, String clusterId) throws Exception {
+    public ActionReturnUtil updateIngressController(IngressControllerDto ingressControllerDto) throws Exception {
         //获取集群
-        Cluster cluster = clusterService.findClusterById(clusterId);
-        if (Objects.isNull(cluster)) {
-            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
-        }
+        Cluster cluster = clusterService.findClusterById(ingressControllerDto.getClusterId());
+        String icName = ingressControllerDto.getIcName();
+        int icPort = ingressControllerDto.getHttpPort();
+        List<IngressControllerDto> existIcDtos = this.listIngressControllerBrief(cluster.getId());
         //获取Ingress-controller-port范围
         Map<String, Integer> portRangeMap = getIngressControllerPortRange(cluster);
-        if (portRangeMap == null) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_PORT_RANGE_NOT_FOUND);
-        }
-        //获取Ingress-controller-port已使用的
-        List<IngressControllerPort> icPortList = checkIcHttpPortAndReturnIcUsedPort(icPort, clusterId);
-        if (icPortList == null) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HTTP_PORT_USED);
-        }
-        //检查icPort（http）端口是否在指定范围内
-        if (!checkIcHttpPort(icPort, portRangeMap)) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HTTP_PORT_ERROR);
-        }
-        //查看当前controller是否被占用
-        if(checkIcUsedStatus(icName, cluster)) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAD_USED);
-        }
-        //获取原配置文件
+        //检查名称，端口，主机类型
+        this.validateUpdate(ingressControllerDto, cluster,  existIcDtos, portRangeMap);
+        //查询已经创建的ingress controller
         K8SClientResponse response = icService.getIngressController(icName, cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
         DaemonSet daemonSet = JsonUtil.jsonToPojo(response.getBody(), DaemonSet.class);
+        int existPort = daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().get(0).getContainerPort();
+        //查看ingress controller是否已经在使用（已使用该负载均衡器创建对外服务）,已经在使用的负载均衡器不能修改端口
+        if(existPort != icPort && checkIcUsedStatus(icName, cluster)) {
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAD_USED);
+        }
+        //修改了负载均衡的节点，更新节点标签
+        List<String> oldIcNodeNames = this.getIcNodeNames(icName, cluster);
+        this.updateNodeLabel(icName, cluster, oldIcNodeNames, ingressControllerDto.getIcNodeNames());
+        //端口和别名没有修改，不需要更新daemonset，返回成功
+        String icAliasName = this.getIcAliasName(daemonSet);
+        if(existPort == icPort && icAliasName.equals(ingressControllerDto.getIcAliasName())){
+            return ActionReturnUtil.returnSuccess();
+        }
+        Map<String,Object> annotations = daemonSet.getMetadata().getAnnotations();
+        if(annotations == null){
+            annotations = new HashMap<>();
+        }
+        annotations.put(ANNOTATIONS_KEY_ALIAS_NAME, ingressControllerDto.getIcAliasName());
+        daemonSet.getMetadata().setAnnotations(annotations);
         //修改hostPort
         daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().get(0).setHostPort(icPort);
         //修改containerPort
         daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().get(0).setContainerPort(icPort);
         //修改http_port
         daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getArgs().set(1, CONTAINER_ARGS_HTTP + icPort);
-
+        DaemonSetUpdateStrategy dsUpdateStrategy = new DaemonSetUpdateStrategy();
+        dsUpdateStrategy.setType("RollingUpdate");
+        daemonSet.getSpec().setUpdateStrategy(dsUpdateStrategy);
         K8SClientResponse icResponse = icService.updateIngressController(icName, daemonSet, cluster);
         if(!HttpStatusUtil.isSuccessStatus(icResponse.getStatus())) {
+            LOGGER.error("更新ingresscontroller失败,response:{}",JSONObject.toJSONString(icResponse));
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
-        //修改端口
-        List<IngressControllerPort> ingressControllerPortList = ingressControllerPortService.listIngressControllerPortByName(icName);
-        for (IngressControllerPort ingressControllerPort : ingressControllerPortList) {
-            if (clusterId.equals(ingressControllerPort.getClusterId())) {
-                ingressControllerPort.setHttpPort(icPort);
-                ingressControllerPortService.updateIngressControllerPort(ingressControllerPort);
-                return ActionReturnUtil.returnSuccess();
-            }
-        }
-        return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_PORT_UPDATE_FAIL);
-    }
-
-    //查看ingress-controller是否被分配
-    private Boolean checkIcAssignStatus(String icName, String clusterId) throws Exception {
-        List<TenantClusterQuota> tenantClusterQuotaList = tenantClusterQuotaService.getClusterQuotaByClusterId(clusterId, false);
-        if (CollectionUtils.isNotEmpty(tenantClusterQuotaList)) {
-            for (TenantClusterQuota tenantClusterQuota : tenantClusterQuotaList) {
-                if (StringUtils.isNotEmpty(tenantClusterQuota.getIcNames())) {
-                    String[] icNameArray = tenantClusterQuota.getIcNames().split(",");
-                    if (ArrayUtils.isNotEmpty(icNameArray)) {
-                        for (String icNameExample : icNameArray) {
-                            if (icName.equals(icNameExample)) {
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return false;
+        return ActionReturnUtil.returnSuccess();
     }
 
     @Override
@@ -636,7 +635,9 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         return false;
     }
 
-    //查看ingress-controller是否被使用
+    /**
+     * 检查租户是否已经在使用该负载均衡器
+     */
     private Boolean checkIcUsedStatus(String icName, String tenantId, Cluster cluster) throws Exception{
         List<String> clusterIds = new ArrayList<>();
         clusterIds.add(cluster.getId());
@@ -716,7 +717,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         if(tenantId != null){
             newTenantIds.addAll(Arrays.asList(tenantId.split(",")));
         }
-        //如果后台查到的租户为空，则对该负载均衡添加租户组tenants
+        //如果后台查到的租户为空，即该负载均衡器还未分配过，为首次给租户分配，则只需要将负载均衡名称加到将要分配的租户的配额表
         if(CollectionUtils.isEmpty(tenantClusterQuotas)){
            for(String s : newTenantIds){
                //添加租户
@@ -735,6 +736,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
                 usedTenantList.add(tenantBinding.getAliasName());
             }
         }
+        //如果要移除的租户已经在使用该负载均衡器，则返回错误提示
         if (CollectionUtils.isNotEmpty(usedTenantList)) {
             String tenantNames = StringUtils.join(usedTenantList.toArray(), ",");
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAS_USED_BY_TENANTS, tenantNames);
@@ -783,4 +785,169 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         tenantClusterQuota.setIcNames(sb.toString());
         tenantClusterQuotaService.updateClusterQuota(tenantClusterQuota);
     }
+
+
+    private void validateCreate(IngressControllerDto ingressControllerDto, Cluster cluster,
+                                List<IngressControllerDto> existIcDtos, Map<String, Integer> portRangeMap) {
+        if (CollectionUtils.isEmpty(existIcDtos)) {
+            return;
+        }
+        for (IngressControllerDto existIcDto : existIcDtos) {
+            //名称已经存在
+            if (existIcDto.getIcName().equalsIgnoreCase(ingressControllerDto.getIcName())
+                    || existIcDto.getIcAliasName().equals(ingressControllerDto.getIcAliasName())) {
+                throw new MarsRuntimeException(ErrorCodeMessage.NAME_EXIST);
+            }
+            //端口已经被使用
+            if (existIcDto.getHttpPort() == ingressControllerDto.getHttpPort()) {
+                throw new MarsRuntimeException(ErrorCodeMessage.INGRESS_CONTROLLER_HTTP_PORT_USED);
+            }
+        }
+        this.validate(ingressControllerDto, cluster, portRangeMap);
+
+    }
+
+    private void validateUpdate(IngressControllerDto ingressControllerDto, Cluster cluster,
+                                List<IngressControllerDto> existIcDtos, Map<String, Integer> portRangeMap) {
+        for (IngressControllerDto existIcDto : existIcDtos) {
+            //自身不需要校验，已存在的和需要修改名称相同
+            if (existIcDto.getIcName().equalsIgnoreCase(ingressControllerDto.getIcName())) {
+                continue;
+            }
+            //修改的别名已经存在
+            if (existIcDto.getIcAliasName().equals(ingressControllerDto.getIcAliasName())) {
+                throw new MarsRuntimeException(ErrorCodeMessage.NAME_EXIST);
+            }
+            //修改的端口已经被使用
+            if (existIcDto.getHttpPort() == ingressControllerDto.getHttpPort()) {
+                throw new MarsRuntimeException(ErrorCodeMessage.INGRESS_CONTROLLER_HTTP_PORT_USED);
+            }
+        }
+        this.validate(ingressControllerDto, cluster, portRangeMap);
+    }
+
+    private void validate(IngressControllerDto ingressControllerDto, Cluster cluster,
+                          Map<String, Integer> portRangeMap) {
+        //检查icPort（http）端口是否在指定范围内
+        if (portRangeMap == null) {
+            throw new MarsRuntimeException(ErrorCodeMessage.INGRESS_CONTROLLER_PORT_RANGE_NOT_FOUND);
+        }
+        if (!checkIcHttpPort(ingressControllerDto.getHttpPort(), portRangeMap)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.INGRESS_CONTROLLER_HTTP_PORT_ERROR);
+        }
+        //检查节点是否存在以及节点类型是否闲置节点
+        if (CollectionUtils.isEmpty(ingressControllerDto.getIcNodeNames())) {
+            return;
+        }
+        List<String> oldIcNodeNames = this.getIcNodeNames(ingressControllerDto.getIcName(), cluster);
+        ActionReturnUtil nodeListResponse = nodeService.listNode(cluster.getId());
+        if (!nodeListResponse.isSuccess() || nodeListResponse.getData() == null) {
+            throw new MarsRuntimeException(DictEnum.NODE.phrase(), ErrorCodeMessage.QUERY_FAIL);
+        }
+        List<NodeDto> nodeDtoList = (List) nodeListResponse.getData();
+        Map<String, NodeDto> nodeDtoMap = nodeDtoList.stream().collect(Collectors.toMap(NodeDto::getName, node -> node));
+        for (String nodeName : ingressControllerDto.getIcNodeNames()) {
+            NodeDto node = nodeDtoMap.get(nodeName);
+            //节点不存在
+            if (node == null) {
+                throw new MarsRuntimeException(DictEnum.NODE.phrase() + nodeName, ErrorCodeMessage.NOT_EXIST);
+            }
+            //节点类型非闲置节点
+            if (!oldIcNodeNames.contains(nodeName) && !node.getNodeShareStatus().equals(DictEnum.NODE_IDLE.phrase())) {
+                throw new MarsRuntimeException(DictEnum.NODE.phrase() + nodeName, ErrorCodeMessage.NOT_EXIST);
+            }
+        }
+    }
+
+
+    /**
+     * 更新节点标签
+     * 闲置节点转为负载均衡节点：增加lb,ic-name标签，删除闲置节点的标签
+     * 负载均衡节点转为闲置节点：删除lb,ic-name标签，增加闲置节点的标签
+     */
+    private void updateNodeLabel(String icName, Cluster cluster, List<String> oldIcNodeNames,
+                                 List<String> newIcNodeNames) throws MarsRuntimeException {
+        Map<String, String> icLabels = new HashMap<>();
+        icLabels.put(HARMONYCLOUD_STATUS_LBS, LABEL_VALUE_NGINX_CUSTOM);
+        icLabels.put(LABEL_KEY_INGRESS_CONTROLLER_NAME, icName);
+        Map<String, String> nodeIdleLabels = new HashMap<>();
+        nodeIdleLabels.put(HARMONYCLOUD_STATUS, LABEL_STATUS_B);
+        try {
+            for (String nodeName : newIcNodeNames) {
+                //新增节点,增加lb,ic-name标签，删除闲置节点的标签
+                if (!oldIcNodeNames.contains(nodeName)) {
+                    nodeService.addNodeLabels(nodeName, icLabels, cluster.getId());
+                    nodeService.removeNodeLabels(nodeName, nodeIdleLabels, cluster);
+                }
+            }
+            for (String nodeName : oldIcNodeNames) {
+                //删除节点，删除lb,ic-name标签，增加闲置节点的标签
+                if (!newIcNodeNames.contains(nodeName)) {
+                    nodeService.addNodeLabels(nodeName, nodeIdleLabels, cluster.getId());
+                    nodeService.removeNodeLabels(nodeName, icLabels, cluster);
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("创建负载均衡失败，更新节点标签异常，icName:{}", icName, e);
+            throw new MarsRuntimeException(DictEnum.NODE.phrase() + DictEnum.LABEL.phrase(),
+                    ErrorCodeMessage.UPDATE_FAIL);
+        }
+
+    }
+
+    /**
+     * 获取负载均衡器部署的节点类表
+     *
+     * @param icName
+     * @param cluster
+     * @return
+     */
+    private List<String> getIcNodeNames(String icName, Cluster cluster) {
+        String label = LABEL_KEY_INGRESS_CONTROLLER_NAME + Constant.EQUAL + icName;
+        List<NodeDto> nodes = nodeService.listNodeByLabel(label, cluster);
+        if (CollectionUtils.isEmpty(nodes)) {
+            return Collections.emptyList();
+        }
+        return nodes.stream().map(NodeDto::getName).collect(Collectors.toList());
+    }
+
+    /**
+     * 获取负载均衡器分配的租户列表
+     */
+    private Map<String, List<String>> getIcAssignedTenantIds(String clusterId) throws Exception {
+        List<TenantClusterQuota> tenantClusterQuotaList = tenantClusterQuotaService.getClusterQuotaByClusterId(clusterId, false);
+        if (CollectionUtils.isEmpty(tenantClusterQuotaList)) {
+            return Collections.emptyMap();
+        }
+        //key为负载均衡器名称，value为负载均衡器分配的租户id列表
+        Map<String, List<String>> quotaMap = new HashMap<>();
+        for (TenantClusterQuota tenantClusterQuota : tenantClusterQuotaList) {
+            if (StringUtils.isBlank(tenantClusterQuota.getIcNames())) {
+                continue;
+            }
+            String[] icNames = tenantClusterQuota.getIcNames().split(COMMA);
+            for (String icName : icNames) {
+                if (quotaMap.get(icName) == null) {
+                    List<String> tenantIds = new ArrayList<>();
+                    tenantIds.add(tenantClusterQuota.getTenantId());
+                    quotaMap.put(icName, tenantIds);
+                } else {
+                    quotaMap.get(icName).add(tenantClusterQuota.getTenantId());
+                }
+            }
+        }
+        return quotaMap;
+    }
+
+    private String getIcAliasName(DaemonSet daemonSet) {
+        if (daemonSet.getMetadata().getAnnotations() != null
+                && daemonSet.getMetadata().getAnnotations().get(ANNOTATIONS_KEY_ALIAS_NAME) != null) {
+            return daemonSet.getMetadata().getAnnotations().get(ANNOTATIONS_KEY_ALIAS_NAME).toString();
+        }
+        if (IC_DEFAULT_NAME.equals(daemonSet.getMetadata().getName())) {
+            return IC_DEFAULT_ALIAS_NAME;
+        }
+        return daemonSet.getMetadata().getName();
+    }
+    
 }

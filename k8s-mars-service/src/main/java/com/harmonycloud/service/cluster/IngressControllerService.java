@@ -2,9 +2,11 @@ package com.harmonycloud.service.cluster;
 
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.cluster.IngressControllerDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * @author xc
@@ -20,6 +22,20 @@ public interface IngressControllerService {
     ActionReturnUtil listIngressController(String clusterId) throws Exception;
 
     /**
+     * 查询IngressController信息
+     * @param clusterId 集群Id
+     * @return ActionReturnUtil
+     */
+    IngressControllerDto getIngressController(String icName, String clusterId);
+
+    /**
+     * 查询某个集群的所有负载均衡器，返回结果不包括已分配的租户和选择的负载均衡节点列表
+     * @param clusterId
+     * @return
+     */
+    List<IngressControllerDto> listIngressControllerBrief(String clusterId);
+
+    /**
      * 获取负载均衡器的http端口范围
      * @return
      */
@@ -27,11 +43,8 @@ public interface IngressControllerService {
 
     /**
      * 创建IngressController
-     * @param icName IngressController名称
-     * @param icPort IngressController暴露端口
-     * @return ActionReturnUtil
      */
-    ActionReturnUtil createIngressController(String clusterId, String icName, int icPort) throws MarsRuntimeException, IOException;
+    ActionReturnUtil createIngressController(IngressControllerDto ingressControllerDto) throws MarsRuntimeException, IOException;
 
     /**
      * 删除IngressController
@@ -42,11 +55,8 @@ public interface IngressControllerService {
 
     /**
      * 更新IngressController
-     * @param icName IngressController名称
-     * @param icPort IngressController暴露端口
-     * @return ActionReturnUtil
      */
-    ActionReturnUtil updateIngressController(String icName, int icPort, String clusterId) throws  Exception;
+    ActionReturnUtil updateIngressController(IngressControllerDto ingressControllerDto) throws  Exception;
 
     /**
      * 分配IngressController到指定租户下

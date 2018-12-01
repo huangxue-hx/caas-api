@@ -32,28 +32,28 @@ import static org.junit.Assert.*;
 public class DataPrivilegeGroupMemberServiceTest extends BaseTest{
 
     @Autowired
-    DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
+    private DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
 
     @Autowired
-    ProjectService projectService;
+    private ProjectService projectService;
 
     @Autowired
-    UserService userService;
+    private UserService userService;
 
     @Autowired
-    DataPrivilegeService dataPrivilegeService;
+    private DataPrivilegeService dataPrivilegeService;
 
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
-    User user;
+    private User user;
 
-    DeploymentDetailDto deploymentDetailDto;
+    private DeploymentDetailDto deploymentDetailDto;
 
-    DataPrivilegeDto dataPrivilegeDto;
+    private DataPrivilegeDto dataPrivilegeDto;
 
     @BeforeMethod
     public void initData() throws Exception {

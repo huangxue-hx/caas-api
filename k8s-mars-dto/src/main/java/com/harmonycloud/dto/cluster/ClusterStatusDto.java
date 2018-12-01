@@ -4,8 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ClusterStatusDto {
-    Boolean status;
-    String type;
+    private Boolean status;
+    private String type;
 
     public Boolean getStatus() {
         return status;

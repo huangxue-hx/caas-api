@@ -72,27 +72,27 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
 
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    ProjectService projectService;
+    private ProjectService projectService;
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
     @Autowired
-    UserService userService;
+    private UserService userService;
     @Autowired
-    StorageClassService storageClassService;
+    private StorageClassService storageClassService;
     @Autowired
-    NamespaceService namespaceService;
+    private NamespaceService namespaceService;
     @Autowired
-    ServiceService serviceService;
+    private ServiceService serviceService;
     @Autowired
-    ApplicationDeployService applicationDeployService;
+    private ApplicationDeployService applicationDeployService;
     @Autowired
-    DeploymentsService deploymentsService;
+    private DeploymentsService deploymentsService;
     @Autowired
-    ConfigCenterService configCenterService;
+    private ConfigCenterService configCenterService;
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @BeforeClass
     public void initTestData() throws Exception{
@@ -249,14 +249,25 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
             return (StorageClassDto) response.getData();
         }
         logger.info("创建单元测试存储StorageClass......");
+        List<StorageClassDto> storageClassDtos = storageClassService.listStorageClass(devClusterId);
+        String nfsServer = null;
+        String nfsPath = null;
+        if(!CollectionUtils.isEmpty(storageClassDtos)){
+            for(StorageClassDto storageClassDto : storageClassDtos){
+                if(storageClassDto.getStatus() == FLAG_TRUE){
+                    nfsServer = storageClassDto.getConfigMap().get("NFS_SERVER");
+                    nfsPath = storageClassDto.getConfigMap().get("NFS_PATH");
+                }
+            }
+        }
         StorageClassDto storageClassDto = new StorageClassDto();
         storageClassDto.setClusterId(devClusterId);
         storageClassDto.setType("NFS");
         storageClassDto.setStorageLimit("5");
         storageClassDto.setName(TEST_NAME);
         Map<String,String> configMap = new HashMap<>();
-        configMap.put("NFS_SERVER",NFS_SERVER);
-        configMap.put("NFS_PATH", "/nfs/" + devCluster.getName() + "/"+TEST_NAME);
+        configMap.put("NFS_SERVER",nfsServer == null ? NFS_SERVER : nfsServer);
+        configMap.put("NFS_PATH", nfsPath == null ? "/nfs/" + devCluster.getName() + "/"+TEST_NAME : nfsPath);
         storageClassDto.setConfigMap(configMap);
         storageClassService.createStorageClass(storageClassDto);
         return storageClassDto;
@@ -281,7 +292,7 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
         ConfigFileItem configFileItem = new ConfigFileItem();
         configFileItem.setContent("a=b");
         configFileItem.setFileName("config1");
-        configFileItem.setPath(null);
+        configFileItem.setPath("/tmp2");
         ConfigFileItem configFileItem1 = new ConfigFileItem();
         configFileItem1.setContent("b=c");
         configFileItem1.setFileName("config2");

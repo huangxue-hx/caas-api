@@ -42,10 +42,10 @@ public class RoleController {
     @Autowired
 	private LocalRoleService localRoleService;
 	@Autowired
-	ClusterCacheManager clusterCacheManager;
+	private ClusterCacheManager clusterCacheManager;
 
     @Autowired
-	PrivilegeHelper privilegeHelper;
+	private PrivilegeHelper privilegeHelper;
 
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 

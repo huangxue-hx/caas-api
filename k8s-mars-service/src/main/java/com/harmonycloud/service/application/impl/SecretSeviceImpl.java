@@ -39,13 +39,13 @@ import java.util.Map;
 @Service
 public class SecretSeviceImpl implements SecretService {
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
     @Autowired
-    UserService userService;
+    private UserService userService;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
     
     @Override
     public ActionReturnUtil checkedSecret(String userName, String password) throws Exception {
@@ -58,6 +58,8 @@ public class SecretSeviceImpl implements SecretService {
             for (Cluster cluster1:clusters) {
                 clusterMap.put(cluster1.getId().toString(),cluster1);
             }
+            String harborUserName = userName;
+            String harborUserPwd = password;
             for (TenantBinding tenantBinding : tenantBindingList) {
                 List<NamespaceLocal> namespaceList = namespaceLocalService.getNamespaceListByTenantId(tenantBinding.getTenantId());
                 if(!namespaceList.isEmpty()){
@@ -65,10 +67,10 @@ public class SecretSeviceImpl implements SecretService {
                         Cluster cluster = clusterMap.get(ns.getClusterId().toString());
                         if(cluster!=null){
                             if(user.getIsAdmin() == 1){
-                                userName = cluster.getHarborServer().getHarborAdminAccount();
-                                password = cluster.getHarborServer().getHarborAdminPassword();
+                                harborUserName = cluster.getHarborServer().getHarborAdminAccount();
+                                harborUserPwd = cluster.getHarborServer().getHarborAdminPassword();
                             }
-                            this.doSecret(ns.getNamespaceName(), userName, password,cluster);
+                            this.doSecret(ns.getNamespaceName(), harborUserName, harborUserPwd,cluster);
                         }
                     }
                 }

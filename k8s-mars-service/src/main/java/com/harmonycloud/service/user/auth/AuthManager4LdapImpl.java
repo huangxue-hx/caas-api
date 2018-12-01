@@ -51,10 +51,10 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
     private UserService userService;
 
     @Autowired
-    HarborUserService harborUserService;
+    private HarborUserService harborUserService;
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
     private String searchType;
 

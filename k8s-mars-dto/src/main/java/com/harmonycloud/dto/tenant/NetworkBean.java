@@ -12,10 +12,10 @@ public class NetworkBean implements Serializable {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	public String tenantName;
-	public String networkName;
-	public String annotation;
-	public List<SubNetwork> subnets = new ArrayList<SubNetwork>();
+	private String tenantName;
+	private String networkName;
+	private String annotation;
+	private List<SubNetwork> subnets = new ArrayList<SubNetwork>();
 
 	public String getTenantName() {
 		return tenantName;

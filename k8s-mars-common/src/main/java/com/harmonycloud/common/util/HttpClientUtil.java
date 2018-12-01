@@ -28,6 +28,8 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
@@ -38,6 +40,8 @@ import javax.servlet.http.HttpServletRequest;
 
 
 public class HttpClientUtil {
+	private static final Logger LOGGER = LoggerFactory.getLogger(HttpClientUtil.class);
+
 
 	private static int TIMEOUT = 5000;
 
@@ -100,14 +104,14 @@ public class HttpClientUtil {
 				}
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+            LOGGER.warn("http请求失败，url:{}", url, e);
 			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.CONNECT_FAIL,e.getMessage(),false);
 		} finally {
 			try {
 				if (httpClient != null)
 					httpClient.close();
 			} catch (IOException e) {
-				e.printStackTrace();
+				LOGGER.warn("关闭httpClient失败", e);
 			}
 		}
 		return ActionReturnUtil.returnError();
@@ -220,15 +224,15 @@ public class HttpClientUtil {
 				}
 			}
 		} catch (ClientProtocolException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPostRequest失败，url:{}", url, e);
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPostRequest失败，url:{}", url, e);
 		} finally {
 			try {
 				if (httpClient != null)
 					httpClient.close();
 			} catch (IOException e) {
-				e.printStackTrace();
+				LOGGER.warn("关闭httpClient失败", e);
 			}
 		}
 		return ActionReturnUtil.returnError();
@@ -287,15 +291,15 @@ public class HttpClientUtil {
 				}
 			}
 		} catch (ClientProtocolException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPostRequestForHarbor失败，url:{}", url, e);
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPostRequestForHarbor失败，url:{}", url, e);
 		} finally {
 			try {
 				if (httpClient != null)
 					httpClient.close();
 			} catch (IOException e) {
-				e.printStackTrace();
+				LOGGER.warn("关闭httpClient失败", e);
 			}
 		}
 		return ActionReturnUtil.returnError();
@@ -359,15 +363,15 @@ public class HttpClientUtil {
 				}
 			}
 		} catch (ClientProtocolException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPostRequestForHarborCreate失败，url:{}", url, e);
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPostRequestForHarborCreate失败，url:{}", url, e);
 		} finally {
 			try {
 				if (httpClient != null)
 					httpClient.close();
 			} catch (IOException e) {
-				e.printStackTrace();
+				LOGGER.warn("关闭httpClient失败", e);
 			}
 		}
 		return ActionReturnUtil.returnError();
@@ -425,15 +429,15 @@ public class HttpClientUtil {
 				}
 			}
 		} catch (ClientProtocolException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPutRequestForHarbor失败，url:{}", url, e);
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPutRequestForHarbor失败，url:{}", url, e);
 		} finally {
 			try {
 				if (httpClient != null)
 					httpClient.close();
 			} catch (IOException e) {
-				e.printStackTrace();
+				LOGGER.warn("关闭httpClient失败", e);
 			}
 		}
 		return ActionReturnUtil.returnError();
@@ -616,8 +620,8 @@ public class HttpClientUtil {
         CloseableHttpResponse response = null;
         HttpPut httpPut = null;
         try {
-            httpClient = HttpClients.createDefault();
-
+//            httpClient = HttpClients.createDefault();
+			httpClient = HttpSslClientUtil.createHttpsClient();
             // 设置请求和传输超时时间
             RequestConfig requestConfig = RequestConfig.custom().setSocketTimeout(TIMEOUT).setConnectTimeout(TIMEOUT)
                     .build();
@@ -644,6 +648,47 @@ public class HttpClientUtil {
         }
     }
 	/**
+	 * post 请求
+	 * @param url
+	 * @param params
+	 * @param headers
+	 * @return
+	 * @throws Exception
+	 */
+	public static HttpClientResponse doPost(String url,
+										   Map<String, Object> params, Map<String, Object> headers) throws Exception {
+		CloseableHttpClient httpClient = null;
+		CloseableHttpResponse response = null;
+		HttpPost httpPost = null;
+		try {
+//            httpClient = HttpClients.createDefault();
+			httpClient = HttpSslClientUtil.createHttpsClient();
+			// 设置请求和传输超时时间
+			RequestConfig requestConfig = RequestConfig.custom().setSocketTimeout(TIMEOUT).setConnectTimeout(TIMEOUT)
+					.build();
+			httpPost = new HttpPost(url);
+			httpPost.setConfig(requestConfig);
+			if (params != null) {
+				String paramsJson = JsonUtil.objectToJson(params);
+				StringEntity entity = new StringEntity(paramsJson);
+				httpPost.setEntity(entity);
+			}
+			setHeaders(httpPost, headers);
+			response = httpClient.execute(httpPost);
+			HttpEntity resentity = response.getEntity();
+			String content = null;
+			if (resentity != null) {
+				content = EntityUtils.toString(resentity, "UTF-8");
+			}
+			return new HttpClientResponse(response.getStatusLine()
+					.getStatusCode(), content);
+		} catch (Exception e) {
+			throw e;
+		} finally {
+			httpPost.abort();
+		}
+	}
+	/**
 	 * delete 请求
 	 * @param url
 	 * @param params
@@ -657,8 +702,8 @@ public class HttpClientUtil {
         CloseableHttpResponse response = null;
         HttpDelete httpDelete = null;
         try {
-            httpClient = HttpClients.createDefault();
-
+//            httpClient = HttpClients.createDefault();
+			httpClient = HttpSslClientUtil.createHttpsClient();
             // 设置请求和传输超时时间
             RequestConfig requestConfig = RequestConfig.custom().setSocketTimeout(TIMEOUT).setConnectTimeout(TIMEOUT)
                     .build();

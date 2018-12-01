@@ -30,13 +30,13 @@ import java.util.Map;
 @Transactional(rollbackFor = Exception.class)
 public class ParameterServiceImpl implements ParameterService{
     @Autowired
-    ParameterMapper parameterMapper;
+    private ParameterMapper parameterMapper;
 
     @Autowired
-    StageService stageService;
+    private StageService stageService;
 
     @Autowired
-    JobService jobService;
+    private JobService jobService;
 
     /**
      * 根据流水线id获取参数信息

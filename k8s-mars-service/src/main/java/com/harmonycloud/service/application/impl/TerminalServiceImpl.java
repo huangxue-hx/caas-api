@@ -5,6 +5,7 @@ import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.service.application.TerminalService;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -15,11 +16,11 @@ import java.util.Random;
 @Service
 public class TerminalServiceImpl implements TerminalService {
 
-    public static Map<String,Map<String,String>> POD_DATA_LIST = new HashMap<String, Map<String, String>>();
+    private static Map<String,Map<String,String>> POD_DATA_LIST = new HashMap<String, Map<String, String>>();
     @Override
     public ActionReturnUtil getTerminal(String pod, String container, String namespace) throws Exception{
 
-        Random random = new Random();
+        Random random = new SecureRandom();
 
         String name = "T" + random.nextInt(100000000);
 

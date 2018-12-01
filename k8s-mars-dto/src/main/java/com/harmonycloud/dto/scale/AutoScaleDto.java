@@ -40,8 +40,8 @@ public class AutoScaleDto {
 	private Long currentTps;
 	private String lastScaleTime;
 	private Integer currentReplicas;
-    List<TimeMetricScaleDto> timeMetricScales;
-	List<CustomMetricScaleDto> customMetricScales;
+    private List<TimeMetricScaleDto> timeMetricScales;
+	private List<CustomMetricScaleDto> customMetricScales;
     private String serviceType;
 
 	public List<CustomMetricScaleDto> getCustomMetricScales() {

@@ -23,7 +23,7 @@ import java.util.Map;
 
 
 public class ClusterCRDService {
-    Logger LOGGER  = LoggerFactory.getLogger(ClusterCRDService.class);
+    private Logger LOGGER  = LoggerFactory.getLogger(ClusterCRDService.class);
     public K8SClientResponse getCluster(String namespace, String name, Cluster cluster) throws Exception {
         K8SURL url = new K8SURL();
         url.setApiGroup(Resource.getGroupByResource(Resource.CLUSTER));

@@ -53,25 +53,25 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
 //    @Autowired
     private com.harmonycloud.k8s.service.ClusterCRDService clusterCRDService = new com.harmonycloud.k8s.service.ClusterCRDService();
     @Autowired
-    ClusterTemplateService clusterTemplateService ;
+    private ClusterTemplateService clusterTemplateService ;
 
     private ClusterTemplateCRDService clusterTemplaeCRDService = new ClusterTemplateCRDService();
     private static Logger logger = LoggerFactory.getLogger(ClusterCRDServiceImpl.class);
 
     @Autowired
-    DataCenterService dataCenterService;
+    private DataCenterService dataCenterService;
     @Autowired
-    ClusterCacheManager clusterCacheManager;
+    private ClusterCacheManager clusterCacheManager;
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
     @Autowired
-    HarborProjectService harborProjectService;
+    private HarborProjectService harborProjectService;
     @Autowired
-    UserService userService;
+    private UserService userService;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    SecretService secretService;
+    private SecretService secretService;
     @Value("${private.key:}")
     private String privateKey;
 
@@ -169,9 +169,15 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
                 throw new MarsRuntimeException(DictEnum.CLUSTER.phrase()
                         + " " + clusterCRDDto.getHost(), ErrorCodeMessage.EXIST);
             }
-            if(cluster.getName().equalsIgnoreCase(clusterCRDDto.getName())){
-                throw new MarsRuntimeException(DictEnum.CLUSTER.phrase()
+            if(cluster.getName().equalsIgnoreCase(clusterCRDDto.getName())
+                    && cluster.getDataCenter().equalsIgnoreCase(clusterCRDDto.getDatacenter())){
+                throw new MarsRuntimeException(DictEnum.NAME.phrase()
                         + " " + clusterCRDDto.getName(), ErrorCodeMessage.EXIST);
+            }
+            if(cluster.getAliasName().equalsIgnoreCase(clusterCRDDto.getNickname())
+                    && cluster.getDataCenter().equalsIgnoreCase(clusterCRDDto.getDatacenter())){
+                throw new MarsRuntimeException(DictEnum.NAME.phrase()
+                        + " " + clusterCRDDto.getNickname(), ErrorCodeMessage.EXIST);
             }
         }
         Cluster cluster = DefaultClient.getDefaultCluster();
@@ -479,6 +485,7 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
         clusterCRDDto.setJenkins(info.getJenkins());
         clusterCRDDto.setElasticsearch(info.getElasticsearch());
         clusterCRDDto.setTemplate(template);
+        clusterCRDDto.setGitInfo(info.getGit());
         Map<String, Boolean> statusMap = status.getConditions().stream().collect(Collectors.toMap(StatusConditions::getType, condition -> condition.getStatus()));
         clusterCRDDto.setIsEnable(statusMap.get("Ready"));
 

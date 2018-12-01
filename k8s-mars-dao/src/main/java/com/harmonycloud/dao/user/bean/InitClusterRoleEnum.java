@@ -816,7 +816,7 @@ public enum InitClusterRoleEnum {
         return name;
     }
 
-    public void setName(String name) {
+    private void setName(String name) {
         this.name = name;
     }
 
@@ -824,7 +824,7 @@ public enum InitClusterRoleEnum {
         return json;
     }
 
-    public void setJson(String json) {
+    private void setJson(String json) {
         this.json = json;
     }
 

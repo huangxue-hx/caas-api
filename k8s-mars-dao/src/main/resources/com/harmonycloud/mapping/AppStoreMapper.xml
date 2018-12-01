@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.harmonycloud.dao.application.AppStoreMapper" >
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.application.bean.AppStore" >
+    <id column="id" property="id" jdbcType="INTEGER" />
+    <result column="name" property="name" jdbcType="VARCHAR" />
+    <result column="tag" property="tag" jdbcType="VARCHAR" />
+    <result column="details" property="details" jdbcType="VARCHAR" />
+    <result column="create_user" property="user" jdbcType="VARCHAR" />
+    <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
+    <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
+    <result column="image" property="image" jdbcType="VARCHAR" />
+    <result column="type" property="type" jdbcType="VARCHAR" />
+  </resultMap>
+
+
+    <sql id="Base_Column_List">
+        id, name, tag, details, type, create_user, create_time, image
+    </sql>
+   <insert id="insert" parameterType="com.harmonycloud.dao.application.bean.AppStore" useGeneratedKeys="true" keyProperty="id">
+    insert into app_store (name, tag, details, type, create_user, create_time, image)
+    values (#{name}, #{tag}, #{details}, #{type}, #{user}, #{createTime},#{image})
+   </insert>
+
+   <delete id="delete">
+    delete from app_store where id = #{id}
+   </delete>
+
+   <update id="update" parameterType="com.harmonycloud.dao.application.bean.AppStore">
+    update app_store
+    <set>
+        tag = #{tag},
+        details = #{details},
+        update_time = #{updateTime},
+        image = #{image},
+        type = #{type}
+    </set>
+    where id = #{id}
+   </update>
+   
+   <select id="selectByNameAndTag" resultMap="BaseResultMap">
+    select <include refid="Base_Column_List" /> from app_store where name = #{name} and tag = #{tag}
+   </select>
+   
+   <select id="listByName" resultMap="BaseResultMap">
+  	select <include refid="Base_Column_List" /> from app_store where name like concat(concat('%',#{name}),'%')
+   </select>
+
+   <select id="listApps" resultMap="BaseResultMap">
+  	select <include refid="Base_Column_List" /> from app_store where name = #{name} order by tag desc
+   </select>
+
+   <select id="list" resultMap="BaseResultMap">
+  	select <include refid="Base_Column_List" /> from app_store
+   </select>
+
+</mapper>

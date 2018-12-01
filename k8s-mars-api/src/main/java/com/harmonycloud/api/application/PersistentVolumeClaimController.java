@@ -22,10 +22,10 @@ import org.springframework.web.bind.annotation.*;
 public class PersistentVolumeClaimController {
 
     @Autowired
-    PersistentVolumeClaimService persistentVolumeClaimService;
+    private PersistentVolumeClaimService persistentVolumeClaimService;
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
     @ApiOperation(value = "创建PersistentVolumeClaim", notes = "在集群内K8S上创建存储卷索取，动态创建存储卷")
     @ApiImplicitParams({

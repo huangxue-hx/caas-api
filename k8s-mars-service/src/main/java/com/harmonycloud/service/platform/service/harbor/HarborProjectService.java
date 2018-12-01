@@ -135,10 +135,13 @@ public interface HarborProjectService {
 	 * 查询项目和环境对应的镜像仓库下的所有镜像
 	 * @param projectId
 	 * @param clusterId
+	 * @param pageSize
+	 * @param pageNo
+	 * @param isPublic
 	 * @return
 	 * @throws Exception
 	 */
-	ActionReturnUtil listImages(String projectId, String clusterId, Integer pageSize, Integer pageNo) throws Exception ;
+	ActionReturnUtil listImages(String projectId, String clusterId, Integer pageSize, Integer pageNo, Boolean isPublic) throws Exception ;
 
 	ActionReturnUtil deleteImage(Integer repositoryId, String image, String tag) throws Exception ;
 

@@ -83,7 +83,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
     private UserService userService;
 
     @Autowired
-    SecretService secretService;
+    private SecretService secretService;
 
     @Override
     public ActionReturnUtil createDaemonSet(DaemonSetDetailDto detail, String username) throws Exception {

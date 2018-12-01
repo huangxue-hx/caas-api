@@ -38,15 +38,15 @@ import static com.harmonycloud.common.Constant.CommonConstant.FLAG_TRUE;
 public class HarborReplicationServiceImpl implements HarborReplicationService {
 
 	@Autowired
-	ClusterService clusterService;
+	private ClusterService clusterService;
 	@Autowired
-	HarborProjectService harborProjectService;
+	private HarborProjectService harborProjectService;
 	@Autowired
-	HarborService harborService;
+	private HarborService harborService;
 	@Autowired
-	HarborUserService harborUserService;
+	private HarborUserService harborUserService;
 	@Autowired
-	HttpSession httpSession;
+	private HttpSession httpSession;
 
 	/**
 	 * 新建跨harbor同步target

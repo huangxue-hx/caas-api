@@ -2,6 +2,7 @@ package com.harmonycloud.api.test.tenant;
 
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.api.test.BaseTest;
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dto.tenant.TenantDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static junit.framework.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -37,15 +39,13 @@ public class TenantControllerTest extends BaseTest {
 
     private static TenantDto tenantDto;
 
-    private String tenantId;
-
     @BeforeClass
     public void createTenantData() {
         tenantDto = new TenantDto();
         tenantDto.setTenantName("test-xc");
         tenantDto.setAliasName("test-xc");
         List<String> tmList = new ArrayList<>();
-        tmList.add(pmUsername);
+        tmList.add(testUserName);
         tenantDto.setTmList(tmList);
     }
 
@@ -65,7 +65,7 @@ public class TenantControllerTest extends BaseTest {
         //查询租户列表
         url = "/tenants";
         result = mockMvc.perform(get(url).contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .param("username", pmUsername)
+                .param("username", testUserName)
                 .accept(MediaType.APPLICATION_JSON))
                 .andDo(print()).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
@@ -90,6 +90,22 @@ public class TenantControllerTest extends BaseTest {
                 .accept(MediaType.APPLICATION_JSON)).andDo(print()).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         resultMap = JsonUtil.convertJsonToMap(result);
+        assertTrue((boolean)resultMap.get("success"));
+    }
+
+    /**
+     * 获取租户集群配额
+     * @throws Exception
+     */
+    @Test
+    public void testGetTenantClusterQuota() throws Exception{
+        String url = "/tenants/"+tenantId+"/clusterquotas";
+        String result = mockMvc.perform(get(url).contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .param("tenantId", tenantId)
+                .accept(MediaType.APPLICATION_JSON))
+                .andDo(print()).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        Map resultMap = JsonUtil.convertJsonToMap(result);
         assertTrue((boolean)resultMap.get("success"));
     }
 

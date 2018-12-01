@@ -227,4 +227,12 @@
     </set>
     where name = #{name} and status=0 and flag=0
   </update>
+
+  <delete id="deleteByAppId">
+    delete from service_templates where id in (select service_id from app_store_service where app_id = #{appId})
+  </delete>
+
+  <select id="listByAPPId" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    SELECT * FROM service_templates where id in (select service_id from app_store_service where app_id = #{appId})
+  </select>
 </mapper>

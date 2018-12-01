@@ -29,4 +29,11 @@ public class ConfigmapService {
         K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null, cluster);
         return response;
     }
+
+    public K8SClientResponse delete(String namespace, String name, Cluster cluster) {
+        K8SURL url = new K8SURL();
+        url.setNamespace(namespace).setName(name).setResource(Resource.CONFIGMAP);
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, null, cluster);
+        return response;
+    }
 }

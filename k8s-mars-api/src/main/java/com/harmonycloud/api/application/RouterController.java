@@ -32,7 +32,7 @@ public class RouterController {
 	private RouterService routerService;
     
     @Autowired
-	HttpSession session;
+	private HttpSession session;
 	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -169,7 +169,7 @@ public class RouterController {
 //			return routerService.listSvcByName(parsedIngressListDto);
 //		} catch (Exception e) {
 //			logger.error("获取svc路由（tcp）列表错误，"+",e="+e.getMessage());
-//			e.printStackTrace();
+//			e.printStackTrace();    //==sonar leak==
 //			throw e;
 //		}
 //	}
@@ -182,7 +182,7 @@ public class RouterController {
 //			return routerService.svcCreate(svcRouter);
 //		} catch (Exception e) {
 //			logger.error("创建config的rule 错误"+",e="+e.getMessage());
-//			e.printStackTrace();
+//			e.printStackTrace();    //==sonar leak==
 //			throw e;
 //		}
 //	}
@@ -205,7 +205,7 @@ public class RouterController {
 //			return routerService.svcDelete(namespace,name);
 //		} catch (Exception e) {
 //			logger.error("删除svc路由（tcp）错误，namespace="+namespace+",name="+name+",e="+e.getMessage());
-//			e.printStackTrace();
+//			e.printStackTrace();    //==sonar leak==
 //			throw e;
 //		}
 //	}

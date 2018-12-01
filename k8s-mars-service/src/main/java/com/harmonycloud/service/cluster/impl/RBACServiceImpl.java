@@ -23,13 +23,13 @@ import java.util.List;
 @Service
 public class RBACServiceImpl implements RBACService {
     @Autowired
-    ClusterRoleService clusterRoleService;
+    private ClusterRoleService clusterRoleService;
 
     @Autowired
-    ClusterRoleBindingService clusterRoleBindingService;
+    private ClusterRoleBindingService clusterRoleBindingService;
 
     @Autowired
-    ServiceAccountService serviceAccountService;
+    private ServiceAccountService serviceAccountService;
 
     /**
      * @param namespace

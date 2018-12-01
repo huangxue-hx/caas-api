@@ -6,13 +6,22 @@ import java.util.List;
  * Created by czm on 2017/6/8.
  */
 public class RollbackBean implements Comparable<RollbackBean>{
-    String revision;
-    String revisionDetail;
-    String podTemplete;
-    String revisionTime;
-    String name;
-    List<String> configmap;
-	String current;
+    private String revision;
+    private String revisionDetail;
+    private String podTemplete;
+    private String revisionTime;
+    private String name;
+    private List<String> configmap;
+	private String current;
+	private String deployVersion;
+
+    public String getDeployVersion() {
+        return deployVersion;
+    }
+
+    public void setDeployVersion(String deployVersion) {
+        this.deployVersion = deployVersion;
+    }
 
     public String getRevision() {
         return revision;

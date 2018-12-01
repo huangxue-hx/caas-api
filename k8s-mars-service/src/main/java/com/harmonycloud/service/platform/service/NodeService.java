@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.cluster.NodeBriefDto;
 import com.harmonycloud.k8s.bean.Node;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.cluster.bean.NodeInstallProgress;
@@ -12,7 +13,7 @@ import com.harmonycloud.service.platform.bean.NodeLabel;
 
 public interface NodeService {
 	
-	public ActionReturnUtil listNode(String clusterId) throws Exception;
+	public ActionReturnUtil listNode(String clusterId);
 
 	/**
 	 * 处理节点资源信息
@@ -63,7 +64,7 @@ public interface NodeService {
 	 * @param cluster
 	 * @return
 	 */
-	public List<NodeDto> listPrivateNodeByLabel(String label,Cluster cluster) throws Exception;
+	public List<NodeDto> listNodeByLabel(String label, Cluster cluster);
 
 	/**
 	 * 根据分区获取主机列表
@@ -207,4 +208,9 @@ public interface NodeService {
 	 * @throws Exception
 	 */
 	public void removePrivateNamespaceNodes(String nodeName, Map<String, String> updateLabel,Map<String, String> deleteLabel, Cluster cluster) throws Exception;
+
+	/**
+	 * 获取不可用主机列表
+	 */
+	public List<NodeBriefDto> listUnavailableNodes() throws Exception;
 }

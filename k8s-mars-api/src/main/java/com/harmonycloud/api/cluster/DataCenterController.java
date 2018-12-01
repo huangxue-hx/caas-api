@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 public class DataCenterController {
 
     @Autowired
-    DataCenterService dataCenterService;
+    private DataCenterService dataCenterService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -30,9 +30,9 @@ public class DataCenterController {
      */
     @ResponseBody
     @RequestMapping(method = RequestMethod.GET)
-    public ActionReturnUtil listDataCenters() throws Exception {
+    public ActionReturnUtil listDataCenters(@RequestParam(value = "isEnableCluster",required = false) Boolean isEnableCluster) throws Exception {
 //        logger.info("]get dataCenterlis ");
-        return dataCenterService.listDataCenter();
+        return dataCenterService.listDataCenter(Boolean.TRUE, isEnableCluster);
     }
 
     /**

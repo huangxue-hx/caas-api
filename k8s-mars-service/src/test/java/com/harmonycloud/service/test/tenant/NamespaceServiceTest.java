@@ -23,7 +23,7 @@ public class NamespaceServiceTest extends BaseTest {
     private Logger LOGGER = LoggerFactory.getLogger(NamespaceServiceTest.class);
 
     @Autowired
-    NamespaceService namespaceService;
+    private NamespaceService namespaceService;
 
     private static NamespaceDto namespaceDto;
 

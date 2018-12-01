@@ -1,9 +1,7 @@
 package com.harmonycloud.dto.cluster;
 
-import java.beans.BeanInfo;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 /**
  * @author xc
@@ -13,6 +11,8 @@ public class IngressControllerDto {
 
     //ingress controller名称
     private String icName;
+
+    private String icAliasName;
 
     private String clusterId;
 
@@ -25,6 +25,12 @@ public class IngressControllerDto {
 
     private int httpPort;
 
+    private int httpsPort;
+
+    private int healthPort;
+
+    private int statusPort;
+
     private String icPort;
 
     private Date createTime;
@@ -34,12 +40,22 @@ public class IngressControllerDto {
 
     private Boolean isDefault;
 
+    private List<String> icNodeNames;
+
     public String getIcName() {
         return icName;
     }
 
     public void setIcName(String icName) {
         this.icName = icName;
+    }
+
+    public String getIcAliasName() {
+        return icAliasName;
+    }
+
+    public void setIcAliasName(String icAliasName) {
+        this.icAliasName = icAliasName;
     }
 
     public String getClusterId() {
@@ -82,6 +98,30 @@ public class IngressControllerDto {
         this.httpPort = httpPort;
     }
 
+    public int getHttpsPort() {
+        return httpsPort;
+    }
+
+    public void setHttpsPort(int httpsPort) {
+        this.httpsPort = httpsPort;
+    }
+
+    public int getHealthPort() {
+        return healthPort;
+    }
+
+    public void setHealthPort(int healthPort) {
+        this.healthPort = healthPort;
+    }
+
+    public int getStatusPort() {
+        return statusPort;
+    }
+
+    public void setStatusPort(int statusPort) {
+        this.statusPort = statusPort;
+    }
+
     public String getIcPort() {
         return icPort;
     }
@@ -112,5 +152,13 @@ public class IngressControllerDto {
 
     public void setIsDefault(Boolean aDefault) {
         isDefault = aDefault;
+    }
+
+    public List<String> getIcNodeNames() {
+        return icNodeNames;
+    }
+
+    public void setIcNodeNames(List<String> icNodeNames) {
+        this.icNodeNames = icNodeNames;
     }
 }

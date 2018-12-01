@@ -51,9 +51,9 @@ public class TerminalService {
     private String shellStarter;
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
 
     private boolean isReady;
     private String[] termCommand;
@@ -243,7 +243,7 @@ public class TerminalService {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.warn("printReader失败", e);
         }
     }
 
@@ -259,7 +259,7 @@ public class TerminalService {
                 outputWriter.write(commandQueue.poll());
                 outputWriter.flush();
             } catch (IOException e) {
-                e.printStackTrace();
+                LOGGER.warn("onCommand异常", e);
             }
         });
 

@@ -586,8 +586,8 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	}
 
 	@Override
-	public ActionReturnUtil listImages(String projectId, String clusterId, Integer pageSize, Integer pageNo) throws Exception {
-		List<ImageRepository> imageRepositories = this.listRepositories(projectId, clusterId,null, Boolean.TRUE);
+	public ActionReturnUtil listImages(String projectId, String clusterId, Integer pageSize, Integer pageNo, Boolean isPublic) throws Exception {
+		List<ImageRepository> imageRepositories = this.listRepositories(projectId, clusterId,isPublic, Boolean.TRUE);
 		Map<String, List<HarborRepositoryMessage>> imagesMap = new HashMap<>();
 		for(ImageRepository repository : imageRepositories){
 			ActionReturnUtil response = harborService.getRepositoryDetailByProjectId(repository.getHarborHost(),

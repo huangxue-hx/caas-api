@@ -8,11 +8,11 @@ import java.util.List;
  * created in 2018-8-24
  */
 public class ConfigServiceUpdateDto {
-    List<String> serviceNameList;
+    private List<String> serviceNameList;
 
-    String tag;
+    private String tag;
 
-    String clusterId;
+    private String clusterId;
 
     public String getClusterId() {
         return clusterId;

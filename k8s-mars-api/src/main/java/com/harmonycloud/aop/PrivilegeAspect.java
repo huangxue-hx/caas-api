@@ -6,6 +6,7 @@ import com.harmonycloud.common.enumm.MicroServiceCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.exception.MsfException;
 import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.service.util.SsoClient;
 import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dao.user.bean.LocalRolePrivilege;
 import com.harmonycloud.dao.user.bean.Role;
@@ -118,6 +119,9 @@ public class PrivilegeAspect {
 		HttpSession session = request.getSession();
 		Map<String,String> attribute = (Map<String,String>)request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
 		String url = (String)request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+		if(url.contains("/openapi/")){
+			return;
+		}
 		//处理url
 		while (url.contains(LEFT_BRACKET)){
 			int start = url.indexOf(LEFT_BRACKET);
@@ -301,7 +305,14 @@ public class PrivilegeAspect {
 	private void dealHeader (ServletRequestAttributes attributes){
 		HttpServletRequest request = attributes.getRequest();
 		HttpSession session = request.getSession();
-        session.invalidate();
+		if(SsoClient.isOpen()) {
+			HttpServletResponse response = attributes.getResponse();
+			session.invalidate();
+			SsoClient.clearToken(response);
+		}else {
+			HttpServletResponse response = attributes.getResponse();
+			session.invalidate();
+		}
 	}
 
 	private void dealHeaderWithMaintenance (HttpServletResponse response){

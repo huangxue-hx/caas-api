@@ -7,8 +7,8 @@ import java.util.List;
  *
  */
 public class LocalRoleConditionDto {
-    List<LocalRoleCondRuleDto> rule;
-    String op;
+    private List<LocalRoleCondRuleDto> rule;
+    private String op;
 
     public List<LocalRoleCondRuleDto> getRule() {
         return rule;

@@ -15,11 +15,11 @@ import java.util.Map;
  */
 public class JenkinsUrl {
 
-    String name;
-    String[] folders;
-    String buildNumber;
-    String api;
-    Map<String, String> params = new HashMap<>();
+    private String name;
+    private String[] folders;
+    private String buildNumber;
+    private String api;
+    private Map<String, String> params = new HashMap<>();
 
 
     public String getName() {

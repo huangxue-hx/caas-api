@@ -35,22 +35,22 @@ public class LocalRoleServiceImpl implements LocalRoleService {
     private static Logger logger = LoggerFactory.getLogger(LocalRoleServiceImpl.class);
 
     @Autowired
-    LocalRoleMapper localRoleMapper;
+    private LocalRoleMapper localRoleMapper;
 
     @Autowired
-    LocalUserRoleRelService localUserRoleRelService;
+    private LocalUserRoleRelService localUserRoleRelService;
 
     @Autowired
-    LocalPrivilegeService localRolePrivilegeRuleService;
+    private LocalPrivilegeService localRolePrivilegeRuleService;
 
     @Autowired
-    LocalRolePrivilegeService localRolePrivilegeService;
+    private LocalRolePrivilegeService localRolePrivilegeService;
 
     @Autowired
-    UserRoleRelationshipService userRoleRelationshipService;
+    private UserRoleRelationshipService userRoleRelationshipService;
 
     @Autowired
-    ProjectService projectService;
+    private ProjectService projectService;
 
     private static List allPreConditions;
     /**

@@ -39,8 +39,9 @@
 	<mvc:resources mapping="/view/**" location="/view/" />
 	<mvc:resources mapping="/*.ico" location="/" /> -->
 	<!-- <mvc:resources mapping="/swagger/**" location="/WEB-INF/swagger/"/> -->
-	<mvc:resources mapping="/**" location="/" />
-    <mvc:resources location="classpath:/META-INF/resources/webjars/" mapping="/webjars/**"/> 
+	<!--<mvc:resources mapping="/**" location="/" />-->
+    <mvc:resources location="classpath:/META-INF/resources/webjars/" mapping="/webjars/**"/>
+	<mvc:resources mapping="/appimages/**" location="file://${upload.path}/appimages/" />
 	<!--<mvc:annotation-driven />-->
 	<mvc:annotation-driven>
 		<!-- 处理responseBody 里面日期类型 -->

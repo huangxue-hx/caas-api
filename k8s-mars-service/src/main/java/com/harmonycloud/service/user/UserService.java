@@ -152,7 +152,6 @@ public interface UserService {
 
     String getMachineToken() throws MarsRuntimeException;
 
-
     /**
      * 新增用户，不做用户名及邮箱校验 （持续交互平台同步用户使用）
      * @param user

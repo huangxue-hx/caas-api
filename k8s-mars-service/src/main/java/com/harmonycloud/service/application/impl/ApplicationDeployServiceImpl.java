@@ -1,6 +1,7 @@
 package com.harmonycloud.service.application.impl;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.Constant.IngressControllerConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
@@ -98,22 +99,22 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     private DeploymentService dpService;
 
     @Autowired
-    NamespaceService namespaceService;
+    private NamespaceService namespaceService;
 
     @Autowired
-    PrivatePartitionService privatePartitionService;
+    private PrivatePartitionService privatePartitionService;
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    ServiceService serviceService;
+    private ServiceService serviceService;
 
     @Autowired
     private LoadbalanceService loadbalanceService;
 
     @Autowired
-    IcService icService;
+    private IcService icService;
 
     @Value("#{propertiesReader['kube.topo']}")
     private String kubeTopo;
@@ -146,13 +147,13 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     private StatefulSetsService statefulsetsService;
 
     @Autowired
-    ClusterRoleBindingService clusterRoleBindingService;
+    private ClusterRoleBindingService clusterRoleBindingService;
 
     @Autowired
-    ClusterRoleService clusterRoleService;
+    private ClusterRoleService clusterRoleService;
 
     @Autowired
-    RBACService rbacService;
+    private RBACService rbacService;
 
     @Autowired
     private ServiceTemplatesMapper serviceTemplatesMapper;
@@ -160,40 +161,50 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     /**
      * get application by tenant namespace name status service implement
      *
-     * @param projectId project id
-     * @param tenantId  tenant id
-     * @param namespace namespace
-     * @param name      application name
-     * @param status    application running status 0:abnormal;1:normal
      * @return ActionReturnUtil
      * @author gurongyun
      */
     @SuppressWarnings("rawtypes")
     @Override
-    public ActionReturnUtil searchApplication(String projectId, String tenantId, String namespace, String name, String status) throws Exception {
-        if (StringUtils.isEmpty(projectId) || StringUtils.isEmpty(tenantId)) {
-            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
-        }
+    public ActionReturnUtil searchApplication(ApplicationDto applicationQuery) throws Exception {
+        AssertUtil.notNull(applicationQuery);
+        AssertUtil.notBlank(applicationQuery.getProjectId(), DictEnum.PROJECT_ID);
+        AssertUtil.notBlank(applicationQuery.getTenantId(), DictEnum.TENANT_ID);
+
         // application list
         List<ApplicationDto> array = new ArrayList<>();
         List<BaseResource> appCrdList = new ArrayList<>();
+        Cluster cluster = null;
+        List<String> clusterNamespaces = null;
+        if(StringUtils.isNotBlank(applicationQuery.getClusterId())){
+            cluster = clusterService.findClusterById(applicationQuery.getClusterId());
+            if(cluster == null){
+                return ActionReturnUtil.returnErrorWithData(DictEnum.CLUSTER, ErrorCodeMessage.NOT_FOUND);
+            }
+            List<NamespaceLocal> namespaces = namespaceLocalService
+                    .getNamespaceListByClusterId(applicationQuery.getClusterId());
+            clusterNamespaces = namespaces.stream().map(NamespaceLocal::getNamespaceName).collect(Collectors.toList());
+        }
 
         //查询应用的第三方资源 http body
         Map<String, Object> bodys = new HashMap<>();
-        String projectLabel = NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId;
+        String projectLabel = NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + applicationQuery.getProjectId();
         bodys.put("labelSelector", projectLabel);
-
         //当projectId不为空,namespace为空
-        if (StringUtils.isEmpty(namespace) && StringUtils.isNotEmpty(projectId)) {
+        if (StringUtils.isBlank(applicationQuery.getNamespace()) && StringUtils.isNotBlank(applicationQuery.getProjectId())) {
             //根据项目获取应用列表
-            this.getAllAppList(appCrdList,bodys);
+            this.getAllAppList(appCrdList,bodys,cluster);
         }
-        if (StringUtils.isNotEmpty(namespace) && StringUtils.isNotEmpty(projectId)) {
-            String[] namespaces = {namespace};
-            if (namespace.contains(",")) {
-                namespaces = namespace.split(",");
+        if (StringUtils.isNotBlank(applicationQuery.getNamespace()) && StringUtils.isNotBlank(applicationQuery.getProjectId())) {
+            String[] namespaces = {applicationQuery.getNamespace()};
+            if (applicationQuery.getNamespace().contains(",")) {
+                namespaces = applicationQuery.getNamespace().split(",");
             }
             for (String oneNamespace : namespaces) {
+                //如果分区不在要过滤查询的集群下，则跳过
+                if(cluster != null && !clusterNamespaces.contains(oneNamespace)){
+                    continue;
+                }
                 List<BaseResource> list = getApplicationList(oneNamespace, bodys);
                 if (list != null && list.size() > 0) {
                     appCrdList.addAll(list);
@@ -202,14 +213,20 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         }
 
         if (appCrdList != null && appCrdList.size() > 0) {
-            array = convertAppListData(appCrdList, status);
+            array = convertAppListData(appCrdList, applicationQuery.getStatus());
         }
 
         //数据权限过滤
         return ActionReturnUtil.returnSuccessWithData(dataPrivilegeHelper.filter(array));
     }
-    private void getAllAppList(List<BaseResource> appCrdList,Map<String, Object> bodys)throws Exception{
-        final List<Cluster> clusterList = this.roleLocalService.listCurrentUserRoleCluster();
+    private void getAllAppList(List<BaseResource> appCrdList,Map<String, Object> bodys, Cluster queryCluster)throws Exception{
+        List<Cluster> clusterList = null;
+        if(queryCluster != null){
+            clusterList = new ArrayList<>();
+            clusterList.add(queryCluster);
+        }else {
+            clusterList = this.roleLocalService.listCurrentUserRoleCluster();
+        }
         CountDownLatch countDownLatchApp = new CountDownLatch(clusterList.size());
         for (Cluster cluster : clusterList) {
             ThreadPoolExecutorFactory.executor.execute(new Runnable() {
@@ -425,18 +442,20 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     @Override
     public ActionReturnUtil selectApplicationById(String id, String appName, String namespace) throws Exception {
         ApplicationDetailDto applicationDetailDto = new ApplicationDetailDto();
-        if(StringUtils.isBlank(namespace)){
-            if(StringUtils.isBlank(id) || !id.contains(LINE) || !id.contains(SIGN_EQUAL)){
+        String namespaceName = namespace;
+        String appId = id;
+        if(StringUtils.isBlank(namespaceName)){
+            if(StringUtils.isBlank(appId) || !appId.contains(LINE) || !appId.contains(SIGN_EQUAL)){
                 return ActionReturnUtil.returnErrorWithData(DictEnum.NAMESPACE.phrase(),ErrorCodeMessage.NOT_BLANK);
             }
-            String[] namespaces = id.split(SIGN_EQUAL);
-            namespace = namespaces[1];
+            String[] namespaces = appId.split(SIGN_EQUAL);
+            namespaceName = namespaces[1];
         }
-        String namespaceAliasName = namespaceLocalService.getNamespaceByName(namespace).getAliasName();
-        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
-        K8SClientResponse response = tprApplication.getApplicationByName(namespace, appName, null, null, HTTPMethod.GET, cluster);
+        String namespaceAliasName = namespaceLocalService.getNamespaceByName(namespaceName).getAliasName();
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespaceName);
+        K8SClientResponse response = tprApplication.getApplicationByName(namespaceName, appName, null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            LOGGER.error("查询应用失败，namespace:{},appName:{},response:{}",new String[]{namespace,appName, com.alibaba.fastjson.JSONObject.toJSONString(response)});
+            LOGGER.error("查询应用失败，namespace:{},appName:{},response:{}",new String[]{namespaceName,appName, com.alibaba.fastjson.JSONObject.toJSONString(response)});
             return ActionReturnUtil.returnErrorWithData(DictEnum.APPLICATION.phrase(),ErrorCodeMessage.QUERY_FAIL);
         }
         BaseResource tpr = JsonUtil.jsonToPojo(response.getBody(), BaseResource.class);
@@ -463,23 +482,23 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             applicationDetailDto.setDesc(anno);
             applicationDetailDto.setNamespace(tpr.getMetadata().getNamespace());
             applicationDetailDto.setUser(String.valueOf(tpr.getMetadata().getLabels().get("creater")));
-            if(StringUtils.isBlank(id)) {
+            if(StringUtils.isBlank(appId)) {
                 for (Map.Entry<String, Object> vo : tpr.getMetadata().getLabels().entrySet()) {
                     if (vo.getKey().startsWith(TOPO_LABEL_KEY)) {
-                        id = vo.getKey() + SIGN_EQUAL + vo.getValue();
+                        appId = vo.getKey() + SIGN_EQUAL + vo.getValue();
                         break;
                     }
                 }
             }
-            applicationDetailDto.setId(id);
+            applicationDetailDto.setId(appId);
             applicationDetailDto.setRealName(userService.getUser(applicationDetailDto.getUser()).getRealName());
             applicationDetailDto.setAliasNamespace(namespaceAliasName);
 
             List<ServiceDetailInApplicationDto> svcArray = new ArrayList<>();
             Map<String, Object> bodys = new HashMap<>();
-            bodys.put("labelSelector", id);
+            bodys.put("labelSelector", appId);
             K8SURL url = new K8SURL();
-            url.setNamespace(namespace).setResource(Resource.DEPLOYMENT);
+            url.setNamespace(namespaceName).setResource(Resource.DEPLOYMENT);
             K8SClientResponse depRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
             if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())
                     && depRes.getStatus() != Constant.HTTP_404) {
@@ -1207,7 +1226,10 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 }
                 service.getDeploymentDetail().setProjectId(appDeploy.getProjectId());
                 deploymentsService.createDeployment(service.getDeploymentDetail(), username, appDeploy.getAppName(), cluster,service.getIngress());
-            } catch (Exception e) {
+            }catch (MarsRuntimeException mre){
+                throw mre;
+            }
+            catch (Exception e) {
                 Map<String, Object> map = new HashMap<String, Object>();
                 map.put("Deployment:", service.getDeploymentDetail().getName());
                 message.add(map);
@@ -1267,7 +1289,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             if (CollectionUtils.isNotEmpty(std.getIngress())) {
                 for (IngressDto ing : std.getIngress()) {
                     if (ing.getType() != null && "HTTP".equals(ing.getType())) {
-                        if (!Constant.IC_DEFAULT_NAME.equals(ing.getParsedIngressList().getIcName())) {
+                        if (!IngressControllerConstant.IC_DEFAULT_NAME.equals(ing.getParsedIngressList().getIcName())) {
                             K8SClientResponse response = icService.getIngressController(ing.getParsedIngressList().getIcName(), cluster);
                             if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
                                 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_NOT_FOUND);
@@ -1586,13 +1608,15 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                     containers = svcTemplate.getDeploymentDetail().getContainers();
                     initContainers = svcTemplate.getDeploymentDetail().getInitContainers();
                     svcTemplate.getDeploymentDetail().setProjectId(appDeploy.getProjectId());
-                    ServiceTemplates serviceTemplates = serviceTemplatesMapper.getServiceTemplatesByID(svcTemplate.getId());
-                    if(null != serviceTemplates.getServiceAccount() && serviceTemplates.getServiceAccount().equals(Constant.SERVICE_ACCOUNT_ONLINESHOP)){
-                        //deal with cluster component
-                        svcTemplate.getDeploymentDetail().setServiceAccount(Constant.SERVICE_ACCOUNT_ONLINESHOP);
-                        svcTemplate.getDeploymentDetail().setServiceAccountName(Constant.SERVICE_ACCOUNT_ONLINESHOP);
-                        svcTemplate.getDeploymentDetail().setAutomountServiceAccountToken(true);
-                        dealWithClusterComponent(Constant.SERVICE_ACCOUNT_ONLINESHOP, appDeploy.getNamespace(), cluster);
+                    if(svcTemplate.getId() != null) {
+                        ServiceTemplates serviceTemplates = serviceTemplatesMapper.getServiceTemplatesByID(svcTemplate.getId());
+                        if (null != serviceTemplates.getServiceAccount() && serviceTemplates.getServiceAccount().equals(Constant.SERVICE_ACCOUNT_ONLINESHOP)) {
+                            //deal with cluster component
+                            svcTemplate.getDeploymentDetail().setServiceAccount(Constant.SERVICE_ACCOUNT_ONLINESHOP);
+                            svcTemplate.getDeploymentDetail().setServiceAccountName(Constant.SERVICE_ACCOUNT_ONLINESHOP);
+                            svcTemplate.getDeploymentDetail().setAutomountServiceAccountToken(true);
+                            dealWithClusterComponent(Constant.SERVICE_ACCOUNT_ONLINESHOP, appDeploy.getNamespace(), cluster);
+                        }
                     }
                 }else if(svcTemplate.getStatefulSetDetail() != null){
                     svcTemplate.getStatefulSetDetail().setNamespace(appDeploy.getNamespace());
@@ -1663,7 +1687,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         Map<String, Object> bodys = new HashMap<>();
         String projectLabel = NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId;
         bodys.put("labelSelector", projectLabel);
-        this.getAllAppList(resList,bodys);
+        this.getAllAppList(resList,bodys, null);
         return resList;
     }
 

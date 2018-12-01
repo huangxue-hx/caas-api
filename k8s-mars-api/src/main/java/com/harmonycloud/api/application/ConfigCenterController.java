@@ -20,7 +20,7 @@ import javax.servlet.http.HttpSession;
 public class ConfigCenterController {
 
 	@Autowired
-	HttpSession session;
+	private HttpSession session;
 
 	@Autowired
 	private ConfigCenterService configCenterService;
@@ -166,7 +166,7 @@ public class ConfigCenterController {
 										 @PathVariable("projectId") String projectId,
 										 @PathVariable("configMapName") String configMapName,
 										 @RequestParam(value = "clusterId")String clusterId) throws Exception {
-		return configCenterService.getConfigMapByName(configMapName,clusterId,projectId);
+		return configCenterService.getConfigMapByName(configMapName,clusterId,projectId, true);
 	}
 
 
@@ -184,7 +184,7 @@ public class ConfigCenterController {
 	public ActionReturnUtil getLatestConfigMap(@PathVariable("tenantId") String tenantId,
 											@PathVariable("projectId") String projectId,
 											@RequestParam(value = "name") String name,
-											@RequestParam(value = "reponame") String repoName,
+											@RequestParam(value = "reponame",required = false) String repoName,
 											   @RequestParam(value = "clusterId",required = false)String clusterId,
 											   @RequestParam(value = "tags") String tags) throws Exception {
 		return configCenterService.getLatestConfigMap(name, projectId, repoName,clusterId,tags);

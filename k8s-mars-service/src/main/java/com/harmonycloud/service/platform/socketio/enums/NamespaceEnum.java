@@ -17,7 +17,7 @@ public enum NamespaceEnum {
 		return namespace;
 	}
 
-	public void setNamespace(String namespace) {
+	private void setNamespace(String namespace) {
 		this.namespace = namespace;
 	}
 }

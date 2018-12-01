@@ -33,11 +33,11 @@ import java.util.Objects;
 public class ProjectMemberController {
 
     @Autowired
-    ProjectService projectService;
+    private ProjectService projectService;
     @Autowired
-    RolePrivilegeService rolePrivilegeService;
+    private RolePrivilegeService rolePrivilegeService;
     @Autowired
-    UserService userService;
+    private UserService userService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 

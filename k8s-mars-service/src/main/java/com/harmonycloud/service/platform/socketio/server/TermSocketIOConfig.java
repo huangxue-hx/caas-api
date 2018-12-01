@@ -10,6 +10,8 @@ import com.corundumstudio.socketio.listener.DisconnectListener;
 import com.harmonycloud.service.platform.bean.Size;
 import com.pty4j.PtyProcess;
 import com.pty4j.WinSize;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.SocketUtils;
@@ -23,12 +25,13 @@ import java.util.concurrent.CountDownLatch;
  */
 @Service("termSocketIOConfig")
 public class TermSocketIOConfig {
+	private static final Logger LOGGER = LoggerFactory.getLogger(TermSocketIOConfig.class);
 
-	static SocketIOServer server;
+	private static SocketIOServer server;
 
-	static Map<String, SocketIOClient> clientsMap = new HashMap<>();
+	private static Map<String, SocketIOClient> clientsMap = new HashMap<>();
 
-//    Process proc = null;
+//    private Process proc = null;
 
 	private  PtyProcess term = null;
 
@@ -41,7 +44,7 @@ public class TermSocketIOConfig {
 
 	private final static String RESIZE = "resize";
 	private final static String INPUT = "input";
-    final CountDownLatch latch = new CountDownLatch(1);
+    private final CountDownLatch latch = new CountDownLatch(1);
 
 	public Configuration socketConfig() {
 		Configuration socketIOConfig = new Configuration();
@@ -98,7 +101,7 @@ public class TermSocketIOConfig {
                                 System.out.println(ch);
                             }
                         } catch (IOException e) {
-                            e.printStackTrace();
+                        	LOGGER.warn("IOException", e);
                         }
                         System.out.println("chenzhimin");
                     }};
@@ -127,7 +130,7 @@ public class TermSocketIOConfig {
   					client.sendEvent("connect","terminal socket response");
 
                  } catch (Exception e) {
-					e.printStackTrace();
+					LOGGER.warn("打开终端失败", e);
 				}
 			}
 		});
@@ -174,7 +177,7 @@ public class TermSocketIOConfig {
 			}
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			LOGGER.warn("推送消息失败", e);
 		}
 	}
     public static String convertStreamToString(InputStream is) {

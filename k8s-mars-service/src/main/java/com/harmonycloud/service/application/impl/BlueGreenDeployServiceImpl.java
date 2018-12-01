@@ -12,10 +12,7 @@ import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
-import com.harmonycloud.service.application.BlueGreenDeployService;
-import com.harmonycloud.service.application.DeploymentsService;
-import com.harmonycloud.service.application.PersistentVolumeClaimService;
-import com.harmonycloud.service.application.PersistentVolumeService;
+import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
@@ -78,6 +75,9 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
     @Autowired
     private PersistentVolumeClaimService persistentVolumeClaimService;
 
+    @Autowired
+    private IstioService istioService;
+
     @Override
     public ActionReturnUtil deployByBlueGreen(UpdateDeployment updateDeployment, String userName, String projectId) throws Exception {
         // 参数判空
@@ -92,6 +92,13 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         if (Objects.isNull(cluster)) {
             throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
+
+        //参数校验
+        Map<String, Object> namespaceIstioStatus = (Map<String, Object>)(istioService.getNamespaceIstioPolicySwitch(namespace, cluster.getId()).getData());
+        if((boolean)namespaceIstioStatus.get("namespaceIstioStatus") && Objects.isNull(updateDeployment.getDeployVersion())){
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPLOY_VERSION_IS_NULL_WHEN_ISTIO_ENABLE);
+        }
+
         String name = updateDeployment.getName();
         Map<String, Object> queryP = new HashMap<>();
         queryP.put("labelSelector",CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name+"="+ name);
@@ -109,13 +116,7 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         List<UpdateContainer> containers = updateDeployment.getContainers();
         for (UpdateContainer container : containers) {
             List<PersistentVolumeDto> storage = container.getStorage();
-            if(storage==null){
-                for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaims) {
-                    Map<String, Object> labels = persistentVolumeClaim.getMetadata().getLabels();
-                    labels.remove(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name);
-                    pvcService.updatePvcByName(persistentVolumeClaim,cluster);
-                }
-            }else{
+            if(storage!=null){
                 for (PersistentVolumeDto persistentVolumeDto : storage) {
                     String pvcName = persistentVolumeDto.getPvcName();
                     PersistentVolumeClaim pvcByName = pvcService.getPvcByName(namespace, pvcName, cluster);
@@ -131,13 +132,7 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
                 }
             }
         }
-        //移除原pv标签
-        for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaims){
-            Map<String, Object> labels = persistentVolumeClaim.getMetadata().getLabels();
-            labels.remove(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name);
-            persistentVolumeClaim.getMetadata().setLabels(labels);
-            pvcService.updatePvcByName(persistentVolumeClaim,cluster);
-        }
+
         // 获取deployment
         K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
@@ -194,6 +189,16 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         strategy.setRollingUpdate(ru);
         dep.getSpec().setStrategy(strategy);
         dep.getSpec().setPaused(false);
+
+        //更新服务版本标签
+        if(StringUtils.isNotEmpty(updateDeployment.getDeployVersion())){
+            dep.getSpec().getTemplate().getMetadata().getLabels().put(Constant.TYPE_DEPLOY_VERSION, updateDeployment.getDeployVersion());
+        }else {
+            if (dep.getSpec().getTemplate().getMetadata().getLabels().containsKey(Constant.TYPE_DEPLOY_VERSION)){
+                dep.getSpec().getTemplate().getMetadata().getLabels().remove(Constant.TYPE_DEPLOY_VERSION);
+            }
+        }
+
         Map<String, Object> bodys = CollectionUtil.transBean2Map(dep);
         Map<String, Object> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
@@ -535,6 +540,9 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
                 Map<String, Object> tmMap = new HashMap<>();
                 tmMap.put("pods", podDetails);
                 tmMap.put("containers", containerOfPodDetails);
+                if(rs.getSpec().getTemplate().getMetadata().getLabels().containsKey(Constant.TYPE_DEPLOY_VERSION)){
+                    tmMap.put(Constant.TYPE_DEPLOY_VERSION, rs.getSpec().getTemplate().getMetadata().getLabels().get(Constant.TYPE_DEPLOY_VERSION));
+                }
                 if (StringUtils.isNotBlank(currentLabel)) {
                     boolean isCurrent = rsLabels.get(Constant.NODESELECTOR_LABELS_PRE + "bluegreen").toString().equals(currentLabel) ? true : false;
                     tmMap.put("current", isCurrent);

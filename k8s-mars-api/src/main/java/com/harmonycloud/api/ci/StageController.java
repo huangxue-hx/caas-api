@@ -22,7 +22,7 @@ import java.util.Map;
 public class StageController {
 
     @Autowired
-    StageService stageService;
+    private StageService stageService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 

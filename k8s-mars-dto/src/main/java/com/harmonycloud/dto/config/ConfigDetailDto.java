@@ -1,19 +1,26 @@
 package com.harmonycloud.dto.config;
 
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DataPrivilegeField;
+import com.harmonycloud.common.enumm.DataPrivilegeType;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
 import com.harmonycloud.dao.application.bean.ConfigFileItem;
 import com.harmonycloud.k8s.bean.Deployment;
 
 import java.io.Serializable;
 import java.util.List;
-
+@DataPrivilegeType(type = DataResourceTypeEnum.CONFIGFILE)
 public class ConfigDetailDto implements Serializable {
 
     private static final long serialVersionUID = -3551823489609889016L;
     private String id;
+    @DataPrivilegeField(type = CommonConstant.DATA_FIELD)
     private String name;
     private String description;
     private String tenantId;
+    @DataPrivilegeField(type = CommonConstant.PROJECTID_FIELD)
     private String projectId;
+    @DataPrivilegeField(type = CommonConstant.CLUSTERID_FIELD)
     private String clusterId;
     private String clusterName;
     private String clusterAliasName;

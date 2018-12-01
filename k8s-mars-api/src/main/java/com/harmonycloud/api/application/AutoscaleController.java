@@ -23,12 +23,12 @@ import javax.servlet.http.HttpSession;
 public class AutoscaleController {
 
     @Autowired
-    DeploymentsService dpService;
+    private DeploymentsService dpService;
 
     @Autowired
-    EsService esService;
+    private EsService esService;
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 

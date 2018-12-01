@@ -16,16 +16,19 @@ import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class ClusterRoleBindingService {
 
 	private String surfix="/clusterrolebindings";
-	
+	private static final Logger LOGGER = LoggerFactory.getLogger(ClusterRoleBindingService.class);
+
 	/**
 	 * 获取所有ClusterRoleBinding
-	 * @param url
+	 * @param
 	 * @param headers
 	 * @param bodys
 	 * @return
@@ -38,14 +41,14 @@ public class ClusterRoleBindingService {
 			
 			return cList;
 		} catch (Exception e) {
-			e.printStackTrace();
+            LOGGER.warn("获取clusterRoleBinding列表失败", e);
 		}
 		return null;
 	}
 	
 	/**
 	 * 获取特定的ClusterRoleBinding
-	 * @param url
+	 * @param
 	 * @param headers
 	 * @param bodys
 	 * @return
@@ -58,7 +61,7 @@ public class ClusterRoleBindingService {
 			
 			return c;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("获取clusterRoleBinding:{}失败", name, e);
 		}
 		return null;
 	}

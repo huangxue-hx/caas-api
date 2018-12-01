@@ -44,12 +44,6 @@ public class K8sMachineClient {
 	 */
 	public K8SClientResponse exec(K8SURL k8surl, String method, Map<String, Object> headers,
 								  Map<String, Object> bodys, Cluster cluster) {
-		if(null == cluster) {
-			HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
-			HttpSession session;
-			session = request.getSession();
-			cluster = (Cluster) session.getAttribute("currentCluster");
-		}
 
 		if (null == cluster) {
 			return new K8SClientResponse();
@@ -62,28 +56,28 @@ public class K8sMachineClient {
 
 		String url = getUrl(k8surl);
 		K8SClientResponse kr = new K8SClientResponse();
-
-		if (headers == null) {
-			headers = new HashMap<String, Object>();
+		Map<String, Object> httpHeaders = headers;
+		if (httpHeaders == null) {
+			httpHeaders = new HashMap<String, Object>();
 		}
-		headers.put("Authorization", "Bearer " + cluster.getMachineToken());
+		httpHeaders.put("Authorization", "Bearer " + cluster.getMachineToken());
 
 		try {
 			switch (method) {
 				case "GET":
-					kr = HttpK8SClientUtil.httpGetRequest(url, headers, bodys);
+					kr = HttpK8SClientUtil.httpGetRequest(url, httpHeaders, bodys);
 					break;
 				case "POST":
-					kr = HttpK8SClientUtil.httpPostJsonRequest(url, headers, bodys);
+					kr = HttpK8SClientUtil.httpPostJsonRequest(url, httpHeaders, bodys);
 					break;
 				case "DELETE":
-					kr = HttpK8SClientUtil.httpDeleteRequestForK8s(url, headers, bodys);
+					kr = HttpK8SClientUtil.httpDeleteRequestForK8s(url, httpHeaders, bodys);
 					break;
 				case "PUT":
-					kr = HttpK8SClientUtil.httpPutJsonRequest(url, headers, bodys);
+					kr = HttpK8SClientUtil.httpPutJsonRequest(url, httpHeaders, bodys);
 					break;
 				case "PATCH":
-					kr = HttpK8SClientUtil.httpPatchJsonRequest(url, headers, bodys);
+					kr = HttpK8SClientUtil.httpPatchJsonRequest(url, httpHeaders, bodys);
 					break;
 				default:
 					break;

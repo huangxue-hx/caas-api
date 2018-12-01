@@ -61,7 +61,7 @@ public enum EnumMonitorQuery {
 		return code;
 	}
 
-	public void setCode(String code) {
+	private void setCode(String code) {
 		this.code = code;
 	}
 
@@ -69,7 +69,7 @@ public enum EnumMonitorQuery {
 		return range;
 	}
 
-	public void setRange(String range) {
+	private void setRange(String range) {
 		this.range = range;
 	}
 
@@ -77,7 +77,7 @@ public enum EnumMonitorQuery {
 		return interval;
 	}
 
-	public void setInterval(String interval) {
+	private void setInterval(String interval) {
 		this.interval = interval;
 	}
 
@@ -85,7 +85,7 @@ public enum EnumMonitorQuery {
 		return millisecond;
 	}
 
-	public void setMillisecond(Long millisecond) {
+	private void setMillisecond(Long millisecond) {
 		this.millisecond = millisecond;
 	}
 

@@ -29,7 +29,7 @@ public class HarborReplicationController {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     
     @Autowired
-	ClusterService clusterService;
+	private ClusterService clusterService;
 
     /**
      * 新建跨harbor同步对象

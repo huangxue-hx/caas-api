@@ -76,11 +76,11 @@ public class LogServiceImpl implements LogService {
     private NamespaceLocalService namespaceLocalService;
 
     @Autowired
-    PodService podService;
+    private PodService podService;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    EsService esService;
+    private EsService esService;
 
 
     @Override

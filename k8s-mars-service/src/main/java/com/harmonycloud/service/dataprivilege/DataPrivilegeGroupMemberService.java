@@ -106,4 +106,16 @@ public interface DataPrivilegeGroupMemberService {
      * @param groupType
      */
     void verifyMember(Integer groupId, Integer otherGroupId, String username, boolean isAdd, Integer groupType) throws Exception;
+
+    /**
+     * 根据策略初始化权限组成员
+     * @param strategy
+     * @param projectId
+     * @param rwGroupId
+     * @param roGroupId
+     * @param parentRwGroupId
+     * @param parentRoGroupId
+     * @throws Exception
+     */
+    void initGroupMemberByStrategy(int strategy, String projectId, Integer roGroupId, Integer rwGroupId, Integer parentRoGroupId, Integer parentRwGroupId) throws Exception;
 }

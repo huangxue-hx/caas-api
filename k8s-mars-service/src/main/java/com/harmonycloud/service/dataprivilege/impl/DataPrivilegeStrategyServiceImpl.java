@@ -18,7 +18,7 @@ import java.util.List;
 public class DataPrivilegeStrategyServiceImpl implements DataPrivilegeStrategyService{
 
     @Autowired
-    DataPrivilegeStrategyMapper dataPrivilegeStrategyMapper;
+    private DataPrivilegeStrategyMapper dataPrivilegeStrategyMapper;
 
     @Override
     public List<DataPrivilegeStrategy> selectStrategy(String tenantId, String projectId, Integer resourceType) {

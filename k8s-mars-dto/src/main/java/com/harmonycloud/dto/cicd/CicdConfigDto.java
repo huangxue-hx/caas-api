@@ -7,8 +7,8 @@ package com.harmonycloud.dto.cicd;
  * @Modified
  */
 public class CicdConfigDto {
-    Integer remainNumber;
-    boolean isTypeMerge;
+    private Integer remainNumber;
+    private boolean isTypeMerge;
 
     public Integer getRemainNumber() {
         return remainNumber;

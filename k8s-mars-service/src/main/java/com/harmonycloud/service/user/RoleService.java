@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +52,7 @@ import com.harmonycloud.service.tenant.TenantService;
 @Service
 @Transactional(rollbackFor = Exception.class)
 public class RoleService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RoleService.class);
 
     @Autowired
     private RoleBindingService roleBindingService;
@@ -66,10 +69,10 @@ public class RoleService {
     @Autowired
     private APIResourceService apiResourceService;
 
-    public static String ROLE_DEV_RB = "dev-rb";
-    public static String ROLE_PM_RB = "pm-rb";
-    public static String ROLE_TEST_RB = "test-rb";
-    public static String ROLE_TM_RB = "tm-rb";
+    private static String ROLE_DEV_RB = "dev-rb";
+    private static String ROLE_PM_RB = "pm-rb";
+    private static String ROLE_TEST_RB = "test-rb";
+    private static String ROLE_TM_RB = "tm-rb";
 
     /**
      * 获取所有clusterRoles
@@ -509,7 +512,7 @@ public class RoleService {
             }
             return ActionReturnUtil.returnSuccess();
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.warn("初始化clusterRole失败", e);
             return ActionReturnUtil.returnError();
         }
 
