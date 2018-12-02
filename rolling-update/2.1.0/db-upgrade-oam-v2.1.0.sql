@@ -27,7 +27,7 @@ CHANGE COLUMN `tenant_name` `tenant_name` VARCHAR(128) NULL DEFAULT NULL ;
 ALTER TABLE `k8s_server_mysql`.`resource_monitor` 
 CHANGE COLUMN `tenant_alias_name` `tenant_alias_name` VARCHAR(100) NULL ;
 
--- -----------------------------------sprint1----------------------------------------------
+-- ------------------------------2018-12-2-wanhua----sprint1----------------------------------------------
 DELETE FROM `k8s_server_mysql`.`app_config` WHERE (`name`='log.keep.days');
 ALTER TABLE `k8s_server_mysql`.`app_config`
 ADD COLUMN `data_center`  varchar(100) NULL AFTER `modified_time`,

@@ -311,3 +311,174 @@ INSERT INTO url_dic (url,module,resource) VALUES ('/tenants/*/cicd/repositry/use
 
 ALTER TABLE `cicd_stage`
 ADD COLUMN `user_id` int(11) AFTER `update_time`;
+
+-- -----------------------------------------------2018.12.02-wanhua--------------------------------------------------------------
+
+DROP TABLE IF EXISTS `k8s_auth_server`.`app_store`;
+CREATE TABLE `k8s_auth_server`.`app_store` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(45) DEFAULT NULL,
+  `tag` varchar(45) DEFAULT NULL,
+  `details` varchar(512) DEFAULT NULL,
+  `type` varchar(45) NULL DEFAULT NULL,
+  `create_user` varchar(45) DEFAULT NULL,
+  `create_time` timestamp NULL DEFAULT NULL,
+  `update_time` timestamp NULL DEFAULT NULL,
+  `image` varchar(2048) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `k8s_auth_server`.`app_store_service`;
+CREATE TABLE `k8s_auth_server`.`app_store_service` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `app_id` INT NULL,
+  `service_id` INT NULL,
+  PRIMARY KEY (`id`)
+)ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+INSERT INTO `k8s_auth_server`.`privilege`(`id`,`module`,`module_name`, `resource`, `resource_name`, `privilege`, `privilege_name`, `status`)
+VALUES(95, 'delivery', '交付中心', 'onlineshop', '应用商店', 'create', '应用商店创建', 1),
+(96, 'delivery', '交付中心', 'onlineshop', '应用商店', 'update', '应用商店修改', 1),
+(97, 'delivery', '交付中心', 'onlineshop', '应用商店', 'delete', '应用商店删除', 1);
+
+INSERT INTO `k8s_auth_server`.`role_privilege_new`(`status`, `role_id`, `pid`)
+SELECT CASE r.id WHEN 1 THEN 1 ELSE 0 END, r.id, p.id
+FROM role_new r
+JOIN privilege p WHERE p.id IN(95,96,97);
+
+INSERT INTO `k8s_auth_server`.`role_privilege_new_replication`(`status`, `role_id`, `pid`)
+SELECT CASE r.id WHEN 1 THEN 1 ELSE 0 END, r.id, p.id
+FROM role_new r
+JOIN privilege p WHERE r.id<=7 AND p.id IN(95,96,97);
+
+
+INSERT INTO `k8s_auth_server`.`app_store`(`id`, `name`, `tag`, `type`, `create_user`, `create_time`, `image`)
+VALUES
+(1, 'Tomcat', '8.0', 'webservice', 'admin', CURRENT_TIMESTAMP, 'tomcat.png'),
+(2, 'Redis', '3.2-alpine', 'database', 'admin', CURRENT_TIMESTAMP, 'redis.png'),
+(3, 'WordPress', '4.8.0-php7.1-fpm-alpine', 'webservice', 'admin', CURRENT_TIMESTAMP, 'wp.png'),
+(4, 'InfluxDB', 'v1.3.0', 'database', 'admin', CURRENT_TIMESTAMP, 'influxdb.png'),
+(5, 'MySQL', '5.7.6', 'database', 'admin', CURRENT_TIMESTAMP, 'mysql.png'),
+(6, 'Mongodb', 'v3.5', 'database', 'admin', CURRENT_TIMESTAMP, 'mongodb.png'),
+(7, 'Rabbitmq', '3.6.11', 'am', 'admin', CURRENT_TIMESTAMP, 'rabbit.png'),
+(8, 'Nginx', 'latest', 'webservice', 'admin', CURRENT_TIMESTAMP, 'nginx.png'),
+(9, 'Websphere', '8.5.5.9-install', 'webservice', 'admin', CURRENT_TIMESTAMP, 'websphere.png'),
+(10, 'Elasticsearch', 'v6.2.5-1', 'database', 'admin', CURRENT_TIMESTAMP, 'elastic.png'),
+(11, 'Fabric', '0.6', 'hyper', 'admin', CURRENT_TIMESTAMP, 'fabric.png'),
+(12, 'Rocketmq', '4.2.8', 'am', 'admin', CURRENT_TIMESTAMP, 'rocketmq.png'),
+(13, 'Mysql-Cluster', '5.7.22', 'database', 'admin', CURRENT_TIMESTAMP, 'mysql-cluster.png');
+
+INSERT INTO `k8s_auth_server`.`app_store_service`(`app_id`, `service_id`)
+VALUES(1, 1),(2, 2),(3,3),(4,4),(5,5),(6,7),(7,8),(8,9),(9,10),(10,11),(11,13),(11,14),(11,15),(11,16),(11,17),(11,18),(11,19);
+INSERT INTO `k8s_auth_server`.`app_store_service`(`app_id`, `service_id`)
+SELECT 12,`id` FROM `k8s_auth_server`.`service_templates` WHERE name='rocketmq' AND `project_id` is NULL;
+INSERT INTO `k8s_auth_server`.`app_store_service`(`app_id`, `service_id`)
+SELECT 13,`id` FROM `k8s_auth_server`.`service_templates` WHERE name in('mysql-master','mysql-slave') AND `project_id` is NULL;
+
+INSERT INTO `k8s_auth_server`.`url_dic`(`url`, `module`, `resource`)
+VALUES
+('/tenants/projects/apptemplates/validate/*', 'delivery', 'onlineshop'),
+('/tenants/projects/apptemplates/*/tags', 'delivery', 'onlineshop'),
+('/tenants/projects/apptemplates/upload', 'delivery', 'onlineshop');
+
+DELETE FROM `k8s_auth_server`.`application_service`
+WHERE `application_id` IN (SELECT `id` FROM `k8s_auth_server`.`application_templates` WHERE `tenant`='all' AND `project_id`='all');
+DELETE FROM `k8s_auth_server`.`application_templates` WHERE `tenant`='all' AND `project_id`='all';
+
+-- Table structure for istio_global_configure
+-- ----------------------------
+DROP TABLE IF EXISTS `istio_global_configure`;
+CREATE TABLE `istio_global_configure` (
+  `id` int(4) NOT NULL AUTO_INCREMENT,
+  `cluster_id` varchar(128) CHARACTER SET utf8 DEFAULT NULL COMMENT '集群id',
+  `cluster_name` varchar(128) CHARACTER SET utf8 DEFAULT NULL COMMENT '集群名称',
+  `switch_status` int(2) DEFAULT NULL COMMENT '开关状态(0关闭 1开启)',
+  `operator_id` bigint(20) DEFAULT NULL COMMENT '操作人员id',
+  `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '最近一次更新时间',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=latin1;
+
+-- ----------------------------
+-- Table structure for url_dic
+-- ----------------------------
+INSERT INTO `k8s_auth_server`.`url_dic`(url,module,resource) values('/clusters/*/istiopolicyswitch','appcenter','app');
+INSERT INTO `k8s_auth_server`.`url_dic`(url,module,resource) values('/tenants/*/namespaces/*/istiopolicyswitch','appcenter','app');
+
+-- 策略概览表（rule_overview）
+DROP TABLE IF EXISTS `rule_overview`;
+CREATE TABLE `rule_overview` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `rule_name` varchar(100) NOT NULL COMMENT '策略名称',
+  `rule_id` varchar(32) NOT NULL COMMENT '策略关联id',
+  `rule_type` varchar(20) DEFAULT NULL COMMENT '策略类型',
+  `rule_scope` varchar(10) DEFAULT NULL COMMENT '策略作用范围（0：全局）',
+  `rule_cluster_id` varchar(128) NOT NULL COMMENT '集群id',
+  `rule_ns` varchar(128) DEFAULT NULL COMMENT '集群中命名空间',
+  `rule_svc` varchar(128) DEFAULT NULL COMMENT '策略挂载服务名称',
+  `rule_source_num` int(2) DEFAULT NULL COMMENT '正常状态下策略创建资源对象个数',
+  `switch_status` int(1) DEFAULT 1 COMMENT '策略开关状态(0:关闭；1:开启)',
+  `data_status` int(2) DEFAULT 0 COMMENT '策略状态(0:正常)',
+  `data_err_loc` int(2) DEFAULT 0 COMMENT '策略异常位置',
+  `user_id` varchar(128) DEFAULT NULL COMMENT '最近一次更新该策略用户id',
+  `create_time` timestamp DEFAULT NULL COMMENT '策略创建时间',
+  `update_time` timestamp DEFAULT NULL COMMENT '策略最近一次更新时间',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8 COMMENT='策略概览表';
+
+-- 策略中资源信息表（rule_detail）
+DROP TABLE IF EXISTS `rule_detail`;
+CREATE TABLE `rule_detail` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `rule_id` varchar(32) NOT NULL COMMENT '策略关联id',
+  `rule_detail_order` int(2) DEFAULT NULL COMMENT '资源创建顺序',
+  `rule_detail_content` blob DEFAULT NULL COMMENT '策略中资源对象yaml',
+  `create_time` timestamp DEFAULT NULL COMMENT '策略创建时间',
+  `update_time` timestamp DEFAULT NULL COMMENT '策略最近一次更新时间',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8 COMMENT='策略中资源信息表';
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/deploys/*/istiopolicies', 'appcenter', 'app');
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/deploys/*/istiopolicies/*', 'appcenter', 'app');
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/deploys/*/istiopolicies/*/open', 'appcenter', 'app');
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/deploys/*/istiopolicies/*/close', 'appcenter', 'app');
+
+-- -----------------------------------------------sprint2---------------------------------------------------------------
+
+INSERT INTO `data_resource_url` VALUES ('38', '/tenants/*/projects/*/cicdjobs/*', 'GET', '6');
+INSERT INTO `data_resource_url` VALUES ('39', '/tenants/*/projects/*/cicdjobs/*/images', 'GET', '6');
+INSERT INTO `data_resource_url` VALUES ('40', '/tenants/*/projects/*/cicdjobs/*/log', 'GET', '6');
+INSERT INTO `data_resource_url` VALUES ('41', '/tenants/*/projects/*/cicdjobs/*/notification', 'GET', '6');
+INSERT INTO `data_resource_url` VALUES ('42', '/tenants/*/projects/*/cicdjobs/*/notification', 'PUT', '6');
+INSERT INTO `data_resource_url` VALUES ('43', '/tenants/*/projects/*/cicdjobs/*/parameters', 'GET', '6');
+INSERT INTO `data_resource_url` VALUES ('44', '/tenants/*/projects/*/cicdjobs/*/parameters', 'POST', '6');
+INSERT INTO `data_resource_url` VALUES ('45', '/tenants/*/projects/*/cicdjobs/*/rename', 'POST', '6');
+INSERT INTO `data_resource_url` VALUES ('46', '/tenants/*/projects/*/cicdjobs/*/result', 'GET', '6');
+INSERT INTO `data_resource_url` VALUES ('47', '/tenants/*/projects/*/cicdjobs/*/result/*/delete', 'DELETE', '6');
+INSERT INTO `data_resource_url` VALUES ('48', '/tenants/*/projects/*/cicdjobs/*/stages', 'GET', '6');
+INSERT INTO `data_resource_url` VALUES ('49', '/tenants/*/projects/*/cicdjobs/*/stages', 'POST', '6');
+INSERT INTO `data_resource_url` VALUES ('50', '/tenants/*/projects/*/cicdjobs/*/stages', 'PUT', '6');
+INSERT INTO `data_resource_url` VALUES ('51', '/tenants/*/projects/*/cicdjobs/*/stages/*', 'DELETE', '6');
+INSERT INTO `data_resource_url` VALUES ('52', '/tenants/*/projects/*/cicdjobs/*/stages/*/log', 'GET', '6');
+INSERT INTO `data_resource_url` VALUES ('53', '/tenants/*/projects/*/cicdjobs/*/stages/*/result', 'GET', '6');
+INSERT INTO `data_resource_url` VALUES ('54', '/tenants/*/projects/*/cicdjobs/*/stages/updateCredentials', 'PUT', '6');
+INSERT INTO `data_resource_url` VALUES ('55', '/tenants/*/projects/*/cicdjobs/*/start', 'PATCH', '6');
+INSERT INTO `data_resource_url` VALUES ('56', '/tenants/*/projects/*/cicdjobs/*/stop', 'PATCH', '6');
+INSERT INTO `data_resource_url` VALUES ('57', '/tenants/*/projects/*/cicdjobs/*/triggers', 'GET', '6');
+INSERT INTO `data_resource_url` VALUES ('58', '/tenants/*/projects/*/cicdjobs/*/triggers', 'PUT', '6');
+INSERT INTO `data_resource_url` VALUES ('59', '/tenants/*/projects/*/cicdjobs/*/yaml', 'GET', '6');
+INSERT INTO `data_resource_url` VALUES ('60', '/tenants/*/projects/*/cicdjobs/*', 'PUT', '6');
+INSERT INTO `data_resource_url` VALUES ('61', '/tenants/*/projects/*/configmap/*/detail', 'GET', '3');
+INSERT INTO `data_resource_url` VALUES ('62', '/tenants/*/projects/*/configmap/*/deploy', 'POST', '3');
+INSERT INTO `data_resource_url` VALUES ('63', '/tenants/*/projects/*/configmap/*/services', 'GET', '3');
+INSERT INTO `data_resource_url` VALUES ('64', '/tenants/*/projects/*/configmap/*/tags', 'GET', '3');
+INSERT INTO `data_resource_url` VALUES ('65', '/tenants/*/projects/*/configmap', 'DELETE', '3');
+INSERT INTO `data_resource_url` VALUES ('66', '/tenants/*/projects/*/configmap', 'PUT', '3');
+INSERT INTO `data_resource_url` VALUES ('67', '/tenants/*/projects/*/configmap', 'POST', '3');
+INSERT INTO `data_resource_url` VALUES ('68', '/tenants/*/projects/*/configmap/*', 'DELETE', '3');
+INSERT INTO `data_resource_url` VALUES ('69', '/tenants/*/projects/*/configmap/latest', 'GET', '3');
+update k8s_auth_server.url_dic set url ='/clusters/*/ingresscontrollers' where url='/clusters/*/ingressController';
+update k8s_auth_server.url_dic set url ='/clusters/*/ingresscontrollers/portrange' where url='/clusters/*/ingressController/portRange';
+ALTER TABLE k8s_auth_server.tenant_cluster_quota
+MODIFY COLUMN `ic_names`  varchar(512) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '负载均衡器名称，多个以逗号分割' AFTER `reserve1`;
+DROP TABLE IF EXISTS `ingress_controller_port`;

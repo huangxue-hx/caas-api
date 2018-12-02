@@ -213,7 +213,7 @@ public class ScheduledTasks {
         try {
             harborProjectService.syncLocalHarborLog();
         }catch (Exception e){
-            log.info("error",e.toString());
+            log.info("harbor 镜像触发流水线 error",e);
         }
         long endTime = System.currentTimeMillis();
         log.info("task[trialtimeTask],execute cost time[" + (endTime - startTime)/1000 + "] s");
