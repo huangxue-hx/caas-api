@@ -6,8 +6,8 @@ import com.harmonycloud.common.enumm.MicroServiceCodeMessage;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.service.util.SsoClient;
-import com.whchem.sso.client.SSOClient;
-import com.whchem.sso.client.entity.User;
+//import com.whchem.sso.client.SSOClient;
+//import com.whchem.sso.client.entity.User;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +53,8 @@ public class SsoFilter implements Filter {
     }
 
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws ServletException, IOException {
-        HttpServletRequest httpRequest = (HttpServletRequest)request;
+        chain.doFilter(request, response);
+        /*HttpServletRequest httpRequest = (HttpServletRequest)request;
         HttpSession session = httpRequest.getSession();
         HttpServletResponse httpResponse = (HttpServletResponse)response;
         String reqUri = httpRequest.getRequestURI();
@@ -105,7 +106,7 @@ public class SsoFilter implements Filter {
             if (!response.isCommitted()) {
                 chain.doFilter(request, response);
             }
-        }
+        }*/
     }
 
     public void init(FilterConfig filterConfig) throws ServletException {

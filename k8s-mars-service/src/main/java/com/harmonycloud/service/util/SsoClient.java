@@ -2,8 +2,8 @@ package com.harmonycloud.service.util;
 
 
 import com.harmonycloud.dao.user.bean.User;
-import com.whchem.sso.client.SSOClient;
-import com.whchem.sso.common.utils.SSOConstants;
+//import com.whchem.sso.client.SSOClient;
+//import com.whchem.sso.common.utils.SSOConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,10 +32,10 @@ public class SsoClient {
     /**
      * 通过header中的token获取sso用户
      */
-    public static com.whchem.sso.client.entity.User getUserByHeader(HttpServletRequest request) {
+    /*public static com.whchem.sso.client.entity.User getUserByHeader(HttpServletRequest request) {
         String token = request.getHeader("x-acl-signature");
         return SSOClient.getLoginUser(token);
-    }
+    }*/
 
     public static void dealHeader(HttpSession session){
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
@@ -50,13 +50,13 @@ public class SsoClient {
             if(response != null) {
                 clearToken(response);
             }
-            if(request != null && response != null) {
+            /*if(request != null && response != null) {
                 try {
                     SSOClient.doLogin(request, response);
                 } catch (Exception e) {
                     logger.error("设置跳转单点登录页面错误", e);
                 }
-            }
+            }*/
         }else {
             session.invalidate();
         }
@@ -66,14 +66,14 @@ public class SsoClient {
      ** 清除cookie中的token
      */
     public static void clearToken(HttpServletResponse httpResponse){
-        Cookie cookie = new Cookie(SSOConstants.SSO_TOKEN, null);
+        /*Cookie cookie = new Cookie(SSOConstants.SSO_TOKEN, null);
         cookie.setMaxAge(0);
         cookie.setPath("/");
-        httpResponse.addCookie(cookie);
+        httpResponse.addCookie(cookie);*/
     }
 
     public static User getLoginUser(HttpServletRequest request, HttpServletResponse response){
-        com.whchem.sso.client.entity.User ssoUser = SSOClient.getLoginUser(request, response);
+        /*com.whchem.sso.client.entity.User ssoUser = SSOClient.getLoginUser(request, response);
         if(ssoUser == null){
             return null;
         }
@@ -82,6 +82,7 @@ public class SsoClient {
         user.setRealName(ssoUser.getDisplayName());
         user.setEmail(ssoUser.getEmail());
         user.setPhone(ssoUser.getMobile());
-        return user;
+        return user;*/
+        return null;
     }
 }

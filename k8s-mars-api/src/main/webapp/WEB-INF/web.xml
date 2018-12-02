@@ -16,7 +16,7 @@
     <filter-name>springSessionRepositoryFilter</filter-name>
     <url-pattern>/*</url-pattern>
   </filter-mapping>
-  <filter>
+ <!-- <filter>
     <filter-name>originFilter</filter-name>
     <filter-class>com.harmonycloud.filters.OriginFilter</filter-class>
   </filter>
@@ -32,7 +32,7 @@
       <param-value>ssodev.whchem.com/uic</param-value>
     </init-param>
 
-    <!-- 登出后在登录跳转地址-->
+    &lt;!&ndash; 登出后在登录跳转地址&ndash;&gt;
     <init-param>
       <param-name>ABSOLUTE_URL</param-name>
       <param-value></param-value>
@@ -45,7 +45,7 @@
       <param-name>REDIRECT_MODE</param-name>
       <param-value>FBS</param-value>
     </init-param>
-    <!-- 登出地址 （登出地址只需配上访问即可跳转云门户登出，项目自身不需要写controller）-->
+    &lt;!&ndash; 登出地址 （登出地址只需配上访问即可跳转云门户登出，项目自身不需要写controller）&ndash;&gt;
     <init-param>
       <param-name>LOGOUT_URI</param-name>
       <param-value>/rest/users/auth/logout</param-value>
@@ -54,7 +54,7 @@
       <param-name>EXCLUSIONS</param-name>
       <param-value>*login*,*token*,*/system/configs/trialtime*,*/openapi/*,*/clusters,*/clusters/cache,*/testcallback*,*/tenants/addProject*,*/tenants/addUser*,*/tenants/project/addUser*,*/tenants/project/removeUser*,*/msf/tasks*,*/msf/queryInstances*,*/webhook,*/swagger-resources*,*/api-docs*,*/webjars*,*/appimages/*</param-value>
     </init-param>
-    <!--加密项-->
+    &lt;!&ndash;加密项&ndash;&gt;
     <init-param>
       <param-name>APP_KEY</param-name>
       <param-value>bda3b49493b7484f94eaa5e92a3e2796</param-value>
@@ -76,7 +76,7 @@
   <filter-mapping>
     <filter-name>ssoUserFilter</filter-name>
     <url-pattern>/*</url-pattern>
-  </filter-mapping>
+  </filter-mapping>-->
 
   <filter>
         <filter-name>DruidWebStatFilter</filter-name>  
