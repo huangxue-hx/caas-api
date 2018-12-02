@@ -29,17 +29,17 @@ import com.harmonycloud.service.platform.service.InfluxdbService;
 public class DashboardController {
 	
 	@Autowired
-	DashboardService dashboardService;
+	private DashboardService dashboardService;
 	
 	@Autowired
-	InfluxdbService influxdbService;
+	private InfluxdbService influxdbService;
 
 	@Autowired
-	ClusterService clusterService;
+	private ClusterService clusterService;
     @Autowired
-	NamespaceService namespaceService;
+	private NamespaceService namespaceService;
 	@Autowired
-    ApplicationDeployService applicationDeployService;
+    private ApplicationDeployService applicationDeployService;
 	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 	

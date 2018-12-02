@@ -45,11 +45,11 @@ public class FullLinkLogServiceImpl implements FullLinkLogService{
 
 
 	@Autowired
-	SystemConfigService systemConfigService;
+	private SystemConfigService systemConfigService;
 	@Autowired
-	ApplicationDeployService applicationDeployService;
+	private ApplicationDeployService applicationDeployService;
 	@Autowired
-	DeploymentsService deploymentsService;
+	private DeploymentsService deploymentsService;
 
 	@PostConstruct
 	public void init(){

@@ -24,7 +24,7 @@ public class PersistentVolumeClaimServiceTest extends BaseTest {
     private Logger LOGGER = LoggerFactory.getLogger(storageClassServiceTest.class);
 
     @Autowired
-    PersistentVolumeClaimService persistentVolumeClaimService;
+    private PersistentVolumeClaimService persistentVolumeClaimService;
 
     private PersistentVolumeClaimDto persistentVolumeClaimDto;
 

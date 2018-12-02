@@ -119,7 +119,7 @@ public class MailUtil {
         try {
             result = HttpClientUtil.httpGetRequest(oamUrl + "/config/alertemail/query", null, null);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.warn("获取邮件服务器配置失败", e);
         }
         if(result != null && result.isSuccess()){
             Map emailConfig = JsonUtil.convertJsonToMap((String)result.get("data"));

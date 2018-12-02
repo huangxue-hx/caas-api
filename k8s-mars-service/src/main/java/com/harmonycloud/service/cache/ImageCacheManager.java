@@ -207,8 +207,7 @@ public class ImageCacheManager {
         nullCreatedTimeManifests.sort((manifest1, manifest2) -> manifest2.getTag().compareTo(manifest1.getTag()));
         sortedHarborManifests.addAll(manifests);
         sortedHarborManifests.addAll(nullCreatedTimeManifests);
-        harborManifests = sortedHarborManifests;
-        return harborManifests;
+        return sortedHarborManifests;
     }
 
     /**

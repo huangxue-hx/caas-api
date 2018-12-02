@@ -6,6 +6,8 @@ import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
+import com.harmonycloud.common.util.HttpsClientUtil;
+import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.ci.bean.Stage;
 import com.harmonycloud.dto.application.StorageClassDto;
 import com.harmonycloud.dto.cicd.DependenceDto;
@@ -19,12 +21,15 @@ import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.PVCService;
 import com.harmonycloud.k8s.service.PvService;
+import com.harmonycloud.k8s.service.ScService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.k8s.util.RandomNum;
+import com.harmonycloud.service.application.PersistentVolumeClaimService;
 import com.harmonycloud.service.application.PersistentVolumeService;
 import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.ci.DependenceService;
 import com.harmonycloud.service.platform.service.ci.StageService;
 import com.harmonycloud.service.tenant.ProjectService;
@@ -90,7 +95,15 @@ public class DependenceServiceImpl implements DependenceService {
     @Autowired
     private StorageClassService storageClassService;
 
+    @Autowired
+    private ScService scService;
+
+
     private ClassLoader classLoader = this.getClass().getClassLoader();
+
+    private static String NFSPATH = "NFSPATH";
+    private static String MOUNTPATH = "/dependence/";
+    private static String COMMON = "common";
 
     /**
      *根据项目id和集群id及名称查询依赖列表
@@ -110,21 +123,27 @@ public class DependenceServiceImpl implements DependenceService {
         List<StorageClassDto> storageClassDtoList = storageClassService.listStorageClass(topCluster.getId());
         Map<String, StorageClassDto> storageClassMap = storageClassDtoList.stream().collect(Collectors.toMap(StorageClassDto::getName, storageClassDto->storageClassDto));
 
+        K8SClientResponse pvRes = pvService.listPv(topCluster);
+        if(!HttpStatusUtil.isSuccessStatus(pvRes.getStatus())){
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_LIST_ERROR);
+        }
+        PersistentVolumeList pvList = JsonUtil.jsonToPojo(pvRes.getBody(), PersistentVolumeList.class);
+        Map<String, PersistentVolume> pvMap = pvList.getItems().stream().collect(Collectors.toMap(persistentVolume->persistentVolume.getMetadata().getName(), persistentVolume->persistentVolume));
         if(StringUtils.isBlank(clusterId)){
             List<Cluster> clusterList = roleLocalService.listCurrentUserRoleCluster();
             if(CollectionUtils.isNotEmpty(clusterList)){
                 for(Cluster cluster : clusterList){
-                    dependenceDtos.addAll(getDenpenceByLabel(projectId, cluster.getId(), name, storageClassMap));
+                    dependenceDtos.addAll(getDenpenceByLabel(projectId, cluster.getId(), name, storageClassMap, pvMap));
                 }
             }
         }else{
-            dependenceDtos.addAll(getDenpenceByLabel(projectId, clusterId, name, storageClassMap));
+            dependenceDtos.addAll(getDenpenceByLabel(projectId, clusterId, name, storageClassMap, pvMap));
         }
-        dependenceDtos.addAll(getDenpenceByLabel(projectId, null, name, storageClassMap));
+        dependenceDtos.addAll(getDenpenceByLabel(projectId, null, name, storageClassMap, pvMap));
         return dependenceDtos;
     }
 
-    private List getDenpenceByLabel(String projectId, String clusterId, String name, Map<String, StorageClassDto> storageClassMap) throws Exception{
+    private List getDenpenceByLabel(String projectId, String clusterId, String name, Map<String, StorageClassDto> storageClassMap, Map<String, PersistentVolume> pvMap) throws Exception{
         List<Map> dependenceDtos = new ArrayList<>();
         Cluster topCluster = clusterService.getPlatformCluster();
         String label = null;
@@ -147,15 +166,22 @@ public class DependenceServiceImpl implements DependenceService {
                 String displayName = (String) pvc.getMetadata().getLabels().get("name");
                 if (name == null || displayName.contains(name)) {
                     dependenceDto.put("name", displayName);
-                    dependenceDto.put("storageClassName", pvc.getSpec().getStorageClassName());
-                    if(pvc.getSpec().getStorageClassName() != null){
-                        StorageClassDto storageClassDto = storageClassMap.get(pvc.getSpec().getStorageClassName());
+                    String storageClassName = this.getStorageClassName(pvc);
+                    dependenceDto.put("storageClassName", storageClassName);
+                    if(StringUtils.isNotBlank(storageClassName)){
+                        StorageClassDto storageClassDto = storageClassMap.get(storageClassName);
+                        if(storageClassDto == null){
+                            logger.error("未找到存储服务：storageClassName：{}", pvc.getSpec().getStorageClassName());
+                            continue;
+                        }
                         dependenceDto.put("storageClassType", storageClassDto.getType());
-                        if(CommonConstant.NFS.equalsIgnoreCase(storageClassDto.getType())) {
-                            String nfsServer = storageClassDto.getConfigMap().get(CommonConstant.NFS_SERVER);
-                            String nfsPath = storageClassDto.getConfigMap().get(CommonConstant.NFS_PATH);
-                            if(StringUtils.isNoneBlank(nfsServer, nfsPath)) {
-                                dependenceDto.put("serverPath", nfsServer + ":" + nfsPath + "/" + CommonConstant.CICD_NAMESPACE + "-" + pvc.getMetadata().getName() + "-" + pvc.getSpec().getVolumeName());
+                        if(StringUtils.isNotBlank(pvc.getSpec().getVolumeName())){
+                            PersistentVolume pv = pvMap.get(pvc.getSpec().getVolumeName());
+                            if(pv != null){
+                                if(CommonConstant.NFS.equalsIgnoreCase(storageClassDto.getType())) {
+                                    NFSVolumeSource nfsVS = pv.getSpec().getNfs();
+                                    dependenceDto.put("serverPath", nfsVS.getServer() + CommonConstant.COLON + nfsVS.getPath());
+                                }
                             }
                         }
                     }
@@ -200,6 +226,7 @@ public class DependenceServiceImpl implements DependenceService {
         labels.put("projectId", dependenceDto.isCommon()? null : dependenceDto.getProjectId());
         labels.put("clusterId", dependenceDto.isCommon()? null : dependenceDto.getClusterId());
         labels.put("common",String.valueOf(dependenceDto.isCommon()));
+        labels.put("storage-class", dependenceDto.getStorageClassName());
         labels.put(CommonConstant.USERNAME, session.getAttribute(CommonConstant.USERNAME));
         pvcMetadata.setLabels(labels);
         persistentVolumeClaim.setMetadata(pvcMetadata);
@@ -236,23 +263,13 @@ public class DependenceServiceImpl implements DependenceService {
     @Override
     public void delete(String name, String projectId, String clusterId) throws Exception {
         Cluster topCluster = clusterService.getPlatformCluster();
-        String pvcName;
-        if(StringUtils.isNotBlank(clusterId)){
-            String projectName = projectService.getProjectNameByProjectId(projectId);
-            String clusterName = clusterService.getClusterNameByClusterId(clusterId);
-            pvcName = projectName + "-" + clusterName + "-" + name;
-        }else{
-            pvcName = name;
-        }
+        PersistentVolumeClaim pvc = getPvc(name, clusterId, projectId, topCluster);
+        String pvcName = pvc.getMetadata().getName();
         Stage stage = new Stage();
         stage.setDependences("\"pvName\":\"" + pvcName + "\"");
         List stageList = stageService.selectByExample(stage);
         if(CollectionUtils.isNotEmpty(stageList)){
             throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_USED);
-        }
-        PersistentVolumeClaim pvc = pvcService.getPvcByName(CommonConstant.CICD_NAMESPACE, pvcName, topCluster);
-        if(pvc == null){
-            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_ALREADY_DELETED);
         }
         Map<String, Object> labels = pvc.getMetadata().getLabels();
         String createUser = (String)labels.get(CommonConstant.USERNAME);
@@ -275,7 +292,9 @@ public class DependenceServiceImpl implements DependenceService {
         if (!HttpStatusUtil.isSuccessStatus(pvcResponse.getStatus())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PVC_CAN_NOT_DELETE);
         }
-
+        if(pvcName.contains(CommonConstant.DEPENDENCE_PREFIX + CommonConstant.DOT)){
+            pvService.delPvByName(pvcName, topCluster);
+        }
     }
 
     /**
@@ -296,23 +315,27 @@ public class DependenceServiceImpl implements DependenceService {
         MultipartFile file = dependenceFileDto.getFile();
         String fileName = file.getOriginalFilename();
         String projectName = null;
-        String pvcName;
+
         if(StringUtils.isNotBlank(dependenceFileDto.getClusterId())){
             projectName = projectService.getProjectNameByProjectId(dependenceFileDto.getProjectId());
             String clusterName = clusterService.getClusterNameByClusterId(dependenceFileDto.getClusterId());
-            pvcName = projectName + "-" + clusterName + "-" + dependenceFileDto.getDependenceName();
             tmpDirectory = new File(uploadPath + "/" + projectName + "/" + clusterName);
             localFile = tmpDirectory.getPath() + "/" + fileName;
         }else{
-            pvcName = dependenceFileDto.getDependenceName();
             tmpDirectory = new File(uploadPath + "/" + dependenceFileDto.getDependenceName());
             localFile = tmpDirectory.getPath() + "/" + fileName;
         }
 
-
-        PersistentVolumeClaim pvc = pvcService.getPvcByName(CommonConstant.CICD_NAMESPACE, pvcName, topCluster);
-        String storageClassName = pvc.getSpec().getStorageClassName();
-        String remoteDirectory = getRemoteDependenceDir(pvc) + "/";
+        PersistentVolumeClaim pvc = getPvc(dependenceFileDto.getDependenceName(), dependenceFileDto.getClusterId(), dependenceFileDto.getProjectId(), topCluster);
+        String storageClassName = this.getStorageClassName(pvc);
+        PersistentVolume pv;
+        if(pvc.getSpec().getVolumeName()!=null){
+            pv = pvService.getPvByName(pvc.getSpec().getVolumeName(), topCluster);
+        }else{
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_NOT_AVAILABLE);
+        }
+        StorageClass storageClass = scService.getScByName(storageClassName, topCluster);
+        String remoteDirectory = getRemoteDependenceDir(pv, storageClass);
 
         //创建临时目录下的项目目录
 
@@ -442,12 +465,19 @@ public class DependenceServiceImpl implements DependenceService {
             pvcName = dependenceName;
         }
         PersistentVolumeClaim pvc = pvcService.getPvcByName(CommonConstant.CICD_NAMESPACE, pvcName, topCluster);
-        String storageClassName = pvc.getSpec().getStorageClassName();
+        String storageClassName = this.getStorageClassName(pvc);
         if(StringUtils.isBlank(storageClassName)){
             throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_FILE_RM_FAIL);
         }
         String fileUploadPodName = getFileUploadPod(storageClassName, topCluster).getMetadata().getName();
-        String remoteDependenceDir = getRemoteDependenceDir(pvc);
+        PersistentVolume pv;
+        if(pvc.getSpec().getVolumeName()!=null){
+            pv = pvService.getPvByName(pvc.getSpec().getVolumeName(), topCluster);
+        }else{
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_NOT_AVAILABLE);
+        }
+        StorageClass storageClass = scService.getScByName(storageClassName, topCluster);
+        String remoteDependenceDir = getRemoteDependenceDir(pv, storageClass);
         String targetPath = remoteDependenceDir + "/" + path;
 
         deleteFile(fileUploadPodName, targetPath, topCluster);
@@ -465,13 +495,13 @@ public class DependenceServiceImpl implements DependenceService {
      */
     @Override
     public List findDependenceFileByKeyword(String dependenceName, String projectId, String clusterId, String keyWord) throws Exception {
-        keyWord = keyWord.toLowerCase();
+        String lowerCaseKeyWord = keyWord.toLowerCase();
         List<Map<String, Object>> list = getFileList(dependenceName, projectId, clusterId, "", true);
         List<Map<String, Object>> result = new ArrayList();
 
         for (Map<String, Object> file : list) {
             String fileName = file.get("fileName").toString().toLowerCase();
-            if (fileName.contains(keyWord)){
+            if (fileName.contains(lowerCaseKeyWord)){
                 result.add(file);
             }
 
@@ -498,9 +528,6 @@ public class DependenceServiceImpl implements DependenceService {
      * @throws Exception
      */
     private Pod getFileUploadPod(String storageClassName, Cluster cluster) throws Exception {
-
-
-
         K8SURL url = new K8SURL();
         url.setNamespace(CommonConstant.KUBE_SYSTEM);
         url.setResource(Resource.POD);
@@ -577,19 +604,19 @@ public class DependenceServiceImpl implements DependenceService {
         Cluster topCluster = clusterService.getPlatformCluster();
         String server = topCluster.getProtocol() + "://" + topCluster.getHost() + ":" + topCluster.getPort();
 
-        String pvcName;
-        if(StringUtils.isNotBlank(clusterId)) {
-            String projectName = projectService.getProjectNameByProjectId(projectId);
-            String clusterName = clusterService.getClusterNameByClusterId(clusterId);
-            pvcName = projectName + "-" + clusterName + "-" + dependenceName;
+        PersistentVolumeClaim pvc = getPvc(dependenceName, clusterId, projectId, topCluster);
+        PersistentVolume pv;
+        if(pvc.getSpec().getVolumeName()!=null){
+            pv = pvService.getPvByName(pvc.getSpec().getVolumeName(), topCluster);
         }else{
-            pvcName = dependenceName;
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_NOT_AVAILABLE);
         }
-        PersistentVolumeClaim pvc = pvcService.getPvcByName(CommonConstant.CICD_NAMESPACE, pvcName, topCluster);
-        String remoteDependenceDir = getRemoteDependenceDir(pvc);
+        String storageClassName = getStorageClassName(pvc);
+        StorageClass storageClass = scService.getScByName(storageClassName, topCluster);
+        String remoteDependenceDir = getRemoteDependenceDir(pv, storageClass);
         String targetDir = remoteDependenceDir + "/" + path;
 
-        Pod fileUploadPod = getFileUploadPod(pvc.getSpec().getStorageClassName(), topCluster);
+        Pod fileUploadPod = getFileUploadPod(storageClassName, topCluster);
         String fileUploadPodName = fileUploadPod.getMetadata().getName();
         Process p = null;
         boolean error = false;
@@ -601,15 +628,15 @@ public class DependenceServiceImpl implements DependenceService {
                 lsCmd = new String[]{"ls", "-lh", "--full-time", targetDir};
             }
             String[] lsDependenceCommand = ArrayUtils.addAll(new String[]{
-                            "kubectl",
-                            "exec",
-                            fileUploadPodName,
-                            "-n",
-                            CommonConstant.KUBE_SYSTEM,
-                            "--token=" + topCluster.getMachineToken(),
-                            "--server=" + server,
-                            "--insecure-skip-tls-verify=true",
-                            "--"}, lsCmd
+                    "kubectl",
+                    "exec",
+                    fileUploadPodName,
+                    "-n",
+                    CommonConstant.KUBE_SYSTEM,
+                    "--token=" + topCluster.getMachineToken(),
+                    "--server=" + server,
+                    "--insecure-skip-tls-verify=true",
+                    "--"}, lsCmd
             );
             p = Runtime.getRuntime().exec(lsDependenceCommand);
 
@@ -677,7 +704,7 @@ public class DependenceServiceImpl implements DependenceService {
             logger.info("执行容器文件目录ls命令结果：" + runningStatus);
             return files;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.warn("获取{}依赖文件列表失败", dependenceName, e);
             throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_DIRECTORY_LIST_FAIL);
         } finally {
             if (null != p) {
@@ -686,8 +713,69 @@ public class DependenceServiceImpl implements DependenceService {
         }
     }
 
-    private String getRemoteDependenceDir(PersistentVolumeClaim pvc) throws Exception {
-        return "/dependence/" + pvc.getMetadata().getNamespace() + "-" + pvc.getMetadata().getName() + "-" + pvc.getSpec().getVolumeName();
-
+    /**
+     * 获取依赖在file-upload组件中的对应目录
+     * @param pv
+     * @param storageClass
+     * @return
+     * @throws Exception
+     */
+    private String getRemoteDependenceDir(PersistentVolume pv, StorageClass storageClass) throws Exception {
+        String nfsPath = (String)storageClass.getMetadata().getAnnotations().get(NFSPATH);
+        NFSVolumeSource nfsVs = pv.getSpec().getNfs();
+        if (nfsVs != null && StringUtils.isNotBlank(nfsPath)) {
+            return nfsVs.getPath().replaceFirst(nfsPath, MOUNTPATH) + CommonConstant.SLASH;
+        } else {
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_DIRECTORY_QUERY_ERROR);
+        }
     }
+
+    /**
+     * 从PVC中获取storageclass名称
+     * @param pvc
+     * @return
+     */
+    private String getStorageClassName(PersistentVolumeClaim pvc){
+        String storageClass = pvc.getSpec().getStorageClassName();
+        if(StringUtils.isBlank(storageClass) && pvc.getMetadata().getAnnotations() != null){
+            storageClass = (String)pvc.getMetadata().getAnnotations().get(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.STORAGECLASS);
+        }
+        return storageClass;
+    }
+
+    /**
+     * 根据label查询pvc
+     * @param name
+     * @param clusterId
+     * @param projectId
+     * @param cluster
+     * @return
+     * @throws Exception
+     */
+    private PersistentVolumeClaim getPvc(String name, String clusterId, String projectId, Cluster cluster) throws Exception {
+        Map<String, Object> bodys = new HashMap<>();
+        String labelSelector = CommonConstant.NAME + CommonConstant.EQUALITY_SIGN + name;
+        if(StringUtils.isNotBlank(clusterId)){
+            labelSelector += CommonConstant.COMMA + CommonConstant.CLUSTERID + CommonConstant.EQUALITY_SIGN + clusterId;
+            labelSelector += CommonConstant.COMMA + CommonConstant.PROJECTID + CommonConstant.EQUALITY_SIGN + projectId;
+            labelSelector += CommonConstant.COMMA + COMMON + CommonConstant.EQUALITY_SIGN + CommonConstant.FALSE_STRING;
+        }else {
+            labelSelector += CommonConstant.COMMA + COMMON + CommonConstant.EQUALITY_SIGN + CommonConstant.TRUE_STRING;
+        }
+        bodys.put(CommonConstant.LABELSELECTOR, labelSelector);
+        K8SClientResponse res = pvcService.doSepcifyPVC(CommonConstant.CICD, bodys, HTTPMethod.GET, cluster);
+        if(!HttpStatusUtil.isSuccessStatus(res.getStatus())){
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_LIST_ERROR);
+        }
+        PersistentVolumeClaimList persistentVolumeClaimList = JsonUtil.jsonToPojo(res.getBody(), PersistentVolumeClaimList.class);
+        List<PersistentVolumeClaim> pvcList = persistentVolumeClaimList.getItems();
+        if(!CollectionUtils.isNotEmpty(pvcList)){
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_ALREADY_DELETED);
+        }else if(pvcList.size() != 1){
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_LIST_ERROR);
+        }else{
+            return pvcList.get(0);
+        }
+    }
+
 }

@@ -56,16 +56,16 @@ import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 public class UserAuditServiceImpl implements UserAuditService {
     private static Logger LOGGER = LoggerFactory.getLogger(UserAuditServiceImpl.class);
     @Autowired
-    EsService esService;
+    private EsService esService;
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    UserService userService;
+    private UserService userService;
 
     private static TransportClient platformEsClient;
 

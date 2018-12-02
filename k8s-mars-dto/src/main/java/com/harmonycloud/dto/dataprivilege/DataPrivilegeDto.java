@@ -15,20 +15,21 @@ import io.swagger.annotations.ApiModelProperty;
 public class DataPrivilegeDto {
     @ApiModelProperty(value="数据名",name="data",example="tomcat-service")
     @DataPrivilegeField(type = CommonConstant.DATA_FIELD)
-    String data;
+    private String data;
     @ApiModelProperty(value="项目Id",name="projectId",example="aabc0a6f31d543e6a27f6042cddd91ad")
     @DataPrivilegeField(type = CommonConstant.PROJECTID_FIELD)
-    String projectId;
+    private String projectId;
     @ApiModelProperty(value="集群Id",name="clusterId",example="cluster-dev")
     @DataPrivilegeField(type = CommonConstant.CLUSTERID_FIELD)
-    String clusterId;
+    private String clusterId;
     @ApiModelProperty(value="分区名",name="namespace",example="test-ns")
     @DataPrivilegeField(type = CommonConstant.NAMESPACE_FIELD)
-    String namespace;
-    Integer dataResourceType;
-    String parentData;
-    Integer parentDataResourceType;
-    Long creatorId;
+    private String namespace;
+    private Integer dataResourceType;
+    private String parentData;
+    private Integer parentDataResourceType;
+    private Long creatorId;
+    private Integer privilegeType;
 
     public Integer getPrivilegeType() {
         return privilegeType;
@@ -37,9 +38,6 @@ public class DataPrivilegeDto {
     public void setPrivilegeType(Integer privilegeType) {
         this.privilegeType = privilegeType;
     }
-
-    Integer privilegeType;
-
 
     public String getData() {
         return data;

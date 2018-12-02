@@ -17,7 +17,7 @@ import java.util.List;
 @Service
 public class StageBuildServiceImpl implements StageBuildService {
     @Autowired
-    StageBuildMapper stageBuildMapper;
+    private StageBuildMapper stageBuildMapper;
 
     @Override
     public void updateStageBuildByStageIdAndBuildNum(StageBuild stageBuild){

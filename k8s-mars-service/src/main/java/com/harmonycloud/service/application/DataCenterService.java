@@ -5,7 +5,7 @@ import com.harmonycloud.dto.cluster.DataCenterDto;
 
 public interface DataCenterService {
 
-    public ActionReturnUtil listDataCenter() throws Exception;
+    public ActionReturnUtil listDataCenter(Boolean withCluster, Boolean isEnableCluster) throws Exception;
 
     public ActionReturnUtil getDataCenter(String name) throws Exception;
 

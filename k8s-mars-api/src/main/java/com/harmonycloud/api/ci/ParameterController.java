@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/tenants/{tenantId}/projects/{projectId}/cicdjobs/{jobId}/parameters")
 public class ParameterController {
     @Autowired
-    ParameterService parameterService;
+    private ParameterService parameterService;
 
     /**
      * 根据流水线id获取参数信息

@@ -21,9 +21,9 @@ public class AutoScaleServiceTest extends BaseTest {
     protected Logger logger = LoggerFactory.getLogger(AutoScaleServiceTest.class);
 
     @Autowired
-    AutoScaleService autoScaleService;
+    private AutoScaleService autoScaleService;
 
-    AutoScaleDto autoScaleDto = new AutoScaleDto();
+    private AutoScaleDto autoScaleDto = new AutoScaleDto();
 
     @BeforeMethod
     public void setUp() {

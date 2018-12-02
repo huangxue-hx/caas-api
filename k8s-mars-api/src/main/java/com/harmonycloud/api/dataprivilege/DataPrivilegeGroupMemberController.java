@@ -29,10 +29,10 @@ import java.util.Map;
 public class DataPrivilegeGroupMemberController {
 
     @Autowired
-    DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
+    private DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
 
     @Autowired
-    DataPrivilegeGroupMappingService dataPrivilegeGroupMappingService;
+    private DataPrivilegeGroupMappingService dataPrivilegeGroupMappingService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -42,7 +42,7 @@ public class DataPrivilegeGroupMemberController {
      * @return
      * @throws Exception
      */
-    @ApiOperation(value = "获取资源数据全险列表", notes = "根据数据名称和相关条件")
+    @ApiOperation(value = "获取资源数据权限列表", notes = "根据数据名称和相关条件")
     @RequestMapping(value = "/group",method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil listMemberInGroup(@ModelAttribute DataPrivilegeDto dataPrivilegeDto) throws Exception{

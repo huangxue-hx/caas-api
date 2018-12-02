@@ -33,19 +33,19 @@ import java.util.*;
 public class HarborSecurityServiceImpl implements HarborSecurityService {
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
     @Autowired
-    RoleBindingService roleBindingService;
+    private RoleBindingService roleBindingService;
     @Autowired
-    HarborUserService harborUserService;
+    private HarborUserService harborUserService;
     @Autowired
-    HarborService harborService;
+    private HarborService harborService;
     @Autowired
-    HarborProjectService harborProjectService;
+    private HarborProjectService harborProjectService;
     @Autowired
-    ImageRepositoryMapper imageRepositoryMapper;
+    private ImageRepositoryMapper imageRepositoryMapper;
 
     /**
      * 展示Clair对repo的扫描结果
@@ -84,13 +84,9 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
         AssertUtil.notBlank(tag, DictEnum.IMAGE_TAG);
         HarborServer harborServer = clusterService.findHarborByHost(harborHost);
 
-//        String url = HarborClient.getHarborUrl(harborServer) + "/api/repositories/getVulnerabilitySummary";
         String url = HarborClient.getHarborUrl(harborServer) + "/api/repositories/"+repoName+"/tags/"+tag+"/vulnerability/details";
 
         Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
-
-//        Map<String, Object> params = new HashMap<>();
-//        params.put("repo_name", repoName);
 
         return HarborHttpsClientUtil.httpGetRequest(url, headers, null);
     }
@@ -108,14 +104,14 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
         AssertUtil.notBlank(repoName, DictEnum.IMAGE_NAME);
         AssertUtil.notBlank(repoName, DictEnum.IMAGE_TAG);
         HarborServer harborServer = clusterService.findHarborByHost(harborHost);
-        repoName = repoName + ":" + tag;
+        String repo = repoName + ":" + tag;
 
         String url = HarborClient.getHarborUrl(harborServer) + "/api/repositories/getVulnerabilitiesByPackage";
 
         Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 
         Map<String, Object> params = new HashMap<>();
-        params.put("repo_name", repoName);
+        params.put("repo_name", repo);
 
         return HarborHttpsClientUtil.httpGetRequest(url, headers, params);
     }

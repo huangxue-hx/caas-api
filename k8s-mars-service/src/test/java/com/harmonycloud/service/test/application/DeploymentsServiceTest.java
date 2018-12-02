@@ -1,6 +1,7 @@
 package com.harmonycloud.service.test.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.k8s.bean.Deployment;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.service.application.DeploymentsService;
@@ -13,6 +14,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.testng.Assert.assertTrue;
@@ -21,17 +23,17 @@ public class DeploymentsServiceTest extends BaseTest {
     protected Logger logger = LoggerFactory.getLogger(DeploymentsServiceTest.class);
 
     @Autowired
-    DeploymentsService deploymentsService;
+    private DeploymentsService deploymentsService;
 
     @Autowired
-    DeploymentService deploymentService;
+    private DeploymentService deploymentService;
 
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
 
-    String namespace;
-    String deploymentName;
-    Cluster cluster;
+    private String namespace;
+    private String deploymentName;
+    private Cluster cluster;
 
     @BeforeMethod
     public void setUp() throws Exception {
@@ -48,5 +50,11 @@ public class DeploymentsServiceTest extends BaseTest {
         assertTrue(!label.isEmpty());
         ActionReturnUtil result = deploymentsService.updateLabels(namespace, deploymentName, cluster, label);
         assertTrue(result.isSuccess());
+    }
+
+    @Test
+    public void tesListDeploys() throws Exception {
+        List<Map<String, Object>> deployments = deploymentsService.listTenantDeploys(tenantId, devClusterId);
+        assertTrue(deployments.size() > 0);
     }
 }

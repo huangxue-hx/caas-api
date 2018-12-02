@@ -38,13 +38,13 @@ import java.util.*;
 public class TenantPrivateNodeServiceImpl implements TenantPrivateNodeService {
 
     @Autowired
-    TenantPrivateNodeMapper tenantPrivateNodeMapper;
+    private TenantPrivateNodeMapper tenantPrivateNodeMapper;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    NamespaceService namespaceService;
+    private NamespaceService namespaceService;
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     private static final Logger logger = LoggerFactory.getLogger(TenantPrivateNodeServiceImpl.class);
 

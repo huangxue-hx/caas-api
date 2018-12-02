@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 public class SystemConfigController {
 	
 	@Autowired
-	SystemConfigService systemConfigService;
+	private SystemConfigService systemConfigService;
 
 
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -36,7 +36,7 @@ public class SystemConfigController {
 			return ActionReturnUtil.returnSuccess();
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.warn("saveLdapConfig失败", e);
 			logger.error("Failed to save systemConfig.", e.getMessage());
 			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.SAVE_FAIL);
 		}

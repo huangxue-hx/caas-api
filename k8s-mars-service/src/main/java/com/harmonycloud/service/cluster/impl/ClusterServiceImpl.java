@@ -1,6 +1,7 @@
 package com.harmonycloud.service.cluster.impl;
 
 
+import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ClusterLevelEnum;
 
@@ -11,19 +12,19 @@ import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.common.util.StringUtil;
 import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
-import com.harmonycloud.k8s.bean.Deployment;
-import com.harmonycloud.k8s.bean.DeploymentList;
+import com.harmonycloud.dto.application.StorageClassDto;
+import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.*;
 import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.service.DaemonSetService;
 import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.k8s.service.NodeService;
-import com.harmonycloud.k8s.service.ResourceQuotaService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.application.AppLogService;
 import com.harmonycloud.service.application.ApplicationTemplateService;
 import com.harmonycloud.service.application.ServiceService;
+import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.cluster.ClusterCRDService;
@@ -49,18 +50,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.harmonycloud.common.Constant.CommonConstant.KUBE_SYSTEM;
 import static com.harmonycloud.common.Constant.CommonConstant.NUM_SIZE_MEMORY;
 import static com.harmonycloud.common.Constant.CommonConstant.PERCENT_HUNDRED;
 import static com.harmonycloud.service.platform.constant.Constant.NAMESPACE_SYSTEM;
@@ -76,53 +73,57 @@ public class ClusterServiceImpl implements ClusterService {
     private static final String MODULE_MONITOR = "monitor";
 
     @Autowired
-    NodeService nodeService;
+    private NodeService nodeService;
     @Autowired
     private TenantService tenantService;
     @Autowired
-    DashboardService dashboardService;
+    private DashboardService dashboardService;
     @Autowired
-    InfluxdbService influxdbService;
+    private InfluxdbService influxdbService;
     @Autowired
-    com.harmonycloud.service.platform.service.NodeService platformNodeService;
+    private com.harmonycloud.service.platform.service.NodeService platformNodeService;
     @Autowired
-    NamespaceService namespaceService;
+    private NamespaceService namespaceService;
     @Autowired
-    ClusterCRDService clusterCRDService;
+    private ClusterCRDService clusterCRDService;
     @Autowired
-    UserService userService;
+    private UserService userService;
     @Autowired
-    ClusterCacheManager clusterCacheManager;
+    private ClusterCacheManager clusterCacheManager;
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
     @Autowired
-    TenantClusterQuotaService tenantClusterQuotaService;
+    private TenantClusterQuotaService tenantClusterQuotaService;
     @Autowired
-    PodService podService;
+    private PodService podService;
     @Autowired
-    ApplicationTemplateService applicationTemplateService;
+    private ApplicationTemplateService applicationTemplateService;
     @Autowired
-    ServiceService serviceService;
+    private ServiceService serviceService;
     @Autowired
-    BuildEnvironmentService buildEnvironmentService;
+    private BuildEnvironmentService buildEnvironmentService;
     @Autowired
-    AppLogService appLogService;
+    private AppLogService appLogService;
     @Autowired
-    ConfigCenterService configCenterService;
+    private ConfigCenterService configCenterService;
     @Autowired
-    DockerFileService dockerFileService;
+    private DockerFileService dockerFileService;
     @Autowired
-    HarborProjectService harborProjectService;
+    private HarborProjectService harborProjectService;
     @Autowired
-    JobService jobService;
+    private JobService jobService;
     @Autowired
-    MicroServiceInstanceService microServiceInstanceService;
+    private MicroServiceInstanceService microServiceInstanceService;
     @Autowired
-    NodePortClusterUsageService nodePortClusterUsageService;
+    private NodePortClusterUsageService nodePortClusterUsageService;
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
     @Autowired
-    DeploymentService deploymentService;
+    private DeploymentService deploymentService;
+    @Autowired
+    private DaemonSetService daemonSetService;
+    @Autowired
+    StorageClassService storageClassService;
 
 
 
@@ -139,6 +140,7 @@ public class ClusterServiceImpl implements ClusterService {
         }
         Cluster cluster = clusterCacheManager.getCluster(clusterId);
         if(cluster == null){
+            LOG.error("未找到集群，clusterId：{}", clusterId);
             throw new IllegalArgumentException(ErrorCodeMessage.CLUSTER_NOT_FOUND.phrase());
         }
         return cluster;
@@ -168,7 +170,7 @@ public class ClusterServiceImpl implements ClusterService {
     }
 
     @Override
-    public List<Cluster> listAllCluster(Boolean isEnable) throws Exception {
+    public List<Cluster> listAllCluster(Boolean isEnable) {
         List<Cluster> clusters = clusterCacheManager.listCluster();
         if(CollectionUtils.isEmpty(clusters)){
             clusters = new ArrayList<>();
@@ -205,6 +207,16 @@ public class ClusterServiceImpl implements ClusterService {
         }else {
             return clusters.stream().filter(cluster -> cluster.getIsEnable() == isEnable).collect(Collectors.toList());
         }
+    }
+
+    @Override
+    public Map<String, List<Cluster>> groupCluster(Boolean isEnable) throws Exception {
+        List<Cluster> clusters = clusterCacheManager.listCluster();
+        clusters.add(clusterCacheManager.getPlatformCluster());
+        if(isEnable != null){
+            clusters = clusters.stream().filter(cluster -> cluster.getIsEnable() == isEnable).collect(Collectors.toList());
+        }
+        return clusters.stream().collect(Collectors.groupingBy(Cluster::getDataCenterName));
     }
 
     @Override
@@ -318,17 +330,18 @@ public class ClusterServiceImpl implements ClusterService {
     }
 
     @Override
-    public ActionReturnUtil getClusterResourceUsage(String clusterId, String nodename) throws Exception{
+    public ActionReturnUtil getClusterResourceUsage(String clusterId, String nodeName) throws Exception{
+        String hostName = nodeName;
         List<Cluster> listCluster = new ArrayList<>();
         if(clusterId != null) {
             Cluster cluster = this.findClusterById(clusterId);
             if(cluster == null){
                 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
             }
-            if(StringUtils.isNotBlank(nodename)){
-                String hostname = platformNodeService.gethostname(nodename, cluster);
-                if (hostname !=null ){
-                    nodename = hostname;
+            if(StringUtils.isNotBlank(nodeName)){
+                String host = platformNodeService.gethostname(nodeName, cluster);
+                if (host != null ){
+                    hostName = host;
                 }
             }
             listCluster.add(cluster);
@@ -347,8 +360,8 @@ public class ClusterServiceImpl implements ClusterService {
                 Map<String, Object> res = new HashMap<String, Object>();
 
                 Map<String, Object> allocatableMap = null;
-                if(null != nodename && !"".equals(nodename)) {
-                    allocatableMap = this.dashboardService.getNodeInfo(cluster, nodename);
+                if(null != hostName && !"".equals(hostName)) {
+                    allocatableMap = this.dashboardService.getNodeInfo(cluster, hostName);
                 } else {
                     allocatableMap = this.dashboardService.getInfraInfoWorkNode(cluster);
                 }
@@ -356,7 +369,7 @@ public class ClusterServiceImpl implements ClusterService {
                 clusterCpuCapacity = Double.parseDouble(allocatableMap.get("cpu").toString()) ;
                 clusterMemoryCapacity = Double.parseDouble(allocatableMap.get("memoryGb").toString()) ;
                 List<String> notWorkNodeList = nodeService.listNotWorkNode(cluster);
-                clusterCpuUsage = this.influxdbService.getClusterResourceUsage("node", "cpu/usage_rate","nodename", cluster, notWorkNodeList, nodename);
+                clusterCpuUsage = this.influxdbService.getClusterResourceUsage("node", "cpu/usage_rate","nodename", cluster, notWorkNodeList, hostName);
                 clusterCpuUsage = (double) clusterCpuUsage / 1000;
                 clusterCpuUsage = new BigDecimal(clusterCpuUsage).setScale(1, BigDecimal.ROUND_HALF_UP).doubleValue();
                 double clusterCpuUsageRate = 0;
@@ -364,7 +377,7 @@ public class ClusterServiceImpl implements ClusterService {
                     clusterCpuUsageRate = (double) clusterCpuUsage / clusterCpuCapacity;
                     clusterCpuUsageRate = new BigDecimal(clusterCpuUsageRate).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue();
                 }
-                clusterMemoryUsage =  this.influxdbService.getClusterResourceUsage("node", "memory/working_set", "nodename",cluster, notWorkNodeList, nodename);
+                clusterMemoryUsage =  this.influxdbService.getClusterResourceUsage("node", "memory/working_set", "nodename",cluster, notWorkNodeList, hostName);
                 clusterMemoryUsage = (double)clusterMemoryUsage / 1024 /1024/1024;
                 clusterMemoryUsage = new BigDecimal(clusterMemoryUsage).setScale(1, BigDecimal.ROUND_HALF_UP).doubleValue();
                 double clusterMemoryUsageRate = 0;
@@ -372,11 +385,11 @@ public class ClusterServiceImpl implements ClusterService {
                     clusterMemoryUsageRate = (double) clusterMemoryUsage / clusterMemoryCapacity;
                     clusterMemoryUsageRate = new BigDecimal(clusterMemoryUsageRate).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue();
                 }
-                clusterFilesystemUsage =  this.influxdbService.getClusterResourceUsage("node", "filesystem/usage", "nodename,resource_id",cluster, notWorkNodeList, nodename);
+                clusterFilesystemUsage =  this.influxdbService.getClusterResourceUsage("node", "filesystem/usage", "nodename,resource_id",cluster, notWorkNodeList, hostName);
                 clusterFilesystemUsage = (double)clusterFilesystemUsage/1024/1024/1024;
                 clusterFilesystemUsage = new BigDecimal(clusterFilesystemUsage).setScale(1, BigDecimal.ROUND_HALF_UP).doubleValue();
                 double clusterFilesystemUsageRate = 0;
-                clusterFilesystemCapacity =  this.influxdbService.getClusterResourceUsage("node", "filesystem/limit", "nodename,resource_id",cluster, notWorkNodeList,nodename);
+                clusterFilesystemCapacity =  this.influxdbService.getClusterResourceUsage("node", "filesystem/limit", "nodename,resource_id",cluster, notWorkNodeList,hostName);
                 if(clusterFilesystemCapacity >0) {
                     clusterFilesystemCapacity = (double) clusterFilesystemCapacity / 1024 / 1024 / 1024;
                     clusterFilesystemCapacity = new BigDecimal(clusterFilesystemCapacity).setScale(0, BigDecimal.ROUND_HALF_UP).doubleValue();
@@ -384,17 +397,16 @@ public class ClusterServiceImpl implements ClusterService {
                     clusterFilesystemUsageRate = new BigDecimal(clusterFilesystemUsageRate).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue();
                 }
                 double clusterVolumeCapacity = 0;
-                for (ClusterStorage storage : cluster.getStorages()) {
-                    if (StringUtils.isNoneEmpty(storage.getCapacity())) {
-                        clusterVolumeCapacity += Double.parseDouble(storage.getCapacity());
+                List<StorageClassDto> storageClassDtoList = storageClassService.listStorageClass(cluster.getId());
+                for (StorageClassDto sc : storageClassDtoList){
+                    if (StringUtils.isNotEmpty(sc.getStorageLimit()) && sc.getStatus()==1){
+                        clusterVolumeCapacity += Double.parseDouble(sc.getStorageLimit());
                     }
                 }
-//                默认单位为TB，转为GB
-                clusterVolumeCapacity *= 1024;
                 double clusterVolumeUsage = 0;
                 double clusterVolumeUsageRateValue = 0;
                 if(clusterVolumeCapacity > 0) {
-                    clusterVolumeUsage = this.influxdbService.getClusterResourceUsage("pvc", "volume/usage", "", cluster, notWorkNodeList, nodename);
+                    clusterVolumeUsage = this.influxdbService.getClusterResourceUsage("pvc", "volume/usage", "", cluster, notWorkNodeList, hostName);
                     if (clusterVolumeUsage > 0) {
                         clusterVolumeUsage = clusterVolumeUsage / 1024 / 1024 / 1024;
                         clusterVolumeUsage = BigDecimal.valueOf(clusterVolumeUsage).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue();
@@ -441,7 +453,7 @@ public class ClusterServiceImpl implements ClusterService {
      * @return
      */
     @Override
-    public List<ClusterDomain> findDomain(String namespace) throws Exception {
+    public ClusterDomain findDomain(String namespace) throws Exception {
         if (StringUtils.isBlank(namespace)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
@@ -513,111 +525,57 @@ public class ClusterServiceImpl implements ClusterService {
     }
 
     @Override
-    public Map<String, Object> getClusterComponentStatus(String clusterId) throws Exception{
+    public Map<String, Object> getClusterComponentStatus(String clusterId) throws Exception {
         Cluster cluster = this.findClusterById(clusterId);
-        List<PodDto> podDtoList = podService.getPodListByNamespace(cluster, NAMESPACE_SYSTEM);
-        Map<String, Object> map = new HashMap<>();
-        map.put(K8sModuleEnum.KUBE_APISERVER.getCode(), Constant.STATUS_NORMAL);
-        map.put(K8sModuleEnum.KUBE_CONTROLLER_MANAGER.getCode(), Constant.STATUS_NORMAL);
-        map.put(K8sModuleEnum.KUBE_SCHEDULER.getCode(), Constant.STATUS_NORMAL);
-        map.put(K8sModuleEnum.ETCD.getCode(), Constant.STATUS_NORMAL);
-        map.put(K8sModuleEnum.ELASTICSEARCH.getCode(), Constant.STATUS_NORMAL);
-        map.put(K8sModuleEnum.CALICO.getCode(), Constant.STATUS_NORMAL);
-        map.put(K8sModuleEnum.KUBE_DNS.getCode(), Constant.STATUS_NORMAL);
-        map.put(K8sModuleEnum.NFS.getCode(),Constant.STATUS_NORMAL);
-        map.put(K8sModuleEnum.SERVICE_LOADBALANCER.getCode(), Constant.STATUS_NORMAL);
-        map.put(MODULE_MONITOR, Constant.STATUS_NORMAL);
-
-        //K8s组件用pod运行状态来判断
-        Map<String, Object> k8sMap = new HashMap<>();
-        k8sMap.put(K8sModuleEnum.KUBE_APISERVER.getCode(), Constant.STATUS_NORMAL);
-        k8sMap.put(K8sModuleEnum.KUBE_CONTROLLER_MANAGER.getCode(), Constant.STATUS_NORMAL);
-        k8sMap.put(K8sModuleEnum.KUBE_SCHEDULER.getCode(), Constant.STATUS_NORMAL);
-        k8sMap.put(K8sModuleEnum.ETCD.getCode(), Constant.STATUS_NORMAL);
-        k8sMap.put(K8sModuleEnum.SERVICE_LOADBALANCER.getCode(), Constant.STATUS_NORMAL);
-
-        //平台组件使用deployment的状态来进行判断
-        Map<String, Object> plateformMap = new HashMap<>();
-        plateformMap.put(K8sModuleEnum.ELASTICSEARCH.getCode(), Constant.STATUS_NORMAL);
-        plateformMap.put(K8sModuleEnum.CALICO.getCode(), Constant.STATUS_NORMAL);
-        plateformMap.put(K8sModuleEnum.KUBE_DNS.getCode(), Constant.STATUS_NORMAL);
-        plateformMap.put(K8sModuleEnum.NFS.getCode(),Constant.STATUS_NORMAL);
-        plateformMap.put(MODULE_MONITOR, Constant.STATUS_NORMAL);
-
-        Map<String, K8sModuleEnum> moduleEnumMap = K8sModuleEnum.getModuleMap();
-        int abnormalCount = 0;
+        //pod方式部署的组件
+        Map<String, String> podComStatus = new HashMap<>();
+        podComStatus.put(K8sModuleEnum.KUBE_APISERVER.getCode(), Constant.STATUS_NORMAL);
+        podComStatus.put(K8sModuleEnum.KUBE_CONTROLLER_MANAGER.getCode(), Constant.STATUS_NORMAL);
+        podComStatus.put(K8sModuleEnum.KUBE_SCHEDULER.getCode(), Constant.STATUS_NORMAL);
+        podComStatus.put(K8sModuleEnum.ETCD.getCode(), Constant.STATUS_NORMAL);
+        //deployment方式部署的组件
+        Map<String, String> deployComStatus = new HashMap<>();
+        deployComStatus.put(K8sModuleEnum.ELASTICSEARCH.getCode(), Constant.STATUS_NORMAL);
+        deployComStatus.put(K8sModuleEnum.KUBE_DNS.getCode(), Constant.STATUS_NORMAL);
+        deployComStatus.put(K8sModuleEnum.NFS.getCode(), Constant.STATUS_NORMAL);
+        deployComStatus.put(K8sModuleEnum.HEAPSTER.getCode(), Constant.STATUS_NORMAL);
+        deployComStatus.put(K8sModuleEnum.INFLUXDB.getCode(), Constant.STATUS_NORMAL);
+        deployComStatus.put(K8sModuleEnum.CALICO_KUBE_CONTROLLER.getCode(), Constant.STATUS_NORMAL);
+        //daemonSet方式部署的组件
+        Map<String, String> daemonsetComStatus = new HashMap<>();
+        daemonsetComStatus.put(K8sModuleEnum.CALICO.getCode(), Constant.STATUS_NORMAL);
+        daemonsetComStatus.put(K8sModuleEnum.SERVICE_LOADBALANCER.getCode(), Constant.STATUS_NORMAL);
+        daemonsetComStatus.put(K8sModuleEnum.FLUENTD.getCode(), Constant.STATUS_NORMAL);
 
         Set<String> createdComponent = new HashSet<>();
-        for (PodDto pod : podDtoList) {
-            //k8s组件节点
-            for (Map.Entry<String, Object> entry : k8sMap.entrySet()) {
-                if (pod.getName().contains(entry.getKey())) {
-                    //设置已经创建的组件列表
+        int podAbnormalCount = this.calPodComHealthy(createdComponent, podComStatus, cluster);
+        int deployAbnormalCount = this.calDeployComHealthy(createdComponent, deployComStatus, cluster);
+        int daemonsetAbnormalCount = this.calDaemonsetComHealthy(createdComponent, daemonsetComStatus, cluster);
+        int abnormalCount = podAbnormalCount + deployAbnormalCount + daemonsetAbnormalCount;
 
-                    createdComponent.add(entry.getKey());
-                    if (pod.getStatus().equalsIgnoreCase(Constant.RUNNING)) {
-                        continue;
-                    }
-                    //设置状态为异常的组件，如果一个组件有多个pod，每个节点一个pod，如果其中一个pod状态不正常，则该组件状态为异常
-                    map.put(entry.getKey(), Constant.STATUS_ABNORMAL);
-                    abnormalCount ++;
-                }
-            }
-        }
-
-        boolean heapsterCreated = false;
-        boolean influxdbCreated = false;
-        K8SClientResponse depRes = deploymentService.doDeploymentsByNamespace("kube-system",null,null,HTTPMethod.GET,cluster);
-       // resourceQuotaService.getByNamespace("kube-system",null,bodys,cluster);
-        DeploymentList deploymentList = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
-        for(Deployment dep : deploymentList.getItems()){
-            //平台节点
-            for (Map.Entry<String, Object> entry : plateformMap.entrySet()) {
-                if(dep.getMetadata().getName().contains(entry.getKey())){
-                    //设置已经创建的组件列表
-                    if(entry.getKey() == K8sModuleEnum.HEAPSTER.getCode()){
-                        heapsterCreated = true;
-                        if(heapsterCreated && influxdbCreated) {
-                            createdComponent.add(MODULE_MONITOR);
-                        }
-                    }else if(entry.getKey() == K8sModuleEnum.INFLUXDB.getCode()){
-                        influxdbCreated = true;
-                        if(heapsterCreated && influxdbCreated) {
-                            createdComponent.add(MODULE_MONITOR);
-                        }
-                    }else{
-                        createdComponent.add(entry.getKey());
-                    }
-                    //设置状态为异常的组件
-                    if(entry.getKey() == K8sModuleEnum.HEAPSTER.getCode() || entry.getKey() == K8sModuleEnum.INFLUXDB.getCode()){
-                        if(dep.getStatus().getUnavailableReplicas() != null){
-                            map.put(MODULE_MONITOR, Constant.STATUS_ABNORMAL);
-                        }
-                    }
-                    if(dep.getStatus().getUnavailableReplicas() != null){
-                        map.put(entry.getKey(),Constant.STATUS_ABNORMAL);
-                        abnormalCount ++;
-                    }
-
-                }
-            }
-        }
+        //汇总所有组件的状态
+        Map<String, Object> allComStatus = new HashMap<>();
+        allComStatus.putAll(podComStatus);
+        allComStatus.putAll(deployComStatus);
+        allComStatus.putAll(daemonsetComStatus);
+        //设置组合组件的状态
+        abnormalCount += this.calComposeComHealth(createdComponent, allComStatus);
 
         //如果组件没有创建，状态修改为异常
-        for (String componentCode : map.keySet()) {
-            //存储只判断deployment的avaiable状态
-            if(componentCode != K8sModuleEnum.NFS.getCode()) {
+        for (String componentCode : allComStatus.keySet()) {
+            //存储没有创建也是正常的，只需判断已经创建的deployment的状态
+            if (!componentCode.equals(K8sModuleEnum.NFS.getCode())) {
                 if (!createdComponent.contains(componentCode)) {
-                    map.put(componentCode, Constant.STATUS_ABNORMAL);
+                    allComStatus.put(componentCode, Constant.STATUS_ABNORMAL);
                     abnormalCount++;
                 }
             }
         }
 
-        double totalCount = map.size();
+        double totalCount = allComStatus.size();
         String health = String.format("%.0f", (totalCount - abnormalCount) / totalCount * PERCENT_HUNDRED);
         Map<String, Object> resultMap = new HashMap<>();
-        map.forEach((k, v) -> {
+        allComStatus.forEach((k, v) -> {
             resultMap.put(k.replaceAll(CommonConstant.LINE, ""), v);
         });
         resultMap.put("clusterComponentHealth", health);
@@ -665,19 +623,193 @@ public class ClusterServiceImpl implements ClusterService {
     }
 
     @Override
-    public Map<String, String> getClustersStorageCapacity(){
-        List<Cluster> clusters = clusterCacheManager.listCluster();
+    public Map<String, String> getClustersStorageCapacity() throws Exception{
+        List<Cluster> clusters = this.listAllCluster(null);
         Map<String, String> clustersMap = new HashMap<>();
         for (Cluster cluster: clusters) {
             Double capacity = 0.0;
-            for(ClusterStorage storage: cluster.getStorages()){
-                if(storage.getCapacity() != null) {
-                    capacity = capacity + Double.parseDouble(storage.getCapacity()) * 1024;
+            List<StorageClassDto> storageClassDtoList = storageClassService.listStorageClass(cluster.getId());
+            for (StorageClassDto sc : storageClassDtoList){
+                if (StringUtils.isNotEmpty(sc.getStorageLimit()) && sc.getStatus()==1){
+                    capacity += Double.parseDouble(sc.getStorageLimit());
                 }
             }
             clustersMap.put(cluster.getId(),capacity.toString()+"GB");
         }
         return clustersMap;
+    }
+
+    /**
+     * 查询k8s核心组件状态，根据pod状态判断
+     */
+    private int calPodComHealthy(Set<String> createdComponent, Map<String, String> map,
+                                 Cluster cluster) throws Exception {
+        int abnormalCount = 0;
+        List<PodDto> podDtoList = podService.getPodListByNamespace(cluster, NAMESPACE_SYSTEM);
+        for (PodDto pod : podDtoList) {
+            //k8s组件节点
+            for (String code : map.keySet()) {
+                if (pod.getName().startsWith(code)) {
+                    //设置已经创建的组件列表
+                    createdComponent.add(code);
+                    if (pod.getStatus().equalsIgnoreCase(Constant.RUNNING)) {
+                        continue;
+                    }
+                    //设置状态为异常的组件，如果一个组件有多个pod，每个节点一个pod，如果其中一个pod状态不正常，则该组件状态为异常
+                    map.put(code, Constant.STATUS_ABNORMAL);
+                    abnormalCount++;
+                }
+            }
+        }
+        return abnormalCount;
+    }
+
+    /**
+     * 查询平台核心组件状态，根据deployment状态判断
+     */
+    private int calDeployComHealthy(Set<String> createdComponent, Map<String, String> map,
+                                    Cluster cluster) throws Exception {
+        int abnormalCount = 0;
+        boolean nfsAbnormal = false;
+        K8SClientResponse depRes = deploymentService.doDeploymentsByNamespace(KUBE_SYSTEM, null,
+                null, HTTPMethod.GET, cluster);
+        DeploymentList deploymentList = JsonUtil.jsonToPojo(depRes.getBody(), DeploymentList.class);
+        for (Deployment dep : deploymentList.getItems()) {
+            String deploymentName = dep.getMetadata().getName();
+            //nfs存储的deployment名称不固定，由用户创建，deployment名称以nfs-client-provisioner开头
+            // 只要其中有一个状态异常，则该组件为异常
+            if (deploymentName.startsWith(K8sModuleEnum.NFS.getK8sComponentName())) {
+                createdComponent.add(K8sModuleEnum.NFS.getCode());
+                if (dep.getStatus().getUnavailableReplicas() != null) {
+                    map.put(K8sModuleEnum.NFS.getCode(), Constant.STATUS_ABNORMAL);
+                    nfsAbnormal = true;
+                }
+            }
+            //平台节点
+            for (String code : map.keySet()) {
+                if (deploymentName.contains(code)) {
+                    createdComponent.add(code);
+                    //deployment组件的状态是否异常根据服务的不可用副本数是否不为空判断
+                    if (dep.getStatus().getUnavailableReplicas() != null) {
+                        map.put(code, Constant.STATUS_ABNORMAL);
+                        //组合组件先不计算异常数量，等全部组件状态计算之后，再另行计算
+                        if(!isComposeComponent(deploymentName)){
+                            abnormalCount++;
+                        }
+                    }
+                }
+            }
+        }
+        if (nfsAbnormal) {
+            abnormalCount++;
+        }
+        return abnormalCount;
+    }
+
+    /**
+     * 查询负载均衡组件状态，根据daemonset状态判断
+     */
+    private int calDaemonsetComHealthy(Set<String> createdComponent, Map<String, String> map,
+                                       Cluster cluster) throws Exception {
+        int abnormalCount = 0;
+        //负载均衡 nginx-ingress-controller使用daemonset启动
+        DaemonSetList dsRes = daemonSetService.listDaemonSet(KUBE_SYSTEM, null, cluster);
+        boolean nginxIngressAbnormal = false;
+        for (DaemonSet daemonSet : dsRes.getItems()) {
+            String daemonSetName = daemonSet.getMetadata().getName();
+            for (String code : map.keySet()) {
+                if (daemonSetName.startsWith(code)) {
+                    //设置已经创建的组件列表
+                    createdComponent.add(code);
+                    //设置状态为异常的组件，如果一个组件有多个pod，每个节点一个pod，如果其中一个pod状态不正常，则该组件状态为异常
+                    if (daemonSet.getStatus().getNumberReady() == 0 || daemonSet.getStatus().getNumberUnavailable() != null) {
+                        map.put(code, Constant.STATUS_ABNORMAL);
+                        if (!isComposeComponent(daemonSetName)) {
+                            //负载均衡nginx-ingress-controller 可以自定义创建多个，计算异常数量时只计算一个
+                            if(daemonSetName.startsWith(K8sModuleEnum.SERVICE_LOADBALANCER.getK8sComponentName())){
+                                nginxIngressAbnormal = true;
+                            }else {
+                                abnormalCount++;
+                            }
+                        }
+                        LOG.error("集群组件异常，名称：{}, 状态:{}", daemonSetName, JSONObject.toJSONString(daemonSet.getStatus()));
+                        continue;
+                    }
+                }
+            }
+        }
+
+        if(nginxIngressAbnormal){
+            abnormalCount++;
+        }
+        return abnormalCount;
+    }
+
+    /**
+     * 设置组合组件的状态， 监控由heapster和influxdb组成， 日志由fluentd和es组成
+     *
+     * @param allComStatus
+     */
+    private int calComposeComHealth(Set<String> createdComponent, Map<String, Object> allComStatus) {
+        int composeComAbnormalCount = 0;
+        //监控由heapster和influxdb组成
+        if (createdComponent.contains(K8sModuleEnum.HEAPSTER.getCode())
+             && createdComponent.contains(K8sModuleEnum.INFLUXDB.getCode())
+                && allComStatus.get(K8sModuleEnum.HEAPSTER.getCode()).equals(Constant.STATUS_NORMAL)
+                && allComStatus.get(K8sModuleEnum.INFLUXDB.getCode()).equals(Constant.STATUS_NORMAL)) {
+            createdComponent.add(MODULE_MONITOR);
+            allComStatus.put(MODULE_MONITOR, Constant.STATUS_NORMAL);
+        } else {
+            composeComAbnormalCount++;
+            allComStatus.put(MODULE_MONITOR, Constant.STATUS_ABNORMAL);
+        }
+        //日志由fluentd和es组成, 前端判断日志根据es的code显示
+        if (createdComponent.contains(K8sModuleEnum.FLUENTD.getCode())
+                && createdComponent.contains(K8sModuleEnum.ELASTICSEARCH.getCode())
+                && allComStatus.get(K8sModuleEnum.FLUENTD.getCode()).equals(Constant.STATUS_NORMAL)
+                && allComStatus.get(K8sModuleEnum.ELASTICSEARCH.getCode()).equals(Constant.STATUS_NORMAL)) {
+            allComStatus.put(K8sModuleEnum.ELASTICSEARCH.getCode(), Constant.STATUS_NORMAL);
+        } else {
+            composeComAbnormalCount++;
+            allComStatus.put(K8sModuleEnum.ELASTICSEARCH.getCode(), Constant.STATUS_ABNORMAL);
+        }
+        //网络组件由calico-node的daemonset和calico-kube-controllers 的deployment组成
+        if (createdComponent.contains(K8sModuleEnum.CALICO_KUBE_CONTROLLER.getCode())
+                && createdComponent.contains(K8sModuleEnum.CALICO.getCode())
+                && allComStatus.get(K8sModuleEnum.CALICO_KUBE_CONTROLLER.getCode()).equals(Constant.STATUS_NORMAL)
+                && allComStatus.get(K8sModuleEnum.CALICO.getCode()).equals(Constant.STATUS_NORMAL)) {
+            allComStatus.put(K8sModuleEnum.CALICO.getCode(), Constant.STATUS_NORMAL);
+        } else {
+            composeComAbnormalCount++;
+            allComStatus.put(K8sModuleEnum.CALICO.getCode(), Constant.STATUS_ABNORMAL);
+        }
+        allComStatus.remove(K8sModuleEnum.HEAPSTER.getCode());
+        allComStatus.remove(K8sModuleEnum.INFLUXDB.getCode());
+        allComStatus.remove(K8sModuleEnum.FLUENTD.getCode());
+        allComStatus.remove(K8sModuleEnum.CALICO_KUBE_CONTROLLER.getCode());
+        return composeComAbnormalCount;
+    }
+
+    private boolean isComposeComponent(String name){
+        if(name.equals(K8sModuleEnum.HEAPSTER.getK8sComponentName())){
+            return true;
+        }
+        if(name.equals(K8sModuleEnum.INFLUXDB.getK8sComponentName())){
+            return true;
+        }
+        if(name.equals(K8sModuleEnum.CALICO_KUBE_CONTROLLER.getK8sComponentName())){
+            return true;
+        }
+        if(name.equals(K8sModuleEnum.ELASTICSEARCH.getK8sComponentName())){
+            return true;
+        }
+        if(name.equals(K8sModuleEnum.FLUENTD.getK8sComponentName())){
+            return true;
+        }
+        if(name.equals(K8sModuleEnum.CALICO.getK8sComponentName())){
+            return true;
+        }
+        return false;
     }
 
 }

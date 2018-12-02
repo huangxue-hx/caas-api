@@ -112,7 +112,21 @@ public class Constant {
 	public final static String SYSTEM_CONFIG_PDB_MIN_AVAILABLE = "pdb.minAvailable";
 	public final static String SYSTEM_CONFIG_PDB_MAX_UNAVAILABLE = "pdb.maxUnavailable";
 	public final static String PDB_SUFFIX = "-pdb";
-	
+
+
+	//onlineshop
+	public final static String CLUSTER_ROLE_ONLINESHOP = "onlineshop";
+	public final static String CLUSTER_ROLE_BINDING_ONLINESHOP = "onlineshop";
+	public final static String SERVICE_ACCOUNT_ONLINESHOP = "onlineshop";
+	public final static String INIT_CONTAINER_IMAGE = "alpine";
+	public final static String INIT_CONTAINER_IMAGE_TAG = "3.6";
+
+	//verbs
+	public final static String GET = "get";
+	public final static String LIST = "list";
+	public final static String WATCH = "watch";
+
+
 	//stroge
 	public final static String VOLUME_TYPE_PV = "nfs";
     public final static String VOLUME_TYPE_PVC = "pvc";
@@ -128,6 +142,7 @@ public class Constant {
     public final static String TYPE_DATACENTER = "dataCenter";
 	public final static String TOP_DATACENTER = "cluster-top";
     public final static String TYPE_CONTROLLERREVISIONNAME = "controller-revision-hash";
+    public final static String TYPE_DEPLOY_VERSION = "version";
 	//重启策略
 	public final static String RESTARTPOLICY_ALWAYS = "Always";
 	public final static String RESTARTPOLICY_NERVER = "Never";
@@ -194,18 +209,6 @@ public class Constant {
 
 	//微服务kong组件名称
 	public final static String SPRINGCLOUD_KONG = "msf-kong-service";
-
-	//负载均衡器默认名称
-	public final static String IC_DEFAULT_NAME = "default";
-
-	//负载均衡器默认名称
-	public final static String IC_DEFAULT_PORT = "80";
-
-	public final static String INGRESS_CONTROLLER_DEFAULT_NAME = "nginx-ingress-controller";
-	//系统外部暴露的配置文件名称:TCP 和 UDP
-	public final static String EXPOSE_CONFIGMAP_NAME_TCP = "system-expose-nginx-config-tcp";
-
-	public final static String EXPOSE_CONFIGMAP_NAME_UDP = "system-expose-nginx-config-udp";
 
 	//微服务kong的环境变量名称
 	public final static String SPRINGCLOUD_KONG_ENV = "KONG_DNS_RESOLVER";

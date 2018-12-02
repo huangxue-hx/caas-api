@@ -46,31 +46,31 @@ public class MonitorAlarmController {
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 	
 	@Autowired
-	InfluxdbService influxdbService;
+	private InfluxdbService influxdbService;
 	
 	@Autowired
-	EsService esService;
+	private EsService esService;
 
 	@Autowired
-	ClusterService clusterService;
+	private ClusterService clusterService;
 
 	@Autowired
-	PodService podService;
+	private PodService podService;
 
 	@Autowired
-	DashboardService dashboardService;
+	private DashboardService dashboardService;
 
 	@Autowired
-	TenantService tenantService;
+	private TenantService tenantService;
 
 	@Autowired
-	LogService logService;
+	private LogService logService;
 
 	@Autowired
-	com.harmonycloud.k8s.service.NodeService nodeService;
+	private com.harmonycloud.k8s.service.NodeService nodeService;
 
 	@Autowired
-	com.harmonycloud.service.platform.service.NodeService nodeService1;
+	private com.harmonycloud.service.platform.service.NodeService nodeService1;
 
 	@ResponseBody
 	@RequestMapping(value="/nodes/{nodename}/monitor", method=RequestMethod.GET)
@@ -140,7 +140,7 @@ public class MonitorAlarmController {
 		try {
             return clusterService.getClusterResourceUsage(clusterId, nodename);
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.warn("获取集群资源使用量失败", e);
 			throw new Exception("Failed to getClusterResourceUsage.", e);
 		}
 	}

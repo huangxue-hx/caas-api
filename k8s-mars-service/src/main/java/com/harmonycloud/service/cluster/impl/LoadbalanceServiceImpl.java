@@ -28,7 +28,7 @@ public class LoadbalanceServiceImpl implements LoadbalanceService {
 	private TenantBindingMapper tenantBindingMapper;
 
 	@Autowired
-	DeploymentService dpService;
+	private DeploymentService dpService;
 
 	@Autowired
 	private DeploymentsService depsService;

@@ -50,22 +50,23 @@ public class ScheduledTasks {
     private BackupAppLogTask backupAppLogTask;
 
     @Autowired
-    ImageCacheManager imageCacheManager;
+    private ImageCacheManager imageCacheManager;
 
     @Autowired
-    StringRedisTemplate stringRedisTemplate;
+    private StringRedisTemplate stringRedisTemplate;
 
     @Autowired
-    JobService jobService;
+    private JobService jobService;
     @Value("#{propertiesReader['upload.path']}")
     private String tempPath;
 
     @Autowired
     private HarborProjectService harborProjectService;
 
-    //启动后延迟10秒每30分钟根据harbor的操作日志刷新缓存
-    @Scheduled(fixedRate = 30 * 60 * 1000, initialDelay =  10 * 1000)
+    //启动后延迟1分钟每30分钟根据harbor的操作日志刷新缓存
+    @Scheduled(fixedRate = 30 * 60 * 1000, initialDelay =  60 * 1000)
     public void freshRepositoryByLog() {
+        log.info("fresh repository by log");
         try {
             if(checkLeader(IMAGEREFRESHLOG,18, TimeUnit.MINUTES)) {
                 imageCacheManager.freshRepositoryByLog();

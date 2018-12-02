@@ -29,7 +29,7 @@ public class DaemonSetController {
     private DaemonSetsService daemonSetsService;
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 

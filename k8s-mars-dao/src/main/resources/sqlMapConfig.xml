@@ -63,8 +63,6 @@
         <typeAlias alias="DockerFile" type="com.harmonycloud.dao.ci.bean.DockerFile" />
         <typeAlias alias="DockerFileJobStage" type="com.harmonycloud.dao.ci.bean.DockerFileJobStage" />
         <typeAlias alias="FileUploadContainer" type="com.harmonycloud.dao.application.bean.FileUploadContainer" />
-        <typeAlias alias="IngressControllerPort" type="com.harmonycloud.dao.cluster.bean.IngressControllerPort" />
-        <typeAlias alias="IngressControllerPortExample" type="com.harmonycloud.dao.cluster.bean.IngressControllerPortExample" />
     </typeAliases>
 
     <mappers>
@@ -104,26 +102,26 @@
         <mapper resource="com/harmonycloud/mapping/ConfigFileMapper.xml" />
 <!--         <mapper resource="com/harmonycloud/mapping/ConfigItemMapper.xml" /> -->
         <!--  配置中心 gurongyun end -->
-         <mapper resource="com/harmonycloud/mapping/NetworkTopologyMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/NodeDrainProgressMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/NodeInstallProgressMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/JobMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/MessageMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/DockerFileMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/DockerFileJobStageMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/StageMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/StageTypeMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/JobBuildMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/StageBuildMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/FileUploadContainerMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/SystemConfigMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/BuildEnvironmentMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/ImageCleanRuleMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/NetworkTopologyMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/NodeDrainProgressMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/NodeInstallProgressMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/JobMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/MessageMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/DockerFileMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/DockerFileJobStageMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/StageMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/StageTypeMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/JobBuildMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/StageBuildMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/FileUploadContainerMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/SystemConfigMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/BuildEnvironmentMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/ImageCleanRuleMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/custums/CustomNamespaceMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/custums/MicroServiceInstanceMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/custums/MicroServiceOperationTaskMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/custums/NodePortClusterUsageMapper.xml" />
-         <mapper resource="com/harmonycloud/mapping/custums/NodePortClusterRangeMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/custums/MicroServiceInstanceMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/custums/MicroServiceOperationTaskMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/custums/NodePortClusterUsageMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/custums/NodePortClusterRangeMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/TriggerMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/HarborRepositoryProjectMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/ImageRepositoryMapper.xml" />
@@ -142,7 +140,11 @@
         <mapper resource="com/harmonycloud/mapping/DataPrivilegeStrategyMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/DataResourceUrlMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/ConfigFileItemMapper.xml" />
-        <mapper resource="com/harmonycloud/mapping/IngressControllerPortMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/AppStoreMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/AppStoreServiceMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/RuleOverviewMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/RuleDetailMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/IstioGlobalConfigureMapper.xml" />
     </mappers>
 </configuration>
 

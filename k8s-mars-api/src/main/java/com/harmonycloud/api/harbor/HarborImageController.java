@@ -37,7 +37,7 @@ public class HarborImageController {
 	@Autowired
 	private HarborSecurityService harborSecurityService;
 	@Autowired
-	ClusterService clusterService;
+	private ClusterService clusterService;
 	@Autowired
 	private HarborService harborService;
 

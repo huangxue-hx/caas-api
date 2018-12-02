@@ -1,6 +1,7 @@
 package com.harmonycloud.aop;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMapping;
@@ -11,6 +12,7 @@ import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMappingService;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
 import com.harmonycloud.service.dataprivilege.DataResourceUrlService;
 import com.harmonycloud.service.user.UserService;
+import org.apache.commons.lang.StringUtils;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
@@ -49,6 +51,8 @@ public class DataPrivilegeAspect {
     private static final String GET = "GET";
     private static final int RO = 1;
     private static final int RW = 2;
+    private static final int DATA_RESOURCE_TYPE_APP = 1;
+    private static final int DATA_RESOURCE_TYPE_DEPLOY = 2;
 
     @Autowired
     private DataResourceUrlService dataResourceUrlService;
@@ -62,7 +66,7 @@ public class DataPrivilegeAspect {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private static Map<String, DataResourceUrl> dataResourceUrlMap = null;
 
-    @Pointcut("execution(public * com.harmonycloud.api.application.*.*(..))")
+    @Pointcut("execution(public * com.harmonycloud.api.application.*.*(..)) || execution(public * com.harmonycloud.api.ci.*.*(..))")
     public void dataPrivilegeAspect() {
     }
 
@@ -105,39 +109,53 @@ public class DataPrivilegeAspect {
         }
 
     }
-    void checkPrivilege(Integer resourceTypeId,Map<String,String> attribute,HttpServletRequest request,HttpSession session,String url) throws Exception {
+
+    private void checkPrivilege(Integer resourceTypeId,Map<String,String> attribute,HttpServletRequest request,HttpSession session,String url) throws Exception {
         String username = this.userService.getCurrentUsername();
         String targetName = null;
-        switch (resourceTypeId){
-            case 1 : targetName = attribute.get("appName");    //应用
+        String clusterId = null;
+        int dataResourceTypeId = resourceTypeId;
+        switch (DataResourceTypeEnum.valueOf(dataResourceTypeId)){
+            case APPLICATION: //应用
+                targetName = attribute.get("appName");
                 break;
-            case 2 : targetName = attribute.get("deployName");       //服务
+            case SERVICE: //服务
+                targetName = attribute.get("deployName");
                 break;
-//            case 3 : targetName = attribute.get("configMapName"); //配置文件
+            case CONFIGFILE: //配置文件
+                targetName = attribute.get("configMapName");
+                if(StringUtils.isEmpty(targetName)){
+                    targetName = request.getParameter("name");
+                }
+                clusterId = request.getParameter("clusterId");
+                break;
+//            case EXTERNALSERVICE : targetName = attribute.get("serviceName");   //外部服务
 //                break;
-//            case 4 : targetName = attribute.get("serviceName");   //外部服务
+//            case STORAGE : targetName = attribute.get("pvName");        //存储
 //                break;
-//            case 5 : targetName = attribute.get("pvName");        //存储
-//                break;
-//            case 6 : targetName = attribute.get("name");          //流水线
-//                break;
+            case PIPELINE: //流水线
+                targetName = attribute.get("jobId");
+                break;
         }
         if("/tenants/*/projects/*/deploys/rules".equals(url)){
             if(request.getParameterMap().containsKey("appName")){  //应用资源
                 targetName = (String)request.getParameterMap().get("appName")[0];
-                resourceTypeId = 1;
+                dataResourceTypeId = DATA_RESOURCE_TYPE_APP;
             }else{                                     //服务资源
                 Map<String, String[]> parameterMap = request.getParameterMap();
                 targetName = parameterMap.get("nameList")[0];
-                resourceTypeId = 2;
+                dataResourceTypeId = DATA_RESOURCE_TYPE_DEPLOY;
             }
         }
+
         DataPrivilegeDto dataPrivilegeDto = new DataPrivilegeDto();
         dataPrivilegeDto.setData(targetName);
         dataPrivilegeDto.setProjectId(attribute.get("projectId"));
-        dataPrivilegeDto.setClusterId(attribute.get("clusterId"));
-        dataPrivilegeDto.setDataResourceType(resourceTypeId);
-        dataPrivilegeDto.setNamespace(request.getParameterMap().get("namespace")[0]);
+        dataPrivilegeDto.setClusterId(clusterId);
+        dataPrivilegeDto.setDataResourceType(dataResourceTypeId);
+        if(!Objects.isNull(request.getParameterMap().get("namespace"))) {
+            dataPrivilegeDto.setNamespace(request.getParameterMap().get("namespace")[0]);
+        }
 
         if(GET.equals(request.getMethod())){
             //根据用户，资源，操作权限类型，获得只读组ID
@@ -174,8 +192,7 @@ public class DataPrivilegeAspect {
                     }
                 }
             }else{
-                logger.info("查询不到该资源的读写组ID!");
-                throw new MarsRuntimeException(ErrorCodeMessage.NOT_FOUND);
+                return;
             }
         }else{
             //根据用户，资源，操作权限类型，获得读写组ID
@@ -196,8 +213,7 @@ public class DataPrivilegeAspect {
                     }
                 }
             }else{
-                logger.info("查询不到该资源读写组ID！");
-                throw new MarsRuntimeException(ErrorCodeMessage.NOT_FOUND);
+                return;
             }
         }
     }

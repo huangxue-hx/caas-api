@@ -80,29 +80,29 @@ public class RestExceptionHandler{
     @ExceptionHandler(NullPointerException.class)  
     @ResponseBody  
     public String nullPointerExceptionHandler(NullPointerException ex) {  
-        ex.printStackTrace();
+        ex.printStackTrace();   //==sonar leak==
         return ReturnFormat.retParam(1001, null);
     }   
     //类型转换异常
     @ExceptionHandler(ClassCastException.class)  
     @ResponseBody  
     public String classCastExceptionHandler(ClassCastException ex) {  
-        ex.printStackTrace();
-        return ReturnFormat.retParam(1002, null);  
+        ex.printStackTrace();   //==sonar leak==
+        return ReturnFormat.retParam(1002, null);
     }  
 
     //IO异常
     @ExceptionHandler(IOException.class)  
     @ResponseBody  
     public String iOExceptionHandler(IOException ex) {  
-        ex.printStackTrace();
+        ex.printStackTrace();   //==sonar leak==
         return ReturnFormat.retParam(1003, null); 
     }  
     //未知方法异常
     @ExceptionHandler(NoSuchMethodException.class)  
     @ResponseBody  
     public String noSuchMethodExceptionHandler(NoSuchMethodException ex) {  
-        ex.printStackTrace();
+        ex.printStackTrace();   //==sonar leak==
         return ReturnFormat.retParam(1004, null);
     }  
 
@@ -110,7 +110,7 @@ public class RestExceptionHandler{
     @ExceptionHandler(IndexOutOfBoundsException.class)  
     @ResponseBody  
     public String indexOutOfBoundsExceptionHandler(IndexOutOfBoundsException ex) {  
-        ex.printStackTrace();
+        ex.printStackTrace();   //==sonar leak==
         return ReturnFormat.retParam(1005, null);
     }
     //400错误
@@ -118,7 +118,7 @@ public class RestExceptionHandler{
     @ResponseBody
     public String requestNotReadable(HttpMessageNotReadableException ex){
         System.out.println("400..requestNotReadable");
-        ex.printStackTrace();
+        ex.printStackTrace();   //==sonar leak==
         return ReturnFormat.retParam(400, null);
     }
     //400错误
@@ -126,7 +126,7 @@ public class RestExceptionHandler{
     @ResponseBody
     public String requestTypeMismatch(TypeMismatchException ex){
         System.out.println("400..TypeMismatchException");
-        ex.printStackTrace();
+        ex.printStackTrace();   //==sonar leak==
         return ReturnFormat.retParam(400, null);
     }
     //400错误
@@ -134,7 +134,7 @@ public class RestExceptionHandler{
     @ResponseBody
     public String requestMissingServletRequest(MissingServletRequestParameterException ex){
         System.out.println("400..MissingServletRequest");
-        ex.printStackTrace();
+        ex.printStackTrace();   //==sonar leak==
         return ReturnFormat.retParam(400, null);
     }
     //405错误

@@ -8,6 +8,7 @@ package com.harmonycloud.common.enumm;
  */
 public enum AuditUrlEnum {
 
+    USER_LOGIN_SSO("/users/current_GET", "用户登录", "userLogin", null, null, "isLogin", "USER"),
     USER_LOGIN("/users/auth/login", "用户登录", "userLogin", null, null, null, "USER"),
     USER_LOGOUT("/users/auth/logout_POST", "用户登出", "userLogout", null, null, null, "USER"),
     USER_CREATE("/users_POST", "创建用户", "createUser", null, null, "username", "USER"),

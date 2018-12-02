@@ -17,7 +17,7 @@ public class TemplateController {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    ClusterTemplateService clusterTemplateService;
+    private ClusterTemplateService clusterTemplateService;
 
     /**
      * 获取 集群模板 列表

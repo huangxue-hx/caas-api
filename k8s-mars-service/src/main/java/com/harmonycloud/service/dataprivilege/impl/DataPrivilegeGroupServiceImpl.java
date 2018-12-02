@@ -18,10 +18,10 @@ import java.util.List;
 public class DataPrivilegeGroupServiceImpl implements DataPrivilegeGroupService{
 
     @Autowired
-    DataPrivilegeGroupMapper dataPrivilegeGroupMapper;
+    private DataPrivilegeGroupMapper dataPrivilegeGroupMapper;
 
     @Autowired
-    DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
+    private DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
 
     /**
      * 增加组

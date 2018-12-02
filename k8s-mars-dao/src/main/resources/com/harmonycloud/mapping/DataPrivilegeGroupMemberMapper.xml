@@ -157,12 +157,14 @@
   <insert id="insertUserList">
       insert into data_privilege_group_member (group_id, member_type, member_id,
       username)
-      select #{groupId}, #{memberType}, id, username from user
-      where username in (
+      select #{groupId}, #{memberType}, u.id, u.username from user u
+      left join data_privilege_group_member m on u.id=m.member_id and m.member_type=#{memberType} and m.group_id=#{groupId}
+      where u.username in (
       <foreach collection="userList" item="username" index="index" separator=",">
           #{username}
       </foreach>
       )
+      and exists (select * from dual where m.id is null)
   </insert>
   <delete id="deleteList" parameterType="java.util.List">
       delete from data_privilege_group_member

@@ -86,5 +86,13 @@ public class ConfigFileItem implements Serializable {
         return result;
     }
 
-
+    @Override
+    public String toString() {
+        return "ConfigFileItem{" +
+                "id=" + id +
+                ", configfileId='" + configfileId + '\'' +
+                ", path='" + path + '\'' +
+                ", fileName='" + fileName + '\'' +
+                '}';
+    }
 }

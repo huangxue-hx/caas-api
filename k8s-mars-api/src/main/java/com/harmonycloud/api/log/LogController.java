@@ -34,10 +34,10 @@ public class LogController {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    DeploymentsService deploymentService;
+    private DeploymentsService deploymentService;
 
     @Autowired
-    LogService logService;
+    private LogService logService;
 
     @ResponseBody
     @RequestMapping(method = RequestMethod.GET)

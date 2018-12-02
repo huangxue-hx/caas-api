@@ -23,16 +23,16 @@ import javax.servlet.http.HttpSession;
 public class VersionController {
 
     @Autowired
-    VersionControlService versionControlService;
+    private VersionControlService versionControlService;
 
     @Autowired
-    ConfigMapService configMapService;
+    private ConfigMapService configMapService;
     
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    BlueGreenDeployService blueGreenDeployService;
+    private BlueGreenDeployService blueGreenDeployService;
 
     /**
      * 灰度升级，现在还没有考虑Deployment的自动升级对Service的影响

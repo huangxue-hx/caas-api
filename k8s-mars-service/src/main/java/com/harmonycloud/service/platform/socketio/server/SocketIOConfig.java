@@ -13,6 +13,8 @@ import com.pty4j.PtyProcess;
 import com.pty4j.WinSize;
 import com.sun.jna.Platform;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -27,12 +29,13 @@ import java.util.concurrent.TimeUnit;
  */
 @Service("socketIOConfig")
 public class SocketIOConfig {
+	private static final Logger LOGGER = LoggerFactory.getLogger(SocketIOConfig.class);
 
 	private static SocketIOServer server;
 
-	static Map<String, SocketIOClient> clientsMap = new HashMap<>();
+	static private Map<String, SocketIOClient> clientsMap = new HashMap<>();
 
-	static Map<String, SocketIOClient> podClientsMap = new HashMap<>();
+	static private Map<String, SocketIOClient> podClientsMap = new HashMap<>();
 
 	@Value("#{propertiesReader['socketio.host']}")
 	private String socketIOhost;
@@ -108,7 +111,7 @@ public class SocketIOConfig {
 //							} catch (InterruptedException e) {
 //								// Simply stop the thread...
 //							} catch (IOException e) {
-//									e.printStackTrace();
+//									e.printStackTrace();    //==sonar leak==
 //							} finally {
 //								latch.countDown();
 //							}
@@ -198,7 +201,7 @@ public class SocketIOConfig {
 //						/*int result = term.waitFor();
 //						System.out.println("result:"+result);*/
 //					} catch (Exception e) {
-//						e.printStackTrace();
+//						e.printStackTrace();    //==sonar leak==
 //					}
 //				}
 //			}
@@ -258,7 +261,7 @@ public class SocketIOConfig {
 				}
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("sendMessageToOneClient失败", e);
 		}
 	}
 

@@ -43,7 +43,7 @@ public class AuthManagerDefaultImpl implements AuthManagerDefault {
         int SingleTimeLimit = Integer.valueOf(systemConfigService.
                 findConfigValueByName("SingleTimeLimit"));//单位时间限制  如:1分钟内
         int loginFailCount = user.getLoginFailCount();  //失败次数
-        String loginFailTime = user.getLoginFailTime();;   //上次失败时间
+        String loginFailTime = user.getLoginFailTime();   //上次失败时间
         long diff = loginFailTimeLimit;//时间差 默认锁定时间限制
         if(!StringUtils.isEmpty(loginFailTime)){
             diff = (System.currentTimeMillis() - Long.valueOf( loginFailTime))/ 1000 ;

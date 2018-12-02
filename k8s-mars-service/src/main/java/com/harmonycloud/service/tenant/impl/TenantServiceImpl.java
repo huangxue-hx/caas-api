@@ -1,6 +1,8 @@
 package com.harmonycloud.service.tenant.impl;
 
+import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.Constant.IngressControllerConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.HarborMemberEnum;
@@ -8,38 +10,31 @@ import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.StringUtil;
 import com.harmonycloud.common.util.UUIDUtil;
 import com.harmonycloud.common.util.date.DateUtil;
-import com.harmonycloud.dao.cluster.bean.IngressControllerPort;
 import com.harmonycloud.dao.dataprivilege.DataPrivilegeStrategyMapper;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategy;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategyExample;
-import com.harmonycloud.dao.network.NetworkCalicoMapper;
 import com.harmonycloud.dao.tenant.TenantBindingMapper;
 import com.harmonycloud.dao.tenant.bean.*;
 import com.harmonycloud.dao.user.bean.*;
 import com.harmonycloud.dto.application.StorageClassDto;
+import com.harmonycloud.dto.cluster.IngressControllerDto;
 import com.harmonycloud.dto.tenant.*;
 import com.harmonycloud.dto.user.UserGroupDto;
 import com.harmonycloud.k8s.bean.StorageClass;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.constant.Constant;
-import com.harmonycloud.k8s.service.NetworkPolicyService;
-import com.harmonycloud.k8s.service.PersistentvolumeService;
-import com.harmonycloud.k8s.service.RoleBindingService;
 import com.harmonycloud.k8s.service.ScService;
 import com.harmonycloud.service.application.ApplicationTemplateService;
-import com.harmonycloud.service.application.PersistentVolumeService;
 import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
-import com.harmonycloud.service.cluster.IngressControllerPortService;
-import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
-import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupService;
+import com.harmonycloud.service.cluster.IngressControllerService;
 import com.harmonycloud.service.platform.bean.NodeDto;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
 import com.harmonycloud.service.platform.service.DashboardService;
-import com.harmonycloud.service.platform.service.ExternalService;
 import com.harmonycloud.service.platform.service.NodeService;
 import com.harmonycloud.service.tenant.*;
 import com.harmonycloud.service.user.RoleLocalService;
@@ -72,70 +67,49 @@ import java.util.stream.Collectors;
 public class TenantServiceImpl implements TenantService {
 
     @Autowired
-    TenantBindingMapper tenantBindingMapper;
+    private TenantBindingMapper tenantBindingMapper;
     @Autowired
-    NamespaceService namespaceService;
+    private NamespaceService namespaceService;
     @Autowired
-    StorageClassService storageClassService;
-    @Autowired
-    com.harmonycloud.k8s.service.NamespaceService namespaceService1;
-    @Autowired
-    PersistentvolumeService persistentvolumeService;
-    @Autowired
-    RoleBindingService roleBindingService;
-    @Autowired
-    NetworkCalicoMapper networkCalicoMapper;
-    @Autowired
-    NetworkService networkService;
-    @Autowired
-    PersistentVolumeService persistentVolumeService;
-    @Autowired
-    NetworkPolicyService networkPolicyService;
-    @Autowired
-    ClusterService clusterService;
-    @Autowired
-    ExternalService externalService;
+    private StorageClassService storageClassService;
 
     @Autowired
-    ConfigCenterService configCenterService;
+    private ClusterService clusterService;
+
     @Autowired
-    UserService userService;
+    private ConfigCenterService configCenterService;
     @Autowired
-    HttpSession session;
+    private UserService userService;
     @Autowired
-    UserRoleRelationshipService userRoleRelationshipService;
+    private HttpSession session;
     @Autowired
-    ProjectService projectService;
+    private UserRoleRelationshipService userRoleRelationshipService;
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private ProjectService projectService;
     @Autowired
-    RoleLocalService roleLocalService;
+    private NamespaceLocalService namespaceLocalService;
     @Autowired
-    TenantClusterQuotaService tenantClusterQuotaService;
+    private RoleLocalService roleLocalService;
     @Autowired
-    TenantPrivateNodeService tenantPrivateNodeService;
+    private TenantClusterQuotaService tenantClusterQuotaService;
     @Autowired
-    NodeService nodeService;
+    private TenantPrivateNodeService tenantPrivateNodeService;
     @Autowired
-    ClusterCacheManager clusterCacheManager;
+    private NodeService nodeService;
+    @Autowired
+    private ClusterCacheManager clusterCacheManager;
     @Autowired
     private RolePrivilegeService rolePrivilegeService;
     @Autowired
-    DataPrivilegeStrategyMapper dataPrivilegeStrategyMapper;
+    private DataPrivilegeStrategyMapper dataPrivilegeStrategyMapper;
 
     @Autowired
-    DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
+    private IngressControllerService ingressControllerService;
 
     @Autowired
-    DataPrivilegeGroupService dataPrivilegeGroupService;
-
+    private ScService scService;
     @Autowired
-    private IngressControllerPortService ingressControllerPortService;
-
-    @Autowired
-    ScService scService;
-    @Autowired
-    DashboardService dashboardService;
+    private DashboardService dashboardService;
 
     public static final String PROJECTMGR = "0005";
     //租户类型
@@ -143,7 +117,7 @@ public class TenantServiceImpl implements TenantService {
     //项目类型
     public static final String CATEGORY_PROJECT = "1";
     @Autowired
-    ApplicationTemplateService applicationTemplateService;
+    private ApplicationTemplateService applicationTemplateService;
 
     //租户类型
     public static final Byte SCOPE_TENANT = 0;
@@ -624,20 +598,19 @@ public class TenantServiceImpl implements TenantService {
                 //租户内已经使用的存储
                 Map<String, Integer> storageUsedMap = this.tenantClusterQuotaService.getStorageUsage(tenantId, clusterId);
                 if (storageUsedMap.size() > 0) {
-                    if (storageDtoList == null) {
-                        throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_QUOTA_DELETE_FAIL);
+                    Map<String, StorageDto> storageDtoMap = new HashMap<>();
+                    if (storageDtoList != null) {
+                        storageDtoMap = storageDtoList.stream().collect(Collectors.toMap(StorageDto::getName,storage -> storage));
                     }
                     for (String storageName : storageUsedMap.keySet()) {
-                        Boolean hasStorage = false;
-                        if(storageUsedMap.get(storageName)!=0) {
-                            for (int i = 0; i < storageDtoList.size(); i++) {
-                                if (storageName.equals(storageDtoList.get(i).getName())) {
-                                    if (Integer.parseInt(storageDtoList.get(i).getStorageQuota()) >= storageUsedMap.get(storageName)) {
-                                        hasStorage = true;
-                                    }
-                                }
+                        if(storageUsedMap.get(storageName)>0) {
+                            StorageDto storageDto = storageDtoMap.get(storageName);
+                            if(storageDto == null){
+                                throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_QUOTA_DELETE_FAIL);
                             }
-                            if (!hasStorage) {
+                            if(Integer.parseInt(storageDto.getStorageQuota()) < storageUsedMap.get(storageName)){
+                                logger.warn("设置集群存储配额小于已使用的，used：{}，set：{}",
+                                        JSONObject.toJSONString(storageUsedMap),JSONObject.toJSONString(storageDtoList));
                                 throw new MarsRuntimeException(ErrorCodeMessage.RESOURCE_BEHIND_FLOOR);
                             }
                         }
@@ -804,7 +777,7 @@ public class TenantServiceImpl implements TenantService {
         TenantBinding tenant = this.getTenantByTenantid(tenantid);
         List<NodeDto> nodeDtos = new ArrayList<>();
         String label = CommonConstant.HARMONYCLOUD_TENANTNAME_NS + CommonConstant.EQUALITY_SIGN + tenant.getTenantName();
-        List<NodeDto> nodeList = this.nodeService.listPrivateNodeByLabel(label, cluster);
+        List<NodeDto> nodeList = this.nodeService.listNodeByLabel(label, cluster);
         nodeDtos.addAll(nodeList);
         return nodeDtos;
     }
@@ -1655,22 +1628,30 @@ public class TenantServiceImpl implements TenantService {
     @Override
     public List<Map<String, String>> getTenantIngressController(String tenantId, String clusterId) throws Exception {
         List<Map<String, String>> icNameList = new ArrayList<>();
+        List<String> icNames = new ArrayList<>();
+        //分配给该租户的负载均衡器名称列表
         TenantClusterQuota tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(tenantId, clusterId);
-        if (tenantClusterQuota != null && !StringUtils.isBlank(tenantClusterQuota.getIcNames())) {
-            String[] icNamesStr = tenantClusterQuota.getIcNames().split(",");
-            int len = icNamesStr.length;
-            //查询IngressController对应的端口
-            for (String anIcNamesStr : icNamesStr) {
-                IngressControllerPort ingressControllerPort = ingressControllerPortService.getIngressControllerPort(anIcNamesStr, clusterId);
-                if (Objects.isNull(ingressControllerPort)) {
-                    continue;
-                }
+        if (tenantClusterQuota != null && StringUtils.isNotBlank(tenantClusterQuota.getIcNames())) {
+            icNames = StringUtil.splitAsList(tenantClusterQuota.getIcNames(),",");
+        }
+        List<IngressControllerDto> icDtos = ingressControllerService.listIngressControllerBrief(clusterId);
+        List<Map<String, String>> tenantIcNameList = new ArrayList<>();
+        for (IngressControllerDto  icDto : icDtos) {
+            if(icDto.getIcName().equals(IngressControllerConstant.IC_DEFAULT_NAME) || icNames.contains(icDto.getIcName())){
                 Map<String, String> icMap = new HashMap<>();
-                icMap.put("icName", anIcNamesStr);
-                icMap.put("icPort", String.valueOf(ingressControllerPort.getHttpPort()));
-                icNameList.add(icMap);
+                icMap.put("icName", icDto.getIcName());
+                icMap.put("icAliasName", icDto.getIcAliasName());
+                icMap.put("icPort", String.valueOf(icDto.getHttpPort()));
+                icMap.put("isDefault", String.valueOf(icDto.getIsDefault()));
+                //全局负载均衡器放在列表的第一个
+                if(icDto.getIcName().equals(IngressControllerConstant.IC_DEFAULT_NAME)) {
+                    icNameList.add(icMap);
+                }else {
+                    tenantIcNameList.add(icMap);
+                }
             }
         }
+        icNameList.addAll(tenantIcNameList);
         return icNameList;
     }
 

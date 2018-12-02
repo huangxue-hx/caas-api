@@ -10,15 +10,15 @@ spec:
   selector:
     matchLabels:
       app: webapi
-  template:
-    metadata:
-      labels:
-        app: webapi
   strategy:
     rollingUpdate:
       maxSurge: 1
       maxUnavailable: 0
     type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: webapi
     spec:
       containers:
       - image: 10.10.124.151/library/k8s-webapi:qas
@@ -42,6 +42,9 @@ spec:
         - mountPath: /usr/local/k8s-mars-api/WEB-INF/classes/constant.properties 
           subPath: constant.properties
           name: webapi-config-volume
+        - mountPath: /usr/local/k8s-mars-api/WEB-INF/web.xml
+          subPath: web.xml
+          name: webapi-cm-webxml-volume
         - mountPath: /home
           name: webapi-storage
         - mountPath: /var/run
@@ -51,7 +54,7 @@ spec:
         readinessProbe:
           failureThreshold: 5
           httpGet:
-            path: /
+            path: /swagger-ui.html
             port: 8080
             scheme: HTTP
           initialDelaySeconds: 60
@@ -70,6 +73,12 @@ spec:
           - key: constant.properties
             path: constant.properties
         name: webapi-config-volume
+      - configMap:
+          name: webapi-cm-webxml
+          items:
+          - key: web.xml
+            path: web.xml
+        name: webapi-cm-webxml-volume
       - name: webapi-storage
         persistentVolumeClaim:
           claimName: webapi-claim

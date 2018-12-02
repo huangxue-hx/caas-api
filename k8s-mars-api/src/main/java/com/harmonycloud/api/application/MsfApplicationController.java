@@ -35,19 +35,19 @@ public class MsfApplicationController {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    ApplicationDeployService applicationDeployService;
+    private ApplicationDeployService applicationDeployService;
 
     @Autowired
-    DeploymentsService dpService;
+    private DeploymentsService dpService;
 
     @Autowired
-    LogService logService;
+    private LogService logService;
 
     @Autowired
-    RouterService routerService;
+    private RouterService routerService;
 
     @ResponseBody
     @RequestMapping(value = "/msf/apps/{appName}", method = RequestMethod.GET)

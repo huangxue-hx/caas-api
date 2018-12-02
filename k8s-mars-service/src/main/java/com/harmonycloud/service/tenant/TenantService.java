@@ -268,5 +268,9 @@ public interface TenantService {
      */
     public void removeClusterQuota(String tenantName, String tenantId, ClusterQuotaDto clusterQuota) throws Exception;
 
+    /**
+     * 查询某个租户在某个集群下的所有可用负载均衡器
+     * 包括全局负载均衡器和分配给租户的自定义负载均衡器
+     */
     List<Map<String, String>> getTenantIngressController(String tenantId, String clusterId) throws Exception;
 }

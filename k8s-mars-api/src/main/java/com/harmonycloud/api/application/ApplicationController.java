@@ -24,16 +24,16 @@ import javax.ws.rs.Path;
 public class ApplicationController {
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    ApplicationService appService;
+    private ApplicationService appService;
     
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
 
     @Autowired
-    ApplicationDeployService appDeployService;
+    private ApplicationDeployService appDeployService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -188,16 +188,6 @@ public class ApplicationController {
         return appService.updateServiceTemplateByName(appTemplate, userName);
     }
 
-    /**
-     * 获取公有模板
-     * @return ActionReturnUtil
-     * @throws Exception
-     */
-    @ResponseBody
-    @RequestMapping(value = "/projects/apptemplates", method = RequestMethod.GET)
-    public ActionReturnUtil listApplicationTemplate() throws Exception {
-        return appService.listServiceTemplatePublic();
-    }
 
     /**
      * 应用模板公私有类型转换  （暂未使用）

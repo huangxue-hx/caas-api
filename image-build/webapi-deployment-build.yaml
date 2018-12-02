@@ -51,7 +51,7 @@ spec:
         readinessProbe:
           failureThreshold: 5
           httpGet:
-            path: /
+            path: /swagger-ui.html
             port: 8080
             scheme: HTTP
           initialDelaySeconds: 60

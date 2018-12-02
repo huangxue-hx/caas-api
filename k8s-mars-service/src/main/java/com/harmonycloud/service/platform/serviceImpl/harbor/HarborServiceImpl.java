@@ -1057,21 +1057,22 @@ public class HarborServiceImpl implements HarborService {
                 }
                 projectRepoList.add(projectInfo);
                 List<HarborRepositoryMessage> repositoryMessagesList = new ArrayList<>();
+                String repo = repoName;
                 //如果查询参数没有指定某个具体的repo镜像名，则查询第一个repo的tag信息，其他repo的不查询tag信息
                 if(StringUtils.isBlank(repoName)){
-                    repoName = repoList.get(0);
+                    repo = repoList.get(0);
                 }
                 for(int j=0; j<repoList.size(); j++) {
                     String repositoryName = repoList.get(j);
                     HarborRepositoryMessage harborRepository = new HarborRepositoryMessage();
                     harborRepository.setRepository(repositoryName);
-                    if(repositoryName.equals(repoName)) {
-                        harborRepository = imageCacheManager.getRepoMessage(repository.getHarborHost(),repoName);
+                    if(repositoryName.equals(repo)) {
+                        harborRepository = imageCacheManager.getRepoMessage(repository.getHarborHost(),repo);
                         if(CollectionUtils.isEmpty(harborRepository.getTags()) && !CollectionUtils.isEmpty(harborRepository.getRepositoryDetial())){
                             harborRepository.setTags(harborRepository.getRepositoryDetial().stream().map(manifest -> manifest.getTag()).collect(Collectors.toList()));
                         }
                         if(harborRepository == null){
-                            LOGGER.error("镜像没有获取到版本信息,harborHost:{},repoName:{}",repository.getHarborHost(), repoName);
+                            LOGGER.error("镜像没有获取到版本信息,harborHost:{},repoName:{}",repository.getHarborHost(), repo);
                             continue;
                         }
                         hasSetRepo = true;

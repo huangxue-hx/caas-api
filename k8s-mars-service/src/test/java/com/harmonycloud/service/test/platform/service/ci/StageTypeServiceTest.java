@@ -17,10 +17,10 @@ import static org.testng.Assert.assertNotNull;
 public class StageTypeServiceTest extends BaseTest {
 
     @Autowired
-    StageTypeService stageTypeService;
+    private StageTypeService stageTypeService;
 
     @Autowired
-     JobService jobService;
+     private JobService jobService;
 
 
     @Test

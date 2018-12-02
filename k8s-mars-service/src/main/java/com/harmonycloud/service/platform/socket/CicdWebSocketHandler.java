@@ -19,14 +19,14 @@ import java.util.Map;
 public class CicdWebSocketHandler implements WebSocketHandler{
 
     @Autowired
-    JobService jobService;
+    private JobService jobService;
 
     @Autowired
-    StageService stageService;
+    private StageService stageService;
 
 	private static final Logger logger = LoggerFactory.getLogger(CicdWebSocketHandler.class);
 
-	public static final Map<String, WebSocketSession> userSocketSessionMap = new HashMap<>();
+	private static final Map<String, WebSocketSession> userSocketSessionMap = new HashMap<>();
 
 
 	@Override
@@ -142,7 +142,7 @@ public class CicdWebSocketHandler implements WebSocketHandler{
                         user.sendMessage(message);
                     }
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    e.printStackTrace();  //==sonar leak==
                 }
                 break;
             }

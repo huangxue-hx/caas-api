@@ -21,9 +21,9 @@ public class ClusterCRDController {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    ClusterCRDService clusterCRDService;
+    private ClusterCRDService clusterCRDService;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
     /**
      * 获取 clusterTPR 列表

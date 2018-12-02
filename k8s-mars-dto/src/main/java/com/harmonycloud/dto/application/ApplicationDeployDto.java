@@ -20,6 +20,8 @@ public class ApplicationDeployDto {
 
     @DataPrivilegeField(type = CommonConstant.PROJECTID_FIELD)
 	private String projectId;
+
+    private String clusterId;
 //
 //    private String capacity;
 //
@@ -77,6 +79,14 @@ public class ApplicationDeployDto {
 
 	public void setTenantId(String tenantId) {
 		this.tenantId = tenantId;
+	}
+
+	public String getClusterId() {
+		return clusterId;
+	}
+
+	public void setClusterId(String clusterId) {
+		this.clusterId = clusterId;
 	}
 
 	//    public String getName() {

@@ -23,13 +23,13 @@ import com.harmonycloud.service.tenant.PrivatePartitionService;
 public class PrivatePartitionImpl implements PrivatePartitionService {
 
     @Autowired
-    PrivatePartitionMapper privatePartitionMapper;
+    private PrivatePartitionMapper privatePartitionMapper;
 
     @Autowired
-    TenantBindingMapper tenantBindingMapper;
+    private TenantBindingMapper tenantBindingMapper;
 
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
 
     @Override
     public void setPrivatePartition(String tenantid, String namespace) throws Exception {

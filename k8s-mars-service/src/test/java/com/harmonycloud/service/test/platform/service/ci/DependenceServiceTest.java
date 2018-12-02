@@ -24,7 +24,7 @@ public class DependenceServiceTest extends BaseTest {
      * */
 
     @Autowired
-    DependenceService dependenceService;
+    private DependenceService dependenceService;
 
 
     @Test(priority = 2)
@@ -41,6 +41,7 @@ public class DependenceServiceTest extends BaseTest {
         dependenceDtoCommon.setClusterId("");
         dependenceDtoCommon.setCommon(true);
         dependenceDtoCommon.setName("dependence-common-testng");
+        dependenceDtoCommon.setStorageClassName("dependence-storage-class");
         dependenceService.add(dependenceDtoCommon);
 
         //common=false
@@ -49,6 +50,7 @@ public class DependenceServiceTest extends BaseTest {
         dependenceDtoPrivate.setClusterId(devClusterId);
         dependenceDtoPrivate.setCommon(false);
         dependenceDtoPrivate.setName("dependence-private-testng");
+        dependenceDtoPrivate.setStorageClassName("dependence-storage-class");
         dependenceService.add(dependenceDtoPrivate);
     }
 

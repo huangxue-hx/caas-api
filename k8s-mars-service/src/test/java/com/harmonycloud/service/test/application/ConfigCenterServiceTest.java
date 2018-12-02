@@ -40,16 +40,16 @@ public class ConfigCenterServiceTest extends BaseTest {
     protected Logger logger= LoggerFactory.getLogger(ConfigCenterServiceTest.class);
 
     @Autowired
-    ConfigCenterService configCenterService;
+    private ConfigCenterService configCenterService;
     @Autowired
-    MockHttpSession session;
+    private MockHttpSession session;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
     private static String testConfigName = "configtestname";
     private static String testRepoName = "library/tomcat";
     private static ConfigDetailDto configDetail;
-    Cluster cluster = null;
+    private Cluster cluster = null;
 
     @BeforeMethod
     public void createConfigData(){
@@ -226,7 +226,7 @@ public class ConfigCenterServiceTest extends BaseTest {
 
     @Test
     public void testGetConfigMapByName() throws Exception {
-        ActionReturnUtil configMapByName = configCenterService.getConfigMapByName(testConfigName, devClusterId, configDetail.getProjectId());
+        ActionReturnUtil configMapByName = configCenterService.getConfigMapByName(testConfigName, devClusterId, configDetail.getProjectId(), false);
         assertTrue(configMapByName.isSuccess());
         assertNotNull(configMapByName.getData());
     }

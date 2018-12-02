@@ -1,5 +1,6 @@
 package com.harmonycloud.service.platform.serviceImpl.k8s;
 
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -35,9 +36,9 @@ public class WatchServiceImpl implements WatchService{
 	private List<String> listeners = new ArrayList<String>();
 
 	@Autowired
-	SocketIOConfig socketIOConfig;
+	private SocketIOConfig socketIOConfig;
 	@Autowired
-	EventService eventService;
+	private EventService eventService;
 
 	@Override
 	public boolean watch(Map<String, String> field, String kind, String resourceVersion, String userName, Cluster cluster) throws Exception {
@@ -48,7 +49,7 @@ public class WatchServiceImpl implements WatchService{
 			resourceKind = "events";
 		}
 		//获取token
-		String token = String.valueOf(K8SClient.tokenMap.get(userName));
+		String token = String.valueOf(K8SClient.getTokenMap().get(userName));
 		Map<String, Object> headers = new HashMap<>();
 		headers.put("Authorization", "Bearer " + token);
 		
@@ -147,7 +148,7 @@ public class WatchServiceImpl implements WatchService{
 
 	@Override
 	public String listenMessage() throws Exception {
-		String rd = "lis"+ Math.ceil(Math.random()*100000) + new Date().getTime();
+		String rd = "lis"+ Math.ceil(new SecureRandom().nextDouble() * 100000) + new Date().getTime();
 		listeners.add(rd);
 		return rd;
 	}

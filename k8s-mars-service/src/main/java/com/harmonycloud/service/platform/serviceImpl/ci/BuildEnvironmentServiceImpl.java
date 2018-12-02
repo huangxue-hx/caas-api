@@ -69,12 +69,13 @@ public class BuildEnvironmentServiceImpl implements BuildEnvironmentService {
         if(projectService.getProjectByProjectId(projectId) == null){
             return Collections.emptyList();
         }
-
+        //组装私有环境查询条件
         BuildEnvironmentExample buildEnvironmentExample = new BuildEnvironmentExample();
         BuildEnvironmentExample.Criteria criteria =buildEnvironmentExample.createCriteria().andProjectIdEqualTo(projectId);
         if(StringUtils.isNotBlank(clusterId)){
             criteria.andClusterIdEqualTo(clusterId);
         }else{
+            //集群id为空时查询用户权限内所有集群的环境
             List<Cluster> clusterList = roleLocalService.listCurrentUserRoleCluster();
             if(CollectionUtils.isNotEmpty(clusterList)){
                 List clusterIdList = new ArrayList();
@@ -87,6 +88,7 @@ public class BuildEnvironmentServiceImpl implements BuildEnvironmentService {
         if (StringUtils.isNotBlank(name)) {
             criteria.andNameLike("%" + name + "%");
         }
+        //组装公有环境查询条件
         BuildEnvironmentExample.Criteria publicCriteria = buildEnvironmentExample.createCriteria().andIsPublicEqualTo(CommonConstant.FLAG_TRUE);
         if (StringUtils.isNotBlank(name)) {
             publicCriteria.andNameLike("%" + name + "%");
@@ -121,6 +123,7 @@ public class BuildEnvironmentServiceImpl implements BuildEnvironmentService {
         if (StringUtils.isBlank(buildEnvironment.getName())) {
             throw new MarsRuntimeException(ErrorCodeMessage.ENVIRONMENT_NAME_NOT_BLANK);
         }
+        //根据公私，组装查询条件，进行查重
         if(buildEnvironment.isPublic()){
             buildEnvironment.setProjectId(null);
             buildEnvironment.setClusterId(null);
@@ -193,10 +196,13 @@ public class BuildEnvironmentServiceImpl implements BuildEnvironmentService {
             throw new MarsRuntimeException(ErrorCodeMessage.ENVIRONMENT_USED);
         }
         BuildEnvironment buildEnvironment = buildEnvironmentMapper.selectByPrimaryKey(id);
+        //公有环境只允许创建者或系统管理员删除
         if(buildEnvironment.isPublic()){
             String createUser = buildEnvironment.getCreateUser();
             String username = (String)session.getAttribute(CommonConstant.USERNAME);
+            //判断创建者
             if(StringUtils.isNotBlank(createUser) && !createUser.equals(username)){
+                //判断系统管理员
                 if(!userService.checkCurrentUserIsAdmin()) {
                     throw new MarsRuntimeException(ErrorCodeMessage.ENVIRONMENT_NO_PRIVILEGE_DELETE);
                 }

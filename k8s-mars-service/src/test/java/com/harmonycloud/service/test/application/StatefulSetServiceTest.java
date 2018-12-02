@@ -29,10 +29,10 @@ import static org.testng.Assert.*;
 public class StatefulSetServiceTest extends BaseTest {
     private Logger LOGGER = LoggerFactory.getLogger(StatefulSetServiceTest.class);
     @Autowired
-    ServiceService serviceService;
+    private ServiceService serviceService;
 
     @Autowired
-    StatefulSetsService statefulSetsService;
+    private StatefulSetsService statefulSetsService;
 
 
     private String name = "ststest";

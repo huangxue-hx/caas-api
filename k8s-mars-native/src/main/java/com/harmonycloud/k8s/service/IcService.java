@@ -2,18 +2,23 @@ package com.harmonycloud.k8s.service;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.k8s.bean.ConfigMap;
-import com.harmonycloud.k8s.bean.DaemonSet;
+import com.harmonycloud.common.util.HttpStatusUtil;
+import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.APIGroup;
+import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -120,6 +125,37 @@ public class IcService {
         Map<String, Object> bodys = new HashMap<>();
         bodys.put("labelSelector", label);
         return new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
+    }
+
+    /**
+     * 查询某个分区下的ingress列表
+     * @param namespace 分区
+     * @param label ingress的标签
+     * @param cluster 集群
+     * @return
+     * @throws MarsRuntimeException
+     */
+    public List<Ingress> listIngress(String namespace, String label, Cluster cluster) throws MarsRuntimeException {
+        List<Ingress> ingresses = new ArrayList<>();
+        K8SURL url = new K8SURL();
+        url.setApiGroup(APIGroup.APIS_EXTENSIONS_V1BETA1_VERSION);
+        url.setResource(Resource.INGRESS);
+        url.setNamespace(namespace);
+        Map<String, Object> bodys = new HashMap<>();
+        if(StringUtils.isNotBlank(label)) {
+            bodys.put("labelSelector", label);
+        }
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
+        if (Constant.HTTP_404 == response.getStatus()) {
+            return ingresses;
+        }
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            throw new MarsRuntimeException(status.getMessage());
+        }
+        IngressList ingressList = JsonUtil.jsonToPojo(response.getBody(), IngressList.class);
+        ingresses = ingressList.getItems();
+        return ingresses;
     }
 
 }

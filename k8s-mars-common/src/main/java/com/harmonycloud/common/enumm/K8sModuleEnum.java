@@ -8,23 +8,28 @@ import java.util.concurrent.ConcurrentHashMap;
  * Created by zhangkui on 2017/4/19.
  */
 public enum K8sModuleEnum {
-    KUBE_APISERVER("kube-apiserver", "k8s API服务"),
-    KUBE_CONTROLLER_MANAGER("kube-controller-manager","k8s控制管理器"),
-    KUBE_SCHEDULER("kube-scheduler","k8s调度器"),
-    KUBE_DNS("kube-dns", "域名解析"),
-    ELASTICSEARCH("elasticsearch-logging","ES日志服务"),
-    SERVICE_LOADBALANCER("nginx","负载均衡"),
-    CALICO("calico","集群网络"),
-    ETCD("etcd","etcd存储"),
-    NFS("nfs","nfs存储"),
-    HEAPSTER("heapster","资源监控"),
-    WEBAPI("webapi","云平台后台"),
-    WEBPAGE("webpage","云平台前端"),
-    OAM_TASK("oam-task","云平台告警任务"),
-    OAM_API("oam-api","云平台告警API"),
-    INFLUXDB("influxdb","资源监控存储");
+    KUBE_APISERVER("kube-apiserver","kube-apiserver","pod", "k8s API服务"),
+    KUBE_CONTROLLER_MANAGER("kube-controller-manager","kube-controller-manager","pod", "k8s控制管理器"),
+    KUBE_SCHEDULER("kube-scheduler","kube-scheduler","pod","k8s调度器"),
+    KUBE_DNS("kube-dns", "kube-dns","deployment","域名解析"),
+    ELASTICSEARCH("elasticsearch-logging","elasticsearch-logging","deployment","ES日志服务"),
+    FLUENTD("fluentd","fluentd-es-v1.22","daemonset","日志采集服务"),
+    SERVICE_LOADBALANCER("nginx","nginx-ingress-controller","daemonset","负载均衡"),
+    CALICO("calico","calico-node","daemonset","集群网络"),
+    CALICO_KUBE_CONTROLLER("calico-kube-controllers","calico-kube-controllers","deployment","集群网络"),
+    ETCD("etcd","etcd","pod","etcd存储"),
+    NFS("nfs","nfs-client-provisioner","deployment","nfs存储"),
+    HEAPSTER("heapster","heapster","deployment","资源监控"),
+    WEBAPI("webapi","webapi","deployment","云平台后台"),
+    WEBPAGE("webpage","webpage","deployment","云平台前端"),
+    OAM_TASK("oam-task","oam-task","deployment","云平台告警任务"),
+    OAM_API("oam-api","oam-api","deployment","云平台告警API"),
+    INFLUXDB("influxdb","monitoring-influxdb","deployment","资源监控存储");
 
     private String code;
+    private String k8sComponentName;
+    //部署方式，pod， deployment， daemonset
+    private String deployType;
     private String name;
 
     /**
@@ -43,8 +48,10 @@ public enum K8sModuleEnum {
         }
     }
 
-    K8sModuleEnum(String code, String name) {
+    K8sModuleEnum(String code, String k8sComponentName, String deployType, String name) {
         this.setCode(code);
+        this.setK8sComponentName(k8sComponentName);
+        this.setDeployType(deployType);
         this.setName(name);
     }
 
@@ -65,6 +72,22 @@ public enum K8sModuleEnum {
 
     private void setCode(String code) {
         this.code = code;
+    }
+
+    public String getK8sComponentName() {
+        return k8sComponentName;
+    }
+
+    private void setK8sComponentName(String k8sComponentName) {
+        this.k8sComponentName = k8sComponentName;
+    }
+
+    public String getDeployType() {
+        return deployType;
+    }
+
+    private void setDeployType(String deployType) {
+        this.deployType = deployType;
     }
 
     public String getName() {

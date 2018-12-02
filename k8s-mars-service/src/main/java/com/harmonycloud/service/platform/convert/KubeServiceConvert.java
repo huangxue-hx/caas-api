@@ -138,36 +138,7 @@ public class KubeServiceConvert {
 
             List<VolumeMount> volumeMounts = new ArrayList<VolumeMount>();
             container.setVolumeMounts(volumeMounts);
-
-            if (cc.getConfigmap() != null && cc.getConfigmap().size() > 0) {
-                for (CreateConfigMapDto cm : cc.getConfigmap()) {
-                    if (cm != null && !StringUtils.isEmpty(cm.getPath())) {
-                        String filename = cm.getFile();
-//                        if(cm.getPath().contains("/")){
-//                            int in = cm.getPath().lastIndexOf("/");
-//                            filename = cm.getPath().substring(in+1, cm.getPath().length());
-//                        }
-                        Volume cMap = new Volume();
-                        cMap.setName((cm.getFile() + "-" + cm.getConfigMapId()).replace(".", "-"));
-                        ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
-                        coMap.setName(containerToConfigMap.get(cc.getName()));
-                        List<KeyToPath> items = new LinkedList<KeyToPath>();
-                        KeyToPath key = new KeyToPath();
-                        key.setKey(cm.getFile()+"v"+cm.getTag());
-                        key.setPath(filename);
-                        items.add(key);
-                        coMap.setItems(items);
-                        cMap.setConfigMap(coMap);
-                        volumes.add(cMap);
-                        VolumeMount volm = new VolumeMount();
-                        volm.setName((cm.getFile() + "-" + cm.getConfigMapId()).replace(".", "-"));
-                        volm.setMountPath(cm.getPath()+"/"+filename);
-                        volm.setSubPath(filename);
-                        volumeMounts.add(volm);
-                    }
-                }
-            }
-
+            K8sResultConvert.convertConfigMap(containerToConfigMap.get(cc.getName()),cc.getConfigmap(),volumes,volumeMounts);
 
             if (Objects.nonNull(cc.getLog()) && !StringUtils.isEmpty(cc.getLog().getMountPath())) {
                 Volume emp = new Volume();

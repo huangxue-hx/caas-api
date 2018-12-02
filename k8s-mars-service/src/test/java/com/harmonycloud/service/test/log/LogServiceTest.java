@@ -33,14 +33,14 @@ public class LogServiceTest extends BaseTest {
     protected Logger logger = LoggerFactory.getLogger(LogServiceTest.class);
 
     @Autowired
-    LogService logService;
+    private LogService logService;
     @Autowired
-    DeploymentsService deploymentsService;
+    private DeploymentsService deploymentsService;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
-    Cluster cluster = null;
-    String path = "/opt/logs";
+    private Cluster cluster = null;
+    private String path = "/opt/logs";
 
     public PodList getPodList() throws Exception {
 

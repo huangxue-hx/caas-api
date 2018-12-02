@@ -4,6 +4,7 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.DeploymentDetailDto;
 import com.harmonycloud.dto.application.IngressDto;
 import com.harmonycloud.dto.scale.HPADto;
+import com.harmonycloud.k8s.bean.Deployment;
 import com.harmonycloud.k8s.bean.DeploymentList;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.service.platform.bean.UpdateContainer;
@@ -38,6 +39,26 @@ public interface DeploymentsService {
 	 * @throws Exception
 	 */
 	DeploymentList listDeployments(String namespace, String projectId) throws Exception;
+
+	/**
+	 * 查询某个租户在某个集群上发布的所有服务列表
+	 * @param tenantId
+	 * @param clusterId
+	 * @return
+	 * @throws Exception
+	 */
+	List<Map<String, Object>> listTenantDeploys(String tenantId, String clusterId) throws Exception;
+
+	/**
+	 * 根据标签获取集群下某个namespace的服务列表
+	 * @param namespace
+	 * @param bodys
+	 * @param cluster
+	 * @return
+	 * @throws Exception
+	 */
+	DeploymentList getDeployments(String namespace, Map<String, Object> bodys, Cluster cluster) throws Exception;
+
 	/**
 	 * 启动应用（需要进行消息推送 watch）
 	 * @param name
@@ -278,4 +299,17 @@ public interface DeploymentsService {
 	 * @throws Exception
 	 */
 	public ActionReturnUtil updateLabels(String  namespace, String deploymentName, Cluster cluster, Map<String, Object> label) throws Exception;
+
+	/**
+	 * 更新Deployment的annotations
+	 * 可同时操作多个annotations，通过Entry的Value值是否为null来判断具体动作为添加/更新还是删除。
+	 * @date 2018.6.14
+	 * @param namespace
+	 * @param deploymentName
+	 * @param cluster
+	 * @param annotations 若Entry的Key与Value均不为null,则添加或更新label；若Entry的Key不为null、Value为null则删除此Key对应的label
+	 * @return ActionReturnUtil
+	 * @throws Exception
+	 */
+	public ActionReturnUtil updateAnnotations(String  namespace, String deploymentName, Cluster cluster, Map<String, Object> annotations) throws Exception;
 }

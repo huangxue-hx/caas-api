@@ -32,14 +32,14 @@ import java.util.stream.Collectors;
 public class ComplexAutoscaleController {
 
     @Autowired
-    DeploymentsService dpService;
+    private DeploymentsService dpService;
     @Autowired
-    AutoScaleService autoScaleService;
+    private AutoScaleService autoScaleService;
 
     @Autowired
-    EsService esService;
+    private EsService esService;
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 

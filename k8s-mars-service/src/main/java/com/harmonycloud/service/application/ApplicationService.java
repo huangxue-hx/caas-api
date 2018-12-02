@@ -155,4 +155,6 @@ public interface ApplicationService {
      * @throws Exception
      */
     ActionReturnUtil checkAppTemplateName(String name, String projectId, String clusterId) throws Exception;
+
+    String convertYaml(String yaml);
 }

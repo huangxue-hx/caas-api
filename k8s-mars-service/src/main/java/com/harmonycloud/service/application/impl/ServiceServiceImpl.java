@@ -1,6 +1,7 @@
 package com.harmonycloud.service.application.impl;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.Constant.IngressControllerConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.ServiceTypeEnum;
@@ -75,57 +76,57 @@ public class ServiceServiceImpl implements ServiceService {
     private PersistentVolumeService volumeSerivce;
 
     @Autowired
-    PrivatePartitionService privatePartitionService;
+    private PrivatePartitionService privatePartitionService;
 
     @Autowired
-    NamespaceService namespaceService;
+    private NamespaceService namespaceService;
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
 
     @Autowired
-    ApplicationDeployService applicationDeployService;
+    private ApplicationDeployService applicationDeployService;
 
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
 
     @Autowired
-    UserService userService;
+    private UserService userService;
 
     @Autowired
-    IcService icService;
+    private IcService icService;
 
     @Autowired
     private ClusterService clusterService;
 
     @Autowired
-    DeploymentService dpService;
+    private DeploymentService dpService;
 
     @Autowired
-    StatefulSetService statefulSetService;
+    private StatefulSetService statefulSetService;
 
     @Autowired
-    StatefulSetsService statefulSetsService;
+    private StatefulSetsService statefulSetsService;
 
     @Autowired
-    AutoScaleService autoScaleService;
+    private AutoScaleService autoScaleService;
+
+    /*@Autowired
+    private PodDisruptionBudgetService pdbService;*/
 
     @Autowired
-    PodDisruptionBudgetService pdbService;
+    private PVCService pvcService;
 
     @Autowired
-    PVCService pvcService;
+    private ServicesService sService;
 
     @Autowired
-    ServicesService sService;
-
-    @Autowired
-    FileUploadToContainerService fileUploadToContainerService;
+    private FileUploadToContainerService fileUploadToContainerService;
 
     /**
      * create Service Template implement
@@ -699,7 +700,7 @@ public class ServiceServiceImpl implements ServiceService {
         if (service.getIngress() != null && service.getIngress().size() > 0) {
             for (IngressDto ing : service.getIngress()) {
                 if (ing.getType() != null && "HTTP".equals(ing.getType())) {
-                    if (!Constant.IC_DEFAULT_NAME.equals(ing.getParsedIngressList().getIcName())) {
+                    if (!IngressControllerConstant.IC_DEFAULT_NAME.equals(ing.getParsedIngressList().getIcName())) {
                         K8SClientResponse response = icService.getIngressController(ing.getParsedIngressList().getIcName(), cluster);
                         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
                             msg.put("Ingress(Http):" + ing.getParsedIngressList().getName(), ErrorCodeMessage.INGRESS_CONTROLLER_NOT_FOUND.phrase());
@@ -965,13 +966,13 @@ public class ServiceServiceImpl implements ServiceService {
         }
 
         //删除pdb
-        if(pdbService.existPdb(namespace ,name + Constant.PDB_SUFFIX, cluster)){
+        /*if(pdbService.existPdb(namespace ,name + Constant.PDB_SUFFIX, cluster)){
             K8SClientResponse pdbRes = pdbService.deletePdb(namespace, name + Constant.PDB_SUFFIX, cluster);
             if(!HttpStatusUtil.isSuccessStatus((pdbRes.getStatus()))){
                 UnversionedStatus status = JsonUtil.jsonToPojo(pdbRes.getBody(), UnversionedStatus.class);
                 return ActionReturnUtil.returnErrorWithData(status.getMessage());
             }
-        }
+        }*/
 
 
         // 删除configmap
@@ -1044,10 +1045,6 @@ public class ServiceServiceImpl implements ServiceService {
         if(namespaceLocal != null) {
             //通过tenantId找icName
             icNameList.addAll(tenantService.getTenantIngressController(namespaceLocal.getTenantId(), cluster.getId()));
-            Map<String, String> defaultIc = new HashMap<>();
-            defaultIc.put("icName", Constant.IC_DEFAULT_NAME);
-            defaultIc.put("icPort", Constant.IC_DEFAULT_PORT);
-            icNameList.add(defaultIc);
         }
         //删除对外暴露端口（nginx和数据库）
         routerService.deleteRulesByName(namespace, name, icNameList, cluster);
@@ -1077,5 +1074,26 @@ public class ServiceServiceImpl implements ServiceService {
         //删除文件上传到容器记录
         fileUploadToContainerService.deleteUploadRecord(namespace, name);
         return ActionReturnUtil.returnSuccess();
+    }
+
+    /**
+     * 根据id删除应用商店应用下的服务模板
+     * @param appId
+     * @throws Exception
+     */
+    @Override
+    public void deleteServiceTemplateByAppId(int appId) throws Exception {
+        serviceTemplatesMapper.deleteByAppId(appId);
+    }
+
+    /**
+     * 根据id获取应用商店应用下的服务模板
+     * @param appId
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public List<ServiceTemplates> listServiceTemplateByAppId(int appId) throws Exception {
+        return serviceTemplatesMapper.listByAPPId(appId);
     }
 }

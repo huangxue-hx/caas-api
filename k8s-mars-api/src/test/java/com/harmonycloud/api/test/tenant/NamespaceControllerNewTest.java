@@ -40,7 +40,7 @@ public class NamespaceControllerNewTest {
     private MockMvc mockMvc;
 
     @Autowired
-    WebApplicationContext wac;
+    private WebApplicationContext wac;
 
     @Before()
     public void setup() {

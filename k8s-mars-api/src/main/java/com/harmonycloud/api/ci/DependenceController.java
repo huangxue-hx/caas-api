@@ -29,7 +29,7 @@ import java.util.Map;
 public class DependenceController {
 
     @Autowired
-    DependenceService dependenceService;
+    private DependenceService dependenceService;
 
     /**
      * 获取依赖列表

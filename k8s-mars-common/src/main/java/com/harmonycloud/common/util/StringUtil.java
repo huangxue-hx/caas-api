@@ -1,14 +1,22 @@
 package com.harmonycloud.common.util;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.security.MessageDigest;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
+import static com.harmonycloud.common.Constant.CommonConstant.COMMA;
+
 public class StringUtil {
-	
-	
-	/**
+    private static final Logger LOGGER = LoggerFactory.getLogger(StringUtil.class);
+
+    /**
 	 * MD5加密
 	 * @param string
 	 * @return
@@ -36,12 +44,29 @@ public class StringUtil {
             }
             return new String(str);
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.warn("MD5加密失败", e);
             return null;
         }
 	}
 
     public static String valueOf(Object obj){
         return obj == null?null:obj.toString();
+    }
+
+
+    public static List<String> splitAsList(String str, String split) {
+        String[] arr;
+        if (StringUtils.isEmpty(str)) {
+            return null;
+        }
+        if (StringUtils.isBlank(split)) {
+            arr = str.split(COMMA);
+        } else {
+            arr = str.split(split);
+        }
+        if (arr != null) {
+            return Arrays.asList(arr);
+        }
+        return Collections.emptyList();
     }
 }

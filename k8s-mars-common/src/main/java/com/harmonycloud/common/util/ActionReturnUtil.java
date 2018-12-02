@@ -1,6 +1,7 @@
 package com.harmonycloud.common.util;
 
 import com.harmonycloud.common.enumm.CtsCodeMessage;
+import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.MicroServiceCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
@@ -91,6 +92,10 @@ public class ActionReturnUtil extends HashMap<String, Object>{
 
     public static ActionReturnUtil returnErrorWithData(ErrorCodeMessage error, String extendMessage){
         return returnErrorWithData(error,extendMessage,false);
+    }
+
+    public static ActionReturnUtil returnErrorWithData(DictEnum dictEnum, ErrorCodeMessage error){
+        return returnErrorWithData(error,dictEnum.phrase(),true);
     }
 
     public static ActionReturnUtil returnErrorWithData(String extendMessage, ErrorCodeMessage error){

@@ -17,7 +17,7 @@ public enum HarborProjectRoleEnum {
         return role;
     }
 
-    public void setRole(String role) {
+    private void setRole(String role) {
         this.role = role;
     }
 }

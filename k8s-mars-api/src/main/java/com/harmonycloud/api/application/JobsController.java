@@ -20,10 +20,10 @@ import javax.servlet.http.HttpSession;
 public class JobsController {
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    JobsService jobsService;
+    private JobsService jobsService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 

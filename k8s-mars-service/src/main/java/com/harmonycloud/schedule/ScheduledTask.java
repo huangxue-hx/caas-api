@@ -16,7 +16,7 @@ public class ScheduledTask {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScheduledTask.class);
 
     @Autowired
-    JobService jobService;
+    private JobService jobService;
 
     @Scheduled(fixedRate = 1000*60*30, initialDelay = 1000*60)
     public void destoryCicdPod(){

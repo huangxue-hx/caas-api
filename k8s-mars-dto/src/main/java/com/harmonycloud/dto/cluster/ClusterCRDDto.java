@@ -23,7 +23,7 @@ public class ClusterCRDDto {
     private Integer harborPort;
     private Date createTime;
 
-    private List<ClusterDomain> domain ;
+    private ClusterDomain domain ;
     private List<ClusterExternal> external ;
     private ClusterNetwork network;
     private ClusterRedis redis;
@@ -34,6 +34,8 @@ public class ClusterCRDDto {
     private List<ClusterStorage> nfs ;
     private boolean isEnable;
     private List<ClusterTemplate> template;
+
+    private  ClusterGit  gitInfo;
 
     public ClusterNetwork getNetwork() {
         return network;
@@ -155,11 +157,11 @@ public class ClusterCRDDto {
         this.harborAdminPwd = harborAdminPwd;
     }
 
-    public List<ClusterDomain> getDomain() {
+    public ClusterDomain getDomain() {
         return domain;
     }
 
-    public void setDomain(List<ClusterDomain> domain) {
+    public void setDomain(ClusterDomain domain) {
         this.domain = domain;
     }
 
@@ -228,5 +230,11 @@ public class ClusterCRDDto {
         this.elasticsearch = elasticsearch;
     }
 
+    public ClusterGit getGitInfo() {
+        return gitInfo;
+    }
 
+    public void setGitInfo(ClusterGit gitInfo) {
+        this.gitInfo = gitInfo;
+    }
 }

@@ -16,6 +16,7 @@ import com.harmonycloud.dao.cluster.bean.NodeDrainProgress;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.TenantPrivateNode;
+import com.harmonycloud.dto.cluster.NodeBriefDto;
 import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
@@ -54,6 +55,7 @@ import com.jcraft.jsch.Session;
 import org.springframework.util.CollectionUtils;
 
 import static com.harmonycloud.common.Constant.CommonConstant.*;
+import static com.harmonycloud.common.Constant.IngressControllerConstant.LABEL_VALUE_NGINX_CUSTOM;
 import static com.harmonycloud.service.platform.constant.Constant.NODESELECTOR_LABELS_PRE;
 
 @Service
@@ -64,22 +66,22 @@ public class NodeServiceImpl implements NodeService {
     @Autowired
     private ClusterService clusterService;
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
     @Autowired
-    InfluxdbService influxdbService;
+    private InfluxdbService influxdbService;
     @Autowired
-    PodService podService;
+    private PodService podService;
     @Autowired
-    NodeInstallProgressService nodeInstallProgressService;
+    private NodeInstallProgressService nodeInstallProgressService;
 
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
     @Autowired
-    NodeDrainProgressService nodeDrainProgressService;
+    private NodeDrainProgressService nodeDrainProgressService;
     @Autowired
-    PrivatePartitionService privatePartitionService;
+    private PrivatePartitionService privatePartitionService;
     @Autowired
-    TenantPrivateNodeService tenantPrivateNodeService;
+    private TenantPrivateNodeService tenantPrivateNodeService;
     @Value("#{propertiesReader['pod.drain.timeout']}")
     private String podDrainTimeout;
 
@@ -106,103 +108,19 @@ public class NodeServiceImpl implements NodeService {
      * Node列表
      */
     @Override
-    public ActionReturnUtil listNode(String clusterId) throws Exception {
+    public ActionReturnUtil listNode(String clusterId) {
         Cluster cluster = clusterService.findClusterById(clusterId);
         NodeList nodeList = nodeService.listNode(cluster);
-        List<NodeDto> nodeDtoList = new ArrayList<>();
-        if (nodeList != null && nodeList.getItems().size() > 0) {
-            // 处理成为页面需要的值
-            List<Node> nodes = nodeList.getItems();
-            //对node进行排序　主机显示顺序： 主控-系统-共享-闲置
-            List<Node> master = new ArrayList<>();
-            List<Node> system = new ArrayList<>();
-            List<Node> build = new ArrayList<>();
-            List<Node> statusB = new ArrayList<>();
-            List<Node> statusC = new ArrayList<>();
-            List<Node> statusD = new ArrayList<>();
-            List<Node> statusF = new ArrayList<>();
-            //NotReady
-            List<Node> statusN = new ArrayList<>();
-
-            for (Node node : nodes) {
-                Map<String, Object> labels = node.getMetadata().getLabels();
-
-                if (labels.get(CommonConstant.MASTERNODELABEL) != null) {
-                    master.add(node);
-                    continue;
-                } else {
-                    if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) == null
-                            && labels.get(CommonConstant.HARMONYCLOUD_STATUS_LBS) == null) {
-                        statusN.add(node);
-                        continue;
-                    }
-                }
-
-
-                if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
-                        && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_A)) {
-                    system.add(node);
-                }
-
-                if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
-                        && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_E)) {
-                    build.add(node);
-                    continue;
-                }
-
-                if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
-                    statusB.add(node);
-                    continue;
-                }
-
-                if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
-                    statusC.add(node);
-                    continue;
-                }
-
-                if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_D)) {
-                    statusD.add(node);
-                    continue;
-                }
-
-                if ((labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
-                        && !labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_A))
-                        &&(labels.get(CommonConstant.HARMONYCLOUD_STATUS_LBS) != null
-                        && labels.get(CommonConstant.HARMONYCLOUD_STATUS_LBS).equals(CommonConstant.LABEL_STATUS_F))) {
-                    statusF.add(node);
-                }
-
-            }
-            dealNodeStatus(master, cluster, nodeDtoList);
-            dealNodeStatus(system, cluster, nodeDtoList);
-            if (!build.isEmpty()) {
-                dealNodeStatus(build, cluster, nodeDtoList);
-            }
-            if (!statusB.isEmpty()) {
-                dealNodeStatus(statusB, cluster, nodeDtoList);
-            }
-            if (!statusC.isEmpty()) {
-                dealNodeStatus(statusC, cluster, nodeDtoList);
-            }
-            if (!statusD.isEmpty()) {
-                dealNodeStatus(statusD, cluster, nodeDtoList);
-            }
-            if (!statusF.isEmpty()) {
-                dealNodeStatus(statusF, cluster, nodeDtoList);
-            }
-            if (!statusN.isEmpty()) {
-                dealNodeStatus(statusN, cluster, nodeDtoList);
-                for (Node node : statusN) {
-//                    String hostname = node.getStatus().getAddresses().get(2).getAddress();
-                    this.addNodeStatus(node.getMetadata().getName(), cluster);
-                }
-            }
-
+        if(nodeList == null || CollectionUtils.isEmpty(nodeList.getItems())){
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.QUERY_FAIL);
         }
+        List<NodeDto> nodeDtoList = new ArrayList<>();
+        this.dealNodeStatus(nodeList.getItems(), cluster, nodeDtoList);
+        nodeDtoList = nodeDtoList.stream().sorted(Comparator.comparing(NodeDto::getSortWeight)).collect(Collectors.toList());
         return ActionReturnUtil.returnSuccessWithData(nodeDtoList);
     }
 
-    public void dealNodeStatus(List<Node> items, Cluster cluster, List<NodeDto> nodeDtoList) throws Exception {
+    public void dealNodeStatus(List<Node> items, Cluster cluster, List<NodeDto> nodeDtoList) {
         for (Node node : items) {
             NodeDto nodeDto = new NodeDto();
             nodeDto.setScheduable(!node.getSpec().isUnschedulable());
@@ -211,49 +129,23 @@ public class NodeServiceImpl implements NodeService {
             nodeDto.setIp(node.getStatus().getAddresses().get(0).getAddress());
             nodeDto.setName(node.getMetadata().getName());
             nodeDto.setTime(node.getMetadata().getCreationTimestamp());
-            // if
-            // (node.getMetadata().getLabels().get(CommonConstant.CLUSTORROLE)
-            // != null) {
-            // nodeDto.setType("MasterNode");
-            // } else {
-            // nodeDto.setType("DataNode");
-            // }
             nodeDto.setType(CommonConstant.DATANODE);
             Map<String, Object> labels = node.getMetadata().getLabels();
-            if (labels.get(CommonConstant.MASTERNODELABEL) != null) {
+            String nodeSharedStatus = this.getNodeSharedStatus(labels);
+            //获取不到节点类型，将节点置为闲置节点
+            if(StringUtils.isBlank(nodeSharedStatus)){
+                this.addNodeStatus(node.getMetadata().getName(), cluster);
+            }
+            nodeDto.setNodeShareStatus(nodeSharedStatus);
+            nodeDto.setSortWeight(this.getSortWeight(nodeSharedStatus));
+            if(DictEnum.NODE_MASTER.phrase().equals(nodeSharedStatus)){
                 nodeDto.setType(CommonConstant.MASTERNODE);
-                nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_MASTER));
-            } else if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
-                nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_IDLE));
-            } else if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
-                nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_PUBLIC));
-            } else if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_D)) {
-                nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_PRIVATE));
-            } else if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) != null
-                    && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_A)) {
-                //主要是处理demo的时候资源不足时负载均衡部署在系统节点是的页面展示问题
-                if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS_LBS) != null
-                        && labels.get(CommonConstant.HARMONYCLOUD_STATUS_LBS).equals(CommonConstant.LABEL_STATUS_F)){
-                    nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_SYSTEMANDSLB));
-                }else {
-                    nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_SYSTEM));
-                }
-
-            } else if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) != null
-                    && labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_E)) {
-                nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_BUILD));
-            }else if (node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS_LBS) != null
-                    && labels.get(CommonConstant.HARMONYCLOUD_STATUS_LBS).equals(CommonConstant.LABEL_STATUS_F)) {
-                nodeDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_LB));
             }
 
             List<NodeCondition> conditions = node.getStatus().getConditions();
             for (NodeCondition nodeCondition : conditions) {
                 if (nodeCondition.getType().equals("Ready")) {
                     nodeDto.setStatus(nodeCondition.getStatus());
-//                    if(node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS) == null && labels.get(CommonConstant.MASTERNODELABEL) == null){
-//                        nodeDto.setStatus(Constant.FALSE);
-//                    }
                     break;
                 }
             }
@@ -289,17 +181,9 @@ public class NodeServiceImpl implements NodeService {
     }
     private void dealNode(Node node,NodeDetailDto nodeDetailDto,Cluster cluster)throws Exception{
         Map<String, Object> labelsMap = node.getMetadata().getLabels();
-        if (labelsMap.get(CommonConstant.MASTERNODELABEL) != null) {
-            nodeDetailDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_MASTER));
-        }else if (labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS) != null
-                && labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
-            nodeDetailDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_IDLE));
-        } else if (labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS) != null
-                && labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
-            nodeDetailDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_PUBLIC));
-        } else if (labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS) != null
-                && labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_D)) {
-            nodeDetailDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_PRIVATE));
+        String nodeSharedStatus = this.getNodeSharedStatus(labelsMap);
+        nodeDetailDto.setNodeShareStatus(nodeSharedStatus);
+        if(DictEnum.NODE_PRIVATE.phrase().equals(nodeSharedStatus)){
             Object o = labelsMap.get(CommonConstant.HARMONYCLOUD_TENANTNAME_NS);
             if (!Objects.isNull(o)){
                 String[] labels = o.toString().split(CommonConstant.LINE);
@@ -325,23 +209,8 @@ public class NodeServiceImpl implements NodeService {
                     }
                 }
             }
-
-        } else if (labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS) != null
-                && labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_A)) {
-            //主要是处理demo的时候资源不足时负载均衡部署在系统节点是的页面展示问题
-            if (labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS_LBS) != null
-                    && labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS_LBS).equals(CommonConstant.LABEL_STATUS_F)){
-                nodeDetailDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_SYSTEMANDSLB));
-            }else {
-                nodeDetailDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_SYSTEM));
-            }
-        }else if (labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS) != null
-                && labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_E)) {
-            nodeDetailDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_BUILD));
-        }else if (labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS_LBS) != null
-                && labelsMap.get(CommonConstant.HARMONYCLOUD_STATUS_LBS).equals(CommonConstant.LABEL_STATUS_F)) {
-            nodeDetailDto.setNodeShareStatus(MessageUtil.getMessage(ErrorCodeMessage.NODE_LB));
         }
+
         NodeDto nodedto = new NodeDto();
         NodeDto hostUsege = this.getHostUsege(node, nodedto, cluster);
         nodeDetailDto.setMemory(hostUsege.getMemory());
@@ -672,7 +541,7 @@ public class NodeServiceImpl implements NodeService {
     @Override
     public List<NodeDto> listAllPrivateNode(Cluster cluster) throws Exception {
         String label = CommonConstant.HARMONYCLOUD_STATUS + "=" + CommonConstant.LABEL_STATUS_D;
-        List<NodeDto> nodeDtos = this.listPrivateNodeByLabel(label, cluster);
+        List<NodeDto> nodeDtos = this.listNodeByLabel(label, cluster);
         return nodeDtos;
     }
 
@@ -683,7 +552,7 @@ public class NodeServiceImpl implements NodeService {
      * @return
      */
     @Override
-    public List<NodeDto> listPrivateNodeByLabel(String label, Cluster cluster) throws Exception {
+    public List<NodeDto> listNodeByLabel(String label, Cluster cluster) {
         Map<String, Object> headers = new HashMap<>();
         headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
         Map<String, Object> bodys = new HashMap<>();
@@ -712,7 +581,7 @@ public class NodeServiceImpl implements NodeService {
         String tenantId = namespaceByName.getTenantId();
         //查询私有分区独占节点
         String privateLabel = privatePartitionService.getPrivatePartitionLabel(tenantId, namespace);
-        List<NodeDto> nodeDtos = this.listPrivateNodeByLabel(privateLabel, cluster);
+        List<NodeDto> nodeDtos = this.listNodeByLabel(privateLabel, cluster);
         return nodeDtos;
     }
 
@@ -795,14 +664,14 @@ public class NodeServiceImpl implements NodeService {
             }
             System.out.printf("hostname：");
         } catch (IOException e) {
-            e.printStackTrace();
+            log.warn("getHostName失败", e);
         } catch (JSchException e) {
-            e.printStackTrace();
+            log.warn("getHostName失败", e);
         } finally {
             try {
                 bufferedReader.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                log.warn("getHostName失败", e);
             }
             ec.disconnect();
             session.disconnect();
@@ -885,7 +754,7 @@ public class NodeServiceImpl implements NodeService {
                         nodeInstallProgressService.updateNodeInLineInfo(nodeInstall);
                     } catch (Exception e1) {
                         // TODO Auto-generated catch block
-                        e1.printStackTrace();
+                        log.warn("节点上线失败", e1);
                     }
                 }
             }
@@ -908,7 +777,7 @@ public class NodeServiceImpl implements NodeService {
                 ActionReturnUtil addNodeLabels = addNodeLabels(host, newLabels, cluster);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.warn("添加节点状态失败", e);
         }
     }
 
@@ -1032,7 +901,8 @@ public class NodeServiceImpl implements NodeService {
             throw new MarsRuntimeException(ErrorCodeMessage.NODE_NOT_EXIST, host, Boolean.TRUE);
         }
         String hostName = this.gethostname(host, cluster);
-        params.put("host", hostName);
+        params.put("host", host);
+        params.put("hostName", hostName);
         params.put("user", user);
         params.put("passwd", passwd);
 
@@ -1057,10 +927,10 @@ public class NodeServiceImpl implements NodeService {
     public Map getNode(String nodeIp, String clusterId) throws Exception {
         Cluster cluster = clusterService.findClusterById(clusterId);
         String hostname = this.gethostname(nodeIp, cluster);
-        if (!StringUtils.isEmpty(hostname)) {
-            nodeIp = hostname;
+        if (StringUtils.isBlank(hostname)) {
+            hostname = nodeIp;
         }
-        return this.getNode(nodeIp, cluster);
+        return this.getNode(hostname, cluster);
     }
 
     @Override
@@ -1093,7 +963,7 @@ public class NodeServiceImpl implements NodeService {
         return map;
     }
 
-    private NodeDto getHostUsege(Node node, NodeDto nodeDto, Cluster cluster) throws Exception {
+    private NodeDto getHostUsege(Node node, NodeDto nodeDto, Cluster cluster) {
         double nodeFilesystemCapacity = this.influxdbService.getClusterResourceUsage("node", "filesystem/limit", "nodename,resource_id", cluster, null,
                 node.getMetadata().getName());
         Object object = node.getStatus().getAllocatable();
@@ -1486,4 +1356,127 @@ public class NodeServiceImpl implements NodeService {
             }
         }
     }
+
+
+    /**
+     * 获取不可用主机列表
+     */
+    @Override
+    public List<NodeBriefDto> listUnavailableNodes() throws Exception{
+        List<Cluster> clusters = clusterService.listAllCluster(null);
+        List<NodeBriefDto> nodeBriefDtoList = new ArrayList<>();
+        for (Cluster cluster : clusters){
+            NodeList nodeList = nodeService.listNode(cluster);
+            for (Node node : nodeList.getItems()){
+                NodeBriefDto nodeBriefDto = new NodeBriefDto(cluster.getId(), node.getMetadata().getName());
+                for (NodeCondition condition : node.getStatus().getConditions()){
+                    if (isNodeConditionHealthy(condition)){
+                        continue;
+                    }
+                    nodeBriefDto.getConditions().add(condition);
+                }
+                if(!CollectionUtils.isEmpty(nodeBriefDto.getConditions())){
+                    nodeBriefDtoList.add(nodeBriefDto);
+                }
+            }
+        }
+        return nodeBriefDtoList;
+    }
+
+    private boolean isNodeConditionHealthy(NodeCondition condition){
+        if((condition.getType().equals(CommonConstant.NODE_CONDITION_READY) && condition.getStatus().equals(CommonConstant.NODE_CONDITION_STATUS_TRUE))
+                || (condition.getType().equals(CommonConstant.NODE_CONDITION_OUT_OF_DISK) && condition.getStatus().equals(CommonConstant.NODE_CONDITION_STATUS_FALSE)
+                || (condition.getType().equals(CommonConstant.NODE_CONDITION_DISK_PRESSURE) && condition.getStatus().equals(CommonConstant.NODE_CONDITION_STATUS_FALSE))
+                || (condition.getType().equals(CommonConstant.NODE_CONDITION_MEMORY_PRESSURE) && condition.getStatus().equals(CommonConstant.NODE_CONDITION_STATUS_FALSE)))){
+            return true;
+        }else {
+            return false;
+        }
+    }
+
+    /**
+     * 获取节点的类型（系统，共享，独占，闲置，负载均衡）
+     *
+     * @param nodeLabels 节点标签
+     * @return
+     */
+    private String getNodeSharedStatus(Map<String, Object> nodeLabels) {
+        if (nodeLabels.get(CommonConstant.MASTERNODELABEL) != null) {
+            return DictEnum.NODE_MASTER.phrase();
+        }
+        String nodeSharedStatus = null;
+        boolean lbNode = false;
+        if (nodeLabels.get(HARMONYCLOUD_STATUS_LBS) != null
+                && (nodeLabels.get(HARMONYCLOUD_STATUS_LBS).equals(CommonConstant.LABEL_STATUS_F)
+                || nodeLabels.get(HARMONYCLOUD_STATUS_LBS).equals(LABEL_VALUE_NGINX_CUSTOM))) {
+            lbNode = true;
+            nodeSharedStatus = DictEnum.NODE_LB.phrase();
+        }
+        String nodeStatusLabel = null;
+        if (nodeLabels.get(CommonConstant.HARMONYCLOUD_STATUS) != null) {
+            nodeStatusLabel = nodeLabels.get(CommonConstant.HARMONYCLOUD_STATUS).toString();
+        }
+        if (nodeStatusLabel == null) {
+            return nodeSharedStatus;
+        }
+        switch (nodeStatusLabel) {
+            case LABEL_STATUS_A:
+                if (lbNode) {
+                    return DictEnum.NODE_SYSTEMANDSLB.phrase();
+                } else {
+                    return DictEnum.NODE_SYSTEM.phrase();
+                }
+            case LABEL_STATUS_B:
+                return DictEnum.NODE_IDLE.phrase();
+            case LABEL_STATUS_C:
+                return DictEnum.NODE_PUBLIC.phrase();
+            case LABEL_STATUS_D:
+                return DictEnum.NODE_PRIVATE.phrase();
+            case LABEL_STATUS_E:
+                return DictEnum.NODE_BUILD.phrase();
+            default:
+                return nodeSharedStatus;
+        }
+    }
+
+    /**
+     * 节点列表排序,顺序
+     */
+    private int getSortWeight(String nodeShareStatus){
+        if(DictEnum.NODE_MASTER.getChPhrase().equals(nodeShareStatus)
+                || DictEnum.NODE_MASTER.getEnPhrase().equals(nodeShareStatus)){
+            return CommonConstant.NUM_ONE;
+        }
+        if(DictEnum.NODE_SYSTEM.getChPhrase().equals(nodeShareStatus)
+                || DictEnum.NODE_SYSTEM.getEnPhrase().equals(nodeShareStatus)){
+            return CommonConstant.NUM_TWO;
+        }
+        if(DictEnum.NODE_SYSTEMANDSLB.getChPhrase().equals(nodeShareStatus)
+                || DictEnum.NODE_SYSTEMANDSLB.getEnPhrase().equals(nodeShareStatus)){
+            return CommonConstant.NUM_THREE;
+        }
+        if(DictEnum.NODE_BUILD.getChPhrase().equals(nodeShareStatus)
+                || DictEnum.NODE_BUILD.getEnPhrase().equals(nodeShareStatus)){
+            return CommonConstant.NUM_FOUR;
+        }
+        if(DictEnum.NODE_LB.getChPhrase().equals(nodeShareStatus)
+                || DictEnum.NODE_LB.getEnPhrase().equals(nodeShareStatus)){
+            return CommonConstant.NUM_FIVE;
+        }
+        if(DictEnum.NODE_PRIVATE.getChPhrase().equals(nodeShareStatus)
+                || DictEnum.NODE_PRIVATE.getEnPhrase().equals(nodeShareStatus)){
+            return CommonConstant.NUM_SIX;
+        }
+        if(DictEnum.NODE_PUBLIC.getChPhrase().equals(nodeShareStatus)
+                || DictEnum.NODE_PUBLIC.getEnPhrase().equals(nodeShareStatus)){
+            return CommonConstant.NUM_SEVEN;
+        }
+        if(DictEnum.NODE_IDLE.getChPhrase().equals(nodeShareStatus)
+                || DictEnum.NODE_IDLE.getEnPhrase().equals(nodeShareStatus)){
+            return CommonConstant.NUM_EIGHT;
+        }
+        return CommonConstant.NUM_NINE;
+    }
+    
+    
 }

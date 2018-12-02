@@ -3,6 +3,8 @@ package com.harmonycloud.k8s.service;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
@@ -23,7 +25,7 @@ import com.harmonycloud.k8s.util.K8SURL;
 
 @Service
 public class PodService {
-
+	private static final Logger LOGGER = LoggerFactory.getLogger(PodService.class);
 	private String surfix="/pods";
 	
 	public K8SClientResponse getSpecifyPod(String namespace,String name, Map<String, Object> headers, Map<String, Object> bodys, String method,Cluster cluster) throws Exception {
@@ -64,7 +66,7 @@ public class PodService {
 			
 			return cList;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("获取pod列表失败");
 		}
 		return null;
 	}
@@ -101,7 +103,7 @@ public class PodService {
 			
 			return pList;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("获取pod失败，namespace:{}", namespace, e);
 		}
 		return null;
 	}
@@ -122,7 +124,7 @@ public class PodService {
 			
 			return p;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("获取pod:{}失败, namespace:{}", name, namespace, e);
 		}
 		return null;
 	}
@@ -142,7 +144,7 @@ public class PodService {
 			
 			return u;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("删除pod:{}失败, namespace:{}", name, namespace, e);
 		}
 		return null;
 	}
@@ -162,7 +164,7 @@ public class PodService {
 			
 			return p;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("创建pod失败, namespace:{}", namespace, e);
 		}
 		return null;
 	}
@@ -182,7 +184,7 @@ public class PodService {
 			
 			return p;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("更新pod:{}失败, namespace:{}", name, namespace, e);
 		}
 		return null;
 	}
@@ -202,7 +204,7 @@ public class PodService {
 			
 			return u;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("删除pod:{}失败, namespace:{}", name, namespace, e);
 		}
 		return null;
 	}
@@ -221,7 +223,7 @@ public class PodService {
 			
 			return body;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("链接pod:{}失败, namespace:{}", name, namespace, e);
 		}
 		return null;
 	}

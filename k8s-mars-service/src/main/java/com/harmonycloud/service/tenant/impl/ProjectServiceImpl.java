@@ -4,7 +4,7 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.StringUtil;
+import com.harmonycloud.service.util.SsoClient;
 import com.harmonycloud.common.util.UUIDUtil;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;
@@ -61,53 +61,53 @@ import java.util.stream.Collectors;
 public class ProjectServiceImpl implements ProjectService {
 
     @Autowired
-    ProjectMapper projectMapper;
+    private ProjectMapper projectMapper;
     @Autowired
-    UserRoleRelationshipService userRoleRelationshipService;
+    private UserRoleRelationshipService userRoleRelationshipService;
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    HarborService harborService;
+    private HarborService harborService;
     @Autowired
-    HarborProjectService harborProjectService;
+    private HarborProjectService harborProjectService;
     @Autowired
-    UserService userService;
+    private UserService userService;
     @Autowired
-    HttpSession session;
+    private HttpSession session;
     @Autowired
-    ExternalService externalService;
+    private ExternalService externalService;
     @Autowired
-    PersistentVolumeService persistentVolumeService;
+    private PersistentVolumeService persistentVolumeService;
     @Autowired
-    ConfigCenterService configCenterService;
+    private ConfigCenterService configCenterService;
     @Autowired
-    ApplicationDeployService applicationDeployService;
+    private ApplicationDeployService applicationDeployService;
     @Autowired
-    ApplicationService applicationService;
+    private ApplicationService applicationService;
     @Autowired
-    LocalRoleService localRoleService;
+    private LocalRoleService localRoleService;
     @Autowired
-    ClusterCacheManager clusterCacheManager;
+    private ClusterCacheManager clusterCacheManager;
     @Autowired
-    JobService jobService;
+    private JobService jobService;
     @Autowired
-    DockerFileService dockerFileService;
+    private DockerFileService dockerFileService;
     @Autowired
-    DependenceService dependenceService;
+    private DependenceService dependenceService;
     @Autowired
-    BuildEnvironmentService buildEnvironmentService;
+    private BuildEnvironmentService buildEnvironmentService;
     @Autowired
-    HarborUserService harborUserService;
+    private HarborUserService harborUserService;
     @Autowired
-    RolePrivilegeService rolePrivilegeService;
+    private RolePrivilegeService rolePrivilegeService;
     @Autowired
-    DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
+    private DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
     @Autowired
-    DataPrivilegeGroupService dataPrivilegeGroupService;
+    private DataPrivilegeGroupService dataPrivilegeGroupService;
 
     private static final Logger logger = LoggerFactory.getLogger(ProjectServiceImpl.class);
 
@@ -142,6 +142,7 @@ public class ProjectServiceImpl implements ProjectService {
         List<LocalRolePrivilege>  localRolePrivileges = localRoleService.listPrivilegeByProject(projectId, userName);
         session.setAttribute(CommonConstant.SESSION_DATA_PRIVILEGE_LIST, localRolePrivileges);
         if (CollectionUtils.isEmpty(roleList)){
+            SsoClient.dealHeader(session);
             throw new MarsRuntimeException(ErrorCodeMessage.ROLE_DISABLE);
         }
         return roleList;

@@ -21,7 +21,8 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class HttpK8SClientUtil {
@@ -29,6 +30,8 @@ public class HttpK8SClientUtil {
 	private static int TIMEOUT = 6000000;
 
 	private static String UTF_8 = "UTF-8";
+	private static final Logger LOGGER = LoggerFactory.getLogger(HttpK8SClientUtil.class);
+
 
 	/**
 	 * 通过连接池获取HttpClient
@@ -83,17 +86,17 @@ public class HttpK8SClientUtil {
 				return result;
 			}
 		} catch (ClientProtocolException e) {
-			e.printStackTrace();
+            LOGGER.warn("httpGetRequest失败，url:{}", url, e);
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpGetRequest失败，url:{}", url, e);
 		} catch (URISyntaxException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpGetRequest失败，url:{}", url, e);
 		} finally {
 			try {
 				if (httpClient != null)
 					httpClient.close();
 			} catch (IOException e) {
-				e.printStackTrace();
+				LOGGER.warn("释放httpClient连接失败", e);
 			}
 		}
 		return "";
@@ -142,17 +145,17 @@ public class HttpK8SClientUtil {
 				return result;
 			}
 		} catch (ClientProtocolException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpDeleteRequest失败，url:{}", url, e);
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpDeleteRequest失败，url:{}", url, e);
 		} catch (URISyntaxException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpDeleteRequest失败，url:{}", url, e);
 		} finally {
 			try {
 				if (httpClient != null)
 					httpClient.close();
 			} catch (IOException e) {
-				e.printStackTrace();
+				LOGGER.warn("释放httpClient连接失败", e);
 			}
 		}
 		return "";
@@ -207,15 +210,15 @@ public class HttpK8SClientUtil {
 				}
 			}
 		} catch (ClientProtocolException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPostRequest失败, url:{}", url, e);
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPostRequest失败, url:{}", url, e);
 		} finally {
 			try {
 				if (httpClient != null)
 					httpClient.close();
 			} catch (IOException e) {
-				e.printStackTrace();
+				LOGGER.warn("释放httpClient连接失败", e);
 			}
 		}
 		return "";
@@ -268,15 +271,15 @@ public class HttpK8SClientUtil {
 				}
 			}
 		} catch (ClientProtocolException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPostJsonRequest失败，url:{}", url, e);
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPostJsonRequest失败，url:{}", url, e);
 		} finally {
 			try {
 				if (httpClient != null)
 					httpClient.close();
 			} catch (IOException e) {
-				e.printStackTrace();
+				LOGGER.warn("释放httpClient失败", e);
 			}
 		}
 		return "";
@@ -325,15 +328,15 @@ public class HttpK8SClientUtil {
 			}
 			return response;
 		} catch (ClientProtocolException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPostJsonRequestForHarbor失败，url:{}", url, e);
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPostJsonRequestForHarbor失败，url:{}", url, e);
 		} finally {
 			try {
 				if (httpClient != null)
 					httpClient.close();
 			} catch (IOException e) {
-				e.printStackTrace();
+				LOGGER.warn("释放httpClient失败", e);
 			}
 		}
 		return null;
@@ -386,15 +389,15 @@ public class HttpK8SClientUtil {
 				}
 			}
 		} catch (ClientProtocolException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPutJsonRequest失败, url:{}", url, e);
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPutJsonRequest失败, url:{}", url, e);
 		} finally {
 			try {
 				if (httpClient != null)
 					httpClient.close();
 			} catch (IOException e) {
-				e.printStackTrace();
+				LOGGER.warn("释放httpClient失败", e);
 			}
 		}
 		return "";
@@ -447,15 +450,15 @@ public class HttpK8SClientUtil {
 				}
 			}
 		} catch (ClientProtocolException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPatchJsonRequest失败, url:{}", url, e);
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOGGER.warn("httpPatchJsonRequest失败, url:{}", url, e);
 		} finally {
 			try {
 				if (httpClient != null)
 					httpClient.close();
 			} catch (IOException e) {
-				e.printStackTrace();
+				LOGGER.warn("释放httpClient连接失败", e);
 			}
 		}
 		return "";

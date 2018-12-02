@@ -45,19 +45,19 @@ public class IntegrationTestServiceImpl implements IntegrationTestService{
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
 
     @Autowired
-    StageBuildService stageBuildService;
+    private StageBuildService stageBuildService;
 
     @Autowired
-    StageService stageService;
+    private StageService stageService;
 
     @Autowired
-    ProjectService projectService;
+    private ProjectService projectService;
 
     @Autowired
-    JobService jobService;
+    private JobService jobService;
 
     @Override
     public List<Map> getTestSuites(String projectId, String type) throws Exception{

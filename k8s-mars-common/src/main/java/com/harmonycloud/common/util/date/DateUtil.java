@@ -8,6 +8,9 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static com.harmonycloud.common.Constant.CommonConstant.NUM_NINE;
+import static com.harmonycloud.common.Constant.CommonConstant.NUM_TEN;
+
 public class DateUtil {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DateUtil.class);
@@ -31,8 +34,13 @@ public class DateUtil {
      */
     public final static SimpleDateFormat UTC_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 
-    public static final int ONE_HOUR_MILLISECONDS = 60*60*1000;
-    public static final int ONE_MINUTE_MILLISECONDS = 60*1000;
+    public final static int MILLISECONDS_OF_SECOND = 1000;
+    public final static int MILLISECONDS_OF_MINUTE = 60000;
+    public final static int MILLISECONDS_OF_HOUR = 3600000;
+    public final static int MILLISECONDS_OF_DAY = 86400000;
+    public final static int SECONDS_OF_MINUTE = 60;
+    public final static int MINUTES_OF_HOUR = 60;
+    public final static int HOURS_OF_DAY = 24;
 
     public final static String TIME_UNIT_SECOND = "s";
     public final static String TIME_UNIT_MINUTE = "m";
@@ -65,7 +73,7 @@ public class DateUtil {
             date = adf.parse(UTCTimeBuffer.toString());
         } catch (ParseException e) {
             // TODO Auto-generated catch block
-            e.printStackTrace();
+            LOGGER.warn("获取CurrentUtcTime失败", e);
         }
         return date;
     }
@@ -335,7 +343,7 @@ public class DateUtil {
     }
 
     public static int getTimeInt(Date date){
-        return (int) (date.getTime()/1000);
+        return (int) (date.getTime()/MILLISECONDS_OF_SECOND);
     }
 
     /**
@@ -647,8 +655,8 @@ public class DateUtil {
     }
 
     public static Date addTime(Date date, String timeUnit, int amount){
-        timeUnit = timeUnit.toLowerCase();
-        switch (timeUnit){
+        String lowerCaseTimeUnit = timeUnit.toLowerCase();
+        switch (lowerCaseTimeUnit){
             case TIME_UNIT_SECOND:
                 return addInteger(date, Calendar.SECOND, amount);
             case TIME_UNIT_MINUTE:
@@ -860,9 +868,9 @@ public class DateUtil {
      * @return 相差天数
      */
     public static int getIntervalDays(Date date, Date otherDate){
-        date = DateUtil.StringToDate(DateUtil.getDate(date));
-        long time = Math.abs(date.getTime() - otherDate.getTime());
-        return (int) time / (24 * 60 * 60 * 1000);
+        Date formattedDate = DateUtil.StringToDate(DateUtil.getDate(date));
+        long time = Math.abs(formattedDate.getTime() - otherDate.getTime());
+        return (int) time / MILLISECONDS_OF_DAY;
     }
 
     /**
@@ -874,7 +882,7 @@ public class DateUtil {
      */
     public static int getIntervalSeconds(long date, long otherDate){
         long time = Math.abs(date - otherDate);
-        return (int) time / 1000;
+        return (int) time / MILLISECONDS_OF_SECOND;
     }
 
     public static String getWeekFromDate(Date date){
@@ -882,19 +890,19 @@ public class DateUtil {
         c.setTime(date);
         int week = c.get(Calendar.DAY_OF_WEEK);
         switch (week) {
-            case 1:
+            case Calendar.SUNDAY:
                 return "星期日";
-            case 2:
+            case Calendar.MONDAY:
                 return "星期一";
-            case 3:
+            case Calendar.TUESDAY:
                 return "星期二";
-            case 4:
+            case Calendar.WEDNESDAY:
                 return "星期三";
-            case 5:
+            case Calendar.THURSDAY:
                 return "星期四";
-            case 6:
+            case Calendar.FRIDAY:
                 return "星期五";
-            case 7:
+            case Calendar.SATURDAY:
                 return "星期六";
             default:
                 return "";
@@ -1004,10 +1012,10 @@ public class DateUtil {
     }
 
     public static String getDuration(Long millSec){
-        long days = millSec / (1000 * 60 * 60 * 24);
-        long hours = (millSec % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60);
-        long minutes = (millSec % (1000 * 60 * 60)) / (1000 * 60);
-        long seconds = (millSec % (1000 * 60)) / 1000;
+        long days = millSec / MILLISECONDS_OF_DAY;
+        long hours = (millSec % MILLISECONDS_OF_DAY) / MILLISECONDS_OF_HOUR;
+        long minutes = (millSec % MILLISECONDS_OF_HOUR) / MILLISECONDS_OF_MINUTE;
+        long seconds = (millSec % MILLISECONDS_OF_MINUTE) / MILLISECONDS_OF_SECOND;
         return (days>0 ? days + "d":"") + (hours>0?hours + "h":"") + (minutes>0? minutes + "m":"")
                 + seconds + "s";
     }
@@ -1024,13 +1032,13 @@ public class DateUtil {
         String unit = timeUnit.toLowerCase();
         switch (unit){
             case "m":
-                sinceSeconds = 60 * num;
+                sinceSeconds = SECONDS_OF_MINUTE * num;
                 break;
             case "h":
-                sinceSeconds = 60 * 60 * num;
+                sinceSeconds = SECONDS_OF_MINUTE * MINUTES_OF_HOUR * num;
                 break;
             case "d":
-                sinceSeconds = 60 * 60 * 24 * num;
+                sinceSeconds = SECONDS_OF_MINUTE * MINUTES_OF_HOUR * HOURS_OF_DAY * num;
                 break;
             default:
                 sinceSeconds = 0;
@@ -1043,24 +1051,24 @@ public class DateUtil {
      * @param timeZone
      * @return
      */
-    public static String getTimezoneFormatStyle(TimeZone timeZone){
-        int hour = timeZone.getRawOffset()/ONE_HOUR_MILLISECONDS;
-        int minute = Math.abs((timeZone.getRawOffset() - hour * ONE_HOUR_MILLISECONDS)/ONE_MINUTE_MILLISECONDS);
+    public static String getTimezoneFormatStyle(TimeZone timeZone) {
+        int hour = timeZone.getRawOffset() / MILLISECONDS_OF_HOUR;
+        int minute = Math.abs((timeZone.getRawOffset() - hour * MILLISECONDS_OF_HOUR) / MILLISECONDS_OF_MINUTE);
         String hourMinute = hour + "";
-        if(hour> -10 && hour < 0){
+        if (hour > -NUM_TEN && hour < 0) {
             hourMinute = "-0" + Math.abs(hour);
-        }else if(hour >= 0 && hour<10){
+        } else if (hour >= 0 && hour < NUM_TEN) {
             hourMinute = "+0" + hourMinute;
-        }else if(hour>9){
-            hourMinute =  "+" + hourMinute;
+        } else if (hour > NUM_NINE) {
+            hourMinute = "+" + hourMinute;
         }
-        if(minute == 0) {
+        if (minute == 0) {
             hourMinute += ":00";
-        }else{
+        } else {
             hourMinute += ":" + minute;
         }
-        String style = "yyyy-MM-dd'T'HH:mm:ss'"+hourMinute+"'";
-        return  style;
+        String style = "yyyy-MM-dd'T'HH:mm:ss'" + hourMinute + "'";
+        return style;
     }
 
 }

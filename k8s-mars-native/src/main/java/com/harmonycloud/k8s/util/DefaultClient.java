@@ -25,11 +25,21 @@ public class DefaultClient {
     private static Cluster  topCluster = new Cluster();
     private static final String PROPERTIES_RESOURCE = "constant.properties";
     private static Properties properties;
-    public  static boolean isInCluster = false;
+    private static boolean isInCluster = false;
 
 
 
     private static Logger logger = LoggerFactory.getLogger(DefaultClient.class);
+
+
+    public static boolean getIsInCluster() {
+        return isInCluster;
+    }
+
+    public static void setIsInCluster(boolean isInCluster) {
+        DefaultClient.isInCluster = isInCluster;
+    }
+
     public static Cluster getDefaultCluster() throws Exception{
         if (null == topCluster.getHost() ) {
             setDefaultClient();

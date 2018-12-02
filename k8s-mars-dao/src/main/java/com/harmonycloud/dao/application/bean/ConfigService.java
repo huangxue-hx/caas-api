@@ -1,24 +1,42 @@
 package com.harmonycloud.dao.application.bean;
 
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DataPrivilegeField;
+import com.harmonycloud.common.enumm.DataPrivilegeType;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
+
 import java.io.Serializable;
 import java.util.List;
 
 /**
  * Created by miaokun on 18/08/29.
  */
+@DataPrivilegeType(type = DataResourceTypeEnum.SERVICE)
 public class ConfigService implements Serializable {
-
+	@DataPrivilegeField(type = CommonConstant.DATA_FIELD)
 	private String serviceName;
+	@DataPrivilegeField(type = CommonConstant.NAMESPACE_FIELD)
+	private String serviceNamespace;
 	private String tag;
 	private String image;
 	private String serviceDomainName;
 	private String createTime;
 	private String updateTime;
 	private String configName;
+	@DataPrivilegeField(type = CommonConstant.PROJECTID_FIELD)
 	private String projectId;
 	private String tenantId;
 	private String type;//判断服务或守护进程
 	private String status;//服务的运行状态
+	private String dataPrivilege;
+
+	public String getServiceNamespace() {
+		return serviceNamespace;
+	}
+
+	public void setServiceNamespace(String serviceNamespace) {
+		this.serviceNamespace = serviceNamespace;
+	}
 
 	public ConfigService(){
 		super();
@@ -110,5 +128,13 @@ public class ConfigService implements Serializable {
 
 	public void setStatus(String status) {
 		this.status = status;
+	}
+
+	public String getDataPrivilege() {
+		return dataPrivilege;
+	}
+
+	public void setDataPrivilege(String dataPrivilege) {
+		this.dataPrivilege = dataPrivilege;
 	}
 }

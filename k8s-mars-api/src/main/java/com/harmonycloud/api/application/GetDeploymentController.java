@@ -32,18 +32,18 @@ import java.io.OutputStream;
 public class GetDeploymentController {
 
 	@Autowired
-    DeploymentsService dpService;
+    private DeploymentsService dpService;
 
 	@Autowired
-    EsService esService;
+    private EsService esService;
 	@Autowired
-	HttpSession session;
+	private HttpSession session;
 
 	@Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
 	@Autowired
-    ServiceService serviceService;
+    private ServiceService serviceService;
 
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -88,7 +88,7 @@ public class GetDeploymentController {
 			out.close();
 			//yamlfile.delete();
 		} catch (IOException e1) {
-			e1.printStackTrace();
+			logger.warn("获取deployment:{} yaml失败, namespace:{}", name, namespace, e1);
 		}
 		return null;
 

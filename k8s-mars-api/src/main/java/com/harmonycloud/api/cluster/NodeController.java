@@ -35,10 +35,10 @@ public class NodeController {
     private ClusterService clusterService;
     
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    ClusterCacheManager clusterCacheManager;
+    private ClusterCacheManager clusterCacheManager;
 
 
     /**

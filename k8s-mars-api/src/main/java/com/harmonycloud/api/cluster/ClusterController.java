@@ -1,9 +1,11 @@
 package com.harmonycloud.api.cluster;
 
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.NodeList;
+import com.harmonycloud.service.application.IstioService;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.cluster.impl.ClusterTemplateServiceImpl;
@@ -17,6 +19,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.beans.IntrospectionException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 
@@ -33,13 +37,15 @@ import static com.harmonycloud.common.Constant.CommonConstant.COUNT;
 public class ClusterController {
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    ClusterCacheManager clusterCacheManager;
+    private ClusterCacheManager clusterCacheManager;
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
     @Autowired
-    UserService userService;
+    private UserService userService;
+    @Autowired
+    private IstioService istioService;
 
     @Autowired
     private com.harmonycloud.k8s.service.NodeService nodeService;
@@ -126,7 +132,7 @@ public class ClusterController {
             }
             return ActionReturnUtil.returnSuccessWithMap("clusterNodeSize", nodeSize + "");
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.warn("获取集群node列表失败", e);
             logger.error("Failed to get cluster node size." + e.getMessage());
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.QUERY_FAIL);
         }
@@ -167,9 +173,48 @@ public class ClusterController {
     @ApiOperation(value = "获取集群存储信息", response = ActionReturnUtil.class, httpMethod = "GET", consumes = "", produces = "", notes = "")
     @ResponseBody
     @RequestMapping(value = "/storages", method = RequestMethod.GET)
-    public ActionReturnUtil getClustersStorageCapacity(){
+    public ActionReturnUtil getClustersStorageCapacity() throws Exception{
         Map<String, String> clustersMap = clusterService.getClustersStorageCapacity();
         return ActionReturnUtil.returnSuccessWithData(clustersMap);
     }
+
+    /**
+     * 获取全局服务开关状态
+     *
+     * @param clusterId
+     * @return
+     * @throws Exception
+     */
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "获取全局服务开关状态", response = ActionReturnUtil.class, httpMethod = "", consumes = "", produces = "", notes = "globalSwitchStatus值为true，表示全局配置为开启；值为false，全局配置为关闭")
+    @ApiImplicitParams({@ApiImplicitParam(name = "clusterId", value = "集群id", paramType = "path", dataType = "String")})
+    @ResponseBody
+    @RequestMapping(value = "/{clusterId}/istiopolicyswitch", method = RequestMethod.GET)
+    public ActionReturnUtil getClusterIstioPolicySwitch(@PathVariable("clusterId") String clusterId)
+            throws Exception {
+        return istioService.getClusterIstioPolicySwitch(clusterId);
+    }
+
+
+    /**
+     * 集群下开启或关闭istio全局配置状态
+     *
+     * @param status
+     * @param clusterId
+     * @return
+     * @throws Exception
+     */
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "集群下开启或关闭Istio服务", response = ActionReturnUtil.class, httpMethod = "POST", consumes = "", produces = "", notes = "status值为true，开启Istio全局服务；值为false，关闭Istio全局服务")
+    @ApiImplicitParams({@ApiImplicitParam(name = "clusterId", value = "集群id", paramType = "path", dataType = "String"),
+            @ApiImplicitParam(name = "status", value = "开启或关闭操作（开启为true，关闭为false）", paramType = "query", dataType = "Boolean")
+    })
+    @ResponseBody
+    @RequestMapping(value = "/{clusterId}/istiopolicyswitch", method = RequestMethod.PUT)
+    public ActionReturnUtil updateClusterIstioPolicySwitch(@RequestParam("status") boolean status, @PathVariable("clusterId") String clusterId)
+            throws Exception {
+        return istioService.updateClusterIstioPolicySwitch(status, clusterId);
+    }
+
 
 }

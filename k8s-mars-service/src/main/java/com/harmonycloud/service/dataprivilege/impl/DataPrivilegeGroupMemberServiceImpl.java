@@ -38,28 +38,28 @@ import java.util.stream.Collectors;
 public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMemberService {
 
     @Autowired
-    DataPrivilegeGroupMemberMapper dataPrivilegeGroupMemberMapper;
+    private DataPrivilegeGroupMemberMapper dataPrivilegeGroupMemberMapper;
 
     @Autowired
-    ProjectService projectService;
+    private ProjectService projectService;
 
     @Autowired
-    UserService userService;
+    private UserService userService;
 
     @Autowired
-    DataPrivilegeGroupService dataPrivilegeGroupService;
+    private DataPrivilegeGroupService dataPrivilegeGroupService;
 
     @Autowired
-    DataPrivilegeGroupMappingService dataPrivilegeGroupMappingService;
+    private DataPrivilegeGroupMappingService dataPrivilegeGroupMappingService;
 
     @Autowired
-    DataPrivilegeStrategyService dataPrivilegeStrategyService;
+    private DataPrivilegeStrategyService dataPrivilegeStrategyService;
 
     @Autowired
-    UserRoleRelationshipService userRoleRelationshipService;
+    private UserRoleRelationshipService userRoleRelationshipService;
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
 
     private static final String RO_GROUP_ID = "roGroupId";
@@ -227,7 +227,7 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
      */
     @Override
     public void addNewProjectMemberToGroup(Project project, List<String> usernameList) throws Exception {
-        Integer strategy = null;
+        Integer strategy = CommonConstant.DATA_OPEN_STRATEGY;
         String tenantId = project.getTenantId();
         String projectId = project.getProjectId();
         List<DataPrivilegeStrategy> strategyList = dataPrivilegeStrategyService.selectStrategy(tenantId, null, null);
@@ -352,7 +352,9 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
     public void addMemberToPrivilegeGroup(Integer groupId, int userId, String username) throws Exception {
         List<Integer> groupList = dataPrivilegeGroupMappingService.getChildDataMappingGroupWithoutUser(groupId, username);
         List<DataPrivilegeGroupMember> dataPrivilegeGroupMemberList = new ArrayList<>();
-        groupList.add(groupId);
+        if(!this.existUser(groupId, userId)) {
+            groupList.add(groupId);
+        }
         groupList.stream().forEach(id ->{
             DataPrivilegeGroupMember dataPrivilegeGroupMember = new DataPrivilegeGroupMember();
             dataPrivilegeGroupMember.setGroupId(id);
@@ -363,11 +365,14 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
 
         });
         try {
-            this.addListToGroup(dataPrivilegeGroupMemberList);
+            if(CollectionUtils.isNotEmpty(dataPrivilegeGroupMemberList)) {
+                this.addListToGroup(dataPrivilegeGroupMemberList);
+            }
         }catch (DuplicateKeyException e){
             throw new MarsRuntimeException(ErrorCodeMessage.GROUP_USER_EXIST);
         }
     }
+
 
     /**
      * 数据权限组中删除成员
@@ -404,11 +409,8 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
         List<DataPrivilegeGroupMapping> mappingList = dataPrivilegeGroupMappingService.listDataPrivilegeGroupMapping(dataPrivilegeDto);
 
         if(CollectionUtils.isEmpty(mappingList)){
-            resultMap.put(RO_GROUP_ID, null);
-            resultMap.put(RW_GROUP_ID, null);
-            resultMap.put(RO_LIST, Collections.EMPTY_LIST);
-            resultMap.put(RW_LIST, Collections.EMPTY_LIST);
-            return resultMap;
+            dataPrivilegeGroupMappingService.initMapping(dataPrivilegeDto);
+            mappingList = dataPrivilegeGroupMappingService.listDataPrivilegeGroupMapping(dataPrivilegeDto);
         }
         for (DataPrivilegeGroupMapping mapping : mappingList) {
             if(mapping.getPrivilegeType() == CommonConstant.DATA_READONLY){
@@ -476,17 +478,19 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
             if(userList.contains(username)){
                 throw new MarsRuntimeException(ErrorCodeMessage.GROUP_USER_EXIST);
             }
+            //服务权限不能小于应用
             if(groupType == CommonConstant.DATA_READONLY){
                 List<String> parentUserList = dataPrivilegeGroupMemberMapper.selectParentDataGroupUser(otherGroupId);
                 if(parentUserList.contains(username)){
-                    throw new MarsRuntimeException(ErrorCodeMessage.PARENT_RW_GROUP_USER_DELETE_FIRST);
+                    throw new MarsRuntimeException(ErrorCodeMessage.DATA_PRIVILEGE_UPDATE_ERROR);
                 }
             }
         }else{
             //删除用户时校验父资源中是否有此用户
             List<String> parentUserList = dataPrivilegeGroupMemberMapper.selectParentDataGroupUser(groupId);
-            if(parentUserList.contains(username)){
-                throw new MarsRuntimeException(ErrorCodeMessage.PARENT_GROUP_USER_DELETE_FIRST);
+            List<String> otherParentUserList = dataPrivilegeGroupMemberMapper.selectParentDataGroupUser(otherGroupId);
+            if(parentUserList.contains(username) || otherParentUserList.contains(username)){
+                throw new MarsRuntimeException(ErrorCodeMessage.DATA_PRIVILEGE_UPDATE_ERROR);
             }
         }
     }
@@ -514,6 +518,37 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
             }
         });
         return userList;
+    }
+
+    @Override
+    public void initGroupMemberByStrategy(int strategy, String projectId, Integer roGroupId, Integer rwGroupId, Integer parentRoGroupId, Integer parentRwGroupId) throws Exception{
+        List<String> rwUserList;
+        switch(strategy){
+            case CommonConstant.DATA_CLOSED_STRATEGY:
+                rwUserList = initGroupMember(rwGroupId, null, parentRwGroupId, CommonConstant.DATA_READWRITE, null);
+                initGroupMember(roGroupId, null, parentRoGroupId, CommonConstant.DATA_READONLY, rwUserList);
+                break;
+            case CommonConstant.DATA_SEMIOPEN_STRATEGY:
+                rwUserList = initGroupMember(rwGroupId, null, parentRwGroupId, CommonConstant.DATA_READWRITE, null);
+                initGroupMember(roGroupId, projectId, parentRoGroupId, CommonConstant.DATA_READONLY, rwUserList);
+                break;
+            case CommonConstant.DATA_OPEN_STRATEGY:
+                rwUserList = initGroupMember(rwGroupId, projectId, parentRwGroupId, CommonConstant.DATA_READWRITE, null);
+                initGroupMember(roGroupId, null, parentRoGroupId, CommonConstant.DATA_READONLY, rwUserList);
+                break;
+        }
+    }
+
+
+    private boolean existUser(Integer groupId, int userId) {
+        DataPrivilegeGroupMemberExample e = new DataPrivilegeGroupMemberExample();
+        e.createCriteria().andGroupIdEqualTo(groupId).andMemberTypeEqualTo(CommonConstant.MEMBER_TYPE_USER).andMemberIdEqualTo(userId);
+        List<DataPrivilegeGroupMember> list = dataPrivilegeGroupMemberMapper.selectByExample(e);
+        if(CollectionUtils.isNotEmpty(list)){
+            return true;
+        }else{
+            return false;
+        }
     }
 
 }

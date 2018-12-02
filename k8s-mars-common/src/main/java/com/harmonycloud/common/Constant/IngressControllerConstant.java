@@ -32,9 +32,25 @@ public class IngressControllerConstant {
 
     public static final String LABEL_KEY_NAME = "name";
 
-    public static final String LABEL_MARK_KEY = "k8s-app";
+    public static final String LABEL_KEY_APP = "k8s-app";
 
-    public static final String LABEL_MARK_VALUE = "nginx-ingress-lb";
+    public static final String LABEL_KEY_INGRESS_CONTROLLER_NAME = "ic-name";
+
+    public static final String ANNOTATIONS_KEY_ALIAS_NAME = "ic-aliasname";
+
+    public static final String LABEL_VALUE_APP_NGINX = "nginx-ingress-lb";
+
+    public static final String LABEL_VALUE_NGINX_CUSTOM = "nginx-custom";
+
+    public static final String IC_DEFAULT_ALIAS_NAME = "全局负载均衡";
+    //全局负载均衡器默认名称
+    public final static String IC_DEFAULT_NAME = "nginx-ingress-controller";
+    //全局负载均衡器默认端口
+    public final static String IC_DEFAULT_PORT = "80";
+    //全局负载均衡tcp配置文件名称
+    public final static String EXPOSE_CONFIGMAP_NAME_TCP = "system-expose-nginx-config-tcp";
+    //全局负载均衡udp配置文件名称
+    public final static String EXPOSE_CONFIGMAP_NAME_UDP = "system-expose-nginx-config-udp";
 
     public static final String DAEMONSET_SPEC_UPDATESTRATEGY_TYPE = "OnDelete";
 

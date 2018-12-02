@@ -24,10 +24,10 @@ import java.util.List;
 public class SystemConfigServiceImpl implements SystemConfigService {
 
     @Autowired
-    SystemConfigMapper systemConfigMapper;
+    private SystemConfigMapper systemConfigMapper;
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Override
     public SystemConfig findById(String id) {

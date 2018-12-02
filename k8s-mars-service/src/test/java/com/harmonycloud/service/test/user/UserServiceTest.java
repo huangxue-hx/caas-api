@@ -20,7 +20,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class UserServiceTest extends BaseTest{
     @Autowired
-    UserService userService;
+    private UserService userService;
 
     @Test
     public void testListUserByProjectId(){

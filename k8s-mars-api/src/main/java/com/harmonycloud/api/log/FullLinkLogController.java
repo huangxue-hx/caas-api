@@ -34,10 +34,10 @@ public class FullLinkLogController {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    FullLinkLogService linkLogService;
+    private FullLinkLogService linkLogService;
 
     @Autowired
-    LogService logService;
+    private LogService logService;
 
     @ResponseBody
     @RequestMapping(value="/pod", method= RequestMethod.GET)

@@ -48,6 +48,26 @@ public class UpdateDeployment {
 
 	private List<HostAlias> hostAliases;
 
+	private boolean hostNetwork;
+
+	private String deployVersion;
+
+	public String getDeployVersion() {
+		return deployVersion;
+	}
+
+	public void setDeployVersion(String deployVersion) {
+		this.deployVersion = deployVersion;
+	}
+
+	public boolean isHostNetwork() {
+		return hostNetwork;
+	}
+
+	public void setHostNetwork(boolean hostNetwork) {
+		this.hostNetwork = hostNetwork;
+	}
+
 	public AffinityDto getPodGroupSchedule() {
 		return podGroupSchedule;
 	}

@@ -23,7 +23,7 @@ public class TriggerController {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    TriggerService triggerService;
+    private TriggerService triggerService;
 
     /**
      *

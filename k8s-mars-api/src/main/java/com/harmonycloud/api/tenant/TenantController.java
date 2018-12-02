@@ -15,6 +15,7 @@ import com.harmonycloud.dto.tenant.TenantDto;
 import com.harmonycloud.dto.user.UserGroupDto;
 import com.harmonycloud.service.platform.bean.NodeDto;
 import com.harmonycloud.service.tenant.NamespaceService;
+import com.harmonycloud.service.tenant.TenantClusterQuotaService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.RolePrivilegeService;
 import com.harmonycloud.service.user.UserService;
@@ -35,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Created by andy on 17-1-9.
@@ -45,15 +47,15 @@ import java.util.Map;
 public class TenantController {
 
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
     @Autowired
-    NamespaceService namespaceService;
+    private NamespaceService namespaceService;
     @Autowired
-    RolePrivilegeService rolePrivilegeService;
+    private RolePrivilegeService rolePrivilegeService;
     @Autowired
-    UserService userService;
+    private UserService userService;
     @Autowired
-    private HttpSession session;
+    private TenantClusterQuotaService clusterQuotaService;
 
     public static final String CODE = "code";
     public static final String MSG = "msg";
@@ -445,6 +447,25 @@ public class TenantController {
         tenantService.updateTenantStrategy(tenantId,strategy);
         return ActionReturnUtil.returnSuccess();
     }
+
+    /**
+     * 查询租户的集群配额
+     * @param tenantId
+     * @return
+     */
+    @RequestMapping(value = "/{tenantId}/clusterquotas", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getClusterQuota(@PathVariable(value = "tenantId") String tenantId,
+                                             @RequestParam(value = "clusterId",required = false) String clusterId) throws Exception {
+        List<ClusterQuotaDto> clusterQuotaDtos = clusterQuotaService.listClusterQuotaByTenantid(tenantId, clusterId);
+        if(CollectionUtils.isEmpty(clusterQuotaDtos)){
+            return ActionReturnUtil.returnSuccess();
+        }
+        Map<String, List<ClusterQuotaDto>> clusterQuotaDtoMap = clusterQuotaDtos.stream()
+                .collect(Collectors.groupingBy(ClusterQuotaDto::getDataCenterName));
+        return ActionReturnUtil.returnSuccessWithData(clusterQuotaDtoMap);
+    }
+
     /**
      * 根据租户id修改租户配额
      * @param tenantId

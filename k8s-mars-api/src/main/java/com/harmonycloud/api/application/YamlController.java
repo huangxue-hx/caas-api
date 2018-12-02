@@ -22,10 +22,10 @@ import javax.servlet.http.HttpSession;
 public class YamlController {
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    YamlService yamlService;
+    private YamlService yamlService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 

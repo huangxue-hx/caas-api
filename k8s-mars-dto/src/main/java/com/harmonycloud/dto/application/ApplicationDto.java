@@ -40,6 +40,8 @@ public class ApplicationDto {
     
     private String projectId;
 
+    private String tenantId;
+
     private Integer starting;
 
     private Integer stop;
@@ -88,6 +90,14 @@ public class ApplicationDto {
 
     public void setProjectId(String projectId) {
         this.projectId = projectId;
+    }
+
+    public String getTenantId() {
+        return tenantId;
+    }
+
+    public void setTenantId(String tenantId) {
+        this.tenantId = tenantId;
     }
 
     public boolean isMsf() {

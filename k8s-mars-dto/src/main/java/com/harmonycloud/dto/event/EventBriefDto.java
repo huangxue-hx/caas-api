@@ -2,7 +2,7 @@ package com.harmonycloud.dto.event;
 
 public class EventBriefDto {
 
-	private String cluster;
+	private String clusterId;
 
 	private String reason;
 
@@ -26,8 +26,8 @@ public class EventBriefDto {
 
 	}
 
-	public EventBriefDto(String cluster, String reason, String message, String firstTimestamp, String objectName) {
-		this.cluster = cluster;
+	public EventBriefDto(String clusterId, String reason, String message, String firstTimestamp, String objectName) {
+		this.clusterId = clusterId;
 		this.reason = reason;
 		this.message = message;
 		this.firstTimestamp = firstTimestamp;
@@ -106,11 +106,11 @@ public class EventBriefDto {
 		this.objectName = objectName;
 	}
 
-	public String getCluster() {
-		return cluster;
+	public String getClusterId() {
+		return clusterId;
 	}
 
-	public void setCluster(String cluster) {
-		this.cluster = cluster;
+	public void setClusterId(String clusterId) {
+		this.clusterId = clusterId;
 	}
 }

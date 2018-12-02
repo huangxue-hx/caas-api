@@ -16,6 +16,7 @@ import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.user.bean.LocalRole;
 import com.harmonycloud.dao.user.bean.Role;
+import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.bean.UserGroup;
 import com.harmonycloud.dto.config.AuditRequestInfo;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -30,6 +31,7 @@ import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.LocalRoleService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
+import com.harmonycloud.service.util.SsoClient;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,9 +41,9 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -56,40 +58,40 @@ public class AuditRequestHandle {
     private static Logger logger = LoggerFactory.getLogger(AuditRequestHandle.class);
 
     @Autowired
-    UserService userService;
+    private UserService userService;
 
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
 
     @Autowired
-    BuildEnvironmentService buildEnvironmentService;
+    private BuildEnvironmentService buildEnvironmentService;
 
     @Autowired
-    DockerFileService dockerFileService;
+    private DockerFileService dockerFileService;
 
     @Autowired
-    JobService jobService;
+    private JobService jobService;
 
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
 
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
 
     @Autowired
-    HarborProjectService harborProjectService;
+    private HarborProjectService harborProjectService;
 
     @Autowired
-    LocalRoleService localRoleService;
+    private LocalRoleService localRoleService;
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
     @Autowired
-    LogBackupRuleMapper logBackupRuleMapper;
+    private LogBackupRuleMapper logBackupRuleMapper;
 
     @Autowired
-    ProjectService projectService;
+    private ProjectService projectService;
 
     private static final String CDP = "Continue Deliver Platform";
 
@@ -106,7 +108,7 @@ public class AuditRequestHandle {
 
     private AuditRequestHandle() {}
 
-    public AuditRequestInfo parseRequest(HttpServletRequest request) throws Exception {
+    public AuditRequestInfo parseRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
         String url = request.getRequestURI();
         if (url.indexOf(CommonConstant.URL_PRFFIX) > -1) {
             url = url.substring(url.indexOf(CommonConstant.URL_PRFFIX) + CommonConstant.URL_PRFFIX.length());
@@ -165,6 +167,16 @@ public class AuditRequestHandle {
                 requestInfo.setTenant(tenant);
                 //获取当前用户
                 requestInfo.setUser(userService.getCurrentUsername());
+                //单点登录
+                if ("/users/current_GET".equals(url)) {
+                    if (StringUtils.isNotBlank(subject) && Boolean.valueOf(subject)) {
+                        User user = SsoClient.getLoginUser(request,response);
+                        requestInfo.setUser(null != user? user.getUsername():null);
+                        requestInfo.setSubject(null != user? user.getUsername():null);
+                    } else {
+                        requestInfo.setUser(null);
+                    }
+                }
                 //如果是登录请求，从参数内获取,并且将参数加密
                 if ("/users/auth/login_POST".equals(url)) {
                     requestInfo.setRequestParams("******");

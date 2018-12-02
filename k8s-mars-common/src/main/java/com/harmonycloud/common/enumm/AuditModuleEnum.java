@@ -28,8 +28,8 @@ public enum AuditModuleEnum {
     STORAGE("存储", "storage"),
     HARBOR("镜像仓库", "repository"),
     CICD("CICD", "CICD"),
-    /*MSF("微服务平台", "microServicePlatform"),
-    CDP("持续交付平台", "Continue Deliver Platform"),*/
+    MSF("微服务平台", "microServicePlatform"),
+    CDP("持续交付平台", "Continue Deliver Platform"),
     CLUSTER("集群", "cluster"),
     LOG("日志管理", "Log Management"),
     ALARM("告警", "alarm"),

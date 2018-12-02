@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 public class StorageClassController {
 
     @Autowired
-    StorageClassService storageClassService;
+    private StorageClassService storageClassService;
 
     /**
      * 创建StorageClass

@@ -1,5 +1,7 @@
 package com.harmonycloud.dto.tenant;
 
+import com.sun.org.apache.xpath.internal.operations.Bool;
+
 import java.util.List;
 
 /**
@@ -36,6 +38,8 @@ public class NamespaceDto {
     private String clusterId;
     //主机名列表
     private List<String> nodeList;
+    //分区开关是否开启(true  开启 false 关闭)
+    private Boolean istioStatus;
 
     public String getUpdateAliasName() {
         return updateAliasName;
@@ -165,4 +169,11 @@ public class NamespaceDto {
         Private = private1;
     }
 
+    public Boolean getIstioStatus() {
+        return istioStatus;
+    }
+
+    public void setIstioStatus(Boolean istioStatus) {
+        this.istioStatus = istioStatus;
+    }
 }

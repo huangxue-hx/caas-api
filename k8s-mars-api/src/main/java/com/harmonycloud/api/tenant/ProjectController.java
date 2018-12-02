@@ -27,9 +27,9 @@ import java.util.List;
 public class ProjectController {
 
     @Autowired
-    ProjectService projectService;
+    private ProjectService projectService;
     @Autowired
-    RolePrivilegeService rolePrivilegeService;
+    private RolePrivilegeService rolePrivilegeService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 

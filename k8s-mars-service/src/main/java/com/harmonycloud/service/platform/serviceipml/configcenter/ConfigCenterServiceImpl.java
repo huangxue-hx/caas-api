@@ -1,6 +1,7 @@
 package com.harmonycloud.service.platform.serviceipml.configcenter;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
@@ -14,6 +15,7 @@ import com.harmonycloud.dao.application.bean.ConfigService;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.dto.config.ConfigDetailDto;
+import com.harmonycloud.dto.dataprivilege.DataPrivilegeDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.service.ConfigmapService;
@@ -23,6 +25,8 @@ import com.harmonycloud.service.application.DaemonSetsService;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.VersionControlService;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.common.DataPrivilegeHelper;
+import com.harmonycloud.service.dataprivilege.DataPrivilegeService;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
@@ -41,6 +45,10 @@ import org.springframework.util.CollectionUtils;
 import javax.servlet.http.HttpSession;
 import java.text.DecimalFormat;
 import java.util.*;
+import java.util.stream.Collectors;
+
+import static com.harmonycloud.service.platform.convert.K8sResultConvert.TAG_LENGTH;
+import static com.harmonycloud.service.platform.convert.K8sResultConvert.TAG_PATTERN;
 
 /**
  * Created by gurongyun on 17/03/24. configcenter serviceImpl
@@ -49,7 +57,7 @@ import java.util.*;
 @Transactional(rollbackFor = Exception.class)
 public class ConfigCenterServiceImpl implements ConfigCenterService {
 
-    DecimalFormat decimalFormat = new DecimalFormat("######0.0");
+    private DecimalFormat decimalFormat = new DecimalFormat("######0.0");
 
     @Autowired
     private ConfigFileMapper configFileMapper;
@@ -76,10 +84,18 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     private HttpSession session;
 
     @Autowired
-    DaemonSetsService daemonSetsService;
+    private DaemonSetsService daemonSetsService;
 
     @Autowired
-    DaemonSetService daemonSetService;
+    private DaemonSetService daemonSetService;
+
+    @Autowired
+    private DataPrivilegeService dataPrivilegeService;
+
+    @Autowired
+    private DataPrivilegeHelper dataPrivilegeHelper;
+
+    private static String CONFIGLIST_DATA = "configList";
 
 
     /**
@@ -101,8 +117,6 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
             }
         }
         ConfigFile configFile = ObjConverter.convert(configDetail, ConfigFile.class);
-        // 随机生成64位字符串
-        configFile.setId(UUIDUtil.get16UUID());
         configFile.setUser(userName);
         if (!CollectionUtils.isEmpty(list)) {
             // 存在版本号+0.1
@@ -124,20 +138,35 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         if (!"".equals(configFile.getClusterId()) && configFile.getClusterId().length() > 0) {
             configFile.setClusterName(clusterService.findClusterById(configFile.getClusterId()).getName());
         }
+        dataPrivilegeService.addResource(configDetail, null, null);
+        return saveConfig(configFile);
+    }
+
+    @Override
+    public ActionReturnUtil saveConfig(ConfigFile configFile) throws Exception {
+        Assert.notNull(configFile);
+        ConfigFile existFile = this.getConfigByNameAndTag(configFile.getName(),
+                configFile.getTags(),configFile.getProjectId(),configFile.getClusterId());
+        if(existFile != null){
+            return ActionReturnUtil.returnErrorWithData(DictEnum.CONFIG_MAP.phrase(),ErrorCodeMessage.EXIST);
+        }
+        if(StringUtils.isBlank(configFile.getId())){
+            configFile.setId(UUIDUtil.get16UUID());
+        }
+        configFile.setCreateTime(DateUtil.timeFormat.format(new Date()));
+        configFile.setUpdateTime(configFile.getCreateTime());
+        if(StringUtils.isBlank(configFile.getTags())){
+            configFile.setTags(decimalFormat.format(Constant.TEMPLATE_TAG) + "");
+        }
         // 入库
         configFileMapper.saveConfigFile(configFile);
         //配置文件的明细
-        List<ConfigFileItem> configFileItemList = configFile.getConfigFileItemList();
-        if(configFileItemList != null && configFileItemList.size() >0){
-            for (ConfigFileItem configFileItem : configFileItemList) {
-                configFileItem.setConfigfileId(configFile.getId());
-                configFileItemMapper.insert(configFileItem);
-            }
-        }
+        this.insertConfigFileItem(configFile.getId(), configFile.getConfigFileItemList());
 
         JSONObject resultJson = new JSONObject();
-        resultJson.put("filename", configDetail.getName());
-        resultJson.put("tag", tags);
+        resultJson.put("filename", configFile.getName());
+        resultJson.put("tag", configFile.getTags());
+        resultJson.put("id", configFile.getId());
         return ActionReturnUtil.returnSuccessWithData(resultJson);
     }
 
@@ -166,11 +195,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         configFileMapper.updateConfig(configFile);
 
         //配置文件的明细
-        List<ConfigFileItem> configFileItemList = configFile.getConfigFileItemList();
-        for (ConfigFileItem configFileItem : configFileItemList) {
-            configFileItem.setConfigfileId(configFile.getId());
-            configFileItemMapper.insert(configFileItem);
-        }
+        this.insertConfigFileItem(configFile.getId(), configFile.getConfigFileItemList());
 
         JSONObject resultJson = new JSONObject();
         resultJson.put("filename", configDetail.getName());
@@ -215,14 +240,12 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         }
         List<ConfigFile> list = configFileMapper.listConfigSearch(projectId, clusterIds, repoName, keyword, Boolean.TRUE);
         if (CollectionUtils.isEmpty(list)) {
-            return ActionReturnUtil.returnSuccess();
+            return ActionReturnUtil.returnSuccessWithData(new HashMap<>().values());
         } else {
 
             Map<String, ConfigFile> configFileMap = getConfigFileMap(list);
             Collection<ConfigFile> values = configFileMap.values();
-            for (ConfigFile value : values) {
-                value.setClusterAliasName(userCluster.get(value.getClusterId()).getAliasName());
-            }
+            this.filterConfigFile(values, userCluster);
             return ActionReturnUtil.returnSuccessWithData(values);
         }
     }
@@ -263,13 +286,11 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         // 查询同一repo下的所有配置文件
         List<ConfigFile> lists = configFileMapper.listConfigOverview(projectId, repoName, userCluster.keySet());
         if (CollectionUtils.isEmpty(lists)) {
-            return ActionReturnUtil.returnSuccess();
+            return ActionReturnUtil.returnSuccessWithData(new HashMap<>().values());
         } else {
             Map<String, ConfigFile> configFileMap = getConfigFileMap(lists);
             Collection<ConfigFile> configFiles = configFileMap.values();
-            for (ConfigFile configFile : configFiles) {
-                configFile.setClusterAliasName(userCluster.get(configFile.getClusterId()).getAliasName());
-            }
+            this.filterConfigFile(configFiles, userCluster);
             return ActionReturnUtil.returnSuccessWithData(configFiles);
 
         }
@@ -320,6 +341,13 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         Assert.hasText(projectId);
         Assert.hasText(clusterId);
         configFileMapper.deleteConfigByName(name, projectId, clusterId);
+
+        //删除数据权限
+        ConfigDetailDto configDetail = new ConfigDetailDto();
+        configDetail.setName(name);
+        configDetail.setProjectId(projectId);
+        configDetail.setClusterId(clusterId);
+        dataPrivilegeService.deleteResource(configDetail);
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -355,6 +383,9 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     public ActionReturnUtil getLatestConfigMap(String name, String projectId, String repoName,String clusterId,String tags) throws Exception {
 
         ConfigFile latestConfig = configFileMapper.getLatestConfig(name, projectId, repoName,clusterId,tags);
+        if(latestConfig == null){
+            return ActionReturnUtil.returnErrorWithData(DictEnum.CONFIG_MAP.phrase(), ErrorCodeMessage.NOT_FOUND);
+        }
         List<ConfigFileItem> configFileItemList = configFileItemMapper.getConfigFileItem(latestConfig.getId());
         latestConfig.setConfigFileItemList(configFileItemList);
         ConfigDetailDto configDetailDto = ObjConverter.convert(latestConfig, ConfigDetailDto.class);
@@ -421,13 +452,25 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     }
 
     @Override
-    public ActionReturnUtil getConfigMapByName(String name, String clusterId, String projectId) throws Exception  {
+    public ActionReturnUtil getConfigMapByName(String name, String clusterId, String projectId, boolean isFilter) throws Exception  {
         List<ConfigFile> configFileList =  configFileMapper.getConfigMapByName(name,clusterId,projectId);
         for(ConfigFile configFile : configFileList){
             Cluster cluster = clusterService.findClusterById(configFile.getClusterId());
             configFile.setClusterAliasName(cluster.getAliasName());
         }
-        return ActionReturnUtil.returnSuccessWithData(configFileList);
+        if(isFilter) {
+            Map map = new HashMap();
+            map.put(CONFIGLIST_DATA, configFileList);
+            DataPrivilegeDto dataPrivilegeDto = new DataPrivilegeDto();
+            dataPrivilegeDto.setData(name);
+            dataPrivilegeDto.setDataResourceType(DataResourceTypeEnum.CONFIGFILE.getCode());
+            dataPrivilegeDto.setClusterId(clusterId);
+            dataPrivilegeDto.setProjectId(projectId);
+            dataPrivilegeHelper.filterMap(map, dataPrivilegeDto);
+            return ActionReturnUtil.returnSuccessWithData(map);
+        }else {
+            return ActionReturnUtil.returnSuccessWithData(configFileList);
+        }
     }
 
     @Override
@@ -441,20 +484,46 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         for (NamespaceLocal namespaceLocal : namespaceListByTenantId) {
             String namespace = namespaceLocal.getNamespaceName();
             DeploymentList deploymentList = deploymentsService.listDeployments(namespace, projectId);
-            if(!CollectionUtils.isEmpty(deploymentList.getItems())){
+            if (!CollectionUtils.isEmpty(deploymentList.getItems())) {
                 List<Deployment> deployments = deploymentList.getItems();
                 for (Deployment deployment : deployments) {
+                    Map<String, Object> annotations = deployment.getMetadata().getAnnotations();
+                    List<Container> containers = deployment.getSpec().getTemplate().getSpec().getContainers();
                     List<Volume> volumes = deployment.getSpec().getTemplate().getSpec().getVolumes();
-                    if(!CollectionUtils.isEmpty(volumes)){
-                        Volume volume = volumes.get(0);
+                    if (CollectionUtils.isEmpty(volumes)) {
+                        continue;
+                    }
+                    boolean find = false;
+                    for (Volume volume : volumes) {
+                        if (volume.getConfigMap() == null) {
+                            continue;
+                        }
                         String name = volume.getName();
-                        //不挂存储的情况下，volume的名字形式是xxx-configMapId形式，可以据此来判断是否关联
-                        if(!StringUtils.isEmpty(name)){
-                            int lastIndexOf = name.lastIndexOf("-");
-                            String subConfigMapId = name.substring(lastIndexOf + 1);
-                            if(configMapId.equals(subConfigMapId)){
-                                deploymentsList.add(deployment);
+                        String tag = volume.getName().substring(volume.getName().length() - TAG_LENGTH);
+                        //兼容以前1.0.3的版本，volume名称是版本号结尾的, 升级到1.1.0版本做过数据迁移，将configmapid放到annotations
+                        if (tag.matches(TAG_PATTERN)) {
+                            for (Container container : containers) {
+                                if (annotations != null && (annotations.get("configmapid-" + container.getName()) != null)
+                                        && configMapId.equals(annotations.get("configmapid-" + container.getName()))) {
+                                    deploymentsList.add(deployment);
+                                    find = true;
+                                    break;
+                                }
                             }
+                        } else {
+                            //不挂存储的情况下，volume的名字形式是xxx-configMapId形式，可以据此来判断是否关联
+                            if (!StringUtils.isEmpty(name)) {
+                                int lastIndexOf = name.lastIndexOf("-");
+                                String subConfigMapId = name.substring(lastIndexOf + 1);
+                                if (configMapId.equals(subConfigMapId)) {
+                                    deploymentsList.add(deployment);
+                                    find = true;
+                                }
+                            }
+                        }
+                        //其中一个volume找到配置文件引用，则转到下一个服务处理
+                        if (find) {
+                            break;
                         }
                     }
                 }
@@ -738,14 +807,14 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     public ActionReturnUtil  getAllServiceByConfigName(String configName,String clusterId,String projectId,String tenantId) throws Exception{
         //根据configName获取所有configMapId
         List<ConfigFile> configFiles = configFileMapper.getConfigMapByName(configName,clusterId,projectId);
-        List<String> configMapIds = new LinkedList<String>();
-        for(ConfigFile configFile : configFiles){
-            configMapIds.add(configFile.getId());
+        if(CollectionUtils.isEmpty(configFiles)){
+            return ActionReturnUtil.returnSuccess();
         }
+        Map<String, ConfigFile> configFileMap = configFiles.stream().collect(Collectors.toMap(ConfigFile::getId, config->config));
         List<Deployment> deploymentList = new LinkedList<Deployment>();
         List<ConfigService> configServices = new LinkedList<ConfigService>();
 
-        for(String configMapId : configMapIds){
+        for(String configMapId : configFileMap.keySet()){
             List<Deployment> deployments = getServiceList(projectId,tenantId,configMapId);
             List<DaemonSet> daemonSets = getDaemonSetList(projectId,tenantId,configMapId,clusterId);
 
@@ -753,9 +822,8 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
             for(DaemonSet daemonSet : daemonSets){
                 ConfigService configService = new ConfigService();
                 configService.setServiceName(daemonSet.getMetadata().getName());
-                int tempIndex = daemonSet.getSpec().getTemplate().getSpec().getVolumes().get(0).getConfigMap().getItems().get(0).getKey().lastIndexOf("v");
-                String tag = daemonSet.getSpec().getTemplate().getSpec().getVolumes().get(0).getConfigMap().getItems().get(0).getKey().substring(tempIndex+1);
-                configService.setTag(tag);
+                configService.setServiceNamespace(daemonSet.getMetadata().getNamespace());
+                configService.setTag(configFileMap.get(configMapId).getTags());
                 String imageName = daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getImage();
                 int firstg = imageName.indexOf("/");
                 configService.setImage(imageName.substring(firstg+1));
@@ -773,9 +841,8 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
             for(Deployment deployment : deployments) {
                 ConfigService configService = new ConfigService();
                 configService.setServiceName(deployment.getMetadata().getName());
-                int tempIndex = deployment.getSpec().getTemplate().getSpec().getVolumes().get(0).getConfigMap().getItems().get(0).getKey().lastIndexOf("v");
-                String tag = deployment.getSpec().getTemplate().getSpec().getVolumes().get(0).getConfigMap().getItems().get(0).getKey().substring(tempIndex+1);
-                configService.setTag(tag);
+                configService.setServiceNamespace(deployment.getMetadata().getNamespace());
+                configService.setTag(configFileMap.get(configMapId).getTags());
                 String imageName = deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getImage();
                 int firstg = imageName.indexOf("/");
                 configService.setImage(imageName.substring(firstg+1));
@@ -796,8 +863,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
                 }else{
                     configService.setStatus("unavailable");
                 }
-
-
+                dataPrivilegeHelper.filter(configService, true);
                 configServices.add(configService);
             }
         }
@@ -807,5 +873,32 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     @Override
     public void deleteConfigMap(String clusterId, String tenantId) throws Exception {
         configFileMapper.delConfByCidAndTid(clusterId, tenantId);
+    }
+
+    private void insertConfigFileItem(String configId, List<ConfigFileItem> configFileItemList) {
+        AssertUtil.notBlank(configId, DictEnum.CONFIG_MAP_ID);
+        if (CollectionUtils.isEmpty(configFileItemList)) {
+            return;
+        }
+        for (ConfigFileItem configFileItem : configFileItemList) {
+            configFileItem.setConfigfileId(configId);
+            if (!configFileItem.getPath().endsWith("/")) {
+                configFileItem.setPath(configFileItem.getPath() + "/");
+            }
+            configFileItemMapper.insert(configFileItem);
+        }
+    }
+
+    private void filterConfigFile(Collection<ConfigFile> configFileList, Map<String, Cluster> userCluster) throws Exception {
+        Iterator<ConfigFile> iterator = configFileList.iterator();
+        while(iterator.hasNext()){
+            ConfigFile configFile = iterator.next();
+            configFile = dataPrivilegeHelper.filter(configFile);
+            if(configFile == null){
+                iterator.remove();
+                continue;
+            }
+            configFile.setClusterAliasName(userCluster.get(configFile.getClusterId()).getAliasName());
+        }
     }
 }

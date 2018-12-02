@@ -2,6 +2,8 @@ package com.harmonycloud.common.util;
 
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
 
 import javax.servlet.http.HttpServletRequest;
@@ -15,7 +17,8 @@ import java.util.*;
  * Created by czm on 2017/3/27.
  */
 public class DicUtil {
-	public static final Properties properties = new Properties();
+	private static final Properties properties = new Properties();
+	private static final Logger LOGGER = LoggerFactory.getLogger(DicUtil.class);
 
 
 
@@ -25,7 +28,7 @@ public class DicUtil {
 			BufferedReader bf = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"));
 			properties.load(bf);
 		} catch (Exception exception) {
-			exception.printStackTrace();
+			LOGGER.warn(exception.getMessage());
 		}
 	}
 
@@ -61,19 +64,19 @@ public class DicUtil {
 		if (StringUtils.isNotBlank(uri)) {
 			subPath = uri.split("/");
 		}
-
-		if (index < 0) {
-			index = 0;
+        int indexNo = index;
+		if (indexNo < 0) {
+			indexNo = 0;
 		}
-		if (index > subPath.length) {
-			index = subPath.length;
+		if (indexNo > subPath.length) {
+			indexNo = subPath.length;
 		}
 
 		StringBuilder sb = new StringBuilder();
 
-		for (int i = 1; i < index; i++) {
+		for (int i = 1; i < indexNo; i++) {
 			sb.append(subPath[i]);
-			if (i < index - 1) {
+			if (i < indexNo - 1) {
 				sb.append("_");
 			}
 		}

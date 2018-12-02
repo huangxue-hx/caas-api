@@ -1,6 +1,7 @@
 package com.harmonycloud.service.integration.impl;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.Constant.IngressControllerConstant;
 import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
@@ -8,6 +9,8 @@ import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dto.application.TcpRuleDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.ClusterDomain;
+import com.harmonycloud.k8s.bean.cluster.ClusterDomainAddress;
+import com.harmonycloud.k8s.bean.cluster.ClusterDomainPort;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
@@ -181,10 +184,10 @@ public class MicroServiceWithKubeServiceImpl implements MicroServiceWithKubeServ
         if (msfPorts != null && msfPorts.size() > 0) {
             //获取四级域名
             String fourDomain = null;
-            List<ClusterDomain> domains = clusterService.findDomain(namespace);
-            for (ClusterDomain domain : domains) {
-                if (Constant.CLUSTER_FOUR_DOMAIN.equals(domain.getName())) {
-                    fourDomain = domain.getDomain();
+            ClusterDomain domains = clusterService.findDomain(namespace);
+            for (ClusterDomainAddress address : domains.getAddress()) {
+                if (Constant.CLUSTER_FOUR_DOMAIN.equals(address.getName())) {
+                    fourDomain = address.getDomain();
                     break;
                 }
             }
@@ -249,7 +252,7 @@ public class MicroServiceWithKubeServiceImpl implements MicroServiceWithKubeServ
         List<Ingress> list = routerService.listHttpIngress(depName, namespace, cluster);
         if (list != null && list.size() > 0) {
             //获取域名
-            List<ClusterDomain> domains = clusterService.findDomain(namespace);
+            ClusterDomain domains = clusterService.findDomain(namespace);
             for (Ingress in : list) {
                 List<IngressRule> rules = in.getSpec().getRules();
                 if (CollectionUtils.isNotEmpty(rules)) {
@@ -259,9 +262,9 @@ public class MicroServiceWithKubeServiceImpl implements MicroServiceWithKubeServ
                     if (CollectionUtils.isNotEmpty(paths)) {
                         //获取四级域名端口
                         Integer port = Constant.LIVENESS_PORT;
-                        for (ClusterDomain clusterDomain : domains) {
-                            if (Constant.CLUSTER_FOUR_DOMAIN.equals(clusterDomain.getDomain())) {
-                                port = clusterDomain.getPort();
+                        for (ClusterDomainPort domainPort : domains.getPort()) {
+                            if (!domainPort.getExternal()) {
+                                port = domainPort.getPort();
                                 break;
                             }
                         }
@@ -417,10 +420,10 @@ public class MicroServiceWithKubeServiceImpl implements MicroServiceWithKubeServ
             K8SURL url = new K8SURL();
             url.setNamespace(CommonConstant.KUBE_SYSTEM).setResource(Resource.CONFIGMAP);
             if (Constant.PROTOCOL_TCP.equals(type)) {
-                url.setName(Constant.EXPOSE_CONFIGMAP_NAME_TCP);
+                url.setName(IngressControllerConstant.EXPOSE_CONFIGMAP_NAME_TCP);
             }
             if (Constant.PROTOCOL_UDP.equals(type)) {
-                url.setName(Constant.EXPOSE_CONFIGMAP_NAME_UDP);
+                url.setName(IngressControllerConstant.EXPOSE_CONFIGMAP_NAME_UDP);
             }
             K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, headers, bodys, cluster);
             if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {

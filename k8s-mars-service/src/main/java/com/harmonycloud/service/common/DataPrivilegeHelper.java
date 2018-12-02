@@ -10,6 +10,7 @@ import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMember;
 import com.harmonycloud.dto.dataprivilege.DataPrivilegeDto;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMappingService;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
+import com.harmonycloud.service.dataprivilege.DataPrivilegeService;
 import com.harmonycloud.service.user.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,11 +31,13 @@ import java.util.stream.Collectors;
 public class DataPrivilegeHelper {
 
     @Autowired
-    DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
+    private DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
     @Autowired
-    DataPrivilegeGroupMappingService dataPrivilegeGroupMappingService;
+    private DataPrivilegeGroupMappingService dataPrivilegeGroupMappingService;
     @Autowired
-    UserService userService;
+    private UserService userService;
+    @Autowired
+    private DataPrivilegeService dataPrivilegeService;
 
     private static Logger logger = LoggerFactory.getLogger(DataPrivilegeHelper.class);
     @Autowired
@@ -43,6 +46,8 @@ public class DataPrivilegeHelper {
     private final String DATA_PRIVILEGE = "dataPrivilege";
     private final String READONLY = "ro";
     private final String READWRITE = "rw";
+    private final String READNONE = "rn";
+    private final String ID_FILED = "id";
     private final String DATA_FILED = "name";
     private final String CLUSTERID_FIELD = "clusterId";
     private final String PROJECTID_FIELD = "projectId";
@@ -89,11 +94,12 @@ public class DataPrivilegeHelper {
     /**
      * 过滤对象
      * @param t
+     * @param isDisplay
      * @param <T>
      * @return
      * @throws Exception
      */
-    public <T> T filter(T t) throws Exception {
+    public <T> T filter(T t, boolean isDisplay) throws Exception {
         if(Objects.isNull(t)){
             return null;
         }
@@ -114,7 +120,8 @@ public class DataPrivilegeHelper {
         List<DataPrivilegeGroupMapping> mappingList = dataPrivilegeGroupMappingService.listDataPrivilegeGroupMapping(dataPrivilegeDto);
 
         if(CollectionUtils.isEmpty(mappingList)){
-            return null;
+            t.getClass().getMethod(SETDATAPRIVILEGE_METHOD, String.class).invoke(t, READWRITE);
+            return t;
         }
         for (DataPrivilegeGroupMapping mapping : mappingList) {
             if(mapping.getPrivilegeType() == CommonConstant.DATA_READONLY){
@@ -150,24 +157,57 @@ public class DataPrivilegeHelper {
             }
         }
         if(!readable){
-            return null;
+            if(!isDisplay) {
+                return null;
+            }else{
+                t.getClass().getMethod(SETDATAPRIVILEGE_METHOD, String.class).invoke(t, READNONE);
+            }
         }
         return t;
     }
 
+    /**
+     * 过滤对象
+     * @param t
+     * @param <T>
+     * @return
+     * @throws Exception
+     */
+    public <T> T filter(T t) throws Exception {
+        return this.filter(t, false);
+    }
 
-    public List<Map> filterMap(List<Map> list) throws Exception {
+
+    /**
+     * 过滤mapList
+     * @param list
+     * @param dataResourceType
+     * @return
+     * @throws Exception
+     */
+    public List<Map> filterMap(List<Map> list, DataResourceTypeEnum dataResourceType) throws Exception {
         List<Map> resultList = new ArrayList<>();
 
         for(Map<String, Object> map : list){
-            DataPrivilegeDto dataPrivilegeDto = this.getDataPrivilegeDto(map);
-
-            Map resultMap = this.filterMap(map, dataPrivilegeDto);
+            Map resultMap = this.filterMap(map, dataResourceType);
             if(resultMap != null){
                 resultList.add(resultMap);
             }
         }
         return resultList;
+    }
+
+    /**
+     * 过滤map
+     * @param map
+     * @param dataResourceType
+     * @return
+     * @throws Exception
+     */
+    public Map filterMap(Map map, DataResourceTypeEnum dataResourceType) throws Exception {
+        DataPrivilegeDto dataPrivilegeDto = this.getDataPrivilegeDto(map, dataResourceType);
+        Map resultMap = this.filterMap(map, dataPrivilegeDto);
+        return resultMap;
     }
 
 
@@ -195,7 +235,8 @@ public class DataPrivilegeHelper {
         List<DataPrivilegeGroupMapping> mappingList = dataPrivilegeGroupMappingService.listDataPrivilegeGroupMapping(dataPrivilegeDto);
 
         if(CollectionUtils.isEmpty(mappingList)){
-            return null;
+            map.put(DATA_PRIVILEGE, READWRITE);
+            return map;
         }
         for (DataPrivilegeGroupMapping mapping : mappingList) {
             if(mapping.getPrivilegeType() == CommonConstant.DATA_READONLY){
@@ -271,9 +312,17 @@ public class DataPrivilegeHelper {
         return dataPrivilegeDto;
     }
 
-    private DataPrivilegeDto getDataPrivilegeDto(Map map){
+    private DataPrivilegeDto getDataPrivilegeDto(Map map, DataResourceTypeEnum dataResourceTypeEnum){
         DataPrivilegeDto dataPrivilegeDto = new DataPrivilegeDto();
-        dataPrivilegeDto.setData(StringUtil.valueOf(map.get(DATA_FILED)));
+        switch(dataResourceTypeEnum){
+            case APPLICATION:
+            case SERVICE:
+                dataPrivilegeDto.setData(StringUtil.valueOf(map.get(DATA_FILED)));
+                break;
+            case PIPELINE:
+                dataPrivilegeDto.setData(StringUtil.valueOf(map.get(ID_FILED)));
+                break;
+        }
         dataPrivilegeDto.setProjectId(StringUtil.valueOf(map.get(PROJECTID_FIELD)));
         dataPrivilegeDto.setClusterId(StringUtil.valueOf(map.get(CLUSTERID_FIELD)));
         dataPrivilegeDto.setNamespace(StringUtil.valueOf(map.get(NAMESPACE_FIELD)));
@@ -287,12 +336,15 @@ public class DataPrivilegeHelper {
      * @return
      * @throws Exception
      */
-    public boolean filterServiceName(String serviceName, String namespace) throws Exception {
+    public Map filterServiceName(Map map, String serviceName, String namespace) throws Exception {
         DataPrivilegeDto dataPrivilegeDto = new DataPrivilegeDto();
         dataPrivilegeDto.setData(serviceName);
         dataPrivilegeDto.setNamespace(namespace);
         dataPrivilegeDto.setDataResourceType(DataResourceTypeEnum.SERVICE.getCode());
-        return isReadable(dataPrivilegeDto);
+        if(this.filterMap(map, dataPrivilegeDto) == null){
+            map.put(DATA_PRIVILEGE, READNONE);
+        }
+        return map;
     }
 
     /**

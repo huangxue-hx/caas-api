@@ -92,9 +92,9 @@ public class Constant {
 
     public final static String CONTROLLER_REVISION_VERSION = APPS_V1_VERSION;
 	
-	public static String HTTP_401 = "401";
+	public final static String HTTP_401 = "401";
 	
-	public static String HTTP_UNAUTHORIZED = "Unauthorized";
+	public final static String HTTP_UNAUTHORIZED = "Unauthorized";
 
 	public final static Integer HTTP_404 = 404;
 

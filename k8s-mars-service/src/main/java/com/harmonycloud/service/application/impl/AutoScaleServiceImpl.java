@@ -64,19 +64,19 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 	private static Logger LOGGER = LoggerFactory.getLogger(AutoScaleServiceImpl.class);
 
 	@Autowired
-	RouterService routerService;
+	private RouterService routerService;
 
 	@Autowired
-	NamespaceLocalService namespaceLocalService;
+	private NamespaceLocalService namespaceLocalService;
 
 	@Autowired
-	HorizontalPodAutoscalerService hpaService;
+	private HorizontalPodAutoscalerService hpaService;
 
 	@Autowired
-	DeploymentsService dpsService;
+	private DeploymentsService dpsService;
 
     @Autowired
-    StatefulSetsService statefulSetsService;
+    private StatefulSetsService statefulSetsService;
 
 	@Override
 	public ActionReturnUtil create(AutoScaleDto autoScaleDto) throws Exception {
@@ -543,20 +543,21 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		if(complexPodScale == null){
 			return autoScaleDto;
 		}
-		if(autoScaleDto == null){
-			autoScaleDto = new AutoScaleDto();
+		AutoScaleDto autoScale = autoScaleDto;
+		if(autoScale == null){
+			autoScale = new AutoScaleDto();
 		}
-		autoScaleDto.setUid(complexPodScale.getMetadata().getUid());
-		autoScaleDto.setMinPods(complexPodScale.getSpec().getMinReplicas());
-		autoScaleDto.setMaxPods(complexPodScale.getSpec().getMaxReplicas());
-		autoScaleDto.setNamespace(complexPodScale.getMetadata().getNamespace());
-		autoScaleDto.setDeploymentName(complexPodScale.getMetadata().getName());
-		autoScaleDto.setControllerType(SCALE_CONTROLLER_TYPE_CPA);
+		autoScale.setUid(complexPodScale.getMetadata().getUid());
+		autoScale.setMinPods(complexPodScale.getSpec().getMinReplicas());
+		autoScale.setMaxPods(complexPodScale.getSpec().getMaxReplicas());
+		autoScale.setNamespace(complexPodScale.getMetadata().getNamespace());
+		autoScale.setDeploymentName(complexPodScale.getMetadata().getName());
+		autoScale.setControllerType(SCALE_CONTROLLER_TYPE_CPA);
 		ComplexPodScaleStatus status = complexPodScale.getStatus();
 		Map<String, Object> statusMap = new HashMap<>();
 		if(status != null) {
-			autoScaleDto.setLastScaleTime(status.getLastScaleTime());
-			autoScaleDto.setCurrentReplicas(status.getCurrentReplicas());
+			autoScale.setLastScaleTime(status.getLastScaleTime());
+			autoScale.setCurrentReplicas(status.getCurrentReplicas());
 			List<MetricStatus> metricStatuses = status.getCurrentMetrics();
 			if(!CollectionUtils.isEmpty(metricStatuses)) {
 				for (MetricStatus metricStatus : metricStatuses) {
@@ -585,18 +586,18 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 			switch (metricSpec.getType()){
 				case METRIC_SOURCE_TYPE_RESOURCE:
 					if(metricSpec.getResource().getName().equalsIgnoreCase(CPU)){
-						autoScaleDto.setTargetCpuUsage(metricSpec.getResource().getTargetAverageUtilization());
+						autoScale.setTargetCpuUsage(metricSpec.getResource().getTargetAverageUtilization());
 						Object currentCpuUsage = statusMap.get(METRIC_SOURCE_TYPE_RESOURCE
 								+ "-" + metricSpec.getResource().getName());
 						if(currentCpuUsage != null){
-							autoScaleDto.setCurrentCpuUsage((Integer)currentCpuUsage);
+							autoScale.setCurrentCpuUsage((Integer)currentCpuUsage);
 						}
 					}else if(metricSpec.getResource().getName().equalsIgnoreCase(MEMORY)){
-						autoScaleDto.setTargetMemoryUsage(metricSpec.getResource().getTargetAverageUtilization());
+						autoScale.setTargetMemoryUsage(metricSpec.getResource().getTargetAverageUtilization());
 						Object currentMemoryUsage = statusMap.get(METRIC_SOURCE_TYPE_RESOURCE
 								+ "-" + metricSpec.getResource().getName());
 						if(currentMemoryUsage != null){
-							autoScaleDto.setCurrentMemoryUsage((Integer)currentMemoryUsage);
+							autoScale.setCurrentMemoryUsage((Integer)currentMemoryUsage);
 						}
 					}else{
 						throw new MarsRuntimeException(ErrorCodeMessage.AUTOSCALE_METRIC_NOT_SUPPORT);
@@ -610,11 +611,11 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 					break;
 				case METRIC_SOURCE_TYPE_CUSTOM:
 					if(metricSpec.getCustom().getMetricName().equalsIgnoreCase(METRIC_NAME_TPS)){
-						autoScaleDto.setTargetTps(metricSpec.getCustom().getTargetAverageValue());
+						autoScale.setTargetTps(metricSpec.getCustom().getTargetAverageValue());
 						Object currentTps = statusMap.get(METRIC_SOURCE_TYPE_CUSTOM
 								+ "-" + metricSpec.getCustom().getMetricName());
 						if(currentTps != null){
-							autoScaleDto.setCurrentTps((Long)currentTps);
+							autoScale.setCurrentTps((Long)currentTps);
 						}
 					}else{
 						CustomMetricSource custom = metricSpec.getCustom();
@@ -632,9 +633,9 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 					throw new MarsRuntimeException(ErrorCodeMessage.AUTOSCALE_METRIC_NOT_SUPPORT,metricSpec.getType(),false);
 			}
 		}
-		autoScaleDto.setTimeMetricScales(timeMetricScales);
-		autoScaleDto.setCustomMetricScales(customMetricScales);
-		return autoScaleDto;
+		autoScale.setTimeMetricScales(timeMetricScales);
+		autoScale.setCustomMetricScales(customMetricScales);
+		return autoScale;
 	}
 
 	private void checkDeploymentCreatedService(String namespace, String deploymentName, Cluster cluster) throws Exception{
@@ -651,20 +652,21 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 	}
 
 
-	public AutoScaleDto convertDto(HorizontalPodAutoscaler hpa, AutoScaleDto dto) throws Exception {
+	public AutoScaleDto convertDto(HorizontalPodAutoscaler hpa, AutoScaleDto autoScaleDto) throws Exception {
 		if(hpa == null){
-			return dto;
+			return autoScaleDto;
 		}
-		if(dto == null){
-			dto = new AutoScaleDto();
+		AutoScaleDto autoScale = autoScaleDto;
+		if(autoScale == null){
+			autoScale = new AutoScaleDto();
 		}
-		dto.setUid(hpa.getMetadata().getUid());
+		autoScale.setUid(hpa.getMetadata().getUid());
 		HorizontalPodAutoscalerSpec hpaSpec = hpa.getSpec();
-		dto.setMaxPods(hpaSpec.getMaxReplicas());
-		dto.setMinPods(hpaSpec.getMinReplicas());
-		dto.setControllerType(SCALE_CONTROLLER_TYPE_HPA);
+		autoScale.setMaxPods(hpaSpec.getMaxReplicas());
+		autoScale.setMinPods(hpaSpec.getMinReplicas());
+		autoScale.setControllerType(SCALE_CONTROLLER_TYPE_HPA);
 		if(hpa.getStatus() != null){
-			dto.setLastScaleTime(hpa.getStatus().getLastScaleTime());
+			autoScale.setLastScaleTime(hpa.getStatus().getLastScaleTime());
 		}
 
 		List<com.harmonycloud.k8s.bean.MetricSpec> metricSpecList = hpaSpec.getMetrics();
@@ -675,13 +677,13 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 					continue;
 				}
 				if(source.getName().equalsIgnoreCase(CPU)){
-					dto.setTargetCpuUsage(source.getTargetAverageUtilization());
+					autoScale.setTargetCpuUsage(source.getTargetAverageUtilization());
 				}else if(source.getName().equalsIgnoreCase(MEMORY)){
-					dto.setTargetMemoryUsage(source.getTargetAverageUtilization());
+					autoScale.setTargetMemoryUsage(source.getTargetAverageUtilization());
 				}
 			}
 		}
-		return dto;
+		return autoScale;
 	}
 
 	public HorizontalPodAutoscaler convertHpa(AutoScaleDto autoScaleDto) throws Exception {

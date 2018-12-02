@@ -48,7 +48,7 @@ public class InfluxdbServiceImpl implements InfluxdbService {
     @Autowired
     private ClusterService clusterService;
     @Autowired
-    HttpSession session;
+    private HttpSession session;
     //监控数据最大展示100个监控点
     private static final int MAX_MONITOR_POINT = 100;
     private String nodeName = "nodename";

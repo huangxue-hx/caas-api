@@ -14,11 +14,17 @@ public interface DataPrivilegeGroupMappingService {
 
     /**
      * 初始化权限组与数据的关联
+     * @param dataPrivilegeDto
+     */
+    void initMapping(DataPrivilegeDto dataPrivilegeDto) throws Exception;
+
+    /**
+     * 初始化权限组与数据的关联
      * @param roGroupId
      * @param rwGroupId
      * @param dataPrivilegeDto
      */
-    Map<Integer, Object> initMapping(int roGroupId, int rwGroupId, DataPrivilegeDto dataPrivilegeDto);
+    Map<Integer, Object> initMapping(int roGroupId, int rwGroupId, DataPrivilegeDto dataPrivilegeDto) throws Exception;
 
     /**
      * 新建数据与权限组的关联

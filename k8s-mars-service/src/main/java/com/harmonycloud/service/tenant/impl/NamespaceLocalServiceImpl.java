@@ -374,11 +374,13 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
         Map<String, Object> privilegeMap = rolePrivilegeService.getAvailablePrivilegeByRoleId(roleId);
         if(privilegeMap.get(CommonConstant.APPCENTER) != null){
             List<Privilege> privileges = (List<Privilege>)((Map)privilegeMap.get(CommonConstant.APPCENTER)).get(CommonConstant.DAEMONSET);
-            Privilege daemonsetPrivilege = privileges.stream().filter(privilege -> privilege.getStatus()).findAny().orElse(null);
-            if(daemonsetPrivilege != null){
-                namespaceLocal = new NamespaceLocal();
-                namespaceLocal.setNamespaceName(CommonConstant.KUBE_SYSTEM);
-                namespaceLocal.setAliasName(CommonConstant.KUBE_SYSTEM);
+            if(privileges != null) {
+                Privilege daemonsetPrivilege = privileges.stream().filter(privilege -> privilege.getStatus()).findAny().orElse(null);
+                if (daemonsetPrivilege != null) {
+                    namespaceLocal = new NamespaceLocal();
+                    namespaceLocal.setNamespaceName(CommonConstant.KUBE_SYSTEM);
+                    namespaceLocal.setAliasName(CommonConstant.KUBE_SYSTEM);
+                }
             }
         }
         return namespaceLocal;

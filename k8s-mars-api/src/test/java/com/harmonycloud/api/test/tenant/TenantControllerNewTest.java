@@ -41,7 +41,7 @@ public class TenantControllerNewTest {
     private MockMvc mockMvc;
 
     @Autowired
-    WebApplicationContext wac;
+    private WebApplicationContext wac;
 
     private static String tenantId;
 

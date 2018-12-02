@@ -4,6 +4,8 @@ import com.corundumstudio.socketio.*;
 import com.corundumstudio.socketio.listener.ConnectListener;
 import com.corundumstudio.socketio.listener.DataListener;
 import com.corundumstudio.socketio.listener.DisconnectListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.Collection;
@@ -16,8 +18,9 @@ import java.util.Map;
  */
 @Service("socketIoService")
 public class SocketIoService {
-    static SocketIOServer server;
-    static Map<String, SocketIOClient> clientsMap = new HashMap<>();
+    private static SocketIOServer server;
+    private static Map<String, SocketIOClient> clientsMap = new HashMap<>();
+    private static final Logger LOGGER = LoggerFactory.getLogger(SocketIoService.class);
 
     public void startServer() throws InterruptedException{
         Configuration config = new Configuration();
@@ -143,7 +146,7 @@ public class SocketIoService {
             }
         } catch (Exception e) {
             // TODO Auto-generated catch block
-            e.printStackTrace();
+            LOGGER.warn("sendMessageToOneClient失败", e);
         }
     }
 

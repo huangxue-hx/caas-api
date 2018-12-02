@@ -1,7 +1,9 @@
 package com.harmonycloud.api.application;
 
+import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.dto.application.AffinityDto;
 import com.harmonycloud.dto.application.DeployedServiceNamesDto;
 import com.harmonycloud.dto.application.ServiceDeployDto;
@@ -30,18 +32,18 @@ import javax.servlet.http.HttpSession;
 public class DeploymentController {
 
 	@Autowired
-	DeploymentsService dpService;
+	private DeploymentsService dpService;
 
 	@Autowired
-	EsService esService;
+	private EsService esService;
 	@Autowired
-	HttpSession session;
+	private HttpSession session;
 
 	@Autowired
-	ClusterService clusterService;
+	private ClusterService clusterService;
 
 	@Autowired
-	ServiceService serviceService;
+	private ServiceService serviceService;
 
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -50,6 +52,7 @@ public class DeploymentController {
 	 * 
 	 * @param name
 	 * @param namespace
+	 * @param isTenantScope 是否查询租户的服务列表
 	 * @param labels(可选)
 	 *            搜索条件
 	 * @return
@@ -62,7 +65,12 @@ public class DeploymentController {
 			                                @RequestParam(value = "namespace", required = false) String namespace,
 			                                @RequestParam(value = "labels", required = false) String labels,
 											@PathVariable(value = "projectId") String projectId,
-											@RequestParam(value = "clusterId", required = false) String clusterId) throws Exception {
+											@RequestParam(value = "clusterId", required = false) String clusterId,
+											@RequestParam(value = "isTenantScope", required = false) Boolean isTenantScope) throws Exception {
+		if(isTenantScope != null && isTenantScope){
+			AssertUtil.notBlank(clusterId, DictEnum.CLUSTER_ID);
+			return ActionReturnUtil.returnSuccessWithData(dpService.listTenantDeploys(tenantId, clusterId));
+		}
 		ActionReturnUtil result = dpService.listDeployments(tenantId, name, namespace, labels, projectId, clusterId);
 		return result;
 

@@ -27,6 +27,8 @@ public class CanaryDeployment{
 
     private String serviceType;
 
+    private String deployVersion;
+
     public String getProjectId() {
         return projectId;
     }
@@ -36,6 +38,14 @@ public class CanaryDeployment{
     }
 
     private List<UpdateContainer> containers;
+
+    public String getDeployVersion() {
+        return deployVersion;
+    }
+
+    public void setDeployVersion(String deployVersion) {
+        this.deployVersion = deployVersion;
+    }
 
     public String getNamespace() {
         return namespace;

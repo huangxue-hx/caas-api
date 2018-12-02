@@ -60,24 +60,24 @@ public class HarborImageCleanServiceImpl implements HarborImageCleanService {
     private static final String CLEAN_IMAGE_REDIS_KEY_PREFIX = "imagegc";
 
     @Autowired
-    HarborService harborService;
+    private HarborService harborService;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    HarborProjectService harborProjectService;
+    private HarborProjectService harborProjectService;
 
     @Autowired
-    ImageCleanRuleMapper imageCleanRuleMapper;
+    private ImageCleanRuleMapper imageCleanRuleMapper;
     @Autowired
-    DeploymentsService deploymentsService;
+    private DeploymentsService deploymentsService;
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
     @Autowired
-    ImageCacheManager imageCacheManager;
+    private ImageCacheManager imageCacheManager;
     @Autowired
-    StringRedisTemplate stringRedisTemplate;
+    private StringRedisTemplate stringRedisTemplate;
     @Autowired
-    UserService userService;
+    private UserService userService;
 
     private List<ImageCleanRule> listAllCleanRules() {
         return imageCleanRuleMapper.list();

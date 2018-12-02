@@ -26,7 +26,7 @@ public class EventController {
 	@Autowired
 	private EventService eventService;
 	@Autowired
-	HttpSession session;
+	private HttpSession session;
 
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 	

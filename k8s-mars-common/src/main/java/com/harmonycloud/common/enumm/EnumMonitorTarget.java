@@ -37,7 +37,7 @@ public enum EnumMonitorTarget {
         return target;
     }
 
-    public void setTarget(String target) {
+    private void setTarget(String target) {
         this.target = target;
     }
 

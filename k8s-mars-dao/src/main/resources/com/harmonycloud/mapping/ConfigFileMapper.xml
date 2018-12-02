@@ -36,7 +36,10 @@
     <select id="getLatestConfig" parameterType="java.lang.String" resultMap="configfileMap">
         SELECT *
         FROM configfile
-        WHERE project_id = #{projectId} AND name = #{name} AND reponame = #{repoName}
+        WHERE project_id = #{projectId} AND name = #{name}
+            <if test="repoName !=null  and repoName != ''  ">
+              AND reponame = #{repoName}
+            </if>
               AND cluster_id=#{clusterId} AND tags=#{tags}
         ORDER BY create_time DESC
         LIMIT 1

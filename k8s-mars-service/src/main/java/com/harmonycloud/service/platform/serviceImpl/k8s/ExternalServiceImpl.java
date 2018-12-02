@@ -42,7 +42,7 @@ public class ExternalServiceImpl implements ExternalService {
     @Autowired
     private EndpointService eService;
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
     @Autowired
     private ClusterService clusterService;
     @Autowired
