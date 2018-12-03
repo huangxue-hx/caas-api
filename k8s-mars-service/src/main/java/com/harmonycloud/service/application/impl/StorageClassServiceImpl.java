@@ -348,6 +348,7 @@ public class StorageClassServiceImpl implements StorageClassService {
         }
         //查询要被删除的StorageClass是否存在
         StorageClass sc = scService.getScByName(name, cluster);
+        String type = String.valueOf(sc.getMetadata().getAnnotations().get("type"));
         if (sc == null) {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.QUERY_FAIL, DictEnum.STORAGE_CLASS.phrase(), true);
         }
@@ -364,7 +365,7 @@ public class StorageClassServiceImpl implements StorageClassService {
         if(clusterId.equalsIgnoreCase(clusterService.getPlatformCluster().getId())) {
             removeUploadPod(name);
         }
-        K8SClientResponse response = scService.deleteStorageClassByName(name, cluster);
+        K8SClientResponse response = scService.deleteStorageClassByName(name, cluster,type);
         if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             //删除集群配额表中存储绑定
             List<TenantClusterQuota> tenantClusterQuotas = tenantClusterQuotaService.listClusterQuotaLikeStorage(name,clusterId);
@@ -446,8 +447,9 @@ public class StorageClassServiceImpl implements StorageClassService {
     private void rollBackCephRBDStorageClass(String cephAdminrSecretName, String cephUserSecretName, String storageClassName, Cluster cluster) throws Exception {
 
         StorageClass sc = scService.getScByName(storageClassName, cluster);
+        String type = String.valueOf(sc.getMetadata().getAnnotations().get("type"));
         if(sc != null) {
-            scService.deleteStorageClassByName(storageClassName, cluster);
+            scService.deleteStorageClassByName(storageClassName, cluster,type);
         }
 
         K8SClientResponse adminSecretResponse = secretService.getSpecifiedSecret(cephAdminrSecretName, CommonConstant.KUBE_SYSTEM, cluster);

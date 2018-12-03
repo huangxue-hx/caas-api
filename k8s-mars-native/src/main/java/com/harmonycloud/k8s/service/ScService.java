@@ -69,18 +69,20 @@ public class ScService {
      * @param cluster 集群信息
      * @return K8SClientResponse
      */
-    public K8SClientResponse deleteStorageClassByName(String name, Cluster cluster) throws Exception {
+    public K8SClientResponse deleteStorageClassByName(String name, Cluster cluster, String type) throws Exception {
         K8SURL url = new K8SURL();
+        if (type.equals("NFS")){
+            url.setNamespace(CommonConstant.KUBE_SYSTEM);
+            url.setApiGroup(APIGroup.APIS_APPS_V1);
+            url.setResource(Resource.DEPLOYMENT);
+            url.setSubpath(NFS_PROVISIONER_NAME + "-" + name);
+            K8SClientResponse scResponse = new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, null, cluster);
+        }
+        url = new K8SURL();
         url.setApiGroup(APIGroup.APIS_STORAGECLASS_VERSION);
         url.setResource(Resource.STORAGECLASS);
         url.setSubpath(name);
-        K8SClientResponse scResponse = new  K8sMachineClient().exec(url, HTTPMethod.DELETE,null,null, cluster);
-        url = new K8SURL();
-        url.setNamespace(CommonConstant.KUBE_SYSTEM);
-        url.setApiGroup(APIGroup.APIS_APPS_V1);
-        url.setResource(Resource.DEPLOYMENT);
-        url.setSubpath(NFS_PROVISIONER_NAME + "-" + name);
-        return new K8sMachineClient().exec(url, HTTPMethod.DELETE, null, null, cluster);
+        return new  K8sMachineClient().exec(url, HTTPMethod.DELETE,null,null, cluster);
     }
 
     /**
