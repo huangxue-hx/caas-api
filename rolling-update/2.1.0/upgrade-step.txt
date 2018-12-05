@@ -47,9 +47,23 @@ nfs:
 
 --------------------------------------------------------------------
 9.  更新kube-controller-manager配置
-kube-controller-manager.yaml的启动命令中增加一行配置
-- --feature-gates=VolumeScheduling=false
 重启kube-controller-manager
+--------------------------------------------------------------------
+10. 主要升级内容是支持非22端口，非root权限，可上下线节点
+10.1.备份原有脚本
+将/root/k8s-upgrade-deploy/deploy-k8s/AnsibleApi文件备份
+cp -r /root/k8s-upgrade-deploy/deploy-k8s/AnsibleApi /root/k8s-upgrade-deploy/deploy-k8s/AnsibleApi-bak
+将现有的ansible脚本替换原来的ansible脚本
+
+将AnsibleAPi.tar拷贝到/root/k8s-upgrade-deploy/deploy-k8s/下
+执行：tar -xf AnsibleAPi.tar
+需要重启webapi这个pod
+10.2.回退操作
+若出现问题需要回退操作
+执行如下命令：mv /root/k8s-upgrade-deploy/deploy-k8s/AnsibleApi /root/k8s-upgrade-deploy/deploy-k8s/AnsibleApi-new-bak
+将备份的AnsibleApi脚本替换成原来的脚本
+执行如下命令：mv /root/k8s-upgrade-deploy/deploy-k8s/AnsibleApi-bak /root/k8s-upgrade-deploy/deploy-k8s/AnsibleApi
+同时重启webapi这个pod
 --------------------------------------------------------------------
 
 其他定制修改,非必须
