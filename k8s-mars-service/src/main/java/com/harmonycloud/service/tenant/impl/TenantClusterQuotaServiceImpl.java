@@ -53,7 +53,7 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
     private static final Logger logger = LoggerFactory.getLogger(TenantClusterQuotaServiceImpl.class);
     private static final String MEMORYGB = "memoryGb";
     private static final String STORAGE = "storageclasses";
-    private static final int STORAGE_USED_INDEX = 1;
+    private static final int STORAGE_USED_INDEX = 0;
 
     /**
      * 根据租户id查询集群配额列表 clusterId 为空查询该租户下的所有集群配额
