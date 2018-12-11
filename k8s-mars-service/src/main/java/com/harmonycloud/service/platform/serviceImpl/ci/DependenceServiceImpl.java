@@ -623,9 +623,9 @@ public class DependenceServiceImpl implements DependenceService {
         try {
             String[] lsCmd;
             if(isRecurse){
-                lsCmd = new String[]{"ls", "-lhR", "--full-time", targetDir};
+                lsCmd = new String[]{"ls", "-alhR", "--full-time", targetDir};
             }else {
-                lsCmd = new String[]{"ls", "-lh", "--full-time", targetDir};
+                lsCmd = new String[]{"ls", "-alh", "--full-time", targetDir};
             }
             String[] lsDependenceCommand = ArrayUtils.addAll(new String[]{
                     "kubectl",
@@ -658,6 +658,10 @@ public class DependenceServiceImpl implements DependenceService {
                         tmpParentDirectory = tmpParentDirectory.substring(0,tmpParentDirectory.length()-1);
                     }
                     lastLine = res;
+                    continue;
+                }
+                //隐藏linux  . ..文件
+                if(fileAttributes[8].equals(".")||fileAttributes[8].equals("..")){
                     continue;
                 }
                 if(fileAttributes[0].startsWith(CommonConstant.DIRECTORY_TYPE)){
