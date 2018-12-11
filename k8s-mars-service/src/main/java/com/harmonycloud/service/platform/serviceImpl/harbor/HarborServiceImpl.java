@@ -1034,6 +1034,7 @@ public class HarborServiceImpl implements HarborService {
             ImageRepository repository = imageRepositories.get(i);
             HarborProjectInfo projectInfo = new HarborProjectInfo();
             projectInfo.setProject_name(repository.getHarborProjectName());
+            projectInfo.setIsPublic(repository.getIsPublic());
             //只查询具体某一个project的镜像信息，非该project的不查询repo信息
             if (StringUtils.isNotBlank(harborProjectName) &&
                     !harborProjectName.equalsIgnoreCase(repository.getHarborProjectName())) {
