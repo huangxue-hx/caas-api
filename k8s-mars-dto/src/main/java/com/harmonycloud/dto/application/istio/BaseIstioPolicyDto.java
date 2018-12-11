@@ -22,13 +22,13 @@ public class BaseIstioPolicyDto {
     @ApiModelProperty(value = "服务名称", name = "serviceName", example = "httpbin")
     private String serviceName;
 
-    @ApiModelProperty(value = "策略开关状态", name = "switchStatus", example = "1（开启）", notes = "1：开启；0：关闭")
+    @ApiModelProperty(value = "策略开关状态", name = "switchStatus", example = "1（开启）", notes = "0：关闭；1：开启；（超时重试1：超时开启；2：重试开启）")
     private String switchStatus;
 
     @ApiModelProperty(value = "策略状态", name = "dataStatus", example = "0（正常）", notes = "0：正常；1：异常；(11/12/13)：告警")
     private String dataStatus;
 
-    @ApiModelProperty(value = "作用域", name = "scope", example = "0：全局；1：分区；2：服务")
+    @ApiModelProperty(value = "作用域", name = "scope", example = "0", notes = "服务限流：0：全局；1：分区；2：服务;智能路由：0：所有版本；1：指定版本")
     private String scope;
 
     @ApiModelProperty(value = "策略创建时间", name = "createTime", example = "2018-09-13T06:26:34Z")

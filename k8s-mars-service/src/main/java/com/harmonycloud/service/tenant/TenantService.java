@@ -4,6 +4,7 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.bean.UserRoleRelationship;
+import com.harmonycloud.dto.cluster.IngressControllerDto;
 import com.harmonycloud.dto.tenant.CDPUserDto;
 import com.harmonycloud.dto.tenant.ClusterQuotaDto;
 import com.harmonycloud.dto.tenant.TenantDto;
@@ -272,5 +273,5 @@ public interface TenantService {
      * 查询某个租户在某个集群下的所有可用负载均衡器
      * 包括全局负载均衡器和分配给租户的自定义负载均衡器
      */
-    List<Map<String, String>> getTenantIngressController(String tenantId, String clusterId) throws Exception;
+    List<IngressControllerDto> getTenantIngressController(String tenantId, String clusterId) throws Exception;
 }

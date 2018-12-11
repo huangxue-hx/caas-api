@@ -429,6 +429,13 @@ INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/
 INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/deploys/*/istiopolicies/*/open', 'appcenter', 'app');
 INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/deploys/*/istiopolicies/*/close', 'appcenter', 'app');
 
+--服务入口
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/serviceentrys', 'appcenter', 'app');
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/serviceentrys/createInsServiceEntry', 'appcenter', 'app');
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/serviceentrys/istioOpenCluster', 'appcenter', 'app');
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/serviceentrys/getServiceEntry', 'appcenter', 'app');
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/serviceentrys/updateInsServiceEntry', 'appcenter', 'app');
+
 -------------------------------------------------sprint2---------------------------------------------------------------
 
 INSERT INTO `data_resource_url` VALUES ('38', '/tenants/*/projects/*/cicdjobs/*', 'GET', '6');

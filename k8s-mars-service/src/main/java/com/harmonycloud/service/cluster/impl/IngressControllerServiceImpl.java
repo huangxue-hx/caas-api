@@ -8,6 +8,7 @@ import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.date.DateStyle;
@@ -164,6 +165,19 @@ public class IngressControllerServiceImpl implements IngressControllerService {
                 ingressControllerDto.setStatusPort(Integer.parseInt(arg.split("=")[1]));
             }
         }
+        //设置外网http https端口
+        Map<String, Object> annotations = daemonSet.getMetadata().getAnnotations();
+        if(annotations != null){
+            if(annotations.get(ANNOTATIONS_KEY_EXTERNAL_HTTP_PORT) != null) {
+                int externalHttpPort = Integer.parseInt(annotations.get(ANNOTATIONS_KEY_EXTERNAL_HTTP_PORT).toString());
+                ingressControllerDto.setExternalHttpPort(externalHttpPort);
+            }
+            if(annotations.get(ANNOTATIONS_KEY_EXTERNAL_HTTPS_PORT) != null){
+                int externalHttpsPort = Integer.parseInt(annotations.get(ANNOTATIONS_KEY_EXTERNAL_HTTPS_PORT).toString());
+                ingressControllerDto.setExternalHttpsPort(externalHttpsPort);
+            }
+        }
+
         if (daemonSet.getStatus() != null && daemonSet.getStatus().getDesiredNumberScheduled() != null && daemonSet.getStatus().getNumberAvailable() != null && daemonSet.getStatus().getDesiredNumberScheduled().equals(daemonSet.getStatus().getNumberAvailable())) {
             ingressControllerDto.setStatus(Constant.SERVICE_START);
         } else {
@@ -272,10 +286,17 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         objectMeta.setLabels(labels);
         objectMeta.setNamespace(Constant.NAMESPACE_SYSTEM);
         objectMeta.setName(ingressControllerPort.getName());
+        //annotations 设置负载均衡器的别名，外网暴露http和https端口
         Map<String, Object> annotations = new HashMap<>();
         annotations.put(ANNOTATIONS_KEY_ALIAS_NAME, ingressControllerDto.getIcAliasName());
-        if(StringUtils.isBlank(ingressControllerDto.getIcAliasName())){
+        if (StringUtils.isBlank(ingressControllerDto.getIcAliasName())) {
             annotations.put(ANNOTATIONS_KEY_ALIAS_NAME, ingressControllerDto.getIcName());
+        }
+        if (ingressControllerDto.getExternalHttpPort() != null && ingressControllerDto.getExternalHttpPort() > 0) {
+            annotations.put(ANNOTATIONS_KEY_EXTERNAL_HTTP_PORT, String.valueOf(ingressControllerDto.getExternalHttpPort()));
+        }
+        if (ingressControllerDto.getExternalHttpsPort() != null && ingressControllerDto.getExternalHttpsPort() > 0) {
+            annotations.put(ANNOTATIONS_KEY_EXTERNAL_HTTPS_PORT, String.valueOf(ingressControllerDto.getExternalHttpsPort()));
         }
         objectMeta.setAnnotations(annotations);
         daemonSet.setMetadata(objectMeta);
@@ -507,6 +528,11 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         if(checkIcUsedStatus(icName, cluster)) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAD_USED);
         }
+        //删除tenant_cluster_quota表绑定
+        List<TenantClusterQuota> tenants = tenantClusterQuotaService.listClusterQuotaLikeIcName(icName,clusterId);
+        for (TenantClusterQuota tenantClusterQuota:tenants) {
+            removeTenants(tenantClusterQuota,icName);
+        }
         //删除ingressController
         K8SClientResponse response = icService.deleteIngressController(icName, cluster);
         if(!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
@@ -535,11 +561,6 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
-        //删除tenant_cluster_quota表绑定
-        List<TenantClusterQuota> tenants = tenantClusterQuotaService.listClusterQuotaLikeIcName(icName,clusterId);
-        for (TenantClusterQuota tenantClusterQuota:tenants) {
-            removeTenants(tenantClusterQuota,icName);
-        }
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -548,7 +569,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         //获取集群
         Cluster cluster = clusterService.findClusterById(ingressControllerDto.getClusterId());
         String icName = ingressControllerDto.getIcName();
-        int icPort = ingressControllerDto.getHttpPort();
+        int httpPort = ingressControllerDto.getHttpPort();
         List<IngressControllerDto> existIcDtos = this.listIngressControllerBrief(cluster.getId());
         //获取Ingress-controller-port范围
         Map<String, Integer> portRangeMap = getIngressControllerPortRange(cluster);
@@ -563,38 +584,32 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         DaemonSet daemonSet = JsonUtil.jsonToPojo(response.getBody(), DaemonSet.class);
         int existPort = daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().get(0).getContainerPort();
         //查看ingress controller是否已经在使用（已使用该负载均衡器创建对外服务）,已经在使用的负载均衡器不能修改端口
-        if(existPort != icPort && checkIcUsedStatus(icName, cluster)) {
+        if(existPort != httpPort && checkIcUsedStatus(icName, cluster)) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAD_USED);
+        }
+        //判断端口和别名有没有修改，如果修改了需要更新daemonset
+        if(this.isDaemonsetChanged(daemonSet, ingressControllerDto)){
+            //更新annotations（别名和外网http，https端口）
+            this.updateAnnotations(ingressControllerDto, daemonSet);
+            //修改hostPort
+            daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().get(0).setHostPort(httpPort);
+            //修改containerPort
+            daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().get(0).setContainerPort(httpPort);
+            //修改http_port
+            daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getArgs().set(1, CONTAINER_ARGS_HTTP + httpPort);
+            DaemonSetUpdateStrategy dsUpdateStrategy = new DaemonSetUpdateStrategy();
+            dsUpdateStrategy.setType("RollingUpdate");
+            daemonSet.getSpec().setUpdateStrategy(dsUpdateStrategy);
+            K8SClientResponse icResponse = icService.updateIngressController(icName, daemonSet, cluster);
+            if(!HttpStatusUtil.isSuccessStatus(icResponse.getStatus())) {
+                LOGGER.error("更新ingresscontroller失败,response:{}",JSONObject.toJSONString(icResponse));
+                UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+                return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            }
         }
         //修改了负载均衡的节点，更新节点标签
         List<String> oldIcNodeNames = this.getIcNodeNames(icName, cluster);
         this.updateNodeLabel(icName, cluster, oldIcNodeNames, ingressControllerDto.getIcNodeNames());
-        //端口和别名没有修改，不需要更新daemonset，返回成功
-        String icAliasName = this.getIcAliasName(daemonSet);
-        if(existPort == icPort && icAliasName.equals(ingressControllerDto.getIcAliasName())){
-            return ActionReturnUtil.returnSuccess();
-        }
-        Map<String,Object> annotations = daemonSet.getMetadata().getAnnotations();
-        if(annotations == null){
-            annotations = new HashMap<>();
-        }
-        annotations.put(ANNOTATIONS_KEY_ALIAS_NAME, ingressControllerDto.getIcAliasName());
-        daemonSet.getMetadata().setAnnotations(annotations);
-        //修改hostPort
-        daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().get(0).setHostPort(icPort);
-        //修改containerPort
-        daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().get(0).setContainerPort(icPort);
-        //修改http_port
-        daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getArgs().set(1, CONTAINER_ARGS_HTTP + icPort);
-        DaemonSetUpdateStrategy dsUpdateStrategy = new DaemonSetUpdateStrategy();
-        dsUpdateStrategy.setType("RollingUpdate");
-        daemonSet.getSpec().setUpdateStrategy(dsUpdateStrategy);
-        K8SClientResponse icResponse = icService.updateIngressController(icName, daemonSet, cluster);
-        if(!HttpStatusUtil.isSuccessStatus(icResponse.getStatus())) {
-            LOGGER.error("更新ingresscontroller失败,response:{}",JSONObject.toJSONString(icResponse));
-            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithData(status.getMessage());
-        }
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -789,6 +804,8 @@ public class IngressControllerServiceImpl implements IngressControllerService {
 
     private void validateCreate(IngressControllerDto ingressControllerDto, Cluster cluster,
                                 List<IngressControllerDto> existIcDtos, Map<String, Integer> portRangeMap) {
+        AssertUtil.notBlank(ingressControllerDto.getIcName(),DictEnum.NAME);
+        AssertUtil.greaterZero(ingressControllerDto.getHttpPort(), DictEnum.PORT);
         if (CollectionUtils.isEmpty(existIcDtos)) {
             return;
         }
@@ -809,6 +826,8 @@ public class IngressControllerServiceImpl implements IngressControllerService {
 
     private void validateUpdate(IngressControllerDto ingressControllerDto, Cluster cluster,
                                 List<IngressControllerDto> existIcDtos, Map<String, Integer> portRangeMap) {
+        AssertUtil.notBlank(ingressControllerDto.getIcName(),DictEnum.NAME);
+        AssertUtil.greaterZero(ingressControllerDto.getHttpPort(), DictEnum.PORT);
         for (IngressControllerDto existIcDto : existIcDtos) {
             //自身不需要校验，已存在的和需要修改名称相同
             if (existIcDto.getIcName().equalsIgnoreCase(ingressControllerDto.getIcName())) {
@@ -915,7 +934,8 @@ public class IngressControllerServiceImpl implements IngressControllerService {
      * 获取负载均衡器分配的租户列表
      */
     private Map<String, List<String>> getIcAssignedTenantIds(String clusterId) throws Exception {
-        List<TenantClusterQuota> tenantClusterQuotaList = tenantClusterQuotaService.getClusterQuotaByClusterId(clusterId, false);
+        //List<TenantClusterQuota> tenantClusterQuotaList = tenantClusterQuotaService.getClusterQuotaByClusterId(clusterId, false);
+        List<TenantClusterQuota> tenantClusterQuotaList = tenantClusterQuotaService.listClusterQuotaICs(clusterId);
         if (CollectionUtils.isEmpty(tenantClusterQuotaList)) {
             return Collections.emptyMap();
         }
@@ -948,6 +968,79 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             return IC_DEFAULT_ALIAS_NAME;
         }
         return daemonSet.getMetadata().getName();
+    }
+
+    /**
+     * 是否修修改了daemonset
+     */
+    private boolean isDaemonsetChanged(DaemonSet daemonSet, IngressControllerDto ingressControllerDto){
+        //是否修改了别名
+        String icAliasName = this.getIcAliasName(daemonSet);
+        if (!icAliasName.equals(ingressControllerDto.getIcAliasName())) {
+            return true;
+        }
+        //是否修改了http端口
+        int existPort = daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().get(0).getContainerPort();
+        if (existPort != ingressControllerDto.getHttpPort()) {
+            return true;
+        }
+        Map<String, Object> annotations = daemonSet.getMetadata().getAnnotations();
+        if (annotations == null) {
+            return false;
+        }
+        //是否修改了外网http端口
+        Integer externalHttpPort = null;
+        if (annotations.get(ANNOTATIONS_KEY_EXTERNAL_HTTP_PORT) != null) {
+            externalHttpPort = Integer.parseInt(annotations.get(ANNOTATIONS_KEY_EXTERNAL_HTTP_PORT).toString());
+        }
+        Integer newExternalHttpPort = ingressControllerDto.getExternalHttpPort();
+        if (externalHttpPort == null && newExternalHttpPort != null) {
+            return true;
+        }
+        if (externalHttpPort != null && newExternalHttpPort == null) {
+            return true;
+        }
+        if (externalHttpPort != newExternalHttpPort) {
+            return true;
+        }
+        //是否修改了外网http端口
+        Integer externalHttpsPort = null;
+        if (annotations.get(ANNOTATIONS_KEY_EXTERNAL_HTTPS_PORT) != null) {
+            externalHttpsPort = Integer.parseInt(annotations.get(ANNOTATIONS_KEY_EXTERNAL_HTTPS_PORT).toString());
+        }
+        Integer newExternalHttpsPort = ingressControllerDto.getExternalHttpsPort();
+        if (externalHttpsPort == null && newExternalHttpsPort != null) {
+            return true;
+        }
+        if (externalHttpsPort != null && newExternalHttpsPort == null) {
+            return true;
+        }
+        if (externalHttpsPort != newExternalHttpsPort) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 修改负载均衡器，更新别名和外网http，https端口annotations
+     */
+    private void updateAnnotations(IngressControllerDto ingressControllerDto, DaemonSet daemonSet){
+        Map<String,Object> annotations = daemonSet.getMetadata().getAnnotations();
+        if(annotations == null){
+            annotations = new HashMap<>();
+        }
+        annotations.put(ANNOTATIONS_KEY_ALIAS_NAME, ingressControllerDto.getIcAliasName());
+        if(ingressControllerDto.getExternalHttpPort() == null){
+            annotations.remove(ANNOTATIONS_KEY_EXTERNAL_HTTP_PORT);
+        }else{
+            annotations.put(ANNOTATIONS_KEY_EXTERNAL_HTTP_PORT, String.valueOf(ingressControllerDto.getExternalHttpPort()));
+        }
+        if(ingressControllerDto.getExternalHttpsPort() == null){
+            annotations.remove(ANNOTATIONS_KEY_EXTERNAL_HTTPS_PORT);
+        }else{
+            annotations.put(ANNOTATIONS_KEY_EXTERNAL_HTTPS_PORT, String.valueOf(ingressControllerDto.getExternalHttpsPort()));
+        }
+        daemonSet.getMetadata().setAnnotations(annotations);
     }
     
 }

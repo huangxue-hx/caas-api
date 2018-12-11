@@ -311,7 +311,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         nf.setRoundingMode(RoundingMode.HALF_UP);
 //        double fomatResource = new BigDecimal(resource).setScale(CommonConstant.NUM_ONE, BigDecimal.ROUND_HALF_UP).doubleValue();double pow = Math.pow(2, 10);Math.pow(CommonConstant.NUM_SIZE_MEMORY,CommonConstant.NUM_THREE)
         if (usedQuotaNs < use) {
-            throw new MarsRuntimeException(ErrorCodeMessage.RESOURCE_USED_OVER_QUOTA);
+            throw new MarsRuntimeException(ErrorCodeMessage.RESOURCE_USED_OVER_QUOTA, use + type);
         }
         if ((resource - can) < -0.1) {
             switch (type) {

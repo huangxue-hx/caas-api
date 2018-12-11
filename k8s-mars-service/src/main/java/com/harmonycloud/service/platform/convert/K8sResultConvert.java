@@ -23,6 +23,7 @@ import com.harmonycloud.k8s.util.RandomNum;
 import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -48,12 +49,17 @@ public class K8sResultConvert {
     public static final int TAG_LENGTH = 4;
     public static final String TAG_PATTERN = "v\\d-\\d";
     private static StorageClassService storageClassService;
+    private static NamespaceLocalService namespaceLocalService;
     private static final Logger LOGGER = LoggerFactory.getLogger(K8sResultConvert.class);
 
 
     @Autowired
     public void setStorageClassService(StorageClassService storageClassService){
         K8sResultConvert.storageClassService = storageClassService;
+    }
+    @Autowired
+    public void setNamespaceLocalService(NamespaceLocalService namespaceLocalService){
+        K8sResultConvert.namespaceLocalService = namespaceLocalService;
     }
 
     public static AppDetail convertAppDetail(Deployment dep, ServiceList serviceList, EventList eventList,
@@ -101,6 +107,8 @@ public class K8sResultConvert {
                 podAntiAffinityDtos = KubeAffinityConvert.convertPodAntiAffinityDto(dep.getSpec().getTemplate().getSpec().getAffinity().getPodAntiAffinity());
                 if (CollectionUtils.isNotEmpty(podAntiAffinityDtos)) {
                     for (AffinityDto affinityDto : podAntiAffinityDtos) {
+                        String namespaceAliasName = namespaceLocalService.getNamespaceByName(affinityDto.getNamespace()).getAliasName();
+                        affinityDto.setNamespaceAliasName(namespaceAliasName);
                         if (affinityDto.getLabel().equals(Constant.TYPE_DEPLOYMENT + Constant.EQUAL + meta.getName())) {
                             if(null != affinityDto.getType() && affinityDto.getType().equals(Constant.ANTIAFFINITY_TYPE_GROUP_SCHEDULE)){
                                 appDetail.setPodGroupSchedule(affinityDto);
@@ -119,6 +127,8 @@ public class K8sResultConvert {
             if (Objects.nonNull(dep.getSpec().getTemplate().getSpec().getAffinity().getPodAffinity())) {
                 List<AffinityDto> podAffinityDtos = new ArrayList<>();
                 podAffinityDtos = KubeAffinityConvert.convertPodAffinityDto(dep.getSpec().getTemplate().getSpec().getAffinity().getPodAffinity());
+                String namespaceAliasName = namespaceLocalService.getNamespaceByName(podAffinityDtos.get(0).getNamespace()).getAliasName();
+                podAffinityDtos.get(0).setNamespaceAliasName(namespaceAliasName);
                 appDetail.setPodAffinity(podAffinityDtos.get(0));
             }
         }
@@ -367,6 +377,11 @@ public class K8sResultConvert {
             podDetail.setTag(tag);
             List<ContainerWithStatus> containers = new ArrayList<ContainerWithStatus>();
             List<ContainerStatus> containerStatues = pods.get(i).getStatus().getContainerStatuses();
+
+            //istio版本标签
+            if (pods.get(i).getMetadata().getLabels().containsKey(Constant.TYPE_DEPLOY_VERSION)){
+                podDetail.setDeployVersion(pods.get(i).getMetadata().getLabels().get(Constant.TYPE_DEPLOY_VERSION).toString());
+            }
 
             //flag的作用标记除了运行状态以外的pod状态：1为等待状态；2为terminated状态
             String podStatus = null;
@@ -1189,8 +1204,8 @@ public class K8sResultConvert {
             for (CreateContainerDto createContainerDto : detail.getInitContainers()) {
                 if (createContainerDto.getResource() == null) {
                     CreateResourceDto resource = new CreateResourceDto();
-                    resource.setCpu("0");
-                    resource.setMemory("0");
+                    resource.setCpu("100m");
+                    resource.setMemory("128Mi");
                     createContainerDto.setResource(resource);
                 }
             }
@@ -3425,18 +3440,18 @@ public class K8sResultConvert {
         }
 
         //获取服务版本标签
-        String deployVersion = null;
+        /*String deployVersion = null;
         if(podLabels != null && podLabels.containsKey(Constant.TYPE_DEPLOY_VERSION)) {
             deployVersion = podLabels.get(Constant.TYPE_DEPLOY_VERSION).toString();
         }
         if(!StringUtils.isEmpty(deployVersion)){
             labelMap.put(Constant.TYPE_DEPLOY_VERSION, deployVersion);
             tMap.put("labels", labelMap);
-        }
+        }*/
     }
 
     public static void convertConfigMap(String name, List<CreateConfigMapDto> configMaps,
-                                  List<Volume> volumes, List<VolumeMount> volumeMounts){
+                                        List<Volume> volumes, List<VolumeMount> volumeMounts){
         if(CollectionUtils.isEmpty(configMaps)){
             return;
         }

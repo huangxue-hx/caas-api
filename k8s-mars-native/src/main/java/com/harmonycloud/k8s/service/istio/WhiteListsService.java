@@ -136,33 +136,6 @@ public class WhiteListsService {
         return new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
     }
 
-//    public void deleteWhiteListsPolicy(String namespace, String name, Cluster cluster) throws MarsRuntimeException {
-//        K8SURL url = new K8SURL();
-//        url.setNamespace(namespace).setResource(Resource.RULE).setName(name);
-//        Map<String, Object> headers = new HashMap<>();
-//        headers.put("Content-Type", "application/json");
-//        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, null, cluster);
-//        if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && Constant.HTTP_404 != response.getStatus()) {
-//            LOGGER.error("delete rule error", response.getBody());
-//            throw new MarsRuntimeException(ErrorCodeMessage.POLICY_DELETE_FAILED);
-//        }
-//
-//        url.setResource(Resource.LISTENTRY);
-//        K8SClientResponse responseListEntry = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, null, cluster);
-//        if (!HttpStatusUtil.isSuccessStatus(responseListEntry.getStatus()) && Constant.HTTP_404 != responseListEntry.getStatus()) {
-//            LOGGER.error("delete listEntry error", responseListEntry.getBody());
-//            throw new MarsRuntimeException(ErrorCodeMessage.POLICY_DELETE_FAILED);
-//        }
-//
-//        url.setResource(Resource.LISTCHECKER);
-//        K8SClientResponse responseListChecker = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, null, cluster);
-//        if (!HttpStatusUtil.isSuccessStatus(responseListChecker.getStatus()) && Constant.HTTP_404 != responseListChecker.getStatus()) {
-//            LOGGER.error("delete quotaSpecBinding error", responseListChecker.getBody());
-//            throw new MarsRuntimeException(ErrorCodeMessage.POLICY_DELETE_FAILED);
-//        }
-//
-//    }
-
     /**
      * 删除ListChecker
      * @param namespace

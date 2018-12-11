@@ -109,12 +109,6 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
 
-        //参数校验
-        Map<String, Object> namespaceIstioStatus = (Map<String, Object>)(istioService.getNamespaceIstioPolicySwitch(detail.getNamespace(), cluster.getId()).getData());
-        if((boolean)namespaceIstioStatus.get("namespaceIstioStatus") && Objects.isNull(detail.getDeployVersion())){
-            throw new MarsRuntimeException(ErrorCodeMessage.DEPLOY_VERSION_IS_NULL_WHEN_ISTIO_ENABLE);
-        }
-
         ServiceTypeEnum serviceTypeEnum;
         if(StringUtils.isBlank(detail.getServiceType())){
             serviceTypeEnum = ServiceTypeEnum.DEPLOYMENT;

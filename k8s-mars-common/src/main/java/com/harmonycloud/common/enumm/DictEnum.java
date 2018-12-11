@@ -16,6 +16,7 @@ import static com.harmonycloud.common.Constant.CommonConstant.LANGUAGE_ENGLISH;
 public enum DictEnum {
 
     NAME("name", "名称"),
+    PORT("port", "端口"),
     PARAM("param", "参数"),
     CREATE_TIME("create time", "创建时间"),
     USERNAME("username", "用户名"),

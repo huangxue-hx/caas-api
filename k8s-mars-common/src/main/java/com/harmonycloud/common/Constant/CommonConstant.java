@@ -1,5 +1,7 @@
 package com.harmonycloud.common.Constant;
 
+import org.omg.CORBA.PUBLIC_MEMBER;
+
 /**
  * Created by andy on 17-1-18.
  */
@@ -249,6 +251,8 @@ public class CommonConstant {
     public static final String NODE_CONDITION_OUT_OF_DISK = "OutOfDisk";
     public static final String NODE_CONDITION_DISK_PRESSURE = "DiskPressure";
     public static final String NODE_CONDITION_MEMORY_PRESSURE = "MemoryPressure";
+    public static final String NODE_CONDITION_PID_PRESSURE = "PIDPressure";
+    public static final String NODE_CONDITION_NETWORK_UNAVAILABLE = "NetworkUnavailable";
     public static final String NODE_CONDITION_STATUS_TRUE = "True";
     public static final String NODE_CONDITION_STATUS_FALSE = "False";
     public static final String NODE_CONDITION_STATUS_UNKNOW = "Unknow";
@@ -270,6 +274,9 @@ public class CommonConstant {
     public static final String LABEL_KEY_APP = "app";
     public static final String LABEL_KEY_DAEMONSET = "daemonset";
     public static final String LABEL_KEY_STATEFULSET = "statefulset";
+    public static final String SERVICE_TYPE = "serviceType";
+    public static final String LABEL_PODNAME = "podName";
+    public static final String LABEL_STATEFULSET_POD = "statefulset.kubernetes.io/pod-name";
 
 
     //用户权限模块
@@ -591,6 +598,8 @@ public class CommonConstant {
     public static final String WHITE_LISTS = "whiteLists";
     public static final String WHITE_LISTS_PREFIX = "whitelists-";
     public static final String TIMEOUT_RETRY = "timeoutRetry";
+    public static final String TYPE_TIMEOUT = "timeout";
+    public static final String TYPE_RETRY = "retry";
     public static final String FAULT_INJECTION = "faultInjection";
     public static final String TRAFFIC_SHIFTING = "trafficShifting";
     public static final String RATE_LIMIT_QUOTA = "quota";
@@ -600,6 +609,7 @@ public class CommonConstant {
     public static final String WHITE_LISTS_LIST_CHECKER = "listchecker";
     public static final String WHITE_LISTS_LIST_ENTRY = "listentry";
     public static final String ISTIO_RULE = "rule";
+    public static final String ISTIO_VIRTUALSERVICE = "VirtualService";
     public static final String ISTIO_RULE_TYPE = "istioRuleType";
     public static final String ISTIO_SERVER_STATUS = "istioStatus";
     public static final int OPEN_GLOBAL_STATUS = 1;
@@ -612,9 +622,40 @@ public class CommonConstant {
     public static final String  ISTIO_GLOBAL_CLOSE = "istio全局开关未开启";
     public static final int ISTIO_SWITCH_OPEN = 1;
     public static final int ISTIO_SWITCH_CLOSE = 0;
+    public static final int ISTIO_SWITCH_TIMEOUT_OPEN = 1;
+    public static final int ISTIO_SWITCH_RETRY_OPEN = 2;
     public static final int DATA_IS_OK = 0;//策略数据状态正常
     public static final int DATA_IS_ERROR = 1;//策略数据异常（灰度后VirtualService版本与DestinationRule版本不一致）
     public static final int K8S_NO_DATA = 11;
     public static final int DATA_NOT_SAME = 12;
     public static final int DATA_NOT_COMPLETE = 13;
+    public static final int SWITCH_STATUS_ERROR = 14;
+
+    public static final String QUOTASPEC_CHARGE_ONE = "1";
+
+    public static final String SERVICE_ENTRY = "ServiceEntry";
+    public static final String MESH_EXTERNAL = "MESH_EXTERNAL";
+    public static final String MESH_INTERNAL = "MESH_INTERNAL";
+
+    //对应order字段为该策略创建时对应的crd创建的顺序，为了后期异常修复功能备用
+    public static final int RATE_LIMIT_RESOURCE_COUNT = 5;
+    public static final int RATE_LIMIT_QUOTA_ORDER = 1;
+    public static final int RATE_LIMIT_REDISQUOTA_ORDER = 2;
+    public static final int RATE_LIMIT_QUOTASPEC_ORDER = 3;
+    public static final int RATE_LIMIT_QUOTASPECBINDING_ORDER = 4;
+    public static final int RATE_LIMIT_RULE_ORDER = 5;
+    public static final String RATE_LIMIT_ALGORITHM_ROLLING_WINDOW = "ROLLING_WINDOW";
+    public static final String RATE_LIMIT_ALGORITHM_FIXED_WINDOW = "FIXED_WINDOW";
+    public static final String RATE_LIMIT_SCOPE_ALL = "0";
+    public static final String RATE_LIMIT_SCOPE_NAMESPACE = "1";
+    public static final String RATE_LIMIT_SCOPE_SERVICE = "2";
+
+    public static final int WHITE_LISTS_RESOURCE_COUNT = 3;
+    public static final int WHITE_LISTS_LISTCHECKER_ORDER = 1;
+    public static final int WHITE_LISTS_LISTENTRY_ORDER = 2;
+    public static final int WHITE_LISTS_RULE_ORDER = 3;
+
+    //serviceEntry的类型定义
+    public static final int  EXTERNAL_SERVICE_ENTRY = 0;
+    public static final int  INTERNAL_SERVICE_ENTRY = 1;
 }

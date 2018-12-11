@@ -22,6 +22,7 @@ public class ParsedIngressListDto {
 	private Boolean external;
 	private String serviceName;
     private String serviceType;
+    private String podName;
 
 	public String getNamespace() {
 		return namespace;
@@ -125,4 +126,12 @@ public class ParsedIngressListDto {
     public void setServiceType(String serviceType) {
         this.serviceType = serviceType;
     }
+
+	public String getPodName() {
+		return podName;
+	}
+
+	public void setPodName(String podName) {
+		this.podName = podName;
+	}
 }

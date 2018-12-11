@@ -1,6 +1,7 @@
 package com.harmonycloud.service.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.cluster.IngressControllerDto;
 import com.harmonycloud.k8s.bean.Ingress;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dto.application.*;
@@ -28,11 +29,11 @@ public interface RouterService {
      * 删除服务时删除tcp和udp规则
      * @param namespace
      * @param name
-     * @param icNameList
+     * @param icList
      * @param cluster
      * @throws Exception
      */
-    void deleteRulesByName(String namespace, String name, List<Map<String, String>> icNameList, Cluster cluster) throws Exception;
+    void deleteRulesByName(String namespace, String name, List<IngressControllerDto> icList, Cluster cluster) throws Exception;
 
     public ActionReturnUtil svcUpdate(SvcRouterUpdateDto svcRouterUpdate) throws Exception;
 

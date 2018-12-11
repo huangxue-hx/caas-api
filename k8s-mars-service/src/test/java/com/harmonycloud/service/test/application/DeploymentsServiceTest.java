@@ -54,7 +54,7 @@ public class DeploymentsServiceTest extends BaseTest {
 
     @Test
     public void tesListDeploys() throws Exception {
-        List<Map<String, Object>> deployments = deploymentsService.listTenantDeploys(tenantId, devClusterId);
+        List<Map<String, Object>> deployments = deploymentsService.listTenantDeploys(tenantId, namespace,devClusterId);
         assertTrue(deployments.size() > 0);
     }
 }

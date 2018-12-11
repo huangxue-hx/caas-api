@@ -42,6 +42,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
@@ -370,6 +372,7 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
         }
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @Override
     public void stopStatefulSet(String name, String namespace, String userName) throws Exception{
         if (StringUtils.isBlank(name) || StringUtils.isBlank(namespace)) {

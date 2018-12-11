@@ -16,7 +16,17 @@ public class AffinityDto {
 
     private String namespace;
 
+    private String namespaceAliasName;
+
     private String type;
+
+    public String getNamespaceAliasName() {
+        return namespaceAliasName;
+    }
+
+    public void setNamespaceAliasName(String namespaceAliasName) {
+        this.namespaceAliasName = namespaceAliasName;
+    }
 
     public String getType() {
         return type;

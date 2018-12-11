@@ -23,7 +23,7 @@ data:
     \     <param-value></param-value>\n    </init-param>\n    <init-param>\n      <param-name>REDIRECT_MODE</param-name>\n
     \     <param-value>FBS</param-value>\n    </init-param>\n    <init-param>\n      <param-name>LOGOUT_URI</param-name>\n
     \     <param-value>/rest/users/auth/logout</param-value>\n    </init-param>\n
-    \   <init-param>\n      <param-name>EXCLUSIONS</param-name>\n      <param-value>*login*,*token*,*/system/configs/trialtime*,*/openapi/*,*/clusters,*/clusters/cache,*/testcallback*,*/tenants/addProject*,*/tenants/addUser*,*/tenants/project/addUser*,*/tenants/project/removeUser*,*/msf/tasks*,*/msf/queryInstances*,*/webhook,*/swagger-resources*,*/api-docs*,*/webjars*,*/appimages/*</param-value>\n
+    \   <init-param>\n      <param-name>EXCLUSIONS</param-name>\n      <param-value>*login*,*token*,*/users,*/system/configs/trialtime*,*/openapi/*,*/clusters,*/clusters/cache,*/testcallback*,*/tenants/addProject*,*/tenants/addUser*,*/tenants/project/addUser*,*/tenants/project/removeUser*,*/msf/tasks*,*/msf/queryInstances*,*/webhook,*/swagger-resources*,*/api-docs*,*/webjars*,*/appimages/*</param-value>\n
     \   </init-param>\n    <init-param>\n      <param-name>APP_KEY</param-name>\n
     \     <param-value>bda3b49493b7484f94eaa5e92a3e2796</param-value>\n    </init-param>\n
     \   <init-param>\n      <param-name>APP_SECRET</param-name>\n      <param-value>oZI8xeo5GFTpkivnkf+7rSPaap0=</param-value>\n

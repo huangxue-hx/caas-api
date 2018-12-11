@@ -97,6 +97,10 @@ public class Resource {
 
     public final static String RULE = "rules";
 
+    public final static String VIRTUALSERVICE = "virtualservices";
+
+    public final static String SERVICEENTRY = "serviceentries";
+
     /**
      * 根据resource获取apigroup
      *
@@ -164,6 +168,8 @@ public class Resource {
                 group = APIGroup.APIS_BATCH_V1_VERSION;
                 break;
             case com.harmonycloud.k8s.constant.Resource.DESTINATIONRULES:
+            case com.harmonycloud.k8s.constant.Resource.VIRTUALSERVICE:
+            case com.harmonycloud.k8s.constant.Resource.SERVICEENTRY:
                 group = APIGroup.APIS_ISTIO_NETWORKING;
                 break;
 
@@ -192,7 +198,6 @@ public class Resource {
             case Resource.RULE:
                 group = APIGroup.APIS_ISTIO;
                 break;
-
             default:
                 break;
         }

@@ -1370,10 +1370,9 @@ public class NodeServiceImpl implements NodeService {
             for (Node node : nodeList.getItems()){
                 NodeBriefDto nodeBriefDto = new NodeBriefDto(cluster.getId(), node.getMetadata().getName());
                 for (NodeCondition condition : node.getStatus().getConditions()){
-                    if (isNodeConditionHealthy(condition)){
-                        continue;
+                    if (isNodeConditionNotHealthy(condition)){
+                        nodeBriefDto.getConditions().add(condition);
                     }
-                    nodeBriefDto.getConditions().add(condition);
                 }
                 if(!CollectionUtils.isEmpty(nodeBriefDto.getConditions())){
                     nodeBriefDtoList.add(nodeBriefDto);
@@ -1383,15 +1382,26 @@ public class NodeServiceImpl implements NodeService {
         return nodeBriefDtoList;
     }
 
-    private boolean isNodeConditionHealthy(NodeCondition condition){
-        if((condition.getType().equals(CommonConstant.NODE_CONDITION_READY) && condition.getStatus().equals(CommonConstant.NODE_CONDITION_STATUS_TRUE))
-                || (condition.getType().equals(CommonConstant.NODE_CONDITION_OUT_OF_DISK) && condition.getStatus().equals(CommonConstant.NODE_CONDITION_STATUS_FALSE)
-                || (condition.getType().equals(CommonConstant.NODE_CONDITION_DISK_PRESSURE) && condition.getStatus().equals(CommonConstant.NODE_CONDITION_STATUS_FALSE))
-                || (condition.getType().equals(CommonConstant.NODE_CONDITION_MEMORY_PRESSURE) && condition.getStatus().equals(CommonConstant.NODE_CONDITION_STATUS_FALSE)))){
-            return true;
-        }else {
-            return false;
+    private boolean isNodeConditionNotHealthy(NodeCondition condition){
+        boolean isNodeConditionNotHealthy = false;
+        switch (condition.getType()){
+            case CommonConstant.NODE_CONDITION_OUT_OF_DISK:
+            case CommonConstant.NODE_CONDITION_DISK_PRESSURE:
+            case CommonConstant.NODE_CONDITION_MEMORY_PRESSURE:
+            case CommonConstant.NODE_CONDITION_PID_PRESSURE:
+            case CommonConstant.NODE_CONDITION_NETWORK_UNAVAILABLE:
+                if (!condition.getStatus().equals(CommonConstant.NODE_CONDITION_STATUS_FALSE)){
+                    isNodeConditionNotHealthy = true;
+                }
+                break;
+            case CommonConstant.NODE_CONDITION_READY:
+                if (!condition.getStatus().equals(CommonConstant.NODE_CONDITION_STATUS_TRUE)){
+                    isNodeConditionNotHealthy = true;
+                }
+                break;
+            default:
         }
+        return isNodeConditionNotHealthy;
     }
 
     /**

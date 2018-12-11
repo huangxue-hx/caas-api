@@ -137,7 +137,7 @@ public class OpenApiController {
 	 * 查询所有集群下不可用的节点
 	 * @return
 	 */
-	@RequestMapping(value = "/node/unavailable")
+	@RequestMapping(value = "/node/unavailable", method = RequestMethod.GET)
 	public ResponseEntity<List<NodeBriefDto>> getUnavailableNodes(){
 		try {
 			List<NodeBriefDto> nodes = nodeService.listUnavailableNodes();

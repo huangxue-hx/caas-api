@@ -10,6 +10,7 @@ import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dto.application.*;
+import com.harmonycloud.dto.cluster.IngressControllerDto;
 import com.harmonycloud.dto.dataprivilege.DataPrivilegeDto;
 import com.harmonycloud.dto.scale.AutoScaleDto;
 import com.harmonycloud.dto.scale.HPADto;
@@ -231,13 +232,27 @@ public class DeploymentsServiceImpl implements DeploymentsService {
     }
 
     @Override
-    public List<Map<String, Object>> listTenantDeploys(String tenantId, String clusterId) throws Exception {
+    public List<Map<String, Object>> listTenantDeploys(String tenantId, String namespace, String clusterId) throws Exception {
+        AssertUtil.notBlank(tenantId, DictEnum.TENANT_ID);
+        AssertUtil.notBlank(clusterId, DictEnum.CLUSTER_ID);
         List<Map<String, Object>> deploys = new ArrayList<>();
         Cluster cluster = clusterService.findClusterById(clusterId);
         List<String> clusterIds = new ArrayList<>();
         clusterIds.add(clusterId);
-        List<NamespaceLocal> namespaceLocals = namespaceLocalService.
-                getNamespaceListByTenantIdAndClusterId(tenantId, clusterIds);
+        List<NamespaceLocal> namespaceLocals = new ArrayList<>();
+        if(StringUtils.isBlank(namespace)) {
+            List<NamespaceLocal> namespaces = namespaceLocalService.
+                    getNamespaceListByTenantIdAndClusterId(tenantId, clusterIds);
+            if(!CollectionUtils.isEmpty(namespaces)){
+                namespaceLocals.addAll(namespaces);
+            }
+        }else{
+            String[] namespaces = namespace.split(",");
+            for(String ns : namespaces) {
+                NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByName(ns);
+                namespaceLocals.add(namespaceLocal);
+            }
+        }
         for (NamespaceLocal namespaceLocal : namespaceLocals) {
             DeploymentList deploymentList = this.listDeployments(namespaceLocal.getNamespaceName(), null);
             if (deploymentList == null || CollectionUtils.isEmpty(deploymentList.getItems())) {
@@ -1107,9 +1122,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             Project project = projectService.getProjectByProjectId(projectId);
             String tenantId = project.getTenantId();
             //通过tenantId找icName
-            List<Map<String, String>> icNameList = tenantService.getTenantIngressController(tenantId, cluster.getId());
+            List<IngressControllerDto> icList = tenantService.getTenantIngressController(tenantId, cluster.getId());
             //删除对外暴露端口（nginx和数据库）
-            routerService.deleteRulesByName(namespace, name, icNameList, cluster);
+            routerService.deleteRulesByName(namespace, name, icList, cluster);
         }
 
         // 获取service
@@ -1290,13 +1305,13 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             }
         }
         NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByName(namespace);
-        List<Map<String, String>> icNameList = new ArrayList<>();
+        List<IngressControllerDto> icList = new ArrayList<>();
         if(namespaceLocal != null) {
             //通过tenantId找icName
-            icNameList.addAll(tenantService.getTenantIngressController(namespaceLocal.getTenantId(), cluster.getId()));
+            icList.addAll(tenantService.getTenantIngressController(namespaceLocal.getTenantId(), cluster.getId()));
         }
         //删除对外暴露端口（nginx和数据库）
-        routerService.deleteRulesByName(namespace, name, icNameList, cluster);
+        routerService.deleteRulesByName(namespace, name, icList, cluster);
         return null;
     }
 

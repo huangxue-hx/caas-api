@@ -50,6 +50,8 @@ public class ServiceDetailInApplicationDto {
 
     private String dataPrivilege;
 
+    private String serviceType;
+
     public String getIsExternal() {
         return isExternal;
     }
@@ -168,5 +170,13 @@ public class ServiceDetailInApplicationDto {
 
     public void setDataPrivilege(String dataPrivilege) {
         this.dataPrivilege = dataPrivilege;
+    }
+
+    public String getServiceType() {
+        return serviceType;
+    }
+
+    public void setServiceType(String serviceType) {
+        this.serviceType = serviceType;
     }
 }

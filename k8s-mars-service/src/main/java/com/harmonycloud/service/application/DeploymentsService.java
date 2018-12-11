@@ -47,7 +47,7 @@ public interface DeploymentsService {
 	 * @return
 	 * @throws Exception
 	 */
-	List<Map<String, Object>> listTenantDeploys(String tenantId, String clusterId) throws Exception;
+	List<Map<String, Object>> listTenantDeploys(String tenantId, String namespace, String clusterId) throws Exception;
 
 	/**
 	 * 根据标签获取集群下某个namespace的服务列表

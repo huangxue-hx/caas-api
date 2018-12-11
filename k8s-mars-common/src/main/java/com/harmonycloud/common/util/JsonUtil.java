@@ -125,7 +125,25 @@ public class JsonUtil {
 					" can not be serialized to JSON.");
 		}
 	}
-	
+
+	/**
+	 * 将json数据转换成pojo对象list 且过滤null
+	 * @param jsonData
+	 * @param beanType
+	 * @return
+	 */
+	public static <T>List<T> jsonToListNonNull(String jsonData, Class<T> beanType) {
+		mapper.setSerializationInclusion(Include.NON_NULL);
+		JavaType javaType = mapper.getTypeFactory().constructParametricType(List.class, beanType);
+		try {
+			List<T> list = mapper.readValue(jsonData, javaType);
+			return list;
+		} catch (Exception e) {
+			logger.warn("jsonToList失败", e);
+		}
+		return null;
+	}
+
 	public static String convertToJsonNonNull(Object value) {
 		mapper.setSerializationInclusion(Include.NON_NULL);
 		if (mapper.canSerialize(value.getClass())) {

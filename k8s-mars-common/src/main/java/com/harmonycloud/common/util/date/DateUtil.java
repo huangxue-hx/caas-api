@@ -1071,4 +1071,20 @@ public class DateUtil {
         return style;
     }
 
+    public static String getLaterTime(String x, String y) throws Exception {
+        if(StringUtils.isBlank(x)){
+            return y;
+        }else if(StringUtils.isBlank(y)){
+            return x;
+        }
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+        int b = Long.valueOf(sdf.parse(x).getTime()).compareTo(Long.valueOf(sdf.parse(y).getTime()));
+        if (b == -1) {
+            return y;
+        }else{
+            return x;
+        }
+    }
+
 }

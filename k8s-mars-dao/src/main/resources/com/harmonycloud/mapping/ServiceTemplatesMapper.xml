@@ -19,12 +19,13 @@
     <result column="project_id" property="projectId" jdbcType="VARCHAR"/>
     <result column="cluster_id" property="clusterId" jdbcType="VARCHAR"/>
     <result column="service_account" property="serviceAccount" jdbcType="VARCHAR"/>
+    <result column="service_type" property="serviceType" jdbcType="INTEGER"/>
   </resultMap>
 
 
   <insert id="insert" parameterType="com.harmonycloud.dao.application.bean.ServiceTemplates" useGeneratedKeys="true" keyProperty="id">
-    insert into service_templates (name, tag, details, image_list, ingress_content, status, tenant, create_user, create_time, flag, deployment_content, node_selector, is_public, project_id, cluster_id)
-    values (#{name}, #{tag}, #{details}, #{imageList}, #{ingressContent}, #{status}, #{tenant}, #{user}, #{createTime}, #{flag}, #{deploymentContent}, #{nodeSelector}, #{isPublic}, #{projectId}, #{clusterId})
+    insert into service_templates (name, tag, details, image_list, ingress_content, status, tenant, create_user, create_time, flag, deployment_content, node_selector, is_public, project_id, cluster_id, service_type)
+    values (#{name}, #{tag}, #{details}, #{imageList}, #{ingressContent}, #{status}, #{tenant}, #{user}, #{createTime}, #{flag}, #{deploymentContent}, #{nodeSelector}, #{isPublic}, #{projectId}, #{clusterId}, #{serviceType})
   </insert>
 
   <select id="listServiceByTenant" parameterType="java.lang.String" resultMap="BaseResultMap">
@@ -41,6 +42,9 @@
     </if>
     <if test="projectId != null" >
       (project_id = #{projectId}) AND
+    </if>
+    <if test ="serviceType != null">
+      service_type = #{serviceType} AND
     </if>
      status=0 and flag=0 and is_public=#{isPublic}
   </select>
@@ -147,6 +151,9 @@
     <if test="projectId != null" >
       and (project_id = #{projectId})
     </if>
+    <if test ="serviceType != null">
+      and service_type = #{serviceType}
+    </if>
   </select>
   
   <select id="listSearchByName" parameterType="java.lang.String" resultMap="BaseResultMap">
@@ -159,6 +166,9 @@
     </if>
     <if test="projectId != null" >
       and (project_id = #{projectId})
+    </if>
+    <if test ="serviceType != null">
+      and service_type = #{serviceType}
     </if>
   </select>
   
@@ -203,6 +213,9 @@
     <if test="name != null and name != ''">
     	and name LIKE concat(concat('%',#{name}),'%')
     </if>
+    <if test ="serviceType != null">
+      and service_type = #{serviceType}
+    </if>
   </select>
   
     <select id="listPublicSearchByImage" parameterType="java.lang.String" resultMap="BaseResultMap">
@@ -210,12 +223,18 @@
     <if test="image != null and image != ''">
     	and image_list LIKE concat(concat('%',#{image}),'%')
     </if>
+    <if test ="serviceType != null">
+      and service_type = #{serviceType}
+    </if>
   </select>
   
     <select id="listPublicNameByTenant" parameterType="java.lang.String" resultMap="BaseResultMap">
     select distinct name , image_list,tenant FROM service_templates WHERE
     <if test="name != null" >
       name like concat(concat('%',#{name}),'%') AND
+    </if>
+    <if test ="serviceType != null">
+      service_type = #{serviceType} AND
     </if>
      status=0 and flag=0 and is_public=#{isPublic}
   </select>

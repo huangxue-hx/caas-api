@@ -269,7 +269,9 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
             DataPrivilegeGroupMapping parentMapping;
             if(parentId != null){
                 parentMapping = dataPrivilegeGroupMappingMap.get(parentId);
-                parentCreatorId = parentMapping.getCreatorId().intValue();
+                if (parentMapping != null && parentMapping.getCreatorId() != null) {
+                    parentCreatorId = parentMapping.getCreatorId().intValue();
+                }
             }
             int groupId = dataPrivilegeGroupMapping.getGroupId();
             switch(strategy){
@@ -303,7 +305,9 @@ public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMe
                         }
                         if(parentCreatorId != null && parentCreatorId != creatorId){
                             User parentCreator = userMap.get((long)parentCreatorId);
-                            cloneList.remove(parentCreator.getUsername());
+                            if(parentCreator != null) {
+                                cloneList.remove(parentCreator.getUsername());
+                            }
                         }
                         this.addUserListToGroup(groupId, cloneList);
                     }

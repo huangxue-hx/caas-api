@@ -21,7 +21,7 @@ public interface ServiceService {
      */
     public ActionReturnUtil saveServiceTemplate(ServiceTemplateDto serviceTemplate, String username, int type) throws Exception;
 
-    public ActionReturnUtil listServiceTemplate(String name, String clusterId, boolean isPublic, String projectId) throws Exception;
+    public ActionReturnUtil listServiceTemplate(String name, String clusterId, boolean isPublic, String projectId, Integer serviceType) throws Exception;
 
     /**
      * 根据镜像查询服务模板
@@ -42,7 +42,7 @@ public interface ServiceService {
 
     public ActionReturnUtil deleteDeployedService(DeployedServiceNamesDto deployedServiceNamesDto, String userName) throws Exception;
     
-    public ActionReturnUtil listServiceTemplate(String searchKey, String searchValue, String clusterId, boolean isPublic, String projectId) throws Exception;
+    public ActionReturnUtil listServiceTemplate(String searchKey, String searchValue, String clusterId, boolean isPublic, String projectId, Integer serviceType) throws Exception;
     
     public ActionReturnUtil deleteServiceByNamespace(String namespace) throws Exception;
     

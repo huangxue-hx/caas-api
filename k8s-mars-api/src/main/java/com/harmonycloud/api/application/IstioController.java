@@ -3,9 +3,7 @@ package com.harmonycloud.api.application;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dto.application.istio.CircuitBreakDto;
-import com.harmonycloud.dto.application.istio.RateLimitDto;
-import com.harmonycloud.dto.application.istio.WhiteListsDto;
+import com.harmonycloud.dto.application.istio.*;
 import com.harmonycloud.service.application.IstioService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -34,13 +32,22 @@ public class IstioController {
     public ActionReturnUtil createIstioPolicy(@PathVariable("deployName") String deployName,
                                               @ModelAttribute CircuitBreakDto circuitBreakDto,
                                               @ModelAttribute RateLimitDto rateLimitDto,
-                                              @ModelAttribute WhiteListsDto whiteListsDto ) throws Exception {
+                                              @ModelAttribute WhiteListsDto whiteListsDto,
+                                              @ModelAttribute TrafficShiftingDto trafficShiftingDto,
+                                              @ModelAttribute FaultInjectionDto faultInjectionDto,
+                                              @ModelAttribute TimeoutRetryDto timeoutRetryDto) throws Exception {
         if (Objects.nonNull(circuitBreakDto) && CommonConstant.CIRCUIT_BREAKER.equals(circuitBreakDto.getRuleType())) {
             return istioService.createCircuitBreakerPolicy(deployName, circuitBreakDto);
         } else if (Objects.nonNull(rateLimitDto) && CommonConstant.RATE_LIMIT.equals(rateLimitDto.getRuleType())) {
             return istioService.createRateLimitPolicy(deployName, rateLimitDto);
         } else if (whiteListsDto != null &&  CommonConstant.WHITE_LISTS.equals(whiteListsDto.getRuleType())){
             return istioService.createWhiteListsPolicy(whiteListsDto);
+        } else if (trafficShiftingDto != null &&  CommonConstant.TRAFFIC_SHIFTING.equals(trafficShiftingDto.getRuleType())) {
+            return istioService.createTrafficShiftingPolicy(deployName, trafficShiftingDto);
+        } else if (faultInjectionDto != null &&  CommonConstant.FAULT_INJECTION.equals(faultInjectionDto.getRuleType())) {
+            return istioService.createFaultInjectionPolicy(deployName, faultInjectionDto);
+        } else if (timeoutRetryDto != null &&  CommonConstant.TIMEOUT_RETRY.equals(timeoutRetryDto.getRuleType())) {
+            return istioService.createTimeoutRetryDtoPolicy(deployName, timeoutRetryDto);
         }
         return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CREATE_POLICY_DATA_IS_EMPTY);
     }
@@ -52,13 +59,22 @@ public class IstioController {
     public ActionReturnUtil updateIstioPolicy(@PathVariable("policyId") String policyId,
                                               @ModelAttribute CircuitBreakDto circuitBreakDto,
                                               @ModelAttribute RateLimitDto rateLimitDto,
-                                              @ModelAttribute WhiteListsDto whiteListsDto ) throws Exception {
+                                              @ModelAttribute WhiteListsDto whiteListsDto,
+                                              @ModelAttribute TrafficShiftingDto trafficShiftingDto,
+                                              @ModelAttribute FaultInjectionDto faultInjectionDto,
+                                              @ModelAttribute TimeoutRetryDto timeoutRetryDto) throws Exception {
         if (Objects.nonNull(circuitBreakDto) && CommonConstant.CIRCUIT_BREAKER.equals(circuitBreakDto.getRuleType())) {
             return istioService.updateCircuitBreakerPolicy(policyId, circuitBreakDto);
         } else if (Objects.nonNull(rateLimitDto) && CommonConstant.RATE_LIMIT.equals(rateLimitDto.getRuleType())) {
             return istioService.updateRateLimitPolicy(policyId, rateLimitDto);
-        }else if(Objects.nonNull(whiteListsDto) && CommonConstant.WHITE_LISTS.equals(whiteListsDto.getRuleType())){
+        } else if (Objects.nonNull(whiteListsDto) && CommonConstant.WHITE_LISTS.equals(whiteListsDto.getRuleType())){
             return istioService.updateWhiteListsPolicy(policyId, whiteListsDto);
+        } else if (Objects.nonNull(trafficShiftingDto) && CommonConstant.TRAFFIC_SHIFTING.equals(trafficShiftingDto.getRuleType())){
+            return istioService.updateTrafficShiftingPolicy(policyId, trafficShiftingDto);
+        } else if (Objects.nonNull(faultInjectionDto) && CommonConstant.FAULT_INJECTION.equals(faultInjectionDto.getRuleType())){
+            return istioService.updateFaultInjectionPolicy(policyId, faultInjectionDto);
+        } else if (Objects.nonNull(timeoutRetryDto) && CommonConstant.TIMEOUT_RETRY.equals(timeoutRetryDto.getRuleType())){
+            return istioService.updateTimeoutRetryPolicy(policyId, timeoutRetryDto);
         }
         return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.UPDATE_POLICY_DATA_IS_EMPTY);
     }
@@ -71,14 +87,19 @@ public class IstioController {
                                              @PathVariable("policyId") String policyId,
                                              @RequestParam("namespace") String namespace,
                                              @RequestParam("ruleName") String ruleName,
-                                             @RequestParam("ruleType") String ruleType)
-            throws Exception {
+                                             @RequestParam("ruleType") String ruleType) throws Exception {
         if (CommonConstant.CIRCUIT_BREAKER.equals(ruleType)) {
             return istioService.closeCircuitBreakerPolicy(namespace, policyId, deployName);
         } else if (CommonConstant.RATE_LIMIT.equals(ruleType)) {
             return istioService.closeRateLimitPolicy(namespace, policyId, ruleName);
-        }else if(CommonConstant.WHITE_LISTS.equals(ruleType)){
+        } else if (CommonConstant.WHITE_LISTS.equals(ruleType)) {
             return istioService.closeWhiteListsPolicy(namespace, policyId, ruleName);
+        } else if (CommonConstant.TRAFFIC_SHIFTING.equals(ruleType)) {
+            return istioService.closeTrafficShiftingPolicy(namespace, policyId, deployName);
+        } else if (CommonConstant.FAULT_INJECTION.equals(ruleType)) {
+            return istioService.closeFaultInjectionPolicy(namespace, policyId, deployName);
+        } else if (CommonConstant.TIMEOUT_RETRY.equals(ruleType)) {
+            return istioService.closeTimeoutRetryPolicy(namespace, policyId, deployName);
         }
         return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLOSE_POLICY_RULETYPE_IS_WRONG);
     }
@@ -91,14 +112,19 @@ public class IstioController {
                                             @PathVariable("policyId") String policyId,
                                             @RequestParam("namespace") String namespace,
                                             @RequestParam("ruleName") String ruleName,
-                                            @RequestParam("ruleType") String ruleType)
-            throws Exception {
+                                            @RequestParam("ruleType") String ruleType) throws Exception {
         if (CommonConstant.CIRCUIT_BREAKER.equals(ruleType)) {
             return istioService.openCircuitBreakerPolicy(namespace, policyId, deployName);
         } else if (CommonConstant.RATE_LIMIT.equals(ruleType)) {
             return istioService.openRateLimitPolicy(namespace, policyId, ruleName);
-        }else if(CommonConstant.WHITE_LISTS.equals(ruleType)){
-            return  istioService.openWhiteListsPolicy(namespace,policyId,ruleName);
+        } else if (CommonConstant.WHITE_LISTS.equals(ruleType)) {
+            return istioService.openWhiteListsPolicy(namespace, policyId, ruleName);
+        } else if (CommonConstant.TRAFFIC_SHIFTING.equals(ruleType)) {
+            return istioService.openTrafficShiftingPolicy(namespace, policyId, deployName);
+        } else if (CommonConstant.FAULT_INJECTION.equals(ruleType)) {
+            return istioService.openFaultInjectionPolicy(namespace, policyId, deployName);
+        } else if (CommonConstant.TIMEOUT_RETRY.equals(ruleType)) {
+            return istioService.openTimeoutRetryPolicy(namespace, policyId, deployName);
         }
         return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.OPEN_POLICY_RULETYPE_IS_WRONG);
     }
@@ -111,14 +137,19 @@ public class IstioController {
                                          @PathVariable("policyId") String policyId,
                                          @RequestParam("namespace") String namespace,
                                          @RequestParam("ruleName") String ruleName,
-                                         @RequestParam("ruleType") String ruleType)
-            throws Exception {
+                                         @RequestParam("ruleType") String ruleType) throws Exception {
         if (CommonConstant.CIRCUIT_BREAKER.equals(ruleType)) {
             return istioService.deleteCircuitBreakerPolicy(namespace, policyId, deployName);
         } else if (CommonConstant.RATE_LIMIT.equals(ruleType)) {
             return istioService.deleteRateLimitPolicy(namespace, policyId, ruleName);
-        }else  if(CommonConstant.WHITE_LISTS.equals(ruleType)){
-            return istioService.deleteWhiteListPolicy(namespace, policyId ,ruleName);
+        } else if (CommonConstant.WHITE_LISTS.equals(ruleType)) {
+            return istioService.deleteWhiteListsPolicy(namespace, policyId, ruleName);
+        } else if (CommonConstant.TRAFFIC_SHIFTING.equals(ruleType)) {
+            return istioService.deleteTrafficShiftingPolicy(namespace, policyId, deployName);
+        } else if (CommonConstant.FAULT_INJECTION.equals(ruleType)) {
+            return istioService.deleteFaultInjectionPolicy(namespace, policyId, deployName);
+        } else if (CommonConstant.TIMEOUT_RETRY.equals(ruleType)) {
+            return istioService.deleteTimeoutRetryPolicy(namespace, policyId, deployName);
         }
         return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.DELETE_POLICY_RULETYPE_IS_WRONG);
     }
@@ -146,9 +177,33 @@ public class IstioController {
             return istioService.getCircuitBreakerPolicy(namespace, policyId, deployName);
         } else if (CommonConstant.RATE_LIMIT.equals(ruleType)) {
             return istioService.getRateLimitPolicy(namespace, policyId, ruleName);
-        }else if(CommonConstant.WHITE_LISTS.equals(ruleType)){
-            return istioService.getWhiteListPolicy(namespace, policyId , ruleName);
+        } else if (CommonConstant.WHITE_LISTS.equals(ruleType)) {
+            return istioService.getWhiteListsPolicy(namespace, policyId, ruleName);
+        } else if (CommonConstant.TRAFFIC_SHIFTING.equals(ruleType)) {
+            return istioService.getTrafficShiftingPolicy(namespace, policyId, deployName);
+        } else if (CommonConstant.FAULT_INJECTION.equals(ruleType)) {
+            return istioService.getFaultInjectionPolicy(namespace, policyId, deployName);
+        } else if (CommonConstant.TIMEOUT_RETRY.equals(ruleType)) {
+            return istioService.getTimeoutRetryPolicy(namespace, policyId, deployName);
         }
         return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.GET_POLICY_RULETYPE_IS_WRONG);
+    }
+
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "获取目标服务版本", response = ActionReturnUtil.class, httpMethod = "GET", consumes = "", produces = "", notes = "当前namespace")
+    @ResponseBody
+    @RequestMapping(value = "/desServiceVersions", method = RequestMethod.GET)
+    public ActionReturnUtil getDesServiceVersion(@PathVariable("deployName") String deployName,
+                                           @RequestParam("namespace") String namespace) throws Exception {
+        return istioService.getDesServiceVersion(deployName, namespace);
+    }
+
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "获取源服务版本", response = ActionReturnUtil.class, httpMethod = "GET", consumes = "", produces = "", notes = "当前namespace")
+    @ResponseBody
+    @RequestMapping(value = "/sourceServiceVersions", method = RequestMethod.GET)
+    public ActionReturnUtil getSourceServiceVersion(@PathVariable("deployName") String deployName,
+                                                 @RequestParam("namespace") String namespace) throws Exception {
+        return istioService.getSourceServiceVersion(deployName, namespace);
     }
 }

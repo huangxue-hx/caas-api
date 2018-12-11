@@ -63,12 +63,15 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
     protected String qasClusterId;
     protected String platformClusterId;
     protected String tenantId;
+    protected String tenantName;
     protected String projectId;
     protected String adminUserName = "admin";
     protected String testUserName = TEST_NAME;
     protected List<NamespaceLocal> namespaces;
     protected String namespaceName;
     protected ConfigFile configMap;
+    protected ServiceDeployDto serviceDeployDto;
+    protected  ApplicationTemplateDto applicationTemplateDto;
 
 
     @Autowired
@@ -120,7 +123,9 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
         if(user == null){
             throw new Exception("创建测试用户失败.");
         }
-        tenantId = getTenant().getTenantId();
+        TenantBinding tenant = getTenant();
+        tenantId = tenant.getTenantId();
+        tenantName = tenant.getTenantName();
         namespaces = getNamespace();
         if(CollectionUtils.isEmpty(namespaces)){
             throw new Exception("未创建单元测试分区.");
@@ -132,7 +137,8 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
             throw new Exception("创建测试配置组失败.");
         }
         getTomcatService();
-
+        serviceDeployDto = getStatefulSetDto();
+        applicationTemplateDto = getApplicationTemplateDto();
 
     }
 
@@ -410,6 +416,74 @@ public class BaseTest extends AbstractTransactionalTestNGSpringContextTests {
         }
         return null;
 
+    }
+
+    private ServiceDeployDto getStatefulSetDto(){
+        ServiceDeployDto serviceDeployDto = new ServiceDeployDto();
+        serviceDeployDto.setNamespace(namespaceName);
+        ServiceTemplateDto serviceTemplate = new ServiceTemplateDto();
+        serviceTemplate.setName("ststest");
+        serviceTemplate.setProjectId(projectId);
+        serviceTemplate.setTenant(TEST_NAME);
+        serviceTemplate.setExternal(0);
+        serviceTemplate.setType(1);
+        serviceTemplate.setPublic(false);
+        StatefulSetDetailDto statefulSetDetail = new StatefulSetDetailDto();
+        statefulSetDetail.setName("ststest");
+        statefulSetDetail.setPodManagementPolicy("OrderedReady");
+        statefulSetDetail.setRestartPolicy("Always");
+        statefulSetDetail.setInstance("1");
+        statefulSetDetail.setHostIPC(false);
+        statefulSetDetail.setHostPID(false);
+        statefulSetDetail.setHostNetwork(false);
+        CreateContainerDto container = new CreateContainerDto();
+        container.setName("container");
+        container.setImg("onlineshop/nginx");
+        container.setTag("latest");
+        CreateResourceDto resource = new CreateResourceDto();
+        resource.setCpu("100m");
+        resource.setMemory("128");
+        container.setResource(resource);
+        CreateEnvDto env = new CreateEnvDto();
+        env.setKey("TZ");
+        env.setValue("Asia/Shanghai");
+        container.setEnv(Arrays.asList(env));
+        CreatePortDto port = new CreatePortDto();
+        port.setProtocol("TCP");
+        port.setPort("80");
+        port.setExpose("true");
+        container.setPorts(Arrays.asList(port));
+        container.setImagePullPolicy("IfNotPresent");
+        SecurityContextDto securityContext = new SecurityContextDto();
+        securityContext.setSecurity(false);
+        securityContext.setPrivileged(false);
+        container.setSecurityContext(securityContext);
+        statefulSetDetail.setContainers(Arrays.asList(container));
+        CreateContainerDto initContainer = new CreateContainerDto();
+        initContainer.setName("initContainer");
+        initContainer.setPorts(null);
+        initContainer.setCommand(Arrays.asList("sleep"));
+        initContainer.setArgs(Arrays.asList("10"));
+        initContainer.setImg("onlineshop/nginx");
+        initContainer.setTag("latest");
+        initContainer.setEnv(Arrays.asList(env));
+        initContainer.setPorts(Arrays.asList(port));
+        initContainer.setImagePullPolicy("IfNotPresent");
+        initContainer.setSecurityContext(securityContext);
+        statefulSetDetail.setInitContainers(Arrays.asList(initContainer));
+        serviceTemplate.setStatefulSetDetail(statefulSetDetail);
+        serviceDeployDto.setServiceTemplate(serviceTemplate);
+        return serviceDeployDto;
+    }
+
+    private ApplicationTemplateDto getApplicationTemplateDto(){
+        ApplicationTemplateDto applicationTemplateDto = new ApplicationTemplateDto();
+        applicationTemplateDto.setClusterId(devClusterId);
+        applicationTemplateDto.setProjectId(projectId);
+        applicationTemplateDto.setName("apptest");
+        applicationTemplateDto.setTenant(tenantName);
+        applicationTemplateDto.setIsDeploy(0);
+        return applicationTemplateDto;
     }
 
 }
