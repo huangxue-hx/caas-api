@@ -14,6 +14,7 @@ import com.harmonycloud.dao.application.ServiceTemplatesMapper;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dto.application.*;
+import com.harmonycloud.dto.cluster.IngressControllerDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8SClient;
@@ -153,11 +154,19 @@ public class ServiceServiceImpl implements ServiceService {
         ServiceTemplates serviceTemplateDB = new ServiceTemplates();
         serviceTemplateDB.setName(serviceTemplate.getName());
         serviceTemplateDB.setDetails(serviceTemplate.getDesc());
-
+        List<CreateContainerDto> containers = null;
         if (serviceTemplate.getDeploymentDetail() != null) {
             JSONArray deployment = JSONArray.fromObject(serviceTemplate.getDeploymentDetail());
             serviceTemplateDB.setDeploymentContent(deployment.toString());
-            List<CreateContainerDto> containers = serviceTemplate.getDeploymentDetail().getContainers();
+            containers = serviceTemplate.getDeploymentDetail().getContainers();
+            serviceTemplateDB.setServiceType(ServiceTypeEnum.DEPLOYMENT.getCode());
+        }else if(serviceTemplate.getStatefulSetDetail() != null){
+            JSONArray statefulSet = JSONArray.fromObject(serviceTemplate.getStatefulSetDetail());
+            serviceTemplateDB.setDeploymentContent(statefulSet.toString());
+            containers = serviceTemplate.getStatefulSetDetail().getContainers();
+            serviceTemplateDB.setServiceType(ServiceTypeEnum.STATEFULSET.getCode());
+        }
+        if(CollectionUtils.isNotEmpty(containers)){
             String images = "";
             for (CreateContainerDto c : containers) {
                 if (StringUtils.isNotBlank(c.getImg())) {
@@ -196,12 +205,12 @@ public class ServiceServiceImpl implements ServiceService {
      * @throws Exception
      */
     @Override
-    public ActionReturnUtil listServiceTemplate(String name, String clusterId, boolean isPublic, String projectId) throws Exception {
+    public ActionReturnUtil listServiceTemplate(String name, String clusterId, boolean isPublic, String projectId, Integer serviceType) throws Exception {
         JSONArray array = new JSONArray();
         // check value null
 
         // list
-        List<ServiceTemplates> serviceBytenant = serviceTemplatesMapper.listNameByProjectId(name, clusterId, isPublic, projectId);
+        List<ServiceTemplates> serviceBytenant = serviceTemplatesMapper.listNameByProjectId(name, clusterId, isPublic, projectId, serviceType);
 
         if (serviceBytenant != null && serviceBytenant.size() > 0) {
             for (ServiceTemplates serviceTemplates : serviceBytenant) {
@@ -255,17 +264,24 @@ public class ServiceServiceImpl implements ServiceService {
         serviceTemplateDB.setName(serviceTemplate.getName());
         serviceTemplateDB.setDetails(serviceTemplate.getDesc());
         serviceTemplateDB.setId(serviceTemplate.getId());
+        List<CreateContainerDto> containers = null;
         if (serviceTemplate.getDeploymentDetail() != null) {
             JSONArray deploment = JSONArray.fromObject(serviceTemplate.getDeploymentDetail());
             serviceTemplateDB.setDeploymentContent(deploment.toString());
-            List<CreateContainerDto> containers = serviceTemplate.getDeploymentDetail().getContainers();
+            containers = serviceTemplate.getDeploymentDetail().getContainers();
+
+        }else if(serviceTemplate.getStatefulSetDetail() != null){
+            JSONArray statefulSet = JSONArray.fromObject(serviceTemplate.getStatefulSetDetail());
+            serviceTemplateDB.setDeploymentContent(statefulSet.toString());
+            containers = serviceTemplate.getStatefulSetDetail().getContainers();
+        }
+        if(CollectionUtils.isNotEmpty(containers)) {
             String images = "";
             for (CreateContainerDto c : containers) {
                 images = images + c.getImg() + ",";
             }
             serviceTemplateDB.setImageList(images.substring(0, images.length() - 1));
         }
-
         if (serviceTemplate.getIngress() != null) {
             JSONArray ingress = JSONArray.fromObject(serviceTemplate.getIngress());
             serviceTemplateDB.setIngressContent(ingress.toString());
@@ -345,9 +361,14 @@ public class ServiceServiceImpl implements ServiceService {
                 idAndTag.put("tag", serviceTemplatesList.get(i).getTag());
                 idAndTag.put("image", serviceTemplatesList.get(i).getImageList());
                 idAndTag.put("user", serviceTemplatesList.get(i).getUser());
-                String dep = JSONArray.fromObject(serviceTemplatesList.get(i).getDeploymentContent()).getJSONObject(0).toString().replaceAll(":\"\",", ":" + null + ",").replaceAll(":\"\"", ":" + null + "");
-                DeploymentDetailDto deployment = JsonUtil.jsonToPojo(dep, DeploymentDetailDto.class);
-                idAndTag.put("name", deployment.getName());
+                String content = JSONArray.fromObject(serviceTemplatesList.get(i).getDeploymentContent()).getJSONObject(0).toString().replaceAll(":\"\",", ":" + null + ",").replaceAll(":\"\"", ":" + null + "");
+                if(serviceTemplatesList.get(i).getServiceType() == ServiceTypeEnum.DEPLOYMENT.getCode()){
+                    DeploymentDetailDto deployment = JsonUtil.jsonToPojo(content, DeploymentDetailDto.class);
+                    idAndTag.put("name", deployment.getName());
+                }else if(serviceTemplatesList.get(i).getServiceType() == ServiceTypeEnum.STATEFULSET.getCode()){
+                    StatefulSetDetailDto statefulSetDetailDto = JsonUtil.jsonToPojo(content, StatefulSetDetailDto.class);
+                    idAndTag.put("name", statefulSetDetailDto.getName());
+                }
                 idAndTag.put("realName", userService.getUser(serviceTemplatesList.get(i).getUser()).getRealName());
                 tagArray.add(idAndTag);
                 json.put("createtime", dateToString(serviceTemplatesList.get(i).getCreateTime()));
@@ -355,6 +376,7 @@ public class ServiceServiceImpl implements ServiceService {
             json.put("tags", tagArray);
             json.put("clusterId", serviceTemplatesList.get(0).getClusterId());
             json.put("clusterName", clusterService.findClusterById(serviceTemplatesList.get(0).getClusterId()).getAliasName());
+            json.put(CommonConstant.SERVICE_TYPE, serviceTemplatesList.get(0).getServiceType());
         }
         return json;
     }
@@ -439,16 +461,16 @@ public class ServiceServiceImpl implements ServiceService {
     }
 
     @Override
-    public ActionReturnUtil listServiceTemplate(String searchKey, String searchValue, String clusterId, boolean isPublic, String projectId) throws Exception {
+    public ActionReturnUtil listServiceTemplate(String searchKey, String searchValue, String clusterId, boolean isPublic, String projectId, Integer serviceType) throws Exception {
         JSONArray array = new JSONArray();
         List<ServiceTemplates> serviceBytenant = null;
         //公私有模板
         if (isPublic) {
             //公有模板
-            serviceBytenant = listPublicServiceTemplate(searchKey, searchValue);
+            serviceBytenant = listPublicServiceTemplate(searchKey, searchValue, serviceType);
         } else {
             //私有模板
-            serviceBytenant = listPrivateServiceTemplate(searchKey, searchValue, clusterId, projectId);
+            serviceBytenant = listPrivateServiceTemplate(searchKey, searchValue, clusterId, projectId, serviceType);
         }
         if (serviceBytenant != null && serviceBytenant.size() > 0) {
             for (ServiceTemplates serviceTemplates : serviceBytenant) {
@@ -461,18 +483,18 @@ public class ServiceServiceImpl implements ServiceService {
     /**
      * 公有模板
      */
-    private List<ServiceTemplates> listPublicServiceTemplate(String searchKey, String searchvalue) throws Exception {
+    private List<ServiceTemplates> listPublicServiceTemplate(String searchKey, String searchvalue, Integer serviceType) throws Exception {
         List<ServiceTemplates> serviceBytenant = null;
         if (!StringUtils.isEmpty(searchKey)) {
             if (searchKey.equals("name")) {
                 // search by name
-                serviceBytenant = serviceTemplatesMapper.listPublicSearchByName(searchvalue, true);
+                serviceBytenant = serviceTemplatesMapper.listPublicSearchByName(searchvalue, true, serviceType);
             } else if (searchKey.equals("image")) {
                 // search by image
-                serviceBytenant = serviceTemplatesMapper.listPublicSearchByImage(searchvalue, true);
+                serviceBytenant = serviceTemplatesMapper.listPublicSearchByImage(searchvalue, true, serviceType);
             }
         } else {
-            serviceBytenant = serviceTemplatesMapper.listPublicNameByTenant(null, true);
+            serviceBytenant = serviceTemplatesMapper.listPublicNameByTenant(null, true, serviceType);
         }
         return serviceBytenant;
     }
@@ -480,7 +502,7 @@ public class ServiceServiceImpl implements ServiceService {
     /**
      * 私有模板
      */
-    private List<ServiceTemplates> listPrivateServiceTemplate(String searchKey, String searchValue, String clusterId, String projectId) throws Exception {
+    private List<ServiceTemplates> listPrivateServiceTemplate(String searchKey, String searchValue, String clusterId, String projectId, Integer serviceType) throws Exception {
         List<ServiceTemplates> serviceList = new ArrayList<>();
         Set<String> clusterIdList = new HashSet<>();
         if (StringUtils.isEmpty(clusterId)) {
@@ -492,12 +514,12 @@ public class ServiceServiceImpl implements ServiceService {
         for (String cId : clusterIdList) {
             List<ServiceTemplates> tmpList = new ArrayList<>();
             if (StringUtils.isNotEmpty(searchValue)) {
-                List<ServiceTemplates> tmpNameList = serviceTemplatesMapper.listSearchByName(searchValue, cId, false, projectId);
-                List<ServiceTemplates> tmpImageList = serviceTemplatesMapper.listSearchByImage(searchValue, cId, false, projectId);
+                List<ServiceTemplates> tmpNameList = serviceTemplatesMapper.listSearchByName(searchValue, cId, false, projectId, serviceType);
+                List<ServiceTemplates> tmpImageList = serviceTemplatesMapper.listSearchByImage(searchValue, cId, false, projectId, serviceType);
                 tmpNameList.addAll(tmpImageList);
                 tmpList = tmpNameList.stream().distinct().collect(Collectors.toList());
             } else {
-                tmpList = serviceTemplatesMapper.listNameByProjectId(null, cId, false, projectId);
+                tmpList = serviceTemplatesMapper.listNameByProjectId(null, cId, false, projectId, serviceType);
             }
             serviceList.addAll(tmpList);
         }
@@ -779,24 +801,21 @@ public class ServiceServiceImpl implements ServiceService {
         serviceDto.setTag(tag);
         serviceDto.setId(serviceTemplate.getId());
         serviceDto.setTenant(serviceTemplate.getTenant());
-        String dep = JSONArray.fromObject(serviceTemplate.getDeploymentContent()).getJSONObject(0).toString().replaceAll(":\"\",", ":" + null + ",").replaceAll(":\"\"", ":" + null + "");
-        DeploymentDetailDto deployment = JsonUtil.jsonToPojo(dep, DeploymentDetailDto.class);
-        deployment.setNamespace(namespace);
-        String oldName = deployment.getName();
-        deployment.setName(app);
-        List<CreateContainerDto> cons = deployment.getContainers();
-        if (cons != null && cons.size() > 0) {
-            for (CreateContainerDto c : cons) {
-                if (c.getStorage() != null && c.getStorage().size() > 0) {
-                    for (PersistentVolumeDto v : c.getStorage()) {
-                        if (v.getPvcName() != null && v.getPvcName() != "") {
-                            v.setPvcName(v.getPvcName().replace("-" + oldName, "-" + app));
-                        }
-                    }
-                }
-            }
+        String content = JSONArray.fromObject(serviceTemplate.getDeploymentContent()).getJSONObject(0).toString().replaceAll(":\"\",", ":" + null + ",").replaceAll(":\"\"", ":" + null + "");
+        switch(ServiceTypeEnum.valueOf(serviceTemplate.getServiceType())){
+            case DEPLOYMENT:
+                DeploymentDetailDto deployment = JsonUtil.jsonToPojo(content, DeploymentDetailDto.class);
+                deployment.setNamespace(namespace);
+                deployment.setName(app);
+                serviceDto.setDeploymentDetail(deployment);
+                break;
+            case STATEFULSET:
+                StatefulSetDetailDto statefulSet = JsonUtil.jsonToPojo(content, StatefulSetDetailDto.class);
+                statefulSet.setNamespace(namespace);
+                statefulSet.setName(app);
+                serviceDto.setStatefulSetDetail(statefulSet);
+                break;
         }
-        serviceDto.setDeploymentDetail(deployment);
         if (!StringUtils.isEmpty(serviceTemplate.getIngressContent())) {
             JSONArray jsarray = JSONArray.fromObject(serviceTemplate.getIngressContent());
             List<IngressDto> ingress = new LinkedList<IngressDto>();
@@ -854,11 +873,20 @@ public class ServiceServiceImpl implements ServiceService {
         long cpuTotal = 0;          //单位m
         long memoryTotal = 0;       //单位是MB
         if (StringUtils.isNotBlank(serviceTemplate.getDeploymentContent())) {
-            String dep = JSONArray.fromObject(serviceTemplate.getDeploymentContent()).getJSONObject(0).toString().replaceAll(":\"\",", ":" + null + ",").replaceAll(":\"\"", ":" + null + "");
-            DeploymentDetailDto deployment = JsonUtil.jsonToPojo(dep, DeploymentDetailDto.class);
-            //获取实例数
-            int replicas = Integer.parseInt(deployment.getInstance());
-            List<CreateContainerDto> containerList = deployment.getContainers();
+            ServiceTypeEnum serviceType = ServiceTypeEnum.valueOf(serviceTemplate.getServiceType());
+            String content = JSONArray.fromObject(serviceTemplate.getDeploymentContent()).getJSONObject(0).toString().replaceAll(":\"\",", ":" + null + ",").replaceAll(":\"\"", ":" + null + "");
+            List<CreateContainerDto> containerList = null;
+            int replicas = 0;
+            if(serviceType == ServiceTypeEnum.DEPLOYMENT) {
+                DeploymentDetailDto deployment = JsonUtil.jsonToPojo(content, DeploymentDetailDto.class);
+                //获取实例数
+                replicas = Integer.parseInt(deployment.getInstance());
+                containerList = deployment.getContainers();
+            }else if(serviceType == ServiceTypeEnum.STATEFULSET){
+                StatefulSetDetailDto statefulSet = JsonUtil.jsonToPojo(content, StatefulSetDetailDto.class);
+                replicas = Integer.parseInt(statefulSet.getInstance());
+                containerList = statefulSet.getContainers();
+            }
             for (CreateContainerDto container : containerList) {
                 CreateResourceDto resourceDto = container.getResource();
                 long cpu = resourceDto.getCpu().indexOf("m") > -1 ? Long.valueOf(resourceDto.getCpu().substring(0, resourceDto.getCpu().length() -1)) : Integer.valueOf(resourceDto.getCpu());
@@ -1041,13 +1069,13 @@ public class ServiceServiceImpl implements ServiceService {
             }
         }
         NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByName(namespace);
-        List<Map<String, String>> icNameList = new ArrayList<>();
+        List<IngressControllerDto> icList = new ArrayList<>();
         if(namespaceLocal != null) {
             //通过tenantId找icName
-            icNameList.addAll(tenantService.getTenantIngressController(namespaceLocal.getTenantId(), cluster.getId()));
+            icList.addAll(tenantService.getTenantIngressController(namespaceLocal.getTenantId(), cluster.getId()));
         }
         //删除对外暴露端口（nginx和数据库）
-        routerService.deleteRulesByName(namespace, name, icNameList, cluster);
+        routerService.deleteRulesByName(namespace, name, icList, cluster);
 
 
         // 获取service

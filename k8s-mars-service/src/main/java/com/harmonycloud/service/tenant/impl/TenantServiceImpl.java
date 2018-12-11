@@ -25,6 +25,8 @@ import com.harmonycloud.dto.tenant.*;
 import com.harmonycloud.dto.user.UserGroupDto;
 import com.harmonycloud.k8s.bean.StorageClass;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.bean.cluster.ClusterDomain;
+import com.harmonycloud.k8s.bean.cluster.ClusterDomainPort;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.k8s.service.ScService;
 import com.harmonycloud.service.application.ApplicationTemplateService;
@@ -57,6 +59,9 @@ import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
+
+import static com.harmonycloud.common.Constant.CommonConstant.PROTOCOL_HTTP;
+import static com.harmonycloud.common.Constant.CommonConstant.PROTOCOL_HTTPS;
 
 /**
  * Created by andy on 17-1-9.
@@ -1626,8 +1631,8 @@ public class TenantServiceImpl implements TenantService {
     }
 
     @Override
-    public List<Map<String, String>> getTenantIngressController(String tenantId, String clusterId) throws Exception {
-        List<Map<String, String>> icNameList = new ArrayList<>();
+    public List<IngressControllerDto> getTenantIngressController(String tenantId, String clusterId) throws Exception {
+        List<IngressControllerDto> icList = new ArrayList<>();
         List<String> icNames = new ArrayList<>();
         //分配给该租户的负载均衡器名称列表
         TenantClusterQuota tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(tenantId, clusterId);
@@ -1635,24 +1640,27 @@ public class TenantServiceImpl implements TenantService {
             icNames = StringUtil.splitAsList(tenantClusterQuota.getIcNames(),",");
         }
         List<IngressControllerDto> icDtos = ingressControllerService.listIngressControllerBrief(clusterId);
-        List<Map<String, String>> tenantIcNameList = new ArrayList<>();
+        //全局负载均衡器外网端口从cluster集群对象中获取
+        ClusterDomain clusterDomain = clusterService.findClusterById(clusterId).getDomains();
         for (IngressControllerDto  icDto : icDtos) {
-            if(icDto.getIcName().equals(IngressControllerConstant.IC_DEFAULT_NAME) || icNames.contains(icDto.getIcName())){
-                Map<String, String> icMap = new HashMap<>();
-                icMap.put("icName", icDto.getIcName());
-                icMap.put("icAliasName", icDto.getIcAliasName());
-                icMap.put("icPort", String.valueOf(icDto.getHttpPort()));
-                icMap.put("isDefault", String.valueOf(icDto.getIsDefault()));
-                //全局负载均衡器放在列表的第一个
-                if(icDto.getIcName().equals(IngressControllerConstant.IC_DEFAULT_NAME)) {
-                    icNameList.add(icMap);
-                }else {
-                    tenantIcNameList.add(icMap);
+            if(icDto.getIcName().equals(IngressControllerConstant.IC_DEFAULT_NAME)){
+                if(clusterDomain != null && !CollectionUtils.isEmpty(clusterDomain.getPort())){
+                    //设置集群全局负载均衡器的外网http https端口
+                    List<ClusterDomainPort> clusterDomainPorts = clusterDomain.getPort();
+                    for(ClusterDomainPort clusterDomainPort : clusterDomainPorts){
+                        if(clusterDomainPort.getExternal() && clusterDomainPort.getProtocol().equalsIgnoreCase(PROTOCOL_HTTP)){
+                            icDto.setExternalHttpPort(clusterDomainPort.getPort());
+                        }else if(clusterDomainPort.getExternal() && clusterDomainPort.getProtocol().equalsIgnoreCase(PROTOCOL_HTTPS)){
+                            icDto.setExternalHttpsPort(clusterDomainPort.getPort());
+                        }
+                    }
                 }
+                icList.add(icDto);
+            }else if(icNames.contains(icDto.getIcName())){
+                icList.add(icDto);
             }
         }
-        icNameList.addAll(tenantIcNameList);
-        return icNameList;
+        return icList;
     }
 
     private TenantBindingExample getExample(){

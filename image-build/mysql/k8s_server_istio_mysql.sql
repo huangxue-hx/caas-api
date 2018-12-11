@@ -46,6 +46,9 @@ INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/
 INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/deploys/*/istiopolicies/*/open', 'appcenter', 'app');
 INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/tenants/*/projects/*/deploys/*/istiopolicies/*/close', 'appcenter', 'app');
 
-------------------------- 2018-11-29 --------------------------------------
+-- ----------------------- 2018-11-29 --------------------------------------
 INSERT INTO `k8s_auth_server`.`url_dic`(url,module,resource) values('/tenants/*/namespaces/*/istiopolicies','appcenter','app');
 
+-- ----------------------- 2018-12-6 --------------------------------------
+INSERT INTO `k8s_auth_server`.`url_dic`(url,module,resource) values('/tenants/*/projects/*/deploys/*/istiopolicies/desServiceVersions','appcenter','app');
+INSERT INTO `k8s_auth_server`.`url_dic`(url,module,resource) values('/tenants/*/projects/*/deploys/*/istiopolicies/sourceServiceVersions','appcenter','app');

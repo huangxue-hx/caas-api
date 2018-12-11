@@ -10,9 +10,13 @@ import java.util.List;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.ServiceTypeEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dto.application.*;
+import com.harmonycloud.k8s.bean.StatefulSet;
+import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -30,10 +34,6 @@ import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.application.AppStoreServiceMapper;
 import com.harmonycloud.dao.application.bean.AppStore;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
-import com.harmonycloud.dto.application.AppStoreDto;
-import com.harmonycloud.dto.application.DeploymentDetailDto;
-import com.harmonycloud.dto.application.ServiceTemplateDto;
-import com.harmonycloud.dto.application.TagDto;
 import com.harmonycloud.k8s.bean.Deployment;
 import com.harmonycloud.service.application.AppStoreService;
 import com.harmonycloud.service.application.AppStoreServiceService;
@@ -45,27 +45,29 @@ import com.harmonycloud.service.platform.constant.Constant;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
+import javax.servlet.http.HttpSession;
+
 @Service
 @Transactional(rollbackFor = Exception.class)
 public class AppStoreServiceImpl implements AppStoreService{
 	private static final Logger logger = LoggerFactory.getLogger(AppStoreServiceImpl.class);
-    @Autowired
-    private com.harmonycloud.dao.application.AppStoreMapper appStoreMapper;
-    
-    @Autowired
-    private ServiceService serviceService;
-    
-    @Autowired
-    private ApplicationService applicationService;
-    
-    @Autowired
-    private AppStoreServiceService appStoreServiceService;
-    
-    @Autowired
-    private AppStoreServiceMapper appStoreServiceMapper;
+	@Autowired
+	private com.harmonycloud.dao.application.AppStoreMapper appStoreMapper;
 
-	@Value("#{propertiesReader['upload.path']}")
-	private String UPLOAD_PATH;
+	@Autowired
+	private ServiceService serviceService;
+
+	@Autowired
+	private ApplicationService applicationService;
+
+	@Autowired
+	private AppStoreServiceService appStoreServiceService;
+
+	@Autowired
+	private AppStoreServiceMapper appStoreServiceMapper;
+
+	@Autowired
+	private HttpSession session;
 
 	private static String IMAGE_PATH = "/appimages/";
 
@@ -145,55 +147,54 @@ public class AppStoreServiceImpl implements AppStoreService{
 		app.setCreateTime(appStore.getCreateTime());
 		app.setUpdateTime(appStore.getUpdateTime());
 		List<ServiceTemplates> list= serviceService.listServiceTemplateByAppId(appStore.getId());
-		List<Object> deploymentListToyaml = new ArrayList<>();
+		List<Object> objectListToyaml = new ArrayList<>();
 		JSONArray array = new JSONArray();
 		if(list != null && list.size() > 0) {
 			for(ServiceTemplates serviceTemplates : list) {
 				if (serviceTemplates != null) {
-                	JSONObject json = new JSONObject();
-                    json.put("id", serviceTemplates.getId());
-                    json.put("name", serviceTemplates.getName());
-                    if (serviceTemplates.getTag() != null) {
-                        json.put("tag", serviceTemplates.getTag());
-                    } else {
-                        json.put("tag", "");
-                    }
-                    json.put("isExternal", serviceTemplates.getFlag());
-                    if (serviceTemplates.getNodeSelector() != null) {
-                        json.put("nodeSelector", serviceTemplates.getNodeSelector());
-                    } else {
-                        json.put("nodeSelector", "");
-                    }
+					JSONObject json = new JSONObject();
+					json.put("id", serviceTemplates.getId());
+					json.put("name", serviceTemplates.getName());
+					if (serviceTemplates.getTag() != null) {
+						json.put("tag", serviceTemplates.getTag());
+					} else {
+						json.put("tag", "");
+					}
+					json.put("isExternal", serviceTemplates.getFlag());
+					if (serviceTemplates.getNodeSelector() != null) {
+						json.put("nodeSelector", serviceTemplates.getNodeSelector());
+					} else {
+						json.put("nodeSelector", "");
+					}
+					json.put("serviceType", serviceTemplates.getServiceType());
+					String content = (serviceTemplates.getDeploymentContent() != null) ? serviceTemplates.getDeploymentContent().toString().replace("null", "\"\"") : "";
+					switch(ServiceTypeEnum.valueOf(serviceTemplates.getServiceType())){
+						case DEPLOYMENT:
+							json.put("deployment", content);
+							break;
+						case STATEFULSET:
+							json.put("statefulSet", content);
+							break;
+					}
+					objectListToyaml.addAll(applicationService.convertObjectListToYaml(serviceTemplates, content));
 
-                    json.put("deployment", (serviceTemplates.getDeploymentContent() != null) ? serviceTemplates.getDeploymentContent().toString().replace("null", "\"\"") : "");
-                    json.put("ingress", (serviceTemplates.getIngressContent() != null) ? serviceTemplates.getIngressContent().toString().replace("null", "\"\"") : "");
-                    json.put("imageList", (serviceTemplates.getImageList() != null) ? serviceTemplates.getImageList() : "");
-                    json.put("user", (serviceTemplates.getUser() != null) ? serviceTemplates.getUser() : "");
-                    json.put("tenant", (serviceTemplates.getTenant() != null) ? serviceTemplates.getTenant() : "");
-                    json.put("details", (serviceTemplates.getDetails() != null) ? serviceTemplates.getDetails() : "");
-                    array.add(json);
-                    if (serviceTemplates.getDeploymentContent() != null){
-                        String dep=json.getJSONArray("deployment").getJSONObject(0).toString().replaceAll(":\"\",", ":"+null+",").replaceAll(":\"\"", ":"+null+"");
-                        DeploymentDetailDto deployment = JsonUtil.jsonToPojo(dep, DeploymentDetailDto.class);
-
-                        Deployment deploymentToYaml =  TemplateToYamlUtil.templateToDeployment(deployment);
-                        com.harmonycloud.k8s.bean.Service serviceYaml = TemplateToYamlUtil.templateToService(deployment);
-
-                        deploymentListToyaml.add(serviceYaml);
-
-                        deploymentListToyaml.add(deploymentToYaml);
-                    }
-                }
+					json.put("ingress", (serviceTemplates.getIngressContent() != null) ? serviceTemplates.getIngressContent().toString().replace("null", "\"\"") : "");
+					json.put("imageList", (serviceTemplates.getImageList() != null) ? serviceTemplates.getImageList() : "");
+					json.put("user", (serviceTemplates.getUser() != null) ? serviceTemplates.getUser() : "");
+					json.put("tenant", (serviceTemplates.getTenant() != null) ? serviceTemplates.getTenant() : "");
+					json.put("details", (serviceTemplates.getDetails() != null) ? serviceTemplates.getDetails() : "");
+					array.add(json);
+				}
 			}
 		}
 		app.setServicelist(array);
 		Yaml yaml = new Yaml();
-        if (deploymentListToyaml != null){
+		if (objectListToyaml != null){
 
-			String yamlc = applicationService.convertYaml(yaml.dumpAsMap(deploymentListToyaml));
+			String yamlc = applicationService.convertYaml(yaml.dumpAsMap(objectListToyaml));
 
-            app.setYaml(yamlc);
-        }
+			app.setYaml(yamlc);
+		}
 		return app;
 	}
 
@@ -292,7 +293,7 @@ public class AppStoreServiceImpl implements AppStoreService{
 	@Override
 	public String uploadImage(MultipartFile file) throws Exception {
 		byte[] data = IOUtils.toByteArray(file.getInputStream());
-		String imageDirectory = UPLOAD_PATH +IMAGE_PATH;
+		String imageDirectory = session.getServletContext().getRealPath("/") +IMAGE_PATH;
 		String fileName = new Date().getTime() +file.getOriginalFilename().substring(file.getOriginalFilename().lastIndexOf(CommonConstant.DOT));
 		File o = new File(imageDirectory, fileName);
 		IOUtils.write(data, new FileOutputStream(o));
@@ -331,7 +332,7 @@ public class AppStoreServiceImpl implements AppStoreService{
 	 * @param username
 	 * @throws Exception
 	 */
-    private void addServiceTemplateAndMapping(Integer appId, List<ServiceTemplateDto> serviceTemplateList, String username) throws Exception {
+	private void addServiceTemplateAndMapping(Integer appId, List<ServiceTemplateDto> serviceTemplateList, String username) throws Exception {
 		for (ServiceTemplateDto serviceTemplate : serviceTemplateList) {
 			ActionReturnUtil res = serviceService.saveServiceTemplate(serviceTemplate, username, Constant.TEMPLATE_STATUS_DELETE);
 			if(res.isSuccess()){

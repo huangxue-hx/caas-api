@@ -65,8 +65,9 @@ public class ServiceController {
     public ActionReturnUtil listServiceTemplate(@RequestParam(value = "name", required = false) String name,
                                             @RequestParam(value = "clusterId", required = false) String clusterId,
                                             @RequestParam(value = "isPubilc", required = false) boolean isPublic,
-                                            @PathVariable(value = "projectId") String projectId) throws Exception {
-        return serviceService.listServiceTemplate(name, clusterId, isPublic, projectId);
+                                            @PathVariable(value = "projectId") String projectId,
+                                            @RequestParam(value = "serviceType", required = false) Integer serviceType) throws Exception {
+        return serviceService.listServiceTemplate(name, clusterId, isPublic, projectId, serviceType);
     }
 
     /**
@@ -175,8 +176,9 @@ public class ServiceController {
                                                 @RequestParam(value = "searchvalue", required = false) String searchValue,
                                                 @RequestParam(value = "clusterId", required = false) String clusterId,
                                                 @RequestParam(value = "isPubilc", required = false) boolean isPublic,
-                                                @PathVariable(value = "projectId") String projectId) throws Exception {
-        return serviceService.listServiceTemplate(searchKey, searchValue, clusterId, isPublic, projectId);
+                                                @PathVariable(value = "projectId") String projectId,
+                                                @RequestParam(value = "serviceType", required = false) Integer serviceType) throws Exception {
+        return serviceService.listServiceTemplate(searchKey, searchValue, clusterId, isPublic, projectId, serviceType);
     }
 
     /**

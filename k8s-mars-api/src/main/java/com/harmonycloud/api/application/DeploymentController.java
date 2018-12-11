@@ -68,8 +68,7 @@ public class DeploymentController {
 											@RequestParam(value = "clusterId", required = false) String clusterId,
 											@RequestParam(value = "isTenantScope", required = false) Boolean isTenantScope) throws Exception {
 		if(isTenantScope != null && isTenantScope){
-			AssertUtil.notBlank(clusterId, DictEnum.CLUSTER_ID);
-			return ActionReturnUtil.returnSuccessWithData(dpService.listTenantDeploys(tenantId, clusterId));
+			return ActionReturnUtil.returnSuccessWithData(dpService.listTenantDeploys(tenantId,namespace, clusterId));
 		}
 		ActionReturnUtil result = dpService.listDeployments(tenantId, name, namespace, labels, projectId, clusterId);
 		return result;

@@ -123,7 +123,7 @@ public class ClusterServiceImpl implements ClusterService {
     @Autowired
     private DaemonSetService daemonSetService;
     @Autowired
-    StorageClassService storageClassService;
+    private StorageClassService storageClassService;
 
 
 

@@ -2,11 +2,14 @@ package com.harmonycloud.dto.application;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DataPrivilegeField;
+import com.harmonycloud.common.enumm.DataPrivilegeType;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
 import io.swagger.annotations.ApiModelProperty;
 
 /**
  * Created by anson on 18/8/9.
  */
+@DataPrivilegeType(type = DataResourceTypeEnum.SERVICE)
 public class StatefulSetDetailDto extends DeploymentDetailDto{
     @DataPrivilegeField(type = CommonConstant.DATA_FIELD)
     private String name;

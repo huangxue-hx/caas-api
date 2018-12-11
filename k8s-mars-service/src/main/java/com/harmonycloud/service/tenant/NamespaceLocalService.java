@@ -133,4 +133,11 @@ public interface NamespaceLocalService {
      * @return
      */
     NamespaceLocal getKubeSystemNamespace() throws Exception;
+
+    /**
+     * 根据namespace name 和 查询namespace
+     * @param namespaceName
+     * @return
+     */
+    public NamespaceLocal getNamespaceByNameAndClusterId(String namespaceName,String  clusterId) throws Exception;
 }

@@ -37,6 +37,8 @@ public class IngressControllerConstant {
     public static final String LABEL_KEY_INGRESS_CONTROLLER_NAME = "ic-name";
 
     public static final String ANNOTATIONS_KEY_ALIAS_NAME = "ic-aliasname";
+    public static final String ANNOTATIONS_KEY_EXTERNAL_HTTP_PORT = "ic-external-http-port";
+    public static final String ANNOTATIONS_KEY_EXTERNAL_HTTPS_PORT = "ic-external-https-port";
 
     public static final String LABEL_VALUE_APP_NGINX = "nginx-ingress-lb";
 

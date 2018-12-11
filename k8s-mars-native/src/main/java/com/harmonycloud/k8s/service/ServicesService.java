@@ -36,11 +36,11 @@ public class ServicesService {
 		return response;
 	}
 
-	public K8SClientResponse doServiceByName(String namespace ,Map<String, Object> headers, Map<String, Object> bodys, String method, String name) throws Exception {
+	public K8SClientResponse doServiceByName(String namespace ,Map<String, Object> headers, Map<String, Object> bodys, String method, String name, Cluster cluster) throws Exception {
 		K8SURL url = new K8SURL();
 		url.setName(name);
 		url.setNamespace(namespace).setResource(Resource.SERVICE);
-		K8SClientResponse response = new K8sMachineClient().exec(url, method, headers, bodys,null);
+		K8SClientResponse response = new K8sMachineClient().exec(url, method, headers, bodys, cluster);
 		return response;
 	}
 }

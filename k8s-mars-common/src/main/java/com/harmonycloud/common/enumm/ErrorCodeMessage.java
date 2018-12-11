@@ -307,8 +307,12 @@ public enum ErrorCodeMessage {
     SERVICE_EXPOSE_NGINX_FAILED(400044, "Port and protocol is different from in containers.", "选择的端口或协议与容器内的不一致"),
     APPLICATION_CAN_NOT_STOP(400045, "Service in application in the upgrade.", "所属服务的状态处于灰度或蓝绿升级中."),
     SERVICE_TYPE_NOT_EXIST(400046, "ServiceType was not existed.", "服务类型不存在"),
-    TCP_IC_DEFAULT_ONLY(400047, "TCP/UDP is accept only with default ingress controller.", "TCP/UDP协议只能使用默认的负载均衡器"),
+    TCP_IC_DEFAULT_ONLY(400047, "Please choose default ingress controller for tcp/udp port.", "TCP/UDP协议请选择全局负载均衡器"),
     DEPLOY_VERSION_IS_NULL_WHEN_ISTIO_ENABLE(400048, "Deploy version can not be null when istio injection is enable.", "开启Istio注入，服务版本标签不能为空"),
+    SERVICE_ENTRY_DUPLICATE(400049, "ServiceEntry duplicate:", "服务入口已存在:"),
+    SERVICE_ENTRY_FAILED(400050, "ServiceEntry access failure:", "服务入口获取失败:"),
+    SERVICE_DELETE(400051,"return to modify  successfully but old domain names deletion failed",
+               "修改成功，但是旧的服务删除失败，请联系管理员删除旧的service资源"),
 
     //模板 401xxx
     SERVICE_TEMPLATE_NOT_EXIST(401001, "Service template not exist.", "服务模板不存在"),

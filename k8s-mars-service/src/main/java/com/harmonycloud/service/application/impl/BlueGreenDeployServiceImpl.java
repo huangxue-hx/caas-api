@@ -93,11 +93,6 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
             throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
 
-        //参数校验
-        Map<String, Object> namespaceIstioStatus = (Map<String, Object>)(istioService.getNamespaceIstioPolicySwitch(namespace, cluster.getId()).getData());
-        if((boolean)namespaceIstioStatus.get("namespaceIstioStatus") && Objects.isNull(updateDeployment.getDeployVersion())){
-            throw new MarsRuntimeException(ErrorCodeMessage.DEPLOY_VERSION_IS_NULL_WHEN_ISTIO_ENABLE);
-        }
 
         String name = updateDeployment.getName();
         Map<String, Object> queryP = new HashMap<>();

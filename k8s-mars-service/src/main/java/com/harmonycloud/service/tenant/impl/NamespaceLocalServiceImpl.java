@@ -386,4 +386,23 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
         return namespaceLocal;
     }
 
+    /**
+     *
+     * @param name
+     * @param clusterId
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public NamespaceLocal getNamespaceByNameAndClusterId(String name,String  clusterId) throws Exception {
+        NamespaceLocalExample example = this.getExample();
+        example.createCriteria().andNamespaceNameEqualTo(name).andClusterIdEqualTo(clusterId);
+        List<NamespaceLocal> namespaceLocals = this.namespaceLocalMapper.selectByExample(example);
+        if (!CollectionUtils.isEmpty(namespaceLocals)){
+            return namespaceLocals.get(0);
+        }
+        return null;
+
+    }
+
 }

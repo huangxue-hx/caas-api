@@ -148,6 +148,7 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
                         storageDto.setUsedStorage("0");
                     }
                     storageDto.setUnUsedStorage(String.valueOf(Integer.valueOf(storageDto.getTotalStorage()) - Integer.valueOf(storageDto.getUsedStorage())));
+                    storageDto.setAllocatableQuota(String.valueOf(Integer.valueOf(storageDto.getStorageQuota()) - Integer.valueOf(storageDto.getUsedStorage())));
                     storageDtoList.add(storageDto);
                     storageClassUnusedMap.remove(storageDto.getName());
                 }
@@ -616,5 +617,12 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
 
     private TenantClusterQuotaExample getExample(){
         return  new TenantClusterQuotaExample();
+    }
+
+    @Override
+    public List<TenantClusterQuota> listClusterQuotaICs(String clusterId) throws MarsRuntimeException {
+        TenantClusterQuotaExample example = this.getExample();
+        example.createCriteria().andIcNamesIsNotNull().andIcNamesNotEqualTo("").andClusterIdEqualTo(clusterId);
+        return this.tenantClusterQuotaMapper.selectByExample(example);
     }
 }

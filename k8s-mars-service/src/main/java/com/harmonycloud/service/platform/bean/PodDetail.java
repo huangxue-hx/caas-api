@@ -21,6 +21,8 @@ public class PodDetail {
 	private List<ContainerWithStatus> containers;
 
 	private String deployment;
+
+	private String deployVersion;
 	
 	public PodDetail() {
 		
@@ -33,6 +35,14 @@ public class PodDetail {
 		this.ip = ip;
 		this.nodeIp = nodeIp;
 		this.startTime = startTime;
+	}
+
+	public String getDeployVersion() {
+		return deployVersion;
+	}
+
+	public void setDeployVersion(String deployVersion) {
+		this.deployVersion = deployVersion;
 	}
 
 	public String getStartTime() {

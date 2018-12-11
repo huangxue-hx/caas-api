@@ -6,6 +6,7 @@ import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.k8s.bean.BaseResource;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.istio.policies.Rule;
 import com.harmonycloud.k8s.bean.istio.policies.ratelimit.*;
@@ -34,48 +35,12 @@ public class RateLimitService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RateLimitService.class);
 
-    public K8SClientResponse createRedisQuota(String namespace, RedisQuota redisQuota, Cluster cluster) throws MarsRuntimeException, IntrospectionException, InvocationTargetException, IllegalAccessException {
+    public K8SClientResponse createRateLimitResource(String namespace, BaseResource resource, Cluster cluster, String resourceType) throws MarsRuntimeException, IntrospectionException, InvocationTargetException, IllegalAccessException {
         K8SURL url = new K8SURL();
-        url.setNamespace(namespace).setResource(Resource.REDISQUOTA);
         Map<String, Object> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
-        Map<String, Object> bodys = CollectionUtil.transBean2Map(redisQuota);
-        return new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
-    }
-
-    public K8SClientResponse createQuota(String namespace, QuotaInstance quotaInstance, Cluster cluster) throws MarsRuntimeException, IntrospectionException, InvocationTargetException, IllegalAccessException {
-        K8SURL url = new K8SURL();
-        url.setNamespace(namespace).setResource(Resource.QUOTA);
-        Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
-        Map<String, Object> bodys = CollectionUtil.transBean2Map(quotaInstance);
-        return new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
-    }
-
-    public K8SClientResponse createQuotaSpec(String namespace, QuotaSpec quotaSpec, Cluster cluster) throws MarsRuntimeException, IntrospectionException, InvocationTargetException, IllegalAccessException {
-        K8SURL url = new K8SURL();
-        url.setNamespace(namespace).setResource(Resource.QUOTASPEC);
-        Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
-        Map<String, Object> bodys = CollectionUtil.transBean2Map(quotaSpec);
-        return new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
-    }
-
-    public K8SClientResponse createQuotaSpecBinding(String namespace, QuotaSpecBinding quotaSpecBinding, Cluster cluster) throws MarsRuntimeException, IntrospectionException, InvocationTargetException, IllegalAccessException {
-        K8SURL url = new K8SURL();
-        url.setNamespace(namespace).setResource(Resource.QUOTASPECBINDING);
-        Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
-        Map<String, Object> bodys = CollectionUtil.transBean2Map(quotaSpecBinding);
-        return new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
-    }
-
-    public K8SClientResponse createRule(String namespace, Rule rule, Cluster cluster) throws MarsRuntimeException, IntrospectionException, InvocationTargetException, IllegalAccessException {
-        K8SURL url = new K8SURL();
-        url.setNamespace(namespace).setResource(Resource.RULE);
-        Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
-        Map<String, Object> bodys = CollectionUtil.transBean2Map(rule);
+        Map<String, Object> bodys = CollectionUtil.transBean2Map(resource);
+        url.setNamespace(namespace).setResource(resourceType);
         return new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
     }
 

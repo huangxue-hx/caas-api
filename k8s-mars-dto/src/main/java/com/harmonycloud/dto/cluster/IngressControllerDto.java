@@ -33,6 +33,10 @@ public class IngressControllerDto {
 
     private String icPort;
 
+    private Integer externalHttpPort;
+
+    private Integer externalHttpsPort;
+
     private Date createTime;
 
     //ingress controller状态
@@ -120,6 +124,22 @@ public class IngressControllerDto {
 
     public void setStatusPort(int statusPort) {
         this.statusPort = statusPort;
+    }
+
+    public Integer getExternalHttpPort() {
+        return externalHttpPort;
+    }
+
+    public void setExternalHttpPort(Integer externalHttpPort) {
+        this.externalHttpPort = externalHttpPort;
+    }
+
+    public Integer getExternalHttpsPort() {
+        return externalHttpsPort;
+    }
+
+    public void setExternalHttpsPort(Integer externalHttpsPort) {
+        this.externalHttpsPort = externalHttpsPort;
     }
 
     public String getIcPort() {

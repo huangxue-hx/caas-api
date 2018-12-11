@@ -44,6 +44,8 @@ public class ServiceTemplates implements Serializable {
 
     private String serviceAccount;
 
+    private Integer serviceType;
+
     public String getServiceAccount() {
         return serviceAccount;
     }
@@ -227,4 +229,11 @@ public class ServiceTemplates implements Serializable {
         this.projectId = projectId;
     }
 
+    public Integer getServiceType() {
+        return serviceType;
+    }
+
+    public void setServiceType(Integer serviceType) {
+        this.serviceType = serviceType;
+    }
 }

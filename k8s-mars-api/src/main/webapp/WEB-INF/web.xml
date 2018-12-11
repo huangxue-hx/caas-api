@@ -52,7 +52,7 @@
     </init-param>
     <init-param>
       <param-name>EXCLUSIONS</param-name>
-      <param-value>*login*,*token*,*/system/configs/trialtime*,*/openapi/*,*/clusters,*/clusters/cache,*/testcallback*,*/tenants/addProject*,*/tenants/addUser*,*/tenants/project/addUser*,*/tenants/project/removeUser*,*/msf/tasks*,*/msf/queryInstances*,*/webhook,*/swagger-resources*,*/api-docs*,*/webjars*,*/appimages/*</param-value>
+      <param-value>*login*,*token*,*/users,*/system/configs/trialtime*,*/openapi/*,*/clusters,*/clusters/cache,*/testcallback*,*/tenants/addProject*,*/tenants/addUser*,*/tenants/project/addUser*,*/tenants/project/removeUser*,*/msf/tasks*,*/msf/queryInstances*,*/webhook,*/swagger-resources*,*/api-docs*,*/webjars*,*/appimages/*</param-value>
     </init-param>
     <!--加密项-->
     <init-param>

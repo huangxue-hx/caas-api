@@ -2,6 +2,7 @@ package com.harmonycloud.service.application.impl;
 
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.ServiceTypeEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.AssertUtil;
@@ -9,11 +10,9 @@ import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.application.ServiceTemplatesMapper;
 import com.harmonycloud.dao.application.bean.ApplicationTemplates;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
-import com.harmonycloud.dto.application.ApplicationTemplateDto;
-import com.harmonycloud.dto.application.CreateContainerDto;
-import com.harmonycloud.dto.application.DeploymentDetailDto;
-import com.harmonycloud.dto.application.ServiceTemplateDto;
+import com.harmonycloud.dto.application.*;
 import com.harmonycloud.k8s.bean.Deployment;
+import com.harmonycloud.k8s.bean.StatefulSet;
 import com.harmonycloud.k8s.service.ReplicasetsService;
 import com.harmonycloud.service.application.ApplicationService;
 import com.harmonycloud.service.application.ApplicationTemplateService;
@@ -22,6 +21,7 @@ import com.harmonycloud.service.application.ServiceService;
 import com.harmonycloud.service.application.Util.TemplateToYamlUtil;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.RoleLocalService;
@@ -133,7 +133,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             js.put("realName", userService.getUser(applicationTemplates.getUser()).getRealName());
             js.put("createTime", dateToString(applicationTemplates.getCreateTime()));
             JSONArray array = new JSONArray();
-            List<Object> deploymentListToyaml = new ArrayList<>();
+            List<Object> objectListToyaml = new ArrayList<>();
             // select service Template
             List<com.harmonycloud.dao.application.bean.ApplicationService> applicationServiceList = appWithServiceService.listApplicationServiceByAppTemplatesId(applicationTemplates.getId());
             if (applicationServiceList != null) {
@@ -154,32 +154,32 @@ public class ApplicationServiceImpl implements ApplicationService {
                         } else {
                             json.put("nodeSelector", "");
                         }
+                        json.put("serviceType", serviceTemplates.getServiceType());
+                        String content = (serviceTemplates.getDeploymentContent() != null) ? serviceTemplates.getDeploymentContent().toString().replace("null", "\"\"") : "";
+                        switch(ServiceTypeEnum.valueOf(serviceTemplates.getServiceType())){
+                            case DEPLOYMENT:
+                                json.put("deployment", content);
+                                break;
+                            case STATEFULSET:
+                                json.put("statefulSet", content);
+                                break;
+                        }
+                        objectListToyaml.addAll(this.convertObjectListToYaml(serviceTemplates, content));
 
-                        json.put("deployment", (serviceTemplates.getDeploymentContent() != null) ? serviceTemplates.getDeploymentContent().toString().replace("null", "\"\"") : "");
+
                         json.put("ingress", (serviceTemplates.getIngressContent() != null) ? serviceTemplates.getIngressContent().toString().replace("null", "\"\"") : "");
                         json.put("imageList", (serviceTemplates.getImageList() != null) ? serviceTemplates.getImageList() : "");
                         json.put("user", (serviceTemplates.getUser() != null) ? serviceTemplates.getUser() : "");
                         json.put("tenant", (serviceTemplates.getTenant() != null) ? serviceTemplates.getTenant() : "");
                         json.put("details", (serviceTemplates.getDetails() != null) ? serviceTemplates.getDetails() : "");
                         array.add(json);
-                        if (StringUtils.isNotBlank(serviceTemplates.getDeploymentContent())) {
-                            String dep = json.getJSONArray("deployment").getJSONObject(0).toString().replaceAll(":\"\",", ":" + null + ",").replaceAll(":\"\"", ":" + null + "");
-                            DeploymentDetailDto deployment = JsonUtil.jsonToPojo(dep, DeploymentDetailDto.class);
-
-                            Deployment deploymentToYaml = TemplateToYamlUtil.templateToDeployment(deployment);
-                            com.harmonycloud.k8s.bean.Service serviceYaml = TemplateToYamlUtil.templateToService(deployment);
-
-                            deploymentListToyaml.add(serviceYaml);
-
-                            deploymentListToyaml.add(deploymentToYaml);
-                        }
                     }
                 }
             }
             js.put("servicelist", array);
             Yaml yaml = new Yaml();
-            if (deploymentListToyaml != null) {
-                String yamlC = convertYaml(yaml.dumpAsMap(deploymentListToyaml));
+            if (objectListToyaml != null) {
+                String yamlC = convertYaml(yaml.dumpAsMap(objectListToyaml));
                 js.put("yaml", yamlC);
             }
         }
@@ -294,7 +294,7 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Override
     public ActionReturnUtil getApplicationTemplateYaml(ApplicationTemplateDto appTemplate) throws Exception {
-        List<Object> deploymentListToyaml = new ArrayList<>();
+        List<Object> applicationToyaml = new ArrayList<>();
         if (appTemplate != null && appTemplate.getServiceList() != null) {
             for (ServiceTemplateDto svcOne : appTemplate.getServiceList()) {
                 if (svcOne.getDeploymentDetail() != null) {
@@ -315,15 +315,20 @@ public class ApplicationServiceImpl implements ApplicationService {
 
                     Deployment deploymentToYaml = TemplateToYamlUtil.templateToDeployment(svcOne.getDeploymentDetail());
                     com.harmonycloud.k8s.bean.Service serviceYaml = TemplateToYamlUtil.templateToService(svcOne.getDeploymentDetail());
-                    deploymentListToyaml.add(serviceYaml);
-                    deploymentListToyaml.add(deploymentToYaml);
+                    applicationToyaml.add(serviceYaml);
+                    applicationToyaml.add(deploymentToYaml);
+                }else if(svcOne.getStatefulSetDetail() != null){
+                    StatefulSet statefulSet = K8sResultConvert.convertAppCreateForStatefulSet(svcOne.getStatefulSetDetail(), null,null,null);
+                    com.harmonycloud.k8s.bean.Service serviceYaml = TemplateToYamlUtil.templateToService(svcOne.getStatefulSetDetail());
+                    applicationToyaml.add(serviceYaml);
+                    applicationToyaml.add(statefulSet);
                 }
             }
         }
         Yaml yaml = new Yaml();
         String yamlc = "";
-        if (yaml.dumpAsMap(deploymentListToyaml) != null) {
-            yamlc = convertYaml(yaml.dumpAsMap(deploymentListToyaml));
+        if (yaml.dumpAsMap(applicationToyaml) != null) {
+            yamlc = convertYaml(yaml.dumpAsMap(applicationToyaml));
         }
         return ActionReturnUtil.returnSuccessWithData(yamlc);
     }
@@ -453,7 +458,14 @@ public class ApplicationServiceImpl implements ApplicationService {
             // add application - service template
             saveApplicationService(appTemplatesId, Integer.parseInt(json.get(serviceTemplate.getName()).toString()), Constant.TEMPLATE_STATUS_CREATE, Constant.K8S_SERVICE);
         }
-        listImages(serviceTemplate.getDeploymentDetail().getContainers(), imageList);
+        List<CreateContainerDto> containerDtos = null;
+        if(serviceTemplate.getDeploymentDetail() != null){
+            containerDtos = serviceTemplate.getDeploymentDetail().getContainers();
+        }else if(serviceTemplate.getStatefulSetDetail() != null){
+            containerDtos = serviceTemplate.getStatefulSetDetail().getContainers();
+        }
+
+        listImages(containerDtos, imageList);
         result.add(imageList);
 
         return result;
@@ -760,5 +772,30 @@ public class ApplicationServiceImpl implements ApplicationService {
             }
         }
         return newArray;
+    }
+
+
+    public List<Object> convertObjectListToYaml(ServiceTemplates serviceTemplates, String content) throws Exception {
+        List<Object> objectListToyaml = new ArrayList<>();
+        String jsonString = JSONArray.fromObject(content).getJSONObject(0).toString().replaceAll(":\"\",", ":"+null+",").replaceAll(":\"\"", ":"+null+"");
+        switch(ServiceTypeEnum.valueOf(serviceTemplates.getServiceType())){
+            case DEPLOYMENT: {
+                DeploymentDetailDto deployment = JsonUtil.jsonToPojo(jsonString, DeploymentDetailDto.class);
+                Deployment deploymentToYaml = TemplateToYamlUtil.templateToDeployment(deployment);
+                com.harmonycloud.k8s.bean.Service service = TemplateToYamlUtil.templateToService(deployment);
+                objectListToyaml.add(service);
+                objectListToyaml.add(deploymentToYaml);
+                break;
+            }
+            case STATEFULSET: {
+                StatefulSetDetailDto statefulSet = JsonUtil.jsonToPojo(jsonString, StatefulSetDetailDto.class);
+                StatefulSet statefulSetToYaml = K8sResultConvert.convertAppCreateForStatefulSet(statefulSet, null, null, null);
+                com.harmonycloud.k8s.bean.Service service = TemplateToYamlUtil.templateToService(statefulSet);
+                objectListToyaml.add(service);
+                objectListToyaml.add(statefulSetToYaml);
+                break;
+            }
+        }
+        return objectListToyaml;
     }
 }

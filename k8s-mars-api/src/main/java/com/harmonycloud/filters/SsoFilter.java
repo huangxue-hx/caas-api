@@ -82,15 +82,15 @@ public class SsoFilter implements Filter {
             if(ssoUser != null){
                 //response中放入user信息，供前端判断用户是否切换过
                 httpResponse.setHeader("Access-Control-Expose-Headers","user");
-                httpResponse.setHeader("user",ssoUser.getName());
+                httpResponse.setHeader("user",ssoUser.getName().toLowerCase());
                 if(session.getAttribute(CommonConstant.USERNAME) == null){
-                    session.setAttribute(CommonConstant.USERNAME, ssoUser.getName());
+                    session.setAttribute(CommonConstant.USERNAME, ssoUser.getName().toLowerCase());
                 }else {
                     String username = (String)session.getAttribute(CommonConstant.USERNAME);
                     //用户名与当前session的不一致，在其他平台切换过用户，移除session角色，重新获取角色权限
                     if(!username.equals(ssoUser.getName())){
                         session.removeAttribute(CommonConstant.ROLEID);
-                        session.setAttribute(CommonConstant.USERNAME, ssoUser.getName());
+                        session.setAttribute(CommonConstant.USERNAME, ssoUser.getName().toLowerCase());
                     }
                 }
             }else  if (!response.isCommitted()) {

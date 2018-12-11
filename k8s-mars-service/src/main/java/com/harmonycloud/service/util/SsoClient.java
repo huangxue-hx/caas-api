@@ -78,7 +78,7 @@ public class SsoClient {
             return null;
         }
         User user = new User();
-        user.setUsername(ssoUser.getName());
+        user.setUsername(ssoUser.getName().toLowerCase());
         user.setRealName(ssoUser.getDisplayName());
         user.setEmail(ssoUser.getEmail());
         user.setPhone(ssoUser.getMobile());

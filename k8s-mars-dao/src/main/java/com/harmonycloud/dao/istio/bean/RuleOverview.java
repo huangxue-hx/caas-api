@@ -17,7 +17,7 @@ public class RuleOverview implements Serializable {
     private String ruleNs;
     private String ruleSvc;
     private Integer ruleSourceNum;
-    private Integer switchStatus = CommonConstant.ISTIO_SWITCH_OPEN;//0：关闭状态；1：开启状态；
+    private Integer switchStatus;//0：关闭状态；1：开启状态；
     private Integer dataStatus = CommonConstant.DATA_IS_OK;//0：正常
     private Integer dataErrLoc = CommonConstant.DATA_IS_OK;
     private String userId;

@@ -68,6 +68,8 @@ public class IngressControllerServiceTest extends BaseTest {
         ic.setHttpPort(icPort);
         ic.setIcNodeNames(icNodeNames);
         ic.setIcAliasName(TEST_ALISA_NAME);
+        ic.setExternalHttpPort(9000);
+        ic.setExternalHttpsPort(9001);
         assertTrue(ingressControllerService.createIngressController(ic).isSuccess());
         response = ingressControllerService.listIngressController(devClusterId);
         assertTrue(response.isSuccess());

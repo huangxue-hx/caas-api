@@ -120,4 +120,12 @@ public interface TenantClusterQuotaService {
      * @throws Exception
      */
     public List<TenantClusterQuota> listClusterQuotaLikeStorage(String Storage, String clusterId) throws MarsRuntimeException;
+
+    /**
+     * query cluster ingress controller
+     * @param clusterId
+     * @return
+     * @throws MarsRuntimeException
+     */
+    List<TenantClusterQuota> listClusterQuotaICs(String clusterId) throws MarsRuntimeException;
 }

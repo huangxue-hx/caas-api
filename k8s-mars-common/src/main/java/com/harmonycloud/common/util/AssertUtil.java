@@ -49,6 +49,12 @@ public class AssertUtil {
         }
     }
 
+    public static void greaterZero(Integer num, DictEnum dictEnum) {
+        if(num == null || num <=0) {
+            throwIllegalArgumentException(dictEnum);
+        }
+    }
+
     public static String blankPromptMessage(){
         String language = DictEnum.getCurrentLanguage();
         switch (language){
