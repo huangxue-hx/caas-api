@@ -475,3 +475,9 @@ update k8s_auth_server.url_dic set url ='/clusters/*/ingresscontrollers/portrang
 ALTER TABLE k8s_auth_server.tenant_cluster_quota
 MODIFY COLUMN `ic_names`  varchar(512) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '负载均衡器名称，多个以逗号分割' AFTER `reserve1`;
 DROP TABLE IF EXISTS `ingress_controller_port`;
+
+UPDATE 'k8s_auth_server'.'cicd_stage_type' SET 'index' = 4, 'status'=1 WHERE 'template_type'=7;
+UPDATE 'k8s_auth_server'.'cicd_stage_type' SET 'index' = 9, 'status'=1 WHERE 'template_type'=8;
+INNER INTO 'k8s_auth_server'.'cicd_stage_type'('name','type','template_type','index','status') VALUES ('镜像推送','ci',9,5,1);
+
+ALTER TABLE 'k8s_auth_server'.'service_templates' ADD COLUMN 'service_type' TINYINT(4) DEFAULT 0;
