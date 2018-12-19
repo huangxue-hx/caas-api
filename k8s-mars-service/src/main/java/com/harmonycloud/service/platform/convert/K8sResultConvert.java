@@ -2893,6 +2893,7 @@ public class K8sResultConvert {
                                     VolumeMount volumeMount = new VolumeMount();
                                     volumeMount.setName(volumeName);
                                     volumeMount.setMountPath(vm.getPath());
+                                    volumeMount.setReadOnly(vm.getReadOnly());
                                     volumeMounts.add(volumeMount);
                                     //构建spec.volumes
                                     if (!volFlag.containsKey(vm.getPvcName())) {
