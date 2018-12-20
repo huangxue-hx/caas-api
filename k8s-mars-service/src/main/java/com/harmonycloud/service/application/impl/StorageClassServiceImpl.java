@@ -362,7 +362,7 @@ public class StorageClassServiceImpl implements StorageClassService {
                 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.STORAGECLASS_DELETE_ERROR);
             }
         }
-        if(clusterId.equalsIgnoreCase(clusterService.getPlatformCluster().getId())) {
+        if(clusterId.equalsIgnoreCase(clusterService.getPlatformCluster().getId())&&NFS_STORAGE.equals(type)) {
             removeUploadPod(name);
         }
         K8SClientResponse response = scService.deleteStorageClassByName(name, cluster,type);
