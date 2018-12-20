@@ -173,6 +173,7 @@ public class KubeServiceConvert {
                             VolumeMount volm = new VolumeMount();
                             volm.setName(vol.getPvcName());
                             volm.setMountPath(vol.getPath());
+                            volm.setReadOnly(vol.getReadOnly());
                             volumeMounts.add(volm);
                             container.setVolumeMounts(volumeMounts);
                             break;
