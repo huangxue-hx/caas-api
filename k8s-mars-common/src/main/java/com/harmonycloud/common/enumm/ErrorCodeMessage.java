@@ -228,7 +228,7 @@ public enum ErrorCodeMessage {
     INGRESS_CONTROLLER_HAS_USED_BY_TENANTS(300054, "These tenants are using this ingress controller and cannot be removed. Tenant name：", "以下租户已使用该负载均衡器，无法移除。租户名称："),
     INGRESS_CONTROLLER_HTTP_PORT_ERROR(300055, "The port of the ingress controller is not in the specified range.", "负载均衡器的端口不在指定范围"),
     RESOURCE_USED_OVER_QUOTA(300056, "Quota cannot be smaller than used.","配额不能小于已使用的容量"),
-    INGRESS_CONTROLLER_PORT_UNSAFE(300057, "Please input another port as 85 and 97 is unsafe port for chrome.",
+    INGRESS_CONTROLLER_PORT_UNSAFE(300057, "Please input another port as 87 and 95 is unsafe port for chrome.",
             "85和97端口对于chrome浏览器是非安全的端口，请使用别的端口"),
 
     //主机节点 301xxx

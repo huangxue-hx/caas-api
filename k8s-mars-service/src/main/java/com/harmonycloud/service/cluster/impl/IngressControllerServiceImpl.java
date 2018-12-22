@@ -67,7 +67,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
 
     private static final String UDP = "udp-";
 
-    private static final List<Integer> CHROME_RESERVED_PORTS = Arrays.asList(85,97);
+    private static final List<Integer> CHROME_RESERVED_PORTS = Arrays.asList(87,95);
 
     @Autowired
     private ClusterService clusterService;
