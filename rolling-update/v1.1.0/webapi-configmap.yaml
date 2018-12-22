@@ -7,7 +7,7 @@ data:
   constant.properties: |-
       network.version=0.1
       api.access.allow.origin=*
-      upload.path=/tmp/
+      upload.path=/usr/local/k8s-mars-api/fsfiles/
       api.url=http://10.10.103.30:30099
       web.url=http://10.10.103.30:30088
       oam.url=http://oam-api-service:8081

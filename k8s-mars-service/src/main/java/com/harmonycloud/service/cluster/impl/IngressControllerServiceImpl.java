@@ -67,6 +67,8 @@ public class IngressControllerServiceImpl implements IngressControllerService {
 
     private static final String UDP = "udp-";
 
+    private static final List<Integer> CHROME_RESERVED_PORTS = Arrays.asList(85,97);
+
     @Autowired
     private ClusterService clusterService;
 
@@ -188,7 +190,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         } else {
             ingressControllerDto.setIsDefault(false);
         }
-        ingressControllerDto.setCreateTime(DateUtil.StringToDate(daemonSet.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue()));
+        ingressControllerDto.setCreateTime(DateUtil.utcToGmtDate(daemonSet.getMetadata().getCreationTimestamp()));
         ingressControllerDto.setIcAliasName(this.getIcAliasName(daemonSet));
         return ingressControllerDto;
     }
@@ -810,9 +812,12 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             return;
         }
         for (IngressControllerDto existIcDto : existIcDtos) {
+            //英文简称已经存在
+            if (existIcDto.getIcName().equalsIgnoreCase(ingressControllerDto.getIcName())) {
+                throw new MarsRuntimeException(ErrorCodeMessage.ENGLISH_NAME_EXIST);
+            }
             //名称已经存在
-            if (existIcDto.getIcName().equalsIgnoreCase(ingressControllerDto.getIcName())
-                    || existIcDto.getIcAliasName().equals(ingressControllerDto.getIcAliasName())) {
+            if (existIcDto.getIcAliasName().equals(ingressControllerDto.getIcAliasName())) {
                 throw new MarsRuntimeException(ErrorCodeMessage.NAME_EXIST);
             }
             //端口已经被使用
@@ -853,6 +858,9 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         }
         if (!checkIcHttpPort(ingressControllerDto.getHttpPort(), portRangeMap)) {
             throw new MarsRuntimeException(ErrorCodeMessage.INGRESS_CONTROLLER_HTTP_PORT_ERROR);
+        }
+        if(CHROME_RESERVED_PORTS.contains(ingressControllerDto.getHttpPort())){
+            throw new MarsRuntimeException(ErrorCodeMessage.INGRESS_CONTROLLER_PORT_UNSAFE);
         }
         //检查节点是否存在以及节点类型是否闲置节点
         if (CollectionUtils.isEmpty(ingressControllerDto.getIcNodeNames())) {

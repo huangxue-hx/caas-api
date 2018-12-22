@@ -148,7 +148,5 @@ kubectl create -f fluentd-daemonset.yaml
 4.增加web.xml配置文件， kubectl create -f webapi-cm-web.xml, 修改webapi的deploy的yaml文件增加该配置挂载
 
 --------------------------------------------------sprint2--------------------------------------------------------
-1.webapi-config配置文件中ic.image.tag配置改成:0.9.0-beta.19
-2.增加应用商店图片存储，修改pv中的路径创建pv、pvc，kubectl create -f webapi-image-pv.yaml,  kubectl create -f webapi-image-claim.yaml，
-在nfs中创建对应目录，将appimages下文件上传至该目录，修改发布webapi的yaml，增加挂载卷将webapi-image-claim挂载到目录/usr/local/k8s-mars-api/appimages，
-sprint1中步骤2删掉
+1.webapi-config配置文件中ic.image.tag配置改成:0.9.0-beta.19， upload.path改成/usr/local/k8s-mars-api/fsfiles/
+2.webapi-deployment.yaml 文件的webapi-storage的mountPath路径改为/usr/local/k8s-mars-api/fsfiles

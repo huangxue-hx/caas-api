@@ -101,7 +101,7 @@ public class JobsServiceImpl implements JobsService{
     			//创建PVC
     			if (c.getStorage() != null) {
                     for (PersistentVolumeDto pvc : c.getStorage()) {
-                    	if(pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())){
+                    	if(pvc.getType() != null && Constant.VOLUME_TYPE_NFS.equals(pvc.getType())){
                     		if (pvc.getPvcName() == "" || pvc.getPvcName() == null) {
                                 continue;
                             }
@@ -596,7 +596,7 @@ public class JobsServiceImpl implements JobsService{
 				//创建PVC
 				if (c.getStorage() != null) {
 					for (PersistentVolumeDto pvc : c.getStorage()) {
-						if(pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())){
+						if(pvc.getType() != null && Constant.VOLUME_TYPE_NFS.equals(pvc.getType())){
 							if (pvc.getPvcName() == "" || pvc.getPvcName() == null) {
 								continue;
 							}

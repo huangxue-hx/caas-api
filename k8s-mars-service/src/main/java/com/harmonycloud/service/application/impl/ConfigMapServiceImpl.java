@@ -95,7 +95,7 @@ public class ConfigMapServiceImpl implements ConfigMapService {
 			Map<String, Object> convertJsonToMap = JsonUtil.convertJsonToMap(responses.getBody());
 			String metadata = convertJsonToMap.get(CommonConstant.METADATA).toString();
 			if (!CommonConstant.EMPTYMETADATA.equals(metadata)) {
-				throw new MarsRuntimeException(ErrorCodeMessage.CONFIGMAP_NOT_EXIST);
+				throw new MarsRuntimeException(DictEnum.CONFIG_MAP.phrase(), ErrorCodeMessage.EXIST);
 			}
 			K8SURL url = new K8SURL();
 			url.setNamespace(namespace).setResource(Resource.CONFIGMAP);

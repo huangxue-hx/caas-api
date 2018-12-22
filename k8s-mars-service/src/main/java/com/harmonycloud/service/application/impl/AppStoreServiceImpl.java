@@ -71,6 +71,9 @@ public class AppStoreServiceImpl implements AppStoreService{
 
 	private static String IMAGE_PATH = "/appimages/";
 
+	@Value("#{propertiesReader['upload.path']}")
+	private String uploadPath;
+
 	/**
 	 * 删除应用商店应用
 	 * @param id
@@ -293,7 +296,7 @@ public class AppStoreServiceImpl implements AppStoreService{
 	@Override
 	public String uploadImage(MultipartFile file) throws Exception {
 		byte[] data = IOUtils.toByteArray(file.getInputStream());
-		String imageDirectory = session.getServletContext().getRealPath("/") +IMAGE_PATH;
+		String imageDirectory = uploadPath + File.separator +IMAGE_PATH;
 		String fileName = new Date().getTime() +file.getOriginalFilename().substring(file.getOriginalFilename().lastIndexOf(CommonConstant.DOT));
 		File o = new File(imageDirectory, fileName);
 		IOUtils.write(data, new FileOutputStream(o));

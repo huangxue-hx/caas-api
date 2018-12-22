@@ -73,6 +73,12 @@ public class SystemConfigController {
 	}
 
 	@ResponseBody
+	@RequestMapping(value="/localuserflag", method = RequestMethod.GET)
+	public ActionReturnUtil getSsoConfig() throws Exception {
+		return ActionReturnUtil.returnSuccessWithData(systemConfigService.getLocalUserFlag());
+	}
+
+	@ResponseBody
 	@RequestMapping(value = "/trialtime", method = RequestMethod.GET)
 	public ActionReturnUtil  getTrialTime()throws Exception{
 		try {

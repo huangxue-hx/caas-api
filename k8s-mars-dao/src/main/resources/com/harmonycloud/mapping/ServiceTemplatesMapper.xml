@@ -202,6 +202,9 @@
       <if test="serviceAccount != null">
         service_account = #{serviceAccount},
       </if>
+      <if test="serviceType != null">
+        service_type = #{serviceType},
+      </if>
         ingress_content = #{ingressContent},
         node_selector = #{nodeSelector},
     </set>

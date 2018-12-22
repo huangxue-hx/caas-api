@@ -3,6 +3,7 @@ package com.harmonycloud.service.application;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.IngressDto;
 import com.harmonycloud.dto.application.StatefulSetDetailDto;
+import com.harmonycloud.k8s.bean.StatefulSetList;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.service.platform.bean.AppDetail;
 import com.harmonycloud.service.platform.bean.ContainerOfPodDetail;
@@ -48,4 +49,12 @@ public interface StatefulSetsService {
      * @throws Exception
      */
     public ActionReturnUtil updateLabels(String namespace, String name, Cluster cluster, Map<String, Object> label) throws Exception;
+
+    /**
+     * 查询某分区项目下的有状态服务
+     * @param namespace
+     * @param projectId
+     * @return
+     */
+    StatefulSetList listStatefulSets(String namespace, String projectId) throws Exception;
 }

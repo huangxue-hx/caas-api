@@ -347,7 +347,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                                     cv.setReadOnly(Boolean.FALSE);
                                 }
                                 if (Objects.nonNull(volume.getPersistentVolumeClaim())) {
-                                    cv.setType(Constant.VOLUME_TYPE_PV);
+                                    cv.setType(Constant.VOLUME_TYPE_NFS);
                                     cv.setPvcName(volume.getPersistentVolumeClaim().getClaimName());
                                     cv.setVolumeName(volume.getPersistentVolumeClaim().getClaimName());
                                 }
@@ -407,7 +407,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
 
         //delete configmap
         Map<String, Object> queryP = new HashMap<>();
-        queryP.put("labelSelector", Constant.LABEL_DAEMONSET+"-"+name + "=" + name);
+        queryP.put("labelSelector", Constant.TYPE_DAEMONSET + "=" + name);
         K8SClientResponse conRes = configmapService.doSepcifyConfigmap(namespace, null, queryP, HTTPMethod.DELETE, cluster);
         if (!HttpStatusUtil.isSuccessStatus(conRes.getStatus()) && conRes.getStatus() != Constant.HTTP_404) {
             UnversionedStatus status = JsonUtil.jsonToPojo(conRes.getBody(), UnversionedStatus.class);
@@ -415,6 +415,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
         }
 
         //get pvc
+        queryP.put("labelSelector", Constant.LABEL_DAEMONSET+"-"+name + "=" + name);
         K8SClientResponse pvcsRes = pvcService.doSepcifyPVC(namespace, queryP, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(pvcsRes.getStatus()) && pvcsRes.getStatus() != Constant.HTTP_404) {
             UnversionedStatus status = JsonUtil.jsonToPojo(pvcsRes.getBody(), UnversionedStatus.class);
@@ -471,9 +472,10 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
      */
     @Override
     public List<DaemonSet> listDaemonSets(Cluster cluster) throws Exception {
-        List<Map<String, Object>> daemonSets = new ArrayList<Map<String, Object>>();
-        DaemonSetList list = dsService.listDaemonSet(cluster);
-        List<DaemonSet> items = list.getItems();
+        DaemonSetList list = dsService.listDaemonSet(null, cluster);
+        if(list == null){
+            return Collections.emptyList();
+        }
         return list.getItems();
     }
 

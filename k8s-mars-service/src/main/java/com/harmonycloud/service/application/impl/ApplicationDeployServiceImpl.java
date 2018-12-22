@@ -41,7 +41,6 @@ import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
 import com.harmonycloud.service.util.BizUtil;
-import com.sun.xml.ws.developer.Stateful;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.collections.CollectionUtils;
@@ -441,8 +440,8 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 update = DateUtil.getLaterTime(update, updateTime);
             }
         }
-        max = DateUtil.getLaterTime(update, max);
-        return max;
+        String updateTime = DateUtil.getLaterTime(update, max);
+        return updateTime;
     }
 
     private boolean checkParamNUll(String p) {
