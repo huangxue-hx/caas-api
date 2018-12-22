@@ -18,11 +18,15 @@ import com.harmonycloud.dto.config.ConfigDetailDto;
 import com.harmonycloud.dto.dataprivilege.DataPrivilegeDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.service.ConfigmapService;
 import com.harmonycloud.k8s.service.DaemonSetService;
+import com.harmonycloud.k8s.service.ReplicasetsService;
+import com.harmonycloud.k8s.service.StatefulSetService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.application.DaemonSetsService;
 import com.harmonycloud.service.application.DeploymentsService;
+import com.harmonycloud.service.application.StatefulSetsService;
 import com.harmonycloud.service.application.VersionControlService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.common.DataPrivilegeHelper;
@@ -36,6 +40,8 @@ import com.harmonycloud.service.user.UserService;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,10 +49,12 @@ import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
 import javax.servlet.http.HttpSession;
+import java.text.Annotation;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.harmonycloud.common.Constant.CommonConstant.KUBE_SYSTEM;
 import static com.harmonycloud.service.platform.convert.K8sResultConvert.TAG_LENGTH;
 import static com.harmonycloud.service.platform.convert.K8sResultConvert.TAG_PATTERN;
 
@@ -56,6 +64,8 @@ import static com.harmonycloud.service.platform.convert.K8sResultConvert.TAG_PAT
 @Service
 @Transactional(rollbackFor = Exception.class)
 public class ConfigCenterServiceImpl implements ConfigCenterService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ConfigCenterServiceImpl.class);
 
     private DecimalFormat decimalFormat = new DecimalFormat("######0.0");
 
@@ -94,6 +104,12 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 
     @Autowired
     private DataPrivilegeHelper dataPrivilegeHelper;
+
+    @Autowired
+    private StatefulSetsService statefulSetsService;
+
+    @Autowired
+    private ReplicasetsService replicasetsService;
 
     private static String CONFIGLIST_DATA = "configList";
 
@@ -533,39 +549,162 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         return deploymentsList;
     }
 
-    public  List<DaemonSet> getDaemonSetList(String projectId, String tenantId, String configMapId,String clusterId) throws Exception {
+    public  List<DaemonSet> getDaemonSetList(String configMapId,String clusterId) throws Exception {
+        AssertUtil.notBlank(configMapId,DictEnum.CONFIG_MAP_ID);
+        List<DaemonSet> daemonSetList = new ArrayList<>();
+        Cluster cluster = clusterService.findClusterById(clusterId);
+        //获取守护进程列表
+        DaemonSetList daemonSets = daemonSetService.listDaemonSet(KUBE_SYSTEM, cluster);
+        if (CollectionUtils.isEmpty(daemonSets.getItems())) {
+            return daemonSetList;
+        }
+        for(DaemonSet daemonSet : daemonSets.getItems()){
+            //获取守护进程详情
+            List<Volume> volumes = daemonSet.getSpec().getTemplate().getSpec().getVolumes();
+            boolean isUsingConfigMap = this.isUsingConfigMap(configMapId, volumes);
+            if(isUsingConfigMap){
+                daemonSetList.add(daemonSet);
+            }
+        }
+        return daemonSetList;
+    }
+
+    private List<StatefulSet> getStatefulSet(String projectId, String tenantId, String configMapId) throws Exception{
         AssertUtil.notBlank(projectId, DictEnum.PROJECT);
         AssertUtil.notBlank(tenantId,DictEnum.TENANT_ID);
         AssertUtil.notBlank(configMapId,DictEnum.CONFIG_MAP_ID);
 
         List<NamespaceLocal> namespaceListByTenantId = namespaceLocalService.getNamespaceListByTenantId(tenantId);
-        List<DaemonSet> daemonSetList = new ArrayList<>();
-        String userName = (String) session.getAttribute("username");
-        Cluster cluster = clusterService.findClusterById(clusterId);
+        List<StatefulSet> statefulSets = new ArrayList<>();
         for (NamespaceLocal namespaceLocal : namespaceListByTenantId) {
             String namespace = namespaceLocal.getNamespaceName();
-            //获取守护进程列表
-            DaemonSetList daemonSets=daemonSetService.listDaemonSet(cluster);
+            StatefulSetList statefulSetList = statefulSetsService.listStatefulSets(namespace, projectId);
+            if (!CollectionUtils.isEmpty(statefulSetList.getItems())) {
+                for (StatefulSet statefulSet : statefulSetList.getItems()) {
+                    List<Volume> volumes = statefulSet.getSpec().getTemplate().getSpec().getVolumes();
+                    boolean isUsingConfigMap = this.isUsingConfigMap(configMapId, volumes);
+                    if(isUsingConfigMap){
+                        statefulSets.add(statefulSet);
+                    }
+                }
+            }
+        }
+        return statefulSets;
+    }
 
-            for(DaemonSet daemonSet : daemonSets.getItems()){
-                String daemonSetName = daemonSet.getMetadata().getName();
-                //获取守护进程详情
-                List<Volume> volumes = daemonSet.getSpec().getTemplate().getSpec().getVolumes();
-                if(!CollectionUtils.isEmpty(volumes)){
-                    Volume volume = volumes.get(0);
-                    String name = volume.getName();
-                    //不挂存储的情况下，volume的名字形式是xxx-configMapId形式，可以据此来判断是否关联
-                    if(!StringUtils.isEmpty(name)){
-                        int lastIndexOf = name.lastIndexOf("-");
-                        String subConfigMapId = name.substring(lastIndexOf + 1);
-                        if(configMapId.equals(subConfigMapId)){
-                            daemonSetList.add(daemonSet);
+    private boolean isUsingConfigMap(String configMapId, List<Volume> volumes){
+        if (CollectionUtils.isEmpty(volumes)) {
+            return false;
+        }
+        for (Volume volume : volumes) {
+            if (volume.getConfigMap() == null) {
+                continue;
+            }
+            String name = volume.getName();
+            if (!StringUtils.isEmpty(name)) {
+                int lastIndexOf = name.lastIndexOf("-");
+                String subConfigMapId = name.substring(lastIndexOf + 1);
+                if (configMapId.equals(subConfigMapId)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private  List<Deployment> getDeploymentByRs(String projectId, String tenantId, String configMapId) throws Exception {
+        AssertUtil.notBlank(projectId, DictEnum.PROJECT);
+        AssertUtil.notBlank(tenantId,DictEnum.TENANT_ID);
+        AssertUtil.notBlank(configMapId,DictEnum.CONFIG_MAP_ID);
+
+        List<NamespaceLocal> namespaceListByTenantId = namespaceLocalService.getNamespaceListByTenantId(tenantId);
+        List<Deployment> deploymentsList = new ArrayList<>();
+        for (NamespaceLocal namespaceLocal : namespaceListByTenantId) {
+            String namespace = namespaceLocal.getNamespaceName();
+            Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+            List<String> serviceList = new ArrayList<>();
+            Map bodys = new HashMap();
+            bodys.put(CommonConstant.LABELSELECTOR, Constant.NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId);
+            K8SClientResponse rsRes = replicasetsService.doRsByNamespace(namespace, null, bodys, null, HTTPMethod.GET, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus())) {
+                logger.error("获取rs失败", rsRes.getBody());
+                return Collections.emptyList();
+            }
+            ReplicaSetList replicaSetList = JsonUtil.jsonToPojo(rsRes.getBody(), ReplicaSetList.class);
+            if (!CollectionUtils.isEmpty(replicaSetList.getItems())) {
+                List<ReplicaSet> replicaSets = replicaSetList.getItems();
+                //判断实例数大于0的rs中是否含有配置文件
+                for (ReplicaSet replicaSet : replicaSets) {
+                    String serviceName = null;
+                    if(replicaSet.getMetadata().getLabels() != null && replicaSet.getMetadata().getLabels().get(CommonConstant.LABEL_KEY_APP) != null){
+                        serviceName = replicaSet.getMetadata().getLabels().get(CommonConstant.LABEL_KEY_APP).toString();
+                    }
+                    if(replicaSet.getSpec().getReplicas() == 0 || serviceList.contains(serviceName)){
+                        continue;
+                    }
+                    Map<String, Object> annotations = replicaSet.getMetadata().getAnnotations();
+                    List<Container> containers = replicaSet.getSpec().getTemplate().getSpec().getContainers();
+                    List<Volume> volumes = replicaSet.getSpec().getTemplate().getSpec().getVolumes();
+                    if (CollectionUtils.isEmpty(volumes)) {
+                        continue;
+                    }
+                    if(existConfig(volumes, containers, annotations, configMapId)){
+                        serviceList.add(serviceName);
+                    }
+                }
+                //根据通过rs获取到的服务，其余的deployment再检验是否包含相应配置文件
+                DeploymentList deploymentList = deploymentsService.listDeployments(namespace, projectId);
+                if (!CollectionUtils.isEmpty(deploymentList.getItems())) {
+                    List<Deployment> deployments = deploymentList.getItems();
+                    for (Deployment deployment : deployments) {
+                        if(serviceList.contains(deployment.getMetadata().getName())){
+                            deploymentsList.add(deployment);
+                        }else{
+                            Map<String, Object> annotations = deployment.getMetadata().getAnnotations();
+                            List<Container> containers = deployment.getSpec().getTemplate().getSpec().getContainers();
+                            List<Volume> volumes = deployment.getSpec().getTemplate().getSpec().getVolumes();
+                            if (CollectionUtils.isEmpty(volumes)) {
+                                continue;
+                            }
+                            if(existConfig(volumes, containers, annotations, configMapId)){
+                                deploymentsList.add(deployment);
+                            }
                         }
                     }
                 }
             }
         }
-        return daemonSetList;
+
+        return deploymentsList;
+    }
+
+    private boolean existConfig(List<Volume> volumes, List<Container> containers, Map<String, Object> annotations, String configMapId){
+        for (Volume volume : volumes) {
+            if (volume.getConfigMap() == null) {
+                continue;
+            }
+            String name = volume.getName();
+            String tag = volume.getName().substring(volume.getName().length() - TAG_LENGTH);
+            //兼容以前1.0.3的版本，volume名称是版本号结尾的, 升级到1.1.0版本做过数据迁移，将configmapid放到annotations
+            if (tag.matches(TAG_PATTERN)) {
+                for (Container container : containers) {
+                    if (annotations != null && (annotations.get("configmapid-" + container.getName()) != null)
+                            && configMapId.equals(annotations.get("configmapid-" + container.getName()))) {
+                        return true;
+                    }
+                }
+            } else {
+                //不挂存储的情况下，volume的名字形式是xxx-configMapId形式，可以据此来判断是否关联
+                if (!StringUtils.isEmpty(name)) {
+                    int lastIndexOf = name.lastIndexOf("-");
+                    String subConfigMapId = name.substring(lastIndexOf + 1);
+                    if (configMapId.equals(subConfigMapId)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
 
@@ -811,14 +950,13 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
             return ActionReturnUtil.returnSuccess();
         }
         Map<String, ConfigFile> configFileMap = configFiles.stream().collect(Collectors.toMap(ConfigFile::getId, config->config));
-        List<Deployment> deploymentList = new LinkedList<Deployment>();
         List<ConfigService> configServices = new LinkedList<ConfigService>();
 
         for(String configMapId : configFileMap.keySet()){
-            List<Deployment> deployments = getServiceList(projectId,tenantId,configMapId);
-            List<DaemonSet> daemonSets = getDaemonSetList(projectId,tenantId,configMapId,clusterId);
+            List<Deployment> deployments = getDeploymentByRs(projectId,tenantId,configMapId);
+            List<DaemonSet> daemonSets = getDaemonSetList(configMapId,clusterId);
+            List<StatefulSet> statefulSets = getStatefulSet(projectId, tenantId, configMapId);
 
-            deploymentList.addAll(deployments);
             for(DaemonSet daemonSet : daemonSets){
                 ConfigService configService = new ConfigService();
                 configService.setServiceName(daemonSet.getMetadata().getName());
@@ -863,6 +1001,33 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
                 }else{
                     configService.setStatus("unavailable");
                 }
+                dataPrivilegeHelper.filter(configService, true);
+                configServices.add(configService);
+            }
+
+            for(StatefulSet statefulSet : statefulSets){
+                ConfigService configService = new ConfigService();
+                configService.setServiceName(statefulSet.getMetadata().getName());
+                configService.setServiceNamespace(statefulSet.getMetadata().getNamespace());
+                configService.setTag(configFileMap.get(configMapId).getTags());
+                String imageName = statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getImage();
+                int firstg = imageName.indexOf("/");
+                configService.setImage(imageName.substring(firstg+1));
+                configService.setServiceDomainName(statefulSet.getMetadata().getName()+"."+statefulSet.getMetadata().getNamespace());
+                configService.setCreateTime(statefulSet.getMetadata().getCreationTimestamp());
+                String updateTime = null;
+                if(statefulSet.getMetadata().getAnnotations() != null && statefulSet.getMetadata().getAnnotations().get("updateTimestamp") != null){
+                    updateTime = statefulSet.getMetadata().getAnnotations().get("updateTimestamp").toString();
+                }
+                if(StringUtils.isEmpty(updateTime)){
+                    configService.setUpdateTime(statefulSet.getMetadata().getCreationTimestamp());
+                }else {
+                    configService.setUpdateTime(updateTime);
+                }
+                configService.setConfigName(configName);
+                configService.setProjectId(projectId);
+                configService.setTenantId(tenantId);
+                configService.setType(Constant.STATEFULSET);
                 dataPrivilegeHelper.filter(configService, true);
                 configServices.add(configService);
             }

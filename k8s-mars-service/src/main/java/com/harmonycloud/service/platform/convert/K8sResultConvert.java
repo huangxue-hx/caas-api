@@ -2199,7 +2199,7 @@ public class K8sResultConvert {
                     for (PersistentVolumeDto vm : c.getStorage()) {
                         if (vm.getType() != null) {
                             switch (vm.getType()) {
-                                case Constant.VOLUME_TYPE_PV:
+                                case Constant.VOLUME_TYPE_NFS:
                                     if (!volFlag.containsKey(vm.getPvcName())) {
                                         PersistentVolumeClaimVolumeSource pvClaim = new PersistentVolumeClaimVolumeSource();
                                         volFlag.put(vm.getPvcName(), vm.getPvcName());
@@ -2515,7 +2515,7 @@ public class K8sResultConvert {
                     for (PersistentVolumeDto vm : c.getStorage()) {
                         if (vm.getType() != null) {
                             switch (vm.getType()) {
-                                case Constant.VOLUME_TYPE_PV:
+                                case Constant.VOLUME_TYPE_NFS:
                                     if (!volFlag.containsKey(vm.getPvcName())) {
                                         PersistentVolumeClaimVolumeSource pvClaim = new PersistentVolumeClaimVolumeSource();
                                         volFlag.put(vm.getPvcName(), vm.getPvcName());

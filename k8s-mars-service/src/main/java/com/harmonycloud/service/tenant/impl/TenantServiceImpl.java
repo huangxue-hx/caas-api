@@ -190,9 +190,13 @@ public class TenantServiceImpl implements TenantService {
                 }
             }
         }
-        //设置默认角色id为角色列表的第一个角色id
+        //切换之后的角色列表包含原角色则设置原角色，否则设置默认角色id为角色列表的第一个角色id
         if (!CollectionUtils.isEmpty(roleList)){
-            session.setAttribute(CommonConstant.ROLEID, roleList.get(0).getId());
+            List<Integer> roleIds = roleList.stream().map(Role::getId).collect(Collectors.toList());
+            if(session.getAttribute(CommonConstant.ROLEID) == null
+                    || !roleIds.contains(session.getAttribute(CommonConstant.ROLEID))){
+                session.setAttribute(CommonConstant.ROLEID, roleList.get(0).getId());
+            }
         }
         if (roleList.size() <= 0){
             throw new MarsRuntimeException(ErrorCodeMessage.ROLE_DISABLE);

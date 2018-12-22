@@ -128,7 +128,7 @@ public class Constant {
 
 
 	//stroge
-	public final static String VOLUME_TYPE_PV = "nfs";
+	public final static String VOLUME_TYPE_NFS = "nfs";
     public final static String VOLUME_TYPE_PVC = "pvc";
     public final static String VOLUME_TYPE_STORAGECLASS = "storageClass";
 	public final static String VOLUME_TYPE_HOSTPASTH = "hostPath";

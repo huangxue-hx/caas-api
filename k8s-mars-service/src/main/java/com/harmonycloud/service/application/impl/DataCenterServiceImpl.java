@@ -133,6 +133,17 @@ public class DataCenterServiceImpl implements DataCenterService {
         } else {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.DATACENTER_NOT_HAS_NICENAME);
         }
+        ActionReturnUtil dataCenterResponse = listDataCenter(null,null);
+        if(!dataCenterResponse.isSuccess()){
+            return dataCenterResponse;
+        }
+        List<DataCenterDto> dataCenterDtoList = (List)dataCenterResponse.getData();
+        for(DataCenterDto dataCenter : dataCenterDtoList){
+            if(!dataCenter.getName().equalsIgnoreCase(name)
+                    && dataCenter.getAnnotations().equalsIgnoreCase(annotations)){
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NAME_EXIST);
+            }
+        }
         Map<String, Object> bodys = new HashMap<String, Object>();
         bodys = CollectionUtil.transBean2Map(ns);
         Map<String, Object> headers = new HashMap<>();
@@ -150,6 +161,19 @@ public class DataCenterServiceImpl implements DataCenterService {
         if (!this.isEmpty(dataCenterDto)) {
             logger.error("dataCeneterDto Object or parameters is null");
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        ActionReturnUtil response = listDataCenter(null,null);
+        if(!response.isSuccess()){
+            return response;
+        }
+        List<DataCenterDto> dataCenterDtoList = (List)response.getData();
+        for(DataCenterDto dataCenter : dataCenterDtoList){
+            if(dataCenter.getName().equalsIgnoreCase(dataCenterDto.getName())){
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.ENGLISH_NAME_EXIST);
+            }
+            if(dataCenter.getAnnotations().equalsIgnoreCase(dataCenterDto.getAnnotations())){
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NAME_EXIST);
+            }
         }
         Cluster cluster = DefaultClient.getDefaultCluster();
         ObjectMeta objectMeta = new ObjectMeta();

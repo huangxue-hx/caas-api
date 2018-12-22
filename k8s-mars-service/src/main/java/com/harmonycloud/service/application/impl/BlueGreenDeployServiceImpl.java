@@ -713,68 +713,6 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         updateServiceSelector(namespace, name, cluster, dep, true);
     }
 
-    /**
-     * 检查容器是否修改了挂载卷，如果有则创建新的。同时删除多余的pvc
-     *
-     * @param updateContainers
-     * @param name
-     * @param namespace
-     * @param cluster
-     * @throws Exception
-     */
-    private void checkPvAndCreateVolume(List<UpdateContainer> updateContainers, String name, String namespace,
-                                        Cluster cluster, String projectId) throws Exception {
-        // 获取pvc信息
-        Map<String, Object> label = new HashMap<>();
-        label.put("labelSelector", "app=" + name);
-        K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, label, HTTPMethod.GET, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
-            UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
-            throw new MarsRuntimeException(status.getMessage());
-        }
-        PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(pvcRes.getBody(), PersistentVolumeClaimList.class);
-
-        // 判断是否修改了pv
-        if (Objects.nonNull(pvcList) && CollectionUtils.isNotEmpty(pvcList.getItems())) {
-            for (PersistentVolumeClaim onePvc : pvcList.getItems()) {
-                String pvc = onePvc.getMetadata().getName();
-                for (UpdateContainer container : updateContainers) {
-                    if (container.getStorage() != null && container.getStorage().size() > 0) {
-                        boolean flag = true;
-                        for (PersistentVolumeDto pv : container.getStorage()) {
-                            if (Constant.VOLUME_TYPE_PV.equals(pv.getType())) {
-                                if (pvc.equals(pv.getPvcName())) {
-                                    flag = false;
-                                }
-                                if (flag) {
-                                    pv.setVolumeName(pv.getPvcName());
-                                    pv.setProjectId(projectId);
-                                    pv.setNamespace(namespace);
-                                    pv.setServiceName(name);
-                                    volumeSerivce.createVolume(pv);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            for (UpdateContainer container : updateContainers) {
-                if (container.getStorage() != null && container.getStorage().size() > 0) {
-                    for (PersistentVolumeDto pv : container.getStorage()) {
-                        if (Constant.VOLUME_TYPE_PV.equals(pv.getType())) {
-                            pv.setVolumeName(pv.getPvcName());
-                            pv.setProjectId(projectId);
-                            pv.setServiceName(name);
-                            pv.setNamespace(namespace);
-                            volumeSerivce.createVolume(pv);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     private void checkPvcInNewAndOldDeployment(PodTemplateSpec podTemplateSpec, String namespace, String name, Cluster cluster) throws Exception {
         List<Volume> rollbackVolumes = new ArrayList<>();
         List<String> rollbackPvc = new ArrayList<>();

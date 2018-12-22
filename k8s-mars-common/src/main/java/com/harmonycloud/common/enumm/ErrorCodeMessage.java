@@ -66,6 +66,7 @@ public enum ErrorCodeMessage {
     EXCEED_MAX_QUERY_COUNT(100044,"Can not query over 100 records at once", "一次查询不能超过100条记录"),
     NAME_LENGTH_LIMIT(100045,"name length must be no more than 63 characters", "名称长度不能超过63个字符"),
     INVALID_CHARACTER(100046,"Format is not correct, contains illegal characters", "格式错误, 包含非法字符或组合"),
+    ENGLISH_NAME_EXIST(100047,"English short name exists", "英文简称已经存在"),
 
     //用户相关 200xxx
     USER_DISABLED(200001, "User is disabled.","该用户暂时停止使用，请联系管理员"),
@@ -222,11 +223,13 @@ public enum ErrorCodeMessage {
     INGRESS_CONTROLLER_OTHER_PORT_USED(300049, "The other port of the ingress controller has been used.", "负载均衡器其他端口已经被使用"),
     INGRESS_CONTROLLER_SA_NOT_FOUND(300050, "Cannot get the default serviceAccount under the kube-system namespace.", "获取不到kube-system分区下默认的serviceAccount"),
     INGRESS_CONTROLLER_DEFAULT_NOT_DELETE(300051, "The default ingress controller is not allowed to be deleted.", "全局负载均衡器不允许被删除"),
-    INGRESS_CONTROLLER_HAD_USED(300052, "The ingress controller is in using, cant not be changed or delete.", "已有服务使用该负载均衡器, 不能修改或删除"),
+    INGRESS_CONTROLLER_HAD_USED(300052, "The ingress controller is in using, cant not change port or delete.", "已有服务使用该负载均衡器, 不能修改端口或删除"),
     INGRESS_CONTROLLER_PORT_UPDATE_FAIL(300053, "In the database, the ingress controller port data update failed, please contact the administrator.", "数据库中，ingress controller端口数据更新失败，请联系管理员"),
     INGRESS_CONTROLLER_HAS_USED_BY_TENANTS(300054, "These tenants are using this ingress controller and cannot be removed. Tenant name：", "以下租户已使用该负载均衡器，无法移除。租户名称："),
     INGRESS_CONTROLLER_HTTP_PORT_ERROR(300055, "The port of the ingress controller is not in the specified range.", "负载均衡器的端口不在指定范围"),
     RESOURCE_USED_OVER_QUOTA(300056, "Quota cannot be smaller than used.","配额不能小于已使用的容量"),
+    INGRESS_CONTROLLER_PORT_UNSAFE(300057, "Please input another port as 87 and 95 is unsafe port for chrome.",
+            "85和97端口对于chrome浏览器是非安全的端口，请使用别的端口"),
 
     //主机节点 301xxx
     NODE_LABEL_CREATE_ERROR(301001, "Node label create failed.","主机标签创建失败"),

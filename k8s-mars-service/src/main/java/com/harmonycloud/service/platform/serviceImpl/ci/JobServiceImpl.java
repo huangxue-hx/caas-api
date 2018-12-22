@@ -2344,12 +2344,10 @@ public class JobServiceImpl implements JobService {
                     } else if ("configMap".equals(volumeMountExt.getType())) {
                         CreateConfigMapDto configMap = new CreateConfigMapDto();
                         configMap.setPath(volumeMountExt.getMountPath());
+                        configMap.setFile(volumeMountExt.getSubPath());
                         if (volumeMountExt.getName() != null && volumeMountExt.getName().lastIndexOf("-") > 0) {
                             int indexByFileName = volumeMountExt.getName().lastIndexOf("-");
-                            configMap.setFile(volumeMountExt.getName().substring(0, indexByFileName));
                             configMap.setConfigMapId(volumeMountExt.getName().substring(indexByFileName + 1));
-
-
                         }
                         //升级时从数据库读取配置文件的内容
                         ConfigDetailDto configDetailDto = configCenterService.getConfigMap(configMap.getConfigMapId());
@@ -2549,16 +2547,18 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void rename(Integer jobId, String newName) throws Exception {
         Job job = getJobById(jobId);
         if (job.getName().equals(newName)) {
             return;
         }
-        jobMapper.updateJobName(job.getId(), newName);
         String projectName = projectService.getProjectNameByProjectId(job.getProjectId());
         String clusterName = clusterService.getClusterNameByClusterId(job.getClusterId());
-        FolderJob folderJob = getFolderJob(projectName, clusterName);
         validateJobName(newName, projectName, clusterName);
+
+        jobMapper.updateJobName(job.getId(), newName);
+        FolderJob folderJob = getFolderJob(projectName, clusterName);
         JenkinsServer jenkinsServer = JenkinsClient.getJenkinsServer();
         jenkinsServer.renameJob(folderJob, job.getName(), newName);
         if (jenkinsServer.getJob(folderJob, newName) == null) {

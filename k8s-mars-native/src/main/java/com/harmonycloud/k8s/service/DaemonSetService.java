@@ -14,6 +14,7 @@ import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -124,9 +125,12 @@ public class DaemonSetService {
         DaemonSetList list = JsonUtil.jsonToPojo(response.getBody(),DaemonSetList.class);
         return list;
     }
-    public DaemonSetList listDaemonSet( Cluster cluster) throws Exception {
+    public DaemonSetList listDaemonSet(String namespace, Cluster cluster) throws Exception {
         K8SURL url = new K8SURL();
         url.setResource(Resource.DAEMONTSET);
+        if(StringUtils.isNotBlank(namespace)){
+            url.setNamespace(namespace);
+        }
         K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,null,cluster);
         if(!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404){
             UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);

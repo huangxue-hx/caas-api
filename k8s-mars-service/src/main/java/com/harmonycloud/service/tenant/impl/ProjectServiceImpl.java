@@ -136,8 +136,12 @@ public class ProjectServiceImpl implements ProjectService {
             session.setAttribute(CommonConstant.GETMENU, Boolean.FALSE);
         }else {
             session.setAttribute(CommonConstant.GETMENU, Boolean.TRUE);
-            //设置默认角色id为角色列表的第一个角色id
-            session.setAttribute(CommonConstant.ROLEID, roleList.get(0).getId());
+            //切换之后的角色列表包含原角色则设置原角色，否则设置默认角色id为角色列表的第一个角色id
+            List<Integer> roleIds = roleList.stream().map(Role::getId).collect(Collectors.toList());
+            if(session.getAttribute(CommonConstant.ROLEID) == null
+                    || !roleIds.contains(session.getAttribute(CommonConstant.ROLEID))){
+                session.setAttribute(CommonConstant.ROLEID, roleList.get(0).getId());
+            }
         }
         List<LocalRolePrivilege>  localRolePrivileges = localRoleService.listPrivilegeByProject(projectId, userName);
         session.setAttribute(CommonConstant.SESSION_DATA_PRIVILEGE_LIST, localRolePrivileges);

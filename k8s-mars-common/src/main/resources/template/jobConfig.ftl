@@ -42,9 +42,9 @@
                 </#if>
             </parameterDefinitions>
         </hudson.model.ParametersDefinitionProperty>
-        <#if (trigger?? && trigger.valid == true)>
         <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
             <triggers>
+            <#if (trigger?? && trigger.valid == true)>
                 <#if trigger.type == 1>
                     <hudson.triggers.TimerTrigger>
                         <spec>${trigger.cronExp}</spec>
@@ -56,10 +56,12 @@
                     <ignorePostCommitHooks>false</ignorePostCommitHooks>
                 </hudson.triggers.SCMTrigger>
                 </#if>
-                <#if trigger.type == 4>
+            </#if>
                     <jenkins.triggers.ReverseBuildTrigger>
                         <spec/>
+                    <#if (trigger?? && trigger.valid == true && trigger.type == 4)>
                         <upstreamProjects>${triggerJobName!}</upstreamProjects>
+                    </#if>
                         <threshold>
                             <name>SUCCESS</name>
                             <ordinal>0</ordinal>
@@ -67,10 +69,9 @@
                             <completeBuild>true</completeBuild>
                         </threshold>
                     </jenkins.triggers.ReverseBuildTrigger>
-                </#if>
             </triggers>
         </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
-        </#if>
+
     </properties>
     <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.31">
         <script>

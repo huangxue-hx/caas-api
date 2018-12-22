@@ -1,12 +1,10 @@
 package com.harmonycloud.interceptors;
 
-import com.harmonycloud.api.user.AuthController;
 import com.harmonycloud.service.util.SsoClient;
 import com.harmonycloud.filters.UrlWhiteListHandler;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
@@ -15,18 +13,12 @@ import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  * 认证拦截器，
  */
 public class AuthInterceptor extends HandlerInterceptorAdapter {
-    private static final List<String> WHITE_URL_LIST = Arrays.asList(new String[]{"users/auth/login","validation","swagger-resources",
-            "api-docs","/webjars","getToken","/clusters","system/configs/trialtime","cicd/trigger/webhookTrigger","users/auth/token","/testcallback"});
-    private static List<Pattern> whilteList = new ArrayList<>();
+
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthInterceptor.class);
     @Value("#{propertiesReader['api.access.allow.origin']}")
     private String allowOrigin;
@@ -34,8 +26,6 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
     private String urlWhiteList;
     @Value("#{propertiesReader['sso.exclusion']}")
     private String urlExclusion;
-    @Autowired
-    private AuthController AuthController;
 
     @PostConstruct
     public void initWhiteList(){

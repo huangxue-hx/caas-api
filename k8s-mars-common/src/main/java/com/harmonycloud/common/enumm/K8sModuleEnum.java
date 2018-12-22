@@ -14,6 +14,8 @@ public enum K8sModuleEnum {
     KUBE_DNS("kube-dns", "kube-dns","deployment","域名解析"),
     ELASTICSEARCH("elasticsearch-logging","elasticsearch-logging","deployment","ES日志服务"),
     FLUENTD("fluentd","fluentd-es-v1.22","daemonset","日志采集服务"),
+    //es和fluentd组合的日志组件
+    LOGGING("logging","","","日志"),
     SERVICE_LOADBALANCER("nginx","nginx-ingress-controller","daemonset","负载均衡"),
     CALICO("calico","calico-node","daemonset","集群网络"),
     CALICO_KUBE_CONTROLLER("calico-kube-controllers","calico-kube-controllers","deployment","集群网络"),
@@ -24,7 +26,9 @@ public enum K8sModuleEnum {
     WEBPAGE("webpage","webpage","deployment","云平台前端"),
     OAM_TASK("oam-task","oam-task","deployment","云平台告警任务"),
     OAM_API("oam-api","oam-api","deployment","云平台告警API"),
-    INFLUXDB("influxdb","monitoring-influxdb","deployment","资源监控存储");
+    INFLUXDB("influxdb","monitoring-influxdb","deployment","资源监控存储"),
+    //heapster和influxdb组合的监控组件
+    MONITOR("monitor","","","监控");
 
     private String code;
     private String k8sComponentName;

@@ -269,11 +269,12 @@ public class ServiceServiceImpl implements ServiceService {
             JSONArray deploment = JSONArray.fromObject(serviceTemplate.getDeploymentDetail());
             serviceTemplateDB.setDeploymentContent(deploment.toString());
             containers = serviceTemplate.getDeploymentDetail().getContainers();
-
+            serviceTemplateDB.setServiceType(ServiceTypeEnum.DEPLOYMENT.getCode());
         }else if(serviceTemplate.getStatefulSetDetail() != null){
             JSONArray statefulSet = JSONArray.fromObject(serviceTemplate.getStatefulSetDetail());
             serviceTemplateDB.setDeploymentContent(statefulSet.toString());
             containers = serviceTemplate.getStatefulSetDetail().getContainers();
+            serviceTemplateDB.setServiceType(ServiceTypeEnum.STATEFULSET.getCode());
         }
         if(CollectionUtils.isNotEmpty(containers)) {
             String images = "";
@@ -658,7 +659,7 @@ public class ServiceServiceImpl implements ServiceService {
                 for (CreateContainerDto c : service.getDeploymentDetail().getContainers()) {
                     if (c.getStorage() != null) {
                         for (PersistentVolumeDto pvc : c.getStorage()) {
-                            if (pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())) {
+                            if (pvc.getType() != null && Constant.VOLUME_TYPE_NFS.equals(pvc.getType())) {
                                 if (StringUtils.isBlank(pvc.getPvcName())) {
                                     continue;
                                 }

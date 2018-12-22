@@ -575,9 +575,14 @@ public class ClusterServiceImpl implements ClusterService {
         double totalCount = allComStatus.size();
         String health = String.format("%.0f", (totalCount - abnormalCount) / totalCount * PERCENT_HUNDRED);
         Map<String, Object> resultMap = new HashMap<>();
+        List<String> abnormalComponentNames = new ArrayList<>();
         allComStatus.forEach((k, v) -> {
+            if(v.equals(Constant.STATUS_ABNORMAL)){
+                abnormalComponentNames.add(k);
+            }
             resultMap.put(k.replaceAll(CommonConstant.LINE, ""), v);
         });
+        resultMap.put("abnormalComponent", abnormalComponentNames);
         resultMap.put("clusterComponentHealth", health);
         resultMap.put("totalComponentCount", totalCount);
         resultMap.put("normalComponentCount", totalCount - abnormalCount);
@@ -757,21 +762,22 @@ public class ClusterServiceImpl implements ClusterService {
              && createdComponent.contains(K8sModuleEnum.INFLUXDB.getCode())
                 && allComStatus.get(K8sModuleEnum.HEAPSTER.getCode()).equals(Constant.STATUS_NORMAL)
                 && allComStatus.get(K8sModuleEnum.INFLUXDB.getCode()).equals(Constant.STATUS_NORMAL)) {
-            createdComponent.add(MODULE_MONITOR);
-            allComStatus.put(MODULE_MONITOR, Constant.STATUS_NORMAL);
+            createdComponent.add(K8sModuleEnum.MONITOR.getCode());
+            allComStatus.put(K8sModuleEnum.MONITOR.getCode(), Constant.STATUS_NORMAL);
         } else {
             composeComAbnormalCount++;
-            allComStatus.put(MODULE_MONITOR, Constant.STATUS_ABNORMAL);
+            allComStatus.put(K8sModuleEnum.MONITOR.getCode(), Constant.STATUS_ABNORMAL);
         }
         //日志由fluentd和es组成, 前端判断日志根据es的code显示
         if (createdComponent.contains(K8sModuleEnum.FLUENTD.getCode())
                 && createdComponent.contains(K8sModuleEnum.ELASTICSEARCH.getCode())
                 && allComStatus.get(K8sModuleEnum.FLUENTD.getCode()).equals(Constant.STATUS_NORMAL)
                 && allComStatus.get(K8sModuleEnum.ELASTICSEARCH.getCode()).equals(Constant.STATUS_NORMAL)) {
-            allComStatus.put(K8sModuleEnum.ELASTICSEARCH.getCode(), Constant.STATUS_NORMAL);
+            createdComponent.add(K8sModuleEnum.LOGGING.getCode());
+            allComStatus.put(K8sModuleEnum.LOGGING.getCode(), Constant.STATUS_NORMAL);
         } else {
             composeComAbnormalCount++;
-            allComStatus.put(K8sModuleEnum.ELASTICSEARCH.getCode(), Constant.STATUS_ABNORMAL);
+            allComStatus.put(K8sModuleEnum.LOGGING.getCode(), Constant.STATUS_ABNORMAL);
         }
         //网络组件由calico-node的daemonset和calico-kube-controllers 的deployment组成
         if (createdComponent.contains(K8sModuleEnum.CALICO_KUBE_CONTROLLER.getCode())
@@ -786,6 +792,7 @@ public class ClusterServiceImpl implements ClusterService {
         allComStatus.remove(K8sModuleEnum.HEAPSTER.getCode());
         allComStatus.remove(K8sModuleEnum.INFLUXDB.getCode());
         allComStatus.remove(K8sModuleEnum.FLUENTD.getCode());
+        allComStatus.remove(K8sModuleEnum.ELASTICSEARCH.getCode());
         allComStatus.remove(K8sModuleEnum.CALICO_KUBE_CONTROLLER.getCode());
         return composeComAbnormalCount;
     }

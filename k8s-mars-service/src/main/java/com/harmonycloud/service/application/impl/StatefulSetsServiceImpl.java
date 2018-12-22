@@ -582,6 +582,23 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
 
     }
 
+    /**
+     * 查询某分区项目下的有状态服务
+     * @param namespace
+     * @param projectId
+     * @return
+     */
+    @Override
+    public StatefulSetList listStatefulSets(String namespace, String projectId) throws Exception {
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        Map<String, Object> body = null;
+        if(StringUtils.isNotBlank(projectId)){
+            body = new HashMap<>();
+            body.put(CommonConstant.LABELSELECTOR, Constant.NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId);
+        }
+        return statefulSetService.listStatefulSets(namespace,null, body, cluster);
+    }
+
     private List<AffinityDto> setNamespaceLabelAffinity(String namespace, List<AffinityDto> nodeAffinityList) throws Exception {
         NamespaceLocal namespaceLocal = this.namespaceLocalService.getNamespaceByName(namespace);
         String nodeLabel = namespaceService.getPrivatePartitionLabel(namespaceLocal.getTenantId(), namespace);

@@ -440,8 +440,8 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 update = DateUtil.getLaterTime(update, updateTime);
             }
         }
-        max = DateUtil.getLaterTime(update, max);
-        return max;
+        String updateTime = DateUtil.getLaterTime(update, max);
+        return updateTime;
     }
 
     private boolean checkParamNUll(String p) {

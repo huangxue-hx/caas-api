@@ -7,6 +7,7 @@ import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dto.cicd.CicdConfigDto;
 import com.harmonycloud.dto.user.LdapConfigDto;
 import com.harmonycloud.service.system.SystemConfigService;
+import com.harmonycloud.service.util.SsoClient;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.servlet.http.HttpSession;
 import java.util.Date;
 import java.util.List;
+
+import static com.harmonycloud.common.Constant.CommonConstant.FLAG_TRUE;
 
 /**
  * Created by hongjie
@@ -206,6 +209,18 @@ public class SystemConfigServiceImpl implements SystemConfigService {
             }
         }
         return ldapConfigDto;
+    }
+
+    @Override
+    public boolean getLocalUserFlag() {
+        if(SsoClient.isOpen()){
+            return false;
+        }
+        LdapConfigDto ldapConfigDto = this.findLdapConfig();
+        if(ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == FLAG_TRUE){
+            return false;
+        }
+        return true;
     }
 
     @Override
