@@ -1535,7 +1535,7 @@ public class K8sResultConvert {
                 volumeList = new ArrayList<>();
             }
             Volume volume = new Volume();
-            volume.setName("empty");
+            volume.setName("empty-deploy");
             volume.setEmptyDir(null);
             volumeList.add(volume);
             podSpec.setVolumes(volumeList);
@@ -1549,7 +1549,7 @@ public class K8sResultConvert {
                         container.setVolumeMounts(volumeMounts);
                     }
                     vm.setMountPath(pullDependence.getMountPath()+"/"+projectName);
-                    vm.setName("empty");
+                    vm.setName("empty-deploy");
                     volumeMounts.add(vm);
                 }
             }
@@ -1558,7 +1558,7 @@ public class K8sResultConvert {
             List<VolumeMount> volumeMounts = new ArrayList<>();
             VolumeMount vm = new VolumeMount();
             vm.setMountPath(projectName);
-            vm.setName("empty");
+            vm.setName("empty-deploy");
             volumeMounts.add(vm);
             c.setVolumeMounts(volumeMounts);
 

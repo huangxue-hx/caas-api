@@ -204,6 +204,9 @@ public class KubeServiceConvert {
                                 volFlag.put(Constant.VOLUME_TYPE_EMPTYDIR+vol.getEmptyDir()==null ? "": vol.getEmptyDir(), RandomNum.getRandomString(8));
                                 Volume empty = new Volume();
                                 empty.setName(volFlag.get(Constant.VOLUME_TYPE_EMPTYDIR+vol.getEmptyDir()==null ? "": vol.getEmptyDir()).toString());
+                                if (vol.getName().equals("empty-deploy")){
+                                    empty.setName("empty-deploy");
+                                }
                                 EmptyDirVolumeSource ed =new EmptyDirVolumeSource();
                                 if(vol.getEmptyDir() != null && "Memory".equals(vol.getEmptyDir())){
                                     ed.setMedium(vol.getEmptyDir());//Memory
@@ -213,6 +216,9 @@ public class KubeServiceConvert {
                             }
                             VolumeMount volme = new VolumeMount();
                             volme.setName(volFlag.get(Constant.VOLUME_TYPE_EMPTYDIR+vol.getEmptyDir()==null ? "": vol.getEmptyDir()).toString());
+                            if (vol.getName().equals("empty-deploy")){
+                                volme.setName("empty-deploy");
+                            }
                             volme.setMountPath(vol.getPath());
                             volumeMounts.add(volme);
                             container.setVolumeMounts(volumeMounts);

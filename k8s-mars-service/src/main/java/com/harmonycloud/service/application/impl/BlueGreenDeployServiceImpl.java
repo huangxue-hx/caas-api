@@ -115,6 +115,9 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
                 for (PersistentVolumeDto persistentVolumeDto : storage) {
                     String pvcName = persistentVolumeDto.getPvcName();
                     PersistentVolumeClaim pvcByName = pvcService.getPvcByName(namespace, pvcName, cluster);
+                    if (null ==pvcByName){
+                        break;
+                    }
                     Map<String, Object> newLabels = pvcByName.getMetadata().getLabels();
                     newLabels.put(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name,name);
                     pvcService.updatePvcByName(pvcByName,cluster);
