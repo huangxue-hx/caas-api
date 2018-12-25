@@ -839,9 +839,9 @@ public class HarborServiceImpl implements HarborService {
      * @return
      * @throws Exception
      */
-    public ActionReturnUtil getRepoFuzzySearch(String query, String projectId, Boolean isPublic) throws Exception {
+    public ActionReturnUtil getRepoFuzzySearch(String query, String projectId, String clusterId, Boolean isPublic) throws Exception {
 
-        List<ImageRepository> imageRepositories = harborProjectService.listRepositories(projectId,null,isPublic, Boolean.TRUE);
+        List<ImageRepository> imageRepositories = harborProjectService.listRepositories(projectId, clusterId, isPublic, Boolean.TRUE);
         if(CollectionUtils.isEmpty(imageRepositories)){
             return ActionReturnUtil.returnSuccessWithData(Collections.emptyList());
         }

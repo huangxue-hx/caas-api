@@ -2265,6 +2265,16 @@ public class NamespaceServiceImpl implements NamespaceService {
         Map<String, String> result = new HashMap<>();
         result.put(CommonConstant.CPU, String.valueOf(cpuLeft));
         result.put(CommonConstant.MEMORY, String.valueOf(memLeft));
+
+        if(namespaceQuota.get(Resource.STORAGECLASS) != null){
+            Map<String, Object> storageMap = (Map<String, Object>)namespaceQuota.get(Resource.STORAGECLASS);
+            for(String storage : storageMap.keySet()){
+                List<String> list = (List<String>)storageMap.get(storage);
+                if(!CollectionUtils.isEmpty(list) && list.size()>=2){
+                    result.put(CommonConstant.STORAGE + CommonConstant.SLASH + storage ,String.valueOf(Integer.valueOf(list.get(0)) - Integer.valueOf(list.get(1))));
+                }
+            }
+        }
         return result;
     }
 
@@ -2276,6 +2286,19 @@ public class NamespaceServiceImpl implements NamespaceService {
         double memoryRemain = Double.valueOf(remainResource.get(CommonConstant.MEMORY));
         if (cpuRemain - cpuNeed < 0 || memoryRemain - memoryNeed < 0) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NAMESPACE_RESOURCE_INSUFFICIENT);
+        }
+        for(String key : requireResource.keySet()){
+            if(key.contains(CommonConstant.STORAGE + CommonConstant.SLASH)){
+                Long storageNeed = requireResource.get(key);
+                if(remainResource.get(key) != null){
+                    long storageRemain = Long.valueOf(remainResource.get(key));
+                    if(storageRemain < storageNeed){
+                        return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NAMESPACE_STORAGE_RESOURCE_INSUFFICIENT);
+                    }
+                }else{
+                    return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NAMESPACE_STORAGE_RESOURCE_INSUFFICIENT);
+                }
+            }
         }
         return ActionReturnUtil.returnSuccess();
     }

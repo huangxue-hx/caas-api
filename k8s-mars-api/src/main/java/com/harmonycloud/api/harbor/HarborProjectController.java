@@ -249,8 +249,9 @@ public class HarborProjectController {
 	@ResponseBody
 	public ActionReturnUtil getFuzzySearchResult(@RequestParam(value = "query") String query,
 												 @PathVariable(value="projectId") String projectId,
+												 @RequestParam(value = "clusterId",required = false) String clusterId,
 												 @RequestParam(value="isPublic",required = false) Boolean isPublic)throws Exception{
-		return harborService.getRepoFuzzySearch(query,projectId,isPublic);
+		return harborService.getRepoFuzzySearch(query,projectId,clusterId,isPublic);
 	}
 
 	/**

@@ -484,4 +484,11 @@ INSERT INTO `k8s_auth_server`.`cicd_stage_type`(`name`,`type`,`template_type`,`i
 ALTER TABLE `k8s_auth_server`.`service_templates` ADD COLUMN `service_type` TINYINT(4) DEFAULT 0;
 
 -------------------------------------------------sprint3---------------------------------------------------------------
+DELETE FROM k8s_auth_server.url_dic where  url like '/tenants/*/projects/*/deploys/*/linklogs%' and id>1;
+INSERT INTO k8s_auth_server.`url_dic` (`url`,`module`,`resource`) VALUES ('/tenants/*/projects/*/apps/*/linklogs/errortransactions','log','applog');
+INSERT INTO k8s_auth_server.`url_dic` (`url`,`module`,`resource`) VALUES ('/tenants/*/projects/*/apps/*/linklogs/transactiontraces','log','applog');
+INSERT INTO k8s_auth_server.`url_dic` (`url`,`module`,`resource`) VALUES ('/tenants/*/projects/*/apps/*/linklogs/erroranalysis','log','applog');
+INSERT INTO k8s_auth_server.`url_dic` (`url`,`module`,`resource`) VALUES ('/tenants/*/projects/*/apps/*/linklogs/pod','log','applog');
+INSERT INTO k8s_auth_server.`url_dic` (`url`,`module`,`resource`) VALUES ('/tenants/*/projects/*/apps/*/linklogs','log','applog');
+
 INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/system/configs/localuserflag', 'whitelist', 'whitelist');

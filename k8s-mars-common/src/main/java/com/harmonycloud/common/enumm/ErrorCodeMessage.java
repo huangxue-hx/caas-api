@@ -229,7 +229,7 @@ public enum ErrorCodeMessage {
     INGRESS_CONTROLLER_HTTP_PORT_ERROR(300055, "The port of the ingress controller is not in the specified range.", "负载均衡器的端口不在指定范围"),
     RESOURCE_USED_OVER_QUOTA(300056, "Quota cannot be smaller than used.","配额不能小于已使用的容量"),
     INGRESS_CONTROLLER_PORT_UNSAFE(300057, "Please input another port as 87 and 95 is unsafe port for chrome.",
-            "85和97端口对于chrome浏览器是非安全的端口，请使用别的端口"),
+            "87和95端口对于chrome浏览器是非安全的端口，请使用别的端口"),
 
     //主机节点 301xxx
     NODE_LABEL_CREATE_ERROR(301001, "Node label create failed.","主机标签创建失败"),
@@ -316,6 +316,7 @@ public enum ErrorCodeMessage {
     SERVICE_ENTRY_FAILED(400050, "ServiceEntry access failure:", "服务入口获取失败:"),
     SERVICE_DELETE(400051,"return to modify  successfully but old domain names deletion failed",
                "修改成功，但是旧的服务删除失败，请联系管理员删除旧的service资源"),
+    NAMESPACE_STORAGE_RESOURCE_INSUFFICIENT(400053, "Namespace storage resource insufficient.","分区存储资源不足"),
 
     //模板 401xxx
     SERVICE_TEMPLATE_NOT_EXIST(401001, "Service template not exist.", "服务模板不存在"),
