@@ -873,11 +873,13 @@ public class ServiceServiceImpl implements ServiceService {
     public Map<String, Long> getServiceRequireResource(ServiceTemplates serviceTemplate) throws Exception {
         long cpuTotal = 0;          //单位m
         long memoryTotal = 0;       //单位是MB
+        Map<String, Long> storage = new HashMap<>();
+        List<String> volumeNameList = new ArrayList<>();
+        int replicas = 0;
         if (StringUtils.isNotBlank(serviceTemplate.getDeploymentContent())) {
             ServiceTypeEnum serviceType = ServiceTypeEnum.valueOf(serviceTemplate.getServiceType());
             String content = JSONArray.fromObject(serviceTemplate.getDeploymentContent()).getJSONObject(0).toString().replaceAll(":\"\",", ":" + null + ",").replaceAll(":\"\"", ":" + null + "");
             List<CreateContainerDto> containerList = null;
-            int replicas = 0;
             if(serviceType == ServiceTypeEnum.DEPLOYMENT) {
                 DeploymentDetailDto deployment = JsonUtil.jsonToPojo(content, DeploymentDetailDto.class);
                 //获取实例数
@@ -887,7 +889,9 @@ public class ServiceServiceImpl implements ServiceService {
                 StatefulSetDetailDto statefulSet = JsonUtil.jsonToPojo(content, StatefulSetDetailDto.class);
                 replicas = Integer.parseInt(statefulSet.getInstance());
                 containerList = statefulSet.getContainers();
+                this.getStorageRequireResource(statefulSet.getInitContainers(), volumeNameList, storage);
             }
+            this.getStorageRequireResource(containerList, volumeNameList, storage);
             for (CreateContainerDto container : containerList) {
                 CreateResourceDto resourceDto = container.getResource();
                 long cpu = resourceDto.getCpu().indexOf("m") > -1 ? Long.valueOf(resourceDto.getCpu().substring(0, resourceDto.getCpu().length() -1)) : Integer.valueOf(resourceDto.getCpu());
@@ -899,7 +903,31 @@ public class ServiceServiceImpl implements ServiceService {
         Map<String, Long> res = new HashMap<>();
         res.put("cpuNeed", cpuTotal);
         res.put("memoryNeed", memoryTotal);
+        for(String storageClassName : storage.keySet()){
+            res.put(CommonConstant.STORAGE + CommonConstant.SLASH +storageClassName, storage.get(storageClassName) * replicas);
+        }
         return res;
+    }
+
+    private void getStorageRequireResource(List<CreateContainerDto> containers, List<String> volumeNameList, Map<String, Long> storage){
+        if(CollectionUtils.isNotEmpty(containers)) {
+            for(CreateContainerDto container : containers) {
+                if (CollectionUtils.isNotEmpty(container.getStorage())) {
+                    for (PersistentVolumeDto persistentVolumeDto : container.getStorage()) {
+                        if (Constant.VOLUME_TYPE_STORAGECLASS.equals(persistentVolumeDto.getType()) && !volumeNameList.contains(persistentVolumeDto.getVolumeName())) {
+                            String storageClassName = persistentVolumeDto.getStorageClassName();
+                            String capacity = persistentVolumeDto.getCapacity();
+                            if (storage.get(storageClassName) != null) {
+                                storage.put(storageClassName, storage.get(storageClassName) + Long.valueOf(capacity));
+                            } else {
+                                storage.put(storageClassName, Long.valueOf(capacity));
+                            }
+                            volumeNameList.add(persistentVolumeDto.getVolumeName());
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @Override

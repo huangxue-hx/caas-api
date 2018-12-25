@@ -4,7 +4,6 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.Constant.IngressControllerConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
-import com.harmonycloud.common.enumm.ServiceTypeEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
@@ -30,7 +29,6 @@ import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.cluster.LoadbalanceService;
 import com.harmonycloud.service.cluster.RBACService;
 import com.harmonycloud.service.common.DataPrivilegeHelper;
-import com.harmonycloud.service.common.PrivilegeHelper;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeService;
 import com.harmonycloud.service.platform.bean.ApplicationList;
 import com.harmonycloud.service.platform.bean.RouterSvc;
@@ -54,9 +52,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.servlet.http.HttpSession;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -81,9 +79,6 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     private ClusterService clusterService;
 
     @Autowired
-    private PersistentVolumeService volumeSerivce;
-
-    @Autowired
     private DeploymentsService deploymentsService;
 
     @Autowired
@@ -105,19 +100,14 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     private NamespaceService namespaceService;
 
     @Autowired
-    private PrivatePartitionService privatePartitionService;
-
-    @Autowired
     private HttpSession session;
-
-    @Autowired
-    private ServiceService serviceService;
 
     @Autowired
     private LoadbalanceService loadbalanceService;
 
     @Autowired
     private IcService icService;
+
 
     @Value("#{propertiesReader['kube.topo']}")
     private String kubeTopo;
@@ -127,9 +117,6 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
 
     @Autowired
     private NamespaceLocalService namespaceLocalService;
-
-    @Autowired
-    private PrivilegeHelper privilegeHelper;
 
     @Autowired
     private UserService userService;
@@ -148,12 +135,6 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
 
     @Autowired
     private StatefulSetsService statefulsetsService;
-
-    @Autowired
-    private ClusterRoleBindingService clusterRoleBindingService;
-
-    @Autowired
-    private ClusterRoleService clusterRoleService;
 
     @Autowired
     private RBACService rbacService;
@@ -179,7 +160,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
 
         // application list
         List<ApplicationDto> array = new ArrayList<>();
-        List<BaseResource> appCrdList = new ArrayList<>();
+        List<BaseResource> appCrdList = new CopyOnWriteArrayList<>();
         Cluster cluster = null;
         List<String> clusterNamespaces = null;
         if(StringUtils.isNotBlank(applicationQuery.getClusterId())){
@@ -367,6 +348,10 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             }
             app.setNamespace(bs.getMetadata().getNamespace());
             final NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByName(app.getNamespace());
+            if(namespaceLocal == null){
+                LOGGER.error("k8s的分区在数据库中不存在，namespace：{}",app.getNamespace());
+                continue;
+            }
             app.setAliasNamespace(namespaceLocal.getAliasName());
             //获取创建时间
             app.setCreateTime(bs.getMetadata().getCreationTimestamp());

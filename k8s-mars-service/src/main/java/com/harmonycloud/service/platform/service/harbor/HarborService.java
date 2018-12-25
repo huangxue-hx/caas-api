@@ -150,7 +150,7 @@ public interface HarborService {
      * @return
      * @throws Exception
      */
-    ActionReturnUtil getRepoFuzzySearch(String query,String projectId, Boolean isPublic) throws Exception;
+    ActionReturnUtil getRepoFuzzySearch(String query, String projectId, String clusterId, Boolean isPublic) throws Exception;
 
     ActionReturnUtil getFuzzySearch(String harborHost, String query) throws Exception;
     /**

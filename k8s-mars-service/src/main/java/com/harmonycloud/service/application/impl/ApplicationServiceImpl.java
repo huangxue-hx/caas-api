@@ -1,5 +1,6 @@
 package com.harmonycloud.service.application.impl;
 
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.ServiceTypeEnum;
@@ -728,6 +729,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
         long cpuTotal = 0;          //单位m
         long memoryTotal = 0;       //单位是MB
+        Map<String, Long> res = new HashMap<>();
         for (com.harmonycloud.dao.application.bean.ApplicationService applicationService : applicationServiceList) {
             ServiceTemplates serviceTemplates = serviceTemplatesMapper.getServiceTemplatesByID(applicationService.getServiceId());
             if (null == serviceTemplates) {
@@ -736,8 +738,18 @@ public class ApplicationServiceImpl implements ApplicationService {
             Map<String, Long> serviceRequireRes = serviceService.getServiceRequireResource(serviceTemplates);
             cpuTotal += serviceRequireRes.get("cpuNeed");
             memoryTotal += serviceRequireRes.get("memoryNeed");
+            for(String key : serviceRequireRes.keySet()){
+                if(key.contains(CommonConstant.STORAGE + CommonConstant.SLASH)){
+                    if(res.get(key) == null){
+                        res.put(key, serviceRequireRes.get(key));
+                    }else{
+                        Long storage = res.get(key) + serviceRequireRes.get(key);
+                        res.put(key, storage);
+                    }
+                }
+            }
         }
-        Map<String, Long> res = new HashMap<>();
+
         res.put("cpuNeed", cpuTotal);
         res.put("memoryNeed", memoryTotal);
         return res;
