@@ -1,6 +1,7 @@
 package com.harmonycloud.api.monitor;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
@@ -25,6 +26,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+import java.rmi.MarshalException;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -111,14 +117,16 @@ public class MonitorAlarmController {
 		influxdbQuery.setStartTime(startTime);
 		influxdbQuery.setClusterId(clusterId);
 		influxdbQuery.setPod(pod);
-		ActionReturnUtil result = influxdbService.podMonit(influxdbQuery);
+		ActionReturnUtil result = influxdbService.podMonit(influxdbQuery, null);
 		return result;
 	}
 	
 	@ResponseBody
 	@RequestMapping(value="/pod/{podName}/container/{containerName}/monitor", method=RequestMethod.GET)
 	public ActionReturnUtil monitorContainer(@RequestParam(value="rangeType") String rangeType, @RequestParam(value="startTime") String startTime,
-			@PathVariable(value="podName") String pod, @PathVariable(value="containerName") String container, @RequestParam(value="target") String target, @PathVariable(value="clusterId") String clusterId) throws Exception {
+			@PathVariable(value="podName") String pod, @PathVariable(value="containerName") String container,
+											 @RequestParam(value="target") String target, @PathVariable(value="clusterId") String clusterId,
+											 @RequestParam(value="request") Integer request) throws ParseException, IOException, NoSuchAlgorithmException, KeyManagementException {
 		try {
 			InfluxdbQuery influxdbQuery = new InfluxdbQuery();
 			influxdbQuery.setRangeType(rangeType);
@@ -127,8 +135,8 @@ public class MonitorAlarmController {
 			influxdbQuery.setClusterId(clusterId);
 			influxdbQuery.setPod(pod);
 			influxdbQuery.setContainer(container);
-			return influxdbService.podMonit(influxdbQuery);
-		} catch (Exception e) {
+			return influxdbService.podMonit(influxdbQuery, request);
+		} catch (MarsRuntimeException e) {
 			throw e;
 		}
 	}

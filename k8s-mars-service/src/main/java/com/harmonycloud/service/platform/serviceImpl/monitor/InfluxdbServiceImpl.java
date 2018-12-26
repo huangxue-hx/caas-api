@@ -54,90 +54,113 @@ public class InfluxdbServiceImpl implements InfluxdbService {
     private String nodeName = "nodename";
 
 
-    public ActionReturnUtil podMonit(InfluxdbQuery query) throws ParseException, IOException, NoSuchAlgorithmException, KeyManagementException {
-        String interval;
-        String range;
-        Cluster cluster = clusterService.findClusterById(query.getClusterId());
-        if (query.getRangeType().equals(EnumMonitorQuery.FROM_START.getCode())) {
-            if (StringUtils.isBlank(query.getStartTime())) {
-                return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER, DictEnum.CREATE_TIME.phrase(), true);
-            }
-            SimpleDateFormat adf;
-            if (query.getStartTime().length() > 20) {
-                adf = new SimpleDateFormat(DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z_SSS.getValue());
-            } else {
-                adf = new SimpleDateFormat(DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
-            }
-            adf.setTimeZone(TimeZone.getTimeZone("UTC"));
+	public ActionReturnUtil podMonit(InfluxdbQuery query, Integer request) throws ParseException,IOException,NoSuchAlgorithmException,KeyManagementException {
+		String interval;
+		String range;
+		Cluster cluster = clusterService.findClusterById(query.getClusterId());
+		if(query.getRangeType().equals(EnumMonitorQuery.FROM_START.getCode())){
+			if(StringUtils.isBlank(query.getStartTime())){
+				return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER, DictEnum.CREATE_TIME.phrase(), true);
+			}
+			SimpleDateFormat adf;
+			if(query.getStartTime().length()>20){
+				adf = new SimpleDateFormat(DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z_SSS.getValue());
+			}else {
+				adf = new SimpleDateFormat(DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
+			}
+			adf.setTimeZone(TimeZone.getTimeZone("UTC"));
             Date startDate = adf.parse(query.getStartTime());
-            Long timeInterval = System.currentTimeMillis() - startDate.getTime();
-            //如果创建时间在30天内，就用目前固定的几种时间查询类型，超过30天，以100个点作为最大的点数显示
-            if (timeInterval <= EnumMonitorQuery.THIRTY_DAY.getMillisecond()) {
-                String newRangeType;
-                if (timeInterval <= EnumMonitorQuery.TEN_MINUTE.getMillisecond()) {
-                    newRangeType = EnumMonitorQuery.TEN_MINUTE.getCode();
-                } else if (timeInterval <= EnumMonitorQuery.SIX_HOUR.getMillisecond()) {
-                    newRangeType = EnumMonitorQuery.SIX_HOUR.getCode();
-                } else if (timeInterval <= EnumMonitorQuery.ONE_DAY.getMillisecond()) {
-                    newRangeType = EnumMonitorQuery.ONE_DAY.getCode();
-                } else if (timeInterval <= EnumMonitorQuery.SEVEN_DAY.getMillisecond()) {
-                    newRangeType = EnumMonitorQuery.SEVEN_DAY.getCode();
-                } else {
-                    newRangeType = EnumMonitorQuery.THIRTY_DAY.getCode();
-                }
-                EnumMonitorQuery monitorQuery = EnumMonitorQuery.getRangeData(newRangeType);
-                interval = monitorQuery.getInterval();
-                range = monitorQuery.getRange();
-            } else {
-                Long timeIntervalInDays = timeInterval / (1000 * 60 * 60 * 24);
-                range = timeIntervalInDays + "d";
-                interval = (timeIntervalInDays / MAX_MONITOR_POINT + 1) + "d";
-            }
-        } else {
-            EnumMonitorQuery monitorQuery = EnumMonitorQuery.getRangeData(query.getRangeType());
-            if (monitorQuery == null) {
-                return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
-            }
-            interval = monitorQuery.getInterval();
-            range = monitorQuery.getRange();
-        }
+			Long timeInterval = System.currentTimeMillis() - startDate.getTime();
+			//如果创建时间在30天内，就用目前固定的几种时间查询类型，超过30天，以100个点作为最大的点数显示
+			if(timeInterval <= EnumMonitorQuery.THIRTY_DAY.getMillisecond()){
+				String newRangeType;
+				if(timeInterval <= EnumMonitorQuery.TEN_MINUTE.getMillisecond()){
+					newRangeType = EnumMonitorQuery.TEN_MINUTE.getCode();
+				}else if(timeInterval <= EnumMonitorQuery.SIX_HOUR.getMillisecond()){
+					newRangeType = EnumMonitorQuery.SIX_HOUR.getCode();
+				}else if(timeInterval <= EnumMonitorQuery.ONE_DAY.getMillisecond()){
+					newRangeType = EnumMonitorQuery.ONE_DAY.getCode();
+				}else if(timeInterval <= EnumMonitorQuery.SEVEN_DAY.getMillisecond()){
+					newRangeType = EnumMonitorQuery.SEVEN_DAY.getCode();
+				}else {
+					newRangeType = EnumMonitorQuery.THIRTY_DAY.getCode();
+				}
+				EnumMonitorQuery monitorQuery = EnumMonitorQuery.getRangeData(newRangeType);
+				interval = monitorQuery.getInterval();
+				range = monitorQuery.getRange();
+			}else{
+				Long timeIntervalInDays = timeInterval / (1000 * 60 * 60 * 24);
+				range = timeIntervalInDays +"d";
+				interval = (timeIntervalInDays/MAX_MONITOR_POINT + 1) + "d";
+			}
+		}else {
+			EnumMonitorQuery monitorQuery = EnumMonitorQuery.getRangeData(query.getRangeType());
+			if (monitorQuery == null) {
+				return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
+			}
+			interval = monitorQuery.getInterval();
+			range = monitorQuery.getRange();
+		}
 
-        EnumMonitorTarget mTarget = EnumMonitorTarget.getTargetData(query.getMeasurement().toUpperCase());
-        if (mTarget == null) {
-            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
-        }
-        String target = mTarget.getTarget();
-        String sql;
-        String type = CommonConstant.MONIT_TYPE;
-        //判断是否是网络监控
-        if (target.indexOf(CommonConstant.MONIT_NETWORK) > -1) {
-            type = CommonConstant.MONIT_NETWORK_TYPE;
-        }
-        /*
-         * 判断是否是pv监控, 非pv监控走之前sql语句生成逻辑，否则
-         * 设置type为CommonConstant.MONIT_VOLUME
-         * 在volume/usage中pod_refs存pv绑定的所有pod，用‘|’分割，故需要使用正则表达式来选取指定podname的pv
-         * */
-        if (mTarget.equals(EnumMonitorTarget.VOLUME)) {
-            type = CommonConstant.MONIT_VOLUME;
-            sql = "SELECT mean(" + "\"value\"" + ") FROM " + "\"" + target + "\"" + " WHERE " + "\"type\"" + " = " + "\'" + type + "\'" + " AND " + "\"pod_refs\"" + " =~ " + "/" + query.getPod() + "/" + " AND time > now() - " + range + " GROUP BY time(" + interval + "), pvc_name fill(null)";
-        } else {
-            if (!checkParamNUll(query.getContainer())) {
-                sql = "SELECT mean(" + "\"value\"" + ") FROM " + "\"" + target + "\"" + " WHERE " + "\"container_name\"" + " = " + "\'" + query.getContainer() + "\'" + " AND " + "\"type\"" + " = " + "\'" + type + "\'" + " AND " + "\"pod_name\"" + " = " + "\'" + query.getPod() + "\'" + " AND time > now() - " + range + " GROUP BY time(" + interval + ")," + "\"container_name\"" + " fill(null)";
-            } else {
-                sql = "SELECT mean(" + "\"value\"" + ") FROM " + "\"" + target + "\"" + " WHERE " + "\"type\"" + " = " + "\'" + type + "\'" + " AND " + "\"pod_name\"" + " = " + "\'" + query.getPod() + "\'" + " AND time > now() - " + range + " GROUP BY time(" + interval + ") fill(null)";
-            }
-        }
-
-        String influxServer = cluster.getInfluxdbUrl() + "?db=" + cluster.getInfluxdbDb();
-        influxServer = influxServer + "&&q=" + URLEncoder.encode(sql, "UTF-8");
-        HttpClientResponse response = HttpClientUtil.doGet(influxServer, null, null);
-        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            return ActionReturnUtil.returnErrorWithMsg(response.getBody());
-        }
-        return ActionReturnUtil.returnSuccessWithData(JsonUtil.convertJsonToMap(response.getBody()));
-    }
-
+		EnumMonitorTarget mTarget = EnumMonitorTarget.getTargetData(query.getMeasurement().toUpperCase());
+		if (mTarget == null) {
+			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
+		}
+		String target = mTarget.getTarget();
+		String sql;
+		String type = CommonConstant.MONIT_TYPE;
+		//判断是否是网络监控
+		if (target.indexOf(CommonConstant.MONIT_NETWORK) > -1) {
+			type = CommonConstant.MONIT_NETWORK_TYPE;
+		}
+		if (!checkParamNUll(query.getContainer())) {
+			sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"container_name\""+" = "+"\'"+query.getContainer()+"\'"+" AND "+"\"type\""+" = "+"\'"+type+"\'"+" AND "+"\"pod_name\""+" = "+"\'"+query.getPod()+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+"),"+"\"container_name\""+" fill(null)";
+		} else {
+			sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"type\""+" = "+"\'"+type+"\'"+" AND "+"\"pod_name\""+" = "+"\'"+query.getPod()+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+") fill(null)";
+		}
+		String influxServer = cluster.getInfluxdbUrl() + "?db="+cluster.getInfluxdbDb();
+		influxServer = influxServer + "&&q="+URLEncoder.encode(sql, "UTF-8");
+		HttpClientResponse response = HttpClientUtil.doGet(influxServer, null, null);
+		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+		}
+		QueryResult queryResult = JsonUtil.jsonToPojo(response.getBody(),QueryResult.class);
+        if(!Objects.isNull(queryResult) && !CollectionUtils.isEmpty(queryResult.getResults())
+                && !CollectionUtils.isEmpty(queryResult.getResults().get(0).getSeries())) {
+			QueryResult.Series series = queryResult.getResults().get(0).getSeries().get(0);
+            if ("CPU".equalsIgnoreCase(query.getMeasurement())) {
+				if(request == null || request == 0){
+					return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+				}
+				List<List<Object>> lists = series.getValues();
+				for(int i = 0; i < lists.size(); i++){
+					if(lists.get(i).get(CommonConstant.NUM_ONE) != null){
+						//cpu使用量转换为百分比
+						lists.get(i).add(CommonConstant.NUM_TWO,
+                                String.format("%.0f", Double.parseDouble(String.valueOf(lists.get(i).get(CommonConstant.NUM_ONE)))/request*100));
+					}
+				}
+				queryResult.getResults().get(0).getSeries().get(0).setValues(lists);
+				return ActionReturnUtil.returnSuccessWithData(queryResult);
+			}
+            if ("MEMORY".equalsIgnoreCase(query.getMeasurement())) {
+				if(request == null || request == 0){
+					return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+				}
+				List<List<Object>> lists = series.getValues();
+				for(int i = 0; i < lists.size(); i++){
+					if(lists.get(i).get(CommonConstant.NUM_ONE) != null){
+						//内存使用量转换为百分比
+						lists.get(i).add(CommonConstant.NUM_TWO,
+                                String.format("%.0f", Double.parseDouble(String.valueOf(lists.get(i).get(CommonConstant.NUM_ONE)))/1024/1024/request*100));
+					}
+				}
+				queryResult.getResults().get(0).getSeries().get(0).setValues(lists);
+				return ActionReturnUtil.returnSuccessWithData(queryResult);
+			}
+		}
+		return ActionReturnUtil.returnSuccessWithData(JsonUtil.convertJsonToMap(response.getBody()));
+	}
 
     /**
      * 获取node的监控数据
