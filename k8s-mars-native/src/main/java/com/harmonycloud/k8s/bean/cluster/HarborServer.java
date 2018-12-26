@@ -34,6 +34,11 @@ public class HarborServer implements Serializable {
 	private Date createTime;
 	private Boolean isNormal;
 
+	/**
+	 * 哪些集群使用当前harbor（多个集群公用一个）
+	 */
+	private String referredClusterAliasNames;
+
 	public HarborServer() {
 		super();
 	}
@@ -148,4 +153,11 @@ public class HarborServer implements Serializable {
 		this.referredClusterIds = referredClusterIds;
 	}
 
+	public String getReferredClusterAliasNames() {
+		return referredClusterAliasNames;
+	}
+
+	public void setReferredClusterAliasNames(String referredClusterAliasNames) {
+		this.referredClusterAliasNames = referredClusterAliasNames;
+	}
 }

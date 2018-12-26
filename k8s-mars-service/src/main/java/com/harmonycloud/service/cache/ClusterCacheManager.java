@@ -365,6 +365,7 @@ public class ClusterCacheManager {
         List<Map<String,String>> referredClusters = this.getHarborReferredClusters(clusterCRDDtos);
         Map<String,String> harborClusterIds = referredClusters.get(0);
         Map<String,String> harborClusterNames = referredClusters.get(1);
+        Map<String,String> harborClusterAliasNames = referredClusters.get(CommonConstant.NUM_TWO);
         for(ClusterCRDDto clusterTPRDto : clusterCRDDtos){
             Cluster cluster = new Cluster();
             cluster.setId(clusterTPRDto.getUid());
@@ -420,6 +421,7 @@ public class ClusterCacheManager {
                 cluster.setEsPort(ES_DEFAULT_PORT);
                 cluster.setEsClusterName(ES_CLUSTER_NAME);
             }
+            harborServer.setReferredClusterAliasNames(harborClusterAliasNames.get(harborServer.getHarborHost()));
             cluster.setHarborServer(harborServer);
             cluster.setExternal(clusterTPRDto.getExternal());
             clusters.add(cluster);
@@ -448,19 +450,24 @@ public class ClusterCacheManager {
                 .collect(Collectors.groupingBy(ClusterCRDDto::getHarborAddress));
         Map<String,String> harborClusterNames = new HashMap<>();
         Map<String,String> harborClusterIds = new HashMap<>();
+        Map<String,String> harborClusterAliasNames = new HashMap<>();
         for(Map.Entry<String, List<ClusterCRDDto>> entry: harborAddressMap.entrySet()){
             String clusterName = "";
             String clusterId = "";
+            String clusterAliasName = "";
             for(ClusterCRDDto clusterTPRDto : entry.getValue()){
                 clusterName += clusterTPRDto.getName() + CommonConstant.COMMA;
                 clusterId += clusterTPRDto.getUid() + CommonConstant.COMMA;
+                clusterAliasName += clusterTPRDto.getNickname() + CommonConstant.COMMA;
             }
             harborClusterNames.put(entry.getKey(), clusterName.substring(0,clusterName.length()-1));
             harborClusterIds.put(entry.getKey(), clusterId.substring(0,clusterId.length()-1));
+            harborClusterAliasNames.put(entry.getKey(), clusterAliasName.substring(0,clusterAliasName.length()-1));
         }
         List<Map<String,String>> referredClusters = new ArrayList<>();
         referredClusters.add(harborClusterIds);
         referredClusters.add(harborClusterNames);
+        referredClusters.add(harborClusterAliasNames);
         return referredClusters;
     }
 
