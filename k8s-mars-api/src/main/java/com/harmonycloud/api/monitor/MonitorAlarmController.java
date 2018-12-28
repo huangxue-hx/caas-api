@@ -126,7 +126,7 @@ public class MonitorAlarmController {
 	public ActionReturnUtil monitorContainer(@RequestParam(value="rangeType") String rangeType, @RequestParam(value="startTime") String startTime,
 			@PathVariable(value="podName") String pod, @PathVariable(value="containerName") String container,
 											 @RequestParam(value="target") String target, @PathVariable(value="clusterId") String clusterId,
-											 @RequestParam(value="request") Integer request) throws ParseException, IOException, NoSuchAlgorithmException, KeyManagementException {
+											 @RequestParam(value="request", required = false) Integer request) throws ParseException, IOException, NoSuchAlgorithmException, KeyManagementException {
 		try {
 			InfluxdbQuery influxdbQuery = new InfluxdbQuery();
 			influxdbQuery.setRangeType(rangeType);
