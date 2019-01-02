@@ -113,11 +113,21 @@ public class InfluxdbServiceImpl implements InfluxdbService {
 		if (target.indexOf(CommonConstant.MONIT_NETWORK) > -1) {
 			type = CommonConstant.MONIT_NETWORK_TYPE;
 		}
-		if (!checkParamNUll(query.getContainer())) {
-			sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"container_name\""+" = "+"\'"+query.getContainer()+"\'"+" AND "+"\"type\""+" = "+"\'"+type+"\'"+" AND "+"\"pod_name\""+" = "+"\'"+query.getPod()+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+"),"+"\"container_name\""+" fill(null)";
-		} else {
-			sql = "SELECT mean("+"\"value\""+") FROM "+"\""+target+"\""+" WHERE "+"\"type\""+" = "+"\'"+type+"\'"+" AND "+"\"pod_name\""+" = "+"\'"+query.getPod()+"\'"+" AND time > now() - "+range+" GROUP BY time("+interval+") fill(null)";
-		}
+        /*
+         * 判断是否是pv监控, 非pv监控走之前sql语句生成逻辑，否则
+         * 设置type为CommonConstant.MONIT_VOLUME
+         * 在volume/usage中pod_refs存pv绑定的所有pod，用‘|’分割，故需要使用正则表达式来选取指定podname的pv
+         * */
+        if (mTarget.equals(EnumMonitorTarget.VOLUME)) {
+            type = CommonConstant.MONIT_VOLUME;
+            sql = "SELECT mean(" + "\"value\"" + ") FROM " + "\"" + target + "\"" + " WHERE " + "\"type\"" + " = " + "\'" + type + "\'" + " AND " + "\"pod_refs\"" + " =~ " + "/" + query.getPod() + "/" + " AND time > now() - " + range + " GROUP BY time(" + interval + "), pvc_name fill(null)";
+        } else {
+            if (!checkParamNUll(query.getContainer())) {
+                sql = "SELECT mean(" + "\"value\"" + ") FROM " + "\"" + target + "\"" + " WHERE " + "\"container_name\"" + " = " + "\'" + query.getContainer() + "\'" + " AND " + "\"type\"" + " = " + "\'" + type + "\'" + " AND " + "\"pod_name\"" + " = " + "\'" + query.getPod() + "\'" + " AND time > now() - " + range + " GROUP BY time(" + interval + ")," + "\"container_name\"" + " fill(null)";
+            } else {
+                sql = "SELECT mean(" + "\"value\"" + ") FROM " + "\"" + target + "\"" + " WHERE " + "\"type\"" + " = " + "\'" + type + "\'" + " AND " + "\"pod_name\"" + " = " + "\'" + query.getPod() + "\'" + " AND time > now() - " + range + " GROUP BY time(" + interval + ") fill(null)";
+            }
+        }
 		String influxServer = cluster.getInfluxdbUrl() + "?db="+cluster.getInfluxdbDb();
 		influxServer = influxServer + "&&q="+URLEncoder.encode(sql, "UTF-8");
 		HttpClientResponse response = HttpClientUtil.doGet(influxServer, null, null);
