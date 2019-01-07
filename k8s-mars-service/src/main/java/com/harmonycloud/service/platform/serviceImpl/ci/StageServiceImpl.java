@@ -11,6 +11,8 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.DesUtil;
 import com.harmonycloud.common.util.HttpJenkinsClientUtil;
 import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.dao.application.ConfigFileMapper;
+import com.harmonycloud.dao.application.bean.ConfigFile;
 import com.harmonycloud.dao.ci.*;
 import com.harmonycloud.dao.ci.bean.*;
 import com.harmonycloud.dao.harbor.ImageRepositoryMapper;
@@ -74,6 +76,9 @@ public class StageServiceImpl implements StageService {
 
     @Autowired
     private DockerFileJobStageMapper dockerFileJobStageMapper;
+
+    @Autowired
+    private ConfigFileMapper configFileMapper;
 
 //    @Autowired
 //    private SonarProjectService sonarProjectService;
@@ -246,6 +251,10 @@ public class StageServiceImpl implements StageService {
             stageDto = null;
         }else {
             stageDto.convertFromBean(stage);
+            ConfigFile configFile= configFileMapper.getConfig(stageDto.getConfigMaps().get(0).getConfigMapId());
+            for (int i = 0 ; i<stageDto.getConfigMaps().size();i++) {
+                stageDto.getConfigMaps().get(i).setName(configFile.getName());
+            }
         }
         StageType stageType = stageTypeMapper.queryById(stageDto.getStageTypeId());
         stageDto.setStageTypeName(stageType.getName());
