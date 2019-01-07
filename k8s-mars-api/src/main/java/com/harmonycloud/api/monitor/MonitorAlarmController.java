@@ -76,7 +76,7 @@ public class MonitorAlarmController {
 	@RequestMapping(value="/nodes/{nodename}/monitor", method=RequestMethod.GET)
 	public ActionReturnUtil nodeQuery(@RequestParam(value="type") String type,@RequestParam(value="rangeType", required=false) String rangeType,
 			@RequestParam(value="target", required=false) String target, @PathVariable(value="nodename") String name,
-			@RequestParam(value="startTime", required=false) String startTime, 
+			@RequestParam(value="startTime", required=false) String startTime,
 			@RequestParam(value="processName", required=false) String processName,
 			@PathVariable(value = "clusterId") String clusterId) throws Exception{
 		InfluxdbQuery influxdbQuery = new InfluxdbQuery();

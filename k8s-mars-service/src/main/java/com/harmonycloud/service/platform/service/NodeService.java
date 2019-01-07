@@ -223,4 +223,6 @@ public interface NodeService {
 	 * @return
 	 */
 	public ActionReturnUtil getLabelNodes(String clusterId,String label) throws MarsRuntimeException;
+
+	NodeDto getHostUsege(Node node, NodeDto nodeDto, Cluster cluster);
 }

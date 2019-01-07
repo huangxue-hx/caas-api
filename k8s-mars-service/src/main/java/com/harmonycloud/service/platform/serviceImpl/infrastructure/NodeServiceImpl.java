@@ -963,7 +963,7 @@ public class NodeServiceImpl implements NodeService {
         return map;
     }
 
-    private NodeDto getHostUsege(Node node, NodeDto nodeDto, Cluster cluster) {
+    public NodeDto getHostUsege(Node node, NodeDto nodeDto, Cluster cluster) {
         double nodeFilesystemCapacity = this.influxdbService.getClusterResourceUsage("node", "filesystem/limit", "nodename,resource_id", cluster, null,
                 node.getMetadata().getName());
         Object object = node.getStatus().getAllocatable();

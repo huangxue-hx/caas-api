@@ -15,6 +15,7 @@ import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.platform.bean.NodeDto;
 import com.harmonycloud.service.platform.bean.monitor.InfluxdbQuery;
 import com.harmonycloud.service.platform.client.InfluxDBClient;
 import com.harmonycloud.service.platform.service.InfluxdbService;
@@ -47,12 +48,18 @@ public class InfluxdbServiceImpl implements InfluxdbService {
 
     @Autowired
     private ClusterService clusterService;
+
+    @Autowired
+    com.harmonycloud.k8s.service.NodeService nodeService;
+
+    @Autowired
+    com.harmonycloud.service.platform.service.NodeService nodeService1;
+
     @Autowired
     private HttpSession session;
     //监控数据最大展示100个监控点
     private static final int MAX_MONITOR_POINT = 100;
     private String nodeName = "nodename";
-
 
     public ActionReturnUtil podMonit(InfluxdbQuery query) throws ParseException, IOException, NoSuchAlgorithmException, KeyManagementException {
         String interval;
@@ -146,13 +153,57 @@ public class InfluxdbServiceImpl implements InfluxdbService {
      * @return
      * @throws MarsRuntimeException
      */
-    public ActionReturnUtil nodeQuery(InfluxdbQuery influxdbQuery) throws IOException, NoSuchAlgorithmException, KeyManagementException {
+    public ActionReturnUtil nodeQuery(InfluxdbQuery influxdbQuery) throws IOException, NoSuchAlgorithmException, KeyManagementException, ParseException {
+        String interval;
+        String range;
+        Cluster cluster = clusterService.findClusterById(influxdbQuery.getClusterId());
+        if (influxdbQuery.getRangeType().equals(EnumMonitorQuery.FROM_START.getCode())) {
+            if (StringUtils.isBlank(influxdbQuery.getStartTime())) {
+                return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER, DictEnum.CREATE_TIME.phrase(), true);
+            }
+            SimpleDateFormat adf;
+            if (influxdbQuery.getStartTime().length() > 20) {
+                adf = new SimpleDateFormat(DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z_SSS.getValue());
+            } else {
+                adf = new SimpleDateFormat(DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
+            }
+            adf.setTimeZone(TimeZone.getTimeZone("UTC"));
+            Date startDate = adf.parse(influxdbQuery.getStartTime());
+            Long timeInterval = System.currentTimeMillis() - startDate.getTime();
+            //如果创建时间在30天内，就用目前固定的几种时间查询类型，超过30天，以100个点作为最大的点数显示
+            if (timeInterval <= EnumMonitorQuery.THIRTY_DAY.getMillisecond()) {
+                String newRangeType;
+                if (timeInterval <= EnumMonitorQuery.TEN_MINUTE.getMillisecond()) {
+                    newRangeType = EnumMonitorQuery.TEN_MINUTE.getCode();
+                } else if (timeInterval <= EnumMonitorQuery.SIX_HOUR.getMillisecond()) {
+                    newRangeType = EnumMonitorQuery.SIX_HOUR.getCode();
+                } else if (timeInterval <= EnumMonitorQuery.ONE_DAY.getMillisecond()) {
+                    newRangeType = EnumMonitorQuery.ONE_DAY.getCode();
+                } else if (timeInterval <= EnumMonitorQuery.SEVEN_DAY.getMillisecond()) {
+                    newRangeType = EnumMonitorQuery.SEVEN_DAY.getCode();
+                } else {
+                    newRangeType = EnumMonitorQuery.THIRTY_DAY.getCode();
+                }
+                EnumMonitorQuery monitorQuery = EnumMonitorQuery.getRangeData(newRangeType);
+                interval = monitorQuery.getInterval();
+                range = monitorQuery.getRange();
+            } else {
+                Long timeIntervalInDays = timeInterval / (1000 * 60 * 60 * 24);
+                range = timeIntervalInDays + "d";
+                interval = (timeIntervalInDays / MAX_MONITOR_POINT + 1) + "d";
+            }
+        } else {
+            EnumMonitorQuery monitorQuery = EnumMonitorQuery.getRangeData(influxdbQuery.getRangeType());
+            if (monitorQuery == null) {
+                return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
+            }
+            interval = monitorQuery.getInterval();
+            range = monitorQuery.getRange();
+        }
         EnumMonitorQuery query = EnumMonitorQuery.getRangeData(influxdbQuery.getRangeType());
         if (query == null) {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
         }
-        String interval = query.getInterval();
-        String range = query.getRange();
         EnumMonitorTarget mTarget = EnumMonitorTarget.getTargetData(influxdbQuery.getMeasurement().toUpperCase());
         if (mTarget == null) {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
@@ -175,12 +226,52 @@ public class InfluxdbServiceImpl implements InfluxdbService {
                 }
                 break;
         }
-        Cluster cluster = clusterService.findClusterById(influxdbQuery.getClusterId());
         String influxServer = cluster.getInfluxdbUrl() + "?db=" + cluster.getInfluxdbDb();
         influxServer = influxServer + "&&q=" + URLEncoder.encode(sql, "UTF-8");
         HttpClientResponse response = HttpClientUtil.doGet(influxServer, null, null);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+        }
+        Node node = nodeService.getNode(influxdbQuery.getNode(),cluster);
+        NodeDto dto = nodeService1.getHostUsege(node, new NodeDto(), cluster);
+        Double.parseDouble(dto.getMemory());
+        QueryResult queryResult = JsonUtil.jsonToPojo(response.getBody(),QueryResult.class);
+        QueryResult.Series series = null;
+        if(!Objects.isNull(queryResult)) {
+            if(!Objects.isNull(queryResult.getResults())){
+                if(!Objects.isNull(queryResult.getResults().get(0))){
+                    if(!Objects.isNull(queryResult.getResults().get(0).getSeries())){
+                        series = queryResult.getResults().get(0).getSeries().get(0);
+                    }
+                }
+            }
+            if ("CPU".equalsIgnoreCase(influxdbQuery.getMeasurement())) {
+                List<List<Object>> lists = series.getValues();
+                for (int i = 0; i < lists.size(); i++) {
+                    if (lists.get(i).get(1) != null) {
+                        //cpu使用量转换为百分比
+                        Long cpuTotal = Long.parseLong(dto.getCpu());
+                        lists.get(i).add(CommonConstant.NUM_TWO, String.format("%.0f", Double.parseDouble(String.valueOf(lists.get(i).get(1))) / (cpuTotal * 10)));
+                    }
+                }
+                queryResult.getResults().get(0).getSeries().get(0).setValues(lists);
+                return ActionReturnUtil.returnSuccessWithData(queryResult);
+            }
+            if ("MEMORY".equalsIgnoreCase(influxdbQuery.getMeasurement())) {
+                List<List<Object>> lists = series.getValues();
+                for (int i = 0; i < lists.size(); i++) {
+                    if (lists.get(i).get(1) != null) {
+                        //内存使用量转换为百分比
+                        //单位GB
+                        double memmoryTotal = Double.parseDouble(dto.getMemory());
+                        double memmoryNow = Double.parseDouble(String.valueOf(lists.get(i).get(1)))/1024/1024/1024/memmoryTotal*100;
+                        lists.get(i).add(CommonConstant.NUM_TWO, String.format("%.2f",memmoryNow));
+                    }
+                }
+                queryResult.getResults().get(0).getSeries().get(0).setValues(lists);
+                return ActionReturnUtil.returnSuccessWithData(queryResult);
+            }
+
         }
         return ActionReturnUtil.returnSuccessWithData(JsonUtil.convertJsonToMap(response.getBody()));
     }

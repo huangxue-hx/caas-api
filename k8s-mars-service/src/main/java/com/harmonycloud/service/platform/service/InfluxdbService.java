@@ -24,7 +24,7 @@ public interface InfluxdbService {
 	
 	public ActionReturnUtil podMonit(InfluxdbQuery query) throws ParseException,IOException,NoSuchAlgorithmException,KeyManagementException;
 	
-	public ActionReturnUtil nodeQuery(InfluxdbQuery query) throws IOException,NoSuchAlgorithmException,KeyManagementException;
+	public ActionReturnUtil nodeQuery(InfluxdbQuery query) throws IOException,NoSuchAlgorithmException,KeyManagementException, ParseException;
 	
 	public ActionReturnUtil getProcessStatus(String name, String processName, String clusterId) throws IOException,NoSuchAlgorithmException,KeyManagementException;
 	
