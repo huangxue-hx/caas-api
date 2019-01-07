@@ -651,7 +651,7 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
                     harborPolicyDetailList.add(policy);
                     //HarborPolicyDetail harborPolicyDetail = new HarborPolicyDetail();
                     ActionReturnUtil policyResponse = policyStatus(harborHost, policy.getPolicy_id());
-                    List<PolicyResponse> policyResponseList = JsonUtil.jsonToList(policyResponse.toString(),PolicyResponse.class);
+                    List<PolicyResponse> policyResponseList = JsonUtil.jsonToList(policyResponse.getData().toString(),PolicyResponse.class);
                     if ((boolean) policyResponse.get("success") == true) {
                         // HarborManifest tagDetail = (HarborManifest) maniResponse.get("data");
                         if (policyResponse.get("data") != null) {
