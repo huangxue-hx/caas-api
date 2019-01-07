@@ -2,6 +2,7 @@ package com.harmonycloud.service.application.impl;
 
 
 import com.alibaba.fastjson.JSONObject;
+import com.google.common.collect.Maps;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
@@ -60,6 +61,8 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 	public static final String SCALE_CONTROLLER_TYPE_CPA = "cpa";
 	private static final int MAX_DAY = 7 ;
 	private static final int MAX_TIME = 24;
+	public static final String SCALE_ALARM_TO_EMAIL = "toEmail";
+	public static final String SCALE_ALARM_CC_EMAIL = "ccEmail";
 
 	private static Logger LOGGER = LoggerFactory.getLogger(AutoScaleServiceImpl.class);
 
@@ -408,6 +411,10 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		// 设置hpa对象的metadata
 		ObjectMeta meta = new ObjectMeta();
 		meta.setName(getScaleName(autoScaleDto.getDeploymentName()));
+		Map<String, Object> annotations = convertAnnotations(autoScaleDto);
+		if (annotations != null) {
+			meta.setAnnotations(annotations);
+		}
 		complexPodScale.setMetadata(meta);
 
 		// 设置hpa对象的spec
@@ -477,6 +484,10 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		// 设置hpa对象的metadata
 		ObjectMeta meta = complex.getMetadata();
 		meta.setName(getScaleName(autoScaleDto.getDeploymentName()));
+		Map<String, Object> annotations = convertAnnotations(autoScaleDto);
+		if (annotations != null) {
+			meta.setAnnotations(annotations);
+		}
 		complexPodScale.setMetadata(meta);
 
 		// 设置hpa对象的spec
@@ -487,6 +498,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
         Map<String, Object> convertResult = convertTargetRef(autoScaleDto.getDeploymentName(), autoScaleDto.getServiceType());
         meta.setLabels((Map<String, Object>) convertResult.get("label"));
         cpaSpec.setScaleTargetRef((CrossVersionObjectReference)convertResult.get("targetRef"));
+
 
 		List<MetricSpec> metricSpecs = new ArrayList<>();
 		//cpu伸缩 转为资源指标伸缩类型
@@ -553,6 +565,11 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		autoScale.setNamespace(complexPodScale.getMetadata().getNamespace());
 		autoScale.setDeploymentName(complexPodScale.getMetadata().getName());
 		autoScale.setControllerType(SCALE_CONTROLLER_TYPE_CPA);
+		Map<String, Object> annottions = complexPodScale.getMetadata().getAnnotations();
+		if (annottions != null){
+			autoScaleDto.setToEmail(annottions.get(SCALE_ALARM_TO_EMAIL) == null ? "" : ((String) annottions.get(SCALE_ALARM_TO_EMAIL)));
+			autoScaleDto.setCcEmail(annottions.get(SCALE_ALARM_CC_EMAIL) == null ? "" : ((String) annottions.get(SCALE_ALARM_CC_EMAIL)));
+		}
 		ComplexPodScaleStatus status = complexPodScale.getStatus();
 		Map<String, Object> statusMap = new HashMap<>();
 		if(status != null) {
@@ -665,6 +682,11 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		autoScale.setMaxPods(hpaSpec.getMaxReplicas());
 		autoScale.setMinPods(hpaSpec.getMinReplicas());
 		autoScale.setControllerType(SCALE_CONTROLLER_TYPE_HPA);
+		Map<String, Object> annottions = hpa.getMetadata().getAnnotations();
+		if (annottions != null){
+			autoScale.setToEmail(annottions.get(SCALE_ALARM_TO_EMAIL) == null ? "" : ((String) annottions.get(SCALE_ALARM_TO_EMAIL)));
+			autoScale.setCcEmail(annottions.get(SCALE_ALARM_CC_EMAIL) == null ? "" : ((String) annottions.get(SCALE_ALARM_CC_EMAIL)));
+		}
 		if(hpa.getStatus() != null){
 			autoScale.setLastScaleTime(hpa.getStatus().getLastScaleTime());
 		}
@@ -695,6 +717,10 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		meta.setCreationTimestamp(null);
 		meta.setDeletionGracePeriodSeconds(null);
 		meta.setDeletionTimestamp(null);
+		Map<String, Object> annotations = convertAnnotations(autoScaleDto);
+		if (annotations != null) {
+			meta.setAnnotations(annotations);
+		}
 		hpAutoscaler.setMetadata(meta);
 
 		// 设置hpa对象的spec
@@ -780,4 +806,16 @@ public class AutoScaleServiceImpl implements AutoScaleService {
         result.put("targetRef", targetRef);
         return result;
     }
+
+	private Map<String, Object> convertAnnotations(AutoScaleDto autoScaleDto){
+		if (StringUtils.isNotBlank(autoScaleDto.getToEmail())) {
+			Map<String, Object> annotations = Maps.newHashMapWithExpectedSize(2);
+			annotations.put(SCALE_ALARM_TO_EMAIL, autoScaleDto.getToEmail());
+			if (StringUtils.isNotBlank(autoScaleDto.getCcEmail())) {
+				annotations.put(SCALE_ALARM_CC_EMAIL, autoScaleDto.getCcEmail());
+			}
+			return annotations;
+		}
+		return null;
+	}
 }

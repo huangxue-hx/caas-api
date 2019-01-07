@@ -44,6 +44,15 @@ public class AutoScaleDto {
 	private List<CustomMetricScaleDto> customMetricScales;
     private String serviceType;
 
+	/**
+	 * 伸缩告警收件人，多个用分号分割
+	 */
+	private String toEmail;
+	/**
+	 * 伸缩告警抄送人，多个用分号分割
+	 */
+	private String ccEmail;
+
 	public List<CustomMetricScaleDto> getCustomMetricScales() {
 		return customMetricScales;
 	}
@@ -179,4 +188,21 @@ public class AutoScaleDto {
     public void setServiceType(String serviceType) {
         this.serviceType = serviceType;
     }
+
+	public String getToEmail() {
+		return toEmail;
+	}
+
+	public void setToEmail(String toEmail) {
+		this.toEmail = toEmail;
+	}
+
+	public String getCcEmail() {
+		return ccEmail;
+	}
+
+	public void setCcEmail(String ccEmail) {
+		this.ccEmail = ccEmail;
+	}
+
 }

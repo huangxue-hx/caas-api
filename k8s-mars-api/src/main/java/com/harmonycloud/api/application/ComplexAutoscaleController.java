@@ -10,6 +10,7 @@ import com.harmonycloud.dto.scale.CustomMetricScaleDto;
 import com.harmonycloud.service.application.AutoScaleService;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.EsService;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -134,6 +135,10 @@ public class ComplexAutoscaleController {
             if(names.size() != customMetrics.size()){
                 return MessageUtil.getMessage(ErrorCodeMessage.NOT_REPEATE);
             }
+        }
+        //抄送人不为空、收件人为空非法
+        if (StringUtils.isNotBlank(autoScale.getCcEmail()) && StringUtils.isBlank(autoScale.getToEmail())) {
+            return MessageUtil.getMessage(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         return null;
     }
