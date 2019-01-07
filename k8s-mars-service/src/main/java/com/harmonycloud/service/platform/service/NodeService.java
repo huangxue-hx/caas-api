@@ -3,6 +3,7 @@ package com.harmonycloud.service.platform.service;
 import java.util.List;
 import java.util.Map;
 
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.cluster.NodeBriefDto;
 import com.harmonycloud.k8s.bean.Node;
@@ -213,4 +214,13 @@ public interface NodeService {
 	 * 获取不可用主机列表
 	 */
 	public List<NodeBriefDto> listUnavailableNodes() throws Exception;
+
+	/**
+	 * 获取满足label的node节点
+	 * @param clusterId
+	 * @param label
+	 * @throws MarsRuntimeException
+	 * @return
+	 */
+	public ActionReturnUtil getLabelNodes(String clusterId,String label) throws MarsRuntimeException;
 }

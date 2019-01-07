@@ -1357,7 +1357,6 @@ public class NodeServiceImpl implements NodeService {
         }
     }
 
-
     /**
      * 获取不可用主机列表
      */
@@ -1487,6 +1486,41 @@ public class NodeServiceImpl implements NodeService {
         }
         return CommonConstant.NUM_NINE;
     }
-    
-    
+
+
+    /**
+     * 获取满足label的node节点
+     * @param clusterId
+     * @param label
+     * @throws MarsRuntimeException
+     * @return
+     */
+    @Override
+    public ActionReturnUtil getLabelNodes(String clusterId,String label) throws MarsRuntimeException {
+        Cluster cluster = clusterService.findClusterById(clusterId);
+        NodeList nodeList = nodeService.listNode(cluster);
+        List<NodeDto> nodeDtoList = new ArrayList<>();
+        List<Node> nodeData=new ArrayList<>();
+        if (nodeList != null && nodeList.getItems().size() > 0) {
+            List<Node> nodes = nodeList.getItems();
+            for(Node node:nodes){
+                Map<String, Object> labels = node.getMetadata().getLabels();
+                if (labels != null) {
+                    Set<Entry<String, Object>> entrySet = labels.entrySet();
+                    for (Entry<String, Object> entry : entrySet) {
+                        if (entry.getKey().contains(NODESELECTOR_LABELS_PRE)&&!entry.getKey().contains("group")) {
+                            String key = entry.getKey();
+                            key = key.replaceAll(NODESELECTOR_LABELS_PRE, "");
+                            String labelStr=key + "=" + entry.getValue();
+                            if(label.equals(labelStr)){
+                                nodeData.add(node);
+                            }
+                        }
+                    }
+                }
+            }
+            dealNodeStatus(nodeData, cluster, nodeDtoList);
+        }
+        return ActionReturnUtil.returnSuccessWithData(nodeDtoList);
+    }
 }
