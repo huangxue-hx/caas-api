@@ -534,7 +534,8 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
                 List<PodDetail> podDetails = new ArrayList<>();
                 podDetails.addAll(K8sResultConvert.podListConvert(podList, "v" + tag));
                 //组装container信息
-                List<ContainerOfPodDetail> containerOfPodDetails = convertReplicaSetContainer(rs, name);
+                List<ContainerOfPodDetail> containerOfPodDetails = K8sResultConvert.convertReplicaSetContainer(rs,
+                                                rs.getSpec().getTemplate().getSpec().getContainers(), cluster);
                 Map<String, Object> tmMap = new HashMap<>();
                 tmMap.put("pods", podDetails);
                 tmMap.put("containers", containerOfPodDetails);
@@ -551,130 +552,6 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         return res;
     }
 
-    /**
-     * 获取rs对应的容器信息
-     *
-     * @param rs   ReplicaSet
-     * @param name 服务名称
-     * @return List<ContainerOfPodDetail>
-     * @throws Exception
-     */
-    @SuppressWarnings("unchecked")
-    private List<ContainerOfPodDetail> convertReplicaSetContainer(ReplicaSet rs, String name) throws Exception {
-        List<ContainerOfPodDetail> res = new ArrayList<ContainerOfPodDetail>();
-        List<Container> containers = rs.getSpec().getTemplate().getSpec().getContainers();
-        if (containers != null && containers.size() > 0) {
-            for (Container ct : containers) {
-                ContainerOfPodDetail cOfPodDetail = new ContainerOfPodDetail(ct.getName(), ct.getImage(),
-                        ct.getLivenessProbe(), ct.getReadinessProbe(), ct.getPorts(), ct.getArgs(), ct.getEnv(),
-                        ct.getCommand());
-                if (ct.getImagePullPolicy() != null) {
-                    cOfPodDetail.setImagePullPolicy(ct.getImagePullPolicy());
-                }
-                cOfPodDetail.setDeploymentName(name);
-                //SecurityContext
-                if (ct.getSecurityContext() != null) {
-                    SecurityContextDto newsc = new SecurityContextDto();
-                    SecurityContext sc = ct.getSecurityContext();
-                    boolean flag = false;
-                    newsc.setPrivileged(sc.isPrivileged());
-                    if (sc.isPrivileged()) {
-                        flag = true;
-                    }
-                    if (sc.getCapabilities() != null) {
-                        if (sc.getCapabilities().getAdd() != null && sc.getCapabilities().getAdd().size() > 0) {
-                            flag = true;
-                            newsc.setAdd(sc.getCapabilities().getAdd());
-                        }
-                        if (sc.getCapabilities().getDrop() != null && sc.getCapabilities().getDrop().size() > 0) {
-                            flag = true;
-                            newsc.setDrop(sc.getCapabilities().getDrop());
-                        }
-                    }
-                    newsc.setSecurity(flag);
-                    cOfPodDetail.setSecurityContext(newsc);
-
-                }
-                if (ct.getResources().getLimits() != null) {
-                    String pattern = ".*m.*";
-                    Pattern r = Pattern.compile(pattern);
-                    String cpu = ((Map<Object, Object>) ct.getResources().getLimits()).get("cpu").toString();
-                    Matcher m = r.matcher(cpu);
-                    if (!m.find()) {
-                        ((Map<Object, Object>) ct.getResources().getLimits()).put("cpu",
-                                Integer.valueOf(cpu) * 1000 + "m");
-                    }
-                    cOfPodDetail.setLimit(((Map<String, Object>) ct.getResources().getLimits()));
-
-                } else {
-                    cOfPodDetail.setLimit(null);
-                }
-                if (ct.getResources().getRequests() != null) {
-                    String pattern = ".*m.*";
-                    Pattern r = Pattern.compile(pattern);
-                    String cpu = ((Map<Object, Object>) ct.getResources().getRequests()).get("cpu").toString();
-                    Matcher m = r.matcher(cpu);
-                    if (!m.find()) {
-                        ((Map<Object, Object>) ct.getResources().getRequests()).put("cpu",
-                                Integer.valueOf(cpu) * 1000 + "m");
-                    }
-                    cOfPodDetail.setResource(((Map<String, Object>) ct.getResources().getRequests()));
-                } else {
-                    cOfPodDetail.setResource(cOfPodDetail.getLimit());
-                }
-
-                List<VolumeMount> volumeMounts = ct.getVolumeMounts();
-                List<VolumeMountExt> vms = new ArrayList<VolumeMountExt>();
-                if (volumeMounts != null && volumeMounts.size() > 0) {
-                    for (VolumeMount vm : volumeMounts) {
-                        VolumeMountExt vmExt = new VolumeMountExt(vm.getName(), vm.isReadOnly(), vm.getMountPath(),
-                                vm.getSubPath());
-                        for (Volume volume : rs.getSpec().getTemplate().getSpec().getVolumes()) {
-                            if (vm.getName().equals(volume.getName())) {
-                                if (volume.getSecret() != null) {
-                                    vmExt.setType("secret");
-                                } else if (volume.getPersistentVolumeClaim() != null) {
-                                    vmExt.setType("nfs");
-                                    vmExt.setPvcname(volume.getPersistentVolumeClaim().getClaimName());
-                                } else if (volume.getEmptyDir() != null) {
-                                    vmExt.setType("emptyDir");
-                                    if (volume.getEmptyDir() != null) {
-                                        vmExt.setEmptyDir(volume.getEmptyDir().getMedium());
-                                    } else {
-                                        vmExt.setEmptyDir(null);
-                                    }
-
-                                    if (vm.getName().indexOf("logdir") == 0) {
-                                        vmExt.setType("logDir");
-                                    }
-                                } else if (volume.getConfigMap() != null) {
-                                    Map<String, Object> configMap = new HashMap<String, Object>();
-                                    configMap.put("name", volume.getConfigMap().getName());
-                                    configMap.put("path", vm.getMountPath());
-                                    vmExt.setType("configMap");
-                                    vmExt.setConfigMapName(volume.getConfigMap().getName());
-                                } else if (volume.getHostPath() != null) {
-                                    vmExt.setType("hostPath");
-                                    vmExt.setHostPath(volume.getHostPath().getPath());
-                                    if (vm.getName().indexOf("logdir") == 0) {
-                                        vmExt.setType("logDir");
-                                    }
-                                }
-                                if (vmExt.getReadOnly() == null) {
-                                    vmExt.setReadOnly(false);
-                                }
-                                vms.add(vmExt);
-                                break;
-                            }
-                        }
-                    }
-                    cOfPodDetail.setStorage(vms);
-                }
-                res.add(cOfPodDetail);
-            }
-        }
-        return res;
-    }
 
     /**
      * 确认更新到新版本
