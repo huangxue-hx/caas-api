@@ -1622,7 +1622,8 @@ public class TenantServiceImpl implements TenantService {
         if (tenantBinding == null){
             throw new MarsRuntimeException(ErrorCodeMessage.INVALID_TENANTID);
         }
-        List<TenantPrivateNode> tenantPrivateNodes = tenantPrivateNodeService.listTenantPrivateNode(tenantId);
+        List<TenantPrivateNode> tenantPrivateNodes = tenantPrivateNodeService.listTenantPrivateNode(tenantId,
+                clusterQuota.getClusterId());
         for (TenantPrivateNode tenantPrivateNode:tenantPrivateNodes) {
             this.dealDeletePrivateNode(tenantPrivateNode,tenantBinding);
         }
