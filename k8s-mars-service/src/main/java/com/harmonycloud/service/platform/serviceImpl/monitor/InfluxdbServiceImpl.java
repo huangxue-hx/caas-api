@@ -139,35 +139,31 @@ public class InfluxdbServiceImpl implements InfluxdbService {
                 && !CollectionUtils.isEmpty(queryResult.getResults().get(0).getSeries())) {
 			QueryResult.Series series = queryResult.getResults().get(0).getSeries().get(0);
             if ("CPU".equalsIgnoreCase(query.getMeasurement())) {
-				if(request == null || request == 0){
-					return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
-				}
-				List<List<Object>> lists = series.getValues();
-				for(int i = 0; i < lists.size(); i++){
-					if(lists.get(i).get(CommonConstant.NUM_ONE) != null){
-						//cpu使用量转换为百分比
-						lists.get(i).add(CommonConstant.NUM_TWO,
-                                String.format("%.0f", Double.parseDouble(String.valueOf(lists.get(i).get(CommonConstant.NUM_ONE)))/request*100));
-					}
-				}
-				queryResult.getResults().get(0).getSeries().get(0).setValues(lists);
-				return ActionReturnUtil.returnSuccessWithData(queryResult);
-			}
+                if(request != null && request != 0){
+                    List<List<Object>> lists = series.getValues();
+                    for(int i = 0; i < lists.size(); i++){
+                        if(lists.get(i).get(1) != null){
+                            //cpu使用量转换为百分比
+                            lists.get(i).add(CommonConstant.NUM_TWO, String.format("%.0f", Double.parseDouble(String.valueOf(lists.get(i).get(1)))/request*100));
+                        }
+                    }
+                    queryResult.getResults().get(0).getSeries().get(0).setValues(lists);
+                    return ActionReturnUtil.returnSuccessWithData(queryResult);
+                }
+            }
             if ("MEMORY".equalsIgnoreCase(query.getMeasurement())) {
-				if(request == null || request == 0){
-					return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
-				}
-				List<List<Object>> lists = series.getValues();
-				for(int i = 0; i < lists.size(); i++){
-					if(lists.get(i).get(CommonConstant.NUM_ONE) != null){
-						//内存使用量转换为百分比
-						lists.get(i).add(CommonConstant.NUM_TWO,
-                                String.format("%.0f", Double.parseDouble(String.valueOf(lists.get(i).get(CommonConstant.NUM_ONE)))/1024/1024/request*100));
-					}
-				}
-				queryResult.getResults().get(0).getSeries().get(0).setValues(lists);
-				return ActionReturnUtil.returnSuccessWithData(queryResult);
-			}
+                if(request != null && request != 0){
+                    List<List<Object>> lists = series.getValues();
+                    for(int i = 0; i < lists.size(); i++){
+                        if(lists.get(i).get(1) != null){
+                            //内存使用量转换为百分比
+                            lists.get(i).add(CommonConstant.NUM_TWO, String.format("%.0f", Double.parseDouble(String.valueOf(lists.get(i).get(1)))/1024/1024/request*100));
+                        }
+                    }
+                    queryResult.getResults().get(0).getSeries().get(0).setValues(lists);
+                    return ActionReturnUtil.returnSuccessWithData(queryResult);
+                }
+            }
 		}
 		return ActionReturnUtil.returnSuccessWithData(JsonUtil.convertJsonToMap(response.getBody()));
 	}
