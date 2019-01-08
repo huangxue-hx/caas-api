@@ -107,8 +107,10 @@ public class K8sResultConvert {
                 podAntiAffinityDtos = KubeAffinityConvert.convertPodAntiAffinityDto(dep.getSpec().getTemplate().getSpec().getAffinity().getPodAntiAffinity());
                 if (CollectionUtils.isNotEmpty(podAntiAffinityDtos)) {
                     for (AffinityDto affinityDto : podAntiAffinityDtos) {
-                        String namespaceAliasName = namespaceLocalService.getNamespaceByName(affinityDto.getNamespace()).getAliasName();
-                        affinityDto.setNamespaceAliasName(namespaceAliasName);
+                        if (StringUtils.isNotBlank(affinityDto.getNamespace())){
+                            String namespaceAliasName = namespaceLocalService.getNamespaceByName(affinityDto.getNamespace()).getAliasName();
+                            affinityDto.setNamespaceAliasName(namespaceAliasName);
+                        }
                         if (affinityDto.getLabel().equals(Constant.TYPE_DEPLOYMENT + Constant.EQUAL + meta.getName())) {
                             if(null != affinityDto.getType() && affinityDto.getType().equals(Constant.ANTIAFFINITY_TYPE_GROUP_SCHEDULE)){
                                 appDetail.setPodGroupSchedule(affinityDto);
@@ -127,8 +129,10 @@ public class K8sResultConvert {
             if (Objects.nonNull(dep.getSpec().getTemplate().getSpec().getAffinity().getPodAffinity())) {
                 List<AffinityDto> podAffinityDtos = new ArrayList<>();
                 podAffinityDtos = KubeAffinityConvert.convertPodAffinityDto(dep.getSpec().getTemplate().getSpec().getAffinity().getPodAffinity());
-                String namespaceAliasName = namespaceLocalService.getNamespaceByName(podAffinityDtos.get(0).getNamespace()).getAliasName();
-                podAffinityDtos.get(0).setNamespaceAliasName(namespaceAliasName);
+                if (StringUtils.isNotBlank(podAffinityDtos.get(0).getNamespace())){
+                    String namespaceAliasName = namespaceLocalService.getNamespaceByName(podAffinityDtos.get(0).getNamespace()).getAliasName();
+                    podAffinityDtos.get(0).setNamespaceAliasName(namespaceAliasName);
+                }
                 appDetail.setPodAffinity(podAffinityDtos.get(0));
             }
         }
