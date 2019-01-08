@@ -703,6 +703,12 @@ public class ServiceServiceImpl implements ServiceService {
         if (deplist != null && deplist.getItems() != null) {
             deps = deplist.getItems();
         }
+        StatefulSetList statefulsetList = statefulSetService.listStatefulSets(namespace, null, null, cluster);
+        List<StatefulSet> stas = new ArrayList<>();
+        if(statefulsetList  != null && statefulsetList.getItems() != null){
+            stas = statefulsetList.getItems();
+        }
+
         //ingress tcp
         ActionReturnUtil tcpRes = routerService.svcList(namespace);
         if (!tcpRes.isSuccess()) {
@@ -711,12 +717,29 @@ public class ServiceServiceImpl implements ServiceService {
         @SuppressWarnings("unchecked")
         List<RouterSvc> tcplist = (List<RouterSvc>) tcpRes.get("data");
         boolean flag = true;
-        if (service.getDeploymentDetail() != null && deps != null && deps.size() > 0) {
+        String serviceName = null;
+        if(service.getDeploymentDetail() != null){
+            serviceName = service.getDeploymentDetail().getName();
+        }else if(service.getStatefulSetDetail() != null){
+            serviceName = service.getStatefulSetDetail().getName();
+        }
+        if (StringUtils.isNotEmpty(serviceName)) {
             for (Deployment dep : deps) {
-                if (service.getDeploymentDetail().getName().equals(dep.getMetadata().getName())) {
-                    msg.put("服务名称:" + service.getDeploymentDetail().getName(), "重复");
+                if (serviceName.equals(dep.getMetadata().getName())) {
                     flag = false;
+                    break;
                 }
+            }
+            if(flag){
+                for(StatefulSet sta : stas){
+                    if(serviceName.equals(sta.getMetadata().getName())){
+                        flag = false;
+                        break;
+                    }
+                }
+            }
+            if(!flag){
+                msg.put("服务名称:" + serviceName, "重复");
             }
         }
         //check ingress
