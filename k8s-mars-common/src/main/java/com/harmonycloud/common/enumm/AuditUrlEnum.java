@@ -239,9 +239,9 @@ public enum AuditUrlEnum {
     DELETE_SNAPSHOT("/snapshotrules/snapshots_DELETE", "删除日志备份快照", "deleteLogBackupSnapshot", null, null, "snapshotName", "LOG"),
     RECOVER_SNAPSHOT("/snapshotrules/snapshots_PUT", "恢复日志备份快照", "recoverLogBackupSnapshot", null, null, "snapshotName", "LOG"),
 
-    ADD_CONFIG("/tenants/([^//]+)/projects/([^//]+)/configmap_POST", "新增配置文件", "addConfigurationFile", 2, null, null, "CONFIG_CENTET"),
-    UPDATE_CONFIG("/tenants/([^//]+)/projects/([^//]+)/configmap_PUT", "修改配置文件", "addConfigurationFile", 2, null, null, "CONFIG_CENTET"),
-    DELETE_CONFIG("/tenants/([^//]+)/projects/([^//]+)/configmap_DELETE", "删除配置文件", "addConfigurationFile", 2, null, null, "CONFIG_CENTET");
+    ADD_CONFIG("/tenants/([^//]+)/projects/([^//]+)/configmap_POST", "新增配置文件", "addConfigurationFile", null, null, "name", "CONFIG_CENTET"),
+    UPDATE_CONFIG("/tenants/([^//]+)/projects/([^//]+)/configmap_PUT", "修改配置文件", "addConfigurationFile", null, null, "name", "CONFIG_CENTET"),
+    DELETE_CONFIG("/tenants/([^//]+)/projects/([^//]+)/configmap_DELETE", "删除配置文件", "addConfigurationFile", null, null, "name", "CONFIG_CENTET");
 
 
     //url正则表达式
