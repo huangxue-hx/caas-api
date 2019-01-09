@@ -146,10 +146,6 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         }else {
             configFile.setCreateTime(list.get(0).getCreateTime());//创建配置时，添加创建时间字段
         }
-        String updateTime = DateUtil.timeFormat.format(new Date());
-        configFile.setUpdateTime(updateTime);
-        //设置同配置组updateTime为同一值
-        configFileMapper.updateUpdateTime(updateTime,configDetail.getName());
 
         if (!"".equals(configFile.getClusterId()) && configFile.getClusterId().length() > 0) {
             configFile.setClusterName(clusterService.findClusterById(configFile.getClusterId()).getName());
@@ -202,8 +198,6 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         configFile.setUser(userName);
         String updateTime = DateUtil.timeFormat.format(new Date());
         configFile.setUpdateTime(updateTime);
-        //设置同配置组updateTime为同一值
-        configFileMapper.updateUpdateTime(updateTime,configDetail.getName());
 
         //根据configFile的id删除明细中对应的数据
         configFileItemMapper.deleteConfigFileItem(configFile.getId());

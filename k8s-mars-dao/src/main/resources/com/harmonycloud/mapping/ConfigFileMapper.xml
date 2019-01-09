@@ -192,11 +192,5 @@
         </where>
         order by tags desc
     </select>
-    <update id="updateUpdateTime" parameterType="java.lang.String">
-        update configfile
-        <set>
-            update_time = #{updateTime}
-        </set>
-        where name = #{configName}
-    </update>
+
 </mapper>
