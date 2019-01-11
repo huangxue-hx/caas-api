@@ -5,6 +5,7 @@ import com.harmonycloud.common.Constant.IngressControllerConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.ServiceTypeEnum;
+import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.AssertUtil;
@@ -15,6 +16,7 @@ import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.dto.cluster.IngressControllerDto;
+import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8SClient;
@@ -36,7 +38,9 @@ import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
+import net.sf.json.util.JSONUtils;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +54,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.harmonycloud.common.Constant.CommonConstant.BLANKSTRING;
+import static com.harmonycloud.service.platform.constant.Constant.LABEL_PROJECT_ID;
 
 
 /**
@@ -109,6 +114,9 @@ public class ServiceServiceImpl implements ServiceService {
     private DeploymentService dpService;
 
     @Autowired
+    private DeploymentsService dpsService;
+
+    @Autowired
     private StatefulSetService statefulSetService;
 
     @Autowired
@@ -128,6 +136,9 @@ public class ServiceServiceImpl implements ServiceService {
 
     @Autowired
     private FileUploadToContainerService fileUploadToContainerService;
+
+
+
 
     /**
      * create Service Template implement
@@ -458,6 +469,51 @@ public class ServiceServiceImpl implements ServiceService {
                 statefulSetsService.deleteStatefulSet(statefulSet.getMetadata().getName(), namespace, userName, cluster);
             }
         }
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    @Override
+    public ActionReturnUtil deleteDeployedServiceByprojectId(String projectId,String tenantId) throws Exception {
+        if (StringUtils.isBlank(projectId)) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
+        }
+        //租户所有分区
+        ActionReturnUtil namespaceList = namespaceService.getNamespaceList(tenantId);
+        if (namespaceList.isSuccess() != true){
+            return ActionReturnUtil.returnErrorWithData(namespaceList);
+        }
+        LinkedList namespaceLists = (LinkedList) namespaceList.getData();
+        ArrayList arrayList = new ArrayList(namespaceLists);
+        String nameSpaces = ((NamespaceShowDto)namespaceLists.get(0)).getName();
+        for(int i=1;i<arrayList.size();i++) {
+            nameSpaces +=","+((NamespaceShowDto)namespaceLists.get(i)).getName();
+
+        }
+        //项目下所有服务
+        ActionReturnUtil result = dpsService.listDeployments(tenantId, null, nameSpaces, null, projectId, null);
+
+        String userName = (String) session.getAttribute("username");
+        if(userName == null){
+            throw new K8sAuthException(com.harmonycloud.k8s.constant.Constant.HTTP_401);
+        }
+
+        ArrayList ServiceList = (ArrayList)result.getData();
+        DeployedServiceNamesDto deployedServiceNamesDto = new DeployedServiceNamesDto();
+        List<ServiceNameNamespace> serviceNamespaceList = new ArrayList();
+        for (int i = 0; i < ServiceList.size(); i++) {
+            HashMap map = (HashMap)ServiceList.get(i);
+            ServiceNameNamespace serviceNameNamespace = new ServiceNameNamespace();
+            serviceNameNamespace.setName(map.get("name").toString());
+            serviceNameNamespace.setNamespace(map.get("namespace").toString());
+            serviceNameNamespace.setServiceType(map.get("serviceType").toString());
+            serviceNamespaceList.add(serviceNameNamespace);
+
+        }
+        deployedServiceNamesDto.setServiceList(serviceNamespaceList);
+        if (deployedServiceNamesDto.getServiceList().size()>0) {
+            this.deleteDeployedService(deployedServiceNamesDto, userName);
+        }
+
         return ActionReturnUtil.returnSuccess();
     }
 

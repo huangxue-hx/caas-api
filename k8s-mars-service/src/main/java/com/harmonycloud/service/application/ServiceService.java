@@ -41,7 +41,9 @@ public interface ServiceService {
     public ServiceTemplates getSpecificTemplate(String name, String tag, String clusterId, String projectId) throws Exception;
 
     public ActionReturnUtil deleteDeployedService(DeployedServiceNamesDto deployedServiceNamesDto, String userName) throws Exception;
-    
+
+    public ActionReturnUtil deleteDeployedServiceByprojectId(String projectId, String tenantId) throws Exception;
+
     public ActionReturnUtil listServiceTemplate(String searchKey, String searchValue, String clusterId, boolean isPublic, String projectId, Integer serviceType) throws Exception;
     
     public ActionReturnUtil deleteServiceByNamespace(String namespace) throws Exception;
