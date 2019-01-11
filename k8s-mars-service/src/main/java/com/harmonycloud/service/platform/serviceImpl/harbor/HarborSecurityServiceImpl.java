@@ -353,7 +353,6 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
                             unknownSum++;break;
                     }
                 }
-                highNum = highSum + criticalSum;
                 if (vulnerabilitySummaryResponse.isSuccess() ) {
                     vulnerabilitySuminfo.put("vulnerability-sum",vulnerabilityDetailList.size());
                     vulnerabilitySuminfo.put("vulnerability-patches-sum",patchesSum);
