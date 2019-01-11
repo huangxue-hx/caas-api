@@ -525,9 +525,20 @@ public class InfluxdbServiceImpl implements InfluxdbService {
                     String memory = ((Map<String, Object>) object).get("memory").toString();
                     if (memory.indexOf("Ki") > -1) {
                         memory = memory.substring(0, memory.indexOf("Ki"));
+                        double memoryDouble = Double.parseDouble(memory);
+                        resourceMap.put("memory", String.format("%.1f", memoryDouble / 1024 / 1024));
                     }
-                    double memoryDouble = Double.parseDouble(memory);
-                    resourceMap.put("memory", String.format("%.1f", memoryDouble / 1024 / 1024));
+                    if (memory.indexOf("Mi") > -1) {
+                        memory = memory.substring(0, memory.indexOf("Mi"));
+                        double memoryDouble = Double.parseDouble(memory);
+                        resourceMap.put("memory", String.format("%.1f", memoryDouble / 1024));
+                    }
+                    if (memory.indexOf("Gi") > -1) {
+                        memory = memory.substring(0, memory.indexOf("Gi"));
+                        double memoryDouble = Double.parseDouble(memory);
+                        resourceMap.put("memory", String.format("%.1f", memoryDouble));
+                    }
+
                     resourceMap.put("disk", String.format("%.0f", nodeFilesystemCapacity / 1024 / 1024 / 1024));
                     res.add(resourceMap);
                 }
