@@ -38,6 +38,8 @@ public interface StatefulSetsService {
 
     List<PodDetail> podList(String name, String namespace) throws Exception;
 
+    ActionReturnUtil deleteStatfulServiceByprojectId(String projectId, String tenantId) throws Exception;
+
     /**
      * 更新labels。
      * 可同时操作多个label，通过Entry的Value值是否为null来判断具体动作为添加/更新还是删除。
