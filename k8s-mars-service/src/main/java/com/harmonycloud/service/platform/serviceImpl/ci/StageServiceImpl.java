@@ -253,9 +253,11 @@ public class StageServiceImpl implements StageService {
             stageDto.convertFromBean(stage);
         }
         if (StageTemplateTypeEnum.DEPLOY.getCode() == stageDto.getStageTemplateType()){
-            ConfigFile configFile= configFileMapper.getConfig(stageDto.getConfigMaps().get(0).getConfigMapId());
-            for (int i = 0 ; i<stageDto.getConfigMaps().size();i++) {
-                stageDto.getConfigMaps().get(i).setName(configFile.getName());
+            if(stageDto.getConfigMaps() != null) {
+                ConfigFile configFile = configFileMapper.getConfig(stageDto.getConfigMaps().get(0).getConfigMapId());
+                for (int i = 0; i < stageDto.getConfigMaps().size(); i++) {
+                    stageDto.getConfigMaps().get(i).setName(configFile.getName());
+                }
             }
         }
         StageType stageType = stageTypeMapper.queryById(stageDto.getStageTypeId());
