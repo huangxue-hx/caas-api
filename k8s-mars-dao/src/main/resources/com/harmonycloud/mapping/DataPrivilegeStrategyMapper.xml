@@ -140,4 +140,8 @@
       strategy = #{strategy,jdbcType=TINYINT}
     where id = #{id,jdbcType=INTEGER}
   </update>
+  <delete id="deleteByScopeId">
+    delete from data_privilege_strategy
+    where  scope_id = #{scopeId,jdbcType=VARCHAR} and scope_type = #{scopeType,jdbcType=TINYINT}
+  </delete>
 </mapper>

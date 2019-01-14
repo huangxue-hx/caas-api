@@ -2,6 +2,8 @@ package com.harmonycloud.dao.dataprivilege;
 
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategy;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategyExample;
+import org.apache.ibatis.annotations.Param;
+
 import java.util.List;
 
 public interface DataPrivilegeStrategyMapper {
@@ -20,4 +22,6 @@ public interface DataPrivilegeStrategyMapper {
     int updateByPrimaryKeySelective(DataPrivilegeStrategy record);
 
     int updateByPrimaryKey(DataPrivilegeStrategy record);
+
+    int deleteByScopeId(@Param("scopeId")String scopeId, @Param("scopeType")Byte scopeType);
 }

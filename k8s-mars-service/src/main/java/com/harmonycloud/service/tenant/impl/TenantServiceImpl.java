@@ -467,6 +467,8 @@ public class TenantServiceImpl implements TenantService {
 
         // 删除tenant信息
         tenantBindingMapper.deleteByPrimaryKey(tenantBinding.getId());
+        // 删除权限信息
+        dataPrivilegeStrategyMapper.deleteByScopeId(tenantId,SCOPE_TENANT);
         // 删除租户的管理员关联
         userRoleRelationshipService.deleteUserRoleRelationshipByTenantId(tenantId);
         // 删除租户的集群配额
