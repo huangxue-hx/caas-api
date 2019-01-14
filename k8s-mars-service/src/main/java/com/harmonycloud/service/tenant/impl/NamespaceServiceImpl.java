@@ -763,7 +763,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
         boolean privatePartition = privatePartitionService.isPrivatePartition(tenantid, namespace);
         try {
-            if (privatePartition) {
+            if (!privatePartition) {
                 privatePartitionService.removePrivatePartition(tenantid, namespace);
             }
         } catch (Exception e) {
