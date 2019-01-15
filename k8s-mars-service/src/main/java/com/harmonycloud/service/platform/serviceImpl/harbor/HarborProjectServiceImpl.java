@@ -628,6 +628,9 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		if(harborRepositoryMessage == null){
 			return ActionReturnUtil.returnErrorWithData(DictEnum.IMAGE.phrase(),ErrorCodeMessage.NOT_EXIST);
 		}
+		List<HarborRepositoryMessage> harborRepositoryMessages = new ArrayList<>();
+		harborRepositoryMessages.add(harborRepositoryMessage);
+		this.setImagePullStatus(harborRepositoryMessages);
 		return ActionReturnUtil.returnSuccessWithData(harborRepositoryMessage);
 	}
 
