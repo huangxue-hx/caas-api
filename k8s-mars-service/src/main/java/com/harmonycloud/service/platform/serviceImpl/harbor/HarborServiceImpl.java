@@ -128,12 +128,19 @@ public class HarborServiceImpl implements HarborService {
                 params.put("project_name", harborProjectName);
             }
             ActionReturnUtil response = HarborHttpsClientUtil.httpGetRequest(url, headers, params);
-            if (response.isSuccess() && response.getData() != null) {
-                List<HarborProject> projects = getHarborProjectList(response.getData().toString());
-                if(projects.size() < DEFAULT_PAGE_SIZE_1000){
+            if (response.isSuccess()) {
+                if (response.getData() != null) {
+                    List<HarborProject> projects = getHarborProjectList(response.getData().toString());
+                    if (projects.size() < DEFAULT_PAGE_SIZE_1000) {
+                        isEnd = true;
+                    }
+                    harborProjects.addAll(projects);
+                } else {
                     isEnd = true;
                 }
-                harborProjects.addAll(projects);
+            } else {
+                LOGGER.error("查询harbor项目列表失败，response:{}", JSONObject.toJSONString(response));
+                isEnd = true;
             }
 
         }
