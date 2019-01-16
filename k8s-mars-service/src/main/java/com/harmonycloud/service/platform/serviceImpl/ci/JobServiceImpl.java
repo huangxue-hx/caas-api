@@ -1,6 +1,5 @@
 package com.harmonycloud.service.platform.serviceImpl.ci;
 
-import com.alibaba.druid.pool.DruidDataSource;
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DataResourceTypeEnum;
@@ -16,7 +15,7 @@ import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dao.ci.*;
 import com.harmonycloud.dao.ci.bean.*;
 import com.harmonycloud.dao.ci.bean.Job;
-import com.harmonycloud.dao.harbor.ImageRepositoryMapper;
+import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.dto.cicd.CicdConfigDto;
@@ -33,6 +32,7 @@ import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.*;
+import com.harmonycloud.service.cache.ImageCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.common.DataPrivilegeHelper;
 import com.harmonycloud.service.common.PrivilegeHelper;
@@ -71,7 +71,6 @@ import org.dom4j.Element;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -216,6 +215,9 @@ public class JobServiceImpl implements JobService {
 
     @Autowired
     private DataPrivilegeHelper dataPrivilegeHelper;
+
+    @Autowired
+    private ImageCacheManager imageCacheManager;
 
     private DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
@@ -2806,7 +2808,33 @@ public class JobServiceImpl implements JobService {
      * 镜像推送
      */
     private void imagePush(Stage stage) throws Exception{
-        harborProjectService.syncImage(stage.getRepositoryId(),stage.getImageName(),stage.getImageTag(),stage.getDestClusterId(),true);
+        ImageRepository imageRepository = harborProjectService.findRepositoryById(stage.getRepositoryId());
+        //校验镜像仓库
+        if(imageRepository == null){
+            throw new MarsRuntimeException(ErrorCodeMessage.REPOSITORY_NOT_EXIST);
+        }
+        if(!stage.getImageName().contains(CommonConstant.SLASH)){
+            stage.setImageName(stage.getHarborProject() + CommonConstant.SLASH + stage.getImageName());
+        }
+        //校验镜像
+        HarborRepositoryMessage harborRepository = imageCacheManager.getRepoMessage(imageRepository.getHarborHost(), stage.getImageName());
+        if(harborRepository == null){
+            throw new MarsRuntimeException(ErrorCodeMessage.IMAGE_NOT_EXIST);
+        }
+        //校验镜像版本
+        if(StringUtils.isEmpty(stage.getImageTag()) && CollectionUtils.isEmpty(harborRepository.getTags())){
+            throw new MarsRuntimeException(ErrorCodeMessage.IMAGE_TAG_NOT_EXIST);
+        }else if(StringUtils.isNotEmpty(stage.getImageTag()) && !harborRepository.getTags().contains(stage.getImageTag())){
+            throw new MarsRuntimeException(ErrorCodeMessage.IMAGE_TAG_NOT_EXIST);
+        }
+
+        if(StringUtils.isEmpty(stage.getImageTag())){
+            stage.setImageTag(harborRepository.getTags().get(0));
+        }
+        boolean result = harborProjectService.syncImage(stage.getRepositoryId(),stage.getImageName(),stage.getImageTag(),stage.getDestClusterId(),true);
+        if(!result){
+            throw new MarsRuntimeException(ErrorCodeMessage.IMAGE_PUSH_ERROR);
+        }
     }
 
     /**

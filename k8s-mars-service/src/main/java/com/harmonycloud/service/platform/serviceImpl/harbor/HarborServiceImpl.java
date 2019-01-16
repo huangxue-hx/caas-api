@@ -1,17 +1,13 @@
 package com.harmonycloud.service.platform.serviceImpl.harbor;
 
-import java.math.BigDecimal;
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
 import com.alibaba.fastjson.JSONObject;
-import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.*;
+import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.harbor.bean.ImageCleanRule;
@@ -21,24 +17,27 @@ import com.harmonycloud.service.cache.ImageCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.common.HarborHttpsClientUtil;
 import com.harmonycloud.service.platform.bean.harbor.*;
+import com.harmonycloud.service.platform.client.HarborClient;
 import com.harmonycloud.service.platform.service.harbor.*;
-
-import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.service.user.UserService;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import com.harmonycloud.service.platform.client.HarborClient;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import java.math.BigDecimal;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static com.harmonycloud.common.Constant.CommonConstant.*;
-import static com.harmonycloud.service.platform.constant.Constant.DEFAULT_PAGE_SIZE;
-import static com.harmonycloud.service.platform.constant.Constant.DEFAULT_PAGE_SIZE_1000;
-import static com.harmonycloud.service.platform.constant.Constant.TIME_ZONE_UTC;
+import static com.harmonycloud.service.platform.constant.Constant.*;
 
 /**
  * Created by zsl on 2017/1/18.
@@ -1041,6 +1040,7 @@ public class HarborServiceImpl implements HarborService {
             ImageRepository repository = imageRepositories.get(i);
             HarborProjectInfo projectInfo = new HarborProjectInfo();
             projectInfo.setProject_name(repository.getHarborProjectName());
+            projectInfo.setRepositoryId(repository.getId());
             projectInfo.setIsPublic(repository.getIsPublic());
             //只查询具体某一个project的镜像信息，非该project的不查询repo信息
             if (StringUtils.isNotBlank(harborProjectName) &&

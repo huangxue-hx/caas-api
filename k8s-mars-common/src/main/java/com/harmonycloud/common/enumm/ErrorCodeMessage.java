@@ -518,7 +518,10 @@ public enum ErrorCodeMessage {
     DEPENDENCE_DIRECTORY_QUERY_ERROR(406072, "Get dependence directory failed", "获取依赖目录失败"),
     NO_ENOUGH_RESOURCE(406073, "Not enough resource，please check the current quota and try again",
             "Not enough resource，please check the current quota and try again(资源配额不足，灰度升级过程中会额外启动一个新实例以确保升级可以顺利进行，请确保当前系统有足够资源)"),
-
+    REPOSITORY_NOT_EXIST(406075, "Image repository not found.", "Image repository not found(镜像仓库不存在)"),
+    IMAGE_NOT_EXIST(406076, "Image not found.", "Image not found(镜像不存在)"),
+    IMAGE_TAG_NOT_EXIST(406077, "Image tag not found.", "Image tag not found(镜像版本不存在)"),
+    IMAGE_PUSH_ERROR(406078, "Image push failed.", "Image push failed(镜像推送失败)"),
 
     //配置文件 407xxx
     CONFIGMAP_NAME_DUPLICATE(407001, "ConfigMap name duplicate.", "配置文件名称已存在"),
