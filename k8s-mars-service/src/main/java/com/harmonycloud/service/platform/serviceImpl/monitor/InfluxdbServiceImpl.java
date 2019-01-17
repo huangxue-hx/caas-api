@@ -280,7 +280,7 @@ public class InfluxdbServiceImpl implements InfluxdbService {
                 for (int i = 0; i < lists.size(); i++) {
                     if (lists.get(i).get(1) != null) {
                         //cpu使用量转换为百分比
-                        Long cpuTotal = Long.parseLong(dto.getCpu());
+                        Double cpuTotal = Double.parseDouble(dto.getCpu());
                         lists.get(i).add(CommonConstant.NUM_TWO, String.format("%.0f", Double.parseDouble(String.valueOf(lists.get(i).get(1))) / (cpuTotal * 10)));
                     }
                 }
