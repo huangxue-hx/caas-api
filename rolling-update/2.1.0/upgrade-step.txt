@@ -33,7 +33,7 @@ kubectl edit deploy file-upload -n kube-system 修改镜像版本为7
 修改command命令：
 command: ["tail","-f","/etc/hosts"]
 --------------------------------------------------------------------
-7.
+7. clusterBase 和clusterDomain结构调整
 
 --------------------------------------------------------------------
 8.	更新webapi，webpage和oam的镜像
