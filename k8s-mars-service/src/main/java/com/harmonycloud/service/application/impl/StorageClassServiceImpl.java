@@ -13,7 +13,6 @@ import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
 import com.harmonycloud.dto.application.StorageClassDto;
-import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8SClient;
@@ -47,9 +46,7 @@ import java.io.InputStream;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.harmonycloud.service.platform.constant.Constant.LABEL_AUTOSCALE;
-import static com.harmonycloud.service.platform.constant.Constant.LABEL_INGRESS_SERVICE;
-import static com.harmonycloud.service.platform.constant.Constant.NODESELECTOR_LABELS_PRE;
+import static com.harmonycloud.service.platform.constant.Constant.*;
 
 /**
  * @author xc
@@ -371,14 +368,14 @@ public class StorageClassServiceImpl implements StorageClassService {
             List<TenantClusterQuota> tenantClusterQuotas = tenantClusterQuotaService.listClusterQuotaLikeStorage(name,clusterId);
             for (TenantClusterQuota tenantClusterQuota:tenantClusterQuotas) {
                 //获取分区
-                ActionReturnUtil actionReturnUtil=namespaceService.getNamespaceList(tenantClusterQuota.getTenantId());
+                ActionReturnUtil actionReturnUtil=namespaceService.getSimpleNamespaceListByTenant(tenantClusterQuota.getTenantId());
                 if (!actionReturnUtil.isSuccess()){
                     LOGGER.error("查询namespace失败", actionReturnUtil.getErrorCode());
                 }
-                List<NamespaceShowDto> namespaces =(List) actionReturnUtil.getData();
-                for (NamespaceShowDto namespaceShowDto:namespaces ) {
+                NamespaceList namespacesList =(NamespaceList) actionReturnUtil.getData();
+                for (Namespace namespace:namespacesList.getItems() ) {
                     // 根据namespace名称获取分区配额resourceQuota
-                    K8SClientResponse quotaResponse = resourceQuotaService.getByNamespace(namespaceShowDto.getName(), null, null, cluster);
+                    K8SClientResponse quotaResponse = resourceQuotaService.getByNamespace(namespace.getMetadata().getName(), null, null, cluster);
                     if (!HttpStatusUtil.isSuccessStatus(quotaResponse.getStatus())) {
                         LOGGER.error("调用k8s接口查询namespace下quota失败", quotaResponse.getBody());
                         return ActionReturnUtil.returnErrorWithData(quotaResponse.getBody());
@@ -390,11 +387,11 @@ public class StorageClassServiceImpl implements StorageClassService {
                         Map<String,String> maphit = (Map)resourceQuota.getSpec().getHard();
                         maphit.remove(name+".storageclass.storage.k8s.io/requests.storage");
                         resourceQuota.getSpec().setHard(maphit);
-                        Map<String, Object> bodys = generateQuotaBodys(resourceQuota,namespaceShowDto.getName());
+                        Map<String, Object> bodys = generateQuotaBodys(resourceQuota,namespace.getMetadata().getName());
                         Map<String, Object> headers = new HashMap<>();
                         headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
                         //更新分区配额
-                        K8SClientResponse response1 = resourceQuotaService.update(namespaceShowDto.getName(),namespaceShowDto.getName()+"quota",headers,bodys,HTTPMethod.PUT,cluster);
+                        K8SClientResponse response1 = resourceQuotaService.update(namespace.getMetadata().getName(),namespace.getMetadata().getName()+"quota",headers,bodys,HTTPMethod.PUT,cluster);
                         if (!HttpStatusUtil.isSuccessStatus(quotaResponse.getStatus())) {
                             LOGGER.error("调用k8s接口查询namespace下quota失败", quotaResponse.getBody());
                             return ActionReturnUtil.returnErrorWithData(quotaResponse.getBody());

@@ -3,6 +3,7 @@ package com.harmonycloud.service.application.impl;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DataResourceTypeEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.CollectionUtil;
@@ -12,6 +13,7 @@ import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.dto.dataprivilege.DataPrivilegeDto;
 import com.harmonycloud.dto.scale.AutoScaleDto;
+import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8sMachineClient;
@@ -45,6 +47,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.servlet.http.HttpSession;
 import java.util.*;
 
 
@@ -117,6 +120,12 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
 
     @Autowired
     private IstioService istioService;
+
+    @Autowired
+    private DeploymentsService dpsService;
+
+    @Autowired
+    private HttpSession session;
 
     @Override
     public AppDetail getStatefulSetDetail(String namespace, String name) throws Exception {
@@ -545,6 +554,50 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
             throw new MarsRuntimeException(e.getMessage());
         }
         return list;
+    }
+
+    @Override
+    public ActionReturnUtil deleteStatfulServiceByprojectId(String projectId, String tenantId) throws Exception {
+        if (StringUtils.isBlank(projectId)) {
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
+        }
+        //租户所有分区
+        ActionReturnUtil namespaceList = namespaceService.getNamespaceList(tenantId);
+        if (namespaceList.isSuccess() != true){
+            return ActionReturnUtil.returnErrorWithData(namespaceList);
+        }
+        LinkedList namespaceLists = (LinkedList) namespaceList.getData();
+        ArrayList arrayList = new ArrayList(namespaceLists);
+        String nameSpaces = ((NamespaceShowDto)namespaceLists.get(0)).getName();
+        for(int i=1;i<arrayList.size();i++) {
+            nameSpaces +=","+((NamespaceShowDto)namespaceLists.get(i)).getName();
+
+        }
+        //项目下所有有状态服务
+        List<Map<String,Object>> StatefulserviceList= this.listStatefulSets(tenantId, null, nameSpaces, null, projectId, null);
+
+        String userName = (String) session.getAttribute("username");
+        if(userName == null){
+            throw new K8sAuthException(com.harmonycloud.k8s.constant.Constant.HTTP_401);
+        }
+
+        DeployedServiceNamesDto deployedServiceNamesDto = new DeployedServiceNamesDto();
+        List<ServiceNameNamespace> serviceNamespaceList = new ArrayList();
+        for (int i = 0; i < StatefulserviceList.size(); i++) {
+            HashMap map = (HashMap)StatefulserviceList.get(i);
+            ServiceNameNamespace serviceNameNamespace = new ServiceNameNamespace();
+            serviceNameNamespace.setName(map.get("name").toString());
+            serviceNameNamespace.setNamespace(map.get("namespace").toString());
+            serviceNameNamespace.setServiceType(map.get("serviceType").toString());
+            serviceNamespaceList.add(serviceNameNamespace);
+
+        }
+        deployedServiceNamesDto.setServiceList(serviceNamespaceList);
+        if (deployedServiceNamesDto.getServiceList().size()>0) {
+            serviceService.deleteDeployedService(deployedServiceNamesDto, userName);
+        }
+
+        return ActionReturnUtil.returnSuccess();
     }
 
     @Override

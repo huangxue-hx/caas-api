@@ -467,6 +467,8 @@ public class TenantServiceImpl implements TenantService {
 
         // 删除tenant信息
         tenantBindingMapper.deleteByPrimaryKey(tenantBinding.getId());
+        // 删除权限信息
+        dataPrivilegeStrategyMapper.deleteByScopeId(tenantId,SCOPE_TENANT);
         // 删除租户的管理员关联
         userRoleRelationshipService.deleteUserRoleRelationshipByTenantId(tenantId);
         // 删除租户的集群配额
@@ -1622,7 +1624,8 @@ public class TenantServiceImpl implements TenantService {
         if (tenantBinding == null){
             throw new MarsRuntimeException(ErrorCodeMessage.INVALID_TENANTID);
         }
-        List<TenantPrivateNode> tenantPrivateNodes = tenantPrivateNodeService.listTenantPrivateNode(tenantId);
+        List<TenantPrivateNode> tenantPrivateNodes = tenantPrivateNodeService.listTenantPrivateNode(tenantId,
+                clusterQuota.getClusterId());
         for (TenantPrivateNode tenantPrivateNode:tenantPrivateNodes) {
             this.dealDeletePrivateNode(tenantPrivateNode,tenantBinding);
         }

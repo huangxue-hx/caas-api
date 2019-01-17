@@ -115,7 +115,7 @@ public class AuthManager4LdapImpl implements AuthManager4Ldap {
             user.setRealName(userAttributes.get(LDAP_REAL_NAME) == null? userName : userAttributes.get(LDAP_REAL_NAME));
             userService.insertUser(user);
             //ldap首次登录云平台，需要向harbor创建用户（harbor使用ldap登录）
-            loginHarbor(userName, password);
+            //loginHarbor(userName, password);
         }
         boolean userInfoChanged = false;
         if(StringUtils.isNotBlank(userAttributes.get(LDAP_MAIL)) && !userAttributes.get(LDAP_MAIL).equals(user.getEmail())){

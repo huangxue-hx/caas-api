@@ -107,8 +107,10 @@ public class K8sResultConvert {
                 podAntiAffinityDtos = KubeAffinityConvert.convertPodAntiAffinityDto(dep.getSpec().getTemplate().getSpec().getAffinity().getPodAntiAffinity());
                 if (CollectionUtils.isNotEmpty(podAntiAffinityDtos)) {
                     for (AffinityDto affinityDto : podAntiAffinityDtos) {
-                        String namespaceAliasName = namespaceLocalService.getNamespaceByName(affinityDto.getNamespace()).getAliasName();
-                        affinityDto.setNamespaceAliasName(namespaceAliasName);
+                        if (StringUtils.isNotBlank(affinityDto.getNamespace())){
+                            String namespaceAliasName = namespaceLocalService.getNamespaceByName(affinityDto.getNamespace()).getAliasName();
+                            affinityDto.setNamespaceAliasName(namespaceAliasName);
+                        }
                         if (affinityDto.getLabel().equals(Constant.TYPE_DEPLOYMENT + Constant.EQUAL + meta.getName())) {
                             if(null != affinityDto.getType() && affinityDto.getType().equals(Constant.ANTIAFFINITY_TYPE_GROUP_SCHEDULE)){
                                 appDetail.setPodGroupSchedule(affinityDto);
@@ -127,8 +129,10 @@ public class K8sResultConvert {
             if (Objects.nonNull(dep.getSpec().getTemplate().getSpec().getAffinity().getPodAffinity())) {
                 List<AffinityDto> podAffinityDtos = new ArrayList<>();
                 podAffinityDtos = KubeAffinityConvert.convertPodAffinityDto(dep.getSpec().getTemplate().getSpec().getAffinity().getPodAffinity());
-                String namespaceAliasName = namespaceLocalService.getNamespaceByName(podAffinityDtos.get(0).getNamespace()).getAliasName();
-                podAffinityDtos.get(0).setNamespaceAliasName(namespaceAliasName);
+                if (StringUtils.isNotBlank(podAffinityDtos.get(0).getNamespace())){
+                    String namespaceAliasName = namespaceLocalService.getNamespaceByName(podAffinityDtos.get(0).getNamespace()).getAliasName();
+                    podAffinityDtos.get(0).setNamespaceAliasName(namespaceAliasName);
+                }
                 appDetail.setPodAffinity(podAffinityDtos.get(0));
             }
         }
@@ -639,6 +643,10 @@ public class K8sResultConvert {
         return convertContainer(statefulSet, containers, cluster);
     }
 
+    public static List<ContainerOfPodDetail> convertReplicaSetContainer(ReplicaSet replicaSet, List<Container> containers, Cluster cluster) throws Exception {
+        return convertContainer(replicaSet, containers, cluster);
+    }
+
     private static List<ContainerOfPodDetail> convertContainer(Object obj, List<Container> containers, Cluster cluster) throws Exception {
         List<ContainerOfPodDetail> res = new ArrayList<ContainerOfPodDetail>();
         PodTemplateSpec podTemplateSpec = null;
@@ -660,6 +668,12 @@ public class K8sResultConvert {
             volumeClaimTemplate = statefulSetSpec.getVolumeClaimTemplates();
             name = statefulSet.getMetadata().getName();
             namespace = statefulSet.getMetadata().getNamespace();
+        }else if(obj instanceof ReplicaSet){
+            ReplicaSet replicaSet = (ReplicaSet)obj;
+            ReplicaSetSpec replicaSetSpec = replicaSet.getSpec();
+            podTemplateSpec = replicaSetSpec.getTemplate();
+            name = replicaSet.getMetadata().getName();
+            namespace = replicaSet.getMetadata().getNamespace();
         }
         if (containers != null && containers.size() > 0) {
             List<StorageClassDto> storageClassList = storageClassService.listStorageClass(cluster.getId());
@@ -829,139 +843,6 @@ public class K8sResultConvert {
     }
 
 
-    //重写了一个方法，供查看服务详情（使用PVC创建的服务）使用
-    public static List<ContainerOfPodDetail> convertContainer(PodTemplateSpec podTemplateSpec, String name, Cluster cluster) throws Exception {
-        List<ContainerOfPodDetail> res = new ArrayList<ContainerOfPodDetail>();
-        List<Container> containers = podTemplateSpec.getSpec().getContainers();
-        if (containers != null && containers.size() > 0) {
-            for (Container ct : containers) {
-                ContainerOfPodDetail cOfPodDetail = new ContainerOfPodDetail(ct.getName(), ct.getImage(),
-                        ct.getLivenessProbe(), ct.getReadinessProbe(), ct.getPorts(), ct.getArgs(), ct.getEnv(),
-                        ct.getCommand());
-                if (ct.getImagePullPolicy() != null) {
-                    cOfPodDetail.setImagePullPolicy(ct.getImagePullPolicy());
-                }
-                cOfPodDetail.setDeploymentName(name);
-                //SecurityContext
-                if (ct.getSecurityContext() != null) {
-                    SecurityContextDto newsc = new SecurityContextDto();
-                    SecurityContext sc = ct.getSecurityContext();
-                    boolean flag = false;
-                    newsc.setPrivileged(sc.isPrivileged());
-                    if (sc.isPrivileged()) {
-                        flag = true;
-                    }
-                    if (sc.getCapabilities() != null) {
-                        if (sc.getCapabilities().getAdd() != null && sc.getCapabilities().getAdd().size() > 0) {
-                            flag = true;
-                            newsc.setAdd(sc.getCapabilities().getAdd());
-                        }
-                        if (sc.getCapabilities().getDrop() != null && sc.getCapabilities().getDrop().size() > 0) {
-                            flag = true;
-                            newsc.setDrop(sc.getCapabilities().getDrop());
-                        }
-                    }
-                    newsc.setSecurity(flag);
-                    cOfPodDetail.setSecurityContext(newsc);
-
-                }
-                if (ct.getResources().getLimits() != null) {
-                    String pattern = ".*m.*";
-                    Pattern r = Pattern.compile(pattern);
-                    String cpu = ((Map<Object, Object>) ct.getResources().getLimits()).get("cpu").toString();
-                    Matcher m = r.matcher(cpu);
-                    if (!m.find()) {
-                        ((Map<Object, Object>) ct.getResources().getLimits()).put("cpu",
-                                Integer.valueOf(cpu) * 1000 + "m");
-                    }
-                    cOfPodDetail.setLimit(((Map<String, Object>) ct.getResources().getLimits()));
-
-                } else {
-                    cOfPodDetail.setLimit(null);
-                }
-                if (ct.getResources().getRequests() != null) {
-                    String pattern = ".*m.*";
-                    Pattern r = Pattern.compile(pattern);
-                    String cpu = ((Map<Object, Object>) ct.getResources().getRequests()).get("cpu").toString();
-                    Matcher m = r.matcher(cpu);
-                    if (!m.find()) {
-                        ((Map<Object, Object>) ct.getResources().getRequests()).put("cpu",
-                                Integer.valueOf(cpu) * 1000 + "m");
-                    }
-                    cOfPodDetail.setResource(((Map<String, Object>) ct.getResources().getRequests()));
-                } else {
-                    cOfPodDetail.setResource(cOfPodDetail.getLimit());
-                }
-
-                List<VolumeMount> volumeMounts = ct.getVolumeMounts();
-                List<VolumeMountExt> vms = new ArrayList<VolumeMountExt>();
-                if (volumeMounts != null && volumeMounts.size() > 0) {
-                    for (VolumeMount vm : volumeMounts) {
-                        VolumeMountExt vmExt = new VolumeMountExt(vm.getName(), vm.isReadOnly(), vm.getMountPath(),
-                                vm.getSubPath());
-                        for (Volume volume : podTemplateSpec.getSpec().getVolumes()) {
-                            if (vm.getName().equals(volume.getName())) {
-                                if (volume.getSecret() != null) {
-                                    vmExt.setType("secret");
-                                } else if (volume.getPersistentVolumeClaim() != null) {
-                                    PersistentVolumeClaim persistentVolumeClaim = getPvcByName(podTemplateSpec.getMetadata().getNamespace(), volume.getPersistentVolumeClaim().getClaimName(), cluster);
-                                    if (persistentVolumeClaim != null && persistentVolumeClaim.getMetadata().getAnnotations().get("volume.beta.kubernetes.io/storage-class") != null) {
-                                        String storageClassName = (String) persistentVolumeClaim.getMetadata().getAnnotations().get("volume.beta.kubernetes.io/storage-class");
-                                        vmExt.setStorageClassName(storageClassName);
-                                    }
-                                    vmExt.setType("nfs");
-                                    vmExt.setPvcname(volume.getPersistentVolumeClaim().getClaimName());
-                                } else if (volume.getEmptyDir() != null) {
-                                    vmExt.setType("emptyDir");
-                                    if (volume.getEmptyDir() != null) {
-                                        vmExt.setEmptyDir(volume.getEmptyDir().getMedium());
-                                    } else {
-                                        vmExt.setEmptyDir(null);
-                                    }
-
-                                    if (vm.getName().indexOf("logdir") == 0) {
-                                        vmExt.setType("logDir");
-                                    }
-                                } else if (volume.getConfigMap() != null) {
-                                    Map<String, Object> configMap = new HashMap<String, Object>();
-                                    configMap.put("name", volume.getConfigMap().getName());
-
-                                    String mountPath = null;
-                                    if(vm.getMountPath().contains(vm.getSubPath())){
-                                        int lastIndexOf = vm.getMountPath().lastIndexOf("/");
-                                        String subLastPath = vm.getMountPath().substring(lastIndexOf + 1);
-                                        if(subLastPath.equals(vm.getSubPath())){
-                                            mountPath = vm.getMountPath().substring(0, lastIndexOf);
-                                        }
-
-                                    }
-
-                                    configMap.put("path", mountPath);
-                                    vmExt.setType("configMap");
-                                    vmExt.setConfigMapName(volume.getConfigMap().getName());
-                                    vmExt.setMountPath(mountPath);
-                                } else if (volume.getHostPath() != null) {
-                                    vmExt.setType("hostPath");
-                                    vmExt.setHostPath(volume.getHostPath().getPath());
-                                    if (vm.getName().indexOf("logdir") == 0) {
-                                        vmExt.setType("logDir");
-                                    }
-                                }
-                                if (vmExt.getReadOnly() == null) {
-                                    vmExt.setReadOnly(false);
-                                }
-                                vms.add(vmExt);
-                                break;
-                            }
-                        }
-                    }
-                    cOfPodDetail.setStorage(vms);
-                }
-                res.add(cOfPodDetail);
-            }
-        }
-        return res;
-    }
     private static PersistentVolumeClaim getPvcByName(String namespace, String pvcName, Cluster cluster) {
         K8SURL url = new K8SURL();
         url.setApiGroup(APIGroup.API_V1_VERSION);

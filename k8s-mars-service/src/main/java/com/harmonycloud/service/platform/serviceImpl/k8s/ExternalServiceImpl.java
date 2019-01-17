@@ -172,7 +172,7 @@ public class ExternalServiceImpl implements ExternalService {
                 for (int i = 0; i < services.size(); i++) {
                     com.harmonycloud.k8s.bean.Service svc = services.get(i);
                     String name = svc.getMetadata().getName();
-                    K8SClientResponse responsed = this.sService.doSepcifyService(null,name,null,null,HTTPMethod.DELETE,cluster);
+                    K8SClientResponse responsed = this.sService.doSepcifyService(svc.getMetadata().getNamespace(),name,null,null,HTTPMethod.DELETE,cluster);
                     if (!HttpStatusUtil.isSuccessStatus(responsed.getStatus())) {
                         LOGGER.error("删除外部服务失败:projectId:{},cluster:{},service:{},res:{}",
                                 new String[]{projectId, cluster.getName(), name, JSONObject.toJSONString(responsed)});

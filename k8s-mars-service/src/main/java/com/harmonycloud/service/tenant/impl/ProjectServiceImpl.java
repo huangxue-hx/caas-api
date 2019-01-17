@@ -4,6 +4,7 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.util.SsoClient;
 import com.harmonycloud.common.util.UUIDUtil;
 import com.harmonycloud.common.util.date.DateUtil;
@@ -17,9 +18,6 @@ import com.harmonycloud.dto.tenant.DevOpsProjectUserDto;
 import com.harmonycloud.dto.tenant.ProjectDto;
 import com.harmonycloud.dto.user.UserRoleDto;
 import com.harmonycloud.k8s.bean.BaseResource;
-import com.harmonycloud.service.application.ApplicationDeployService;
-import com.harmonycloud.service.application.ApplicationService;
-import com.harmonycloud.service.application.PersistentVolumeService;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
@@ -108,6 +106,10 @@ public class ProjectServiceImpl implements ProjectService {
     private DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
     @Autowired
     private DataPrivilegeGroupService dataPrivilegeGroupService;
+    @Autowired
+    private ServiceService serviceService;
+    @Autowired
+    private StatefulSetsService statefulSetsService;
 
     private static final Logger logger = LoggerFactory.getLogger(ProjectServiceImpl.class);
 
@@ -255,6 +257,10 @@ public class ProjectServiceImpl implements ProjectService {
         harborProjectService.deleteRepository(projectId);
         //删除用户
         this.userRoleRelationshipService.deleteUserRoleRelationshipByProjectId(projectId);
+        //删除服务
+        serviceService.deleteDeployedServiceByprojectId(projectId,tenantId);
+        //删除有状态服务
+        statefulSetsService.deleteStatfulServiceByprojectId(projectId,tenantId);
         //删除外部服务
         externalService.deleteExtServiceByProject(projectId);
         //删除存储

@@ -1404,7 +1404,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             UnversionedStatus k8sresbody = JsonUtil.jsonToPojo(stsRes.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(k8sresbody.getMessage());
         }
-        StatefulSetList stsList = JsonUtil.jsonToPojo(depRes.getBody(), StatefulSetList.class);
+        StatefulSetList stsList = JsonUtil.jsonToPojo(stsRes.getBody(), StatefulSetList.class);
         List<StatefulSet> statefulSets = new ArrayList<StatefulSet>();
         if (Objects.nonNull(stsList) && CollectionUtils.isNotEmpty(stsList.getItems())) {
             statefulSets = stsList.getItems();

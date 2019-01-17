@@ -68,11 +68,17 @@ public class KubeServiceConvert {
         newContainer.getResources().setLimits(res);
         newContainer.getResources().setRequests(res);
         if (oldContainer.getLimit() != null) {
+            //获取倍率
+            int rate = oldContainer.getLimit().getCurrentRate();
             Map<String, String> resl = new HashMap<String, String>();
-            Matcher ml = p.matcher(oldContainer.getLimit().getCpu());
-            String resultl = ml.replaceAll("").trim();
-            resl.put("cpu", resultl + "m");
-            resl.put("memory", (oldContainer.getLimit().getMemory().contains("Mi") || oldContainer.getLimit().getMemory().contains("Gi")) ? oldContainer.getLimit().getMemory() : oldContainer.getLimit().getMemory() + "Mi");
+            if (0 == rate) {
+                resl.put("cpu", oldContainer.getLimit().getCpu());
+                resl.put("memory", (oldContainer.getLimit().getMemory().contains("Mi") || oldContainer.getLimit().getMemory().contains("Gi")) ? oldContainer.getLimit().getMemory() : oldContainer.getLimit().getMemory() + "Mi");
+            } else {
+                int resultl = Integer.valueOf(result) * rate;
+                resl.put("cpu", resultl + "m");
+                resl.put("memory", ((Map<String, Object>)newContainer.getResources().getLimits()).get("memory").toString());
+            }
             newContainer.getResources().setLimits(resl);
         }
         return newContainer;

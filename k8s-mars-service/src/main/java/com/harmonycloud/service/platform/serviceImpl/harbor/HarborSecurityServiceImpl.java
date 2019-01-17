@@ -334,7 +334,6 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
                 Map<String, Object> resultMap = new HashMap<String,Object>();
                 List<VulnerabilityDetail> vulnerabilityDetailList = JsonUtil.jsonToList(result,VulnerabilityDetail.class);
                 Map<String,Object> vulnerabilitySuminfo = new HashMap<String,Object>();
-
                 for(VulnerabilityDetail vulnerabilityDetail : vulnerabilityDetailList){
                     if(vulnerabilityDetail.getFixedVersion() != null){
                         patchesSum++;
@@ -354,8 +353,7 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
                             unknownSum++;break;
                     }
                 }
-                highNum = highSum + criticalSum;
-                if (vulnerabilitySummaryResponse.isSuccess() && !withPackage) {
+                if (vulnerabilitySummaryResponse.isSuccess() ) {
                     vulnerabilitySuminfo.put("vulnerability-sum",vulnerabilityDetailList.size());
                     vulnerabilitySuminfo.put("vulnerability-patches-sum",patchesSum);
                     vulnerabilitySuminfo.put("critical-level-sum",criticalSum);
@@ -370,6 +368,7 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
                     }else {
                         Map<String,Object> tempMap = new HashMap<String,Object>();
                         tempMap.put("vulnerability-suminfo",vulnerabilitySuminfo);
+                        tempMap.put("vulnerability-list", vulnerabilityDetailList);
                         resultMap.put("vulnerability",tempMap);
                     }
 

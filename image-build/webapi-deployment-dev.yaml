@@ -21,7 +21,7 @@ spec:
         app: webapi
     spec:
       containers:
-      - image: 10.10.124.151/library/k8s-webapi:dev
+      - image: k8s-deploy/k8s-webapi:2.1.0
         resources:
           limits:
             cpu: 2000m
@@ -52,9 +52,6 @@ spec:
         - mountPath: /usr/local/k8s-mars-api/WEB-INF/classes/constant.properties 
           subPath: constant.properties
           name: webapi-config-volume
-        - mountPath: /usr/local/k8s-mars-api/WEB-INF/web.xml
-          subPath: web.xml
-          name: webapi-cm-webxml-volume
         - mountPath: /usr/local/k8s-mars-api/fsfiles
           name: webapi-storage
         - mountPath: /var/run
@@ -73,12 +70,6 @@ spec:
           - key: constant.properties
             path: constant.properties
         name: webapi-config-volume
-      - configMap:
-          name: webapi-cm-webxml
-          items:
-          - key: web.xml
-            path: web.xml
-        name: webapi-cm-webxml-volume
       - name: webapi-storage
         persistentVolumeClaim:
           claimName: webapi-claim

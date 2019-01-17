@@ -21,6 +21,16 @@ public class CreateConfigMapDto implements Serializable{
 	
 	private Object value;
 
+	private String name;//配置文件组名称
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
 	public String getConfigMapId() {
 		return configMapId;
 	}

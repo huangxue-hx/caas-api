@@ -11,18 +11,16 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.DesUtil;
 import com.harmonycloud.common.util.HttpJenkinsClientUtil;
 import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.dao.application.ConfigFileMapper;
+import com.harmonycloud.dao.application.bean.ConfigFile;
 import com.harmonycloud.dao.ci.*;
 import com.harmonycloud.dao.ci.bean.*;
-import com.harmonycloud.dao.harbor.ImageRepositoryMapper;
-import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dto.cicd.StageDto;
 import com.harmonycloud.service.cache.ImageCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
-import com.harmonycloud.service.platform.bean.harbor.HarborRepositoryMessage;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.ci.*;
 import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
-import com.harmonycloud.service.platform.service.harbor.HarborService;
 import com.harmonycloud.service.tenant.ProjectService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
@@ -74,6 +72,9 @@ public class StageServiceImpl implements StageService {
 
     @Autowired
     private DockerFileJobStageMapper dockerFileJobStageMapper;
+
+    @Autowired
+    private ConfigFileMapper configFileMapper;
 
 //    @Autowired
 //    private SonarProjectService sonarProjectService;
@@ -149,16 +150,6 @@ public class StageServiceImpl implements StageService {
             if(stageDto.getBuildEnvironmentId() > 0){
                 stage.setEnvironmentChange(true);
             }
-        }else if(StageTemplateTypeEnum.IMAGEPUSH.getCode() == stageDto.getStageTemplateType()){
-            if("1".equals(stageDto.getImageTagType())){
-                //如果传回的imageTagType为1，返回最新tag
-                ImageRepository imageRepository = harborProjectService.findRepositoryById(stageDto.getRepositoryId());
-                HarborRepositoryMessage harborRepository = imageCacheManager.getRepoMessage(imageRepository.getHarborHost(),stageDto.getImageName());
-                String latestTag = harborRepository.getTags().get(0);
-                if(!latestTag.isEmpty()){
-                    stageDto.setImageTag(latestTag);
-                }
-            }
         }
         stage.setCreateTime(new Date());
 
@@ -191,16 +182,6 @@ public class StageServiceImpl implements StageService {
         }else if(StageTemplateTypeEnum.CUSTOM.getCode() == stageDto.getStageTemplateType()){
             if(stageDto.getBuildEnvironmentId() > 0){
                 stage.setEnvironmentChange(true);
-            }
-        }else if(StageTemplateTypeEnum.IMAGEPUSH.getCode() == stageDto.getStageTemplateType()){
-            if("1".equals(stageDto.getImageTagType())){
-                //如果传回的imageTagType为1，返回最新tag
-                ImageRepository imageRepository = harborProjectService.findRepositoryById(stageDto.getRepositoryId());
-                HarborRepositoryMessage harborRepository = imageCacheManager.getRepoMessage(imageRepository.getHarborHost(),stageDto.getImageName());
-                String latestTag = harborRepository.getTags().get(0);
-                if(!latestTag.isEmpty()){
-                    stage.setImageTag(latestTag);
-                }
             }
         }
 
@@ -246,6 +227,14 @@ public class StageServiceImpl implements StageService {
             stageDto = null;
         }else {
             stageDto.convertFromBean(stage);
+        }
+        if (StageTemplateTypeEnum.DEPLOY.getCode() == stageDto.getStageTemplateType()){
+            if(stageDto.getConfigMaps() != null) {
+                ConfigFile configFile = configFileMapper.getConfig(stageDto.getConfigMaps().get(0).getConfigMapId());
+                for (int i = 0; i < stageDto.getConfigMaps().size(); i++) {
+                    stageDto.getConfigMaps().get(i).setName(configFile.getName());
+                }
+            }
         }
         StageType stageType = stageTypeMapper.queryById(stageDto.getStageTypeId());
         stageDto.setStageTypeName(stageType.getName());

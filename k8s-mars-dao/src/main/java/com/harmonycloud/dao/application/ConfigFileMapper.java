@@ -118,7 +118,6 @@ public interface ConfigFileMapper {
 
     List<ConfigFile> getConfigMapByName(@Param("name") String name, @Param("clusterId") String clusterId, @Param("projectId") String projectId);
 
-    void updateUpdateTime(@Param("updateTime") String updateTime,@Param("configName")String configName);
 
     /**
      * 根据租户 和集群删除配置文件

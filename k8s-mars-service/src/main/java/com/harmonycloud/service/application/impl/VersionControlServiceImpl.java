@@ -51,6 +51,8 @@ import java.util.stream.Collectors;
 public class VersionControlServiceImpl extends VolumeAbstractService implements VersionControlService {
 
 
+    private static final int RETRY_COUNT = 2;
+
     @Autowired
     private DeploymentService dpService;
 
@@ -246,25 +248,32 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         Map<String, Object> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
+        String oldResourceVersion = dep.getMetadata().getResourceVersion();
         ESFactory.executor.execute((new Runnable() {
             @Override
             public void run() {
                 try {
                     RequestContextHolder.setRequestAttributes(request);
-
-                    for (; ; ) {
-                        //如果实例数为0则不需要灰度更新
-                        if (detail.getInstances() == 0) {
-                            break;
-                        }
+                    int retryCount = 0;
+                    while (true) {
                         //暂停两秒钟等待灰度升级开始
                         Thread.sleep(2000);
-
                         K8SClientResponse dp = dpService.doSpecifyDeployment(detail.getNamespace(), detail.getName(), null, null, HTTPMethod.GET, cluster);
                         if (!HttpStatusUtil.isSuccessStatus(dp.getStatus())) {
                             logger.error("灰度升级查询Deployment报错");
+                            //不处理会有死循环可能
+                            throw new RuntimeException(dp.getBody());
                         }
                         Deployment dep1 = JsonUtil.jsonToPojo(dp.getBody(), Deployment.class);
+
+                        if (dep1.getMetadata() != null && dep1.getMetadata().getResourceVersion() != null && dep1.getMetadata().getResourceVersion().equals(oldResourceVersion)) {
+                            //重试3次
+                            if (retryCount == RETRY_COUNT) {
+                                throw new RuntimeException("灰度升级Deployment更新失败");
+                            }
+                            retryCount++;
+                            continue;
+                        }
 
                         //如果实例数量是副本数的话就说明没有更新必要
                         if (dep1.getStatus() != null && dep1.getStatus().getUpdatedReplicas() != null && dep1.getStatus().getUpdatedReplicas().equals(dep1.getSpec().getReplicas())) {
@@ -284,12 +293,13 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
                             Map<String, Object> headers = new HashMap<>();
                             headers.put("Content-Type", "application/json");
                             K8SClientResponse pauseRes = dpService.doSpecifyDeployment(detail.getNamespace(), detail.getName(), headers, bodys, HTTPMethod.PUT, cluster);
-
                             if (!HttpStatusUtil.isSuccessStatus(pauseRes.getStatus())) {
                                 logger.error("灰度升级暂停Deployment报错");
                             }
                             break;
-                        } else if (dep1.getStatus() != null && dep1.getStatus().getReplicas() != null && dep1.getStatus().getReplicas() == instances) {
+                        }
+                        //全部升级
+                        if (dep1.getStatus() != null && dep1.getStatus().getReplicas() != null && dep1.getStatus().getReplicas() == instances) {
                             break;
                         }
                     }

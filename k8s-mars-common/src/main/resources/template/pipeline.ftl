@@ -76,18 +76,11 @@ podTemplate(
             <#if stage.dockerfileType == 2>
             sh "cp -r ${'/opt/dockerfile'+stage.id?c} ./dockerfile@tmp${stage.id?c}"
             </#if>
-            sh "docker build --no-cache <#if stage.dockerfileType == 1> -f ./${stage.dockerfilePath}</#if><#if stage.dockerfileType == 2> -f dockerfile@tmp${stage.id?c}/<#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if> -t ${harborAddress!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!} ."
+            sh "docker build --network=host --no-cache <#if stage.dockerfileType == 1> -f ./${stage.dockerfilePath}</#if><#if stage.dockerfileType == 2> -f dockerfile@tmp${stage.id?c}/<#list dockerFileMap as key, value><#if key == stage.stageOrder>${value.name}</#if></#list></#if> -t ${harborAddress!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!} ."
             sh "docker push ${harborAddress!}/${stage.harborProject!}/${stage.imageName!}:$tag${stage.stageOrder!}"
-
 </#if>
-<#if stage.stageTemplateType == 2>
+<#if (stage.stageTemplateType == 2 || stage.stageTemplateType == 7 || stage.stageTemplateType == 8 || stage.stageTemplateType == 9)>
             httpRequest url:"${apiUrl!}/rest/openapi/cicdjobs/stages/${stage.id?c!}?buildNum=${r'${currentBuild.number}'}",consoleLogResponseBody: true, timeout: ${timeout}
-</#if>
-<#if (stage.stageTemplateType == 7 || stage.stageTemplateType == 8)>
-            httpRequest url:"${apiUrl!}/rest/openapi/cicdjobs/stages/${stage.id?c!}?buildNum=${r'${currentBuild.number}'}",consoleLogResponseBody: true, timeout: ${timeout}
-</#if>
-<#if stage.stageTemplateType == 9>
-             httpRequest url:"${apiUrl!}/rest/openapi/cicdjobs/stages/${stage.id!}?buildNum=${r'${currentBuild.number}'}",consoleLogResponseBody: true, timeout: ${timeout}
 </#if>
 <#if (stage.command!?size>0)>
     sh '''<#list stage.command! as command><![CDATA[${command}]]>

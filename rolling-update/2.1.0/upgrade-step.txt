@@ -16,6 +16,8 @@ webapi-configmap.yaml
 webpage-cloudterminal-config.yaml
 需要替换配置文件中的ip为上层集群的masterip，重新创建配置。
 创建配置文件 ingresscontroller-config.yaml
+修改nginx-config配置文件(nginx.conf) client_max_body_size 5120m  和 keepalive_timeout 1200
+kubectl create configmap nginx-config --from-file=nginx.conf --namespace=kube-system
 --------------------------------------------------------------------
 5.	Harbor仓库增加镜像
 k8s-deploy/alpine-net:1.0
@@ -31,23 +33,15 @@ kubectl edit deploy file-upload -n kube-system 修改镜像版本为7
 修改command命令：
 command: ["tail","-f","/etc/hosts"]
 --------------------------------------------------------------------
-7.	增加集群nfs配额
-更新cluster，增加 nfs的capacity属性, 1表示1TB，即该集群使用nfs的总容量是1TB
-查看所有集群： kubectl get cluster --all-namespaces
-修改集群： kubectl edit cluster dev -n cluster-top
-nfs:
-    - capacity: "1"
-      ip: 192.168.26.46
-      name: nfs
-      path: /nfs/top
-      type: nfs
---------------------------------------------------------------------
-8.	更新webapi，webpage和oam的镜像
-镜像版本为v2.1.0，更新webapi，webpage，oam-api，oam-task的deploy的镜像版本
+7.
 
 --------------------------------------------------------------------
-9.  更新kube-controller-manager配置
-重启kube-controller-manager
+8.	更新webapi，webpage和oam的镜像
+镜像版本为2.1.0，更新webapi，webpage，oam-api，oam-task的deploy的镜像版本
+
+--------------------------------------------------------------------
+9. 上传应用商店应用图片
+webapi-pv对应的nfs目录下创建appimages目录，将appimages下的图片上传到该路径下
 --------------------------------------------------------------------
 10. 主要升级内容是支持非22端口，非root权限，可上下线节点
 10.1.备份原有脚本
@@ -155,11 +149,3 @@ spec:
 kubectl delete -f fluentd-daemonset.yaml
 kubectl create -f fluentd-daemonset.yaml
 
--------------------------------------2018-12.2-wanhua------------sprint1--------------------------------------------------------
-1.执行db-upgrade-oam-v1.1.0.sql, db-upgrade-webapi-v1.1.0.sql脚本中的sprint1部分的sql
-2.webapi-pv对应的nfs目录下创建appimages目录，将appimages下的图片上传到该路径下
-3.webapi-config配置文件中api.url.whitelist增加白名单*/appimages/*, 删除除sso.open外的sso配置
-
-
---------------------------------------------------sprint2--------------------------------------------------------
-1.webapi-config配置文件中ic.image.tag配置改成:0.9.0-beta.19

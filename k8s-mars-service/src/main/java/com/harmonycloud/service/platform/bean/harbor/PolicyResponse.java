@@ -12,7 +12,7 @@ public class PolicyResponse {
     private String status;
     private String repository;
     private String policy_id;
-    private String goperation;
+    private String operation;
     private List<String> tags;
     private String creation_time;
     private String update_time;
@@ -49,12 +49,12 @@ public class PolicyResponse {
         this.policy_id = policy_id;
     }
 
-    public String getGoperation() {
-        return goperation;
+    public String getOperation() {
+        return operation;
     }
 
-    public void setGoperation(String goperation) {
-        this.goperation = goperation;
+    public void setOperation(String operation) {
+        this.operation = operation;
     }
 
     public List<String> getTags() {
