@@ -567,8 +567,8 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		autoScale.setControllerType(SCALE_CONTROLLER_TYPE_CPA);
 		Map<String, Object> annottions = complexPodScale.getMetadata().getAnnotations();
 		if (annottions != null){
-			autoScaleDto.setToEmail(annottions.get(SCALE_ALARM_TO_EMAIL) == null ? "" : ((String) annottions.get(SCALE_ALARM_TO_EMAIL)));
-			autoScaleDto.setCcEmail(annottions.get(SCALE_ALARM_CC_EMAIL) == null ? "" : ((String) annottions.get(SCALE_ALARM_CC_EMAIL)));
+			autoScale.setToEmail(annottions.get(SCALE_ALARM_TO_EMAIL) == null ? "" : ((String) annottions.get(SCALE_ALARM_TO_EMAIL)));
+			autoScale.setCcEmail(annottions.get(SCALE_ALARM_CC_EMAIL) == null ? "" : ((String) annottions.get(SCALE_ALARM_CC_EMAIL)));
 		}
 		ComplexPodScaleStatus status = complexPodScale.getStatus();
 		Map<String, Object> statusMap = new HashMap<>();
