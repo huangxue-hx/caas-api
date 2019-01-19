@@ -843,7 +843,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         }
         NamespaceList list = (NamespaceList) listResult.get(CommonConstant.DATA);
         if (CollectionUtils.isEmpty(list.getItems())) {
-            return ActionReturnUtil.returnSuccessWithData(null);
+            return ActionReturnUtil.returnSuccessWithData((Object) null);
         }
 
         List<NamespaceShowDto> namespaces = new LinkedList<>();
