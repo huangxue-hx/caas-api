@@ -565,6 +565,8 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
         ActionReturnUtil namespaceList = namespaceService.getNamespaceList(tenantId);
         if (namespaceList.isSuccess() != true){
             return ActionReturnUtil.returnErrorWithData(namespaceList);
+        }else if (null == namespaceList.getData()){
+            return ActionReturnUtil.returnSuccess();
         }
         LinkedList namespaceLists = (LinkedList) namespaceList.getData();
         ArrayList arrayList = new ArrayList(namespaceLists);
