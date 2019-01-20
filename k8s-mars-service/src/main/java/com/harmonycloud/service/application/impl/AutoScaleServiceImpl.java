@@ -412,9 +412,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		ObjectMeta meta = new ObjectMeta();
 		meta.setName(getScaleName(autoScaleDto.getDeploymentName()));
 		Map<String, Object> annotations = convertAnnotations(autoScaleDto);
-		if (annotations != null) {
-			meta.setAnnotations(annotations);
-		}
+		meta.setAnnotations(annotations);
 		complexPodScale.setMetadata(meta);
 
 		// 设置hpa对象的spec
@@ -485,9 +483,8 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		ObjectMeta meta = complex.getMetadata();
 		meta.setName(getScaleName(autoScaleDto.getDeploymentName()));
 		Map<String, Object> annotations = convertAnnotations(autoScaleDto);
-		if (annotations != null) {
-			meta.setAnnotations(annotations);
-		}
+		//始终用新的
+		meta.setAnnotations(annotations);
 		complexPodScale.setMetadata(meta);
 
 		// 设置hpa对象的spec
@@ -718,9 +715,7 @@ public class AutoScaleServiceImpl implements AutoScaleService {
 		meta.setDeletionGracePeriodSeconds(null);
 		meta.setDeletionTimestamp(null);
 		Map<String, Object> annotations = convertAnnotations(autoScaleDto);
-		if (annotations != null) {
-			meta.setAnnotations(annotations);
-		}
+		meta.setAnnotations(annotations);
 		hpAutoscaler.setMetadata(meta);
 
 		// 设置hpa对象的spec
