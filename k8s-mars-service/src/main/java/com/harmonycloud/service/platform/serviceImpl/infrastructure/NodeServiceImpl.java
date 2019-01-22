@@ -525,10 +525,14 @@ public class NodeServiceImpl implements NodeService {
                 Map<String, Object> labels = node.getMetadata().getLabels();
                 Set<Entry<String, Object>> entrySet = labels.entrySet();
                 for (Entry<String, Object> entry : entrySet) {
-                    if (entry.getValue().toString().contains(namespace)) {
+                    if (entry.getValue().toString().equals(namespace)) {
                         List<NodeCondition> conditions = node.getStatus().getConditions();
-                        if (conditions.size() == 4 && "True".equals(conditions.get(3).getStatus())) {
-                            nodeDtoList.add(node.getMetadata().getName());
+                        for(NodeCondition nodeCondition : conditions){
+                            if(nodeCondition.getType().equalsIgnoreCase("Ready")
+                                    && nodeCondition.getStatus().equalsIgnoreCase("True")){
+                                nodeDtoList.add(node.getMetadata().getName());
+                                break;
+                            }
                         }
                         break;
                     }
@@ -598,8 +602,12 @@ public class NodeServiceImpl implements NodeService {
             List<Node> items = nodeList.getItems();
             for (Node node : items) {
                 List<NodeCondition> conditions = node.getStatus().getConditions();
-                if (conditions.size() == 4 && "True".equals(conditions.get(3).getStatus())) {
-                    nodeDtoList.add(node.getMetadata().getName());
+                for(NodeCondition nodeCondition : conditions){
+                    if(nodeCondition.getType().equalsIgnoreCase("Ready")
+                            && nodeCondition.getStatus().equalsIgnoreCase("True")){
+                        nodeDtoList.add(node.getMetadata().getName());
+                        break;
+                    }
                 }
 
             }
