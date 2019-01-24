@@ -331,8 +331,9 @@ public class NodeController {
      */
     @RequestMapping(value = "/label/nodes")
     @ResponseBody
-    public ActionReturnUtil getLabelNodes(@RequestParam(value = "clusterId",required = true) String clusterId,
-                                          @RequestParam(value = "label",required = true) String label) throws MarsRuntimeException {
-        return nodeService.getLabelNodes(clusterId, label);
+    public ActionReturnUtil searchNodes(@RequestParam(value = "clusterId") String clusterId,
+                                          @RequestParam(value = "label", required = false) String label,
+                                          @RequestParam(value = "groupName", required = false)String groupName) throws MarsRuntimeException {
+        return nodeService.searchNodes(clusterId, label, groupName);
     }
 }

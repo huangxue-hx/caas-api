@@ -1492,35 +1492,71 @@ public class NodeServiceImpl implements NodeService {
      * 获取满足label的node节点
      * @param clusterId
      * @param label
-     * @throws MarsRuntimeException
+     * @param groupName
      * @return
+     * @throws MarsRuntimeException
      */
     @Override
-    public ActionReturnUtil getLabelNodes(String clusterId,String label) throws MarsRuntimeException {
+    public ActionReturnUtil searchNodes(String clusterId, String label, String groupName) throws MarsRuntimeException {
         Cluster cluster = clusterService.findClusterById(clusterId);
         NodeList nodeList = nodeService.listNode(cluster);
         List<NodeDto> nodeDtoList = new ArrayList<>();
-        List<Node> nodeData=new ArrayList<>();
-        if (nodeList != null && nodeList.getItems().size() > 0) {
-            List<Node> nodes = nodeList.getItems();
-            for(Node node:nodes){
-                Map<String, Object> labels = node.getMetadata().getLabels();
-                if (labels != null) {
-                    Set<Entry<String, Object>> entrySet = labels.entrySet();
-                    for (Entry<String, Object> entry : entrySet) {
-                        if (entry.getKey().contains(NODESELECTOR_LABELS_PRE)&&!entry.getKey().contains("group")) {
-                            String key = entry.getKey();
-                            key = key.replaceAll(NODESELECTOR_LABELS_PRE, "");
-                            String labelStr=key + "=" + entry.getValue();
-                            if(label.equals(labelStr)){
-                                nodeData.add(node);
+        List<NodeDto> groupNode = new ArrayList<>();
+        List<Node> nodeData = new ArrayList<>();
+        if(StringUtils.isEmpty(label)&&StringUtils.isEmpty(groupName)){
+            dealNodeStatus(nodeList.getItems(),cluster,nodeDtoList);
+            return ActionReturnUtil.returnSuccessWithData(nodeDtoList);
+        }
+        if(!StringUtils.isEmpty(label)){
+            if (nodeList != null && nodeList.getItems().size() > 0) {
+                List<Node> nodes = nodeList.getItems();
+                for(Node node:nodes){
+                    Map<String, Object> labels = node.getMetadata().getLabels();
+                    if (labels != null) {
+                        Set<Entry<String, Object>> entrySet = labels.entrySet();
+                        for (Entry<String, Object> entry : entrySet) {
+                            if (entry.getKey().contains(NODESELECTOR_LABELS_PRE)&&!entry.getKey().contains("group")) {
+                                String key = entry.getKey();
+                                key = key.replaceAll(NODESELECTOR_LABELS_PRE, "");
+                                String labelStr=key + "=" + entry.getValue();
+                                if(label.equals(labelStr)){
+                                    nodeData.add(node);
+                                }
                             }
                         }
                     }
                 }
+                dealNodeStatus(nodeData, cluster, nodeDtoList);
             }
-            dealNodeStatus(nodeData, cluster, nodeDtoList);
         }
-        return ActionReturnUtil.returnSuccessWithData(nodeDtoList);
+        if(!StringUtils.isEmpty(groupName)) {
+            if(CollectionUtils.isEmpty(nodeDtoList)){
+                dealNodeStatus(nodeList.getItems(),cluster,nodeDtoList);
+            }
+            for (NodeDto nodeDto : nodeDtoList) {
+                if (!CollectionUtils.isEmpty(nodeDto.getCustomLabels())) {
+                    for (Object labelKey : nodeDto.getCustomLabels()) {
+                        if (appendGroupName(groupName, labelKey.toString())) {
+                            groupNode.add(nodeDto);
+                        }
+                    }
+                }
+            }
+        }
+        return ActionReturnUtil.returnSuccessWithData(CollectionUtils.isEmpty(groupNode)?nodeDtoList:groupNode);
+    }
+
+    /**
+     * 拼接组名 用于查找适合的组
+     * @param groupName
+     * @param rightGroup
+     * @return
+     */
+    private boolean appendGroupName(String groupName,String rightGroup){
+        String group = "group=";
+        if(rightGroup.equals(group+groupName)){
+            return true;
+        }
+        return false;
     }
 }
