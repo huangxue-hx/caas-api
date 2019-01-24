@@ -329,11 +329,24 @@ public class NodeController {
      * @return
      * @throws MarsRuntimeException
      */
-    @RequestMapping(value = "/label/nodes")
+    @RequestMapping(value = "/label/nodes", method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil searchNodes(@RequestParam(value = "clusterId") String clusterId,
                                           @RequestParam(value = "label", required = false) String label,
                                           @RequestParam(value = "groupName", required = false)String groupName) throws MarsRuntimeException {
         return nodeService.searchNodes(clusterId, label, groupName);
+    }
+
+    /**
+     * 获取匹配标签的node节点
+     *
+     * @param clusterId
+     * @return
+     * @throws MarsRuntimeException
+     */
+    @RequestMapping(value = "/nodes/groups", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getGroup(@RequestParam(value = "clusterId") String clusterId) throws MarsRuntimeException {
+        return nodeService.listNodeGroup(clusterId);
     }
 }

@@ -1546,6 +1546,30 @@ public class NodeServiceImpl implements NodeService {
         return ActionReturnUtil.returnSuccessWithData(CollectionUtils.isEmpty(groupNode)?nodeDtoList:groupNode);
     }
 
+    @Override
+    public ActionReturnUtil listNodeGroup(String clusterId) throws MarsRuntimeException {
+        Cluster cluster = clusterService.findClusterById(clusterId);
+        NodeList nodeList = nodeService.listNode(cluster);
+        List<String> groupName = new ArrayList<>();
+        List<NodeDto> nodeDtoList = new ArrayList<>();
+        if(Objects.isNull(nodeList)){
+            return ActionReturnUtil.returnSuccess();
+        }
+        dealNodeStatus(nodeList.getItems(),cluster,nodeDtoList);
+        if(CollectionUtils.isEmpty(nodeDtoList)){
+            return ActionReturnUtil.returnSuccess();
+        }
+        for (NodeDto nodeDto:nodeDtoList){
+            nodeDto.getCustomLabels().stream().filter(x->x.toString().contains("group")).forEach(x->{
+                String customLabel = x.toString();
+                if(!groupName.contains(customLabel.substring(CommonConstant.NUM_SIX, customLabel.length()))){
+                    groupName.add(customLabel.substring(CommonConstant.NUM_SIX, customLabel.length()));
+                }
+            });
+        }
+        return ActionReturnUtil.returnSuccessWithData(groupName);
+    }
+
     /**
      * 拼接组名 用于查找适合的组
      * @param groupName

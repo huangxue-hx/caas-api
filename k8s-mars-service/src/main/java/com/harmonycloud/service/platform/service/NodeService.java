@@ -225,4 +225,12 @@ public interface NodeService {
 	ActionReturnUtil searchNodes(String clusterId, String label, String groupName) throws MarsRuntimeException;
 
 	NodeDto getHostUsege(Node node, NodeDto nodeDto, Cluster cluster);
+
+	/**
+	 * 获取分组接口
+	 * @param clusterId
+	 * @throws MarsRuntimeException
+	 * @return
+	 */
+	ActionReturnUtil listNodeGroup(String clusterId) throws MarsRuntimeException;
 }
