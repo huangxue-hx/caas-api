@@ -1503,7 +1503,7 @@ public class NodeServiceImpl implements NodeService {
         List<NodeDto> nodeDtoList = new ArrayList<>();
         List<NodeDto> groupNode = new ArrayList<>();
         List<Node> nodeData = new ArrayList<>();
-        if(StringUtils.isEmpty(label)&&StringUtils.isEmpty(groupName)){
+        if (StringUtils.isEmpty(label) && StringUtils.isEmpty(groupName)){
             dealNodeStatus(nodeList.getItems(),cluster,nodeDtoList);
             return ActionReturnUtil.returnSuccessWithData(nodeDtoList);
         }
@@ -1530,8 +1530,8 @@ public class NodeServiceImpl implements NodeService {
             }
         }
         if(!StringUtils.isEmpty(groupName)) {
-            if(CollectionUtils.isEmpty(nodeDtoList)){
-                dealNodeStatus(nodeList.getItems(),cluster,nodeDtoList);
+            if(CollectionUtils.isEmpty(nodeDtoList) && StringUtils.isBlank(label)){
+                dealNodeStatus(nodeList.getItems(), cluster, nodeDtoList);
             }
             for (NodeDto nodeDto : nodeDtoList) {
                 if (!CollectionUtils.isEmpty(nodeDto.getCustomLabels())) {
@@ -1541,6 +1541,9 @@ public class NodeServiceImpl implements NodeService {
                         }
                     }
                 }
+            }
+            if (CollectionUtils.isEmpty(groupNode)) {
+                nodeDtoList = new ArrayList<>();
             }
         }
         return ActionReturnUtil.returnSuccessWithData(CollectionUtils.isEmpty(groupNode)?nodeDtoList:groupNode);
