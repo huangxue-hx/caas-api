@@ -243,7 +243,8 @@ public class TerminalService {
             }
 
         } catch (Exception e) {
-            LOGGER.warn("printReader失败", e);
+            LOGGER.warn("printReader失败,destroy process", e);
+            process.destroy();
         }
     }
 
