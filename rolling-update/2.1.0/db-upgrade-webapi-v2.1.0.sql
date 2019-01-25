@@ -288,7 +288,7 @@ UPDATE `k8s_auth_server`.`service_templates` SET `deployment_content`='[{\"annot
 /*
  harbor标签的增删，镜像打label，复制规则重名判断
 */
-INSERT INTO `url_dic` (`url`, `module`, `resource`)  VALUES  ('/tenants/*/projects/1/repositories/label','delivery','repositorymgr');
+INSERT INTO `url_dic` (`url`, `module`, `resource`)  VALUES  ('/tenants/*/projects/*/repositories/label','delivery','repositorymgr');
 INSERT INTO `url_dic` (`url`, `module`, `resource`) VALUES  ('/tenants/*/projects/*/repositories/img/label','delivery','repositorymgr');
 INSERT INTO `url_dic` (`url`, `module`, `resource`) VALUES  ('/harbor/*/replicationpolicies/checkname','delivery','repositorymgr');
 /*
