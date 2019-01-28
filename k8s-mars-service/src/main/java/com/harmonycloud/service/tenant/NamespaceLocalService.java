@@ -1,5 +1,6 @@
 package com.harmonycloud.service.tenant;
 
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import java.util.List;
@@ -38,6 +39,13 @@ public interface NamespaceLocalService {
      * @return
      */
     public List<NamespaceLocal> getNamespaceListByTenantId(String tenantId) throws Exception;
+    /**
+     * 根据clusterIds查询namespace
+     * @return NamespaceLocal集合
+     * @throws MarsRuntimeException
+     */
+    List<NamespaceLocal> getNamespaceByClsterIds(List<String> clusterIds) throws MarsRuntimeException;
+
     /**
      * 根据tenantId查询namespace列表(查询所有集群的分区)
      * @param tenantId

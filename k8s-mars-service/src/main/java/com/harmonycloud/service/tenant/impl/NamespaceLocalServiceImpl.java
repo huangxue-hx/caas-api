@@ -404,5 +404,17 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
         return null;
 
     }
+	
+	/**
+     * 根据clusterIds获取所有NamespaceLocal
+     * @return
+     * @throws MarsRuntimeException
+     */
+    @Override
+    public List<NamespaceLocal> getNamespaceByClsterIds(List<String> clusterIds) throws MarsRuntimeException {
+        NamespaceLocalExample example = this.getExample();
+        example.createCriteria().andClusterIdIn(clusterIds);
+        return this.namespaceLocalMapper.selectByExample(example);
+    }
 
 }

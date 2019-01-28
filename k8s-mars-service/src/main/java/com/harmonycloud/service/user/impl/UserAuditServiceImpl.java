@@ -13,6 +13,7 @@ import com.harmonycloud.dto.config.AuditRequestInfo;
 import com.harmonycloud.service.application.EsService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.user.BaseAuditService;
 import com.harmonycloud.service.user.UserAuditService;
 import com.harmonycloud.service.user.UserService;
 import org.apache.commons.collections.CollectionUtils;
@@ -24,7 +25,6 @@ import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.client.Requests;
-import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -41,7 +41,6 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.net.URLDecoder;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -53,7 +52,7 @@ import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
  * Created by czm on 2017/3/29.
  */
 @Service
-public class UserAuditServiceImpl implements UserAuditService {
+public class UserAuditServiceImpl extends BaseAuditService implements UserAuditService {
     private static Logger LOGGER = LoggerFactory.getLogger(UserAuditServiceImpl.class);
     @Autowired
     private EsService esService;
@@ -66,8 +65,6 @@ public class UserAuditServiceImpl implements UserAuditService {
 
     @Autowired
     private UserService userService;
-
-    private static TransportClient platformEsClient;
 
     private final static Integer ES_TTL = 1000;
 
@@ -191,7 +188,7 @@ public class UserAuditServiceImpl implements UserAuditService {
         if(org.apache.commons.lang3.StringUtils.isNotBlank(sessionLanguage) && !"null".equals(sessionLanguage)){
             language = sessionLanguage;
         }
-        SearchRequestBuilder searchRequestBuilder = mulitIndexSearch(indexList);
+        SearchRequestBuilder searchRequestBuilder = multiIndexSearch(platformEsClient, indexList);
         SearchResponse response;
         response = searchRequestBuilder
                 .setTypes(Constant.ES_INDEX_TYPE_AUDIT_LOG)
@@ -291,7 +288,7 @@ public class UserAuditServiceImpl implements UserAuditService {
      *             IO异常
      */
     public ActionReturnUtil searchFromIndexByUser(BoolQueryBuilder query, String module, List<String> indexList) throws Exception {
-        SearchRequestBuilder searchRequestBuilder = mulitIndexSearch(indexList);
+        SearchRequestBuilder searchRequestBuilder = multiIndexSearch(platformEsClient, indexList);
         SearchResponse response = searchRequestBuilder.setTypes(Constant.ES_INDEX_TYPE_AUDIT_LOG)
                 .setSearchType(SearchType.QUERY_AND_FETCH).addFields(module).setQuery(query).setFrom(0).setSize(10000)
                 .setExplain(true).get();
@@ -321,7 +318,7 @@ public class UserAuditServiceImpl implements UserAuditService {
     }
 
     public ActionReturnUtil getTotalCounts(BoolQueryBuilder query, List<String> indexList) throws Exception {
-        SearchRequestBuilder searchRequestBuilder = mulitIndexSearch(indexList);
+        SearchRequestBuilder searchRequestBuilder = multiIndexSearch(platformEsClient, indexList);
         // 计算页数对应的数据行数，先查询出来总的记录个数，计算
         SearchResponse pageResponse = searchRequestBuilder
                 .setTypes(Constant.ES_INDEX_TYPE_AUDIT_LOG)
@@ -488,18 +485,5 @@ public class UserAuditServiceImpl implements UserAuditService {
         String[] indices = indexResponse.getIndices();
         indexNameList.retainAll(Arrays.asList(indices));
         return indexNameList;
-    }
-
-    private SearchRequestBuilder mulitIndexSearch(List<String> indexList) throws Exception {
-        Class<?> clazz = Class.forName("org.elasticsearch.action.search.SearchRequestBuilder");
-        SearchRequestBuilder searchRequestBuilder = platformEsClient.prepareSearch();
-        List<Object> objectList = new ArrayList<>();
-        for (String s : indexList) {
-            objectList.add(s);
-        }
-        String[] strArray = objectList.toArray(new String[objectList.size()]);
-        Method method = clazz.getMethod("setIndices", new Class[]{String[].class});
-        searchRequestBuilder = (SearchRequestBuilder)method.invoke(searchRequestBuilder, new Object[]{strArray});
-        return searchRequestBuilder;
     }
 }

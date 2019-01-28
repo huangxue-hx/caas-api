@@ -318,6 +318,7 @@ public class CommonConstant {
     public static final int NUM_TEN = 10;
     public static final int NUM_ELEVEN = 11;
     public static final int NUM_TWELVE = 12;
+    public static final int NUM_THRITY_ONE = 31;
     //1000进制
     public static final int NUM_THOUSAND = 1000;
     public static final int NUM_MINUS_ONE = -1;
