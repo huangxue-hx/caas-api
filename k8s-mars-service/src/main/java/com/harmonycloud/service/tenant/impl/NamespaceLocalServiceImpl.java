@@ -5,6 +5,7 @@ import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.StringUtil;
 import com.harmonycloud.common.util.UUIDUtil;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dao.tenant.NamespaceLocalMapper;
@@ -12,6 +13,7 @@ import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocalExample;
 import com.harmonycloud.dao.user.bean.Privilege;
 import com.harmonycloud.dao.user.bean.Role;
+import com.harmonycloud.dto.cluster.ErrorNamespaceDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import com.harmonycloud.service.cluster.ClusterService;
@@ -404,8 +406,23 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
         return null;
 
     }
-	
-	/**
+
+    @Override
+    public ErrorNamespaceDto createTransferNamespace(NamespaceLocal namespaceLocal) {
+        ErrorNamespaceDto errorNamespaceDto = new ErrorNamespaceDto();
+        //设置namespaces id
+        namespaceLocal.setNamespaceId(StringUtil.getId());
+        String clusterId = namespaceLocal.getClusterId();
+        Cluster cluster = this.clusterService.findClusterById(clusterId);
+        namespaceLocal.setClusterName(cluster.getName());
+        namespaceLocal.setClusterAliasName(cluster.getAliasName());
+        //设置数据库
+        namespaceLocalMapper.insertSelective(namespaceLocal);
+        errorNamespaceDto.setNamespace(namespaceLocal.getNamespaceName());
+        return errorNamespaceDto;
+    }
+
+    /**
      * 根据clusterIds获取所有NamespaceLocal
      * @return
      * @throws MarsRuntimeException

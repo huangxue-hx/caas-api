@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.cluster.TransferClusterMapper">
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.cluster.bean.TransferCluster">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="tenant_id" jdbcType="VARCHAR" property="tenantId" />
+    <result column="cluster_id" jdbcType="VARCHAR" property="clusterId" />
+    <result column="old_cluster_id" jdbcType="VARCHAR" property="oldClusterId" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="is_transfer" jdbcType="TINYINT" property="isTransfer" />
+    <result column="is_continue" jdbcType="TINYINT" property="isContinue" />
+    <result column="is_err" jdbcType="INTEGER" property="isErr" />
+    <result column="percent" jdbcType="VARCHAR" property="percent" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    id, tenant_id, cluster_id, old_cluster_id, create_time, update_time, is_transfer, 
+    is_continue, is_err, `percent`
+  </sql>
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from transfer_cluster
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from transfer_cluster
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <insert id="insert" parameterType="com.harmonycloud.dao.cluster.bean.TransferCluster">
+    insert into transfer_cluster (id, tenant_id, cluster_id, 
+      old_cluster_id, create_time, update_time, 
+      is_transfer, is_continue, is_err, 
+      `percent`)
+    values (#{id,jdbcType=INTEGER}, #{tenantId,jdbcType=VARCHAR}, #{clusterId,jdbcType=VARCHAR}, 
+      #{oldClusterId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, 
+      #{isTransfer,jdbcType=TINYINT}, #{isContinue,jdbcType=TINYINT}, #{isErr,jdbcType=INTEGER}, 
+      #{percent,jdbcType=VARCHAR})
+  </insert>
+  <insert id="insertSelective" parameterType="com.harmonycloud.dao.cluster.bean.TransferCluster">
+    insert into transfer_cluster
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        id,
+      </if>
+      <if test="tenantId != null">
+        tenant_id,
+      </if>
+      <if test="clusterId != null">
+        cluster_id,
+      </if>
+      <if test="oldClusterId != null">
+        old_cluster_id,
+      </if>
+      <if test="createTime != null">
+        create_time,
+      </if>
+      <if test="updateTime != null">
+        update_time,
+      </if>
+      <if test="isTransfer != null">
+        is_transfer,
+      </if>
+      <if test="isContinue != null">
+        is_continue,
+      </if>
+      <if test="isErr != null">
+        is_err,
+      </if>
+      <if test="percent != null">
+        `percent`,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        #{id,jdbcType=INTEGER},
+      </if>
+      <if test="tenantId != null">
+        #{tenantId,jdbcType=VARCHAR},
+      </if>
+      <if test="clusterId != null">
+        #{clusterId,jdbcType=VARCHAR},
+      </if>
+      <if test="oldClusterId != null">
+        #{oldClusterId,jdbcType=VARCHAR},
+      </if>
+      <if test="createTime != null">
+        #{createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="updateTime != null">
+        #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="isTransfer != null">
+        #{isTransfer,jdbcType=TINYINT},
+      </if>
+      <if test="isContinue != null">
+        #{isContinue,jdbcType=TINYINT},
+      </if>
+      <if test="isErr != null">
+        #{isErr,jdbcType=INTEGER},
+      </if>
+      <if test="percent != null">
+        #{percent,jdbcType=VARCHAR},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.cluster.bean.TransferCluster">
+    update transfer_cluster
+    <set>
+      <if test="tenantId != null">
+        tenant_id = #{tenantId,jdbcType=VARCHAR},
+      </if>
+      <if test="clusterId != null">
+        cluster_id = #{clusterId,jdbcType=VARCHAR},
+      </if>
+      <if test="oldClusterId != null">
+        old_cluster_id = #{oldClusterId,jdbcType=VARCHAR},
+      </if>
+      <if test="createTime != null">
+        create_time = #{createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="updateTime != null">
+        update_time = #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="isTransfer != null">
+        is_transfer = #{isTransfer,jdbcType=TINYINT},
+      </if>
+      <if test="isContinue != null">
+        is_continue = #{isContinue,jdbcType=TINYINT},
+      </if>
+      <if test="isErr != null">
+        is_err = #{isErr,jdbcType=INTEGER},
+      </if>
+      <if test="percent != null">
+        `percent` = #{percent,jdbcType=VARCHAR},
+      </if>
+    </set>
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.cluster.bean.TransferCluster">
+    update transfer_cluster
+    set tenant_id = #{tenantId,jdbcType=VARCHAR},
+      cluster_id = #{clusterId,jdbcType=VARCHAR},
+      old_cluster_id = #{oldClusterId,jdbcType=VARCHAR},
+      create_time = #{createTime,jdbcType=TIMESTAMP},
+      update_time = #{updateTime,jdbcType=TIMESTAMP},
+      is_transfer = #{isTransfer,jdbcType=TINYINT},
+      is_continue = #{isContinue,jdbcType=TINYINT},
+      is_err = #{isErr,jdbcType=INTEGER},
+      `percent` = #{percent,jdbcType=VARCHAR}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+
+  <select id="queryTransferClusterByParam" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from transfer_cluster
+    where tenant_id = #{tenantId,jdbcType=VARCHAR} and
+    cluster_id = #{clusterId,jdbcType=VARCHAR}
+  </select>
+
+  <update id="updatePercent">
+    update transfer_cluster
+    set
+    `percent` = #{percent,jdbcType=VARCHAR}
+    where cluster_id = #{clusterId,jdbcType=VARCHAR} and  tenant_id = #{tenantId,jdbcType=VARCHAR}
+  </update>
+</mapper>

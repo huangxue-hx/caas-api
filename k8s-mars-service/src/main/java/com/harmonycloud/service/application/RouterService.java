@@ -1,6 +1,7 @@
 package com.harmonycloud.service.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.cluster.ErrDeployDto;
 import com.harmonycloud.dto.cluster.IngressControllerDto;
 import com.harmonycloud.k8s.bean.Ingress;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -8,6 +9,8 @@ import com.harmonycloud.dto.application.*;
 import com.harmonycloud.k8s.bean.ConfigMap;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 
+import java.beans.IntrospectionException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 
@@ -146,4 +149,8 @@ public interface RouterService {
     List<Map<String, Object>> createExternalRule(ServiceTemplateDto svcTemplate, String namespace, String serviceType) throws Exception;
 
     boolean checkIngressName(Cluster cluster, String name) throws Exception;
+
+    ErrDeployDto transferRuleDeploy(SvcRouterDto svcRouterDto, String deployName)throws Exception;
+
+    ErrDeployDto transferIngressCreate(ParsedIngressListDto parsedIngressList,String deployName) throws Exception;
 }

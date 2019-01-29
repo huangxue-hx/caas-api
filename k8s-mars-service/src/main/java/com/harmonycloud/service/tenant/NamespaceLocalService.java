@@ -1,6 +1,7 @@
 package com.harmonycloud.service.tenant;
 
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.dto.cluster.ErrorNamespaceDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import java.util.List;
@@ -148,4 +149,6 @@ public interface NamespaceLocalService {
      * @return
      */
     public NamespaceLocal getNamespaceByNameAndClusterId(String namespaceName,String  clusterId) throws Exception;
+
+    ErrorNamespaceDto createTransferNamespace(NamespaceLocal namespaceLocal);
 }

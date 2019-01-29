@@ -8,6 +8,7 @@ import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dto.application.PersistentVolumeDto;
+import com.harmonycloud.dto.cluster.ErrDeployDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.ClusterStorage;
@@ -458,6 +459,40 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
             }
         }
         return ActionReturnUtil.returnSuccess();
+    }
+
+    @Override
+    public ErrDeployDto transferPV(PersistentVolume pv, Cluster cluster, String deployName)
+            throws MarsRuntimeException {
+        ErrDeployDto errDeployDto = new ErrDeployDto();
+        if (null != pv) {
+            Map<String, Object> bodysPV = new HashMap<>();
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("name", pv.getMetadata().getName());
+            Map<String, Object> labels = pv.getMetadata().getLabels();
+            metadata.put("labels", labels);
+            bodysPV.put("metadata", metadata);
+            Map<String, Object> spec = new HashMap<>();
+            spec.put("capacity", pv.getSpec().getCapacity());
+
+            spec.put("nfs", pv.getSpec().getNfs());
+            spec.put("flexVolume", pv.getSpec().getFlexVolume());
+            spec.put("accessModes", pv.getSpec().getAccessModes());
+            bodysPV.put("spec", spec);
+            K8SURL urlPV = new K8SURL();
+            urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pv.getMetadata().getName());
+            Map<String, Object> headersPV = new HashMap<>();
+            headersPV.put("Content-Type", "application/json");
+            K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT,
+                    headersPV, bodysPV, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
+                errDeployDto.setDeployName(deployName);
+                errDeployDto.setErrMsg("迁移pv失败");
+                return errDeployDto;
+            }
+
+        }
+        return null;
     }
 
     public void deletePv(String projectId) throws Exception {

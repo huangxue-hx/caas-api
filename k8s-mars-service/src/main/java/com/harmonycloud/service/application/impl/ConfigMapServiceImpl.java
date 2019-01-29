@@ -9,6 +9,7 @@ import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dto.application.CreateContainerDto;
+import com.harmonycloud.dto.cluster.ErrDeployDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dto.application.CreateConfigMapDto;
 import com.harmonycloud.k8s.bean.ConfigMap;
@@ -24,6 +25,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.beans.IntrospectionException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
 /**
@@ -198,4 +201,22 @@ public class ConfigMapServiceImpl implements ConfigMapService {
             }
         }
     }
+
+	@Override
+	public ErrDeployDto transferConfigmap(ConfigMap configMap, Cluster cluster, String deployName)
+			throws IntrospectionException, InvocationTargetException, IllegalAccessException {
+		ErrDeployDto errDeployDto = new ErrDeployDto();
+		Map<String, Object> headers = new HashMap<>();
+		headers.put("Content-type", "application/json");
+		Map<String, Object> bodys = CollectionUtil.transBean2Map(configMap);
+		K8SURL url = new K8SURL();
+		url.setNamespace(CommonConstant.KUBE_SYSTEM).setResource(Resource.CONFIGMAP).setName(configMap.getMetadata().getName());
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, headers, bodys, cluster);
+		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+			errDeployDto.setDeployName(deployName);
+			errDeployDto.setErrMsg("创建tcpingress错误");
+			return errDeployDto;
+		}
+		return null;
+	}
 }

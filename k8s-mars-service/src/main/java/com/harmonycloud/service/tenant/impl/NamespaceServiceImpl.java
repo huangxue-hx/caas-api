@@ -15,6 +15,7 @@ import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
 import com.harmonycloud.dto.application.StorageClassDto;
+import com.harmonycloud.dto.cluster.ErrorNamespaceDto;
 import com.harmonycloud.dto.tenant.*;
 import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
 import com.harmonycloud.dto.tenant.show.QuotaDetailShowDto;
@@ -2301,6 +2302,54 @@ public class NamespaceServiceImpl implements NamespaceService {
             }
         }
         return ActionReturnUtil.returnSuccess();
+    }
+
+    @Override
+    public boolean checkTransferResource(List<NamespaceDto> namespaceDtos) throws Exception {
+        for (NamespaceDto namespaceDto : namespaceDtos) {
+            String namespace = namespaceDto.getName();
+            String clusterId = namespaceDto.getClusterId();
+            // 初始化判断1
+            if (StringUtils.isEmpty(namespace)
+                    || StringUtils.isEmpty(namespaceDto.getTenantId())
+                    || Objects.isNull(clusterId)) {
+                throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+            }
+            // 初始化判断2
+            if (!namespaceDto.isPrivate()
+                    && (namespaceDto.getQuota() == null
+                    || StringUtils.isEmpty(namespaceDto.getQuota().getCpu())
+                    || StringUtils.isEmpty(namespaceDto.getQuota().getMemory()))) {
+                throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_QUOTA_NOT_BLANK);
+            }
+            // 初始化判断3
+            if (namespaceDto.isPrivate() && StringUtils.isEmpty(namespaceDto.getNodeName())) {
+                throw new MarsRuntimeException(ErrorCodeMessage.NODENAME_NOT_BLANK);
+            }
+
+            // 查询namespace详情
+            Cluster cluster = clusterService.findClusterById(namespaceDto.getClusterId());
+            //集群有效值查询
+            if (Objects.isNull(cluster)){
+                throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+            }
+            //分区有效值判断
+            NamespaceLocal namespaceByName = this.namespaceLocalService.getNamespaceByName(namespace);
+
+            if (!Objects.isNull(namespaceByName)){
+                throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_EXIST,namespace,Boolean.TRUE);
+            }
+            //分区别名检查
+            NamespaceLocal namespaceByAliasName = this.namespaceLocalService.getNamespaceByAliasName(namespaceDto.getAliasName());
+            if (!Objects.isNull(namespaceByAliasName)){
+                throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_EXIST,namespaceDto.getAliasName(),Boolean.TRUE);
+            }
+            if(!namespaceDto.isPrivate()){
+                //检查分区分配的配额是否超出可用值
+                this.checkQuota(cluster, namespaceDto);
+            }
+        }
+        return true;
     }
 
     /**
