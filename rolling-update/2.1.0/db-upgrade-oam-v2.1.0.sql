@@ -36,3 +36,7 @@ DROP INDEX `uni_name` ,
 ADD UNIQUE INDEX `uni_name` (`grouping`, `name`, `is_deleted`, `data_center`, `cluster_id`) USING BTREE ;
 
 -- -----------------------------------sprint2----------------------------------------------
+ALTER TABLE `k8s_server_mysql`.`alarm_record`
+add COLUMN  `cluster_id` VARCHAR(100) NULL ;
+ALTER TABLE `k8s_server_mysql`.`alarm_record`
+ADD COLUMN  `cluster_master` VARCHAR(255) NULL ;
