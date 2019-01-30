@@ -488,3 +488,4 @@ INSERT INTO k8s_auth_server.`url_dic` (`url`,`module`,`resource`) VALUES ('/tena
 INSERT INTO k8s_auth_server.`url_dic` (`url`,`module`,`resource`) VALUES ('/tenants/*/projects/*/apps/*/linklogs','log','applog');
 
 INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/system/configs/localuserflag', 'whitelist', 'whitelist');
+DELETE FROM `user` WHERE username = 'xfliang';
