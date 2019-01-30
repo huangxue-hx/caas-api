@@ -15,12 +15,14 @@ CREATE TABLE `k8s_auth_server`.`configfile_item` (
 ) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8;
 
 INSERT into k8s_auth_server.configfile_item(`configfile_id`, `path`, `content`, `file_name`) select id,path,item,name FROM `k8s_auth_server`.configfile;
+update configfile_item set file_name = REVERSE(left(REVERSE(path),instr(REVERSE(path),'/')-1)) where id>0;
+update configfile_item set path = left(path,LENGTH(path)-instr(REVERSE(path),'/')+1) where id > 0;
 
 ALTER TABLE k8s_auth_server.`configfile`
   DROP COLUMN `item`,
   DROP COLUMN `path`;
 
-ALTER TABLE tenant_cluster_quota ADD storage_quotas VARCHAR(255) DEFAULT '' COMMENT '集群租户的所有存储配额信息（name1_quota1_total1，name2_quota2_total2...）';
+ALTER TABLE tenant_cluster_quota ADD storage_quotas VARCHAR(512) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT '' COMMENT '集群租户的所有存储配额信息（name1_quota1_total1，name2_quota2_total2...）';
 
 INSERT INTO system_config (config_name, config_value, config_type, create_user)
 VALUES ('provisionerImageName', '/k8s-deploy/nfs-client-provisioner:v2.1.0', 'nfs-provisioner', 'admin');
@@ -265,8 +267,6 @@ VALUES ('/clusters/*/storage','infrastructure','clustermar');
 
 ALTER TABLE `k8s_auth_server`.`cicd_stage` MODIFY `stage_name` VARCHAR(100);
 
-ALTER TABLE `tenant_cluster_quota` MODIFY  COLUMN storage_quotas VARCHAR(512) COMMENT '集群租户的所有存储配额信息（name1-quota1-total1，name2-quota2-total2，···）'
-
 
 UPDATE `k8s_auth_server`.`resource_menu` SET `weight` = `weight`+1 WHERE `weight`>=14;
 
@@ -275,13 +275,8 @@ VALUES ('32', '有状态服务', 'StatefulSet', 'menu', 'statefulSet', '14', NOW
 
 UPDATE `k8s_auth_server`.`resource_menu_role` SET `weight` = `weight`+1 WHERE `weight`>=14;
 
-INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '1', '32');
-INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '2', '32');
-INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '3', '32');
-INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '4', '32');
-INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '5', '32');
-INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '6', '32');
-INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`) VALUES ('14', NOW(), NOW(), '0', '7', '32');
+INSERT INTO `k8s_auth_server`.`resource_menu_role` (`weight`, `create_time`, `update_time`, `available`, `role_id`, `rmid`)
+SELECT '14',NOW(), NOW(),'1',role_id, '32' FROM `k8s_auth_server`.`resource_menu_role` WHERE `rmid`=13 AND `available`=1 GROUP BY `role_id`;
 
 UPDATE `k8s_auth_server`.`service_templates` SET `deployment_content`='[{\"annotation\":\"\",\"clusterIP\":\"\",\"containers\":[{\"args\":[],\"command\":[],\"configmap\":[],\"env\":[{\"key\":\"TZ\",\"value\":\"Asia/Shanghai\"}],\"img\":\"onlineshop/mysql\",\"livenessProbe\":null,\"log\":\"\",\"name\":\"mysql\",\"ports\":[{\"containerPort\":\"\",\"expose\":\"true\",\"port\":\"3306\",\"protocol\":\"TCP\"}],\"readinessProbe\":null,\"resource\":{\"cpu\":\"1000m\",\"memory\":\"1024\"},\"storage\":[],\"tag\":\"5.7.6\"}],\"hostName\":\"\",\"instance\":\"1\",\"labels\":\"\",\"logPath\":\"\",\"logService\":\"\",\"name\":\"mysql\",\"namespace\":\"\",\"nodeSelector\":\"HarmonyCloud_Status=C\",\"restartPolicy\":\"Always\",\"sessionAffinity\":\"\"}]' WHERE `id`='5';
 
@@ -482,3 +477,14 @@ update k8s_auth_server.url_dic set url ='/clusters/*/ingresscontrollers/portrang
 ALTER TABLE k8s_auth_server.tenant_cluster_quota
 MODIFY COLUMN `ic_names`  varchar(512) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '负载均衡器名称，多个以逗号分割' AFTER `reserve1`;
 DROP TABLE IF EXISTS `ingress_controller_port`;
+
+ALTER TABLE `k8s_auth_server`.`service_templates` ADD COLUMN `service_type` TINYINT(4) DEFAULT 0;
+
+DELETE FROM k8s_auth_server.url_dic where  url like '/tenants/*/projects/*/deploys/*/linklogs%' and id>1;
+INSERT INTO k8s_auth_server.`url_dic` (`url`,`module`,`resource`) VALUES ('/tenants/*/projects/*/apps/*/linklogs/errortransactions','log','applog');
+INSERT INTO k8s_auth_server.`url_dic` (`url`,`module`,`resource`) VALUES ('/tenants/*/projects/*/apps/*/linklogs/transactiontraces','log','applog');
+INSERT INTO k8s_auth_server.`url_dic` (`url`,`module`,`resource`) VALUES ('/tenants/*/projects/*/apps/*/linklogs/erroranalysis','log','applog');
+INSERT INTO k8s_auth_server.`url_dic` (`url`,`module`,`resource`) VALUES ('/tenants/*/projects/*/apps/*/linklogs/pod','log','applog');
+INSERT INTO k8s_auth_server.`url_dic` (`url`,`module`,`resource`) VALUES ('/tenants/*/projects/*/apps/*/linklogs','log','applog');
+
+INSERT INTO `k8s_auth_server`.`url_dic` (`url`, `module`, `resource`) VALUES ('/system/configs/localuserflag', 'whitelist', 'whitelist');

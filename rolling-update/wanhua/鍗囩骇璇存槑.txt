@@ -1,2 +1,0 @@
-1. 执行升级sql脚本db-upgrade-wanhua.sql
-2. 上传镜像 elasticsearch:v6.2.5-1 至 onlineshop仓库
