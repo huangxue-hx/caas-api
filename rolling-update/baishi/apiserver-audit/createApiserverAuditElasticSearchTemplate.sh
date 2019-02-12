@@ -4,7 +4,7 @@ esInfo=`kubectl get svc -nkube-system|grep elastic`
 esServiceHost=`echo ${esInfo} | awk '{print $3}'`
 esServicePort=`echo ${esInfo} | awk '{print $5}' | awk -F ':' '{print $1}'`
 echo "esServiceHost is ${esServiceHost} esServicePort is ${esServicePort}"
-result=`curl -XPUT ${esServiceHost}:${esServicePort}/_template/kubernetes -d'{"template":"logstash-*","settings":{"number_of_shards":5,"number_of_replicas":1,"max_result_window":300000},"mappings":{"fluentd":{"properties":{"requestURI":{"type":"string","index":"not_analyzed"},"objectRef":{"properties":{"name":{"type":"string","index":"not_analyzed"},"namespace":{"type":"string","index":"not_analyzed"}}},"verb":{"type":"string","index":"not_analyzed"}}}}}'`
+result=`curl -XPUT ${esServiceHost}:${esServicePort}/_template/kubernetes -d'{"template":"logstash-*","order":0,"settings":{"number_of_shards":5,"number_of_replicas":1,"max_result_window":300000},"mappings":{"fluentd":{"properties":{"requestURI":{"type":"string","index":"not_analyzed"},"objectRef":{"properties":{"name":{"type":"string","index":"not_analyzed"},"namespace":{"type":"string","index":"not_analyzed"},"resource":{"type":"string","index":"not_analyzed"}}},"verb":{"type":"string","index":"not_analyzed"}}}}}'`
 
 resultIsError=`echo $result | grep error`
 resultIsSuccess=`echo $result | grep true`

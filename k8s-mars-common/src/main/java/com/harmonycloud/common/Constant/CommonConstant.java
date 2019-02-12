@@ -306,6 +306,7 @@ public class CommonConstant {
     public static final Integer QUOTA_NUM = 10000;
     //创建镜像仓库默认磁盘配额
     public static final Float QUOTA_SIZE = 512000.0f;
+    public static final int NUM_ZERO = 0;
     public static final int NUM_ONE = 1;
     public static final int NUM_TWO = 2;
     public static final int NUM_THREE = 3;
@@ -362,6 +363,9 @@ public class CommonConstant {
     public static final Integer DEFAULT_HARBOR_PORT = 80;
     public static final Integer DEFAULT_HTTPS_PORT= 443;
     public static final String DEFAULT_NAMESPACE = "default";
+
+    public static final Integer HTTP_STATUS_400 = 400;
+    public static final Integer HTTP_STATUS_200 = 200;
     //cicd
     public static final String CICD_NAMESPACE = "cicd";
     public static final String DEPENDENCE_PREFIX = "cicd-dependence";

@@ -1,8 +1,6 @@
 package com.harmonycloud.api.apiserver;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.date.DateStyle;
-import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dto.apiserver.ApiServerAuditSearchDto;
 import com.harmonycloud.service.apiserver.ApiServerAuditService;
 import io.swagger.annotations.Api;
@@ -35,10 +33,15 @@ public class ApiServerAuditController {
                                                 @RequestParam(value = "keyWords", required = false) String keyWords,
                                                 @RequestParam(value = "verbName", required = false) String verbName,
                                                 @RequestParam(value = "namespace", required = false) String namespace,
+                                                @RequestParam(value = "url", required = false) String url,
                                                 @RequestParam(value = "clusterId", required = false) String clusterId,
                                                 @RequestParam(value = "pageNum", required = false) Integer pageNum,
                                                 @RequestParam(value = "size") Integer size) throws Exception {
-        ApiServerAuditSearchDto search = buildApiServerAuditSearch(startTime, endTime, clusterId, keyWords, verbName, namespace, size, pageNum);
+
+        ApiServerAuditSearchDto search = new ApiServerAuditSearchDto().setStartTime(startTime).
+                setEndTime(endTime).setClusterId(clusterId).setKeyWords(keyWords).
+                setVerbName(verbName).setNamespace(namespace).setPageNum(pageNum).setSize(size).setUrl(url);
+
         return apiServerAuditService.searchByQuery(search);
     }
 
@@ -52,9 +55,12 @@ public class ApiServerAuditController {
                                               @RequestParam(value = "verbName", required = false) String verbName,
                                               @RequestParam(value = "namespace", required = false) String namespace,
                                               @RequestParam(value = "clusterId", required = false) String clusterId,
+                                              @RequestParam(value = "url", required = false) String url,
                                               @RequestParam(value = "pageNum", required = false) Integer pageNum) throws Exception {
 
-        ApiServerAuditSearchDto search = buildApiServerAuditSearch(startTime, endTime, clusterId, keyWords, verbName, namespace, null, pageNum);
+        ApiServerAuditSearchDto search = new ApiServerAuditSearchDto().setStartTime(startTime).
+                setEndTime(endTime).setClusterId(clusterId).setKeyWords(keyWords).
+                setVerbName(verbName).setNamespace(namespace).setPageNum(pageNum).setUrl(url);
         return apiServerAuditService.getAuditCount(search);
     }
 
@@ -66,18 +72,14 @@ public class ApiServerAuditController {
         return apiServerAuditService.getAuditLogsNamespace();
     }
 
-    private ApiServerAuditSearchDto buildApiServerAuditSearch(String startTime, String endTime, String clusterId, String keyWords, String verbName, String namespace, Integer size, Integer pageNum) {
-        ApiServerAuditSearchDto search = new ApiServerAuditSearchDto();
-        startTime = DateUtil.local2Utc(startTime, DateStyle.YYYY_MM_DD_HH_MM_SS.getValue(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
-        endTime = DateUtil.local2Utc(endTime, DateStyle.YYYY_MM_DD_HH_MM_SS.getValue(),  DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue());
-        search.setStartTime(startTime);
-        search.setEndTime(endTime);
-        search.setClusterId(clusterId);
-        search.setKeyWords(keyWords);
-        search.setPageNum(pageNum);
-        search.setSize(size);
-        search.setVerbName(verbName);
-        search.setNamespace(namespace);
-        return search;
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "聚合查询某时间段内指定url调用次数折线图的点", response = ActionReturnUtil.class, httpMethod = "GET",  notes = "", consumes = "", produces = "")
+    @ResponseBody
+    @RequestMapping(value = "/auditlogs/url/histogram", method = RequestMethod.GET)
+    public ActionReturnUtil getUrlHistogram(@RequestParam(value = "url") String url,
+                                              @RequestParam(value = "rangeType") String rangeType,
+                                                @RequestParam(value = "clusterId") String clusterId,
+                                                @RequestParam(value = "verbName") String verbName) throws Exception {
+        return apiServerAuditService.getUrlHistogram(clusterId, verbName, url, rangeType);
     }
 }

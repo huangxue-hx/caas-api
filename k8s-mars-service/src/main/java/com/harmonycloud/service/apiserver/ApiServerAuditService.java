@@ -12,4 +12,6 @@ public interface ApiServerAuditService {
 
     ActionReturnUtil getAuditCount(ApiServerAuditSearchDto userAuditSearch) throws Exception;
     ActionReturnUtil getAuditLogsNamespace() throws Exception;
+
+    ActionReturnUtil getUrlHistogram(String clusterId, String verbName, String url, String rangeType) throws Exception;
 }

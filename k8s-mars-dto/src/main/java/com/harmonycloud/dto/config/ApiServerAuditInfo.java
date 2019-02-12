@@ -12,7 +12,7 @@ public class ApiServerAuditInfo {
     private String actionObject;
     private String actionObjectName;
     private String requestUrl;
-    private int actionResult;
+    private String actionResult;
     private String requestSpendTime;
     private long currentUrlCount;
 
@@ -64,11 +64,11 @@ public class ApiServerAuditInfo {
         this.requestUrl = requestUrl;
     }
 
-    public int getActionResult() {
+    public String getActionResult() {
         return actionResult;
     }
 
-    public void setActionResult(int actionResult) {
+    public void setActionResult(String actionResult) {
         this.actionResult = actionResult;
     }
 

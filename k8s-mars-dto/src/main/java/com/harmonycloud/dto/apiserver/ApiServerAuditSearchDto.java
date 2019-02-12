@@ -43,6 +43,12 @@ public class ApiServerAuditSearchDto {
      * 查询动作名create、update、patch、delete等
      */
     private String verbName;
+
+    /**
+     * 查询url,不为空时表示只查询该url的不同时间的记录
+     */
+    private String url;
+
     /**
      * 查询分区名
      */
@@ -53,71 +59,89 @@ public class ApiServerAuditSearchDto {
         return startTime;
     }
 
-    public void setStartTime(String startTime) {
+    public ApiServerAuditSearchDto setStartTime(String startTime) {
         this.startTime = startTime;
+        return this;
     }
 
     public String getEndTime() {
         return endTime;
     }
 
-    public void setEndTime(String endTime) {
+    public ApiServerAuditSearchDto setEndTime(String endTime) {
         this.endTime = endTime;
+        return this;
     }
 
     public String getKeyWords() {
         return keyWords;
     }
 
-    public void setKeyWords(String keyWords) {
+    public ApiServerAuditSearchDto setKeyWords(String keyWords) {
         this.keyWords = keyWords;
+        return this;
     }
 
     public Integer getPageNum() {
         return pageNum;
     }
 
-    public void setPageNum(Integer pageNum) {
+    public ApiServerAuditSearchDto setPageNum(Integer pageNum) {
         this.pageNum = pageNum;
+        return this;
     }
 
     public Integer getSize() {
         return size;
     }
 
-    public void setSize(Integer size) {
+    public ApiServerAuditSearchDto setSize(Integer size) {
         this.size = size;
+        return this;
     }
 
     public String getScrollId() {
         return scrollId;
     }
 
-    public void setScrollId(String scrollId) {
+    public ApiServerAuditSearchDto setScrollId(String scrollId) {
         this.scrollId = scrollId;
+        return this;
     }
 
     public String getVerbName() {
         return verbName;
     }
 
-    public void setVerbName(String verbName) {
+    public ApiServerAuditSearchDto setVerbName(String verbName) {
         this.verbName = verbName;
+        return this;
     }
 
     public String getNamespace() {
         return namespace;
     }
 
-    public void setNamespace(String namespace) {
+    public ApiServerAuditSearchDto setNamespace(String namespace) {
         this.namespace = namespace;
+        return this;
     }
 
     public String getClusterId() {
         return clusterId;
     }
 
-    public void setClusterId(String clusterId) {
+    public ApiServerAuditSearchDto setClusterId(String clusterId) {
         this.clusterId = clusterId;
+        return this;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public ApiServerAuditSearchDto setUrl(String url) {
+        this.url = url;
+        return this;
     }
 }
