@@ -1,5 +1,6 @@
 package com.harmonycloud.common.util;
 
+import org.apache.commons.beanutils.BeanUtils;
 import org.springframework.util.CollectionUtils;
 
 import java.beans.BeanInfo;
@@ -91,6 +92,20 @@ public class CollectionUtil {
          	return list;
 		 }
 		 return list.subList(0,count);
+	}
+
+	// 利用org.apache.commons.beanutils 工具类实现 Map --> Bean
+	public static <T> T transMap2Bean(Map<String, Object> map, Class<T> obj) {
+		if (map == null) {
+			return null;
+		}
+		try {
+			T object = obj.newInstance();
+			BeanUtils.populate(obj, map);
+			return object;
+		} catch (Exception e) {
+			return null;
+		}
 	}
 
 }

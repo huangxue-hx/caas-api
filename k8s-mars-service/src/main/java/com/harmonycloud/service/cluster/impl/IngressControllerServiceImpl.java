@@ -7,19 +7,18 @@ import com.harmonycloud.common.Constant.IngressControllerConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.AssertUtil;
-import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.cluster.bean.IngressControllerPort;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
+import com.harmonycloud.dto.cluster.IngressConfigMap;
 import com.harmonycloud.dto.cluster.IngressControllerDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.service.ConfigmapService;
 import com.harmonycloud.k8s.service.IcService;
 import com.harmonycloud.k8s.service.ServiceAccountService;
@@ -40,7 +39,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.beans.IntrospectionException;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -105,6 +106,15 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             }
             //设置负载均衡器部署的节点列表
             ingressControllerDto.setIcNodeNames(this.getIcNodeNames(ingressControllerDto.getIcName(), cluster));
+            //获取nginx配置文件
+            K8SClientResponse response = configmapService.doSepcifyConfigmap(CommonConstant.KUBE_SYSTEM, ingressControllerDto.getIcName(), cluster);
+            if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+            }
+            ConfigMap configMap = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
+            IngressConfigMap ingressConfigMap = CollectionUtil.transMap2Bean((Map<String, Object>)configMap.getData(), IngressConfigMap.class);
+            ingressControllerDto.setIngressConfigMap(ingressConfigMap);
+            ingressControllerDtoList.add(ingressControllerDto);
         }
         return ActionReturnUtil.returnSuccessWithData(ingressControllerDtoList);
     }
@@ -244,8 +254,24 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_SA_NOT_FOUND);
         }
         ServiceAccount serviceAccount = JsonUtil.jsonToPojo(saResponse.getBody(), ServiceAccount.class);
+        //创建nginx的configmap
+        String nginxCmNM = "arg-" + icName;
+        ConfigMap ingressCm = new ConfigMap();
+        ObjectMeta cmMeta = new ObjectMeta();
+        cmMeta.setName(nginxCmNM);
+        cmMeta.setNamespace(CommonConstant.KUBE_SYSTEM);
+        ingressCm.setMetadata(cmMeta);
+        ObjectMapper mapper = new ObjectMapper();//初始化转换器
+        Map data = mapper.convertValue(ingressControllerDto.getIngressConfigMap(), Map.class);
+        this.removeMapEmptyValue(data);//去空值
+        ingressCm.setData(data);
+        K8SClientResponse ingressCmResponse = icService.createIcConfigMap(ingressCm, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(ingressCmResponse.getStatus())) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(ingressCmResponse.getBody(), UnversionedStatus.class);
+            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+        }
         //拼接Ingress-controller
-        DaemonSet daemonSet = buildIngressController(ingressControllerDto, ingressControllerPort, serviceAccount);
+        DaemonSet daemonSet = buildIngressController(ingressControllerDto, ingressControllerPort, serviceAccount, nginxCmNM);
         //更新主机节点标签
         this.updateNodeLabel(icName, cluster, Collections.emptyList(), ingressControllerDto.getIcNodeNames());
         //创建tcp、udp配置文件
@@ -278,7 +304,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
 
     //构建ingress controller对象
     private DaemonSet buildIngressController(IngressControllerDto ingressControllerDto,
-                           IngressControllerPort ingressControllerPort, ServiceAccount serviceAccount) {
+                           IngressControllerPort ingressControllerPort, ServiceAccount serviceAccount, String nginxCmNM) {
         DaemonSet daemonSet = new DaemonSet();
         //daemonSet.metadata
         ObjectMeta objectMeta = new ObjectMeta();
@@ -392,7 +418,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         args.add(CONTAINER_ARGS_HTTPS + ingressControllerPort.getHttpsPort());
         args.add(CONTAINER_ARGS_HEALTH + ingressControllerPort.getHealthPort());
         args.add(CONTAINER_ARGS_STATUS + ingressControllerPort.getStatusPort());
-        args.add(CONTAINER_ARGS_IC_CM);
+        args.add(CONTAINER_ARGS_IC_CM + nginxCmNM);
         args.add(CONTAINER_ARGS_DEFAULT_BACKEND);
         args.add(CONTAINER_ARGS_UDP_CM + ingressControllerPort.getName());
         args.add(CONTAINER_ARGS_TCP_CM + ingressControllerPort.getName());
@@ -588,6 +614,10 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         //查看ingress controller是否已经在使用（已使用该负载均衡器创建对外服务）,已经在使用的负载均衡器不能修改端口
         if(existPort != httpPort && checkIcUsedStatus(icName, cluster)) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAD_USED);
+        }
+        //更新nginx的configmap
+        if (Objects.nonNull(ingressControllerDto.getIngressConfigMap())) {
+            updateingressCm(icName , cluster , ingressControllerDto.getIngressConfigMap());
         }
         //判断端口和别名有没有修改，如果修改了需要更新daemonset
         if(this.isDaemonsetChanged(daemonSet, ingressControllerDto)){
@@ -1049,6 +1079,46 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             annotations.put(ANNOTATIONS_KEY_EXTERNAL_HTTPS_PORT, String.valueOf(ingressControllerDto.getExternalHttpsPort()));
         }
         daemonSet.getMetadata().setAnnotations(annotations);
+    }
+
+    //更新cm
+    private ActionReturnUtil updateingressCm(String icName, Cluster cluster, IngressConfigMap ingressConfigMap) throws Exception {
+        String nginxCmNm = "args-"+ icName;
+
+        K8SClientResponse cmResponse = icService.getIcConfigMapByName(nginxCmNm, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(cmResponse.getStatus())) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(cmResponse.getBody(), UnversionedStatus.class);
+            LOGGER.error(status.getMessage() + "," + status.getReason());
+            return null;
+        }
+        ConfigMap cmConfigMap = JsonUtil.jsonToPojo(cmResponse.getBody(), ConfigMap.class);
+        ObjectMapper mapper = new ObjectMapper();    //初始化转换器
+        Map data = mapper.convertValue(ingressConfigMap, Map.class);
+        cmConfigMap.setData(data);
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("Content-type", "application/json");
+        Map<String, Object> bodys = CollectionUtil.transBean2Map(cmConfigMap);
+        K8SClientResponse response = configmapService.doSepcifyConfigmap(CommonConstant.KUBE_SYSTEM, headers, bodys, HTTPMethod.PUT, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            throw new MarsRuntimeException(status.getMessage());
+        }
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    private void removeMapEmptyValue(Map<String,String> paramMap){
+        Set<String> set = paramMap.keySet();
+        Iterator<String> it = set.iterator();
+        List<String> listKey = new ArrayList<>();
+        while (it.hasNext()) {
+            String str = it.next();
+            if(Objects.isNull(paramMap.get(str)) || "".equals(paramMap.get(str))){
+                listKey.add(str) ;
+            }
+        }
+        for (String key : listKey) {
+            paramMap.remove(key);
+        }
     }
     
 }

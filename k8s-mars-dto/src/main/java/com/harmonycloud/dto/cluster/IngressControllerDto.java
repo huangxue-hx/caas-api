@@ -46,6 +46,8 @@ public class IngressControllerDto {
 
     private List<String> icNodeNames;
 
+    private IngressConfigMap ingressConfigMap;
+
     public String getIcName() {
         return icName;
     }
@@ -180,5 +182,13 @@ public class IngressControllerDto {
 
     public void setIcNodeNames(List<String> icNodeNames) {
         this.icNodeNames = icNodeNames;
+    }
+
+    public IngressConfigMap getIngressConfigMap() {
+        return ingressConfigMap;
+    }
+
+    public void setIngressConfigMap(IngressConfigMap ingressConfigMap) {
+        this.ingressConfigMap = ingressConfigMap;
     }
 }
