@@ -2,6 +2,7 @@ package com.harmonycloud.api.application;
 
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.exception.K8sAuthException;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.dto.application.AffinityDto;
@@ -13,6 +14,8 @@ import com.harmonycloud.service.application.EsService;
 import com.harmonycloud.service.application.ServiceService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.UpdateDeployment;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -283,6 +286,15 @@ public class DeploymentController {
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
 		return serviceService.deleteDeployedService(deployedServiceNamesDto, userName);
+	}
+
+	@ResponseBody
+	@RequestMapping(value="/monitor", method=RequestMethod.GET)
+	public ActionReturnUtil getProjectMonit(@RequestParam(value="rangeType") String rangeType,
+											@RequestParam(value="namespace") String namespace,
+											@PathVariable(value="projectId") String projectId,
+											@PathVariable(value="tenantId") String tenantId) throws Exception {
+		return dpService.getProjectMonit(tenantId, projectId, namespace, rangeType);
 	}
 
 }

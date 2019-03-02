@@ -3,6 +3,7 @@ package com.harmonycloud.k8s.service;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -245,7 +246,7 @@ public class PodService {
 		headers.put("Content-Type", "application/json");
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST,headers,bodys,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
+			UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody(),UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(us.getMessage());
         }
 		return ActionReturnUtil.returnSuccess();
@@ -301,6 +302,20 @@ public class PodService {
 		url.setNamespace(namespace).setResource(Resource.POD);
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE,null,bodys,cluster);
 		return response;
+	}
+
+	public PodList getPodByServiceName(String namespace, String serviceName, String method, Cluster cluster) throws Exception {
+		K8SURL url = new K8SURL();
+		Map<String, Object> label = new HashMap<>();
+		label.put("labelSelector","app=" + serviceName);
+		url.setNamespace(namespace).setResource(Resource.POD);
+		K8SClientResponse response = new K8sMachineClient().exec(url, method, null, label, cluster);
+		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+			LOGGER.error("获取pod失败,{}", serviceName);
+			return null;
+		}
+		PodList podList = JsonUtil.jsonToPojo(response.getBody(), PodList.class);
+		return podList;
 	}
 	
 }

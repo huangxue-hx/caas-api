@@ -30,12 +30,14 @@ import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.common.DataPrivilegeHelper;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeService;
 import com.harmonycloud.service.platform.bean.*;
+import com.harmonycloud.service.platform.bean.monitor.InfluxdbQuery;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.platform.convert.KubeAffinityConvert;
 import com.harmonycloud.service.platform.convert.KubeServiceConvert;
 import com.harmonycloud.service.platform.dto.PodDto;
 import com.harmonycloud.service.platform.dto.ReplicaSetDto;
+import com.harmonycloud.service.platform.service.InfluxdbService;
 import com.harmonycloud.service.platform.service.WatchService;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
@@ -46,6 +48,7 @@ import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.influxdb.dto.QueryResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -161,6 +164,8 @@ public class DeploymentsServiceImpl implements DeploymentsService {
     @Autowired
     private IstioService istioService;
 
+    @Autowired
+    private InfluxdbService influxdbService;
 
     public ActionReturnUtil listDeployments(String tenantId, String name, String namespace, String labels, String projectId, String clusterId) throws Exception {
         //参数判空
@@ -1721,6 +1726,139 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
         return ActionReturnUtil.returnSuccess();
 
+    }
+
+    @Override
+    public ActionReturnUtil getProjectMonit(String tenantId, String projectId, String namespaceList, String rangeType) throws Exception {
+        ActionReturnUtil result = listDeployments(tenantId, null, namespaceList, null, projectId, null);
+        List<Map<String,Object>> deployList = (ArrayList<Map<String,Object>>)result.getData();
+        //获取项目获取已启动的服务和分区
+        //List<Map<String,String>> startServiceList = new ArrayList<>();
+        List<Pod> allPodList=new ArrayList<>();
+        //容器内存与cpu配额
+        List<Object> requestsList=new ArrayList<>();
+        for (Map<String,Object> oneDeploy : deployList) {
+            String status = oneDeploy.containsKey("status")? oneDeploy.get("status").toString() : null;
+            if (StringUtils.isNotBlank(status) && Constant.SERVICE_START.equals(status)) {
+                String name = String.valueOf(oneDeploy.get("name"));
+                String svcNamespace = String.valueOf(oneDeploy.get("namespace"));
+                Cluster cluster = namespaceLocalService.getClusterByNamespaceName(svcNamespace);
+                PodList podList = podService.getPodByServiceName(svcNamespace, name, HTTPMethod.GET, cluster);
+                List<Pod> podListInSvc = podList.getItems();
+                for(Pod pod : podListInSvc) {
+                    List<Container> containers = pod.getSpec().getContainers();
+                    for(Container container:containers){
+                        requestsList.add(container.getResources().getRequests());
+                    }
+                    allPodList.add(pod);
+                }
+            }
+        }
+
+        double cpuTotal = 0;      //项目cpu总配额
+        double memoryTotal = 0;   //项目内存总配额
+        for(Object obj : requestsList){
+            Map<String,Object> requests = (HashMap<String,Object>)obj;
+            String cpuStr=requests.get("cpu").toString().replace("m","");
+            cpuTotal=cpuTotal+Double.valueOf(cpuStr);
+            String memoryStr=requests.get("memory").toString().replace("Mi","");
+            memoryTotal=memoryTotal+Double.valueOf(memoryStr);
+        }
+        String[] targetArr={"cpu","memory","disk","volume","rx","tx"};
+        List<QueryResult.Series> cpuTargetList=new ArrayList<>();       //所有pod在一段时间节点内cpu使用量
+        List<QueryResult.Series> memoryTargetList=new ArrayList<>();
+        List<QueryResult.Series> diskTargetList=new ArrayList<>();
+        List<QueryResult.Series> volumeTargetList=new ArrayList<>();
+        List<QueryResult.Series> rxTargetList=new ArrayList<>();
+        List<QueryResult.Series> txTargetList=new ArrayList<>();
+        for (Pod onePod : allPodList) {
+            for(int i=0; i<targetArr.length; i++){
+                Cluster cluster = namespaceLocalService.getClusterByNamespaceName(onePod.getMetadata().getNamespace());
+                InfluxdbQuery influxdbQuery = new InfluxdbQuery();
+                influxdbQuery.setRangeType(rangeType);
+                influxdbQuery.setMeasurement(targetArr[i]);
+                influxdbQuery.setStartTime(onePod.getStatus().getStartTime());
+                influxdbQuery.setClusterId(cluster.getId());
+                influxdbQuery.setPod(onePod.getMetadata().getName());
+                ActionReturnUtil response = influxdbService.podMonit(influxdbQuery, null);
+                if (!response.isSuccess()) {
+                    continue;
+                }
+                Map<String, Object> seriesMap = (Map<String, Object>) response.getData();
+                String data = JsonUtil.convertToJson(seriesMap);
+                QueryResult queryResult = JsonUtil.jsonToPojo(data, QueryResult.class);
+                if(!Objects.isNull(queryResult) && !org.springframework.util.CollectionUtils.isEmpty(queryResult.getResults())
+                        && !org.springframework.util.CollectionUtils.isEmpty(queryResult.getResults().get(0).getSeries())) {
+                    QueryResult.Series series = queryResult.getResults().get(0).getSeries().get(0);
+                    if("cpu".equals(targetArr[i])){cpuTargetList.add(series);}
+                    if("memory".equals(targetArr[i])){memoryTargetList.add(series);}
+                    if("disk".equals(targetArr[i])){diskTargetList.add(series);}
+                    if("volume".equals(targetArr[i])){volumeTargetList.add(series);}
+                    if("rx".equals(targetArr[i])){rxTargetList.add(series);}
+                    if("tx".equals(targetArr[i])){txTargetList.add(series);}
+                }
+            }
+        }
+
+        List<Object[]> projectCpuUsage = getResourceUsage(cpuTargetList,"cpu");
+        List<Object[]> projectMemoryUsage = getResourceUsage(memoryTargetList,"memory");
+        List<Object[]> projectDiskUsage = getResourceUsage(diskTargetList,"disk");
+        List<Object[]> projectVolumeUsage = getResourceUsage(volumeTargetList,"volume");
+        List<Object[]> projectRxUsage = getResourceUsage(rxTargetList,"rx");
+        List<Object[]> projectTXUsage = getResourceUsage(txTargetList,"tx");
+
+        Map<String,Object> resultMap = new HashMap<>();
+        resultMap.put("cpuTotal", cpuTotal);
+        resultMap.put("memoryTotal", memoryTotal);
+        resultMap.put("projectCpuUsage", projectCpuUsage);
+        resultMap.put("projectMemoryUsage", projectMemoryUsage);
+        resultMap.put("projectDiskUsage", projectDiskUsage);
+        resultMap.put("projectVolumeUsage", projectVolumeUsage);
+        resultMap.put("projectRxUsage", projectRxUsage);
+        resultMap.put("projectTXUsage", projectTXUsage);
+
+        return ActionReturnUtil.returnSuccessWithData(resultMap);
+    }
+
+    private List<Object[]> getResourceUsage(List<QueryResult.Series> projectResource, String target) {
+        List<Object[]> resourceUsage = new ArrayList<>();
+        if (CollectionUtils.isEmpty(projectResource)){
+            return null;
+        }
+        QueryResult.Series podSeries = new QueryResult.Series();
+        for(int i=0; i<projectResource.size(); i++){
+            try{
+                if(CollectionUtils.isNotEmpty(projectResource.get(i).getValues())){
+                    podSeries = projectResource.get(i);
+                    break; }
+            }catch (NullPointerException e){
+                LOGGER.warn("监控实时值为空");
+            }
+        }
+        for(int i=0;i<podSeries.getValues().size();i++){
+            Object[] resNode = new Object[2];
+            String time = "";
+            Double Usage = 0.0;
+            for(int j=0;j<projectResource.size();j++){
+                try{
+                    Object[] node=projectResource.get(j).getValues().get(i).toArray();  //获取每个pod的同一个时间节点的资源信息列表
+                    if(node.length>=2&&node[1]!=null&&!"".equals(node[1].toString())){
+                        if("memory".equals(target)||"disk".equals(target)||"volume".equals(target)){
+                            Usage = Usage + Double.valueOf(node[1].toString())/1024/1024;
+                        }else {
+                            Usage = Usage+Double.valueOf(node[1].toString());
+                        }
+                    }
+                    time = node[0].toString();
+                }catch (NullPointerException e){
+                    LOGGER.warn("监控实时值为空");
+                }
+            }
+            resNode[0] = time;
+            resNode[1] = Usage;
+            resourceUsage.add(resNode);
+        }
+        return resourceUsage;
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.harmonycloud.service.application;
 
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.DeploymentDetailDto;
 import com.harmonycloud.dto.application.IngressDto;
@@ -312,4 +313,12 @@ public interface DeploymentsService {
 	 * @throws Exception
 	 */
 	public ActionReturnUtil updateAnnotations(String  namespace, String deploymentName, Cluster cluster, Map<String, Object> annotations) throws Exception;
+
+	/**
+	 * 获取项目资源监控
+	 * @param tenantId,projectId,namespace,rangeType,startTime
+	 * @return
+	 * @throws MarsRuntimeException
+	 */
+	ActionReturnUtil getProjectMonit(String tenantId, String projectId, String namespace, String rangeType) throws Exception;
 }
