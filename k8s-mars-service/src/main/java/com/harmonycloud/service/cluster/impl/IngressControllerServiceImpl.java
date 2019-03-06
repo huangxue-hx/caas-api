@@ -8,7 +8,6 @@ import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
-import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.cluster.bean.IngressControllerPort;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
@@ -39,15 +38,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.beans.IntrospectionException;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.harmonycloud.common.Constant.CommonConstant.*;
 import static com.harmonycloud.common.Constant.IngressControllerConstant.*;
 import static com.harmonycloud.common.Constant.IngressControllerConstant.LABEL_KEY_APP;
+import static com.harmonycloud.common.util.ActionReturnUtil.returnErrorWithData;
 import static com.harmonycloud.service.platform.constant.Constant.LABEL_INGRESS_CLASS;
 
 /**
@@ -67,6 +65,8 @@ public class IngressControllerServiceImpl implements IngressControllerService {
     private static final String TCP = "tcp-";
 
     private static final String UDP = "udp-";
+
+    private static final String ARG = "arg-";
 
     private static final List<Integer> CHROME_RESERVED_PORTS = Arrays.asList(87,95);
 
@@ -107,14 +107,14 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             //设置负载均衡器部署的节点列表
             ingressControllerDto.setIcNodeNames(this.getIcNodeNames(ingressControllerDto.getIcName(), cluster));
             //获取nginx配置文件
-            K8SClientResponse response = configmapService.doSepcifyConfigmap(CommonConstant.KUBE_SYSTEM, ingressControllerDto.getIcName(), cluster);
-            if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                return ActionReturnUtil.returnErrorWithMsg(response.getBody());
+            K8SClientResponse response = configmapService.doSepcifyConfigmap(CommonConstant.KUBE_SYSTEM, ARG + ingressControllerDto.getIcName(), cluster);
+            if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                ConfigMap configMap = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
+                Map map = (Map)configMap.getData();
+                IngressConfigMap ingressConfigMap =new IngressConfigMap();
+                CollectionUtil.transMap2Bean(map, ingressConfigMap);
+                ingressControllerDto.setIngressConfigMap(ingressConfigMap);
             }
-            ConfigMap configMap = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
-            IngressConfigMap ingressConfigMap = CollectionUtil.transMap2Bean((Map<String, Object>)configMap.getData(), IngressConfigMap.class);
-            ingressControllerDto.setIngressConfigMap(ingressConfigMap);
-            ingressControllerDtoList.add(ingressControllerDto);
         }
         return ActionReturnUtil.returnSuccessWithData(ingressControllerDtoList);
     }
@@ -228,13 +228,13 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         //获取Ingress-controller-port范围
         Map<String, Integer> portRangeMap = getIngressControllerPortRange(cluster);
         if (portRangeMap == null) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_PORT_RANGE_NOT_FOUND);
+            return returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_PORT_RANGE_NOT_FOUND);
         }
         return ActionReturnUtil.returnSuccessWithData(portRangeMap);
     }
 
     @Override
-    public ActionReturnUtil createIngressController(IngressControllerDto ingressControllerDto)
+    public ActionReturnUtil createIngressController(IngressControllerDto ingressControllerDto, IngressConfigMap ingressConfigMap)
             throws MarsRuntimeException, IOException {
         String icName = ingressControllerDto.getIcName();
         //获取集群
@@ -246,29 +246,29 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         //构建Ingress-controller-port端口
         IngressControllerPort ingressControllerPort = buildIngressControllerPort(ingressControllerDto, portRangeMap, existIcDtos);
         if (ingressControllerPort == null) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_OTHER_PORT_USED);
+            return returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_OTHER_PORT_USED);
         }
         //获取kube-system下serviceAccount default
         K8SClientResponse saResponse = serviceAccountService.getServiceAccountByName(CommonConstant.KUBE_SYSTEM, CommonConstant.DEFAULT, cluster);
         if (!HttpStatusUtil.isSuccessStatus(saResponse.getStatus())) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_SA_NOT_FOUND);
+            return returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_SA_NOT_FOUND);
         }
         ServiceAccount serviceAccount = JsonUtil.jsonToPojo(saResponse.getBody(), ServiceAccount.class);
         //创建nginx的configmap
-        String nginxCmNM = "arg-" + icName;
+        String nginxCmNM = ARG + icName;
         ConfigMap ingressCm = new ConfigMap();
         ObjectMeta cmMeta = new ObjectMeta();
         cmMeta.setName(nginxCmNM);
         cmMeta.setNamespace(CommonConstant.KUBE_SYSTEM);
         ingressCm.setMetadata(cmMeta);
         ObjectMapper mapper = new ObjectMapper();//初始化转换器
-        Map data = mapper.convertValue(ingressControllerDto.getIngressConfigMap(), Map.class);
+        Map data = mapper.convertValue(ingressConfigMap, Map.class);
         this.removeMapEmptyValue(data);//去空值
         ingressCm.setData(data);
         K8SClientResponse ingressCmResponse = icService.createIcConfigMap(ingressCm, cluster);
         if (!HttpStatusUtil.isSuccessStatus(ingressCmResponse.getStatus())) {
             UnversionedStatus status = JsonUtil.jsonToPojo(ingressCmResponse.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            return returnErrorWithData(status.getMessage());
         }
         //拼接Ingress-controller
         DaemonSet daemonSet = buildIngressController(ingressControllerDto, ingressControllerPort, serviceAccount, nginxCmNM);
@@ -279,13 +279,13 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         K8SClientResponse tcpCmResponse = icService.createIcConfigMap(tcpConfigMap, cluster);
         if (!HttpStatusUtil.isSuccessStatus(tcpCmResponse.getStatus())) {
             UnversionedStatus status = JsonUtil.jsonToPojo(tcpCmResponse.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            return returnErrorWithData(status.getMessage());
         }
         ConfigMap udpConfigMap = buildIcConfigMap(icName, Constant.PROTOCOL_UDP.toLowerCase());
         K8SClientResponse udpCmResponse = icService.createIcConfigMap(udpConfigMap, cluster);
         if (!HttpStatusUtil.isSuccessStatus(udpCmResponse.getStatus())) {
             UnversionedStatus status = JsonUtil.jsonToPojo(udpCmResponse.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            return returnErrorWithData(status.getMessage());
         }
         //创建Ingress-controller
         K8SClientResponse createResponse= icService.createIngressController(daemonSet, cluster);
@@ -296,7 +296,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             configmapService.delete(CommonConstant.KUBE_SYSTEM, tcpConfigMap.getMetadata().getName(), cluster);
             configmapService.delete(CommonConstant.KUBE_SYSTEM, udpConfigMap.getMetadata().getName(), cluster);
             UnversionedStatus status = JsonUtil.jsonToPojo(createResponse.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            return returnErrorWithData(status.getMessage());
         }
 
         return ActionReturnUtil.returnSuccess();
@@ -548,13 +548,13 @@ public class IngressControllerServiceImpl implements IngressControllerService {
     public ActionReturnUtil deleteIngressController(String icName, String clusterId) throws Exception {
         //系统默认负载均衡器，不允许删除
         if (IngressControllerConstant.IC_DEFAULT_NAME.equals(icName)) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_DEFAULT_NOT_DELETE);
+            return returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_DEFAULT_NOT_DELETE);
         }
         //获取集群
         Cluster cluster = clusterService.findClusterById(clusterId);
         //查看是否被占用
         if(checkIcUsedStatus(icName, cluster)) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAD_USED);
+            return returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAD_USED);
         }
         //删除tenant_cluster_quota表绑定
         List<TenantClusterQuota> tenants = tenantClusterQuotaService.listClusterQuotaLikeIcName(icName,clusterId);
@@ -566,7 +566,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         if(!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             LOGGER.error("删除ingresscontroller失败,response:{}",JSONObject.toJSONString(response));
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            return returnErrorWithData(status.getMessage());
         }
         List<String> oldIcNodeNames = this.getIcNodeNames(icName, cluster);
         this.updateNodeLabel(icName, cluster, oldIcNodeNames, Collections.emptyList());
@@ -575,25 +575,30 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         if(!HttpStatusUtil.isSuccessStatus(response_tcp.getStatus())) {
             LOGGER.error("删除ingresscontroller tcp配置失败,response:{}",JSONObject.toJSONString(response_tcp));
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            return returnErrorWithData(status.getMessage());
         }
         K8SClientResponse response_udp = icService.deleteConfigMap(UDP + icName, cluster);
         if(!HttpStatusUtil.isSuccessStatus(response_udp.getStatus())) {
             LOGGER.error("删除ingresscontroller udp配置失败,response:{}",JSONObject.toJSONString(response_udp));
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            return returnErrorWithData(status.getMessage());
         }
         K8SClientResponse response_leader = icService.deleteConfigMap("ingress-controller-leader-" + icName, cluster);
         if(!HttpStatusUtil.isSuccessStatus(response_leader.getStatus())) {
             LOGGER.error("删除ingresscontroller leader配置失败,response:{}",JSONObject.toJSONString(response_leader));
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            return returnErrorWithData(status.getMessage());
+        }
+        response_leader  = icService.deleteConfigMap(ARG + icName, cluster);
+        if(!HttpStatusUtil.isSuccessStatus(response_leader.getStatus())) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            return returnErrorWithData(status.getMessage());
         }
         return ActionReturnUtil.returnSuccess();
     }
 
     @Override
-    public ActionReturnUtil updateIngressController(IngressControllerDto ingressControllerDto) throws Exception {
+    public ActionReturnUtil updateIngressController(IngressControllerDto ingressControllerDto, IngressConfigMap ingressConfigMap) throws Exception {
         //获取集群
         Cluster cluster = clusterService.findClusterById(ingressControllerDto.getClusterId());
         String icName = ingressControllerDto.getIcName();
@@ -607,17 +612,17 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         K8SClientResponse response = icService.getIngressController(icName, cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            return returnErrorWithData(status.getMessage());
         }
         DaemonSet daemonSet = JsonUtil.jsonToPojo(response.getBody(), DaemonSet.class);
         int existPort = daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().get(0).getContainerPort();
         //查看ingress controller是否已经在使用（已使用该负载均衡器创建对外服务）,已经在使用的负载均衡器不能修改端口
         if(existPort != httpPort && checkIcUsedStatus(icName, cluster)) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAD_USED);
+            return returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAD_USED);
         }
         //更新nginx的configmap
-        if (Objects.nonNull(ingressControllerDto.getIngressConfigMap())) {
-            updateingressCm(icName , cluster , ingressControllerDto.getIngressConfigMap());
+        if (Objects.nonNull(ingressConfigMap)) {
+            updateingressCm(icName , cluster , ingressConfigMap);
         }
         //判断端口和别名有没有修改，如果修改了需要更新daemonset
         if(this.isDaemonsetChanged(daemonSet, ingressControllerDto)){
@@ -636,7 +641,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             if(!HttpStatusUtil.isSuccessStatus(icResponse.getStatus())) {
                 LOGGER.error("更新ingresscontroller失败,response:{}",JSONObject.toJSONString(icResponse));
                 UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-                return ActionReturnUtil.returnErrorWithData(status.getMessage());
+                return returnErrorWithData(status.getMessage());
             }
         }
         //修改了负载均衡的节点，更新节点标签
@@ -755,7 +760,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         //判断该负载均衡器是否存在
         K8SClientResponse response = icService.getIngressController(icName, cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_NOT_FOUND);
+            return returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_NOT_FOUND);
         }
         //获取所有绑定
         List<TenantClusterQuota> tenantClusterQuotas =  tenantClusterQuotaService.listClusterQuotaLikeIcName(icName, clusterId);
@@ -786,7 +791,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         //如果要移除的租户已经在使用该负载均衡器，则返回错误提示
         if (CollectionUtils.isNotEmpty(usedTenantList)) {
             String tenantNames = StringUtils.join(usedTenantList.toArray(), ",");
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAS_USED_BY_TENANTS, tenantNames);
+            return returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_HAS_USED_BY_TENANTS, tenantNames);
         }
         //移除负载均衡器分配的租户
         for (String removedTenantId : removedTenantIds) {
@@ -1082,28 +1087,50 @@ public class IngressControllerServiceImpl implements IngressControllerService {
     }
 
     //更新cm
-    private ActionReturnUtil updateingressCm(String icName, Cluster cluster, IngressConfigMap ingressConfigMap) throws Exception {
-        String nginxCmNm = "args-"+ icName;
-
+    private void updateingressCm(String icName, Cluster cluster, IngressConfigMap ingressConfigMap) throws Exception {
+        String nginxCmNm = ARG+ icName;
         K8SClientResponse cmResponse = icService.getIcConfigMapByName(nginxCmNm, cluster);
         if (!HttpStatusUtil.isSuccessStatus(cmResponse.getStatus())) {
             UnversionedStatus status = JsonUtil.jsonToPojo(cmResponse.getBody(), UnversionedStatus.class);
             LOGGER.error(status.getMessage() + "," + status.getReason());
-            return null;
+            //娶不到说明为旧共用configmap，需新建configMap
+            String nginxCmNM = ARG + icName;
+            ConfigMap ingressCm = new ConfigMap();
+            ObjectMeta cmMeta = new ObjectMeta();
+            cmMeta.setName(nginxCmNM);
+            cmMeta.setNamespace(CommonConstant.KUBE_SYSTEM);
+            ingressCm.setMetadata(cmMeta);
+            ObjectMapper mapper = new ObjectMapper();//初始化转换器
+            Map data = mapper.convertValue(ingressConfigMap, Map.class);
+            this.removeMapEmptyValue(data);//去空值
+            ingressCm.setData(data);
+            K8SClientResponse ingressCmResponse = icService.createIcConfigMap(ingressCm, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(ingressCmResponse.getStatus())) {
+                status = JsonUtil.jsonToPojo(ingressCmResponse.getBody(), UnversionedStatus.class);
+                //TODO  是否需回滚 返回内容中英文
+                LOGGER.error("更新{}失败，原因：在创建configmap时失败{}，ingressConfigMap:{}",
+                        icName, status.getMessage() ,ingressConfigMap.toString());
+                throw new MarsRuntimeException("更新负载均衡失败");
+            }
+        }else {
+            ConfigMap cmConfigMap = JsonUtil.jsonToPojo(cmResponse.getBody(), ConfigMap.class);
+            ObjectMapper mapper = new ObjectMapper();    //初始化转换器
+            Map data = mapper.convertValue(ingressConfigMap, Map.class);
+            this.removeMapEmptyValue(data);//去空值
+            cmConfigMap.setData(data);
+            Map<String, Object> headers = new HashMap<>();
+            headers.put("Content-type", "application/json");
+            Map<String, Object> bodys = CollectionUtil.transBean2Map(cmConfigMap);
+
+            K8SClientResponse response = configmapService.updateConfigmap(cmConfigMap, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                //TODO  是否需回滚 返回内容中英文
+                UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+                LOGGER.error("更新{}失败，原因：在更新configmap时失败{}，ingressConfigMap:{}",
+                        icName, status.getMessage() ,ingressConfigMap.toString());
+                throw new MarsRuntimeException("更新负载均衡失败");
+            }
         }
-        ConfigMap cmConfigMap = JsonUtil.jsonToPojo(cmResponse.getBody(), ConfigMap.class);
-        ObjectMapper mapper = new ObjectMapper();    //初始化转换器
-        Map data = mapper.convertValue(ingressConfigMap, Map.class);
-        cmConfigMap.setData(data);
-        Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-type", "application/json");
-        Map<String, Object> bodys = CollectionUtil.transBean2Map(cmConfigMap);
-        K8SClientResponse response = configmapService.doSepcifyConfigmap(CommonConstant.KUBE_SYSTEM, headers, bodys, HTTPMethod.PUT, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            throw new MarsRuntimeException(status.getMessage());
-        }
-        return ActionReturnUtil.returnSuccess();
     }
 
     private void removeMapEmptyValue(Map<String,String> paramMap){

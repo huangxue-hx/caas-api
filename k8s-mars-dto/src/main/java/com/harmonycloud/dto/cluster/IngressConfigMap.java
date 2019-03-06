@@ -1,17 +1,32 @@
 package com.harmonycloud.dto.cluster;
 
 public class IngressConfigMap {
-
     String clientHeaderBufferSize ;
     String enableUnderscoresInHeaders ;
     String loadBalance ;
-    String maxWorkerConnections ;
-    String proxyBodySize ;
-    String proxyReadTimeout ;
-    String proxySendTimeout ;
-    String workerProcesses; //工作进程数
+    String maxWorkerConnections ;//单进程最大并发量   默认16384         可为0
+    String proxyBodySize ;//请求正文最大值  kb
+    String proxyReadTimeout ;//建立连接超时时间
+    String proxySendTimeout ;//响应超时时间
+    String workerProcesses; //工作进程数  默认 cpu核心数
     String useGzip;          //gzip启用或禁用     示例:"ture"   "false"  默认"ture"
     String gzipLevel;	 //gzip压缩级别       示例:"5"              默认:"5"
+
+    @Override
+    public String toString() {
+        return "IngressConfigMap{" +
+                "clientHeaderBufferSize='" + clientHeaderBufferSize + '\'' +
+                ", enableUnderscoresInHeaders='" + enableUnderscoresInHeaders + '\'' +
+                ", loadBalance='" + loadBalance + '\'' +
+                ", maxWorkerConnections='" + maxWorkerConnections + '\'' +
+                ", proxyBodySize='" + proxyBodySize + '\'' +
+                ", proxyReadTimeout='" + proxyReadTimeout + '\'' +
+                ", proxySendTimeout='" + proxySendTimeout + '\'' +
+                ", workerProcesses='" + workerProcesses + '\'' +
+                ", useGzip='" + useGzip + '\'' +
+                ", gzipLevel='" + gzipLevel + '\'' +
+                '}';
+    }
 
     public String getClientHeaderBufferSize() {
         return clientHeaderBufferSize;

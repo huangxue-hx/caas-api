@@ -2,6 +2,7 @@ package com.harmonycloud.service.test.cluster;
 
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.cluster.IngressConfigMap;
 import com.harmonycloud.dto.cluster.IngressControllerDto;
 import com.harmonycloud.service.cluster.IngressControllerService;
 import com.harmonycloud.service.platform.bean.NodeDto;
@@ -70,7 +71,7 @@ public class IngressControllerServiceTest extends BaseTest {
         ic.setIcAliasName(TEST_ALISA_NAME);
         ic.setExternalHttpPort(9000);
         ic.setExternalHttpsPort(9001);
-        assertTrue(ingressControllerService.createIngressController(ic).isSuccess());
+        assertTrue(ingressControllerService.createIngressController(ic,new IngressConfigMap()).isSuccess());
         response = ingressControllerService.listIngressController(devClusterId);
         assertTrue(response.isSuccess());
         ingressControllerDtoList = (List)response.getData();
@@ -131,7 +132,8 @@ public class IngressControllerServiceTest extends BaseTest {
         ic.setHttpPort(icPort+1);
         ic.setIcNodeNames(icNodeNames);
         ic.setIcAliasName(TEST_ALISA_NAME);
-        ActionReturnUtil response = ingressControllerService.updateIngressController(ic);
+
+        ActionReturnUtil response = ingressControllerService.updateIngressController(ic,new IngressConfigMap());
         assertTrue(response.isSuccess());
         response = ingressControllerService.listIngressController(devClusterId);
         List<IngressControllerDto> ingressControllerDtoList = (List)response.getData();

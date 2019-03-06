@@ -1,6 +1,7 @@
 package com.harmonycloud.api.cluster;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.cluster.IngressConfigMap;
 import com.harmonycloud.dto.cluster.IngressControllerDto;
 import com.harmonycloud.service.cluster.IngressControllerService;
 import org.slf4j.Logger;
@@ -36,9 +37,10 @@ public class IngressController {
     @RequestMapping(method = RequestMethod.POST)
     @ResponseBody
     public ActionReturnUtil createIngressController(@PathVariable(value = "clusterId") String clusterId,
-                                                    @ModelAttribute IngressControllerDto ingressControllerDto) throws Exception {
+                                                    @ModelAttribute IngressControllerDto ingressControllerDto,
+                                                    @ModelAttribute IngressConfigMap ingressConfigMap) throws Exception {
         ingressControllerDto.setClusterId(clusterId);
-        return ingressControllerService.createIngressController(ingressControllerDto);
+        return ingressControllerService.createIngressController(ingressControllerDto,ingressConfigMap);
     }
 
     @RequestMapping(value = "/{icName}", method = RequestMethod.DELETE)
@@ -51,9 +53,10 @@ public class IngressController {
     @RequestMapping(value = "/{icName}", method = RequestMethod.PUT)
     @ResponseBody
     public ActionReturnUtil updateIngressController(@PathVariable(value = "clusterId") String clusterId,
-                                                    @ModelAttribute IngressControllerDto ingressControllerDto) throws Exception {
+                                                    @ModelAttribute IngressControllerDto ingressControllerDto,
+                                                    @ModelAttribute IngressConfigMap ingressConfigMap) throws Exception {
         ingressControllerDto.setClusterId(clusterId);
-        return ingressControllerService.updateIngressController(ingressControllerDto);
+        return ingressControllerService.updateIngressController(ingressControllerDto, ingressConfigMap);
     }
 
     @RequestMapping(value = "/{icName}", method = RequestMethod.POST)

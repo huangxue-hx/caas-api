@@ -96,7 +96,7 @@ public class IngressControllerConstant {
 
     public static final String CONTAINER_ARGS_STATUS = "--status-port=";
 
-    public static final String CONTAINER_ARGS_IC_CM = "--configmap=$(POD_NAMESPACE)/ingress-nginx";
+    public static final String CONTAINER_ARGS_IC_CM = "--configmap=$(POD_NAMESPACE)/";
 
     public static final String CONTAINER_ARGS_UDP_CM = "--udp-services-configmap=$(POD_NAMESPACE)/udp-";
 

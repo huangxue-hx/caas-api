@@ -2,6 +2,7 @@ package com.harmonycloud.service.cluster;
 
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.cluster.IngressConfigMap;
 import com.harmonycloud.dto.cluster.IngressControllerDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 
@@ -44,7 +45,8 @@ public interface IngressControllerService {
     /**
      * 创建IngressController
      */
-    ActionReturnUtil createIngressController(IngressControllerDto ingressControllerDto) throws MarsRuntimeException, IOException;
+    ActionReturnUtil createIngressController(IngressControllerDto ingressControllerDto, IngressConfigMap ingressConfigMap)
+            throws MarsRuntimeException, IOException;
 
     /**
      * 删除IngressController
@@ -56,7 +58,7 @@ public interface IngressControllerService {
     /**
      * 更新IngressController
      */
-    ActionReturnUtil updateIngressController(IngressControllerDto ingressControllerDto) throws  Exception;
+    ActionReturnUtil updateIngressController(IngressControllerDto ingressControllerDto, IngressConfigMap ingressConfigMap) throws Exception;
 
     /**
      * 分配IngressController到指定租户下
@@ -66,6 +68,6 @@ public interface IngressControllerService {
      */
     ActionReturnUtil assignIngressController(String icName, String tenantId, String clusterId) throws Exception;
 
-    Boolean checkIcUsedStatus(String icName,  Cluster cluster) throws MarsRuntimeException;
+    Boolean checkIcUsedStatus(String icName, Cluster cluster) throws MarsRuntimeException;
 
 }
