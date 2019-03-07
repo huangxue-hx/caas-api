@@ -95,16 +95,14 @@ public class CollectionUtil {
 	}
 
 	// 利用org.apache.commons.beanutils 工具类实现 Map --> Bean
-	public static <T> T transMap2Bean(Map<String, Object> map, Class<T> obj) {
+	public static void transMap2Bean(Map<String, Object> map, Object  obj) {
 		if (map == null) {
-			return null;
+			return;
 		}
 		try {
-			T object = obj.newInstance();
 			BeanUtils.populate(obj, map);
-			return object;
-		} catch (Exception e) {
-			return null;
+		} catch (IllegalAccessException | InvocationTargetException e) {
+			e.printStackTrace();
 		}
 	}
 
