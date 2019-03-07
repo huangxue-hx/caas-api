@@ -1754,25 +1754,48 @@ public class DeploymentsServiceImpl implements DeploymentsService {
                 }
             }
         }
-
-        double cpuTotal = 0;      //项目cpu总配额
-        double memoryTotal = 0;   //项目内存总配额
+        //项目cpu总配额
+        double cpuTotal = 0;
+        //项目内存总配额
+        double memoryTotal = 0;
         for(Object obj : requestsList){
             Map<String,Object> requests = (HashMap<String,Object>)obj;
-            String cpuStr=requests.get("cpu").toString().replace("m","");
-            cpuTotal=cpuTotal+Double.valueOf(cpuStr);
-            String memoryStr=requests.get("memory").toString().replace("Mi","");
-            memoryTotal=memoryTotal+Double.valueOf(memoryStr);
+            //cpu
+            String cpu = requests.get("cpu").toString();
+            if (cpu != null) {
+                //0.1core为100m
+                if (cpu.contains("m")) {
+                    String cpuStr = cpu.replace("m","");
+                    cpuTotal = cpuTotal+Double.valueOf(cpuStr);
+                } else {
+                    //cpu为1core时,container里配置为1,而不是1000m
+                    cpuTotal = cpuTotal + Double.valueOf(cpu) * CommonConstant.NUM_THOUSAND;
+                }
+            }
+
+            //内存
+            String memory = requests.get("memory").toString();
+            if (memory != null) {
+                //128MB为128Mi,1024MB为1Gi
+                if (memory.contains("Mi")) {
+                    String memoryStr = memory.replace("Mi","");
+                    memoryTotal = memoryTotal + Double.valueOf(memoryStr);
+                } else if (memory.contains("Gi")) {
+                    String memoryStr = memory.replace("Gi","");
+                    memoryTotal = memoryTotal + Double.valueOf(memoryStr) * CommonConstant.NUM_SIZE_MEMORY;
+                }
+            }
         }
         String[] targetArr={"cpu","memory","disk","volume","rx","tx"};
-        List<QueryResult.Series> cpuTargetList=new ArrayList<>();       //所有pod在一段时间节点内cpu使用量
+        //所有pod在一段时间节点内cpu使用量
+        List<QueryResult.Series> cpuTargetList=new ArrayList<>();
         List<QueryResult.Series> memoryTargetList=new ArrayList<>();
         List<QueryResult.Series> diskTargetList=new ArrayList<>();
         List<QueryResult.Series> volumeTargetList=new ArrayList<>();
         List<QueryResult.Series> rxTargetList=new ArrayList<>();
         List<QueryResult.Series> txTargetList=new ArrayList<>();
         for (Pod onePod : allPodList) {
-            for(int i=0; i<targetArr.length; i++){
+            for(int i = 0; i<targetArr.length; i++){
                 Cluster cluster = namespaceLocalService.getClusterByNamespaceName(onePod.getMetadata().getNamespace());
                 InfluxdbQuery influxdbQuery = new InfluxdbQuery();
                 influxdbQuery.setRangeType(rangeType);
@@ -1807,7 +1830,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         List<Object[]> projectRxUsage = getResourceUsage(rxTargetList,"rx");
         List<Object[]> projectTXUsage = getResourceUsage(txTargetList,"tx");
 
-        Map<String,Object> resultMap = new HashMap<>();
+        Map<String,Object> resultMap = new HashMap<>(CommonConstant.NUM_EIGHT);
         resultMap.put("cpuTotal", cpuTotal);
         resultMap.put("memoryTotal", memoryTotal);
         resultMap.put("projectCpuUsage", projectCpuUsage);
