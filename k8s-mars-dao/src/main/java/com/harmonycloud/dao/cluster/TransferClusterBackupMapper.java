@@ -3,6 +3,8 @@ package com.harmonycloud.dao.cluster;
 import com.harmonycloud.dao.cluster.bean.TransferClusterBackup;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface TransferClusterBackupMapper {
     int deleteByPrimaryKey(Integer id);
@@ -16,4 +18,6 @@ public interface TransferClusterBackupMapper {
     int updateByPrimaryKeySelective(TransferClusterBackup record);
 
     int updateByPrimaryKey(TransferClusterBackup record);
+
+    List<TransferClusterBackup> queryHistoryBackUp(String tenantId, String clusterId);
 }

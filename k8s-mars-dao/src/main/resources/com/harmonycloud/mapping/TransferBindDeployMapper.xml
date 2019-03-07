@@ -15,13 +15,15 @@
     <result column="err_msg" jdbcType="VARCHAR" property="errMsg" />
     <result column="is_delete" jdbcType="TINYINT" property="isDelete" />
     <result column="deploy_num" jdbcType="INTEGER" property="deployNum" />
+    <result column="old_cluster_id" jdbcType="VARCHAR" property="oldClusterId" />
+    <result column="old_namespace" jdbcType="VARCHAR" property="oldNamespace" />
   </resultMap>
   <sql id="Base_Column_List">
-    id, namespace, cluster_id, deploy_name, step_id, tanant_id, project_id, create_time, 
-    update_time, `status`, err_msg, is_delete, deploy_num
+    id, namespace, cluster_id, deploy_name, step_id, tanant_id, project_id, create_time,
+    update_time, `status`, err_msg, is_delete, deploy_num,old_cluster_id,old_namespace
   </sql>
   <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
-    select 
+    select
     <include refid="Base_Column_List" />
     from transfer_bind_deploy
     where id = #{id,jdbcType=INTEGER}
@@ -31,16 +33,16 @@
     where id = #{id,jdbcType=INTEGER}
   </delete>
   <insert id="insert" parameterType="com.harmonycloud.dao.cluster.bean.TransferBindDeploy">
-    insert into transfer_bind_deploy (id, namespace, cluster_id, 
-      deploy_name, step_id, tanant_id, 
-      project_id, create_time, update_time, 
-      `status`, err_msg, is_delete, 
-      deploy_num)
-    values (#{id,jdbcType=INTEGER}, #{namespace,jdbcType=VARCHAR}, #{clusterId,jdbcType=VARCHAR}, 
-      #{deployName,jdbcType=VARCHAR}, #{stepId,jdbcType=INTEGER}, #{tanantId,jdbcType=VARCHAR}, 
-      #{projectId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, 
-      #{status,jdbcType=INTEGER}, #{errMsg,jdbcType=VARCHAR}, #{isDelete,jdbcType=TINYINT}, 
-      #{deployNum,jdbcType=INTEGER})
+    insert into transfer_bind_deploy (id, namespace, cluster_id,
+      deploy_name, step_id, tanant_id,
+      project_id, create_time, update_time,
+      `status`, err_msg, is_delete,
+      deploy_num,old_cluster_id,old_namespace)
+    values (#{id,jdbcType=INTEGER}, #{namespace,jdbcType=VARCHAR}, #{clusterId,jdbcType=VARCHAR},
+      #{deployName,jdbcType=VARCHAR}, #{stepId,jdbcType=INTEGER}, #{tanantId,jdbcType=VARCHAR},
+      #{projectId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP},
+      #{status,jdbcType=INTEGER}, #{errMsg,jdbcType=VARCHAR}, #{isDelete,jdbcType=TINYINT},
+      #{deployNum,jdbcType=INTEGER},#{oldClusterId,jdbcType=VARCHAR},#{oldNamespace,jdbcType=VARCHAR})
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.cluster.bean.TransferBindDeploy">
     insert into transfer_bind_deploy
@@ -182,7 +184,9 @@
       `status` = #{status,jdbcType=INTEGER},
       err_msg = #{errMsg,jdbcType=VARCHAR},
       is_delete = #{isDelete,jdbcType=TINYINT},
-      deploy_num = #{deployNum,jdbcType=INTEGER}
+      deploy_num = #{deployNum,jdbcType=INTEGER},
+      old_cluster_id = #{oldClusterId,jdbcType=VARCHAR},
+      old_namespace = #{oldNamespace,jdbcType=VARCHAR}
     where id = #{id,jdbcType=INTEGER}
   </update>
 
@@ -195,7 +199,7 @@
     deploy_name, step_id, tanant_id,
     project_id, create_time, update_time,
     `status`, err_msg, is_delete,
-    deploy_num)
+    deploy_num,old_cluster_id,old_namespace)
     <foreach collection="transferBindDeploys" item="transferBindDeploy" separator=",">
       (
       #{transferBindDeploy.namespace,jdbcType=VARCHAR},
@@ -209,8 +213,44 @@
       #{transferBindDeploy.errMsg,jdbcType=VARCHAR},
       #{transferBindDeploy.status,jdbcType=INTEGER},
       #{transferBindDeploy.isDelete,jdbcType=TINYINT},
-      #{transferBindDeploy.deployNum,jdbcType=INTEGER}
+      #{transferBindDeploy.deployNum,jdbcType=INTEGER},
+      #{transferBindDeploy.oldClusterId,jdbcType=VARCHAR},
+      #{transferBindDeploy.oldNamespace,jdbcType=VARCHAR}
       )
     </foreach>
   </insert>
+
+  <select id="queryTransferDeployDetail" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from transfer_bind_deploy
+    where
+    cluster_id = #{clusterId,jdbcType=VARCHAR} and tanant_id = #{tanantId,jdbcType=VARCHAR}
+  </select>
+
+  <delete id="deleteTransferBindDeploy" parameterType="java.lang.String">
+    delete from transfer_bind_deploy
+    where cluster_id = #{clusterId,jdbcType=INTEGER}
+  </delete>
+
+  <select id="queryErrorBindDeploy" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from transfer_bind_deploy
+    where
+    cluster_id = #{clusterId,jdbcType=VARCHAR} and tanant_id = #{tanantId,jdbcType=VARCHAR}
+    and status = 0
+  </select>
+
+  <update id="updateDeploys" parameterType="java.util.List">
+    <foreach collection="updateDeploys" item="updateDeploy" separator=",">
+      update transfer_bind_deploy
+      set
+      step_id = #{updateDeploy.stepId,jdbcType=INTEGER},
+      status = #{updateDeploy.status,jdbcType=INTEGER},
+      err_msg = #{updateDeploy.errMsg,jdbcType=INTEGER}
+      where
+      deploy_name = #{updateDeploy.deployName,jdbcType=INTEGER}
+    </foreach>
+  </update>
 </mapper>

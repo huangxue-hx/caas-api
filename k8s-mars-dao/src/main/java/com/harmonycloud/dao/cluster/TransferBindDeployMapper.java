@@ -23,4 +23,12 @@ public interface TransferBindDeployMapper {
     Integer queryMaxNun(@Param(value="tenantId")String tanantId,@Param(value="clusterId")String clusterId);
 
     void saveTransferList(@Param(value="transferBindDeploys") List<TransferBindDeploy> transferBindDeploys);
+
+    List<TransferBindDeploy> queryTransferDeployDetail(@Param(value="tenantId")String tanantId,@Param(value="clusterId")String clusterId);
+
+    void deleteTransferBindDeploy(@Param(value="clusterId")String clusterId);
+
+    List<TransferBindDeploy> queryErrorBindDeploy(@Param(value="tenantId")String tanantId,@Param(value="clusterId")String clusterId);
+
+    void updateDeploys(@Param(value="updateDeploys")List<TransferBindDeploy> updateDeploys);
 }

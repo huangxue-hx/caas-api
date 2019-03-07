@@ -5,8 +5,15 @@ import com.harmonycloud.dao.cluster.bean.TransferBindDeploy;
 import com.harmonycloud.dto.application.DeploymentTransferDto;
 public class DeployResultDto {
 
+    /**
+     * 迁移的deployment对象
+     */
     private List<TransferBindDeploy> deploys;
+    /**
+     * 需要创建的deployment对象
+     */
     private List<DeploymentTransferDto> deploymentTransferDtos;
+
     public List<TransferBindDeploy> getDeploys() {
         return deploys;
     }

@@ -1700,4 +1700,21 @@ public class TenantServiceImpl implements TenantService {
 
     }
 
+    @Override
+    public List<Tenant> queryTenantByClusterId(String clusterId) throws Exception {
+        List<String> tenantIds = tenantClusterQuotaService.getClusterQuotaByClusterId(clusterId, true).stream().map(x->x.getTenantId()).collect(Collectors.toList());
+        List<TenantBinding> tenantBindings = tenantBindingMapper.getTenantByIdList(tenantIds);
+        List<Tenant> tenants = new ArrayList<Tenant>();
+        if(!CollectionUtils.isEmpty(tenantBindings)){
+            tenantBindings.forEach(x->{
+                Tenant tenant = new Tenant();
+                tenant.setName(x.getTenantName());
+                tenant.setTenantid(x.getTenantId());
+                tenant.setAnnotation(x.getAnnotation());
+                tenants.add(tenant);
+            });
+        }
+        return tenants;
+    }
+
 }

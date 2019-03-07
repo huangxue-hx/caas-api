@@ -26,4 +26,8 @@ public interface TransferClusterMapper {
     void saveBindNamespaces(@Param(value="bindNamespaces")List<TransferBindNamespace> bindNamespaces);
 
     void updatePercent(@Param(value="clusterId")String clusterId,@Param(value="tenantId")String tenantId,@Param(value="percent")Double percent);
+
+    void deleteCluster(@Param(value="clusterId")String clusterId);
+
+    List<TransferClusterMapper> queryTransferCluster(@Param(value="clusterId")String clusterId);
 }

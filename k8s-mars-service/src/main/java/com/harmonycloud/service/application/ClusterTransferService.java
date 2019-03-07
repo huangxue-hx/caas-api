@@ -9,6 +9,7 @@ import java.util.List;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.DeploymentTransferDto;
+import com.harmonycloud.dto.cluster.ClusterTransferDetailDto;
 import com.harmonycloud.dto.cluster.ClusterTransferDto;
 
 /**
@@ -26,4 +27,12 @@ public interface ClusterTransferService {
 	 * @return
 	 */
 	ActionReturnUtil transferCluster(List<ClusterTransferDto> clusterTransferDto) throws Exception;
+
+	ActionReturnUtil getTransferCluster(ClusterTransferDetailDto clusterTransferDto);
+
+	ActionReturnUtil getDeployDetail(ClusterTransferDetailDto clusterTransferDto);
+
+	ActionReturnUtil getDeployDetailBackUp(ClusterTransferDetailDto clusterTransferDto);
+
+	ActionReturnUtil getDeployAndStatefulSet(List<ClusterTransferDto> clusterTransferDto) throws Exception;
 }

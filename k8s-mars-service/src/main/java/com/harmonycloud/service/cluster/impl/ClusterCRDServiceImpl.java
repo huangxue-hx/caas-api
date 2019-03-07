@@ -11,6 +11,9 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.cluster.TransferBindDeployMapper;
+import com.harmonycloud.dao.cluster.TransferBindNamespaceMapper;
+import com.harmonycloud.dao.cluster.TransferClusterMapper;
 import com.harmonycloud.dto.cluster.AddClusterDto;
 import com.harmonycloud.dto.cluster.ClusterCRDDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -74,6 +77,13 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
     private SecretService secretService;
     @Value("${private.key:}")
     private String privateKey;
+
+    @Autowired
+    TransferBindDeployMapper transferBindDeployMapper;
+    @Autowired
+    TransferClusterMapper transferClusterMapper;
+    @Autowired
+    TransferBindNamespaceMapper transferBindNamespaceMapper;
 
     @Override
     public ActionReturnUtil getCluster(String dataCenter, String name) throws Exception {
@@ -142,6 +152,9 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
         if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             //更新集群需要重新初始化集群信息，并同时更新redis缓存
             clusterCacheManager.initClusterCache();
+            transferBindDeployMapper.deleteTransferBindDeploy(clusterId);
+            transferClusterMapper.deleteCluster(clusterId);
+            transferBindNamespaceMapper.deleteBindNamespace(clusterId);
             return ActionReturnUtil.returnSuccessWithMsg(response.getBody());
         } else {
             return ActionReturnUtil.returnErrorWithMsg(response.getBody());

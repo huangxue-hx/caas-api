@@ -22,6 +22,8 @@ public class DeploymentDto {
      */
     private String serviceType;
 
+    private String namespace;
+
     public String getDeployName() {
         return deployName;
     }
@@ -46,6 +48,14 @@ public class DeploymentDto {
         this.serviceType = serviceType;
     }
 
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
+    }
+
     @Override
     public String toString() {
         StringBuilder builder = new StringBuilder();
@@ -55,11 +65,11 @@ public class DeploymentDto {
         builder.append(projectId);
         builder.append(", serviceType=");
         builder.append(serviceType);
+        builder.append(", namespace=");
+        builder.append(namespace);
         builder.append("]");
         return builder.toString();
     }
-
-
 
 
 }

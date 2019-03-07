@@ -1,6 +1,7 @@
 package com.harmonycloud.service.tenant;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dao.tenant.bean.Tenant;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.bean.UserRoleRelationship;
@@ -274,4 +275,6 @@ public interface TenantService {
      * 包括全局负载均衡器和分配给租户的自定义负载均衡器
      */
     List<IngressControllerDto> getTenantIngressController(String tenantId, String clusterId) throws Exception;
+
+    List<Tenant> queryTenantByClusterId(String clusterId) throws Exception;
 }

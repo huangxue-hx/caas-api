@@ -395,4 +395,9 @@ public class Constant {
 	public final static String SERVICE_DETECT_WAY_HTTP = "HTTP";
 	public final static String SERVICE_DETECT_WAY_TCP = "TCP";
 
+	public static final String TRANSFER_NAMESPACE_SUCCESS = "successUpdate";
+	public static final String TRANSFER_NAMESPACE_ERROR = "errorUpdate";
+	public static final String ERROR_BIND_DEPLOY = "errorBindDeploy";
+	public static final String ERR_DEPLOY_DTOS ="errDeployDtos";
+
 }

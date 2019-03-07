@@ -20,7 +20,7 @@
     is_delete, is_default, `status`, err_msg, namespace_num
   </sql>
   <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
-    select 
+    select
     <include refid="Base_Column_List" />
     from transfer_bind_namespace
     where id = #{id,jdbcType=INTEGER}
@@ -30,14 +30,14 @@
     where id = #{id,jdbcType=INTEGER}
   </delete>
   <insert id="insert" parameterType="com.harmonycloud.dao.cluster.bean.TransferBindNamespace">
-    insert into transfer_bind_namespace (id, current_namespace, create_namespace, 
-      cluster_id, tenant_id, create_time, 
-      update_time, is_delete, is_default, 
+    insert into transfer_bind_namespace (id, current_namespace, create_namespace,
+      cluster_id, tenant_id, create_time,
+      update_time, is_delete, is_default,
       `status`, err_msg, namespace_num
       )
-    values (#{id,jdbcType=INTEGER}, #{currentNamespace,jdbcType=VARCHAR}, #{createNamespace,jdbcType=VARCHAR}, 
-      #{clusterId,jdbcType=VARCHAR}, #{tenantId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, 
-      #{updateTime,jdbcType=TIMESTAMP}, #{isDelete,jdbcType=TINYINT}, #{isDefault,jdbcType=TINYINT}, 
+    values (#{id,jdbcType=INTEGER}, #{currentNamespace,jdbcType=VARCHAR}, #{createNamespace,jdbcType=VARCHAR},
+      #{clusterId,jdbcType=VARCHAR}, #{tenantId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP},
+      #{updateTime,jdbcType=TIMESTAMP}, #{isDelete,jdbcType=TINYINT}, #{isDefault,jdbcType=TINYINT},
       #{status,jdbcType=INTEGER}, #{errMsg,jdbcType=VARCHAR}, #{namespaceNum,jdbcType=INTEGER}
       )
   </insert>
@@ -230,5 +230,22 @@
     <include refid="Base_Column_List" />
     where
     cluster_id = #{clusterId,jdbcType=VARCHAR} and tenant_id = #{tenantId,jdbcType=VARCHAR} and status = 0
+  </select>
+
+  <delete id="deleteBindNamespace" parameterType="java.lang.String">
+    delete from transfer_bind_namespace
+    where cluster_id = #{clusterId,jdbcType=VARCHAR}
+  </delete>
+
+  <select id="queryExistingNamespace" parameterType="java.util.List">
+    select
+    <include refid="Base_Column_List" />
+    from transfer_bind_namespace
+    <if test="namespaceList != null">
+      where create_namespace in
+      <foreach collection="namespaceList" item="item" index="index">
+        #{item}
+      </foreach>
+    </if>
   </select>
 </mapper>

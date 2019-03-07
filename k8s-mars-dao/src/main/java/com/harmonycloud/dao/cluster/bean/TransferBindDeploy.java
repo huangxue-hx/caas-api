@@ -5,7 +5,7 @@ import java.util.Date;
 
 /**
  * transfer_bind_deploy
- * @author 
+ * @author
  */
 public class TransferBindDeploy implements Serializable {
     /**
@@ -72,6 +72,16 @@ public class TransferBindDeploy implements Serializable {
      * 第几次迁移分区
      */
     private Integer deployNum;
+
+    /**
+     * 旧的集群id
+     */
+    private String oldClusterId;
+
+    /**
+     * 旧的分区
+     */
+    private String oldNamespace;
 
     private static final long serialVersionUID = 1L;
 
@@ -179,74 +189,56 @@ public class TransferBindDeploy implements Serializable {
         this.deployNum = deployNum;
     }
 
-    @Override
-    public boolean equals(Object that) {
-        if (this == that) {
-            return true;
-        }
-        if (that == null) {
-            return false;
-        }
-        if (getClass() != that.getClass()) {
-            return false;
-        }
-        TransferBindDeploy other = (TransferBindDeploy) that;
-        return (this.getId() == null ? other.getId() == null : this.getId().equals(other.getId()))
-            && (this.getNamespace() == null ? other.getNamespace() == null : this.getNamespace().equals(other.getNamespace()))
-            && (this.getClusterId() == null ? other.getClusterId() == null : this.getClusterId().equals(other.getClusterId()))
-            && (this.getDeployName() == null ? other.getDeployName() == null : this.getDeployName().equals(other.getDeployName()))
-            && (this.getStepId() == null ? other.getStepId() == null : this.getStepId().equals(other.getStepId()))
-            && (this.getTanantId() == null ? other.getTanantId() == null : this.getTanantId().equals(other.getTanantId()))
-            && (this.getProjectId() == null ? other.getProjectId() == null : this.getProjectId().equals(other.getProjectId()))
-            && (this.getCreateTime() == null ? other.getCreateTime() == null : this.getCreateTime().equals(other.getCreateTime()))
-            && (this.getUpdateTime() == null ? other.getUpdateTime() == null : this.getUpdateTime().equals(other.getUpdateTime()))
-            && (this.getStatus() == null ? other.getStatus() == null : this.getStatus().equals(other.getStatus()))
-            && (this.getErrMsg() == null ? other.getErrMsg() == null : this.getErrMsg().equals(other.getErrMsg()))
-            && (this.getIsDelete() == null ? other.getIsDelete() == null : this.getIsDelete().equals(other.getIsDelete()))
-            && (this.getDeployNum() == null ? other.getDeployNum() == null : this.getDeployNum().equals(other.getDeployNum()));
+    public String getOldClusterId() {
+        return oldClusterId;
     }
 
-    @Override
-    public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((getId() == null) ? 0 : getId().hashCode());
-        result = prime * result + ((getNamespace() == null) ? 0 : getNamespace().hashCode());
-        result = prime * result + ((getClusterId() == null) ? 0 : getClusterId().hashCode());
-        result = prime * result + ((getDeployName() == null) ? 0 : getDeployName().hashCode());
-        result = prime * result + ((getStepId() == null) ? 0 : getStepId().hashCode());
-        result = prime * result + ((getTanantId() == null) ? 0 : getTanantId().hashCode());
-        result = prime * result + ((getProjectId() == null) ? 0 : getProjectId().hashCode());
-        result = prime * result + ((getCreateTime() == null) ? 0 : getCreateTime().hashCode());
-        result = prime * result + ((getUpdateTime() == null) ? 0 : getUpdateTime().hashCode());
-        result = prime * result + ((getStatus() == null) ? 0 : getStatus().hashCode());
-        result = prime * result + ((getErrMsg() == null) ? 0 : getErrMsg().hashCode());
-        result = prime * result + ((getIsDelete() == null) ? 0 : getIsDelete().hashCode());
-        result = prime * result + ((getDeployNum() == null) ? 0 : getDeployNum().hashCode());
-        return result;
+    public void setOldClusterId(String oldClusterId) {
+        this.oldClusterId = oldClusterId;
+    }
+
+
+    public String getOldNamespace() {
+        return oldNamespace;
+    }
+
+    public void setOldNamespace(String oldNamespace) {
+        this.oldNamespace = oldNamespace;
     }
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(getClass().getSimpleName());
-        sb.append(" [");
-        sb.append("Hash = ").append(hashCode());
-        sb.append(", id=").append(id);
-        sb.append(", namespace=").append(namespace);
-        sb.append(", clusterId=").append(clusterId);
-        sb.append(", deployName=").append(deployName);
-        sb.append(", stepId=").append(stepId);
-        sb.append(", tanantId=").append(tanantId);
-        sb.append(", projectId=").append(projectId);
-        sb.append(", createTime=").append(createTime);
-        sb.append(", updateTime=").append(updateTime);
-        sb.append(", status=").append(status);
-        sb.append(", errMsg=").append(errMsg);
-        sb.append(", isDelete=").append(isDelete);
-        sb.append(", deployNum=").append(deployNum);
-        sb.append(", serialVersionUID=").append(serialVersionUID);
-        sb.append("]");
-        return sb.toString();
+        StringBuilder builder = new StringBuilder();
+        builder.append("TransferBindDeploy [id=");
+        builder.append(id);
+        builder.append(", namespace=");
+        builder.append(namespace);
+        builder.append(", clusterId=");
+        builder.append(clusterId);
+        builder.append(", deployName=");
+        builder.append(deployName);
+        builder.append(", stepId=");
+        builder.append(stepId);
+        builder.append(", tanantId=");
+        builder.append(tanantId);
+        builder.append(", projectId=");
+        builder.append(projectId);
+        builder.append(", createTime=");
+        builder.append(createTime);
+        builder.append(", updateTime=");
+        builder.append(updateTime);
+        builder.append(", status=");
+        builder.append(status);
+        builder.append(", errMsg=");
+        builder.append(errMsg);
+        builder.append(", isDelete=");
+        builder.append(isDelete);
+        builder.append(", deployNum=");
+        builder.append(deployNum);
+        builder.append(", oldClusterId=");
+        builder.append(oldClusterId);
+        builder.append("]");
+        return builder.toString();
     }
+
 }
