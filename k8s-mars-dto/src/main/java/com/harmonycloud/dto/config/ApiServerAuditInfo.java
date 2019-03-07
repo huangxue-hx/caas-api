@@ -14,7 +14,7 @@ public class ApiServerAuditInfo {
     private String requestUrl;
     private String actionResult;
     private String requestSpendTime;
-    private long currentUrlCount;
+//    private long currentUrlCount;
 
     public String getActionTime() {
         return actionTime;
@@ -80,13 +80,13 @@ public class ApiServerAuditInfo {
         this.requestSpendTime = requestSpendTime;
     }
 
-    public long getCurrentUrlCount() {
+    /*public long getCurrentUrlCount() {
         return currentUrlCount;
     }
 
     public void setCurrentUrlCount(long currentUrlCount) {
         this.currentUrlCount = currentUrlCount;
-    }
+    }*/
 
     public String getClusterAliasName() {
         return clusterAliasName;

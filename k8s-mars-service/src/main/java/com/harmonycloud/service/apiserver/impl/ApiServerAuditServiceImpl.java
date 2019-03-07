@@ -385,7 +385,7 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
                 if (StringUtils.isNotBlank(search.getUrl())) {
                     totalRecords += getTotalCounts(esClient, query, indexList);
                 } else {
-                    totalRecords += getCountsGoupByUrl(esClient, query, indexList);
+                    totalRecords += getCountsGroupByUrl(esClient, query, indexList);
                 }
             }
         } else {
@@ -401,7 +401,7 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
             if (StringUtils.isNotBlank(search.getUrl())) {
                 totalRecords += getTotalCounts(esClient, query, indexList);
             } else {
-                totalRecords += getCountsGoupByUrl(esClient, query, indexList);
+                totalRecords += getCountsGroupByUrl(esClient, query, indexList);
             }
         }
 
@@ -423,7 +423,7 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
      * @throws IllegalAccessException
      * @throws InvocationTargetException
      */
-    private long getCountsGoupByUrl(TransportClient esClient, BoolQueryBuilder query, List<String> indexList) throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+    private long getCountsGroupByUrl(TransportClient esClient, BoolQueryBuilder query, List<String> indexList) throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
         SearchRequestBuilder searchRequestBuilder = multiIndexSearch(esClient, indexList);
         TermsBuilder requestURITerms = AggregationBuilders.terms(GROUP_BY_URL).field(REQUEST_URI).size(0);
 
@@ -436,7 +436,14 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
                 .get();
 
         Aggregations aggregations = response.getAggregations();
+        if (aggregations == null) {
+            return CommonConstant.NUM_ZERO;
+        }
+
         Terms urlTerm = aggregations.get(GROUP_BY_URL);
+        if (urlTerm == null) {
+            return CommonConstant.NUM_ZERO;
+        }
 
         List<Terms.Bucket> urlBuckets = urlTerm.getBuckets();
 
@@ -467,7 +474,7 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
             List<String> k8sNamespaceNames = k8sNamespace.stream().map(Namespace::getMetadata).map(ObjectMeta::getName).collect(Collectors.toList());
 
             //最终返回给前台的是数据库中查到的分区别名+k8s自带的namespace(kube-system、kube等)
-            List<String> aliasNames = Lists.newArrayListWithCapacity(k8sNamespaceNames.size());
+            List<JSONObject> namespaceInfos = Lists.newArrayListWithCapacity(k8sNamespaceNames.size());
             for (NamespaceLocal nsLocal : namespaceLocal) {
 
                 //只处理当前集群的
@@ -476,21 +483,32 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
                 }
 
                 //属于当前集群且集群中查询到的name和数据库查到的相等,则需要获取到用户能看懂的别名--Alias_name
-                if (k8sNamespaceNames.contains(nsLocal.getNamespaceName())) {
-                    aliasNames.add(nsLocal.getAliasName());
-                    //获取到别名后，移除k8s中查询的集合中该namespace name
+                String namespaceName = nsLocal.getNamespaceName();
+                if (k8sNamespaceNames.contains(namespaceName)) {
+
+                    JSONObject ns = new JSONObject(CommonConstant.NUM_TWO);
+                    ns.put("aliasName", nsLocal.getAliasName());
+                    ns.put("namespace", namespaceName);
+
+                    namespaceInfos.add(ns);
+                    //获取到别名后，移除k8s中查询到的集合中该namespace name
                     k8sNamespaceNames.remove(nsLocal.getNamespaceName());
                 }
             }
 
             //最后将别名集合和其他无别名集合合并
-            aliasNames.addAll(k8sNamespaceNames);
+            for (String ns : k8sNamespaceNames) {
+                JSONObject nsInfo = new JSONObject(CommonConstant.NUM_TWO);
+                nsInfo.put("aliasName", ns);
+                nsInfo.put("namespace", ns);
+                namespaceInfos.add(nsInfo);
+            }
 
             clusterNamespaceDto.setId(cluster.getId());
             clusterNamespaceDto.setAliasName(cluster.getAliasName());
             clusterNamespaceDto.setDataCenter(cluster.getDataCenter());
             clusterNamespaceDto.setName(cluster.getName());
-            clusterNamespaceDto.setNamespaces(aliasNames);
+            clusterNamespaceDto.setNamespaces(namespaceInfos);
             clusterNamespaceDtos.add(clusterNamespaceDto);
         }
 

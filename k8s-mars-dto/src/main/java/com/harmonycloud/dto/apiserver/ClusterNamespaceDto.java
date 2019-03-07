@@ -1,5 +1,8 @@
 package com.harmonycloud.dto.apiserver;
 
+
+import com.alibaba.fastjson.JSONObject;
+
 import java.io.Serializable;
 import java.util.List;
 
@@ -29,7 +32,7 @@ public class ClusterNamespaceDto implements Serializable {
     /**
      * 集群下的namespace集合
      */
-    private List<String> namespaces;
+    private List<JSONObject> namespaces;
 
     public String getId() {
         return id;
@@ -63,11 +66,11 @@ public class ClusterNamespaceDto implements Serializable {
         this.dataCenter = dataCenter;
     }
 
-    public List<String> getNamespaces() {
+    public List<JSONObject> getNamespaces() {
         return namespaces;
     }
 
-    public void setNamespaces(List<String> namespaces) {
+    public void setNamespaces(List<JSONObject> namespaces) {
         this.namespaces = namespaces;
     }
 }
