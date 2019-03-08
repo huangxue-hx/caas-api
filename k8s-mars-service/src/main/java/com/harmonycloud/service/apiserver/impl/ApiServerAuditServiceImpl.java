@@ -331,7 +331,8 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
             Map<String, Object> responseStatus = (Map<String, Object>) source.get("responseStatus");
 
             Integer actionCode = (Integer) responseStatus.get("code");
-            if (actionCode < CommonConstant.HTTP_STATUS_400 && actionCode >= CommonConstant.HTTP_STATUS_200) {
+            //exec接口会有101请求码
+            if (actionCode < CommonConstant.HTTP_STATUS_400 && actionCode >= CommonConstant.HTTP_STATUS_100) {
                 infos.setActionResult("成功");
             } else {
                 infos.setActionResult("失败");

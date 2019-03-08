@@ -366,6 +366,7 @@ public class CommonConstant {
 
     public static final Integer HTTP_STATUS_400 = 400;
     public static final Integer HTTP_STATUS_200 = 200;
+    public static final Integer HTTP_STATUS_100 = 100;
     //cicd
     public static final String CICD_NAMESPACE = "cicd";
     public static final String DEPENDENCE_PREFIX = "cicd-dependence";
