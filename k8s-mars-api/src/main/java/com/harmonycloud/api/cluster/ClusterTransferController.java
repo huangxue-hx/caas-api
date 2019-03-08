@@ -50,14 +50,14 @@ public class ClusterTransferController {
 		return clusterTransferService.transferCluster(clusterTransferDto);
 	}
 
-	@ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+/*	@ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
 	@ApiOperation(value = "查询迁移的集群详情", response = ActionReturnUtil.class, httpMethod = "POST", consumes = "", produces = "", notes = "")
 	@ResponseBody
 	@RequestMapping(value = "/getTransferCluster", method = RequestMethod.POST)
 	public ActionReturnUtil getTransferCluster(@RequestBody ClusterTransferDetailDto clusterTransferDto) throws Exception {
 		logger.info("transfer cluster service");
 		return clusterTransferService.getTransferCluster(clusterTransferDto);
-	}
+	}*/
 
 	@ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
 	@ApiOperation(value = "查询迁移的服务详情", response = ActionReturnUtil.class, httpMethod = "POST", consumes = "", produces = "", notes = "")
