@@ -110,9 +110,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             K8SClientResponse response = configmapService.doSepcifyConfigmap(CommonConstant.KUBE_SYSTEM, ARG + ingressControllerDto.getIcName(), cluster);
             if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
                 ConfigMap configMap = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
-                Map map = (Map)configMap.getData();
-                IngressConfigMap ingressConfigMap =new IngressConfigMap();
-                CollectionUtil.transMap2Bean(map, ingressConfigMap);
+                IngressConfigMap ingressConfigMap = convertNginxCmData((Map<String, Object>)configMap.getData());
                 ingressControllerDto.setIngressConfigMap(ingressConfigMap);
             }
         }
@@ -261,10 +259,10 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         cmMeta.setName(nginxCmNM);
         cmMeta.setNamespace(CommonConstant.KUBE_SYSTEM);
         ingressCm.setMetadata(cmMeta);
-        ObjectMapper mapper = new ObjectMapper();//初始化转换器
-        Map data = mapper.convertValue(ingressConfigMap, Map.class);
-        this.removeMapEmptyValue(data);//去空值
-        ingressCm.setData(data);
+        if (Objects.nonNull(ingressControllerDto.getIngressConfigMap())) {
+            Map data = convertNginxCmData(ingressControllerDto.getIngressConfigMap());
+            ingressCm.setData(data);
+        }
         K8SClientResponse ingressCmResponse = icService.createIcConfigMap(ingressCm, cluster);
         if (!HttpStatusUtil.isSuccessStatus(ingressCmResponse.getStatus())) {
             UnversionedStatus status = JsonUtil.jsonToPojo(ingressCmResponse.getBody(), UnversionedStatus.class);
@@ -1114,10 +1112,10 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             }
         }else {
             ConfigMap cmConfigMap = JsonUtil.jsonToPojo(cmResponse.getBody(), ConfigMap.class);
-            ObjectMapper mapper = new ObjectMapper();    //初始化转换器
-            Map data = mapper.convertValue(ingressConfigMap, Map.class);
-            this.removeMapEmptyValue(data);//去空值
-            cmConfigMap.setData(data);
+            if (Objects.nonNull(ingressConfigMap)) {
+                Map data = convertNginxCmData(ingressConfigMap);
+                cmConfigMap.setData(data);
+            }
             Map<String, Object> headers = new HashMap<>();
             headers.put("Content-type", "application/json");
             Map<String, Object> bodys = CollectionUtil.transBean2Map(cmConfigMap);
@@ -1131,6 +1129,36 @@ public class IngressControllerServiceImpl implements IngressControllerService {
                 throw new MarsRuntimeException("更新负载均衡失败");
             }
         }
+    }
+
+    private Map convertNginxCmData(IngressConfigMap ingressConfigMap) {
+        Map<String, String> data = new HashMap<>();
+        if (Objects.nonNull(ingressConfigMap.getUseGzip())) data.put("use-gzip", ingressConfigMap.getUseGzip());
+        if (Objects.nonNull(ingressConfigMap.getGzipLevel())) data.put("gzip-level", ingressConfigMap.getGzipLevel());
+        if (Objects.nonNull(ingressConfigMap.getClientHeaderBufferSize())) data.put("client-header-buffer-size", ingressConfigMap.getClientHeaderBufferSize() + "k");
+        if (Objects.nonNull(ingressConfigMap.getEnableUnderscoresInHeaders())) data.put("enable-underscores-in-headers", ingressConfigMap.getEnableUnderscoresInHeaders());
+        if (Objects.nonNull(ingressConfigMap.getLoadBalance())) data.put("load-balance", ingressConfigMap.getLoadBalance());
+        if (Objects.nonNull(ingressConfigMap.getMaxWorkerConnections())) data.put("max-worker-connections", ingressConfigMap.getMaxWorkerConnections());
+        if (Objects.nonNull(ingressConfigMap.getProxyBodySize())) data.put("proxy-body-size", ingressConfigMap.getProxyBodySize() + "k");
+        if (Objects.nonNull(ingressConfigMap.getProxyReadTimeout())) data.put("proxy-read-timeout", ingressConfigMap.getProxyReadTimeout());
+        if (Objects.nonNull(ingressConfigMap.getProxySendTimeout())) data.put("proxy-send-timeout", ingressConfigMap.getProxySendTimeout());
+        if (Objects.nonNull(ingressConfigMap.getWorkerProcesses())) data.put("worker-processes", ingressConfigMap.getWorkerProcesses());
+        return data;
+    }
+
+    private IngressConfigMap convertNginxCmData(Map data) {
+        IngressConfigMap ingressConfigMap = new IngressConfigMap();
+        if (data.containsKey("use-gzip")) ingressConfigMap.setUseGzip(data.get("use-gzip").toString());
+        if (data.containsKey("gzip-level")) ingressConfigMap.setGzipLevel(data.get("gzip-level").toString());
+        if (data.containsKey("client-header-buffer-size")) ingressConfigMap.setClientHeaderBufferSize(data.get("client-header-buffer-size").toString());
+        if (data.containsKey("enable-underscores-in-headers")) ingressConfigMap.setEnableUnderscoresInHeaders(data.get("enable-underscores-in-headers").toString());
+        if (data.containsKey("load-balance")) ingressConfigMap.setLoadBalance(data.get("load-balance").toString());
+        if (data.containsKey("max-worker-connections")) ingressConfigMap.setMaxWorkerConnections(data.get("max-worker-connections").toString());
+        if (data.containsKey("proxy-body-size")) ingressConfigMap.setProxyBodySize(data.get("proxy-body-size").toString());
+        if (data.containsKey("proxy-read-timeout")) ingressConfigMap.setProxyReadTimeout(data.get("proxy-read-timeout").toString());
+        if (data.containsKey("proxy-send-timeout")) ingressConfigMap.setProxySendTimeout(data.get("proxy-send-timeout").toString());
+        if (data.containsKey("worker-processes")) ingressConfigMap.setWorkerProcesses(data.get("worker-processes").toString());
+        return ingressConfigMap;
     }
 
     private void removeMapEmptyValue(Map<String,String> paramMap){
