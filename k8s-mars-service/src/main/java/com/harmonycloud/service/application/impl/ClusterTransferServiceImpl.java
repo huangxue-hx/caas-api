@@ -336,27 +336,31 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			bodys.put(CommonConstant.METADATA, objectMeta);
 			Map<String, Object> headers = new HashMap<>();
 			headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
-			//向k8s创建分区   TODO 判断是否存在分区，存在就不再创建
+			//向k8s创建分区
 			K8SClientResponse k8SClientResponse = this.create(headers, bodys, HTTPMethod.POST, cluster);
 			Map<String, Object> stringObjectMap = JsonUtil.convertJsonToMap(k8SClientResponse.getBody());
 			if (!HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
-				errorNamespaceDto = new ErrorNamespaceDto();
-				logger.error("调用k8s接口迁移namespace失败，错误消息：" + k8SClientResponse.getBody());
-				Object message = stringObjectMap.get("message");
-				if (!Objects.isNull(message) && message.toString().contains("object is being deleted")){
+				if ("409".equals(stringObjectMap.get("code").toString())){
+					logger.warn("调用k8s接口迁移分区{}已存在，message：{}：" ,namespaceDto.getName(),k8SClientResponse.getBody());
+				}else {
+					errorNamespaceDto = new ErrorNamespaceDto();
+					logger.error("调用k8s接口迁移namespace失败，错误消息：" + k8SClientResponse.getBody());
+					Object message = stringObjectMap.get("message");
+					if (!Objects.isNull(message) && message.toString().contains("object is being deleted")){
+						errorNamespaceDto.setNamespace(namespaceDto.getName());
+						//TODO 改提示
+						errorNamespaceDto.setErrMsg(ErrorCodeMessage.NAMESPACE_CREATE_ERROR_DELETED.getReasonChPhrase());
+						errorList.add(errorNamespaceDto);
+						//失败进行回滚
+						namespaceService.deleteNamespace(namespaceDto.getTenantId(), namespaceDto.getName());
+						continue;
+					}
 					errorNamespaceDto.setNamespace(namespaceDto.getName());
-					//TODO 改提示
-					errorNamespaceDto.setErrMsg(ErrorCodeMessage.NAMESPACE_CREATE_ERROR_DELETED.getReasonChPhrase());
+					errorNamespaceDto.setErrMsg(ErrorCodeMessage.NAMESPACE_CREATE_ERROR.getReasonChPhrase());
+					int index = successList.indexOf(errorNamespaceDto);
+					indexs.add(index);
 					errorList.add(errorNamespaceDto);
-					//失败进行回滚
-					namespaceService.deleteNamespace(namespaceDto.getTenantId(), namespaceDto.getName());
-					continue;
 				}
-				errorNamespaceDto.setNamespace(namespaceDto.getName());
-				errorNamespaceDto.setErrMsg(ErrorCodeMessage.NAMESPACE_CREATE_ERROR.getReasonChPhrase());
-				int index = successList.indexOf(errorNamespaceDto);
-				indexs.add(index);
-				errorList.add(errorNamespaceDto);
 			}
 		}
 		updateNamespace.put(Constant.TRANSFER_NAMESPACE_SUCCESS,successList.stream().filter(x->!indexs.contains(successList.indexOf(x))).collect(Collectors.toList()));
@@ -532,7 +536,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			return errDeployDto;
 		}
 		PersistentVolumeClaimList persistentVolumeClaim = K8SClient.converToBean(k8sClientResponse, PersistentVolumeClaimList.class);
-		if(persistentVolumeClaim.getItems()!=null){
+		if(!persistentVolumeClaim.getItems().isEmpty()){
 			K8SClientResponse pvcRes = getPVC(deploymentTransferDto.getCurrentDeployName(), deploymentTransferDto.getNamespace(), transferCluster);
 			checkK8SClientResponse(pvcRes,errDeployDto,deploymentTransferDto.getCurrentDeployName());
 			PersistentVolumeClaimList transferPersistentVolumeClaimc = K8SClient.converToBean(pvcRes, PersistentVolumeClaimList.class);
@@ -605,12 +609,13 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		K8SClientResponse response = configMapService.doSepcifyConfigmap(deploymentTransferDto.getCurrentNameSpace(), deploymentTransferDto.getCurrentDeployName(),currentCluster);
 		//如果返回404代表当前服务并未创建configmap 则可向下创建
 		ErrDeployDto errDeployDto = null;
-		if (response.getStatus() == Constant.HTTP_404){
+		//TODO 代码必要？
+/*		if (response.getStatus() == Constant.HTTP_404){
 			errDeployDto = new ErrDeployDto();
 			errDeployDto.setDeployName(deploymentTransferDto.getCurrentDeployName());
 			errDeployDto.setErrMsg("迁移configMap失败");
 			return errDeployDto;
-		}
+		}*/
 
 		ConfigMap configMap = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
 		if(configMap!=null){
