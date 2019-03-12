@@ -57,9 +57,7 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.harmonycloud.common.Constant.CommonConstant.KUBE_SYSTEM;
-import static com.harmonycloud.common.Constant.CommonConstant.NUM_SIZE_MEMORY;
-import static com.harmonycloud.common.Constant.CommonConstant.PERCENT_HUNDRED;
+import static com.harmonycloud.common.Constant.CommonConstant.*;
 import static com.harmonycloud.service.platform.constant.Constant.NAMESPACE_SYSTEM;
 
 
@@ -540,10 +538,16 @@ public class ClusterServiceImpl implements ClusterService {
         deployComStatus.put(K8sModuleEnum.NFS.getCode(), Constant.STATUS_NORMAL);
         deployComStatus.put(K8sModuleEnum.HEAPSTER.getCode(), Constant.STATUS_NORMAL);
         deployComStatus.put(K8sModuleEnum.INFLUXDB.getCode(), Constant.STATUS_NORMAL);
-        deployComStatus.put(K8sModuleEnum.CALICO_KUBE_CONTROLLER.getCode(), Constant.STATUS_NORMAL);
+        if (cluster.getNetworkType().equalsIgnoreCase(K8S_NETWORK_CALICO)) {
+            deployComStatus.put(K8sModuleEnum.CALICO_KUBE_CONTROLLER.getCode(), Constant.STATUS_NORMAL);
+        }
         //daemonSet方式部署的组件
         Map<String, String> daemonsetComStatus = new HashMap<>();
-        daemonsetComStatus.put(K8sModuleEnum.CALICO.getCode(), Constant.STATUS_NORMAL);
+        if (cluster.getNetworkType().equalsIgnoreCase(K8S_NETWORK_HCIPAM)) {
+            daemonsetComStatus.put(K8sModuleEnum.HCIPAM.getCode(), Constant.STATUS_NORMAL);
+        } else {
+            daemonsetComStatus.put(K8sModuleEnum.CALICO.getCode(), Constant.STATUS_NORMAL);
+        }
         daemonsetComStatus.put(K8sModuleEnum.SERVICE_LOADBALANCER.getCode(), Constant.STATUS_NORMAL);
         daemonsetComStatus.put(K8sModuleEnum.FLUENTD.getCode(), Constant.STATUS_NORMAL);
 
@@ -559,7 +563,7 @@ public class ClusterServiceImpl implements ClusterService {
         allComStatus.putAll(deployComStatus);
         allComStatus.putAll(daemonsetComStatus);
         //设置组合组件的状态
-        abnormalCount += this.calComposeComHealth(createdComponent, allComStatus);
+        abnormalCount += this.calComposeComHealth(createdComponent, allComStatus, cluster);
 
         //如果组件没有创建，状态修改为异常
         for (String componentCode : allComStatus.keySet()) {
@@ -755,7 +759,7 @@ public class ClusterServiceImpl implements ClusterService {
      *
      * @param allComStatus
      */
-    private int calComposeComHealth(Set<String> createdComponent, Map<String, Object> allComStatus) {
+    private int calComposeComHealth(Set<String> createdComponent, Map<String, Object> allComStatus, Cluster cluster) {
         int composeComAbnormalCount = 0;
         //监控由heapster和influxdb组成
         if (createdComponent.contains(K8sModuleEnum.HEAPSTER.getCode())
@@ -779,15 +783,17 @@ public class ClusterServiceImpl implements ClusterService {
             composeComAbnormalCount++;
             allComStatus.put(K8sModuleEnum.LOGGING.getCode(), Constant.STATUS_ABNORMAL);
         }
-        //网络组件由calico-node的daemonset和calico-kube-controllers 的deployment组成
-        if (createdComponent.contains(K8sModuleEnum.CALICO_KUBE_CONTROLLER.getCode())
-                && createdComponent.contains(K8sModuleEnum.CALICO.getCode())
-                && allComStatus.get(K8sModuleEnum.CALICO_KUBE_CONTROLLER.getCode()).equals(Constant.STATUS_NORMAL)
-                && allComStatus.get(K8sModuleEnum.CALICO.getCode()).equals(Constant.STATUS_NORMAL)) {
-            allComStatus.put(K8sModuleEnum.CALICO.getCode(), Constant.STATUS_NORMAL);
-        } else {
-            composeComAbnormalCount++;
-            allComStatus.put(K8sModuleEnum.CALICO.getCode(), Constant.STATUS_ABNORMAL);
+        if (cluster.getNetworkType().equalsIgnoreCase(K8S_NETWORK_CALICO)) {
+            //网络组件由calico-node的daemonset和calico-kube-controllers 的deployment组成
+            if (createdComponent.contains(K8sModuleEnum.CALICO_KUBE_CONTROLLER.getCode())
+                    && createdComponent.contains(K8sModuleEnum.CALICO.getCode())
+                    && allComStatus.get(K8sModuleEnum.CALICO_KUBE_CONTROLLER.getCode()).equals(Constant.STATUS_NORMAL)
+                    && allComStatus.get(K8sModuleEnum.CALICO.getCode()).equals(Constant.STATUS_NORMAL)) {
+                allComStatus.put(K8sModuleEnum.CALICO.getCode(), Constant.STATUS_NORMAL);
+            } else {
+                composeComAbnormalCount++;
+                allComStatus.put(K8sModuleEnum.CALICO.getCode(), Constant.STATUS_ABNORMAL);
+            }
         }
         allComStatus.remove(K8sModuleEnum.HEAPSTER.getCode());
         allComStatus.remove(K8sModuleEnum.INFLUXDB.getCode());

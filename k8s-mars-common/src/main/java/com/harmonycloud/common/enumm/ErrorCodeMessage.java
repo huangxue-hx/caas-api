@@ -130,6 +130,15 @@ public enum ErrorCodeMessage {
     PROJECT_DELETE_FIRST(202011,"please delete project first","请先删除项目"),
     PROJECT_ROLE_EXIST(202012, "Role was existed.","项目角色已经存在"),
     PROJECT_PM_CANNOT_DELETE(202013, "PM cannot delete yourself.","项目管理员不能删除自己!"),
+    PROJECT_IP_POOL_NOT_EXIST(202014, "project ip pool was not existed.","ip资源池不存在"),
+    PROJECT_IP_POOL_CIDR_ERROR(202015, "project ip pool cidr error.","请输入正确的IP段，如192.168.1.1/24"),
+    PROJECT_IP_POOL_IP_ERROR(202016, "project ip pool ip error.","请输入正确的IP，如192.168.1.1"),
+    PROJECT_IP_POOL_CIDR_GREATER_THAN_SUBNET_ERROR(202017, "project ip pool cidr greater than subnet error.","CIDR的IP范围不得大于子网的IP范围"),
+    PROJECT_IP_POOL_NAME_CANNOT_MODIFIED(202018, "project ip pool name cannot modified.","资源名称不可修改"),
+    PROJECT_IP_POOL_CANNOT_MODIFIED(202019, "project ip pool cannot modified.","资源池已使用，不可修改"),
+    PROJECT_IP_POOL_SUBNET_EXIST(202020, "project ip pool subnet exist.","输入的IP段已经被使用，请检查后重新填写"),
+    PROJECT_IP_POOL_EXIST(202021, "project ip pool was existed.","ip资源池已存在"),
+    PROJECT_PUBLISH_ERROR(202022, "project publish error.","服务发布失败，当前项目未设置IP资源池，请前往项目详情配置"),
 
     //角色权限 203xxx
     ROLE_NOT_EXIST(203001, "Role not exist.","角色不存在!"),
@@ -232,6 +241,7 @@ public enum ErrorCodeMessage {
             "87和95端口对于chrome浏览器是非安全的端口，请使用别的端口"),
     TRANSFER_CLUSTER_RESOURCE_ERROR(300058, "Transfer cluster resource not enough", "迁移目标集群容量不足"),
     TRANSFER_CLUSTER_ERROR(300059, "Transfer cluster error", "迁移目标集群失败"),
+    CLUSTER_ALL_DISABLED(300060, "All clusters are disabled.","当前无可用集群"),
 
     //主机节点 301xxx
     NODE_LABEL_CREATE_ERROR(301001, "Node label create failed.","主机标签创建失败"),

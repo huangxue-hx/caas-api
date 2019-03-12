@@ -145,6 +145,9 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     @Autowired
     private StatefulSetService statefulSetService;
 
+    @Autowired
+    private IpPoolService ipPoolService;
+
     /**
      * get application by tenant namespace name status service implement
      *
@@ -651,6 +654,16 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         }
         String namespace = appDeploy.getNamespace();
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+
+        // 如果集群网络模式为hcipam，则要求每个项目都要配置ip资源池
+        if (cluster != null && StringUtils.isNotBlank(cluster.getNetworkType())
+                && CommonConstant.K8S_NETWORK_HCIPAM.equals(cluster.getNetworkType())) {
+            // 校验是否 所有/该 项目未配置ip资源池
+            if (!ipPoolService.checkCluster(appDeploy.getTenantId(), appDeploy.getProjectId(), cluster.getId())) {
+                throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_PUBLISH_ERROR);
+            }
+        }
+
         ActionReturnUtil checkRes = checkK8SName(appDeploy, cluster, true);
         if (!checkRes.isSuccess()) {
             return checkRes;
@@ -1206,6 +1219,16 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         ActionReturnUtil btresponse = null;
         //根据namespace查询集群
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+
+        // 如果集群网络模式为hcipam，则要求每个项目都要配置ip资源池
+        if (cluster != null && StringUtils.isNotBlank(cluster.getNetworkType())
+                && CommonConstant.K8S_NETWORK_HCIPAM.equals(cluster.getNetworkType())) {
+            // 校验是否 所有/该 项目未配置ip资源池
+            if (!ipPoolService.checkCluster(tenantId, projectId, cluster.getId())) {
+                throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_PUBLISH_ERROR);
+            }
+        }
+
         //根据name和tag获取模板信息
         if ("true".equals(pub)) {
             btresponse = applicationService.getApplicationTemplate(name, tag, "", "all");

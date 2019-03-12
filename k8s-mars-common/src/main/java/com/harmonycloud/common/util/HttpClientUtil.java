@@ -670,7 +670,7 @@ public class HttpClientUtil {
 			httpPost.setConfig(requestConfig);
 			if (params != null) {
 				String paramsJson = JsonUtil.objectToJson(params);
-				StringEntity entity = new StringEntity(paramsJson);
+				StringEntity entity = new StringEntity(paramsJson, "utf-8");
 				httpPost.setEntity(entity);
 			}
 			setHeaders(httpPost, headers);

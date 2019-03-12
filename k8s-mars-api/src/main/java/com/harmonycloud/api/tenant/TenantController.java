@@ -488,4 +488,23 @@ public class TenantController {
                                                        @RequestParam(value = "clusterId") String clusterId) throws Exception {
         return  ActionReturnUtil.returnSuccessWithData(tenantService.getTenantIngressController(tenantId, clusterId));
     }
+
+
+    /**
+     * 查询租户的集群列表
+     *
+     * @param tenantId 租户id
+     * @return
+     */
+    @RequestMapping(value = "/{tenantId}/clusters", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getClusterList(@PathVariable(value = "tenantId") String tenantId,
+                                            @RequestParam(value = "clusterId",required = false) String clusterId) throws Exception {
+        List<ClusterQuotaDto> clusterQuotaDtoList = clusterQuotaService.clusterList(tenantId, clusterId);
+        if(CollectionUtils.isEmpty(clusterQuotaDtoList)){
+            return ActionReturnUtil.returnSuccess();
+        }
+
+        return ActionReturnUtil.returnSuccessWithData(clusterQuotaDtoList);
+    }
 }

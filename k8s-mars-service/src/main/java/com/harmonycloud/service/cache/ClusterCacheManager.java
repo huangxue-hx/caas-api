@@ -18,6 +18,8 @@ import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.k8s.util.DefaultClient;
 import com.harmonycloud.service.application.DataCenterService;
 import com.harmonycloud.service.cluster.ClusterCRDService;
+import com.harmonycloud.service.platform.bean.PodDto;
+import com.harmonycloud.service.platform.service.PodService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
 import org.apache.commons.lang3.StringUtils;
@@ -36,9 +38,9 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static com.harmonycloud.common.Constant.CommonConstant.NUM_ONE;
-import static com.harmonycloud.common.Constant.CommonConstant.PROTOCOL_HTTP;
+import static com.harmonycloud.common.Constant.CommonConstant.*;
 import static com.harmonycloud.k8s.constant.Constant.ES_CLUSTER_NAME;
+import static com.harmonycloud.service.platform.constant.Constant.NAMESPACE_SYSTEM;
 
 /**
  * cluster集群信息redis管理
@@ -62,6 +64,8 @@ public class ClusterCacheManager {
     private RoleLocalService roleLocalService;
     @Autowired
     private DataCenterService dataCenterService;
+    @Autowired
+    private PodService podService;
     //容器云平台部署的集群，上层集群
     private static Cluster platformCluster;
     @Value("${public.key:}")
@@ -424,10 +428,33 @@ public class ClusterCacheManager {
             harborServer.setReferredClusterAliasNames(harborClusterAliasNames.get(harborServer.getHarborHost()));
             cluster.setHarborServer(harborServer);
             cluster.setExternal(clusterTPRDto.getExternal());
+            cluster.setNetworkType(this.getClusterNetworkType(cluster));
             clusters.add(cluster);
 
         }
         return clusters;
+    }
+
+    /**
+     * 获取集群的网络类型，根据系统分区下是否有calico或hcipam的pod判断
+     * @param cluster
+     * @return
+     * @throws Exception
+     */
+    private String getClusterNetworkType(Cluster cluster) throws Exception{
+        try {
+            List<PodDto> podDtoList = podService.getPodListByNamespace(cluster, NAMESPACE_SYSTEM);
+            for (PodDto podDto : podDtoList) {
+                if (podDto.getName().startsWith(K8S_NETWORK_CALICO)) {
+                    return K8S_NETWORK_CALICO;
+                } else if (podDto.getName().startsWith(K8S_NETWORK_HCIPAM)) {
+                    return K8S_NETWORK_HCIPAM;
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("获取集群的网络类型失败，默认返回calico网络, cluster:{}", cluster.getId(), e);
+        }
+        return K8S_NETWORK_CALICO;
     }
 
     private Integer getServiceApiPort(List<ServicePort> servicePorts) throws MarsRuntimeException{

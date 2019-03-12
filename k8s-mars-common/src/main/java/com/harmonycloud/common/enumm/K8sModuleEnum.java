@@ -19,6 +19,7 @@ public enum K8sModuleEnum {
     SERVICE_LOADBALANCER("nginx","nginx-ingress-controller","daemonset","负载均衡"),
     CALICO("calico","calico-node","daemonset","集群网络"),
     CALICO_KUBE_CONTROLLER("calico-kube-controllers","calico-kube-controllers","deployment","集群网络"),
+    HCIPAM("hcipam","hcipam-node","daemonset","集群网络"),
     ETCD("etcd","etcd","pod","etcd存储"),
     NFS("nfs","nfs-client-provisioner","deployment","nfs存储"),
     HEAPSTER("heapster","heapster","deployment","资源监控"),

@@ -67,6 +67,8 @@ public class ClusterQuotaDto implements Serializable {
     private String clusterUsedMemoryType;
     //集群的存储配额
     private List<StorageDto> storageQuota;
+    // 网络类型 calico/hcipam
+    private String networkType;
 
     public String getClusterAliasName() {
         return clusterAliasName;
@@ -295,5 +297,13 @@ public class ClusterQuotaDto implements Serializable {
 
     public void setStorageQuota(List<StorageDto> storageQuota) {
         this.storageQuota = storageQuota;
+    }
+
+    public String getNetworkType() {
+        return networkType;
+    }
+
+    public void setNetworkType(String networkType) {
+        this.networkType = networkType;
     }
 }

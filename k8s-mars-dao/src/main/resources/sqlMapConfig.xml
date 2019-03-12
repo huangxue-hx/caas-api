@@ -145,6 +145,7 @@
         <mapper resource="com/harmonycloud/mapping/RuleOverviewMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/RuleDetailMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/IstioGlobalConfigureMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/ProjectIpPoolMapper.xml" />
     </mappers>
 </configuration>
 

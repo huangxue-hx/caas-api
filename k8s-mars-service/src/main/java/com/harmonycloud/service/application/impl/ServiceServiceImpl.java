@@ -12,6 +12,7 @@ import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.application.ServiceTemplatesMapper;
+import com.harmonycloud.dao.application.bean.ProjectIpPool;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dto.application.*;
@@ -137,7 +138,8 @@ public class ServiceServiceImpl implements ServiceService {
     @Autowired
     private FileUploadToContainerService fileUploadToContainerService;
 
-
+    @Autowired
+    private IpPoolService ipPoolService;
 
 
     /**
@@ -666,6 +668,21 @@ public class ServiceServiceImpl implements ServiceService {
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(serviceDeploy.getNamespace());
         if (Objects.isNull(cluster)) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+        }
+
+        // 如果集群网络模式为hcipam，则要求每个项目都要配置ip资源池
+        if (StringUtils.isNotBlank(cluster.getNetworkType()) && CommonConstant.K8S_NETWORK_HCIPAM.equals(cluster.getNetworkType())) {
+            // 校验该项目是否配置ip资源池
+            ProjectIpPool ipPool = ipPoolService.info(serviceDeploy.getServiceTemplate().getProjectId(), cluster.getId());
+            if (ipPool == null) {
+                throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_PUBLISH_ERROR);
+            }
+            // ip资源池的cidr值给到detail里
+            if(service.getDeploymentDetail() != null) {
+                service.getDeploymentDetail().setIpPoolCidr(ipPool.getCidr());
+            } else if(service.getStatefulSetDetail() != null) {
+                service.getStatefulSetDetail().setIpPoolCidr(ipPool.getCidr());
+            }
         }
 
         List<Map<String, Object>> message = new ArrayList<>();

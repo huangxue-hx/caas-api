@@ -107,6 +107,11 @@ public class Cluster implements Serializable,Comparable<Cluster> {
 	private ClusterMysql mysql;
 	private ClusterRedis redis;
 	private ClusterNetwork network;
+
+	/**
+	 * 网络类型 calico/hcipam
+	 */
+	private String networkType;
 	private ClusterJenkins jenkins;
 	private List<ClusterStorage> storages;
 	/**
@@ -157,6 +162,15 @@ public class Cluster implements Serializable,Comparable<Cluster> {
 
 	public void setNetwork(ClusterNetwork network) {
 		this.network = network;
+	}
+
+
+	public String getNetworkType() {
+		return networkType;
+	}
+
+	public void setNetworkType(String networkType) {
+		this.networkType = networkType;
 	}
 
 	public ClusterJenkins getJenkins() {

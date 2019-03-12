@@ -128,4 +128,11 @@ public interface TenantClusterQuotaService {
      * @throws MarsRuntimeException
      */
     List<TenantClusterQuota> listClusterQuotaICs(String clusterId) throws MarsRuntimeException;
+
+    /**
+     * 根据租户id查询集群配额列表 clusterId 为空查询该租户下的所有集群配额
+     * @return
+     * @throws Exception
+     */
+    public List<ClusterQuotaDto> clusterList(String tenantId,String clusterId) throws Exception;
 }

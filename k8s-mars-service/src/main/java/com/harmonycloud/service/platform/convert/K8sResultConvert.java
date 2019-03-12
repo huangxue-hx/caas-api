@@ -1149,6 +1149,10 @@ public class K8sResultConvert {
         anno.put("nephele/replicas", detail.getInstance());
         anno.put("nephele/labels", detail.getLabels() == null ? "" : detail.getLabels());
 
+        if (StringUtils.isNotBlank(detail.getIpPoolCidr())) {
+            anno.put("cni.projectcalico.org/ipv4pools", String.format("[\"%s\"]", detail.getIpPoolCidr()));
+        }
+
         PullDependenceDto pullDependence = detail.getPullDependence();
         if(pullDependence !=null){
             String repoUrl = pullDependence.getRepoUrl();

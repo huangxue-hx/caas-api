@@ -643,6 +643,10 @@ public class CommonConstant {
     public static final String MESH_EXTERNAL = "MESH_EXTERNAL";
     public static final String MESH_INTERNAL = "MESH_INTERNAL";
 
+    //网络类型
+    public static final String K8S_NETWORK_HCIPAM = "hcipam";
+    public static final String K8S_NETWORK_CALICO = "calico";
+
     //对应order字段为该策略创建时对应的crd创建的顺序，为了后期异常修复功能备用
     public static final int RATE_LIMIT_RESOURCE_COUNT = 5;
     public static final int RATE_LIMIT_QUOTA_ORDER = 1;
