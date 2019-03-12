@@ -1147,6 +1147,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
     }
 
     private IngressConfigMap convertNginxCmData(Map data) {
+        if(data == null) return null;
         IngressConfigMap ingressConfigMap = new IngressConfigMap();
         if (data.containsKey("use-gzip")) ingressConfigMap.setUseGzip(data.get("use-gzip").toString());
         if (data.containsKey("gzip-level")) ingressConfigMap.setGzipLevel(data.get("gzip-level").toString());
