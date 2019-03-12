@@ -288,13 +288,4 @@ public class DeploymentController {
 		return serviceService.deleteDeployedService(deployedServiceNamesDto, userName);
 	}
 
-	@ResponseBody
-	@RequestMapping(value="/monitor", method=RequestMethod.GET)
-	public ActionReturnUtil getProjectMonit(@RequestParam(value="rangeType") String rangeType,
-											@RequestParam(value="namespace") String namespace,
-											@PathVariable(value="projectId") String projectId,
-											@PathVariable(value="tenantId") String tenantId) throws Exception {
-		return dpService.getProjectMonit(tenantId, projectId, namespace, rangeType);
-	}
-
 }
