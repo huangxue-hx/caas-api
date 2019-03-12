@@ -304,10 +304,10 @@ public class PodService {
 		return response;
 	}
 
-	public PodList getPodByServiceName(String namespace, String serviceName, String method, Cluster cluster) throws Exception {
+	public PodList getPodByServiceName(String namespace, String serviceName, String method, Cluster cluster, String type) throws Exception {
 		K8SURL url = new K8SURL();
 		Map<String, Object> label = new HashMap<>();
-		label.put("labelSelector","app=" + serviceName);
+		label.put("labelSelector",type + "=" + serviceName);
 		url.setNamespace(namespace).setResource(Resource.POD);
 		K8SClientResponse response = new K8sMachineClient().exec(url, method, null, label, cluster);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {

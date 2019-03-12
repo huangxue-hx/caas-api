@@ -63,7 +63,9 @@ public class MonitorCenterServiceImpl implements MonitorCenterService {
                 String name = String.valueOf(oneDeploy.get("name"));
                 String svcNamespace = String.valueOf(oneDeploy.get("namespace"));
                 Cluster cluster = namespaceLocalService.getClusterByNamespaceName(svcNamespace);
-                PodList podList = podService.getPodByServiceName(svcNamespace, name, HTTPMethod.GET, cluster);
+                PodList podList = !Constant.STATEFULSET.equals(oneDeploy.get("serviceType"))?
+                        podService.getPodByServiceName(svcNamespace, name, HTTPMethod.GET, cluster, Constant.TYPE_DEPLOYMENT) :
+                        podService.getPodByServiceName(svcNamespace, name, HTTPMethod.GET, cluster, Constant.TYPE_STATEFULSET);
                 List<Pod> podListInSvc = podList.getItems();
                 for(Pod pod : podListInSvc) {
                     List<Container> containers = pod.getSpec().getContainers();
