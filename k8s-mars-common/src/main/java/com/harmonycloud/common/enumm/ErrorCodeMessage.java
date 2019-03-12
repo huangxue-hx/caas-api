@@ -242,6 +242,7 @@ public enum ErrorCodeMessage {
     TRANSFER_CLUSTER_RESOURCE_ERROR(300058, "Transfer cluster resource not enough", "迁移目标集群容量不足"),
     TRANSFER_CLUSTER_ERROR(300059, "Transfer cluster error", "迁移目标集群失败"),
     CLUSTER_ALL_DISABLED(300060, "All clusters are disabled.","当前无可用集群"),
+    CLUSTER_NOT_MATCH(300061, "the cluster is not match.","集群不符合"),
 
     //主机节点 301xxx
     NODE_LABEL_CREATE_ERROR(301001, "Node label create failed.","主机标签创建失败"),
