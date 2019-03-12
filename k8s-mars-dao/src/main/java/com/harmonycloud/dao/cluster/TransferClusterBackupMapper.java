@@ -19,5 +19,5 @@ public interface TransferClusterBackupMapper {
 
     int updateByPrimaryKey(TransferClusterBackup record);
 
-    List<TransferClusterBackup> queryHistoryBackUp(String tenantId, String clusterId);
+    List<TransferClusterBackup> queryHistoryBackUp(String clusterId ,String tanantId);
 }

@@ -7,7 +7,7 @@
     <result column="cluster_id" jdbcType="VARCHAR" property="clusterId" />
     <result column="deploy_name" jdbcType="VARCHAR" property="deployName" />
     <result column="step_id" jdbcType="INTEGER" property="stepId" />
-    <result column="tanant_id" jdbcType="VARCHAR" property="tanantId" />
+    <result column="tenant_id" jdbcType="VARCHAR" property="tenantId" />
     <result column="project_id" jdbcType="VARCHAR" property="projectId" />
     <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
     <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
@@ -19,8 +19,8 @@
     <result column="old_namespace" jdbcType="VARCHAR" property="oldNamespace" />
   </resultMap>
   <sql id="Base_Column_List">
-    id, namespace, cluster_id, deploy_name, step_id, tanant_id, project_id, create_time,
-    update_time, `status`, err_msg, is_delete, deploy_num,old_cluster_id,old_namespace
+    id, namespace, cluster_id, deploy_name, step_id, tenant_id, project_id, create_time,
+    update_time, `status`, err_msg, is_delete, deploy_num,old_cluster_id
   </sql>
   <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
     select
@@ -34,12 +34,12 @@
   </delete>
   <insert id="insert" parameterType="com.harmonycloud.dao.cluster.bean.TransferBindDeploy">
     insert into transfer_bind_deploy (id, namespace, cluster_id,
-      deploy_name, step_id, tanant_id,
+      deploy_name, step_id, tenant_id,
       project_id, create_time, update_time,
       `status`, err_msg, is_delete,
       deploy_num,old_cluster_id,old_namespace)
     values (#{id,jdbcType=INTEGER}, #{namespace,jdbcType=VARCHAR}, #{clusterId,jdbcType=VARCHAR},
-      #{deployName,jdbcType=VARCHAR}, #{stepId,jdbcType=INTEGER}, #{tanantId,jdbcType=VARCHAR},
+      #{deployName,jdbcType=VARCHAR}, #{stepId,jdbcType=INTEGER}, #{tenantId,jdbcType=VARCHAR},
       #{projectId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP},
       #{status,jdbcType=INTEGER}, #{errMsg,jdbcType=VARCHAR}, #{isDelete,jdbcType=TINYINT},
       #{deployNum,jdbcType=INTEGER},#{oldClusterId,jdbcType=VARCHAR},#{oldNamespace,jdbcType=VARCHAR})
@@ -62,8 +62,8 @@
       <if test="stepId != null">
         step_id,
       </if>
-      <if test="tanantId != null">
-        tanant_id,
+      <if test="tenantId != null">
+        tenant_id,
       </if>
       <if test="projectId != null">
         project_id,
@@ -103,8 +103,8 @@
       <if test="stepId != null">
         #{stepId,jdbcType=INTEGER},
       </if>
-      <if test="tanantId != null">
-        #{tanantId,jdbcType=VARCHAR},
+      <if test="tenantId != null">
+        #{tenantId,jdbcType=VARCHAR},
       </if>
       <if test="projectId != null">
         #{projectId,jdbcType=VARCHAR},
@@ -144,8 +144,8 @@
       <if test="stepId != null">
         step_id = #{stepId,jdbcType=INTEGER},
       </if>
-      <if test="tanantId != null">
-        tanant_id = #{tanantId,jdbcType=VARCHAR},
+      <if test="tenantId != null">
+        tenant_id = #{tenantId,jdbcType=VARCHAR},
       </if>
       <if test="projectId != null">
         project_id = #{projectId,jdbcType=VARCHAR},
@@ -177,7 +177,7 @@
       cluster_id = #{clusterId,jdbcType=VARCHAR},
       deploy_name = #{deployName,jdbcType=VARCHAR},
       step_id = #{stepId,jdbcType=INTEGER},
-      tanant_id = #{tanantId,jdbcType=VARCHAR},
+      tenant_id = #{tenantId,jdbcType=VARCHAR},
       project_id = #{projectId,jdbcType=VARCHAR},
       create_time = #{createTime,jdbcType=TIMESTAMP},
       update_time = #{updateTime,jdbcType=TIMESTAMP},
@@ -191,31 +191,31 @@
   </update>
 
   <select id="queryMaxNun" resultType="java.lang.Integer">
-   SELECT max(deploy_num) from transfer_bind_deploy where cluster_id = #{clusterId,jdbcType=VARCHAR} and tanant_id = #{tanantId,jdbcType=VARCHAR}
+   SELECT max(deploy_num) from transfer_bind_deploy where cluster_id = #{clusterId,jdbcType=VARCHAR} and tenant_id = #{tenantId,jdbcType=VARCHAR}
   </select>
 
   <insert id="saveTransferList" parameterType="java.util.List">
     insert into transfer_bind_deploy (namespace, cluster_id,
-    deploy_name, step_id, tanant_id,
+    deploy_name, step_id, tenant_id,
     project_id, create_time, update_time,
-    `status`, err_msg, is_delete,
-    deploy_num,old_cluster_id,old_namespace)
-    <foreach collection="transferBindDeploys" item="transferBindDeploy" separator=",">
+     err_msg, is_delete,
+    deploy_num,old_cluster_id) values
+    <foreach collection="transferBindDeploys" item="transferBindDeploy"  index="index"  separator=",">
       (
       #{transferBindDeploy.namespace,jdbcType=VARCHAR},
       #{transferBindDeploy.clusterId,jdbcType=VARCHAR},
       #{transferBindDeploy.deployName,jdbcType=VARCHAR},
       #{transferBindDeploy.stepId,jdbcType=INTEGER},
-      #{transferBindDeploy.tanantId,jdbcType=VARCHAR},
+      #{transferBindDeploy.tenantId,jdbcType=VARCHAR},
       #{transferBindDeploy.projectId,jdbcType=VARCHAR},
       #{transferBindDeploy.createTime,jdbcType=TIMESTAMP},
       #{transferBindDeploy.updateTime,jdbcType=TIMESTAMP},
       #{transferBindDeploy.errMsg,jdbcType=VARCHAR},
-      #{transferBindDeploy.status,jdbcType=INTEGER},
+
       #{transferBindDeploy.isDelete,jdbcType=TINYINT},
       #{transferBindDeploy.deployNum,jdbcType=INTEGER},
-      #{transferBindDeploy.oldClusterId,jdbcType=VARCHAR},
-      #{transferBindDeploy.oldNamespace,jdbcType=VARCHAR}
+      #{transferBindDeploy.oldClusterId,jdbcType=VARCHAR}
+
       )
     </foreach>
   </insert>
@@ -225,7 +225,7 @@
     <include refid="Base_Column_List" />
     from transfer_bind_deploy
     where
-    cluster_id = #{clusterId,jdbcType=VARCHAR} and tanant_id = #{tanantId,jdbcType=VARCHAR}
+    cluster_id = #{clusterId,jdbcType=VARCHAR} and tenant_id = #{tenantId,jdbcType=VARCHAR}
   </select>
 
   <delete id="deleteTransferBindDeploy" parameterType="java.lang.String">
@@ -238,7 +238,7 @@
     <include refid="Base_Column_List" />
     from transfer_bind_deploy
     where
-    cluster_id = #{clusterId,jdbcType=VARCHAR} and tanant_id = #{tanantId,jdbcType=VARCHAR}
+    cluster_id = #{clusterId,jdbcType=VARCHAR} and tenant_id = #{tenantId,jdbcType=VARCHAR}
     and status = 0
   </select>
 
@@ -247,7 +247,7 @@
       update transfer_bind_deploy
       set
       step_id = #{updateDeploy.stepId,jdbcType=INTEGER},
-      status = #{updateDeploy.status,jdbcType=INTEGER},
+
       err_msg = #{updateDeploy.errMsg,jdbcType=INTEGER}
       where
       deploy_name = #{updateDeploy.deployName,jdbcType=INTEGER}

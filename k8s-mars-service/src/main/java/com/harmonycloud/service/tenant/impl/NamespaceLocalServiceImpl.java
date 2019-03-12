@@ -369,6 +369,7 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
         return  new NamespaceLocalExample();
     }
 
+    @Override
     public NamespaceLocal getKubeSystemNamespace() throws Exception {
         NamespaceLocal namespaceLocal = null;
         Integer roleId = userService.getCurrentRoleId();
@@ -409,7 +410,7 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
 
     @Override
     public ErrorNamespaceDto createTransferNamespace(NamespaceLocal namespaceLocal) {
-        ErrorNamespaceDto errorNamespaceDto = new ErrorNamespaceDto();
+        ErrorNamespaceDto sussNamespaceDto = new ErrorNamespaceDto();
         //设置namespaces id
         namespaceLocal.setNamespaceId(StringUtil.getId());
         String clusterId = namespaceLocal.getClusterId();
@@ -418,8 +419,8 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
         namespaceLocal.setClusterAliasName(cluster.getAliasName());
         //设置数据库
         namespaceLocalMapper.insertSelective(namespaceLocal);
-        errorNamespaceDto.setNamespace(namespaceLocal.getNamespaceName());
-        return errorNamespaceDto;
+        sussNamespaceDto.setNamespace(namespaceLocal.getNamespaceName());
+        return sussNamespaceDto;
     }
 
     /**

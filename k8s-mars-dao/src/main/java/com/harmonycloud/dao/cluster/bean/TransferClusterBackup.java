@@ -16,7 +16,7 @@ public class TransferClusterBackup implements Serializable {
     /**
      * 租户id
      */
-    private String tanantId;
+    private String tenantId;
 
     /**
      * 第几次迁移分区
@@ -83,12 +83,12 @@ public class TransferClusterBackup implements Serializable {
         this.id = id;
     }
 
-    public String getTanantId() {
-        return tanantId;
+    public String gettenantId() {
+        return tenantId;
     }
 
-    public void setTanantId(String tanantId) {
-        this.tanantId = tanantId;
+    public void settenantId(String tenantId) {
+        this.tenantId = tenantId;
     }
 
     public Integer getNamespaceNum() {
@@ -192,8 +192,8 @@ public class TransferClusterBackup implements Serializable {
         StringBuilder builder = new StringBuilder();
         builder.append("TransferClusterBackup [id=");
         builder.append(id);
-        builder.append(", tanantId=");
-        builder.append(tanantId);
+        builder.append(", tenantId=");
+        builder.append(tenantId);
         builder.append(", namespaceNum=");
         builder.append(namespaceNum);
         builder.append(", deployNum=");

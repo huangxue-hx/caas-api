@@ -258,6 +258,7 @@ public class InfluxdbServiceImpl implements InfluxdbService {
         }
         String influxServer = cluster.getInfluxdbUrl() + "?db=" + cluster.getInfluxdbDb();
         influxServer = influxServer + "&&q=" + URLEncoder.encode(sql, "UTF-8");
+        System.out.println("sql:"+ sql);
         HttpClientResponse response = HttpClientUtil.doGet(influxServer, null, null);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             return ActionReturnUtil.returnErrorWithMsg(response.getBody());

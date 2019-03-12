@@ -126,22 +126,25 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 
 	@Override
 	public ActionReturnUtil transferCluster(List<ClusterTransferDto> clusterTransferDto) throws Exception {
-		Cluster cluster = clusterService.findClusterById(clusterTransferDto.get(0).getTargetClusterId());
-		Cluster currentCluster = clusterService.findClusterById(clusterTransferDto.get(0).getCurrentClusterId());
+
+		Cluster oldCluster = clusterService.findClusterById(clusterTransferDto.get(0).getCurrentClusterId());
+		Cluster currentCluster = clusterService.findClusterById(clusterTransferDto.get(0).getTargetClusterId());
 		TransferClusterBackup transferClusterBackup = generateTransferClusterBackup(clusterTransferDto);
-		checkResource(cluster, currentCluster, transferClusterBackup, clusterTransferDto);
+		//TODO 资源可用校验待放开
+		//checkResource(cluster, currentCluster, transferClusterBackup, clusterTransferDto);
 		if(!Objects.isNull(transferClusterMapper.queryTransferClusterByParam(clusterTransferDto.get(0).getTenantId(),clusterTransferDto.get(0).getTargetClusterId()))){
-			//增量续传
+			//TODO 增量续传
 		}
-		return ActionReturnUtil.returnSuccessWithData(excuteTransfer(transferClusterBackup, clusterTransferDto, cluster, currentCluster, clusterTransferDto.get(0).isContinue()));
+		return ActionReturnUtil.returnSuccessWithData(excuteTransfer(transferClusterBackup, clusterTransferDto, oldCluster, currentCluster, clusterTransferDto.get(0).isContinue()));
 	}
 
 	private TransferClusterBackup generateTransferClusterBackup(List<ClusterTransferDto> clusterTransferDto) {
 		TransferClusterBackup transferClusterBackup = new TransferClusterBackup();
 		transferClusterBackup.setCreateTime(new Date());
 		transferClusterBackup.setDeployNum(transferDeployMapper.queryMaxNun(clusterTransferDto.get(0).getTenantId(),clusterTransferDto.get(0).getTargetClusterId()));
-		transferClusterBackup.setNamespaceNum(transferBindNamespaceMapper.queryLastNamespaceNum(clusterTransferDto.get(0).getTenantId(),clusterTransferDto.get(0).getTargetClusterId())+1);
-		transferClusterBackup.setTanantId(clusterTransferDto.get(0).getTenantId());
+
+		transferClusterBackup.setNamespaceNum(transferBindNamespaceMapper.queryLastNamespaceNum(clusterTransferDto.get(0).getTenantId(),clusterTransferDto.get(0).getTargetClusterId()) == null ? 1 :transferBindNamespaceMapper.queryLastNamespaceNum(clusterTransferDto.get(0).getTenantId(),clusterTransferDto.get(0).getTargetClusterId()));
+		transferClusterBackup.settenantId(clusterTransferDto.get(0).getTenantId());
 		transferClusterBackup.setTransferClusterId(clusterTransferDto.get(0).getTargetClusterId());
 		return transferClusterBackup;
 	}
@@ -156,11 +159,16 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		ActionReturnUtil actionReturnUtil = clusterService.getClusterResourceUsage(targetClusterId,null);
 		Map<String, Map<String, Object>> mapClusterResourceUsage = (Map<String, Map<String, Object>>) actionReturnUtil.getData();
 		Map<String,Object> usageParam = mapClusterResourceUsage.get(targetClusterId);
-		double surplusMemory = (Double)usageParam.get("clusterFilesystemCapacity")-(Double)usageParam.get("clusterFilesystemUsage");
-		double surplusCpu =(Double) usageParam.get("clusterMemoryCapacity")-(Double)usageParam.get("clusterMemoryUsage");
+		logger.info("-----"+usageParam.get("clusterFilesystemCapacity"));;
+		logger.info("======"+usageParam.get("clusterFilesystemUsage"));;
+
+		double surplusMemory = Double.parseDouble(usageParam.get("clusterFilesystemCapacity").toString())-Double.parseDouble(usageParam.get("clusterFilesystemUsage").toString());
+		double surplusCpu =Double.parseDouble(usageParam.get("clusterMemoryCapacity").toString()) - Double.parseDouble(usageParam.get("clusterMemoryUsage").toString());
 		clusterUsage.put("surplusMemory", surplusMemory);
 		clusterUsage.put("surplusCpu", surplusCpu);
 		return clusterUsage;
+		//TODO 分区资源校验存在问题
+
 	}
 
 	/**
@@ -220,10 +228,11 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		Map<String,List<Double>> namespaceResource = getNamespaceCpu(clusterTransferDtos);
 		double namespaceCpu =  namespaceResource.get("cpu").stream().collect(Collectors.summarizingDouble(x->x)).getSum();
 		double memorySum = namespaceResource.get("memory").stream().collect(Collectors.summarizingDouble(x->x)).getSum();
-		if(clusterResource.get("surplusCpu")>namespaceCpu&&clusterResource.get("surplusMemory")>memorySum){
+		/*if(clusterResource.get("surplusCpu")>namespaceCpu&&clusterResource.get("surplusMemory")>memorySum){
 			return true;
-		}
-		return false;
+		}*/
+		return true;
+		//TODO 分区资源校验存在问题
 	}
 
 	private List<TransferBindNamespace> addBindNamespaceData(List<ClusterTransferDto> clusterTransferDtos) throws Exception{
@@ -233,7 +242,8 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		}
 		for (ClusterTransferDto clusterTransferDto : clusterTransferDtos) {
 			for (BindNameSpaceDto bindNameSpace : clusterTransferDto.getBindNameSpaceDtos()) {
-				transferBindNamespaces.add(generateBindNamespace(clusterTransferDto, bindNameSpace));
+				TransferBindNamespace transferBindNamespace = generateBindNamespace(clusterTransferDto, bindNameSpace);
+				transferBindNamespaces.add(transferBindNamespace);
 			}
 		}
 		return transferBindNamespaces;
@@ -303,7 +313,8 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		List<Integer> indexs= new ArrayList<>();
 		for (NamespaceDto namespaceDto : namespaceDtos) {
 			ErrorNamespaceDto errorNamespaceDto =null;
-			if (StringUtils.isEmpty(namespaceDto.getName()) || namespaceDto.getName().indexOf(CommonConstant.LINE) < 0) {
+			//TODO  1、namespaceDto.getName().indexOf(CommonConstant.LINE) < 0  作用？     2、字段长度、必填可放在接口入口处校验
+			if (StringUtils.isEmpty(namespaceDto.getName()) /*|| namespaceDto.getName().indexOf(CommonConstant.LINE) < 0*/) {
 				errorNamespaceDto = new ErrorNamespaceDto();
 				errorNamespaceDto.setErrMsg(ErrorCodeMessage.NAMESPACE_NOT_BLANK.getReasonChPhrase());
 				errorNamespaceDto.setNamespace(namespaceDto.getName());
@@ -314,7 +325,6 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			errorNamespaceDto = this.createLocalNamespace(namespaceDto);
 			if(Objects.nonNull(errorNamespaceDto)){
 				successList.add(errorNamespaceDto);
-				continue;
 			}
 			//组装k8s数据结构
 			ObjectMeta objectMeta = new ObjectMeta();
@@ -326,15 +336,16 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			bodys.put(CommonConstant.METADATA, objectMeta);
 			Map<String, Object> headers = new HashMap<>();
 			headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
-			//向k8s创建分区
+			//向k8s创建分区   TODO 判断是否存在分区，存在就不再创建
 			K8SClientResponse k8SClientResponse = this.create(headers, bodys, HTTPMethod.POST, cluster);
 			Map<String, Object> stringObjectMap = JsonUtil.convertJsonToMap(k8SClientResponse.getBody());
 			if (!HttpStatusUtil.isSuccessStatus(k8SClientResponse.getStatus())) {
 				errorNamespaceDto = new ErrorNamespaceDto();
-				logger.error("调用k8s接口迁移namespace失败，错误消息：" + k8SClientResponse.getBody(),k8SClientResponse.getBody());
+				logger.error("调用k8s接口迁移namespace失败，错误消息：" + k8SClientResponse.getBody());
 				Object message = stringObjectMap.get("message");
 				if (!Objects.isNull(message) && message.toString().contains("object is being deleted")){
 					errorNamespaceDto.setNamespace(namespaceDto.getName());
+					//TODO 改提示
 					errorNamespaceDto.setErrMsg(ErrorCodeMessage.NAMESPACE_CREATE_ERROR_DELETED.getReasonChPhrase());
 					errorList.add(errorNamespaceDto);
 					//失败进行回滚
@@ -394,12 +405,20 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		return response;
 	}
 
-	private Map<String,List<ErrorNamespaceDto>> updateBindNamespace(ClusterTransferDto clusterTransferDtos, List<NamespaceDto> namespaceDtos, Cluster cluster) throws Exception {
-		Map<String,List<ErrorNamespaceDto>> param = createNamespace(namespaceDtos, cluster);
+	private Map<String,List<ErrorNamespaceDto>> updateBindNamespace(ClusterTransferDto clusterTransferDtos, List<NamespaceDto> namespaceDtos, Cluster currentCluster) throws Exception {
+		//创建k8s 分区，并返回创建正确和错误的信息
+		Map<String,List<ErrorNamespaceDto>> param = createNamespace(namespaceDtos, currentCluster);
+
 		List<ErrorNamespaceDto> successNamespaceDtos = param.get(Constant.TRANSFER_NAMESPACE_SUCCESS);
 		List<ErrorNamespaceDto> errorNamespaceDtos = param.get(Constant.TRANSFER_NAMESPACE_ERROR);
-		transferBindNamespaceMapper.updateErrorListNamespace(namespaceList(clusterTransferDtos,errorNamespaceDtos, false));
-		transferBindNamespaceMapper.updateSuccessListNamespace(namespaceList(clusterTransferDtos,successNamespaceDtos,true));
+		List errorList = namespaceList(clusterTransferDtos,errorNamespaceDtos, false);
+		if (!errorList.isEmpty()){
+			transferBindNamespaceMapper.updateErrorListNamespace(errorList);
+		}
+		List successList = namespaceList(clusterTransferDtos,successNamespaceDtos, true);
+		if (!successList.isEmpty()){
+			transferBindNamespaceMapper.updateSuccessListNamespace(successList);
+		}
 		return param;
 	}
 
@@ -431,7 +450,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * @throws MarsRuntimeException 
 	 */
 	private ErrDeployDto createIngress(DeploymentTransferDto deploymentTransferDto) throws Exception{
-		ActionReturnUtil actionReturnUtil = routerService.listExposedRouterWithIngressAndNginx(deploymentTransferDto.getCurrentNameSpace(),deploymentTransferDto.getCurrentDeployName(),deploymentTransferDto.getCurrentProjectId());
+		ActionReturnUtil actionReturnUtil = routerService.listExposedRouterWithIngressAndNginx(deploymentTransferDto.getCurrentNameSpace(),deploymentTransferDto.getCurrentDeployName(),deploymentTransferDto.getProjectId());
 		List<Map<String, Object>> routerList = (List<Map<String, Object>>) actionReturnUtil.getData();
 		List<HttpRuleDto> httpRuleDtos = new ArrayList<>();
 		List<TcpRuleDto> rules = new ArrayList<>();
@@ -983,13 +1002,13 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	       return bigDecimal.divide(bigDecimal2).add(new BigDecimal(0.05)).setScale(1,BigDecimal.ROUND_HALF_UP).doubleValue();
 	}
 
-	private DeployResultDto generateTransferDeploymentAndTransferDeploy(List<ErrorNamespaceDto> errorNamespaceDtos,List<ClusterTransferDto> clusterTransferDtos,Cluster oldCluster) throws Exception {
+	private DeployResultDto generateTransferDeploymentAndTransferDeploy(List<ErrorNamespaceDto> errorNamespaceDtos,List<ClusterTransferDto> clusterTransferDtos,Cluster currentCluster) throws Exception {
 		Map<String,String> param = successNamespceBind(errorNamespaceDtos, clusterTransferDtos);
 		List<TransferBindDeploy> list = new ArrayList<>();
 		List<DeploymentTransferDto> deploymentTransferDtos = new ArrayList<>();
 		DeployResultDto deployResultDto = new DeployResultDto();
 		for (ErrorNamespaceDto errorNamespaceDto : errorNamespaceDtos) {
-			K8SClientResponse clientResponse = dpService.doDeploymentsByNamespace(param.get(errorNamespaceDto.getNamespace()),null, null, HTTPMethod.GET, oldCluster);
+			K8SClientResponse clientResponse = dpService.doDeploymentsByNamespace(param.get(errorNamespaceDto.getNamespace()),null, null, HTTPMethod.GET, currentCluster);
 			DeploymentList deploymentList = JsonUtil.jsonToPojo(clientResponse.getBody(), DeploymentList.class);
 			if (deploymentList != null && !CollectionUtils.isEmpty(deploymentList.getItems())) {
 				for(Deployment deployment:deploymentList.getItems()){
@@ -1025,16 +1044,16 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		deploymentTransferDto.setCurrentClusterId(clusterTransferDto.getCurrentClusterId());
 		deploymentTransferDto.setCurrentDeployName(deployment.getMetadata().getName());
 		deploymentTransferDto.setCurrentNameSpace(param.get(errorNamespaceDto.getNamespace()));
-		deploymentTransferDto.setCurrentProjectId(String.valueOf(deployment.getMetadata().getLabels().get("projectId")));
+//		deploymentTransferDto.setCurrentProjectId(String.valueOf(deployment.getMetadata().getLabels().get("harmonycloud.cn/projectId")));
 		deploymentTransferDto.setCurrentServiceType(Constant.DEPLOYMENT);
-		deploymentTransferDto.setCurrentTenantId(clusterTransferDto.getTenantId());
+//		deploymentTransferDto.setCurrentTenantId(clusterTransferDto.getTenantId());
 		deploymentTransferDto.setNamespace(errorNamespaceDto.getNamespace());
-		deploymentTransferDto.setProjectId(String.valueOf(deployment.getMetadata().getLabels().get("projectId")));
+		deploymentTransferDto.setProjectId(String.valueOf(deployment.getMetadata().getLabels().get("harmonycloud.cn/projectId")));
 		deploymentTransferDto.setTenantId(clusterTransferDto.getTenantId());
 		return deploymentTransferDto;
 	}
 
-	private Map<String,Object> createDeployment(List<DeploymentTransferDto> deploymentTransferDtos,Cluster transferCluster,Cluster currentCluster) throws Exception {
+	private Map<String,Object> createDeployment(List<DeploymentTransferDto> deploymentTransferDtos,Cluster oldCluster,Cluster currentCluster) throws Exception {
 		int index = 0;
 		Map<String,Object> params = new HashMap<>();
 		List<ErrDeployDto> errDeployDtos = new ArrayList<>();
@@ -1052,7 +1071,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				errorBindDeploy.add(transferBindDeploy);
 				continue;
 			}
-			errDeployDto = createPVC(deploymentTransferDto, currentCluster, transferCluster,errDeployDtos);
+			errDeployDto = createPVC(deploymentTransferDto, currentCluster, oldCluster,errDeployDtos);
 			if(errDeployDto!=null){
 				errDeployDtos.add(errDeployDto);
 				transferBindDeploy.setErrMsg(errDeployDto.getErrMsg());
@@ -1061,7 +1080,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				errorBindDeploy.add(transferBindDeploy);
 				continue;
 			}
-			errDeployDto = createOrUpdateConfigMap(deploymentTransferDto, currentCluster, transferCluster);
+			errDeployDto = createOrUpdateConfigMap(deploymentTransferDto, currentCluster, oldCluster);
 			if(errDeployDto!=null){
 				errDeployDtos.add(errDeployDto);
 				transferBindDeploy.setErrMsg(errDeployDto.getErrMsg());
@@ -1070,7 +1089,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				errorBindDeploy.add(transferBindDeploy);
 				continue;
 			}
-			errDeployDto = create(deploymentTransferDto, currentCluster, transferCluster);
+			errDeployDto = create(deploymentTransferDto, currentCluster, oldCluster);
 			if(errDeployDto!=null){
 				errDeployDtos.add(errDeployDto);
 				transferBindDeploy.setErrMsg(errDeployDto.getErrMsg());
@@ -1105,14 +1124,15 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		transferBindDeploy.setClusterId(clusterTransferDto.getTargetClusterId());
 		transferBindDeploy.setCreateTime(new Date());
 		transferBindDeploy.setDeployName(deployment.getMetadata().getName());
-		transferBindDeploy.setDeployNum(transferDeployMapper.queryMaxNun(clusterTransferDto.getTenantId(),clusterTransferDto.getTargetClusterId())+1);
+		Integer num = transferDeployMapper.queryMaxNun(clusterTransferDto.getTenantId(),clusterTransferDto.getTargetClusterId());
+		transferBindDeploy.setDeployNum(num != null  ? num + 1 : 1);
 		transferBindDeploy.setIsDelete((byte)0);
 		transferBindDeploy.setNamespace(namespace);
 		transferBindDeploy.setProjectId(String.valueOf(deployment.getMetadata().getLabels().get("projectId")));
 		transferBindDeploy.setStatus(0);
-		transferBindDeploy.setTanantId(clusterTransferDto.getTenantId());
+		transferBindDeploy.settenantId(clusterTransferDto.getTenantId());
 		transferBindDeploy.setOldClusterId(clusterTransferDto.getCurrentClusterId());
-		transferBindDeploy.setOldNamespace(deployment.getMetadata().getNamespace());
+	/*	transferBindDeploy.setOldNamespace(deployment.getMetadata().getNamespace());*/
 		return transferBindDeploy;
 	}
 
@@ -1145,7 +1165,8 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 
 	@Override
 	public ActionReturnUtil getDeployDetailBackUp(ClusterTransferDetailDto clusterTransferDto) {
-		return ActionReturnUtil.returnSuccessWithData(transferClusterBackUpMapper.queryHistoryBackUp(clusterTransferDto.getTenantId(),clusterTransferDto.getClusterId()));
+
+		return ActionReturnUtil.returnSuccessWithData(transferClusterBackUpMapper.queryHistoryBackUp(clusterTransferDto.getClusterId(), clusterTransferDto.getTenantId()));
 	}
 
 	private List<DeploymentTransferDto> generateTransferDtoList(List<TransferBindDeploy> transferBindDeploys){
@@ -1162,7 +1183,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		deploymentTransferDto.setCurrentNameSpace(transferBindDeploy.getNamespace());
 		deploymentTransferDto.setCurrentProjectId(transferBindDeploy.getProjectId());
 		deploymentTransferDto.setCurrentServiceType(Constant.DEPLOYMENT);
-		deploymentTransferDto.setCurrentTenantId(transferBindDeploy.getTanantId());
+		deploymentTransferDto.setCurrentTenantId(transferBindDeploy.gettenantId());
 		deploymentTransferDto.setNamespace(transferBindDeploy.getNamespace());
 		deploymentTransferDto.setProjectId(transferBindDeploy.getProjectId());
 		return deploymentTransferDto;
@@ -1200,14 +1221,15 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * @throws ReflectiveOperationException
 	 * @throws Exception
 	 */
-	private TransferResultDto excuteTransfer(TransferClusterBackup transferClusterBackup,List<ClusterTransferDto> clusterTransferDto,Cluster cluster,Cluster currentCluster,boolean isContinue) throws Exception{
+	private TransferResultDto excuteTransfer(TransferClusterBackup transferClusterBackup,List<ClusterTransferDto> clusterTransferDto,Cluster oldCluster,Cluster currentCluster,boolean isContinue) throws Exception{
 		TransferResultDto transferResultDto = new TransferResultDto();
 		transferClusterBackup.setIsContinue(isContinue?(byte)1:(byte)0);
 		Map<String,List<ErrorNamespaceDto>> param = saveBindNamespace(clusterTransferDto, currentCluster, isContinue);
+		// 这个地方应该是创建成功的namespaces
 		List<ErrorNamespaceDto> namespaces = param.get(Constant.TRANSFER_NAMESPACE_SUCCESS);
-		Map<String,Object> params = saveBindDeploy(namespaces, clusterTransferDto, currentCluster, isContinue, currentCluster);
+		Map<String,Object> params = saveBindDeploy(namespaces, clusterTransferDto, currentCluster, isContinue, oldCluster);
 		List<ErrDeployDto> errDeployDtos = (List<ErrDeployDto>) params.get(Constant.ERR_DEPLOY_DTOS);
-		updateDeployResult(params);
+		//updateDeployResult(params);
 		transferResultDto.setErrDeployDtos(errDeployDtos);
 		transferResultDto.setErrNamespaceDtos(param.get(Constant.TRANSFER_NAMESPACE_ERROR));
 		transferClusterBackup.setErrNamespace(JSON.toJSONString(param.get(Constant.TRANSFER_NAMESPACE_ERROR)));
@@ -1227,7 +1249,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	private Map<String,List<ErrorNamespaceDto>> saveBindNamespace(List<ClusterTransferDto> clusterTransferDto,Cluster currentCluster,boolean isContinue) throws Exception {
 		List<TransferBindNamespace> bindNamespace  = null;
 		bindNamespace = bindNamespace(isContinue,clusterTransferDto,bindNamespace);
-		transferClusterMapper.saveBindNamespaces(bindNamespace);
+		transferBindNamespaceMapper.saveBindNamespaces(bindNamespace);
 		Map<String,List<ErrorNamespaceDto>> param = updateBindNamespace(clusterTransferDto.get(0),packageNamespaceDto(clusterTransferDto), currentCluster);
 		return param;
 	}
@@ -1239,22 +1261,28 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * @param bindNamespace
 	 * @return
 	 */
+	//TODO bindNamespace未用到
 	private List<TransferBindNamespace> bindNamespace(boolean isContinue,List<ClusterTransferDto> clusterTransferDto,List<TransferBindNamespace> bindNamespace) throws Exception {
 		return isContinue?transferBindNamespaceMapper.queryErrorNamespace(clusterTransferDto.get(0).getTenantId(),clusterTransferDto.get(0).getTargetClusterId()):addBindNamespaceData(clusterTransferDto);
 	}
 
 
 	private Map<String,Object> saveBindDeploy(List<ErrorNamespaceDto> namespaces,List<ClusterTransferDto> clusterTransferDto,
-											  Cluster currentCluster,boolean isContinue,Cluster cluster) throws Exception {
-		DeployResultDto deployResultDto= generateTransferDeploymentAndTransferDeploy(namespaces, clusterTransferDto, currentCluster);
-		transferDeployMapper.saveTransferList(deployResultDto.getDeploys());
+											  Cluster currentCluster,boolean isContinue,Cluster oldCluster) throws Exception {
+		DeployResultDto deployResultDto= generateTransferDeploymentAndTransferDeploy(namespaces, clusterTransferDto, oldCluster);
+		List<TransferBindDeploy> deployList = deployResultDto.getDeploys();
+		if (deployList.isEmpty()) {
+			return null;
+		}
+		transferDeployMapper.saveTransferList(deployList);
+		//
 		List<DeploymentTransferDto> deploymentTransferDtos =  deployResultDto.getDeploymentTransferDtos();
 		if(isContinue){
 			List<TransferBindDeploy> transferBindDeploys = transferDeployMapper.queryErrorBindDeploy(clusterTransferDto.get(0).getTenantId(), clusterTransferDto.get(0).getTargetClusterId());
 			deploymentTransferDtos = generateTransferDtoList(transferBindDeploys);
 			deploymentTransferDtos.addAll(deployResultDto.getDeploymentTransferDtos());
 		}
-		return createDeployment(deploymentTransferDtos, cluster, currentCluster);
+		return createDeployment(deploymentTransferDtos, oldCluster, currentCluster);
 	}
 
 	private void updateDeployResult(Map<String,Object> params){
@@ -1295,6 +1323,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 							logger.error("集群迁移获取数量错误", e);
 						}
 					});
+					countDownLatchApp.countDown();
 				}
 			});
 		}

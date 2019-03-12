@@ -32,37 +32,37 @@ public class ClusterTransferController {
 	@Autowired
 	private TenantService tenantService;
 
-	@ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+/*	@ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
 	@ApiOperation(value = "迁移服务", response = ActionReturnUtil.class, httpMethod = "POST", consumes = "", produces = "", notes = "")
 	@ResponseBody
 	@RequestMapping(value = "/transferDeploy", method = RequestMethod.POST)
 	public ActionReturnUtil transferDeployService(@RequestBody DeploymentTransferDto deploymentTransferDto) throws Exception {
 	    logger.info("transfer deploy service");
 	    return clusterTransferService.transferDeployService(deploymentTransferDto);
-	}
+	}*/
 
 	@ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
-	@ApiOperation(value = "迁移服务", response = ActionReturnUtil.class, httpMethod = "POST", consumes = "", produces = "", notes = "")
+	@ApiOperation(value = "迁移集群", response = ActionReturnUtil.class, httpMethod = "POST", consumes = "", produces = "", notes = "")
 	@ResponseBody
 	@RequestMapping(value = "/transferCluster", method = RequestMethod.POST)
 	public ActionReturnUtil transferCluster(@RequestBody List<ClusterTransferDto> clusterTransferDto) throws Exception {
-		logger.info("transfer cluster service");
+		logger.info("transfer {}",clusterTransferDto.toString());
 		return clusterTransferService.transferCluster(clusterTransferDto);
 	}
 
-/*	@ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+	@ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
 	@ApiOperation(value = "查询迁移的集群详情", response = ActionReturnUtil.class, httpMethod = "POST", consumes = "", produces = "", notes = "")
 	@ResponseBody
 	@RequestMapping(value = "/getTransferCluster", method = RequestMethod.POST)
 	public ActionReturnUtil getTransferCluster(@RequestBody ClusterTransferDetailDto clusterTransferDto) throws Exception {
 		logger.info("transfer cluster service");
 		return clusterTransferService.getTransferCluster(clusterTransferDto);
-	}*/
+	}
 
 	@ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
 	@ApiOperation(value = "查询迁移的服务详情", response = ActionReturnUtil.class, httpMethod = "POST", consumes = "", produces = "", notes = "")
 	@ResponseBody
-	@RequestMapping(value = "/getTransferCluster", method = RequestMethod.POST)
+	@RequestMapping(value = "/getDeployDetail", method = RequestMethod.POST)
 	public ActionReturnUtil getDeployDetail(@RequestBody ClusterTransferDetailDto clusterTransferDto) throws Exception{
 		logger.info("transfer cluster service");
 		return clusterTransferService.getDeployDetail(clusterTransferDto);
@@ -73,7 +73,7 @@ public class ClusterTransferController {
 	@ResponseBody
 	@RequestMapping(value = "/getDeployDetailBackUp", method = RequestMethod.POST)
 	public ActionReturnUtil getDeployDetailBackUp(@RequestBody ClusterTransferDetailDto clusterTransferDto) throws Exception{
-		logger.info("transfer cluster service");
+		logger.info("getDeployDetailBackUp,{}",clusterTransferDto.toString());
 		return clusterTransferService.getDeployDetailBackUp(clusterTransferDto);
 	}
 

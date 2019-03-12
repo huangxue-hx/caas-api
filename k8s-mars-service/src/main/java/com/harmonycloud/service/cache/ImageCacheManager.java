@@ -357,7 +357,7 @@ public class ImageCacheManager {
      * @throws Exception
      */
     public void freshRepositoryCache(String harborHost,Integer projectId){
-        try {
+        /*try {
             int lastUpdate = 0;
             Long harborLogId = 0L;
             int end = DateUtil.getTimeInt(new Date());
@@ -450,7 +450,7 @@ public class ImageCacheManager {
             this.putHarborLog(harborHost, projectId, harborLogs.get(0).getLogId(),end);
         }catch (Exception e){
             LOGGER.error("刷新镜像缓存失败，harborHost, projectId:{}", new String[]{harborHost, projectId.toString()}, e);
-        }
+        }*/
     }
 
     /**

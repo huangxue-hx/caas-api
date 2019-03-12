@@ -3,7 +3,7 @@
 <mapper namespace="com.harmonycloud.dao.cluster.TransferClusterBackupMapper">
   <resultMap id="BaseResultMap" type="com.harmonycloud.dao.cluster.bean.TransferClusterBackup">
     <id column="id" jdbcType="INTEGER" property="id" />
-    <result column="tanant_id" jdbcType="VARCHAR" property="tanantId" />
+    <result column="tenant_id" jdbcType="VARCHAR" property="tenantId" />
     <result column="namespace_num" jdbcType="INTEGER" property="namespaceNum" />
     <result column="deploy_num" jdbcType="INTEGER" property="deployNum" />
     <result column="err_msg" jdbcType="VARCHAR" property="errMsg" />
@@ -16,7 +16,7 @@
     <result column="project_id" jdbcType="VARCHAR" property="projectId" />
   </resultMap>
   <sql id="Base_Column_List">
-    id, tanant_id, namespace_num, deploy_num, err_msg, create_time, update_time, transfer_cluster_id,
+    id, tenant_id, namespace_num, deploy_num, err_msg, create_time, update_time, transfer_cluster_id,
     is_continue, is_default, transfer_cluster_percent, project_id
   </sql>
   <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
@@ -30,15 +30,15 @@
     where id = #{id,jdbcType=INTEGER}
   </delete>
   <insert id="insert" parameterType="com.harmonycloud.dao.cluster.bean.TransferClusterBackup">
-    insert into transfer_cluster_backup (id, tanant_id, namespace_num,
+    insert into transfer_cluster_backup (id, tenant_id, namespace_num,
       deploy_num, err_msg, create_time,
       update_time, transfer_cluster_id, is_continue,
-      is_default, transfer_cluster_percent, project_id
+       transfer_cluster_percent, project_id
       )
-    values (#{id,jdbcType=INTEGER}, #{tanantId,jdbcType=VARCHAR}, #{namespaceNum,jdbcType=INTEGER},
+    values (#{id,jdbcType=INTEGER}, #{tenantId,jdbcType=VARCHAR}, #{namespaceNum,jdbcType=INTEGER},
       #{deployNum,jdbcType=INTEGER}, #{errMsg,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP},
       #{updateTime,jdbcType=TIMESTAMP}, #{transferClusterId,jdbcType=VARCHAR}, #{isContinue,jdbcType=TINYINT},
-      #{isDefault,jdbcType=TINYINT}, #{transferClusterPercent,jdbcType=VARCHAR}, #{projectId,jdbcType=VARCHAR}
+      #{transferClusterPercent,jdbcType=VARCHAR}, #{projectId,jdbcType=VARCHAR}
       )
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.cluster.bean.TransferClusterBackup">
@@ -47,8 +47,8 @@
       <if test="id != null">
         id,
       </if>
-      <if test="tanantId != null">
-        tanant_id,
+      <if test="tenantId != null">
+        tenant_id,
       </if>
       <if test="namespaceNum != null">
         namespace_num,
@@ -85,8 +85,8 @@
       <if test="id != null">
         #{id,jdbcType=INTEGER},
       </if>
-      <if test="tanantId != null">
-        #{tanantId,jdbcType=VARCHAR},
+      <if test="tenantId != null">
+        #{tenantId,jdbcType=VARCHAR},
       </if>
       <if test="namespaceNum != null">
         #{namespaceNum,jdbcType=INTEGER},
@@ -123,8 +123,8 @@
   <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.cluster.bean.TransferClusterBackup">
     update transfer_cluster_backup
     <set>
-      <if test="tanantId != null">
-        tanant_id = #{tanantId,jdbcType=VARCHAR},
+      <if test="tenantId != null">
+        tenant_id = #{tenantId,jdbcType=VARCHAR},
       </if>
       <if test="namespaceNum != null">
         namespace_num = #{namespaceNum,jdbcType=INTEGER},
@@ -161,7 +161,7 @@
   </update>
   <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.cluster.bean.TransferClusterBackup">
     update transfer_cluster_backup
-    set tanant_id = #{tanantId,jdbcType=VARCHAR},
+    set tenant_id = #{tenantId,jdbcType=VARCHAR},
       namespace_num = #{namespaceNum,jdbcType=INTEGER},
       deploy_num = #{deployNum,jdbcType=INTEGER},
       err_msg = #{errMsg,jdbcType=VARCHAR},
@@ -175,12 +175,13 @@
     where id = #{id,jdbcType=INTEGER}
   </update>
 
-  <select id="queryHistoryBackUp" parameterType="java.lang.String" resultMap="BaseResultMap">
+  <select id="queryHistoryBackUp" parameterType="java.lang.String" resultType="List">
     select
     <include refid="Base_Column_List" />
     from transfer_cluster_backup
     where
-    cluster_id = #{clusterId,jdbcType=VARCHAR} and tanant_id = #{tanantId,jdbcType=VARCHAR}
+    cluster_id = #{clusterId,jdbcType=VARCHAR}
+
   </select>
 
 </mapper>

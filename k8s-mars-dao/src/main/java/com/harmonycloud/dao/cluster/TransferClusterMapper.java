@@ -23,7 +23,7 @@ public interface TransferClusterMapper {
 
     TransferClusterMapper queryTransferClusterByParam(@Param(value="tenantId")String tenantId, @Param(value="clusterId")String clusterId);
 
-    void saveBindNamespaces(@Param(value="bindNamespaces")List<TransferBindNamespace> bindNamespaces);
+
 
     void updatePercent(@Param(value="clusterId")String clusterId,@Param(value="tenantId")String tenantId,@Param(value="percent")Double percent);
 

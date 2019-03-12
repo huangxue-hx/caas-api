@@ -30,7 +30,7 @@ public interface TransferBindNamespaceMapper {
 
     Integer queryLastNamespaceNum(@Param(value="tenantId")String tenantId,@Param(value="clusterId")String clusterId);
 
-    List<TransferBindNamespace> queryErrorNamespace(@Param(value="tanantId")String tanantId,@Param(value="clusterId")String clusterId);
+    List<TransferBindNamespace> queryErrorNamespace(@Param(value="tenantId")String tenantId,@Param(value="clusterId")String clusterId);
 
     void deleteBindNamespace(@Param(value="clusterId")String clusterId);
 

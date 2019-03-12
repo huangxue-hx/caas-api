@@ -6,7 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-@Repository
+
 public interface TransferBindDeployMapper {
     int deleteByPrimaryKey(Integer id);
 
@@ -20,15 +20,15 @@ public interface TransferBindDeployMapper {
 
     int updateByPrimaryKey(TransferBindDeploy record);
 
-    Integer queryMaxNun(@Param(value="tenantId")String tanantId,@Param(value="clusterId")String clusterId);
+    Integer queryMaxNun(@Param(value="tenantId")String tenantId,@Param(value="clusterId")String clusterId);
 
     void saveTransferList(@Param(value="transferBindDeploys") List<TransferBindDeploy> transferBindDeploys);
 
-    List<TransferBindDeploy> queryTransferDeployDetail(@Param(value="tenantId")String tanantId,@Param(value="clusterId")String clusterId);
+    List<TransferBindDeploy> queryTransferDeployDetail(@Param(value="tenantId")String tenantId,@Param(value="clusterId")String clusterId);
 
     void deleteTransferBindDeploy(@Param(value="clusterId")String clusterId);
 
-    List<TransferBindDeploy> queryErrorBindDeploy(@Param(value="tenantId")String tanantId,@Param(value="clusterId")String clusterId);
+    List<TransferBindDeploy> queryErrorBindDeploy(@Param(value="tenantId")String tenantId,@Param(value="clusterId")String clusterId);
 
     void updateDeploys(@Param(value="updateDeploys")List<TransferBindDeploy> updateDeploys);
 }

@@ -36,7 +36,7 @@ public class TransferBindDeploy implements Serializable {
     /**
      * 租户id
      */
-    private String tanantId;
+    private String tenantId;
 
     /**
      * 项目id
@@ -66,7 +66,7 @@ public class TransferBindDeploy implements Serializable {
     /**
      * 是否删除 0:未删除 1:已删除
      */
-    private Byte isDelete;
+    private int isDelete;
 
     /**
      * 第几次迁移分区
@@ -81,7 +81,7 @@ public class TransferBindDeploy implements Serializable {
     /**
      * 旧的分区
      */
-    private String oldNamespace;
+    //private String oldNamespace;
 
     private static final long serialVersionUID = 1L;
 
@@ -125,12 +125,12 @@ public class TransferBindDeploy implements Serializable {
         this.stepId = stepId;
     }
 
-    public String getTanantId() {
-        return tanantId;
+    public String gettenantId() {
+        return tenantId;
     }
 
-    public void setTanantId(String tanantId) {
-        this.tanantId = tanantId;
+    public void settenantId(String tenantId) {
+        this.tenantId = tenantId;
     }
 
     public String getProjectId() {
@@ -173,7 +173,7 @@ public class TransferBindDeploy implements Serializable {
         this.errMsg = errMsg;
     }
 
-    public Byte getIsDelete() {
+    public int getIsDelete() {
         return isDelete;
     }
 
@@ -198,13 +198,13 @@ public class TransferBindDeploy implements Serializable {
     }
 
 
-    public String getOldNamespace() {
+ /*   public String getOldNamespace() {
         return oldNamespace;
     }
 
     public void setOldNamespace(String oldNamespace) {
         this.oldNamespace = oldNamespace;
-    }
+    }*/
 
     @Override
     public String toString() {
@@ -219,8 +219,8 @@ public class TransferBindDeploy implements Serializable {
         builder.append(deployName);
         builder.append(", stepId=");
         builder.append(stepId);
-        builder.append(", tanantId=");
-        builder.append(tanantId);
+        builder.append(", tenantId=");
+        builder.append(tenantId);
         builder.append(", projectId=");
         builder.append(projectId);
         builder.append(", createTime=");

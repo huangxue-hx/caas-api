@@ -187,7 +187,7 @@
       #{transferBindNamespace.currentNamespace,jdbcType=VARCHAR},
       #{transferBindNamespace.createNamespace,jdbcType=VARCHAR},
       #{transferBindNamespace.clusterId,jdbcType=VARCHAR},
-      #(transferBindNamespace.tenantId,jdbcType=VARCHAR),
+      #{transferBindNamespace.tenantId,jdbcType=VARCHAR},
       #{transferBindNamespace.createTime,jdbcType=TIMESTAMP},
       #{transferBindNamespace.updateTime,jdbcType=TIMESTAMP},
       #{transferBindNamespace.isDelete,jdbcType=TINYINT},

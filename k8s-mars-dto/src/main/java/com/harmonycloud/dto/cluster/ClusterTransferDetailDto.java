@@ -1,5 +1,6 @@
 package com.harmonycloud.dto.cluster;
 
+import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 
 /**
@@ -13,6 +14,7 @@ public class ClusterTransferDetailDto implements Serializable {
      */
     private static final long serialVersionUID = 1L;
     private String tenantId;
+    @NotNull(message = "ClusterId can not be null.")
     private String ClusterId;
     public String getTenantId() {
         return tenantId;

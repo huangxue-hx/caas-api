@@ -146,6 +146,11 @@
         <mapper resource="com/harmonycloud/mapping/RuleDetailMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/IstioGlobalConfigureMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/ProjectIpPoolMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/TransferBindDeployMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/TransferClusterBackupMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/TransferStepMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/TransferClusterMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/TransferBindNamespaceMapper.xml" />
     </mappers>
 </configuration>
 

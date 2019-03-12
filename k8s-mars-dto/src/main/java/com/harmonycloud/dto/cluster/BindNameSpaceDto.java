@@ -29,6 +29,9 @@ public class BindNameSpaceDto {
      */
     private List<DeploymentDto> deploymentDto;
 
+
+
+
     public String getOldNameSpace() {
         return oldNameSpace;
     }
