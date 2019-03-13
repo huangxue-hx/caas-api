@@ -54,8 +54,8 @@ import org.springframework.stereotype.Service;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 import java.text.ParseException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -342,7 +342,7 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
             //"stageTimestamp": "2019-01-14T02:49:32.228184Z",
             long spendTime = convertSpendTime((String) source.get("stageTimestamp"), (String) source.get("requestReceivedTimestamp"));
             //返回毫秒
-            infos.setRequestSpendTime(spendTime / 1000000.0 + "");
+            infos.setRequestSpendTime(spendTime + "");
 
             infos.setClusterAliasName(clusterAliasName);
             auditInfos.add(infos);
@@ -716,19 +716,18 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
     }
 
     /**
-     * 计算花费的时间，SimpleDateFormat转换出来的有问题，故转换为纳秒计算,可以不关注时和分级别
+     * 计算花费的时间，SimpleDateFormat转换出来的有问题
      *
      * @param stage   stageTime 2019-01-14T02:49:32.228184Z
      * @param request requestTime 2019-01-14T02:49:31.523234Z
      * @return 花费的时间
      */
-    private static long convertSpendTime(String stage, String request) {
-        String formatIn = DateStyle.YYYY_MM_DD_T_HH_MM_SS_SSSSSS_Z.getValue();
-        LocalDateTime stageTime = LocalDateTime.parse(stage, DateTimeFormatter.ofPattern(formatIn));
-        LocalDateTime requestTime = LocalDateTime.parse(request, DateTimeFormatter.ofPattern(formatIn));
-        return (stageTime.getHour() - requestTime.getHour()) * 60 * 60 * 1000 * 1000 * 1000 +
-                (stageTime.getMinute() - requestTime.getMinute()) * 60 * 1000 * 1000 * 1000 +
-                (stageTime.getSecond() - requestTime.getSecond()) * 1000 * 1000 * 1000 +
-                (stageTime.getNano() - requestTime.getNano());
+    private long convertSpendTime(String stage, String request) {
+        Instant inst1 = Instant.parse(stage);
+        Instant inst2 = Instant.parse(request);
+
+        Duration between = Duration.between(inst2, inst1);
+
+        return between.toMillis();
     }
 }
