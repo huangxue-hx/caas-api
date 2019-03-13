@@ -27,10 +27,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
-import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +55,7 @@ public class IpPoolServiceImpl implements IpPoolService {
 
     @Autowired
     private RestTemplate restTemplate;
+
 
     @Override
     public List<ProjectIpPoolDto> get(String projectId, String clusterId) throws MarsRuntimeException {
@@ -115,7 +114,7 @@ public class IpPoolServiceImpl implements IpPoolService {
     public void create(ProjectIpPoolDto poolDto) throws Exception {
         if (poolDto == null || StringUtils.isBlank(poolDto.getProjectId()) || StringUtils.isBlank(poolDto.getClusterId())
                 || StringUtils.isBlank(poolDto.getName()) || StringUtils.isBlank(poolDto.getCidr())
-                || StringUtils.isBlank(poolDto.getSubnet()) || StringUtils.isBlank(poolDto.getGateway())) {
+                || StringUtils.isBlank(poolDto.getSubnet())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         check(poolDto, true);
@@ -127,7 +126,7 @@ public class IpPoolServiceImpl implements IpPoolService {
         rec.setClusterId(poolDto.getClusterId());
         rec.setSubnet(poolDto.getSubnet());
         rec.setCidr(poolDto.getCidr());
-        rec.setGateway(IpUtil.ipv4ToInt(poolDto.getGateway()));
+        rec.setGateway(IpUtil.ipv4ToInt(IpUtil.getNetMask(poolDto.getSubnet().split(CommonConstant.SLASH)[CommonConstant.NUM_ONE])));
         rec.setCreateTime(new Date());
 
         int count = projectIpPoolMapper.insertSelective(rec);
@@ -137,29 +136,8 @@ public class IpPoolServiceImpl implements IpPoolService {
 
         // post调用创建资源池接口
         String url = hcIpamUrl + "/ippool";
-        Map<String, Object> headers = Maps.newHashMap();
-        headers.put("Content-Type", "application/json; charset=utf-8");
-        Map<String, Object> params = Maps.newHashMap();
-        params.put("name", getPoolName(poolDto.getClusterId(), poolDto.getName()));
-        params.put("cidr", poolDto.getCidr());
-        params.put("subnet", poolDto.getSubnet());
-        params.put("gateway", poolDto.getGateway());
-
         try {
-            HttpClientResponse response = HttpClientUtil.doPost(url, params, headers);
-//            System.out.println(response.getStatus() + ":\n" + response.getBody());
-            if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                logger.error("调用url:{}，创建ip资源池接口失败：{}:{}", url, response.getStatus(), response.getBody());
-                throw new MarsRuntimeException(ErrorCodeMessage.CREATE_FAIL);
-            }
-            String body = response.getBody();
-            if (StringUtils.isBlank(body) || !StringUtils.startsWith(body, "{") || !StringUtils.endsWith(body, "}")) {
-                throw new MarsRuntimeException(ErrorCodeMessage.CREATE_FAIL);
-            }
-            JSONObject data = JSON.parseObject(body);
-            if (data == null || data.isEmpty() || data.containsKey("Error")) {
-                throw new MarsRuntimeException(ErrorCodeMessage.CREATE_FAIL);
-            }
+            createIpPool(url, rec);
         } catch (Exception e) {
             logger.error("调用url:{}，创建ip资源池接口异常：{}", url, e.getMessage());
             throw new MarsRuntimeException(ErrorCodeMessage.CREATE_FAIL);
@@ -200,7 +178,7 @@ public class IpPoolServiceImpl implements IpPoolService {
         rec.setProjectId(poolDto.getProjectId());
         rec.setCidr(poolDto.getCidr());
         rec.setSubnet(poolDto.getSubnet());
-        rec.setGateway(IpUtil.ipv4ToInt(poolDto.getGateway()));
+        rec.setGateway(IpUtil.ipv4ToInt(IpUtil.getNetMask(poolDto.getSubnet().split(CommonConstant.SLASH)[CommonConstant.NUM_ONE])));
         rec.setUpdateTime(new Date());
 
         int count = projectIpPoolMapper.updateByProjectIdAndClusterIdAndName(rec);
@@ -224,33 +202,21 @@ public class IpPoolServiceImpl implements IpPoolService {
             if (data == null || data.isEmpty() || data.containsKey("Error")) {
                 throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
             }
-
-
-            // post请求创建接口
-            Map<String, Object> headers = Maps.newHashMap();
-            headers.put("Content-Type", "application/json; charset=utf-8");
-            Map<String, Object> params = Maps.newHashMap();
-            params.put("name", getPoolName(poolDto.getClusterId(), poolDto.getName()));
-            params.put("cidr", poolDto.getCidr());
-            params.put("gateway", poolDto.getGateway());
-            params.put("subnet", poolDto.getSubnet());
-
-            response = HttpClientUtil.doPost(url, params, headers);
-//            System.out.println(response.getStatus() + ":\n" + response.getBody());
-            if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                logger.error("调用url:{}，创建ip资源池接口失败：{}:{}", url, response.getStatus(), response.getBody());
-                throw new MarsRuntimeException(ErrorCodeMessage.CREATE_FAIL);
-            }
-            body = response.getBody();
-            if (StringUtils.isBlank(body) || !StringUtils.startsWith(body, "{") || !StringUtils.endsWith(body, "}")) {
-                throw new MarsRuntimeException(ErrorCodeMessage.CREATE_FAIL);
-            }
-            data = JSON.parseObject(body);
-            if (data == null || data.isEmpty() || data.containsKey("Error")) {
-                throw new MarsRuntimeException(ErrorCodeMessage.CREATE_FAIL);
-            }
         } catch (Exception e) {
-            logger.error("调用url:{}，操作ip资源池接口异常：{}", url, e.getMessage());
+            logger.error("调用url:{}，ip资源池删除接口异常：{}", url, e.getMessage());
+            throw new MarsRuntimeException(ErrorCodeMessage.OPERATION_FAIL);
+        }
+
+        try {
+            createIpPool(url, rec);
+        } catch (Exception e) {    // 调接口把原本删除调数据新增回去
+            logger.error("调用url:{}，ip资源池创建接口异常：{}", url, e.getMessage());
+            List<ProjectIpPool> poolList = projectIpPoolMapper.selectList(rec.getProjectId(), rec.getClusterId(), rec.getName());
+            if (poolList == null || poolList.size() == CommonConstant.NUM_ZERO) {
+                throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_NOT_EXIST);
+            }
+            ProjectIpPool pool = poolList.get(CommonConstant.NUM_ZERO);
+            createIpPool(url, pool);
             throw new MarsRuntimeException(ErrorCodeMessage.OPERATION_FAIL);
         }
     }
@@ -290,10 +256,44 @@ public class IpPoolServiceImpl implements IpPoolService {
         }
     }
 
+    @Override
+    public void checkCluster(String tenantId, String projectId) throws Exception {
+        // 查询列表
+        List<ProjectIpPool> poolList = projectIpPoolMapper.selectList(projectId, null, null);
+        if (CollectionUtils.isEmpty(poolList)) {
+            return;
+        }
+
+        List<ClusterQuotaDto> clusterDtoList = tenantClusterQuotaService.clusterList(tenantId, null);
+        if (CollectionUtils.isEmpty(clusterDtoList)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_ALL_DISABLED);
+        }
+        int hcIpamCount = (int) clusterDtoList.stream().filter(clusterDto ->
+                clusterDto.getNetworkType() != null && clusterDto.getNetworkType().equals(CommonConstant.K8S_NETWORK_HCIPAM)).count();
+        if (poolList.size() >= hcIpamCount) {
+            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_ALL_DISABLED);
+        }
+    }
+
+    @Override
+    public boolean checkCluster(String tenantId, String projectId, String clusterId) {
+        // 查询列表
+        List<ProjectIpPool> poolList = projectIpPoolMapper.selectList(projectId, clusterId, null);
+        return !CollectionUtils.isEmpty(poolList);
+    }
+
+    @Override
+    public ProjectIpPool info(String projectId, String clusterId) {
+        List<ProjectIpPool> poolList = projectIpPoolMapper.selectList(projectId, clusterId, null);
+        return CollectionUtils.isEmpty(poolList) ? null : poolList.get(0);
+    }
+
+
     // 获取资源池名称（调rest api用）
     private String getPoolName(String clusterId, String poolName) {
         return clusterId + "-" + poolName;
     }
+
 
     // 校验
     private void check(ProjectIpPoolDto poolDto, boolean isCreate) throws MarsRuntimeException {
@@ -369,36 +369,30 @@ public class IpPoolServiceImpl implements IpPoolService {
     }
 
 
-    @Override
-    public void checkCluster(String tenantId, String projectId) throws Exception {
-        // 查询列表
-        List<ProjectIpPool> poolList = projectIpPoolMapper.selectList(projectId, null, null);
-        if (CollectionUtils.isEmpty(poolList)) {
-            return;
-        }
+    // 调接口新增ip资源池
+    private void createIpPool(String url, ProjectIpPool pool) throws Exception {
+        // post请求创建接口
+        Map<String, Object> headers = Maps.newHashMap();
+        headers.put("Content-Type", "application/json; charset=utf-8");
+        Map<String, Object> params = Maps.newHashMap();
+        params.put("name", getPoolName(pool.getClusterId(), pool.getName()));
+        params.put("cidr", pool.getCidr());
+        params.put("subnet", pool.getSubnet());
+//        params.put("gateway", pool.getGateway());
 
-        List<ClusterQuotaDto> clusterDtoList = tenantClusterQuotaService.clusterList(tenantId, null);
-        if (CollectionUtils.isEmpty(clusterDtoList)) {
-            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_ALL_DISABLED);
+        HttpClientResponse response = HttpClientUtil.doPost(url, params, headers);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            logger.error("调用url:{}，创建ip资源池接口失败：{}:{}", url, response.getStatus(), response.getBody());
+            throw new MarsRuntimeException(ErrorCodeMessage.CREATE_FAIL);
         }
-        int hcIpamCount = (int) clusterDtoList.stream().filter(clusterDto ->
-                clusterDto.getNetworkType() != null && clusterDto.getNetworkType().equals(CommonConstant.K8S_NETWORK_HCIPAM)).count();
-        if (poolList.size() >= hcIpamCount) {
-            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_ALL_DISABLED);
+        String body = response.getBody();
+        if (StringUtils.isBlank(body) || !StringUtils.startsWith(body, "{") || !StringUtils.endsWith(body, "}")) {
+            throw new MarsRuntimeException(ErrorCodeMessage.CREATE_FAIL);
         }
-    }
-
-    @Override
-    public boolean checkCluster(String tenantId, String projectId, String clusterId) {
-        // 查询列表
-        List<ProjectIpPool> poolList = projectIpPoolMapper.selectList(projectId, clusterId, null);
-        return !CollectionUtils.isEmpty(poolList);
-    }
-
-    @Override
-    public ProjectIpPool info(String projectId, String clusterId) {
-        List<ProjectIpPool> poolList = projectIpPoolMapper.selectList(projectId, clusterId, null);
-        return CollectionUtils.isEmpty(poolList) ? null : poolList.get(0);
+        JSONObject data = JSON.parseObject(body);
+        if (data == null || data.isEmpty() || data.containsKey("Error")) {
+            throw new MarsRuntimeException(ErrorCodeMessage.CREATE_FAIL);
+        }
     }
 
 }

@@ -134,7 +134,7 @@ public class IpUtil {
     /**
      * 根据掩码位数获取掩码
      */
-    private static String getNetMask(String mask) {
+    public static String getNetMask(String mask) {
         if (StringUtils.isBlank(mask)) {
             return null;
         }
@@ -317,7 +317,7 @@ public class IpUtil {
         System.out.println(getEndIp(ip3));
 
         String ip6 = "192.168.23.35/21";
-        System.out.println(getNetMask("21"));
+        System.out.println(getNetMask(ip6.split("/")[1]));
         System.out.println(getStartIp(ip6));
         System.out.println(getEndIp(ip6));
 
