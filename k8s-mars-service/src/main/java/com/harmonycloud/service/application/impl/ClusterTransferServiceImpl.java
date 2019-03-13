@@ -613,15 +613,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	private ErrDeployDto createOrUpdateConfigMap(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,Cluster transferCluter) throws Exception {
 		K8SClientResponse response = configMapService.doSepcifyConfigmap(deploymentTransferDto.getCurrentNameSpace(), deploymentTransferDto.getCurrentDeployName(),currentCluster);
 		//如果返回404代表当前服务并未创建configmap 则可向下创建
-		ErrDeployDto errDeployDto = null;
-		//TODO 代码必要？
-/*		if (response.getStatus() == Constant.HTTP_404){
-			errDeployDto = new ErrDeployDto();
-			errDeployDto.setDeployName(deploymentTransferDto.getCurrentDeployName());
-			errDeployDto.setErrMsg("迁移configMap失败");
-			return errDeployDto;
-		}*/
-
+		ErrDeployDto errDeployDto = new ErrDeployDto();
 		ConfigMap configMap = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
 		if(configMap!=null){
 			K8SURL url = new K8SURL();
@@ -661,20 +653,20 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		K8SClientResponse response = null;
 		Deployment deployment = null;
 		response = dpService.doSpecifyDeployment(deploymentTransferDto.getNamespace(),deploymentTransferDto.getCurrentDeployName(), null, null, HTTPMethod.GET, currentCluster);
-		deployment = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
-		if(deployment!=null){
-			updateDeployment(deployment, deploymentTransferDto,oldCluster);
-		}
+		if (HttpStatusUtil.isSuccessStatus(response.getStatus())){
+            deployment = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
+            if(deployment!=null){
+                updateDeployment(deployment, deploymentTransferDto,oldCluster);
+            }
+        }
 		response = dpService.doSpecifyDeployment(deploymentTransferDto.getCurrentNameSpace(),deploymentTransferDto.getCurrentDeployName(), null, null, HTTPMethod.GET, oldCluster);
-		checkK8SClientResponse(response,deployName);
-		//TODO what?
-		/*if(!Objects.isNull(errDeployDto)){
+        errDeployDto = checkK8SClientResponse(response,deployName);
+		if(!Objects.isNull(errDeployDto)){
 			return errDeployDto;
-		}*/
+		}
 		deployment = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
-		//currentCluster
 		response = dpService.doSpecifyDeployment(deploymentTransferDto.getNamespace(), null, generateHeader(), CollectionUtil.transBean2Map(replaceDeployment(deployment, deploymentTransferDto)), HTTPMethod.POST, currentCluster);
-		checkK8SClientResponse(response,deployName);
+        errDeployDto =checkK8SClientResponse(response,deployName);
 		if(!Objects.isNull(errDeployDto)){
 			return errDeployDto;
 		}
@@ -693,11 +685,11 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	private ErrDeployDto create(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,Cluster oldCluster) throws Exception{
 		switch (deploymentTransferDto.getCurrentServiceType()) {
 			case Constant.STATEFULSET:
-				ErrDeployDto errDeployDto = createStatefulSetService(deploymentTransferDto, currentCluster, oldCluster);
-				errDeployDto = createStatefulSet(deploymentTransferDto, currentCluster, oldCluster);
+				createService(deploymentTransferDto, currentCluster, oldCluster);
+				ErrDeployDto errDeployDto = createStatefulSet(deploymentTransferDto, currentCluster, oldCluster);
 				return errDeployDto;
 			case Constant.DEPLOYMENT:
-				errDeployDto = createStatefulSetService(deploymentTransferDto, currentCluster, oldCluster);
+				errDeployDto = createService(deploymentTransferDto, currentCluster, oldCluster);
 				errDeployDto = createDeployment(deploymentTransferDto, currentCluster, oldCluster,errDeployDto,deploymentTransferDto.getCurrentDeployName());
 				return errDeployDto;
 			default:
@@ -715,7 +707,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * @throws IllegalAccessException
 	 * @throws IntrospectionException
 	 */
-	private ErrDeployDto createStatefulSetService(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,Cluster transferCluster) throws Exception{
+	private ErrDeployDto createService(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,Cluster transferCluster) throws Exception{
 		K8SClientResponse rsRes  =null;
 		com.harmonycloud.k8s.bean.Service service =null;
 		K8SURL k8surl = new K8SURL();
@@ -1022,7 +1014,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		List<TransferBindDeploy> list = new ArrayList<>();
 		List<DeploymentTransferDto> deploymentTransferDtos = new ArrayList<>();
 		DeployResultDto deployResultDto = new DeployResultDto();
-		//TODO  问题：在deployNamm存在的情况下仍取了所以的Deployment
+		//TODO  问题：在deployName存在的情况下仍取了所以的Deployment
 		for (ErrorNamespaceDto namespaceDto : errorNamespaceDtos) {
 			K8SClientResponse clientResponse = dpService.doDeploymentsByNamespace(param.get(namespaceDto.getNamespace()),null, null, HTTPMethod.GET, oldCluster);
 			DeploymentList deploymentList = JsonUtil.jsonToPojo(clientResponse.getBody(), DeploymentList.class);
@@ -1070,6 +1062,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	}
 
 	private Map<String,Object> createDeployment(List<DeploymentTransferDto> deploymentTransferDtos,Cluster oldCluster,Cluster currentCluster) throws Exception {
+		//TODO 稍后改为先取deployment ，然后根据deployment创建pv、cm等资源
 		int index = 0;
 		Map<String,Object> params = new HashMap<>();
 		List<ErrDeployDto> errDeployDtos = new ArrayList<>();
@@ -1263,8 +1256,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * @return
 	 */
 	private Map<String,List<ErrorNamespaceDto>> saveBindNamespace(List<ClusterTransferDto> clusterTransferDto,Cluster currentCluster,boolean isContinue) throws Exception {
-		List<TransferBindNamespace> bindNamespace  = null;
-		bindNamespace = bindNamespace(isContinue,clusterTransferDto,bindNamespace);
+		List<TransferBindNamespace> bindNamespace  =  bindNamespace(isContinue,clusterTransferDto);
 		transferBindNamespaceMapper.saveBindNamespaces(bindNamespace);
 		Map<String,List<ErrorNamespaceDto>> param = updateBindNamespace(clusterTransferDto.get(0),packageNamespaceDto(clusterTransferDto), currentCluster);
 		return param;
@@ -1274,11 +1266,9 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * 得到要保存的namespace的绑定关系 判断是否是断点续传 如果是则查找目前失败的namespace绑定关系 不是则从前端拿到
 	 * @param isContinue
 	 * @param clusterTransferDto
-	 * @param bindNamespace
 	 * @return
 	 */
-	//TODO bindNamespace未用到
-	private List<TransferBindNamespace> bindNamespace(boolean isContinue,List<ClusterTransferDto> clusterTransferDto,List<TransferBindNamespace> bindNamespace) throws Exception {
+	private List<TransferBindNamespace> bindNamespace(boolean isContinue,List<ClusterTransferDto> clusterTransferDto) throws Exception {
 		return isContinue?transferBindNamespaceMapper.queryErrorNamespace(clusterTransferDto.get(0).getTenantId(),clusterTransferDto.get(0).getTargetClusterId()):addBindNamespaceData(clusterTransferDto);
 	}
 
