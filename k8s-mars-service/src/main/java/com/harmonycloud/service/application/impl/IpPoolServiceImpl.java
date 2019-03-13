@@ -100,7 +100,7 @@ public class IpPoolServiceImpl implements IpPoolService {
                 poolDto.setIpUsedCount(res.getInteger("used"));
                 poolDto.setIpUsedRate(poolDto.getIpTotal() == null || poolDto.getIpTotal() == CommonConstant.NUM_ZERO ?
                         CommonConstant.NUM_ZERO : (poolDto.getIpUsedCount() * CommonConstant.PERCENT_HUNDRED / poolDto.getIpTotal().doubleValue()));
-            } catch (RestClientException e) {
+            } catch (Exception e) {
                 logger.error("调用url:{}，查询ip资源池接口异常：{}", getUrl, e.getMessage());
                 throw new MarsRuntimeException(ErrorCodeMessage.QUERY_FAIL);
             }
@@ -160,7 +160,7 @@ public class IpPoolServiceImpl implements IpPoolService {
             if (data == null || data.isEmpty() || data.containsKey("Error")) {
                 throw new MarsRuntimeException(ErrorCodeMessage.CREATE_FAIL);
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             logger.error("调用url:{}，创建ip资源池接口异常：{}", url, e.getMessage());
             throw new MarsRuntimeException(ErrorCodeMessage.CREATE_FAIL);
         }
@@ -189,7 +189,7 @@ public class IpPoolServiceImpl implements IpPoolService {
                 throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_CANNOT_MODIFIED);
             }
 
-        } catch (RestClientException e) {
+        } catch (Exception e) {
             logger.error("调用url:{}，查询ip资源池接口异常：{}", url, e.getMessage());
             throw new MarsRuntimeException(ErrorCodeMessage.QUERY_FAIL);
         }
@@ -249,7 +249,7 @@ public class IpPoolServiceImpl implements IpPoolService {
             if (data == null || data.isEmpty() || data.containsKey("Error")) {
                 throw new MarsRuntimeException(ErrorCodeMessage.CREATE_FAIL);
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             logger.error("调用url:{}，操作ip资源池接口异常：{}", url, e.getMessage());
             throw new MarsRuntimeException(ErrorCodeMessage.OPERATION_FAIL);
         }
@@ -284,7 +284,7 @@ public class IpPoolServiceImpl implements IpPoolService {
             if (data == null || data.isEmpty() || data.containsKey("Error")) {
                 throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             logger.error("调用url:{}，操作ip资源池接口异常：{}", url, e.getMessage());
             throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
         }
