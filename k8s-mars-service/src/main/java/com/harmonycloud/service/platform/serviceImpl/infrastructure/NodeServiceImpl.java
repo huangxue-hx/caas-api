@@ -964,8 +964,7 @@ public class NodeServiceImpl implements NodeService {
     }
 
     public NodeDto getHostUsege(Node node, NodeDto nodeDto, Cluster cluster) {
-        double nodeFilesystemCapacity = this.influxdbService.getClusterResourceUsage("node", "filesystem/limit", "nodename,resource_id", cluster, null,
-                node.getMetadata().getName());
+
         Object object = node.getStatus().getAllocatable();
         if (object != null) {
 
@@ -990,10 +989,15 @@ public class NodeServiceImpl implements NodeService {
                 double memoryDouble = Double.parseDouble(memory);
                 nodeDto.setMemory(String.format("%.1f", memoryDouble));
             }
-
-            nodeDto.setDisk(String.format("%.1f", (nodeFilesystemCapacity / 1024 / 1024
-                    / 1024)/** 1.024*1.024*1.024 */
-            ));
+            try {
+                double nodeFilesystemCapacity = this.influxdbService.getClusterResourceUsage("node", "filesystem/limit", "nodename,resource_id", cluster, null,
+                        node.getMetadata().getName());
+                nodeDto.setDisk(String.format("%.1f", (nodeFilesystemCapacity / 1024 / 1024
+                        / 1024)/** 1.024*1.024*1.024 */
+                ));
+            } catch (Exception e) {
+                log.error("获取节点磁盘空间失败,clusterId:{},node:{}", cluster.getId(), node.getMetadata().getName());
+            }
         }
         return nodeDto;
     }
