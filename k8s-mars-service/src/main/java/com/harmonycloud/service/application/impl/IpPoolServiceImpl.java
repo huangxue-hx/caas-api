@@ -88,9 +88,10 @@ public class IpPoolServiceImpl implements IpPoolService {
                 poolDto.setClusterName(cluster.getName());
             }
 
+            String getUrl = url + getPoolName(p.getClusterId(), p.getName());
             // get调用查询接口
             try {
-                JSONObject res = restTemplate.getForObject(url + getPoolName(p.getClusterId(), p.getName()), JSONObject.class);
+                JSONObject res = restTemplate.getForObject(getUrl, JSONObject.class);
                 if (res == null || res.isEmpty() || res.containsKey("Error")) {
                     throw new MarsRuntimeException(ErrorCodeMessage.QUERY_FAIL);
                 }
@@ -100,6 +101,7 @@ public class IpPoolServiceImpl implements IpPoolService {
                 poolDto.setIpUsedRate(poolDto.getIpTotal() == null || poolDto.getIpTotal() == CommonConstant.NUM_ZERO ?
                         CommonConstant.NUM_ZERO : (poolDto.getIpUsedCount() * CommonConstant.PERCENT_HUNDRED / poolDto.getIpTotal().doubleValue()));
             } catch (RestClientException e) {
+                logger.error("调用url:{}，查询ip资源池接口异常：{}", getUrl, e.getMessage());
                 throw new MarsRuntimeException(ErrorCodeMessage.QUERY_FAIL);
             }
 
@@ -159,6 +161,7 @@ public class IpPoolServiceImpl implements IpPoolService {
                 throw new MarsRuntimeException(ErrorCodeMessage.CREATE_FAIL);
             }
         } catch (IOException e) {
+            logger.error("调用url:{}，创建ip资源池接口异常：{}", url, e.getMessage());
             throw new MarsRuntimeException(ErrorCodeMessage.CREATE_FAIL);
         }
     }
@@ -187,6 +190,7 @@ public class IpPoolServiceImpl implements IpPoolService {
             }
 
         } catch (RestClientException e) {
+            logger.error("调用url:{}，查询ip资源池接口异常：{}", url, e.getMessage());
             throw new MarsRuntimeException(ErrorCodeMessage.QUERY_FAIL);
         }
 
@@ -209,7 +213,7 @@ public class IpPoolServiceImpl implements IpPoolService {
             // delete调用删除接口
             HttpClientResponse response = HttpClientUtil.doDelete(urlAndPoolName, null, null);
             if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                logger.error("调用url:{}，删除ip资源池接口失败：{}:{}", url, response.getStatus(), response.getBody());
+                logger.error("调用url:{}，删除ip资源池接口失败：{}:{}", urlAndPoolName, response.getStatus(), response.getBody());
                 throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
             }
             String body = response.getBody();
@@ -246,7 +250,8 @@ public class IpPoolServiceImpl implements IpPoolService {
                 throw new MarsRuntimeException(ErrorCodeMessage.CREATE_FAIL);
             }
         } catch (IOException e) {
-            throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
+            logger.error("调用url:{}，操作ip资源池接口异常：{}", url, e.getMessage());
+            throw new MarsRuntimeException(ErrorCodeMessage.OPERATION_FAIL);
         }
     }
 
@@ -263,26 +268,31 @@ public class IpPoolServiceImpl implements IpPoolService {
             throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
         }
 
-        // delete调用删除接口
         String url = hcIpamUrl + "/ippool/" + getPoolName(pool.getClusterId(), pool.getName());
-        HttpClientResponse response = HttpClientUtil.doDelete(url, null, null);
-        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            logger.error("调用url:{}，删除ip资源池接口失败：{}:{}", url, response.getStatus(), response.getBody());
-            throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
-        }
-        String body = response.getBody();
-        if (StringUtils.isBlank(body) || !StringUtils.startsWith(body, "{") || !StringUtils.endsWith(body, "}")) {
-            throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
-        }
-        JSONObject data = JSON.parseObject(body);
-        if (data == null || data.isEmpty() || data.containsKey("Error")) {
+        try {
+            // delete调用删除接口
+            HttpClientResponse response = HttpClientUtil.doDelete(url, null, null);
+            if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                logger.error("调用url:{}，删除ip资源池接口失败：{}:{}", url, response.getStatus(), response.getBody());
+                throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
+            }
+            String body = response.getBody();
+            if (StringUtils.isBlank(body) || !StringUtils.startsWith(body, "{") || !StringUtils.endsWith(body, "}")) {
+                throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
+            }
+            JSONObject data = JSON.parseObject(body);
+            if (data == null || data.isEmpty() || data.containsKey("Error")) {
+                throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
+            }
+        } catch (IOException e) {
+            logger.error("调用url:{}，操作ip资源池接口异常：{}", url, e.getMessage());
             throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
         }
     }
 
     // 获取资源池名称（调rest api用）
     private String getPoolName(String clusterId, String poolName) {
-        return clusterId + ":" + poolName;
+        return clusterId + "-" + poolName;
     }
 
     // 校验
