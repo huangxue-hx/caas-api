@@ -8,6 +8,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
 
+import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.cluster.TransferBindDeployMapper;
@@ -359,6 +360,13 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 					errorList.add(errorNamespaceDto);
 				}
 			}else {
+				// 3.创建resource quota
+				ActionReturnUtil createResult =namespaceService.createQuota(namespaceDto, cluster);
+				if ((Boolean) createResult.get(CommonConstant.SUCCESS) == false) {
+					// 失败回滚
+					namespaceService.deleteNamespace(namespaceDto.getTenantId(), namespaceDto.getName());
+					continue;
+				}
 				//保存到本地数据库
 				errorNamespaceDto = this.createLocalNamespace(namespaceDto);
 			}
@@ -415,7 +423,6 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	private Map<String,List<ErrorNamespaceDto>> updateBindNamespace(ClusterTransferDto clusterTransferDtos, List<NamespaceDto> namespaceDtos, Cluster currentCluster) throws Exception {
 		//创建k8s 分区，并返回创建正确和错误的信息
 		Map<String,List<ErrorNamespaceDto>> param = createNamespace(namespaceDtos, currentCluster);
-
 		List<ErrorNamespaceDto> successNamespaceDtos = param.get(Constant.TRANSFER_NAMESPACE_SUCCESS);
 		List<ErrorNamespaceDto> errorNamespaceDtos = param.get(Constant.TRANSFER_NAMESPACE_ERROR);
 		if (!errorNamespaceDtos.isEmpty()){
@@ -1255,6 +1262,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		transferClusterBackup.setErrNamespace(JSON.toJSONString(param.get(Constant.TRANSFER_NAMESPACE_ERROR)));
 		transferClusterBackup.setErrDeploy(JSON.toJSONString(errDeployDtos));
 		transferClusterBackup.setTransferClusterPercent((String) params.get("percent"));
+		transferClusterBackup.setTransferClusterPercent("100%");
 		transferClusterBackUpMapper.insert(transferClusterBackup);
 		return transferResultDto;
 	}

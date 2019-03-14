@@ -945,7 +945,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         }
         NamespaceLocal namespaceByName = this.namespaceLocalService.getNamespaceByName(name);
         //TODO   集群
-        Cluster cluster = clusterService.findClusterById(namespaceByName.getClusterId());
+       // Cluster cluster = clusterService.findClusterById(namespaceByName.getClusterId());
 
         Map<String, Object> namespaceQuota = this.getNamespaceQuota(name);
         namespaceQuota.put("otherNamespaceList", otherNamespaceList);
@@ -1122,7 +1122,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         return ActionReturnUtil.returnSuccess();
     }
 
-    private ActionReturnUtil createQuota(NamespaceDto namespaceDto, Cluster cluster) throws Exception {
+    public ActionReturnUtil createQuota(NamespaceDto namespaceDto, Cluster cluster) throws Exception {
 
         // 组装quota
         Map<String, Object> bodys = generateQuotaBodys(namespaceDto);

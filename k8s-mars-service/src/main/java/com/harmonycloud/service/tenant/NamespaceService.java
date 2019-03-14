@@ -177,4 +177,7 @@ public interface NamespaceService {
     ActionReturnUtil checkResourceInTemplateDeploy(Map<String, Long> requireResource, Map<String, String> remainResource) throws Exception;
 
     boolean checkTransferResource(List<NamespaceDto> namespaceDtos) throws Exception;
-}
+
+    ActionReturnUtil createQuota(NamespaceDto namespaceDto, Cluster cluster) throws Exception;
+
+    }
