@@ -21,6 +21,8 @@ import com.squareup.moshi.Json;
 import freemarker.ext.beans.HashAdapter;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -31,7 +33,7 @@ import java.util.*;
  */
 @Service
 public class HarborSecurityServiceImpl implements HarborSecurityService {
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(HarborSecurityServiceImpl.class);
     @Autowired
     private ClusterService clusterService;
     @Autowired
@@ -329,6 +331,11 @@ public class HarborSecurityServiceImpl implements HarborSecurityService {
             }
             Integer highNum = 0,patchesSum = 0;
             Integer criticalSum=0,highSum=0,mediumSum=0,lowSum=0,negligibleSum=0,unknownSum=0;
+            if (!vulnerabilitySummaryResponse.isSuccess()) {
+                LOGGER.error("查询镜像漏洞信息失败， response:{}",
+                        com.alibaba.fastjson.JSONObject.toJSONString(vulnerabilitySummaryResponse));
+                return harborManifest;
+            }
             if (vulnerabilitySummaryResponse.get("data") != null) {
                 String result = vulnerabilitySummaryResponse.get("data").toString().replaceAll("package", "packageName");
                 Map<String, Object> resultMap = new HashMap<String,Object>();
