@@ -179,9 +179,7 @@
     select
     <include refid="Base_Column_List" />
     from transfer_cluster_backup
-    where
-    cluster_id = #{clusterId,jdbcType=VARCHAR}
-
+    where transfer_cluster_id = #{clusterId,jdbcType=VARCHAR}
   </select>
 
 </mapper>

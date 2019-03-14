@@ -75,8 +75,8 @@ public class DeploymentDetailDto {
 	//服务版本
 	private String deployVersion;
 
-	// ip资源池的cidr
-	private String ipPoolCidr;
+	// ip资源池的名称
+	private String ipPoolName;
 
 	public String getDeployVersion() {
 		return deployVersion;
@@ -324,11 +324,11 @@ public class DeploymentDetailDto {
         this.initContainers = initContainers;
     }
 
-	public String getIpPoolCidr() {
-		return ipPoolCidr;
+	public String getIpPoolName() {
+		return ipPoolName;
 	}
 
-	public void setIpPoolCidr(String ipPoolCidr) {
-		this.ipPoolCidr = ipPoolCidr;
+	public void setIpPoolName(String ipPoolName) {
+		this.ipPoolName = ipPoolName;
 	}
 }

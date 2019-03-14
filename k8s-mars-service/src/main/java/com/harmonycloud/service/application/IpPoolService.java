@@ -48,4 +48,9 @@ public interface IpPoolService {
      * 查询ip信息
      */
     ProjectIpPool info(String projectId, String clusterId);
+
+    /**
+     * 获取资源池名称（调rest api用）
+     */
+    String getPoolName(String clusterId, String poolName);
 }

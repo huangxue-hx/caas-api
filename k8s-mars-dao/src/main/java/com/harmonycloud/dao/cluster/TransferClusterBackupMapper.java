@@ -1,6 +1,7 @@
 package com.harmonycloud.dao.cluster;
 
 import com.harmonycloud.dao.cluster.bean.TransferClusterBackup;
+import org.apache.ibatis.annotations.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -19,5 +20,5 @@ public interface TransferClusterBackupMapper {
 
     int updateByPrimaryKey(TransferClusterBackup record);
 
-    List<TransferClusterBackup> queryHistoryBackUp(String clusterId ,String tanantId);
+    List<TransferClusterBackup> queryHistoryBackUp(@Param(value = "clusterId") String clusterId, @Param(value = "tenantId") String tenantId);
 }

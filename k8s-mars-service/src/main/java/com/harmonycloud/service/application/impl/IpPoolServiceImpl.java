@@ -289,8 +289,8 @@ public class IpPoolServiceImpl implements IpPoolService {
     }
 
 
-    // 获取资源池名称（调rest api用）
-    private String getPoolName(String clusterId, String poolName) {
+    @Override
+    public String getPoolName(String clusterId, String poolName) {
         return clusterId + "-" + poolName;
     }
 
@@ -340,10 +340,10 @@ public class IpPoolServiceImpl implements IpPoolService {
                     }
                 }
 
-                // 校验子网已被使用
-                long existSubnetStartIp = IpUtil.ipv4ToLong(IpUtil.getStartIp(pool.getSubnet()));
-                long existSubnetEndIp = IpUtil.ipv4ToLong(IpUtil.getEndIp(pool.getSubnet()));
-                if (subnetStartIp <= existSubnetEndIp && subnetEndIp >= existSubnetStartIp) {
+                // 校验cidr已被使用
+                long existCidrStartIp = IpUtil.ipv4ToLong(IpUtil.getStartIp(pool.getCidr()));
+                long existCidrEndIp = IpUtil.ipv4ToLong(IpUtil.getEndIp(pool.getCidr()));
+                if (cidrStartIp <= existCidrEndIp && cidrEndIp >= existCidrStartIp) {
                     throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_SUBNET_EXIST);
                 }
             }

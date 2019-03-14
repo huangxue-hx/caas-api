@@ -1,6 +1,7 @@
 package com.harmonycloud.service.platform.convert;
 
 
+import com.google.common.collect.Maps;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.ServiceTypeEnum;
@@ -1149,10 +1150,6 @@ public class K8sResultConvert {
         anno.put("nephele/replicas", detail.getInstance());
         anno.put("nephele/labels", detail.getLabels() == null ? "" : detail.getLabels());
 
-        if (StringUtils.isNotBlank(detail.getIpPoolCidr())) {
-            anno.put("cni.projectcalico.org/ipv4pools", String.format("[\"%s\"]", detail.getIpPoolCidr()));
-        }
-
         PullDependenceDto pullDependence = detail.getPullDependence();
         if(pullDependence !=null){
             String repoUrl = pullDependence.getRepoUrl();
@@ -1253,6 +1250,14 @@ public class K8sResultConvert {
         if (Objects.nonNull(detail.getDeployVersion())){
             labels.put(Constant.TYPE_DEPLOY_VERSION, detail.getDeployVersion());
         }
+
+        // 如果存在ip资源池，则设置
+        if (StringUtils.isNotBlank(detail.getIpPoolName())) {
+            Map<String, Object> annotations = Maps.newHashMap();
+            annotations.put("hcipam_ippool", detail.getIpPoolName());
+            metadata.setAnnotations(annotations);
+        }
+
         //labels-QOS
         if (detail.getLabels() != null) {
             if (detail.getLabels().contains(",")) {

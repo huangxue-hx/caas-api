@@ -679,9 +679,9 @@ public class ServiceServiceImpl implements ServiceService {
             }
             // ip资源池的cidr值给到detail里
             if(service.getDeploymentDetail() != null) {
-                service.getDeploymentDetail().setIpPoolCidr(ipPool.getCidr());
+                service.getDeploymentDetail().setIpPoolName(ipPoolService.getPoolName(ipPool.getClusterId(), ipPool.getName()));
             } else if(service.getStatefulSetDetail() != null) {
-                service.getStatefulSetDetail().setIpPoolCidr(ipPool.getCidr());
+                service.getStatefulSetDetail().setIpPoolName(ipPoolService.getPoolName(ipPool.getClusterId(), ipPool.getName()));
             }
         }
 
