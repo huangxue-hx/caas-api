@@ -1251,13 +1251,6 @@ public class K8sResultConvert {
             labels.put(Constant.TYPE_DEPLOY_VERSION, detail.getDeployVersion());
         }
 
-        // 如果存在ip资源池，则设置
-        if (StringUtils.isNotBlank(detail.getIpPoolName())) {
-            Map<String, Object> annotations = Maps.newHashMap();
-            annotations.put("hcipam_ippool", detail.getIpPoolName());
-            metadata.setAnnotations(annotations);
-        }
-
         //labels-QOS
         if (detail.getLabels() != null) {
             if (detail.getLabels().contains(",")) {
@@ -1289,6 +1282,13 @@ public class K8sResultConvert {
         labels.put(Constant.NODESELECTOR_LABELS_PRE + "bluegreen", detail.getName() + "-1");
         metadata.setLabels(labels);
         metadata.setAnnotations(convertQosAnnotation(detail.getAnnotation()));
+        // 如果存在ip资源池，则设置
+        if (StringUtils.isNotBlank(detail.getIpPoolName())) {
+            if (metadata.getAnnotations() == null) {
+                metadata.setAnnotations(new HashMap<>());
+            }
+            metadata.getAnnotations().put("hcipam_ippool", detail.getIpPoolName());
+        }
         podTemplateSpec.setMetadata(metadata);
         podTemplateSpec.setSpec(podSpec);
 
