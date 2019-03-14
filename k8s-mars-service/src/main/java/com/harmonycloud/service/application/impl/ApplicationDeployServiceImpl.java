@@ -8,6 +8,7 @@ import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.application.ServiceTemplatesMapper;
+import com.harmonycloud.dao.application.bean.ProjectIpPool;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.Project;
@@ -1358,6 +1359,22 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 service.setTenantId(appDeploy.getTenantId());
                 message.addAll(routerService.createExternalRule(service, appDeploy.getNamespace(), serviceType));
             }
+
+            // 如果集群网络模式为hcipam，则要求每个项目都要配置ip资源池
+            if (StringUtils.isNotBlank(cluster.getNetworkType()) && CommonConstant.K8S_NETWORK_HCIPAM.equals(cluster.getNetworkType())) {
+                // 校验该项目是否配置ip资源池
+                ProjectIpPool ipPool = ipPoolService.info(appDeploy.getProjectId(), cluster.getId());
+                if (ipPool == null) {
+                    throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_PUBLISH_ERROR);
+                }
+                // ip资源池的cidr值给到detail里
+                if(service.getDeploymentDetail() != null) {
+                    service.getDeploymentDetail().setIpPoolCidr(ipPool.getCidr());
+                } else if(service.getStatefulSetDetail() != null) {
+                    service.getStatefulSetDetail().setIpPoolCidr(ipPool.getCidr());
+                }
+            }
+
             // creat config map & deploy service deployment & get node label by
             // namespace
             try {
@@ -1805,6 +1822,22 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                         c.setImg(cluster.getHarborServer().getHarborAddress() + "/" + c.getImg());
                     }
                 }
+
+                // 如果集群网络模式为hcipam，则要求每个项目都要配置ip资源池
+                if (StringUtils.isNotBlank(cluster.getNetworkType()) && CommonConstant.K8S_NETWORK_HCIPAM.equals(cluster.getNetworkType())) {
+                    // 校验该项目是否配置ip资源池
+                    ProjectIpPool ipPool = ipPoolService.info(appDeploy.getProjectId(), cluster.getId());
+                    if (ipPool == null) {
+                        throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_PUBLISH_ERROR);
+                    }
+                    // ip资源池的cidr值给到detail里
+                    if(svcTemplate.getDeploymentDetail() != null) {
+                        svcTemplate.getDeploymentDetail().setIpPoolCidr(ipPool.getCidr());
+                    } else if(svcTemplate.getStatefulSetDetail() != null) {
+                        svcTemplate.getStatefulSetDetail().setIpPoolCidr(ipPool.getCidr());
+                    }
+                }
+
                 ActionReturnUtil res = null;
                 if(svcTemplate.getDeploymentDetail() != null) {
                     res = deploymentsService.createDeployment(svcTemplate.getDeploymentDetail(), username, appDeploy.getAppName(),

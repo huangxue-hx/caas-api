@@ -301,9 +301,6 @@ public class IpPoolServiceImpl implements IpPoolService {
         if (!IpUtil.isCidr(poolDto.getCidr()) || !IpUtil.isCidr(poolDto.getSubnet())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_CIDR_ERROR);
         }
-        if (!IpUtil.isIpv4(poolDto.getGateway())) {
-            throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_IP_ERROR);
-        }
         Cluster cluster = clusterService.findClusterById(poolDto.getClusterId());
         if (cluster == null || cluster.getNetworkType() == null || !cluster.getNetworkType().equals(CommonConstant.K8S_NETWORK_HCIPAM)) {
             throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_MATCH);
