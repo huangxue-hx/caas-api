@@ -479,7 +479,6 @@ DROP TABLE IF EXISTS `ingress_controller_port`;
 
 UPDATE `k8s_auth_server`.`cicd_stage_type` SET `index` = 4, `status`=1 WHERE `template_type`=7;
 UPDATE `k8s_auth_server`.`cicd_stage_type` SET `index` = 9, `status`=1 WHERE `template_type`=8;
-INSERT INTO `k8s_auth_server`.`cicd_stage_type`(`name`,`type`,`template_type`,`index`,`status`) VALUES('镜像推送', 'ci', 9, 5, 1);
 
 ALTER TABLE `k8s_auth_server`.`service_templates` ADD COLUMN `service_type` TINYINT(4) DEFAULT 0;
 

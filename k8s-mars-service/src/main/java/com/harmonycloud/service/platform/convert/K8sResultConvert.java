@@ -1223,6 +1223,9 @@ public class K8sResultConvert {
         podSpec.setHostIPC(detail.isHostIPC());
         podSpec.setHostPID(detail.isHostPID());
         podSpec.setHostNetwork(detail.isHostNetwork());
+        if (detail.isHostNetwork()) {
+            podSpec.setDnsPolicy("ClusterFirstWithHostNet");
+        }
         List<LocalObjectReference> imagePullSecrets = new ArrayList<>();
         LocalObjectReference e = new LocalObjectReference();
         e.setName(CommonConstant.ADMIN + "-secret");
