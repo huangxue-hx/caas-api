@@ -209,6 +209,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		ResourceQuotaSpec resourceQuotaSpec = resourceQuota.getSpec();
 		ResourceQuotaStatus resourceQuotaStatus = resourceQuota.getStatus();
 		Map<String, String> hard = (Map<String, String>) resourceQuotaSpec.getHard();
+		//TODO 没用到
 		Map<String, String> used = (Map<String, String>) resourceQuotaStatus.getUsed();
 		String hardMemory = getResource(hard.get("memory"));
 		String hardCpu = getResource(hard.get("cpu"));
@@ -313,8 +314,8 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		List<Integer> indexs= new ArrayList<>();
 		for (NamespaceDto namespaceDto : namespaceDtos) {
 			ErrorNamespaceDto errorNamespaceDto =new ErrorNamespaceDto();
-			//TODO  1、namespaceDto.getName().indexOf(CommonConstant.LINE) < 0  作用？     2、字段长度、必填可放在接口入口处校验
-			if (StringUtils.isEmpty(namespaceDto.getName()) /*|| namespaceDto.getName().indexOf(CommonConstant.LINE) < 0*/) {
+			//字段长度、必填可放在接口入口处校验
+			if (StringUtils.isEmpty(namespaceDto.getName()) || namespaceDto.getName().indexOf(CommonConstant.LINE) < 0) {
 				errorNamespaceDto = new ErrorNamespaceDto();
 				errorNamespaceDto.setErrMsg(ErrorCodeMessage.NAMESPACE_NOT_BLANK.getReasonChPhrase());
 				errorNamespaceDto.setNamespace(namespaceDto.getName());
@@ -1014,14 +1015,24 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		List<TransferBindDeploy> list = new ArrayList<>();
 		List<DeploymentTransferDto> deploymentTransferDtos = new ArrayList<>();
 		DeployResultDto deployResultDto = new DeployResultDto();
-		//TODO  问题：在deployName存在的情况下仍取了所以的Deployment
+		ClusterTransferDto clusterTransferDto = clusterTransferDtos.get(0);
+		List<String> deployNames = new ArrayList();
+		List<BindNameSpaceDto> bindNameSpaceDtos = clusterTransferDto.getBindNameSpaceDtos();
+        for (BindNameSpaceDto bindNameSpaceDto : bindNameSpaceDtos){
+			List<DeploymentDto> deploymentDtos  = bindNameSpaceDto.getDeploymentDto();
+			for (DeploymentDto deploymentDto : deploymentDtos){
+				deployNames.add(deploymentDto.getDeployName());
+			}
+		}
 		for (ErrorNamespaceDto namespaceDto : errorNamespaceDtos) {
 			K8SClientResponse clientResponse = dpService.doDeploymentsByNamespace(param.get(namespaceDto.getNamespace()),null, null, HTTPMethod.GET, oldCluster);
 			DeploymentList deploymentList = JsonUtil.jsonToPojo(clientResponse.getBody(), DeploymentList.class);
 			if (deploymentList != null && !CollectionUtils.isEmpty(deploymentList.getItems())) {
 				for(Deployment deployment:deploymentList.getItems()){
-					list.add(generateTransferBindDeploy(deployment, clusterTransferDtos.get(0), param, namespaceDto.getNamespace()));
-					deploymentTransferDtos.add(generateTransferDto(deployment,  clusterTransferDtos.get(0), param, namespaceDto));
+					if (deployNames.contains(deployment.getMetadata().getName())){
+						list.add(generateTransferBindDeploy(deployment, clusterTransferDtos.get(0), param, namespaceDto.getNamespace()));
+						deploymentTransferDtos.add(generateTransferDto(deployment,  clusterTransferDtos.get(0), param, namespaceDto));
+					}
 				}
 			}
 		}
@@ -1284,6 +1295,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		//
 		List<DeploymentTransferDto> deploymentTransferDtos =  deployResultDto.getDeploymentTransferDtos();
 		if(isContinue){
+            //断点续传
 			List<TransferBindDeploy> transferBindDeploys = transferDeployMapper.queryErrorBindDeploy(clusterTransferDto.get(0).getTenantId(), clusterTransferDto.get(0).getTargetClusterId());
 			deploymentTransferDtos = generateTransferDtoList(transferBindDeploys);
 			deploymentTransferDtos.addAll(deployResultDto.getDeploymentTransferDtos());
