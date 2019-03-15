@@ -16,13 +16,22 @@ public class DeploymentDto {
      * 项目id
      */
     private String projectId;
-
+    // 应用名称
+    private String appName;
     /**
      * 服务类型
      */
     private String serviceType;
 
     private String namespace;
+
+    public String getAppName() {
+        return appName;
+    }
+
+    public void setAppName(String appName) {
+        this.appName = appName;
+    }
 
     public String getDeployName() {
         return deployName;
@@ -67,6 +76,8 @@ public class DeploymentDto {
         builder.append(serviceType);
         builder.append(", namespace=");
         builder.append(namespace);
+        builder.append(", appName=");
+        builder.append(appName);
         builder.append("]");
         return builder.toString();
     }

@@ -53,8 +53,7 @@ import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.platform.constant.Constant;
 
-import static com.harmonycloud.service.platform.constant.Constant.DEPLOYMENT;
-import static com.harmonycloud.service.platform.constant.Constant.TOPO_LABEL_KEY;
+import static com.harmonycloud.service.platform.constant.Constant.*;
 
 @Service
 public class ClusterTransferServiceImpl implements ClusterTransferService {
@@ -390,8 +389,8 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				}
 			}else {
 				// 3.创建resource quota
-				ActionReturnUtil createResult =namespaceService.createQuota(namespaceDto, cluster);
-				if ((Boolean) createResult.get(CommonConstant.SUCCESS) == false) {
+				ActionReturnUtil createResult = namespaceService.createQuota(namespaceDto, cluster);
+				if (!((Boolean) createResult.get(CommonConstant.SUCCESS))) {
 					// 失败回滚
 					namespaceService.deleteNamespace(namespaceDto.getTenantId(), namespaceDto.getName());
 					continue;
@@ -702,14 +701,56 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			return errDeployDto;
 		}
 		deployment = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
-		response = dpService.doSpecifyDeployment(deploymentTransferDto.getNamespace(), null, generateHeader(), CollectionUtil.transBean2Map(replaceDeployment(deployment, deploymentTransferDto)), HTTPMethod.POST, currentCluster);
+		deployment= replaceDeployment(deployment, deploymentTransferDto);
+		createApp(oldCluster,currentCluster, deployment.getMetadata().getLabels(),deploymentTransferDto);
+		response = dpService.doSpecifyDeployment(deploymentTransferDto.getNamespace(), null, generateHeader(), CollectionUtil.transBean2Map(deployment), HTTPMethod.POST, currentCluster);
         errDeployDto =checkK8SClientResponse(response,deployName);
 		if(!Objects.isNull(errDeployDto)){
 			return errDeployDto;
 		}
 		return errDeployDto;
 	}
-	
+	private void createApp(Cluster oldCluster, Cluster newCluster ,Map<String,Object> labels,DeploymentTransferDto deploymentTransferDto)  {
+		String projectId = (String) labels.get("harmonycloud.cn/projectId");
+		String appName = "";
+		for (String label:labels.keySet()){
+				if (label.contains(projectId)) {
+					labels.put(label, deploymentTransferDto.getCurrentDeployName());
+					appName = StringUtils.substringAfter(label, projectId + "-");
+				}
+		}
+		try {
+			K8SClientResponse response  = tprApplication.getApplicationByName(deploymentTransferDto.getCurrentNameSpace(), appName, null, null, HTTPMethod.GET, oldCluster);
+			if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+				logger.error("查询应用失败deploymentTransferDto:{},异常信息：{}", deploymentTransferDto, response.getBody());
+			}
+			BaseResource appCrd = JsonUtil.jsonToPojo(response.getBody(), BaseResource.class);
+			Map<String,Object> appLebels = appCrd.getMetadata().getLabels();
+			for (String label:appLebels.keySet()){
+				if (label.contains(projectId)) {
+					appLebels.put(label, deploymentTransferDto.getCurrentDeployName());
+				}
+			}
+
+			BaseResource base = new BaseResource();
+			ObjectMeta mate = new ObjectMeta();
+			mate.setNamespace(deploymentTransferDto.getNamespace());
+			mate.setName(appName);
+
+			Map<String, Object> anno = new HashMap<String, Object>();
+			anno.put("nephele/annotation", appCrd.getMetadata().getAnnotations());
+			mate.setAnnotations(anno);
+			mate.setLabels(appLebels);
+			base.setMetadata(mate);
+			//创建app
+			ActionReturnUtil res = tprApplication.createApplication(base, newCluster);
+			if (!res.isSuccess()) {
+				logger.error("创建应用失败deploymentTransferDto:{},异常信息：{}",deploymentTransferDto,res.getData());
+			}
+		}catch (Exception e){
+			logger.error("创建应用失败deploymentTransferDto:{},异常信息：{}",deploymentTransferDto,e);
+		}
+	}
 	/**
 	 * 迁移服务 两种类型 stafulset(有状态的) deployment(无状态的)
 	 * @param deploymentTransferDto
@@ -910,21 +951,23 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		deployment.getMetadata().setNamespace(deploymentTransferDtos.getNamespace());
 		deployment.getMetadata().setSelfLink(deployment.getMetadata().getSelfLink().replace(deployment.getMetadata().getNamespace(),deploymentTransferDtos.getNamespace()));
 		deployment.getMetadata().setResourceVersion(null);
-		deployment.getMetadata().setLabels(replaceLabels(deployment.getMetadata().getLabels(), deploymentTransferDtos));
-		deployment.getSpec().getTemplate().getMetadata().setLabels(replaceLabels(deployment.getSpec().getTemplate().getMetadata().getLabels(),deploymentTransferDtos));
+		deployment.getMetadata().setLabels(replaceLabels(deployment.getMetadata().getLabels(), deployment.getMetadata().getNamespace()));
+		deployment.getSpec().getTemplate().getMetadata().setLabels(deployment.getSpec().getTemplate().getMetadata().getLabels());
 		return deployment;
 	}
 	
 	/**
-	 * 替换labels的projectId为迁移集群的projectId
+	 * 替换labels的应用的namespace
 	 * @param labels
-	 * @param deploymentTransferDto
+	 * @param namespace
 	 * @return
 	 */
-	private Map<String,Object> replaceLabels(Map<String,Object> labels,DeploymentTransferDto deploymentTransferDto) {
+	private Map<String,Object> replaceLabels(Map<String,Object> labels,String namespace) {
+		String projectId = (String) labels.get("harmonycloud.cn/projectId");
 		for (String label:labels.keySet()){
-	    	 if(labels.get(label).equals(deploymentTransferDto.getCurrentProjectId())){
-	    	     labels.put(label, deploymentTransferDto.getProjectId());
+	    	 if(label.contains(projectId)){
+	    	     labels.put(label,namespace);
+				 /*String appName = StringUtils.substringAfter(label,projectId+"-");*/
 	    	 }
 	     }
 	     return labels;
@@ -1053,11 +1096,15 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		DeployResultDto deployResultDto = new DeployResultDto();
 		ClusterTransferDto clusterTransferDto = clusterTransferDtos.get(0);
 		List<String> deployNames = new ArrayList();
+		List<String> appNames = new ArrayList();
 		List<BindNameSpaceDto> bindNameSpaceDtos = clusterTransferDto.getBindNameSpaceDtos();
         for (BindNameSpaceDto bindNameSpaceDto : bindNameSpaceDtos){
 			List<DeploymentDto> deploymentDtos  = bindNameSpaceDto.getDeploymentDto();
 			for (DeploymentDto deploymentDto : deploymentDtos){
 				deployNames.add(deploymentDto.getDeployName());
+				/*if (deploymentDto.getAppName() != null && !"".equals(deploymentDto.getAppName().trim())){
+					appNames.add(deploymentDto.getAppName());
+				}*/
 			}
 		}
 		for (ErrorNamespaceDto namespaceDto : errorNamespaceDtos) {

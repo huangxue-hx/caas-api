@@ -44,6 +44,10 @@ public class TransferBindDeploy implements Serializable {
     private String projectId;
 
     /**
+     * 应用名称
+     */
+    private String appName;
+    /**
      * 创建时间
      */
     private Date createTime;
@@ -82,7 +86,13 @@ public class TransferBindDeploy implements Serializable {
      * 旧的分区
      */
     //private String oldNamespace;
+    public String getAppName() {
+        return appName;
+    }
 
+    public void setAppName(String appName) {
+        this.appName = appName;
+    }
     private static final long serialVersionUID = 1L;
 
     public Integer getId() {
@@ -237,6 +247,8 @@ public class TransferBindDeploy implements Serializable {
         builder.append(deployNum);
         builder.append(", oldClusterId=");
         builder.append(oldClusterId);
+        builder.append(", appName=");
+        builder.append(appName);
         builder.append("]");
         return builder.toString();
     }

@@ -29,5 +29,5 @@ public interface TransferClusterMapper {
 
     void deleteCluster(@Param(value="clusterId")String clusterId);
 
-    List<TransferClusterMapper> queryTransferCluster(@Param(value="clusterId")String clusterId);
+    List<TransferCluster> queryTransferCluster(@Param(value="clusterId")String clusterId);
 }

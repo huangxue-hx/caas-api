@@ -1122,6 +1122,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         return ActionReturnUtil.returnSuccess();
     }
 
+    @Override
     public ActionReturnUtil createQuota(NamespaceDto namespaceDto, Cluster cluster) throws Exception {
 
         // 组装quota
