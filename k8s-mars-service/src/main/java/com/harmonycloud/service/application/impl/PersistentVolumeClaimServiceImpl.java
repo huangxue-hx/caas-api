@@ -357,7 +357,7 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         }
         String pvName = pvc.getSpec().getVolumeName();
         PersistentVolume pv = pvService.getPvByName(pvName, cluster);
-        if (pv == null) {
+        if (pvName == null || pv == null) {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PV_QUERY_FAIL, DictEnum.PV.phrase(), true);
         }
         String podName = RECYCLE_POD_NAME + pvcName;
