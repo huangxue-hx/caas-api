@@ -175,11 +175,14 @@
     where id = #{id,jdbcType=INTEGER}
   </update>
 
-  <select id="queryHistoryBackUp" parameterType="java.lang.String" resultType="List">
+  <select id="queryHistoryBackUp" parameterType="java.lang.String" resultMap="BaseResultMap">
     select
     <include refid="Base_Column_List" />
     from transfer_cluster_backup
     where transfer_cluster_id = #{clusterId,jdbcType=VARCHAR}
+    <if test="tenantId != null and tenantId != ''">
+      and tenant_id = #{tenantId}
+    </if>
   </select>
 
 </mapper>

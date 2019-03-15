@@ -1,15 +1,9 @@
 package com.harmonycloud.service.application.impl;
 
-import java.beans.IntrospectionException;
-import java.lang.reflect.InvocationTargetException;
-import java.math.BigDecimal;
-import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.stream.Collectors;
-
-
-import com.harmonycloud.common.enumm.DictEnum;
-import com.harmonycloud.common.exception.K8sAuthException;
+import com.alibaba.fastjson.JSON;
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.cluster.TransferBindDeployMapper;
@@ -23,14 +17,27 @@ import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.dto.cluster.*;
+import com.harmonycloud.dto.tenant.NamespaceDto;
+import com.harmonycloud.dto.tenant.QuotaDto;
 import com.harmonycloud.k8s.bean.*;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
+import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.*;
-import com.harmonycloud.service.application.*;
+import com.harmonycloud.k8s.util.K8SClientResponse;
+import com.harmonycloud.k8s.util.K8SURL;
+import com.harmonycloud.service.application.ClusterTransferService;
+import com.harmonycloud.service.application.DeploymentsService;
+import com.harmonycloud.service.application.PersistentVolumeService;
+import com.harmonycloud.service.application.RouterService;
 import com.harmonycloud.service.cluster.ClusterService;
-import com.harmonycloud.service.platform.bean.ContainerOfPodDetail;
-import com.harmonycloud.service.platform.convert.K8sResultConvert;
-import com.harmonycloud.service.tenant.*;
+import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
+import com.harmonycloud.service.tenant.ProjectService;
+import com.harmonycloud.service.tenant.TenantService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -38,22 +45,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.alibaba.fastjson.JSON;
-import com.harmonycloud.common.Constant.CommonConstant;
-import com.harmonycloud.common.enumm.ErrorCodeMessage;
-import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.dto.tenant.NamespaceDto;
-import com.harmonycloud.dto.tenant.QuotaDto;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.k8s.client.K8SClient;
-import com.harmonycloud.k8s.client.K8sMachineClient;
-import com.harmonycloud.k8s.constant.HTTPMethod;
-import com.harmonycloud.k8s.constant.Resource;
-import com.harmonycloud.k8s.util.K8SClientResponse;
-import com.harmonycloud.k8s.util.K8SURL;
-import com.harmonycloud.service.platform.constant.Constant;
+import java.beans.IntrospectionException;
+import java.lang.reflect.InvocationTargetException;
+import java.math.BigDecimal;
+import java.util.*;
+import java.util.concurrent.CountDownLatch;
 
-import static com.harmonycloud.service.platform.constant.Constant.*;
+import static com.harmonycloud.service.platform.constant.Constant.TOPO_LABEL_KEY;
 
 @Service
 public class ClusterTransferServiceImpl implements ClusterTransferService {

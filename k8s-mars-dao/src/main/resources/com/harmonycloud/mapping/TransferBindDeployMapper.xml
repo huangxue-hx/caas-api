@@ -225,7 +225,10 @@
     <include refid="Base_Column_List" />
     from transfer_bind_deploy
     where
-    cluster_id = #{clusterId,jdbcType=VARCHAR} and tenant_id = #{tenantId,jdbcType=VARCHAR}
+    cluster_id = #{clusterId,jdbcType=VARCHAR}
+    <if test="tenantId != null and tenantId != ''">
+      and tenant_id = #{tenantId,jdbcType=VARCHAR}
+    </if>
   </select>
 
   <delete id="deleteTransferBindDeploy" parameterType="java.lang.String">

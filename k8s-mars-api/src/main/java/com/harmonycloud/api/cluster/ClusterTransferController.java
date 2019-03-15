@@ -1,23 +1,23 @@
 package com.harmonycloud.api.cluster;
 
-import java.util.List;
-
+import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.cluster.ClusterTransferDetailDto;
 import com.harmonycloud.dto.cluster.ClusterTransferDto;
+import com.harmonycloud.service.application.ClusterTransferService;
 import com.harmonycloud.service.tenant.TenantService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
 
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dto.application.DeploymentTransferDto;
-import com.harmonycloud.service.application.ClusterTransferService;
-
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
+import java.util.List;
 
 @Api(value = "ClusterTransferController", description = "集群迁移接口")
 @RequestMapping("/clusters")
@@ -55,7 +55,7 @@ public class ClusterTransferController {
 	@ResponseBody
 	@RequestMapping(value = "/getTransferCluster", method = RequestMethod.POST)
 	public ActionReturnUtil getTransferCluster(@RequestBody ClusterTransferDetailDto clusterTransferDto) throws Exception {
-		logger.info("transfer cluster service");
+		logger.info("getTransferCluster,{}",clusterTransferDto.toString());
 		return clusterTransferService.getTransferCluster(clusterTransferDto);
 	}
 
@@ -64,7 +64,7 @@ public class ClusterTransferController {
 	@ResponseBody
 	@RequestMapping(value = "/getDeployDetail", method = RequestMethod.POST)
 	public ActionReturnUtil getDeployDetail(@RequestBody ClusterTransferDetailDto clusterTransferDto) throws Exception{
-		logger.info("transfer cluster service");
+		logger.info("getDeployDetail,{}",clusterTransferDto.toString());
 		return clusterTransferService.getDeployDetail(clusterTransferDto);
 	}
 

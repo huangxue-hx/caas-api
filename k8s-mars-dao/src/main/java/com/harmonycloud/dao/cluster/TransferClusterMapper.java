@@ -1,6 +1,5 @@
 package com.harmonycloud.dao.cluster;
 
-import com.harmonycloud.dao.cluster.bean.TransferBindNamespace;
 import com.harmonycloud.dao.cluster.bean.TransferCluster;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.stereotype.Repository;
@@ -21,7 +20,7 @@ public interface TransferClusterMapper {
 
     int updateByPrimaryKey(TransferCluster record);
 
-    TransferClusterMapper queryTransferClusterByParam(@Param(value="tenantId")String tenantId, @Param(value="clusterId")String clusterId);
+    TransferCluster queryTransferClusterByParam(@Param(value="tenantId")String tenantId, @Param(value="clusterId")String clusterId);
 
 
 
