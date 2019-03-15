@@ -119,13 +119,8 @@ public class PrivatePartitionImpl implements PrivatePartitionService {
         if (StringUtils.isBlank(tenantid) || StringUtils.isBlank(namespace)) {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.INVALID_PARAMETER);
         }
-        // 查看私有分区是否存在
         PrivatePartitionExample example = new PrivatePartitionExample();
         example.createCriteria().andTenantIdEqualTo(tenantid).andNamespaceEqualTo(namespace);
-        List<PrivatePartition> list = privatePartitionMapper.selectByExample(example);
-        if (list.size() <= 0) {
-            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NAMESPACE_NOT_FOUND);
-        }
         // 更新数据库
         privatePartitionMapper.deleteByExample(example);
         return ActionReturnUtil.returnSuccess();

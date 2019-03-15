@@ -40,13 +40,16 @@ public interface NodeService {
 	 * @return
 	 */
 	public ActionReturnUtil addNodeLabels(String nodeName,Map<String, String> labels,String clusterId) throws Exception;
+
 	/**
-	 * 给node删除label
+	 * 更新node标签
 	 * @param nodeName
-	 * @param labels
+	 * @param labels 如果value为null代表删除标签，value有值为新增标签
 	 * @return
 	 */
-	public ActionReturnUtil removeNodeLabels(String nodeName,Map<String, String> labels,Cluster cluster) throws Exception;
+	void updateNodeLabels(String nodeName, Map<String, String> labels, Cluster cluster) throws Exception;
+
+
 	/**
 	 * 获取node的状态标签
 	 * @param nodeName

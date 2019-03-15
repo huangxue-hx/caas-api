@@ -6,6 +6,7 @@ import com.harmonycloud.common.Constant.IngressControllerConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.HarborMemberEnum;
+import com.harmonycloud.common.enumm.NodeTypeEnum;
 import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
@@ -758,7 +759,7 @@ public class TenantServiceImpl implements TenantService {
         if (CollectionUtils.isEmpty(nodeStatusLabels)){
             throw new MarsRuntimeException(ErrorCodeMessage.NODE_NOT_EXIST);
         }
-        Map<String, String> removelabels = new HashMap<String, String>();
+        Map<String, String> updateLabels = new HashMap<String, String>();
         String HarmonyCloud_Status = nodeStatusLabels.get(CommonConstant.HARMONYCLOUD_STATUS);
         if (StringUtils.isBlank(HarmonyCloud_Status)) {
             throw new MarsRuntimeException(ErrorCodeMessage.NODE_LABEL_ERROR);
@@ -769,11 +770,11 @@ public class TenantServiceImpl implements TenantService {
             throw new MarsRuntimeException(ErrorCodeMessage.NODE_CANNOT_REMOVED_FORTENANT);
         }
         if (HarmonyCloud_Status.equals(CommonConstant.LABEL_STATUS_D)) {
-            removelabels.put(CommonConstant.HARMONYCLOUD_TENANTNAME_NS, nodeStatusLabels.get(CommonConstant.HARMONYCLOUD_TENANTNAME_NS));
-            nodeStatusLabels.put(CommonConstant.HARMONYCLOUD_STATUS, CommonConstant.LABEL_STATUS_B);
-            nodeStatusLabels.remove(CommonConstant.HARMONYCLOUD_TENANTNAME_NS);
-            nodeService.addNodeLabels(nodeName, nodeStatusLabels, cluster.getId());
-            nodeService.removeNodeLabels(nodeName, removelabels, cluster);
+            //删除节点的租户标签，增加节点闲置类型标签
+            updateLabels.put(CommonConstant.HARMONYCLOUD_TENANTNAME_NS, null);
+            updateLabels.put(CommonConstant.HARMONYCLOUD_TENANT_ID, null);
+            updateLabels.put( NodeTypeEnum.IDLE.getLabelKey(), NodeTypeEnum.IDLE.getLabelValue());
+            nodeService.updateNodeLabels(nodeName, updateLabels, cluster);
         }
         this.tenantPrivateNodeService.deleteTenantPrivateNode(tenant.getTenantId(), clusterId,nodeName);
     }

@@ -240,6 +240,8 @@ public class CommonConstant {
     public static final String DATANODE = "dataNode";
     public static final String MASTERNODELABEL = "node-role.kubernetes.io/master";
     public static final String HARMONYCLOUD_TENANTNAME_NS = "HarmonyCloud_TenantName";
+    public static final String HARMONYCLOUD_TENANT_ID = "HarmonyCloud_TenantId";
+
     //node节点状态
     public static final String HARMONYCLOUD_STATUS = "HarmonyCloud_Status";
     //node节点临时状态

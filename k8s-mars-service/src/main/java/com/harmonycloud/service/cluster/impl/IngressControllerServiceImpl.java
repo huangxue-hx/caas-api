@@ -6,6 +6,7 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.Constant.IngressControllerConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.NodeTypeEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
@@ -259,8 +260,8 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         cmMeta.setName(nginxCmNM);
         cmMeta.setNamespace(CommonConstant.KUBE_SYSTEM);
         ingressCm.setMetadata(cmMeta);
-        if (Objects.nonNull(ingressControllerDto.getIngressConfigMap())) {
-            Map data = convertNginxCmData(ingressControllerDto.getIngressConfigMap());
+        if (Objects.nonNull(ingressConfigMap)) {
+            Map data = convertNginxCmData(ingressConfigMap);
             ingressCm.setData(data);
         }
         K8SClientResponse ingressCmResponse = icService.createIcConfigMap(ingressCm, cluster);
@@ -927,24 +928,27 @@ public class IngressControllerServiceImpl implements IngressControllerService {
      */
     private void updateNodeLabel(String icName, Cluster cluster, List<String> oldIcNodeNames,
                                  List<String> newIcNodeNames) throws MarsRuntimeException {
-        Map<String, String> icLabels = new HashMap<>();
-        icLabels.put(HARMONYCLOUD_STATUS_LBS, LABEL_VALUE_NGINX_CUSTOM);
-        icLabels.put(LABEL_KEY_INGRESS_CONTROLLER_NAME, icName);
-        Map<String, String> nodeIdleLabels = new HashMap<>();
-        nodeIdleLabels.put(HARMONYCLOUD_STATUS, LABEL_STATUS_B);
+
+        Map<String, String> addIcNodeLabels = new HashMap<>();
+        addIcNodeLabels.put(NodeTypeEnum.SLB_CUSTOM.getLabelKey(), NodeTypeEnum.SLB_CUSTOM.getLabelValue());
+        addIcNodeLabels.put(LABEL_KEY_INGRESS_CONTROLLER_NAME, icName);
+        addIcNodeLabels.put(NodeTypeEnum.IDLE.getLabelKey(), null);
+
+        Map<String, String> removeIcNodeLabels = new HashMap<>();
+        removeIcNodeLabels.put(NodeTypeEnum.SLB_CUSTOM.getLabelKey(), null);
+        removeIcNodeLabels.put(LABEL_KEY_INGRESS_CONTROLLER_NAME, null);
+        removeIcNodeLabels.put(NodeTypeEnum.IDLE.getLabelKey(), NodeTypeEnum.IDLE.getLabelValue());
         try {
             for (String nodeName : newIcNodeNames) {
                 //新增节点,增加lb,ic-name标签，删除闲置节点的标签
                 if (!oldIcNodeNames.contains(nodeName)) {
-                    nodeService.addNodeLabels(nodeName, icLabels, cluster.getId());
-                    nodeService.removeNodeLabels(nodeName, nodeIdleLabels, cluster);
+                    nodeService.updateNodeLabels(nodeName, addIcNodeLabels, cluster);
                 }
             }
             for (String nodeName : oldIcNodeNames) {
                 //删除节点，删除lb,ic-name标签，增加闲置节点的标签
                 if (!newIcNodeNames.contains(nodeName)) {
-                    nodeService.addNodeLabels(nodeName, nodeIdleLabels, cluster.getId());
-                    nodeService.removeNodeLabels(nodeName, icLabels, cluster);
+                    nodeService.updateNodeLabels(nodeName, removeIcNodeLabels, cluster);
                 }
             }
         } catch (Exception e) {

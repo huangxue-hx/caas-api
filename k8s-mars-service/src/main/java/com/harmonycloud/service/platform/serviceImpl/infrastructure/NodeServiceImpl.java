@@ -9,6 +9,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
+import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.util.*;
@@ -60,6 +61,8 @@ import static com.harmonycloud.service.platform.constant.Constant.NODESELECTOR_L
 
 @Service
 public class NodeServiceImpl implements NodeService {
+
+    private static final Logger logger = LoggerFactory.getLogger(NodeServiceImpl.class);
 
     @Autowired
     private com.harmonycloud.k8s.service.NodeService nodeService;
@@ -479,36 +482,38 @@ public class NodeServiceImpl implements NodeService {
     }
 
     @Override
-    public ActionReturnUtil removeNodeLabels(String nodeName, Map<String, String> labels, Cluster cluster) throws Exception {
+    public void updateNodeLabels(String nodeName, Map<String, String> updateLabels, Cluster cluster) throws Exception {
         Node node = this.nodeService.getNode(nodeName, cluster);
-        if (node != null) {
-            Map<String, Object> oldLabels = node.getMetadata().getLabels();
-            Set<Entry<String, String>> entrySetRemove = labels.entrySet();
-            // 更新labels
-            for (Entry<String, String> labelReomve : entrySetRemove) {
-                // 删除label
-                if (oldLabels.get(labelReomve.getKey()) != null) {
-                    oldLabels.remove(labelReomve.getKey());
-                }
-            }
-            ObjectMeta metadata = node.getMetadata();
-            metadata.setLabels(oldLabels);
-            // 更新K8s
-            Map<String, Object> bodys = new HashMap<>();
-            bodys.put("kind", node.getKind());
-            bodys.put("apiVersion", node.getApiVersion());
-            bodys.put("spec", node.getSpec());
-            bodys.put("status", node.getStatus());
-            bodys.put("metadata", metadata);
-
-            K8SClientResponse updateNode = this.nodeService.updateNode(bodys, nodeName, cluster);
-            if (HttpStatusUtil.isSuccessStatus(updateNode.getStatus())) {
-                return ActionReturnUtil.returnSuccess();
-            }
-            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.UPDATE_FAIL, updateNode.getBody(), false);
+        if (node == null) {
+            throw new MarsRuntimeException(DictEnum.NODE.phrase(), ErrorCodeMessage.NOT_EXIST);
         }
-        return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NOT_EXIST, DictEnum.NODE.phrase(), true);
+        Map<String, Object> labels = node.getMetadata().getLabels();
+        // 更新labels
+        for (Entry<String, String> label : updateLabels.entrySet()) {
+            if (label.getValue() == null) {
+                labels.remove(label.getKey());
+            } else {
+                labels.put(label.getKey(), label.getValue());
+            }
+        }
+        ObjectMeta metadata = node.getMetadata();
+        metadata.setLabels(labels);
+        // 更新K8s
+        Map<String, Object> bodys = new HashMap<>();
+        bodys.put("kind", node.getKind());
+        bodys.put("apiVersion", node.getApiVersion());
+        bodys.put("spec", node.getSpec());
+        bodys.put("status", node.getStatus());
+        bodys.put("metadata", metadata);
+
+        K8SClientResponse updateNode = this.nodeService.updateNode(bodys, nodeName, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(updateNode.getStatus())) {
+            logger.error("更新节点标签失败,clusterId:{}, node:{},response:{}",
+                    cluster.getId(), nodeName, JSONObject.toJSONString(updateNode));
+            throw new MarsRuntimeException(updateNode.getBody());
+        }
     }
+
 
     @Override
     public List<String> getPrivateNamespaceNodeList(String namespace, Cluster cluster) {
