@@ -1,6 +1,7 @@
 package com.harmonycloud.service.application.impl;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.Lists;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
@@ -1304,9 +1305,9 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 
 	@Override
 	public ActionReturnUtil getTransferCluster(ClusterTransferDetailDto clusterTransferDto) {
-		List<TransferCluster> list = transferClusterMapper.queryTransferCluster(clusterTransferDto.getClusterId());
+		List<TransferCluster> list = transferClusterMapper.queryTransferCluster(clusterTransferDto.getClusterId());  // 老集群id
 		if (CollectionUtils.isEmpty(list)) {
-			return ActionReturnUtil.returnSuccessWithData(null);
+			return ActionReturnUtil.returnSuccessWithData(new JSONObject());
 		}
 
 		TransferCluster transferCluster = list.get(0);
@@ -1327,9 +1328,10 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 
 	@Override
 	public ActionReturnUtil getDeployDetail(ClusterTransferDetailDto clusterTransferDto) {
-		List<TransferBindDeploy> list = transferDeployMapper.queryTransferDeployDetail(clusterTransferDto.getTenantId(), clusterTransferDto.getClusterId());
+		List<TransferBindDeploy> list = transferDeployMapper.queryTransferDeployDetail(clusterTransferDto.getTenantId(),
+				clusterTransferDto.getClusterId());    // 老集群id
 		if (CollectionUtils.isEmpty(list)) {
-			return ActionReturnUtil.returnSuccessWithData(null);
+			return ActionReturnUtil.returnSuccessWithData(Lists.newArrayList());
 		}
 		List<ClusterTransferDetailDto> resList = Lists.newArrayList();
 		list.forEach(detail -> {
@@ -1354,7 +1356,11 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 
 	@Override
 	public ActionReturnUtil getDeployDetailBackUp(ClusterTransferDetailDto clusterTransferDto) {
-		List<TransferClusterBackup> backupList = transferClusterBackUpMapper.queryHistoryBackUp(clusterTransferDto.getClusterId(), clusterTransferDto.getTenantId());
+		List<TransferClusterBackup> backupList = transferClusterBackUpMapper.queryHistoryBackUp(clusterTransferDto.getClusterId(),
+				clusterTransferDto.getTenantId());    // 老集群id
+		if (CollectionUtils.isEmpty(backupList)) {
+			return ActionReturnUtil.returnSuccessWithData(Lists.newArrayList());
+		}
 		List<ClusterTransferBackupDto> resList = Lists.newArrayList();
 		backupList.forEach(backup -> {
 			ClusterTransferBackupDto dto = new ClusterTransferBackupDto();
