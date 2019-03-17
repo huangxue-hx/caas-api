@@ -923,8 +923,8 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		svcRouterDto.setIcName((String)map.get("icName"));
 		Map<String, Object> address = (Map<String, Object>)map.get("address");
 		TcpRuleDto tcpRuleDto = new TcpRuleDto();
-		tcpRuleDto.setPort((String)address.get("containerPort"));
-		tcpRuleDto.setTargetPort((String)address.get("externalPort"));
+		tcpRuleDto.setTargetPort((String)address.get("containerPort"));
+		tcpRuleDto.setPort((String)address.get("externalPort"));
 		tcpRuleDto.setProtocol((String)map.get("type"));
 		rules.add(tcpRuleDto);
 		svcRouterDto.setRules(rules);
