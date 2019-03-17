@@ -425,7 +425,9 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		namespaceLocal.setCreateTime(DateUtil.getCurrentUtcTime());
 		namespaceLocal.setAliasName(namespaceDto.getAliasName());
 		//创建本地分区
-		return this.namespaceLocalService.createTransferNamespace(namespaceLocal);
+		ErrorNamespaceDto errorNamespaceDto = this.namespaceLocalService.createTransferNamespace(namespaceLocal);
+		namespaceService.updateShareNode(namespaceDto);
+		return errorNamespaceDto;
 	}
 
 	private Map<String, Object> getAnnotations(NamespaceDto namespaceDto) {
@@ -567,7 +569,12 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 private String splitHostname(String hostname){
 		 String host = "";
 		 if(StringUtils.isNotEmpty(hostname)){
-			host = Arrays.asList(hostname.split("/")).get(0);
+		 	if (hostname.indexOf("/") > 0) {
+				host = hostname.split("/")[0];
+			} else {
+				host = hostname.split(":")[0];
+			}
+
 		 }
 		 return host;
 	 }
@@ -1008,8 +1015,8 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		labels.put("tenantId", deploymentTransferDto.getProjectId());
 		List<Map<String, Object>> address = (List<Map<String, Object>>)map.get("address");
 		for (Map<String, Object> map2 : address) {
-			List<String> host = (List<String>)map2.get("hostname");
-			parsedIngressListDto.setHost(splitHostname(host.get(0)));
+			String host = map2.get("hostname").toString();
+			parsedIngressListDto.setHost(splitHostname(host));
 			HttpRuleDto httpRuleDto = new HttpRuleDto();
 			httpRuleDto.setService(deploymentTransferDto.getCurrentDeployName());
 			System.out.println(map2.get("port"));

@@ -194,6 +194,7 @@
     <if test="tenantId != null and tenantId != ''">
       and tenant_id = #{tenantId}
     </if>
+    order by id desc
   </select>
 
 </mapper>

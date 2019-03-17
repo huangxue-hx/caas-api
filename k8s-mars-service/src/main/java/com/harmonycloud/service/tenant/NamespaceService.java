@@ -25,6 +25,8 @@ public interface NamespaceService {
      */
     ActionReturnUtil createNamespace(NamespaceDto namespaceDto) throws Exception;
 
+    void updateShareNode(NamespaceDto namespaceDto) throws Exception;
+
     /**
      * 编辑Resource　quato
      * @param namespaceDto
