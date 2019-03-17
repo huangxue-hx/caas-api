@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -50,8 +51,8 @@ public class IpPoolServiceImpl implements IpPoolService {
     @Autowired
     private TenantClusterQuotaService tenantClusterQuotaService;
 
-    @Value("#{propertiesReader['hc.ipam.url']}")
-    private String hcIpamUrl;
+    @Value("${hc.ipam.server.port:32222}")
+    private String hcIpamServerPort;
 
     @Autowired
     private RestTemplate restTemplate;
@@ -66,11 +67,10 @@ public class IpPoolServiceImpl implements IpPoolService {
         // 查询列表
         List<ProjectIpPool> poolList = projectIpPoolMapper.selectList(projectId, clusterId, null);
         if (CollectionUtils.isEmpty(poolList)) {
-            throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_NOT_EXIST);
+            return Collections.emptyList();
         }
 
         List<ProjectIpPoolDto> resList = Lists.newArrayList();
-        String url = hcIpamUrl + "/ippool/";    // 接口url
 
         poolList.forEach(p -> {
             ProjectIpPoolDto poolDto = new ProjectIpPoolDto();
@@ -86,8 +86,7 @@ public class IpPoolServiceImpl implements IpPoolService {
             if (cluster != null) {
                 poolDto.setClusterName(cluster.getName());
             }
-
-            String getUrl = url + getPoolName(p.getClusterId(), p.getName());
+            String getUrl = "http://" + cluster.getHost() + ":"+Integer.parseInt(hcIpamServerPort)+"/ippool/" + getPoolName(p.getClusterId(), p.getName());
             // get调用查询接口
             try {
                 JSONObject res = restTemplate.getForObject(getUrl, JSONObject.class);
@@ -133,9 +132,9 @@ public class IpPoolServiceImpl implements IpPoolService {
         if (count != CommonConstant.NUM_ONE) {
             throw new MarsRuntimeException(ErrorCodeMessage.SAVE_FAIL);
         }
-
+        Cluster cluster = clusterService.findClusterById(poolDto.getClusterId());
         // post调用创建资源池接口
-        String url = hcIpamUrl + "/ippool";
+        String url = "http://" + cluster.getHost() + ":"+Integer.parseInt(hcIpamServerPort)+"/ippool/";
         try {
             createIpPool(url, rec);
         } catch (Exception e) {
@@ -154,7 +153,8 @@ public class IpPoolServiceImpl implements IpPoolService {
 
         // 校验当前资源池是否已使用
         // get调用查询接口
-        String url = hcIpamUrl + "/ippool";
+        Cluster cluster = clusterService.findClusterById(poolDto.getClusterId());
+        String url = "http://" + cluster.getHost() + ":"+Integer.parseInt(hcIpamServerPort)+"/ippool/";
         String urlAndPoolName = url + "/" + getPoolName(poolDto.getClusterId(), poolDto.getName());
 
         try {
@@ -233,8 +233,8 @@ public class IpPoolServiceImpl implements IpPoolService {
         if (count != CommonConstant.NUM_ONE) {
             throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
         }
-
-        String url = hcIpamUrl + "/ippool/" + getPoolName(pool.getClusterId(), pool.getName());
+        Cluster cluster = clusterService.findClusterById(clusterId);
+        String url = "http://" + cluster.getHost() + ":"+Integer.parseInt(hcIpamServerPort)+"/ippool/" + getPoolName(pool.getClusterId(), pool.getName());
         try {
             // delete调用删除接口
             HttpClientResponse response = HttpClientUtil.doDelete(url, null, null);

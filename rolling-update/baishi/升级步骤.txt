@@ -1,1 +1,2 @@
-1. webapi config 增加 hcipam的url地址
+1. 执行数据库脚本db-upgrade-webapi-v2.1.0-baishi.sql
+2. 执行操作审计部署文档
