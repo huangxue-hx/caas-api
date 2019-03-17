@@ -14,6 +14,24 @@ public class TenantClusterQuota implements Serializable {
 
     private Double memoryQuota;
 
+    @Override
+    public String toString() {
+        return "TenantClusterQuota{" +
+                "id=" + id +
+                ", tenantId='" + tenantId + '\'' +
+                ", clusterId='" + clusterId + '\'' +
+                ", cpuQuota=" + cpuQuota +
+                ", memoryQuota=" + memoryQuota +
+                ", pvQuota=" + pvQuota +
+                ", storageQuotas='" + storageQuotas + '\'' +
+                ", updateTime=" + updateTime +
+                ", createTime=" + createTime +
+                ", clusterName='" + clusterName + '\'' +
+                ", icNames='" + icNames + '\'' +
+                ", reserve1='" + reserve1 + '\'' +
+                '}';
+    }
+
     private Double pvQuota;
 
     private String storageQuotas;

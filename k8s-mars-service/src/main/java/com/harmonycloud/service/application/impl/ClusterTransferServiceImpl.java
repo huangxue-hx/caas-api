@@ -750,7 +750,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			return errDeployDto;
 		}
 		deployment = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
-		deployment= replaceDeployment(deployment, deploymentTransferDto);
+		deployment = replaceDeployment(deployment, deploymentTransferDto);
 		createApp(oldCluster,currentCluster, deployment.getMetadata().getLabels(),deploymentTransferDto);
 		response = dpService.doSpecifyDeployment(deploymentTransferDto.getNamespace(), null, generateHeader(), CollectionUtil.transBean2Map(deployment), HTTPMethod.POST, currentCluster);
         errDeployDto =checkK8SClientResponse(response,deployName);
@@ -761,12 +761,16 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	}
 	private void createApp(Cluster oldCluster, Cluster newCluster ,Map<String,Object> labels,DeploymentTransferDto deploymentTransferDto)  {
 		String projectId = (String) labels.get("harmonycloud.cn/projectId");
-		String appName = "";
+		String appName = null;
 		for (String label:labels.keySet()){
 				if (label.contains(projectId)) {
 					labels.put(label, deploymentTransferDto.getCurrentDeployName());
 					appName = StringUtils.substringAfter(label, projectId + "-");
 				}
+		}
+		//非应用
+		if (appName == null){
+			return;
 		}
 		try {
 			K8SClientResponse response  = tprApplication.getApplicationByName(deploymentTransferDto.getCurrentNameSpace(), appName, null, null, HTTPMethod.GET, oldCluster);
@@ -829,31 +833,30 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * 创建服务 需要先创建service
 	 * @param deploymentTransferDto
 	 * @param currentCluster
-	 * @param transferCluster
-	 * @throws InvocationTargetException
-	 * @throws IllegalAccessException
-	 * @throws IntrospectionException
+	 * @param oldCluster  旧集群id
 	 */
-	private ErrDeployDto createService(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,Cluster transferCluster) throws Exception{
+	private ErrDeployDto createService(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,Cluster oldCluster) throws Exception{
 		K8SClientResponse rsRes  =null;
 		com.harmonycloud.k8s.bean.Service service =null;
 		K8SURL k8surl = new K8SURL();
 		ErrDeployDto errDeployDto = new ErrDeployDto();
-		rsRes = serviceService.doSepcifyService(deploymentTransferDto.getNamespace(),deploymentTransferDto.getCurrentDeployName(), null, null, HTTPMethod.GET, transferCluster);
+		rsRes = serviceService.doSepcifyService(deploymentTransferDto.getNamespace(),deploymentTransferDto.getCurrentDeployName(), null, null, HTTPMethod.GET, currentCluster);
 		if (rsRes.getStatus() != Constant.HTTP_404){
 			errDeployDto = new ErrDeployDto();
 			errDeployDto.setDeployName(deploymentTransferDto.getCurrentDeployName());
-			errDeployDto.setErrMsg("创建service失败");
+			errDeployDto.setErrMsg("创建service失败，service已存在");
 			return errDeployDto;
 		}
-		rsRes = serviceService.doSepcifyService(deploymentTransferDto.getCurrentNameSpace(),deploymentTransferDto.getCurrentDeployName(), null, null, HTTPMethod.GET, currentCluster);
+		//旧集群service
+		rsRes = serviceService.doSepcifyService(deploymentTransferDto.getCurrentNameSpace(),deploymentTransferDto.getCurrentDeployName(), null, null, HTTPMethod.GET, oldCluster);
 		errDeployDto = checkK8SClientResponse(rsRes,deploymentTransferDto.getCurrentDeployName());
 		if(!Objects.isNull(errDeployDto)){
 			return errDeployDto;
 		}
 		k8surl.setNamespace(deploymentTransferDto.getNamespace()).setResource(Resource.SERVICE);
 		service = JsonUtil.jsonToPojo(rsRes.getBody(), com.harmonycloud.k8s.bean.Service.class);
-		K8SClientResponse sResponse = new K8sMachineClient().exec(k8surl, HTTPMethod.POST, generateHeader(),CollectionUtil.transBean2Map(replaceService(service, deploymentTransferDto)), transferCluster);
+		//目标集群创建service
+		K8SClientResponse sResponse = new K8sMachineClient().exec(k8surl, HTTPMethod.POST, generateHeader(),CollectionUtil.transBean2Map(replaceService(service, deploymentTransferDto)), currentCluster);
 		checkK8SClientResponse(sResponse,deploymentTransferDto.getCurrentDeployName());
 		if(!Objects.isNull(errDeployDto)){
 			return errDeployDto;
@@ -1205,7 +1208,6 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	}
 
 	private Map<String,Object> createDeployment(List<DeploymentTransferDto> deploymentTransferDtos,Cluster oldCluster,Cluster currentCluster) throws Exception {
-		//TODO 稍后改为先取deployment ，然后根据deployment创建pv、cm等资源
 		int index = 0;
 		Map<String,Object> params = new HashMap<>();
 		List<ErrDeployDto> errDeployDtos = new ArrayList<>();
@@ -1232,7 +1234,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				errorBindDeploy.add(transferBindDeploy);
 				continue;
 			}
-			//TODO configmap应该从deployment取 先注释掉
+
 			errDeployDto = createOrUpdateConfigMap(deploymentTransferDto, currentCluster, oldCluster);
 			if(errDeployDto!=null){
 				errDeployDtos.add(errDeployDto);
