@@ -1370,6 +1370,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			dto.setErrMsg(backup.getErrMsg());
 			dto.setCreateTime(backup.getCreateTime());
 			dto.setUpdateTime(backup.getUpdateTime());
+			dto.setTransferClusterPercent(backup.getTransferClusterPercent());
 			dto.setOldClusterId(backup.getOldClusterId());
 			dto.setTenantId(backup.gettenantId());
 			try {

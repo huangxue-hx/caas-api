@@ -24,6 +24,8 @@ public class ClusterTransferBackupDto implements Serializable {
 
     private String oldClusterId;
 
+    private String transferClusterPercent;
+
     private String transferClusterId;
 
     private String transferClusterName;
@@ -83,6 +85,14 @@ public class ClusterTransferBackupDto implements Serializable {
 
     public void setOldClusterId(String oldClusterId) {
         this.oldClusterId = oldClusterId;
+    }
+
+    public String getTransferClusterPercent() {
+        return transferClusterPercent;
+    }
+
+    public void setTransferClusterPercent(String transferClusterPercent) {
+        this.transferClusterPercent = transferClusterPercent;
     }
 
     public String getTransferClusterId() {
