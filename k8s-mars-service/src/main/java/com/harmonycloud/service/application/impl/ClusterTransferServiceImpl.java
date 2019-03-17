@@ -697,10 +697,10 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * 创建或更新configmap
 	 * @param deploymentTransferDto
 	 * @param currentCluster
-	 * @param transferCluter
+	 * @param oldCluster
 	 */
-	private ErrDeployDto createOrUpdateConfigMap(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,Cluster transferCluter) throws Exception {
-		K8SClientResponse response = configMapService.doSepcifyConfigmap(deploymentTransferDto.getCurrentNameSpace(), deploymentTransferDto.getCurrentDeployName(),currentCluster);
+	private ErrDeployDto createOrUpdateConfigMap(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,Cluster oldCluster) throws Exception {
+		K8SClientResponse response = configMapService.doSepcifyConfigmap(deploymentTransferDto.getCurrentNameSpace(), deploymentTransferDto.getCurrentDeployName(),oldCluster);
 		if (HttpStatusUtil.isSuccessStatus(response.getStatus())){
 			//如果返回404代表当前服务并未创建configmap 则可向下创建
 			ErrDeployDto errDeployDto = new ErrDeployDto();
@@ -719,7 +719,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				Map<String, Object> data = new HashMap<String, Object>();
 				data.put("config.json", com.alibaba.fastjson.JSONObject.toJSON(configMap));
 				bodys.put("data", data);
-				K8SClientResponse result = new K8sMachineClient().exec(url, HTTPMethod.POST, generateHeader(), bodys, transferCluter);
+				K8SClientResponse result = new K8sMachineClient().exec(url, HTTPMethod.POST, generateHeader(), bodys, currentCluster);
 				errDeployDto = checkK8SClientResponse(result,deploymentTransferDto.getCurrentDeployName());
 				if(!Objects.isNull(errDeployDto)){
 					return errDeployDto;
@@ -756,6 +756,13 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			return errDeployDto;
 		}
 		deployment = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
+        List<Volume> volumeList = deployment.getSpec().getTemplate().getSpec().getVolumes();
+		if (!volumeList.isEmpty()){
+			errDeployDto =createVolumes(oldCluster,currentCluster,volumeList, deploymentTransferDto);
+			if(!Objects.isNull(errDeployDto)){
+				return errDeployDto;
+			}
+		}
 		deployment = replaceDeployment(deployment, deploymentTransferDto);
 		createApp(oldCluster,currentCluster, deployment.getMetadata().getLabels(),deploymentTransferDto);
 		response = dpService.doSpecifyDeployment(deploymentTransferDto.getNamespace(), null, generateHeader(), CollectionUtil.transBean2Map(deployment), HTTPMethod.POST, currentCluster);
@@ -765,6 +772,47 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		}
 		return errDeployDto;
 	}
+	private ErrDeployDto createVolumes(Cluster oldCluster, Cluster newCluster ,List<Volume> volumeList ,DeploymentTransferDto deploymentTransferDto){
+        ErrDeployDto errDeployDto = null;
+	    for (Volume volume :volumeList){
+            ConfigMapVolumeSource cm = volume.getConfigMap();
+
+            if (cm != null) {
+                K8SClientResponse response = null;
+                try {
+                    response = configMapService.doSepcifyConfigmap(deploymentTransferDto.getCurrentNameSpace(), cm.getName(), oldCluster);
+                    if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                        ConfigMap configMap = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
+                        if (configMap != null) {
+                            K8SURL url = new K8SURL();
+                            url.setNamespace(deploymentTransferDto.getNamespace()).setResource(Resource.CONFIGMAP);
+                            Map<String, Object> bodys = new HashMap<String, Object>();
+                            Map<String, Object> meta = new HashMap<String, Object>();
+                            meta.put("namespace", deploymentTransferDto.getNamespace());
+                            meta.put("name", configMap.getMetadata().getName());
+                            Map<String, Object> label = new HashMap<String, Object>();
+                            label.put("app", deploymentTransferDto.getCurrentDeployName());
+                            meta.put("labels", label);
+                            bodys.put("metadata", meta);
+                            Map<String, Object> data = (Map<String, Object>) configMap.getData();
+                            bodys.put("data", data);
+                            K8SClientResponse result = new K8sMachineClient().exec(url, HTTPMethod.POST, generateHeader(), bodys, newCluster);
+                            errDeployDto = checkK8SClientResponse(result, deploymentTransferDto.getCurrentDeployName());
+                            if (!Objects.isNull(errDeployDto)) {
+                                return errDeployDto;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.error("集群迁移创建configMap失败,deployDto:{},errrMessage:{}",deploymentTransferDto, e);
+                    errDeployDto = new ErrDeployDto();
+                    errDeployDto.setErrMsg("创建configMap失败");
+                    errDeployDto.setDeployName(deploymentTransferDto.getCurrentDeployName());
+                }
+            }
+        }
+        return errDeployDto;
+    }
 	private void createApp(Cluster oldCluster, Cluster newCluster ,Map<String,Object> labels,DeploymentTransferDto deploymentTransferDto)  {
 		String projectId = (String) labels.get("harmonycloud.cn/projectId");
 		String appName = null;
@@ -1241,7 +1289,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				continue;
 			}
 
-			errDeployDto = createOrUpdateConfigMap(deploymentTransferDto, currentCluster, oldCluster);
+			/*errDeployDto = createOrUpdateConfigMap(deploymentTransferDto, currentCluster, oldCluster);
 			if(errDeployDto!=null){
 				errDeployDtos.add(errDeployDto);
 				transferBindDeploy.setErrMsg(errDeployDto.getErrMsg());
@@ -1249,7 +1297,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				transferBindDeploy.setStepId(4);
 				errorBindDeploy.add(transferBindDeploy);
 				continue;
-			}
+			}*/
 			errDeployDto = create(deploymentTransferDto, currentCluster, oldCluster);
 			if(errDeployDto!=null){
 				errDeployDtos.add(errDeployDto);
