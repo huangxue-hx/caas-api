@@ -459,7 +459,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 
 		//创建该租户在新集群的配额
 		TenantClusterQuota tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(namespaceDtos.get(0).getTenantId(),currentCluster.getId());
-        //TODO 创建集群配额应该改为客户手动创，多次从不同集群迁入会导致不知道该怎样设置配额大小
+        //TODO 创建集群配额应该改为客户手动创，多次从不同集群迁入某个集群会导致不知道该怎样设置配额大小
 		if (tenantClusterQuota == null){
 			tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(namespaceDtos.get(0).getTenantId(),oldCluster.getId());
 			//TODO 负载均衡 暂时不迁移
@@ -477,16 +477,15 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			}
 		}else {
 			if ("0.0".equals(tenantClusterQuota.getCpuQuota().toString())){
-				tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(namespaceDtos.get(0).getTenantId(),oldCluster.getId());
+				TenantClusterQuota quota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(namespaceDtos.get(0).getTenantId(),oldCluster.getId());
 				//TODO 负载均衡 暂时不迁移
-				tenantClusterQuota.setIcNames(null);
-				tenantClusterQuota.setClusterName(currentCluster.getName());
-				tenantClusterQuota.setClusterId(currentCluster.getId());
-				tenantClusterQuota.setId(null);
-				tenantClusterQuota.setCreateTime(new Date());
-				tenantClusterQuota.setUpdateTime(null);
+				quota.setIcNames(null);
+				quota.setClusterName(currentCluster.getName());
+				quota.setClusterId(currentCluster.getId());
+				quota.setUpdateTime(new Date());
+				quota.setId(tenantClusterQuota.getId());
 				try{
-					tenantClusterQuotaService.updateClusterQuota(tenantClusterQuota);
+					tenantClusterQuotaService.updateClusterQuota(quota);
 				}catch (Exception e){
 					//TODO 后期放到数据库错误记录中
 					logger.error("创建集群配额失败，tenantClusterQuota：{}，error信息：{}", tenantClusterQuota.toString(), e);
@@ -498,6 +497,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		}
 		//创建k8s 分区，并返回创建正确和错误的信息
 		Map<String,List<ErrorNamespaceDto>> param = createNamespace(namespaceDtos, currentCluster);
+/*		断点续传
 		List<ErrorNamespaceDto> successNamespaceDtos = param.get(Constant.TRANSFER_NAMESPACE_SUCCESS);
 		List<ErrorNamespaceDto> errorNamespaceDtos = param.get(Constant.TRANSFER_NAMESPACE_ERROR);
 		if (!errorNamespaceDtos.isEmpty()){
@@ -511,7 +511,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			if (!successList.isEmpty()){
 				transferBindNamespaceMapper.updateSuccessListNamespace(successList);
 			}
-		}
+		}*/
 		return param;
 	}
 
@@ -695,27 +695,29 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 */
 	private ErrDeployDto createOrUpdateConfigMap(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,Cluster transferCluter) throws Exception {
 		K8SClientResponse response = configMapService.doSepcifyConfigmap(deploymentTransferDto.getCurrentNameSpace(), deploymentTransferDto.getCurrentDeployName(),currentCluster);
-		//如果返回404代表当前服务并未创建configmap 则可向下创建
-		ErrDeployDto errDeployDto = new ErrDeployDto();
-		ConfigMap configMap = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
-		if(configMap!=null){
-			K8SURL url = new K8SURL();
-			url.setNamespace(deploymentTransferDto.getNamespace()).setResource(Resource.CONFIGMAP);
-			Map<String, Object> bodys = new HashMap<String, Object>();
-			Map<String, Object> meta = new HashMap<String, Object>();
-			meta.put("namespace", deploymentTransferDto.getNamespace());
-			meta.put("name", configMap.getMetadata().getName());
-			Map<String, Object> label = new HashMap<String, Object>();
-			label.put("app", deploymentTransferDto.getCurrentDeployName());
-			meta.put("labels", label);
-			bodys.put("metadata", meta);
-			Map<String, Object> data = new HashMap<String, Object>();
-			data.put("config.json", com.alibaba.fastjson.JSONObject.toJSON(configMap));
-			bodys.put("data", data);
-			K8SClientResponse result = new K8sMachineClient().exec(url, HTTPMethod.POST, generateHeader(), bodys, transferCluter);
-			errDeployDto = checkK8SClientResponse(result,deploymentTransferDto.getCurrentDeployName());
-			if(!Objects.isNull(errDeployDto)){
-				return errDeployDto;
+		if (HttpStatusUtil.isSuccessStatus(response.getStatus())){
+			//如果返回404代表当前服务并未创建configmap 则可向下创建
+			ErrDeployDto errDeployDto = new ErrDeployDto();
+			ConfigMap configMap = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
+			if(configMap!=null){
+				K8SURL url = new K8SURL();
+				url.setNamespace(deploymentTransferDto.getNamespace()).setResource(Resource.CONFIGMAP);
+				Map<String, Object> bodys = new HashMap<String, Object>();
+				Map<String, Object> meta = new HashMap<String, Object>();
+				meta.put("namespace", deploymentTransferDto.getNamespace());
+				meta.put("name", configMap.getMetadata().getName());
+				Map<String, Object> label = new HashMap<String, Object>();
+				label.put("app", deploymentTransferDto.getCurrentDeployName());
+				meta.put("labels", label);
+				bodys.put("metadata", meta);
+				Map<String, Object> data = new HashMap<String, Object>();
+				data.put("config.json", com.alibaba.fastjson.JSONObject.toJSON(configMap));
+				bodys.put("data", data);
+				K8SClientResponse result = new K8sMachineClient().exec(url, HTTPMethod.POST, generateHeader(), bodys, transferCluter);
+				errDeployDto = checkK8SClientResponse(result,deploymentTransferDto.getCurrentDeployName());
+				if(!Objects.isNull(errDeployDto)){
+					return errDeployDto;
+				}
 			}
 		}
 		return null;
@@ -1231,7 +1233,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				continue;
 			}
 			//TODO configmap应该从deployment取 先注释掉
-			/*errDeployDto = createOrUpdateConfigMap(deploymentTransferDto, currentCluster, oldCluster);
+			errDeployDto = createOrUpdateConfigMap(deploymentTransferDto, currentCluster, oldCluster);
 			if(errDeployDto!=null){
 				errDeployDtos.add(errDeployDto);
 				transferBindDeploy.setErrMsg(errDeployDto.getErrMsg());
@@ -1239,7 +1241,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				transferBindDeploy.setStepId(4);
 				errorBindDeploy.add(transferBindDeploy);
 				continue;
-			}*/
+			}
 			errDeployDto = create(deploymentTransferDto, currentCluster, oldCluster);
 			if(errDeployDto!=null){
 				errDeployDtos.add(errDeployDto);
