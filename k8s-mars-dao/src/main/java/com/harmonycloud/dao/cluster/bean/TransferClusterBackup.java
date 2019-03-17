@@ -68,6 +68,15 @@ public class TransferClusterBackup implements Serializable {
      */
     private String projectId;
 
+    private String oldClusterId;
+
+    public String getOldClusterId() {
+        return oldClusterId;
+    }
+
+    public void setOldClusterId(String oldClusterId) {
+        this.oldClusterId = oldClusterId;
+    }
 
     private String errNamespace;
 

@@ -147,6 +147,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		transferClusterBackup.setNamespaceNum(transferBindNamespaceMapper.queryLastNamespaceNum(clusterTransferDto.get(0).getTenantId(),clusterTransferDto.get(0).getTargetClusterId()) == null ? 1 :transferBindNamespaceMapper.queryLastNamespaceNum(clusterTransferDto.get(0).getTenantId(),clusterTransferDto.get(0).getTargetClusterId()));
 		transferClusterBackup.settenantId(clusterTransferDto.get(0).getTenantId());
 		transferClusterBackup.setTransferClusterId(clusterTransferDto.get(0).getTargetClusterId());
+		transferClusterBackup.setOldClusterId(clusterTransferDto.get(0).getCurrentClusterId());
 		return transferClusterBackup;
 	}
 
@@ -454,6 +455,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 
 		//创建该租户在新集群的配额
 		TenantClusterQuota tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(namespaceDtos.get(0).getTenantId(),oldCluster.getId());
+		//TODO 负载均衡 暂时不迁移
 		tenantClusterQuota.setIcNames(null);
 		tenantClusterQuota.setClusterName(currentCluster.getName());
 		tenantClusterQuota.setClusterId(currentCluster.getId());
@@ -461,6 +463,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		try{
 			tenantClusterQuotaService.createClusterQuota(tenantClusterQuota);
 		}catch (Exception e){
+		    //TODO 后期放到数据库错误记录中
 			logger.error("创建集群配额失败，TenantClusterQuota：{}，error信息：{}", tenantClusterQuota, e);
 		}
 		//创建k8s 分区，并返回创建正确和错误的信息

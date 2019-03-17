@@ -33,12 +33,12 @@
     insert into transfer_cluster_backup (id, tenant_id, namespace_num,
       deploy_num, err_msg, create_time,
       update_time, transfer_cluster_id, is_continue,
-       transfer_cluster_percent, project_id
+       transfer_cluster_percent, project_id, old_cluster_id
       )
     values (#{id,jdbcType=INTEGER}, #{tenantId,jdbcType=VARCHAR}, #{namespaceNum,jdbcType=INTEGER},
       #{deployNum,jdbcType=INTEGER}, #{errMsg,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP},
       #{updateTime,jdbcType=TIMESTAMP}, #{transferClusterId,jdbcType=VARCHAR}, #{isContinue,jdbcType=TINYINT},
-      #{transferClusterPercent,jdbcType=VARCHAR}, #{projectId,jdbcType=VARCHAR}
+      #{transferClusterPercent,jdbcType=VARCHAR}, #{projectId,jdbcType=VARCHAR},#{oldClusterId,jdbcType=VARCHAR}
       )
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.cluster.bean.TransferClusterBackup">
