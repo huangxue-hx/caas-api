@@ -332,8 +332,8 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		namespaceDto.setClusterId(clusterTransferDto.getTargetClusterId());
 		List<String> usedCpu = (List<String>) detail.get("cpu");
 		List<String> usedMemory = (List<String>) detail.get("memory");
-		quota.setCpu(usedCpu.get(1));
-		quota.setMemory(mathMemory(usedMemory.get(1))+"Gi");
+		quota.setCpu(usedCpu.get(0));
+		quota.setMemory(usedMemory.get(0)+"Gi");
 		namespaceDto.setQuota(quota);
 		/*namespaceDto.setStorageClassQuotaList(detail.get(""));*/
 		return namespaceDto;
@@ -455,17 +455,43 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	private Map<String,List<ErrorNamespaceDto>> updateBindNamespace(ClusterTransferDto clusterTransferDtos, List<NamespaceDto> namespaceDtos, Cluster currentCluster ,Cluster oldCluster) throws Exception {
 
 		//创建该租户在新集群的配额
-		TenantClusterQuota tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(namespaceDtos.get(0).getTenantId(),oldCluster.getId());
-		//TODO 负载均衡 暂时不迁移
-		tenantClusterQuota.setIcNames(null);
-		tenantClusterQuota.setClusterName(currentCluster.getName());
-		tenantClusterQuota.setClusterId(currentCluster.getId());
-		tenantClusterQuota.setId(null);
-		try{
-			tenantClusterQuotaService.createClusterQuota(tenantClusterQuota);
-		}catch (Exception e){
-		    //TODO 后期放到数据库错误记录中
-			logger.error("创建集群配额失败，TenantClusterQuota：{}，error信息：{}", tenantClusterQuota, e);
+		TenantClusterQuota tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(namespaceDtos.get(0).getTenantId(),currentCluster.getId());
+        //TODO 创建集群配额应该改为客户手动创，多次从不同集群迁入会导致不知道该怎样设置配额大小
+		if (tenantClusterQuota == null){
+			tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(namespaceDtos.get(0).getTenantId(),oldCluster.getId());
+			//TODO 负载均衡 暂时不迁移
+			tenantClusterQuota.setIcNames(null);
+			tenantClusterQuota.setClusterName(currentCluster.getName());
+			tenantClusterQuota.setClusterId(currentCluster.getId());
+			tenantClusterQuota.setId(null);
+			tenantClusterQuota.setCreateTime(new Date());
+			tenantClusterQuota.setUpdateTime(null);
+			try{
+				tenantClusterQuotaService.createClusterQuota(tenantClusterQuota);
+			}catch (Exception e){
+				//TODO 后期放到数据库错误记录中
+				logger.error("创建集群配额失败，tenantClusterQuota：{}，error信息：{}", tenantClusterQuota.toString(), e);
+			}
+		}else {
+			if ("0.0".equals(tenantClusterQuota.getCpuQuota().toString())){
+				tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(namespaceDtos.get(0).getTenantId(),oldCluster.getId());
+				//TODO 负载均衡 暂时不迁移
+				tenantClusterQuota.setIcNames(null);
+				tenantClusterQuota.setClusterName(currentCluster.getName());
+				tenantClusterQuota.setClusterId(currentCluster.getId());
+				tenantClusterQuota.setId(null);
+				tenantClusterQuota.setCreateTime(new Date());
+				tenantClusterQuota.setUpdateTime(null);
+				try{
+					tenantClusterQuotaService.updateClusterQuota(tenantClusterQuota);
+				}catch (Exception e){
+					//TODO 后期放到数据库错误记录中
+					logger.error("创建集群配额失败，tenantClusterQuota：{}，error信息：{}", tenantClusterQuota.toString(), e);
+				}
+			}else {
+				//TODO 后期放到数据库错误记录中
+				logger.warn("创建集群配额失败,配额已存在，TenantClusterQuota：{}", tenantClusterQuota.toString());
+			}
 		}
 		//创建k8s 分区，并返回创建正确和错误的信息
 		Map<String,List<ErrorNamespaceDto>> param = createNamespace(namespaceDtos, currentCluster);
