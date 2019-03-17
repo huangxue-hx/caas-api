@@ -1782,6 +1782,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         }
     }
 
+    @Override
     public Map<String, Object> getNamespaceQuota(String namespace) throws Exception {
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
         K8SClientResponse namespace2 = this.namespaceService.getNamespace(namespace, null, null, cluster);

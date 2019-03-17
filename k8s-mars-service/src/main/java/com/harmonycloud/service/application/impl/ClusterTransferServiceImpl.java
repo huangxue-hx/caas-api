@@ -15,6 +15,7 @@ import com.harmonycloud.dao.cluster.bean.TransferBindNamespace;
 import com.harmonycloud.dao.cluster.bean.TransferClusterBackup;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
+import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.dto.cluster.*;
 import com.harmonycloud.dto.tenant.NamespaceDto;
@@ -34,10 +35,8 @@ import com.harmonycloud.service.application.PersistentVolumeService;
 import com.harmonycloud.service.application.RouterService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.constant.Constant;
-import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.tenant.*;
 import com.harmonycloud.service.tenant.NamespaceService;
-import com.harmonycloud.service.tenant.ProjectService;
-import com.harmonycloud.service.tenant.TenantService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -115,6 +114,9 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 
 	@Autowired
 	private TprApplication tprApplication;
+
+	@Autowired
+	private TenantClusterQuotaService tenantClusterQuotaService;
 
     /**
      * 迁移对应的服务 在新集群上创建相同的服务 需要创建的有 ingress namespce configmap pv pvc deployment或者statefulset
@@ -331,6 +333,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		quota.setCpu(usedCpu.get(1));
 		quota.setMemory(mathMemory(usedMemory.get(1))+"Gi");
 		namespaceDto.setQuota(quota);
+		/*namespaceDto.setStorageClassQuotaList(detail.get(""));*/
 		return namespaceDto;
 	}
 
@@ -388,6 +391,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			}else {
 				// 3.创建resource quota
 				ActionReturnUtil createResult = namespaceService.createQuota(namespaceDto, cluster);
+
 				if (!((Boolean) createResult.get(CommonConstant.SUCCESS))) {
 					// 失败回滚
 					namespaceService.deleteNamespace(namespaceDto.getTenantId(), namespaceDto.getName());
@@ -446,7 +450,19 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		return response;
 	}
 
-	private Map<String,List<ErrorNamespaceDto>> updateBindNamespace(ClusterTransferDto clusterTransferDtos, List<NamespaceDto> namespaceDtos, Cluster currentCluster) throws Exception {
+	private Map<String,List<ErrorNamespaceDto>> updateBindNamespace(ClusterTransferDto clusterTransferDtos, List<NamespaceDto> namespaceDtos, Cluster currentCluster ,Cluster oldCluster) throws Exception {
+
+		//创建该租户在新集群的配额
+		TenantClusterQuota tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(namespaceDtos.get(0).getTenantId(),oldCluster.getId());
+		tenantClusterQuota.setIcNames(null);
+		tenantClusterQuota.setClusterName(currentCluster.getName());
+		tenantClusterQuota.setClusterId(currentCluster.getId());
+		tenantClusterQuota.setId(null);
+		try{
+			tenantClusterQuotaService.createClusterQuota(tenantClusterQuota);
+		}catch (Exception e){
+			logger.error("创建集群配额失败，TenantClusterQuota：{}，error信息：{}", tenantClusterQuota, e);
+		}
 		//创建k8s 分区，并返回创建正确和错误的信息
 		Map<String,List<ErrorNamespaceDto>> param = createNamespace(namespaceDtos, currentCluster);
 		List<ErrorNamespaceDto> successNamespaceDtos = param.get(Constant.TRANSFER_NAMESPACE_SUCCESS);
@@ -1326,7 +1342,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	private TransferResultDto excuteTransfer(TransferClusterBackup transferClusterBackup,List<ClusterTransferDto> clusterTransferDto,Cluster oldCluster,Cluster currentCluster,boolean isContinue) throws Exception{
 		TransferResultDto transferResultDto = new TransferResultDto();
 		transferClusterBackup.setIsContinue(isContinue?(byte)1:(byte)0);
-		Map<String,List<ErrorNamespaceDto>> param = saveBindNamespace(clusterTransferDto, currentCluster, isContinue);
+		Map<String,List<ErrorNamespaceDto>> param = saveBindNamespace(clusterTransferDto, currentCluster,oldCluster, isContinue);
 		// 这个地方应该是创建成功的namespaces
 		List<ErrorNamespaceDto> namespaces = param.get(Constant.TRANSFER_NAMESPACE_SUCCESS);
 		Map<String,Object> params = saveBindDeploy(namespaces, clusterTransferDto, currentCluster, isContinue, oldCluster);
@@ -1349,10 +1365,10 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * @param isContinue
 	 * @return
 	 */
-	private Map<String,List<ErrorNamespaceDto>> saveBindNamespace(List<ClusterTransferDto> clusterTransferDto,Cluster currentCluster,boolean isContinue) throws Exception {
+	private Map<String,List<ErrorNamespaceDto>> saveBindNamespace(List<ClusterTransferDto> clusterTransferDto,Cluster currentCluster,Cluster oldCluster,boolean isContinue) throws Exception {
 		List<TransferBindNamespace> bindNamespace  =  bindNamespace(isContinue,clusterTransferDto);
 		transferBindNamespaceMapper.saveBindNamespaces(bindNamespace);
-		Map<String,List<ErrorNamespaceDto>> param = updateBindNamespace(clusterTransferDto.get(0),packageNamespaceDto(clusterTransferDto), currentCluster);
+		Map<String,List<ErrorNamespaceDto>> param = updateBindNamespace(clusterTransferDto.get(0),packageNamespaceDto(clusterTransferDto), currentCluster,oldCluster);
 		return param;
 	}
 
