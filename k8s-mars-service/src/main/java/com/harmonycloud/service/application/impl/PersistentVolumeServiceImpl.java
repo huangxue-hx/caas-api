@@ -466,31 +466,25 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
             throws MarsRuntimeException {
         ErrDeployDto errDeployDto = new ErrDeployDto();
         if (null != pv) {
-            Map<String, Object> bodysPV = new HashMap<>();
-            Map<String, Object> metadata = new HashMap<>();
-            metadata.put("name", pv.getMetadata().getName());
-            Map<String, Object> labels = pv.getMetadata().getLabels();
-            metadata.put("labels", labels);
-            bodysPV.put("metadata", metadata);
-            Map<String, Object> spec = new HashMap<>();
-            spec.put("capacity", pv.getSpec().getCapacity());
-
-            spec.put("nfs", pv.getSpec().getNfs());
-            spec.put("flexVolume", pv.getSpec().getFlexVolume());
-            spec.put("accessModes", pv.getSpec().getAccessModes());
-            bodysPV.put("spec", spec);
             K8SURL urlPV = new K8SURL();
             urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pv.getMetadata().getName());
-            Map<String, Object> headersPV = new HashMap<>();
-            headersPV.put("Content-Type", "application/json");
-            K8SClientResponse responsePV = new K8sMachineClient().exec(urlPV, HTTPMethod.PUT,
-                    headersPV, bodysPV, cluster);
-            if (!HttpStatusUtil.isSuccessStatus(responsePV.getStatus())) {
-                errDeployDto.setDeployName(deployName);
-                errDeployDto.setErrMsg("迁移pv失败");
-                return errDeployDto;
-            }
 
+            PersistentVolumeSpec spec1 = new PersistentVolumeSpec();
+            spec1.setNfs(pv.getSpec().getNfs());
+            spec1.setAccessModes(pv.getSpec().getAccessModes());
+            spec1.setFlexVolume(pv.getSpec().getFlexVolume());
+            spec1.setCapacity(pv.getSpec().getCapacity());
+            ObjectMeta meta =new ObjectMeta();
+            meta.setLabels(pv.getMetadata().getLabels());
+            meta.setName(pv.getMetadata().getName());
+            meta.setClusterName(pv.getMetadata().getClusterName());
+            pv.setMetadata(meta);
+            pv.setSpec(spec1);
+            try {
+                pvService.addPv(pv, cluster);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
         return null;
     }

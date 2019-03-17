@@ -16,6 +16,7 @@ import com.harmonycloud.dao.cluster.bean.TransferBindDeploy;
 import com.harmonycloud.dao.cluster.bean.TransferBindNamespace;
 import com.harmonycloud.dao.cluster.bean.TransferCluster;
 import com.harmonycloud.dao.cluster.bean.TransferClusterBackup;
+import com.harmonycloud.dao.tenant.NamespaceLocalMapper;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
@@ -86,8 +87,9 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
     
     @Autowired
     private StatefulSetService statefulSetService;
-    
-    
+
+	@Autowired
+	private NamespaceLocalMapper namespaceLocalMapper;
     @Autowired
     private NamespaceLocalService namespaceLocalService;
 
@@ -349,6 +351,15 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		List<Integer> indexs= new ArrayList<>();
 		for (NamespaceDto namespaceDto : namespaceDtos) {
 			ErrorNamespaceDto errorNamespaceDto =new ErrorNamespaceDto();
+			//分区中文名唯一校验
+			/*String name = namespaceLocalMapper.selectByalias_name(namespaceDto.getAliasName());
+			if ( !StringUtils.isEmpty(name) && name.equals(namespaceDto.getName())){
+				errorNamespaceDto = new ErrorNamespaceDto();
+				errorNamespaceDto.setErrMsg("分区名已存在");
+				errorNamespaceDto.setNamespace(namespaceDto.getName());
+				errorList.add(errorNamespaceDto);
+				continue;
+			}*/
 			//字段长度、必填可放在接口入口处校验
 			if (StringUtils.isEmpty(namespaceDto.getName()) || namespaceDto.getName().indexOf(CommonConstant.LINE) < 0) {
 				errorNamespaceDto = new ErrorNamespaceDto();
@@ -398,8 +409,10 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				ActionReturnUtil createResult = namespaceService.createQuota(namespaceDto, cluster);
 
 				if (!((Boolean) createResult.get(CommonConstant.SUCCESS))) {
+				    logger.info("创建配额失败：",createResult.getData());
 					// 失败回滚
 					namespaceService.deleteNamespace(namespaceDto.getTenantId(), namespaceDto.getName());
+                    logger.info("创建配额失败后删除namespaces");
 					continue;
 				}
 				//保存到本地数据库
@@ -411,6 +424,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		}
 		updateNamespace.put(Constant.TRANSFER_NAMESPACE_SUCCESS,successList);
 		updateNamespace.put(Constant.TRANSFER_NAMESPACE_ERROR,errorList);
+		logger.info("迁移分区完成");
 		return updateNamespace;
 	}
 	//创建本地分区
@@ -645,14 +659,14 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				persistentVolumeClaims = transferPersistentVolumeClaimc.getItems();
 				persistentVolumeClaims.stream().forEach(x-> {
 					try {
-						errDeployDtos.add(updatePVC(x, sourceCluster, deploymentTransferDto.getCurrentDeployName()));
+						errDeployDtos.add(createPVC(replacePersistentVolumeClaim(x, deploymentTransferDto), targetCluster, sourceCluster,deploymentTransferDto.getNamespace(),deploymentTransferDto.getCurrentDeployName(),errDeployDto));
 					}catch (Exception e) {
 						logger.error("更新pvc错误，{}", x, e);
 					}
 				});
 			}else{
 				persistentVolumeClaims = persistentVolumeClaim.getItems();
-				persistentVolumeClaims.stream().forEach(x->errDeployDtos.add(createPVC(replacePersistentVolumeClaim(x, deploymentTransferDto), targetCluster, deploymentTransferDto.getNamespace(),deploymentTransferDto.getCurrentDeployName(),errDeployDto)));
+				persistentVolumeClaims.stream().forEach(x->errDeployDtos.add(createPVC(replacePersistentVolumeClaim(x, deploymentTransferDto), targetCluster, sourceCluster,deploymentTransferDto.getNamespace(),deploymentTransferDto.getCurrentDeployName(),errDeployDto)));
 			}
 		}
 		return null;
@@ -682,17 +696,22 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * @throws IllegalAccessException
 	 * @throws IntrospectionException
 	 */
-	private ErrDeployDto createPVC(PersistentVolumeClaim persistentVolumeClaim,Cluster targetCluster,String namespace,String deployName,ErrDeployDto errDeployDto) {
+	private ErrDeployDto createPVC(PersistentVolumeClaim persistentVolumeClaim,Cluster targetCluster,Cluster sourceCluster,String namespace,String deployName,ErrDeployDto errDeployDto) {
 		try {
 			Map<String, Object> bodys = CollectionUtil.transBean2Map(persistentVolumeClaim);
 			K8SURL url = new K8SURL();
 			url.setNamespace(namespace).setResource(Resource.PERSISTENTVOLUMECLAIM);
 			K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, generateHeader(), bodys, targetCluster);
-			errDeployDto = checkK8SClientResponse(response,deployName);
-			if(!Objects.isNull(errDeployDto)){
-				return errDeployDto;
+			if(409 == response.getStatus()){
+				logger.warn("集群迁移pvc:"+persistentVolumeClaim.getMetadata().getName()+"已存在");
+			}else {
+				errDeployDto = checkK8SClientResponse(response,deployName);
+				if(!Objects.isNull(errDeployDto)){
+					return errDeployDto;
+				}
 			}
-			PersistentVolume persistentVolume = pvService.getPvByName(persistentVolumeClaim.getSpec().getVolumeName(),targetCluster);
+
+			PersistentVolume persistentVolume = pvService.getPvByName(persistentVolumeClaim.getSpec().getVolumeName(),sourceCluster);
 			persistentVolumeService.transferPV(persistentVolume, targetCluster,deployName);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -764,7 +783,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		}
 		deployment = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
         List<Volume> volumeList = deployment.getSpec().getTemplate().getSpec().getVolumes();
-		if (!volumeList.isEmpty()){
+		if (volumeList!=null && !volumeList.isEmpty()){
 			errDeployDto =createVolumes(sourceCluster,currentCluster,volumeList, deploymentTransferDto);
 			if(!Objects.isNull(errDeployDto)){
 				return errDeployDto;
@@ -782,8 +801,8 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	private ErrDeployDto createVolumes(Cluster sourceCluster, Cluster newCluster ,List<Volume> volumeList ,DeploymentTransferDto deploymentTransferDto){
         ErrDeployDto errDeployDto = null;
 	    for (Volume volume :volumeList){
-            ConfigMapVolumeSource cm = volume.getConfigMap();
-
+	        ConfigMapVolumeSource cm = volume.getConfigMap();
+          /*  PersistentVolumeClaimVolumeSource persistentVolumeClaimVolumeSource = volume.getPersistentVolumeClaim();*/
             if (cm != null) {
                 K8SClientResponse response = null;
                 try {
@@ -816,7 +835,26 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
                     errDeployDto.setErrMsg("创建configMap失败");
                     errDeployDto.setDeployName(deploymentTransferDto.getCurrentDeployName());
                 }
+                logger.info("创建configmap完成");
             }
+/*            if (persistentVolumeClaimVolumeSource != null){
+                try {
+                    K8SClientResponse k8sClientResponse = getPVC(deploymentTransferDto.getCurrentDeployName(),persistentVolumeClaimVolumeSource.getClaimName(),sourceCluster );
+                    PersistentVolumeClaimList persistentVolumeClaim = K8SClient.converToBean(k8sClientResponse, PersistentVolumeClaimList.class);
+                    *//*if(!persistentVolumeClaim.getItems().isEmpty()){
+                        K8SClientResponse pvcRes = getPVC(deploymentTransferDto.getCurrentDeployName(), deploymentTransferDto.getNamespace(), oldCluster);
+                        checkK8SClientResponse(pvcRes,deploymentTransferDto.getCurrentDeployName());
+                        PersistentVolumeClaimList transferPersistentVolumeClaimc = K8SClient.converToBean(pvcRes, PersistentVolumeClaimList.class);
+
+                        persistentVolumeClaims = persistentVolumeClaim.getItems();
+                        persistentVolumeClaims.stream().forEach(x->errDeployDtos.add(createPVC(replacePersistentVolumeClaim(x, deploymentTransferDto), currentCluster, deploymentTransferDto.getNamespace(),deploymentTransferDto.getCurrentDeployName(),errDeployDto)));
+
+                    }*//*
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }*/
         }
         return errDeployDto;
     }
@@ -864,6 +902,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		}catch (Exception e){
 			logger.error("创建应用失败deploymentTransferDto:{},异常信息：{}",deploymentTransferDto,e);
 		}
+		logger.info("创建app完成");
 	}
 	/**
 	 * 迁移服务 两种类型 stafulset(有状态的) deployment(无状态的)
@@ -922,6 +961,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		if(!Objects.isNull(errDeployDto)){
 			return errDeployDto;
 		}
+		logger.info("创建server完成");
 		return null;
 	}
 	
