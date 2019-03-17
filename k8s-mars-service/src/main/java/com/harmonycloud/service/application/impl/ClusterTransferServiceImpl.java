@@ -132,7 +132,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		Cluster sourceCluster = clusterService.findClusterById(clusterTransferDto.get(0).getCurrentClusterId());
 		Cluster targetCluster = clusterService.findClusterById(clusterTransferDto.get(0).getTargetClusterId());
 		TransferClusterBackup transferClusterBackup = generateTransferClusterBackup(clusterTransferDto);
-		checkResource(sourceCluster, targetCluster, transferClusterBackup, clusterTransferDto);
+		//checkResource(sourceCluster, targetCluster, transferClusterBackup, clusterTransferDto);
 		if(!Objects.isNull(transferClusterMapper.queryTransferClusterByParam(clusterTransferDto.get(0).getTenantId(),clusterTransferDto.get(0).getTargetClusterId()))){
 			//TODO 增量续传
 		}
@@ -323,6 +323,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		if(detail==null){
 			throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_NOT_FOUND);
 		}
+		//TODO 不应该为使用的，改为总配额
 		NamespaceDto namespaceDto = new NamespaceDto();
 		namespaceDto.setAliasName(bindNameSpaceDto.getAliasName());
 		namespaceDto.setName(bindNameSpaceDto.getName());
