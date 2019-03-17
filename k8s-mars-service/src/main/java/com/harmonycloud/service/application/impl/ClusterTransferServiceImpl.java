@@ -455,13 +455,13 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		return response;
 	}
 
-	private Map<String,List<ErrorNamespaceDto>> updateBindNamespace(ClusterTransferDto clusterTransferDtos, List<NamespaceDto> namespaceDtos, Cluster currentCluster ,Cluster oldCluster) throws Exception {
+	private Map<String,List<ErrorNamespaceDto>> updateBindNamespace(ClusterTransferDto clusterTransferDtos, List<NamespaceDto> namespaceDtos, Cluster currentCluster ,Cluster sourceCluster) throws Exception {
 
 		//创建该租户在新集群的配额
 		TenantClusterQuota tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(namespaceDtos.get(0).getTenantId(),currentCluster.getId());
         //TODO 创建集群配额应该改为客户手动创，多次从不同集群迁入某个集群会导致不知道该怎样设置配额大小
 		if (tenantClusterQuota == null){
-			tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(namespaceDtos.get(0).getTenantId(),oldCluster.getId());
+			tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(namespaceDtos.get(0).getTenantId(),sourceCluster.getId());
 			//TODO 负载均衡 暂时不迁移
 			tenantClusterQuota.setIcNames(null);
 			tenantClusterQuota.setClusterName(currentCluster.getName());
@@ -477,7 +477,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			}
 		}else {
 			if ("0.0".equals(tenantClusterQuota.getCpuQuota().toString())){
-				TenantClusterQuota quota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(namespaceDtos.get(0).getTenantId(),oldCluster.getId());
+				TenantClusterQuota quota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(namespaceDtos.get(0).getTenantId(),sourceCluster.getId());
 				//TODO 负载均衡 暂时不迁移
 				quota.setIcNames(null);
 				quota.setClusterName(currentCluster.getName());
@@ -613,14 +613,14 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	/**
 	 * 创建或者更新pvc
 	 * @param deploymentTransferDto
-	 * @param currentCluster
-	 * @param transferCluster
+	 * @param targetCluster
+	 * @param sourceCluster
 	 * @throws InvocationTargetException
 	 * @throws IllegalAccessException
 	 * @throws IntrospectionException
 	 */
-	private ErrDeployDto createPVC(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,Cluster transferCluster, List<ErrDeployDto> errDeployDtos) throws Exception {
-		K8SClientResponse k8sClientResponse = getPVC(deploymentTransferDto.getCurrentDeployName(),deploymentTransferDto.getCurrentNameSpace(), currentCluster);
+	private ErrDeployDto createPVC(DeploymentTransferDto deploymentTransferDto,Cluster targetCluster,Cluster sourceCluster, List<ErrDeployDto> errDeployDtos) throws Exception {
+		K8SClientResponse k8sClientResponse = getPVC(deploymentTransferDto.getCurrentDeployName(),deploymentTransferDto.getCurrentNameSpace(), sourceCluster);
 		List<PersistentVolumeClaim> persistentVolumeClaims = null;
 		//如果返回404代表当前服务并未创建pvc 则可向下创建
 		ErrDeployDto errDeployDto = new ErrDeployDto();
@@ -631,21 +631,21 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		}
 		PersistentVolumeClaimList persistentVolumeClaim = K8SClient.converToBean(k8sClientResponse, PersistentVolumeClaimList.class);
 		if(!persistentVolumeClaim.getItems().isEmpty()){
-			K8SClientResponse pvcRes = getPVC(deploymentTransferDto.getCurrentDeployName(), deploymentTransferDto.getNamespace(), transferCluster);
+			K8SClientResponse pvcRes = getPVC(deploymentTransferDto.getCurrentDeployName(), deploymentTransferDto.getNamespace(), targetCluster);
 			checkK8SClientResponse(pvcRes,deploymentTransferDto.getCurrentDeployName());
 			PersistentVolumeClaimList transferPersistentVolumeClaimc = K8SClient.converToBean(pvcRes, PersistentVolumeClaimList.class);
 			if(CollectionUtils.isNotEmpty(transferPersistentVolumeClaimc.getItems())){
 				persistentVolumeClaims = transferPersistentVolumeClaimc.getItems();
 				persistentVolumeClaims.stream().forEach(x-> {
 					try {
-						errDeployDtos.add(updatePVC(x, transferCluster, deploymentTransferDto.getCurrentDeployName()));
+						errDeployDtos.add(updatePVC(x, sourceCluster, deploymentTransferDto.getCurrentDeployName()));
 					}catch (Exception e) {
 						logger.error("更新pvc错误，{}", x, e);
 					}
 				});
 			}else{
 				persistentVolumeClaims = persistentVolumeClaim.getItems();
-				persistentVolumeClaims.stream().forEach(x->errDeployDtos.add(createPVC(replacePersistentVolumeClaim(x, deploymentTransferDto), transferCluster, deploymentTransferDto.getNamespace(),deploymentTransferDto.getCurrentDeployName(),errDeployDto)));
+				persistentVolumeClaims.stream().forEach(x->errDeployDtos.add(createPVC(replacePersistentVolumeClaim(x, deploymentTransferDto), targetCluster, deploymentTransferDto.getNamespace(),deploymentTransferDto.getCurrentDeployName(),errDeployDto)));
 			}
 		}
 		return null;
@@ -654,39 +654,39 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	/**
 	 * 更新pv pvc
 	 * @param persistentVolumeClaim
-	 * @param transferCluster
+	 * @param targetCluster
 	 */
-	private ErrDeployDto updatePVC(PersistentVolumeClaim persistentVolumeClaim,Cluster transferCluster,String deployName) throws Exception {
-		PersistentVolume persistentVolume = pvService.getPvByName(persistentVolumeClaim.getSpec().getVolumeName(),transferCluster);
-		ErrDeployDto errDeployDto = persistentVolumeService.transferPV(persistentVolume, transferCluster,deployName);
+	private ErrDeployDto updatePVC(PersistentVolumeClaim persistentVolumeClaim,Cluster targetCluster,String deployName) throws Exception {
+		PersistentVolume persistentVolume = pvService.getPvByName(persistentVolumeClaim.getSpec().getVolumeName(),targetCluster);
+		ErrDeployDto errDeployDto = persistentVolumeService.transferPV(persistentVolume, targetCluster,deployName);
 		if(!Objects.isNull(errDeployDto)){
 			return errDeployDto;
 		}
-		pvcService.updatePvcByName(persistentVolumeClaim, transferCluster);
+		pvcService.updatePvcByName(persistentVolumeClaim, targetCluster);
 		return null;
 	}
 
 	/**
 	 * 创建pvc
 	 * @param persistentVolumeClaim
-	 * @param transferCluster
+	 * @param targetCluster
 	 * @param namespace
 	 * @throws InvocationTargetException
 	 * @throws IllegalAccessException
 	 * @throws IntrospectionException
 	 */
-	private ErrDeployDto createPVC(PersistentVolumeClaim persistentVolumeClaim,Cluster transferCluster,String namespace,String deployName,ErrDeployDto errDeployDto) {
+	private ErrDeployDto createPVC(PersistentVolumeClaim persistentVolumeClaim,Cluster targetCluster,String namespace,String deployName,ErrDeployDto errDeployDto) {
 		try {
 			Map<String, Object> bodys = CollectionUtil.transBean2Map(persistentVolumeClaim);
 			K8SURL url = new K8SURL();
 			url.setNamespace(namespace).setResource(Resource.PERSISTENTVOLUMECLAIM);
-			K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, generateHeader(), bodys, transferCluster);
+			K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, generateHeader(), bodys, targetCluster);
 			errDeployDto = checkK8SClientResponse(response,deployName);
 			if(!Objects.isNull(errDeployDto)){
 				return errDeployDto;
 			}
-			PersistentVolume persistentVolume = pvService.getPvByName(persistentVolumeClaim.getSpec().getVolumeName(),transferCluster);
-			persistentVolumeService.transferPV(persistentVolume, transferCluster,deployName);
+			PersistentVolume persistentVolume = pvService.getPvByName(persistentVolumeClaim.getSpec().getVolumeName(),targetCluster);
+			persistentVolumeService.transferPV(persistentVolume, targetCluster,deployName);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -697,10 +697,10 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * 创建或更新configmap
 	 * @param deploymentTransferDto
 	 * @param currentCluster
-	 * @param oldCluster
+	 * @param sourceCluster
 	 */
-	private ErrDeployDto createOrUpdateConfigMap(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,Cluster oldCluster) throws Exception {
-		K8SClientResponse response = configMapService.doSepcifyConfigmap(deploymentTransferDto.getCurrentNameSpace(), deploymentTransferDto.getCurrentDeployName(),oldCluster);
+	private ErrDeployDto createOrUpdateConfigMap(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,Cluster sourceCluster) throws Exception {
+		K8SClientResponse response = configMapService.doSepcifyConfigmap(deploymentTransferDto.getCurrentNameSpace(), deploymentTransferDto.getCurrentDeployName(),sourceCluster);
 		if (HttpStatusUtil.isSuccessStatus(response.getStatus())){
 			//如果返回404代表当前服务并未创建configmap 则可向下创建
 			ErrDeployDto errDeployDto = new ErrDeployDto();
@@ -733,24 +733,24 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * 创建deployment 创建前判断当前集群是否有deployment 有则更新
 	 * @param deploymentTransferDto
 	 * @param currentCluster
-	 * @param oldCluster
+	 * @param sourceCluster
 	 * @return
 	 * @throws InvocationTargetException
 	 * @throws IllegalAccessException
 	 * @throws IntrospectionException
 	 */
 	private ErrDeployDto createDeployment(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,
-										  Cluster oldCluster,ErrDeployDto errDeployDto,String deployName) throws Exception{
+										  Cluster sourceCluster,ErrDeployDto errDeployDto,String deployName) throws Exception{
 		K8SClientResponse response = null;
 		Deployment deployment = null;
 		response = dpService.doSpecifyDeployment(deploymentTransferDto.getNamespace(),deploymentTransferDto.getCurrentDeployName(), null, null, HTTPMethod.GET, currentCluster);
 		if (HttpStatusUtil.isSuccessStatus(response.getStatus())){
             deployment = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
             if(deployment!=null){
-                updateDeployment(deployment, deploymentTransferDto,oldCluster);
+                updateDeployment(deployment, deploymentTransferDto,sourceCluster);
             }
         }
-		response = dpService.doSpecifyDeployment(deploymentTransferDto.getCurrentNameSpace(),deploymentTransferDto.getCurrentDeployName(), null, null, HTTPMethod.GET, oldCluster);
+		response = dpService.doSpecifyDeployment(deploymentTransferDto.getCurrentNameSpace(),deploymentTransferDto.getCurrentDeployName(), null, null, HTTPMethod.GET, sourceCluster);
         errDeployDto = checkK8SClientResponse(response,deployName);
 		if(!Objects.isNull(errDeployDto)){
 			return errDeployDto;
@@ -758,13 +758,13 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		deployment = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
         List<Volume> volumeList = deployment.getSpec().getTemplate().getSpec().getVolumes();
 		if (!volumeList.isEmpty()){
-			errDeployDto =createVolumes(oldCluster,currentCluster,volumeList, deploymentTransferDto);
+			errDeployDto =createVolumes(sourceCluster,currentCluster,volumeList, deploymentTransferDto);
 			if(!Objects.isNull(errDeployDto)){
 				return errDeployDto;
 			}
 		}
 		deployment = replaceDeployment(deployment, deploymentTransferDto);
-		createApp(oldCluster,currentCluster, deployment.getMetadata().getLabels(),deploymentTransferDto);
+		createApp(sourceCluster,currentCluster, deployment.getMetadata().getLabels(),deploymentTransferDto);
 		response = dpService.doSpecifyDeployment(deploymentTransferDto.getNamespace(), null, generateHeader(), CollectionUtil.transBean2Map(deployment), HTTPMethod.POST, currentCluster);
         errDeployDto =checkK8SClientResponse(response,deployName);
 		if(!Objects.isNull(errDeployDto)){
@@ -772,7 +772,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		}
 		return errDeployDto;
 	}
-	private ErrDeployDto createVolumes(Cluster oldCluster, Cluster newCluster ,List<Volume> volumeList ,DeploymentTransferDto deploymentTransferDto){
+	private ErrDeployDto createVolumes(Cluster sourceCluster, Cluster newCluster ,List<Volume> volumeList ,DeploymentTransferDto deploymentTransferDto){
         ErrDeployDto errDeployDto = null;
 	    for (Volume volume :volumeList){
             ConfigMapVolumeSource cm = volume.getConfigMap();
@@ -780,7 +780,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
             if (cm != null) {
                 K8SClientResponse response = null;
                 try {
-                    response = configMapService.doSepcifyConfigmap(deploymentTransferDto.getCurrentNameSpace(), cm.getName(), oldCluster);
+                    response = configMapService.doSepcifyConfigmap(deploymentTransferDto.getCurrentNameSpace(), cm.getName(), sourceCluster);
                     if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
                         ConfigMap configMap = JsonUtil.jsonToPojo(response.getBody(), ConfigMap.class);
                         if (configMap != null) {
@@ -813,7 +813,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
         }
         return errDeployDto;
     }
-	private void createApp(Cluster oldCluster, Cluster newCluster ,Map<String,Object> labels,DeploymentTransferDto deploymentTransferDto)  {
+	private void createApp(Cluster sourceCluster, Cluster newCluster ,Map<String,Object> labels,DeploymentTransferDto deploymentTransferDto)  {
 		String projectId = (String) labels.get("harmonycloud.cn/projectId");
 		String appName = null;
 		for (String label:labels.keySet()){
@@ -827,7 +827,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			return;
 		}
 		try {
-			K8SClientResponse response  = tprApplication.getApplicationByName(deploymentTransferDto.getCurrentNameSpace(), appName, null, null, HTTPMethod.GET, oldCluster);
+			K8SClientResponse response  = tprApplication.getApplicationByName(deploymentTransferDto.getCurrentNameSpace(), appName, null, null, HTTPMethod.GET, sourceCluster);
 			if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 				logger.error("查询应用失败deploymentTransferDto:{},异常信息：{}", deploymentTransferDto, response.getBody());
 			}
@@ -862,20 +862,20 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * 迁移服务 两种类型 stafulset(有状态的) deployment(无状态的)
 	 * @param deploymentTransferDto
 	 * @param currentCluster
-	 * @param oldCluster
+	 * @param sourceCluster
 	 * @throws InvocationTargetException
 	 * @throws IllegalAccessException
 	 * @throws IntrospectionException
 	 */
-	private ErrDeployDto create(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,Cluster oldCluster) throws Exception{
+	private ErrDeployDto create(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,Cluster sourceCluster) throws Exception{
 		switch (deploymentTransferDto.getCurrentServiceType()) {
 			case Constant.STATEFULSET:
-				createService(deploymentTransferDto, currentCluster, oldCluster);
-				ErrDeployDto errDeployDto = createStatefulSet(deploymentTransferDto, currentCluster, oldCluster);
+				createService(deploymentTransferDto, currentCluster, sourceCluster);
+				ErrDeployDto errDeployDto = createStatefulSet(deploymentTransferDto, currentCluster, sourceCluster);
 				return errDeployDto;
 			case Constant.DEPLOYMENT:
-				errDeployDto = createService(deploymentTransferDto, currentCluster, oldCluster);
-				errDeployDto = createDeployment(deploymentTransferDto, currentCluster, oldCluster,errDeployDto,deploymentTransferDto.getCurrentDeployName());
+				errDeployDto = createService(deploymentTransferDto, currentCluster, sourceCluster);
+				errDeployDto = createDeployment(deploymentTransferDto, currentCluster, sourceCluster,errDeployDto,deploymentTransferDto.getCurrentDeployName());
 				return errDeployDto;
 			default:
 				break;
@@ -887,9 +887,9 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * 创建服务 需要先创建service
 	 * @param deploymentTransferDto
 	 * @param currentCluster
-	 * @param oldCluster  旧集群id
+	 * @param sourceCluster  旧集群id
 	 */
-	private ErrDeployDto createService(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,Cluster oldCluster) throws Exception{
+	private ErrDeployDto createService(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,Cluster sourceCluster) throws Exception{
 		K8SClientResponse rsRes  =null;
 		com.harmonycloud.k8s.bean.Service service =null;
 		K8SURL k8surl = new K8SURL();
@@ -902,7 +902,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			return errDeployDto;
 		}
 		//旧集群service
-		rsRes = serviceService.doSepcifyService(deploymentTransferDto.getCurrentNameSpace(),deploymentTransferDto.getCurrentDeployName(), null, null, HTTPMethod.GET, oldCluster);
+		rsRes = serviceService.doSepcifyService(deploymentTransferDto.getCurrentNameSpace(),deploymentTransferDto.getCurrentDeployName(), null, null, HTTPMethod.GET, sourceCluster);
 		errDeployDto = checkK8SClientResponse(rsRes,deploymentTransferDto.getCurrentDeployName());
 		if(!Objects.isNull(errDeployDto)){
 			return errDeployDto;
@@ -1042,7 +1042,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	
 	public K8SClientResponse getPVC(String name, String namespace, Cluster cluster) throws Exception {
 		Map<String, Object> queryP = new HashMap<>();
-	    queryP.put("labelSelector", Constant.TYPE_DEPLOYMENT + Constant.EQUAL + name);
+	    queryP.put("labelSelector", Constant.TYPE_DEPLOYMENT+"/"+name + Constant.EQUAL + name);
         K8SClientResponse pvcsRes = pvcService.doSepcifyPVC(namespace, queryP, HTTPMethod.GET, cluster);
         return pvcsRes;
     }
@@ -1101,9 +1101,9 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	private PersistentVolumeClaim replacePersistentVolumeClaim(PersistentVolumeClaim persistentVolumeClaim,DeploymentTransferDto deploymentTransferDto){
 		persistentVolumeClaim.getMetadata().setNamespace(deploymentTransferDto.getNamespace());
 		persistentVolumeClaim.getMetadata().setResourceVersion(null);
-		persistentVolumeClaim.getSpec().getSelector().setMatchLabels(replacePVCLabels(persistentVolumeClaim.getSpec().getSelector().getMatchLabels(), deploymentTransferDto));
+		//persistentVolumeClaim.getSpec().getSelector().setMatchLabels(replacePVCLabels(persistentVolumeClaim.getSpec().getSelector().getMatchLabels(), deploymentTransferDto));
 		persistentVolumeClaim.getMetadata().setSelfLink(persistentVolumeClaim.getMetadata().getSelfLink().replace(persistentVolumeClaim.getMetadata().getNamespace(),deploymentTransferDto.getNamespace()));
-		persistentVolumeClaim.getMetadata().setLabels(replacePVCLabels(persistentVolumeClaim.getMetadata().getLabels(), deploymentTransferDto));
+		//persistentVolumeClaim.getMetadata().setLabels(replacePVCLabels(persistentVolumeClaim.getMetadata().getLabels(), deploymentTransferDto));
 		return persistentVolumeClaim;
 	}
 	
@@ -1195,7 +1195,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	       return bigDecimal.divide(bigDecimal2).add(new BigDecimal(0.05)).setScale(1,BigDecimal.ROUND_HALF_UP).doubleValue();
 	}
 
-	private DeployResultDto generateTransferDeploymentAndTransferDeploy(List<ErrorNamespaceDto> errorNamespaceDtos,List<ClusterTransferDto> clusterTransferDtos,Cluster oldCluster) throws Exception {
+	private DeployResultDto generateTransferDeploymentAndTransferDeploy(List<ErrorNamespaceDto> errorNamespaceDtos,List<ClusterTransferDto> clusterTransferDtos,Cluster sourceCluster) throws Exception {
 		Map<String,String> param = successNamespceBind(errorNamespaceDtos, clusterTransferDtos);
 		List<TransferBindDeploy> list = new ArrayList<>();
 		List<DeploymentTransferDto> deploymentTransferDtos = new ArrayList<>();
@@ -1214,7 +1214,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			}
 		}
 		for (ErrorNamespaceDto namespaceDto : errorNamespaceDtos) {
-			K8SClientResponse clientResponse = dpService.doDeploymentsByNamespace(param.get(namespaceDto.getNamespace()),null, null, HTTPMethod.GET, oldCluster);
+			K8SClientResponse clientResponse = dpService.doDeploymentsByNamespace(param.get(namespaceDto.getNamespace()),null, null, HTTPMethod.GET, sourceCluster);
 			DeploymentList deploymentList = JsonUtil.jsonToPojo(clientResponse.getBody(), DeploymentList.class);
 			if (deploymentList != null && !CollectionUtils.isEmpty(deploymentList.getItems())) {
 				for(Deployment deployment:deploymentList.getItems()){
@@ -1261,7 +1261,8 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		return deploymentTransferDto;
 	}
 
-	private Map<String,Object> createDeployment(List<DeploymentTransferDto> deploymentTransferDtos,Cluster oldCluster,Cluster currentCluster) throws Exception {
+	private Map<String,Object> createDeployment(List<DeploymentTransferDto> deploymentTransferDtos,Cluster sourceCluster,Cluster targetCluster) throws Exception {
+	    //TODO 稍后改为先取deployment ，然后根据deployment创建pv、cm等资源
 		int index = 0;
 		Map<String,Object> params = new HashMap<>();
 		List<ErrDeployDto> errDeployDtos = new ArrayList<>();
@@ -1279,7 +1280,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				errorBindDeploy.add(transferBindDeploy);
 				continue;
 			}
-			errDeployDto = createPVC(deploymentTransferDto, currentCluster, oldCluster,errDeployDtos);
+			errDeployDto = createPVC(deploymentTransferDto, targetCluster, sourceCluster,errDeployDtos);
 			if(errDeployDto!=null){
 				errDeployDtos.add(errDeployDto);
 				transferBindDeploy.setErrMsg(errDeployDto.getErrMsg());
@@ -1289,7 +1290,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				continue;
 			}
 
-			/*errDeployDto = createOrUpdateConfigMap(deploymentTransferDto, currentCluster, oldCluster);
+			/*errDeployDto = createOrUpdateConfigMap(deploymentTransferDto, currentCluster, sourceCluster);
 			if(errDeployDto!=null){
 				errDeployDtos.add(errDeployDto);
 				transferBindDeploy.setErrMsg(errDeployDto.getErrMsg());
@@ -1298,7 +1299,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				errorBindDeploy.add(transferBindDeploy);
 				continue;
 			}*/
-			errDeployDto = create(deploymentTransferDto, currentCluster, oldCluster);
+			errDeployDto = create(deploymentTransferDto, targetCluster, sourceCluster);
 			if(errDeployDto!=null){
 				errDeployDtos.add(errDeployDto);
 				transferBindDeploy.setErrMsg(errDeployDto.getErrMsg());
@@ -1493,8 +1494,8 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * 校验完成后开始执行迁移集群
 	 * @param transferClusterBackup 迁移备份对象
 	 * @param clusterTransferDto 传递的迁移参数
-	 * @param oldCluster 当前集群
-	 * @param currentCluster 目标集群
+	 * @param sourceCluster 当前集群
+	 * @param targetCluster 目标集群
 	 * @param isContinue 是否是断点续传
 	 * @return
 	 * @throws RuntimeException
@@ -1502,13 +1503,13 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * @throws ReflectiveOperationException
 	 * @throws Exception
 	 */
-	private TransferResultDto excuteTransfer(TransferClusterBackup transferClusterBackup,List<ClusterTransferDto> clusterTransferDto,Cluster oldCluster,Cluster currentCluster,boolean isContinue) throws Exception{
+	private TransferResultDto excuteTransfer(TransferClusterBackup transferClusterBackup,List<ClusterTransferDto> clusterTransferDto,Cluster sourceCluster,Cluster targetCluster,boolean isContinue) throws Exception{
 		TransferResultDto transferResultDto = new TransferResultDto();
 		transferClusterBackup.setIsContinue(isContinue?(byte)1:(byte)0);
-		Map<String,List<ErrorNamespaceDto>> param = saveBindNamespace(clusterTransferDto, currentCluster,oldCluster, isContinue);
+		Map<String,List<ErrorNamespaceDto>> param = saveBindNamespace(clusterTransferDto, targetCluster,sourceCluster, isContinue);
 		// 这个地方应该是创建成功的namespaces
 		List<ErrorNamespaceDto> namespaces = param.get(Constant.TRANSFER_NAMESPACE_SUCCESS);
-		Map<String,Object> params = saveBindDeploy(namespaces, clusterTransferDto, currentCluster, isContinue, oldCluster);
+		Map<String,Object> params = saveBindDeploy(namespaces, clusterTransferDto, targetCluster, isContinue, sourceCluster);
 		List<ErrDeployDto> errDeployDtos = (List<ErrDeployDto>) params.get(Constant.ERR_DEPLOY_DTOS);
 		//updateDeployResult(params);
 		transferResultDto.setErrDeployDtos(errDeployDtos);
@@ -1528,10 +1529,10 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * @param isContinue
 	 * @return
 	 */
-	private Map<String,List<ErrorNamespaceDto>> saveBindNamespace(List<ClusterTransferDto> clusterTransferDto,Cluster currentCluster,Cluster oldCluster,boolean isContinue) throws Exception {
+	private Map<String,List<ErrorNamespaceDto>> saveBindNamespace(List<ClusterTransferDto> clusterTransferDto,Cluster currentCluster,Cluster sourceCluster,boolean isContinue) throws Exception {
 		List<TransferBindNamespace> bindNamespace  =  bindNamespace(isContinue,clusterTransferDto);
 		transferBindNamespaceMapper.saveBindNamespaces(bindNamespace);
-		Map<String,List<ErrorNamespaceDto>> param = updateBindNamespace(clusterTransferDto.get(0),packageNamespaceDto(clusterTransferDto), currentCluster,oldCluster);
+		Map<String,List<ErrorNamespaceDto>> param = updateBindNamespace(clusterTransferDto.get(0),packageNamespaceDto(clusterTransferDto), currentCluster,sourceCluster);
 		return param;
 	}
 
@@ -1547,8 +1548,8 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 
 
 	private Map<String,Object> saveBindDeploy(List<ErrorNamespaceDto> namespaces,List<ClusterTransferDto> clusterTransferDto,
-											  Cluster currentCluster,boolean isContinue,Cluster oldCluster) throws Exception {
-		DeployResultDto deployResultDto= generateTransferDeploymentAndTransferDeploy(namespaces, clusterTransferDto, oldCluster);
+											  Cluster targetCluster,boolean isContinue,Cluster sourceCluster) throws Exception {
+		DeployResultDto deployResultDto= generateTransferDeploymentAndTransferDeploy(namespaces, clusterTransferDto, sourceCluster);
 		List<TransferBindDeploy> deployList = deployResultDto.getDeploys();
 		if (deployList.isEmpty()) {
 			return null;
@@ -1562,7 +1563,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			deploymentTransferDtos = generateTransferDtoList(transferBindDeploys);
 			deploymentTransferDtos.addAll(deployResultDto.getDeploymentTransferDtos());
 		}
-		return createDeployment(deploymentTransferDtos, oldCluster, currentCluster);
+		return createDeployment(deploymentTransferDtos, sourceCluster, targetCluster);
 	}
 
 	private void updateDeployResult(Map<String,Object> params){
