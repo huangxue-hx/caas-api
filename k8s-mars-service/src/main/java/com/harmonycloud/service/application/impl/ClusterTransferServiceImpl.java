@@ -548,10 +548,16 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		List<TcpRuleDto> rules = new ArrayList<>();
 		for (Map<String, Object> map : routerList) {
 			if(map.get("type").equals(Constant.PROTOCOL_TCP)||map.get("type").equals(Constant.PROTOCOL_UDP)){
-				return createTcpIngress(deploymentTransferDto, map, rules);
+				ErrDeployDto errDeployDto = createTcpIngress(deploymentTransferDto, map, rules);
+				if (errDeployDto != null) {
+					return errDeployDto;
+				}
 			}
 			if(map.get("type").equals(Constant.PROTOCOL_HTTP)){
-				return createHttpIngress(deploymentTransferDto, map, httpRuleDtos);
+				ErrDeployDto errDeployDto = createHttpIngress(deploymentTransferDto, map, httpRuleDtos);
+				if (errDeployDto != null) {
+					return errDeployDto;
+				}
 			}
 		}
 		return null;

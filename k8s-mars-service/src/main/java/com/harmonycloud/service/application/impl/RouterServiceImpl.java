@@ -1375,7 +1375,10 @@ public class RouterServiceImpl implements RouterService {
             newUsage.setStatus(Constant.EXTERNAL_PORT_STATUS_CONFIRM_USED);
             portClusterUsageService.insertNodeportUsage(newUsage);
             rule.setPort(String.valueOf(port));
-            return this.transferSystemExposeConfigmap(cluster, svcRouterDto.getNamespace(), svcRouterDto.getName(), svcRouterDto.getIcName(), Arrays.asList(rule), rule.getProtocol(),deployName);
+            ErrDeployDto errDeployDto = this.transferSystemExposeConfigmap(cluster, svcRouterDto.getNamespace(), svcRouterDto.getName(), svcRouterDto.getIcName(), Arrays.asList(rule), rule.getProtocol(),deployName);
+            if (errDeployDto != null) {
+                return errDeployDto;
+            }
         }
         return null;
     }
