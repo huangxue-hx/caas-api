@@ -272,8 +272,8 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         }
         //转换为clusterMap
         Map<String, Cluster> clusterMap = clusterList.stream().collect(Collectors.toMap(Cluster::getId,cluster -> cluster));
-        List<Deployment> deployments = new ArrayList<>();
-        List<StatefulSet> statefulSets = new ArrayList<>();
+        List<Deployment> deployments = new CopyOnWriteArrayList<>();
+        List<StatefulSet> statefulSets = new CopyOnWriteArrayList<>();
         //开启线程获取项目集群服务列表
         CountDownLatch countDownLatchApp = new CountDownLatch(clusterList.size());
         for (Cluster cluster : clusterList) {
@@ -928,9 +928,9 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         AtomicInteger allDeploymentInCluster = new AtomicInteger(0);
 
         // search application
-        List<BaseResource> blist = new ArrayList<>();
-        List<Deployment> deployments = new ArrayList<>();
-        List<String> namespaces = new ArrayList<>();
+        List<BaseResource> blist = new CopyOnWriteArrayList<>();
+        List<Deployment> deployments = new CopyOnWriteArrayList<>();
+        List<String> namespaces = new CopyOnWriteArrayList<>();
         Cluster cluster = clusterService.findClusterById(clusterId);
         List<NamespaceLocal> namespaceList = namespaceLocalService.getNamespaceListByClusterId(clusterId);
         if (CollectionUtils.isEmpty(namespaceList)) {
@@ -1898,7 +1898,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
 
     @Override
     public List<BaseResource> listApplicationByProject(String projectId) throws Exception {
-        List<BaseResource> resList = new ArrayList<>();
+        List<BaseResource> resList = new CopyOnWriteArrayList<>();
         Map<String, Object> bodys = new HashMap<>();
         String projectLabel = NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId;
         bodys.put("labelSelector", projectLabel);

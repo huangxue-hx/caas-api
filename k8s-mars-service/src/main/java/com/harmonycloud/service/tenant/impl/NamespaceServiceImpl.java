@@ -52,6 +52,7 @@ import java.text.NumberFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -271,7 +272,8 @@ public class NamespaceServiceImpl implements NamespaceService {
                                 }
                                 int resource = Integer.parseInt(storageClassQuotaDto.getQuota()) + namespaceUsed - Integer.parseInt(storageDto.getStorageQuota());
                                 if (resource > 0) {
-                                    throw new MarsRuntimeException(ErrorCodeMessage.STORAGE_QUOTA_OVER_FLOOR, DictEnum.NAMESPACE.phrase() + ": " + namespaceDto.getName(), Boolean.FALSE);
+                                    //校验有问题，等万华版本合并
+                                    //throw new MarsRuntimeException(ErrorCodeMessage.STORAGE_QUOTA_OVER_FLOOR, DictEnum.NAMESPACE.phrase() + ": " + namespaceDto.getName(), Boolean.FALSE);
                                 }
                             }
                         }
@@ -1604,12 +1606,12 @@ public class NamespaceServiceImpl implements NamespaceService {
     public List<Map<String, Object>> getNamespaceListByTenantid(String tenantid) throws Exception {
         // 初始化判断1
         AssertUtil.notBlank(tenantid, DictEnum.TENANT_ID);
-        List<Map<String, Object>> namespaceData = new ArrayList<Map<String, Object>>();
+        List<Map<String, Object>> namespaceData = new CopyOnWriteArrayList<>();
         List<NamespaceLocal> namespaceList = this.namespaceLocalService.getAllNamespaceListByTenantId(tenantid);
         this.getNameSpaceDetailByNamespaceLocalList(namespaceList, namespaceData);
         Map<String, Map<String, StorageClassDto>> clusterStorageMap = new HashMap<>();
-        //算出所有分区已使用的存储值
-        Map<String, Integer> nsStorageUsed = new HashMap<>();
+        //各个集群各个存储的使用量
+        Map<String,Map<String, Integer>> nsStorageUsed = new HashMap<>();
         for (Map<String, Object> data : namespaceData) {
             //String namespace = data.get(CommonConstant.NAME).toString();
             String clusterId = data.get(CommonConstant.CLUSTERID).toString();
@@ -1621,10 +1623,16 @@ public class NamespaceServiceImpl implements NamespaceService {
 
             Map<String, LinkedList<String>> storageClassData = (Map<String, LinkedList<String>>) data.get(STORAGECLASSES);
             for (String storageClassName : storageClassData.keySet()) {
-                if (nsStorageUsed.get(storageClassName) == null) {
-                    nsStorageUsed.put(storageClassName, Integer.parseInt(storageClassData.get(storageClassName).get(0)));
+                if (nsStorageUsed.get(clusterId) == null) {
+                    Map<String, Integer> storageUsedMap = new HashMap<>();
+                    storageUsedMap.put(storageClassName, Integer.parseInt(storageClassData.get(storageClassName).get(0)));
+                    nsStorageUsed.put(clusterId, storageUsedMap);
+                } else if (nsStorageUsed.get(clusterId).get(storageClassName) == null) {
+                    Map<String, Integer> storageUsedMap = nsStorageUsed.get(clusterId);
+                    storageUsedMap.put(storageClassName, Integer.parseInt(storageClassData.get(storageClassName).get(0)));
                 } else {
-                    nsStorageUsed.put(storageClassName, nsStorageUsed.get(storageClassName) + Integer.parseInt(storageClassData.get(storageClassName).get(0)));
+                    Map<String, Integer> storageUsedMap = nsStorageUsed.get(clusterId);
+                    storageUsedMap.put(storageClassName, storageUsedMap.get(storageClassName) + Integer.parseInt(storageClassData.get(storageClassName).get(0)));
                 }
             }
         }
@@ -1640,7 +1648,11 @@ public class NamespaceServiceImpl implements NamespaceService {
                     LinkedList<String> newQuotaList = new LinkedList<>();
                     newQuotaList.add(oldQuotaList.get(0));
                     newQuotaList.add(oldQuotaList.get(1));
-                    newQuotaList.add(String.valueOf(Integer.parseInt(oldQuotaList.get(0)) + Integer.parseInt(oldQuotaList.get(2)) - nsStorageUsed.get(storageClassName)));
+                    if (nsStorageUsed.get(clusterId) == null || nsStorageUsed.get(clusterId).get(storageClassName) == null){
+                        newQuotaList.add(String.valueOf(Integer.parseInt(oldQuotaList.get(0)) + Integer.parseInt(oldQuotaList.get(2))));
+                    } else {
+                        newQuotaList.add(String.valueOf(Integer.parseInt(oldQuotaList.get(0)) + Integer.parseInt(oldQuotaList.get(2)) - nsStorageUsed.get(clusterId).get(storageClassName)));
+                    }
                     newQuotaList.add(String.valueOf(Integer.parseInt(newQuotaList.get(2)) - Integer.parseInt(newQuotaList.get(0))));
                     storageClassData.put(storageClassName, newQuotaList);
                 }
@@ -1694,7 +1706,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         }
         //获取每个集群的使用量
         for (Map.Entry<String, List<NamespaceLocal>> entry : clusterNsMap.entrySet()) {
-            List<Map<String, Object>> clusterNamespaceData = new ArrayList<>();
+            List<Map<String, Object>> clusterNamespaceData = new CopyOnWriteArrayList<>();
             this.getNameSpaceDetailByNamespaceLocalList(entry.getValue(), clusterNamespaceData);
             result.put(entry.getKey(), clusterNamespaceData);
         }
