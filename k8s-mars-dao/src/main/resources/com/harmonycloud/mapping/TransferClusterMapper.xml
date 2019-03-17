@@ -156,7 +156,7 @@
     <include refid="Base_Column_List" />
     from transfer_cluster
     where tenant_id = #{tenantId,jdbcType=VARCHAR} and
-    cluster_id = #{clusterId,jdbcType=VARCHAR}
+    old_cluster_id = #{clusterId,jdbcType=VARCHAR}
   </select>
 
   <update id="updatePercent">

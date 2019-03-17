@@ -1,6 +1,7 @@
 package com.harmonycloud.service.application.impl;
 
 import com.alibaba.fastjson.JSON;
+import com.google.common.collect.Lists;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
@@ -12,6 +13,7 @@ import com.harmonycloud.dao.cluster.TransferClusterBackupMapper;
 import com.harmonycloud.dao.cluster.TransferClusterMapper;
 import com.harmonycloud.dao.cluster.bean.TransferBindDeploy;
 import com.harmonycloud.dao.cluster.bean.TransferBindNamespace;
+import com.harmonycloud.dao.cluster.bean.TransferCluster;
 import com.harmonycloud.dao.cluster.bean.TransferClusterBackup;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
@@ -35,8 +37,8 @@ import com.harmonycloud.service.application.PersistentVolumeService;
 import com.harmonycloud.service.application.RouterService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.constant.Constant;
-import com.harmonycloud.service.tenant.*;
 import com.harmonycloud.service.tenant.NamespaceService;
+import com.harmonycloud.service.tenant.*;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -1302,18 +1304,84 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 
 	@Override
 	public ActionReturnUtil getTransferCluster(ClusterTransferDetailDto clusterTransferDto) {
-		return ActionReturnUtil.returnSuccessWithData(transferClusterMapper.queryTransferCluster(clusterTransferDto.getClusterId()));
+		List<TransferCluster> list = transferClusterMapper.queryTransferCluster(clusterTransferDto.getClusterId());
+		if (CollectionUtils.isEmpty(list)) {
+			return ActionReturnUtil.returnSuccessWithData(null);
+		}
+
+		TransferCluster transferCluster = list.get(0);
+		ClusterTransferDto dto = new ClusterTransferDto();
+		dto.setTenantId(transferCluster.getTenantId());
+		dto.setCurrentClusterId(transferCluster.getOldClusterId());
+		dto.setTargetClusterId(transferCluster.getClusterId());
+		dto.setCreateTime(transferCluster.getCreateTime());
+		dto.setPercent(transferCluster.getPercent());
+
+		Cluster cluster = clusterService.findClusterById(transferCluster.getOldClusterId());
+		if (cluster != null) {
+			dto.setCurrentClusterName(cluster.getName());
+		}
+
+		return ActionReturnUtil.returnSuccessWithData(dto);
 	}
 
 	@Override
 	public ActionReturnUtil getDeployDetail(ClusterTransferDetailDto clusterTransferDto) {
-		return ActionReturnUtil.returnSuccessWithData(transferDeployMapper.queryTransferDeployDetail(clusterTransferDto.getTenantId(),clusterTransferDto.getClusterId()));
+		List<TransferBindDeploy> list = transferDeployMapper.queryTransferDeployDetail(clusterTransferDto.getTenantId(), clusterTransferDto.getClusterId());
+		if (CollectionUtils.isEmpty(list)) {
+			return ActionReturnUtil.returnSuccessWithData(null);
+		}
+		List<ClusterTransferDetailDto> resList = Lists.newArrayList();
+		list.forEach(detail -> {
+			ClusterTransferDetailDto dto = new ClusterTransferDetailDto();
+			dto.setTenantId(detail.gettenantId());
+			dto.setClusterId(detail.getClusterId());
+			dto.setNamespace(detail.getNamespace());
+			dto.setDeployName(detail.getDeployName());
+			try {
+				TenantBinding tenant = tenantService.getTenantByTenantid(detail.gettenantId());
+				if (tenant != null) {
+					dto.setTenantName(tenant.getTenantName());
+				}
+			} catch (Exception e) {
+				logger.warn("select tenantName error, tenantId:{}", detail.gettenantId());
+			}
+
+			resList.add(dto);
+		});
+		return ActionReturnUtil.returnSuccessWithData(resList);
 	}
 
 	@Override
 	public ActionReturnUtil getDeployDetailBackUp(ClusterTransferDetailDto clusterTransferDto) {
+		List<TransferClusterBackup> backupList = transferClusterBackUpMapper.queryHistoryBackUp(clusterTransferDto.getClusterId(), clusterTransferDto.getTenantId());
+		List<ClusterTransferBackupDto> resList = Lists.newArrayList();
+		backupList.forEach(backup -> {
+			ClusterTransferBackupDto dto = new ClusterTransferBackupDto();
+			dto.setId(backup.getId());
+			dto.setErrMsg(backup.getErrMsg());
+			dto.setCreateTime(backup.getCreateTime());
+			dto.setUpdateTime(backup.getUpdateTime());
+			dto.setOldClusterId(backup.getOldClusterId());
+			dto.setTenantId(backup.gettenantId());
+			try {
+				TenantBinding tenant = tenantService.getTenantByTenantid(backup.gettenantId());
+				if (tenant != null) {
+					dto.setTenantName(tenant.getTenantName());
+				}
+			} catch (Exception e) {
+				logger.warn("select tenantName error, tenantId:{}", backup.gettenantId());
+			}
 
-		return ActionReturnUtil.returnSuccessWithData(transferClusterBackUpMapper.queryHistoryBackUp(clusterTransferDto.getClusterId(), clusterTransferDto.getTenantId()));
+			dto.setTransferClusterId(backup.getTransferClusterId());
+			Cluster cluster = clusterService.findClusterById(backup.getTransferClusterId());
+			if (cluster != null) {
+				dto.setTransferClusterName(cluster.getName());
+			}
+
+			resList.add(dto);
+		});
+		return ActionReturnUtil.returnSuccessWithData(resList);
 	}
 
 	private List<DeploymentTransferDto> generateTransferDtoList(List<TransferBindDeploy> transferBindDeploys){

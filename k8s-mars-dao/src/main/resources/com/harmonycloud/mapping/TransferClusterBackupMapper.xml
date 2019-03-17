@@ -14,10 +14,11 @@
     <result column="is_default" jdbcType="TINYINT" property="isDefault" />
     <result column="transfer_cluster_percent" jdbcType="VARCHAR" property="transferClusterPercent" />
     <result column="project_id" jdbcType="VARCHAR" property="projectId" />
+    <result column="old_cluster_id" jdbcType="VARCHAR" property="oldClusterId" />
   </resultMap>
   <sql id="Base_Column_List">
     id, tenant_id, namespace_num, deploy_num, err_msg, create_time, update_time, transfer_cluster_id,
-    is_continue, is_default, transfer_cluster_percent, project_id
+    is_continue, is_default, transfer_cluster_percent, project_id, old_cluster_id
   </sql>
   <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
     select
@@ -80,6 +81,9 @@
       <if test="projectId != null">
         project_id,
       </if>
+      <if test="oldClusterId != null">
+        old_cluster_id,
+      </if>
     </trim>
     <trim prefix="values (" suffix=")" suffixOverrides=",">
       <if test="id != null">
@@ -117,6 +121,9 @@
       </if>
       <if test="projectId != null">
         #{projectId,jdbcType=VARCHAR},
+      </if>
+      <if test="oldClusterId != null">
+        #{oldClusterId,jdbcType=VARCHAR},
       </if>
     </trim>
   </insert>
@@ -156,6 +163,9 @@
       <if test="projectId != null">
         project_id = #{projectId,jdbcType=VARCHAR},
       </if>
+      <if test="oldClusterId != null">
+        old_cluster_id = #{oldClusterId,jdbcType=VARCHAR},
+      </if>
     </set>
     where id = #{id,jdbcType=INTEGER}
   </update>
@@ -171,7 +181,8 @@
       is_continue = #{isContinue,jdbcType=TINYINT},
       is_default = #{isDefault,jdbcType=TINYINT},
       transfer_cluster_percent = #{transferClusterPercent,jdbcType=VARCHAR},
-      project_id = #{projectId,jdbcType=VARCHAR}
+      project_id = #{projectId,jdbcType=VARCHAR},
+      old_cluster_id = #{oldClusterId,jdbcType=TIMESTAMP}
     where id = #{id,jdbcType=INTEGER}
   </update>
 
@@ -179,7 +190,7 @@
     select
     <include refid="Base_Column_List" />
     from transfer_cluster_backup
-    where transfer_cluster_id = #{clusterId,jdbcType=VARCHAR}
+    where old_cluster_id = #{clusterId,jdbcType=VARCHAR}
     <if test="tenantId != null and tenantId != ''">
       and tenant_id = #{tenantId}
     </if>

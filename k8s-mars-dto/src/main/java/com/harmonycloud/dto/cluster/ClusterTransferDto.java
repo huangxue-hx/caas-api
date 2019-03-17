@@ -1,6 +1,7 @@
 package com.harmonycloud.dto.cluster;
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -44,6 +45,14 @@ public class ClusterTransferDto implements Serializable {
      * 分区绑定所需要的属性
      */
     private List<BindNameSpaceDto> bindNameSpaceDtos;
+
+
+    private Date createTime;
+
+    private String currentClusterName;
+
+    private String percent;
+
 
     public String getTenantId() {
         return tenantId;
@@ -93,6 +102,30 @@ public class ClusterTransferDto implements Serializable {
         this.isContinue = isContinue;
     }
 
+    public Date getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
+    }
+
+    public String getCurrentClusterName() {
+        return currentClusterName;
+    }
+
+    public void setCurrentClusterName(String currentClusterName) {
+        this.currentClusterName = currentClusterName;
+    }
+
+    public String getPercent() {
+        return percent;
+    }
+
+    public void setPercent(String percent) {
+        this.percent = percent;
+    }
+
     @Override
     public String toString() {
         StringBuilder builder = new StringBuilder();
@@ -108,6 +141,12 @@ public class ClusterTransferDto implements Serializable {
         builder.append(isContinue);
         builder.append(", bindNameSpaceDtos=");
         builder.append(bindNameSpaceDtos);
+        builder.append(", createTime=");
+        builder.append(createTime);
+        builder.append(", currentClusterName=");
+        builder.append(currentClusterName);
+        builder.append(", percent=");
+        builder.append(percent);
         builder.append("]");
         return builder.toString();
     }

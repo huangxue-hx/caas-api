@@ -16,6 +16,11 @@ public class ClusterTransferDetailDto implements Serializable {
     private String tenantId;
     @NotNull(message = "ClusterId can not be null.")
     private String ClusterId;
+
+    private String namespace;
+    private String deployName;
+    private String tenantName;
+
     public String getTenantId() {
         return tenantId;
     }
@@ -28,6 +33,31 @@ public class ClusterTransferDetailDto implements Serializable {
     public void setClusterId(String clusterId) {
         ClusterId = clusterId;
     }
+
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
+    }
+
+    public String getDeployName() {
+        return deployName;
+    }
+
+    public void setDeployName(String deployName) {
+        this.deployName = deployName;
+    }
+
+    public String getTenantName() {
+        return tenantName;
+    }
+
+    public void setTenantName(String tenantName) {
+        this.tenantName = tenantName;
+    }
+
     @Override
     public String toString() {
         StringBuilder builder = new StringBuilder();

@@ -225,7 +225,7 @@
     <include refid="Base_Column_List" />
     from transfer_bind_deploy
     where
-    cluster_id = #{clusterId,jdbcType=VARCHAR}
+    old_cluster_id = #{clusterId,jdbcType=VARCHAR}
     <if test="tenantId != null and tenantId != ''">
       and tenant_id = #{tenantId,jdbcType=VARCHAR}
     </if>

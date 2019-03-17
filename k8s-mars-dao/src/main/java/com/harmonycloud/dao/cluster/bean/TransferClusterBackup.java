@@ -54,7 +54,7 @@ public class TransferClusterBackup implements Serializable {
     private Byte isContinue;
 
     /**
-     * 是否是增量迁移迁移 0:不是 1:是 
+     * 是否是增量迁移迁移 0:不是 1:是
      */
     private Byte isDefault;
 
@@ -223,6 +223,8 @@ public class TransferClusterBackup implements Serializable {
         builder.append(transferClusterPercent);
         builder.append(", projectId=");
         builder.append(projectId);
+        builder.append(", oldClusterId=");
+        builder.append(oldClusterId);
         builder.append(", errNamespace=");
         builder.append(errNamespace);
         builder.append(", errDeploy=");
