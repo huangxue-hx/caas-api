@@ -428,34 +428,17 @@ public class ClusterCacheManager {
             harborServer.setReferredClusterAliasNames(harborClusterAliasNames.get(harborServer.getHarborHost()));
             cluster.setHarborServer(harborServer);
             cluster.setExternal(clusterTPRDto.getExternal());
-            cluster.setNetworkType(this.getClusterNetworkType(cluster));
+            if (clusterTPRDto.getNetwork() != null && StringUtils.isNotBlank(clusterTPRDto.getNetwork().getNetworkFlag())) {
+                cluster.setNetworkType(clusterTPRDto.getNetwork().getNetworkFlag());
+            } else {
+                cluster.setNetworkType(K8S_NETWORK_CALICO);
+            }
             clusters.add(cluster);
 
         }
         return clusters;
     }
 
-    /**
-     * 获取集群的网络类型，根据系统分区下是否有calico或hcipam的pod判断
-     * @param cluster
-     * @return
-     * @throws Exception
-     */
-    private String getClusterNetworkType(Cluster cluster) throws Exception{
-        try {
-            List<PodDto> podDtoList = podService.getPodListByNamespace(cluster, NAMESPACE_SYSTEM);
-            for (PodDto podDto : podDtoList) {
-                if (podDto.getName().startsWith(K8S_NETWORK_CALICO)) {
-                    return K8S_NETWORK_CALICO;
-                } else if (podDto.getName().startsWith(K8S_NETWORK_HCIPAM)) {
-                    return K8S_NETWORK_HCIPAM;
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.error("获取集群的网络类型失败，默认返回calico网络, cluster:{}", cluster.getId(), e);
-        }
-        return K8S_NETWORK_CALICO;
-    }
 
     private Integer getServiceApiPort(List<ServicePort> servicePorts) throws MarsRuntimeException{
         for(ServicePort servicePort : servicePorts){
