@@ -134,7 +134,7 @@ public class IpPoolServiceImpl implements IpPoolService {
         }
         Cluster cluster = clusterService.findClusterById(poolDto.getClusterId());
         // post调用创建资源池接口
-        String url = "http://" + cluster.getHost() + ":"+Integer.parseInt(hcIpamServerPort)+"/ippool/";
+        String url = "http://" + cluster.getHost() + ":"+Integer.parseInt(hcIpamServerPort)+"/ippool";
         try {
             createIpPool(url, rec);
         } catch (Exception e) {
@@ -154,7 +154,7 @@ public class IpPoolServiceImpl implements IpPoolService {
         // 校验当前资源池是否已使用
         // get调用查询接口
         Cluster cluster = clusterService.findClusterById(poolDto.getClusterId());
-        String url = "http://" + cluster.getHost() + ":"+Integer.parseInt(hcIpamServerPort)+"/ippool/";
+        String url = "http://" + cluster.getHost() + ":"+Integer.parseInt(hcIpamServerPort)+"/ippool";
         String urlAndPoolName = url + "/" + getPoolName(poolDto.getClusterId(), poolDto.getName());
 
         try {
