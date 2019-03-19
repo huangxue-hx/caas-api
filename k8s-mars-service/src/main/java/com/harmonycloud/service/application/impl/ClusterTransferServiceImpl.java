@@ -8,6 +8,8 @@ import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.application.ConfigFileMapper;
+import com.harmonycloud.dao.application.bean.ConfigFile;
 import com.harmonycloud.dao.cluster.TransferBindDeployMapper;
 import com.harmonycloud.dao.cluster.TransferBindNamespaceMapper;
 import com.harmonycloud.dao.cluster.TransferClusterBackupMapper;
@@ -60,7 +62,8 @@ import static com.harmonycloud.service.platform.constant.Constant.TOPO_LABEL_KEY
 public class ClusterTransferServiceImpl implements ClusterTransferService {
 
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
-	
+    @Autowired
+    private ConfigFileMapper configFileMapper;
 	@Autowired
 	private RouterService routerService;
 	
@@ -352,7 +355,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		for (NamespaceDto namespaceDto : namespaceDtos) {
 			ErrorNamespaceDto errorNamespaceDto =new ErrorNamespaceDto();
 			//分区中文名唯一校验
-			/*String name = namespaceLocalMapper.selectByalias_name(namespaceDto.getAliasName());
+			/*String name = namespac eLocalMapper.selectByalias_name(namespaceDto.getAliasName());
 			if ( !StringUtils.isEmpty(name) && name.equals(namespaceDto.getName())){
 				errorNamespaceDto = new ErrorNamespaceDto();
 				errorNamespaceDto.setErrMsg("分区名已存在");
@@ -557,12 +560,13 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * @throws IllegalAccessException 
 	 * @throws MarsRuntimeException 
 	 */
-	private ErrDeployDto createIngress(DeploymentTransferDto deploymentTransferDto) throws Exception{
+	private ErrDeployDto createIngress(DeploymentTransferDto deploymentTransferDto,Cluster sourceCluster) throws Exception{
 		ActionReturnUtil actionReturnUtil = routerService.listExposedRouterWithIngressAndNginx(deploymentTransferDto.getCurrentNameSpace(),deploymentTransferDto.getCurrentDeployName(),deploymentTransferDto.getProjectId());
 		List<Map<String, Object>> routerList = (List<Map<String, Object>>) actionReturnUtil.getData();
 		List<HttpRuleDto> httpRuleDtos = new ArrayList<>();
 		List<TcpRuleDto> rules = new ArrayList<>();
 		for (Map<String, Object> map : routerList) {
+		    //TODO
 			if(map.get("type").equals(Constant.PROTOCOL_TCP)||map.get("type").equals(Constant.PROTOCOL_UDP)){
 				ErrDeployDto errDeployDto = createTcpIngress(deploymentTransferDto, map, rules);
 				if (errDeployDto != null) {
@@ -570,7 +574,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				}
 			}
 			if(map.get("type").equals(Constant.PROTOCOL_HTTP)){
-				ErrDeployDto errDeployDto = createHttpIngress(deploymentTransferDto, map, httpRuleDtos);
+				ErrDeployDto errDeployDto = createHttpIngress(deploymentTransferDto, map, httpRuleDtos, sourceCluster);
 				if (errDeployDto != null) {
 					return errDeployDto;
 				}
@@ -784,6 +788,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		deployment = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
         List<Volume> volumeList = deployment.getSpec().getTemplate().getSpec().getVolumes();
 		if (volumeList!=null && !volumeList.isEmpty()){
+		    //cm
 			errDeployDto =createVolumes(sourceCluster,currentCluster,volumeList, deploymentTransferDto);
 			if(!Objects.isNull(errDeployDto)){
 				return errDeployDto;
@@ -827,6 +832,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
                             if (!Objects.isNull(errDeployDto)) {
                                 return errDeployDto;
                             }
+                            //cm入库
                         }
                     }
                 } catch (Exception e) {
@@ -863,7 +869,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		String appName = null;
 		for (String label:labels.keySet()){
 				if (label.contains(projectId)) {
-					labels.put(label, deploymentTransferDto.getCurrentDeployName());
+					labels.put(label, deploymentTransferDto.getNamespace());
 					appName = StringUtils.substringAfter(label, projectId + "-");
 				}
 		}
@@ -1045,7 +1051,8 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * @throws InvocationTargetException
 	 * @throws IntrospectionException
 	 */
-	private ErrDeployDto createHttpIngress(DeploymentTransferDto deploymentTransferDto,Map<String, Object> map,List<HttpRuleDto> httpRuleDtos) throws Exception {
+	private ErrDeployDto createHttpIngress(DeploymentTransferDto deploymentTransferDto,Map<String, Object> map,
+                                           List<HttpRuleDto> httpRuleDtos, Cluster sourceCluster) throws Exception {
 		ParsedIngressListDto parsedIngressListDto = new ParsedIngressListDto();
 		parsedIngressListDto.setNamespace(deploymentTransferDto.getNamespace());
 		parsedIngressListDto.setName((String)map.get("name"));
@@ -1068,7 +1075,13 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		parsedIngressListDto.setLabels(labels);
 		parsedIngressListDto.setProtocol(Constant.PROTOCOL_HTTP);
 		parsedIngressListDto.setServiceName(deploymentTransferDto.getCurrentDeployName());
-		return routerService.transferIngressCreate(parsedIngressListDto,deploymentTransferDto.getCurrentDeployName());
+		ErrDeployDto errDeployDto = null;
+		try{
+			 errDeployDto = routerService.transferIngressCreate(parsedIngressListDto,deploymentTransferDto,sourceCluster);
+		}catch (Exception e){
+			logger.error("errorMessage{}",e);
+		}
+		return errDeployDto;
 	}
 
 	/**
@@ -1078,7 +1091,11 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 */
 	private ErrDeployDto checkK8SClientResponse(K8SClientResponse response,String deployName){
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			ErrDeployDto errDeployDto = new ErrDeployDto();
+            if (409 == response.getStatus()){
+                logger.warn("{}已存在，k8s massage:{}",deployName ,response.getBody());
+                return null;
+            }
+		    ErrDeployDto errDeployDto = new ErrDeployDto();
 			errDeployDto.setDeployName(deployName);
 			errDeployDto.setErrMsg("从k8s获得响应失败:"+ response.getBody());
 			return errDeployDto;
@@ -1318,7 +1335,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			TransferBindDeploy transferBindDeploy = new TransferBindDeploy();
 			transferBindDeploy.setStepId(1);
 			ErrDeployDto errDeployDto  = null;
-			errDeployDto = createIngress(deploymentTransferDto);
+			errDeployDto = createIngress(deploymentTransferDto,sourceCluster);
 			if(errDeployDto!=null){
 				errDeployDtos.add(errDeployDto);
 				transferBindDeploy.setErrMsg(errDeployDto.getErrMsg());

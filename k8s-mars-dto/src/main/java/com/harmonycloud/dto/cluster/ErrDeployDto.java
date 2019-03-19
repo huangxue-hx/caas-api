@@ -3,7 +3,7 @@ package com.harmonycloud.dto.cluster;
 import java.io.Serializable;
 
 public class ErrDeployDto implements Serializable {
-
+    // TODO 绝大多数errDeployDto的设计及用法很不合理
     /**
      *
      */

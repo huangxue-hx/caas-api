@@ -1,5 +1,6 @@
 package com.harmonycloud.service.application.impl;
 
+import com.fasterxml.classmate.Annotations;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.harmonycloud.common.Constant.CommonConstant;
@@ -38,6 +39,7 @@ import com.harmonycloud.service.application.StatefulSetsService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.cluster.IngressControllerService;
 import com.harmonycloud.service.cluster.NodePortClusterUsageService;
+import com.harmonycloud.service.cluster.impl.ClusterServiceImpl;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
@@ -47,6 +49,8 @@ import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -107,7 +111,7 @@ public class RouterServiceImpl implements RouterService {
     private TenantService tenantService;
     @Autowired
     private IngressControllerService ingressControllerService;
-
+    private static final Logger logger = LoggerFactory.getLogger(RouterServiceImpl.class);
     /**
      * 创建router
      *
@@ -1402,25 +1406,34 @@ public class RouterServiceImpl implements RouterService {
     }
 
     @Override
-    public ErrDeployDto transferIngressCreate(ParsedIngressListDto parsedIngressList, String deployName) throws Exception {
+    public ErrDeployDto transferIngressCreate(ParsedIngressListDto parsedIngressList, DeploymentTransferDto deploymentTransferDto ,Cluster sourceCluster) throws Exception {
         ErrDeployDto err = new ErrDeployDto();
         if (parsedIngressList == null || StringUtils.isBlank(parsedIngressList.getNamespace()) ||
                 StringUtils.isBlank(parsedIngressList.getName()) || StringUtils.isBlank(parsedIngressList.getIcName())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         String icName = parsedIngressList.getIcName();
+        //获取旧的ingress
+        List<Ingress> list = this.listHttpIngress(parsedIngressList.getServiceName(), deploymentTransferDto.getCurrentNameSpace(), sourceCluster);
+        if (list != null && !list.isEmpty()){
+            Map<String, Object> annotations = list.get(0).getMetadata().getAnnotations();
+            Map params = JsonUtil.convertJsonToMap(annotations.get(INGRESS_MULTIPLE_PORT_ANNOTATION).toString());
+            parsedIngressList.setExposePort(params.get("port").toString());
+            parsedIngressList.setProtocol((String) params.get("protocol"));
+            parsedIngressList.setExternal((Boolean) params.get("external"));
+        }
         String namespace = parsedIngressList.getNamespace();
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
         //判断集群内是否有相同名称的ingress
         if (checkIngressName(cluster, parsedIngressList.getName())) {
-            err.setDeployName(deployName);
+            err.setDeployName(deploymentTransferDto.getCurrentDeployName());
             err.setErrMsg(ErrorCodeMessage.HTTP_INGRESS_NAME_DUPLICATE.getReasonChPhrase());
             return err;
         }
         //根据icName，检查集群里是否有这个负载均衡器
         IngressControllerDto ingressControllerDto = ingressControllerService.getIngressController(icName, cluster.getId());
         if (ingressControllerDto == null) {
-            err.setDeployName(deployName);
+            err.setDeployName(deploymentTransferDto.getCurrentDeployName());
             err.setErrMsg("Ingress-controller资源不存在！");
             return err;
         }
@@ -1456,7 +1469,7 @@ public class RouterServiceImpl implements RouterService {
         url.setNamespace(namespace).setResource(Resource.INGRESS);
         K8SClientResponse k = new K8sMachineClient().exec(url, HTTPMethod.POST, head, body, cluster);
         if (!HttpStatusUtil.isSuccessStatus(k.getStatus())) {
-            err.setDeployName(deployName);
+            err.setDeployName(deploymentTransferDto.getCurrentDeployName());
             err.setErrMsg("Ingress创建失败");
             return err;
         }

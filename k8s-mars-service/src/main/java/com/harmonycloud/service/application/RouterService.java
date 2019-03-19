@@ -151,6 +151,8 @@ public interface RouterService {
     boolean checkIngressName(Cluster cluster, String name) throws Exception;
 
     ErrDeployDto transferRuleDeploy(SvcRouterDto svcRouterDto, String deployName)throws Exception;
-
-    ErrDeployDto transferIngressCreate(ParsedIngressListDto parsedIngressList,String deployName) throws Exception;
+    /**
+     * @param cluster 旧集群
+     */
+    ErrDeployDto transferIngressCreate(ParsedIngressListDto parsedIngressList, DeploymentTransferDto deploymentTransferDto ,Cluster cluster) throws Exception;
 }
