@@ -880,7 +880,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			Map<String,Object> appLebels = appCrd.getMetadata().getLabels();
 			for (String label:appLebels.keySet()){
 				if (label.contains(projectId)) {
-					appLebels.put(label, deploymentTransferDto.getCurrentDeployName());
+					appLebels.put(label, deploymentTransferDto.getNamespace());
 				}
 			}
 
