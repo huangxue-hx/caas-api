@@ -429,7 +429,9 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			if(!CollectionUtils.isEmpty(harborProjects)) {
 				List<HarborProject> projects = harborProjects.stream().filter(project -> imageRepository
 						.getHarborProjectName().equals(project.getProjectName())).collect(Collectors.toList());
-				imageRepository.setImageCount(projects.get(0).getRepoCount());
+				if (!CollectionUtils.isEmpty(projects)) {
+					imageRepository.setImageCount(projects.get(0).getRepoCount());
+				}
 			}
 		}catch (Exception e){
 			logger.error("查询镜像仓库下的镜像数量失败，image：{}",JSONObject.toJSONString(imageRepository),e);
