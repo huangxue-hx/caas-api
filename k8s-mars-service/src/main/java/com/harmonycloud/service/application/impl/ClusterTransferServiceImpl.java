@@ -9,7 +9,6 @@ import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.application.ConfigFileMapper;
-import com.harmonycloud.dao.application.bean.ConfigFile;
 import com.harmonycloud.dao.cluster.TransferBindDeployMapper;
 import com.harmonycloud.dao.cluster.TransferBindNamespaceMapper;
 import com.harmonycloud.dao.cluster.TransferClusterBackupMapper;
@@ -24,6 +23,7 @@ import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.dto.cluster.*;
+import com.harmonycloud.dto.tenant.ClusterQuotaDto;
 import com.harmonycloud.dto.tenant.NamespaceDto;
 import com.harmonycloud.dto.tenant.QuotaDto;
 import com.harmonycloud.k8s.bean.*;
@@ -136,11 +136,14 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 
 	@Override
 	public ActionReturnUtil transferCluster(List<ClusterTransferDto> clusterTransferDto) throws Exception {
+        if (CollectionUtils.isEmpty(clusterTransferDto)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.INVALID_PARAMETER);
+        }
 
 		Cluster sourceCluster = clusterService.findClusterById(clusterTransferDto.get(0).getCurrentClusterId());
 		Cluster targetCluster = clusterService.findClusterById(clusterTransferDto.get(0).getTargetClusterId());
 		TransferClusterBackup transferClusterBackup = generateTransferClusterBackup(clusterTransferDto);
-		//checkResource(sourceCluster, targetCluster, transferClusterBackup, clusterTransferDto);
+		checkResource(sourceCluster, targetCluster, transferClusterBackup, clusterTransferDto);
 		if(!Objects.isNull(transferClusterMapper.queryTransferClusterByParam(clusterTransferDto.get(0).getTenantId(),clusterTransferDto.get(0).getTargetClusterId()))){
 			//TODO 增量续传
 		}
@@ -229,11 +232,30 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * @return
 	 */
 	private boolean compareUsage(Cluster sourceCluster, Cluster targetCluster, List<ClusterTransferDto> clusterTransferDtos) throws Exception {
-		Map<String,Double> clusterResource = getClusterUsage(targetCluster.getId());
-		Double unUsedCpu = clusterResource.get("clusterUnUsedCpu");
-		Double unUsedMemory = clusterResource.get("clusterUnUsedMemory");
-		Double requiredCpu = 0.0;
-		Double requiredMemory = 0.0;
+		// 取出集群总配额信息 & 租户使用信息
+		ClusterQuotaDto clusterQuotaDto = new ClusterQuotaDto();
+		tenantClusterQuotaService.getClusterUsage(clusterTransferDtos.get(0).getTenantId(), targetCluster.getId(), clusterQuotaDto);
+		if (clusterQuotaDto.getUnUsedCpu() <= 0D || clusterQuotaDto.getUnUsedMemory() <= 0D) {
+			return false;
+		}
+		// 查询租户的集群配额信息
+		TenantClusterQuota targetTenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(clusterTransferDtos.get(0).getTenantId(), targetCluster.getId());
+		double unUsedCpu;
+		double unUsedMemory;
+		if (targetTenantClusterQuota == null || targetTenantClusterQuota.getCpuQuota() == 0D) {    // 如果该租户为分配过，则使用集群剩余容量
+			unUsedCpu = clusterQuotaDto.getUnUsedCpu();
+			unUsedMemory = clusterQuotaDto.getUnUsedMemory();
+		} else {    // 已经分配过，则使用租户集群配额剩余容量
+			unUsedCpu = targetTenantClusterQuota.getCpuQuota() - clusterQuotaDto.getUsedCpu();
+			unUsedMemory = mathMemory(String.valueOf(targetTenantClusterQuota.getMemoryQuota())) - clusterQuotaDto.getUsedMemory();
+			if (unUsedCpu <= 0D || unUsedMemory <= 0D) {
+				return false;
+			}
+		}
+
+		double requiredCpu = 0.0;
+		double requiredMemory = 0.0;
+
 		for (ClusterTransferDto clusterTransferDto : clusterTransferDtos) {
 			List<BindNameSpaceDto> bindNameSpaceDtos = clusterTransferDto.getBindNameSpaceDtos();
 			for (BindNameSpaceDto bindNameSpaceDto : bindNameSpaceDtos) {
@@ -252,21 +274,51 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 						return false;
 					}
 				} else {
-					//已经存在分区判断剩余的资源是否足够创建迁移过来的服务， 暂不校验
-					/*Double requiredNsCpu = 0.0;
-					Double requiredNsMemory = 0.0;
-					List<DeploymentDto> deploymentDtos = bindNameSpaceDto.getDeploymentDto();
-					for (DeploymentDto deploymentDto : deploymentDtos) {
-						if (deploymentDto.getServiceType().equals(DEPLOYMENT)) {
-							// 获取特定的deployment
-							K8SClientResponse depRes = dpService.doSpecifyDeployment(bindNameSpaceDto.getOldNameSpace(), deploymentDto.getDeployName(), null, null, HTTPMethod.GET, sourceCluster);
-							if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
-								throw new MarsRuntimeException(DictEnum.APPLICATION.phrase(), ErrorCodeMessage.QUERY_FAIL);
-							}
-							Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
-
-						}
-					}*/
+					//已经存在分区判断剩余的资源是否足够创建迁移过来的服务
+//					double requiredNsCpu = 0D;
+//					double requiredNsMemory = 0D;
+//					List<DeploymentDto> deploymentDtos = bindNameSpaceDto.getDeploymentDto();
+//					for (DeploymentDto deploymentDto : deploymentDtos) {
+//						if (deploymentDto.getServiceType().equals(Constant.DEPLOYMENT)) {
+//							// 获取特定的deployment
+//							K8SClientResponse depRes = dpService.doSpecifyDeployment(bindNameSpaceDto.getOldNameSpace(), deploymentDto.getDeployName(), null, null, HTTPMethod.GET, sourceCluster);
+//							if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
+//								throw new MarsRuntimeException(DictEnum.APPLICATION.phrase(), ErrorCodeMessage.QUERY_FAIL);
+//							}
+//							Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+////							List<Container> containers = dep.getSpec().getTemplate().getSpec().getContainers();
+////							if (CollectionUtils.isNotEmpty(containers)) {
+////								for (Container c : containers) {
+////									if (c.getResources() != null && c.getResources().getRequests() != null) {
+////										Map<String, Object> request = (Map<String, Object>) c.getResources().getRequests();
+////										String cpu = (String) request.get(CommonConstant.CPU);
+////										String memory = (String) request.get(CommonConstant.MEMORY);
+////										if (cpu.contains(CommonConstant.SMALLM)) {
+////											requiredNsCpu += Double.parseDouble(cpu.split(CommonConstant.SMALLM)[0]) / CommonConstant.NUM_THOUSAND;
+////										} else {
+////											requiredNsCpu += Double.parseDouble(cpu);
+////										}
+////										if (requiredNsCpu > unUsedCpu) {
+////											return false;
+////										}
+////
+////										if (memory.contains(CommonConstant.SMALLM)) {
+////											requiredNsMemory += mathMemory(memory.split(CommonConstant.SMALLM)[0]);
+////										} else if (memory.contains(CommonConstant.MI)) {
+////											requiredNsMemory += mathMemory(memory.split(CommonConstant.MI)[0]);
+////										} else if (memory.contains(CommonConstant.SMALLG)) {
+////											requiredNsMemory += Double.parseDouble(memory.split(CommonConstant.SMALLG)[0]);
+////										} else if (memory.contains(CommonConstant.GI)) {
+////											requiredNsMemory += Double.parseDouble(memory.split(CommonConstant.GI)[0]);
+////										}
+////										if (requiredNsMemory > unUsedMemory) {
+////											return false;
+////										}
+////									}
+////								}
+////							}
+//						}
+//					}
 				}
 			}
 
@@ -475,7 +527,6 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	}
 
 	private Map<String,List<ErrorNamespaceDto>> updateBindNamespace(ClusterTransferDto clusterTransferDtos, List<NamespaceDto> namespaceDtos, Cluster currentCluster ,Cluster sourceCluster) throws Exception {
-
 		//创建该租户在新集群的配额
 		TenantClusterQuota tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(namespaceDtos.get(0).getTenantId(),currentCluster.getId());
         //TODO 创建集群配额应该改为客户手动创，多次从不同集群迁入某个集群会导致不知道该怎样设置配额大小
@@ -1260,7 +1311,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	}
 
 	private DeployResultDto generateTransferDeploymentAndTransferDeploy(List<ErrorNamespaceDto> errorNamespaceDtos,List<ClusterTransferDto> clusterTransferDtos,Cluster sourceCluster) throws Exception {
-		Map<String,String> param = successNamespceBind(errorNamespaceDtos, clusterTransferDtos);
+		Map<String,String> param = successNamespaceBind(errorNamespaceDtos, clusterTransferDtos);
 		List<TransferBindDeploy> list = new ArrayList<>();
 		List<DeploymentTransferDto> deploymentTransferDtos = new ArrayList<>();
 		DeployResultDto deployResultDto = new DeployResultDto();
@@ -1294,7 +1345,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		return deployResultDto;
 	}
 
-	private Map<String,String> successNamespceBind(List<ErrorNamespaceDto> errorNamespaceDtos,List<ClusterTransferDto> clusterTransferDtos){
+	private Map<String,String> successNamespaceBind(List<ErrorNamespaceDto> errorNamespaceDtos,List<ClusterTransferDto> clusterTransferDtos){
 		Map<String,String> map = new HashMap<>();
 		if(!CollectionUtils.isEmpty(errorNamespaceDtos)){
 			for (ErrorNamespaceDto errorNamespaceDto : errorNamespaceDtos) {
