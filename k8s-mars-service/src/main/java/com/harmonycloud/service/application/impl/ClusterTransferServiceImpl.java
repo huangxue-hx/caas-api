@@ -56,6 +56,7 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 
+import static com.harmonycloud.common.Constant.CommonConstant.LABEL_KEY_APP;
 import static com.harmonycloud.service.platform.constant.Constant.TOPO_LABEL_KEY;
 
 @Service
@@ -407,14 +408,30 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		for (NamespaceDto namespaceDto : namespaceDtos) {
 			ErrorNamespaceDto errorNamespaceDto =new ErrorNamespaceDto();
 			//分区中文名唯一校验
-			/*String name = namespac eLocalMapper.selectByalias_name(namespaceDto.getAliasName());
-			if ( !StringUtils.isEmpty(name) && name.equals(namespaceDto.getName())){
-				errorNamespaceDto = new ErrorNamespaceDto();
-				errorNamespaceDto.setErrMsg("分区名已存在");
-				errorNamespaceDto.setNamespace(namespaceDto.getName());
-				errorList.add(errorNamespaceDto);
-				continue;
-			}*/
+			//根据别名查英文名 如果英文名不存在 或 和新英文名不一致  returen
+			String name = namespaceLocalMapper.selectNameByalias_name(namespaceDto.getAliasName());
+			String aliasName = namespaceLocalMapper.selectAliasNameByName(namespaceDto.getName());
+			//
+			if (name == null ){ //name为空，aliame不为空的直接返回
+				if (aliasName != null){
+					//gg
+					logger.error("请检查分区名与分区别名{}>>>{}",namespaceDto.getName(),namespaceDto.getAliasName());
+					errorNamespaceDto = new ErrorNamespaceDto();
+					errorNamespaceDto.setErrMsg("请检查分区名与分区别名" + namespaceDto.getName()+ " - "+namespaceDto.getAliasName());
+					errorNamespaceDto.setNamespace(namespaceDto.getName());
+					errorList.add(errorNamespaceDto);
+					continue;
+				}
+			}else{  //name 不为空,aliame不为空且需要一致，否则返回
+				if (aliasName == null ||  !aliasName.equals(namespaceDto.getAliasName())) {
+					logger.error("请检查分区名与分区别名{}>>>{}",namespaceDto.getName(),namespaceDto.getAliasName());
+					errorNamespaceDto = new ErrorNamespaceDto();
+					errorNamespaceDto.setErrMsg("请检查分区名与分区别名" + namespaceDto.getName()+ " - "+namespaceDto.getAliasName());
+					errorNamespaceDto.setNamespace(namespaceDto.getName());
+					errorList.add(errorNamespaceDto);
+					continue;
+				}
+			}
 			//字段长度、必填可放在接口入口处校验
 			if (StringUtils.isEmpty(namespaceDto.getName()) || namespaceDto.getName().indexOf(CommonConstant.LINE) < 0) {
 				errorNamespaceDto = new ErrorNamespaceDto();
@@ -702,26 +719,34 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		ErrDeployDto errDeployDto = new ErrDeployDto();
 		if (k8sClientResponse.getStatus() == Constant.HTTP_404){
 			errDeployDto.setDeployName(deploymentTransferDto.getCurrentDeployName());
+			logger.error("未获取到pvc，deploymentTransferDto{}", deploymentTransferDto.toString());
 			errDeployDto.setErrMsg("创建pvc失败");
 			return errDeployDto;
 		}
 		PersistentVolumeClaimList persistentVolumeClaim = K8SClient.converToBean(k8sClientResponse, PersistentVolumeClaimList.class);
 		if(!persistentVolumeClaim.getItems().isEmpty()){
-			K8SClientResponse pvcRes = getPVC(deploymentTransferDto.getCurrentDeployName(), deploymentTransferDto.getNamespace(), targetCluster);
-			checkK8SClientResponse(pvcRes,deploymentTransferDto.getCurrentDeployName());
-			PersistentVolumeClaimList transferPersistentVolumeClaimc = K8SClient.converToBean(pvcRes, PersistentVolumeClaimList.class);
-			if(CollectionUtils.isNotEmpty(transferPersistentVolumeClaimc.getItems())){
-				persistentVolumeClaims = transferPersistentVolumeClaimc.getItems();
-				persistentVolumeClaims.stream().forEach(x-> {
+			persistentVolumeClaims = persistentVolumeClaim.getItems();
+			for ( PersistentVolumeClaim pvc :persistentVolumeClaims ){
+				PersistentVolumeClaim transferPersistentVolumeClaim = null;
+				try{
+					K8SClientResponse pvcRes = pvcService.getPVC(pvc.getMetadata().getName(), deploymentTransferDto.getNamespace(), targetCluster);
+					checkK8SClientResponse(pvcRes,deploymentTransferDto.getCurrentDeployName());
+					transferPersistentVolumeClaim = K8SClient.converToBean(pvcRes, PersistentVolumeClaim.class);
+				}catch (Exception e){
+					logger.warn("集群迁移在新集群未查到pvc{}",e);
+				}
+				
+				if(null != transferPersistentVolumeClaim){
+					logger.warn("集群迁移pvc已存在{}",transferPersistentVolumeClaim.toString());
 					try {
-						errDeployDtos.add(createPVC(replacePersistentVolumeClaim(x, deploymentTransferDto), targetCluster, sourceCluster,deploymentTransferDto.getNamespace(),deploymentTransferDto.getCurrentDeployName(),errDeployDto));
+						errDeployDtos.add(updatePVC(replacePersistentVolumeClaim(transferPersistentVolumeClaim, deploymentTransferDto ,"update"), targetCluster));
 					}catch (Exception e) {
-						logger.error("更新pvc错误，{}", x, e);
+						logger.error("更新pvc错误，{}", transferPersistentVolumeClaim, e);
 					}
-				});
-			}else{
-				persistentVolumeClaims = persistentVolumeClaim.getItems();
-				persistentVolumeClaims.stream().forEach(x->errDeployDtos.add(createPVC(replacePersistentVolumeClaim(x, deploymentTransferDto), targetCluster, sourceCluster,deploymentTransferDto.getNamespace(),deploymentTransferDto.getCurrentDeployName(),errDeployDto)));
+
+				}else{
+					errDeployDtos.add(createPVC(replacePersistentVolumeClaim(pvc, deploymentTransferDto, "create"), targetCluster, sourceCluster,deploymentTransferDto.getNamespace(),deploymentTransferDto.getCurrentDeployName(),errDeployDto));
+				}
 			}
 		}
 		return null;
@@ -732,12 +757,12 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * @param persistentVolumeClaim
 	 * @param targetCluster
 	 */
-	private ErrDeployDto updatePVC(PersistentVolumeClaim persistentVolumeClaim,Cluster targetCluster,String deployName) throws Exception {
-		PersistentVolume persistentVolume = pvService.getPvByName(persistentVolumeClaim.getSpec().getVolumeName(),targetCluster);
+	private ErrDeployDto updatePVC(PersistentVolumeClaim persistentVolumeClaim,Cluster targetCluster) throws Exception {
+		/*PersistentVolume persistentVolume = pvService.getPvByName(persistentVolumeClaim.getSpec().getVolumeName(),targetCluster);
 		ErrDeployDto errDeployDto = persistentVolumeService.transferPV(persistentVolume, targetCluster,deployName);
 		if(!Objects.isNull(errDeployDto)){
 			return errDeployDto;
-		}
+		}*/
 		pvcService.updatePvcByName(persistentVolumeClaim, targetCluster);
 		return null;
 	}
@@ -1211,39 +1236,36 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * 替换pvc属性
 	 * @param persistentVolumeClaim
 	 * @param deploymentTransferDto
+	 * @param type "create / update "
 	 * @return
 	 */
-	private PersistentVolumeClaim replacePersistentVolumeClaim(PersistentVolumeClaim persistentVolumeClaim,DeploymentTransferDto deploymentTransferDto){
+	private PersistentVolumeClaim replacePersistentVolumeClaim(PersistentVolumeClaim persistentVolumeClaim,DeploymentTransferDto deploymentTransferDto, String type){
 		persistentVolumeClaim.getMetadata().setNamespace(deploymentTransferDto.getNamespace());
 		persistentVolumeClaim.getMetadata().setResourceVersion(null);
 		//persistentVolumeClaim.getSpec().getSelector().setMatchLabels(replacePVCLabels(persistentVolumeClaim.getSpec().getSelector().getMatchLabels(), deploymentTransferDto));
 		persistentVolumeClaim.getMetadata().setSelfLink(persistentVolumeClaim.getMetadata().getSelfLink().replace(persistentVolumeClaim.getMetadata().getNamespace(),deploymentTransferDto.getNamespace()));
-		//persistentVolumeClaim.getMetadata().setLabels(replacePVCLabels(persistentVolumeClaim.getMetadata().getLabels(), deploymentTransferDto));
+		Map oldLabels = persistentVolumeClaim.getMetadata().getLabels();
+		Map labels = type.equals("create") ?  createLabels(oldLabels, deploymentTransferDto):updateLabels(oldLabels, deploymentTransferDto);
+		persistentVolumeClaim.getMetadata().setLabels(labels);
 		return persistentVolumeClaim;
 	}
-	
-	
+
+
 	/**
-	 * 替换pvc的labels
-	 * @param labels
+	 * 删除pvc和app的labels绑定关系
+	 * @param oldLabels
 	 * @param deploymentTransferDto
 	 * @return
 	 */
-	private Map<String, Object> replacePVCLabels(Map<String,Object> labels, DeploymentTransferDto deploymentTransferDto){
-		String removeKey = null;
-		String values = null;
-		for(String key:labels.keySet()){
-			if(key.contains(deploymentTransferDto.getCurrentNameSpace())){
-				values = String.valueOf(labels.get(key));
-				removeKey = key;
-			}
-			if(labels.get(key).equals(deploymentTransferDto.getCurrentProjectId())){
-				labels.put(key, deploymentTransferDto.getProjectId());
-			}
-		}
-		labels.put(splitPVCLabelKey(removeKey, deploymentTransferDto.getNamespace()),values);
-		labels.remove(removeKey);
-		return labels;
+	private Map<String, Object> createLabels(Map<String,Object> oldLabels ,DeploymentTransferDto deploymentTransferDto ){
+		oldLabels.entrySet().removeIf(entry -> entry.getKey().contains(LABEL_KEY_APP + CommonConstant.SLASH));
+		oldLabels.put(LABEL_KEY_APP + CommonConstant.SLASH + deploymentTransferDto.getCurrentDeployName(), deploymentTransferDto.getCurrentDeployName());
+		return oldLabels;
+	}
+
+	private Map<String, Object> updateLabels(Map<String,Object> oldLabels ,DeploymentTransferDto deploymentTransferDto ){
+		oldLabels.put(LABEL_KEY_APP + CommonConstant.SLASH + deploymentTransferDto.getCurrentDeployName(), deploymentTransferDto.getCurrentDeployName());
+		return oldLabels;
 	}
 	
 	/***

@@ -23,6 +23,7 @@ public interface NamespaceLocalMapper {
 
     int updateByPrimaryKey(NamespaceLocal record);
 
-    String selectByalias_name(@Param("aliasName")String aliasName);
+    String selectAliasNameByName(@Param("nameSpaceName")String nameSpaceName);
+    String selectNameByalias_name(@Param("aliasName")String aliasName);
     int deleteByClusterId(@Param("clusterId")String clusterId);
 }
