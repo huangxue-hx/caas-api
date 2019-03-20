@@ -1325,14 +1325,16 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			}
 			HarborProject harborProject = projectsMap.get(imageRepository.getHarborProjectId());
 			if(harborProject == null){
-				ActionReturnUtil response = harborService.deleteProject(imageRepository.getHarborHost(),
+				logger.error("harbor上未找到仓库，imageRepository:{}", JSONObject.toJSONString(imageRepository));
+				continue;
+				/*ActionReturnUtil response = harborService.deleteProject(imageRepository.getHarborHost(),
 						imageRepository.getHarborProjectId());
 				if (!response.isSuccess() && response.getData() != null
 						&& response.getData().toString().contains("project does not exist")) {
 					logger.warn("harbor上未找到仓库，删除数据库记录，imageRepository:{}", JSONObject.toJSONString(imageRepository));
 					imageRepositoryMapper.deleteRepositoryById(imageRepository.getId());
 					continue;
-				}
+				}*/
 			}else {
 				imageRepository.setImageCount(harborProject.getRepoCount());
 				imageRepository.setQuotaSize(harborProject.getQuotaSize());

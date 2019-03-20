@@ -1204,7 +1204,7 @@ public class HarborServiceImpl implements HarborService {
                         }else{
                             Map<String,String> tempMap = (HashMap<String,String>)map.get("metadata");
                             if (tempMap.get("public") == null) {
-                                LOGGER.error("镜像仓库的公共私有标识为空，map：{}", JSONObject.toJSONString(tempMap));
+                                LOGGER.error("镜像仓库的公共私有标识为空，harborProject：{}", JSONObject.toJSONString(harborProject));
                                 continue;
                             }
                             Integer isPublic;
