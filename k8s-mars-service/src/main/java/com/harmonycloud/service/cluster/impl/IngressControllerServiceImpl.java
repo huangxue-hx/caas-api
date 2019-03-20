@@ -37,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -572,21 +573,31 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         //删除ingressController相关的configMap
         K8SClientResponse response_tcp = icService.deleteConfigMap(TCP + icName, cluster);
         if(!HttpStatusUtil.isSuccessStatus(response_tcp.getStatus())) {
-            LOGGER.error("删除ingresscontroller tcp配置失败,response:{}",JSONObject.toJSONString(response_tcp));
-            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            return returnErrorWithData(status.getMessage());
+            if (response_tcp.getStatus() != HttpStatus.NOT_FOUND.value()) {
+                LOGGER.error("删除ingresscontroller tcp配置失败,response:{}", JSONObject.toJSONString(response_tcp));
+                UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+                return returnErrorWithData(status.getMessage());
+            } else {
+                LOGGER.warn("nginx tcp配置不存在,name:{}", TCP + icName);
+            }
         }
         K8SClientResponse response_udp = icService.deleteConfigMap(UDP + icName, cluster);
         if(!HttpStatusUtil.isSuccessStatus(response_udp.getStatus())) {
-            LOGGER.error("删除ingresscontroller udp配置失败,response:{}",JSONObject.toJSONString(response_udp));
-            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            return returnErrorWithData(status.getMessage());
+            if (response_tcp.getStatus() != HttpStatus.NOT_FOUND.value()) {
+                LOGGER.error("删除ingresscontroller udp配置失败,response:{}", JSONObject.toJSONString(response_udp));
+                UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+                return returnErrorWithData(status.getMessage());
+            } else {
+                LOGGER.warn("nginx udp配置不存在,name:{}", UDP + icName);
+            }
         }
         K8SClientResponse response_leader = icService.deleteConfigMap("ingress-controller-leader-" + icName, cluster);
         if(!HttpStatusUtil.isSuccessStatus(response_leader.getStatus())) {
-            LOGGER.error("删除ingresscontroller leader配置失败,response:{}",JSONObject.toJSONString(response_leader));
-            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            return returnErrorWithData(status.getMessage());
+            if (response_leader.getStatus() != HttpStatus.NOT_FOUND.value()) {
+                LOGGER.error("删除ingresscontroller leader配置失败,response:{}", JSONObject.toJSONString(response_leader));
+                UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+                return returnErrorWithData(status.getMessage());
+            }
         }
         response_leader  = icService.deleteConfigMap(ARG + icName, cluster);
         if(!HttpStatusUtil.isSuccessStatus(response_leader.getStatus())) {
