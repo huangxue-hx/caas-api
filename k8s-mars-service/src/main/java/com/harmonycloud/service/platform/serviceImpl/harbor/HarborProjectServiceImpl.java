@@ -1334,7 +1334,6 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 					continue;
 				}
 			}else {
-				imageRepository.setCreateTime(DateUtil.utcToGmtDate(harborProject.getCreateTime()));
 				imageRepository.setImageCount(harborProject.getRepoCount());
 				imageRepository.setQuotaSize(harborProject.getQuotaSize());
 				imageRepository.setUsageSize(harborProject.getUseSize());
