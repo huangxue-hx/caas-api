@@ -270,7 +270,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             return returnErrorWithData(status.getMessage());
         }
         //拼接Ingress-controller
-        DaemonSet daemonSet = buildIngressController(ingressControllerDto, ingressControllerPort, serviceAccount, nginxCmNM);
+        DaemonSet daemonSet = buildIngressController(ingressControllerDto, ingressControllerPort, serviceAccount, nginxCmNM, cluster);
         //更新主机节点标签
         this.updateNodeLabel(icName, cluster, Collections.emptyList(), ingressControllerDto.getIcNodeNames());
         //创建tcp、udp配置文件
@@ -303,7 +303,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
 
     //构建ingress controller对象
     private DaemonSet buildIngressController(IngressControllerDto ingressControllerDto,
-                           IngressControllerPort ingressControllerPort, ServiceAccount serviceAccount, String nginxCmNM) {
+                           IngressControllerPort ingressControllerPort, ServiceAccount serviceAccount, String nginxCmNM, Cluster cluster) {
         DaemonSet daemonSet = new DaemonSet();
         //daemonSet.metadata
         ObjectMeta objectMeta = new ObjectMeta();
@@ -360,7 +360,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         //daemonSet.spec.template.spec.containers
         List<Container> containerList = new ArrayList<>();
         Container container = new Container();
-        container.setImage(CONTAINER_IMAGE + icImageTag);
+        container.setImage(cluster.getHarborServer().getHarborHost() + "/" + CONTAINER_IMAGE + icImageTag);
         container.setName(ingressControllerPort.getName());
         //readinessProbe
         Probe probe = new Probe();
