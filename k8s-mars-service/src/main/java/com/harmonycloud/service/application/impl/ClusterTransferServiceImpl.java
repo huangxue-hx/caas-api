@@ -886,9 +886,10 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	}
 	private ErrDeployDto createVolumes(Cluster sourceCluster, Cluster newCluster ,List<Volume> volumeList ,DeploymentTransferDto deploymentTransferDto, Deployment deployment){
         ErrDeployDto errDeployDto = null;
-	    for (Volume volume :volumeList){
-	        ConfigMapVolumeSource cm = volume.getConfigMap();
-          /*  PersistentVolumeClaimVolumeSource persistentVolumeClaimVolumeSource = volume.getPersistentVolumeClaim();*/
+        String configId = null;
+        for (Volume volume : volumeList){
+            ConfigMapVolumeSource cm = volume.getConfigMap();
+            /*  PersistentVolumeClaimVolumeSource persistentVolumeClaimVolumeSource = volume.getPersistentVolumeClaim();*/
             if (cm != null) {
                 K8SClientResponse response = null;
                 try {
@@ -920,7 +921,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
                                 ConfigFile newConfig = configFileMapper.getConfigByNameAndTag(oldConfig.getName(), oldConfig.getTags(),
                                         oldConfig.getProjectId(), newCluster.getId());    // 先查询一遍，避免违反configfile表索引的约束条件
                                 if (newConfig == null) {    // 没有，先新增
-                                    final String configId = UUIDUtil.get16UUID();
+                                    configId = UUIDUtil.get16UUID();
 
                                     newConfig = new ConfigFile();
                                     newConfig.setId(configId);
@@ -941,18 +942,15 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
                                     // 查询configfileItem列表，遍历 id置为空、传入相应的configId并保存
                                     List<ConfigFileItem> itemList = configFileItemMapper.getConfigFileItem(oldVolumeName[1]);
                                     if (CollectionUtils.isNotEmpty(itemList)) {
-                                        itemList.forEach(item -> {
-                                            item.setId(null);
-                                            item.setConfigfileId(configId);
-                                            configFileItemMapper.insert(item);
-                                        });
+										for (ConfigFileItem item : itemList) {
+											item.setId(null);
+											item.setConfigfileId(configId);
+											configFileItemMapper.insert(item);
+										}
                                     }
+                                } else {
+                                    configId = newConfig.getId();
                                 }
-                                // 替换掉deployment里volumes的volumeName和volumeMounts的name
-                                int i = Integer.parseInt(oldVolumeName[0]) - 1;
-                                String volumeName = String.format("%s-%s", oldVolumeName[0], newConfig.getId());
-                                deployment.getSpec().getTemplate().getSpec().getVolumes().get(i).setName(volumeName);
-                                deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(i).setName(volumeName);
                             }
                         }
                     }
@@ -982,6 +980,24 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
                     e.printStackTrace();
                 }
             }*/
+        }
+
+        // 如果取到了新的配置id，则用新的配置id替换
+        if (configId != null) {
+            // 替换掉deployment里volumes的volumeName和volumeMounts的name
+            String volumeName = "%s-%s";
+            for (Volume v : deployment.getSpec().getTemplate().getSpec().getVolumes()) {
+                if (v.getConfigMap() != null) {
+                    String[] volNameArr = v.getName().split(CommonConstant.LINE);
+                    v.setName(String.format(volumeName, volNameArr[0], configId));
+                }
+            }
+            for (VolumeMount vm : deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts()) {
+                if (vm.getName().contains(CommonConstant.LINE)) {
+                    String[] volNameArr = vm.getName().split(CommonConstant.LINE);
+                    vm.setName(String.format(volumeName, volNameArr[0], configId));
+                }
+            }
         }
         return errDeployDto;
     }
