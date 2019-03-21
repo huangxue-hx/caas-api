@@ -2,8 +2,11 @@ package com.harmonycloud.dao.application;
 
 import com.harmonycloud.dao.application.bean.ConfigFileItem;
 import com.harmonycloud.dao.application.bean.ConfigFileItemExample;
+import org.springframework.stereotype.Repository;
+
 import java.util.List;
 
+@Repository
 public interface ConfigFileItemMapper {
     int deleteByExample(ConfigFileItemExample example);
 

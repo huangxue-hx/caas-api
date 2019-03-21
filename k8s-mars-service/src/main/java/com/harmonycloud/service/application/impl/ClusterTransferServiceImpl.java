@@ -8,7 +8,10 @@ import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.application.ConfigFileItemMapper;
 import com.harmonycloud.dao.application.ConfigFileMapper;
+import com.harmonycloud.dao.application.bean.ConfigFile;
+import com.harmonycloud.dao.application.bean.ConfigFileItem;
 import com.harmonycloud.dao.cluster.TransferBindDeployMapper;
 import com.harmonycloud.dao.cluster.TransferBindNamespaceMapper;
 import com.harmonycloud.dao.cluster.TransferClusterBackupMapper;
@@ -65,6 +68,10 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
     @Autowired
     private ConfigFileMapper configFileMapper;
+
+    @Autowired
+    private ConfigFileItemMapper configFileItemMapper;
+
 	@Autowired
 	private RouterService routerService;
 	
@@ -863,7 +870,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
         List<Volume> volumeList = deployment.getSpec().getTemplate().getSpec().getVolumes();
 		if (volumeList!=null && !volumeList.isEmpty()){
 		    //cm
-			errDeployDto =createVolumes(sourceCluster,currentCluster,volumeList, deploymentTransferDto);
+			errDeployDto =createVolumes(sourceCluster,currentCluster,volumeList, deploymentTransferDto, deployment);
 			if(!Objects.isNull(errDeployDto)){
 				return errDeployDto;
 			}
@@ -877,7 +884,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		}
 		return errDeployDto;
 	}
-	private ErrDeployDto createVolumes(Cluster sourceCluster, Cluster newCluster ,List<Volume> volumeList ,DeploymentTransferDto deploymentTransferDto){
+	private ErrDeployDto createVolumes(Cluster sourceCluster, Cluster newCluster ,List<Volume> volumeList ,DeploymentTransferDto deploymentTransferDto, Deployment deployment){
         ErrDeployDto errDeployDto = null;
 	    for (Volume volume :volumeList){
 	        ConfigMapVolumeSource cm = volume.getConfigMap();
@@ -906,7 +913,47 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
                             if (!Objects.isNull(errDeployDto)) {
                                 return errDeployDto;
                             }
-                            //cm入库
+                            // cm入库
+                            String[] oldVolumeName = volume.getName().split(CommonConstant.LINE);
+                            ConfigFile oldConfig = configFileMapper.getConfig(oldVolumeName[1]);    // 查询老集群配置
+                            if (oldConfig != null) {
+                                ConfigFile newConfig = configFileMapper.getConfigByNameAndTag(oldConfig.getName(), oldConfig.getTags(),
+                                        oldConfig.getProjectId(), newCluster.getId());    // 先查询一遍，避免违反configfile表索引的约束条件
+                                if (newConfig == null) {    // 没有，先新增
+                                    final String configId = UUIDUtil.get16UUID();
+
+                                    newConfig = new ConfigFile();
+                                    newConfig.setId(configId);
+                                    newConfig.setName(oldConfig.getName());
+                                    newConfig.setDescription(oldConfig.getDescription());
+                                    newConfig.setTags(oldConfig.getTags());
+                                    newConfig.setCreateTime(DateUtil.timeFormat.format(new Date()));
+                                    newConfig.setUpdateTime(newConfig.getCreateTime());
+                                    newConfig.setProjectId(oldConfig.getProjectId());
+                                    newConfig.setTenantId(oldConfig.getTenantId());
+                                    newConfig.setClusterId(newCluster.getId());
+                                    newConfig.setClusterName(newCluster.getName());
+                                    newConfig.setRepoName(oldConfig.getRepoName());
+                                    newConfig.setUser(oldConfig.getUser());
+
+                                    configFileMapper.saveConfigFile(newConfig);    // 保存configFile
+
+                                    // 查询configfileItem列表，遍历 id置为空、传入相应的configId并保存
+                                    List<ConfigFileItem> itemList = configFileItemMapper.getConfigFileItem(oldVolumeName[1]);
+                                    if (CollectionUtils.isNotEmpty(itemList)) {
+                                        itemList.forEach(item -> {
+                                            item.setId(null);
+                                            item.setConfigfileId(configId);
+                                            configFileItemMapper.insert(item);
+                                        });
+                                    }
+                                }
+                                // 替换掉deployment里volumes的volumeName和volumeMounts的name
+                                int i = Integer.parseInt(oldVolumeName[0]) - 1;
+                                String volumeName = String.format("%s-%s", oldVolumeName[0], newConfig.getId());
+                                deployment.getSpec().getTemplate().getSpec().getVolumes().get(i).setName(volumeName);
+                                deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(i).setName(volumeName);
+                            }
                         }
                     }
                 } catch (Exception e) {
