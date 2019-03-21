@@ -208,7 +208,7 @@
   </select>
 
   <select id="queryLastNamespaceNum" resultType="Integer">
-     select max(namespace_num) from transfer_bind_namespace  where
+     select ifnull(max(namespace_num), 0) from transfer_bind_namespace  where
      cluster_id = #{clusterId,jdbcType=VARCHAR} and tenant_id = #{tenantId,jdbcType=VARCHAR}
   </select>
 

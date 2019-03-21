@@ -191,7 +191,7 @@
   </update>
 
   <select id="queryMaxNun" resultType="java.lang.Integer">
-   SELECT max(deploy_num) from transfer_bind_deploy where cluster_id = #{clusterId,jdbcType=VARCHAR} and tenant_id = #{tenantId,jdbcType=VARCHAR}
+   SELECT ifnull(max(deploy_num), 0) from transfer_bind_deploy where cluster_id = #{clusterId,jdbcType=VARCHAR} and tenant_id = #{tenantId,jdbcType=VARCHAR}
   </select>
 
   <insert id="saveTransferList" parameterType="java.util.List">
