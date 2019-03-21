@@ -236,9 +236,6 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		// 取出集群总配额信息 & 租户使用信息
 		ClusterQuotaDto clusterQuotaDto = new ClusterQuotaDto();
 		tenantClusterQuotaService.getClusterUsage(clusterTransferDtos.get(0).getTenantId(), targetCluster.getId(), clusterQuotaDto);
-		if (clusterQuotaDto.getUnUsedCpu() <= 0D || clusterQuotaDto.getUnUsedMemory() <= 0D) {
-			return false;
-		}
 		// 查询租户的集群配额信息
 		TenantClusterQuota targetTenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(clusterTransferDtos.get(0).getTenantId(), targetCluster.getId());
 		double unUsedCpu;
@@ -249,9 +246,6 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		} else {    // 已经分配过，则使用租户集群配额剩余容量
 			unUsedCpu = targetTenantClusterQuota.getCpuQuota() - clusterQuotaDto.getUsedCpu();
 			unUsedMemory = mathMemory(String.valueOf(targetTenantClusterQuota.getMemoryQuota())) - clusterQuotaDto.getUsedMemory();
-			if (unUsedCpu <= 0D || unUsedMemory <= 0D) {
-				return false;
-			}
 		}
 
 		double requiredCpu = 0.0;
@@ -261,8 +255,12 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			List<BindNameSpaceDto> bindNameSpaceDtos = clusterTransferDto.getBindNameSpaceDtos();
 			for (BindNameSpaceDto bindNameSpaceDto : bindNameSpaceDtos) {
 				NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByName(bindNameSpaceDto.getName());
-				//新的分区不存在则需要创建，新分区配额大小为原分区已经使用的量，需要校验新建分区配额是否足够
+				// 新的分区不存在则需要创建，新分区配额大小为原分区已经使用的量，需要校验新建分区配额是否足够
 				if (namespaceLocal == null) {
+					if (unUsedCpu <= 0D || unUsedMemory <= 0D) {    // 新建时，配额小于等于0直接返回不足
+						return false;
+					}
+
 					Map<String,Object> detail = namespaceService.getNamespaceQuota(bindNameSpaceDto.getOldNameSpace());
 					List<String> usedCpu = (List<String>) detail.get("cpu");
 					List<String> usedMemory = (List<String>) detail.get("memory");
