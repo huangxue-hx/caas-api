@@ -375,19 +375,10 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		List<BindNameSpaceDto>  namespaceDtos = clusterTransferDtos.get(0).getBindNameSpaceDtos();
 
 		for (BindNameSpaceDto namespaceDto : namespaceDtos) {
-			//示例： 假设存在英文名A，别名B的分区，，，仅AB或或者非A非B可以放过
-			//根据别名查英文名 如果英文名不存在 或 和新英文名不一致  returen
 			String name = namespaceLocalMapper.selectNameByalias_name(namespaceDto.getAliasName());
 			String aliasName = namespaceLocalMapper.selectAliasNameByName(namespaceDto.getName());
-			//
-			if (name == null) { //name为空，aliame不为空的直接返回
-				if (aliasName != null) {
-					ActionReturnUtil.returnErrorWithMsg("请检查分区名与分区别名：" + namespaceDto.getName() + " - " + namespaceDto.getAliasName());
-				}
-			} else {  //name 不为空,aliame不为空且需要一致，否则返回
-				if (aliasName == null || !aliasName.equals(namespaceDto.getAliasName())) {
-					return  ActionReturnUtil.returnErrorWithMsg("请检查分区名与分区别名：" + namespaceDto.getName() + " - " + namespaceDto.getAliasName());
-				}
+			if (name != null || aliasName!= null ) {
+				return  ActionReturnUtil.returnErrorWithMsg("请检查分区名与分区别名：" + namespaceDto.getName() + " - " + namespaceDto.getAliasName());
 			}
 		}
 		return ActionReturnUtil.returnSuccess();
