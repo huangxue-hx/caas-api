@@ -375,13 +375,21 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		List<BindNameSpaceDto>  namespaceDtos = clusterTransferDtos.get(0).getBindNameSpaceDtos();
 
 		for (BindNameSpaceDto namespaceDto : namespaceDtos) {
-			String name = namespaceLocalMapper.selectNameByalias_name(namespaceDto.getAliasName());
-			String aliasName = namespaceLocalMapper.selectAliasNameByName(namespaceDto.getName());
-			if (name != null || aliasName!= null ) {
-				return  ActionReturnUtil.returnErrorWithMsg("请检查分区名与分区别名：" + namespaceDto.getName() + " - " + namespaceDto.getAliasName());
+		    //根据别名查英文名和集群id
+		    Map a = namespaceLocalMapper.selectNameByalias_name(namespaceDto.getAliasName());
+            //根据英文名查别名和集群id
+		    Map b = namespaceLocalMapper.selectAliasNameByName(namespaceDto.getName());
+		    //数据库都没有，或者两个都有且都是一个集群且还是目标集群的放过
+			if (a == null && b == null  ) {
+                continue;
 			}
+			if (null != a && b!= null && a.get("clusterId").equals(b.get("clusterId")) &&
+                    a.get("clusterId").equals(clusterTransferDtos.get(0).getTargetClusterId())){
+               continue;
+            }
+            return  ActionReturnUtil.returnErrorWithMsg("请检查分区名与分区别名：" + namespaceDto.getName() + " - " + namespaceDto.getAliasName());
 		}
-		return ActionReturnUtil.returnSuccess();
+        return ActionReturnUtil.returnSuccess();
 	}
 
 	private List<NamespaceDto> packageNamespaceDto(List<ClusterTransferDto> clusterTransferDtos) throws Exception {
