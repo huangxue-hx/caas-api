@@ -13,42 +13,46 @@ spec:
   containers:
   - command:
     - kube-apiserver
-    - --endpoint-reconciler-type=lease
-    - --enable-bootstrap-token-auth=true
-    - --requestheader-allowed-names=front-proxy-client
-    - --client-ca-file=/etc/kubernetes/pki/ca.crt
-    - --requestheader-client-ca-file=/etc/kubernetes/pki/front-proxy-ca.crt
-    - --service-account-key-file=/etc/kubernetes/pki/sa.pub
-    - --insecure-port=0
-    - --requestheader-username-headers=X-Remote-User
-    - --requestheader-extra-headers-prefix=X-Remote-Extra-
-    - --service-cluster-ip-range=10.96.0.0/12
-    - --advertise-address=192.168.26.19
-    - --kubelet-client-key=/etc/kubernetes/pki/apiserver-kubelet-client.key
-    - --proxy-client-key-file=/etc/kubernetes/pki/front-proxy-client.key
-    - --tls-cert-file=/etc/kubernetes/pki/apiserver.crt
-    - --tls-private-key-file=/etc/kubernetes/pki/apiserver.key
-    - --kubelet-client-certificate=/etc/kubernetes/pki/apiserver-kubelet-client.crt
-    - --secure-port=6443
-    - --admission-control=Initializers,NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,NodeRestriction,ResourceQuota,ValidatingAdmissionWebhook,MutatingAdmissionWebhook
-    - --allow-privileged=true
-    - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
-    - --requestheader-group-headers=X-Remote-Group
-    - --proxy-client-cert-file=/etc/kubernetes/pki/front-proxy-client.crt
     - --authorization-mode=Node,RBAC
     - --authentication-token-webhook-config-file=/etc/kubernetes/pki/webhook_config
-    - --etcd-servers=http://192.168.26.22:2379,http://192.168.26.21:2379,http://192.168.26.19:2379
+    - --endpoint-reconciler-type=lease
+    - --advertise-address=10.10.103.151
+    - --allow-privileged=true
+    - --client-ca-file=/etc/kubernetes/pki/ca.crt
+    - --enable-admission-plugins=NodeRestriction
+    - --enable-bootstrap-token-auth=true
+    - --etcd-cafile=/etc/kubernetes/pki/etcd/ca.crt
+    - --etcd-certfile=/etc/kubernetes/pki/apiserver-etcd-client.crt
+    - --etcd-keyfile=/etc/kubernetes/pki/apiserver-etcd-client.key
+    - --etcd-servers=https://127.0.0.1:2379
+    - --insecure-port=0
+    - --kubelet-client-certificate=/etc/kubernetes/pki/apiserver-kubelet-client.crt
+    - --kubelet-client-key=/etc/kubernetes/pki/apiserver-kubelet-client.key
+    - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+    - --proxy-client-cert-file=/etc/kubernetes/pki/front-proxy-client.crt
+    - --proxy-client-key-file=/etc/kubernetes/pki/front-proxy-client.key
+    - --requestheader-allowed-names=front-proxy-client
+    - --requestheader-client-ca-file=/etc/kubernetes/pki/front-proxy-ca.crt
+    - --requestheader-extra-headers-prefix=X-Remote-Extra-
+    - --requestheader-group-headers=X-Remote-Group
+    - --requestheader-username-headers=X-Remote-User
+    - --secure-port=6443
+    - --service-account-key-file=/etc/kubernetes/pki/sa.pub
+    - --service-cluster-ip-range=10.96.0.0/12
+    - --tls-cert-file=/etc/kubernetes/pki/apiserver.crt
+    - --tls-private-key-file=/etc/kubernetes/pki/apiserver.key
     - --audit-policy-file=/etc/kubernetes/pki/audit-policy.yaml
     - --audit-log-format=json
     - --audit-log-path=/var/log/kubernetes/kubernetes-audit
     - --audit-log-maxage=10
     - --audit-log-maxbackup=2
     - --audit-log-maxsize=50
-    image: 192.168.26.46/k8s-deploy/kube-apiserver-amd64:v1.9.2
+    image: 10.10.103.157/k8s-deploy/kube-apiserver:v1.12.3
+    imagePullPolicy: IfNotPresent
     livenessProbe:
       failureThreshold: 8
       httpGet:
-        host: 192.168.26.19
+        host: 10.10.103.151
         path: /healthz
         port: 6443
         scheme: HTTPS
@@ -59,30 +63,24 @@ spec:
       requests:
         cpu: 250m
     volumeMounts:
-    - mountPath: /etc/kubernetes/pki
-      name: k8s-certs
-      readOnly: true
     - mountPath: /etc/ssl/certs
       name: ca-certs
       readOnly: true
     - mountPath: /etc/pki
-      name: ca-certs-etc-pki
+      name: etc-pki
       readOnly: true
-    - name: host-time
-      mountPath: /etc/localtime
+    - mountPath: /etc/kubernetes/pki
+      name: k8s-certs
       readOnly: true
     - mountPath: /var/log/kubernetes
       name: k8s-audit
   hostNetwork: true
+  priorityClassName: system-cluster-critical
   volumes:
   - hostPath:
       path: /var/log/kubernetes
       type: DirectoryOrCreate
     name: k8s-audit
-  - hostPath:
-      path: /etc/kubernetes/pki
-      type: DirectoryOrCreate
-    name: k8s-certs
   - hostPath:
       path: /etc/ssl/certs
       type: DirectoryOrCreate
@@ -90,8 +88,9 @@ spec:
   - hostPath:
       path: /etc/pki
       type: DirectoryOrCreate
-    name: ca-certs-etc-pki
-  - name: host-time 
-    hostPath:
-      path: /etc/localtime
+    name: etc-pki
+  - hostPath:
+      path: /etc/kubernetes/pki
+      type: DirectoryOrCreate
+    name: k8s-certs
 status: {}
