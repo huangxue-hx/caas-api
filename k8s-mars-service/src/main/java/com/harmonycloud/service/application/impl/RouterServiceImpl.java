@@ -1414,9 +1414,9 @@ public class RouterServiceImpl implements RouterService {
         }
         String icName = parsedIngressList.getIcName();
         //获取旧的ingress
-        List<Ingress> list = this.listHttpIngress(parsedIngressList.getServiceName(), deploymentTransferDto.getCurrentNameSpace(), sourceCluster);
-        if (list != null && !list.isEmpty()){
-            Map<String, Object> annotations = list.get(0).getMetadata().getAnnotations();
+        Ingress ingresse = icService.getIngressByName( deploymentTransferDto.getCurrentNameSpace(),parsedIngressList.getName(), sourceCluster);
+        if (ingresse != null){
+            Map<String, Object> annotations = ingresse.getMetadata().getAnnotations();
             Map params = JsonUtil.convertJsonToMap(annotations.get(INGRESS_MULTIPLE_PORT_ANNOTATION).toString());
             parsedIngressList.setExposePort(params.get("port").toString());
             parsedIngressList.setProtocol((String) params.get("protocol"));

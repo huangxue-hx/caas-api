@@ -158,4 +158,31 @@ public class IcService {
         return ingresses;
     }
 
+    /**
+     * 查询某个分区下的ingress列表
+     * @param namespace 分区
+     * @param icName ingress的标签
+     * @param cluster 集群
+     * @return
+     * @throws MarsRuntimeException
+     */
+    public Ingress getIngressByName(String namespace, String icName, Cluster cluster) throws MarsRuntimeException {
+        Ingress ingress = new Ingress();
+        K8SURL url = new K8SURL();
+        url.setApiGroup(APIGroup.APIS_EXTENSIONS_V1BETA1_VERSION);
+        url.setResource(Resource.INGRESS).setName(icName);
+        url.setNamespace(namespace);
+        Map<String, Object> bodys = new HashMap<>();
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
+        if (Constant.HTTP_404 == response.getStatus()) {
+            return ingress;
+        }
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            throw new MarsRuntimeException(status.getMessage());
+        }
+        ingress = JsonUtil.jsonToPojo(response.getBody(), Ingress.class);
+        return ingress;
+    }
+
 }

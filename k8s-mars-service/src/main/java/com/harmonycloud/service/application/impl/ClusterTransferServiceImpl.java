@@ -147,7 +147,10 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
         if (CollectionUtils.isEmpty(clusterTransferDto)) {
             throw new MarsRuntimeException(ErrorCodeMessage.INVALID_PARAMETER);
         }
-
+		ActionReturnUtil actionReturn = checkNamespace(clusterTransferDto);
+        if (!actionReturn.isSuccess()){
+			return actionReturn;
+		}
 		Cluster sourceCluster = clusterService.findClusterById(clusterTransferDto.get(0).getCurrentClusterId());
 		Cluster targetCluster = clusterService.findClusterById(clusterTransferDto.get(0).getTargetClusterId());
 		TransferClusterBackup transferClusterBackup = generateTransferClusterBackup(clusterTransferDto);
@@ -367,8 +370,27 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		return transferBindNamespace;
 	}
 
-	private boolean checkNamespace(List<ClusterTransferDto> clusterTransferDtos) throws Exception {
-		return namespaceService.checkTransferResource(packageNamespaceDto(clusterTransferDtos));
+	private ActionReturnUtil checkNamespace(List<ClusterTransferDto> clusterTransferDtos) throws MarsRuntimeException {
+
+		List<BindNameSpaceDto>  namespaceDtos = clusterTransferDtos.get(0).getBindNameSpaceDtos();
+
+		for (BindNameSpaceDto namespaceDto : namespaceDtos) {
+			//示例： 假设存在英文名A，别名B的分区，，，仅AB或或者非A非B可以放过
+			//根据别名查英文名 如果英文名不存在 或 和新英文名不一致  returen
+			String name = namespaceLocalMapper.selectNameByalias_name(namespaceDto.getAliasName());
+			String aliasName = namespaceLocalMapper.selectAliasNameByName(namespaceDto.getName());
+			//
+			if (name == null) { //name为空，aliame不为空的直接返回
+				if (aliasName != null) {
+					ActionReturnUtil.returnErrorWithMsg("请检查分区名与分区别名：" + namespaceDto.getName() + " - " + namespaceDto.getAliasName());
+				}
+			} else {  //name 不为空,aliame不为空且需要一致，否则返回
+				if (aliasName == null || !aliasName.equals(namespaceDto.getAliasName())) {
+					return  ActionReturnUtil.returnErrorWithMsg("请检查分区名与分区别名：" + namespaceDto.getName() + " - " + namespaceDto.getAliasName());
+				}
+			}
+		}
+		return ActionReturnUtil.returnSuccess();
 	}
 
 	private List<NamespaceDto> packageNamespaceDto(List<ClusterTransferDto> clusterTransferDtos) throws Exception {
@@ -414,7 +436,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			ErrorNamespaceDto errorNamespaceDto =new ErrorNamespaceDto();
 			//分区中文名唯一校验
 			//根据别名查英文名 如果英文名不存在 或 和新英文名不一致  returen
-			String name = namespaceLocalMapper.selectNameByalias_name(namespaceDto.getAliasName());
+/*			String name = namespaceLocalMapper.selectNameByalias_name(namespaceDto.getAliasName());
 			String aliasName = namespaceLocalMapper.selectAliasNameByName(namespaceDto.getName());
 			//
 			if (name == null ){ //name为空，aliame不为空的直接返回
@@ -436,7 +458,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 					errorList.add(errorNamespaceDto);
 					continue;
 				}
-			}
+			}*/
 			//字段长度、必填可放在接口入口处校验
 			if (StringUtils.isEmpty(namespaceDto.getName()) || namespaceDto.getName().indexOf(CommonConstant.LINE) < 0) {
 				errorNamespaceDto = new ErrorNamespaceDto();
@@ -636,10 +658,10 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	private ErrDeployDto createIngress(DeploymentTransferDto deploymentTransferDto,Cluster sourceCluster) throws Exception{
 		ActionReturnUtil actionReturnUtil = routerService.listExposedRouterWithIngressAndNginx(deploymentTransferDto.getCurrentNameSpace(),deploymentTransferDto.getCurrentDeployName(),deploymentTransferDto.getProjectId());
 		List<Map<String, Object>> routerList = (List<Map<String, Object>>) actionReturnUtil.getData();
-		List<HttpRuleDto> httpRuleDtos = new ArrayList<>();
+
 		List<TcpRuleDto> rules = new ArrayList<>();
 		for (Map<String, Object> map : routerList) {
-		    //TODO
+
 			if(map.get("type").equals(Constant.PROTOCOL_TCP)||map.get("type").equals(Constant.PROTOCOL_UDP)){
 				ErrDeployDto errDeployDto = createTcpIngress(deploymentTransferDto, map, rules);
 				if (errDeployDto != null) {
@@ -647,7 +669,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				}
 			}
 			if(map.get("type").equals(Constant.PROTOCOL_HTTP)){
-				ErrDeployDto errDeployDto = createHttpIngress(deploymentTransferDto, map, httpRuleDtos, sourceCluster);
+				ErrDeployDto errDeployDto = createHttpIngress(deploymentTransferDto, map, sourceCluster);
 				if (errDeployDto != null) {
 					return errDeployDto;
 				}
@@ -1189,7 +1211,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * @throws IntrospectionException
 	 */
 	private ErrDeployDto createHttpIngress(DeploymentTransferDto deploymentTransferDto,Map<String, Object> map,
-                                           List<HttpRuleDto> httpRuleDtos, Cluster sourceCluster) throws Exception {
+                                           Cluster sourceCluster) throws Exception {
 		ParsedIngressListDto parsedIngressListDto = new ParsedIngressListDto();
 		parsedIngressListDto.setNamespace(deploymentTransferDto.getNamespace());
 		parsedIngressListDto.setName((String)map.get("name"));
@@ -1198,6 +1220,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		labels.put("app", deploymentTransferDto.getCurrentDeployName());
 		labels.put("tenantId", deploymentTransferDto.getProjectId());
 		List<Map<String, Object>> address = (List<Map<String, Object>>)map.get("address");
+		List<HttpRuleDto> httpRuleDtos = new ArrayList<>();
 		for (Map<String, Object> map2 : address) {
 			String host = map2.get("hostname").toString();
 			parsedIngressListDto.setHost(splitHostname(host));
@@ -1679,12 +1702,6 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			transferClusterBackUpMapper.insert(transferClusterBackup);
 			throw new MarsRuntimeException(ErrorCodeMessage.TRANSFER_CLUSTER_RESOURCE_ERROR);
 		}
-		//todo 暂不需要校验
-		/*if(!checkNamespace(clusterTransferDto)){
-			transferClusterBackup.setErrMsg(ErrorCodeMessage.TRANSFER_CLUSTER_RESOURCE_ERROR.getReasonChPhrase());
-			transferClusterBackUpMapper.insert(transferClusterBackup);
-			throw new MarsRuntimeException(ErrorCodeMessage.TRANSFER_CLUSTER_RESOURCE_ERROR);
-		}*/
 	}
 
 
