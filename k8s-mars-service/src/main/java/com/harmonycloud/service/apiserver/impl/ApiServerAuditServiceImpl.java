@@ -78,12 +78,12 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
     /**
      * apiserver audit log index
      */
-    private static final String API_SERVER_AUDIT_INDEX = "logstash";
+    private static final String API_SERVER_AUDIT_INDEX = "kubernetes-audit";
 
     /**
      * apiserver audit log type
      */
-    private static final String API_SERVER_AUDIT_TYPE = "fluentd";
+    private static final String API_SERVER_AUDIT_TYPE = "auditlog";
 //    private static final String GROUP_BY_NAMESPACE = "group_by_namespace";
 //    private static final String GROUP_BY_VERB = "group_by_verb";
 
@@ -650,7 +650,7 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
     private String generateIndexName() {
         Date now = DateUtil.getCurrentUtcTime();
         String date = DateUtil.DateToString(now, DateStyle.YYYYMMDD_DOT);
-        //logstash-2019.01.09
+        //kubernetes-audit-2019.01.09
         String indexName = API_SERVER_AUDIT_INDEX + CommonConstant.LINE + date;
         return indexName;
     }
