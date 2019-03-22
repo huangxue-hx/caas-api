@@ -1205,16 +1205,13 @@ public class HarborServiceImpl implements HarborService {
                             Map<String,String> tempMap = (HashMap<String,String>)map.get("metadata");
                             if (tempMap.get("public") == null) {
                                 LOGGER.error("镜像仓库的公共私有标识为空，harborProject：{}", JSONObject.toJSONString(harborProject));
-                                continue;
+                            } else {
+                                if ("true".equals(tempMap.get("public"))) {
+                                    harborProject.setIsPublic(FLAG_TRUE);
+                                } else {
+                                    harborProject.setIsPublic(FLAG_FALSE);
+                                }
                             }
-                            Integer isPublic;
-                            if("true".equals(tempMap.get("public").toString())){
-                                isPublic = 1;
-                            }
-                            else {
-                                isPublic = 0;
-                            }
-                            harborProject.setIsPublic(isPublic);
                         }
                         harborProject.setRepoCount(Integer.parseInt(map.get("repo_count").toString()));
                         harborProject.setCreateTime(map.get("creation_time").toString());
