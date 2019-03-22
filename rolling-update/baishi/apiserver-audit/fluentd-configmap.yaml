@@ -19,15 +19,6 @@ data:
       read_from_head true
     </source>
 
-    <source>
-      type tail
-      path /var/log/kubernetes/kubernetes-audi*
-      pos_file /var/log/containers/es-kubernetes-audit.log.pos
-      tag kubernetes-audit
-      format json
-      read_from_head true
-    </source>
-
     <match reform.**>
       type record_reformer
       renew_record false
