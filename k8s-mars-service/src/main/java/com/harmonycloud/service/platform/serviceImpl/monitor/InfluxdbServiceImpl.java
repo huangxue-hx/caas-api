@@ -276,6 +276,10 @@ public class InfluxdbServiceImpl implements InfluxdbService {
                     }
                 }
             }
+            if (series == null) {
+                queryResult.getResults().get(0).getSeries().get(0).setValues(Collections.emptyList());
+                return ActionReturnUtil.returnSuccessWithData(queryResult);
+            }
             if ("CPU".equalsIgnoreCase(influxdbQuery.getMeasurement())) {
                 List<List<Object>> lists = series.getValues();
                 for (int i = 0; i < lists.size(); i++) {
