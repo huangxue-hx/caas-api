@@ -249,7 +249,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		HarborServer harborServer = clusterService.findHarborByHost(repositoryInfo.getHarborHost());
 		Integer harborProjectId = null;
 		ImageRepository imageRepository = new ImageRepository();
-		imageRepository.setCreateTime(DateUtil.getCurrentUtcTime());
+		imageRepository.setCreateTime(new Date());
 		imageRepository.setIsNormal(Boolean.TRUE);
 		imageRepository.setHarborHost(harborServer.getHarborHost());
 		imageRepository.setIsDefault(Boolean.FALSE);
