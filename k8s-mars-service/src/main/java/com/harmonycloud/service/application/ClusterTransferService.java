@@ -32,7 +32,9 @@ public interface ClusterTransferService {
 
 	ActionReturnUtil getDeployDetail(ClusterTransferDetailDto clusterTransferDto);
 
-	ActionReturnUtil getDeployDetailBackUp(ClusterTransferDetailDto clusterTransferDto);
+	ActionReturnUtil getTransferDetail(Integer transferBackupId);
+
+	ActionReturnUtil listTransferHistory(ClusterTransferDetailDto clusterTransferDto);
 
 	ActionReturnUtil getDeployAndStatefulSet(List<ClusterTransferDto> clusterTransferDto) throws Exception;
 }

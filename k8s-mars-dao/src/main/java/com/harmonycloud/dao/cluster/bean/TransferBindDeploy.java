@@ -13,6 +13,8 @@ public class TransferBindDeploy implements Serializable {
      */
     private Integer id;
 
+    private Integer transferBackupId;
+
     /**
      * 分区名称
      */
@@ -80,12 +82,13 @@ public class TransferBindDeploy implements Serializable {
     /**
      * 旧的集群id
      */
-    private String oldClusterId;
+    private String sourceClusterId;
 
     /**
      * 旧的分区
      */
-    //private String oldNamespace;
+    private String sourceNamespace;
+
     public String getAppName() {
         return appName;
     }
@@ -199,22 +202,6 @@ public class TransferBindDeploy implements Serializable {
         this.deployNum = deployNum;
     }
 
-    public String getOldClusterId() {
-        return oldClusterId;
-    }
-
-    public void setOldClusterId(String oldClusterId) {
-        this.oldClusterId = oldClusterId;
-    }
-
-
- /*   public String getOldNamespace() {
-        return oldNamespace;
-    }
-
-    public void setOldNamespace(String oldNamespace) {
-        this.oldNamespace = oldNamespace;
-    }*/
 
     @Override
     public String toString() {
@@ -246,11 +233,34 @@ public class TransferBindDeploy implements Serializable {
         builder.append(", deployNum=");
         builder.append(deployNum);
         builder.append(", oldClusterId=");
-        builder.append(oldClusterId);
+        builder.append(sourceClusterId);
         builder.append(", appName=");
         builder.append(appName);
         builder.append("]");
         return builder.toString();
     }
 
+    public Integer getTransferBackupId() {
+        return transferBackupId;
+    }
+
+    public void setTransferBackupId(Integer transferBackupId) {
+        this.transferBackupId = transferBackupId;
+    }
+
+    public String getSourceClusterId() {
+        return sourceClusterId;
+    }
+
+    public void setSourceClusterId(String sourceClusterId) {
+        this.sourceClusterId = sourceClusterId;
+    }
+
+    public String getSourceNamespace() {
+        return sourceNamespace;
+    }
+
+    public void setSourceNamespace(String sourceNamespace) {
+        this.sourceNamespace = sourceNamespace;
+    }
 }

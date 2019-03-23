@@ -1,7 +1,10 @@
 package com.harmonycloud.dto.cluster;
 
+import com.harmonycloud.dao.cluster.bean.TransferBindDeploy;
+
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 
 /**
  * Created by dengyl on 2019-03-17
@@ -16,6 +19,8 @@ public class ClusterTransferBackupDto implements Serializable {
 
     private String tenantName;
 
+    private String tenantAliasName;
+
     private String errMsg;
 
     private Date createTime;
@@ -29,6 +34,10 @@ public class ClusterTransferBackupDto implements Serializable {
     private String transferClusterId;
 
     private String transferClusterName;
+
+    private String transferClusterAliasName;
+
+    private List<TransferBindDeploy> transferBindDeploys;
 
 
     public Integer getId() {
@@ -109,5 +118,29 @@ public class ClusterTransferBackupDto implements Serializable {
 
     public void setTransferClusterName(String transferClusterName) {
         this.transferClusterName = transferClusterName;
+    }
+
+    public String getTenantAliasName() {
+        return tenantAliasName;
+    }
+
+    public void setTenantAliasName(String tenantAliasName) {
+        this.tenantAliasName = tenantAliasName;
+    }
+
+    public List<TransferBindDeploy> getTransferBindDeploys() {
+        return transferBindDeploys;
+    }
+
+    public void setTransferBindDeploys(List<TransferBindDeploy> transferBindDeploys) {
+        this.transferBindDeploys = transferBindDeploys;
+    }
+
+    public String getTransferClusterAliasName() {
+        return transferClusterAliasName;
+    }
+
+    public void setTransferClusterAliasName(String transferClusterAliasName) {
+        this.transferClusterAliasName = transferClusterAliasName;
     }
 }

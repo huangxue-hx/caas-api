@@ -12,10 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -72,9 +69,17 @@ public class ClusterTransferController {
 	@ApiOperation(value = "查询迁移的历史纪录", response = ActionReturnUtil.class, httpMethod = "POST", consumes = "", produces = "", notes = "")
 	@ResponseBody
 	@RequestMapping(value = "/getDeployDetailBackUp", method = RequestMethod.POST)
-	public ActionReturnUtil getDeployDetailBackUp(@RequestBody ClusterTransferDetailDto clusterTransferDto) throws Exception{
+	public ActionReturnUtil listTransferHistory(@RequestBody ClusterTransferDetailDto clusterTransferDto) throws Exception{
 		logger.info("getDeployDetailBackUp,{}",clusterTransferDto.toString());
-		return clusterTransferService.getDeployDetailBackUp(clusterTransferDto);
+		return clusterTransferService.listTransferHistory(clusterTransferDto);
+	}
+
+	@ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+	@ApiOperation(value = "查询某条迁移历史纪录的详情", response = ActionReturnUtil.class, httpMethod = "GET", consumes = "", produces = "", notes = "")
+	@ResponseBody
+	@RequestMapping(value = "/transfers/{transferId}", method = RequestMethod.GET)
+	public ActionReturnUtil getTransferDetail(@PathVariable("transferId") Integer transferId){
+		return clusterTransferService.getTransferDetail(transferId);
 	}
 
 	@ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)

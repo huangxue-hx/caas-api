@@ -145,3 +145,15 @@ CREATE TABLE `transfer_bind_deploy` (
   `old_cluster_id` varchar(64) NOT NULL COMMENT '旧的集群id',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=232 DEFAULT CHARSET=utf8;
+
+-- -------------------
+INSERT INTO `k8s_auth_server`.`url_dic`(`url`, `module`, `resource`) VALUES ('/clusters/transfers', 'system', 'system');
+
+ALTER TABLE `k8s_auth_server`.`transfer_bind_deploy`
+ADD COLUMN `transfer_backup_id` INT(10) NULL AFTER `old_cluster_id`;
+
+ALTER TABLE `k8s_auth_server`.`transfer_bind_deploy`
+CHANGE COLUMN `old_cluster_id` `source_cluster_id` VARCHAR(64) NOT NULL COMMENT '旧的集群id' ,
+CHANGE COLUMN `transfer_bakcup_id` `transfer_bakcup_id` INT(10) NULL DEFAULT NULL COMMENT '迁移历史记录id' ,
+ADD COLUMN `source_namespace` VARCHAR(100) NULL COMMENT '源分区' AFTER `deploy_num`;
+

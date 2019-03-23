@@ -16,6 +16,8 @@ public interface TransferBindDeployMapper {
 
     TransferBindDeploy selectByPrimaryKey(Integer id);
 
+    TransferBindDeploy selectUnique(@Param(value="query")TransferBindDeploy query);
+
     int updateByPrimaryKeySelective(TransferBindDeploy record);
 
     int updateByPrimaryKey(TransferBindDeploy record);
@@ -25,6 +27,8 @@ public interface TransferBindDeployMapper {
     void saveTransferList(@Param(value="transferBindDeploys") List<TransferBindDeploy> transferBindDeploys);
 
     List<TransferBindDeploy> queryTransferDeployDetail(@Param(value="tenantId")String tenantId,@Param(value="clusterId")String clusterId);
+
+    List<TransferBindDeploy> listTransferDeploys(@Param(value="transferBackupId")Integer transferBackupId);
 
     void deleteTransferBindDeploy(@Param(value="clusterId")String clusterId);
 
