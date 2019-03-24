@@ -62,6 +62,8 @@ import java.util.*;
 import java.util.concurrent.CountDownLatch;
 
 import static com.harmonycloud.common.Constant.CommonConstant.LABEL_KEY_APP;
+import static com.harmonycloud.common.Constant.CommonConstant.MB;
+import static com.harmonycloud.common.Constant.CommonConstant.MI;
 import static com.harmonycloud.service.platform.constant.Constant.TOPO_LABEL_KEY;
 
 @Service
@@ -277,11 +279,16 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 					Map<String,Object> detail = namespaceService.getNamespaceQuota(bindNameSpaceDto.getOldNameSpace());
 					List<String> usedCpu = (List<String>) detail.get("cpu");
 					List<String> usedMemory = (List<String>) detail.get("memory");
-					requiredCpu += Double.parseDouble(usedCpu.get(1));
+					requiredCpu += Double.parseDouble(usedCpu.get(0));
 					if (requiredCpu > unUsedCpu) {
 						return false;
 					}
-					requiredMemory += mathMemory(usedMemory.get(1));
+					if (detail.get("hardType") != null && (detail.get("hardType").toString().equalsIgnoreCase(MB)
+					    || detail.get("hardType").toString().equalsIgnoreCase(MI))) {
+						requiredMemory += mathMemory(usedMemory.get(0));
+					} else {
+						requiredMemory += Double.parseDouble(usedMemory.get(0));
+					}
 					if (requiredMemory > unUsedMemory) {
 						return false;
 					}
