@@ -130,30 +130,25 @@ CREATE TABLE `transfer_bind_namespace` (
 DROP TABLE IF EXISTS `transfer_bind_deploy`;
 CREATE TABLE `transfer_bind_deploy` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键id',
-  `namespace` varchar(30) NOT NULL COMMENT '分区名称',
-  `cluster_id` varchar(30) NOT NULL COMMENT '目标集群id',
-  `deploy_name` varchar(30) NOT NULL COMMENT '服务名称',
+  `namespace` varchar(64) NOT NULL COMMENT '分区名称',
+  `cluster_id` varchar(64) NOT NULL COMMENT '目标集群id',
+  `deploy_name` varchar(64) NOT NULL COMMENT '服务名称',
   `step_id` int(11) DEFAULT NULL COMMENT '步骤id',
-  `tenant_id` varchar(30) NOT NULL COMMENT '租户id',
-  `project_id` varchar(30) NOT NULL COMMENT '项目id',
+  `tenant_id` varchar(64) NOT NULL COMMENT '租户id',
+  `project_id` varchar(64) NOT NULL COMMENT '项目id',
   `create_time` datetime DEFAULT NULL COMMENT '创建时间',
   `update_time` datetime DEFAULT NULL COMMENT '更新时间',
   `status` int(30) NOT NULL DEFAULT '0' COMMENT '服务前移状态 0:未迁移 1:已迁移',
-  `err_msg` varchar(30) DEFAULT NULL COMMENT '错误原因',
-  `is_delete` tinyint(4) DEFAULT '0' COMMENT '是否删除 0:未删除 1:已删除',
-  `deploy_num` int(30) DEFAULT NULL COMMENT '第几次迁移应用',
-  `old_cluster_id` varchar(64) NOT NULL COMMENT '旧的集群id',
+  `err_msg` varchar(500) DEFAULT NULL COMMENT '错误原因',
+  `is_delete` tinyint(1) DEFAULT '0' COMMENT '是否删除 0:未删除 1:已删除',
+  `deploy_num` int(11) DEFAULT NULL COMMENT '第几次迁移应用',
+  `source_namespace` VARCHAR(100) NULL COMMENT '源分区',
+  `source_cluster_id` varchar(64) NOT NULL COMMENT '旧的集群id',
+  `transfer_backup_id` int(11) NOT NULL COMMENT '迁移历史记录id',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=232 DEFAULT CHARSET=utf8;
 
 -- -------------------
 INSERT INTO `k8s_auth_server`.`url_dic`(`url`, `module`, `resource`) VALUES ('/clusters/transfers', 'system', 'system');
 
-ALTER TABLE `k8s_auth_server`.`transfer_bind_deploy`
-ADD COLUMN `transfer_backup_id` INT(10) NULL AFTER `old_cluster_id`;
-
-ALTER TABLE `k8s_auth_server`.`transfer_bind_deploy`
-CHANGE COLUMN `old_cluster_id` `source_cluster_id` VARCHAR(64) NOT NULL COMMENT '旧的集群id' ,
-CHANGE COLUMN `transfer_bakcup_id` `transfer_bakcup_id` INT(10) NULL DEFAULT NULL COMMENT '迁移历史记录id' ,
-ADD COLUMN `source_namespace` VARCHAR(100) NULL COMMENT '源分区' AFTER `deploy_num`;
 
