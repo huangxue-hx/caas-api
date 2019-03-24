@@ -982,7 +982,9 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         //将服务列表根据应用的label标签进行分组,key为某个应用的标签，value为该应用下的服务列表
         Map<String, List<Deployment>> deploymentMap = this.groupByAppLabel(deployments);
         if (blist != null && blist.size() > 0) {
-            Iterator<BaseResource> iterator = blist.iterator();
+            List<BaseResource> apps = new ArrayList<>();
+            apps.addAll(blist);
+            Iterator<BaseResource> iterator = apps.iterator();
             while (iterator.hasNext()) {
                 BaseResource bs = iterator.next();
                 if (!namespaces.contains(bs.getMetadata().getNamespace())) {
