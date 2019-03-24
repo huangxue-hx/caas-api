@@ -139,6 +139,9 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	@Autowired
 	private TenantClusterQuotaService tenantClusterQuotaService;
 
+	@Autowired
+    private ReplicasetsService rsService;
+
     /**
      * 迁移对应的服务 在新集群上创建相同的服务 需要创建的有 ingress namespce configmap pv pvc deployment或者statefulset
      */
@@ -957,7 +960,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
                             }
                             // cm入库
                             String[] oldVolumeName = volume.getName().split(CommonConstant.LINE);
-                            ConfigFile oldConfig = configFileMapper.getConfig(oldVolumeName[1]);    // 查询老集群配置
+                            ConfigFile oldConfig = configFileMapper.getConfig(oldVolumeName[oldVolumeName.length - 1]);    // 查询老集群配置
                             if (oldConfig != null) {
                                 ConfigFile newConfig = configFileMapper.getConfigByNameAndTag(oldConfig.getName(), oldConfig.getTags(),
                                         oldConfig.getProjectId(), newCluster.getId());    // 先查询一遍，避免违反configfile表索引的约束条件
@@ -981,7 +984,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
                                     configFileMapper.saveConfigFile(newConfig);    // 保存configFile
 
                                     // 查询configfileItem列表，遍历 id置为空、传入相应的configId并保存
-                                    List<ConfigFileItem> itemList = configFileItemMapper.getConfigFileItem(oldVolumeName[1]);
+                                    List<ConfigFileItem> itemList = configFileItemMapper.getConfigFileItem(oldVolumeName[oldVolumeName.length - 1]);
                                     if (CollectionUtils.isNotEmpty(itemList)) {
 										for (ConfigFileItem item : itemList) {
 											item.setId(null);
@@ -1029,19 +1032,58 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
             String volumeName = "%s-%s";
             for (Volume v : deployment.getSpec().getTemplate().getSpec().getVolumes()) {
                 if (v.getConfigMap() != null) {
-                    String[] volNameArr = v.getName().split(CommonConstant.LINE);
-                    v.setName(String.format(volumeName, volNameArr[0], configId));
+                    v.setName(String.format(volumeName, v.getName().substring(0, v.getName().lastIndexOf(CommonConstant.LINE)), configId));
                 }
             }
             for (VolumeMount vm : deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts()) {
                 if (vm.getName().contains(CommonConstant.LINE)) {
-                    String[] volNameArr = vm.getName().split(CommonConstant.LINE);
-                    vm.setName(String.format(volumeName, volNameArr[0], configId));
+                    vm.setName(String.format(volumeName, vm.getName().substring(0, vm.getName().lastIndexOf(CommonConstant.LINE)), configId));
                 }
             }
         }
         return errDeployDto;
     }
+
+    // 校验是否在灰度升级or蓝绿升级中
+	private ErrDeployDto checkIsUpdating(Cluster sourceCluster, DeploymentTransferDto deploymentTransferDto) throws Exception{
+        K8SClientResponse response = dpService.doSpecifyDeployment(deploymentTransferDto.getCurrentNameSpace(), deploymentTransferDto.getCurrentDeployName(), null, null, HTTPMethod.GET, sourceCluster);
+        ErrDeployDto errDeployDto = checkK8SClientResponse(response, deploymentTransferDto.getCurrentDeployName());
+        if(!Objects.isNull(errDeployDto)){
+			return errDeployDto;
+        }
+
+        Deployment dep = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("Content-Type", "application/json");
+        Map<String, Object> body = new HashMap<>();
+        body.put("labelSelector", "app=" + dep.getSpec().getSelector().getMatchLabels().get("app"));
+
+        K8SClientResponse rsRes = rsService.doRsByNamespace(deploymentTransferDto.getCurrentNameSpace(), headers, body, HTTPMethod.GET, sourceCluster);
+        errDeployDto = checkK8SClientResponse(rsRes, deploymentTransferDto.getCurrentDeployName());
+        if(!Objects.isNull(errDeployDto)){
+			return errDeployDto;
+        }
+        ReplicaSetList rSetList = JsonUtil.jsonToPojo(rsRes.getBody(), ReplicaSetList.class);
+        if (rSetList == null || CollectionUtils.isEmpty(rSetList.getItems())) {
+            return null;
+        }
+
+        int num = CommonConstant.NUM_ZERO;
+        for (ReplicaSet rs : rSetList.getItems()) {
+            if (rs.getSpec() != null && rs.getSpec().getReplicas() != null && rs.getSpec().getReplicas() > CommonConstant.NUM_ZERO) {
+                num++;
+            }
+            if (num >= CommonConstant.NUM_TWO) {    // 如果有两个及以上版本的rs都有实例数，则说明在升级中
+				errDeployDto = new ErrDeployDto();
+				errDeployDto.setDeployName(deploymentTransferDto.getCurrentDeployName());
+				errDeployDto.setErrMsg(ErrorCodeMessage.SERVICE_IS_UPDATING.getReasonChPhrase());
+                return errDeployDto;
+            }
+        }
+
+		return null;
+	}
+
 	private void createApp(Cluster sourceCluster, Cluster newCluster ,Map<String,Object> labels,DeploymentTransferDto deploymentTransferDto)  {
 		String projectId = (String) labels.get("harmonycloud.cn/projectId");
 		String appName = null;
@@ -1139,7 +1181,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		service = JsonUtil.jsonToPojo(rsRes.getBody(), com.harmonycloud.k8s.bean.Service.class);
 		//目标集群创建service
 		K8SClientResponse sResponse = new K8sMachineClient().exec(k8surl, HTTPMethod.POST, generateHeader(),CollectionUtil.transBean2Map(replaceService(service, deploymentTransferDto)), currentCluster);
-		checkK8SClientResponse(sResponse,deploymentTransferDto.getCurrentDeployName());
+		errDeployDto = checkK8SClientResponse(sResponse,deploymentTransferDto.getCurrentDeployName());
 		if(!Objects.isNull(errDeployDto)){
 			return errDeployDto;
 		}
@@ -1524,7 +1566,19 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			query.setDeployName(deploymentTransferDto.getCurrentDeployName());
 			TransferBindDeploy transferBindDeploy = transferDeployMapper.selectUnique(query);
 			transferBindDeploy.setStepId(1);
-			ErrDeployDto errDeployDto  = null;
+
+			// 校验是否在灰度升级or蓝绿升级中
+			ErrDeployDto errDeployDto = checkIsUpdating(sourceCluster, deploymentTransferDto);
+			if (!Objects.isNull(errDeployDto)) {
+				errDeployDtos.add(errDeployDto);
+				transferBindDeploy.setErrMsg(errDeployDto.getErrMsg());
+				transferBindDeploy.setDeployName(errDeployDto.getDeployName());
+				transferBindDeploy.setStatus(STATUS_FAIL);
+				updateStatus(transferProgress, transferBindDeploy, transferClusterBackup, errDeployDtos);
+				errDeployDtos.add(errDeployDto);
+				continue;
+			}
+
 			errDeployDto = createIngress(deploymentTransferDto,sourceCluster);
 			if(errDeployDto!=null){
 				errDeployDtos.add(errDeployDto);

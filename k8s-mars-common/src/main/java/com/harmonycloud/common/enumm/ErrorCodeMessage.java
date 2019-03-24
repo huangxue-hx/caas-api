@@ -331,6 +331,7 @@ public enum ErrorCodeMessage {
                "修改成功，但是旧的服务删除失败，请联系管理员删除旧的service资源"),
     NAMESPACE_STORAGE_RESOURCE_INSUFFICIENT(400053, "Namespace storage resource insufficient.","分区存储资源不足"),
     TRANSFER_NOT_EXIST(400054, "Transfer Service was not existed.", "所迁移的集群信息为空"),
+    SERVICE_IS_UPDATING(400055, "the service is updating.","服务正在滚动或蓝绿升级中"),
 
     //模板 401xxx
     SERVICE_TEMPLATE_NOT_EXIST(401001, "Service template not exist.", "服务模板不存在"),
