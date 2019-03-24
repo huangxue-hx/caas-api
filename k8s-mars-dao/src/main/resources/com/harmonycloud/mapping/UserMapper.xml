@@ -238,7 +238,7 @@
       #{record.token,jdbcType=VARCHAR}, #{record.createTime,jdbcType=TIMESTAMP}, #{record.tokenCreate,jdbcType=TIMESTAMP},
       #{record.isAdmin,jdbcType=BIT}, #{record.updateTime,jdbcType=TIMESTAMP}, #{record.email,jdbcType=VARCHAR},
       #{record.realName,jdbcType=VARCHAR}, #{record.isMachine,jdbcType=BIT}, #{record.comment,jdbcType=VARCHAR},
-      #{record.pause,jdbcType=VARCHAR},#{record.phone,jdbcType=VARCHAR},#{isLdapUser})
+      #{record.pause,jdbcType=VARCHAR},#{record.phone,jdbcType=VARCHAR},#{record.isLdapUser,jdbcType=TINYINT})
     </foreach>
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.user.bean.User" >
