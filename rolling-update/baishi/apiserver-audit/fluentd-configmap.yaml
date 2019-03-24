@@ -35,54 +35,6 @@ data:
         log_time ${t = Time.now; ((t.to_i * 1000000) + t.usec).to_s}
       </record>
     </match>
-
-    <source>
-      type tail
-      path /var/log/containers/kube-proxy*.log
-      pos_file /var/log/containers/es-kube-proxy.log.pos
-      # time_format %Y-%m-%dT%H:%M:%S.%NZ
-      tag kube-proxy 
-      format multiline
-      format_firstline /^\w\d{4}/
-      format1 /^(?<severity>\w)(?<time>\d{4} [^\s]*)\s+(?<pid>\d+)\s+(?<source>[^ \]]+)\] (?<message>.*)/ 
-      read_from_head true
-    </source>
-
-    <source>
-      type tail
-      path /var/log/containers/kube-apiserver*.log
-      pos_file /var/log/containers/es-kube-apiserver.log.pos
-      #time_format %Y-%m-%dT%H:%M:%S.%NZ
-      tag kube-apiserver 
-      format multiline
-      format_firstline /^\w\d{4}/ 
-      read_from_head true
-      format1 /^(?<severity>\w)(?<time>\d{4} [^\s]*)\s+(?<pid>\d+)\s+(?<source>[^ \]]+)\] (?<message>.*)/
-    </source>
-
-    <source>
-      type tail
-      path /var/log/containers/kube-controller-manager*.log
-      pos_file /var/log/containers/es-kube-controller-manager.log.pos
-      #time_format %Y-%m-%dT%H:%M:%S.%NZ
-      tag kube-controller-manager 
-      format multiline
-      format_firstline /^\w\d{4}/
-      format1 /^(?<severity>\w)(?<time>\d{4} [^\s]*)\s+(?<pid>\d+)\s+(?<source>[^ \]]+)\] (?<message>.*)/
-      read_from_head true
-    </source>
-
-    <source>
-      type tail
-      path /var/log/containers/kube-scheduler*.log
-      pos_file /var/log/containers/es-kube-scheduler.log.pos
-      #time_format %Y-%m-%dT%H:%M:%S.%NZ
-      tag kube-scheduler 
-      format multiline
-      format_firstline /^\w\d{4}/
-      format1 /^(?<severity>\w)(?<time>\d{4} [^\s]*)\s+(?<pid>\d+)\s+(?<source>[^ \]]+)\] (?<message>.*)/
-      read_from_head true
-    </source>
    
     <source>
       type tail
