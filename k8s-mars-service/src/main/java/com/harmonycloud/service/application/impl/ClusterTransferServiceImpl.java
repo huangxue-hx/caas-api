@@ -891,11 +891,11 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * @throws IllegalAccessException
 	 * @throws IntrospectionException
 	 */
-	private ErrDeployDto createDeployment(DeploymentTransferDto deploymentTransferDto,Cluster currentCluster,
+	private ErrDeployDto createDeployment(DeploymentTransferDto deploymentTransferDto,Cluster targetCluster,
 										  Cluster sourceCluster,ErrDeployDto errDeployDto,String deployName) throws Exception{
 		K8SClientResponse response = null;
 		Deployment deployment = null;
-		response = dpService.doSpecifyDeployment(deploymentTransferDto.getNamespace(),deploymentTransferDto.getCurrentDeployName(), null, null, HTTPMethod.GET, currentCluster);
+		response = dpService.doSpecifyDeployment(deploymentTransferDto.getNamespace(),deploymentTransferDto.getCurrentDeployName(), null, null, HTTPMethod.GET, targetCluster);
 		if (HttpStatusUtil.isSuccessStatus(response.getStatus())){
             deployment = JsonUtil.jsonToPojo(response.getBody(), Deployment.class);
             if(deployment!=null){
@@ -911,14 +911,14 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
         List<Volume> volumeList = deployment.getSpec().getTemplate().getSpec().getVolumes();
 		if (volumeList!=null && !volumeList.isEmpty()){
 		    //cm
-			errDeployDto =createVolumes(sourceCluster,currentCluster,volumeList, deploymentTransferDto, deployment);
+			errDeployDto =createVolumes(sourceCluster,targetCluster,volumeList, deploymentTransferDto, deployment);
 			if(!Objects.isNull(errDeployDto)){
 				return errDeployDto;
 			}
 		}
-		deployment = replaceDeployment(deployment, deploymentTransferDto);
-		createApp(sourceCluster,currentCluster, deployment.getMetadata().getLabels(),deploymentTransferDto);
-		response = dpService.doSpecifyDeployment(deploymentTransferDto.getNamespace(), null, generateHeader(), CollectionUtil.transBean2Map(deployment), HTTPMethod.POST, currentCluster);
+		deployment = replaceDeployment(deployment, deploymentTransferDto,sourceCluster.getHarborServer().getHarborHost(), targetCluster.getHarborServer().getHarborHost());
+		createApp(sourceCluster,targetCluster, deployment.getMetadata().getLabels(),deploymentTransferDto);
+		response = dpService.doSpecifyDeployment(deploymentTransferDto.getNamespace(), null, generateHeader(), CollectionUtil.transBean2Map(deployment), HTTPMethod.POST, targetCluster);
         errDeployDto =checkK8SClientResponse(response,deployName);
 		if(!Objects.isNull(errDeployDto)){
 			return errDeployDto;
@@ -1073,9 +1073,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			mate.setNamespace(deploymentTransferDto.getNamespace());
 			mate.setName(appName);
 
-			Map<String, Object> anno = new HashMap<String, Object>();
-			anno.put("nephele/annotation", appCrd.getMetadata().getAnnotations());
-			mate.setAnnotations(anno);
+			mate.setAnnotations(appCrd.getMetadata().getAnnotations());
 			mate.setLabels(appLebels);
 			base.setMetadata(mate);
 			//创建app
@@ -1295,12 +1293,19 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	 * @param deploymentTransferDtos
 	 * @return
 	 */
-	private Deployment replaceDeployment(Deployment deployment,DeploymentTransferDto deploymentTransferDtos) {
+	private Deployment replaceDeployment(Deployment deployment,DeploymentTransferDto deploymentTransferDtos, String sourceHarborHost, String targeHarborHost) {
 		deployment.getMetadata().setNamespace(deploymentTransferDtos.getNamespace());
 		deployment.getMetadata().setSelfLink(deployment.getMetadata().getSelfLink().replace(deployment.getMetadata().getNamespace(),deploymentTransferDtos.getNamespace()));
 		deployment.getMetadata().setResourceVersion(null);
 		deployment.getMetadata().setLabels(replaceLabels(deployment.getMetadata().getLabels(), deployment.getMetadata().getNamespace()));
 		deployment.getSpec().getTemplate().getMetadata().setLabels(deployment.getSpec().getTemplate().getMetadata().getLabels());
+		//源集群与目标集群使用的harbor地址不一样，需要将镜像里的harbor地址替换
+		if (!sourceHarborHost.equalsIgnoreCase(targeHarborHost)) {
+			List<Container> containers = deployment.getSpec().getTemplate().getSpec().getContainers();
+			for (Container container : containers) {
+				container.setImage(container.getImage().replace(sourceHarborHost, targeHarborHost));
+			}
+		}
 		return deployment;
 	}
 	
