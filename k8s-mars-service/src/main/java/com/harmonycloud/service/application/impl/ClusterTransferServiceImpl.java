@@ -1872,7 +1872,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			return ActionReturnUtil.returnSuccessWithData(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
 		}
 		List<Deployment> deploymentK8S = new ArrayList<>();
-		List<StatefulSet> statefulSetK8S = new ArrayList<>();
+		/*List<StatefulSet> statefulSetK8S = new ArrayList<>();*/
 		List<BaseResource> applications = new ArrayList<>();
 		CountDownLatch countDownLatchApp = new CountDownLatch(clusterTransferDtoList.size());
 		for (ClusterTransferDto tenantInfo : clusterTransferDtoList) {
@@ -1886,8 +1886,8 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 							Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
 							DeploymentList deployments = deploymentsService.getDeployments(namespace, null, cluster);
 							deploymentK8S.addAll(deployments.getItems());
-							StatefulSetList statefulSets = statefulSetService.listStatefulSets(namespace, null, null, cluster);
-							statefulSetK8S.addAll(statefulSets.getItems());
+							/*StatefulSetList statefulSets = statefulSetService.listStatefulSets(namespace, null, null, cluster);
+							statefulSetK8S.addAll(statefulSets.getItems());*/
 							K8SClientResponse response = tprApplication.listApplicationByNamespace(namespace, null, null, HTTPMethod.GET, cluster);
 							if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 								BaseResourceList tpr = JsonUtil.jsonToPojo(response.getBody(), BaseResourceList.class);
@@ -1939,7 +1939,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			}
 			deploymentList.add(deploymentDto);
 		});
-		statefulSetK8S.stream().forEach(sta -> {
+/*		statefulSetK8S.stream().forEach(sta -> {
 			if (sta.getSpec().getReplicas() == 0) {
 				return;
 			}
@@ -1971,7 +1971,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 				return;
 			}
 			deploymentList.add(deploymentDto);
-		});
+		});*/
 		Map<String, Object> result = new HashMap<>();
 		result.put("app", applicationMap);
 		result.put("deployment", deploymentList);

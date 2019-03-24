@@ -207,7 +207,7 @@ public class ScheduledTasks {
      * 一分钟频率检测harbor日志
      */
     //
-    /*@Scheduled(cron = "0 0/1 * * * ? ")
+    @Scheduled(cron = "0 0/1 * * * ? ")
     public void syncLocalHarborLog() {
         long startTime = System.currentTimeMillis();
         try {
@@ -217,7 +217,7 @@ public class ScheduledTasks {
         }
         long endTime = System.currentTimeMillis();
         log.info("task[trialtimeTask],execute cost time[" + (endTime - startTime)/1000 + "] s");
-    }*/
+    }
 
 
 }
