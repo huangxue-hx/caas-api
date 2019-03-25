@@ -19,6 +19,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.util.*;
 
 /**
@@ -32,16 +33,16 @@ import java.util.*;
 public class AuditControllerAspect {
 
 	private static final Logger log = LoggerFactory.getLogger(AuditControllerAspect.class);
-	ThreadLocal<AuditRequestInfo> result = new ThreadLocal<>();
+	private ThreadLocal<AuditRequestInfo> result = new ThreadLocal<>();
 	
 	@Autowired
 	private AuditRequestHandle requestHandle;
 
 	@Autowired
-	UserAuditService userAuditService;
+	private UserAuditService userAuditService;
 
 	@Autowired
-	UserService userService;
+	private UserService userService;
 
 	@Pointcut("execution(public * com.harmonycloud.api..*.*(..))")
 	public void auditController() {
@@ -56,9 +57,10 @@ public class AuditControllerAspect {
 		String opDate = DateUtil.timeFormat.format(date.getTime());
 		ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
 		HttpServletRequest request = attributes.getRequest();
+		HttpServletResponse response = attributes.getResponse();
 		AuditRequestInfo requestInfo = new AuditRequestInfo();
 		try {
-			requestInfo = requestHandle.parseRequest(request);
+			requestInfo = requestHandle.parseRequest(request, response);
 			if (null != requestInfo) {
 				String args = requestInfo.getRequestParams();
 				String method = requestInfo.getMethod();

@@ -46,21 +46,22 @@ public class HarborUserServiceImpl implements HarborUserService {
     private Logger LOGGER = LoggerFactory.getLogger(HarborUserServiceImpl.class);
 
     private static final String HARBOR_API_USERS = "/api/users";
+    private static final String HARBOR_LOGIN = "/login";
 
 	@Autowired
-    SystemConfigService systemConfigService;
+    private SystemConfigService systemConfigService;
 	@Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 	@Autowired
-    UserService userService;
+    private UserService userService;
 	@Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
     @Autowired
-    HarborProjectService harborProjectService;
+    private HarborProjectService harborProjectService;
     @Autowired
-    HarborService harborService;
+    private HarborService harborService;
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
 
     @Override
     public Integer createUser(HarborServer harborServer, User user) throws Exception {
@@ -104,6 +105,33 @@ public class HarborUserServiceImpl implements HarborUserService {
             return null;
         }
 
+    }
+
+    @Override
+    public void harborUserLogin(HarborServer harborServer, User user) throws Exception {
+        if(harborServer == null || user == null){
+            LOGGER.warn("User parameter error,cluster:{},user:{}",harborServer,user);
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        LOGGER.info("登录Harbor信息，harborServer:{},user:{}", JSONObject.toJSONString(harborServer), user.toString());
+        String createUserApiUrl = HarborClient.getHarborUrl(harborServer) + HARBOR_LOGIN;
+
+        String password = user.getPassword();
+
+        Map<String, Object> params = new HashMap<String, Object>();
+        params.put("principal", user.getUsername());
+        params.put("password", password);
+
+        Map<String, Object> header = new HashMap<String, Object>();
+//        header.put("Cookie", HarborClient.checkHarborAdminCookie(harborServer));
+        header.put("Content-type", "x-www-form-urlencoded");
+
+        CloseableHttpResponse response = HarborHttpsClientUtil.doPostWithLogin(createUserApiUrl, params, null);
+        if (HttpStatusUtil.isSuccessStatus(response.getStatusLine().getStatusCode())) {
+            LOGGER.info("登录Harbor用户成功，response:{}", JSONObject.toJSONString(response));
+        }else{
+            LOGGER.error("登录Harbor用户失败，response:{}", JSONObject.toJSONString(response));
+        }
     }
 
     @Override
@@ -272,6 +300,31 @@ public class HarborUserServiceImpl implements HarborUserService {
         String url = HarborClient.getHarborUrl(harborServer) + "/api/projects/" + harborProjectId + "/members/";
         Map<String, Object>  headers = HarborClient.getAdminCookieHeader(harborServer);
         ActionReturnUtil response = HarborHttpsClientUtil.httpGetRequest(url, headers, null);
+        if (response.isSuccess() && response.get("data") != null) {
+            return getHarborUserResp(response.get("data").toString());
+        }
+
+        return Collections.emptyList();
+
+    }
+
+    /**
+     * 根据username 查询出在该project的user 权限详情
+     * @param harborHost
+     * @param harborProjectId
+     * @param username
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public List<HarborUser> usersOfProjectByUsername(String harborHost, Integer harborProjectId, String username) throws Exception {
+        AssertUtil.notNull(harborProjectId, DictEnum.REPOSITORY_ID);
+        HarborServer harborServer = clusterService.findHarborByHost(harborHost);
+        String url = HarborClient.getHarborUrl(harborServer) + "/api/projects/" + harborProjectId + "/members";
+        Map<String, Object> params = new HashMap<>();
+        params.put("username",username);
+        Map<String, Object>  headers = HarborClient.getAdminCookieHeader(harborServer);
+        ActionReturnUtil response = HarborHttpsClientUtil.httpGetRequest(url, headers, params);
         if (response.isSuccess() && response.get("data") != null) {
             return getHarborUserResp(response.get("data").toString());
         }
@@ -517,8 +570,11 @@ public class HarborUserServiceImpl implements HarborUserService {
                 List<HarborUser> harborUserList = new ArrayList<>();
                 for (Map<String, Object> map : mapList) {
                     HarborUser harborUser = new HarborUser();
-                    if (map.get("username") != null) {
-                        harborUser.setUsername(map.get("username").toString());
+                    if (map.get("role_id") != null) {
+                        harborUser.setUserId(Integer.valueOf(map.get("role_id").toString()));
+                    }
+                    if (map.get("entity_name") != null) {
+                        harborUser.setUsername(map.get("entity_name").toString());
                     }
                     if (map.get("role_name") != null) {
                         harborUser.setRoleName(map.get("role_name").toString());

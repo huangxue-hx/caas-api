@@ -86,6 +86,13 @@ public enum AuditUrlEnum {
     KEEP_OLD_VERSION("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)/bluegreen/cancel_POST", "蓝绿发布保留旧版本",
             "keepOldVersionInBlueGreenDeploy", 3, null, null, "SERVICE"),
 
+    DEPLOY_STATEFUL_SERVICE("/tenants/([^//]+)/projects/([^//]+)/statefulsets_POST", "发布服务", "deployService",
+            null, null, "serviceTemplate.statefulSetDetail.name", "SERVICE"),
+    START_STATEFUL_SERVICE("/tenants/([^//]+)/projects/([^//]+)/statefulsets/([^//]+)/start_POST", "启动服务", "startService", 3, null, null, "SERVICE"),
+    STOP_STATEFUL_SERVICE("/tenants/([^//]+)/projects/([^//]+)/statefulsets/([^//]+)/stop_POST", "停止服务", "stopService", 3, null, null, "SERVICE"),
+    SCALE_STATEFUL_SERVICE("/tenants/([^//]+)/projects/([^//]+)/statefulsets/([^//]+)/scale_POST", "服务实例伸缩", "scaleService", 3, null, null, "SERVICE"),
+    DELETE_STATEFUL_SERVICE("/tenants/([^//]+)/projects/([^//]+)/statefulsets_DELETE", "删除服务", "deleteService", null, null, "serviceList[0].name", "SERVICE"),
+
     CREATE_DAEMONSET("/clusters/([^//]+)/daemonsets_POST", "创建守护进程服务", "createDaemonSet", null, null, "name", "DAEMONSET"),
     DELETE_DAEMONSET("/clusters/([^//]+)/daemonsets/([^//]+)_DELETE", "删除守护进程服务", "deleteDaemonSet", 2, null, null, "DAEMONSET"),
     UPDATE_DAEMONSET("/clusters/([^//]+)/daemonsets/([^//]+)_PUT", "更新守护进程服务", "updateDaemonSet", 2, null, null, "DAEMONSET"),
@@ -116,10 +123,13 @@ public enum AuditUrlEnum {
     UPDATE_NAMESPACE("/tenants/([^//]+)/namespaces_PUT", "更新分区", "updateNamespace", null, null, "name", "NAMESPACE"),
     DELETE_NAMESPACE("/tenants/([^//]+)/namespaces/([^//]+)_DELETE", "删除分区", "deleteNamespace", 2, null, null, "NAMESPACE"),
 
-    CREATE_PV("/tenants/([^//]+)/projects/([^//]+)/pvs_POST", "创建存储", "createStory", null, null, "name", "STORAGE"),
-    DELETE_PV("/tenants/([^//]+)/projects/([^//]+)/([^//]+)_DELETE", "删除存储", "deleteStory", 3, null, null, "STORAGE"),
-    UPDATE_PV("/tenants/([^//]+)/projects/([^//]+)/pvs_PUT", "修改存储", "updateStory", null, null, "name", "STORAGE"),
-    RECYCLE_PV("/tenants/([^//]+)/projects/([^//]+)/pvs/([^//]+)/recycle_PUT", "回收存储", "recycleStory", 3, null, null, "STORAGE"),
+    CREATE_STORAGECLASS("/clusters/([^//]+)/storage_POST", "创建存储服务", "createStorageService", null, null, "name", "STORAGE"),
+    DELETE_STORAGECLASS("/clusters/([^//]+)/storage_DELETE", "删除存储服务", "deleteStorageService", null, null, "name", "STORAGE"),
+
+    CREATE_PV("/tenants/([^//]+)/projects/([^//]+)/pvc_POST", "创建存储", "createStory", null, null, "name", "STORAGE"),
+    DELETE_PV("/tenants/([^//]+)/projects/([^//]+)/pvc/([^//]+)_DELETE", "删除存储", "deleteStory", 3, null, null, "STORAGE"),
+    UPDATE_PV("/tenants/([^//]+)/projects/([^//]+)/pvc_PUT", "修改存储", "updateStory", null, null, "name", "STORAGE"),
+    RECYCLE_PV("/tenants/([^//]+)/projects/([^//]+)/pvc/([^//]+)/recycle_PUT", "回收存储", "recycleStory", 3, null, null, "STORAGE"),
 
     CREATE_CICD_ENV("/tenants/([^//]+)/projects/([^//]+)/env_POST", "新增环境", "createEnv", null, null, "name", "CICD"),
     UPDATE_CICD_ENV("/tenants/([^//]+)/projects/([^//]+)/env_PUT", "修改环境", "updateEnv", null, null, "name", "CICD"),
@@ -202,6 +212,11 @@ public enum AuditUrlEnum {
     ADD_RELATIONSHIP("/tenants/project/addUser_POST", "添加项目与用户的关系", "addRelationshipBetweenProjectAndUser", null, null, "userAccount", "CDP"),
     DELETE_RELATIONSHIP("/tenants/project/removeUser_POST", "删除项目与用户的关系", "deleteRelationshipBetweenProjectAndUser", null, null, "userAccount", "CDP"),
 
+    CREATE_PROJECT("/tenants/([^//]+)/projects_POST", "创建项目", "createProject", null, null, "projectName", "PROJECT"),
+    DELETE_PROJECT("/tenants/([^//]+)/projects/([^//]+)_DELETE", "删除项目", "deleteProject", 2, "project", null, "PROJECT"),
+    UPDATE_PROJECT("/tenants/([^//]+)/projects/([^//]+)_PUT", "修改项目", "updateProject", 2, "project", null, "PROJECT"),
+
+
     ADD_CLUSTER("/clusters_POST", "添加集群", "addCluster", null, null, "nickname", "CLUSTER"),
     UPDATE_CLUSTER("/clusters/([^//]+)_PUT", "修改集群", "updateCluster", null, null, "nickname", "CLUSTER"),
     DELETE_CLUSTER("/clusters/([^//]+)_DELETE", "删除集群", "deleteCluster", 1, "ClusterService", null, "CLUSTER"),
@@ -222,7 +237,12 @@ public enum AuditUrlEnum {
     START_LOG_BACKUP("/snapshotrules/([^//]+)/start_PUT", "启动日志备份规则", "startLogBackupRule", 1, "LogBackupRuleMapper", null, "LOG"),
     CREATE_SNAPSHOT("/snapshotrules/snapshots_POST", "创建日志备份快照", "createLogBackupSnapshot", null, null, "snapshotName", "LOG"),
     DELETE_SNAPSHOT("/snapshotrules/snapshots_DELETE", "删除日志备份快照", "deleteLogBackupSnapshot", null, null, "snapshotName", "LOG"),
-    RECOVER_SNAPSHOT("/snapshotrules/snapshots_PUT", "恢复日志备份快照", "recoverLogBackupSnapshot", null, null, "snapshotName", "LOG");
+    RECOVER_SNAPSHOT("/snapshotrules/snapshots_PUT", "恢复日志备份快照", "recoverLogBackupSnapshot", null, null, "snapshotName", "LOG"),
+
+    ADD_CONFIG("/tenants/([^//]+)/projects/([^//]+)/configmap_POST", "新增配置文件", "addConfigurationFile", null, null, "name", "CONFIG_CENTET"),
+    UPDATE_CONFIG("/tenants/([^//]+)/projects/([^//]+)/configmap_PUT", "修改配置文件", "addConfigurationFile", null, null, "name", "CONFIG_CENTET"),
+    DELETE_CONFIG("/tenants/([^//]+)/projects/([^//]+)/configmap_DELETE", "删除配置文件", "addConfigurationFile", null, null, "name", "CONFIG_CENTET");
+
 
     //url正则表达式
     private final String urlRegex;

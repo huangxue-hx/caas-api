@@ -10,7 +10,7 @@ import com.corundumstudio.socketio.listener.DataListener;
  */
 public class CharteventListener implements DataListener<ChatObject> {
 
-    SocketIOServer server;
+    private SocketIOServer server;
 
     public void setServer(SocketIOServer server) {
         this.server = server;

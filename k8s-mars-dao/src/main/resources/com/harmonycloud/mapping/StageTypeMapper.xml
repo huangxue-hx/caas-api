@@ -44,6 +44,13 @@
 
     <select id="queryByType" resultMap="BaseResultMap">
         <include refid="selectAllColumns"/>
-        WHERE type=#{type}
+        WHERE status=1
+        <if test="type != null and type != ''">
+            and type=#{type}
+        </if>
+        <if test="type == null or type == ''">
+            group by template_type
+        </if>
+        order by `index`
     </select>
 </mapper>

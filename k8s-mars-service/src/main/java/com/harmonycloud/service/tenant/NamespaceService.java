@@ -1,6 +1,7 @@
 package com.harmonycloud.service.tenant;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.cluster.ErrorNamespaceDto;
 import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
@@ -23,6 +24,8 @@ public interface NamespaceService {
      * @return
      */
     ActionReturnUtil createNamespace(NamespaceDto namespaceDto) throws Exception;
+
+    void updateShareNode(NamespaceDto namespaceDto) throws Exception;
 
     /**
      * 编辑Resource　quato
@@ -174,4 +177,9 @@ public interface NamespaceService {
     Map<String, String> getNamespaceResourceRemainQuota(String namespace) throws Exception;
 
     ActionReturnUtil checkResourceInTemplateDeploy(Map<String, Long> requireResource, Map<String, String> remainResource) throws Exception;
-}
+
+    boolean checkTransferResource(List<NamespaceDto> namespaceDtos) throws Exception;
+
+    ActionReturnUtil createQuota(NamespaceDto namespaceDto, Cluster cluster) throws Exception;
+
+    }

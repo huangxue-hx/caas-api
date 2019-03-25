@@ -60,24 +60,24 @@ public class HarborImageCleanServiceImpl implements HarborImageCleanService {
     private static final String CLEAN_IMAGE_REDIS_KEY_PREFIX = "imagegc";
 
     @Autowired
-    HarborService harborService;
+    private HarborService harborService;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    HarborProjectService harborProjectService;
+    private HarborProjectService harborProjectService;
 
     @Autowired
-    ImageCleanRuleMapper imageCleanRuleMapper;
+    private ImageCleanRuleMapper imageCleanRuleMapper;
     @Autowired
-    DeploymentsService deploymentsService;
+    private DeploymentsService deploymentsService;
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
     @Autowired
-    ImageCacheManager imageCacheManager;
+    private ImageCacheManager imageCacheManager;
     @Autowired
-    StringRedisTemplate stringRedisTemplate;
+    private StringRedisTemplate stringRedisTemplate;
     @Autowired
-    UserService userService;
+    private UserService userService;
 
     private List<ImageCleanRule> listAllCleanRules() {
         return imageCleanRuleMapper.list();
@@ -163,7 +163,7 @@ public class HarborImageCleanServiceImpl implements HarborImageCleanService {
                         imageCleanRuleMapper.update(rule);
                     }
                     return ActionReturnUtil.returnSuccess();
-                 default: return ActionReturnUtil.returnError();
+                default: return ActionReturnUtil.returnError();
             }
         }catch (Exception e){
             LOGGER.error("设置清理规则失败", e);
@@ -228,66 +228,66 @@ public class HarborImageCleanServiceImpl implements HarborImageCleanService {
     }
 
     private List<ImageCleanRuleDetail> getReposByRule() throws Exception {
-            Map<String, ImageCleanRuleDetail> filteredImages = new HashMap<String, ImageCleanRuleDetail>();
-            List<ImageCleanRule> rules = listAllCleanRules();
-            for (ImageCleanRule rule : rules) {
-                //try-catch 防止一个规则运行失败导致其他规则不继续
-                try {
-                    ImageRepository imageRepository = harborProjectService.findRepositoryById(rule.getRepositoryId());
-                    if (imageRepository == null) {
-                        //如果清理规则对应的镜像仓库已经不存在，则删除该清理规则
-                        this.setCleanRule(rule,Constant.DB_OPERATION_FLAG_DELETE);
-                        LOGGER.error("镜像清理失败，未找到镜像仓库，已删除该规则：{}", JSONObject.toJSONString(rule));
-                        continue;
-                    }
-                    ActionReturnUtil actionReturnUtil = harborService.repoListById(imageRepository.getHarborHost(),
-                            imageRepository.getHarborProjectId());
-                    if (actionReturnUtil.isSuccess()) {
-                        List<String> repoList = (List<String>) actionReturnUtil.get("data");
-                        //提前判断配置的镜像名称是否存在
-                        if (Constant.IMAGE_CLEAN_RULE_TYPE_IMAGE == rule.getType()) {
-                            if (StringUtils.isEmpty(rule.getRepoName()) || !repoList.contains(rule.getRepoName())) {
-                                LOGGER.warn("规则配置错误，未找到配置的镜像,harborHost:{},harborProjectId:{}",
-                                        imageRepository.getHarborHost(), imageRepository.getHarborProjectId());
-                                continue;
-                            }
-                        }
-                        String key = imageRepository.getHarborHost() + SLASH + imageRepository.getHarborProjectName();
-                        if (!filteredImages.containsKey(key)) {
-                            ImageCleanRuleDetail imageCleanRuleDetail = new ImageCleanRuleDetail();
-                            if (Constant.IMAGE_CLEAN_RULE_TYPE_REPOSITORY == rule.getType()) {
-                                imageCleanRuleDetail.setRepoList(repoList);
-                            } else {
-                                //镜像级别只保存单个镜像名称
-                                List<String> tempList = new ArrayList<String>();
-                                tempList.add(rule.getRepoName());
-                                imageCleanRuleDetail.setRepoList(tempList);
-                            }
-                            imageCleanRuleDetail.setImageRepository(imageRepository);
-                            imageCleanRuleDetail.setRule(rule);
-                            imageCleanRuleDetail.setProjectKey(key);
-                            filteredImages.put(key, imageCleanRuleDetail);
-                        } else {
-                            //如果是镜像级别，则需要处理就的镜像列表；如果是repository级别，则不需要操作，因为原来已经有了
-                            if (Constant.IMAGE_CLEAN_RULE_TYPE_IMAGE == rule.getType()) {
-                                ImageCleanRuleDetail imageCleanRuleDetail = filteredImages.get(key);
-                                if (Constant.IMAGE_CLEAN_RULE_TYPE_REPOSITORY == imageCleanRuleDetail.getRule().getType()) {
-                                    List<String> replacedRepoList = new ArrayList<String>();
-                                    replacedRepoList.add(rule.getRepoName());
-                                    //冲掉了就的repository级别的镜像列表，因为以镜像级别为准
-                                    imageCleanRuleDetail.setRepoList(replacedRepoList);
-                                } else {
-                                    //如果原来已经有镜像级别的，则把现有镜像加进去
-                                    imageCleanRuleDetail.getRepoList().add(rule.getRepoName());
-                                }
-                            }
-                        }
-
-                    }
-                }catch (Exception e){
-                    LOGGER.error("镜像清理失败，rule：{}", JSONObject.toJSONString(rule));
+        Map<String, ImageCleanRuleDetail> filteredImages = new HashMap<String, ImageCleanRuleDetail>();
+        List<ImageCleanRule> rules = listAllCleanRules();
+        for (ImageCleanRule rule : rules) {
+            //try-catch 防止一个规则运行失败导致其他规则不继续
+            try {
+                ImageRepository imageRepository = harborProjectService.findRepositoryById(rule.getRepositoryId());
+                if (imageRepository == null) {
+                    //如果清理规则对应的镜像仓库已经不存在，则删除该清理规则
+                    this.setCleanRule(rule,Constant.DB_OPERATION_FLAG_DELETE);
+                    LOGGER.error("镜像清理失败，未找到镜像仓库，已删除该规则：{}", JSONObject.toJSONString(rule));
+                    continue;
                 }
+                ActionReturnUtil actionReturnUtil = harborService.repoListById(imageRepository.getHarborHost(),
+                        imageRepository.getHarborProjectId());
+                if (actionReturnUtil.isSuccess()) {
+                    List<String> repoList = (List<String>) actionReturnUtil.get("data");
+                    //提前判断配置的镜像名称是否存在
+                    if (Constant.IMAGE_CLEAN_RULE_TYPE_IMAGE == rule.getType()) {
+                        if (StringUtils.isEmpty(rule.getRepoName()) || !repoList.contains(rule.getRepoName())) {
+                            LOGGER.warn("规则配置错误，未找到配置的镜像,harborHost:{},harborProjectId:{}",
+                                    imageRepository.getHarborHost(), imageRepository.getHarborProjectId());
+                            continue;
+                        }
+                    }
+                    String key = imageRepository.getHarborHost() + SLASH + imageRepository.getHarborProjectName();
+                    if (!filteredImages.containsKey(key)) {
+                        ImageCleanRuleDetail imageCleanRuleDetail = new ImageCleanRuleDetail();
+                        if (Constant.IMAGE_CLEAN_RULE_TYPE_REPOSITORY == rule.getType()) {
+                            imageCleanRuleDetail.setRepoList(repoList);
+                        } else {
+                            //镜像级别只保存单个镜像名称
+                            List<String> tempList = new ArrayList<String>();
+                            tempList.add(rule.getRepoName());
+                            imageCleanRuleDetail.setRepoList(tempList);
+                        }
+                        imageCleanRuleDetail.setImageRepository(imageRepository);
+                        imageCleanRuleDetail.setRule(rule);
+                        imageCleanRuleDetail.setProjectKey(key);
+                        filteredImages.put(key, imageCleanRuleDetail);
+                    } else {
+                        //如果是镜像级别，则需要处理就的镜像列表；如果是repository级别，则不需要操作，因为原来已经有了
+                        if (Constant.IMAGE_CLEAN_RULE_TYPE_IMAGE == rule.getType()) {
+                            ImageCleanRuleDetail imageCleanRuleDetail = filteredImages.get(key);
+                            if (Constant.IMAGE_CLEAN_RULE_TYPE_REPOSITORY == imageCleanRuleDetail.getRule().getType()) {
+                                List<String> replacedRepoList = new ArrayList<String>();
+                                replacedRepoList.add(rule.getRepoName());
+                                //冲掉了就的repository级别的镜像列表，因为以镜像级别为准
+                                imageCleanRuleDetail.setRepoList(replacedRepoList);
+                            } else {
+                                //如果原来已经有镜像级别的，则把现有镜像加进去
+                                imageCleanRuleDetail.getRepoList().add(rule.getRepoName());
+                            }
+                        }
+                    }
+
+                }
+            }catch (Exception e){
+                LOGGER.error("镜像清理失败，rule：{}", JSONObject.toJSONString(rule));
             }
+        }
 
         return new ArrayList<>(filteredImages.values());
 
@@ -308,6 +308,9 @@ public class HarborImageCleanServiceImpl implements HarborImageCleanService {
                 if (detail.getRule().getTimeBefore() != null && detail.getRule().getTimeBefore() > 0){
                     Date startDate = DateUtils.addDays(DateUtil.getCurrentUtcTime(), -detail.getRule().getTimeBefore());
                     for(HarborManifest harborManifest : harborManifests) {
+                        if(harborManifest.getCreateTime() == null){
+                            continue;
+                        }
                         Date tagCreatedTime = DateUtil.stringToDate(harborManifest.getCreateTime(),
                                 DateStyle.YYYY_MM_DD_HH_MM_SS.getValue(), TIME_ZONE_UTC);
                         if (tagCreatedTime.after(startDate)) {

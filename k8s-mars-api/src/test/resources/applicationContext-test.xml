@@ -30,7 +30,7 @@
 		class="org.springframework.beans.factory.config.PropertiesFactoryBean">
 		<property name="locations">
 			<list>
-				<value>classpath:constant-test.properties</value>
+				<value>classpath:constant.properties</value>
 			</list>
 		</property>
 	</bean>

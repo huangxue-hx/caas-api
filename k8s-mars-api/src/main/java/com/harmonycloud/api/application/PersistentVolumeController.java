@@ -17,9 +17,9 @@ import java.util.List;
 public class PersistentVolumeController {
 
     @Autowired
-    PersistentVolumeService persistentVolumeService;
+    private PersistentVolumeService persistentVolumeService;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     
     /**
      * 在指定集群上创建pv

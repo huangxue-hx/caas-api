@@ -16,6 +16,8 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -29,6 +31,8 @@ import java.util.Map;
  */
 public class HttpJenkinsClientUtil {
     private static int TIMEOUT = 6000000;
+    private static final Logger LOGGER = LoggerFactory.getLogger(HttpJenkinsClientUtil.class);
+
 
     private static CloseableHttpClient getHttpClient() throws Exception {
 //		return HttpClients.createDefault();
@@ -57,12 +61,13 @@ public class HttpJenkinsClientUtil {
 
 
             httpGet.setConfig(requestConfig);
-            if (headers == null) {
-                headers = new HashMap<String, Object>();
+            Map<String, Object> httpHeader = headers;
+            if (httpHeader == null) {
+                httpHeader = new HashMap<String, Object>();
             }
-            headers.put("Authorization", "Basic " + JenkinsClient.getApiToken());
+           httpHeader.put("Authorization", "Basic " + JenkinsClient.getApiToken());
 
-            for (Map.Entry<String, Object> param : headers.entrySet()) {
+            for (Map.Entry<String, Object> param : httpHeader.entrySet()) {
                 httpGet.addHeader(param.getKey(), String.valueOf(param.getValue()));
             }
 
@@ -91,7 +96,7 @@ public class HttpJenkinsClientUtil {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.warn("httpGetRequest失败，url:{}", url, e);
         }finally {
            //释放连接
            try {
@@ -102,7 +107,7 @@ public class HttpJenkinsClientUtil {
                    httpClient.close();
                }
            } catch (IOException e) {
-               e.printStackTrace();
+               LOGGER.warn("释放httpClinet连接失败", e);
            }
         }
         return ActionReturnUtil.returnError();
@@ -121,12 +126,13 @@ public class HttpJenkinsClientUtil {
         try {
             HttpPost httpPost = new HttpPost(ub.build());
             httpPost.setConfig(requestConfig);
-            if (headers == null) {
-                headers = new HashMap<String, Object>();
+            Map<String, Object> httpHeader = headers;
+            if (httpHeader == null) {
+                httpHeader = new HashMap<String, Object>();
             }
 
-            headers.put("Authorization", "Basic " + JenkinsClient.getApiToken());
-            for (Map.Entry<String, Object> param : headers.entrySet()) {
+            httpHeader.put("Authorization", "Basic " + JenkinsClient.getApiToken());
+            for (Map.Entry<String, Object> param : httpHeader.entrySet()) {
                 httpPost.addHeader(param.getKey(), String.valueOf(param.getValue()));
             }
             if (params != null) {
@@ -156,13 +162,13 @@ public class HttpJenkinsClientUtil {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.warn("httpPostRequest失败，url:{}", url);
         }finally {
             try {
                 if (httpClient != null)
                     httpClient.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                LOGGER.warn("释放httpClient连接失败", e);
             }
         }
         return ActionReturnUtil.returnError();
@@ -190,12 +196,13 @@ public class HttpJenkinsClientUtil {
 
 
             httpDelete.setConfig(requestConfig);
-            if (headers == null) {
-                headers = new HashMap<String, Object>();
+            Map<String, Object> httpHeader = headers;
+            if (httpHeader == null) {
+                httpHeader = new HashMap<String, Object>();
             }
-            headers.put("Authorization", "Basic " + JenkinsClient.getApiToken());
+            httpHeader.put("Authorization", "Basic " + JenkinsClient.getApiToken());
 
-            for (Map.Entry<String, Object> param : headers.entrySet()) {
+            for (Map.Entry<String, Object> param : httpHeader.entrySet()) {
                 httpDelete.addHeader(param.getKey(), String.valueOf(param.getValue()));
             }
 
@@ -215,13 +222,13 @@ public class HttpJenkinsClientUtil {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.warn("httpDeleteRequest失败，url:{}", url, e);
         }finally {
             try {
                 if (httpClient != null)
                     httpClient.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                LOGGER.warn("释放httpClient连接失败", e);
             }
         }
         return ActionReturnUtil.returnError();

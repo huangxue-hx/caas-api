@@ -60,6 +60,9 @@ public class WebSocketInterceptor implements HandshakeInterceptor{
 				if(!StringUtils.isBlank(httpServletRequest.getParameter("scriptType"))) {
 					map.put("scriptType", httpServletRequest.getParameter("scriptType"));
 				}
+				if(!StringUtils.isBlank(httpServletRequest.getParameter("terminalType"))) {
+					map.put("terminalType", httpServletRequest.getParameter("terminalType"));
+				}
 				if(!StringUtils.isBlank(httpServletRequest.getParameter("container"))) {
 					map.put("container", httpServletRequest.getParameter("container"));
 				}
@@ -68,6 +71,18 @@ public class WebSocketInterceptor implements HandshakeInterceptor{
 				}
 				if(!StringUtils.isBlank(httpServletRequest.getParameter("namespace"))) {
 					map.put("namespace", httpServletRequest.getParameter("namespace"));
+				}
+				if(!StringUtils.isBlank(httpServletRequest.getParameter("recentTimeNum"))) {
+					map.put("recentTimeNum", httpServletRequest.getParameter("recentTimeNum"));
+				}
+				if(!StringUtils.isBlank(httpServletRequest.getParameter("recentTimeUnit"))) {
+					map.put("recentTimeUnit", httpServletRequest.getParameter("recentTimeUnit"));
+				}
+				if(!StringUtils.isBlank(httpServletRequest.getParameter("logDir"))) {
+					map.put("logDir", httpServletRequest.getParameter("logDir"));
+				}
+				if(!StringUtils.isBlank(httpServletRequest.getParameter("logFile"))) {
+					map.put("logFile", httpServletRequest.getParameter("logFile"));
 				}
             }
 

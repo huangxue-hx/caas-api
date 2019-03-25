@@ -1,0 +1,37 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: kube-system
+  name: file-upload-scName
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: file-upload-scName
+  template:
+    metadata:
+      labels:
+        app: file-upload-scName
+    spec:
+      nodeSelector:
+        HarmonyCloud_Status: A
+      containers:
+      - name: file-upload
+        image: imageName
+        imagePullPolicy: Always
+        command: imageCmd
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: "/dependence"
+          name: dependence-storage
+      volumes:
+      - name: dependence-storage
+        nfs:
+          server: nfsAddr
+          path: nfsPath

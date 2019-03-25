@@ -1,11 +1,8 @@
 package com.harmonycloud.service.platform.bean;
 
-import com.harmonycloud.k8s.bean.cluster.Cluster;
-
 import java.util.List;
-import java.util.Map;
 
-public class NodeDto {
+public class NodeDto{
     private String ip;
     private String name;
     private String status;
@@ -22,6 +19,7 @@ public class NodeDto {
      * 集群别名
      */
     private String aliasName;
+    private transient int sortWeight;
 
     public String getAliasName() {
         return aliasName;
@@ -126,4 +124,13 @@ public class NodeDto {
     public void setScheduable(Boolean scheduable) {
         this.scheduable = scheduable;
     }
+
+    public int getSortWeight() {
+        return sortWeight;
+    }
+
+    public void setSortWeight(int sortWeight) {
+        this.sortWeight = sortWeight;
+    }
+
 }

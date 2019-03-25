@@ -53,16 +53,16 @@ import com.harmonycloud.service.tenant.TenantService;
 public class NetworkServiceImpl implements NetworkService {
 
     @Autowired
-    TenantBindingMapper tenantBindingMapper;
+    private TenantBindingMapper tenantBindingMapper;
 
     @Autowired
-    NetworkCalicoMapper networkCalicoMapper;
+    private NetworkCalicoMapper networkCalicoMapper;
 
     @Autowired
-    NamespceBindSubnetMapper namespceBindSubnetMapper;
+    private NamespceBindSubnetMapper namespceBindSubnetMapper;
 
     @Autowired
-    NetworkTopologyMapper networkTopologyMapper;
+    private NetworkTopologyMapper networkTopologyMapper;
 
     @Autowired
     private TenantService tenantService;
@@ -74,14 +74,14 @@ public class NetworkServiceImpl implements NetworkService {
     private String version;
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
 //    NetworkServiceImpl() throws Exception{
 //        version = clusterService.getPlatformCluster().getNetwork().getVersion();
 //    }
 
     @Autowired
-    com.harmonycloud.k8s.service.NamespaceService namespaceService;
+    private com.harmonycloud.k8s.service.NamespaceService namespaceService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     @Override

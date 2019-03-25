@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.cluster.TransferClusterBackupMapper">
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.cluster.bean.TransferClusterBackup">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="tenant_id" jdbcType="VARCHAR" property="tenantId" />
+    <result column="namespace_num" jdbcType="INTEGER" property="namespaceNum" />
+    <result column="deploy_num" jdbcType="INTEGER" property="deployNum" />
+    <result column="err_msg" jdbcType="VARCHAR" property="errMsg" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="transfer_cluster_id" jdbcType="VARCHAR" property="transferClusterId" />
+    <result column="is_continue" jdbcType="TINYINT" property="isContinue" />
+    <result column="is_default" jdbcType="TINYINT" property="isDefault" />
+    <result column="transfer_cluster_percent" jdbcType="VARCHAR" property="transferClusterPercent" />
+    <result column="project_id" jdbcType="VARCHAR" property="projectId" />
+    <result column="old_cluster_id" jdbcType="VARCHAR" property="oldClusterId" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    id, tenant_id, namespace_num, deploy_num, err_msg, create_time, update_time, transfer_cluster_id,
+    is_continue, is_default, transfer_cluster_percent, project_id, old_cluster_id
+  </sql>
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from transfer_cluster_backup
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from transfer_cluster_backup
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <insert id="insert" parameterType="com.harmonycloud.dao.cluster.bean.TransferClusterBackup">
+    <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
+      SELECT LAST_INSERT_ID()
+    </selectKey>
+    insert into transfer_cluster_backup (id, tenant_id, namespace_num,
+      deploy_num, err_msg, create_time,
+      update_time, transfer_cluster_id, is_continue,
+       transfer_cluster_percent, project_id, old_cluster_id
+      )
+    values (#{id,jdbcType=INTEGER}, #{tenantId,jdbcType=VARCHAR}, #{namespaceNum,jdbcType=INTEGER},
+      #{deployNum,jdbcType=INTEGER}, #{errMsg,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP},
+      #{updateTime,jdbcType=TIMESTAMP}, #{transferClusterId,jdbcType=VARCHAR}, #{isContinue,jdbcType=TINYINT},
+      #{transferClusterPercent,jdbcType=VARCHAR}, #{projectId,jdbcType=VARCHAR},#{oldClusterId,jdbcType=VARCHAR}
+      )
+  </insert>
+  <insert id="insertSelective" parameterType="com.harmonycloud.dao.cluster.bean.TransferClusterBackup">
+    insert into transfer_cluster_backup
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        id,
+      </if>
+      <if test="tenantId != null">
+        tenant_id,
+      </if>
+      <if test="namespaceNum != null">
+        namespace_num,
+      </if>
+      <if test="deployNum != null">
+        deploy_num,
+      </if>
+      <if test="errMsg != null">
+        err_msg,
+      </if>
+      <if test="createTime != null">
+        create_time,
+      </if>
+      <if test="updateTime != null">
+        update_time,
+      </if>
+      <if test="transferClusterId != null">
+        transfer_cluster_id,
+      </if>
+      <if test="isContinue != null">
+        is_continue,
+      </if>
+      <if test="isDefault != null">
+        is_default,
+      </if>
+      <if test="transferClusterPercent != null">
+        transfer_cluster_percent,
+      </if>
+      <if test="projectId != null">
+        project_id,
+      </if>
+      <if test="oldClusterId != null">
+        old_cluster_id,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        #{id,jdbcType=INTEGER},
+      </if>
+      <if test="tenantId != null">
+        #{tenantId,jdbcType=VARCHAR},
+      </if>
+      <if test="namespaceNum != null">
+        #{namespaceNum,jdbcType=INTEGER},
+      </if>
+      <if test="deployNum != null">
+        #{deployNum,jdbcType=INTEGER},
+      </if>
+      <if test="errMsg != null">
+        #{errMsg,jdbcType=VARCHAR},
+      </if>
+      <if test="createTime != null">
+        #{createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="updateTime != null">
+        #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="transferClusterId != null">
+        #{transferClusterId,jdbcType=VARCHAR},
+      </if>
+      <if test="isContinue != null">
+        #{isContinue,jdbcType=TINYINT},
+      </if>
+      <if test="isDefault != null">
+        #{isDefault,jdbcType=TINYINT},
+      </if>
+      <if test="transferClusterPercent != null">
+        #{transferClusterPercent,jdbcType=VARCHAR},
+      </if>
+      <if test="projectId != null">
+        #{projectId,jdbcType=VARCHAR},
+      </if>
+      <if test="oldClusterId != null">
+        #{oldClusterId,jdbcType=VARCHAR},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.cluster.bean.TransferClusterBackup">
+    update transfer_cluster_backup
+    <set>
+      <if test="tenantId != null">
+        tenant_id = #{tenantId,jdbcType=VARCHAR},
+      </if>
+      <if test="namespaceNum != null">
+        namespace_num = #{namespaceNum,jdbcType=INTEGER},
+      </if>
+      <if test="deployNum != null">
+        deploy_num = #{deployNum,jdbcType=INTEGER},
+      </if>
+      <if test="errMsg != null">
+        err_msg = #{errMsg,jdbcType=VARCHAR},
+      </if>
+      <if test="createTime != null">
+        create_time = #{createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="updateTime != null">
+        update_time = #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="transferClusterId != null">
+        transfer_cluster_id = #{transferClusterId,jdbcType=VARCHAR},
+      </if>
+      <if test="isContinue != null">
+        is_continue = #{isContinue,jdbcType=TINYINT},
+      </if>
+      <if test="isDefault != null">
+        is_default = #{isDefault,jdbcType=TINYINT},
+      </if>
+      <if test="transferClusterPercent != null">
+        transfer_cluster_percent = #{transferClusterPercent,jdbcType=VARCHAR},
+      </if>
+      <if test="projectId != null">
+        project_id = #{projectId,jdbcType=VARCHAR},
+      </if>
+      <if test="oldClusterId != null">
+        old_cluster_id = #{oldClusterId,jdbcType=VARCHAR},
+      </if>
+    </set>
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.cluster.bean.TransferClusterBackup">
+    update transfer_cluster_backup
+    set tenant_id = #{tenantId,jdbcType=VARCHAR},
+      namespace_num = #{namespaceNum,jdbcType=INTEGER},
+      deploy_num = #{deployNum,jdbcType=INTEGER},
+      err_msg = #{errMsg,jdbcType=VARCHAR},
+      create_time = #{createTime,jdbcType=TIMESTAMP},
+      update_time = #{updateTime,jdbcType=TIMESTAMP},
+      transfer_cluster_id = #{transferClusterId,jdbcType=VARCHAR},
+      is_continue = #{isContinue,jdbcType=TINYINT},
+      is_default = #{isDefault,jdbcType=TINYINT},
+      transfer_cluster_percent = #{transferClusterPercent,jdbcType=VARCHAR},
+      project_id = #{projectId,jdbcType=VARCHAR},
+      old_cluster_id = #{oldClusterId,jdbcType=TIMESTAMP}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+
+  <select id="queryHistoryBackUp" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from transfer_cluster_backup
+    where old_cluster_id = #{clusterId,jdbcType=VARCHAR}
+    <if test="tenantId != null and tenantId != ''">
+      and tenant_id = #{tenantId}
+    </if>
+    order by id desc
+  </select>
+
+</mapper>

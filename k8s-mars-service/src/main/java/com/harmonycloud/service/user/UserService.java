@@ -2,7 +2,6 @@ package com.harmonycloud.service.user;
 
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.user.bean.LocalRolePrivilege;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.bean.UserGroup;
@@ -10,6 +9,7 @@ import com.harmonycloud.dao.user.bean.UserGroupRelation;
 import com.harmonycloud.dto.user.SummaryUserInfo;
 import com.harmonycloud.dto.user.UserDetailDto;
 import com.harmonycloud.dto.user.UserGroupDto;
+import com.harmonycloud.dto.user.UserQueryDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,7 +23,7 @@ public interface UserService {
 
     String generatePassWord();
 
-    ActionReturnUtil sendEmail(String userName) throws Exception;
+    ActionReturnUtil sendResetPwdEmail(String userName, String newPassword) throws Exception;
 
     ActionReturnUtil isSystemAdmin(String userName);
 
@@ -39,7 +39,7 @@ public interface UserService {
 
     ActionReturnUtil changePwd(String userName, String oldPassword, String newPassword) throws Exception;
 
-    ActionReturnUtil userReset(String userName, String newPassword) throws Exception;
+    ActionReturnUtil resetUserPwd(String userName) throws Exception;
 
     ActionReturnUtil deleteUser(String userName) throws Exception;
 
@@ -85,15 +85,9 @@ public interface UserService {
 
     ActionReturnUtil listAdmin() throws Exception;
 
-    ActionReturnUtil listUsers(Boolean isAdmin, Boolean isMachine, Boolean isCommon, Boolean all) throws Exception;
+    ActionReturnUtil listUsers(UserQueryDto userQueryDto) throws Exception;
 
     ActionReturnUtil listCommonUsers() throws Exception;
-
-    String getPassword(String userName);
-
-    void addLdapUser(String userName, String password, String harborId);
-
-    void updateLdapUser(String userName, String password) throws Exception;
 
     /**
      * 创建用户组
@@ -157,12 +151,6 @@ public interface UserService {
     ActionReturnUtil userBulkUpload(InputStream in, MultipartFile file) throws Exception;
 
     String getMachineToken() throws MarsRuntimeException;
-
-    User syncUser(HttpServletRequest request) throws Exception;
-
-    String getNewPassWord();
-
-    void setNewPassWord(String newPassWord);
 
     /**
      * 新增用户，不做用户名及邮箱校验 （持续交互平台同步用户使用）
@@ -243,4 +231,19 @@ public interface UserService {
     public boolean checkCurrentUserIsAdmin();
 
     Map getcurrentUser(HttpServletRequest request, HttpServletResponse response) throws Exception;
+
+    /**
+     * 根据用户名列表查询用户列表
+     * @param usernameList
+     * @return
+     * @throws Exception
+     */
+    List<User> getUserByUsernameList(List<String> usernameList) throws Exception;
+
+    /**
+     * 查询项目下的用户列表
+     * @param projectId
+     * @return
+     */
+    List<User> listUserByProjectId(String projectId);
 }

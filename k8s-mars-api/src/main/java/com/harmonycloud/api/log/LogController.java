@@ -1,42 +1,50 @@
 package com.harmonycloud.api.log;
 
+import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dto.log.LogQueryDto;
+import com.harmonycloud.service.application.DeploymentsService;
+import com.harmonycloud.service.platform.bean.LogQuery;
 import com.harmonycloud.service.platform.service.LogService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiImplicitParam;
+import io.swagger.annotations.ApiImplicitParams;
+import io.swagger.annotations.ApiOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.date.DateUtil;
-import com.harmonycloud.dto.log.LogQueryDto;
-import com.harmonycloud.service.platform.bean.LogQuery;
-import com.harmonycloud.service.application.DeploymentsService;
+
 import javax.servlet.http.HttpServletResponse;
+import java.util.List;
 
 /**
  * 应用日志相关控制器
  * @author zhangkui
  */
 @Controller
+@Api(description = "应用日志相关控制器")
 @RequestMapping("/tenants/{tenantId}/projects/{projectId}/deploys/{deployName}/applogs")
 public class LogController {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    DeploymentsService deploymentService;
+    private DeploymentsService deploymentService;
 
     @Autowired
-    LogService logService;
+    private LogService logService;
 
     @ResponseBody
     @RequestMapping(method = RequestMethod.GET)
     public ActionReturnUtil queryLog(@PathVariable("deployName") String deployName,
                                      @ModelAttribute LogQueryDto logQueryDto){
         try {
-//            logger.info("根据日志路径获取container日志, params: " + logQueryDto.toString());
+            logger.info("查询文件日志内容,logQuery:{}",JSONObject.toJSONString(logQueryDto));
             logQueryDto.setDeployment(deployName);
             LogQuery logQuery = logService.transLogQuery(logQueryDto);
             return logService.fileLog(logQuery);
@@ -74,8 +82,8 @@ public class LogController {
 
         try {
             logQueryDto.setDeployment(deployName);
+            logger.info("获取服务的日志文件列表,logQuery:{}",JSONObject.toJSONString(logQueryDto));
             LogQuery logQuery = logService.transLogQuery(logQueryDto);
-//            logger.info("获取服务的日志文件列表");
             return logService.listfileName(logQuery);
         } catch (Exception e) {
             logger.error("获取服务日志文件列表失败：deploymentName:{}", deployName, e);
@@ -116,5 +124,25 @@ public class LogController {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.UNKNOWN);
         }
     }
+
+    @ApiOperation(value = "获取日志目录下的列表", notes = "根据条件过滤查询集群列表")
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "pod", value = "pod容器", paramType = "query",dataType = "String"),
+            @ApiImplicitParam(name = "namespace", value = "命名空间", paramType = "query", dataType = "String"),
+            @ApiImplicitParam(name = "path", value = "日志目录", paramType = "query", dataType = "String"),
+            @ApiImplicitParam(name = "clusterId", value = "集群id", paramType = "query", dataType = "String") })
+    @ResponseBody
+    @RequestMapping(value="/containerfiles", method= RequestMethod.GET)
+    public ActionReturnUtil queryLogFile(@RequestParam(value="pod") String pod,
+                                         @RequestParam(value="container", required = false) String container,
+                                         @RequestParam(value="namespace") String namespace,
+                                         @RequestParam(value="path") String path,
+                                         @RequestParam(value="clusterId") String clusterId) throws Exception{
+       List<String> logfile =  logService.queryLogFile(pod,container,namespace,path,clusterId);
+
+       return ActionReturnUtil.returnSuccessWithData(logfile);
+
+    }
+
 
 }

@@ -1,7 +1,10 @@
 package com.harmonycloud.service.platform.socket;
 
+import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.harmonycloud.dto.log.LogQueryDto;
+import com.harmonycloud.service.platform.service.LogService;
 import com.harmonycloud.service.platform.socket.term.TerminalService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,16 +45,52 @@ public class TerminalSocketHandler extends TextWebSocketHandler {
                     terminalService.onTerminalInit();
                     break;
                 case "TERMINAL_READY":
-                    String scriptType = session.getAttributes().get("scriptType").toString();
-                    String container = session.getAttributes().get("container").toString();
-                    String pod = session.getAttributes().get("pod").toString();
-                    String namespace = session.getAttributes().get("namespace").toString();
-                    String clusterId = null;
-                    if(session.getAttributes().get("clusterId") != null){
-                        clusterId = session.getAttributes().get("clusterId").toString();
+                    Object terminalType = session.getAttributes().get("terminalType");
+
+                    if(terminalType != null){
+                        logger.info("terminal type:", terminalType);
+                        if(terminalType.toString().equalsIgnoreCase("stdoutlog")){
+                            String pod = (String) session.getAttributes().get("pod");
+                            String namespace = (String) session.getAttributes().get("namespace");
+                            String container = (String) session.getAttributes().get("container");
+                            String clusterId = (String) session.getAttributes().get("clusterId");
+                            LogQueryDto logQueryDto = new LogQueryDto();
+                            logQueryDto.setPod(pod);
+                            logQueryDto.setNamespace(namespace);
+                            logQueryDto.setContainer(container);
+                            logQueryDto.setClusterId(clusterId);
+                            logQueryDto.setLogSource(LogService.LOG_TYPE_STDOUT);
+                            terminalService.onLogTerminalReady(logQueryDto);
+                        }else if(terminalType.toString().equals("filelog")){
+                            String pod = (String) session.getAttributes().get("pod");
+                            String namespace = (String) session.getAttributes().get("namespace");
+                            String container = (String) session.getAttributes().get("container");
+                            String logDir = (String) session.getAttributes().get("logDir");
+                            String logFile = (String) session.getAttributes().get("logFile");
+                            String clusterId = (String) session.getAttributes().get("clusterId");
+                            LogQueryDto logQueryDto = new LogQueryDto();
+                            logQueryDto.setPod(pod);
+                            logQueryDto.setNamespace(namespace);
+                            logQueryDto.setContainer(container);
+                            logQueryDto.setLogDir(logDir);
+                            logQueryDto.setLogFile(logFile);
+                            logQueryDto.setClusterId(clusterId);
+                            logQueryDto.setLogSource(LogService.LOG_TYPE_LOGFILE);
+                            terminalService.onLogTerminalReady(logQueryDto);
+                        }
+                    }else {
+                        logger.info("terminal type is null, enter pod terminal");
+                        String scriptType = session.getAttributes().get("scriptType").toString();
+                        String container = session.getAttributes().get("container").toString();
+                        String pod = session.getAttributes().get("pod").toString();
+                        String namespace = session.getAttributes().get("namespace").toString();
+                        String clusterId = null;
+                        if (session.getAttributes().get("clusterId") != null) {
+                            clusterId = session.getAttributes().get("clusterId").toString();
+                        }
+                        logger.info(String.format("进入控制台，容器名称:%s,pod名称:%s,namespace名称:%s,shell类型:%s", container, pod, namespace, scriptType));
+                        terminalService.onTerminalReady(container, pod, namespace, clusterId, scriptType);
                     }
-                    logger.info(String.format("进入控制台，容器名称:%s,pod名称:%s,namespace名称:%s,shell类型:%s",container,pod,namespace,scriptType));
-                    terminalService.onTerminalReady(container,pod,namespace,clusterId,scriptType);
                     break;
                 case "TERMINAL_COMMAND":
                     terminalService.onCommand(messageMap.get("command"));
@@ -72,7 +111,7 @@ public class TerminalSocketHandler extends TextWebSocketHandler {
 
             return map;
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.warn("getMessageMap失败", e);
         }
         return new HashMap<>();
     }

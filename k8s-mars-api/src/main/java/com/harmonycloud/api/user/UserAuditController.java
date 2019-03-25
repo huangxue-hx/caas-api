@@ -24,7 +24,7 @@ public class UserAuditController {
 
 
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
 
     @Autowired
     private UserAuditService userAuditService;

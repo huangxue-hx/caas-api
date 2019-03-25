@@ -8,6 +8,8 @@ package com.harmonycloud.service.platform.bean;
 public class VolumeMountExt {
 
 	private String name;
+
+	private String oldName;
 	
 	private String hostPath;
 	
@@ -28,7 +30,11 @@ public class VolumeMountExt {
 	private String configMapName;
 	
 	private String pvcname;
-	
+
+	private String storageClassName;
+
+    private String capacity;
+
 	public VolumeMountExt() {
 		
 	}
@@ -128,4 +134,27 @@ public class VolumeMountExt {
 		this.pvcname = pvcname;
 	}
 
+	public String getStorageClassName() {
+		return storageClassName;
+	}
+
+	public void setStorageClassName(String storageClassName) {
+		this.storageClassName = storageClassName;
+	}
+
+    public String getCapacity() {
+        return capacity;
+    }
+
+    public void setCapacity(String capacity) {
+        this.capacity = capacity;
+    }
+
+	public String getOldName() {
+		return oldName;
+	}
+
+	public void setOldName(String oldName) {
+		this.oldName = oldName;
+	}
 }

@@ -17,7 +17,7 @@ public class PodSpec {
 	private List<Volume> volumes;
 	
 	private List<Container> containers;
-	
+
 	private String restartPolicy;
 	
 	private Integer terminationGracePeriodSeconds;

@@ -1,7 +1,7 @@
 package com.harmonycloud.dto.log;
 
 
-import org.hibernate.validator.constraints.NotBlank;
+import io.swagger.annotations.ApiModelProperty;
 
 /**
  * Created by zhangkui on 2017/3/31.
@@ -9,24 +9,19 @@ import org.hibernate.validator.constraints.NotBlank;
  */
 public class FullLinkQueryDto {
 
-    @NotBlank(message = "分区不能为空")
+    @ApiModelProperty(value="分区名",name="namespace", required = true)
     private String namespace;
-    @NotBlank(message = "服务名不能为空")
-    private String deployment;
-
-    /**
-     * 绝对时间区间查询方式 日志开始时间
-     * format: yyyy-MM-dd hh:mm:ss
-     */
-    @NotBlank(message = "开始时间不能为空")
+    @ApiModelProperty(value="应用名",name="appName", required = true)
+    private String appName;
+    @ApiModelProperty(value="服务名",name="deployName")
+    private String deployName;
+    @ApiModelProperty(value="开始时间", example = "yyyy-MM-dd hh:mm:ss", name="fromTime", required = true)
     private String fromTime;
-    /**
-     * 绝对时间区间查询方式 日志结束时间
-     */
+    @ApiModelProperty(value="结束时间", example = "yyyy-MM-dd hh:mm:ss", name="toTime", required = true)
     private String toTime;
 
 
-    private String appId;
+    private String businessId;
 
     private String agentId;
 
@@ -52,12 +47,20 @@ public class FullLinkQueryDto {
         this.namespace = namespace;
     }
 
-    public String getDeployment() {
-        return deployment;
+    public String getAppName() {
+        return appName;
     }
 
-    public void setDeployment(String deployment) {
-        this.deployment = deployment;
+    public void setAppName(String appName) {
+        this.appName = appName;
+    }
+
+    public String getDeployName() {
+        return deployName;
+    }
+
+    public void setDeployName(String deployName) {
+        this.deployName = deployName;
     }
 
     public String getFromTime() {
@@ -76,12 +79,12 @@ public class FullLinkQueryDto {
         this.toTime = toTime;
     }
 
-    public String getAppId() {
-        return appId;
+    public String getBusinessId() {
+        return businessId;
     }
 
-    public void setAppId(String appId) {
-        this.appId = appId;
+    public void setBusinessId(String businessId) {
+        this.businessId = businessId;
     }
 
     public String getAgentId() {

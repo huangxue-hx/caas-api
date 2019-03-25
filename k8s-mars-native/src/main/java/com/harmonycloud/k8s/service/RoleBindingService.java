@@ -29,10 +29,10 @@ import com.harmonycloud.k8s.util.K8SURL;
 @Service
 public class RoleBindingService {
 
-	public static String ROLE_DEV_RB = "dev-rb";
-	public static String ROLE_PM_RB = "pm-rb";
-	public static String ROLE_TEST_RB = "test-rb";
-	public static String ROLE_TM_RB = "tm-rb";
+	private static String ROLE_DEV_RB = "dev-rb";
+	private static String ROLE_PM_RB = "pm-rb";
+	private static String ROLE_TEST_RB = "test-rb";
+	private static String ROLE_TM_RB = "tm-rb";
 
 	/**
 	 * 创建rolebinding
@@ -227,15 +227,16 @@ public class RoleBindingService {
 	 * @return
 	 */
 	public K8SClientResponse addUserToRoleBinding(String namespace, String role, String username,Cluster cluster,String tenantid) throws Exception{
-		if (!role.endsWith("-rb")) {
-				role = role + "-rb";
+		String roleName = role;
+		if (!roleName.endsWith("-rb")) {
+			roleName = roleName + "-rb";
 		}
 		// 查询该rolebinding
-		RoleBinding roleBinding = this.getNamespacesRolebindings(namespace, role,cluster);
+		RoleBinding roleBinding = this.getNamespacesRolebindings(namespace, roleName,cluster);
 		// 为空是新角色,则重新创建
 		if (roleBinding == null){
 			String tenantname = namespace.split(CommonConstant.LINE)[0];
-			roleBinding = this.createRoleBinding(role, namespace, tenantid, tenantname, role.split("-rb")[0], cluster);
+			roleBinding = this.createRoleBinding(roleName, namespace, tenantid, tenantname, roleName.split("-rb")[0], cluster);
 		}
 		// 更新rolebinding
 		String apiVersion = roleBinding.getApiVersion();
@@ -268,7 +269,7 @@ public class RoleBindingService {
 		Map<String, Object> headers = new HashMap<>();
 		headers.put("Content-Type", "application/json");
 		K8SURL url = new K8SURL();
-		url.setResource(Resource.ROLEBINDING).setNamespace(namespace).setSubpath(role);
+		url.setResource(Resource.ROLEBINDING).setNamespace(namespace).setSubpath(roleName);
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, headers, bodys,cluster);
 		return response;
 	}
@@ -298,11 +299,12 @@ public class RoleBindingService {
 	 * @return
 	 */
 	public K8SClientResponse deleteUserFormRoleBinding(String namespace, String role, String username,Cluster cluster) throws Exception{
-		if (!role.endsWith("-rb")) {
-			role = role + "-rb";
+		String roleName = role;
+		if (!roleName.endsWith("-rb")) {
+			roleName = roleName + "-rb";
 		}
 		// 查询该rolebinding
-		RoleBinding roleBinding = this.getNamespacesRolebindings(namespace, role,cluster);
+		RoleBinding roleBinding = this.getNamespacesRolebindings(namespace, roleName,cluster);
 		// 更新rolebinding
 		String apiVersion = roleBinding.getApiVersion();
 		ObjectMeta objectMeta = roleBinding.getMetadata();
@@ -330,7 +332,7 @@ public class RoleBindingService {
 		Map<String, Object> headers = new HashMap<>();
 		headers.put("Content-Type", "application/json");
 		K8SURL url = new K8SURL();
-		url.setResource(Resource.ROLEBINDING).setNamespace(namespace).setSubpath(role);
+		url.setResource(Resource.ROLEBINDING).setNamespace(namespace).setSubpath(roleName);
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, headers, bodys,cluster);
 		return response;
 	}

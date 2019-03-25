@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 @Service
 public class StageTypeServiceImpl implements StageTypeService{
     @Autowired
-    StageTypeMapper stageTypeMapper;
+    private StageTypeMapper stageTypeMapper;
 
     @Override
     public List<StageType> queryByType(String type) {

@@ -1,13 +1,14 @@
 package com.harmonycloud.service.application;
 
-import java.util.List;
-import java.util.Set;
-
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.application.ApplicationDeployDto;
+import com.harmonycloud.dto.application.ApplicationDto;
 import com.harmonycloud.k8s.bean.BaseResource;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.dto.application.ApplicationDeployDto;
 import com.harmonycloud.service.platform.bean.ApplicationList;
+
+import java.util.List;
+import java.util.Set;
 
 /**
  * Created by root on 4/10/17.
@@ -19,19 +20,11 @@ public interface ApplicationDeployService {
      * 
      * @author gurongyun
      * 
-     * @param projectId
-     *            project id
-     * @param tenantId
-     *            tenant id
-     * @param namespace
-     *            namespace
-     * @param name
-     *            application name
-     * @param status
-     *            application running status 0:abnormal;1:normal
+     * @param applicationQuery
+     *            查询条件
      * @return ActionReturnUtil
      */
-    ActionReturnUtil searchApplication(String projectId, String tenantId, String namespace, String name, String status) throws Exception;
+    ActionReturnUtil searchApplication(ApplicationDto applicationQuery) throws Exception;
 
     /**
      * get application by id service on 17/04/11.
@@ -214,4 +207,14 @@ public interface ApplicationDeployService {
     ActionReturnUtil checkAppNamespaceResource(String namespace, String appTemplateName, String projectId) throws Exception;
 
     ActionReturnUtil updateApplication(String appName, String namespace, String desc) throws Exception;
+
+    /**
+     * 回滚有状态服务
+     * @param services
+     * @param namespace
+     * @param userName
+     * @param cluster
+     * @return
+     */
+    ActionReturnUtil rollBackStatefulSet(Set<String> services, String namespace, String userName, Cluster cluster) throws Exception;
 }

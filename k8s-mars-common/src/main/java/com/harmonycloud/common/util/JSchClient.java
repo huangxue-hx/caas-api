@@ -41,7 +41,7 @@ import com.jcraft.jsch.JSch;
 public class JSchClient {
 	private static Logger logger = LoggerFactory.getLogger(JSchClient.class);
 
-	public static JSch JSchClient;
+	private static JSch JSchClient;
 	public static synchronized JSch createJSch() {
 		if (JSchClient == null) {
 				try {
@@ -76,8 +76,8 @@ public class JSchClient {
 			channelExec.setErrStream(System.err);
 			channelExec.connect();
 			InputStream in = channelExec.getInputStream();
-			charset = StringUtils.isBlank(charset) ? CommonConstant.DEFAULT_CHARSET_UTF_8 : charset;
-			BufferedReader reader = new BufferedReader(new InputStreamReader(in, Charset.forName(charset)));
+			String characterSet = StringUtils.isBlank(charset) ? CommonConstant.DEFAULT_CHARSET_UTF_8 : charset;
+			BufferedReader reader = new BufferedReader(new InputStreamReader(in, Charset.forName(characterSet)));
 			String line = null;
 			StringBuffer result = new StringBuffer();
 			while ((line = reader.readLine()) != null) {

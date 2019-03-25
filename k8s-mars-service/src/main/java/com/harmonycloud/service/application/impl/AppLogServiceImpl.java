@@ -258,10 +258,10 @@ public class AppLogServiceImpl implements AppLogService {
             if (null != snapshotInfoDto){
                 // 从快照索引中推算最大的时间，以便作为开始时间使用
                 indexStartDate = snapshotInfoDto.getIndices().stream().map(indexName ->{
-                    if (!indexName.contains(CommonConstant.ES_INDEX_LOGSTASH_PREFIX)){
+                    if (!indexName.contains(esService.getLogIndexPrefix())){
                         return nullDate;
                     }
-                    indexName = indexName.replace(CommonConstant.ES_INDEX_LOGSTASH_PREFIX,CommonConstant.EMPTYSTRING).trim();
+                    indexName = indexName.replace(esService.getLogIndexPrefix(),CommonConstant.EMPTYSTRING).trim();
                     Date tempDate = DateUtil.StringToDate(indexName, CommonConstant.ES_INDEX_LOGSTASH_DATE_FORMAT);
                     return null == tempDate ? nullDate : tempDate;
                 }).filter(indexDate -> null != indexDate)
@@ -281,7 +281,7 @@ public class AppLogServiceImpl implements AppLogService {
             List<String> indexDates = new ArrayList<>();
             Date tempDate = indexEndDate;
             while (tempDate.after(indexStartDate)){
-                String index = CommonConstant.ES_INDEX_LOGSTASH_PREFIX
+                String index = esService.getLogIndexPrefix()
                         + DateUtil.DateToString(tempDate,  CommonConstant.ES_INDEX_LOGSTASH_DATE_FORMAT);
                 if(existIndexes.contains(index)) {
                     indexDates.add(index);
@@ -293,7 +293,7 @@ public class AppLogServiceImpl implements AppLogService {
                 continue;
             }
             // 检查仓库，不存在则创建
-            List<RepositoryMetaData> repositoryMetaDatas = esService.listSnapshotRepositories(cluster.getId());
+            List<RepositoryMetaData> repositoryMetaDatas = esService.listSnapshotRepositories(cluster);
             if (CollectionUtils.isEmpty(repositoryMetaDatas)){
                 EsSnapshotDto esSnapshotDto = new EsSnapshotDto();
                 esSnapshotDto.setClusterId(cluster.getId());

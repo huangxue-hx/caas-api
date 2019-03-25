@@ -76,7 +76,11 @@ public class Constant {
 	
 	public final static String DEPLOYMENT = "Deployment";
 
-	public final static String DEPLOYMENT_API_VERSION = "apps/v1";
+    public  final static String STATEFULSET = "StatefulSet";
+
+    public final static String DEPLOYMENT_API_VERSION = "apps/v1";
+
+    public final static String STATEFULSET_API_VERSION = "apps/v1";
 
 	public final static Integer ADMIN_ACCOUNT = 1;
 	public final static Integer NON_ADMIN_ACCOUNT = 0;
@@ -101,9 +105,32 @@ public class Constant {
 
 	public final static String STATUS_NORMAL = "0";
 	public final static String STATUS_ABNORMAL = "1";
-	
+
+	//PodDisruptionBudget
+	public final static String PDB_TYPE_MIN_AVAILABLE = "minAvailable";
+	public final static String PDB_TYPE_MAX_UNAVAILABLE = "maxUnavailable";
+	public final static String SYSTEM_CONFIG_PDB_MIN_AVAILABLE = "pdb.minAvailable";
+	public final static String SYSTEM_CONFIG_PDB_MAX_UNAVAILABLE = "pdb.maxUnavailable";
+	public final static String PDB_SUFFIX = "-pdb";
+
+
+	//onlineshop
+	public final static String CLUSTER_ROLE_ONLINESHOP = "onlineshop";
+	public final static String CLUSTER_ROLE_BINDING_ONLINESHOP = "onlineshop";
+	public final static String SERVICE_ACCOUNT_ONLINESHOP = "onlineshop";
+	public final static String INIT_CONTAINER_IMAGE = "alpine";
+	public final static String INIT_CONTAINER_IMAGE_TAG = "3.6";
+
+	//verbs
+	public final static String GET = "get";
+	public final static String LIST = "list";
+	public final static String WATCH = "watch";
+
+
 	//stroge
-	public final static String VOLUME_TYPE_PV = "nfs";
+	public final static String VOLUME_TYPE_NFS = "nfs";
+    public final static String VOLUME_TYPE_PVC = "pvc";
+    public final static String VOLUME_TYPE_STORAGECLASS = "storageClass";
 	public final static String VOLUME_TYPE_HOSTPASTH = "hostPath";
 	public final static String VOLUME_TYPE_GITREPO = "gitRepo";
 	public final static String VOLUME_TYPE_EMPTYDIR = "emptyDir";
@@ -111,8 +138,11 @@ public class Constant {
 	//labels资源类型
 	public final static String TYPE_JOB = "jobs";
 	public final static String TYPE_DEPLOYMENT = "app";
-	public final static String TYPE_DATACENTER = "dataCenter";
+    public final static String TYPE_STATEFULSET = "harmonycloud.cn/statefulset";
+    public final static String TYPE_DATACENTER = "dataCenter";
 	public final static String TOP_DATACENTER = "cluster-top";
+    public final static String TYPE_CONTROLLERREVISIONNAME = "controller-revision-hash";
+    public final static String TYPE_DEPLOY_VERSION = "version";
 	//重启策略
 	public final static String RESTARTPOLICY_ALWAYS = "Always";
 	public final static String RESTARTPOLICY_NERVER = "Never";
@@ -137,7 +167,10 @@ public class Constant {
 	
 	public final static String AFFINITY_WEIGHT = "weight";
 	
-	public final static String AFFINITY_TOPOLOGYKEY = "kubernetes.io/hostname";
+	public final static String AFFINITY_TOPOLOGYKEY_POD_DISPERSE = "kubernetes.io/hostname";
+	public final static String AFFINITY_TOPOLOGYKEY_GROUP_SCHEDULE = "harmonycloud.cn/group";
+
+	public final static String ANTIAFFINITY_TYPE_GROUP_SCHEDULE = "group_schedule";
 	
 	public final static String SPACE_TRANS = "%20";
 	
@@ -176,11 +209,6 @@ public class Constant {
 
 	//微服务kong组件名称
 	public final static String SPRINGCLOUD_KONG = "msf-kong-service";
-
-	//系统外部暴露的配置文件名称:TCP 和 UDP
-	public final static String EXPOSE_CONFIGMAP_NAME_TCP = "system-expose-nginx-config-tcp";
-
-	public final static String EXPOSE_CONFIGMAP_NAME_UDP = "system-expose-nginx-config-udp";
 
 	//微服务kong的环境变量名称
 	public final static String SPRINGCLOUD_KONG_ENV = "KONG_DNS_RESOLVER";
@@ -229,6 +257,8 @@ public class Constant {
 	//configmap类型
 	public final static String TYPE_DAEMONSET = "harmonycloud/daemonSets";
 
+	public final static String LABEL_DAEMONSET = "harmonycloud.cn/daemonset";
+
 	public final static String KIND_DAEMONSET = "DaemonSet";
 
 	//volume的logdir的名称:logdir
@@ -245,11 +275,15 @@ public class Constant {
 
 	public final static String VOLUME_TYPE_LOGDIR = "logdir";
 
+	public final static String VOLUME_TYPE_CONFIGMAP = "configMap";
+
 	public final static String NAMESPACE_SYSTEM = "kube-system";
 
 	public final static String LABEL_PROJECT_ID = "projectId";
 
 	public final static String LABEL_TYPE = "type";
+
+	public final static String LABEL_INGRESS_CLASS = "kubernetes.io/ingress.class";
 
 	//Daemonset 更新设置rollingupdate策略
 	public final static String ROLLINGUPDATE_MAX_UNAVAILABLE = "100%";
@@ -339,5 +373,31 @@ public class Constant {
 	public final static String MSF = "msf-";
 
 	public final static String INGRESS_MULTIPLE_PORT_ANNOTATION = "nginx.ingress.listen";
+
+	//autoscale
+	public final static String LABEL_AUTOSCALE = "autoscale";
+	public final static String STATUS_ON = "true";
+	public final static String STATUS_OFF = "false";
+	//ingress service
+	public final static String LABEL_INGRESS_SERVICE = "ingress";
+	public final static String INGRESS_SERVICE_TRUE = "true";
+	public final static String INGRESS_SERVICE_FALSE = "false";
+
+	public final static Integer MAX_QUERY_COUNT_100 = 100;
+
+//	public final static String VCS_IMAGE = "/library/gitsvn";
+	public final static String VCS_IMAGE = "/k8s-deploy/alpine-gitsvn";
+	public final static String VCS_IMAGE_TAG = "1.0";
+	public final static String PULL_WAY_GIT = "git";
+	public final static String PULL_WAY_SVN = "svn";
+	public final static String SERVICE_DEPENDENCE_IMAGE = "/k8s-deploy/alpine-net";
+	public final static String SERVICE_DEPENDENCE_IMAGE_TAG = "1.0";
+	public final static String SERVICE_DETECT_WAY_HTTP = "HTTP";
+	public final static String SERVICE_DETECT_WAY_TCP = "TCP";
+
+	public static final String TRANSFER_NAMESPACE_SUCCESS = "successUpdate";
+	public static final String TRANSFER_NAMESPACE_ERROR = "errorUpdate";
+	public static final String ERROR_BIND_DEPLOY = "errorBindDeploy";
+	public static final String ERR_DEPLOY_DTOS ="errDeployDtos";
 
 }

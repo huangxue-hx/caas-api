@@ -1,25 +1,31 @@
 package com.harmonycloud.dto.application;
 
-import com.harmonycloud.common.enumm.PrivilegeField;
-import com.harmonycloud.common.enumm.PrivilegeType;
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.*;
 
 /**
  * Created by root on 4/10/17.
  */
 @PrivilegeType(name = "app", cnDesc = "应用发布")
+@DataPrivilegeType(type = DataResourceTypeEnum.APPLICATION)
 public class ApplicationDeployDto {
+    @DataPrivilegeField(type = CommonConstant.NAMESPACE_FIELD)
     private String namespace;
 
 	@PrivilegeField(name = "appName", cnDesc = "应用名称")
+    @DataPrivilegeField(type = CommonConstant.DATA_FIELD)
     private String appName;
 
     private String nodeSelector;
 
+    @DataPrivilegeField(type = CommonConstant.PROJECTID_FIELD)
 	private String projectId;
+
+    private String clusterId;
 //
 //    private String capacity;
 //
-//    private String tenantid;
+    private String tenantId;
 //
 //    private String readonly;
 //
@@ -67,6 +73,22 @@ public class ApplicationDeployDto {
 		this.projectId = projectId;
 	}
 
+	public String getTenantId() {
+		return tenantId;
+	}
+
+	public void setTenantId(String tenantId) {
+		this.tenantId = tenantId;
+	}
+
+	public String getClusterId() {
+		return clusterId;
+	}
+
+	public void setClusterId(String clusterId) {
+		this.clusterId = clusterId;
+	}
+
 	//    public String getName() {
 //        return name;
 //    }
@@ -81,14 +103,6 @@ public class ApplicationDeployDto {
 //
 //    public void setCapacity(String capacity) {
 //        this.capacity = capacity;
-//    }
-//
-//    public String getTenantid() {
-//        return tenantid;
-//    }
-//
-//    public void setTenantid(String tenantid) {
-//        this.tenantid = tenantid;
 //    }
 //
 //    public String getReadonly() {

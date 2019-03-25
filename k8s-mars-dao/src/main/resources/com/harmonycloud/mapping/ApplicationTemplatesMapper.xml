@@ -131,7 +131,9 @@
             #{item}
         </foreach>
     </delete>
-
+    <delete id="deleteAppTemplateByCId">
+        delete from application_templates where tenant = #{tenant} and cluster_id=#{clusterId}
+    </delete>
     <delete id="deleteByClusterId">
         delete from application_templates where cluster_id = #{clusterId}
     </delete>

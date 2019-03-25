@@ -16,8 +16,9 @@ public interface ClusterCRDService {
 
     public ActionReturnUtil addCluster(AddClusterDto clusterTPRDto) throws Exception ;
 
-    public ActionReturnUtil updateCluster(String name ,ClusterCRDDto clusterTPRDto) throws Exception;
+    public ActionReturnUtil updateCluster(Cluster cluster ,ClusterCRDDto clusterTPRDto) throws Exception;
 
     public ActionReturnUtil updateClusterStatus(Cluster cluster, boolean status, String type) throws Exception;
 
 }
+

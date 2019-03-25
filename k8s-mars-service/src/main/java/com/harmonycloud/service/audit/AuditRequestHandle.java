@@ -6,7 +6,6 @@ import com.harmonycloud.common.enumm.AuditQueryDbEnum;
 import com.harmonycloud.common.enumm.AuditUrlEnum;
 import com.harmonycloud.common.util.HttpClientUtil;
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.common.util.SsoClient;
 import com.harmonycloud.dao.application.LogBackupRuleMapper;
 import com.harmonycloud.dao.application.bean.LogBackupRule;
 import com.harmonycloud.dao.ci.bean.BuildEnvironment;
@@ -17,6 +16,7 @@ import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.user.bean.LocalRole;
 import com.harmonycloud.dao.user.bean.Role;
+import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.bean.UserGroup;
 import com.harmonycloud.dto.config.AuditRequestInfo;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -26,24 +26,24 @@ import com.harmonycloud.service.platform.service.ci.DockerFileService;
 import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.LocalRoleService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
-import com.whchem.sso.client.entity.User;
+import com.harmonycloud.service.util.SsoClient;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -58,43 +58,46 @@ public class AuditRequestHandle {
     private static Logger logger = LoggerFactory.getLogger(AuditRequestHandle.class);
 
     @Autowired
-    UserService userService;
+    private UserService userService;
 
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
 
     @Autowired
-    BuildEnvironmentService buildEnvironmentService;
+    private BuildEnvironmentService buildEnvironmentService;
 
     @Autowired
-    DockerFileService dockerFileService;
+    private DockerFileService dockerFileService;
 
     @Autowired
-    JobService jobService;
+    private JobService jobService;
 
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
 
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
 
     @Autowired
-    HarborProjectService harborProjectService;
+    private HarborProjectService harborProjectService;
 
     @Autowired
-    LocalRoleService localRoleService;
+    private LocalRoleService localRoleService;
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
     @Autowired
-    LogBackupRuleMapper logBackupRuleMapper;
+    private LogBackupRuleMapper logBackupRuleMapper;
+
+    @Autowired
+    private ProjectService projectService;
 
     private static final String CDP = "Continue Deliver Platform";
 
     private static final String CDP_DEFAULT_USER = "cdp_default_user";
 
-    protected static final Map<String, AuditUrlEnum> AUDIT_URL_MAP = new ConcurrentHashMap<>(
+    protected static final Map<String, AuditUrlEnum> AUDIT_URL_MAP = new LinkedHashMap<>(
             AuditUrlEnum.values().length);
 
     static {
@@ -105,7 +108,7 @@ public class AuditRequestHandle {
 
     private AuditRequestHandle() {}
 
-    public AuditRequestInfo parseRequest(HttpServletRequest request) throws Exception {
+    public AuditRequestInfo parseRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
         String url = request.getRequestURI();
         if (url.indexOf(CommonConstant.URL_PRFFIX) > -1) {
             url = url.substring(url.indexOf(CommonConstant.URL_PRFFIX) + CommonConstant.URL_PRFFIX.length());
@@ -167,15 +170,15 @@ public class AuditRequestHandle {
                 //单点登录
                 if ("/users/current_GET".equals(url)) {
                     if (StringUtils.isNotBlank(subject) && Boolean.valueOf(subject)) {
-                        User user = SsoClient.getUserByCookie(request);
-                        requestInfo.setUser(null != user? user.getName():null);
-                        requestInfo.setSubject(null != user? user.getName():null);
+                        User user = SsoClient.getLoginUser(request,response);
+                        requestInfo.setUser(null != user? user.getUsername():null);
+                        requestInfo.setSubject(null != user? user.getUsername():null);
                     } else {
                         requestInfo.setUser(null);
                     }
                 }
                 //如果是登录请求，从参数内获取,并且将参数加密
-                if ("/users/auth/login".equals(url)) {
+                if ("/users/auth/login_POST".equals(url)) {
                     requestInfo.setRequestParams("******");
                     String username = request.getParameter("username");
                     requestInfo.setUser(username);
@@ -285,6 +288,8 @@ public class AuditRequestHandle {
                     LogBackupRule logBackupRule = logBackupRuleMapper.selectByPrimaryKey(Integer.valueOf(query));
                     Cluster cluster2 = clusterService.findClusterById(logBackupRule.getClusterId());
                     return cluster2.getAliasName();
+                case CommonConstant.NUM_TWELVE:
+                    return projectService.getProjectNameByProjectId(query);
                 default: return null;
             }
         } catch (Exception e) {

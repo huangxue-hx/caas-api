@@ -2,6 +2,7 @@ package com.harmonycloud.dao.tenant;
 
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.tenant.bean.TenantBindingExample;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -21,4 +22,6 @@ public interface TenantBindingMapper {
     int updateByPrimaryKeySelective(TenantBinding record);
 
     int updateByPrimaryKey(TenantBinding record);
+
+    List<TenantBinding> getTenantByIdList(@Param(value="tenantIds")List<String> tenantIds);
 }

@@ -4,7 +4,6 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.dto.application.AffinityDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
-import com.sun.tools.internal.jxc.ap.Const;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -88,6 +87,10 @@ public class KubeAffinityConvert {
             if(CollectionUtils.isNotEmpty(wpat.getPodAffinityTerm().getNamespaces())) {
                 pad.setNamespace(wpat.getPodAffinityTerm().getNamespaces().get(0));
             }
+            if(Objects.nonNull(wpat.getPodAffinityTerm().getTopologyKey())
+                    && wpat.getPodAffinityTerm().getTopologyKey().equals(Constant.AFFINITY_TOPOLOGYKEY_GROUP_SCHEDULE)){
+                pad.setType(Constant.ANTIAFFINITY_TYPE_GROUP_SCHEDULE);
+            }
             for (LabelSelectorRequirement lsq : wpat.getPodAffinityTerm().getLabelSelector().getMatchExpressions()) {
                 pad.setLabel(lsq.getKey() + "=" + lsq.getValues().get(0));
             }
@@ -108,6 +111,10 @@ public class KubeAffinityConvert {
             podAffinityDto.setRequired(true);
             if(CollectionUtils.isNotEmpty(podAffinityTerm.getNamespaces())) {
                 podAffinityDto.setNamespace(podAffinityTerm.getNamespaces().get(0));
+            }
+            if (Objects.nonNull(podAffinityTerm.getTopologyKey())
+                    && podAffinityTerm.getTopologyKey().equals(Constant.AFFINITY_TOPOLOGYKEY_GROUP_SCHEDULE)){
+                podAffinityDto.setType(Constant.ANTIAFFINITY_TYPE_GROUP_SCHEDULE);
             }
             LabelSelector labelSelector = podAffinityTerm.getLabelSelector();
             List<LabelSelectorRequirement> labelSelectorRequirements = labelSelector.getMatchExpressions();
@@ -209,7 +216,11 @@ public class KubeAffinityConvert {
              labelSelector.setMatchExpressions(matchExpressions);
              podAffinityTerm.setLabelSelector(labelSelector);
              //topologyKey
-             podAffinityTerm.setTopologyKey(Constant.AFFINITY_TOPOLOGYKEY);
+             if(Objects.nonNull(podAffinityDto.getType()) && podAffinityDto.getType().equals(Constant.ANTIAFFINITY_TYPE_GROUP_SCHEDULE)){
+                 podAffinityTerm.setTopologyKey(Constant.AFFINITY_TOPOLOGYKEY_GROUP_SCHEDULE);
+             }else {
+                 podAffinityTerm.setTopologyKey(Constant.AFFINITY_TOPOLOGYKEY_POD_DISPERSE);
+             }
          }
          return podAffinityTerm;
     }

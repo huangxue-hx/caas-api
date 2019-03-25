@@ -16,6 +16,7 @@ import static com.harmonycloud.common.Constant.CommonConstant.LANGUAGE_ENGLISH;
 public enum DictEnum {
 
     NAME("name", "名称"),
+    PORT("port", "端口"),
     PARAM("param", "参数"),
     CREATE_TIME("create time", "创建时间"),
     USERNAME("username", "用户名"),
@@ -30,7 +31,10 @@ public enum DictEnum {
     USER_ID("user id", "用户id"),
     ROLE("role", "角色"),
     NAMESPACE("namespace", "分区"),
+    NAMESPACE_NAME("namespace name", "分区名称"),
+    NAMESPACE_ENGLISH("namespace english", "分区英文"),
     CLUSTER("cluster", "集群"),
+    CLUSTER_ID("clusterId", "集群id"),
     POD("pod", "pod"),
     NODE("node", "节点"),
     TENANT("tenant", "租户"),
@@ -72,7 +76,25 @@ public enum DictEnum {
     AUTO_SCALE("auto scale", "自动伸缩"),
     LOCAL_ROLE_ID("local role id", "局部角色编号"),
     LOG_INDEX("log index", "日志索引"),
-    CONFIG_MAP("configmap","配置文件");
+    CONFIG_MAP("configmap","配置文件"),
+    STORAGE_CLASS("storage class", "存储"),
+    CONTAINER("container","容器"),
+    LOG_DIR("logDir","日志目录"),
+    LOG_FILE("logFile","目录文件"),
+    STROAGE("stroage","存储"),
+    PV("PersistentVolume", "存储卷"),
+    PVC("PersistentVolumeClaim", "存储卷索取"),
+    CONFIG_MAP_ID("configMapId","配置组id"),
+    INGRESS_CONTROLLER("ingress controller","负载均衡器"),
+    NODE_MASTER("MASTER","主控"),
+    NODE_SYSTEM("SYSTEM","系统"),
+    NODE_BUILD("BUILDING","构建"),
+    NODE_LB("SLB","负载均衡"),
+    NODE_PRIVATE("PRIVATE","独占"),
+    NODE_IDLE("IDLE","闲置"),
+    NODE_PUBLIC("PUBLIC","共享"),
+    NODE_SYSTEMANDSLB("SYSTEM,SLB","系统,负载均衡"),
+    RULE_ID("IstioRuleId", "策略id");
 
 
     private final String enPhrase;

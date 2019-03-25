@@ -1,12 +1,21 @@
 package com.harmonycloud.dto.application;
 
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DataPrivilegeField;
+import com.harmonycloud.common.enumm.DataPrivilegeType;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
+import com.harmonycloud.k8s.bean.HostAlias;
+
 import java.util.List;
 
+@DataPrivilegeType(type = DataResourceTypeEnum.SERVICE)
 public class DeploymentDetailDto {
 
-	private String name;
+    @DataPrivilegeField(type = CommonConstant.DATA_FIELD)
+    private String name;
 
-	private String namespace;
+    @DataPrivilegeField(type = CommonConstant.NAMESPACE_FIELD)
+    private String namespace;
 
 	private String labels;
 
@@ -34,6 +43,8 @@ public class DeploymentDetailDto {
 
 	private boolean hostNetwork;
 
+    private List<CreateContainerDto> initContainers;
+
 	/**节点亲和*/
 	private List<AffinityDto> nodeAffinity;
 
@@ -46,9 +57,80 @@ public class DeploymentDetailDto {
 	/**pod 是否分散*/
 	private AffinityDto podDisperse;
 
+	/**pod 按主机分组调度**/
+	private AffinityDto podGroupSchedule;
+
+	//Service Account
+	private boolean automountServiceAccountToken;
+
+	private String serviceAccount;
+
+	private String serviceAccountName;
+
+	@DataPrivilegeField(type = CommonConstant.PROJECTID_FIELD)
 	private String projectId;
 
 	private String nodeSelector;
+
+	//服务版本
+	private String deployVersion;
+
+	// ip资源池的名称
+	private String ipPoolName;
+
+	public String getDeployVersion() {
+		return deployVersion;
+	}
+
+	public void setDeployVersion(String deployVersion) {
+		this.deployVersion = deployVersion;
+	}
+
+	public String getServiceAccount() {
+		return serviceAccount;
+	}
+
+	public void setServiceAccount(String serviceAccount) {
+		this.serviceAccount = serviceAccount;
+	}
+
+	public String getServiceAccountName() {
+		return serviceAccountName;
+	}
+
+	public void setServiceAccountName(String serviceAccountName) {
+		this.serviceAccountName = serviceAccountName;
+	}
+
+	public boolean isAutomountServiceAccountToken() {
+		return automountServiceAccountToken;
+	}
+
+	public void setAutomountServiceAccountToken(boolean automountServiceAccountToken) {
+		this.automountServiceAccountToken = automountServiceAccountToken;
+	}
+
+	private List<HostAlias> hostAliases;
+
+	private PullDependenceDto pullDependence;
+
+	private ServiceDependenceDto serviceDependence;
+
+	public AffinityDto getPodGroupSchedule() {
+		return podGroupSchedule;
+	}
+
+	public void setPodGroupSchedule(AffinityDto podGroupSchedule) {
+		this.podGroupSchedule = podGroupSchedule;
+	}
+
+	public List<HostAlias> getHostAliases() {
+		return hostAliases;
+	}
+
+	public void setHostAliases(List<HostAlias> hostAliases) {
+		this.hostAliases = hostAliases;
+	}
 
 	public String getNamespace() {
 		return namespace;
@@ -216,5 +298,37 @@ public class DeploymentDetailDto {
 
 	public void setNodeSelector(String nodeSelector) {
 		this.nodeSelector = nodeSelector;
+	}
+
+	public PullDependenceDto getPullDependence() {
+		return pullDependence;
+	}
+
+	public void setPullDependence(PullDependenceDto pullDependence) {
+		this.pullDependence = pullDependence;
+	}
+
+	public ServiceDependenceDto getServiceDependence() {
+		return serviceDependence;
+	}
+
+	public void setServiceDependence(ServiceDependenceDto serviceDependence) {
+		this.serviceDependence = serviceDependence;
+	}
+
+    public List<CreateContainerDto> getInitContainers() {
+        return initContainers;
+    }
+
+    public void setInitContainers(List<CreateContainerDto> initContainers) {
+        this.initContainers = initContainers;
+    }
+
+	public String getIpPoolName() {
+		return ipPoolName;
+	}
+
+	public void setIpPoolName(String ipPoolName) {
+		this.ipPoolName = ipPoolName;
 	}
 }

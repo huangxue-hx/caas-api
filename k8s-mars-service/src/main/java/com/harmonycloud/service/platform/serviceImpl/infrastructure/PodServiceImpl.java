@@ -1,5 +1,6 @@
 package com.harmonycloud.service.platform.serviceImpl.infrastructure;
 
+import com.harmonycloud.common.enumm.K8sModuleEnum;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
@@ -27,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import static com.harmonycloud.common.Constant.CommonConstant.KUBE_SYSTEM;
 
 @Service
 public class PodServiceImpl implements PodService {
@@ -34,7 +36,7 @@ public class PodServiceImpl implements PodService {
 	@Autowired
 	private com.harmonycloud.k8s.service.PodService podService;
 	@Autowired
-	ClusterService clusterService;
+	private ClusterService clusterService;
 
 	@Autowired
 	private EventService eventService;
@@ -107,6 +109,19 @@ public class PodServiceImpl implements PodService {
 		List<Cluster> clusters = clusterService.listAllCluster(Boolean.TRUE);
 		List<KubeModuleStatus> kubeModuleStatuses = new ArrayList<>();
 		for(Cluster cluster : clusters) {
+			//组件状态，为集群总览的组件状态
+			Map<String, Object> componentStatus = clusterService.getClusterComponentStatus(cluster.getId());
+			List<String> abnormalComponents = (List)componentStatus.get("abnormalComponent");
+			for(String component : abnormalComponents){
+				KubeModuleStatus kubeModuleStatus = new KubeModuleStatus();
+				kubeModuleStatus.setClusterName(cluster.getName());
+				kubeModuleStatus.setClusterId(cluster.getId());
+				kubeModuleStatus.setName(component);
+				kubeModuleStatus.setNamespace(KUBE_SYSTEM);
+				kubeModuleStatus.setStatus("Abnormal");
+				kubeModuleStatus.setMessage(K8sModuleEnum.getByCode(component).getName());
+				kubeModuleStatuses.add(kubeModuleStatus);
+			}
 			K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, null, cluster);
 			if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
 				throw new Exception("Failed to get pod status from apiserver.Response status is " + response.getStatus());
@@ -121,7 +136,8 @@ public class PodServiceImpl implements PodService {
 					}
 					for(ContainerStatus containerStatus : containerStatuses){
 						KubeModuleStatus kubeModuleStatus = new KubeModuleStatus();
-						kubeModuleStatus.setCluster(cluster.getName());
+						kubeModuleStatus.setClusterName(cluster.getName());
+						kubeModuleStatus.setClusterId(cluster.getId());
 						kubeModuleStatus.setName(pod.getMetadata().getName());
 						kubeModuleStatus.setNamespace(pod.getMetadata().getNamespace());
 						kubeModuleStatus.setStartTime(pod.getMetadata().getCreationTimestamp());

@@ -85,4 +85,11 @@ public interface DaemonSetsService {
      * @return ActionReturnUtil
      * */
     public ActionReturnUtil listEvents(String name, String namespace, String clusterId)throws Exception;
+
+    /**
+     * daemonset状态转换
+     * @param daemonSet
+     * @return
+     */
+    public String convertDaemonStatus(DaemonSet daemonSet);
 }

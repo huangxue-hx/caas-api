@@ -1,0 +1,11 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+<suite name="TestApi" >
+    <test name="apiTest"   >
+        <packages>
+            <package name="com.harmonycloud.api.test.application" />
+            <package name="com.harmonycloud.api.test.cluster" />
+            <package name="com.harmonycloud.api.test.storageClass" />
+            <package name="com.harmonycloud.api.test.user" />
+        </packages>
+    </test>
+</suite>

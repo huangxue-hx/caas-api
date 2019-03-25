@@ -22,6 +22,9 @@ public class ClusterQuotaDto implements Serializable {
     private String clusterName;
     //集群aliasName
     private String clusterAliasName;
+    private String dataCenter;
+
+    private String dataCenterName;
     //cpu配额
     private Double cpuQuota;
     //cpu配额类型
@@ -62,6 +65,10 @@ public class ClusterQuotaDto implements Serializable {
     private Double clusterUsedMemory = 0D;
     //集群使用的memory类型
     private String clusterUsedMemoryType;
+    //集群的存储配额
+    private List<StorageDto> storageQuota;
+    // 网络类型 calico/hcipam
+    private String networkType;
 
     public String getClusterAliasName() {
         return clusterAliasName;
@@ -69,6 +76,22 @@ public class ClusterQuotaDto implements Serializable {
 
     public void setClusterAliasName(String clusterAliasName) {
         this.clusterAliasName = clusterAliasName;
+    }
+
+    public String getDataCenter() {
+        return dataCenter;
+    }
+
+    public void setDataCenter(String dataCenter) {
+        this.dataCenter = dataCenter;
+    }
+
+    public String getDataCenterName() {
+        return dataCenterName;
+    }
+
+    public void setDataCenterName(String dataCenterName) {
+        this.dataCenterName = dataCenterName;
     }
 
     public Double getUnUsedCpu() {
@@ -266,5 +289,21 @@ public class ClusterQuotaDto implements Serializable {
 
     public void setUsedMemoryType(String usedMemoryType) {
         this.usedMemoryType = usedMemoryType;
+    }
+
+    public List<StorageDto> getStorageQuota() {
+        return storageQuota;
+    }
+
+    public void setStorageQuota(List<StorageDto> storageQuota) {
+        this.storageQuota = storageQuota;
+    }
+
+    public String getNetworkType() {
+        return networkType;
+    }
+
+    public void setNetworkType(String networkType) {
+        this.networkType = networkType;
     }
 }

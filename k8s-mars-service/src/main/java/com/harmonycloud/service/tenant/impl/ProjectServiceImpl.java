@@ -2,8 +2,11 @@ package com.harmonycloud.service.tenant.impl;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.*;
+import com.harmonycloud.service.application.*;
+import com.harmonycloud.service.util.SsoClient;
+import com.harmonycloud.common.util.UUIDUtil;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dao.tenant.ProjectMapper;
@@ -15,11 +18,10 @@ import com.harmonycloud.dto.tenant.DevOpsProjectUserDto;
 import com.harmonycloud.dto.tenant.ProjectDto;
 import com.harmonycloud.dto.user.UserRoleDto;
 import com.harmonycloud.k8s.bean.BaseResource;
-import com.harmonycloud.service.application.ApplicationDeployService;
-import com.harmonycloud.service.application.ApplicationService;
-import com.harmonycloud.service.application.PersistentVolumeService;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
+import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupService;
 import com.harmonycloud.service.platform.bean.RepositoryInfo;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
 import com.harmonycloud.service.platform.service.ExternalService;
@@ -29,11 +31,14 @@ import com.harmonycloud.service.platform.service.ci.DockerFileService;
 import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.platform.service.harbor.HarborService;
-import com.harmonycloud.service.tenant.*;
+import com.harmonycloud.service.tenant.ProjectService;
+import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.LocalRoleService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserRoleRelationshipService;
 import com.harmonycloud.service.user.UserService;
+import com.harmonycloud.service.platform.service.harbor.HarborUserService;
+import com.harmonycloud.service.user.*;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +46,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+
 import javax.servlet.http.HttpSession;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -53,45 +59,57 @@ import java.util.stream.Collectors;
 public class ProjectServiceImpl implements ProjectService {
 
     @Autowired
-    ProjectMapper projectMapper;
+    private ProjectMapper projectMapper;
     @Autowired
-    UserRoleRelationshipService userRoleRelationshipService;
+    private UserRoleRelationshipService userRoleRelationshipService;
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    HarborService harborService;
+    private HarborService harborService;
     @Autowired
-    HarborProjectService harborProjectService;
+    private HarborProjectService harborProjectService;
     @Autowired
-    UserService userService;
+    private UserService userService;
     @Autowired
-    HttpSession session;
+    private HttpSession session;
     @Autowired
-    ExternalService externalService;
+    private ExternalService externalService;
     @Autowired
-    PersistentVolumeService persistentVolumeService;
+    private PersistentVolumeService persistentVolumeService;
     @Autowired
-    ConfigCenterService configCenterService;
+    private ConfigCenterService configCenterService;
     @Autowired
-    ApplicationDeployService applicationDeployService;
+    private ApplicationDeployService applicationDeployService;
     @Autowired
-    ApplicationService applicationService;
+    private ApplicationService applicationService;
     @Autowired
-    LocalRoleService localRoleService;
+    private LocalRoleService localRoleService;
     @Autowired
-    ClusterCacheManager clusterCacheManager;
+    private ClusterCacheManager clusterCacheManager;
     @Autowired
-    JobService jobService;
+    private JobService jobService;
     @Autowired
-    DockerFileService dockerFileService;
+    private DockerFileService dockerFileService;
     @Autowired
-    DependenceService dependenceService;
+    private DependenceService dependenceService;
     @Autowired
-    BuildEnvironmentService buildEnvironmentService;
+    private BuildEnvironmentService buildEnvironmentService;
+    @Autowired
+    private HarborUserService harborUserService;
+    @Autowired
+    private RolePrivilegeService rolePrivilegeService;
+    @Autowired
+    private DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
+    @Autowired
+    private DataPrivilegeGroupService dataPrivilegeGroupService;
+    @Autowired
+    private ServiceService serviceService;
+    @Autowired
+    private StatefulSetsService statefulSetsService;
 
     private static final Logger logger = LoggerFactory.getLogger(ProjectServiceImpl.class);
 
@@ -120,8 +138,12 @@ public class ProjectServiceImpl implements ProjectService {
             session.setAttribute(CommonConstant.GETMENU, Boolean.FALSE);
         }else {
             session.setAttribute(CommonConstant.GETMENU, Boolean.TRUE);
-            //设置默认角色id为角色列表的第一个角色id
-            session.setAttribute(CommonConstant.ROLEID, roleList.get(0).getId());
+            //切换之后的角色列表包含原角色则设置原角色，否则设置默认角色id为角色列表的第一个角色id
+            List<Integer> roleIds = roleList.stream().map(Role::getId).collect(Collectors.toList());
+            if(session.getAttribute(CommonConstant.ROLEID) == null
+                    || !roleIds.contains(session.getAttribute(CommonConstant.ROLEID))){
+                session.setAttribute(CommonConstant.ROLEID, roleList.get(0).getId());
+            }
         }
         List<LocalRolePrivilege>  localRolePrivileges = localRoleService.listPrivilegeByProject(projectId, userName);
         session.setAttribute(CommonConstant.SESSION_DATA_PRIVILEGE_LIST, localRolePrivileges);
@@ -160,7 +182,7 @@ public class ProjectServiceImpl implements ProjectService {
         String projectId = projectDto.getProjectId();
         //如果项目id不存在则生成
         if (StringUtils.isBlank(projectId)){
-            projectId = StringUtil.getId();
+            projectId = UUIDUtil.get16UUID();
         }
         Project project = new Project();
         //设置项目名称
@@ -200,6 +222,22 @@ public class ProjectServiceImpl implements ProjectService {
         if (!CollectionUtils.isEmpty(pmList)){
             this.createPm(tenantId,projectId,pmList);
         }
+
+        // deal harbor user privilege
+        try {
+            String tmUsernames = tenant.getTmUsernames();
+            if (StringUtils.isNotBlank(tmUsernames)){
+                String[] split = tmUsernames.split(CommonConstant.COMMA);
+                if (split.length > 0){
+                    for (String tm : split) {
+                        this.roleLocalService.addHarborUserRole(HarborMemberEnum.PROJECTADMIN,projectId,tm,CommonConstant.TM_ROLEID);
+                    }
+                }
+            }
+
+        }catch (Exception e){
+            logger.error("sync harbor member failed",e);
+        }
     }
 
     /**
@@ -219,6 +257,10 @@ public class ProjectServiceImpl implements ProjectService {
         harborProjectService.deleteRepository(projectId);
         //删除用户
         this.userRoleRelationshipService.deleteUserRoleRelationshipByProjectId(projectId);
+        //删除服务
+        serviceService.deleteDeployedServiceByprojectId(projectId,tenantId);
+        //删除有状态服务
+        statefulSetsService.deleteStatfulServiceByprojectId(projectId,tenantId);
         //删除外部服务
         externalService.deleteExtServiceByProject(projectId);
         //删除存储
@@ -567,6 +609,9 @@ public class ProjectServiceImpl implements ProjectService {
                 //获取用户角色
                 Role role = roleLocalService.getRoleById(userRoleRelationship.getRoleId());
                 User user = userService.getUser(userRoleRelationship.getUsername());
+                if(user == null){
+                    continue;
+                }
                 Map<String,Object> result = new HashMap<>();
                 result.put(CommonConstant.USERNAME,userRoleRelationship.getUsername());
                 result.put(CommonConstant.ID,userRoleRelationship.getId());
@@ -646,6 +691,9 @@ public class ProjectServiceImpl implements ProjectService {
         if (!CollectionUtils.isEmpty(userRoleRelationships)){
             userRoleRelationships.stream().forEach(pm -> {pmMap.put(pm.getUsername(),pm.getUsername());});
         }
+
+        dataPrivilegeGroupMemberService.addNewProjectMemberToGroup(project, pmList);
+
         //处理添加多个项目管理员
         for (String userName:pmList) {
             User user1 = this.userService.getUser(userName);
@@ -674,6 +722,8 @@ public class ProjectServiceImpl implements ProjectService {
             if (status){
                 clusterCacheManager.updateRolePrivilegeStatusForTenantOrProject(roleId,userName,null,projectId,Boolean.FALSE);
             }
+            //处理harbor的角色权限关系
+            this.roleLocalService.addHarborUserRole(HarborMemberEnum.PROJECTADMIN,projectId,userName,roleId);
         }
         //更新PM关系至项目表
         String pmUsernames = project.getPmUsernames();
@@ -720,6 +770,11 @@ public class ProjectServiceImpl implements ProjectService {
         }
         //删除项目角色
         this.userRoleRelationshipService.deleteUserRoleRelationshipById(pmUserRoleRelationship.getId());
+        //删除所有数据权限组中该用户
+        List<UserRoleRelationship> list = userRoleRelationshipService.getUserRoleRelationshipByUsernameAndProjectId(username, projectId);
+        if(CollectionUtils.isEmpty(list)){
+            dataPrivilegeGroupMemberService.deleteProjectMemberFromGroup(projectId, username);
+        }
     }
     /**
      * 向项目下删除项目管理员
@@ -761,6 +816,8 @@ public class ProjectServiceImpl implements ProjectService {
         }
         //更新redis中用户的状态
         clusterCacheManager.updateRolePrivilegeStatusForTenantOrProject(roleId,username,null,projectId,Boolean.TRUE);
+        //处理harbor的角色权限关系
+        this.roleLocalService.updateHarborUserRole(HarborMemberEnum.NONE,projectId,username);
     }
     private ProjectExample getExample(){
         ProjectExample example = new ProjectExample();
@@ -785,19 +842,24 @@ public class ProjectServiceImpl implements ProjectService {
         }
         List<Integer> roleIdList = userRoleDto.getRoleIdList();
         List<String> usernameList = userRoleDto.getUsernameList();
+
+        dataPrivilegeGroupMemberService.addNewProjectMemberToGroup(project, usernameList);
         //根据用户列表循环创建用户在项目的角色
         for (String username:usernameList) {
-            for (Integer roleId:roleIdList) {
+            for (Integer roleId:roleIdList) {//roleList一般是一个
                 this.createProjectRole(tenantId,projectId,username,roleId);
                 //更新用户角色状态
                 Boolean status = clusterCacheManager.getRolePrivilegeStatusForTenantOrProject(roleId,username,null, projectId);
                 if (status){
                     clusterCacheManager.updateRolePrivilegeStatusForTenantOrProject(roleId,username,null,projectId,Boolean.FALSE);
                 }
+                //处理harbor的角色权限关系
+                HarborMemberEnum targetMember =  rolePrivilegeService.getHarborRole(roleId);
+                this.roleLocalService.addHarborUserRole(targetMember,projectId,username,roleId);
             }
         }
-
     }
+
     /**
      * 删除项目中用户角色
      *
@@ -819,6 +881,9 @@ public class ProjectServiceImpl implements ProjectService {
         this.deleteProjectRole(projectId,username,roleId);
         //更新redis中用户的状态
         clusterCacheManager.updateRolePrivilegeStatusForTenantOrProject(roleId,username,null,projectId,Boolean.TRUE);
+
+        //处理harbor的角色权限关系
+        this.roleLocalService.updateHarborUserRole(HarborMemberEnum.NONE,projectId,username);
     }
 
     @Override

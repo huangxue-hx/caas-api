@@ -54,7 +54,7 @@ public interface ClusterService {
 	 *
 	 * @return
 	 */
-	List<Cluster> listAllCluster(Boolean isEnable) throws Exception;
+	List<Cluster> listAllCluster(Boolean isEnable);
 
 	/**
 	 * 获取某个数据中心下的集群列表,为空则获取所有的业务集群
@@ -62,6 +62,14 @@ public interface ClusterService {
 	 * @return
 	 */
 	List<Cluster> listCluster(String dataCenter, Boolean isEnable, String template) throws Exception;
+
+	/**
+	 * 查询以数据中心名称分组的集群列表
+	 * @param isEnable
+	 * @return
+	 * @throws Exception
+	 */
+	Map<String, List<Cluster>> groupCluster(Boolean isEnable) throws Exception;
 
     List<String> listDisableClusterIds() throws Exception;
 
@@ -74,7 +82,7 @@ public interface ClusterService {
 	 *
 	 * @return
 	 */
-	List<ClusterDomain> findDomain(String namespace) throws Exception;
+	ClusterDomain findDomain(String namespace) throws Exception;
 
 	/**
 	 * 根据harborHost查询harbor具体信息
@@ -102,4 +110,6 @@ public interface ClusterService {
 	Map<String, Object> getClusterComponentStatus(String clusterId) throws Exception;
 
 	void deleteClusterData(String clusterId) throws Exception;
+
+	Map<String, String> getClustersStorageCapacity () throws Exception;
 }

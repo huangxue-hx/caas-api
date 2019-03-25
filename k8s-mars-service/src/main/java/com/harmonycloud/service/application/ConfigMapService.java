@@ -1,9 +1,13 @@
 package com.harmonycloud.service.application;
 
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.application.CreateConfigMapDto;
+import com.harmonycloud.dto.application.CreateContainerDto;
+import com.harmonycloud.dto.cluster.ErrDeployDto;
 import com.harmonycloud.k8s.bean.ConfigMap;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.dto.application.CreateConfigMapDto;
+
 import java.util.List;
 
 /**
@@ -38,4 +42,15 @@ public interface ConfigMapService {
      */
     public void updateConfigmap(ConfigMap configMap, Cluster cluster) throws Exception;
 
+    public void createConfigMap(String namespace, String configMapName, String serviceName, List<CreateConfigMapDto> configMaps, Cluster cluster, String serviceLabel) throws Exception;
+
+    void createConfigMapForService(String serviceName, List<CreateContainerDto> containers, String namespace, Cluster cluster, String serviceLabel) throws Exception;
+
+    /**
+     * 迁移configmap
+     * @param configMap
+     * @param cluster
+     * @throws MarsRuntimeException
+     */
+    ErrDeployDto transferConfigmap(ConfigMap configMap, Cluster cluster, String deployName) throws Exception;
 }

@@ -4,34 +4,39 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
+import com.harmonycloud.common.util.HttpsClientUtil;
+import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.ci.bean.Stage;
-import com.harmonycloud.dao.tenant.bean.Project;
+import com.harmonycloud.dto.application.StorageClassDto;
 import com.harmonycloud.dto.cicd.DependenceDto;
 import com.harmonycloud.dto.cicd.DependenceFileDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.k8s.bean.cluster.ClusterStorage;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
+import com.harmonycloud.k8s.constant.APIGroup;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.PVCService;
 import com.harmonycloud.k8s.service.PvService;
+import com.harmonycloud.k8s.service.ScService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.k8s.util.RandomNum;
+import com.harmonycloud.service.application.PersistentVolumeClaimService;
 import com.harmonycloud.service.application.PersistentVolumeService;
+import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cluster.ClusterService;
-
+import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.ci.DependenceService;
 import com.harmonycloud.service.platform.service.ci.StageService;
 import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +50,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @Author w_kyzhang
@@ -86,7 +92,18 @@ public class DependenceServiceImpl implements DependenceService {
     @Autowired
     private HttpSession session;
 
+    @Autowired
+    private StorageClassService storageClassService;
+
+    @Autowired
+    private ScService scService;
+
+
     private ClassLoader classLoader = this.getClass().getClassLoader();
+
+    private static String NFSPATH = "NFSPATH";
+    private static String MOUNTPATH = "/dependence/";
+    private static String COMMON = "common";
 
     /**
      *根据项目id和集群id及名称查询依赖列表
@@ -99,62 +116,83 @@ public class DependenceServiceImpl implements DependenceService {
     @Override
     public List<Map> listByProjectIdAndClusterId(String projectId, String clusterId, String name) throws Exception {
         Cluster topCluster = clusterService.getPlatformCluster();
-        ClusterStorage  storage = persistentvolumeService.getProvider(topCluster,CommonConstant.NFS);
-        if(storage == null){
-            throw new MarsRuntimeException(ErrorCodeMessage.PV_PROVIDER_NOT_EXIST, CommonConstant.NFS, true);
-        }
-        List<Map> pvDtos = new ArrayList<>();
-
+        List<Map> dependenceDtos = new ArrayList<>();
         if(projectService.getProjectByProjectId(projectId) == null){
             return Collections.emptyList();
         }
+        List<StorageClassDto> storageClassDtoList = storageClassService.listStorageClass(topCluster.getId());
+        Map<String, StorageClassDto> storageClassMap = storageClassDtoList.stream().collect(Collectors.toMap(StorageClassDto::getName, storageClassDto->storageClassDto));
 
+        K8SClientResponse pvRes = pvService.listPv(topCluster);
+        if(!HttpStatusUtil.isSuccessStatus(pvRes.getStatus())){
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_LIST_ERROR);
+        }
+        PersistentVolumeList pvList = JsonUtil.jsonToPojo(pvRes.getBody(), PersistentVolumeList.class);
+        Map<String, PersistentVolume> pvMap = pvList.getItems().stream().collect(Collectors.toMap(persistentVolume->persistentVolume.getMetadata().getName(), persistentVolume->persistentVolume));
         if(StringUtils.isBlank(clusterId)){
             List<Cluster> clusterList = roleLocalService.listCurrentUserRoleCluster();
             if(CollectionUtils.isNotEmpty(clusterList)){
                 for(Cluster cluster : clusterList){
-                    pvDtos.addAll(getDenpenceByLabel(projectId, cluster.getId(), name, storage));
+                    dependenceDtos.addAll(getDenpenceByLabel(projectId, cluster.getId(), name, storageClassMap, pvMap));
                 }
             }
         }else{
-            pvDtos.addAll(getDenpenceByLabel(projectId, clusterId, name, storage));
+            dependenceDtos.addAll(getDenpenceByLabel(projectId, clusterId, name, storageClassMap, pvMap));
         }
-        pvDtos.addAll(getDenpenceByLabel(projectId, null, name, storage));
-        return pvDtos;
+        dependenceDtos.addAll(getDenpenceByLabel(projectId, null, name, storageClassMap, pvMap));
+        return dependenceDtos;
     }
 
-    private List getDenpenceByLabel(String projectId, String clusterId, String name, ClusterStorage storage) throws Exception{
-        List<Map> pvDtos = new ArrayList<>();
+    private List getDenpenceByLabel(String projectId, String clusterId, String name, Map<String, StorageClassDto> storageClassMap, Map<String, PersistentVolume> pvMap) throws Exception{
+        List<Map> dependenceDtos = new ArrayList<>();
         Cluster topCluster = clusterService.getPlatformCluster();
         String label = null;
         boolean isPublic = false;
         if(clusterId != null) {
-            label = "projectId =" + String.valueOf(projectId) + ",clusterId = " + clusterId + ",common = false";
+            label = "projectId =" + projectId + ",clusterId = " + clusterId + ",common = false";
         }else{
             isPublic = true;
             label = "common = true";
         }
-        K8SClientResponse response = pvService.listPvBylabel(label, topCluster);
+        Map<String, Object> query = new HashMap<>();
+        query.put(CommonConstant.LABELSELECTOR, label);
+        K8SClientResponse response = pvcService.doSepcifyPVC(CommonConstant.CICD_NAMESPACE, query, HTTPMethod.GET, topCluster);
         if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            PersistentVolumeList persistentVolumeList = K8SClient.converToBean(response, PersistentVolumeList.class);
-            List<PersistentVolume> items = persistentVolumeList.getItems();
+            PersistentVolumeClaimList persistentVolumeClaimList = K8SClient.converToBean(response, PersistentVolumeClaimList.class);
+            List<PersistentVolumeClaim> items = persistentVolumeClaimList.getItems();
             // 处理items返回页面需要的对象
-            for (PersistentVolume pv : items) {
-                Map pvDto = new HashMap();
-                String displayName = (String) pv.getMetadata().getLabels().get("name");
+            for (PersistentVolumeClaim pvc : items) {
+                Map dependenceDto = new HashMap();
+                String displayName = (String) pvc.getMetadata().getLabels().get("name");
                 if (name == null || displayName.contains(name)) {
-                    pvDto.put("name", displayName);
-                    pvDto.put("type", CommonConstant.NFS);
-                    pvDto.put("server", storage.getIp());
-                    pvDto.put("serverPath", storage.getPath() + "/" + StringUtils.join(pv.getMetadata().getName().split("\\."), "/"));
-                    pvDto.put("common", isPublic);
-                    pvDto.put("clusterId", clusterId);
-                    pvDto.put("pvName", pv.getMetadata().getName());
-                    pvDtos.add(pvDto);
+                    dependenceDto.put("name", displayName);
+                    String storageClassName = this.getStorageClassName(pvc);
+                    dependenceDto.put("storageClassName", storageClassName);
+                    if(StringUtils.isNotBlank(storageClassName)){
+                        StorageClassDto storageClassDto = storageClassMap.get(storageClassName);
+                        if(storageClassDto == null){
+                            logger.error("未找到存储服务：storageClassName：{}", pvc.getSpec().getStorageClassName());
+                            continue;
+                        }
+                        dependenceDto.put("storageClassType", storageClassDto.getType());
+                        if(StringUtils.isNotBlank(pvc.getSpec().getVolumeName())){
+                            PersistentVolume pv = pvMap.get(pvc.getSpec().getVolumeName());
+                            if(pv != null){
+                                if(CommonConstant.NFS.equalsIgnoreCase(storageClassDto.getType())) {
+                                    NFSVolumeSource nfsVS = pv.getSpec().getNfs();
+                                    dependenceDto.put("serverPath", nfsVS.getServer() + CommonConstant.COLON + nfsVS.getPath());
+                                }
+                            }
+                        }
+                    }
+                    dependenceDto.put("common", isPublic);
+                    dependenceDto.put("clusterId", clusterId);
+                    dependenceDto.put("pvName", pvc.getMetadata().getName());
+                    dependenceDtos.add(dependenceDto);
                 }
             }
         }
-        return pvDtos;
+        return dependenceDtos;
     }
 
     /**
@@ -163,129 +201,43 @@ public class DependenceServiceImpl implements DependenceService {
      * @throws Exception
      */
     public void add(DependenceDto dependenceDto) throws Exception {
-        if (StringUtils.isBlank(dependenceDto.getName())) {
-            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_NAME_NOT_BLANK);
-        }
         Cluster topCluster = clusterService.getPlatformCluster();
-        if (StringUtils.isBlank(dependenceDto.getNfsServer()) || StringUtils.isBlank(dependenceDto.getPath())) {
-            ClusterStorage storage = persistentvolumeService.getProvider(topCluster, CommonConstant.NFS);
-            if(storage == null){
-                throw new MarsRuntimeException(ErrorCodeMessage.PV_PROVIDER_NOT_EXIST, CommonConstant.NFS, true);
-            }
-            dependenceDto.setNfsServer(storage.getIp());
-            dependenceDto.setPath(storage.getPath());
-        }
-        String pvName;
-        String nfsPath;
-        String projectName = null;
-        String clusterName = null;
-        if(!dependenceDto.isCommon()) {
-            projectName = projectService.getProjectNameByProjectId(dependenceDto.getProjectId());
-            clusterName = clusterService.getClusterNameByClusterId(dependenceDto.getClusterId());
 
-            pvName = CommonConstant.DEPENDENCE_PREFIX + "." + projectName + "-" + clusterName + "-" + dependenceDto.getName();
-            nfsPath = dependenceDto.getPath() + "/" + CommonConstant.DEPENDENCE_PREFIX + "/" + projectName + "-" + clusterName + "-" + dependenceDto.getName();
+        //创建pvc
+        String pvcName;
+        if(dependenceDto.isCommon()){
+            pvcName = dependenceDto.getName();
         }else{
-            pvName = CommonConstant.DEPENDENCE_PREFIX + "." + dependenceDto.getName();
-            nfsPath = dependenceDto.getPath() + "/" + CommonConstant.DEPENDENCE_PREFIX + "/" + dependenceDto.getName();
+            String projectName = projectService.getProjectNameByProjectId(dependenceDto.getProjectId());
+            String clusterName = clusterService.getClusterNameByClusterId(dependenceDto.getClusterId());
+            pvcName = projectName + "-" + clusterName + "-" + dependenceDto.getName();
         }
 
-        //查重
-        if (null != pvService.getPvByName(pvName, topCluster)) {
-            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_NAME_DUPLICATE);
+        PersistentVolumeClaim pvc = pvcService.getPVCByNameAndNamespace(pvcName, CommonConstant.CICD_NAMESPACE, topCluster);
+        if (pvc != null) {
+            throw new MarsRuntimeException(ErrorCodeMessage.NAME_EXIST, dependenceDto.getName(), true);
         }
 
-        String server = topCluster.getProtocol() + "://" + topCluster.getHost() + ":" + topCluster.getPort();
-
-        Pod fileUploadPod = getFileUploadPod(topCluster);
-        String fileUploadPodName = fileUploadPod.getMetadata().getName();
-        String remoteDirectory;
-        if(!dependenceDto.isCommon()) {
-            remoteDirectory = "/nfs/" + projectName + "-" + clusterName + "-" + dependenceDto.getName();
-        }else{
-            remoteDirectory = "/nfs/" + dependenceDto.getName();
-        }
-
-        Process p = null;
-        String res;
-        String shellPath = classLoader.getResource("shell/mkdirDependence.sh").getPath();
-        ProcessBuilder proc = new ProcessBuilder("sh", shellPath, fileUploadPodName, remoteDirectory,CommonConstant.KUBE_SYSTEM, topCluster.getMachineToken(), server);
-        try {
-            p = proc.start();
-            BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
-            while ((res = stdInput.readLine()) != null) {
-                logger.info("执行创建目录脚本：" + res);
-            }
-            while ((res = stdError.readLine()) != null) {
-                logger.error("执行创建目录脚本错误：" + res);
-            }
-            int runningStatus = p.waitFor();
-            logger.info("执行创建目录脚本结果：" + runningStatus);
-        }finally{
-            if(p != null){
-                p.destroy();
-            }
-        }
-
-        //创建pv
-        PersistentVolume persistentVolume = new PersistentVolume();
-        // 设置metadata
-        ObjectMeta metadata = new ObjectMeta();
-        metadata.setName(pvName);
+        PersistentVolumeClaim persistentVolumeClaim = new PersistentVolumeClaim();
+        ObjectMeta pvcMetadata = new ObjectMeta();
+        pvcMetadata.setName(pvcName);
         Map<String, Object> labels = new HashMap<>();
         labels.put("name",dependenceDto.getName());
         labels.put("projectId", dependenceDto.isCommon()? null : dependenceDto.getProjectId());
-        labels.put("clusterId", dependenceDto.getClusterId());
-        labels.put("common", dependenceDto.isCommon() ? "true" : "false");
+        labels.put("clusterId", dependenceDto.isCommon()? null : dependenceDto.getClusterId());
+        labels.put("common",String.valueOf(dependenceDto.isCommon()));
+        labels.put("storage-class", dependenceDto.getStorageClassName());
         labels.put(CommonConstant.USERNAME, session.getAttribute(CommonConstant.USERNAME));
-        metadata.setLabels(labels);
-        // 设置spec
-        PersistentVolumeSpec spec = new PersistentVolumeSpec();
-        Map<String, Object> cap = new HashMap<>();
-        cap.put(CommonConstant.STORAGE, "10Gi");
-        spec.setCapacity(cap);
-        spec.setPersistentVolumeReclaimPolicy(CommonConstant.PV_RETAIN);
-        NFSVolumeSource nfs = new NFSVolumeSource();
-        // 设置nfs地址
-        nfs.setPath(nfsPath);
-        nfs.setServer(dependenceDto.getNfsServer());
-        spec.setNfs(nfs);
-        List<String> accessModes = new ArrayList<>();
-        accessModes.add(CommonConstant.READWRITEMANY);
-        spec.setAccessModes(accessModes);
-        persistentVolume.setMetadata(metadata);
-        persistentVolume.setSpec(spec);
-        persistentVolume.setApiVersion("v1");
-        persistentVolume.setKind(CommonConstant.PERSISTENTVOLUME);
-
-        try {
-            ActionReturnUtil result = pvService.addPv(persistentVolume, topCluster);
-        } catch (Exception e) {
-            if (e.getMessage().contains("already exists")) {
-                throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_NAME_DUPLICATE);
-            } else {
-                throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_CREATE_FAIL);
-            }
-        }
-
-        //创建pvc
-        PersistentVolumeClaim persistentVolumeClaim = new PersistentVolumeClaim();
-        ObjectMeta pvcMetadata = new ObjectMeta();
-        pvcMetadata.setName(pvName);
-        labels = new HashMap<>();
-        labels.put("name", pvName);
         pvcMetadata.setLabels(labels);
         persistentVolumeClaim.setMetadata(pvcMetadata);
         PersistentVolumeClaimSpec pvcSpec = new PersistentVolumeClaimSpec();
         List<String> modes = new ArrayList<String>();
         modes.add(CommonConstant.READWRITEMANY);
         pvcSpec.setAccessModes(modes);
-        pvcSpec.setVolumeName(pvName);
-
+        pvcSpec.setStorageClassName(dependenceDto.getStorageClassName());
         ResourceRequirements resourceRequirements = new ResourceRequirements();
         Map<String, Object> limits = new HashMap<String, Object>();
-        limits.put("storage", "10Gi");
+        limits.put("storage", "1Gi");
         resourceRequirements.setRequests(limits);
         pvcSpec.setResources(resourceRequirements);
         persistentVolumeClaim.setSpec(pvcSpec);
@@ -311,28 +263,15 @@ public class DependenceServiceImpl implements DependenceService {
     @Override
     public void delete(String name, String projectId, String clusterId) throws Exception {
         Cluster topCluster = clusterService.getPlatformCluster();
-        String pvName;
-        String remoteDirectory;
-        if(StringUtils.isNotBlank(clusterId)){
-            String projectName = projectService.getProjectNameByProjectId(projectId);
-            String clusterName = clusterService.getClusterNameByClusterId(clusterId);
-            pvName = CommonConstant.DEPENDENCE_PREFIX + "." + projectName + "-" + clusterName + "-" + name;
-            remoteDirectory = "/nfs/" + projectName + "-" + clusterName + "-" + name;
-        }else{
-            pvName = CommonConstant.DEPENDENCE_PREFIX + "." +  name;
-            remoteDirectory = "/nfs/" + name;
-        }
+        PersistentVolumeClaim pvc = getPvc(name, clusterId, projectId, topCluster);
+        String pvcName = pvc.getMetadata().getName();
         Stage stage = new Stage();
-        stage.setDependences("\"pvName\":\"" + pvName + "\"");
+        stage.setDependences("\"pvName\":\"" + pvcName + "\"");
         List stageList = stageService.selectByExample(stage);
         if(CollectionUtils.isNotEmpty(stageList)){
             throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_USED);
         }
-        PersistentVolume pv = pvService.getPvByName(pvName, topCluster);
-        if(pv == null){
-            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_ALREADY_DELETED);
-        }
-        Map<String, Object> labels = pv.getMetadata().getLabels();
+        Map<String, Object> labels = pvc.getMetadata().getLabels();
         String createUser = (String)labels.get(CommonConstant.USERNAME);
         String username = (String)session.getAttribute(CommonConstant.USERNAME);
         if(StringUtils.isBlank(clusterId)) {
@@ -342,17 +281,20 @@ public class DependenceServiceImpl implements DependenceService {
                 }
             }
         }
-        pvService.delPvByName(pvName, topCluster);
 
-        Map<String, Object> query = new HashMap<>();
-        query.put(CommonConstant.LABELSELECTOR, "name=" + pvName);
-        pvcService.doSepcifyPVC(CommonConstant.CICD_NAMESPACE, query, HTTPMethod.DELETE, topCluster);
 
-        Pod fileUploadPod = this.getFileUploadPod(topCluster);
-        String fileUploadPodName = fileUploadPod.getMetadata().getName();
-
-        deleteFile(fileUploadPodName, remoteDirectory, topCluster);
-
+        K8SURL k8SURL = new K8SURL();
+        k8SURL.setApiGroup(APIGroup.API_V1_VERSION);
+        k8SURL.setNamespace(CommonConstant.CICD_NAMESPACE);
+        k8SURL.setResource(Resource.PERSISTENTVOLUMECLAIM);
+        k8SURL.setName(pvcName);
+        K8SClientResponse pvcResponse = new K8sMachineClient().exec(k8SURL, HTTPMethod.DELETE, null, null, topCluster);
+        if (!HttpStatusUtil.isSuccessStatus(pvcResponse.getStatus())) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PVC_CAN_NOT_DELETE);
+        }
+        if(pvcName.contains(CommonConstant.DEPENDENCE_PREFIX + CommonConstant.DOT)){
+            pvService.delPvByName(pvcName, topCluster);
+        }
     }
 
     /**
@@ -367,23 +309,33 @@ public class DependenceServiceImpl implements DependenceService {
         Cluster topCluster = clusterService.getPlatformCluster();
         String server = topCluster.getProtocol() + "://" + topCluster.getHost() + ":" + topCluster.getPort();
 
-        String remoteDirectory;
+
         File tmpDirectory;
         String localFile;
         MultipartFile file = dependenceFileDto.getFile();
         String fileName = file.getOriginalFilename();
         String projectName = null;
+
         if(StringUtils.isNotBlank(dependenceFileDto.getClusterId())){
             projectName = projectService.getProjectNameByProjectId(dependenceFileDto.getProjectId());
             String clusterName = clusterService.getClusterNameByClusterId(dependenceFileDto.getClusterId());
-            remoteDirectory = "/nfs/" + projectName + "-" + clusterName + "-" + dependenceFileDto.getDependenceName() + "/" + dependenceFileDto.getPath() + "/";
-            tmpDirectory = new File(uploadPath + "/" + projectName);
-            localFile = uploadPath + "/" + projectName + "/" + fileName;
+            tmpDirectory = new File(uploadPath + "/" + projectName + "/" + clusterName);
+            localFile = tmpDirectory.getPath() + "/" + fileName;
         }else{
-            remoteDirectory = "/nfs/" + dependenceFileDto.getDependenceName() + "/" + dependenceFileDto.getPath() + "/";
             tmpDirectory = new File(uploadPath + "/" + dependenceFileDto.getDependenceName());
-            localFile = uploadPath + "/" + fileName;
+            localFile = tmpDirectory.getPath() + "/" + fileName;
         }
+
+        PersistentVolumeClaim pvc = getPvc(dependenceFileDto.getDependenceName(), dependenceFileDto.getClusterId(), dependenceFileDto.getProjectId(), topCluster);
+        String storageClassName = this.getStorageClassName(pvc);
+        PersistentVolume pv;
+        if(pvc.getSpec().getVolumeName()!=null){
+            pv = pvService.getPvByName(pvc.getSpec().getVolumeName(), topCluster);
+        }else{
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_NOT_AVAILABLE);
+        }
+        StorageClass storageClass = scService.getScByName(storageClassName, topCluster);
+        String remoteDirectory = getRemoteDependenceDir(pv, storageClass);
 
         //创建临时目录下的项目目录
 
@@ -397,28 +349,35 @@ public class DependenceServiceImpl implements DependenceService {
 
         file.transferTo(tmpFile);
 
-        Pod fileUploadPod = this.getFileUploadPod(topCluster);
+        Pod fileUploadPod = this.getFileUploadPod(storageClassName, topCluster);
         String fileUploadPodName = fileUploadPod.getMetadata().getName();
 
         ProcessBuilder proc;
         Process p = null;
         String res;
+
+        String[] uploadDependenceCommand = {
+                "kubectl",
+                "cp",
+                localFile,
+                CommonConstant.KUBE_SYSTEM + "/" + fileUploadPodName + ":" + remoteDirectory,
+                "--token=" + topCluster.getMachineToken(),
+                "--server="+server,
+                "--insecure-skip-tls-verify=true" };
         boolean error = false;
         try {
             if (!dependenceFileDto.isDecompressed()) {
-                String shellPath = classLoader.getResource("shell/uploadDependence.sh").getPath();
-                proc = new ProcessBuilder("sh", shellPath, localFile, CommonConstant.KUBE_SYSTEM, fileUploadPodName, remoteDirectory, topCluster.getMachineToken(), server);
-                p = proc.start();
+                p = Runtime.getRuntime().exec(uploadDependenceCommand);
                 BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
                 BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
                 while ((res = stdInput.readLine()) != null) {
-                    logger.info("执行上传文件脚本：" + res);
+                    logger.info("执行上传文件命令：" + res);
                 }
                 while ((res = stdError.readLine()) != null) {
-                    if(res.contains("in the future")){
-                        logger.warn("执行上传文件脚本警告：" + res);
+                    if(res.contains("in the future") || res.contains("implausibly old time stamp")){
+                        logger.warn("执行上传文件命令警告：" + res);
                     }else {
-                        logger.error("执行上传文件脚本错误：" + res);
+                        logger.error("执行上传文件命令错误：" + res);
                         error = true;
                     }
                 }
@@ -426,7 +385,7 @@ public class DependenceServiceImpl implements DependenceService {
                     throw new Exception();
                 }
                 int runningStatus = p.waitFor();
-                logger.info("执行容器文件目录结果：" + runningStatus);
+                logger.info("执行容器文件命令结果：" + runningStatus);
 
             } else {
                 String localDirectory;
@@ -444,8 +403,12 @@ public class DependenceServiceImpl implements DependenceService {
                     logger.info("执行解压文件脚本：" + res);
                 }
                 while ((res = stdError.readLine()) != null) {
-                    logger.error("执行解压文件脚本错误：" + res);
-                    error = true;
+                    if(res.contains("in the future") || res.contains("implausibly old time stamp")){
+                        logger.warn("执行解压文件脚本警告：" + res);
+                    }else {
+                        logger.error("执行解压文件脚本错误：" + res);
+                        error = true;
+                    }
                 }
                 if (error) {
                     throw new Exception();
@@ -479,65 +442,7 @@ public class DependenceServiceImpl implements DependenceService {
      * @throws Exception
      */
     public List listFile(String dependenceName, String projectId, String clusterId, String path) throws Exception {
-
-        Cluster topCluster = clusterService.getPlatformCluster();
-        String server = topCluster.getProtocol() + "://" + topCluster.getHost() + ":" + topCluster.getPort();
-
-        String targetDir;
-        if(StringUtils.isNotBlank(clusterId)){
-            String projectName = projectService.getProjectNameByProjectId(projectId);
-            String clusterName = clusterService.getClusterNameByClusterId(clusterId);
-            targetDir = "/nfs/" + projectName + "-" + clusterName + "-" + dependenceName + "/" + path;
-        }else{
-            targetDir = "/nfs/" + dependenceName + "/" + path;
-        }
-
-        Pod fileUploadPod = getFileUploadPod(topCluster);
-        String fileUploadPodName = fileUploadPod.getMetadata().getName();
-        Process p = null;
-        boolean error = false;
-        try {
-            String shellPath = classLoader.getResource("shell/lsDependence.sh").getPath();
-            ProcessBuilder proc = new ProcessBuilder("sh", shellPath, fileUploadPodName, targetDir, CommonConstant.KUBE_SYSTEM, topCluster.getMachineToken(), server);
-            p = proc.start();
-
-            String res;
-            List<Map<String, Object>> files = new ArrayList();
-            BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
-
-            while ((res = stdInput.readLine()) != null) {
-                Map<String, Object> file = new HashMap();
-                String[] fileAttributes = res.split("\\s+", 9);
-                if (fileAttributes.length < 9) {
-                    continue;
-                }
-                if (CommonConstant.DIRECTORY_TYPE.equals(fileAttributes[0].charAt(0))) {
-                    file.put("directory", true);
-                } else {
-                    file.put("directory", false);
-                }
-                file.put("name", fileAttributes[8]);
-                files.add(file);
-            }
-            while ((res = stdError.readLine()) != null) {
-                logger.error("执行容器文件目录脚本错误" + res);
-                error = true;
-            }
-            if(error){
-                throw new Exception();
-            }
-            int runningStatus = p.waitFor();
-            logger.info("执行容器文件目录结果：" + runningStatus);
-            return files;
-        } catch (Exception e) {
-            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_DIRECTORY_LIST_FAIL);
-        } finally {
-            if (null != p) {
-                p.destroy();
-            }
-        }
-
+        return getFileList(dependenceName, projectId, clusterId, path, false);
     }
 
     /**
@@ -550,49 +455,68 @@ public class DependenceServiceImpl implements DependenceService {
      * @throws Exception
      */
     public void deleteFile(String dependenceName, String projectId, String clusterId, String path) throws Exception {
-
         Cluster topCluster = clusterService.getPlatformCluster();
-        String server = topCluster.getProtocol() + "://" + topCluster.getHost() + ":" + topCluster.getPort();
-
-        String targetPath;
-        if(StringUtils.isNotBlank(clusterId)){
+        String pvcName;
+        if(StringUtils.isNotBlank(clusterId)) {
             String projectName = projectService.getProjectNameByProjectId(projectId);
             String clusterName = clusterService.getClusterNameByClusterId(clusterId);
-            targetPath = "/nfs/" + projectName + "-" + clusterName + "-" + dependenceName + "/" + path;
+            pvcName = projectName + "-" + clusterName + "-" + dependenceName;
         }else{
-            targetPath = "/nfs/" + dependenceName + "/" + path;
+            pvcName = dependenceName;
+        }
+        PersistentVolumeClaim pvc = pvcService.getPvcByName(CommonConstant.CICD_NAMESPACE, pvcName, topCluster);
+        String storageClassName = this.getStorageClassName(pvc);
+        if(StringUtils.isBlank(storageClassName)){
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_FILE_RM_FAIL);
+        }
+        String fileUploadPodName = getFileUploadPod(storageClassName, topCluster).getMetadata().getName();
+        PersistentVolume pv;
+        if(pvc.getSpec().getVolumeName()!=null){
+            pv = pvService.getPvByName(pvc.getSpec().getVolumeName(), topCluster);
+        }else{
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_NOT_AVAILABLE);
+        }
+        StorageClass storageClass = scService.getScByName(storageClassName, topCluster);
+        String remoteDependenceDir = getRemoteDependenceDir(pv, storageClass);
+        String targetPath = remoteDependenceDir + "/" + path;
+
+        deleteFile(fileUploadPodName, targetPath, topCluster);
+    }
+
+    /**
+     * 根据文件或目录的名称关键词查询依赖目录下的文件或目录
+     *
+     * @param dependenceName 依赖名
+     * @param projectId      项目id
+     * @param clusterId      集群id
+     * @param keyWord
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public List findDependenceFileByKeyword(String dependenceName, String projectId, String clusterId, String keyWord) throws Exception {
+        String lowerCaseKeyWord = keyWord.toLowerCase();
+        List<Map<String, Object>> list = getFileList(dependenceName, projectId, clusterId, "", true);
+        List<Map<String, Object>> result = new ArrayList();
+
+        for (Map<String, Object> file : list) {
+            String fileName = file.get("fileName").toString().toLowerCase();
+            if (fileName.contains(lowerCaseKeyWord)){
+                result.add(file);
+            }
+
         }
 
-        String shellPath = classLoader.getResource("shell/rmDependence.sh").getPath();
+        return result;
+    }
 
-        Pod fileUploadPod = getFileUploadPod(topCluster);
-        String fileUploadPodName = fileUploadPod.getMetadata().getName();
-        Process p = null;
-        try {
-            ProcessBuilder proc = new ProcessBuilder("sh", shellPath, fileUploadPodName, targetPath, CommonConstant.KUBE_SYSTEM, topCluster.getMachineToken(), server);
-            p = proc.start();
-            String res;
-            boolean error = false;
-            BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
-            while ((res = stdInput.readLine()) != null) {
-                logger.info("删除文件或目录：" + res);
-            }
-            while ((res = stdError.readLine()) != null) {
-                logger.error("删除文件或目录失败：" + res);
-                error = true;
-            }
-            if (error) {
-                throw new Exception();
-            }
-            int runningStatus = p.waitFor();
-            logger.info("删除文件或目录结果：" + runningStatus);
-        } catch (Exception e) {
-            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_FILE_RM_FAIL);
-        } finally {
-            if (null != p) {
-                p.destroy();
-            }
+    @Override
+    public List<StorageClassDto> listStorageClass() throws Exception {
+        Cluster topCluster = clusterService.getPlatformCluster();
+        if(topCluster != null){
+            return storageClassService.listStorageClass(topCluster.getId());
+        }else{
+            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
     }
 
@@ -603,11 +527,11 @@ public class DependenceServiceImpl implements DependenceService {
      * @return
      * @throws Exception
      */
-    private Pod getFileUploadPod(Cluster cluster) throws Exception {
+    private Pod getFileUploadPod(String storageClassName, Cluster cluster) throws Exception {
         K8SURL url = new K8SURL();
         url.setNamespace(CommonConstant.KUBE_SYSTEM);
         url.setResource(Resource.POD);
-        String label = CommonConstant.FILE_UPLOAD_POD_LABEL;
+        String label = CommonConstant.FILE_UPLOAD_POD_LABEL + "-" + storageClassName;
         Map<String, Object> body = new HashMap<>();
         body.put(CommonConstant.LABELSELECTOR, label);
         K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, body, cluster);
@@ -628,51 +552,44 @@ public class DependenceServiceImpl implements DependenceService {
     }
 
     @Override
-    public void deleteDependenceByProject(String projectId) {
-        try {
-            Cluster topCluster = clusterService.getPlatformCluster();
-            String label = "projectId = " + projectId;
-            K8SClientResponse response = pvService.listPvBylabel(label, topCluster);
-            if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                PersistentVolumeList persistentVolumeList = K8SClient.converToBean(response, PersistentVolumeList.class);
-                List<PersistentVolume> items = persistentVolumeList.getItems();
-                for (PersistentVolume pv : items) {
-                    String pvName = pv.getMetadata().getName();
-                    String remoteDirectory = "/nfs/" + pvName.replace(CommonConstant.DEPENDENCE_PREFIX + ".", "");
-                    pvService.delPvByName(pvName, topCluster);
-
-                    Map<String, Object> query = new HashMap<>();
-                    query.put(CommonConstant.LABELSELECTOR, "name=" + pvName);
-                    pvcService.doSepcifyPVC(CommonConstant.CICD_NAMESPACE, query, HTTPMethod.DELETE, topCluster);
-
-                    Pod fileUploadPod = this.getFileUploadPod(topCluster);
-                    String fileUploadPodName = fileUploadPod.getMetadata().getName();
-                    deleteFile(fileUploadPodName, remoteDirectory, topCluster);
-                }
-            }
-        }catch(Exception e){
-            logger.error("删除依赖目录失败：" + e);
+    public void deleteDependenceByProject(String projectId) throws Exception {
+        Cluster topCluster = clusterService.getPlatformCluster();
+        String label = "projectId = " + projectId;
+        Map<String, Object> pvclabel = new HashMap<String, Object>();
+        pvclabel.put("labelSelector", label);
+        K8SClientResponse response = pvcService.doSepcifyPVC(CommonConstant.CICD_NAMESPACE, pvclabel, HTTPMethod.DELETE,topCluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            logger.error("删除依赖失败：{}", response.getBody());
         }
     }
 
     private void deleteFile(String fileUploadPodName, String directory, Cluster topCluster){
         String server = topCluster.getProtocol() + "://" + topCluster.getHost() + ":" + topCluster.getPort();
         Process p = null;
-        String res;
-        String shellPath = classLoader.getResource("shell/rmDependence.sh").getPath();
-        ProcessBuilder proc = new ProcessBuilder("sh", shellPath, fileUploadPodName, directory, CommonConstant.KUBE_SYSTEM, topCluster.getMachineToken(), server);
+
+        String rmCmd = "rm -rf";
+        String rmDependenceCommand = String.format("kubectl exec %s -n %s --token=%s --server=%s --insecure-skip-tls-verify=true -- %s %s",
+                fileUploadPodName, CommonConstant.KUBE_SYSTEM, topCluster.getMachineToken(), server, rmCmd,directory);
+
+
         try {
-            p = proc.start();
+            p = Runtime.getRuntime().exec(rmDependenceCommand);
             BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
             BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+            String res;
+            boolean error = false;
             while ((res = stdInput.readLine()) != null) {
-                logger.info("执行删除目录脚本：" + res);
+                logger.info("执行删除命令：" + res);
             }
             while ((res = stdError.readLine()) != null) {
-                logger.error("执行删除目录脚本错误：" + res);
+                logger.error("执行删除命令错误：" + res);
+                error =true;
+            }
+            if(error){
+                throw new Exception();
             }
             int runningStatus = p.waitFor();
-            logger.info("执行删除目录脚本结果：" + runningStatus);
+            logger.info("执行删除命令结果：" + runningStatus);
         } catch (Exception e) {
             throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_FILE_RM_FAIL);
         } finally {
@@ -681,4 +598,188 @@ public class DependenceServiceImpl implements DependenceService {
             }
         }
     }
+
+
+    private List getFileList(String dependenceName, String projectId, String clusterId, String path, boolean isRecurse) throws Exception {
+        Cluster topCluster = clusterService.getPlatformCluster();
+        String server = topCluster.getProtocol() + "://" + topCluster.getHost() + ":" + topCluster.getPort();
+
+        PersistentVolumeClaim pvc = getPvc(dependenceName, clusterId, projectId, topCluster);
+        PersistentVolume pv;
+        if(pvc.getSpec().getVolumeName()!=null){
+            pv = pvService.getPvByName(pvc.getSpec().getVolumeName(), topCluster);
+        }else{
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_NOT_AVAILABLE);
+        }
+        String storageClassName = getStorageClassName(pvc);
+        StorageClass storageClass = scService.getScByName(storageClassName, topCluster);
+        String remoteDependenceDir = getRemoteDependenceDir(pv, storageClass);
+        String targetDir = remoteDependenceDir + "/" + path;
+
+        Pod fileUploadPod = getFileUploadPod(storageClassName, topCluster);
+        String fileUploadPodName = fileUploadPod.getMetadata().getName();
+        Process p = null;
+        boolean error = false;
+        try {
+            String[] lsCmd;
+            if(isRecurse){
+                lsCmd = new String[]{"ls", "-alhR", "--full-time", targetDir};
+            }else {
+                lsCmd = new String[]{"ls", "-alh", "--full-time", targetDir};
+            }
+            String[] lsDependenceCommand = ArrayUtils.addAll(new String[]{
+                    "kubectl",
+                    "exec",
+                    fileUploadPodName,
+                    "-n",
+                    CommonConstant.KUBE_SYSTEM,
+                    "--token=" + topCluster.getMachineToken(),
+                    "--server=" + server,
+                    "--insecure-skip-tls-verify=true",
+                    "--"}, lsCmd
+            );
+            p = Runtime.getRuntime().exec(lsDependenceCommand);
+
+            String res;
+            List<Map<String, Object>> files = new ArrayList();
+            BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+
+
+
+            String tmpParentDirectory = "/";
+            String lastLine = null;
+            while ((res = stdInput.readLine()) != null) {
+                Map<String, Object> file = new HashMap();
+                String[] fileAttributes = res.split("\\s+", 9);
+                if(fileAttributes.length < 9 || StringUtils.isBlank(lastLine)){
+                    if (fileAttributes.length == 2 && "total".equalsIgnoreCase(fileAttributes[0]) && StringUtils.isNotBlank(lastLine)){
+                        tmpParentDirectory = lastLine.substring(lastLine.lastIndexOf(remoteDependenceDir) + remoteDependenceDir.length());
+                        tmpParentDirectory = tmpParentDirectory.substring(0,tmpParentDirectory.length()-1);
+                    }
+                    lastLine = res;
+                    continue;
+                }
+                //隐藏linux  . ..文件
+                if(fileAttributes[8].equals(".")||fileAttributes[8].equals("..")){
+                    continue;
+                }
+                if(fileAttributes[0].startsWith(CommonConstant.DIRECTORY_TYPE)){
+                    file.put("type", "directory");
+                    file.put("isDirectory",true);
+                } else {
+                    file.put("isDirectory", false);
+                }
+
+                //处理无后缀的文件
+                if(!(boolean)file.get("isDirectory") && fileAttributes[8].contains(".")){
+                    file.put("type", fileAttributes[8].substring(fileAttributes[8].lastIndexOf(".")+1));
+                    file.put("prefixFilename", fileAttributes[8].substring(0, fileAttributes[8].lastIndexOf(".")));
+                }else if(!(boolean)file.get("isDirectory") && !fileAttributes[8].contains(".")){
+                    file.put("type", "");
+                    file.put("prefixFilename", fileAttributes[8]);
+                }
+
+
+                file.put("fileName", fileAttributes[8]);
+
+                char c = fileAttributes[4].charAt(fileAttributes[4].length()-1);
+                if( c >= '0' && c <= '9'){
+                    fileAttributes[4] += "Byte";
+                }
+                file.put("size", fileAttributes[4]);
+                if(!fileAttributes[6].contains(".")){
+                    file.put("lastModified", fileAttributes[5] + " " +fileAttributes[6]) ;
+                }else {
+                    file.put("lastModified", fileAttributes[5] + " " +fileAttributes[6].substring(0, fileAttributes[6].lastIndexOf("."))) ;
+                }
+                if(isRecurse){
+                    file.put("parentDirectory", tmpParentDirectory);
+                }
+                files.add(file);
+            }while ((res = stdError.readLine()) != null) {
+                logger.error("执行容器文件目录ls命令错误" + res);
+                error = true;
+            }
+            if(error){
+                throw new Exception();
+            }
+            int runningStatus = p.waitFor();
+            logger.info("执行容器文件目录ls命令结果：" + runningStatus);
+            return files;
+        } catch (Exception e) {
+            logger.warn("获取{}依赖文件列表失败", dependenceName, e);
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_DIRECTORY_LIST_FAIL);
+        } finally {
+            if (null != p) {
+                p.destroy();
+            }
+        }
+    }
+
+    /**
+     * 获取依赖在file-upload组件中的对应目录
+     * @param pv
+     * @param storageClass
+     * @return
+     * @throws Exception
+     */
+    private String getRemoteDependenceDir(PersistentVolume pv, StorageClass storageClass) throws Exception {
+        String nfsPath = (String)storageClass.getMetadata().getAnnotations().get(NFSPATH);
+        NFSVolumeSource nfsVs = pv.getSpec().getNfs();
+        if (nfsVs != null && StringUtils.isNotBlank(nfsPath)) {
+            return nfsVs.getPath().replaceFirst(nfsPath, MOUNTPATH) + CommonConstant.SLASH;
+        } else {
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_DIRECTORY_QUERY_ERROR);
+        }
+    }
+
+    /**
+     * 从PVC中获取storageclass名称
+     * @param pvc
+     * @return
+     */
+    private String getStorageClassName(PersistentVolumeClaim pvc){
+        String storageClass = pvc.getSpec().getStorageClassName();
+        if(StringUtils.isBlank(storageClass) && pvc.getMetadata().getAnnotations() != null){
+            storageClass = (String)pvc.getMetadata().getAnnotations().get(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.STORAGECLASS);
+        }
+        return storageClass;
+    }
+
+    /**
+     * 根据label查询pvc
+     * @param name
+     * @param clusterId
+     * @param projectId
+     * @param cluster
+     * @return
+     * @throws Exception
+     */
+    private PersistentVolumeClaim getPvc(String name, String clusterId, String projectId, Cluster cluster) throws Exception {
+        Map<String, Object> bodys = new HashMap<>();
+        String labelSelector = CommonConstant.NAME + CommonConstant.EQUALITY_SIGN + name;
+        if(StringUtils.isNotBlank(clusterId)){
+            labelSelector += CommonConstant.COMMA + CommonConstant.CLUSTERID + CommonConstant.EQUALITY_SIGN + clusterId;
+            labelSelector += CommonConstant.COMMA + CommonConstant.PROJECTID + CommonConstant.EQUALITY_SIGN + projectId;
+            labelSelector += CommonConstant.COMMA + COMMON + CommonConstant.EQUALITY_SIGN + CommonConstant.FALSE_STRING;
+        }else {
+            labelSelector += CommonConstant.COMMA + COMMON + CommonConstant.EQUALITY_SIGN + CommonConstant.TRUE_STRING;
+        }
+        bodys.put(CommonConstant.LABELSELECTOR, labelSelector);
+        K8SClientResponse res = pvcService.doSepcifyPVC(CommonConstant.CICD, bodys, HTTPMethod.GET, cluster);
+        if(!HttpStatusUtil.isSuccessStatus(res.getStatus())){
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_LIST_ERROR);
+        }
+        PersistentVolumeClaimList persistentVolumeClaimList = JsonUtil.jsonToPojo(res.getBody(), PersistentVolumeClaimList.class);
+        List<PersistentVolumeClaim> pvcList = persistentVolumeClaimList.getItems();
+        if(!CollectionUtils.isNotEmpty(pvcList)){
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_ALREADY_DELETED);
+        }else if(pvcList.size() != 1){
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPENDENCE_LIST_ERROR);
+        }else{
+            return pvcList.get(0);
+        }
+    }
+
 }

@@ -78,6 +78,18 @@
     from namespace
     where id = #{id,jdbcType=INTEGER}
   </select>
+  <select id="selectNameByalias_name" parameterType="String" resultType="Map">
+    select
+    namespace_name nameSpaceName,cluster_id clusterId
+    from namespace
+    where alias_name = #{aliasName}
+  </select>
+  <select id="selectAliasNameByName" parameterType="String" resultType="Map">
+    select
+    alias_name alias_name,cluster_id clusterId
+    from namespace
+    where namespace_name = #{nameSpaceName}
+  </select>
   <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
     delete from namespace
     where id = #{id,jdbcType=INTEGER}

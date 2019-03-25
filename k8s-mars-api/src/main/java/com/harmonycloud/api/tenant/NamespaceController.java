@@ -1,22 +1,23 @@
 package com.harmonycloud.api.tenant;
 
-import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.dto.tenant.NamespaceDto;
+import com.harmonycloud.service.application.IstioService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.tenant.NamespaceService;
+import io.swagger.annotations.ApiImplicitParam;
+import io.swagger.annotations.ApiImplicitParams;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
-
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dto.tenant.NamespaceDto;
-import com.harmonycloud.service.tenant.NamespaceService;
 
 import javax.servlet.http.HttpSession;
 import java.util.ArrayList;
@@ -29,13 +30,15 @@ import java.util.List;
 public class NamespaceController {
 
     @Autowired
-    NamespaceService namespaceService;
+    private NamespaceService namespaceService;
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    HttpSession session;
+    private HttpSession session;
+    @Autowired
+    private IstioService istioService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -103,7 +106,8 @@ public class NamespaceController {
     @ResponseBody
     public ActionReturnUtil listNamespace(@PathVariable("tenantId") String tenantId,
                                           @RequestParam(value="clusterId", required = false)String clusterId,
-                                          @RequestParam(value="repositoryId", required = false) Integer repositoryId) throws Exception {
+                                          @RequestParam(value="repositoryId", required = false) Integer repositoryId,
+                                          @RequestParam(value="storage", required = false) Boolean isStorage) throws Exception {
         List<NamespaceLocal> namespaceList = new ArrayList<>();
         //查询镜像可以部署的分区列表
         if(repositoryId != null){
@@ -120,6 +124,13 @@ public class NamespaceController {
                 clusterIds.add(clusterId);
             }
             namespaceList.addAll(namespaceLocalService.getNamespaceListByTenantIdAndClusterId(tenantId, clusterIds));
+        }
+        //存储页面的分区根据权限增加kube-system
+        if(isStorage != null && isStorage){
+            NamespaceLocal namespaceLocal = namespaceLocalService.getKubeSystemNamespace();
+            if(namespaceLocal != null) {
+                namespaceList.add(namespaceLocal);
+            }
         }
         return ActionReturnUtil.returnSuccessWithData(namespaceList);
     }
@@ -172,5 +183,58 @@ public class NamespaceController {
         namespaceDto.setNodeName(nodeName);
         namespaceService.addPrivilegeNamespaceNodes(namespaceDto);
         return ActionReturnUtil.returnSuccess();
+    }
+
+
+    /**
+     * 查询分区是否开启istio注入
+     *
+     * @param clusterId
+     * @return
+     * @throws Exception
+     */
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "查询分区istio注入开关状态", response = ActionReturnUtil.class, httpMethod = "", consumes = "", produces = "", notes = "返回值为true，分区开启Istio；值为，关闭分区Istio")
+    @ApiImplicitParams({@ApiImplicitParam(name = "clusterId", value = "集群id", paramType = "query", dataType = "String"), @ApiImplicitParam(name = "namespace", value = "分区名称", paramType = "path", dataType = "String")})
+    @ResponseBody
+    @RequestMapping(value = "/{namespace}/istiopolicyswitch", method = RequestMethod.GET)
+    public ActionReturnUtil getNamespaceIstioPolicySwitch(@RequestParam("clusterId") String clusterId, @PathVariable("namespace") String namespace)
+            throws Exception {
+        return istioService.getNamespaceIstioPolicySwitch(namespace, clusterId);
+    }
+
+    /**
+     * 开启或关闭分区istio自动注入
+     * @param clusterId
+     * @param status
+     * @param namespaceName
+     * @return
+     * @throws Exception
+     */
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "现有分区istio服务开启关闭功能", response = ActionReturnUtil.class, httpMethod = "", consumes = "", produces = "", notes = "status值为true，分区开启Istio；值为false，关闭分区Istio")
+    @ApiImplicitParams({@ApiImplicitParam(name = "clusterId", value = "集群id", paramType = "query", dataType = "String"),
+            @ApiImplicitParam(name = "status", value = "开启或关闭操作（开启为true，关闭为false）", paramType = "query", dataType = "Boolean"),
+            @ApiImplicitParam(name = "namespaceName", value = "分区名称", paramType = "path", dataType = "String")
+    })
+    @ResponseBody
+    @RequestMapping(value = "/{namespaceName}/istiopolicyswitch", method = RequestMethod.PUT)
+    public ActionReturnUtil updateNamespaceIstioPolicySwitch(@RequestParam("clusterId") String clusterId, @RequestParam("status") boolean status, @PathVariable("namespaceName") String namespaceName)
+            throws Exception {
+        return istioService.updateNamespaceIstioPolicySwitch(status, clusterId, namespaceName);
+    }
+
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "Istio分区总览", response = ActionReturnUtil.class, httpMethod = "", consumes = "", produces = "", notes = "")
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "ruleType", value = "策略类型", paramType = "query", dataType = "String"),
+            @ApiImplicitParam(name = "namespace", value = "分区名称", paramType = "path", dataType = "String", required = true)
+    })
+    @ResponseBody
+    @RequestMapping(value = "/{namespace}/istiopolicies", method = RequestMethod.GET)
+    public ActionReturnUtil listIstioPolicies(@PathVariable("namespace") String namespace,
+                                              @RequestParam(value = "ruleType", required = false) String ruleType)
+            throws Exception {
+        return istioService.listIstioPolicies(null, namespace, ruleType);
     }
 }

@@ -1,5 +1,6 @@
 package com.harmonycloud.service.cluster.impl;
 
+import com.alibaba.druid.filter.config.ConfigTools;
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ClusterLevelEnum;
@@ -10,6 +11,9 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.cluster.TransferBindDeployMapper;
+import com.harmonycloud.dao.cluster.TransferBindNamespaceMapper;
+import com.harmonycloud.dao.cluster.TransferClusterMapper;
 import com.harmonycloud.dto.cluster.AddClusterDto;
 import com.harmonycloud.dto.cluster.ClusterCRDDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -20,6 +24,7 @@ import com.harmonycloud.k8s.service.ClusterTemplateCRDService;
 import com.harmonycloud.k8s.util.DefaultClient;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.k8sUtil;
+import com.harmonycloud.service.application.DataCenterService;
 import com.harmonycloud.service.application.SecretService;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.cluster.ClusterCRDService;
@@ -34,7 +39,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -49,25 +56,34 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
 //    @Autowired
     private com.harmonycloud.k8s.service.ClusterCRDService clusterCRDService = new com.harmonycloud.k8s.service.ClusterCRDService();
     @Autowired
-    ClusterTemplateService clusterTemplateService ;
+    private ClusterTemplateService clusterTemplateService ;
 
     private ClusterTemplateCRDService clusterTemplaeCRDService = new ClusterTemplateCRDService();
     private static Logger logger = LoggerFactory.getLogger(ClusterCRDServiceImpl.class);
 
     @Autowired
-    DataCenterService dataCenterService;
+    private DataCenterService dataCenterService;
     @Autowired
-    ClusterCacheManager clusterCacheManager;
+    private ClusterCacheManager clusterCacheManager;
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
     @Autowired
-    HarborProjectService harborProjectService;
+    private HarborProjectService harborProjectService;
     @Autowired
-    UserService userService;
+    private UserService userService;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    SecretService secretService;
+    private SecretService secretService;
+    @Value("${private.key:}")
+    private String privateKey;
+
+    @Autowired
+    TransferBindDeployMapper transferBindDeployMapper;
+    @Autowired
+    TransferClusterMapper transferClusterMapper;
+    @Autowired
+    TransferBindNamespaceMapper transferBindNamespaceMapper;
 
     @Override
     public ActionReturnUtil getCluster(String dataCenter, String name) throws Exception {
@@ -136,6 +152,9 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
         if (HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             //更新集群需要重新初始化集群信息，并同时更新redis缓存
             clusterCacheManager.initClusterCache();
+            transferBindDeployMapper.deleteTransferBindDeploy(clusterId);
+            transferClusterMapper.deleteCluster(clusterId);
+            transferBindNamespaceMapper.deleteBindNamespace(clusterId);
             return ActionReturnUtil.returnSuccessWithMsg(response.getBody());
         } else {
             return ActionReturnUtil.returnErrorWithMsg(response.getBody());
@@ -163,9 +182,15 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
                 throw new MarsRuntimeException(DictEnum.CLUSTER.phrase()
                         + " " + clusterCRDDto.getHost(), ErrorCodeMessage.EXIST);
             }
-            if(cluster.getName().equalsIgnoreCase(clusterCRDDto.getName())){
-                throw new MarsRuntimeException(DictEnum.CLUSTER.phrase()
+            if(cluster.getName().equalsIgnoreCase(clusterCRDDto.getName())
+                    && cluster.getDataCenter().equalsIgnoreCase(clusterCRDDto.getDatacenter())){
+                throw new MarsRuntimeException(DictEnum.NAME.phrase()
                         + " " + clusterCRDDto.getName(), ErrorCodeMessage.EXIST);
+            }
+            if(cluster.getAliasName().equalsIgnoreCase(clusterCRDDto.getNickname())
+                    && cluster.getDataCenter().equalsIgnoreCase(clusterCRDDto.getDatacenter())){
+                throw new MarsRuntimeException(DictEnum.NAME.phrase()
+                        + " " + clusterCRDDto.getNickname(), ErrorCodeMessage.EXIST);
             }
         }
         Cluster cluster = DefaultClient.getDefaultCluster();
@@ -268,9 +293,9 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
     }
 
     @Override
-    public ActionReturnUtil updateCluster(String name, ClusterCRDDto clusterCRDDto) throws Exception {
+    public ActionReturnUtil updateCluster(Cluster clusterInfo, ClusterCRDDto clusterCRDDto) throws Exception {
         // 不允许修改集群 name
-        if (!name.equals(clusterCRDDto.getName())) {
+        if (!clusterInfo.getName().equals(clusterCRDDto.getName())) {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.CLUSTER_NAME_UNUPDATE);
         }
         // 验证数据是否异常
@@ -288,7 +313,10 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
         }else {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
-        ClusterCRD clusterCRD = this.convertCRD(clusterCRDDto);
+
+        //获取当前要被修改的cluster
+
+        ClusterCRD clusterCRD = this.convertCRD(clusterCRDDto,clusterInfo);
         if (null != clusterCRD.getStatus()) {
 
             List<StatusConditions> newConditions = clusterCRD.getStatus().getConditions();
@@ -381,7 +409,7 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
      * @return ClusterCRD
      * @throws Exception null
      */
-    private ClusterCRD convertCRD(ClusterCRDDto clusterCRDDto) throws Exception {
+    private ClusterCRD convertCRD(ClusterCRDDto clusterCRDDto, Cluster clusterInfo) throws Exception {
         ClusterCRD clusterCRD = new ClusterCRD();
         clusterCRD = resourceObject(clusterCRD);
 
@@ -405,7 +433,8 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
         harbor.setPort(clusterCRDDto.getHarborPort());
         harbor.setProtocol(clusterCRDDto.getHarborProtocol());
         harbor.setUser(clusterCRDDto.getHarborAdminUser());
-        harbor.setPassword(clusterCRDDto.getHarborAdminPwd());
+        harbor.setPassword(StringUtils.isBlank(privateKey) ? clusterCRDDto.getHarborAdminPwd() : ConfigTools.encrypt(privateKey,
+                clusterCRDDto.getHarborAdminPwd()));
         info.setNfs(clusterCRDDto.getNfs());
         info.setHarbor(harbor);
         info.setDomain(clusterCRDDto.getDomain());
@@ -467,8 +496,9 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
         clusterCRDDto.setRedis(info.getRedis());
         clusterCRDDto.setNetwork(info.getNetwork());
         clusterCRDDto.setJenkins(info.getJenkins());
-
+        clusterCRDDto.setElasticsearch(info.getElasticsearch());
         clusterCRDDto.setTemplate(template);
+        clusterCRDDto.setGitInfo(info.getGit());
         Map<String, Boolean> statusMap = status.getConditions().stream().collect(Collectors.toMap(StatusConditions::getType, condition -> condition.getStatus()));
         clusterCRDDto.setIsEnable(statusMap.get("Ready"));
 

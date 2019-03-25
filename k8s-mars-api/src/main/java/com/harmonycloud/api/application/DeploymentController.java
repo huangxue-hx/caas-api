@@ -1,18 +1,21 @@
 package com.harmonycloud.api.application;
 
-import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.exception.K8sAuthException;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.dto.application.AffinityDto;
 import com.harmonycloud.dto.application.DeployedServiceNamesDto;
 import com.harmonycloud.dto.application.ServiceDeployDto;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.dto.application.DeploymentDetailDto;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.EsService;
 import com.harmonycloud.service.application.ServiceService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.UpdateDeployment;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,18 +35,18 @@ import javax.servlet.http.HttpSession;
 public class DeploymentController {
 
 	@Autowired
-	DeploymentsService dpService;
+	private DeploymentsService dpService;
 
 	@Autowired
-	EsService esService;
+	private EsService esService;
 	@Autowired
-	HttpSession session;
+	private HttpSession session;
 
 	@Autowired
-	ClusterService clusterService;
+	private ClusterService clusterService;
 
 	@Autowired
-	ServiceService serviceService;
+	private ServiceService serviceService;
 
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -52,6 +55,7 @@ public class DeploymentController {
 	 * 
 	 * @param name
 	 * @param namespace
+	 * @param isTenantScope 是否查询租户的服务列表
 	 * @param labels(可选)
 	 *            搜索条件
 	 * @return
@@ -64,7 +68,11 @@ public class DeploymentController {
 			                                @RequestParam(value = "namespace", required = false) String namespace,
 			                                @RequestParam(value = "labels", required = false) String labels,
 											@PathVariable(value = "projectId") String projectId,
-											@RequestParam(value = "clusterId", required = false) String clusterId) throws Exception {
+											@RequestParam(value = "clusterId", required = false) String clusterId,
+											@RequestParam(value = "isTenantScope", required = false) Boolean isTenantScope) throws Exception {
+		if(isTenantScope != null && isTenantScope){
+			return ActionReturnUtil.returnSuccessWithData(dpService.listTenantDeploys(tenantId,namespace, clusterId));
+		}
 		ActionReturnUtil result = dpService.listDeployments(tenantId, name, namespace, labels, projectId, clusterId);
 		return result;
 
@@ -78,12 +86,14 @@ public class DeploymentController {
 	 */
 	@ResponseBody
 	@RequestMapping(method = RequestMethod.POST)
-	public ActionReturnUtil deployService(@ModelAttribute ServiceDeployDto serviceDeploy) throws Exception {
+	public ActionReturnUtil deployService(@PathVariable(value = "tenantId") String tenantId,
+										  @ModelAttribute ServiceDeployDto serviceDeploy) throws Exception {
 		logger.info("deploy service");
 		String userName = (String) session.getAttribute("username");
 		if(userName == null){
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
+		serviceDeploy.setTenantId(tenantId);
 		return serviceService.deployService(serviceDeploy, userName);
 	}
 	/*public ActionReturnUtil createDeployments(@ModelAttribute DeploymentDetailDto deploymentDetail) throws Exception {
@@ -112,7 +122,7 @@ public class DeploymentController {
 		if (userName == null) {
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
-		return dpService.getDeploymentDetail(namespace, name);
+		return dpService.getDeploymentDetail(namespace, name,true);
 
 	}
 

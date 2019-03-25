@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 public class NodeDrainProgressServiceImpl implements NodeDrainProgressService{
 
     @Autowired
-    NodeDrainProgressMapper nodeDrainProgressMapper;
+    private NodeDrainProgressMapper nodeDrainProgressMapper;
 
     @Override
     public NodeDrainProgress findByNodeName(String nodeName, String clusterId) {

@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.application.ProjectIpPoolMapper">
+
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.application.bean.ProjectIpPool">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="name" jdbcType="VARCHAR" property="name" />
+    <result column="tenant_id" jdbcType="VARCHAR" property="tenantId" />
+    <result column="project_id" jdbcType="VARCHAR" property="projectId" />
+    <result column="cluster_id" jdbcType="VARCHAR" property="clusterId" />
+    <result column="cidr" jdbcType="VARCHAR" property="cidr" />
+    <result column="subnet" jdbcType="VARCHAR" property="subnet" />
+    <result column="gateway" jdbcType="INTEGER" property="gateway" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, name, tenant_id, project_id, cluster_id, cidr, subnet, gateway, update_time, 
+    create_time
+  </sql>
+
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from project_ip_pool
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+
+
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from project_ip_pool
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+
+
+  <insert id="insertSelective" parameterType="com.harmonycloud.dao.application.bean.ProjectIpPool">
+    <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
+      SELECT LAST_INSERT_ID()
+    </selectKey>
+    insert into project_ip_pool
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="name != null">
+        name,
+      </if>
+      <if test="tenantId != null">
+        tenant_id,
+      </if>
+      <if test="projectId != null">
+        project_id,
+      </if>
+      <if test="clusterId != null">
+        cluster_id,
+      </if>
+      <if test="cidr != null">
+        cidr,
+      </if>
+      <if test="subnet != null">
+        subnet,
+      </if>
+      <if test="gateway != null">
+        gateway,
+      </if>
+      <if test="updateTime != null">
+        update_time,
+      </if>
+      <if test="createTime != null">
+        create_time,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="name != null">
+        #{name,jdbcType=VARCHAR},
+      </if>
+      <if test="tenantId != null">
+        #{tenantId,jdbcType=VARCHAR},
+      </if>
+      <if test="projectId != null">
+        #{projectId,jdbcType=VARCHAR},
+      </if>
+      <if test="clusterId != null">
+        #{clusterId,jdbcType=VARCHAR},
+      </if>
+      <if test="cidr != null">
+        #{cidr,jdbcType=VARCHAR},
+      </if>
+      <if test="subnet != null">
+        #{subnet,jdbcType=VARCHAR},
+      </if>
+      <if test="gateway != null">
+        #{gateway,jdbcType=INTEGER},
+      </if>
+      <if test="updateTime != null">
+        #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="createTime != null">
+        #{createTime,jdbcType=TIMESTAMP},
+      </if>
+    </trim>
+  </insert>
+
+
+  <update id="updateByProjectIdAndClusterIdAndName" parameterType="com.harmonycloud.dao.application.bean.ProjectIpPool">
+    update project_ip_pool
+    <set>
+      <if test="cidr != null">
+        cidr = #{cidr,jdbcType=VARCHAR},
+      </if>
+      <if test="subnet != null">
+        subnet = #{subnet,jdbcType=VARCHAR},
+      </if>
+      <if test="gateway != null">
+        gateway = #{gateway,jdbcType=INTEGER},
+      </if>
+        update_time = CURRENT_TIMESTAMP()
+    </set>
+    where project_id = #{projectId,jdbcType=VARCHAR}
+      and cluster_id = #{clusterId,jdbcType=VARCHAR}
+      and name = #{name,jdbcType=VARCHAR}
+  </update>
+
+  <!--查询列表-->
+  <select id="selectList" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from project_ip_pool
+    where 1=1
+    <if test="projectId != null and projectId != ''">
+      and project_id = #{projectId}
+    </if>
+    <if test="clusterId != null and clusterId != ''">
+      and cluster_id = #{clusterId}
+    </if>
+    <if test="name != null and name != ''">
+      and name = #{name}
+    </if>
+  </select>
+
+
+</mapper>

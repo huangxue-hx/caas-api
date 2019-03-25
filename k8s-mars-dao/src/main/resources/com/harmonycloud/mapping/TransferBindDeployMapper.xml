@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.cluster.TransferBindDeployMapper">
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.cluster.bean.TransferBindDeploy">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="namespace" jdbcType="VARCHAR" property="namespace" />
+    <result column="cluster_id" jdbcType="VARCHAR" property="clusterId" />
+    <result column="deploy_name" jdbcType="VARCHAR" property="deployName" />
+    <result column="step_id" jdbcType="INTEGER" property="stepId" />
+    <result column="tenant_id" jdbcType="VARCHAR" property="tenantId" />
+    <result column="project_id" jdbcType="VARCHAR" property="projectId" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="status" jdbcType="INTEGER" property="status" />
+    <result column="err_msg" jdbcType="VARCHAR" property="errMsg" />
+    <result column="is_delete" jdbcType="TINYINT" property="isDelete" />
+    <result column="deploy_num" jdbcType="INTEGER" property="deployNum" />
+    <result column="source_cluster_id" jdbcType="VARCHAR" property="sourceClusterId" />
+    <result column="source_namespace" jdbcType="VARCHAR" property="sourceNamespace" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    id, namespace, cluster_id, deploy_name, step_id, tenant_id, project_id, create_time,
+    update_time, `status`, err_msg, is_delete, deploy_num,source_namespace,source_cluster_id
+  </sql>
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from transfer_bind_deploy
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+
+  <select id="selectUnique" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from transfer_bind_deploy
+    <where>
+      <if test="query.transferBackupId != null">
+        and transfer_backup_id = #{query.transferBackupId}
+      </if>
+      <if test="query.tenantId != null and query.tenantId != ''">
+        and tenant_id = #{query.tenantId,jdbcType=VARCHAR}
+      </if>
+      <if test="query.namespace != null and query.namespace != ''">
+        and namespace = #{query.namespace,jdbcType=VARCHAR}
+      </if>
+      <if test="query.deployName != null and query.deployName != ''">
+        and deploy_name = #{query.deployName,jdbcType=VARCHAR}
+      </if>
+      <if test="query.clusterId != null and query.clusterId != ''">
+        and cluster_id = #{query.clusterId,jdbcType=VARCHAR}
+      </if>
+      <if test="query.sourceClusterId != null and query.sourceClusterId != ''">
+        and source_cluster_id = #{query.sourceClusterId,jdbcType=VARCHAR}
+      </if>
+      <if test="query.status != null">
+        and status = #{query.status,jdbcType=INTEGER}
+      </if>
+    </where>
+  </select>
+
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from transfer_bind_deploy
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <insert id="insert" parameterType="com.harmonycloud.dao.cluster.bean.TransferBindDeploy">
+    insert into transfer_bind_deploy (id, namespace, cluster_id,
+      deploy_name, step_id, tenant_id,
+      project_id, create_time, update_time,
+      `status`, err_msg, is_delete,
+      deploy_num,source_cluster_id,source_namespace)
+    values (#{id,jdbcType=INTEGER}, #{namespace,jdbcType=VARCHAR}, #{clusterId,jdbcType=VARCHAR},
+      #{deployName,jdbcType=VARCHAR}, #{stepId,jdbcType=INTEGER}, #{tenantId,jdbcType=VARCHAR},
+      #{projectId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP},
+      #{status,jdbcType=INTEGER}, #{errMsg,jdbcType=VARCHAR}, #{isDelete,jdbcType=TINYINT},
+      #{deployNum,jdbcType=INTEGER},#{sourceClusterId,jdbcType=VARCHAR},#{sourceNamespace,jdbcType=VARCHAR})
+  </insert>
+  <insert id="insertSelective" parameterType="com.harmonycloud.dao.cluster.bean.TransferBindDeploy">
+    insert into transfer_bind_deploy
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        id,
+      </if>
+      <if test="namespace != null">
+        namespace,
+      </if>
+      <if test="clusterId != null">
+        cluster_id,
+      </if>
+      <if test="deployName != null">
+        deploy_name,
+      </if>
+      <if test="stepId != null">
+        step_id,
+      </if>
+      <if test="tenantId != null">
+        tenant_id,
+      </if>
+      <if test="projectId != null">
+        project_id,
+      </if>
+      <if test="createTime != null">
+        create_time,
+      </if>
+      <if test="updateTime != null">
+        update_time,
+      </if>
+      <if test="status != null">
+        `status`,
+      </if>
+      <if test="errMsg != null">
+        err_msg,
+      </if>
+      <if test="isDelete != null">
+        is_delete,
+      </if>
+      <if test="deployNum != null">
+        deploy_num,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        #{id,jdbcType=INTEGER},
+      </if>
+      <if test="namespace != null">
+        #{namespace,jdbcType=VARCHAR},
+      </if>
+      <if test="clusterId != null">
+        #{clusterId,jdbcType=VARCHAR},
+      </if>
+      <if test="deployName != null">
+        #{deployName,jdbcType=VARCHAR},
+      </if>
+      <if test="stepId != null">
+        #{stepId,jdbcType=INTEGER},
+      </if>
+      <if test="tenantId != null">
+        #{tenantId,jdbcType=VARCHAR},
+      </if>
+      <if test="projectId != null">
+        #{projectId,jdbcType=VARCHAR},
+      </if>
+      <if test="createTime != null">
+        #{createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="updateTime != null">
+        #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="status != null">
+        #{status,jdbcType=INTEGER},
+      </if>
+      <if test="errMsg != null">
+        #{errMsg,jdbcType=VARCHAR},
+      </if>
+      <if test="isDelete != null">
+        #{isDelete,jdbcType=TINYINT},
+      </if>
+      <if test="deployNum != null">
+        #{deployNum,jdbcType=INTEGER},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.cluster.bean.TransferBindDeploy">
+    update transfer_bind_deploy
+    <set>
+      <if test="namespace != null">
+        namespace = #{namespace,jdbcType=VARCHAR},
+      </if>
+      <if test="clusterId != null">
+        cluster_id = #{clusterId,jdbcType=VARCHAR},
+      </if>
+      <if test="deployName != null">
+        deploy_name = #{deployName,jdbcType=VARCHAR},
+      </if>
+      <if test="stepId != null">
+        step_id = #{stepId,jdbcType=INTEGER},
+      </if>
+      <if test="tenantId != null">
+        tenant_id = #{tenantId,jdbcType=VARCHAR},
+      </if>
+      <if test="projectId != null">
+        project_id = #{projectId,jdbcType=VARCHAR},
+      </if>
+      <if test="createTime != null">
+        create_time = #{createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="updateTime != null">
+        update_time = #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="status != null">
+        `status` = #{status,jdbcType=INTEGER},
+      </if>
+      <if test="errMsg != null">
+        err_msg = #{errMsg,jdbcType=VARCHAR},
+      </if>
+      <if test="isDelete != null">
+        is_delete = #{isDelete,jdbcType=TINYINT},
+      </if>
+      <if test="deployNum != null">
+        deploy_num = #{deployNum,jdbcType=INTEGER},
+      </if>
+    </set>
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.cluster.bean.TransferBindDeploy">
+    update transfer_bind_deploy
+    set namespace = #{namespace,jdbcType=VARCHAR},
+      cluster_id = #{clusterId,jdbcType=VARCHAR},
+      deploy_name = #{deployName,jdbcType=VARCHAR},
+      step_id = #{stepId,jdbcType=INTEGER},
+      tenant_id = #{tenantId,jdbcType=VARCHAR},
+      project_id = #{projectId,jdbcType=VARCHAR},
+      create_time = #{createTime,jdbcType=TIMESTAMP},
+      update_time = #{updateTime,jdbcType=TIMESTAMP},
+      `status` = #{status,jdbcType=INTEGER},
+      err_msg = #{errMsg,jdbcType=VARCHAR},
+      is_delete = #{isDelete,jdbcType=TINYINT},
+      deploy_num = #{deployNum,jdbcType=INTEGER},
+      source_cluster_id = #{sourceClusterId,jdbcType=VARCHAR},
+      source_namespace = #{sourceNamespace,jdbcType=VARCHAR}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+
+  <select id="queryMaxNun" resultType="java.lang.Integer">
+   SELECT ifnull(max(deploy_num), 0) from transfer_bind_deploy where cluster_id = #{clusterId,jdbcType=VARCHAR} and tenant_id = #{tenantId,jdbcType=VARCHAR}
+  </select>
+
+  <insert id="saveTransferList" parameterType="java.util.List">
+    insert into transfer_bind_deploy (namespace, cluster_id,
+    deploy_name, step_id, tenant_id,
+    project_id, create_time, update_time,
+     err_msg, is_delete,
+    deploy_num, source_namespace, source_cluster_id, transfer_backup_id) values
+    <foreach collection="transferBindDeploys" item="transferBindDeploy"  index="index"  separator=",">
+      (
+      #{transferBindDeploy.namespace,jdbcType=VARCHAR},
+      #{transferBindDeploy.clusterId,jdbcType=VARCHAR},
+      #{transferBindDeploy.deployName,jdbcType=VARCHAR},
+      #{transferBindDeploy.stepId,jdbcType=INTEGER},
+      #{transferBindDeploy.tenantId,jdbcType=VARCHAR},
+      #{transferBindDeploy.projectId,jdbcType=VARCHAR},
+      #{transferBindDeploy.createTime,jdbcType=TIMESTAMP},
+      #{transferBindDeploy.updateTime,jdbcType=TIMESTAMP},
+      #{transferBindDeploy.errMsg,jdbcType=VARCHAR},
+
+      #{transferBindDeploy.isDelete,jdbcType=TINYINT},
+      #{transferBindDeploy.deployNum,jdbcType=INTEGER},
+      #{transferBindDeploy.sourceNamespace,jdbcType=VARCHAR},
+      #{transferBindDeploy.sourceClusterId,jdbcType=VARCHAR},
+      #{transferBindDeploy.transferBackupId,jdbcType=VARCHAR}
+
+      )
+    </foreach>
+  </insert>
+
+  <select id="queryTransferDeployDetail" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from transfer_bind_deploy
+    where
+    source_cluster_id = #{clusterId,jdbcType=VARCHAR}
+    <if test="tenantId != null and tenantId != ''">
+      and tenant_id = #{tenantId,jdbcType=VARCHAR}
+    </if>
+  </select>
+
+  <select id="listTransferDeploys" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from transfer_bind_deploy
+    where
+    transfer_backup_id = #{transferBackupId,jdbcType=INTEGER}
+  </select>
+
+  <delete id="deleteTransferBindDeploy" parameterType="java.lang.String">
+    delete from transfer_bind_deploy
+    where cluster_id = #{clusterId,jdbcType=VARCHAR}
+  </delete>
+
+  <select id="queryErrorBindDeploy" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from transfer_bind_deploy
+    where
+    cluster_id = #{clusterId,jdbcType=VARCHAR} and tenant_id = #{tenantId,jdbcType=VARCHAR}
+    and status = 0
+  </select>
+
+  <update id="updateDeploys" parameterType="java.util.List">
+    <foreach collection="updateDeploys" item="updateDeploy" separator=",">
+      update transfer_bind_deploy
+      set
+      step_id = #{updateDeploy.stepId,jdbcType=INTEGER},
+
+      err_msg = #{updateDeploy.errMsg,jdbcType=INTEGER}
+      where
+      deploy_name = #{updateDeploy.deployName,jdbcType=INTEGER}
+    </foreach>
+  </update>
+</mapper>

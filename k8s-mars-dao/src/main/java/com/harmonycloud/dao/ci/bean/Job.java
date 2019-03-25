@@ -1,12 +1,19 @@
 package com.harmonycloud.dao.ci.bean;
 
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DataPrivilegeField;
+import com.harmonycloud.common.enumm.DataPrivilegeType;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
+
 import java.io.Serializable;
 import java.util.Date;
 
 /**
  * Created by anson on 17/6/9.
  */
+@DataPrivilegeType(type = DataResourceTypeEnum.PIPELINE)
 public class Job  implements Serializable{
+    @DataPrivilegeField(type = CommonConstant.DATA_FIELD)
     private Integer id;
     private String uuid;
     private String name;
@@ -14,7 +21,9 @@ public class Job  implements Serializable{
     private String type;
     private String tenant;
     private String tenantId;
+    @DataPrivilegeField(type = CommonConstant.PROJECTID_FIELD)
     private String projectId;
+    @DataPrivilegeField(type = CommonConstant.CLUSTERID_FIELD)
     private String clusterId;
     private boolean notification;
     private String mail;

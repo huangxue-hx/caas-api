@@ -1,0 +1,16 @@
+1. 执行数据库脚本db-upgrade-webapi-v2.1.0-baishi.sql
+2. 执行操作审计部署文档,在apiserver-audit目录下
+   a. 将createApiserverAuditElasticSearchTemplate.sh 和 fluentd-configmap.yaml 拷贝到部署安装包的deploy-log目录下，
+      执行 createApiserverAuditElasticSearchTemplate.sh 脚本，
+      重新创建fluentd配置文件， kubectl delete -f fluentd-configmap.yaml 和 kubectl create -f fluentd-configmap.yaml
+   b. 将audit-policy.yaml 拷贝到master的 /etc/kubernetes/pki/目录下
+   c. 修改kube-apiserver.yaml的环境相关的ip， 一处镜像ip和两处masterIp
+      将kube-apiserver.yaml替换/etc/kubernetes/manifest/kube-apiserver.yaml
+   d. master节点需要增加fluentd标签启动fluentd，修改下面命令中的master节点名称
+      kubectl label node 10.10.103.60-master alpha.kubernetes.io/fluentd-ds-ready=true
+3. 伸缩邮件通知部署,
+   将镜像推送到harbor仓库 k8s-deploy/watch-event-controller:v1.0，
+   将watch-event-controller.yaml文件拷贝到/root/k8s-upgrade-deploy/deploy-webhook-logapi-monitorapi
+   kubectl create -f watch-event-controller.yaml
+4. 主机网络监控
+   上传heapster镜像， 创建heapster-deployment-net.yaml

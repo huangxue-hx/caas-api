@@ -5,6 +5,8 @@ import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 import java.util.*;
@@ -13,6 +15,7 @@ import java.util.*;
  * Created by anson on 17/6/2.
  */
 public class XmlUtil {
+    private static final Logger LOGGER = LoggerFactory.getLogger(XmlUtil.class);
 
     public static Map<String, Object> parseXmlStringToMap(String xmlString){
         Map<String, Object> map = new HashMap<String, Object>();
@@ -21,7 +24,7 @@ public class XmlUtil {
         try {
             doc = DocumentHelper.parseText(xmlString);
         } catch (DocumentException e) {
-            e.printStackTrace();
+            LOGGER.warn("parseXmlStringToMap失败", e);
         }
         if (doc == null)
             return map;

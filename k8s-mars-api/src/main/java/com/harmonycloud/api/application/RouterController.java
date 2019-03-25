@@ -3,11 +3,12 @@ package com.harmonycloud.api.application;
 import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.ParsedIngressListDto;
-import com.harmonycloud.dto.application.ParsedIngressListUpdateDto;
 import com.harmonycloud.dto.application.SvcRouterDto;
 import com.harmonycloud.dto.application.TcpDeleteDto;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.service.application.RouterService;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpSession;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created by czm on 2017/1/18.
@@ -29,15 +32,21 @@ public class RouterController {
 	private RouterService routerService;
     
     @Autowired
-	HttpSession session;
+	private HttpSession session;
 	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 
+	@ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+	@ApiOperation(value = "创建ingress", response = ActionReturnUtil.class, httpMethod = "POST", consumes = "", produces = "", notes = "")
 	@ResponseBody
 	@RequestMapping(value = "/{deployName}/ingress", method = { RequestMethod.POST })
-	public ActionReturnUtil ingCreate(@ModelAttribute ParsedIngressListDto parsedIngressList, @PathVariable(value = "deployName") String deployName) throws Exception{
+	public ActionReturnUtil ingCreate(@PathVariable(value = "tenantId") String tenantId,
+									  @ModelAttribute ParsedIngressListDto parsedIngressList, @PathVariable(value = "deployName") String deployName) throws Exception {
 		logger.info("创建ingress");
 		parsedIngressList.setServiceName(deployName);
+		Map<String, Object> label = new HashMap<>(parsedIngressList.getLabels());
+		label.put("tenantId", tenantId);
+		parsedIngressList.setLabels(label);
 		return routerService.ingCreate(parsedIngressList);
 		
 	}
@@ -87,11 +96,13 @@ public class RouterController {
 	@ResponseBody
 	@RequestMapping(value = "/{deployName}/ingress", method = RequestMethod.DELETE)
 	public ActionReturnUtil deleteIng(@RequestParam(value = "namespace", required = true) String namespace,
-                                      @RequestParam(value = "name", required = true) String name) throws Exception{
+									  @PathVariable(value = "deployName") String deployName,
+                                      @RequestParam(value = "name", required = true) String name,
+                                      @RequestParam(value = "serviceType", required = false) String serviceType) throws Exception{
 
 		try {
 			logger.info("删除http路由");
-			return routerService.ingDelete(namespace, name);
+			return routerService.ingDelete(namespace, name, deployName, serviceType);
 		} catch (Exception e) {
 			logger.error("删除http路由错误，namespace="+namespace+",name="+name+",e="+e.getMessage());
 			throw e;
@@ -125,22 +136,25 @@ public class RouterController {
 
 	@ResponseBody
 	@RequestMapping(value = "/rules", method = RequestMethod.GET)
-	public ActionReturnUtil listRouter(@RequestParam(value = "namespace") String namespace,
-									  @RequestParam(value = "nameList") String nameList) throws Exception{
+	public ActionReturnUtil listRouter(@PathVariable(value = "projectId") String projectId,
+									   @RequestParam(value = "namespace") String namespace,
+									   @RequestParam(value = "nameList") String nameList) throws Exception{
 		String userName = (String) session.getAttribute("username");
 		if (userName == null) {
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
-		return routerService.listExposedRouterWithIngressAndNginx(namespace, nameList);
+		return routerService.listExposedRouterWithIngressAndNginx(namespace, nameList, projectId);
 	}
 
 	@ResponseBody
 	@RequestMapping(value="/{deployName}/rules", method = RequestMethod.DELETE)
-	public ActionReturnUtil deleteTcpUdpRule(@ModelAttribute TcpDeleteDto tcpDeleteDto)throws Exception {
+	public ActionReturnUtil deleteTcpUdpRule(@ModelAttribute TcpDeleteDto tcpDeleteDto,@PathVariable(value = "deployName") String deployName)throws Exception {
 		logger.info("删除服务对外的规则");
-		return routerService.deleteSystemRouteRule(tcpDeleteDto);
+		return routerService.deleteSystemRouteRule(tcpDeleteDto,deployName);
 	}
 
+	@ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+	@ApiOperation(value = "获取端口范围", response = ActionReturnUtil.class, httpMethod = "GET", consumes = "", produces = "", notes = "")
 	@ResponseBody
 	@RequestMapping(value = "/ports/range", method = RequestMethod.GET)
 	public ActionReturnUtil getPortRange(@RequestParam(value = "namespace") String namespace) throws Exception {
@@ -155,7 +169,7 @@ public class RouterController {
 //			return routerService.listSvcByName(parsedIngressListDto);
 //		} catch (Exception e) {
 //			logger.error("获取svc路由（tcp）列表错误，"+",e="+e.getMessage());
-//			e.printStackTrace();
+//			e.printStackTrace();    //==sonar leak==
 //			throw e;
 //		}
 //	}
@@ -168,7 +182,7 @@ public class RouterController {
 //			return routerService.svcCreate(svcRouter);
 //		} catch (Exception e) {
 //			logger.error("创建config的rule 错误"+",e="+e.getMessage());
-//			e.printStackTrace();
+//			e.printStackTrace();    //==sonar leak==
 //			throw e;
 //		}
 //	}
@@ -191,7 +205,7 @@ public class RouterController {
 //			return routerService.svcDelete(namespace,name);
 //		} catch (Exception e) {
 //			logger.error("删除svc路由（tcp）错误，namespace="+namespace+",name="+name+",e="+e.getMessage());
-//			e.printStackTrace();
+//			e.printStackTrace();    //==sonar leak==
 //			throw e;
 //		}
 //	}

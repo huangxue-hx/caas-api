@@ -3,6 +3,7 @@ package com.harmonycloud.service.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.PersistentVolumeDto;
+import com.harmonycloud.dto.cluster.ErrDeployDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.PersistentVolume;
 import com.harmonycloud.k8s.bean.PersistentVolumeClaimList;
@@ -99,6 +100,7 @@ public interface PersistentVolumeService {
 
 	ActionReturnUtil updatePvByName(PersistentVolumeDto volumeDto) throws Exception;
 
+	boolean isFsPv(String type);
 
 	/**
 	 * 根据name清空数据
@@ -109,5 +111,6 @@ public interface PersistentVolumeService {
 	public ActionReturnUtil recyclePv(String name, String clusterId) throws Exception;
 
 	ActionReturnUtil releasePv(String name, String clusterId, String namespace, String serviceName) throws Exception;
-	
+
+	ErrDeployDto transferPV(PersistentVolume pv, Cluster cluster, String deployName) throws Exception;
 }

@@ -14,13 +14,35 @@ public class TenantClusterQuota implements Serializable {
 
     private Double memoryQuota;
 
+    @Override
+    public String toString() {
+        return "TenantClusterQuota{" +
+                "id=" + id +
+                ", tenantId='" + tenantId + '\'' +
+                ", clusterId='" + clusterId + '\'' +
+                ", cpuQuota=" + cpuQuota +
+                ", memoryQuota=" + memoryQuota +
+                ", pvQuota=" + pvQuota +
+                ", storageQuotas='" + storageQuotas + '\'' +
+                ", updateTime=" + updateTime +
+                ", createTime=" + createTime +
+                ", clusterName='" + clusterName + '\'' +
+                ", icNames='" + icNames + '\'' +
+                ", reserve1='" + reserve1 + '\'' +
+                '}';
+    }
+
     private Double pvQuota;
+
+    private String storageQuotas;
 
     private Date updateTime;
 
     private Date createTime;
 
     private String clusterName;
+
+    private String icNames;
 
     private String reserve1;
 
@@ -74,6 +96,14 @@ public class TenantClusterQuota implements Serializable {
         this.pvQuota = pvQuota;
     }
 
+    public String getStorageQuotas() {
+        return storageQuotas;
+    }
+
+    public void setStorageQuotas(String storageQuotas) {
+        this.storageQuotas = storageQuotas == null ? null : storageQuotas.trim();
+    }
+
     public Date getUpdateTime() {
         return updateTime;
     }
@@ -96,6 +126,14 @@ public class TenantClusterQuota implements Serializable {
 
     public void setClusterName(String clusterName) {
         this.clusterName = clusterName == null ? null : clusterName.trim();
+    }
+
+    public String getIcNames() {
+        return icNames;
+    }
+
+    public void setIcNames(String icNames) {
+        this.icNames = icNames;
     }
 
     public String getReserve1() {
@@ -124,6 +162,7 @@ public class TenantClusterQuota implements Serializable {
             && (this.getCpuQuota() == null ? other.getCpuQuota() == null : this.getCpuQuota().equals(other.getCpuQuota()))
             && (this.getMemoryQuota() == null ? other.getMemoryQuota() == null : this.getMemoryQuota().equals(other.getMemoryQuota()))
             && (this.getPvQuota() == null ? other.getPvQuota() == null : this.getPvQuota().equals(other.getPvQuota()))
+            && (this.getStorageQuotas() == null ? other.getStorageQuotas() == null : this.getStorageQuotas().equals(other.getStorageQuotas()))
             && (this.getUpdateTime() == null ? other.getUpdateTime() == null : this.getUpdateTime().equals(other.getUpdateTime()))
             && (this.getCreateTime() == null ? other.getCreateTime() == null : this.getCreateTime().equals(other.getCreateTime()))
             && (this.getClusterName() == null ? other.getClusterName() == null : this.getClusterName().equals(other.getClusterName()))
@@ -140,6 +179,7 @@ public class TenantClusterQuota implements Serializable {
         result = prime * result + ((getCpuQuota() == null) ? 0 : getCpuQuota().hashCode());
         result = prime * result + ((getMemoryQuota() == null) ? 0 : getMemoryQuota().hashCode());
         result = prime * result + ((getPvQuota() == null) ? 0 : getPvQuota().hashCode());
+        result = prime * result + ((getStorageQuotas() == null) ? 0 : getStorageQuotas().hashCode());
         result = prime * result + ((getUpdateTime() == null) ? 0 : getUpdateTime().hashCode());
         result = prime * result + ((getCreateTime() == null) ? 0 : getCreateTime().hashCode());
         result = prime * result + ((getClusterName() == null) ? 0 : getClusterName().hashCode());

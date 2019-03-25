@@ -16,7 +16,7 @@ public class TrialtimeTask {
     private static final Logger LOG = LoggerFactory.getLogger(TrialtimeTask.class);
 
     @Autowired
-    SystemConfigService systemConfigService;
+    private SystemConfigService systemConfigService;
 
     public void run() {
 

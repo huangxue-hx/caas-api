@@ -1,0 +1,30 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: heapster-net
+  namespace: kube-system
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        task: monitoring
+        k8s-app: heapster-net
+        version: v6
+    spec:
+      serviceAccountName: heapster
+      nodeSelector:
+        HarmonyCloud_Status: A
+      containers:
+      - name: heapster
+        image: k8s-deploy/heapster:canary
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: 100m
+            memory: 256Mi
+        command:
+        - /heapster
+        - --source=kubernetes:https://kubernetes.default
+        - --sink=influxdb:http://monitoring-influxdb:8086?db=kube
+        - --metric_resolution=30s

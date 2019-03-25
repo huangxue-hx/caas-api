@@ -63,11 +63,11 @@ public interface EsService {
 	/**
 	 * 查询仓库信息
 	 *
-	 * @param clusterId
+	 * @param cluster
 	 * @return
 	 * @throws Exception
 	 */
-	List<RepositoryMetaData> listSnapshotRepositories(String clusterId) throws Exception;
+	List<RepositoryMetaData> listSnapshotRepositories(Cluster cluster) throws Exception;
 
 	/**
 	 * 创建快照，如果仓库不存在则创建仓库
@@ -129,5 +129,7 @@ public interface EsService {
 	 * @return
 	 */
 	public SnapshotInfoDto getLastSnapshot(String clusterId) throws Exception;
+
+	String getLogIndexPrefix();
 
 }

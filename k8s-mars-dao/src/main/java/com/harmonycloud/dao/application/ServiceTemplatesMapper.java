@@ -15,7 +15,7 @@ public interface ServiceTemplatesMapper {
 
     List<ServiceTemplates> listServiceByTenant(@Param("name") String name, @Param("tenant") String tenant, @Param("projectId") String projectId);
     
-    List<ServiceTemplates> listNameByProjectId(@Param("name") String name, @Param("clusterId") String clusterId, @Param("isPublic") boolean isPublic, @Param("projectId") String projectId);
+    List<ServiceTemplates> listNameByProjectId(@Param("name") String name, @Param("clusterId") String clusterId, @Param("isPublic") boolean isPublic, @Param("projectId") String projectId, @Param("serviceType") Integer serviceType);
 
     List<ServiceTemplates> listServiceByImage(@Param("name") String name, @Param("image") String image, @Param("tenant") String tenant, @Param("isPublic") boolean isPublic);
     
@@ -39,9 +39,9 @@ public interface ServiceTemplatesMapper {
 
     ServiceTemplates getServiceTemplatesByID(@Param("ID") Integer id);
     
-    List<ServiceTemplates> listSearchByImage(@Param("image") String image, @Param("clusterId") String clusterId, @Param("isPublic") boolean isPublic, @Param("projectId") String projectId);
+    List<ServiceTemplates> listSearchByImage(@Param("image") String image, @Param("clusterId") String clusterId, @Param("isPublic") boolean isPublic, @Param("projectId") String projectId, @Param("serviceType") Integer serviceType);
     
-    List<ServiceTemplates> listSearchByName(@Param("name") String name, @Param("clusterId") String clusterId, @Param("isPublic") boolean isPublic, @Param("projectId") String projectId);
+    List<ServiceTemplates> listSearchByName(@Param("name") String name, @Param("clusterId") String clusterId, @Param("isPublic") boolean isPublic, @Param("projectId") String projectId, @Param("serviceType") Integer serviceType);
     
     void deleteByProjects(@Param("projectIds")String [] projectIds);
 
@@ -55,11 +55,15 @@ public interface ServiceTemplatesMapper {
     
     /**
      * 公有模板查询*/
-    List<ServiceTemplates> listPublicSearchByName(@Param("name") String name, @Param("isPublic") boolean isPublic);
+    List<ServiceTemplates> listPublicSearchByName(@Param("name") String name, @Param("isPublic") boolean isPublic, @Param("serviceType") Integer serviceType);
     
-    List<ServiceTemplates> listPublicSearchByImage(@Param("image") String image, @Param("isPublic") boolean isPublic);
+    List<ServiceTemplates> listPublicSearchByImage(@Param("image") String image, @Param("isPublic") boolean isPublic, @Param("serviceType") Integer serviceType);
     
-    List<ServiceTemplates> listPublicNameByTenant(@Param("name") String name, @Param("isPublic") boolean isPublic);
+    List<ServiceTemplates> listPublicNameByTenant(@Param("name") String name, @Param("isPublic") boolean isPublic, @Param("serviceType") Integer serviceType);
     
     void updateServiceTemplatePublic(@Param("name") String name, @Param("isPublic") boolean isPublic);
+
+    void deleteByAppId(@Param("appId") int appId);
+
+    List<ServiceTemplates> listByAPPId(@Param("appId") int appId);
 }

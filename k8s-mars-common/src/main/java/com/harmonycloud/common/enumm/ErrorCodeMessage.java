@@ -63,12 +63,16 @@ public enum ErrorCodeMessage {
     SYSTEM_IN_MAINTENANCE(100041, "System is under maintenance.", "系统维护中"),
     RESPONSE_TIMEOUT(100042,"Response timeout", "请求获取响应超时"),
     DATE_FORMAT_ERROR(100043,"Date format error", "日期格式错误"),
+    EXCEED_MAX_QUERY_COUNT(100044,"Can not query over 100 records at once", "一次查询不能超过100条记录"),
+    NAME_LENGTH_LIMIT(100045,"name length must be no more than 63 characters", "名称长度不能超过63个字符"),
+    INVALID_CHARACTER(100046,"Format is not correct, contains illegal characters", "格式错误, 包含非法字符或组合"),
+    ENGLISH_NAME_EXIST(100047,"English short name exists", "英文简称已经存在"),
 
     //用户相关 200xxx
-    USER_DISABLED(200001, "User is disabled.","该用户暂时停止使用，请联系管理员|User is disabled."),
-    USER_NOT_AUTH(200002, "User is not authorized.","该用户未授权，请联系管理员|User is not authorized."),
+    USER_DISABLED(200001, "User is disabled.","该用户暂时停止使用，请联系管理员"),
+    USER_NOT_AUTH(200002, "User is not authorized.","该用户未授权，请联系管理员"),
     ONLY_FOR_MANAGER(200003, "Operation is only allowed by admin.","只有管理员用户可以操作"),
-    USER_ROLE_DISABLED(200004, "User role is disabled .","当前用户所属角色被禁用|User role is disabled."),
+    USER_ROLE_DISABLED(200004, "User role is disabled .","当前用户所属角色被禁用"),
     CANNOT_OPERATE_YOURSELF(200005, "The operation is not allowed.","管理员不能操作自己账户"),
     USERNAME_BLANK(200006, "Username can not be blank.","用户名不能为空"),
     USER_REAL_NAME_BLANK(200007, "User real name can not be blank.","用户真实姓名不能为空"),
@@ -98,6 +102,8 @@ public enum ErrorCodeMessage {
     USER_BIND_TENANT(200031, "The user is already bound to the role.","用户已经绑定角色"),
     USER_GROUP_EXIST(200032, "User group was exist.","用户组已经存在"),
     USER_PERMISSION_DENIED_FOR_PRIVILEGE_CHANGE(200033, "Privilege has changed,permission denied.","权限被管理员修改,权限不足"),
+    USER_LOCKED(200034, "The account is locked. Please try after 30 minutes ", "账号已锁定，请30分钟后再试"),
+    USER_PASSWORD_CHANGE_SELF(200035, "Only change password for yourself", "只能修改自己的账号密码"),
 
     //租户 201xxx
     TENANTNAME_EXIST(201001, "TenantName was existed.","租户简称已经存在"),
@@ -108,6 +114,7 @@ public enum ErrorCodeMessage {
     TENANT_NETWORK_EXIST(201006, "Tenant network was existed.","租户网络已创建"),
     TENANT_NODE_EXIST(201007, "Tenant private node was existed.","租户独占主机已经存在"),
     TENANT_NODE_NOT_EXIST(201008, "Tenant private node was not existed.","租户独占主机不存在"),
+    TENANT_STRATEGY_NOT_EXIST(201009, "Tenant strategy was not existed.","租户策略不存在"),
 
     //项目 202xxx
     PROJECT_EXIST(202001, "Project was existed.","项目已经存在"),
@@ -123,6 +130,15 @@ public enum ErrorCodeMessage {
     PROJECT_DELETE_FIRST(202011,"please delete project first","请先删除项目"),
     PROJECT_ROLE_EXIST(202012, "Role was existed.","项目角色已经存在"),
     PROJECT_PM_CANNOT_DELETE(202013, "PM cannot delete yourself.","项目管理员不能删除自己!"),
+    PROJECT_IP_POOL_NOT_EXIST(202014, "project ip pool was not existed.","ip资源池不存在"),
+    PROJECT_IP_POOL_CIDR_ERROR(202015, "project ip pool cidr error.","请输入正确的IP段，如192.168.1.1/24"),
+    PROJECT_IP_POOL_IP_ERROR(202016, "project ip pool ip error.","请输入正确的IP，如192.168.1.1"),
+    PROJECT_IP_POOL_CIDR_GREATER_THAN_SUBNET_ERROR(202017, "project ip pool cidr greater than subnet error.","CIDR的IP范围不得大于子网的IP范围"),
+    PROJECT_IP_POOL_NAME_CANNOT_MODIFIED(202018, "project ip pool name cannot modified.","资源名称不可修改"),
+    PROJECT_IP_POOL_CANNOT_MODIFIED(202019, "project ip pool cannot modified.","资源池已使用，不可修改"),
+    PROJECT_IP_POOL_SUBNET_EXIST(202020, "project ip pool subnet exist.","输入的IP段已经被使用，请检查后重新填写"),
+    PROJECT_IP_POOL_EXIST(202021, "project ip pool was existed.","ip资源池已存在"),
+    PROJECT_PUBLISH_ERROR(202022, "project publish error.","服务发布失败，当前项目未设置IP资源池，请前往项目详情配置"),
 
     //角色权限 203xxx
     ROLE_NOT_EXIST(203001, "Role not exist.","角色不存在!"),
@@ -154,6 +170,15 @@ public enum ErrorCodeMessage {
     ROLE_PRIVILEGE_NOT_BLANK(203025, "Role privilege can not be blank.","角色权限不能为空!"),
     ROLE_PRIVILEGE_CANNOT_UPDATE(203026, "Admin role privilege can not be update.","管理员角色权限不能被修改"),
     ADMIN_ROLE_CANNOT_DISABLE(203027, "Admin cannot be disabled.","不能禁用管理员"),
+
+    //数据权限204xxx
+    GROUP_EDIT_NO_PRIVILEGE(204001, "You cannot edit the privilege group for this data.", "无权限修改该数据的用户权限列表"),
+    GROUP_USER_EXIST(204002, "User already exist in group.", "列表中已存在该用户"),
+    PARENT_GROUP_USER_DELETE_FIRST(204003, "User in parent data privilege group, remove it first", "请先删除父资源对应数据权限列表中的此用户"),
+    PARENT_RW_GROUP_USER_DELETE_FIRST(204004, "User in parent data read-write privilege group, remove it first", "请先删除父资源读写数据权限列表中的此用户"),
+    GROUP_QUERY_ERROR(204005, "Privilege group query failed", "数据权限组查询失败"),
+    DATA_PRIVILEGE_UPDATE_ERROR(204006,"Service has conflict with application on data privilege, please update the application first with referring to the operation manual","修改的服务权限与应用权限冲突，请先修改当前用户的应用权限，详细规则请查看平台操作手册"),
+    DATA_NOT_FOUND(204007, "Data fetch failed", "数据获取失败"),
 
     //集群相关错误代码 300xxx
     CLUSTER_NAME_DUPLICATE(300001, "Cluster Name Duplicate.", "集群名称已存在"),
@@ -194,8 +219,30 @@ public enum ErrorCodeMessage {
     DATACENTER_NICENAME_SAME(300036,"New nickname is same with old nickname.","别名一致"),
     DATACENTER_UPDATE_FAIL(300037,"Datacenter update fail","该数据中心更新失败"),
     LIST_CLUSTERQUOTA_INCORRECT(300038, "Get cluster quota failed.","获取配额失败"),
-    RESOURCE_OVER_FLOOR(300039, "Resource quotas should not be less than allocated quotas.","资源配额不能少于已分配的配额"),
-    UPDATE_CLUSTERQUOTA_INCORRECT(300040, "Cluster quota incorrect，please refresh the page resource.","配额不正确,请重新刷新页面资源"),
+    RESOURCE_OVER_FLOOR(300039, "Tenant cluster quota cannot be greater than the available storage capacity.","租户集群配额不能大于可使用的存储容量"),
+    RESOURCE_BEHIND_FLOOR(300040, "Tenant cluster quota cannot be less than the used storage capacity.","租户集群配额不能小于已使用的存储容量"),
+    UPDATE_CLUSTERQUOTA_INCORRECT(300041, "Cluster quota incorrect，please refresh the page resource.","配额不正确,请重新刷新页面资源"),
+    STORAGE_QUOTA_OVER_FLOOR(300042, "Storage quotas exceed available quotas.","分区存储配额超过可使用的配额"),
+    CLUSTER_QUOTA_DELETE_FAIL(300043, "Failed to delete cluster quota, storage in quota used in cluster partition", "删除集群配额失败，集群分区中已使用配额中的存储"),
+    DATACENTER_NAME_DUPLICATE(300044, "Datacenter Name Duplicate.", "数据中心名称已存在"),
+    INGRESS_CONTROLLER_NOT_FOUND(300045, "Ingress controller not found under the cluster.", "集群下没有找到负载均衡器"),
+    INGRESS_CONTROLLER_PORT_RANGE_NOT_FOUND(300046, "Cannot get the port range of the ingress controller.", "获取不到负载均衡器的端口范围"),
+    INGRESS_CONTROLLER_EXIST(300047, "The ingress controller already exists.", "负载均衡器已经存在"),
+    INGRESS_CONTROLLER_HTTP_PORT_USED(300048, "The http port of the ingress controller has been used.", "负载均衡器HTTP端口已经被使用"),
+    INGRESS_CONTROLLER_OTHER_PORT_USED(300049, "The other port of the ingress controller has been used.", "负载均衡器其他端口已经被使用"),
+    INGRESS_CONTROLLER_SA_NOT_FOUND(300050, "Cannot get the default serviceAccount under the kube-system namespace.", "获取不到kube-system分区下默认的serviceAccount"),
+    INGRESS_CONTROLLER_DEFAULT_NOT_DELETE(300051, "The default ingress controller is not allowed to be deleted.", "全局负载均衡器不允许被删除"),
+    INGRESS_CONTROLLER_HAD_USED(300052, "The ingress controller is in using, cant not change port or delete.", "已有服务使用该负载均衡器, 不能修改端口或删除"),
+    INGRESS_CONTROLLER_PORT_UPDATE_FAIL(300053, "In the database, the ingress controller port data update failed, please contact the administrator.", "数据库中，ingress controller端口数据更新失败，请联系管理员"),
+    INGRESS_CONTROLLER_HAS_USED_BY_TENANTS(300054, "These tenants are using this ingress controller and cannot be removed. Tenant name：", "以下租户已使用该负载均衡器，无法移除。租户名称："),
+    INGRESS_CONTROLLER_HTTP_PORT_ERROR(300055, "The port of the ingress controller is not in the specified range.", "负载均衡器的端口不在指定范围"),
+    RESOURCE_USED_OVER_QUOTA(300056, "Quota cannot be smaller than used.","配额不能小于已使用的容量"),
+    INGRESS_CONTROLLER_PORT_UNSAFE(300057, "Please input another port as 87 and 95 is unsafe port for chrome.",
+            "87和95端口对于chrome浏览器是非安全的端口，请使用别的端口"),
+    TRANSFER_CLUSTER_RESOURCE_ERROR(300058, "Transfer cluster resource not enough", "迁移目标集群容量不足"),
+    TRANSFER_CLUSTER_ERROR(300059, "Transfer cluster error", "迁移目标集群失败"),
+    CLUSTER_ALL_DISABLED(300060, "All clusters are disabled.","当前无可用集群"),
+    CLUSTER_NOT_MATCH(300061, "the cluster is not match.","集群不符合"),
 
     //主机节点 301xxx
     NODE_LABEL_CREATE_ERROR(301001, "Node label create failed.","主机标签创建失败"),
@@ -275,6 +322,16 @@ public enum ErrorCodeMessage {
     APPLICATION_NAME_CONFLICT_MSF(400043, "Application name belong to micro service component", "应用名称所属于微服务组件"),
     SERVICE_EXPOSE_NGINX_FAILED(400044, "Port and protocol is different from in containers.", "选择的端口或协议与容器内的不一致"),
     APPLICATION_CAN_NOT_STOP(400045, "Service in application in the upgrade.", "所属服务的状态处于灰度或蓝绿升级中."),
+    SERVICE_TYPE_NOT_EXIST(400046, "ServiceType was not existed.", "服务类型不存在"),
+    TCP_IC_DEFAULT_ONLY(400047, "Please choose default ingress controller for tcp/udp port.", "TCP/UDP协议请选择全局负载均衡器"),
+    DEPLOY_VERSION_IS_NULL_WHEN_ISTIO_ENABLE(400048, "Deploy version can not be null when istio injection is enable.", "开启Istio注入，服务版本标签不能为空"),
+    SERVICE_ENTRY_DUPLICATE(400049, "ServiceEntry duplicate:", "服务入口已存在:"),
+    SERVICE_ENTRY_FAILED(400050, "ServiceEntry access failure:", "服务入口获取失败:"),
+    SERVICE_DELETE(400051,"return to modify  successfully but old domain names deletion failed",
+               "修改成功，但是旧的服务删除失败，请联系管理员删除旧的service资源"),
+    NAMESPACE_STORAGE_RESOURCE_INSUFFICIENT(400053, "Namespace storage resource insufficient.","分区存储资源不足"),
+    TRANSFER_NOT_EXIST(400054, "Transfer Service was not existed.", "所迁移的集群信息为空"),
+    SERVICE_IS_UPDATING(400055, "the service is updating.","服务正在滚动或蓝绿升级中"),
 
     //模板 401xxx
     SERVICE_TEMPLATE_NOT_EXIST(401001, "Service template not exist.", "服务模板不存在"),
@@ -291,9 +348,22 @@ public enum ErrorCodeMessage {
     PV_CREATE_FAIL(402002, "Fail to create PV.", "PV创建失败"),
     PV_NAME_FORMAT_ERROR(402003, "PV name format error.", "PV名称格式错误"),
     PV_QUERY_FAIL(402004, "PV query fail.", "PV查询失败"),
-    PV_CAN_NOT_DELETE(402006, "PV status is bound， not to delete.", "PV状态为bound，不允许删除"),
     PV_PROVIDER_NOT_EXIST(402005, "PV is not provided.", "PV存储未提供"),
     PV_RELEASE_FAIL(402006, "PV released failed.", "PV释放失败"),
+    NFS_PROVISIONER_CREATE_FAIL(402007, "NFS server address or directory parameter error.", "NFS服务器地址或目录参数错误"),
+    STORAGECLASS_TYPE_ERROR(402008, "The storage type is not supported", "StorageClass使用的存储类型目前尚不支持"),
+    STORAGECLASS_DELETE_ERROR(402009, "Failed to delete StorageClass. StorageClass is already used. Please delete related storage volume first.", "StorageClass删除失败，StorageClass已经被使用，请先删除相关存储卷"),
+    PVC_CAN_NOT_DELETE(402010, "The storage has been used, not to delete.", "该存储已经被使用，不允许删除"),
+    NFS_PROVISIONER_CONFIG_ERROR(402011, "The configuration of the nfs plugin image is not found in the system configuration", "系统配置中没有找到nfs插件镜像的配置"),
+    RECYCLE_POD_CONFIG_ERROR(402012, "The configuration to clear the storage plugin image was not found in the system configuration.", "系统配置中没有找到清空存储插件镜像的配置"),
+    PVC_UPDATE_ERROR(402013, "PVC update failed", "PVC更新失败"),
+    CEPH_RBD_PROVISIONER_CREATE_FAIL(402014, "Create ceph rbd plugin failure.", "ceph rbd 插件创建失败"),
+    CEPH_RBD_PROVISIONER_CONFIG_ERROR(402015, "The configuration of the ceph rbd plugin image is not found in the system configuration", "系统配置中没有找到ceph rbd插件镜像的配置"),
+    CEPH_RBD_SECRET_CREATE_FAIL(402016, "Create ceph rbd secret failure.", "ceph rbd secret创建失败"),
+    CEPH_RBD_PROVISIONER_NOT_EXIST(402017, "Ceph rbd plugin not exist.", "Ceph rbd 插件不存在"),
+    PV_CAN_NOT_DELETE(402018, "PV status is bound， not to delete.", "PV状态为bound，不允许删除"),
+
+    MYSQL_INSERT_FAIL(402019, "DB insert fail", "数据插入失败"),
 
     //弹性伸缩 403xxx
     SERVICE_AUTOSCALE_CREATE_FAILURE(403001, "Create autoScale failure.", "自动伸缩创建失败"),
@@ -305,6 +375,11 @@ public enum ErrorCodeMessage {
     AUTOSCALE_TIME_ZONE_ERROR(403007,"Time zone value is error","负载均衡时间段错误"),
     SERVICE_AUTOSCALE_UPDATE_FAILURE(403008, "Create autoScale failure.", "自动伸缩升级失败"),
     AUTOSCALE_NOT_FOUND(403009, "Can not found autoscale.", "自动伸缩找寻不到"),
+    SERVICE_AUTOSCALE_LABEL_UPDATE_FAILURE(403010, "Update autoscale label failure.", "更新自动伸缩标签失败"),
+    AUTOSCALE_TIME_PODS_ERROR(403011,"Time based pods num should be greater than min pods and smaller than max pods.",
+            "时间段实例数应大于或等于最小实例数，并小于或等于最大实例数"),
+
+
     //日志管理 404xxx
     QUERY_LOG_TOPOLOGY_ERROR(404001, "Get topology failed.","查询全链路拓扑图失败"),
     QUERY_LOG_CONTENT_ERROR(404002, "Get log content failed.","查询全链路日志内容失败"),
@@ -365,7 +440,7 @@ public enum ErrorCodeMessage {
             "镜像仓库正在清理镜像垃圾文件，请稍后再试"),
     PUBLIC_HARBOR_PROJECT_CLEAN_ACCESS(405038, "Public harbor project image clean rule is only allow for admin",
             "公共镜像仓库清理规则需要系统管理员权限可以设置"),
-    HARBOR_COOKIE_INVALID(405039, "Harbor login timeout, please retry.", "Harbor登录超时，请重试"),
+    HARBOR_COOKIE_INVALID(405039, "Harbor unauthorized or login timeout, please retry.", "Harbor验证失败或登录超时，请重试"),
     HARBOR_PROTOCOL_INVALID(405040, "If harbor enabled https protocol, please use https replace http",
             "如果harbor启用https协议，请用https访问harbor"),
     IMAGE_DELETE_TIMEOUT(405041, "Maybe image file is too large to delete within 1 minutes, please check result later.",
@@ -374,6 +449,7 @@ public enum ErrorCodeMessage {
             "同步规则正在使用该备份服务器，请先删除同步规则"),
     IMAGE_IN_DELETING(405043, "This image is in deleting, please check later.", "镜像正在删除中,请稍后查看删除结果"),
     LARGE_IMAGE_DELETE(405044, "As image is large,it take some time to delete, please check later.", "由于镜像文件较大，需要一些时间删除，请稍后查看删除结果"),
+    HARBOR_PROJECT_NOT_FOUND(405045, "Project not found on harbor.", "在harbor上未找到该镜像仓库，或已被删除"),
 
     //CICD 406xxx
     ENVIRONMENT_NAME_NOT_BLANK(406001, "Build environment name can not be blank.", "环境名称不能为空"),
@@ -450,6 +526,17 @@ public enum ErrorCodeMessage {
     STAGE_CONFIG_ERROR(406065, "Stage configuration is wrong, please check", "流水线步骤配置有误，请检查步骤"),
     ORIGIN_STAGE_NOT_EXIST(406066, "Stage or pipeline is deleted in deploy stage, please configure", "部署步骤中镜像来源处的流水线或其步骤已被删除，请重新设置"),
     EXECUTE_TEST_SUITE_ERROR(406067, "Test suite execute failed.", "执行测试套件失败"),
+    FILE_UPLOAD_POD_CREATE_ERROR(406068, "Create file upload pod failed", "创建上传文件pod失败"),
+    FILE_UPLOAD_POD_REMOVE_ERROR(406069, "Remove file upload pod failed", "删除上传文件pod失败"),
+    DEPENDENCE_LIST_ERROR(406070, "Dependence query failed", "依赖查询失败"),
+    DEPENDENCE_NOT_AVAILABLE(406071, "Dependence is unavailable", "依赖不可用"),
+    DEPENDENCE_DIRECTORY_QUERY_ERROR(406072, "Get dependence directory failed", "获取依赖目录失败"),
+    NO_ENOUGH_RESOURCE(406073, "Not enough resource，please check the current quota and try again",
+            "Not enough resource，please check the current quota and try again(资源配额不足，灰度升级过程中会额外启动一个新实例以确保升级可以顺利进行，请确保当前系统有足够资源)"),
+    REPOSITORY_NOT_EXIST(406075, "Image repository not found.", "Image repository not found(镜像仓库不存在)"),
+    IMAGE_NOT_EXIST(406076, "Image not found.", "Image not found(镜像不存在)"),
+    IMAGE_TAG_NOT_EXIST(406077, "Image tag not found.", "Image tag not found(镜像版本不存在)"),
+    IMAGE_PUSH_ERROR(406078, "Image push failed.", "Image push failed(镜像推送失败)"),
 
     //配置文件 407xxx
     CONFIGMAP_NAME_DUPLICATE(407001, "ConfigMap name duplicate.", "配置文件名称已存在"),
@@ -458,16 +545,34 @@ public enum ErrorCodeMessage {
     FREE_TRIAL_END(900001, "Free trial end, please contact admin.","试用已结束，请联系管理员"),
     METHOD_FORMAT_ERROR(900002, "Method signature format error.","方法定义格式错误"),
 
-
-    //页面显示信息95xxxx
-    NODE_MASTER(950001, "MASTER","主控"),
-    NODE_SYSTEM(950002, "SYSTEM","系统"),
-    NODE_BUILD(950003, "BUILDING","构建"),
-    NODE_LB(950004, "SLB","负载均衡"),
-    NODE_PRIVATE(950005, "PRIVATE","独占"),
-    NODE_IDLE(950006, "IDLE","闲置"),
-    NODE_PUBLIC(950007, "PUBLIC","共享"),
-    NODE_SYSTEMANDSLB(950008, "SYSTEM,SLB","系统,负载均衡"),
+    //istio 409XXX
+    POLICY_EXIST(409001, "Policy name exist.", "策略已经存在"),
+    POLICY_NOT_EXIST(409002, "Policy name not exist.", "策略不存在"),
+    POLICY_LIST_FAILED(409003, "Micro service policy list failed.", "服务治理策略获取失败"),
+    POLICY_CREATE_FAILED(409004, "Policy create failed.", "服务治理策略创建失败"),
+    POLICY_DELETE_FAILED(409005, "Policy delete failed.", "服务治理策略删除失败"),
+    POLICY_UPDATE_FAILED(409006, "Policy update failed.", "服务治理策略更新失败"),
+    ISTIO_NAMESPACE_GET_FAILED(409007, "Querying istio namespace failed.", "查询Istio分区失败"),
+    ISTIO_STATUS_UPDATE_FAILED(409008, "Update istio status failed.", "更新Istio状态失败"),
+    INJECTION_IS_OPENED(409009, "Partition open istio automatic injection under Cluser", "集群下已存在分区开启istio自动注入"),
+    NAMESPACE_GET_FAILED(409010, "Querying  namespace failed.", "查询Istio分区失败"),
+    FRONT_DATA_ERROR(409011, "FRONT DATA ERROR.", "前端传入数据异常"),
+    DB_DATA_ERROR(409012, "DB DATA ERROR.", "数据库中数据异常"),
+    DATA_STATUS_ERROR(409013, "DATA IS ERROR.", "该条策略状态异常，不允许更新操作"),
+    POLICY_CLOSE_FAILED(409014, "Policy close failed.", "服务治理策略关闭失败"),
+    POLICY_OPEN_FAILED(409015, "Policy open failed.", "服务治理策略开启失败"),
+    CREATE_POLICY_DATA_IS_EMPTY(409016, "Policy create failed because data is empty.", "创建策略信息为空"),
+    UPDATE_POLICY_DATA_IS_EMPTY(409017, "Policy update failed because data is empty.", "更新策略信息为空"),
+    DELETE_POLICY_RULETYPE_IS_WRONG(409018, "Policy delete failed because ruleType is wrong.", "无法删除该类型策略"),
+    CLOSE_POLICY_RULETYPE_IS_WRONG(409019, "Close policy failed because ruleType is wrong.", "无法关闭该类型策略"),
+    OPEN_POLICY_RULETYPE_IS_WRONG(409020, "Open policy failed because ruleType is wrong.", "无法开启该类型策略"),
+    GET_POLICY_RULETYPE_IS_WRONG(409021, "Get policy detail failed because ruleType is wrong.", "无法获取该类型策略详情"),
+    //istio 成功 4091xx
+    POLICY_CREATE_SUCCESS(409101, "Policy create success.", "服务治理策略创建成功"),
+    POLICY_DELETE_SUCCESS(409102, "Policy delete success.", "服务治理策略删除成功"),
+    POLICY_UPDATE_SUCCESS(409103, "Policy update success.", "服务治理策略更新成功"),
+    POLICY_CLOSE_SUCCESS(409104, "Policy close success.", "服务治理策略关闭成功"),
+    POLICY_OPEN_SUCCESS(409105, "Policy open success.", "服务治理策略开启成功"),
 
     TENANTNOTINTHRCLUSTER(951001, "The tenant is not in the current platform","当前主机的租户不在本集群的库中，请切换其他集群的云管平台查看"),
     LOG_NULL(951002, "No log information","没有日志信息"),
@@ -544,9 +649,9 @@ public enum ErrorCodeMessage {
         switch (language){
             case LANGUAGE_CHINESE:
                 if(prefix){
-                    message = extendMessage + split +  error.getReasonChPhrase();
+                    message = extendMessage +  error.getReasonChPhrase();
                 }else{
-                    message = error.getReasonChPhrase() + split +  extendMessage;
+                    message = error.getReasonChPhrase() +  extendMessage;
                 }
                 return message;
             case LANGUAGE_ENGLISH:
@@ -560,6 +665,4 @@ public enum ErrorCodeMessage {
                 return error.getReasonEnPhrase();
         }
     }
-
-
 }

@@ -5,6 +5,8 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.Objects;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -18,6 +20,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -35,6 +38,8 @@ import com.harmonycloud.service.application.SecretService;
 @Controller
 public class AuthController {
 
+    public static final int SESSION_TIMEOUT_HOURS = 8;
+
     @Autowired
     private AuthService authService;
 
@@ -48,53 +53,24 @@ public class AuthController {
     private SecretService secretService;
 
     @Autowired
-    SystemConfigService systemConfigService;
+    private SystemConfigService systemConfigService;
 
     @Autowired
-    AuthManagerDefault authManagerDefault;
+    private AuthManagerDefault authManagerDefault;
 
     @Autowired
-    AuthManager4Ldap authManager4Ldap;
+    private AuthManager4Ldap authManager4Ldap;
 
     @Autowired
-    UserRoleRelationshipService userRoleRelationshipService;
+    private UserRoleRelationshipService userRoleRelationshipService;
     @Autowired
-    RolePrivilegeService rolePrivilegeService;
+    private RolePrivilegeService rolePrivilegeService;
     @Autowired
-    HttpServletRequest request;
+    private HttpServletRequest request;
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
-    /**
-     * 用户认证
-     * 
-     * @param username
-     * @param password
-     * @return
-     * @throws Exception
-     */
-    /*
-     * @ResponseBody
-     * 
-     * @RequestMapping(value="/login")
-     * 
-     * @Deprecated public ActionReturnUtil Login(@RequestParam(value="username")
-     * final String username,@RequestParam(value="password") final String
-     * password) throws Exception{ User authUser =
-     * authService.AuthUser(username, password); if(authUser != null){
-     * session.setAttribute("username", authUser.getUsername());
-     * session.setAttribute("password", authUser.getPassword());
-     * session.setAttribute("isAdmin", authUser.getIsAdmin());
-     * session.setAttribute("isMachine", authUser.getIsMachine());
-     * session.setAttribute("userId", authUser.getId()); Map<String, Object>
-     * data = new HashMap<String,Object>(); User user =
-     * userService.getUser(username); Map<String, Object> token =
-     * authService.generateToken(user); K8SClient.tokenMap.put(username,
-     * token.get("token")); data.put("username", authUser.getUsername());
-     * data.put("isSuperAdmin", authUser.getIsAdmin());
-     * JsonUtil.objectToJson(data); return
-     * ActionReturnUtil.returnSuccessWithData(data); }else{ return
-     * ActionReturnUtil.returnError(); } }
-     */
 
     @ResponseBody
     @RequestMapping(value = "/login",method = RequestMethod.POST)
@@ -109,7 +85,8 @@ public class AuthController {
         }
         LdapConfigDto ldapConfigDto = this.systemConfigService.findLdapConfig();
         String res = null;
-        if(ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1) {
+        if(ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1
+                && !CommonConstant.ADMIN.equals(username)) {
             res = this.authManager4Ldap.auth(username, password, ldapConfigDto);
         } else {
             res = authManagerDefault.auth(username, password);
@@ -139,13 +116,14 @@ public class AuthController {
             if(!(hasRole || admin)){
                 return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_NOT_AUTH);
             }
-
+            //sessionId存放redis统一管理 默认8小时数据销毁
+            stringRedisTemplate.opsForValue().set("sessionid:sessionid-"+username,session.getId(),SESSION_TIMEOUT_HOURS,TimeUnit.HOURS);
             //TODO 后续
 //            ActionReturnUtil checkedSecret = this.secretService.checkedSecret(username, password);
             
             Map<String, Object> data = new HashMap<String, Object>();
             Map<String, Object> token = authService.generateToken(user);
-            K8SClient.tokenMap.put(username, token.get("token"));
+            K8SClient.getTokenMap().put(username, token.get("token"));
             data.put("username", user.getUsername());
             data.put("isSuperAdmin", user.getIsAdmin());
             data.put("token", session.getId());
@@ -153,12 +131,14 @@ public class AuthController {
             JsonUtil.objectToJson(data);
             return ActionReturnUtil.returnSuccessWithData(data);
         }
-        return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.AUTH_FAIL);
+        return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.AUTH_FAIL);
     }
 
     @RequestMapping(value = "/logout", method = RequestMethod.POST)
     @ResponseBody
     public ActionReturnUtil logout() throws Exception {
+        //移除redis中sessionid
+        stringRedisTemplate.delete("sessionid:sessionid-"+session.getAttribute("username"));
         // 清除session
         session.invalidate();
         String data = "message" + ":" + "logout successfully!";

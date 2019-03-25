@@ -1,16 +1,16 @@
 package com.harmonycloud.api.application;
 
-import javax.servlet.http.HttpSession;
-
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.application.ConfigServiceUpdateDto;
 import com.harmonycloud.dto.config.ConfigDetailDto;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+
+import javax.servlet.http.HttpSession;
 
 /**
  * Created by gurongyun on 17/03/24.
@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 public class ConfigCenterController {
 
 	@Autowired
-	HttpSession session;
+	private HttpSession session;
 
 	@Autowired
 	private ConfigCenterService configCenterService;
@@ -112,8 +112,64 @@ public class ConfigCenterController {
 	public ActionReturnUtil getConfigMap(@PathVariable("tenantId") String tenantId,
 										  @PathVariable("projectId") String projectId,
 										  @PathVariable("configMapId") String configMapId) throws Exception {
-		return configCenterService.getConfigMap(configMapId);
+		return configCenterService.getConfigMapWithService(configMapId);
 	}
+
+	/**
+	 * 根据配置名称获取配置名称关联的所有服务
+	 */
+	@ResponseBody
+	@RequestMapping(value = "/{configMapName}/services", method = RequestMethod.GET)
+	public ActionReturnUtil getAllServiceByConfigName(@PathVariable("configMapName") String configName,
+													  @PathVariable("projectId") String projectId,
+													  @PathVariable("tenantId") String tenantId,
+													  @RequestParam(value = "clusterId")String clusterId) throws Exception{
+		return configCenterService.getAllServiceByConfigName(configName,clusterId,projectId,tenantId);
+	}
+
+	/**
+	 * 更新所选服务配置版本
+	 */
+	@ResponseBody
+	@RequestMapping(value = "/{configMapName}/deploy", method = RequestMethod.POST,consumes = "application/json")
+	public ActionReturnUtil deployConfig(@RequestBody ConfigServiceUpdateDto configServiceUpdateDto,
+												@PathVariable("configMapName") String configName,
+												@PathVariable("projectId") String projectId,
+												@PathVariable("tenantId") String tenantId) throws Exception{
+		return configCenterService.updateConfigTag(configServiceUpdateDto.getServiceNameList(),configServiceUpdateDto.getTag(),configName,projectId,tenantId,configServiceUpdateDto.getClusterId());
+	}
+
+	/**
+	 * 根据配置名称获取所有版本
+	 */
+	@ResponseBody
+	@RequestMapping(value = "/{configMapName}/tags", method = RequestMethod.GET)
+	public ActionReturnUtil getTagsByConfigName(@PathVariable("configMapName") String configName,
+												   @PathVariable("projectId") String projectId,
+												   @PathVariable("tenantId") String tenantId,
+												   @RequestParam(value = "clusterId")String clusterId){
+		return configCenterService.getTagsByConfigName(configName,clusterId,projectId);
+	}
+
+	/**
+	 * 返回当前配置组的所有版本信息
+	 * @param tenantId
+	 * @param projectId
+	 * @param configMapName
+	 * @param clusterId
+	 * @return
+	 * @throws Exception
+	 */
+	@ResponseBody
+	@RequestMapping(value = "/{configMapName}/detail", method = RequestMethod.GET)
+	public ActionReturnUtil listConfigMapByName(@PathVariable("tenantId") String tenantId,
+										 @PathVariable("projectId") String projectId,
+										 @PathVariable("configMapName") String configMapName,
+										 @RequestParam(value = "clusterId")String clusterId) throws Exception {
+		return configCenterService.getConfigMapByName(configMapName,clusterId,projectId, true);
+	}
+
+
 
 	/**
 	 * find a lastest config on 17/03/24.
@@ -128,8 +184,10 @@ public class ConfigCenterController {
 	public ActionReturnUtil getLatestConfigMap(@PathVariable("tenantId") String tenantId,
 											@PathVariable("projectId") String projectId,
 											@RequestParam(value = "name") String name,
-											@RequestParam(value = "reponame") String repoName) throws Exception {
-		return configCenterService.getLatestConfigMap(name, projectId, repoName);
+											@RequestParam(value = "reponame",required = false) String repoName,
+											   @RequestParam(value = "clusterId",required = false)String clusterId,
+											   @RequestParam(value = "tags") String tags) throws Exception {
+		return configCenterService.getLatestConfigMap(name, projectId, repoName,clusterId,tags);
 	}
 
 	/**
@@ -193,4 +251,12 @@ public class ConfigCenterController {
 											   @RequestParam(value = "name")String name) throws Exception {
 		return configCenterService.getConfigMapByName(namespace, name);
 	}
+
+//	@ResponseBody
+//	@RequestMapping(value = "/services", method = RequestMethod.GET)
+//	public ActionReturnUtil getServiceList( @PathVariable("projectId") String projectId,
+//											@PathVariable("tenantId") String tenantId,
+//										    @RequestParam(value = "configMapId")String configMapId) throws Exception {
+//		return configCenterService.getServiceList(projectId, tenantId,configMapId);
+//	}
 }

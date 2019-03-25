@@ -2,11 +2,13 @@ package com.harmonycloud.service.application.impl;
 
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dto.application.PersistentVolumeDto;
+import com.harmonycloud.dto.cluster.ErrDeployDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.ClusterStorage;
@@ -24,6 +26,7 @@ import com.harmonycloud.service.application.PersistentVolumeService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.PvDto;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.platform.service.InfluxdbService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.user.RoleLocalService;
@@ -49,7 +52,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
     private static final int SLEEP_TIME_TWO_SECONDS = 2000;
     public static final String PV_STATUS_BOUND = "Bound";
     @Autowired
-    HttpSession session;
+    private HttpSession session;
     @Autowired
     private NamespaceLocalService namespaceLocalService;
     @Autowired
@@ -57,17 +60,19 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
     @Autowired
     private PVCService pvcService;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
     private PodService podService;
     @Autowired
     private ProjectService projectService;
     @Autowired
-    DeploymentService dpService;
+    private DeploymentService dpService;
     @Autowired
-    UserService userService;
+    private UserService userService;
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
+    @Autowired
+    private InfluxdbService influxdbService;
 
     @SuppressWarnings("unchecked")
     @Override
@@ -197,6 +202,9 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NAME_EXIST, volume.getVolumeName() + " pv", true);
         }
         String projectName = projectService.getProjectByProjectId(volume.getProjectId()).getProjectName();
+        if ((projectName.length()+volume.getVolumeName().length()) >= CommonConstant. K8S_NAME_LENGTH_LIMIT){
+            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.NAME_LENGTH_LIMIT, DictEnum.STROAGE.phrase(),true);
+        }
         PersistentVolume persistentVolume = new PersistentVolume();
         // 设置metadata
         ObjectMeta metadata = new ObjectMeta();
@@ -210,7 +218,12 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         // 设置spec
         PersistentVolumeSpec spec = new PersistentVolumeSpec();
         Map<String, Object> cap = new HashMap<>();
-        cap.put(CommonConstant.STORAGE, volume.getCapacity() + CommonConstant.GI);
+        String capacity = volume.getCapacity();
+        if(capacity.contains(CommonConstant.GI) || capacity.contains(CommonConstant.MI)){
+            cap.put(CommonConstant.STORAGE, volume.getCapacity());
+        }else {
+            cap.put(CommonConstant.STORAGE, volume.getCapacity() + CommonConstant.GI);
+        }
         spec.setCapacity(cap);
         ClusterStorage storage = this.getProvider(cluster.getId(), CommonConstant.NFS);
         if (storage == null) {
@@ -236,7 +249,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         NFSVolumeSource createPvNfs = new NFSVolumeSource();
         createPvNfs.setPath(storage.getPath());
         createPvNfs.setServer(storage.getIp());
-        Pod pod = createPod(podName, "pv-dir-create", command, createPvNfs);
+        Pod pod = createPod(podName, "pv-dir-create", command, createPvNfs, cluster);
         ActionReturnUtil res = podService.addPod(CommonConstant.DEFAULT_NAMESPACE, pod, cluster);
         startThreadDeletePod(podName, cluster);
         return res;
@@ -296,6 +309,9 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
                     pvDto.setClusterName(cluster.getName());
                     pvDto.setClusterAliasName(cluster.getAliasName());
                     pvDto.setClusterId(cluster.getId());
+                    double pvused = this.influxdbService.getPvResourceUsage("volume/usage", cluster, pvDto.getName());
+                    pvused = pvused / 1024 / 1024 / 1024;
+                    pvDto.setUsed(String.format("%.2f", pvused) + "Gi");
                     pvDtos.add(pvDto);
                 }
 
@@ -331,7 +347,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         NFSVolumeSource pvNfs = new NFSVolumeSource();
         pvNfs.setPath(storage.getPath());
         pvNfs.setServer(storage.getIp());
-        Pod pod = createPod(podName, "pv-dir-delete", command, pvNfs);
+        Pod pod = createPod(podName, "pv-dir-delete", command, pvNfs, cluster);
         ActionReturnUtil res = podService.addPod(CommonConstant.DEFAULT_NAMESPACE, pod, cluster);
         startThreadDeletePod(podName, cluster);
         return res;
@@ -381,6 +397,26 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
     }
 
     @Override
+    public boolean isFsPv(String type) {
+        if (type == null) {
+            return false;
+        }
+        if (type.equalsIgnoreCase(Constant.VOLUME_TYPE_LOGDIR)) {
+            return false;
+        }
+        if (type.equalsIgnoreCase(Constant.VOLUME_TYPE_CONFIGMAP)) {
+            return false;
+        }
+        if (type.equalsIgnoreCase(Constant.VOLUME_TYPE_EMPTYDIR)) {
+            return false;
+        }
+        if (type.equalsIgnoreCase(Constant.VOLUME_TYPE_HOSTPASTH)) {
+            return false;
+        }
+        return true;
+    }
+
+    @Override
     public ActionReturnUtil recyclePv(String name, String clusterId) throws Exception {
         Cluster cluster = clusterService.findClusterById(clusterId);
         PersistentVolume pv = this.pvService.getPvByName(name, cluster);
@@ -388,7 +424,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PV_QUERY_FAIL, name, true);
         }
         String command = "test -e /scrub && rm -rf /scrub/..?* /scrub/.[!.]* /scrub/*  && test -z \"$(ls-A /scrub)\" || exit 1";
-        Pod pod = createPod(CommonConstant.PV_RECYCLE_POD_NAME + name, "pv-recycler", command, pv.getSpec().getNfs());
+        Pod pod = createPod(CommonConstant.PV_RECYCLE_POD_NAME + name, "pv-recycler", command, pv.getSpec().getNfs(), cluster);
         ActionReturnUtil res = podService.addPod(CommonConstant.DEFAULT_NAMESPACE, pod, cluster);
         startThreadDeletePod(CommonConstant.PV_RECYCLE_POD_NAME + name, cluster);
         return res;
@@ -423,6 +459,34 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
             }
         }
         return ActionReturnUtil.returnSuccess();
+    }
+
+    @Override
+    public ErrDeployDto transferPV(PersistentVolume pv, Cluster cluster, String deployName)
+            throws MarsRuntimeException {
+        ErrDeployDto errDeployDto = new ErrDeployDto();
+        if (null != pv) {
+            K8SURL urlPV = new K8SURL();
+            urlPV.setResource(Resource.PERSISTENTVOLUME).setSubpath(pv.getMetadata().getName());
+
+            PersistentVolumeSpec spec1 = new PersistentVolumeSpec();
+            spec1.setNfs(pv.getSpec().getNfs());
+            spec1.setAccessModes(pv.getSpec().getAccessModes());
+            spec1.setFlexVolume(pv.getSpec().getFlexVolume());
+            spec1.setCapacity(pv.getSpec().getCapacity());
+            ObjectMeta meta =new ObjectMeta();
+            meta.setLabels(pv.getMetadata().getLabels());
+            meta.setName(pv.getMetadata().getName());
+            meta.setClusterName(pv.getMetadata().getClusterName());
+            pv.setMetadata(meta);
+            pv.setSpec(spec1);
+            try {
+                pvService.addPv(pv, cluster);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return null;
     }
 
     public void deletePv(String projectId) throws Exception {
@@ -478,11 +542,17 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         } else {
             limits.put(CommonConstant.STORAGE, volume.getCapacity() + CommonConstant.GI);
         }
+        String projectName = projectService.getProjectByProjectId(volume.getProjectId()).getProjectName();
+
         ResourceRequirements resources = new ResourceRequirements();
         resources.setLimits(limits);
         resources.setRequests(limits);
         pvSpec.setResources(resources);
-        pvSpec.setVolumeName(volume.getVolumeName());
+        if(volume.getVolumeName().startsWith(projectName + CommonConstant.DOT)){
+            pvSpec.setVolumeName(volume.getVolumeName());
+        }else {
+            pvSpec.setVolumeName(projectName + CommonConstant.DOT + volume.getVolumeName());
+        }
         pVolumeClaim.setMetadata(meta);
         pVolumeClaim.setSpec(pvSpec);
         K8SClientResponse response = pvService.createPvc(volume.getNamespace(), pVolumeClaim, cluster);
@@ -558,7 +628,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         return pvDto;
     }
 
-    private Pod createPod(String podName, String containerName, String shCommand, NFSVolumeSource nfsVolumeSource) throws Exception {
+    private Pod createPod(String podName, String containerName, String shCommand, NFSVolumeSource nfsVolumeSource, Cluster cluster) throws Exception {
         Pod pod = new Pod();
         //metadata
         ObjectMeta metadata = new ObjectMeta();
@@ -572,7 +642,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         List<Container> cs = new ArrayList<Container>();
         Container con = new Container();
         con.setName(containerName);
-        con.setImage("k8s-deploy/busybox");
+        con.setImage(cluster.getHarborServer().getHarborAddress() + "/k8s-deploy/busybox");
         con.setImagePullPolicy("IfNotPresent");
         List<String> command = new ArrayList<String>();
         command.add("/bin/sh");

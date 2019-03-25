@@ -3,6 +3,9 @@ package com.harmonycloud.k8s.service;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.harmonycloud.common.exception.MarsRuntimeException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
@@ -23,7 +26,7 @@ import com.harmonycloud.k8s.util.K8SURL;
 
 @Service
 public class PodService {
-
+	private static final Logger LOGGER = LoggerFactory.getLogger(PodService.class);
 	private String surfix="/pods";
 	
 	public K8SClientResponse getSpecifyPod(String namespace,String name, Map<String, Object> headers, Map<String, Object> bodys, String method,Cluster cluster) throws Exception {
@@ -64,7 +67,7 @@ public class PodService {
 			
 			return cList;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("获取pod列表失败");
 		}
 		return null;
 	}
@@ -101,7 +104,7 @@ public class PodService {
 			
 			return pList;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("获取pod失败，namespace:{}", namespace, e);
 		}
 		return null;
 	}
@@ -122,7 +125,7 @@ public class PodService {
 			
 			return p;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("获取pod:{}失败, namespace:{}", name, namespace, e);
 		}
 		return null;
 	}
@@ -142,7 +145,7 @@ public class PodService {
 			
 			return u;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("删除pod:{}失败, namespace:{}", name, namespace, e);
 		}
 		return null;
 	}
@@ -162,7 +165,7 @@ public class PodService {
 			
 			return p;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("创建pod失败, namespace:{}", namespace, e);
 		}
 		return null;
 	}
@@ -182,7 +185,7 @@ public class PodService {
 			
 			return p;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("更新pod:{}失败, namespace:{}", name, namespace, e);
 		}
 		return null;
 	}
@@ -202,7 +205,7 @@ public class PodService {
 			
 			return u;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("删除pod:{}失败, namespace:{}", name, namespace, e);
 		}
 		return null;
 	}
@@ -221,7 +224,7 @@ public class PodService {
 			
 			return body;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("链接pod:{}失败, namespace:{}", name, namespace, e);
 		}
 		return null;
 	}
@@ -243,7 +246,7 @@ public class PodService {
 		headers.put("Content-Type", "application/json");
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST,headers,bodys,cluster);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody().toString(),UnversionedStatus.class);
+			UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody(),UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(us.getMessage());
         }
 		return ActionReturnUtil.returnSuccess();
@@ -299,6 +302,20 @@ public class PodService {
 		url.setNamespace(namespace).setResource(Resource.POD);
 		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE,null,bodys,cluster);
 		return response;
+	}
+
+	public PodList getPodByServiceName(String namespace, String serviceName, String method, Cluster cluster, String type) throws Exception {
+		K8SURL url = new K8SURL();
+		Map<String, Object> label = new HashMap<>();
+		label.put("labelSelector",type + "=" + serviceName);
+		url.setNamespace(namespace).setResource(Resource.POD);
+		K8SClientResponse response = new K8sMachineClient().exec(url, method, null, label, cluster);
+		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+			LOGGER.error("获取pod失败,{}", serviceName);
+			return null;
+		}
+		PodList podList = JsonUtil.jsonToPojo(response.getBody(), PodList.class);
+		return podList;
 	}
 	
 }

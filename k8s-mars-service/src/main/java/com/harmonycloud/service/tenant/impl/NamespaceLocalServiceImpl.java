@@ -1,20 +1,27 @@
 package com.harmonycloud.service.tenant.impl;
+
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.StringUtil;
+import com.harmonycloud.common.util.UUIDUtil;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;
-import com.harmonycloud.dao.user.bean.Role;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.tenant.NamespaceLocalMapper;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocalExample;
+import com.harmonycloud.dao.user.bean.Privilege;
+import com.harmonycloud.dao.user.bean.Role;
+import com.harmonycloud.dto.cluster.ErrorNamespaceDto;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
-import com.harmonycloud.service.tenant.*;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.user.ResourceMenuRoleService;
 import com.harmonycloud.service.user.RoleLocalService;
+import com.harmonycloud.service.user.RolePrivilegeService;
 import com.harmonycloud.service.user.UserService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -48,6 +55,10 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
     private UserService userService;
     @Autowired
     private HarborProjectService harborProjectService;
+    @Autowired
+    private ResourceMenuRoleService resourceMenuRoleService;
+    @Autowired
+    private RolePrivilegeService rolePrivilegeService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -61,7 +72,7 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
     @Override
     public void createNamespace(NamespaceLocal namespaceLocal) throws Exception {
         //设置namespaces id
-        namespaceLocal.setNamespaceId(this.getid());
+        namespaceLocal.setNamespaceId(UUIDUtil.get16UUID());
         String clusterId = namespaceLocal.getClusterId();
         Cluster cluster = this.clusterService.findClusterById(clusterId);
         if (Objects.isNull(cluster)){
@@ -72,14 +83,7 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
         //设置数据库
         namespaceLocalMapper.insertSelective(namespaceLocal);
     }
-    private String getid() {
-        // 通过uuid生成token
-        UUID uuid = UUID.randomUUID();
-        String str = uuid.toString();
-        // 去掉"-"符号
-        String id = str.substring(0, 8) + str.substring(9, 13) + str.substring(14, 18) + str.substring(19, 23) + str.substring(24);
-        return id;
-    }
+
 
     /**
      * 根据id删除分区
@@ -119,6 +123,7 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
         }
         return namespaceLocals.get(0);
     }
+
 
     /**
      * 查询namespace列表
@@ -363,4 +368,71 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
     private  NamespaceLocalExample getExample(){
         return  new NamespaceLocalExample();
     }
+
+    @Override
+    public NamespaceLocal getKubeSystemNamespace() throws Exception {
+        NamespaceLocal namespaceLocal = null;
+        Integer roleId = userService.getCurrentRoleId();
+
+        Map<String, Object> privilegeMap = rolePrivilegeService.getAvailablePrivilegeByRoleId(roleId);
+        if(privilegeMap.get(CommonConstant.APPCENTER) != null){
+            List<Privilege> privileges = (List<Privilege>)((Map)privilegeMap.get(CommonConstant.APPCENTER)).get(CommonConstant.DAEMONSET);
+            if(privileges != null) {
+                Privilege daemonsetPrivilege = privileges.stream().filter(privilege -> privilege.getStatus()).findAny().orElse(null);
+                if (daemonsetPrivilege != null) {
+                    namespaceLocal = new NamespaceLocal();
+                    namespaceLocal.setNamespaceName(CommonConstant.KUBE_SYSTEM);
+                    namespaceLocal.setAliasName(CommonConstant.KUBE_SYSTEM);
+                }
+            }
+        }
+        return namespaceLocal;
+    }
+
+    /**
+     *
+     * @param name
+     * @param clusterId
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public NamespaceLocal getNamespaceByNameAndClusterId(String name,String  clusterId) throws Exception {
+        NamespaceLocalExample example = this.getExample();
+        example.createCriteria().andNamespaceNameEqualTo(name).andClusterIdEqualTo(clusterId);
+        List<NamespaceLocal> namespaceLocals = this.namespaceLocalMapper.selectByExample(example);
+        if (!CollectionUtils.isEmpty(namespaceLocals)){
+            return namespaceLocals.get(0);
+        }
+        return null;
+
+    }
+
+    @Override
+    public ErrorNamespaceDto createTransferNamespace(NamespaceLocal namespaceLocal) {
+        ErrorNamespaceDto sussNamespaceDto = new ErrorNamespaceDto();
+        //设置namespaces id
+        namespaceLocal.setNamespaceId(StringUtil.getId());
+        String clusterId = namespaceLocal.getClusterId();
+        Cluster cluster = this.clusterService.findClusterById(clusterId);
+        namespaceLocal.setClusterName(cluster.getName());
+        namespaceLocal.setClusterAliasName(cluster.getAliasName());
+        //设置数据库
+        namespaceLocalMapper.insertSelective(namespaceLocal);
+        sussNamespaceDto.setNamespace(namespaceLocal.getNamespaceName());
+        return sussNamespaceDto;
+    }
+
+    /**
+     * 根据clusterIds获取所有NamespaceLocal
+     * @return
+     * @throws MarsRuntimeException
+     */
+    @Override
+    public List<NamespaceLocal> getNamespaceByClsterIds(List<String> clusterIds) throws MarsRuntimeException {
+        NamespaceLocalExample example = this.getExample();
+        example.createCriteria().andClusterIdIn(clusterIds);
+        return this.namespaceLocalMapper.selectByExample(example);
+    }
+
 }

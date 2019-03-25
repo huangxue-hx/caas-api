@@ -23,6 +23,12 @@ public interface SystemConfigService {
 
     LdapConfigDto findLdapConfig();
 
+    /**
+     * 获取是否使用平台自身的用户系统
+     * @return 开启ldap或sso登录，返回fasle，其他true
+     */
+    boolean getLocalUserFlag();
+
     List<SystemConfig> findByConfigType(String configType);
 
     SystemConfig findByConfigName(String configName);

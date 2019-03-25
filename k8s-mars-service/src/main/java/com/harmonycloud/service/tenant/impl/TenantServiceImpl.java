@@ -1,29 +1,49 @@
 package com.harmonycloud.service.tenant.impl;
 
-import java.math.RoundingMode;
-import java.text.NumberFormat;
-import java.util.*;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Collectors;
-import javax.servlet.http.HttpSession;
-import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.alibaba.fastjson.JSONObject;
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.Constant.IngressControllerConstant;
 import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.HarborMemberEnum;
+import com.harmonycloud.common.enumm.NodeTypeEnum;
+import com.harmonycloud.common.exception.K8sAuthException;
+import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.AssertUtil;
-import com.harmonycloud.dao.user.bean.*;
-import com.harmonycloud.dto.user.UserGroupDto;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.common.util.StringUtil;
+import com.harmonycloud.common.util.UUIDUtil;
+import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.dataprivilege.DataPrivilegeStrategyMapper;
+import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategy;
+import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategyExample;
+import com.harmonycloud.dao.tenant.TenantBindingMapper;
 import com.harmonycloud.dao.tenant.bean.*;
+import com.harmonycloud.dao.user.bean.*;
+import com.harmonycloud.dto.application.StorageClassDto;
+import com.harmonycloud.dto.cluster.IngressControllerDto;
 import com.harmonycloud.dto.tenant.*;
-import com.harmonycloud.service.application.PersistentVolumeService;
+import com.harmonycloud.dto.user.UserGroupDto;
+import com.harmonycloud.k8s.bean.StorageClass;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.bean.cluster.ClusterDomain;
+import com.harmonycloud.k8s.bean.cluster.ClusterDomainPort;
+import com.harmonycloud.k8s.constant.Constant;
+import com.harmonycloud.k8s.service.ScService;
+import com.harmonycloud.service.application.ApplicationTemplateService;
+import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cache.ClusterCacheManager;
+import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.cluster.IngressControllerService;
 import com.harmonycloud.service.platform.bean.NodeDto;
+import com.harmonycloud.service.platform.service.ConfigCenterService;
+import com.harmonycloud.service.platform.service.DashboardService;
 import com.harmonycloud.service.platform.service.NodeService;
 import com.harmonycloud.service.tenant.*;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.RolePrivilegeService;
 import com.harmonycloud.service.user.UserRoleRelationshipService;
-import jnr.ffi.annotations.Synchronized;
+import com.harmonycloud.service.user.UserService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,22 +51,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import com.harmonycloud.common.Constant.CommonConstant;
-import com.harmonycloud.common.exception.K8sAuthException;
-import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.date.DateUtil;
-import com.harmonycloud.dao.network.NetworkCalicoMapper;
-import com.harmonycloud.dao.tenant.TenantBindingMapper;
-import com.harmonycloud.k8s.constant.Constant;
-import com.harmonycloud.k8s.service.NetworkPolicyService;
-import com.harmonycloud.k8s.service.PersistentvolumeService;
-import com.harmonycloud.k8s.service.RoleBindingService;
-import com.harmonycloud.service.cluster.ClusterService;
-import com.harmonycloud.service.platform.service.ConfigCenterService;
-import com.harmonycloud.service.platform.service.ExternalService;
-import com.harmonycloud.service.user.UserService;
 import org.springframework.util.CollectionUtils;
+
+import javax.servlet.http.HttpSession;
+import java.math.RoundingMode;
+import java.text.NumberFormat;
+import java.util.*;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
+
+import static com.harmonycloud.common.Constant.CommonConstant.PROTOCOL_HTTP;
+import static com.harmonycloud.common.Constant.CommonConstant.PROTOCOL_HTTPS;
 
 /**
  * Created by andy on 17-1-9.
@@ -57,60 +73,62 @@ import org.springframework.util.CollectionUtils;
 public class TenantServiceImpl implements TenantService {
 
     @Autowired
-    TenantBindingMapper tenantBindingMapper;
+    private TenantBindingMapper tenantBindingMapper;
     @Autowired
-    NamespaceService namespaceService;
+    private NamespaceService namespaceService;
     @Autowired
-    com.harmonycloud.k8s.service.NamespaceService namespaceService1;
-    @Autowired
-    PersistentvolumeService persistentvolumeService;
-    @Autowired
-    RoleBindingService roleBindingService;
-    @Autowired
-    NetworkCalicoMapper networkCalicoMapper;
-    @Autowired
-    NetworkService networkService;
-    @Autowired
-    PersistentVolumeService persistentVolumeService;
-    @Autowired
-    NetworkPolicyService networkPolicyService;
-    @Autowired
-    ClusterService clusterService;
-    @Autowired
-    ExternalService externalService;
+    private StorageClassService storageClassService;
 
     @Autowired
-    ConfigCenterService configCenterService;
+    private ClusterService clusterService;
+
     @Autowired
-    UserService userService;
+    private ConfigCenterService configCenterService;
     @Autowired
-    HttpSession session;
+    private UserService userService;
     @Autowired
-    UserRoleRelationshipService userRoleRelationshipService;
+    private HttpSession session;
     @Autowired
-    ProjectService projectService;
+    private UserRoleRelationshipService userRoleRelationshipService;
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private ProjectService projectService;
     @Autowired
-    RoleLocalService roleLocalService;
+    private NamespaceLocalService namespaceLocalService;
     @Autowired
-    TenantClusterQuotaService tenantClusterQuotaService;
+    private RoleLocalService roleLocalService;
     @Autowired
-    TenantPrivateNodeService tenantPrivateNodeService;
+    private TenantClusterQuotaService tenantClusterQuotaService;
     @Autowired
-    NodeService nodeService;
+    private TenantPrivateNodeService tenantPrivateNodeService;
     @Autowired
-    ClusterCacheManager clusterCacheManager;
+    private NodeService nodeService;
+    @Autowired
+    private ClusterCacheManager clusterCacheManager;
     @Autowired
     private RolePrivilegeService rolePrivilegeService;
+    @Autowired
+    private DataPrivilegeStrategyMapper dataPrivilegeStrategyMapper;
+
+    @Autowired
+    private IngressControllerService ingressControllerService;
+
+    @Autowired
+    private ScService scService;
+    @Autowired
+    private DashboardService dashboardService;
 
     public static final String PROJECTMGR = "0005";
     //租户类型
     public static final String CATEGORY_TENANT = "0";
     //项目类型
     public static final String CATEGORY_PROJECT = "1";
+    @Autowired
+    private ApplicationTemplateService applicationTemplateService;
 
-//    @Value("#{propertiesReader['network.networkFlag']}")
+    //租户类型
+    public static final Byte SCOPE_TENANT = 0;
+
+    //    @Value("#{propertiesReader['network.networkFlag']}")
     private String networkFlag;
 
     private static final Logger logger = LoggerFactory.getLogger(TenantServiceImpl.class);
@@ -173,9 +191,13 @@ public class TenantServiceImpl implements TenantService {
                 }
             }
         }
-        //设置默认角色id为角色列表的第一个角色id
+        //切换之后的角色列表包含原角色则设置原角色，否则设置默认角色id为角色列表的第一个角色id
         if (!CollectionUtils.isEmpty(roleList)){
-            session.setAttribute(CommonConstant.ROLEID, roleList.get(0).getId());
+            List<Integer> roleIds = roleList.stream().map(Role::getId).collect(Collectors.toList());
+            if(session.getAttribute(CommonConstant.ROLEID) == null
+                    || !roleIds.contains(session.getAttribute(CommonConstant.ROLEID))){
+                session.setAttribute(CommonConstant.ROLEID, roleList.get(0).getId());
+            }
         }
         if (roleList.size() <= 0){
             throw new MarsRuntimeException(ErrorCodeMessage.ROLE_DISABLE);
@@ -273,6 +295,12 @@ public class TenantServiceImpl implements TenantService {
         TenantBinding tenantBinding = list.get(0);
         //组装tenantDto
         TenantDto tenantDto = this.generateTenantDto(tenantBinding);
+        DataPrivilegeStrategyExample strategyExample = new DataPrivilegeStrategyExample();
+        strategyExample.createCriteria().andScopeIdEqualTo(tenantId).andScopeTypeEqualTo(SCOPE_TENANT);
+        List<DataPrivilegeStrategy> strategyList = dataPrivilegeStrategyMapper.selectByExample(strategyExample);
+        if(!CollectionUtils.isEmpty(strategyList)){
+            tenantDto.setStrategy(strategyList.get(0).getStrategy().intValue());
+        }
         return tenantDto;
     }
 
@@ -326,6 +354,8 @@ public class TenantServiceImpl implements TenantService {
         }
         tenantDto.setClusterQuota(tenantClusterQuotas);
         List<Map<String, Object>> namespaceListByTenantid = namespaceService.getNamespaceListByTenantid(tenantId);
+
+
         //设置租户分区列表
         tenantDto.setNamespaceList(namespaceListByTenantid);
         tenantDto.setNamespaceNum(namespaceListByTenantid.size());
@@ -336,6 +366,7 @@ public class TenantServiceImpl implements TenantService {
 //        countDownLatchApp.await();
         return tenantDto;
     }
+
     @Override
     @Transactional(propagation = Propagation.REQUIRED)
     public void createTenant(TenantDto tenantDto) throws Exception {
@@ -353,7 +384,7 @@ public class TenantServiceImpl implements TenantService {
         }
         // 如果没有tenantId生成tenantId
         if (StringUtils.isBlank(tenantId)){
-            tenantId = this.getid();
+            tenantId = UUIDUtil.get16UUID();
         }
         tenantDto.setTenantId(tenantId);
 
@@ -393,6 +424,12 @@ public class TenantServiceImpl implements TenantService {
             // 创建租户管理员
             this.createTm(tenantId,tmList);
         }
+        //创建租户策略
+        DataPrivilegeStrategy privilegeStrategy = new DataPrivilegeStrategy();
+        privilegeStrategy.setScopeType(SCOPE_TENANT);
+        privilegeStrategy.setScopeId(tenantId);
+        privilegeStrategy.setStrategy(tenantDto.getStrategy().byteValue());
+        dataPrivilegeStrategyMapper.insertSelective(privilegeStrategy);
     }
 
     @Override
@@ -431,6 +468,8 @@ public class TenantServiceImpl implements TenantService {
 
         // 删除tenant信息
         tenantBindingMapper.deleteByPrimaryKey(tenantBinding.getId());
+        // 删除权限信息
+        dataPrivilegeStrategyMapper.deleteByScopeId(tenantId,SCOPE_TENANT);
         // 删除租户的管理员关联
         userRoleRelationshipService.deleteUserRoleRelationshipByTenantId(tenantId);
         // 删除租户的集群配额
@@ -464,11 +503,12 @@ public class TenantServiceImpl implements TenantService {
             throw new MarsRuntimeException(ErrorCodeMessage.UPDATE_CLUSTERQUOTA_INCORRECT);
         }
         for (ClusterQuotaDto clusterQuotaDto:clusterQuota) {
-            this.updateClusterQuotaByTenantid(clusterQuotaDto.getId(),clusterQuotaDto.getCpuQuota(),clusterQuotaDto.getMemoryQuota());
+            this.updateClusterQuotaByTenantid(clusterQuotaDto.getId(), clusterQuotaDto.getCpuQuota(),
+                    clusterQuotaDto.getMemoryQuota(), clusterQuotaDto.getStorageQuota());
         }
     }
     //根据id更新集群配额
-    private void updateClusterQuotaByTenantid(Integer id,Double cpu,Double memory) throws Exception{
+    private void updateClusterQuotaByTenantid(Integer id, Double cpu, Double memory, List<StorageDto> storageDtoList) throws Exception{
         //使用用户分配的配额更新集群配额
         TenantClusterQuota quota = tenantClusterQuotaService.getClusterQuotaById(id);
         if (quota == null){
@@ -478,10 +518,24 @@ public class TenantServiceImpl implements TenantService {
         quota.setMemoryQuota(memory);
         Date date = DateUtil.getCurrentUtcTime();
         quota.setUpdateTime(date);
+        //若用户设定存储配额，将配额信息更新到数据库中
+        if (storageDtoList != null) {
+            String storageQuotasString = "";
+            for (StorageDto storageDto : storageDtoList) {
+                storageQuotasString = storageDto.getName() + "_" + storageDto.getStorageQuota() + "_" +
+                        storageDto.getTotalStorage() + "," + storageQuotasString;
+            }
+            if (!storageQuotasString.equals("")) {
+                storageQuotasString = storageQuotasString.substring(0, storageQuotasString.length() - 1);
+            }
+            quota.setStorageQuotas(storageQuotasString);
+        } else {
+            quota.setStorageQuotas("");
+        }
         tenantClusterQuotaService.updateClusterQuota(quota);
     }
     //修改配额有效值检查
-    private Boolean checkClusterQuota(List<ClusterQuotaDto> clusterQuota,String tenantId) throws Exception{
+    private Boolean checkClusterQuota(List<ClusterQuotaDto> clusterQuota, String tenantId) throws Exception{
         Lock lock = new ReentrantLock();
         lock.lock();
         try{
@@ -496,6 +550,11 @@ public class TenantServiceImpl implements TenantService {
                 }
                 Double cpuQuota = clusterQuotaDto.getCpuQuota();
                 Double memoryQuota = clusterQuotaDto.getMemoryQuota();
+                //不允许超过资源最大值
+                Map<String, Object> allocatableMap = this.dashboardService.getInfraInfoWorkNode(clusterCacheManager.getCluster(clusterQuotaDto.getClusterId()));
+                if(cpuQuota>Double.parseDouble(allocatableMap.get("cpu").toString()) || convertValue(clusterQuotaDto.getMemoryQuotaType(),memoryQuota)>Double.parseDouble(allocatableMap.get("memoryGb").toString())*1024){
+                    return false;
+                }
                 Double lastCpu = 0d;
                 Double lastMemory = 0d;
                 String clusterId = null;
@@ -545,6 +604,69 @@ public class TenantServiceImpl implements TenantService {
                         || changeMemoryValue - (clusterMemoryAllocatedResources * 1024) >= 0.1
                         || memoryQuota < usedMemory){
                     status = Boolean.FALSE;
+                }
+                //存储配额有效值检查
+                List<StorageDto> storageDtoList = clusterQuotaDto.getStorageQuota();
+                //租户内已经使用的存储
+                Map<String, Integer> storageUsedMap = this.tenantClusterQuotaService.getStorageUsage(tenantId, clusterId);
+                if (storageUsedMap.size() > 0) {
+                    Map<String, StorageDto> storageDtoMap = new HashMap<>();
+                    if (storageDtoList != null) {
+                        storageDtoMap = storageDtoList.stream().collect(Collectors.toMap(StorageDto::getName,storage -> storage));
+                    }
+                    for (String storageName : storageUsedMap.keySet()) {
+                        if(storageUsedMap.get(storageName)>0) {
+                            StorageDto storageDto = storageDtoMap.get(storageName);
+                            if(storageDto == null){
+                                throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_QUOTA_DELETE_FAIL);
+                            }
+                            if(Integer.parseInt(storageDto.getStorageQuota()) < storageUsedMap.get(storageName)){
+                                logger.warn("设置集群存储配额小于已使用的，used：{}，set：{}",
+                                        JSONObject.toJSONString(storageUsedMap),JSONObject.toJSONString(storageDtoList));
+                                throw new MarsRuntimeException(ErrorCodeMessage.RESOURCE_BEHIND_FLOOR);
+                            }
+                        }
+                    }
+                }
+                if (storageDtoList != null) {
+                    //同集群下其他租户对StorageClass使用情况
+                    Map<String, Integer> storageClassUnusedMap = getStorageClassUnused(tenantId, clusterId);
+                    //对用户设定的存储配额进行验证
+                    for (StorageDto storageDto : storageDtoList) {
+                        //用户设定的存储配额
+                        Integer storageQuota = Integer.parseInt(storageDto.getStorageQuota());
+                        Integer totalStorage = Integer.parseInt(storageDto.getTotalStorage());
+                        //用户设定的存储配额值必须不大于总的存储配额
+                        if (storageQuota > totalStorage) {
+                            status = Boolean.FALSE;
+                        }
+                        if (storageClassUnusedMap.size() > 0 && storageClassUnusedMap.get(storageDto.getName()) != null) {
+                            if (Integer.parseInt(storageDto.getStorageQuota()) > storageClassUnusedMap.get(storageDto.getName())) {
+                                throw new MarsRuntimeException(ErrorCodeMessage.RESOURCE_OVER_FLOOR);
+                            }
+                        }
+                        //如果当前租户使用的StorageClass其他租户未使用，获取k8s中StorageClass相关信息
+                        Cluster cluster = clusterService.findClusterById(clusterId);
+                        StorageClass sc = scService.getScByName(storageDto.getName(), cluster);
+
+                        if (sc == null) {
+                            logger.error("查询StorageClass失败，StorageClass名称为 {}", storageDto.getName());
+                            throw new MarsRuntimeException(ErrorCodeMessage.UNKNOWN);
+                        } else {
+                            Map<String, Object> annotations = sc.getMetadata().getAnnotations();
+                            if(annotations != null && annotations.get("storageLimit") != null){
+                                //系统中StorageClass设定的存储最大值
+                                Double storageLimit = Double.valueOf(annotations.get("storageLimit").toString());
+                                //集群配额中对该StorageClass设定的配额  小于等于  storageClass设定的最大存储值，否则检查不通过
+                                if (storageQuota > storageLimit) {
+                                    status = Boolean.FALSE;
+                                }
+                                if (totalStorage > storageLimit) {
+                                    status = Boolean.FALSE;
+                                }
+                            }
+                        }
+                    }
                 }
             }
             return status;
@@ -637,7 +759,7 @@ public class TenantServiceImpl implements TenantService {
         if (CollectionUtils.isEmpty(nodeStatusLabels)){
             throw new MarsRuntimeException(ErrorCodeMessage.NODE_NOT_EXIST);
         }
-        Map<String, String> removelabels = new HashMap<String, String>();
+        Map<String, String> updateLabels = new HashMap<String, String>();
         String HarmonyCloud_Status = nodeStatusLabels.get(CommonConstant.HARMONYCLOUD_STATUS);
         if (StringUtils.isBlank(HarmonyCloud_Status)) {
             throw new MarsRuntimeException(ErrorCodeMessage.NODE_LABEL_ERROR);
@@ -648,11 +770,11 @@ public class TenantServiceImpl implements TenantService {
             throw new MarsRuntimeException(ErrorCodeMessage.NODE_CANNOT_REMOVED_FORTENANT);
         }
         if (HarmonyCloud_Status.equals(CommonConstant.LABEL_STATUS_D)) {
-            removelabels.put(CommonConstant.HARMONYCLOUD_TENANTNAME_NS, nodeStatusLabels.get(CommonConstant.HARMONYCLOUD_TENANTNAME_NS));
-            nodeStatusLabels.put(CommonConstant.HARMONYCLOUD_STATUS, CommonConstant.LABEL_STATUS_B);
-            nodeStatusLabels.remove(CommonConstant.HARMONYCLOUD_TENANTNAME_NS);
-            nodeService.addNodeLabels(nodeName, nodeStatusLabels, cluster.getId());
-            nodeService.removeNodeLabels(nodeName, removelabels, cluster);
+            //删除节点的租户标签，增加节点闲置类型标签
+            updateLabels.put(CommonConstant.HARMONYCLOUD_TENANTNAME_NS, null);
+            updateLabels.put(CommonConstant.HARMONYCLOUD_TENANT_ID, null);
+            updateLabels.put( NodeTypeEnum.IDLE.getLabelKey(), NodeTypeEnum.IDLE.getLabelValue());
+            nodeService.updateNodeLabels(nodeName, updateLabels, cluster);
         }
         this.tenantPrivateNodeService.deleteTenantPrivateNode(tenant.getTenantId(), clusterId,nodeName);
     }
@@ -667,7 +789,7 @@ public class TenantServiceImpl implements TenantService {
         TenantBinding tenant = this.getTenantByTenantid(tenantid);
         List<NodeDto> nodeDtos = new ArrayList<>();
         String label = CommonConstant.HARMONYCLOUD_TENANTNAME_NS + CommonConstant.EQUALITY_SIGN + tenant.getTenantName();
-        List<NodeDto> nodeList = this.nodeService.listPrivateNodeByLabel(label, cluster);
+        List<NodeDto> nodeList = this.nodeService.listNodeByLabel(label, cluster);
         nodeDtos.addAll(nodeList);
         return nodeDtos;
     }
@@ -743,6 +865,17 @@ public class TenantServiceImpl implements TenantService {
                 ClusterQuotaDto clusterQuotaDto = clusterQuotaMap.get(cluster.getId().toString());
                 quota.setCpuQuota(clusterQuotaDto.getCpuQuota());
                 quota.setMemoryQuota(clusterQuotaDto.getMemoryQuota());
+                //设定存储配额
+                List<StorageDto> storageDtoList = clusterQuotaDto.getStorageQuota();
+                String storageQuotasString = null;
+                for (StorageDto storageDto : storageDtoList) {
+                    storageQuotasString = storageDto.getName() + "_" + storageDto.getStorageQuota() + "_" +
+                            storageDto.getTotalStorage() + ",";
+                }
+                if (storageQuotasString != null) {
+                    storageQuotasString = storageQuotasString.substring(0, storageQuotasString.length() - 1);
+                }
+                quota.setStorageQuotas(storageQuotasString);
             }else {
                 //使用默认配额创建集群配额 0
                 quota.setCpuQuota(0d);
@@ -823,6 +956,18 @@ public class TenantServiceImpl implements TenantService {
                 addUsers.add(user.trim());
                 this.updateTenantMember(tenantId,addUsers,null);
             }
+
+            // deal harbor user privilege
+            try {
+                List<Project> projectList = this.projectService.listTenantProjectByTenantidInner(tenantId);
+                if (!CollectionUtils.isEmpty(projectList)){
+                    for (Project project : projectList) {
+                        this.roleLocalService.addHarborUserRole(HarborMemberEnum.PROJECTADMIN,project.getProjectId(),user,CommonConstant.TM_ROLEID);
+                    }
+                }
+            }catch (Exception e){
+                logger.error("sync harbor member failed",e);
+            }
         }
         //更新TM关系至租户表
         String tms = tenantBinding.getTmUsernames();
@@ -892,15 +1037,17 @@ public class TenantServiceImpl implements TenantService {
         }
         //更新redis中用户的状态
         clusterCacheManager.updateRolePrivilegeStatusForTenantOrProject(roleId,username,tenantId,null,Boolean.TRUE);
-    }
-
-    public String getid() {
-        // 通过uuid生成token
-        UUID uuid = UUID.randomUUID();
-        String str = uuid.toString();
-        // 去掉"-"符号
-        String id = str.replaceAll(CommonConstant.LINE, CommonConstant.EMPTYSTRING);
-        return id;
+        //处理harbor的角色权限关系
+        try {
+            List<Project> projectList = this.projectService.listTenantProjectByTenantidInner(tenantId);
+            if (!CollectionUtils.isEmpty(projectList)){
+                for (Project project : projectList) {
+                    this.roleLocalService.updateHarborUserRole(HarborMemberEnum.NONE,project.getProjectId(),username);
+                }
+            }
+        }catch (Exception e){
+            logger.error("sync harbor member failed",e);
+        }
     }
 
     @Override
@@ -914,6 +1061,30 @@ public class TenantServiceImpl implements TenantService {
         }
         return list.get(0);
 
+    }
+
+    @Override
+    public Map<String, Integer> getStorageClassUnused(String tenantId , String clusterId) throws Exception {
+        List<StorageClassDto> storageClassDtoList = storageClassService.listStorageClass(clusterId);
+        Map<String, Integer> storageClassUnusedMap = storageClassDtoList.stream().filter(storageDto -> storageDto.getStorageLimit() != null).collect(Collectors.toMap(StorageClassDto::getName, storageDto -> Integer.valueOf(storageDto.getStorageLimit())));
+        List<TenantClusterQuota> tenantClusterQuotaList = tenantClusterQuotaService.getClusterQuotaByClusterId(clusterId, false);
+        //StorageClass剩余的存储容量
+        for (TenantClusterQuota tenantClusterQuota : tenantClusterQuotaList) {
+            String storageQuotas = tenantClusterQuota.getStorageQuotas();
+            if (!StringUtils.isBlank(storageQuotas)) {
+                if (tenantId.equals(tenantClusterQuota.getTenantId())) {
+                    continue;
+                }
+                String[] storageQuotasArray = storageQuotas.split(",");
+                for (String storageQuota : storageQuotasArray) {
+                    String[] storageQuotaArray = storageQuota.split("_");
+                    if (storageClassUnusedMap.get(storageQuotaArray[0]) != null) {
+                        storageClassUnusedMap.put(storageQuotaArray[0], storageClassUnusedMap.get(storageQuotaArray[0]) - Integer.parseInt(storageQuotaArray[1]));
+                    }
+                }
+            }
+        }
+        return storageClassUnusedMap;
     }
 
     @Override
@@ -1430,7 +1601,121 @@ public class TenantServiceImpl implements TenantService {
         List<TenantBinding> listTenantBinding = tenantBindingMapper.selectByExample(example);
         return listTenantBinding;
     }
+
+    /**
+     * 修改租户在集群下的配额
+     *
+     * @param tenantName
+     * @param tenantId
+     * @param clusterQuota
+     * @throws Exception
+     */
+    @Override
+    public void removeClusterQuota(String tenantName, String tenantId, ClusterQuotaDto clusterQuota) throws Exception {
+        //更新集群配额
+        List<Map<String, Object>> namespaceDataList = namespaceService.getNamespaceListByTenantid(tenantId);
+        for (Map<String, Object> map:namespaceDataList ) {
+            //移除分区
+            if (map.get("clusterId").toString().equals(clusterQuota.getClusterId())){
+                throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_DELETE_FIRST);
+            }
+        }
+        // 有效值判断
+        TenantBinding tenantBinding = this.getTenantByTenantid(tenantId);
+        if (tenantBinding == null){
+            throw new MarsRuntimeException(ErrorCodeMessage.INVALID_TENANTID);
+        }
+        List<TenantPrivateNode> tenantPrivateNodes = tenantPrivateNodeService.listTenantPrivateNode(tenantId,
+                clusterQuota.getClusterId());
+        for (TenantPrivateNode tenantPrivateNode:tenantPrivateNodes) {
+            this.dealDeletePrivateNode(tenantPrivateNode,tenantBinding);
+        }
+        //移除应用模板
+        applicationTemplateService.deleteApplicationTemplate(clusterQuota.getClusterId(),tenantName);
+        //移除配置文件
+        configCenterService.deleteConfigMap(clusterQuota.getClusterId(),tenantId);
+        //更新集群配置
+        this.updateClusterQuotaByTenantid(clusterQuota.getId(),0.0,0.0, null);
+    }
+
+    @Override
+    public List<IngressControllerDto> getTenantIngressController(String tenantId, String clusterId) throws Exception {
+        List<IngressControllerDto> icList = new ArrayList<>();
+        List<String> icNames = new ArrayList<>();
+        //分配给该租户的负载均衡器名称列表
+        TenantClusterQuota tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(tenantId, clusterId);
+        if (tenantClusterQuota != null && StringUtils.isNotBlank(tenantClusterQuota.getIcNames())) {
+            icNames = StringUtil.splitAsList(tenantClusterQuota.getIcNames(),",");
+        }
+        List<IngressControllerDto> icDtos = ingressControllerService.listIngressControllerBrief(clusterId);
+        //全局负载均衡器外网端口从cluster集群对象中获取
+        ClusterDomain clusterDomain = clusterService.findClusterById(clusterId).getDomains();
+        for (IngressControllerDto  icDto : icDtos) {
+            if(icDto.getIcName().equals(IngressControllerConstant.IC_DEFAULT_NAME)){
+                if(clusterDomain != null && !CollectionUtils.isEmpty(clusterDomain.getPort())){
+                    //设置集群全局负载均衡器的外网http https端口
+                    List<ClusterDomainPort> clusterDomainPorts = clusterDomain.getPort();
+                    for(ClusterDomainPort clusterDomainPort : clusterDomainPorts){
+                        if(clusterDomainPort.getExternal() && clusterDomainPort.getProtocol().equalsIgnoreCase(PROTOCOL_HTTP)){
+                            icDto.setExternalHttpPort(clusterDomainPort.getPort());
+                        }else if(clusterDomainPort.getExternal() && clusterDomainPort.getProtocol().equalsIgnoreCase(PROTOCOL_HTTPS)){
+                            icDto.setExternalHttpsPort(clusterDomainPort.getPort());
+                        }
+                    }
+                }
+                icList.add(icDto);
+            }else if(icNames.contains(icDto.getIcName())){
+                icList.add(icDto);
+            }
+        }
+        return icList;
+    }
+
     private TenantBindingExample getExample(){
         return new TenantBindingExample();
     }
+
+
+    /**
+     * 修改租户策略
+     * @param tenantId
+     * @param strategy
+     */
+    @Override
+    public void updateTenantStrategy(String tenantId, Integer strategy) throws Exception {
+        DataPrivilegeStrategyExample example = new DataPrivilegeStrategyExample();
+        example.createCriteria().andScopeIdEqualTo(tenantId).andScopeTypeEqualTo(SCOPE_TENANT.byteValue());
+        List<DataPrivilegeStrategy> list = dataPrivilegeStrategyMapper.selectByExample(example);
+
+        if(!CollectionUtils.isEmpty(list)){
+            DataPrivilegeStrategy dataPrivilegeStrategy = list.get(0);
+            dataPrivilegeStrategy.setStrategy(strategy.byteValue());
+            dataPrivilegeStrategyMapper.updateByPrimaryKeySelective(dataPrivilegeStrategy);
+        }else{
+            DataPrivilegeStrategy dataPrivilegeStrategy = new DataPrivilegeStrategy();
+            dataPrivilegeStrategy.setScopeType(SCOPE_TENANT);
+            dataPrivilegeStrategy.setScopeId(tenantId);
+            dataPrivilegeStrategy.setStrategy(strategy.byteValue());
+            dataPrivilegeStrategyMapper.insert(dataPrivilegeStrategy);
+        }
+
+    }
+
+    @Override
+    public List<Tenant> queryTenantByClusterId(String clusterId) throws Exception {
+        List<String> tenantIds = tenantClusterQuotaService.getClusterQuotaByClusterId(clusterId, true).stream().map(x->x.getTenantId()).collect(Collectors.toList());
+        List<TenantBinding> tenantBindings = tenantBindingMapper.getTenantByIdList(tenantIds);
+        List<Tenant> tenants = new ArrayList<Tenant>();
+        if(!CollectionUtils.isEmpty(tenantBindings)){
+            tenantBindings.forEach(x->{
+                Tenant tenant = new Tenant();
+                tenant.setName(x.getTenantName());
+                tenant.setTenantid(x.getTenantId());
+                tenant.setAnnotation(x.getAnnotation());
+                tenants.add(tenant);
+            });
+        }
+        return tenants;
+    }
+
 }

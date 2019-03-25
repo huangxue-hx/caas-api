@@ -8,19 +8,18 @@ import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
-import com.harmonycloud.dao.tenant.bean.Project;
+import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMember;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
-import com.harmonycloud.dao.user.*;
+import com.harmonycloud.dao.user.UserGroupMapper;
+import com.harmonycloud.dao.user.UserGroupRelationMapper;
+import com.harmonycloud.dao.user.UserMapper;
 import com.harmonycloud.dao.user.bean.*;
 import com.harmonycloud.dto.tenant.TenantDto;
 import com.harmonycloud.dto.tenant.show.UserShowDto;
-import com.harmonycloud.dto.user.ExcelUtil;
-import com.harmonycloud.dto.user.SummaryUserInfo;
-import com.harmonycloud.dto.user.UserDetailDto;
-import com.harmonycloud.dto.user.UserGroupDto;
+import com.harmonycloud.dto.user.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import com.harmonycloud.service.cache.ClusterCacheManager;
+import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
 import com.harmonycloud.service.platform.bean.harbor.HarborUser;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.harbor.HarborUserService;
@@ -29,8 +28,7 @@ import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.RoleService;
 import com.harmonycloud.service.user.UserRoleRelationshipService;
 import com.harmonycloud.service.user.UserService;
-import com.whchem.sso.common.utils.SSOConstants;
-import com.whchem.sso.common.utils.SSOUtil;
+import com.harmonycloud.service.util.SsoClient;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFRow;
@@ -41,7 +39,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.session.data.redis.RedisOperationsSessionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -54,13 +54,14 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.harmonycloud.common.Constant.CommonConstant.FLAG_FALSE;
-import static com.harmonycloud.common.Constant.CommonConstant.FLAG_TRUE;
+import static com.harmonycloud.common.Constant.CommonConstant.*;
 import static com.harmonycloud.service.platform.constant.Constant.DB_BATCH_INSERT_COUNT;
+import static com.harmonycloud.service.platform.constant.Constant.MAX_QUERY_COUNT_100;
 
 /**
  * @Author w_kyzhang
@@ -92,20 +93,21 @@ public class UserServiceImpl implements UserService {
     private HarborUserService harborUserService;
 
     @Autowired
-    private AuthUserMapper authUserMapper;
-
+    private TenantService tenantService;
     @Autowired
-    TenantService tenantService;
+    private HttpSession session;
     @Autowired
-    HttpSession session;
+    private RoleLocalService roleLocalService;
     @Autowired
-    RoleLocalService roleLocalService;
+    private UserRoleRelationshipService userRoleRelationshipService;
     @Autowired
-    UserRoleRelationshipService userRoleRelationshipService;
+    private ClusterCacheManager clusterCacheManager;
     @Autowired
-    ClusterCacheManager clusterCacheManager;
-
-    private String newPassWord;
+    private DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
+    @Autowired
+    private RedisOperationsSessionRepository redisOperationsSessionRepository;
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
     public String getCurrentUsername() {
         return (String) session.getAttribute("username");
@@ -219,33 +221,25 @@ public class UserServiceImpl implements UserService {
         Map<String, Object> res = new HashMap<String, Object>();
         if(SsoClient.isOpen()) {
             //同步用户信息至容器云平台数据库
-            User user = syncUser(request);
+            User user = syncUser(request,response);
             if (null == user) {
-                SsoClient.setRedirectResponse(response);
-                session.invalidate();
-                SsoClient.clearToken(response);
-                return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_NOT_AUTH_OR_TIMEOUT);
+                SsoClient.redirectLogin(session, request, response);
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.USER_NOT_AUTH_OR_TIMEOUT);
             }
             //用户信息写入session
             request.getSession().setAttribute("userId", user.getId());
             request.getSession().setAttribute("username", user.getUsername());
             request.getSession().setAttribute("isAdmin", user.getIsAdmin());
-            String token = SSOUtil.getCookieValue(request, SSOConstants.SSO_TOKEN);
-            request.getSession().setAttribute(SSOConstants.SSO_TOKEN, token);
 
             if (CommonConstant.PAUSE.equals(user.getPause())) {
-                SsoClient.setRedirectResponse(response);
-                session.invalidate();
-                SsoClient.clearToken(response);
-                return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_DISABLED);
+                SsoClient.redirectLogin(session, request, response);
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.USER_DISABLED);
             }
 
             //获取用户的租户信息
             List<TenantDto> tenantDtos = tenantService.tenantList();
             if (CommonConstant.IS_NOT_ADMIN == user.getIsAdmin() && org.apache.commons.collections.CollectionUtils.isEmpty(tenantDtos)) {
-                SsoClient.setRedirectResponse(response);
-                session.invalidate();
-                SsoClient.clearToken(response);
+                SsoClient.redirectLogin(session, request, response);
                 throw new MarsRuntimeException(ErrorCodeMessage.USER_NOT_AUTH);
             }
             List<Role> roleList = null;
@@ -253,7 +247,7 @@ public class UserServiceImpl implements UserService {
                 roleList = this.roleLocalService.getRoleListByUsername(user.getUsername());
 //                List<Role> availableRoleList = roleList.stream().filter(role -> role.getAvailable()).collect(Collectors.toList());
                 if (roleList.size() <= 0){
-                    SsoClient.dealHeader(session);
+                    SsoClient.redirectLogin(session, request, response);
                     throw new MarsRuntimeException(ErrorCodeMessage.ROLE_DISABLE);
                 }
                 Map<String,Object> map = new HashMap<>();
@@ -296,7 +290,7 @@ public class UserServiceImpl implements UserService {
             res.put("realName", user.getRealName());
             res.put("isAdmin", CommonConstant.IS_ADMIN == user.getIsAdmin());
             res.put("tenants", tenantDtos);
-        }else{
+        }else {
             Object user = session.getAttribute("username");
             if (user == null) {
                 throw new K8sAuthException(com.harmonycloud.k8s.constant.Constant.HTTP_401);
@@ -307,17 +301,16 @@ public class UserServiceImpl implements UserService {
             res.put("username", userName);
             res.put("userId", userId);
             res.put("realName", u.getRealName());
+            res.put("isAdmin", u.getIsAdmin() == FLAG_TRUE);
             List<TenantDto> tenantDtos = tenantService.tenantList();
-            if (org.springframework.util.CollectionUtils.isEmpty(tenantDtos)){
+            if (org.springframework.util.CollectionUtils.isEmpty(tenantDtos)) {
                 List<Role> roleList = this.roleLocalService.getRoleListByUsernameAndTenantIdAndProjectId(userName, null, null);
                 res.put("roleList", roleList);
-                if (!org.springframework.util.CollectionUtils.isEmpty(roleList)){
+                if (!org.springframework.util.CollectionUtils.isEmpty(roleList)) {
                     res.put("role", roleList.get(0));
                 }
             }
-
             res.put("tenants", tenantDtos);
-
         }
         return res;
     }
@@ -329,7 +322,7 @@ public class UserServiceImpl implements UserService {
         String newPass = new String();
         String Base = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         //System.out.println(Base.length());
-        Random random = new Random();
+        Random random = new SecureRandom();
         String regex = "^(?![0-9]+$)(?![a-zA-Z]+$)[0-9A-Za-z]{7,12}$";
         boolean matche = false;
         while (!matche) {
@@ -340,17 +333,15 @@ public class UserServiceImpl implements UserService {
                 matche = newPass.matches(regex);
             }
         }
-        newPassWord = newPass;
-        return newPassWord;
+        return newPass;
     }
 
     /**
      * 向用户发送提示邮箱
      */
-    public ActionReturnUtil sendEmail(String userName) throws Exception {
+    public ActionReturnUtil sendResetPwdEmail(String userName, String newPassWord) throws Exception {
         User userEmail = userMapper.findByUsername(userName);
         String email = userEmail.getEmail();
-        String newPassWord = this.getNewPassWord();
 
         MimeMessage mimeMessage = MailUtil.getJavaMailSender().createMimeMessage();
         try {
@@ -624,15 +615,13 @@ public class UserServiceImpl implements UserService {
      * @param userName
      * @return
      */
-    public ActionReturnUtil userReset(String userName, String newPassword) throws Exception {
+    public ActionReturnUtil resetUserPwd(String userName) throws Exception {
         AssertUtil.notBlank(userName, DictEnum.USERNAME);
-        AssertUtil.notBlank(userName, DictEnum.PASSWORD);
         String newPassWord = generatePassWord();
-        this.setNewPassWord(newPassWord);
         // 更新k8s用户密码
         String MD5newPassword = StringUtil.convertToMD5(newPassWord);
         userMapper.updatePassword(userName, MD5newPassword);
-        //更新harbor用户密码 todo
+        sendResetPwdEmail(userName, newPassWord);
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -645,10 +634,22 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public ActionReturnUtil deleteUser(String userName) throws Exception {
         AssertUtil.notBlank(userName, DictEnum.USERNAME);
-
         User userDb = userMapper.findByUsername(userName);
         if (!Objects.isNull(userDb)){
+            UserGroupRelationExample example =new UserGroupRelationExample();
+            example.createCriteria().andUseridEqualTo(userDb.getId());
+            usergrouprelationMapper.deleteByExample(example);//删除用户组关联关系 user_group_relation
+            userRoleRelationshipService.deleteByUserName(userName);//删除user_role_relationship表中关联数据
             userMapper.deleteUserByName(userName);
+            DataPrivilegeGroupMember dataPrivilegeGroupMember = new DataPrivilegeGroupMember();
+            dataPrivilegeGroupMember.setMemberType(CommonConstant.MEMBER_TYPE_USER);
+            dataPrivilegeGroupMember.setMemberId(userDb.getId().intValue());
+            dataPrivilegeGroupMemberService.deleteMemberInAllGroup(dataPrivilegeGroupMember);
+            String sessionId = stringRedisTemplate.opsForValue().get("sessionid:sessionid-"+userName);//获取redis存放的sessionid
+            if(StringUtils.isNotBlank(sessionId)){
+                redisOperationsSessionRepository.delete(sessionId);//session过期设置
+                stringRedisTemplate.delete("sessionid:sessionid-"+userName);//移除redis中sessionid
+            }
         }else {
             throw new MarsRuntimeException(ErrorCodeMessage.USER_NOT_EXIST);
         }
@@ -1078,28 +1079,33 @@ public class UserServiceImpl implements UserService {
      *
      * @throws Exception
      */
-    public ActionReturnUtil listUsers(Boolean isAdmin, Boolean isMachine, Boolean isCommon, Boolean all) throws Exception {
+    public ActionReturnUtil listUsers(UserQueryDto userQueryDto) throws Exception {
 
         // 查询k8s用户
         List<UserShowDto> userNameList = new ArrayList<UserShowDto>();
         List<User> users = null ;
-        if(all != null && all){
+        if(userQueryDto.getAll() != null && userQueryDto.getAll()){
             users = userMapper.listAllUsers();
         }else{
-            users = userMapper.listUser(isAdmin, isMachine, isCommon);
+            //根据userid列表查询用户列表
+            List<Integer> userIds = new ArrayList<>();
+            if(StringUtils.isNotBlank(userQueryDto.getUserIds())){
+                String[] userIdArr = userQueryDto.getUserIds().split(COMMA);
+                if(userIdArr.length > MAX_QUERY_COUNT_100) {
+                    return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.EXCEED_MAX_QUERY_COUNT);
+                }
+                for(String userId : userIdArr){
+                    userIds.add(Integer.parseInt(userId));
+                }
+            }
+            users = userMapper.listUser(userQueryDto.getIsAdmin(), userQueryDto.getIsMachine(),
+                    userQueryDto.getIsCommon(), userIds);
         }
 
         for (User user : users) {
             UserGroupRelationExample ugr = new UserGroupRelationExample();
             ugr.createCriteria().andUseridEqualTo(user.getId());
             UserShowDto u = new UserShowDto();
-//            List<UserGroupRelation> userGroupRelations = usergrouprelationMapper.selectByExample(ugr);
-//
-//            if (!CollectionUtils.isEmpty(userGroupRelations)) {
-//                int groupid = userGroupRelations.get(0).getGroupid();
-//                String groupname = usergroupMapper.selectByPrimaryKey(groupid).getGroupname();
-//                u.setGroupName(groupname);
-//            }
             u.setId(user.getId());
             u.setIsAdmin(user.getIsAdmin() == FLAG_TRUE);
             u.setIsMachine(user.getIsMachine() == FLAG_TRUE);
@@ -1183,35 +1189,6 @@ public class UserServiceImpl implements UserService {
         return ActionReturnUtil.returnSuccessWithDataAndCount(userNameList, userNameList.size());
     }
 
-    public String getPassword(String userName) {
-        AuthUserExample example = new AuthUserExample();
-        example.createCriteria().andNameEqualTo(userName);
-        List<AuthUser> authUsers = this.authUserMapper.selectByExample(example);
-        if (authUsers == null || authUsers.size() <= 0) {
-            return null;
-        }
-        return authUsers.get(0).getPassword();
-    }
-
-    public void addLdapUser(String userName, String password, String harborId) {
-        AuthUser user = new AuthUser();
-        user.setName(userName);
-        user.setHarborId(harborId);
-        user.setPassword(password);
-        authUserMapper.insertSelective(user);
-    }
-
-    public void updateLdapUser(String userName, String password) throws Exception {
-        AuthUserExample example = new AuthUserExample();
-        example.createCriteria().andNameEqualTo(userName);
-        List<AuthUser> authUsers = authUserMapper.selectByExample(example);
-        if (authUsers != null && authUsers.size() >= 0) {
-            AuthUser ldapUser = authUsers.get(0);
-            ldapUser.setPassword(password);
-            authUserMapper.updateByPrimaryKey(ldapUser);
-            harborUserService.updatePassword(userName, ldapUser.getPassword(), password);
-        }
-    }
 
     /**
      * 检查用户名是否已存在,存在返回true,不存在返回false
@@ -1772,12 +1749,14 @@ public class UserServiceImpl implements UserService {
                 user.setIsAdmin(Constant.NON_MACHINE_ACCOUNT);
                 users.add(user);
             }
-            if (users.size() > DB_BATCH_INSERT_COUNT) {
+            if (users.size() > 0) {
+                users.stream().forEach(user -> user.setIsMachine(Constant.NON_MACHINE_ACCOUNT));
                 //批量插入，每次插入DB_BATCH_INSERT_COUNT条数据，计算分多少次插入数据库
                 int count = users.size() % DB_BATCH_INSERT_COUNT == 0 ? users.size() / DB_BATCH_INSERT_COUNT : users.size() / DB_BATCH_INSERT_COUNT + 1;
                 for (int i = 0; i < count; i++) {
                     if (i == count - 1) {
-                        userMapper.batchInsert(users.subList(i * DB_BATCH_INSERT_COUNT, users.size() - 1));
+                        userMapper.batchInsert(users.subList(i * DB_BATCH_INSERT_COUNT, users.size() ));
+                        continue;
                     }
                     userMapper.batchInsert(users.subList(i * DB_BATCH_INSERT_COUNT, (i + 1) * DB_BATCH_INSERT_COUNT));
                 }
@@ -1822,19 +1801,19 @@ public class UserServiceImpl implements UserService {
     /**
      * 描述：同步用户信息
      */
-    public User syncUser(HttpServletRequest request) throws Exception{
+    private User syncUser(HttpServletRequest request, HttpServletResponse response) throws Exception{
         //根据cookie中的token获取用户信息
-        com.whchem.sso.client.entity.User ssoUser = SsoClient.getUserByCookie(request);
+        User ssoUser = SsoClient.getLoginUser(request, response);
         if (null == ssoUser) {
             return null;
         }
         //查询容器云平台是否存在该用户
-        User user = userMapper.findByUsername(ssoUser.getName());
+        User user = userMapper.findByUsername(ssoUser.getUsername());
         if (null == user) {
             //不存在，新增用户
             user = new User();
-            user.setUsername(ssoUser.getName());
-            user.setRealName(ssoUser.getDisplayName());
+            user.setUsername(ssoUser.getUsername());
+            user.setRealName(ssoUser.getRealName());
             user.setEmail(ssoUser.getEmail());
             user.setCreateTime(DateUtil.getCurrentUtcTime());
             user.setPause(CommonConstant.NORMAL);
@@ -1843,8 +1822,8 @@ public class UserServiceImpl implements UserService {
         } else {
             //存在，更新用户信息
             User updateUser = new User();
-            if (null != ssoUser.getDisplayName() && !ssoUser.getDisplayName().equals(user.getRealName())) {
-                updateUser.setRealName(ssoUser.getDisplayName());
+            if (null != ssoUser.getRealName() && !ssoUser.getRealName().equals(user.getRealName())) {
+                updateUser.setRealName(ssoUser.getRealName());
             }
             if (null != ssoUser.getEmail() && !ssoUser.getEmail().equals(user.getEmail())) {
                 updateUser.setEmail(ssoUser.getEmail());
@@ -1857,15 +1836,6 @@ public class UserServiceImpl implements UserService {
             }
         }
         return user;
-    }
-
-
-    public String getNewPassWord() {
-        return newPassWord;
-    }
-
-    public void setNewPassWord(String newPassWord) {
-        this.newPassWord = newPassWord;
     }
 
     /**
@@ -1882,6 +1852,10 @@ public class UserServiceImpl implements UserService {
         if(user.getIsAdmin() == null){
             user.setIsAdmin(FLAG_FALSE);
         }
+        user.setCreateTime(new Date());
+        if(StringUtils.isBlank(user.getPause())) {
+            user.setPause(NORMAL);
+        }
         userMapper.insert(user);
     }
     /**
@@ -1891,5 +1865,31 @@ public class UserServiceImpl implements UserService {
      */
     public void updateUser(User user) throws Exception {
         userMapper.updateByPrimaryKeySelective(user);
+    }
+
+    /**
+     * 根据用户名列表查询用户列表
+     * @param usernameList
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public List<User> getUserByUsernameList(List<String> usernameList) throws Exception{
+        UserExample example = new UserExample();
+        example.createCriteria().andUsernameIn(usernameList);
+        return userMapper.selectByExample(example);
+    }
+
+    /**
+     * 查询项目下的用户列表
+     * @param projectId
+     * @return
+     */
+    @Override
+    public List<User> listUserByProjectId(String projectId) {
+        if(StringUtils.isBlank(projectId)){
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        return userMapper.listUserByProjectId(projectId);
     }
 }

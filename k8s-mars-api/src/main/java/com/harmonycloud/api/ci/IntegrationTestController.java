@@ -19,7 +19,7 @@ public class IntegrationTestController {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    IntegrationTestService integrationTestService;
+    private IntegrationTestService integrationTestService;
 
     @RequestMapping(value = "/tenants/{tenantId}/projects/{projectId}/cicdjobs/testsuites", method = RequestMethod.GET)
     public ActionReturnUtil getTestSuite(@PathVariable("projectId")String projectId,@RequestParam(value = "type") String type) throws Exception{

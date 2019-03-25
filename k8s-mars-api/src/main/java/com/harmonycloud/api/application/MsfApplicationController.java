@@ -35,19 +35,19 @@ public class MsfApplicationController {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    ApplicationDeployService applicationDeployService;
+    private ApplicationDeployService applicationDeployService;
 
     @Autowired
-    DeploymentsService dpService;
+    private DeploymentsService dpService;
 
     @Autowired
-    LogService logService;
+    private LogService logService;
 
     @Autowired
-    RouterService routerService;
+    private RouterService routerService;
 
     @ResponseBody
     @RequestMapping(value = "/msf/apps/{appName}", method = RequestMethod.GET)
@@ -61,7 +61,7 @@ public class MsfApplicationController {
     @RequestMapping(value = "/msf/deploys/{deployName}", method = RequestMethod.GET)
     public ActionReturnUtil deploymentDetail(@PathVariable(value = "deployName") String name,
                                              @RequestParam(value = "namespace", required = true) String namespace) throws Exception {
-        return dpService.getDeploymentDetail(namespace, name);
+        return dpService.getDeploymentDetail(namespace, name,true);
     }
 
     @ResponseBody
@@ -209,8 +209,9 @@ public class MsfApplicationController {
     @ResponseBody
     @RequestMapping(value = "/msf/deploys/rules", method = RequestMethod.GET)
     public ActionReturnUtil listRouter(@RequestParam(value = "namespace") String namespace,
-                                       @RequestParam(value = "nameList") String nameList) throws Exception{
-        return routerService.listExposedRouterWithIngressAndNginx(namespace, nameList);
+                                       @RequestParam(value = "nameList") String nameList,
+                                       @RequestParam(value = "projectId") String projectId) throws Exception{
+        return routerService.listExposedRouterWithIngressAndNginx(namespace, nameList, projectId);
     }
 
     @ResponseBody

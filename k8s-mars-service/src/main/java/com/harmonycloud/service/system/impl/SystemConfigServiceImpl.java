@@ -7,6 +7,7 @@ import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dto.cicd.CicdConfigDto;
 import com.harmonycloud.dto.user.LdapConfigDto;
 import com.harmonycloud.service.system.SystemConfigService;
+import com.harmonycloud.service.util.SsoClient;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,8 @@ import javax.servlet.http.HttpSession;
 import java.util.Date;
 import java.util.List;
 
+import static com.harmonycloud.common.Constant.CommonConstant.FLAG_TRUE;
+
 /**
  * Created by hongjie
  */
@@ -24,10 +27,10 @@ import java.util.List;
 public class SystemConfigServiceImpl implements SystemConfigService {
 
     @Autowired
-    SystemConfigMapper systemConfigMapper;
+    private SystemConfigMapper systemConfigMapper;
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Override
     public SystemConfig findById(String id) {
@@ -175,27 +178,49 @@ public class SystemConfigServiceImpl implements SystemConfigService {
         List<SystemConfig> list = this.systemConfigMapper.findByConfigType(CommonConstant.CONFIG_TYPE_LDAP);
         if(list != null && list.size() > 0) {
             for(SystemConfig sc : list) {
-                if(sc.getConfigName().equals(CommonConstant.LDAP_IP)) {
-                    ldapConfigDto.setIp(sc.getConfigValue());
-                }
-                if(sc.getConfigName().equals(CommonConstant.LDAP_PORT)) {
-                    ldapConfigDto.setPort(sc.getConfigValue());
-                }
-                if(sc.getConfigName().equals(CommonConstant.LDAP_BASE)) {
-                    ldapConfigDto.setBase(sc.getConfigValue());
-                }
-                if(sc.getConfigName().equals(CommonConstant.LDAP_USERDN)) {
-                    ldapConfigDto.setUserdn(sc.getConfigValue());
-                }
-                if(sc.getConfigName().equals(CommonConstant.LDAP_PASSWORD)) {
-                    ldapConfigDto.setPassword(sc.getConfigValue());
-                }
-                if(sc.getConfigName().equals(CommonConstant.LDAP_IS_ON)) {
-                    ldapConfigDto.setIsOn(Integer.parseInt(sc.getConfigValue()));
+                switch (sc.getConfigName()){
+                    case CommonConstant.LDAP_IP:
+                        ldapConfigDto.setIp(sc.getConfigValue());
+                        break;
+                    case CommonConstant.LDAP_PORT:
+                        ldapConfigDto.setPort(sc.getConfigValue());
+                        break;
+                    case CommonConstant.LDAP_BASE:
+                        ldapConfigDto.setBase(sc.getConfigValue());
+                        break;
+                    case CommonConstant.LDAP_USERDN:
+                        ldapConfigDto.setUserdn(sc.getConfigValue());
+                        break;
+                    case CommonConstant.LDAP_PASSWORD:
+                        ldapConfigDto.setPassword(sc.getConfigValue());
+                        break;
+                    case CommonConstant.LDAP_IS_ON:
+                        ldapConfigDto.setIsOn(Integer.parseInt(sc.getConfigValue()));
+                        break;
+                    case CommonConstant.LDAP_OBJECT_CLASS:
+                        ldapConfigDto.setObjectClass(sc.getConfigValue());
+                        break;
+                    case CommonConstant.LDAP_SEARCH_ATTR:
+                        ldapConfigDto.setSearchAttribute(sc.getConfigValue());
+                        break;
+                    default:
+                        break;
                 }
             }
         }
         return ldapConfigDto;
+    }
+
+    @Override
+    public boolean getLocalUserFlag() {
+        if(SsoClient.isOpen()){
+            return false;
+        }
+        LdapConfigDto ldapConfigDto = this.findLdapConfig();
+        if(ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == FLAG_TRUE){
+            return false;
+        }
+        return true;
     }
 
     @Override
@@ -258,6 +283,8 @@ public class SystemConfigServiceImpl implements SystemConfigService {
             for(SystemConfig sc : list) {
                 if (CommonConstant.CICD_RESULT_REMAIN_NUM.equals(sc.getConfigName())) {
                     cicdConfigDto.setRemainNumber(StringUtils.isBlank(sc.getConfigValue()) ? null : Integer.valueOf(sc.getConfigValue()));
+                }else if(CommonConstant.CICD_IS_TYPE_MERGE.equals(sc.getConfigName())){
+                    cicdConfigDto.setTypeMerge(Boolean.valueOf(sc.getConfigValue()));
                 }
             }
         }

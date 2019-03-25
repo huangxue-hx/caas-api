@@ -1,6 +1,7 @@
 package com.harmonycloud.service.platform.bean;
 
 import com.harmonycloud.dto.application.AffinityDto;
+import com.harmonycloud.k8s.bean.HostAlias;
 
 import java.util.List;
 
@@ -40,7 +41,48 @@ public class UpdateDeployment {
 	/**pod 是否分散*/
 	private AffinityDto podDisperse;
 
+	/**pod 按主机分组调度**/
+	private AffinityDto podGroupSchedule;
+
 	private String projectId;
+
+	private List<HostAlias> hostAliases;
+
+	private boolean hostNetwork;
+
+	private String deployVersion;
+
+	public String getDeployVersion() {
+		return deployVersion;
+	}
+
+	public void setDeployVersion(String deployVersion) {
+		this.deployVersion = deployVersion;
+	}
+
+	public boolean isHostNetwork() {
+		return hostNetwork;
+	}
+
+	public void setHostNetwork(boolean hostNetwork) {
+		this.hostNetwork = hostNetwork;
+	}
+
+	public AffinityDto getPodGroupSchedule() {
+		return podGroupSchedule;
+	}
+
+	public void setPodGroupSchedule(AffinityDto podGroupSchedule) {
+		this.podGroupSchedule = podGroupSchedule;
+	}
+
+	public List<HostAlias> getHostAliases() {
+		return hostAliases;
+	}
+
+	public void setHostAliases(List<HostAlias> hostAliases) {
+		this.hostAliases = hostAliases;
+	}
 
 	public String getProjectId() {
 		return projectId;

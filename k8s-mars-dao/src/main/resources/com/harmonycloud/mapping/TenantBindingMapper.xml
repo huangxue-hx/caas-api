@@ -290,4 +290,16 @@
       reserve2 = #{reserve2,jdbcType=VARCHAR}
     where id = #{id,jdbcType=INTEGER}
   </update>
+
+  <select id="getTenantByIdList" parameterType="java.util.List" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from transfer_bind_namespace
+    <if test="tenantIds != null">
+      where tenant_id in
+      <foreach collection="tenantIds" item="item" index="index">
+        #{item}
+      </foreach>
+    </if>
+  </select>
 </mapper>

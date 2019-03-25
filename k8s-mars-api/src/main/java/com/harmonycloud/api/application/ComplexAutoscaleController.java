@@ -10,6 +10,7 @@ import com.harmonycloud.dto.scale.CustomMetricScaleDto;
 import com.harmonycloud.service.application.AutoScaleService;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.EsService;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,14 +33,14 @@ import java.util.stream.Collectors;
 public class ComplexAutoscaleController {
 
     @Autowired
-    DeploymentsService dpService;
+    private DeploymentsService dpService;
     @Autowired
-    AutoScaleService autoScaleService;
+    private AutoScaleService autoScaleService;
 
     @Autowired
-    EsService esService;
+    private EsService esService;
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -119,9 +120,12 @@ public class ComplexAutoscaleController {
         if(autoScale == null){
             return MessageUtil.getMessage(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
-        if(autoScale.getTargetCpuUsage() == null && autoScale.getTargetTps() == null
+        if(autoScale.getTargetCpuUsage() == null
+                && autoScale.getTargetMemoryUsage() == null
+                && autoScale.getTargetTps() == null
                 && CollectionUtils.isEmpty(autoScale.getTimeMetricScales())
                 && CollectionUtils.isEmpty(autoScale.getCustomMetricScales())){
+
             return MessageUtil.getMessage(ErrorCodeMessage.INDICATOR);
         }
         List<CustomMetricScaleDto> customMetrics = autoScale.getCustomMetricScales();
@@ -131,6 +135,10 @@ public class ComplexAutoscaleController {
             if(names.size() != customMetrics.size()){
                 return MessageUtil.getMessage(ErrorCodeMessage.NOT_REPEATE);
             }
+        }
+        //抄送人不为空、收件人为空非法
+        if (StringUtils.isNotBlank(autoScale.getCcEmail()) && StringUtils.isBlank(autoScale.getToEmail())) {
+            return MessageUtil.getMessage(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         return null;
     }

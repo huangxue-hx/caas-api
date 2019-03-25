@@ -1,6 +1,9 @@
 package com.harmonycloud.common.util;
 
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -11,6 +14,7 @@ import java.text.SimpleDateFormat;
  *
  */
 public class SearchResult implements Comparable<SearchResult>{
+    private static final Logger LOGGER = LoggerFactory.getLogger(SearchResult.class);
     private String user;      //用户
     private String tenant;  
     private String module;    //模块
@@ -113,7 +117,7 @@ public class SearchResult implements Comparable<SearchResult>{
         try {
             res =  df.parse(o.getOpTime()).compareTo(df.parse(this.getOpTime()));
         } catch (ParseException e) {
-            e.printStackTrace();
+            LOGGER.warn("ParseException", e);
         }
         return res;
     }

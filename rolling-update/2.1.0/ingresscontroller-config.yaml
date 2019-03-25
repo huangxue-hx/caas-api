@@ -1,0 +1,19 @@
+apiVersion: v1
+data:
+  ingress-controller-port: |
+    {
+      "httpMinPort": 81,
+      "httpMaxPort": 100,
+      "httpsMinPort": 444,
+      "httpsMaxPort": 463,
+      "healthMinPort": 10257,
+      "healthMaxPort": 10276,
+      "statusMinPort": 18081,
+      "statusMaxPort": 18100,
+      "tcpUdpMinPort": 33000,
+      "tcpUdpMaxPort": 39000
+    }
+kind: ConfigMap
+metadata:
+  name: ingress-controller-port
+  namespace: kube-system

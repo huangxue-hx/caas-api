@@ -1,10 +1,13 @@
 package com.harmonycloud.common.util;
 
+import org.apache.commons.beanutils.BeanUtils;
 import org.springframework.util.CollectionUtils;
 
 import java.beans.BeanInfo;
+import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,7 +44,7 @@ public class CollectionUtil {
 		return list;
 	}
 
-	public static Map<String, Object> transBean2Map(Object obj) throws Exception {
+	public static Map<String, Object> transBean2Map(Object obj)  throws IntrospectionException,InvocationTargetException,IllegalAccessException  {
 
 		if (obj == null) {
 			return null;
@@ -89,6 +92,18 @@ public class CollectionUtil {
          	return list;
 		 }
 		 return list.subList(0,count);
+	}
+
+	// 利用org.apache.commons.beanutils 工具类实现 Map --> Bean
+	public static void transMap2Bean(Map<String, Object> map, Object  obj) {
+		if (map == null) {
+			return;
+		}
+		try {
+			BeanUtils.populate(obj, map);
+		} catch (IllegalAccessException | InvocationTargetException e) {
+			e.printStackTrace();
+		}
 	}
 
 }

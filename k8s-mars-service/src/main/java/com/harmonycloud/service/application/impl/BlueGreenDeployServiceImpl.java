@@ -4,27 +4,22 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
-import com.harmonycloud.dto.application.CreateConfigMapDto;
 import com.harmonycloud.dto.application.PersistentVolumeDto;
 import com.harmonycloud.dto.application.SecurityContextDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8SClient;
-import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
-import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
-import com.harmonycloud.k8s.util.K8SURL;
-import com.harmonycloud.service.application.BlueGreenDeployService;
-import com.harmonycloud.service.application.DeploymentsService;
-import com.harmonycloud.service.application.PersistentVolumeService;
+import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.platform.convert.KubeServiceConvert;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.ListUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +33,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * @Describe 蓝绿发布实现类
@@ -76,6 +72,12 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
     @Autowired
     private DeploymentsService deploymentsService;
 
+    @Autowired
+    private PersistentVolumeClaimService persistentVolumeClaimService;
+
+    @Autowired
+    private IstioService istioService;
+
     @Override
     public ActionReturnUtil deployByBlueGreen(UpdateDeployment updateDeployment, String userName, String projectId) throws Exception {
         // 参数判空
@@ -90,7 +92,44 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         if (Objects.isNull(cluster)) {
             throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
+
+
         String name = updateDeployment.getName();
+        Map<String, Object> queryP = new HashMap<>();
+        queryP.put("labelSelector",CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name+"="+ name);
+
+        K8SClientResponse pvcsRes = pvcService.doSepcifyPVC(namespace, queryP, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(pvcsRes.getStatus()) && pvcsRes.getStatus() != Constant.HTTP_404) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(pvcsRes.getBody(), UnversionedStatus.class);
+            throw new MarsRuntimeException(status.getMessage());
+        }
+        //获取所有带有标签的pvc
+        PersistentVolumeClaimList persistentVolumeClaimList = JsonUtil.jsonToPojo(pvcsRes.getBody(), PersistentVolumeClaimList.class);
+        List<PersistentVolumeClaim> persistentVolumeClaims = persistentVolumeClaimList.getItems();
+
+        //pvc绑定服务
+        List<UpdateContainer> containers = updateDeployment.getContainers();
+        for (UpdateContainer container : containers) {
+            List<PersistentVolumeDto> storage = container.getStorage();
+            if(storage!=null){
+                for (PersistentVolumeDto persistentVolumeDto : storage) {
+                    String pvcName = persistentVolumeDto.getPvcName();
+                    PersistentVolumeClaim pvcByName = pvcService.getPvcByName(namespace, pvcName, cluster);
+                    if (null ==pvcByName){
+                        break;
+                    }
+                    Map<String, Object> newLabels = pvcByName.getMetadata().getLabels();
+                    newLabels.put(CommonConstant.LABEL_KEY_APP+CommonConstant.SLASH + name,name);
+                    pvcService.updatePvcByName(pvcByName,cluster);
+                    for (int j=0; j < persistentVolumeClaims.size(); j++) {
+                        PersistentVolumeClaim persistentVolumeClaim = persistentVolumeClaims.get(j);
+                        if(pvcByName.getMetadata().getName().equals(persistentVolumeClaim.getMetadata().getName())){
+                            persistentVolumeClaims.remove(persistentVolumeClaim);
+                        }
+                    }
+                }
+            }
+        }
 
         // 获取deployment
         K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
@@ -129,14 +168,15 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         if (!isExistLabel) {
             throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_BLUE_GREEN_FAILURE);
         }
-        checkPvAndCreateVolume(updateDeployment.getContainers(), name, namespace, cluster, projectId);
+        //引入StorageClass后无需创建pv
+        //checkPvAndCreateVolume(updateDeployment.getContainers(), name, namespace, cluster, projectId);
 
         // 创建configmap
         Map<String, String> containerToConfigMap = deploymentsService.createConfigMapInUpdate(namespace, name, cluster, updateDeployment.getContainers());
 
         // 更新deployment对象内的数据
-        dep = KubeServiceConvert.convertDeploymentUpdate(dep, updateDeployment.getContainers(), name, containerToConfigMap, cluster);
-
+        PodTemplateSpec podTemplateSpec = KubeServiceConvert.convertDeploymentUpdate(dep.getSpec().getTemplate(), updateDeployment.getContainers(), name, containerToConfigMap, cluster);
+        dep.getSpec().setTemplate(podTemplateSpec);
         // 设置蓝绿发布相关的参数
         DeploymentStrategy strategy = new DeploymentStrategy();
         strategy.setType("RollingUpdate");
@@ -147,6 +187,16 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         strategy.setRollingUpdate(ru);
         dep.getSpec().setStrategy(strategy);
         dep.getSpec().setPaused(false);
+
+        //更新服务版本标签
+        if(StringUtils.isNotEmpty(updateDeployment.getDeployVersion())){
+            dep.getSpec().getTemplate().getMetadata().getLabels().put(Constant.TYPE_DEPLOY_VERSION, updateDeployment.getDeployVersion());
+        }else {
+            if (dep.getSpec().getTemplate().getMetadata().getLabels().containsKey(Constant.TYPE_DEPLOY_VERSION)){
+                dep.getSpec().getTemplate().getMetadata().getLabels().remove(Constant.TYPE_DEPLOY_VERSION);
+            }
+        }
+
         Map<String, Object> bodys = CollectionUtil.transBean2Map(dep);
         Map<String, Object> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
@@ -484,10 +534,14 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
                 List<PodDetail> podDetails = new ArrayList<>();
                 podDetails.addAll(K8sResultConvert.podListConvert(podList, "v" + tag));
                 //组装container信息
-                List<ContainerOfPodDetail> containerOfPodDetails = convertReplicaSetContainer(rs, name);
+                List<ContainerOfPodDetail> containerOfPodDetails = K8sResultConvert.convertReplicaSetContainer(rs,
+                                                rs.getSpec().getTemplate().getSpec().getContainers(), cluster);
                 Map<String, Object> tmMap = new HashMap<>();
                 tmMap.put("pods", podDetails);
                 tmMap.put("containers", containerOfPodDetails);
+                if(rs.getSpec().getTemplate().getMetadata().getLabels().containsKey(Constant.TYPE_DEPLOY_VERSION)){
+                    tmMap.put(Constant.TYPE_DEPLOY_VERSION, rs.getSpec().getTemplate().getMetadata().getLabels().get(Constant.TYPE_DEPLOY_VERSION));
+                }
                 if (StringUtils.isNotBlank(currentLabel)) {
                     boolean isCurrent = rsLabels.get(Constant.NODESELECTOR_LABELS_PRE + "bluegreen").toString().equals(currentLabel) ? true : false;
                     tmMap.put("current", isCurrent);
@@ -498,130 +552,6 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         return res;
     }
 
-    /**
-     * 获取rs对应的容器信息
-     *
-     * @param rs   ReplicaSet
-     * @param name 服务名称
-     * @return List<ContainerOfPodDetail>
-     * @throws Exception
-     */
-    @SuppressWarnings("unchecked")
-    private List<ContainerOfPodDetail> convertReplicaSetContainer(ReplicaSet rs, String name) throws Exception {
-        List<ContainerOfPodDetail> res = new ArrayList<ContainerOfPodDetail>();
-        List<Container> containers = rs.getSpec().getTemplate().getSpec().getContainers();
-        if (containers != null && containers.size() > 0) {
-            for (Container ct : containers) {
-                ContainerOfPodDetail cOfPodDetail = new ContainerOfPodDetail(ct.getName(), ct.getImage(),
-                        ct.getLivenessProbe(), ct.getReadinessProbe(), ct.getPorts(), ct.getArgs(), ct.getEnv(),
-                        ct.getCommand());
-                if (ct.getImagePullPolicy() != null) {
-                    cOfPodDetail.setImagePullPolicy(ct.getImagePullPolicy());
-                }
-                cOfPodDetail.setDeploymentName(name);
-                //SecurityContext
-                if (ct.getSecurityContext() != null) {
-                    SecurityContextDto newsc = new SecurityContextDto();
-                    SecurityContext sc = ct.getSecurityContext();
-                    boolean flag = false;
-                    newsc.setPrivileged(sc.isPrivileged());
-                    if (sc.isPrivileged()) {
-                        flag = true;
-                    }
-                    if (sc.getCapabilities() != null) {
-                        if (sc.getCapabilities().getAdd() != null && sc.getCapabilities().getAdd().size() > 0) {
-                            flag = true;
-                            newsc.setAdd(sc.getCapabilities().getAdd());
-                        }
-                        if (sc.getCapabilities().getDrop() != null && sc.getCapabilities().getDrop().size() > 0) {
-                            flag = true;
-                            newsc.setDrop(sc.getCapabilities().getDrop());
-                        }
-                    }
-                    newsc.setSecurity(flag);
-                    cOfPodDetail.setSecurityContext(newsc);
-
-                }
-                if (ct.getResources().getLimits() != null) {
-                    String pattern = ".*m.*";
-                    Pattern r = Pattern.compile(pattern);
-                    String cpu = ((Map<Object, Object>) ct.getResources().getLimits()).get("cpu").toString();
-                    Matcher m = r.matcher(cpu);
-                    if (!m.find()) {
-                        ((Map<Object, Object>) ct.getResources().getLimits()).put("cpu",
-                                Integer.valueOf(cpu) * 1000 + "m");
-                    }
-                    cOfPodDetail.setLimit(((Map<String, Object>) ct.getResources().getLimits()));
-
-                } else {
-                    cOfPodDetail.setLimit(null);
-                }
-                if (ct.getResources().getRequests() != null) {
-                    String pattern = ".*m.*";
-                    Pattern r = Pattern.compile(pattern);
-                    String cpu = ((Map<Object, Object>) ct.getResources().getRequests()).get("cpu").toString();
-                    Matcher m = r.matcher(cpu);
-                    if (!m.find()) {
-                        ((Map<Object, Object>) ct.getResources().getRequests()).put("cpu",
-                                Integer.valueOf(cpu) * 1000 + "m");
-                    }
-                    cOfPodDetail.setResource(((Map<String, Object>) ct.getResources().getRequests()));
-                } else {
-                    cOfPodDetail.setResource(cOfPodDetail.getLimit());
-                }
-
-                List<VolumeMount> volumeMounts = ct.getVolumeMounts();
-                List<VolumeMountExt> vms = new ArrayList<VolumeMountExt>();
-                if (volumeMounts != null && volumeMounts.size() > 0) {
-                    for (VolumeMount vm : volumeMounts) {
-                        VolumeMountExt vmExt = new VolumeMountExt(vm.getName(), vm.isReadOnly(), vm.getMountPath(),
-                                vm.getSubPath());
-                        for (Volume volume : rs.getSpec().getTemplate().getSpec().getVolumes()) {
-                            if (vm.getName().equals(volume.getName())) {
-                                if (volume.getSecret() != null) {
-                                    vmExt.setType("secret");
-                                } else if (volume.getPersistentVolumeClaim() != null) {
-                                    vmExt.setType("nfs");
-                                    vmExt.setPvcname(volume.getPersistentVolumeClaim().getClaimName());
-                                } else if (volume.getEmptyDir() != null) {
-                                    vmExt.setType("emptyDir");
-                                    if (volume.getEmptyDir() != null) {
-                                        vmExt.setEmptyDir(volume.getEmptyDir().getMedium());
-                                    } else {
-                                        vmExt.setEmptyDir(null);
-                                    }
-
-                                    if (vm.getName().indexOf("logdir") == 0) {
-                                        vmExt.setType("logDir");
-                                    }
-                                } else if (volume.getConfigMap() != null) {
-                                    Map<String, Object> configMap = new HashMap<String, Object>();
-                                    configMap.put("name", volume.getConfigMap().getName());
-                                    configMap.put("path", vm.getMountPath());
-                                    vmExt.setType("configMap");
-                                    vmExt.setConfigMapName(volume.getConfigMap().getName());
-                                } else if (volume.getHostPath() != null) {
-                                    vmExt.setType("hostPath");
-                                    vmExt.setHostPath(volume.getHostPath().getPath());
-                                    if (vm.getName().indexOf("logdir") == 0) {
-                                        vmExt.setType("logDir");
-                                    }
-                                }
-                                if (vmExt.getReadOnly() == null) {
-                                    vmExt.setReadOnly(false);
-                                }
-                                vms.add(vmExt);
-                                break;
-                            }
-                        }
-                    }
-                    cOfPodDetail.setStorage(vms);
-                }
-                res.add(cOfPodDetail);
-            }
-        }
-        return res;
-    }
 
     /**
      * 确认更新到新版本
@@ -663,127 +593,48 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         updateServiceSelector(namespace, name, cluster, dep, true);
     }
 
-    /**
-     * 检查容器是否修改了挂载卷，如果有则创建新的。同时删除多余的pvc
-     *
-     * @param updateContainers
-     * @param name
-     * @param namespace
-     * @param cluster
-     * @throws Exception
-     */
-    private void checkPvAndCreateVolume(List<UpdateContainer> updateContainers, String name, String namespace,
-                                        Cluster cluster, String projectId) throws Exception {
-        // 获取pvc信息
-        Map<String, Object> label = new HashMap<>();
-        label.put("labelSelector", "app=" + name);
-        K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, label, HTTPMethod.GET, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
-            UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
-            throw new MarsRuntimeException(status.getMessage());
-        }
-        PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(pvcRes.getBody(), PersistentVolumeClaimList.class);
-
-        // 判断是否修改了pv
-        if (Objects.nonNull(pvcList) && CollectionUtils.isNotEmpty(pvcList.getItems())) {
-            for (PersistentVolumeClaim onePvc : pvcList.getItems()) {
-                String pvc = onePvc.getMetadata().getName();
-                for (UpdateContainer container : updateContainers) {
-                    if (container.getStorage() != null && container.getStorage().size() > 0) {
-                        boolean flag = true;
-                        for (PersistentVolumeDto pv : container.getStorage()) {
-                            if (Constant.VOLUME_TYPE_PV.equals(pv.getType())) {
-                                if (pvc.equals(pv.getPvcName())) {
-                                    flag = false;
-                                }
-                                if (flag) {
-                                    pv.setVolumeName(pv.getPvcName());
-                                    pv.setProjectId(projectId);
-                                    pv.setNamespace(namespace);
-                                    pv.setServiceName(name);
-                                    volumeSerivce.createVolume(pv);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            for (UpdateContainer container : updateContainers) {
-                if (container.getStorage() != null && container.getStorage().size() > 0) {
-                    for (PersistentVolumeDto pv : container.getStorage()) {
-                        if (Constant.VOLUME_TYPE_PV.equals(pv.getType())) {
-                            pv.setVolumeName(pv.getPvcName());
-                            pv.setProjectId(projectId);
-                            pv.setServiceName(name);
-                            pv.setNamespace(namespace);
-                            volumeSerivce.createVolume(pv);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     private void checkPvcInNewAndOldDeployment(PodTemplateSpec podTemplateSpec, String namespace, String name, Cluster cluster) throws Exception {
         List<Volume> rollbackVolumes = new ArrayList<>();
+        List<String> rollbackPvc = new ArrayList<>();
         if (null != podTemplateSpec.getSpec() && null != podTemplateSpec.getSpec().getVolumes()) {
             rollbackVolumes = podTemplateSpec.getSpec().getVolumes();
+            rollbackPvc = rollbackVolumes.stream().filter(rv->rv.getPersistentVolumeClaim() != null)
+                    .map(rv->rv.getPersistentVolumeClaim().getClaimName()).collect(Collectors.toList());
         }
 
-        //将PersistentVolumeClaim转成PersistentVolumeDto对象
-        List<PersistentVolumeDto> pvDtoList = new ArrayList<>();
-        rollbackVolumes.stream().forEach(rv -> {
-            if (null != rv.getPersistentVolumeClaim()) {
-                PersistentVolumeClaimVolumeSource pvc = rv.getPersistentVolumeClaim();
-                PersistentVolumeDto pvDto = new PersistentVolumeDto();
-                pvDto.setNamespace(namespace);
-                pvDto.setReadOnly(pvc.isReadOnly());
-                pvDto.setPvcName(pvc.getClaimName());
-                pvDtoList.add(pvDto);
-            }
-        });
 
         // 获取pvc信息
         Map<String, Object> label = new HashMap<>();
-        label.put("labelSelector", "app=" + name);
+        label.put("labelSelector", CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name + CommonConstant.EQUALITY_SIGN + name);
         K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, label, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
             UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
             throw new MarsRuntimeException(status.getMessage());
         }
+
         PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(pvcRes.getBody(), PersistentVolumeClaimList.class);
-        if (Objects.nonNull(pvcList) && CollectionUtils.isNotEmpty(pvcList.getItems())) {
-            if (CollectionUtils.isNotEmpty(pvDtoList)) {
-                for (PersistentVolumeDto onePv : pvDtoList) {
-                    for (PersistentVolumeClaim onePvc : pvcList.getItems()) {
-                        boolean flag = true;
-                        String pvc = onePvc.getMetadata().getName();
-                        if (pvc.equals(onePv.getPvcName())) {
-                            flag = false;
-                        }
-                        if (flag) {
-                            pvcService.deletePVC(namespace, onePvc.getMetadata().getName(), cluster);
-                            if (onePvc.getSpec() != null && onePvc.getSpec().getVolumeName() != null) {
-                                // update pv
-                                String pvName = onePvc.getSpec().getVolumeName();
-                                PersistentVolume pv = pvService.getPvByName(pvName, cluster);
-                                volumeSerivce.updatePV(pv, cluster);
-                            }
-                        }
-                    }
-                }
-            } else {
-                for (PersistentVolumeClaim onePvc : pvcList.getItems()) {
-                    pvcService.deletePVC(namespace, onePvc.getMetadata().getName(), cluster);
-                    if (onePvc.getSpec() != null && onePvc.getSpec().getVolumeName() != null) {
-                        // update pv
-                        String pvName = onePvc.getSpec().getVolumeName();
-                        PersistentVolume pv = pvService.getPvByName(pvName, cluster);
-                        volumeSerivce.updatePV(pv, cluster);
-                    }
+
+        List<String> currentPvc = new ArrayList<>();
+        if (CollectionUtils.isNotEmpty(pvcList.getItems())) {
+            for(PersistentVolumeClaim pvc : pvcList.getItems()){
+                currentPvc.add(pvc.getMetadata().getName());
+                //去掉挂载的pvc删除标签
+                if(!rollbackPvc.contains(pvc.getMetadata().getName())){
+                    pvc.getMetadata().getLabels().remove(CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name);
+                    pvcService.updatePvcByName(pvc, cluster);
                 }
             }
         }
+
+        //新挂载的pvc增加标签
+        label.clear();
+        label.put(CommonConstant.LABEL_KEY_APP + CommonConstant.SLASH + name, name);
+        if(CollectionUtils.isNotEmpty(rollbackPvc)) {
+            List<String> newAddedPvcList = (List<String>) ListUtils.removeAll(rollbackPvc, currentPvc);
+            for(String pvc : newAddedPvcList){
+                persistentVolumeClaimService.updateLabel(pvc, namespace, cluster, label);
+            }
+        }
+
     }
 }

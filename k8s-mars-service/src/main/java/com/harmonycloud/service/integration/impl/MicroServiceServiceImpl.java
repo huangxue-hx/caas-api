@@ -60,11 +60,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.swing.*;
 import java.math.BigDecimal;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * @Author jiangmi
@@ -359,7 +356,7 @@ public class MicroServiceServiceImpl implements MicroServiceService {
                 if (dep != null) {
                     //查询POD
                     Map<String, Object> bodys = new HashMap<String, Object>();
-                    bodys.put("labelSelector", K8sResultConvert.convertExpression(dep, msfIns.getDeploymentName()));
+                    bodys.put("labelSelector", K8sResultConvert.convertDeploymentExpression(dep, msfIns.getDeploymentName()));
                     K8SClientResponse podRes = podService.getPodByNamespace(namespaceName, null, bodys, HTTPMethod.GET, cluster);
                     if (!HttpStatusUtil.isSuccessStatus(podRes.getStatus())) {
                         return ActionReturnUtil.returnErrorWithData(podRes.getBody());

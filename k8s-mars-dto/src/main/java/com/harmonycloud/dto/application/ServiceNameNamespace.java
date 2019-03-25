@@ -6,6 +6,8 @@ public class ServiceNameNamespace {
 	
 	private String namespace;
 
+    private String serviceType;
+
 	public String getName() {
 		return name;
 	}
@@ -21,4 +23,12 @@ public class ServiceNameNamespace {
 	public void setNamespace(String namespace) {
 		this.namespace = namespace;
 	}
+
+    public String getServiceType() {
+        return serviceType;
+    }
+
+    public void setServiceType(String serviceType) {
+        this.serviceType = serviceType;
+    }
 }

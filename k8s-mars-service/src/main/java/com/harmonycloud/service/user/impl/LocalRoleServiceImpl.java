@@ -35,22 +35,22 @@ public class LocalRoleServiceImpl implements LocalRoleService {
     private static Logger logger = LoggerFactory.getLogger(LocalRoleServiceImpl.class);
 
     @Autowired
-    LocalRoleMapper localRoleMapper;
+    private LocalRoleMapper localRoleMapper;
 
     @Autowired
-    LocalUserRoleRelService localUserRoleRelService;
+    private LocalUserRoleRelService localUserRoleRelService;
 
     @Autowired
-    LocalPrivilegeService localRolePrivilegeRuleService;
+    private LocalPrivilegeService localRolePrivilegeRuleService;
 
     @Autowired
-    LocalRolePrivilegeService localRolePrivilegeService;
+    private LocalRolePrivilegeService localRolePrivilegeService;
 
     @Autowired
-    UserRoleRelationshipService userRoleRelationshipService;
+    private UserRoleRelationshipService userRoleRelationshipService;
 
     @Autowired
-    ProjectService projectService;
+    private ProjectService projectService;
 
     private static List allPreConditions;
     /**
@@ -72,7 +72,7 @@ public class LocalRoleServiceImpl implements LocalRoleService {
 //        }
         LocalRole localRole = new LocalRole();
         localRole.setProjectId(localRoleDtoIn.getProjectId());
-        localRole.setName(UUIDUtil.getUUID());
+        localRole.setName(UUIDUtil.get16UUID());
         localRole.setDescription(localRoleDtoIn.getRoleDesc());
         localRole.setNamespaces(localRoleDtoIn.getNamespaces());
         localRole.setCreateTime(DateUtil.getCurrentUtcTime());

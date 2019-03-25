@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.istio.RuleOverviewMapper">
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.istio.bean.RuleOverview">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="rule_name" jdbcType="VARCHAR" property="ruleName" />
+    <result column="rule_id" jdbcType="VARCHAR" property="ruleId" />
+    <result column="rule_type" jdbcType="VARCHAR" property="ruleType" />
+    <result column="rule_scope" jdbcType="VARCHAR" property="ruleScope" />
+    <result column="rule_cluster_id" jdbcType="VARCHAR" property="ruleClusterId" />
+    <result column="rule_ns" jdbcType="VARCHAR" property="ruleNs" />
+    <result column="rule_svc" jdbcType="VARCHAR" property="ruleSvc" />
+    <result column="rule_source_num" jdbcType="INTEGER" property="ruleSourceNum" />
+    <result column="switch_status" jdbcType="INTEGER" property="switchStatus" />
+    <result column="data_status" jdbcType="INTEGER" property="dataStatus" />
+    <result column="data_err_loc" jdbcType="INTEGER" property="dataErrLoc" />
+    <result column="user_id" jdbcType="VARCHAR" property="userId" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    rule_name, rule_id, rule_type, rule_scope, rule_cluster_id, rule_ns, rule_svc,
+    rule_source_num, switch_status, data_status, data_err_loc, user_id, create_time, update_time
+  </sql>
+  <select id="selectByRuleInfo" parameterType="java.util.Map" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List"/>
+    from rule_overview
+    <where>
+      <if test="ruleId != null">
+        and rule_id = #{ruleId,jdbcType=VARCHAR}
+      </if>
+      <if test="ruleClusterId != null">
+        and rule_cluster_id = #{ruleClusterId,jdbcType=VARCHAR}
+      </if>
+      <if test="ruleNs != null">
+        and rule_ns = #{ruleNs,jdbcType=VARCHAR}
+      </if>
+      <if test="ruleSvc != null">
+        and rule_svc = #{ruleSvc,jdbcType=VARCHAR}
+      </if>
+      <if test="ruleName != null">
+        and rule_name = #{ruleName,jdbcType=VARCHAR}
+      </if>
+      <if test="ruleType != null">
+        and rule_type = #{ruleType,jdbcType=VARCHAR}
+      </if>
+    </where>
+    order by rule_type;
+  </select>
+
+  <select id="selectRuleStatus" parameterType="java.lang.String" resultType="java.util.Map">
+    select
+      switch_status as switchStatus,data_status as dataStatus
+    from rule_overview
+    where rule_id = #{ruleId,jdbcType=VARCHAR}
+  </select>
+
+  <insert id="insert" parameterType="com.harmonycloud.dao.istio.bean.RuleOverview">
+    <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
+      SELECT LAST_INSERT_ID()
+    </selectKey>
+    insert into rule_overview (rule_name, rule_id, rule_type,
+      rule_scope, rule_cluster_id, rule_ns, 
+      rule_svc, rule_source_num, switch_status, 
+      data_status, data_err_loc, user_id, 
+      create_time)
+    values (#{ruleName,jdbcType=VARCHAR}, #{ruleId,jdbcType=VARCHAR}, #{ruleType,jdbcType=VARCHAR},
+      #{ruleScope,jdbcType=VARCHAR}, #{ruleClusterId,jdbcType=VARCHAR}, #{ruleNs,jdbcType=VARCHAR},
+      #{ruleSvc,jdbcType=VARCHAR}, #{ruleSourceNum,jdbcType=INTEGER}, #{switchStatus,jdbcType=INTEGER},
+      #{dataStatus,jdbcType=INTEGER}, #{dataErrLoc,jdbcType=INTEGER}, #{userId,jdbcType=VARCHAR},
+      CURRENT_TIME )
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.istio.bean.RuleOverview">
+    update rule_overview
+    <set>
+      <if test="ruleScope != null">
+        rule_scope = #{ruleScope,jdbcType=VARCHAR},
+      </if>
+      <if test="switchStatus != null">
+        switch_status = #{switchStatus,jdbcType=INTEGER},
+      </if>
+      <if test="dataStatus != null">
+        data_status = #{dataStatus,jdbcType=INTEGER},
+      </if>
+      <if test="dataErrLoc != null">
+        data_err_loc = #{dataErrLoc,jdbcType=INTEGER},
+      </if>
+      <if test="userId != null">
+        user_id = #{userId,jdbcType=VARCHAR},
+      </if>
+      update_time = CURRENT_TIME
+    </set>
+    where rule_id = #{ruleId,jdbcType=VARCHAR}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.istio.bean.RuleOverview">
+    update rule_overview
+    set rule_name = #{ruleName,jdbcType=VARCHAR},
+      rule_id = #{ruleId,jdbcType=VARCHAR},
+      rule_type = #{ruleType,jdbcType=VARCHAR},
+      rule_scope = #{ruleScope,jdbcType=VARCHAR},
+      rule_cluster_id = #{ruleClusterId,jdbcType=VARCHAR},
+      rule_ns = #{ruleNs,jdbcType=VARCHAR},
+      rule_svc = #{ruleSvc,jdbcType=VARCHAR},
+      rule_source_num = #{ruleSourceNum,jdbcType=INTEGER},
+      switch_status = #{switchStatus,jdbcType=INTEGER},
+      data_status = #{dataStatus,jdbcType=VARCHAR},
+      data_err_loc = #{dataErrLoc,jdbcType=INTEGER},
+      user_id = #{userId,jdbcType=VARCHAR},
+      create_time = #{createTime,jdbcType=TIMESTAMP},
+      update_time = CURRENT_TIME
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+
+  <update id="updateSwitchStatus" parameterType="com.harmonycloud.dao.istio.bean.RuleOverview">
+    update rule_overview
+    set switch_status = #{switchStatus,jdbcType=VARCHAR},
+    user_id = #{userId,jdbcType=VARCHAR},
+    update_time = CURRENT_TIME
+    where rule_id = #{ruleId,jdbcType=VARCHAR}
+  </update>
+
+  <update id="updateDataStatus" parameterType="com.harmonycloud.dao.istio.bean.RuleOverview">
+    update rule_overview
+    set data_status = #{dataStatus,jdbcType=INTEGER},
+    user_id = #{userId,jdbcType=VARCHAR},
+    data_err_loc = #{dataErrLoc,jdbcType=INTEGER},
+    update_time = CURRENT_TIME
+    where rule_id = #{ruleId,jdbcType=VARCHAR}
+  </update>
+
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.String">
+    delete from rule_overview
+    where rule_id = #{ruleId,jdbcType=VARCHAR}
+  </delete>
+
+  <select id="selectByRuleId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List"/>
+    from rule_overview
+    where rule_id = #{ruleId,jdbcType=VARCHAR}
+  </select>
+</mapper>

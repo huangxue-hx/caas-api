@@ -42,6 +42,18 @@ public class ServiceTemplates implements Serializable {
 
     private String clusterId;
 
+    private String serviceAccount;
+
+    private Integer serviceType;
+
+    public String getServiceAccount() {
+        return serviceAccount;
+    }
+
+    public void setServiceAccount(String serviceAccount) {
+        this.serviceAccount = serviceAccount;
+    }
+
     public String getClusterId() {
         return clusterId;
     }
@@ -217,4 +229,11 @@ public class ServiceTemplates implements Serializable {
         this.projectId = projectId;
     }
 
+    public Integer getServiceType() {
+        return serviceType;
+    }
+
+    public void setServiceType(Integer serviceType) {
+        this.serviceType = serviceType;
+    }
 }

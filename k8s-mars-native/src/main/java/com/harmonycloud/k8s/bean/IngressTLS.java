@@ -13,7 +13,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class IngressTLS {
 
-	List<String> hosts;
+	private List<String> hosts;
 	
 	private String secretName;
 

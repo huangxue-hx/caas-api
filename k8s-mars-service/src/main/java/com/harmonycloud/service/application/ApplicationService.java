@@ -1,8 +1,10 @@
 package com.harmonycloud.service.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dto.application.ApplicationTemplateDto;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -155,4 +157,15 @@ public interface ApplicationService {
      * @throws Exception
      */
     ActionReturnUtil checkAppTemplateName(String name, String projectId, String clusterId) throws Exception;
+
+    String convertYaml(String yaml);
+
+    /**
+     * 将json字符串转化为对象
+     * @param serviceTemplates
+     * @param content
+     * @return
+     * @throws Exception
+     */
+    List<Object> convertObjectListToYaml(ServiceTemplates serviceTemplates, String content) throws Exception;
 }

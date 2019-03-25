@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.cluster.TransferBindNamespaceMapper">
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.cluster.bean.TransferBindNamespace">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="current_namespace" jdbcType="VARCHAR" property="currentNamespace" />
+    <result column="create_namespace" jdbcType="VARCHAR" property="createNamespace" />
+    <result column="cluster_id" jdbcType="VARCHAR" property="clusterId" />
+    <result column="tenant_id" jdbcType="VARCHAR" property="tenantId" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="is_delete" jdbcType="TINYINT" property="isDelete" />
+    <result column="is_default" jdbcType="TINYINT" property="isDefault" />
+    <result column="status" jdbcType="INTEGER" property="status" />
+    <result column="err_msg" jdbcType="VARCHAR" property="errMsg" />
+    <result column="namespace_num" jdbcType="INTEGER" property="namespaceNum" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    id, current_namespace, create_namespace, cluster_id, tenant_id, create_time, update_time, 
+    is_delete, is_default, `status`, err_msg, namespace_num
+  </sql>
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from transfer_bind_namespace
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from transfer_bind_namespace
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <insert id="insert" parameterType="com.harmonycloud.dao.cluster.bean.TransferBindNamespace">
+    insert into transfer_bind_namespace (id, current_namespace, create_namespace,
+      cluster_id, tenant_id, create_time,
+      update_time, is_delete, is_default,
+      `status`, err_msg, namespace_num
+      )
+    values (#{id,jdbcType=INTEGER}, #{currentNamespace,jdbcType=VARCHAR}, #{createNamespace,jdbcType=VARCHAR},
+      #{clusterId,jdbcType=VARCHAR}, #{tenantId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP},
+      #{updateTime,jdbcType=TIMESTAMP}, #{isDelete,jdbcType=TINYINT}, #{isDefault,jdbcType=TINYINT},
+      #{status,jdbcType=INTEGER}, #{errMsg,jdbcType=VARCHAR}, #{namespaceNum,jdbcType=INTEGER}
+      )
+  </insert>
+  <insert id="insertSelective" parameterType="com.harmonycloud.dao.cluster.bean.TransferBindNamespace">
+    insert into transfer_bind_namespace
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        id,
+      </if>
+      <if test="currentNamespace != null">
+        current_namespace,
+      </if>
+      <if test="createNamespace != null">
+        create_namespace,
+      </if>
+      <if test="clusterId != null">
+        cluster_id,
+      </if>
+      <if test="tenantId != null">
+        tenant_id,
+      </if>
+      <if test="createTime != null">
+        create_time,
+      </if>
+      <if test="updateTime != null">
+        update_time,
+      </if>
+      <if test="isDelete != null">
+        is_delete,
+      </if>
+      <if test="isDefault != null">
+        is_default,
+      </if>
+      <if test="status != null">
+        `status`,
+      </if>
+      <if test="errMsg != null">
+        err_msg,
+      </if>
+      <if test="namespaceNum != null">
+        namespace_num,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        #{id,jdbcType=INTEGER},
+      </if>
+      <if test="currentNamespace != null">
+        #{currentNamespace,jdbcType=VARCHAR},
+      </if>
+      <if test="createNamespace != null">
+        #{createNamespace,jdbcType=VARCHAR},
+      </if>
+      <if test="clusterId != null">
+        #{clusterId,jdbcType=VARCHAR},
+      </if>
+      <if test="tenantId != null">
+        #{tenantId,jdbcType=VARCHAR},
+      </if>
+      <if test="createTime != null">
+        #{createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="updateTime != null">
+        #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="isDelete != null">
+        #{isDelete,jdbcType=TINYINT},
+      </if>
+      <if test="isDefault != null">
+        #{isDefault,jdbcType=TINYINT},
+      </if>
+      <if test="status != null">
+        #{status,jdbcType=INTEGER},
+      </if>
+      <if test="errMsg != null">
+        #{errMsg,jdbcType=VARCHAR},
+      </if>
+      <if test="namespaceNum != null">
+        #{namespaceNum,jdbcType=INTEGER},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.cluster.bean.TransferBindNamespace">
+    update transfer_bind_namespace
+    <set>
+      <if test="currentNamespace != null">
+        current_namespace = #{currentNamespace,jdbcType=VARCHAR},
+      </if>
+      <if test="createNamespace != null">
+        create_namespace = #{createNamespace,jdbcType=VARCHAR},
+      </if>
+      <if test="clusterId != null">
+        cluster_id = #{clusterId,jdbcType=VARCHAR},
+      </if>
+      <if test="tenantId != null">
+        tenant_id = #{tenantId,jdbcType=VARCHAR},
+      </if>
+      <if test="createTime != null">
+        create_time = #{createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="updateTime != null">
+        update_time = #{updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="isDelete != null">
+        is_delete = #{isDelete,jdbcType=TINYINT},
+      </if>
+      <if test="isDefault != null">
+        is_default = #{isDefault,jdbcType=TINYINT},
+      </if>
+      <if test="status != null">
+        `status` = #{status,jdbcType=INTEGER},
+      </if>
+      <if test="errMsg != null">
+        err_msg = #{errMsg,jdbcType=VARCHAR},
+      </if>
+      <if test="namespaceNum != null">
+        namespace_num = #{namespaceNum,jdbcType=INTEGER},
+      </if>
+    </set>
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.cluster.bean.TransferBindNamespace">
+    update transfer_bind_namespace
+    set current_namespace = #{currentNamespace,jdbcType=VARCHAR},
+      create_namespace = #{createNamespace,jdbcType=VARCHAR},
+      cluster_id = #{clusterId,jdbcType=VARCHAR},
+      tenant_id = #{tenantId,jdbcType=VARCHAR},
+      create_time = #{createTime,jdbcType=TIMESTAMP},
+      update_time = #{updateTime,jdbcType=TIMESTAMP},
+      is_delete = #{isDelete,jdbcType=TINYINT},
+      is_default = #{isDefault,jdbcType=TINYINT},
+      `status` = #{status,jdbcType=INTEGER},
+      err_msg = #{errMsg,jdbcType=VARCHAR},
+      namespace_num = #{namespaceNum,jdbcType=INTEGER}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+
+  <insert id="saveBindNamespaces" parameterType="java.util.List">
+    insert into transfer_bind_namespace (current_namespace, create_namespace,
+    cluster_id, tenant_id, create_time,
+    update_time, is_delete, is_default,
+    `status`, err_msg, namespace_num
+    )
+    values
+    <foreach collection="bindNamespaces" item="transferBindNamespace" separator=",">
+      (
+      #{transferBindNamespace.currentNamespace,jdbcType=VARCHAR},
+      #{transferBindNamespace.createNamespace,jdbcType=VARCHAR},
+      #{transferBindNamespace.clusterId,jdbcType=VARCHAR},
+      #{transferBindNamespace.tenantId,jdbcType=VARCHAR},
+      #{transferBindNamespace.createTime,jdbcType=TIMESTAMP},
+      #{transferBindNamespace.updateTime,jdbcType=TIMESTAMP},
+      #{transferBindNamespace.isDelete,jdbcType=TINYINT},
+      #{transferBindNamespace.isDefault,jdbcType=TINYINT},
+      #{transferBindNamespace.status,jdbcType=INTEGER},
+      #{transferBindNamespace.errMsg,jdbcType=VARCHAR},
+      #{transferBindNamespace.namespaceNum,jdbcType=INTEGER}
+      )
+    </foreach>
+  </insert>
+
+  <select id="queryBindNamespaceByParam" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from transfer_bind_namespace
+    where
+    cluster_id = #{clusterId,jdbcType=VARCHAR} and tenant_id = #{tenantId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="queryLastNamespaceNum" resultType="Integer">
+     select ifnull(max(namespace_num), 0) from transfer_bind_namespace  where
+     cluster_id = #{clusterId,jdbcType=VARCHAR} and tenant_id = #{tenantId,jdbcType=VARCHAR}
+  </select>
+
+  <update id="updateSuccessListNamespace" parameterType="java.util.List">
+    <foreach collection="namespaceList" item="item" index="index">
+      update transfer_bind_namespace set `status` =#{item.status,jdbcType=INTEGER},
+      namespace_num = #{item.namespaceNum,jdbcType=INTEGER} where create_namespace = #{item.createNamespace}
+    </foreach>
+  </update>
+
+  <update id="updateErrorListNamespace" parameterType="java.util.List">
+    <foreach collection="namespaceList" item="item" index="index">
+      update transfer_bind_namespace set err_msg = #{item.errMsg,jdbcType=VARCHAR} where create_namespace = #{item.createNamespace}
+    </foreach>
+  </update>
+
+  <select id="queryErrorNamespace" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    where
+    cluster_id = #{clusterId,jdbcType=VARCHAR} and tenant_id = #{tenantId,jdbcType=VARCHAR} and status = 0
+  </select>
+
+  <delete id="deleteBindNamespace" parameterType="java.lang.String">
+    delete from transfer_bind_namespace
+    where cluster_id = #{clusterId,jdbcType=VARCHAR}
+  </delete>
+
+  <select id="queryExistingNamespace" parameterType="java.util.List">
+    select
+    <include refid="Base_Column_List" />
+    from transfer_bind_namespace
+    <if test="namespaceList != null">
+      where create_namespace in
+      <foreach collection="namespaceList" item="item" index="index">
+        #{item}
+      </foreach>
+    </if>
+  </select>
+</mapper>

@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 @Service("test")
 public class Test {
 
-    static SocketIOServer server;
+    private static SocketIOServer server;
 
     public void startServer() throws InterruptedException{
         Configuration config = new Configuration();

@@ -99,6 +99,18 @@
 
     </select>
 
+    <select id="selectRepository" resultMap="imageRepositoryMap">
+        select
+        <include refid="Base_Column_List" />
+        from image_repository where is_normal =true
+        <if test="harborProjectId != null" >
+            and harbor_project_id = #{harborProjectId}
+        </if>
+        <if  test="harborHost != null" >
+            and harbor_host = #{harborHost}
+        </if>
+    </select>
+
     <insert id="insert" parameterType = "com.harmonycloud.dao.harbor.bean.ImageRepository">
         INSERT INTO image_repository (harbor_project_id, harbor_project_name, repository_name, cluster_id,  cluster_name, project_id, harbor_host, is_default, tenant_id, is_public, is_normal, create_time)
         VALUES (#{harborProjectId}, #{harborProjectName},#{repositoryName}, #{clusterId},#{clusterName},#{projectId},#{harborHost},#{isDefault},#{tenantId}, #{isPublic},  #{isNormal},#{createTime})
@@ -175,4 +187,5 @@
         </set>
         where id = #{id,jdbcType=INTEGER}
     </update>
+
 </mapper>

@@ -1,26 +1,54 @@
 package com.harmonycloud.dao.application.bean;
 
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DataPrivilegeField;
+import com.harmonycloud.common.enumm.DataPrivilegeType;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
+
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * Created by gurongyun on 17/03/24.
  */
+@DataPrivilegeType(type = DataResourceTypeEnum.CONFIGFILE)
 public class ConfigFile implements Serializable {
 
 	private static final long serialVersionUID = 1595317238255724736L;
 	private String id; // 编号 唯一标识符
+	@DataPrivilegeField(type = CommonConstant.DATA_FIELD)
 	private String name; // 配置文件名称
 	private String description; // 描述
 	private String tags; // 版本号
 	private String tenantId; // 租户id
+	@DataPrivilegeField(type = CommonConstant.PROJECTID_FIELD)
 	private String projectId; // 项目id
+	@DataPrivilegeField(type = CommonConstant.CLUSTERID_FIELD)
 	private String clusterId;
 	private String clusterName;
 	private String repoName; // 镜像repo
 	private String user; // 创建者
 	private String createTime; // 创建时间
-	private String items; //配置文件内容
-	private String path; //容器内部挂载路径
+	private String updateTime;	//更新时间
+	private List<ConfigFileItem> configFileItemList;//配置文件的明細列表
+	private String clusterAliasName;//集群的别名
+	private String dataPrivilege;//权限属性
+
+	public String getClusterAliasName() {
+		return clusterAliasName;
+	}
+
+	public void setClusterAliasName(String clusterAliasName) {
+		this.clusterAliasName = clusterAliasName;
+	}
+
+	public List<ConfigFileItem> getConfigFileItemList() {
+		return configFileItemList;
+	}
+
+	public void setConfigFileItemList(List<ConfigFileItem> configFileItemList) {
+		this.configFileItemList = configFileItemList;
+	}
 
 	public ConfigFile() {
 		super();
@@ -66,14 +94,6 @@ public class ConfigFile implements Serializable {
 		this.user = user;
 	}
 
-	public String getItems() {
-		return items;
-	}
-
-	public void setItems(String items) {
-		this.items = items;
-	}
-
 	public String getRepoName() {
 		return repoName;
 	}
@@ -90,13 +110,9 @@ public class ConfigFile implements Serializable {
 		this.createTime = createTime;
 	}
 
-	public String getPath() {
-		return path;
-	}
+	public String getUpdateTime() { return updateTime; }
 
-	public void setPath(String path) {
-		this.path = path;
-	}
+	public void setUpdateTime(String updateTime) { this.updateTime = updateTime; }
 
 	public String getTenantId() {
 		return tenantId;
@@ -128,5 +144,59 @@ public class ConfigFile implements Serializable {
 
 	public void setClusterName(String clusterName) {
 		this.clusterName = clusterName;
+	}
+
+	public String getDataPrivilege() {
+		return dataPrivilege;
+	}
+
+	public void setDataPrivilege(String dataPrivilege) {
+		this.dataPrivilege = dataPrivilege;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+
+		ConfigFile that = (ConfigFile) o;
+
+		if (name != null ? !name.equals(that.name) : that.name != null) return false;
+		if (projectId != null ? !projectId.equals(that.projectId) : that.projectId != null) return false;
+		return clusterId != null ? clusterId.equals(that.clusterId) : that.clusterId == null;
+	}
+
+	@Override
+	public int hashCode() {
+		int result = name != null ? name.hashCode() : 0;
+		result = 31 * result + (projectId != null ? projectId.hashCode() : 0);
+		result = 31 * result + (clusterId != null ? clusterId.hashCode() : 0);
+		return result;
+	}
+
+	@Override
+	public String toString() {
+		String result = "ConfigFile{" +
+				"id='" + id + '\'' +
+				", name='" + name + '\'' +
+				", description='" + description + '\'' +
+				", tags='" + tags + '\'' +
+				", tenantId='" + tenantId + '\'' +
+				", projectId='" + projectId + '\'' +
+				", clusterId='" + clusterId + '\'' +
+				", clusterName='" + clusterName + '\'' +
+				", repoName='" + repoName + '\'' +
+				", user='" + user + '\'' +
+				", createTime='" + createTime + '\'' +
+				", updateTime='" + updateTime + '\'' +
+				", clusterAliasName='" + clusterAliasName + '\'' +
+				"},configFileItem=[";
+		for(int i=0;i<configFileItemList.size();i++){
+			result += configFileItemList.get(0).toString()+",";
+		}
+		if(result.endsWith(",")){
+			result = result.substring(0, result.length()-1)+"]";
+		}
+		return result;
 	}
 }

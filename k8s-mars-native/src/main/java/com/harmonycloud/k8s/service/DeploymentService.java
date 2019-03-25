@@ -6,6 +6,8 @@ import java.util.Map;
 import com.harmonycloud.k8s.constant.APIGroup;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.harmonycloud.common.util.HttpK8SClientUtil;
@@ -31,6 +33,8 @@ import com.harmonycloud.k8s.util.K8SURL;
 public class DeploymentService {
 
 	private String surfix="/deployments";
+	private static final Logger LOGGER = LoggerFactory.getLogger(DeploymentService.class);
+
 
 //	private String url = "http://10.10.102.45:8080"+Constant.APIS_EXTENTIONS_V1BETA1_VERSION+"/namespaces/"+namespace+"/deployments";
 
@@ -49,7 +53,7 @@ public class DeploymentService {
 
 			return dList;
 		} catch (Exception e) {
-			e.printStackTrace();
+            LOGGER.warn("获取Deployment列表失败", e);
 		}
 		return null;
 	}
@@ -89,7 +93,7 @@ public class DeploymentService {
 			}
 			return false;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("删除deployment失败，namespace:{}", namespace, e);
 		}
 		return false;
 	}
@@ -109,7 +113,7 @@ public class DeploymentService {
 
 			return d;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("创建deployment:{}失败，namespace:{}", deployment.getMetadata().getName(), namespace, e);
 		}
 
 		return null;
@@ -152,7 +156,7 @@ public class DeploymentService {
 			Deployment d=JsonUtil.jsonToPojo(body.toString(),Deployment.class);
 			return d;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("修改deployment:{}失败，namespace{}", name, namespace, e);
 		}
 		return null;
 	}
@@ -180,7 +184,7 @@ public class DeploymentService {
 			}
 			return false;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("删除deployment:{}失败，namespace:{}", name, namespace, e);
 		}
 		return false;
 	}
@@ -205,7 +209,7 @@ public class DeploymentService {
 			
 			return us;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("回滚deployment:{}失败，namespace:{}", name, namespace, e);
 		}
 		return null;
 	}

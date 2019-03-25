@@ -20,13 +20,11 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 
-import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.util.HttpSslClientUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.k8s.constant.Constant;
-
-
+import org.springframework.http.HttpStatus;
 
 
 public class HttpK8SClientUtil {
@@ -81,15 +79,15 @@ public class HttpK8SClientUtil {
 			httpClient = getHttpClient();
 			response = httpClient.execute(httpGet);
 			Integer statusCode = response.getStatusLine().getStatusCode();
+			if (HttpStatus.UNAUTHORIZED.value() == statusCode) {
+				throw new K8sAuthException(Constant.HTTP_401);
+			}
 			k8sResponse.setStatus(statusCode);
 			HttpEntity entity = response.getEntity();
 			if (entity != null) {
 				String charset = getContentCharSet(entity);
 				// 使用EntityUtils的toString方法，传递编码，默认编码是UTF-8
 				String result = EntityUtils.toString(entity, charset);
-				if (result.contains("Unauthorized")) {
-					throw new K8sAuthException(Constant.HTTP_401);
-				}
 				k8sResponse.setBody(result);
 				return k8sResponse;
 			}
@@ -140,13 +138,13 @@ public class HttpK8SClientUtil {
 			httpClient = getHttpClient();
 			CloseableHttpResponse response = httpClient.execute(httpDelete);
 			Integer statusCode = response.getStatusLine().getStatusCode();
+			if (HttpStatus.UNAUTHORIZED.value() == statusCode) {
+				throw new K8sAuthException(Constant.HTTP_401);
+			}
 			k8sResponse.setStatus(statusCode);
 			HttpEntity entity = response.getEntity();
 			if (entity != null) {
 				String result = EntityUtils.toString(entity);
-				if (result.contains("Unauthorized")) {
-					throw new K8sAuthException(Constant.HTTP_401);
-				}
 				k8sResponse.setBody(result);
 				response.close();
 				return k8sResponse;
@@ -188,15 +186,15 @@ public class HttpK8SClientUtil {
 			httpClient = getHttpClient();
 			CloseableHttpResponse response = httpClient.execute(httpDeleteWithBody);
 			Integer statusCode = response.getStatusLine().getStatusCode();
+			if (HttpStatus.UNAUTHORIZED.value() == statusCode) {
+				throw new K8sAuthException(Constant.HTTP_401);
+			}
 			k8sResponse.setStatus(statusCode);
 			HttpEntity entity = response.getEntity();
 			if (entity != null) {
 				String charset = getContentCharSet(entity);
 				// 使用EntityUtils的toString方法，传递编码，默认编码是UTF-8
 				String result = EntityUtils.toString(entity, charset);
-				if (result.contains(Constant.HTTP_UNAUTHORIZED)) {
-					throw new K8sAuthException(Constant.HTTP_401);
-				}
 				k8sResponse.setBody(result);
 				response.close();
 				return k8sResponse;
@@ -247,12 +245,12 @@ public class HttpK8SClientUtil {
 			CloseableHttpResponse response = httpClient.execute(httpPost);
 			Integer statusCode = response.getStatusLine().getStatusCode();
 			k8sResponse.setStatus(statusCode);
+			if (HttpStatus.UNAUTHORIZED.value() == statusCode) {
+				throw new K8sAuthException(Constant.HTTP_401);
+			}
 			HttpEntity entity = response.getEntity();
 			if (entity != null) {
 				String result = EntityUtils.toString(entity);
-				if (result.contains(Constant.HTTP_UNAUTHORIZED)) {
-					throw new K8sAuthException(Constant.HTTP_401);
-				}
 				k8sResponse.setBody(result);
 				response.close();
 				return k8sResponse;
@@ -301,14 +299,14 @@ public class HttpK8SClientUtil {
 			CloseableHttpResponse response = httpClient.execute(httpPost);
 			Integer statusCode = response.getStatusLine().getStatusCode();
 			k8sResponse.setStatus(statusCode);
+			if (HttpStatus.UNAUTHORIZED.value() == statusCode) {
+				throw new K8sAuthException(Constant.HTTP_401);
+			}
 			HttpEntity entity = response.getEntity();
 			if (entity != null) {
 				String charset = getContentCharSet(entity);
 				// 使用EntityUtils的toString方法，传递编码，默认编码是UTF-8
 				String result = EntityUtils.toString(entity, charset);
-				if (result.contains(Constant.HTTP_UNAUTHORIZED)) {
-					throw new K8sAuthException(Constant.HTTP_401);
-				}
 				k8sResponse.setBody(result);
 				response.close();
 				return k8sResponse;
@@ -357,14 +355,14 @@ public class HttpK8SClientUtil {
 			CloseableHttpResponse response = httpClient.execute(httpPut);
 			Integer statusCode = response.getStatusLine().getStatusCode();
 			k8sResponse.setStatus(statusCode);
+			if (HttpStatus.UNAUTHORIZED.value() == statusCode) {
+				throw new K8sAuthException(Constant.HTTP_401);
+			}
 			HttpEntity entity = response.getEntity();
 			if (entity != null) {
 				String charset = getContentCharSet(entity);
 				// 使用EntityUtils的toString方法，传递编码，默认编码是UTF-8
 				String result = EntityUtils.toString(entity, charset);
-				if (result.contains(Constant.HTTP_UNAUTHORIZED)) {
-					throw new K8sAuthException(Constant.HTTP_401);
-				}
 				k8sResponse.setBody(result);
 				response.close();
 				return k8sResponse;
@@ -413,14 +411,14 @@ public class HttpK8SClientUtil {
 			CloseableHttpResponse response = httpClient.execute(httpPatch);
 			Integer statusCode = response.getStatusLine().getStatusCode();
 			k8sResponse.setStatus(statusCode);
+			if (HttpStatus.UNAUTHORIZED.value() == statusCode) {
+				throw new K8sAuthException(Constant.HTTP_401);
+			}
 			HttpEntity entity = response.getEntity();
 			if (entity != null) {
 				String charset = getContentCharSet(entity);
 				// 使用EntityUtils的toString方法，传递编码，默认编码是UTF-8
 				String result = EntityUtils.toString(entity, charset);
-				if (result.contains(Constant.HTTP_UNAUTHORIZED)) {
-					throw new K8sAuthException(Constant.HTTP_401);
-				}
 				k8sResponse.setBody(result);
 				response.close();
 				return k8sResponse;

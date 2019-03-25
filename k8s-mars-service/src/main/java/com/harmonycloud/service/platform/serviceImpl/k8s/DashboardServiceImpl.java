@@ -39,7 +39,7 @@ import java.util.Map;
 public class DashboardServiceImpl implements DashboardService {
 
 	@Autowired
-	SystemConfigService systemConfigService;
+	private SystemConfigService systemConfigService;
 
 	@Autowired
 	private PodService podService;
@@ -136,12 +136,30 @@ public class DashboardServiceImpl implements DashboardService {
 			Double memGb = 0.0;
 			Object object = node.getStatus().getAllocatable();
 			if (object != null) {
-				cpu += Integer.valueOf(((Map<String, Object>) object).get("cpu").toString());
-				String memory = ((Map<String, Object>) object).get("memory").toString();
-				memory = memory.substring(0, memory.indexOf("Ki"));
-				mem += Double.valueOf(memory);
+				String cpuStr = ((Map<String, Object>) object).get("cpu").toString();
+				if(cpuStr.contains("m")) {
+					cpuStr = cpuStr.substring(0, cpuStr.indexOf("m"));
+					cpu = Double.valueOf(cpuStr) / 1000;
+				} else {
+					cpu = Double.valueOf(cpuStr);
+				}
 
-				double db = Double.valueOf(memory)/1024/1024;
+				String memory = ((Map<String, Object>) object).get("memory").toString();
+				double db = 0.0;
+				if(memory.contains("Ki")) {
+					memory = memory.substring(0, memory.indexOf("Ki"));
+					mem += Double.valueOf(memory);
+					db = Double.valueOf(memory)/1024/1024;
+				} else if(memory.contains("Mi")) {
+					memory = memory.substring(0, memory.indexOf("Mi"));
+					mem += Double.valueOf(memory);
+					db = Double.valueOf(memory)/1024;
+				} else if(memory.contains("Gi")) {
+					memory = memory.substring(0, memory.indexOf("Gi"));
+					mem += Double.valueOf(memory);
+					db = Double.valueOf(memory);
+				}
+
 				memGb += new BigDecimal(db).setScale(1, BigDecimal.ROUND_HALF_UP).doubleValue();
 
 				res.put("cpu", cpu);
@@ -246,21 +264,39 @@ public class DashboardServiceImpl implements DashboardService {
 				if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) == null) {
 					continue;
 				}
-				if ( !labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)
-						&& !labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_E)) {
+				if ( !labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
 					continue;
 				}
 				Object object = node.getStatus().getAllocatable();
 				if (object != null) {
-					cpu += Double.valueOf(((Map<String, Object>) object).get("cpu").toString());
+					String cpuStr = ((Map<String, Object>) object).get("cpu").toString();
+					if(cpuStr.contains("m")) {
+						cpuStr = cpuStr.substring(0, cpuStr.indexOf("m"));
+						cpu += Double.valueOf(cpuStr) / 1000;
+					} else {
+						cpu += Double.valueOf(cpuStr);
+					}
+
 					String memory = ((Map<String, Object>) object).get("memory").toString();
-					memory = memory.substring(0, memory.indexOf("Ki"));
-					mem += Double.valueOf(memory);
-					double db = Double.valueOf(memory)/1024/1024;
+					double db = 0.0;
+					if(memory.contains("Ki")) {
+						memory = memory.substring(0, memory.indexOf("Ki"));
+						mem += Double.valueOf(memory);
+						db = Double.valueOf(memory)/1024/1024;
+					} else if(memory.contains("Mi")) {
+						memory = memory.substring(0, memory.indexOf("Mi"));
+						mem += Double.valueOf(memory);
+						db = Double.valueOf(memory)/1024;
+					} else if(memory.contains("Gi")) {
+						memory = memory.substring(0, memory.indexOf("Gi"));
+						mem += Double.valueOf(memory);
+						db = Double.valueOf(memory);
+					}
+
 					memGb += new BigDecimal(db).setScale(1, BigDecimal.ROUND_HALF_UP).doubleValue();
 				}
 			}
-			cpu = new BigDecimal(cpu).setScale(0, BigDecimal.ROUND_HALF_UP).doubleValue();
+			cpu = new BigDecimal(cpu).setScale(1, BigDecimal.ROUND_HALF_UP).doubleValue();
 
 			NumberFormat nf = NumberFormat.getNumberInstance();
 			// 保留两位小数

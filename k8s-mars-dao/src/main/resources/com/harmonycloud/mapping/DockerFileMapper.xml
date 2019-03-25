@@ -38,8 +38,8 @@
     </select>
 
     <select id="findPageByAll" resultType="com.harmonycloud.dao.ci.bean.DockerFilePage">
-        SELECT df.id id,df.name name, df.tenant tenant, df.project_id projectId, df.cluster_id clusterId,GROUP_CONCAT(cj.id) jobIds,GROUP_CONCAT(cj.name order by cj.name) jobNames,
-        GROUP_CONCAT(cs.id) stageIds,GROUP_CONCAT(cs.stage_name) stageNames,
+        SELECT df.id id,df.name name, df.tenant tenant, df.project_id projectId, df.cluster_id clusterId,GROUP_CONCAT(cj.id order by cj.name) jobIds,GROUP_CONCAT(cj.name order by cj.name) jobNames,
+        GROUP_CONCAT(cs.id order by cj.name) stageIds,GROUP_CONCAT(cs.stage_name order by cj.name) stageNames,
         df.create_time createTime,df.update_time updateTime FROM cicd_docker_file df
         LEFT JOIN cicd_stage cs ON df.id=cs.dockerfile_id
         LEFT JOIN cicd_job cj ON cs.job_id=cj.id

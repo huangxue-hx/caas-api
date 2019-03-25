@@ -8,10 +8,10 @@ import javax.servlet.http.HttpSession;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.platform.bean.PodDto;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,24 +33,23 @@ public class NodeController {
     private PodService podService;
     @Autowired
     private ClusterService clusterService;
-    
-    @Autowired
-    HttpSession session;
 
     @Autowired
-    ClusterCacheManager clusterCacheManager;
+    private HttpSession session;
+
+    @Autowired
+    private ClusterCacheManager clusterCacheManager;
 
 
     /**
      * node 列表
-     * 
+     *
      * @return
      */
     @RequestMapping(value = "/{clusterId}/nodes")
     @ResponseBody
     public ActionReturnUtil listNode(@PathVariable(value = "clusterId" ) String clusterId) throws Exception {
         return nodeService.listNode(clusterId);
-
     }
 
     @RequestMapping(value = "/{clusterId}/nodes/{nodeName:.+}")
@@ -62,7 +61,7 @@ public class NodeController {
 
     /**
      * pod 列表
-     * 
+     *
      * @return
      */
     @ResponseBody
@@ -74,7 +73,7 @@ public class NodeController {
 
     /**
      * node事件
-     * 
+     *
      * @return
      */
     @ResponseBody
@@ -82,9 +81,10 @@ public class NodeController {
     public ActionReturnUtil listNodeEvent(@PathVariable(value = "nodeName") String nodeName,Cluster cluster) throws Exception {
         return nodeService.listNodeEvent(nodeName, cluster);
     }
+
     /**
      * 获取node标签
-     * 
+     *
      * @param nodeName
      * @return
      */
@@ -97,7 +97,7 @@ public class NodeController {
 
     /**
      * 修改node标签
-     * 
+     *
      * @return
      */
     @ResponseBody
@@ -111,12 +111,13 @@ public class NodeController {
     @RequestMapping(value = "/{clusterId}/nodes/{nodeName}/label/available", method = RequestMethod.GET)
     public ActionReturnUtil listNodeAvailablelabels(Cluster cluster) throws Exception {
 
-        return nodeService.listNodeAvailablelabels( cluster);
+        return nodeService.listNodeAvailablelabels(cluster);
 
     }
+
     /**
      * node 标签列表
-     * 
+     *
      * @param nodeName
      * @return
      * @throws Exception
@@ -127,9 +128,10 @@ public class NodeController {
         Map<String, String> statusLabels = this.nodeService.listNodeStatusLabels(nodeName, cluster);
         return ActionReturnUtil.returnSuccessWithData(statusLabels);
     }
+
     /**
      * 初始化node状态标签
-     * 
+     *
      * @param nodeName
      * @param labels
      * @return
@@ -141,11 +143,12 @@ public class NodeController {
         Map<String, String> map = new HashMap<String, String>();
         String[] split = labels.split("=");
         map.put(split[0], split[1]);
-        return this.nodeService.addNodeLabels(nodeName, map,clusterId);
+        return this.nodeService.addNodeLabels(nodeName, map, clusterId);
     }
+
     /**
      * 获取为闲置状态的node
-     * 
+     *
      * @return
      * @throws Exception
      */
@@ -153,15 +156,16 @@ public class NodeController {
     @RequestMapping(value = "/{clusterId}/nodes/available", method = RequestMethod.GET)
     public ActionReturnUtil getAvailableFreeNodeList(@PathVariable(value = "clusterId") String clusterId) throws Exception {
         Cluster cluster = clusterCacheManager.getCluster(clusterId);
-        if(cluster == null){
+        if (cluster == null) {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
         List<String> nodeList = this.nodeService.getAvailableNodeList(cluster);
         return ActionReturnUtil.returnSuccessWithData(nodeList);
     }
+
     /**
      * 获取为共享状态的node
-     * 
+     *
      * @return
      * @throws Exception
      */
@@ -195,6 +199,7 @@ public class NodeController {
                                                                     @PathVariable(value = "clusterId") String clusterId) throws Exception {
         return this.nodeService.addNode(host,user,passwd,masterIp,clusterId);
     }
+
     @ResponseBody
     @RequestMapping(value = "/{clusterId}/nodes/{nodeName}/status", method = RequestMethod.GET)
     public ActionReturnUtil checkNodeStatus(@PathVariable(value = "nodeName") String host,
@@ -202,25 +207,28 @@ public class NodeController {
                                                                     @RequestParam(value = "passwd", required = true)String passwd) throws Exception {
         return this.nodeService.checkNodeStatus(host,user,passwd);
     }
+
     @ResponseBody
     @RequestMapping(value = "/{clusterId}/nodes/{nodeName}/removeNode", method = RequestMethod.DELETE)
-    public ActionReturnUtil deleteNode(@PathVariable(value = "nodeName") String host,String user,String passwd,@PathVariable(value = "clusterId") String clusterId) throws Exception {
+    public ActionReturnUtil deleteNode(@PathVariable(value = "nodeName") String host, String user, String passwd, @PathVariable(value = "clusterId") String clusterId) throws Exception {
         return  this.nodeService.removeNode(host,user,passwd,clusterId);
     }
+
     @ResponseBody
     @RequestMapping(value = "/{clusterId}/nodes/online", method = RequestMethod.GET)
     public ActionReturnUtil getOnLineStatusWithClusterId(@PathVariable(value = "clusterId")String clusterId) throws Exception {
         List<NodeInstallProgress> onLineStatusWithClusterId = this.nodeService.getOnLineStatusWithClusterId(clusterId);
-        return  ActionReturnUtil.returnSuccessWithData(onLineStatusWithClusterId);
+        return ActionReturnUtil.returnSuccessWithData(onLineStatusWithClusterId);
     }
     @ResponseBody
     @RequestMapping(value = "/{clusterId}/nodes/errorstatus", method = RequestMethod.GET)
     public ActionReturnUtil getOnLineErrorStatus() throws Exception {
         String onLineErrorStatus = this.nodeService.getOnLineErrorStatus();
-        return  ActionReturnUtil.returnSuccessWithData(onLineErrorStatus);
+        return ActionReturnUtil.returnSuccessWithData(onLineErrorStatus);
     }
     /**
      * 更新闲置节点状态
+     *
      * @param nodeName
      * @param clusterId
      * @param nodeType 1 共享，2负债均衡，3构建节点，4系统节点
@@ -233,16 +241,17 @@ public class NodeController {
                                                  Integer nodeType,
                                                  Boolean idleStatus) throws Exception {
         if (idleStatus){
-            this.nodeService.updateIdleNodeStatus(nodeName,clusterId,nodeType);
+            this.nodeService.updateIdleNodeStatus(nodeName, clusterId, nodeType);
         } else {
-            this.nodeService.updateWorkNodeToIdleStatus(nodeName,clusterId);
+            this.nodeService.updateWorkNodeToIdleStatus(nodeName, clusterId);
         }
-        return  ActionReturnUtil.returnSuccess();
+        return ActionReturnUtil.returnSuccess();
     }
 
     /**
      * 取消节点上线程序
-     * @param nodeName 节点名称
+     *
+     * @param nodeName  节点名称
      * @param processId 节点上线任务id
      * @return
      * @throws Exception
@@ -252,12 +261,12 @@ public class NodeController {
     public ActionReturnUtil cancelAddNode(@PathVariable(value = "nodeName") String nodeName,
                                            @RequestParam(value = "processId") Integer processId) throws Exception {
         ActionReturnUtil updateShareToNode = this.nodeService.cancelAddNode(processId);
-        return  ActionReturnUtil.returnSuccessWithData(updateShareToNode);
+        return ActionReturnUtil.returnSuccessWithData(updateShareToNode);
     }
-    
+
     /**
      * 集群内所有节点的label
-     * 
+     *
      * @return ActionReturnUtil
      */
     @ResponseBody
@@ -269,6 +278,7 @@ public class NodeController {
 
     /**
      * 切换主机可维护状态
+     *
      * @param nodeName
      * @param schedulable
      * @return
@@ -284,6 +294,7 @@ public class NodeController {
 
     /**
      * 应用迁移（驱赶pod）
+     *
      * @param nodeName
      * @return
      * @throws Exception
@@ -297,6 +308,7 @@ public class NodeController {
 
     /**
      * 获取应用迁移进度
+     *
      * @param nodeName
      * @param clusterId
      * @return
@@ -307,5 +319,34 @@ public class NodeController {
     public ActionReturnUtil getDrainPodProgress(@PathVariable(value = "nodeName") String nodeName,
                                                 @PathVariable(value = "clusterId") String clusterId) throws Exception {
         return nodeService.getDrainPodProgress(nodeName, clusterId);
+    }
+
+    /**
+     * 获取匹配标签的node节点
+     *
+     * @param clusterId
+     * @param label
+     * @return
+     * @throws MarsRuntimeException
+     */
+    @RequestMapping(value = "/label/nodes", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil searchNodes(@RequestParam(value = "clusterId") String clusterId,
+                                          @RequestParam(value = "label", required = false) String label,
+                                          @RequestParam(value = "groupName", required = false)String groupName) throws MarsRuntimeException {
+        return nodeService.searchNodes(clusterId, label, groupName);
+    }
+
+    /**
+     * 获取匹配标签的node节点
+     *
+     * @param clusterId
+     * @return
+     * @throws MarsRuntimeException
+     */
+    @RequestMapping(value = "/nodes/groups", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getGroup(@RequestParam(value = "clusterId") String clusterId) throws MarsRuntimeException {
+        return nodeService.listNodeGroup(clusterId);
     }
 }

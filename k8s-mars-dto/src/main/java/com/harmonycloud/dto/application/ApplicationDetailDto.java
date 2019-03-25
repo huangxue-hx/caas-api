@@ -1,5 +1,10 @@
 package com.harmonycloud.dto.application;
 
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DataPrivilegeField;
+import com.harmonycloud.common.enumm.DataPrivilegeType;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
+
 import java.util.List;
 
 /**
@@ -8,6 +13,7 @@ import java.util.List;
  * @Date created in 2018-5-15
  * @Modified
  */
+@DataPrivilegeType(type = DataResourceTypeEnum.APPLICATION)
 public class ApplicationDetailDto {
 
     private String clusterId;
@@ -15,13 +21,13 @@ public class ApplicationDetailDto {
     private boolean isMsf;
 
     private boolean isOperationable;
-
+    @DataPrivilegeField(type = CommonConstant.DATA_FIELD)
     private String name;
 
     private String createTime;
 
     private String desc;
-
+    @DataPrivilegeField(type = CommonConstant.NAMESPACE_FIELD)
     private String namespace;
 
     private String user;
@@ -35,6 +41,8 @@ public class ApplicationDetailDto {
     private String updateTime;
 
     private List<ServiceDetailInApplicationDto> serviceList;
+
+    private String dataPrivilege;
 
     public String getClusterId() {
         return clusterId;
@@ -138,5 +146,13 @@ public class ApplicationDetailDto {
 
     public void setServiceList(List<ServiceDetailInApplicationDto> serviceList) {
         this.serviceList = serviceList;
+    }
+
+    public String getDataPrivilege() {
+        return dataPrivilege;
+    }
+
+    public void setDataPrivilege(String dataPrivilege) {
+        this.dataPrivilege = dataPrivilege;
     }
 }

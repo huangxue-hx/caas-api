@@ -8,9 +8,11 @@
     <result column="cpu_quota" jdbcType="DOUBLE" property="cpuQuota" />
     <result column="memory_quota" jdbcType="DOUBLE" property="memoryQuota" />
     <result column="pv_quota" jdbcType="DOUBLE" property="pvQuota" />
+    <result column="storage_quotas" jdbcType="VARCHAR" property="storageQuotas" />
     <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
     <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
     <result column="cluster_name" jdbcType="VARCHAR" property="clusterName" />
+    <result column="ic_names" jdbcType="VARCHAR" property="icNames" />
     <result column="reserve1" jdbcType="VARCHAR" property="reserve1" />
   </resultMap>
   <sql id="Example_Where_Clause">
@@ -43,8 +45,8 @@
     </where>
   </sql>
   <sql id="Base_Column_List">
-    id, tenant_id, cluster_id, cpu_quota, memory_quota, pv_quota, update_time, create_time, 
-    cluster_name, reserve1
+    id, tenant_id, cluster_id, cpu_quota, memory_quota, pv_quota, storage_quotas, update_time, 
+    create_time, cluster_name, ic_names, reserve1
   </sql>
   <select id="selectByExample" parameterType="com.harmonycloud.dao.tenant.bean.TenantClusterQuotaExample" resultMap="BaseResultMap">
     select
@@ -59,14 +61,6 @@
     </if>
     <if test="orderByClause != null">
       order by ${orderByClause}
-    </if>
-    <if test="limit != null">
-      <if test="offset != null">
-        limit ${offset}, ${limit}
-      </if>
-      <if test="offset == null">
-        limit ${limit}
-      </if>
     </if>
   </select>
   <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
@@ -88,22 +82,25 @@
   <delete id="deleteByClusterId">
     delete from tenant_cluster_quota where cluster_id = #{clusterId}
   </delete>
-  <insert id="insert" parameterType="com.harmonycloud.dao.tenant.bean.TenantClusterQuota">
-    insert into tenant_cluster_quota (id, tenant_id, cluster_id, 
-      cpu_quota, memory_quota, pv_quota, 
-      update_time, create_time, cluster_name, 
+    <insert id="insert" parameterType="com.harmonycloud.dao.tenant.bean.TenantClusterQuota">
+    <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
+      SELECT LAST_INSERT_ID()
+    </selectKey>
+    insert into tenant_cluster_quota (tenant_id, cluster_id, cpu_quota, 
+      memory_quota, pv_quota, storage_quotas, 
+      update_time, create_time, cluster_name, ic_names,
       reserve1)
-    values (#{id,jdbcType=INTEGER}, #{tenantId,jdbcType=VARCHAR}, #{clusterId,jdbcType=VARCHAR},
-      #{cpuQuota,jdbcType=DOUBLE}, #{memoryQuota,jdbcType=DOUBLE}, #{pvQuota,jdbcType=DOUBLE}, 
-      #{updateTime,jdbcType=TIMESTAMP}, #{createTime,jdbcType=TIMESTAMP}, #{clusterName,jdbcType=VARCHAR}, 
+    values (#{tenantId,jdbcType=VARCHAR}, #{clusterId,jdbcType=VARCHAR}, #{cpuQuota,jdbcType=DOUBLE}, 
+      #{memoryQuota,jdbcType=DOUBLE}, #{pvQuota,jdbcType=DOUBLE}, #{storageQuotas,jdbcType=VARCHAR}, 
+      #{updateTime,jdbcType=TIMESTAMP}, #{createTime,jdbcType=TIMESTAMP}, #{clusterName,jdbcType=VARCHAR},  #{icNames,jdbcType=VARCHAR},
       #{reserve1,jdbcType=VARCHAR})
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.tenant.bean.TenantClusterQuota">
+    <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
+      SELECT LAST_INSERT_ID()
+    </selectKey>
     insert into tenant_cluster_quota
     <trim prefix="(" suffix=")" suffixOverrides=",">
-      <if test="id != null">
-        id,
-      </if>
       <if test="tenantId != null">
         tenant_id,
       </if>
@@ -119,6 +116,9 @@
       <if test="pvQuota != null">
         pv_quota,
       </if>
+      <if test="storageQuotas != null">
+        storage_quotas,
+      </if>
       <if test="updateTime != null">
         update_time,
       </if>
@@ -128,14 +128,14 @@
       <if test="clusterName != null">
         cluster_name,
       </if>
+      <if test="icNames != null">
+        ic_names,
+      </if>
       <if test="reserve1 != null">
         reserve1,
       </if>
     </trim>
     <trim prefix="values (" suffix=")" suffixOverrides=",">
-      <if test="id != null">
-        #{id,jdbcType=INTEGER},
-      </if>
       <if test="tenantId != null">
         #{tenantId,jdbcType=VARCHAR},
       </if>
@@ -151,6 +151,9 @@
       <if test="pvQuota != null">
         #{pvQuota,jdbcType=DOUBLE},
       </if>
+      <if test="storageQuotas != null">
+        #{storageQuotas,jdbcType=VARCHAR},
+      </if>
       <if test="updateTime != null">
         #{updateTime,jdbcType=TIMESTAMP},
       </if>
@@ -159,6 +162,9 @@
       </if>
       <if test="clusterName != null">
         #{clusterName,jdbcType=VARCHAR},
+      </if>
+      <if test="icNames != null">
+        #{icNames,jdbcType=VARCHAR},
       </if>
       <if test="reserve1 != null">
         #{reserve1,jdbcType=VARCHAR},
@@ -183,6 +189,9 @@
       <if test="pvQuota != null">
         pv_quota = #{pvQuota,jdbcType=DOUBLE},
       </if>
+      <if test="storageQuotas != null">
+        storage_quotas = #{storageQuotas,jdbcType=VARCHAR},
+      </if>
       <if test="updateTime != null">
         update_time = #{updateTime,jdbcType=TIMESTAMP},
       </if>
@@ -191,6 +200,9 @@
       </if>
       <if test="clusterName != null">
         cluster_name = #{clusterName,jdbcType=VARCHAR},
+      </if>
+      <if test="icNames != null">
+        ic_names = #{icNames,jdbcType=VARCHAR},
       </if>
       <if test="reserve1 != null">
         reserve1 = #{reserve1,jdbcType=VARCHAR},
@@ -205,9 +217,11 @@
       cpu_quota = #{cpuQuota,jdbcType=DOUBLE},
       memory_quota = #{memoryQuota,jdbcType=DOUBLE},
       pv_quota = #{pvQuota,jdbcType=DOUBLE},
+      storage_quotas = #{storageQuotas,jdbcType=VARCHAR},
       update_time = #{updateTime,jdbcType=TIMESTAMP},
       create_time = #{createTime,jdbcType=TIMESTAMP},
       cluster_name = #{clusterName,jdbcType=VARCHAR},
+      ic_names = #{icNames,jdbcType=VARCHAR},
       reserve1 = #{reserve1,jdbcType=VARCHAR}
     where id = #{id,jdbcType=INTEGER}
   </update>

@@ -3,7 +3,9 @@ package com.harmonycloud.service.platform.service;
 import java.util.List;
 import java.util.Map;
 
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.cluster.NodeBriefDto;
 import com.harmonycloud.k8s.bean.Node;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.cluster.bean.NodeInstallProgress;
@@ -12,7 +14,7 @@ import com.harmonycloud.service.platform.bean.NodeLabel;
 
 public interface NodeService {
 	
-	public ActionReturnUtil listNode(String clusterId) throws Exception;
+	public ActionReturnUtil listNode(String clusterId);
 
 	/**
 	 * 处理节点资源信息
@@ -38,13 +40,16 @@ public interface NodeService {
 	 * @return
 	 */
 	public ActionReturnUtil addNodeLabels(String nodeName,Map<String, String> labels,String clusterId) throws Exception;
+
 	/**
-	 * 给node删除label
+	 * 更新node标签
 	 * @param nodeName
-	 * @param labels
+	 * @param labels 如果value为null代表删除标签，value有值为新增标签
 	 * @return
 	 */
-	public ActionReturnUtil removeNodeLabels(String nodeName,Map<String, String> labels,Cluster cluster) throws Exception;
+	void updateNodeLabels(String nodeName, Map<String, String> labels, Cluster cluster) throws Exception;
+
+
 	/**
 	 * 获取node的状态标签
 	 * @param nodeName
@@ -63,7 +68,7 @@ public interface NodeService {
 	 * @param cluster
 	 * @return
 	 */
-	public List<NodeDto> listPrivateNodeByLabel(String label,Cluster cluster) throws Exception;
+	public List<NodeDto> listNodeByLabel(String label, Cluster cluster);
 
 	/**
 	 * 根据分区获取主机列表
@@ -207,4 +212,28 @@ public interface NodeService {
 	 * @throws Exception
 	 */
 	public void removePrivateNamespaceNodes(String nodeName, Map<String, String> updateLabel,Map<String, String> deleteLabel, Cluster cluster) throws Exception;
+
+	/**
+	 * 获取不可用主机列表
+	 */
+	public List<NodeBriefDto> listUnavailableNodes() throws Exception;
+
+	/**
+	 * 获取满足label的node节点
+	 * @param clusterId
+	 * @param label
+	 * @throws MarsRuntimeException
+	 * @return
+	 */
+	ActionReturnUtil searchNodes(String clusterId, String label, String groupName) throws MarsRuntimeException;
+
+	NodeDto getHostUsege(Node node, NodeDto nodeDto, Cluster cluster);
+
+	/**
+	 * 获取分组接口
+	 * @param clusterId
+	 * @throws MarsRuntimeException
+	 * @return
+	 */
+	ActionReturnUtil listNodeGroup(String clusterId) throws MarsRuntimeException;
 }

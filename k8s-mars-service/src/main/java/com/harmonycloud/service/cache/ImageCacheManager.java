@@ -122,16 +122,18 @@ public class ImageCacheManager {
      * @param repoName
      * @throws Exception
      */
-    public void freshRepositoryByTags(String harborHost, String repoName) throws Exception{
+    public HarborRepositoryMessage freshRepositoryByTags(String harborHost, String repoName) throws Exception{
+        boolean hasUpdated = false;
         List<String> tags = harborService.listTag(harborHost, repoName);
         if(CollectionUtils.isEmpty(tags)){
             this.deleteRepoMessage(harborHost, repoName);
-            return;
+            return null;
         }
         HarborRepositoryMessage harborRepositoryMessage = this.getRepoMessage(harborHost, repoName);
         if(harborRepositoryMessage == null || harborRepositoryMessage.getRepositoryDetial() == null){
-            this.putRepoMessage(harborHost,repoName, harborService.getHarborRepositoryDetail(harborHost,repoName));
-            return;
+            HarborRepositoryMessage repositoryMessage = harborService.getHarborRepositoryDetail(harborHost,repoName);
+            this.putRepoMessage(harborHost,repoName, repositoryMessage);
+            return repositoryMessage;
         }
         List<HarborManifest> manifests = harborRepositoryMessage.getRepositoryDetial();
         List<HarborManifest> newManifests = new ArrayList<>();
@@ -151,11 +153,17 @@ public class ImageCacheManager {
                     continue;
                 }
                 newManifests.add((HarborManifest)response.getData());
+                hasUpdated = true;
             }
         }
-        newManifests.sort((manifest1, manifest2) -> manifest2.getCreateTime().compareTo(manifest1.getCreateTime()));
+        if(tags.size() == manifests.size() && !hasUpdated){
+            LOGGER.info("镜像版本数量相同，且tag名称没有变更，无需更新缓存");
+            return harborRepositoryMessage;
+        }
+        newManifests = this.sort(newManifests);
         harborRepositoryMessage.setRepositoryDetial(newManifests);
         this.putRepoMessage(harborHost,repoName, harborRepositoryMessage);
+        return harborRepositoryMessage;
     }
 
     /**
@@ -173,6 +181,33 @@ public class ImageCacheManager {
                 LOGGER.info("根据日志刷新镜像缓存信息失败：imageRepository:{}",JSONObject.toJSONString(imageRepository),e);
             }
         }
+    }
+
+    /**
+     * 根据镜像的创建时间排序，没有时间字段的根据tag名称排序
+     * @param harborManifests
+     * @return
+     */
+    public List<HarborManifest> sort(List<HarborManifest> harborManifests){
+        if(CollectionUtils.isEmpty(harborManifests)){
+            return harborManifests;
+        }
+        List<HarborManifest> sortedHarborManifests = new ArrayList<>();
+        List<HarborManifest>  manifests = harborManifests.stream().filter(harborManifest -> harborManifest.getCreateTime() != null).collect(Collectors.toList());
+        List<HarborManifest>  nullCreatedTimeManifests = harborManifests.stream().filter(harborManifest -> harborManifest.getCreateTime() == null).collect(Collectors.toList());
+        manifests.sort((manifest1, manifest2) ->
+                {
+                    int result = manifest2.getCreateTime().compareTo(manifest1.getCreateTime());
+                    //时间相同，根据版本号名称排序
+                    if(result == 0){
+                        return manifest2.getTag().compareTo(manifest1.getTag());
+                    }
+                    return result;
+                });
+        nullCreatedTimeManifests.sort((manifest1, manifest2) -> manifest2.getTag().compareTo(manifest1.getTag()));
+        sortedHarborManifests.addAll(manifests);
+        sortedHarborManifests.addAll(nullCreatedTimeManifests);
+        return sortedHarborManifests;
     }
 
     /**
@@ -221,8 +256,7 @@ public class ImageCacheManager {
         if(!tagExists) {
             repositoryMessage.getRepositoryDetial().add(harborManifest);
         }
-        //根据镜像的创建时间排序
-        repositoryMessage.getRepositoryDetial().sort((manifest1, manifest2) -> manifest2.getCreateTime().compareTo(manifest1.getCreateTime()));
+        repositoryMessage.setRepositoryDetial(this.sort(repositoryMessage.getRepositoryDetial()));
         this.putRepoMessage(harborHost,repoName,repositoryMessage);
     }
 
@@ -323,7 +357,7 @@ public class ImageCacheManager {
      * @throws Exception
      */
     public void freshRepositoryCache(String harborHost,Integer projectId){
-        try {
+        /*try {
             int lastUpdate = 0;
             Long harborLogId = 0L;
             int end = DateUtil.getTimeInt(new Date());
@@ -402,7 +436,7 @@ public class ImageCacheManager {
                             deleteRepoMessage(harborHost, repoName);
                         } else {
                             List<HarborManifest> updatedHarborManifest = new ArrayList<>(harborManifestMap.values());
-                            updatedHarborManifest.sort((manifest1, manifest2) -> manifest2.getCreateTime().compareTo(manifest1.getCreateTime()));
+                            updatedHarborManifest = this.sort(updatedHarborManifest);
                             harborRepositoryMessage.setRepositoryDetial(updatedHarborManifest);
                             harborRepositoryMessage.setTags(updatedHarborManifest.stream().map(HarborManifest::getTag).collect(Collectors.toList()));
                             this.putRepoMessage(harborHost, repoName, harborRepositoryMessage);
@@ -416,7 +450,7 @@ public class ImageCacheManager {
             this.putHarborLog(harborHost, projectId, harborLogs.get(0).getLogId(),end);
         }catch (Exception e){
             LOGGER.error("刷新镜像缓存失败，harborHost, projectId:{}", new String[]{harborHost, projectId.toString()}, e);
-        }
+        }*/
     }
 
     /**

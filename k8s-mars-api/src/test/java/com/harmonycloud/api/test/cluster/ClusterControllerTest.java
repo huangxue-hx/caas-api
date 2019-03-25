@@ -1,23 +1,14 @@
 package com.harmonycloud.api.test.cluster;
 
 import com.alibaba.fastjson.JSONObject;
+import com.harmonycloud.api.test.BaseTest;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.annotation.Rollback;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-import org.springframework.test.context.web.WebAppConfiguration;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.WebApplicationContext;
+import org.testng.annotations.Test;
+
 import java.util.List;
 import java.util.Map;
 import static org.junit.Assert.*;
@@ -29,23 +20,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Created by zhangkui on 2018/6/7.
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(locations={"classpath:applicationContext-test.xml"})
-@Transactional
-@WebAppConfiguration
-public class ClusterControllerTest {
+public class ClusterControllerTest  extends BaseTest {
 
         protected Logger logger= LoggerFactory.getLogger(ClusterControllerTest.class);
-        private MockMvc mockMvc;
-
-        @Autowired
-        WebApplicationContext wac;
-
-        @Before()
-        public void setup() {
-            //初始化MockMvc对象
-            mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
-        }
 
         @Test
         public void testListCluster() throws Exception {

@@ -1,9 +1,7 @@
 package com.harmonycloud.service.platform.bean;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import jdk.nashorn.internal.ir.annotations.Ignore;
 
-import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -27,6 +25,10 @@ public class CanaryDeployment{
 
     private String projectId;
 
+    private String serviceType;
+
+    private String deployVersion;
+
     public String getProjectId() {
         return projectId;
     }
@@ -36,6 +38,14 @@ public class CanaryDeployment{
     }
 
     private List<UpdateContainer> containers;
+
+    public String getDeployVersion() {
+        return deployVersion;
+    }
+
+    public void setDeployVersion(String deployVersion) {
+        this.deployVersion = deployVersion;
+    }
 
     public String getNamespace() {
         return namespace;
@@ -93,4 +103,11 @@ public class CanaryDeployment{
 		this.maxUnavailable = maxUnavailable;
 	}
 
+    public String getServiceType() {
+        return serviceType;
+    }
+
+    public void setServiceType(String serviceType) {
+        this.serviceType = serviceType;
+    }
 }

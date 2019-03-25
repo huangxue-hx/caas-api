@@ -70,11 +70,14 @@ public class EsServiceImpl implements EsService {
 
 	@Value("#{propertiesReader['es.backup.path']}")
 	private String esBackupRootDir;
+
+	@Value("${elasticsearch.index.prefix:logstash-}")
+	private String esIndexPrefix;
 	
 	@Autowired
-	ClusterService clusterService;
+	private ClusterService clusterService;
 	@Autowired
-	UserService userService;
+	private UserService userService;
 
 	@Override
 	public TransportClient getEsClient(Cluster cluster) throws Exception{
@@ -168,12 +171,11 @@ public class EsServiceImpl implements EsService {
 	/**
 	 * 查询仓库信息
 	 *
-	 * @param clusterId
+	 * @param cluster
 	 * @return
 	 * @throws Exception
 	 */
-	public List<RepositoryMetaData> listSnapshotRepositories(String clusterId) throws Exception {
-		Cluster cluster = clusterService.findClusterById(clusterId);
+	public List<RepositoryMetaData> listSnapshotRepositories(Cluster cluster) throws Exception {
 		TransportClient client = getEsClient(cluster);
 		GetRepositoriesRequestBuilder retRepo
 				= new GetRepositoriesRequestBuilder(client.admin().cluster(), GetRepositoriesAction.INSTANCE);
@@ -190,10 +192,22 @@ public class EsServiceImpl implements EsService {
 	public void createSnapshotWithRepo(EsSnapshotDto esSnapshotDtoIn){
 		try {
 			checkIndexNames(esSnapshotDtoIn);
+			Cluster cluster = clusterService.findClusterById(esSnapshotDtoIn.getClusterId());
 			// 检查仓库，不存在则创建
-			List<RepositoryMetaData> repositoryMetaDatas = listSnapshotRepositories(esSnapshotDtoIn.getClusterId());
+			List<RepositoryMetaData> repositoryMetaDatas = listSnapshotRepositories(cluster);
+
 			if (CollectionUtils.isEmpty(repositoryMetaDatas)){
 				createSnapshotRepository(esSnapshotDtoIn);
+			}else{
+				boolean exist = false;
+				for(RepositoryMetaData repositoryMetaData : repositoryMetaDatas){
+					if(repositoryMetaData.name().equalsIgnoreCase(cluster.getName())){
+						exist = true;
+					}
+				}
+				if(!exist){
+					createSnapshotRepository(esSnapshotDtoIn);
+				}
 			}
 			String snapshotName = esSnapshotDtoIn.getSnapshotName();
 			if (StringUtils.isAnyBlank(snapshotName)){
@@ -259,7 +273,7 @@ public class EsServiceImpl implements EsService {
     	for(Cluster cluster : clusters) {
 			try {
 				// 检查仓库是否已经创建，如果没有，也就没有快照
-				List<RepositoryMetaData> repositoryMetaDatas = listSnapshotRepositories(cluster.getId());
+				List<RepositoryMetaData> repositoryMetaDatas = listSnapshotRepositories(cluster);
 				if (CollectionUtils.isEmpty(repositoryMetaDatas)){
 					continue;
 				}
@@ -345,8 +359,8 @@ public class EsServiceImpl implements EsService {
 					List<String> indices = snapshotInfos.get(0).getIndices();
 					List<String> reBuildIndex = new ArrayList<>();
 					for (String indexDate : indexDates) {
-						if (indices.contains(CommonConstant.ES_INDEX_LOGSTASH_PREFIX + indexDate)) {
-							reBuildIndex.add(CommonConstant.ES_INDEX_LOGSTASH_PREFIX + indexDate);
+						if (indices.contains(esIndexPrefix + indexDate)) {
+							reBuildIndex.add(esIndexPrefix + indexDate);
 						}
 					}
 					if (CollectionUtils.isEmpty(reBuildIndex)) {
@@ -362,7 +376,7 @@ public class EsServiceImpl implements EsService {
 			String restoredIndex = "";
             for(String indexName : esSnapshotDtoIn.getIndexNames()){
 				if(existIndexes.contains(indexName + ES_INDEX_SNAPSHOT_RESTORE)){
-					String indexDate = indexName.replaceFirst(CommonConstant.ES_INDEX_LOGSTASH_PREFIX,"");
+					String indexDate = indexName.replaceFirst(esIndexPrefix,"");
 					restoredIndex += indexDate.replaceAll("\\.","-") + COMMA;
 				}
 			}
@@ -402,7 +416,7 @@ public class EsServiceImpl implements EsService {
 		if(indexDate == null){
 			throw new MarsRuntimeException(ErrorCodeMessage.INVALID_PARAMETER);
 		}
-		String indexName = ES_INDEX_LOGSTASH_PREFIX + indexDate + ES_INDEX_SNAPSHOT_RESTORE;
+		String indexName = esIndexPrefix + indexDate + ES_INDEX_SNAPSHOT_RESTORE;
 		return this.deleteIndex(indexName, cluster);
 	}
 
@@ -427,6 +441,11 @@ public class EsServiceImpl implements EsService {
 			}
 		}
 		return isAutoBackupFound ? snapshotInfoDtos.get(i) : null;
+	}
+
+	@Override
+	public String getLogIndexPrefix() {
+		return esIndexPrefix;
 	}
 
 	/**
@@ -456,7 +475,7 @@ public class EsServiceImpl implements EsService {
 			indexDates = Arrays.asList(indexDateArray);
 		}
 		for(String indexDate : indexDates) {
-			String indexName = CommonConstant.ES_INDEX_LOGSTASH_PREFIX + indexDate;
+			String indexName = esIndexPrefix + indexDate;
 			if (existIndexes.contains(indexName)) {
 				indexNames.add(indexName);
 			}
@@ -547,11 +566,11 @@ public class EsServiceImpl implements EsService {
 		snapshotInfoDto.setTotalShards(snapshotInfo.totalShards());
 		snapshotInfoDto.setSuccessfulShards(snapshotInfo.successfulShards());
 		snapshotInfoDto.setVersion(snapshotInfo.version());
-		Date start = DateUtil.StringToDate(indices.get(0).replace(CommonConstant.ES_INDEX_LOGSTASH_PREFIX,""),
+		Date start = DateUtil.StringToDate(indices.get(0).replace(esIndexPrefix,""),
 				DateStyle.YYYYMMDD_DOT);
 		Date end = start;
 		for(String indexName : indices){
-			String strIndexDate = indexName.replace(CommonConstant.ES_INDEX_LOGSTASH_PREFIX,"");
+			String strIndexDate = indexName.replace(esIndexPrefix,"");
 			if(indexes.contains(indexName+CommonConstant.ES_INDEX_SNAPSHOT_RESTORE)
 					&& restoredDate.get(indexName+CommonConstant.ES_INDEX_SNAPSHOT_RESTORE) != null){
 				logIndexDates.add(restoredDate.get(indexName+CommonConstant.ES_INDEX_SNAPSHOT_RESTORE));
@@ -571,7 +590,7 @@ public class EsServiceImpl implements EsService {
 	}
 
 	private String getLogDateFromIndexName(String indexName){
-		String strIndexDate = indexName.replace(CommonConstant.ES_INDEX_LOGSTASH_PREFIX,"");
+		String strIndexDate = indexName.replace(esIndexPrefix,"");
 		strIndexDate = strIndexDate.replace(CommonConstant.ES_INDEX_SNAPSHOT_RESTORE,"");
 		return strIndexDate.replaceAll("\\.","-");
 	}

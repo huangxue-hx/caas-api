@@ -49,10 +49,11 @@ public interface VersionControlService {
      * 回去灰度升级状态
      * @param namespace Deployment 所属命名空间
      * @param name Deployment 名字
+     * @param serviceType
      * @return 更新了几个POD，原来总共有几个POD
      * @throws Exception
      */
-    ActionReturnUtil getUpdateStatus(String namespace, String name) throws Exception;
+    ActionReturnUtil getUpdateStatus(String namespace, String name, String serviceType) throws Exception;
 
 
     /**

@@ -6,6 +6,8 @@ import com.harmonycloud.dto.application.ServiceDeployDto;
 import com.harmonycloud.dto.application.ServiceTemplateDto;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.service.application.ServiceService;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,10 +25,10 @@ import javax.servlet.http.HttpSession;
 public class ServiceController {
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    ServiceService serviceService;
+    private ServiceService serviceService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -63,8 +65,9 @@ public class ServiceController {
     public ActionReturnUtil listServiceTemplate(@RequestParam(value = "name", required = false) String name,
                                             @RequestParam(value = "clusterId", required = false) String clusterId,
                                             @RequestParam(value = "isPubilc", required = false) boolean isPublic,
-                                            @PathVariable(value = "projectId") String projectId) throws Exception {
-        return serviceService.listServiceTemplate(name, clusterId, isPublic, projectId);
+                                            @PathVariable(value = "projectId") String projectId,
+                                            @RequestParam(value = "serviceType", required = false) Integer serviceType) throws Exception {
+        return serviceService.listServiceTemplate(name, clusterId, isPublic, projectId, serviceType);
     }
 
     /**
@@ -121,6 +124,8 @@ public class ServiceController {
      * @throws Exception
      * 
      */
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "更新服务模板", response = ActionReturnUtil.class, httpMethod = "PUT", consumes = "", produces = "", notes = "")
     @ResponseBody
     @RequestMapping(value = "/svctemplates/{templateName}", method = RequestMethod.PUT)
     public ActionReturnUtil updateServiceTemplate(@ModelAttribute ServiceTemplateDto serviceTemplate) throws Exception {
@@ -140,6 +145,8 @@ public class ServiceController {
      * @return ActionReturnUtil 
      * 
      */
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "删除服务模板", response = ActionReturnUtil.class, httpMethod = "DELETE", consumes = "", produces = "", notes = "")
     @ResponseBody
     @RequestMapping(value = "/svctemplates/{templateName}",method = RequestMethod.DELETE)
     public ActionReturnUtil deleteServiceTemplate(@PathVariable(value = "templateName") String name,
@@ -161,14 +168,17 @@ public class ServiceController {
      * @return ActionReturnUtil
      * @throws Exception
      */
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "查询服务模板", response = ActionReturnUtil.class, httpMethod = "GET", consumes = "", produces = "", notes = "")
     @ResponseBody
     @RequestMapping(value = "/svctemplates/search", method = RequestMethod.GET)
     public ActionReturnUtil listServiceTemplate(@RequestParam(value = "searchkey", required = false) String searchKey,
                                                 @RequestParam(value = "searchvalue", required = false) String searchValue,
                                                 @RequestParam(value = "clusterId", required = false) String clusterId,
                                                 @RequestParam(value = "isPubilc", required = false) boolean isPublic,
-                                                @PathVariable(value = "projectId") String projectId) throws Exception {
-        return serviceService.listServiceTemplate(searchKey, searchValue, clusterId, isPublic, projectId);
+                                                @PathVariable(value = "projectId") String projectId,
+                                                @RequestParam(value = "serviceType", required = false) Integer serviceType) throws Exception {
+        return serviceService.listServiceTemplate(searchKey, searchValue, clusterId, isPublic, projectId, serviceType);
     }
 
     /**
@@ -182,6 +192,8 @@ public class ServiceController {
      * @return ActionReturnUtil
      * @throws Exception
      */
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "使用服务模板发布服务", response = ActionReturnUtil.class, httpMethod = "POST", consumes = "", produces = "", notes = "")
     @ResponseBody
     @RequestMapping(value = "/svctemplates/{templateName}/deploys", method = RequestMethod.POST)
     public ActionReturnUtil deployServiceTemplateByName(@PathVariable(value = "templateName") String name,
@@ -205,14 +217,18 @@ public class ServiceController {
      * @return ActionReturnUtil
      * @throws Exception
      */
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "获取服务模板信息", response = ActionReturnUtil.class, httpMethod = "POST", consumes = "", produces = "", notes = "")
     @ResponseBody
     @RequestMapping(value = "/svctemplates/deploys", method = RequestMethod.POST)
-    public ActionReturnUtil deployServiceTemplate(@ModelAttribute ServiceDeployDto serviceDeploy) throws Exception {
+    public ActionReturnUtil deployServiceTemplate(@PathVariable(value = "tenantId") String tenantId,
+                                                  @ModelAttribute ServiceDeployDto serviceDeploy) throws Exception {
         logger.info("deploy service template");
         String userName = (String) session.getAttribute("username");
         if(userName == null){
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
+		serviceDeploy.setTenantId(tenantId);
         return serviceService.deployService(serviceDeploy, userName);
     }
 
@@ -229,6 +245,8 @@ public class ServiceController {
      * @throws Exception
      * 
      */
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "获取标签列表", response = ActionReturnUtil.class, httpMethod = "GET", consumes = "", produces = "", notes = "")
     @ResponseBody
     @RequestMapping(value = "/svctemplates/tags",method = RequestMethod.GET)
     public ActionReturnUtil listTags(@RequestParam(value = "name", required = true) String name,
@@ -245,6 +263,8 @@ public class ServiceController {
      * @return ActionReturnUtil
      * @throws Exception
      */
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "公有转换", response = ActionReturnUtil.class, httpMethod = "PUT", consumes = "", produces = "", notes = "")
     @ResponseBody
     @RequestMapping(value = "/svctemplates/{templateName}/status",method = RequestMethod.PUT)
     public ActionReturnUtil switchPublic(@PathVariable(value = "templateName") String name, @RequestParam(value = "status", required = false ) boolean status)
@@ -253,6 +273,8 @@ public class ServiceController {
         return serviceService.switchPub(name, status);
     }
 
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "检差资源", response = ActionReturnUtil.class, httpMethod = "GET", consumes = "", produces = "", notes = "")
     @ResponseBody
     @RequestMapping(value = "/svctemplates/{templateName}/checkResource", method = RequestMethod.GET)
     public ActionReturnUtil checkRemainResourceInNamespace(@PathVariable(value="projectId") String projectId,
@@ -261,6 +283,8 @@ public class ServiceController {
         return serviceService.checkResourceQuota(projectId, namespace, templateName);
     }
 
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "检测服务模板名字", response = ActionReturnUtil.class, httpMethod = "GET", consumes = "", produces = "", notes = "")
     @ResponseBody
     @RequestMapping(value = "/svctemplates/{templateName}/checkname", method = RequestMethod.GET)
     public ActionReturnUtil checkServiceTemplateName(@PathVariable(value = "templateName") String templateName,

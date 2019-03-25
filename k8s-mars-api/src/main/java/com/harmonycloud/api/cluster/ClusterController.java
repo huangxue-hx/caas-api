@@ -1,14 +1,17 @@
 package com.harmonycloud.api.cluster;
 
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.NodeList;
+import com.harmonycloud.service.application.IstioService;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.cluster.impl.ClusterTemplateServiceImpl;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.UserService;
+import io.swagger.annotations.*;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +19,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.beans.IntrospectionException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 
@@ -26,25 +31,31 @@ import static com.harmonycloud.common.Constant.CommonConstant.COUNT;
  *
  * @author jmi
  */
-
+@Api(description = "查询集群相关信息，以及集群缓存更新")
 @RestController
 @RequestMapping(value = "/clusters")
 public class ClusterController {
 
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
     @Autowired
-    ClusterCacheManager clusterCacheManager;
+    private ClusterCacheManager clusterCacheManager;
     @Autowired
-    TenantService tenantService;
+    private TenantService tenantService;
     @Autowired
-    UserService userService;
+    private UserService userService;
+    @Autowired
+    private IstioService istioService;
 
     @Autowired
     private com.harmonycloud.k8s.service.NodeService nodeService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
+    @ApiOperation(value = "获取集群列表", notes = "根据条件过滤查询集群列表")
+    @ApiImplicitParams ({
+            @ApiImplicitParam(name = "dataCenter", value = "数据中心", paramType = "query",dataType = "String"),
+            @ApiImplicitParam(name = "includePlatformCluster", value = "是否包括上层集群", paramType = "query", dataType = "Boolean") })
     @RequestMapping(method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil listCluster(@RequestParam(value = "dataCenter", required = false) String dataCenter,
@@ -65,13 +76,14 @@ public class ClusterController {
         return ActionReturnUtil.returnSuccessWithData(clusters);
     }
 
+    @ApiOperation(value = "查询某个集群详情", notes = "查询某个集群的信息信息")
     @RequestMapping(value = "/{clusterId}", method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil getCluster(@PathVariable("clusterId") String clusterId) throws Exception {
         return ActionReturnUtil.returnSuccessWithData(clusterService.findClusterById(clusterId));
     }
 
-
+    @ApiOperation(value = "获取集群数量", notes = "获取状态为开启的业务集群数量，不包括上层平台集群")
     @ResponseBody
     @RequestMapping(value = "/count", method = RequestMethod.GET)
     public ActionReturnUtil clusterCounter() throws Exception {
@@ -120,7 +132,7 @@ public class ClusterController {
             }
             return ActionReturnUtil.returnSuccessWithMap("clusterNodeSize", nodeSize + "");
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.warn("获取集群node列表失败", e);
             logger.error("Failed to get cluster node size." + e.getMessage());
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.QUERY_FAIL);
         }
@@ -151,5 +163,58 @@ public class ClusterController {
         logger.info("获取入口IP");
         return ActionReturnUtil.returnSuccessWithData(clusterService.getEntry(namespace));
     }
+
+    /**
+     * 获取集群存储信息
+     *
+     * @return
+     */
+    @ApiResponse(code = 200, message = "sucess", response = ActionReturnUtil.class)
+    @ApiOperation(value = "获取集群存储信息", response = ActionReturnUtil.class, httpMethod = "GET", consumes = "", produces = "", notes = "")
+    @ResponseBody
+    @RequestMapping(value = "/storages", method = RequestMethod.GET)
+    public ActionReturnUtil getClustersStorageCapacity() throws Exception{
+        Map<String, String> clustersMap = clusterService.getClustersStorageCapacity();
+        return ActionReturnUtil.returnSuccessWithData(clustersMap);
+    }
+
+    /**
+     * 获取全局服务开关状态
+     *
+     * @param clusterId
+     * @return
+     * @throws Exception
+     */
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "获取全局服务开关状态", response = ActionReturnUtil.class, httpMethod = "", consumes = "", produces = "", notes = "globalSwitchStatus值为true，表示全局配置为开启；值为false，全局配置为关闭")
+    @ApiImplicitParams({@ApiImplicitParam(name = "clusterId", value = "集群id", paramType = "path", dataType = "String")})
+    @ResponseBody
+    @RequestMapping(value = "/{clusterId}/istiopolicyswitch", method = RequestMethod.GET)
+    public ActionReturnUtil getClusterIstioPolicySwitch(@PathVariable("clusterId") String clusterId)
+            throws Exception {
+        return istioService.getClusterIstioPolicySwitch(clusterId);
+    }
+
+
+    /**
+     * 集群下开启或关闭istio全局配置状态
+     *
+     * @param status
+     * @param clusterId
+     * @return
+     * @throws Exception
+     */
+    @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
+    @ApiOperation(value = "集群下开启或关闭Istio服务", response = ActionReturnUtil.class, httpMethod = "POST", consumes = "", produces = "", notes = "status值为true，开启Istio全局服务；值为false，关闭Istio全局服务")
+    @ApiImplicitParams({@ApiImplicitParam(name = "clusterId", value = "集群id", paramType = "path", dataType = "String"),
+            @ApiImplicitParam(name = "status", value = "开启或关闭操作（开启为true，关闭为false）", paramType = "query", dataType = "Boolean")
+    })
+    @ResponseBody
+    @RequestMapping(value = "/{clusterId}/istiopolicyswitch", method = RequestMethod.PUT)
+    public ActionReturnUtil updateClusterIstioPolicySwitch(@RequestParam("status") boolean status, @PathVariable("clusterId") String clusterId)
+            throws Exception {
+        return istioService.updateClusterIstioPolicySwitch(status, clusterId);
+    }
+
 
 }

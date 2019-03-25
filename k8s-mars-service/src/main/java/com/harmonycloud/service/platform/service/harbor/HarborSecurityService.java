@@ -69,7 +69,7 @@ public interface HarborSecurityService {
      * @throws Exception
      */
     ActionReturnUtil clairStatistcsOfUser(String harborHost, String username) throws Exception;
-    
+
     /**
      * 刷新镜像库详情
      * @return

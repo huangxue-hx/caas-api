@@ -26,13 +26,13 @@ import java.util.stream.Collectors;
 @Transactional(rollbackFor = Exception.class)
 public class ResourceMenuRoleServiceImpl implements ResourceMenuRoleService{
     @Autowired
-    ResourceMenuRoleMapper resourceMenuRoleMapper;
+    private ResourceMenuRoleMapper resourceMenuRoleMapper;
     @Autowired
-    ResourceMenuService resourceMenuService;
+    private ResourceMenuService resourceMenuService;
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
     @Autowired
-    ClusterCacheManager clusterCacheManager;
+    private ClusterCacheManager clusterCacheManager;
     //项目管理员角色id
     public static final Integer TENANTMGR= 3;
     //项目管理员角色id
@@ -77,6 +77,7 @@ public class ResourceMenuRoleServiceImpl implements ResourceMenuRoleService{
                     MenuDto subMenuDto = this.convertMenuDtoObject(subResourceMenu,resourceMenuIdsMap);
                     subMenu.add(subMenuDto);
                 }
+                Collections.sort(subMenu);
                 menuDto.setSubMenu(subMenu);
                 result.add(menuDto);
             }else if (!CommonConstant.APPCENTER.equals(resourceMenu.getModule())

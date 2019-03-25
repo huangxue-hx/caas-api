@@ -1,6 +1,7 @@
 package com.harmonycloud.common.util;
 
 import com.harmonycloud.common.enumm.CtsCodeMessage;
+import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.MicroServiceCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
@@ -35,6 +36,14 @@ public class ActionReturnUtil extends HashMap<String, Object>{
         returnMap.put("success",true);
         return returnMap;
     }
+
+    public static ActionReturnUtil returnSuccessWithData(ErrorCodeMessage error, String extendMessage){
+        ActionReturnUtil returnMap = new ActionReturnUtil();
+        returnMap.put("data", ErrorCodeMessage.getMessageWithLanguage(error, extendMessage, Boolean.FALSE));
+        returnMap.put("success",true);
+        return returnMap;
+    }
+
     public static ActionReturnUtil returnSuccessWithDataAndCount(Object data,int Count){
         ActionReturnUtil returnMap = new ActionReturnUtil();
         returnMap.put("data", data);
@@ -85,6 +94,10 @@ public class ActionReturnUtil extends HashMap<String, Object>{
         return returnErrorWithData(error,extendMessage,false);
     }
 
+    public static ActionReturnUtil returnErrorWithData(DictEnum dictEnum, ErrorCodeMessage error){
+        return returnErrorWithData(error,dictEnum.phrase(),true);
+    }
+
     public static ActionReturnUtil returnErrorWithData(String extendMessage, ErrorCodeMessage error){
         return returnErrorWithData(error,extendMessage,true);
     }
@@ -104,15 +117,15 @@ public class ActionReturnUtil extends HashMap<String, Object>{
         return returnMap;
     }
 
-    public static ActionReturnUtil returnErrorWithMsg(ErrorCodeMessage error) throws Exception{
+    public static ActionReturnUtil returnErrorWithMsg(ErrorCodeMessage error) throws MarsRuntimeException{
         return returnErrorWithMsg(error, "", false);
     }
 
-    public static ActionReturnUtil returnErrorWithMsg(ErrorCodeMessage error, String extendMessage, boolean prefix) throws Exception{
+    public static ActionReturnUtil returnErrorWithMsg(ErrorCodeMessage error, String extendMessage, boolean prefix) throws MarsRuntimeException{
         throw new MarsRuntimeException(ErrorCodeMessage.getMessageWithLanguage(error, extendMessage, prefix));
     }
 
-    public static ActionReturnUtil returnErrorWithMsg(String errMsg) throws Exception{
+    public static ActionReturnUtil returnErrorWithMsg(String errMsg) throws MarsRuntimeException{
         throw new MarsRuntimeException(errMsg);
     }
     
@@ -155,5 +168,12 @@ public class ActionReturnUtil extends HashMap<String, Object>{
     public Object getData() {
         return get("data");
     }
-    
+
+    public Integer getErrorCode() {
+        Object code = get("errorCode");
+        if(code != null){
+            return Integer.parseInt(code.toString());
+        }
+        return null;
+    }
 }

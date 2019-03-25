@@ -1,5 +1,6 @@
 package com.harmonycloud.service.cache;
 
+import com.alibaba.druid.filter.config.ConfigTools;
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ClusterLevelEnum;
@@ -11,16 +12,21 @@ import com.harmonycloud.common.util.HttpClientUtil;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.dto.cluster.ClusterCRDDto;
+import com.harmonycloud.dto.cluster.DataCenterDto;
 import com.harmonycloud.k8s.bean.cluster.*;
 import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.k8s.util.DefaultClient;
+import com.harmonycloud.service.application.DataCenterService;
 import com.harmonycloud.service.cluster.ClusterCRDService;
+import com.harmonycloud.service.platform.bean.PodDto;
+import com.harmonycloud.service.platform.service.PodService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -32,8 +38,9 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static com.harmonycloud.common.Constant.CommonConstant.NUM_ONE;
-import static com.harmonycloud.common.Constant.CommonConstant.PROTOCOL_HTTP;
+import static com.harmonycloud.common.Constant.CommonConstant.*;
+import static com.harmonycloud.k8s.constant.Constant.ES_CLUSTER_NAME;
+import static com.harmonycloud.service.platform.constant.Constant.NAMESPACE_SYSTEM;
 
 /**
  * cluster集群信息redis管理
@@ -48,15 +55,21 @@ public class ClusterCacheManager {
     private static final String REDIS_KEY_PRIVILEGE = "privilege";
     private static final String REDIS_KEY_USER = "userStatus";
     @Autowired
-    StringRedisTemplate stringRedisTemplate;
+    private StringRedisTemplate stringRedisTemplate;
     @Autowired
-    ClusterCRDService clusterCRDService;
+    private ClusterCRDService clusterCRDService;
     @Autowired
-    UserService userService;
+    private UserService userService;
     @Autowired
-    RoleLocalService roleLocalService;
+    private RoleLocalService roleLocalService;
+    @Autowired
+    private DataCenterService dataCenterService;
+    @Autowired
+    private PodService podService;
     //容器云平台部署的集群，上层集群
     private static Cluster platformCluster;
+    @Value("${public.key:}")
+    private String publicKey;
 
     /**
      * 初始化获取所有集群列表
@@ -72,8 +85,14 @@ public class ClusterCacheManager {
                 return Collections.emptyMap();
             }
             List<ClusterCRDDto> clusterTPRDtos = (List<ClusterCRDDto>) clusterResponse.get("data");
+            ActionReturnUtil dataCenterResponse = dataCenterService.listDataCenter(false,null);
+            if (!dataCenterResponse.isSuccess() || dataCenterResponse.get("data") == null) {
+                LOGGER.error("获取数据中心列表错误,response:{}", JSONObject.toJSONString(dataCenterResponse));
+                return Collections.emptyMap();
+            }
+            List<DataCenterDto> dataCenters = (List)dataCenterResponse.getData();
             LOGGER.info("初始化cluster集群信息,集群数量：{}", clusterTPRDtos.size());
-            List<Cluster> listClusters = this.convertCluster(clusterTPRDtos);
+            List<Cluster> listClusters = this.convertCluster(clusterTPRDtos, dataCenters);
             if (CollectionUtils.isEmpty(listClusters)) {
                 LOGGER.warn("获取集群列表为空");
                 return Collections.emptyMap();
@@ -343,16 +362,19 @@ public class ClusterCacheManager {
      * @param clusterCRDDtos
      * @return
      */
-    private List<Cluster> convertCluster(List<ClusterCRDDto> clusterCRDDtos) throws MarsRuntimeException{
+    private List<Cluster> convertCluster(List<ClusterCRDDto> clusterCRDDtos, List<DataCenterDto> dataCenters) throws Exception{
+        Map<String,String> dataCenterMap = dataCenters.stream().collect(Collectors.toMap(DataCenterDto::getName, dataCenter -> dataCenter.getAnnotations()));
         List<Cluster> clusters = new ArrayList<>();
         // 获取每个harbor被哪些集群共用
         List<Map<String,String>> referredClusters = this.getHarborReferredClusters(clusterCRDDtos);
         Map<String,String> harborClusterIds = referredClusters.get(0);
         Map<String,String> harborClusterNames = referredClusters.get(1);
+        Map<String,String> harborClusterAliasNames = referredClusters.get(CommonConstant.NUM_TWO);
         for(ClusterCRDDto clusterTPRDto : clusterCRDDtos){
             Cluster cluster = new Cluster();
             cluster.setId(clusterTPRDto.getUid());
             cluster.setDataCenter(clusterTPRDto.getDataCenter());
+            cluster.setDataCenterName(dataCenterMap.get(cluster.getDataCenter()));
             cluster.setName(clusterTPRDto.getName());
             cluster.setAliasName(clusterTPRDto.getNickname());
             cluster.setHost(clusterTPRDto.getK8sAddress());
@@ -371,6 +393,7 @@ public class ClusterCacheManager {
             cluster.setClusterComponent(clusterTPRDto.getTemplate());
             cluster.setCreateTime(clusterTPRDto.getCreateTime());
             cluster.setIsEnable(clusterTPRDto.getIsEnable());
+            cluster.setGitInfo(clusterTPRDto.getGitInfo());
 
             List<ClusterTemplate> clusterTemplates = clusterTPRDto.getTemplate();
             for(ClusterTemplate clusterTemplate : clusterTemplates){
@@ -378,30 +401,44 @@ public class ClusterCacheManager {
                     cluster.setInfluxdbUrl(HttpClientUtil.getHttpUrl(PROTOCOL_HTTP ,cluster.getHost(), INFLUXDB_DEFAULT_PORT) + "/query");
                     cluster.setInfluxdbDb(Constant.INFLUXDB_DB_NAME);
                 }
-                if(ComponentServiceTypeEnum.ES.getName().equalsIgnoreCase(clusterTemplate.getType())){
-                    cluster.setEsHost(cluster.getHost());
-                    cluster.setEsPort(ES_DEFAULT_PORT);
-                    cluster.setEsClusterName(Constant.ES_CLUSTER_NAME);
-                }
             }
             HarborServer harborServer = new HarborServer();
             harborServer.setHarborProtocol(StringUtils.isBlank(clusterTPRDto.getHarborProtocol())? PROTOCOL_HTTP:clusterTPRDto.getHarborProtocol());
             harborServer.setHarborPort(clusterTPRDto.getHarborPort() == null?CommonConstant.DEFAULT_HARBOR_PORT:clusterTPRDto.getHarborPort());
             harborServer.setHarborHost(clusterTPRDto.getHarborAddress());
             harborServer.setHarborAdminAccount(clusterTPRDto.getHarborAdminUser());
-            harborServer.setHarborAdminPassword(clusterTPRDto.getHarborAdminPwd());
+            harborServer.setHarborAdminPassword(StringUtils.isBlank(publicKey) ? clusterTPRDto.getHarborAdminPwd() : ConfigTools.decrypt(publicKey,
+                    clusterTPRDto.getHarborAdminPwd()));
             //harbor登录cookie 15分钟内有效
             harborServer.setHarborLoginTimeOut(Constant.HARBOR_LOGIN_TIMEOUT);
             harborServer.setReferredClusterNames(harborClusterNames.get(harborServer.getHarborHost()));
             harborServer.setReferredClusterIds(harborClusterIds.get(harborServer.getHarborHost()));
             harborServer.setCreateTime(clusterTPRDto.getCreateTime());
+            //es 可配置集群地址
+            if(clusterTPRDto.getElasticsearch() != null){
+                ElasticsearchConnect elasticsearch = clusterTPRDto.getElasticsearch();
+                cluster.setEsHost(StringUtils.isBlank(elasticsearch.getHost()) ? cluster.getHost():elasticsearch.getHost());
+                cluster.setEsPort(elasticsearch.getPort() == null ? ES_DEFAULT_PORT:elasticsearch.getPort());
+                cluster.setEsClusterName(StringUtils.isBlank(elasticsearch.getName()) ? ES_CLUSTER_NAME:elasticsearch.getName());
+            }else {
+                cluster.setEsHost(cluster.getHost());
+                cluster.setEsPort(ES_DEFAULT_PORT);
+                cluster.setEsClusterName(ES_CLUSTER_NAME);
+            }
+            harborServer.setReferredClusterAliasNames(harborClusterAliasNames.get(harborServer.getHarborHost()));
             cluster.setHarborServer(harborServer);
             cluster.setExternal(clusterTPRDto.getExternal());
+            if (clusterTPRDto.getNetwork() != null && StringUtils.isNotBlank(clusterTPRDto.getNetwork().getNetworkFlag())) {
+                cluster.setNetworkType(clusterTPRDto.getNetwork().getNetworkFlag());
+            } else {
+                cluster.setNetworkType(K8S_NETWORK_CALICO);
+            }
             clusters.add(cluster);
 
         }
         return clusters;
     }
+
 
     private Integer getServiceApiPort(List<ServicePort> servicePorts) throws MarsRuntimeException{
         for(ServicePort servicePort : servicePorts){
@@ -423,19 +460,24 @@ public class ClusterCacheManager {
                 .collect(Collectors.groupingBy(ClusterCRDDto::getHarborAddress));
         Map<String,String> harborClusterNames = new HashMap<>();
         Map<String,String> harborClusterIds = new HashMap<>();
+        Map<String,String> harborClusterAliasNames = new HashMap<>();
         for(Map.Entry<String, List<ClusterCRDDto>> entry: harborAddressMap.entrySet()){
             String clusterName = "";
             String clusterId = "";
+            String clusterAliasName = "";
             for(ClusterCRDDto clusterTPRDto : entry.getValue()){
                 clusterName += clusterTPRDto.getName() + CommonConstant.COMMA;
                 clusterId += clusterTPRDto.getUid() + CommonConstant.COMMA;
+                clusterAliasName += clusterTPRDto.getNickname() + CommonConstant.COMMA;
             }
             harborClusterNames.put(entry.getKey(), clusterName.substring(0,clusterName.length()-1));
             harborClusterIds.put(entry.getKey(), clusterId.substring(0,clusterId.length()-1));
+            harborClusterAliasNames.put(entry.getKey(), clusterAliasName.substring(0,clusterAliasName.length()-1));
         }
         List<Map<String,String>> referredClusters = new ArrayList<>();
         referredClusters.add(harborClusterIds);
         referredClusters.add(harborClusterNames);
+        referredClusters.add(harborClusterAliasNames);
         return referredClusters;
     }
 

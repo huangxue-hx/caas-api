@@ -1,12 +1,16 @@
 package com.harmonycloud.service.application;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.cluster.ErrDeployDto;
+import com.harmonycloud.dto.cluster.IngressControllerDto;
 import com.harmonycloud.k8s.bean.Ingress;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.k8s.bean.ConfigMap;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 
+import java.beans.IntrospectionException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 
@@ -20,7 +24,7 @@ public interface RouterService {
 
     public ActionReturnUtil ingUpdate(ParsedIngressListUpdateDto parsedIngressList) throws Exception;
 
-    public ActionReturnUtil ingDelete(String namespace, String name) throws Exception;
+    public ActionReturnUtil ingDelete(String namespace, String name, String depName, String serviceType) throws Exception;
 
     public ActionReturnUtil svcList(String namespace) throws Exception;
 
@@ -28,10 +32,11 @@ public interface RouterService {
      * 删除服务时删除tcp和udp规则
      * @param namespace
      * @param name
+     * @param icList
      * @param cluster
      * @throws Exception
      */
-    void deleteRulesByName(String namespace, String name, Cluster cluster) throws Exception;
+    void deleteRulesByName(String namespace, String name, List<IngressControllerDto> icList, Cluster cluster) throws Exception;
 
     public ActionReturnUtil svcUpdate(SvcRouterUpdateDto svcRouterUpdate) throws Exception;
 
@@ -84,7 +89,7 @@ public interface RouterService {
      * @return ConfigMap
      * @throws Exception
      */
-    public ConfigMap getSystemExposeConfigmap(Cluster cluster, String protocolType) throws Exception;
+    public ConfigMap getSystemExposeConfigmap(String icName, Cluster cluster, String protocolType) throws Exception;
 
     /**
      * 更新系统nginx的configmap
@@ -95,16 +100,16 @@ public interface RouterService {
      * @return
      * @throws Exception
      */
-    public ActionReturnUtil updateSystemExposeConfigmap(Cluster cluster, String namespace, String service, List<TcpRuleDto> ruleDto, String protocol) throws Exception;
+    public ActionReturnUtil updateSystemExposeConfigmap(Cluster cluster, String namespace, String service, String icName, List<TcpRuleDto> ruleDto, String protocol) throws Exception;
 
     /**
-     * 获取所有的对外访问路由
+     * 获取所有的对外访问路由， tcp和udp对外服务通过负载均衡器的tcp和upd的configmap获取，http通过ingress获取
      * @param namespace
      * @param nameList
      * @return ActionReturnUtil
      * @throws Exception
      */
-    public ActionReturnUtil listExposedRouterWithIngressAndNginx(String namespace, String nameList) throws Exception;
+    public ActionReturnUtil listExposedRouterWithIngressAndNginx(String namespace, String nameList, String projectId) throws Exception;
 
     /**
      * 更新集群内的服务外部路由规则
@@ -120,7 +125,7 @@ public interface RouterService {
      * @return ActionReturnUtil
      * @throws Exception
      */
-    ActionReturnUtil deleteSystemRouteRule(TcpDeleteDto tcpDeleteDto) throws Exception;
+    ActionReturnUtil deleteSystemRouteRule(TcpDeleteDto tcpDeleteDto, String deployName) throws Exception;
 
     /**
      * 保存
@@ -141,7 +146,13 @@ public interface RouterService {
 
     ActionReturnUtil createRuleInDeploy(SvcRouterDto svcRouterDto) throws Exception;
 
-    List<Map<String, Object>> createExternalRule(ServiceTemplateDto svcTemplate, String namespace) throws Exception;
+    List<Map<String, Object>> createExternalRule(ServiceTemplateDto svcTemplate, String namespace, String serviceType) throws Exception;
 
     boolean checkIngressName(Cluster cluster, String name) throws Exception;
+
+    ErrDeployDto transferRuleDeploy(SvcRouterDto svcRouterDto, String deployName)throws Exception;
+    /**
+     * @param cluster 旧集群
+     */
+    ErrDeployDto transferIngressCreate(ParsedIngressListDto parsedIngressList, DeploymentTransferDto deploymentTransferDto ,Cluster cluster) throws Exception;
 }

@@ -203,9 +203,7 @@ public class MsfDataConvert {
     public static Container formatContainer(MsfDeployment deployment, Cluster cluster) throws Exception {
         Container container = new Container();
         container.setName(deployment.getMetadata().getDeployment_name());
-        String harborHost = cluster.getHarborServer().getHarborHost();
-        container.setImage(harborHost + "/" + deployment.getTemplate().getRepo() + "/" + deployment.getTemplate().getImage());
-
+        container.setImage(cluster.getHarborServer().getHarborAddress() + "/" + deployment.getTemplate().getRepo() + "/" + deployment.getTemplate().getImage());
         //设置容器端口
         List<ContainerPort> ps = new ArrayList<ContainerPort>();
         for (MsfDeploymentPort p : deployment.getPorts()) {

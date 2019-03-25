@@ -7,9 +7,9 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.date.DateUtil;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.k8s.bean.*;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
@@ -35,7 +35,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.harmonycloud.service.platform.constant.Constant.NODESELECTOR_LABELS_PRE;
 
@@ -84,7 +83,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
     private UserService userService;
 
     @Autowired
-    SecretService secretService;
+    private SecretService secretService;
 
     @Override
     public ActionReturnUtil createDaemonSet(DaemonSetDetailDto detail, String username) throws Exception {
@@ -125,23 +124,23 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                         detail.getName(), cluster, Constant.TYPE_DAEMONSET, username);
             }
 
-            //创建PVC
+            //PVC打标签
             if (Objects.nonNull(c.getStorage()) && c.getStorage().size() > 0) {
                 for (PersistentVolumeDto volume : c.getStorage()) {
-                    if (Constant.VOLUME_TYPE_PV.equals(volume.getType())) {
-                        if (StringUtils.isEmpty(volume.getPvcName())) {
-                            continue;
+                    PersistentVolumeClaim pvc = pvcService.getPvcByName(Constant.NAMESPACE_SYSTEM, volume.getPvcName(), cluster);
+                    if(pvc != null){
+                        Map<String, Object> labels = pvc.getMetadata().getLabels();
+                        labels.put(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_DAEMONSET + CommonConstant.LINE + detail.getName(), detail.getName());
+                        K8SClientResponse pvcResponse = pvcService.updatePvcByName(pvc, cluster);
+                        if(!HttpStatusUtil.isSuccessStatus((pvcResponse.getStatus()))){
+                            UnversionedStatus status = JsonUtil.jsonToPojo(pvcResponse.getBody(), UnversionedStatus.class);
+                            logger.error("更新pvc失败：{}", status.getMessage());
+                            throw new MarsRuntimeException(ErrorCodeMessage.PVC_UPDATE_ERROR);
                         }
-                        volume.setNamespace(Constant.NAMESPACE_SYSTEM);
-                        volume.setServiceType(Constant.TYPE_DAEMONSET);
-                        volume.setServiceName(detail.getName());
-                        volume.setClusterId(detail.getClusterId());
-                        volume.setVolumeName(volume.getPvcName());
-                        volumeSerivce.createVolume(volume);
                     }
                 }
             }
-            c.setImg(cluster.getHarborServer().getHarborHost() + "/" + c.getImg());
+            c.setImg(cluster.getHarborServer().getHarborAddress() +  "/" + c.getImg());
         }
         //创建组装DaemonSet
         DaemonSet daemonSet = new DaemonSet();
@@ -284,8 +283,12 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                     CreateResourceDto rs = new CreateResourceDto();
                     Map<String, Object> map = (Map<String, Object>) container.getResources().getRequests();
                     if (map != null) {
-                        rs.setCpu(map.get("cpu").toString());
-                        rs.setMemory(map.get("memory").toString());
+                        if(map.get("cpu") != null) {
+                            rs.setCpu(map.get("cpu").toString());
+                        }
+                        if(map.get("memory") != null) {
+                            rs.setMemory(map.get("memory").toString());
+                        }
                         c.setResource(rs);
                     }
                 }
@@ -344,7 +347,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                                     cv.setReadOnly(Boolean.FALSE);
                                 }
                                 if (Objects.nonNull(volume.getPersistentVolumeClaim())) {
-                                    cv.setType(Constant.VOLUME_TYPE_PV);
+                                    cv.setType(Constant.VOLUME_TYPE_NFS);
                                     cv.setPvcName(volume.getPersistentVolumeClaim().getClaimName());
                                     cv.setVolumeName(volume.getPersistentVolumeClaim().getClaimName());
                                 }
@@ -412,22 +415,19 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
         }
 
         //get pvc
+        queryP.put("labelSelector", Constant.LABEL_DAEMONSET+"-"+name + "=" + name);
         K8SClientResponse pvcsRes = pvcService.doSepcifyPVC(namespace, queryP, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(pvcsRes.getStatus()) && pvcsRes.getStatus() != Constant.HTTP_404) {
             UnversionedStatus status = JsonUtil.jsonToPojo(pvcsRes.getBody(), UnversionedStatus.class);
             throw new MarsRuntimeException(status.getMessage());
         }
-        //delete pvc
-        K8SClientResponse pvcRes = pvcService.doSepcifyPVC(namespace, queryP, HTTPMethod.DELETE, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(pvcRes.getStatus()) && pvcRes.getStatus() != Constant.HTTP_404) {
-            UnversionedStatus status = JsonUtil.jsonToPojo(pvcRes.getBody(), UnversionedStatus.class);
-            throw new MarsRuntimeException(status.getMessage());
-        }
-        //update pv
-        PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(pvcsRes.getBody(), PersistentVolumeClaimList.class);
-        //调用更新PV接口
-        if (Objects.nonNull(pvcList)) {
-            volumeSerivce.updatePVList(pvcList, cluster);
+
+        PersistentVolumeClaimList persistentVolumeClaimList = JsonUtil.jsonToPojo(pvcsRes.getBody(), PersistentVolumeClaimList.class);
+        List<PersistentVolumeClaim> persistentVolumeClaims = persistentVolumeClaimList.getItems();
+        for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaims) {
+            Map<String, Object> labels = persistentVolumeClaim.getMetadata().getLabels();
+            labels.remove(Constant.LABEL_DAEMONSET+"-"+name );
+            pvcService.updatePvcByName(persistentVolumeClaim,cluster);
         }
         return ActionReturnUtil.returnSuccess();
     }
@@ -472,9 +472,10 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
      */
     @Override
     public List<DaemonSet> listDaemonSets(Cluster cluster) throws Exception {
-        List<Map<String, Object>> daemonSets = new ArrayList<Map<String, Object>>();
-        DaemonSetList list = dsService.listDaemonSet(cluster);
-        List<DaemonSet> items = list.getItems();
+        DaemonSetList list = dsService.listDaemonSet(null, cluster);
+        if(list == null){
+            return Collections.emptyList();
+        }
         return list.getItems();
     }
 
@@ -496,10 +497,12 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
             tag = ds.getMetadata().getGeneration();
         }
         List<PodDetail> podDetailList = new ArrayList<>();
-        String labelSelector = "";
+        List<String> labelSelectors = new ArrayList<>();
+
         for (Map.Entry<String, Object> map : dsLabel.entrySet()) {
-            labelSelector = String.join(CommonConstant.COMMA, map.getKey() + CommonConstant.EQUALITY_SIGN + map.getValue().toString());
+            labelSelectors.add(map.getKey() + CommonConstant.EQUALITY_SIGN + map.getValue().toString());
         }
+        String labelSelector = String.join(CommonConstant.COMMA, labelSelectors);
         //获取DaemonSet的pod列表
         Map<String, Object> bodys = new HashMap<String, Object>();
         bodys.put("labelSelector", labelSelector);
@@ -626,11 +629,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                         }
                     }
                     //状态
-                    if (daemonSet.getStatus() != null && daemonSet.getStatus().getDesiredNumberScheduled() != null && daemonSet.getStatus().getNumberAvailable() != null && daemonSet.getStatus().getDesiredNumberScheduled().equals(daemonSet.getStatus().getNumberAvailable())) {
-                        daemonSetDto.setStatus(Constant.SERVICE_START);
-                    } else {
-                        daemonSetDto.setStatus(Constant.SERVICE_STARTING);
-                    }
+                    daemonSetDto.setStatus(convertDaemonStatus(daemonSet));
                     Map<String, Object> l = daemonSet.getMetadata().getLabels();
                     boolean isSystem = true;
                     if (l != null && !l.isEmpty()) {
@@ -675,5 +674,13 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
             }
         }
         return ActionReturnUtil.returnSuccessWithData(list);
+    }
+
+    public String convertDaemonStatus(DaemonSet daemonSet){
+        if (daemonSet.getStatus() != null && daemonSet.getStatus().getDesiredNumberScheduled() != null && daemonSet.getStatus().getNumberAvailable() != null && daemonSet.getStatus().getDesiredNumberScheduled().equals(daemonSet.getStatus().getNumberAvailable())) {
+            return Constant.SERVICE_START;
+        } else {
+            return Constant.SERVICE_STARTING;
+        }
     }
 }

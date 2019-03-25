@@ -30,11 +30,11 @@
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
-        <dependency>
-            <groupId>com.harmonycloud.sonarqube</groupId>
-            <artifactId>sonarqube-webapi-client</artifactId>
-            <version>1.0.1</version>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>com.harmonycloud.sonarqube</groupId>-->
+            <!--<artifactId>sonarqube-webapi-client</artifactId>-->
+            <!--<version>1.0.1</version>-->
+        <!--</dependency>-->
         <dependency>
             <groupId>org.springframework.ldap</groupId>
             <artifactId>spring-ldap-core</artifactId>
@@ -84,6 +84,12 @@
             <artifactId>snakeyaml</artifactId>
             <version>1.18</version>
         </dependency>
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>${testng.version}</version>
+            <scope>test</scope>
+        </dependency>
 
         <dependency>
             <groupId>com.spotify</groupId>
@@ -122,6 +128,7 @@
                 <includes>
                     <include>**/*.xml</include>
                     <include>**/*.properties</include>
+                    <include>**/*.yaml</include>
                     <!--<include>**/*.so</include>-->
                     <!--<include>**/*.dylib</include>-->
                 </includes>
@@ -143,6 +150,17 @@
                     <source>1.8</source>
                     <target>1.8</target>
                     <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.22.0</version>
+                <configuration>
+                    <argLine>-Dfile.encoding=UTF-8</argLine>
+                    <suiteXmlFiles>
+                        <suiteXmlFile>src/test/resources/testng.xml</suiteXmlFile>
+                    </suiteXmlFiles>
                 </configuration>
             </plugin>
         </plugins>

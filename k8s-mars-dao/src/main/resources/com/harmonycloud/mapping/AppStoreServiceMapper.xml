@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.harmonycloud.dao.application.AppStoreServiceMapper" >
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.application.bean.AppStoreService" >
+    <id column="id" property="id" jdbcType="INTEGER" />
+    <result column="app_id" property="appId" jdbcType="INTEGER" />
+    <result column="service_id" property="serviceId" jdbcType="INTEGER" />
+  </resultMap>
+  
+   <insert id="insert" parameterType="com.harmonycloud.dao.application.bean.AppStoreService" useGeneratedKeys="true" keyProperty="id">
+    insert into app_store_service (app_id, service_id)
+    values (#{appId}, #{serviceId})
+   </insert>
+
+   <delete id="delete">
+    delete from app_store_service where app_id = #{appId}
+   </delete>
+   
+   <select id="selectByAppId" resultMap="BaseResultMap">
+    select * from app_store_service where app_id = #{appId}
+   </select>
+
+</mapper>

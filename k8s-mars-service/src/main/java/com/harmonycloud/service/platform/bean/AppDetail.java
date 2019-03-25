@@ -1,8 +1,13 @@
 package com.harmonycloud.service.platform.bean;
 
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DataPrivilegeField;
+import com.harmonycloud.common.enumm.DataPrivilegeType;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
 import com.harmonycloud.dto.application.AffinityDto;
 import com.harmonycloud.dto.scale.AutoScaleDto;
 import com.harmonycloud.k8s.bean.Event;
+import com.harmonycloud.k8s.bean.HostAlias;
 import com.harmonycloud.k8s.bean.ServicePort;
 
 import java.util.List;
@@ -13,18 +18,20 @@ import java.util.Map;
  * @author jmi
  *
  */
+@DataPrivilegeType(type = DataResourceTypeEnum.SERVICE)
 public class AppDetail {
+    private String serviceType;
 
-	private String clusterIP;
+    private String clusterIP;
 
 	private String serviceAddress;
 
 	private List<ServicePort> internalPorts;
 
 	private String sessionAffinity;
-
+    @DataPrivilegeField(type = CommonConstant.DATA_FIELD)
 	private String name;
-
+    @DataPrivilegeField(type = CommonConstant.NAMESPACE_FIELD)
 	private String namespace;
 
 	private String clusterId;
@@ -75,6 +82,9 @@ public class AppDetail {
 	/**pod 是否分散*/
 	private AffinityDto podDisperse;
 
+	/**pod 按主机分组调度**/
+	private AffinityDto podGroupSchedule;
+
 	private String nodeSelector;
 
 	private boolean isOperationable;
@@ -84,6 +94,60 @@ public class AppDetail {
 	private String realName;
 
 	private String aliasNamespace;
+
+    private String dataPrivilege;
+
+	private List<HostAlias> hostAliases;
+
+    private List<ContainerOfPodDetail> initContainers;
+
+    private String podManagementPolicy;
+
+	private Map<String, Object> pullDependence;
+
+	private String serviceDependence;
+
+	private String deployVersion;
+
+	public String getDeployVersion() {
+		return deployVersion;
+	}
+
+	public void setDeployVersion(String deployVersion) {
+		this.deployVersion = deployVersion;
+	}
+
+	public AffinityDto getPodGroupSchedule() {
+		return podGroupSchedule;
+	}
+
+	public void setPodGroupSchedule(AffinityDto podGroupSchedule) {
+		this.podGroupSchedule = podGroupSchedule;
+	}
+
+	public String getServiceDependence() {
+		return serviceDependence;
+	}
+
+	public void setServiceDependence(String serviceDependence) {
+		this.serviceDependence = serviceDependence;
+	}
+
+	public Map<String, Object> getPullDependence() {
+		return pullDependence;
+	}
+
+	public void setPullDependence(Map<String, Object> pullDependence) {
+		this.pullDependence = pullDependence;
+	}
+
+	public List<HostAlias> getHostAliases() {
+		return hostAliases;
+	}
+
+	public void setHostAliases(List<HostAlias> hostAliases) {
+		this.hostAliases = hostAliases;
+	}
 
 	public String getRealName() {
 		return realName;
@@ -348,4 +412,36 @@ public class AppDetail {
 	public void setClusterId(String clusterId) {
 		this.clusterId = clusterId;
 	}
+
+    public String getDataPrivilege() {
+        return dataPrivilege;
+    }
+
+    public void setDataPrivilege(String dataPrivilege) {
+        this.dataPrivilege = dataPrivilege;
+    }
+
+    public String getServiceType() {
+        return serviceType;
+    }
+
+    public void setServiceType(String serviceType) {
+        this.serviceType = serviceType;
+    }
+
+    public List<ContainerOfPodDetail> getInitContainers() {
+        return initContainers;
+    }
+
+    public void setInitContainers(List<ContainerOfPodDetail> initContainers) {
+        this.initContainers = initContainers;
+    }
+
+    public String getPodManagementPolicy() {
+        return podManagementPolicy;
+    }
+
+    public void setPodManagementPolicy(String podManagementPolicy) {
+        this.podManagementPolicy = podManagementPolicy;
+    }
 }

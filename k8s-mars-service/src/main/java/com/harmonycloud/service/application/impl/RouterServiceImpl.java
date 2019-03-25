@@ -1,41 +1,67 @@
 package com.harmonycloud.service.application.impl;
 
+import com.fasterxml.classmate.Annotations;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.harmonycloud.common.Constant.CommonConstant;
-import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.ServiceTypeEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
+import com.harmonycloud.dao.cluster.bean.IngressControllerPort;
 import com.harmonycloud.dao.cluster.bean.NodePortClusterUsage;
+import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
+import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dto.application.*;
+import com.harmonycloud.dto.cluster.ErrDeployDto;
+import com.harmonycloud.dto.cluster.IngressControllerDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.k8s.bean.cluster.ClusterDomain;
+import com.harmonycloud.k8s.bean.cluster.ClusterDomainPort;
 import com.harmonycloud.k8s.bean.cluster.ClusterExternal;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.DeploymentService;
+import com.harmonycloud.k8s.service.IcService;
 import com.harmonycloud.k8s.service.NodeService;
 import com.harmonycloud.k8s.service.ServicesService;
+import com.harmonycloud.k8s.service.StatefulSetService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
+import com.harmonycloud.k8s.util.RandomNum;
 import com.harmonycloud.service.application.ConfigMapService;
+import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.RouterService;
+import com.harmonycloud.service.application.StatefulSetsService;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.cluster.IngressControllerService;
 import com.harmonycloud.service.cluster.NodePortClusterUsageService;
+import com.harmonycloud.service.cluster.impl.ClusterServiceImpl;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.tenant.ProjectService;
+import com.harmonycloud.service.tenant.TenantService;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.servlet.http.HttpSession;
+import java.beans.IntrospectionException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
+
+import static com.harmonycloud.common.Constant.CommonConstant.NUM_ONE;
+import static com.harmonycloud.common.Constant.IngressControllerConstant.*;
+import static com.harmonycloud.service.platform.constant.Constant.*;
 
 /**
  * Created by czm on 2017/1/18. jmi 补充
@@ -47,12 +73,12 @@ public class RouterServiceImpl implements RouterService {
     private ServicesService sService;
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    NodeService nodeService;
+    private NodeService nodeService;
     @Autowired
-    NamespaceLocalService namespaceLocalService;
+    private NamespaceLocalService namespaceLocalService;
 
     @Autowired
     private ConfigMapService configMapService;
@@ -66,6 +92,26 @@ public class RouterServiceImpl implements RouterService {
     @Autowired
     private DeploymentService dpService;
 
+    @Autowired
+    private DeploymentsService deploymentsService;
+
+    @Autowired
+    private StatefulSetService statefulSetService;
+
+    @Autowired
+    private StatefulSetsService statefulSetsService;
+
+    @Autowired
+    private IcService icService;
+
+    @Autowired
+    private ProjectService projectService;
+
+    @Autowired
+    private TenantService tenantService;
+    @Autowired
+    private IngressControllerService ingressControllerService;
+    private static final Logger logger = LoggerFactory.getLogger(RouterServiceImpl.class);
     /**
      * 创建router
      *
@@ -74,9 +120,11 @@ public class RouterServiceImpl implements RouterService {
      */
     @Override
     public ActionReturnUtil ingCreate(ParsedIngressListDto parsedIngressList) throws Exception {
-        if (parsedIngressList == null || StringUtils.isBlank(parsedIngressList.getNamespace()) || StringUtils.isBlank(parsedIngressList.getName())) {
+        if (parsedIngressList == null || StringUtils.isBlank(parsedIngressList.getNamespace()) ||
+                StringUtils.isBlank(parsedIngressList.getName()) || StringUtils.isBlank(parsedIngressList.getIcName())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
+        String icName = parsedIngressList.getIcName();
         String namespace = parsedIngressList.getNamespace();
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
         if (cluster == null) {
@@ -86,45 +134,36 @@ public class RouterServiceImpl implements RouterService {
         if (checkIngressName(cluster, parsedIngressList.getName())) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.HTTP_INGRESS_NAME_DUPLICATE);
         }
-        Ingress ingress = new Ingress();
-        ingress.setMetadata(new ObjectMeta());
-        ingress.setSpec(new IngressSpec());
-
-        Map<String, Object> anno = new HashMap<String, Object>();
-        if (parsedIngressList.getAnnotaion() != null) {
-            anno.put("nephele/annotation", parsedIngressList.getAnnotaion());
-            ingress.getMetadata().setAnnotations(anno);
+        //根据icName，检查集群里是否有这个负载均衡器
+        IngressControllerDto ingressControllerDto = ingressControllerService.getIngressController(icName, cluster.getId());
+        if (ingressControllerDto == null) {
+            return ActionReturnUtil.returnErrorWithData(DictEnum.INGRESS_CONTROLLER.phrase(),ErrorCodeMessage.NOT_FOUND);
         }
-        List<HttpRuleDto> rules = parsedIngressList.getRules();
 
-        Map<String, Object> la = new HashMap<>();
-        List<HTTPIngressPath> path = new ArrayList<>();
-        String name = "";
-        if (rules != null && rules.size() > 0) {
-            for (HttpRuleDto rule : rules) {
-                name = rule.getService();
-                HTTPIngressPath p = new HTTPIngressPath();
-                IngressBackend backend = new IngressBackend();
-                backend.setServiceName(rule.getService());
-                backend.setServicePort(Integer.valueOf(rule.getPort()));
-                p.setBackend(backend);
-                p.setPath(rule.getPath());
-                path.add(p);
+        ServiceTypeEnum serviceType = null;
+        if(StringUtils.isBlank(parsedIngressList.getServiceType())){
+            serviceType = ServiceTypeEnum.DEPLOYMENT;
+        }else{
+            serviceType = ServiceTypeEnum.valueOf(parsedIngressList.getServiceType().toUpperCase());
+        }
+        //若为有状态服务，且指定了实例名，需要为实例创建单独的service
+        String serviceName = null;
+        if(serviceType == ServiceTypeEnum.STATEFULSET ){
+            if(parsedIngressList.getLabels() != null) {
+                parsedIngressList.getLabels().put(Constant.TYPE_STATEFULSET, parsedIngressList.getServiceName());
+            }
+            if(StringUtils.isNotEmpty(parsedIngressList.getPodName())) {
+                serviceName = this.createSvc(parsedIngressList.getPodName(), parsedIngressList.getNamespace(), parsedIngressList.getServiceName(), cluster);
+                if (parsedIngressList.getLabels() == null) {
+                    parsedIngressList.setLabels(new HashMap<>());
+                }
+                parsedIngressList.getLabels().put(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_PODNAME, parsedIngressList.getPodName());
+                for (HttpRuleDto httpRuleDto : parsedIngressList.getRules()) {
+                    httpRuleDto.setService(serviceName);
+                }
             }
         }
-        la.put("app", name);
-        ingress.getMetadata().setLabels(la);
-        ingress.getMetadata().setNamespace(namespace);
-
-        IngressRule ingressRule = new IngressRule();
-        ingressRule.setHost(parsedIngressList.getHost());
-        HTTPIngressRuleValue http = new HTTPIngressRuleValue();
-        http.setPaths(path);
-        ingressRule.setHttp(http);
-        ingress.getSpec().setRules(new ArrayList<>());
-        ingress.getSpec().getRules().add(ingressRule);
-
-        ingress.getMetadata().setName(parsedIngressList.getName());
+        Ingress ingress = this.buildIngress(namespace, parsedIngressList, ingressControllerDto);
         Map<String, Object> body = CollectionUtil.transBean2Map(ingress);
         K8SURL url = new K8SURL();
         Map<String, Object> head = new HashMap<String, Object>();
@@ -135,6 +174,19 @@ public class RouterServiceImpl implements RouterService {
             UnversionedStatus status = JsonUtil.jsonToPojo(k.getBody(), UnversionedStatus.class);
             return ActionReturnUtil.returnErrorWithData(status.getMessage());
         }
+
+
+        Map<String,Object> labels = new HashMap<String,Object>();
+        labels.put(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE,INGRESS_SERVICE_TRUE);
+        String name = parsedIngressList.getRules().get(0).getService();
+        switch(serviceType){
+            case DEPLOYMENT:
+                deploymentsService.updateLabels(namespace,name,cluster,labels);
+                break;
+            case STATEFULSET:
+                statefulSetsService.updateLabels(namespace, name, cluster, labels);
+                break;
+        }
         return ActionReturnUtil.returnSuccessWithData(k.getBody());
     }
 
@@ -142,7 +194,7 @@ public class RouterServiceImpl implements RouterService {
      * 删除HTTP应用网关
      */
     @Override
-    public ActionReturnUtil ingDelete(String namespace, String name) throws Exception {
+    public ActionReturnUtil ingDelete(String namespace, String name, String depName, String serviceType) throws Exception {
         if (StringUtils.isBlank(namespace) || StringUtils.isBlank(name)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
@@ -158,6 +210,9 @@ public class RouterServiceImpl implements RouterService {
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && response.getStatus() != Constant.HTTP_404) {
             return ActionReturnUtil.returnErrorWithData(response.getBody());
         }
+
+        //当TCP/UDP/HTTP对外服务数量为 0 时，更新对外服务标签为 "ingressFalse"
+        updateIngressServiceLabels(namespace, depName, cluster, serviceType);
         return ActionReturnUtil.returnSuccessWithData(response.getBody());
     }
 
@@ -218,17 +273,20 @@ public class RouterServiceImpl implements RouterService {
     }
 
     @Override
-    public void deleteRulesByName(String namespace, String name, Cluster cluster) throws Exception {
+    public void deleteRulesByName(String namespace, String name, List<IngressControllerDto> icList, Cluster cluster) throws Exception {
         AssertUtil.notBlank(namespace, DictEnum.NAMESPACE);
         AssertUtil.notBlank(name, DictEnum.NAME);
         //获取nginx configmap
         String valuePrefix = namespace + "/" + name;
-        deleteNginxConfigMap(valuePrefix, cluster, Constant.PROTOCOL_TCP);
-        deleteNginxConfigMap(valuePrefix, cluster, Constant.PROTOCOL_UDP);
+        for (IngressControllerDto icDto : icList) {
+            String icName = icDto.getIcName();
+            deleteNginxConfigMap(valuePrefix, icName, cluster, Constant.PROTOCOL_TCP);
+            deleteNginxConfigMap(valuePrefix, icName, cluster, Constant.PROTOCOL_UDP);
+        }
     }
 
-    private void deleteNginxConfigMap(String valuePrefix, Cluster cluster, String protocol) throws Exception {
-        ConfigMap configMap = getSystemExposeConfigmap(cluster, protocol);
+    private void deleteNginxConfigMap(String valuePrefix, String icName, Cluster cluster, String protocol) throws Exception {
+        ConfigMap configMap = getSystemExposeConfigmap(icName, cluster, protocol);
         Map<String, Object> data = (Map<String, Object>) configMap.getData();
         if (null != data) {
             Iterator<Map.Entry<String, Object>> it = data.entrySet().iterator();
@@ -665,14 +723,23 @@ public class RouterServiceImpl implements RouterService {
     }
 
     @Override
-    public ConfigMap getSystemExposeConfigmap(Cluster cluster, String protocolType) throws Exception {
+    public ConfigMap getSystemExposeConfigmap(String icName, Cluster cluster, String protocolType) throws Exception {
         ConfigMap configMap = new ConfigMap();
         ActionReturnUtil result = new ActionReturnUtil();
-        if (Constant.PROTOCOL_TCP.equals(protocolType)) {
-            result = configMapService.getConfigMapByName(CommonConstant.KUBE_SYSTEM, Constant.EXPOSE_CONFIGMAP_NAME_TCP, HTTPMethod.GET, cluster);
-        }
-        if (Constant.PROTOCOL_UDP.equals(protocolType)) {
-            result = configMapService.getConfigMapByName(CommonConstant.KUBE_SYSTEM, Constant.EXPOSE_CONFIGMAP_NAME_UDP, HTTPMethod.GET, cluster);
+        if (StringUtils.isBlank(icName) || icName.equals(IC_DEFAULT_NAME)) {
+            if (Constant.PROTOCOL_TCP.equals(protocolType)) {
+                result = configMapService.getConfigMapByName(CommonConstant.KUBE_SYSTEM, EXPOSE_CONFIGMAP_NAME_TCP, HTTPMethod.GET, cluster);
+            }
+            if (Constant.PROTOCOL_UDP.equals(protocolType)) {
+                result = configMapService.getConfigMapByName(CommonConstant.KUBE_SYSTEM, EXPOSE_CONFIGMAP_NAME_UDP, HTTPMethod.GET, cluster);
+            }
+        } else {
+            if (Constant.PROTOCOL_TCP.equals(protocolType)) {
+                result = configMapService.getConfigMapByName(CommonConstant.KUBE_SYSTEM, "tcp-" + icName, HTTPMethod.GET, cluster);
+            }
+            if (Constant.PROTOCOL_UDP.equals(protocolType)) {
+                result = configMapService.getConfigMapByName(CommonConstant.KUBE_SYSTEM, "udp-" + icName, HTTPMethod.GET, cluster);
+            }
         }
         if (Objects.isNull(result) || !result.isSuccess()) {
             throw new MarsRuntimeException(ErrorCodeMessage.SYSTEM_NGINX_CONFIGMAP_NOT_FIND);
@@ -682,8 +749,8 @@ public class RouterServiceImpl implements RouterService {
     }
 
     @Override
-    public ActionReturnUtil updateSystemExposeConfigmap(Cluster cluster, String namespace, String service, List<TcpRuleDto> rules, String protocol) throws Exception {
-        ConfigMap configMap = getSystemExposeConfigmap(cluster, protocol);
+    public ActionReturnUtil updateSystemExposeConfigmap(Cluster cluster, String namespace, String service, String icName, List<TcpRuleDto> rules, String protocol) throws Exception {
+        ConfigMap configMap = getSystemExposeConfigmap(icName, cluster, protocol);
         Map<String, Object> data = (Map<String, Object>) configMap.getData();
         if (data == null) {
             data = new HashMap<>();
@@ -700,7 +767,7 @@ public class RouterServiceImpl implements RouterService {
     }
 
     @Override
-    public ActionReturnUtil listExposedRouterWithIngressAndNginx(String namespace, String nameList) throws Exception {
+    public ActionReturnUtil listExposedRouterWithIngressAndNginx(String namespace, String nameList, String projectId) throws Exception {
         if (StringUtils.isBlank(namespace) || StringUtils.isBlank(nameList)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
@@ -711,80 +778,79 @@ public class RouterServiceImpl implements RouterService {
         String ip = clusterService.getEntry(namespace);
         String [] names = nameList.split(",");
         List<Map<String, Object>> routerList = new ArrayList<>();
-        for (int i = 0; i < names.length; i++) {
-            //获取nginx对应的upd和tcp configmap
-            ConfigMap configMapTcp = getSystemExposeConfigmap(cluster, Constant.PROTOCOL_TCP);
-            ConfigMap configMapUdp = getSystemExposeConfigmap(cluster, Constant.PROTOCOL_UDP);
-            String valuePrefix = namespace + "/" + names[i];
-            routerList.addAll(listServiceRouter(configMapTcp, valuePrefix, ip, Constant.PROTOCOL_TCP));
-            routerList.addAll(listServiceRouter(configMapUdp, valuePrefix, ip, Constant.PROTOCOL_UDP));
-
-            //获取http ingress
-            K8SURL url = new K8SURL();
-            url.setNamespace(namespace).setResource(Resource.INGRESS);
-            Map<String, Object> bodys = new HashMap<String, Object>();
-            bodys.put("labelSelector", "app=" + names[i]);
-            K8SClientResponse k = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
-            if (Constant.HTTP_404 == k.getStatus()) {
-                return ActionReturnUtil.returnSuccessWithData(routerList);
-            }
-            if (!HttpStatusUtil.isSuccessStatus(k.getStatus()) && k.getStatus() != Constant.HTTP_404) {
-                UnversionedStatus status = JsonUtil.jsonToPojo(k.getBody(), UnversionedStatus.class);
-                return ActionReturnUtil.returnErrorWithData(status.getMessage());
-            }
-            IngressList ingressList = JsonUtil.jsonToPojo(k.getBody(), IngressList.class);
-            List<Ingress> list = ingressList.getItems();
-            if (CollectionUtils.isNotEmpty(list)) {
-                //获取域名
-                List<ClusterDomain> domains = clusterService.findDomain(namespace);
-                for (Ingress in : list) {
-                    Map<String, Object> tmp = new HashMap<>();
-                    tmp.put("name", in.getMetadata().getName());
-                    tmp.put("type", "HTTP");
-                    List<Map<String, Object>> addressList = new ArrayList<>();
-                    List<IngressRule> rules = in.getSpec().getRules();
-                    if (CollectionUtils.isNotEmpty(rules)) {
-                        IngressRule rule = rules.get(0);
-                        HTTPIngressRuleValue http = rule.getHttp();
-                        List<HTTPIngressPath> paths = http.getPaths();
-                        if (CollectionUtils.isNotEmpty(paths)) {
-                            for (HTTPIngressPath path : paths) {
-                                Map<String, Object> j = new HashMap<>();
-                                if (path.getBackend() != null) {
-                                    j.put("port", path.getBackend().getServicePort());
-                                }
-                                if (org.apache.commons.lang.StringUtils.isNotBlank(path.getPath())) {
-                                    if (path.getPath().lastIndexOf( CommonConstant.SLASH) != path.getPath().length() - CommonConstant.NUM_ONE) {
-                                        path.setPath(path.getPath());
-                                    }
-                                    if ( CommonConstant.SLASH.equals(path.getPath())) {
-                                        path.setPath("");
-                                    }
-                                }
-                                //判断域名类型
-                                String host = rule.getHost();
-                                String[] domainLevels = StringUtils.isNotBlank(host) && host.indexOf(CommonConstant.DOT) > -1 ? host.split(CommonConstant.DOT) : null;
-                                int port = Constant.LIVENESS_PORT;
-                                if (domainLevels != null) {
-                                    String domainLevelName = (Constant.DOMAIN_LEVEL_FOUR == domainLevels.length) ? Constant.CLUSTER_FOUR_DOMAIN : Constant.CLUSTER_THREE_DOMAIN;
-                                    for (ClusterDomain clusterDomain : domains) {
-                                        if (domainLevelName.equals(clusterDomain.getDomain())) {
-                                            port = clusterDomain.getPort();
-                                            break;
-                                        }
-                                    }
-                                }
-                                String hostName = port == Constant.LIVENESS_PORT ? rule.getHost():
-                                        rule.getHost() + CommonConstant.COLON + port;
-                                hostName = StringUtils.isNotBlank(path.getPath()) ? hostName + path.getPath() : hostName;
-                                j.put("hostname", hostName);
-                                addressList.add(j);
-                            }
-                        }
-                    }
-                    tmp.put("address", addressList);
-                    routerList.add(tmp);
+        Project project = projectService.getProjectByProjectId(projectId);
+        String tenantId = project.getTenantId();
+        Map<String, ConfigMap> icTcpConfigMap = new HashMap<>();
+        Map<String, ConfigMap> icUdpConfigMap = new HashMap<>();
+        //获取该租户的所有自定义负载均衡器名称
+        List<IngressControllerDto> icList = tenantService.getTenantIngressController(tenantId, cluster.getId());
+        for (IngressControllerDto ic : icList) {
+            //获取负载均衡器的TCP和UDP的端口与服务的映射配置
+            String icName = ic.getIcName();
+            ConfigMap configMapTcp = getSystemExposeConfigmap(icName, cluster, Constant.PROTOCOL_TCP);
+            ConfigMap configMapUdp = getSystemExposeConfigmap(icName, cluster, Constant.PROTOCOL_UDP);
+            icTcpConfigMap.put(icName, configMapTcp);
+            icUdpConfigMap.put(icName, configMapUdp);
+        }
+        String label = null;
+        if (names.length == NUM_ONE) {
+            label = "app=" + names[0];
+        }
+        //查询该分区下的http服务的ingress，如果只查询单个服务ingress，则根据label筛选，如果查询多个ingress，则查询分区下的所有ingress
+        List<Ingress> ingresses = icService.listIngress(namespace, label, cluster);
+        //将ingress转换成map，key为服务名，值为该服务创建的ingress对象列表
+        Map<String,List<Ingress>> ingressMap = new HashMap<>();
+        for(Ingress ingress:ingresses){
+            Map<String, Object> labels = ingress.getMetadata().getLabels();
+            if (labels != null && labels.get("app") != null) {
+                String app = labels.get("app").toString();
+                if(ingressMap.get(app) == null){
+                    List<Ingress> ingressList = new ArrayList<>();
+                    ingressList.add(ingress);
+                    ingressMap.put(app, ingressList);
+                }else {
+                    ingressMap.get(app).add(ingress);
                 }
+            }
+        }
+
+        for (int i = 0; i < names.length; i++) {
+            Map<String, String> valuePrefixMap = new HashMap<>();
+            valuePrefixMap.put(namespace + "/" + names[i], null);
+            //statefulSet需要查询单实例的服务
+            Map<String, Object> bodys = new HashMap();
+            String selectLabel = Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET +CommonConstant.EQUALITY_SIGN + names[i];
+            bodys.put(CommonConstant.LABELSELECTOR, selectLabel);
+            K8SClientResponse response = sService.doSepcifyService(namespace, null, null, bodys, HTTPMethod.GET, cluster);
+            if(HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                ServiceList serviceList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
+                if (CollectionUtils.isNotEmpty(serviceList.getItems())) {
+                    for (com.harmonycloud.k8s.bean.Service service : serviceList.getItems()) {
+                        String valuePrefix = namespace + "/" + service.getMetadata().getName();
+                        String podName = null;
+                        if (service.getMetadata().getLabels() != null && service.getMetadata().getLabels().get(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_PODNAME) != null) {
+                            podName = (String) service.getMetadata().getLabels().get(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_PODNAME);
+                        }
+                        valuePrefixMap.put(valuePrefix, podName);
+                    }
+                }
+            }
+            //获取tcp和udp对外服务，分别对每个负载均衡器检查是否有暴露该服务
+            for(String valuePrefix : valuePrefixMap.keySet()) {
+                String podName = valuePrefixMap.get(valuePrefix);
+                for (IngressControllerDto ic : icList) {
+                    String icName = ic.getIcName();
+                    routerList.addAll(listServiceRouter(icTcpConfigMap.get(icName), icName, valuePrefix, ip, Constant.PROTOCOL_TCP, podName));
+                    routerList.addAll(listServiceRouter(icUdpConfigMap.get(icName), icName, valuePrefix, ip, Constant.PROTOCOL_UDP, podName));
+                }
+            }
+            //获取http对外服务
+            List<Ingress> ingressList = ingressMap.get(names[i]);
+            if(CollectionUtils.isEmpty(ingressList)){
+                continue;
+            }
+            for(Ingress in : ingressList) {
+                routerList.add(this.getIngressRouter(in, icList));
             }
         }
         return ActionReturnUtil.returnSuccessWithData(routerList);
@@ -792,18 +858,43 @@ public class RouterServiceImpl implements RouterService {
 
     @Override
     public ActionReturnUtil updateSystemRouteRule(SvcRouterDto svcRouterDto) throws Exception {
-        if (Objects.isNull(svcRouterDto) || CollectionUtils.isEmpty(svcRouterDto.getRules())
-                || StringUtils.isBlank(svcRouterDto.getName()) || StringUtils.isBlank(svcRouterDto.getNamespace())) {
+        if (Objects.isNull(svcRouterDto) || CollectionUtils.isEmpty(svcRouterDto.getRules()) ||
+                StringUtils.isBlank(svcRouterDto.getName()) || StringUtils.isBlank(svcRouterDto.getNamespace()) ||
+                StringUtils.isBlank(svcRouterDto.getIcName())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
-        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(svcRouterDto.getNamespace());
-        //获取容器内的端口协议
-        K8SClientResponse depRes = dpService.doSpecifyDeployment(svcRouterDto.getNamespace(), svcRouterDto.getName(), null, null, HTTPMethod.GET, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
-            return ActionReturnUtil.returnErrorWithData(depRes.getBody());
+        if (!IC_DEFAULT_NAME.equalsIgnoreCase(svcRouterDto.getIcName())) {
+            throw new MarsRuntimeException(ErrorCodeMessage.TCP_IC_DEFAULT_ONLY);
         }
-        Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
-        List<Container> containers = dep.getSpec().getTemplate().getSpec().getContainers();
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(svcRouterDto.getNamespace());
+        ServiceTypeEnum serviceType;
+        if(StringUtils.isBlank(svcRouterDto.getServiceType())) {
+            serviceType = ServiceTypeEnum.DEPLOYMENT;
+        }else{
+            serviceType = ServiceTypeEnum.valueOf(svcRouterDto.getServiceType().toUpperCase());
+        }
+        //获取容器内的端口协议
+        List<Container> containers = new ArrayList<>();
+        switch(serviceType){
+            case DEPLOYMENT:
+                K8SClientResponse depRes = dpService.doSpecifyDeployment(svcRouterDto.getNamespace(), svcRouterDto.getName(), null, null, HTTPMethod.GET, cluster);
+                if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
+                    return ActionReturnUtil.returnErrorWithData(depRes.getBody());
+                }
+                Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+                containers = dep.getSpec().getTemplate().getSpec().getContainers();
+                break;
+            case STATEFULSET:
+                K8SClientResponse stsRes = statefulSetService.doSpecifyStatefulSet(svcRouterDto.getNamespace(), svcRouterDto.getName(), null, null, HTTPMethod.GET, cluster);
+                if (!HttpStatusUtil.isSuccessStatus(stsRes.getStatus())) {
+                    return ActionReturnUtil.returnErrorWithData(stsRes.getBody());
+                }
+                StatefulSet sts = JsonUtil.jsonToPojo(stsRes.getBody(), StatefulSet.class);
+                containers = sts.getSpec().getTemplate().getSpec().getContainers();
+                break;
+        }
+
+
         List<ContainerPort> portAll = new ArrayList<>();
         containers.stream().forEach(c -> { portAll.addAll(c.getPorts()); });
         List<TcpRuleDto> rules = svcRouterDto.getRules();
@@ -822,12 +913,29 @@ public class RouterServiceImpl implements RouterService {
             portClusterUsageService.updateNodePortStatus(usage);
             protocol = rule.getProtocol();
         }
-        this.updateSystemExposeConfigmap(cluster, svcRouterDto.getNamespace(), svcRouterDto.getName(), rules, protocol);
+        //若为有状态服务，且指定了实例名，需要为实例创建单独的service
+        String serviceName = null;
+        if(serviceType == ServiceTypeEnum.STATEFULSET && StringUtils.isNotEmpty(svcRouterDto.getPodName())){
+            serviceName = this.createSvc(svcRouterDto.getPodName(), svcRouterDto.getNamespace(), svcRouterDto.getName(), cluster);
+        }else{
+            serviceName = svcRouterDto.getName();
+        }
+        this.updateSystemExposeConfigmap(cluster, svcRouterDto.getNamespace(), serviceName, svcRouterDto.getIcName(), rules, protocol);
+        Map<String,Object> labels = new HashMap<String,Object>();
+        labels.put(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE, INGRESS_SERVICE_TRUE);
+        switch(serviceType) {
+            case DEPLOYMENT:
+                deploymentsService.updateLabels(svcRouterDto.getNamespace(), svcRouterDto.getName(), cluster, labels);
+                break;
+            case STATEFULSET:
+                statefulSetsService.updateLabels(svcRouterDto.getNamespace(), svcRouterDto.getName(), cluster, labels);
+                break;
+        }
         return ActionReturnUtil.returnSuccess();
     }
 
     @Override
-    public ActionReturnUtil deleteSystemRouteRule(TcpDeleteDto tcpDeleteDto) throws Exception {
+    public ActionReturnUtil deleteSystemRouteRule(TcpDeleteDto tcpDeleteDto, String deployName) throws Exception {
         if (Objects.isNull(tcpDeleteDto) || CollectionUtils.isEmpty(tcpDeleteDto.getPorts()) || StringUtils.isBlank(tcpDeleteDto.getNamespace()) || StringUtils.isBlank(tcpDeleteDto.getProtocol())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
@@ -838,7 +946,7 @@ public class RouterServiceImpl implements RouterService {
         }
 
         //获取configmap后，删除对应的规则
-        ConfigMap configMap = this.getSystemExposeConfigmap(cluster, tcpDeleteDto.getProtocol());
+        ConfigMap configMap = this.getSystemExposeConfigmap(tcpDeleteDto.getIcName() ,cluster, tcpDeleteDto.getProtocol());
         List<Integer> externalPorts = tcpDeleteDto.getPorts();
         Map<String, Object> data = (Map<String, Object>) configMap.getData();
         Iterator<Map.Entry<String, Object>> it = data.entrySet().iterator();
@@ -858,6 +966,9 @@ public class RouterServiceImpl implements RouterService {
         for (Integer port : externalPorts) {
             portClusterUsageService.deleteNodePortUsage(cluster.getId(), port);
         }
+        //当TCP/UDP/HTTP对外服务数量为 0 时，更新对外服务标签为 "ingressFalse"
+        updateIngressServiceLabels(namespace, deployName, cluster, tcpDeleteDto.getServiceType());
+        List<Map<String, Object>> routerList = new ArrayList<>();
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -870,7 +981,7 @@ public class RouterServiceImpl implements RouterService {
      * @return List<Map<String, Object>>
      * @throws Exception
      */
-    private List<Map<String, Object>> listServiceRouter(ConfigMap configMap, String valuePrefix, String ip, String type) throws Exception {
+    private List<Map<String, Object>> listServiceRouter(ConfigMap configMap, String icName, String valuePrefix, String ip, String type, String podName) throws Exception {
         List<Map<String, Object>> routerList = new ArrayList<>();
         Map<String, Object> configMapData = (Map<String, Object>) configMap.getData();
         if (Objects.nonNull(configMapData)) {
@@ -879,18 +990,68 @@ public class RouterServiceImpl implements RouterService {
                 String[] valueArray = value.split(CommonConstant.COLON);
                 if (Objects.nonNull(valueArray) && valueArray.length == CommonConstant.NUM_TWO && valuePrefix.equals(valueArray[0])) {
                     Map<String, Object> tmp = new HashMap<>();
+                    tmp.put("icName", icName);
                     tmp.put("type", type);
                     Map<String, Object> address = new HashMap<>();
-                    String containerPort = valueArray[CommonConstant.NUM_ONE];
+                    String containerPort = valueArray[NUM_ONE];
                     address.put("containerPort", containerPort);
                     address.put("externalPort", entry.getKey());
                     address.put("ip", ip);
                     tmp.put("address", address);
+                    if(StringUtils.isNotEmpty(podName)) {
+                        tmp.put("podName", podName);
+                    }
                     routerList.add(tmp);
                 }
             }
         }
         return routerList;
+    }
+
+    private void updateIngressServiceLabels(String namespace, String name, Cluster cluster, String serviceType) throws Exception {
+        //当TCP/UDP/HTTP对外服务数量为 0 时，更新对外服务标签为 "ingressFalse"
+        List<Map<String, Object>> routerList = new ArrayList<>();
+        String ip = clusterService.getEntry(namespace);
+        String valuePrefix = namespace + "/" + name;
+        NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByName(namespace);
+        //通过tenantId找icName
+        List<IngressControllerDto> icList = tenantService.getTenantIngressController(namespaceLocal.getTenantId(), cluster.getId());
+        for (IngressControllerDto ic : icList) {
+            //获取nginx对应的upd和tcp configmap
+            String icName = ic.getIcName();
+            ConfigMap configMapTcp = getSystemExposeConfigmap(icName, cluster, Constant.PROTOCOL_TCP);
+            ConfigMap configMapUdp = getSystemExposeConfigmap(icName, cluster, Constant.PROTOCOL_UDP);
+            routerList.addAll(listServiceRouter(configMapTcp, icName, valuePrefix, ip, Constant.PROTOCOL_TCP, null));
+            routerList.addAll(listServiceRouter(configMapUdp, icName, valuePrefix, ip, Constant.PROTOCOL_UDP, null));
+        }
+
+        if(routerList.size() == 0){
+            K8SURL url2 = new K8SURL();
+            url2.setNamespace(namespace).setResource(Resource.INGRESS);
+            Map<String, Object> bodys = new HashMap<String, Object>();
+            bodys.put("labelSelector", "app=" + name);
+            K8SClientResponse k = new K8sMachineClient().exec(url2, HTTPMethod.GET, null, bodys, cluster);
+            IngressList ingressList = JsonUtil.jsonToPojo(k.getBody(), IngressList.class);
+            List<Ingress> list = ingressList.getItems();
+            if(list.size() == 0){
+                Map<String,Object> labels = new HashMap<String,Object>();
+                labels.put(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE,INGRESS_SERVICE_FALSE);
+                ServiceTypeEnum serviceTypeEnum = null;
+                if(StringUtils.isBlank(serviceType)){
+                    serviceTypeEnum = ServiceTypeEnum.DEPLOYMENT;
+                }else {
+                    serviceTypeEnum = ServiceTypeEnum.valueOf(serviceType.toUpperCase());
+                }
+                switch(serviceTypeEnum){
+                    case DEPLOYMENT:
+                        deploymentsService.updateLabels(namespace,name,cluster,labels);
+                        break;
+                    case STATEFULSET:
+                        statefulSetsService.updateLabels(namespace, name, cluster, labels);
+                        break;
+                }
+            }
+        }
     }
 
     @Override
@@ -964,20 +1125,26 @@ public class RouterServiceImpl implements RouterService {
             newUsage.setStatus(Constant.EXTERNAL_PORT_STATUS_CONFIRM_USED);
             portClusterUsageService.insertNodeportUsage(newUsage);
             rule.setPort(String.valueOf(port));
-            this.updateSystemExposeConfigmap(cluster, svcRouterDto.getNamespace(), svcRouterDto.getName(), Arrays.asList(rule), rule.getProtocol());
+            this.updateSystemExposeConfigmap(cluster, svcRouterDto.getNamespace(), svcRouterDto.getName(), svcRouterDto.getIcName(), Arrays.asList(rule), rule.getProtocol());
         }
         return ActionReturnUtil.returnSuccess();
     }
 
     @Override
-    public List<Map<String, Object>> createExternalRule(ServiceTemplateDto svcTemplate, String namespace) throws Exception {
+    public List<Map<String, Object>> createExternalRule(ServiceTemplateDto svcTemplate, String namespace, String serviceType) throws Exception {
         List<Map<String, Object>> message = new ArrayList<>();
         for (IngressDto ingress : svcTemplate.getIngress()) {
             if (Constant.PROTOCOL_HTTP.equals(ingress.getType()) && !StringUtils.isEmpty(ingress.getParsedIngressList().getName())) {
                 Map<String, Object> labels = new HashMap<String, Object>();
-                labels.put("app", svcTemplate.getDeploymentDetail().getName());
+                if(Constant.STATEFULSET.equalsIgnoreCase(serviceType)){
+                    labels.put("app", svcTemplate.getStatefulSetDetail().getName());
+                }else {
+                    labels.put("app", svcTemplate.getDeploymentDetail().getName());
+                }
+                labels.put("tenantId", svcTemplate.getTenantId());
                 ingress.getParsedIngressList().setLabels(labels);
                 ingress.getParsedIngressList().setNamespace(namespace);
+                ingress.getParsedIngressList().setServiceType(serviceType);
                 ActionReturnUtil httpIngRes = this.ingCreate(ingress.getParsedIngressList());
                 if (!httpIngRes.isSuccess()) {
                     Map<String, Object> map = new HashMap<>();
@@ -988,6 +1155,7 @@ public class RouterServiceImpl implements RouterService {
             if ((ingress.getType().contains(Constant.PROTOCOL_TCP)|| ingress.getType().contains(Constant.PROTOCOL_UDP)) && !StringUtils.isEmpty(ingress.getSvcRouter().getApp())) {
                 ingress.getSvcRouter().setNamespace(namespace);
                 ingress.getSvcRouter().setName(ingress.getSvcRouter().getApp());
+                ingress.getSvcRouter().setServiceType(serviceType);
                 ActionReturnUtil tcpSvcRes = this.createRuleInDeploy(ingress.getSvcRouter());
                 if (!tcpSvcRes.isSuccess()) {
                     Map<String, Object> map = new HashMap<>();
@@ -1020,5 +1188,304 @@ public class RouterServiceImpl implements RouterService {
             return isExist;
         }
         return false;
+    }
+
+    /**
+     * 根据ingress信息以及对应的负载均衡器组装http对外服务的map形式的信息，
+     * @param ingress http对外服务ingress
+     * @param icList 负载均衡器列表
+     * @return
+     */
+    private Map<String, Object> getIngressRouter(Ingress ingress, List<IngressControllerDto> icList) {
+        Map<String, Object> httpSvc = new HashMap<>();
+        httpSvc.put("name", ingress.getMetadata().getName());
+        String icName = IC_DEFAULT_NAME;
+        //获取ingress使用的负载均衡器名称
+        if (ingress.getMetadata().getLabels() != null && ingress.getMetadata().getLabels().get(LABEL_INGRESS_CLASS) != null) {
+            icName = ingress.getMetadata().getLabels().get(LABEL_INGRESS_CLASS).toString();
+        }
+        //若暴露单个实例，获取实例名
+        if (ingress.getMetadata().getLabels() != null && ingress.getMetadata().getLabels().get(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_PODNAME) != null) {
+            httpSvc.put("podName", ingress.getMetadata().getLabels().get(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_PODNAME));
+        }
+        httpSvc.put("icName", icName);
+        httpSvc.put("type", PROTOCOL_HTTP);
+        //获取负载均衡器的端口
+        String port = IC_DEFAULT_PORT;
+        for (IngressControllerDto ic : icList) {
+            if (icName.equals(ic.getIcName())) {
+                port = String.valueOf(ic.getHttpPort());
+                break;
+            }
+        }
+        List<Map<String, Object>> addressList = new ArrayList<>();
+        httpSvc.put("address", addressList);
+        List<IngressRule> rules = ingress.getSpec().getRules();
+        if (CollectionUtils.isEmpty(rules)) {
+            return httpSvc;
+        }
+        Map<String, Object> annotation = ingress.getMetadata().getAnnotations();
+        ClusterDomainPort domainPort = Objects.nonNull(annotation) && annotation.containsKey(Constant.INGRESS_MULTIPLE_PORT_ANNOTATION)?
+                JsonUtil.jsonToPojo(annotation.get(Constant.INGRESS_MULTIPLE_PORT_ANNOTATION).toString(), ClusterDomainPort.class) : null;
+        //一个ingress只有一个规则
+        IngressRule rule = rules.get(0);
+        HTTPIngressRuleValue http = rule.getHttp();
+        List<HTTPIngressPath> paths = http.getPaths();
+        //根据ingress的规则组装访问的http url 地址， 包括域名+服务路径和端口
+        if (CollectionUtils.isNotEmpty(paths)) {
+            for (HTTPIngressPath path : paths) {
+                Map<String, Object> j = new HashMap<>();
+                if (path.getBackend() != null) {
+                    j.put("port", path.getBackend().getServicePort());
+                }
+                if (StringUtils.isNotBlank(path.getPath())) {
+                    if (path.getPath().lastIndexOf(CommonConstant.SLASH) != path.getPath().length() - NUM_ONE) {
+                        path.setPath(path.getPath());
+                    }
+                    if (CommonConstant.SLASH.equals(path.getPath())) {
+                        path.setPath("");
+                    }
+                }
+                //设置为外网访问port
+                if (Objects.nonNull(domainPort)) {
+                    port = String.valueOf(domainPort.getPort());
+                    httpSvc.put("type", domainPort.getProtocol());
+                }
+                //判断域名类型
+                String host = rule.getHost();
+                String hostName = port.equals(IC_DEFAULT_PORT) ? host : host + CommonConstant.COLON + port;
+                hostName = StringUtils.isNotBlank(path.getPath()) ? hostName + path.getPath() : hostName;
+                j.put("hostname", hostName);
+                addressList.add(j);
+            }
+        }
+        httpSvc.put("address", addressList);
+        return httpSvc;
+    }
+
+    private Ingress buildIngress(String namespace, ParsedIngressListDto parsedIngressList,
+                                 IngressControllerDto ingressControllerDto){
+        Ingress ingress = new Ingress();
+        ingress.setMetadata(new ObjectMeta());
+        ingress.setSpec(new IngressSpec());
+
+        Map<String, Object> annotation = new HashMap<String, Object>();
+        if (parsedIngressList.getAnnotation() != null) {
+            annotation.put("nephele/annotation", parsedIngressList.getAnnotation());
+        }
+        String icName = ingressControllerDto.getIcName();
+        if (!IC_DEFAULT_NAME.equals(icName)) {
+            annotation.put(LABEL_INGRESS_CLASS, icName);
+            parsedIngressList.getLabels().put(LABEL_INGRESS_CLASS, icName);
+        }
+        ClusterDomainPort domainPort = new ClusterDomainPort();
+        domainPort.setPort(Integer.valueOf(parsedIngressList.getExposePort()));
+        domainPort.setProtocol(parsedIngressList.getProtocol());
+        domainPort.setExternal(parsedIngressList.getExternal());
+        annotation.put(Constant.INGRESS_MULTIPLE_PORT_ANNOTATION, JsonUtil.convertToJson(domainPort));
+        ingress.getMetadata().setAnnotations(annotation);
+        List<HttpRuleDto> rules = parsedIngressList.getRules();
+
+        List<HTTPIngressPath> path = new ArrayList<>();
+        if (CollectionUtils.isNotEmpty(rules)) {
+            for (HttpRuleDto rule : rules) {
+                HTTPIngressPath p = new HTTPIngressPath();
+                IngressBackend backend = new IngressBackend();
+                backend.setServiceName(rule.getService());
+                backend.setServicePort(Integer.valueOf(rule.getPort()));
+                p.setBackend(backend);
+                p.setPath(rule.getPath());
+                path.add(p);
+            }
+        }
+        ingress.getMetadata().setLabels(parsedIngressList.getLabels());
+        ingress.getMetadata().setNamespace(namespace);
+
+        IngressRule ingressRule = new IngressRule();
+        ingressRule.setHost(parsedIngressList.getHost());
+        HTTPIngressRuleValue http = new HTTPIngressRuleValue();
+        http.setPaths(path);
+        ingressRule.setHttp(http);
+        ingress.getSpec().setRules(new ArrayList<>());
+        ingress.getSpec().getRules().add(ingressRule);
+
+        ingress.getMetadata().setName(parsedIngressList.getName());
+        return ingress;
+    }
+
+    /**
+     * 为单个实例创建服务
+     * @param podName
+     * @param namespace
+     * @param serviceName
+     * @param cluster
+     * @return
+     * @throws Exception
+     */
+    private String createSvc(String podName, String namespace, String serviceName, Cluster cluster) throws Exception {
+        String newServiceName = podName + CommonConstant.LINE + RandomNum.getRandomString(CommonConstant.NUM_EIGHT);
+
+        Map bodys= new HashMap();
+        String selectLabel = Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_PODNAME +CommonConstant.EQUALITY_SIGN + podName;
+        bodys.put(CommonConstant.LABELSELECTOR, selectLabel);
+        K8SClientResponse getRes = sService.doSepcifyService(namespace, null, null, bodys, HTTPMethod.GET, cluster);
+        if(HttpStatusUtil.isSuccessStatus(getRes.getStatus())){
+            ServiceList serviceList = JsonUtil.jsonToPojo(getRes.getBody(), ServiceList.class);
+            if(CollectionUtils.isNotEmpty(serviceList.getItems())){
+                return serviceList.getItems().get(0).getMetadata().getName();
+            }
+        }
+        K8SClientResponse response = sService.doSepcifyService(namespace, serviceName, null, null, HTTPMethod.GET, cluster);
+        if(!HttpStatusUtil.isSuccessStatus(response.getStatus())){
+            throw new MarsRuntimeException();
+        }
+        com.harmonycloud.k8s.bean.Service service = JsonUtil.jsonToPojo(response.getBody(), com.harmonycloud.k8s.bean.Service.class);
+
+        com.harmonycloud.k8s.bean.Service createService = new com.harmonycloud.k8s.bean.Service();
+        ObjectMeta objectMeta = new ObjectMeta();
+        objectMeta.setName(newServiceName);
+        objectMeta.setNamespace(namespace);
+        Map label = new HashMap();
+        label.put(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_PODNAME, podName);
+        label.put(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET, serviceName);
+        objectMeta.setLabels(label);
+        createService.setMetadata(objectMeta);
+        ServiceSpec spec = new ServiceSpec();
+        Map selector = new HashMap();
+        selector.put(CommonConstant.LABEL_STATEFULSET_POD, podName);
+        spec.setSelector(selector);
+        spec.setPorts(service.getSpec().getPorts());
+        createService.setSpec(spec);
+        Map<String, Object> createBodys = CollectionUtil.transBean2Map(createService);
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("Content-Type", "application/json");
+        K8SClientResponse createRes = sService.doSepcifyService(namespace, null, headers, createBodys, HTTPMethod.POST, cluster);
+        if(!HttpStatusUtil.isSuccessStatus(createRes.getStatus())){
+
+        }
+        return newServiceName;
+    }
+
+    @Override
+    public ErrDeployDto transferRuleDeploy(SvcRouterDto svcRouterDto,String deployName) throws Exception {
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(svcRouterDto.getNamespace());
+        List<TcpRuleDto> rules = svcRouterDto.getRules();
+        for (TcpRuleDto rule : rules) {
+            Integer port = StringUtils.isBlank(rule.getPort()) ? this.chooseOnePort(cluster) : Integer.valueOf(rule.getPort());
+            NodePortClusterUsage newUsage = new NodePortClusterUsage();
+            newUsage.setClusterId(cluster.getId());
+            newUsage.setCreateTime(new Date());
+            newUsage.setNodeport(port);
+            newUsage.setStatus(Constant.EXTERNAL_PORT_STATUS_CONFIRM_USED);
+            portClusterUsageService.insertNodeportUsage(newUsage);
+            rule.setPort(String.valueOf(port));
+            ErrDeployDto errDeployDto = this.transferSystemExposeConfigmap(cluster, svcRouterDto.getNamespace(), svcRouterDto.getName(), svcRouterDto.getIcName(), Arrays.asList(rule), rule.getProtocol(),deployName);
+            if (errDeployDto != null) {
+                return errDeployDto;
+            }
+        }
+        return null;
+    }
+
+    public ErrDeployDto transferSystemExposeConfigmap(Cluster cluster, String namespace, String service, String icName,
+                                                      List<TcpRuleDto> rules, String protocol,String deployName) throws Exception {
+        ConfigMap configMap = getSystemExposeConfigmap(icName, cluster, protocol);
+        Map<String, Object> data = (Map<String, Object>) configMap.getData();
+        if (data == null) {
+            data = new HashMap<>();
+        }
+        if (CollectionUtils.isNotEmpty(rules)) {
+            for (TcpRuleDto rule : rules) {
+                data.put(rule.getPort(), namespace + "/" + service + ":" + rule.getTargetPort());
+            }
+            //更新configmap
+            configMap.setData(data);
+            return configMapService.transferConfigmap(configMap, cluster,deployName);
+        }
+        return null;
+    }
+
+    @Override
+    public ErrDeployDto transferIngressCreate(ParsedIngressListDto parsedIngressList, DeploymentTransferDto deploymentTransferDto ,Cluster sourceCluster) throws Exception {
+        ErrDeployDto err = new ErrDeployDto();
+        if (parsedIngressList == null || StringUtils.isBlank(parsedIngressList.getNamespace()) ||
+                StringUtils.isBlank(parsedIngressList.getName()) || StringUtils.isBlank(parsedIngressList.getIcName())) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        String icName = parsedIngressList.getIcName();
+        //获取旧的ingress
+        Ingress ingresse = icService.getIngressByName( deploymentTransferDto.getCurrentNameSpace(),parsedIngressList.getName(), sourceCluster);
+        if (ingresse != null){
+            Map<String, Object> annotations = ingresse.getMetadata().getAnnotations();
+            Map params = JsonUtil.convertJsonToMap(annotations.get(INGRESS_MULTIPLE_PORT_ANNOTATION).toString());
+            parsedIngressList.setExposePort(params.get("port").toString());
+            parsedIngressList.setProtocol((String) params.get("protocol"));
+            parsedIngressList.setExternal((Boolean) params.get("external"));
+        }
+        String namespace = parsedIngressList.getNamespace();
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        //判断集群内是否有相同名称的ingress
+        if (checkIngressName(cluster, parsedIngressList.getName())) {
+            err.setDeployName(deploymentTransferDto.getCurrentDeployName());
+            err.setErrMsg(ErrorCodeMessage.HTTP_INGRESS_NAME_DUPLICATE.getReasonChPhrase());
+            return err;
+        }
+        //根据icName，检查集群里是否有这个负载均衡器
+        IngressControllerDto ingressControllerDto = ingressControllerService.getIngressController(icName, cluster.getId());
+        if (ingressControllerDto == null) {
+            err.setDeployName(deploymentTransferDto.getCurrentDeployName());
+            err.setErrMsg("Ingress-controller资源不存在！");
+            return err;
+        }
+
+        ServiceTypeEnum serviceType = null;
+        if(StringUtils.isBlank(parsedIngressList.getServiceType())){
+            serviceType = ServiceTypeEnum.DEPLOYMENT;
+        }else{
+            serviceType = ServiceTypeEnum.valueOf(parsedIngressList.getServiceType().toUpperCase());
+        }
+        //若为有状态服务，且指定了实例名，需要为实例创建单独的service
+        String serviceName = null;
+        if(serviceType == ServiceTypeEnum.STATEFULSET ){
+            if(parsedIngressList.getLabels() != null) {
+                parsedIngressList.getLabels().put(Constant.TYPE_STATEFULSET, parsedIngressList.getServiceName());
+            }
+            if(StringUtils.isNotEmpty(parsedIngressList.getPodName())) {
+                serviceName = this.createSvc(parsedIngressList.getPodName(), parsedIngressList.getNamespace(), parsedIngressList.getServiceName(), cluster);
+                if (parsedIngressList.getLabels() == null) {
+                    parsedIngressList.setLabels(new HashMap<>());
+                }
+                parsedIngressList.getLabels().put(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_PODNAME, parsedIngressList.getPodName());
+                for (HttpRuleDto httpRuleDto : parsedIngressList.getRules()) {
+                    httpRuleDto.setService(serviceName);
+                }
+            }
+        }
+        Ingress ingress = this.buildIngress(namespace, parsedIngressList, ingressControllerDto);
+        Map<String, Object> body = CollectionUtil.transBean2Map(ingress);
+        K8SURL url = new K8SURL();
+        Map<String, Object> head = new HashMap<String, Object>();
+        head.put("Content-Type", "application/json");
+        url.setNamespace(namespace).setResource(Resource.INGRESS);
+        K8SClientResponse k = new K8sMachineClient().exec(url, HTTPMethod.POST, head, body, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(k.getStatus())) {
+            err.setDeployName(deploymentTransferDto.getCurrentDeployName());
+            err.setErrMsg("Ingress创建失败");
+            return err;
+        }
+
+
+        Map<String,Object> labels = new HashMap<String,Object>();
+        labels.put(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE,INGRESS_SERVICE_TRUE);
+        String name = parsedIngressList.getRules().get(0).getService();
+        switch(serviceType){
+            case DEPLOYMENT:
+                deploymentsService.updateLabels(namespace,name,cluster,labels);
+                break;
+            case STATEFULSET:
+                statefulSetsService.updateLabels(namespace, name, cluster, labels);
+                break;
+        }
+        return null;
     }
 }

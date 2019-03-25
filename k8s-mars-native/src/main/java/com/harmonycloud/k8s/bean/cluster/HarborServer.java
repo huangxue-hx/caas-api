@@ -3,6 +3,10 @@ package com.harmonycloud.k8s.bean.cluster;
 import java.io.Serializable;
 import java.util.Date;
 
+import static com.harmonycloud.common.Constant.CommonConstant.COLON;
+import static com.harmonycloud.common.Constant.CommonConstant.DEFAULT_HARBOR_PORT;
+import static com.harmonycloud.common.Constant.CommonConstant.DEFAULT_HTTPS_PORT;
+
 /**
  * Created by zhangkui on 17/12/19.
  */
@@ -29,6 +33,11 @@ public class HarborServer implements Serializable {
 
 	private Date createTime;
 	private Boolean isNormal;
+
+	/**
+	 * 哪些集群使用当前harbor（多个集群公用一个）
+	 */
+	private String referredClusterAliasNames;
 
 	public HarborServer() {
 		super();
@@ -105,6 +114,13 @@ public class HarborServer implements Serializable {
 		return harborProtocol + "://" + harborHost +":"+harborPort;
 	}
 
+	public String getHarborAddress(){
+		if(!DEFAULT_HTTPS_PORT.equals(harborPort) && !DEFAULT_HARBOR_PORT.equals(harborPort)){
+			return harborHost + COLON + harborPort;
+		}
+		return harborHost;
+	}
+
 	public String getReferredClusterNames() {
 		return referredClusterNames;
 	}
@@ -135,5 +151,13 @@ public class HarborServer implements Serializable {
 
 	public void setReferredClusterIds(String referredClusterIds) {
 		this.referredClusterIds = referredClusterIds;
+	}
+
+	public String getReferredClusterAliasNames() {
+		return referredClusterAliasNames;
+	}
+
+	public void setReferredClusterAliasNames(String referredClusterAliasNames) {
+		this.referredClusterAliasNames = referredClusterAliasNames;
 	}
 }

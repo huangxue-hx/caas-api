@@ -21,9 +21,9 @@ public class ClusterCRDController {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    ClusterCRDService clusterCRDService;
+    private ClusterCRDService clusterCRDService;
     @Autowired
-    ClusterService clusterService;
+    private ClusterService clusterService;
 
     /**
      * 获取 clusterTPR 列表
@@ -96,7 +96,7 @@ public class ClusterCRDController {
         if (null == cluster) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
-        return clusterCRDService.updateCluster(cluster.getName(),clusterCRDDto);
+        return clusterCRDService.updateCluster(cluster, clusterCRDDto);
     }
 
     @ResponseBody

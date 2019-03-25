@@ -1,9 +1,11 @@
 package com.harmonycloud.service.tenant;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
 import com.harmonycloud.dto.tenant.ClusterQuotaDto;
 import jnr.ffi.annotations.In;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by zgl on 17-12-10.
@@ -30,6 +32,15 @@ public interface TenantClusterQuotaService {
      * @throws Exception
      */
     public void getClusterUsage(String tenantId,String clusterId,ClusterQuotaDto clusterQuotaDto) throws Exception;
+
+
+    /**
+     * 获取集群存储已使用的值
+     * @param tenantId
+     * @param clusterId
+     * @throws Exception
+     */
+    public Map<String, Integer> getStorageUsage(String tenantId, String clusterId) throws Exception;
     /**
      * 根据id查询租户某个集群下的配额
      * @param
@@ -95,4 +106,33 @@ public interface TenantClusterQuotaService {
     public void renewClusterQuotaByClusterId(String clusterId) throws Exception;
 
     int deleteByClusterId(String clusterId);
+
+    /**
+     * 根据租户id查询集群配额列表 clusterId 为空查询该租户下的所有集群配额
+     * @return
+     * @throws Exception
+     */
+    public List<TenantClusterQuota> listClusterQuotaLikeIcName(String icName, String clusterId) throws MarsRuntimeException;
+
+    /**
+     * 根据集群id和存储  获取绑定存储的租户信息
+     * @return
+     * @throws Exception
+     */
+    public List<TenantClusterQuota> listClusterQuotaLikeStorage(String Storage, String clusterId) throws MarsRuntimeException;
+
+    /**
+     * query cluster ingress controller
+     * @param clusterId
+     * @return
+     * @throws MarsRuntimeException
+     */
+    List<TenantClusterQuota> listClusterQuotaICs(String clusterId) throws MarsRuntimeException;
+
+    /**
+     * 根据租户id查询集群配额列表 clusterId 为空查询该租户下的所有集群配额
+     * @return
+     * @throws Exception
+     */
+    public List<ClusterQuotaDto> clusterList(String tenantId,String clusterId) throws Exception;
 }

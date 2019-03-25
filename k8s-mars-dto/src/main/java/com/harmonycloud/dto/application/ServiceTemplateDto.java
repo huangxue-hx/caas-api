@@ -17,9 +17,13 @@ public class ServiceTemplateDto {
 
     private String tenant;
 
+    private String tenantId;
+
     private Integer external;// 1:external
 
     private DeploymentDetailDto deploymentDetail;
+
+    private StatefulSetDetailDto statefulSetDetail;
 
     private List<IngressDto> ingress;
     
@@ -32,6 +36,28 @@ public class ServiceTemplateDto {
     private String projectId;
 
     private String clusterId;
+
+    private String serviceType;
+
+    public String getServiceType() {
+        return serviceType;
+    }
+
+    public void setServiceType(String serviceType) {
+        this.serviceType = serviceType;
+    }
+
+    private String serviceAccount;
+
+
+    public String getServiceAccount() {
+        return serviceAccount;
+    }
+
+    public void setServiceAccount(String serviceAccount) {
+        this.serviceAccount = serviceAccount;
+    }
+
 
     public String getClusterId() {
         return clusterId;
@@ -89,7 +115,15 @@ public class ServiceTemplateDto {
         this.tenant = tenant;
     }
 
-	public DeploymentDetailDto getDeploymentDetail() {
+    public String getTenantId() {
+        return tenantId;
+    }
+
+    public void setTenantId(String tenantId) {
+        this.tenantId = tenantId;
+    }
+
+    public DeploymentDetailDto getDeploymentDetail() {
 		return deploymentDetail;
 	}
 
@@ -135,5 +169,13 @@ public class ServiceTemplateDto {
 
     public void setProjectId(String projectId) {
         this.projectId = projectId;
+    }
+
+    public StatefulSetDetailDto getStatefulSetDetail() {
+        return statefulSetDetail;
+    }
+
+    public void setStatefulSetDetail(StatefulSetDetailDto statefulSetDetail) {
+        this.statefulSetDetail = statefulSetDetail;
     }
 }

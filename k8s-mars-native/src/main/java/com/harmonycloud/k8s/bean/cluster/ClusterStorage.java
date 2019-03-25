@@ -10,6 +10,7 @@ public class ClusterStorage implements Serializable {
     private String ip ;
     private String name ;
     private String path ;
+    private String capacity;
 
     public String getIp() {
         return ip;
@@ -33,5 +34,13 @@ public class ClusterStorage implements Serializable {
 
     public void setPath(String path) {
         this.path = path;
+    }
+
+    public String getCapacity() {
+        return capacity;
+    }
+
+    public void setCapacity(String capacity) {
+        this.capacity = capacity;
     }
 }

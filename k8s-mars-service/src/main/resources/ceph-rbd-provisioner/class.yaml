@@ -1,0 +1,21 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  annotations:
+    storageLimit: limitNum
+    storageUsed: usedNum
+    type: storageType
+  name: scName
+parameters:
+  adminId: adminIdValue
+  adminSecretName: adminSecretNameValue
+  adminSecretNamespace: kube-system
+  imageFeatures: layering
+  imageFormat: "1"
+  monitors: monitorsAddr
+  pool: poolName
+  userId: userIdValue
+  userSecretName: userSecretNameValue
+  userSecretNamespace: kube-system
+provisioner: ceph.com/rbd
+reclaimPolicy: Delete

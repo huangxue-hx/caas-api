@@ -10,7 +10,8 @@ public enum  StageTemplateTypeEnum {
     SCRIPT(3),
     INTEGRATIONTEST(8),
     CODESCAN(7),
-    CUSTOM(6);
+    CUSTOM(6),
+    IMAGEPUSH(9);
 
     private int code;
 

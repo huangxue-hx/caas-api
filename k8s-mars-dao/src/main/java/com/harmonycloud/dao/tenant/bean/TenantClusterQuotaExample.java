@@ -455,6 +455,76 @@ public class TenantClusterQuotaExample {
             return (Criteria) this;
         }
 
+        public Criteria andStorageQuotasIsNull() {
+            addCriterion("storage_quotas is null");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasIsNotNull() {
+            addCriterion("storage_quotas is not null");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasEqualTo(String value) {
+            addCriterion("storage_quotas =", value, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasNotEqualTo(String value) {
+            addCriterion("storage_quotas <>", value, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasGreaterThan(String value) {
+            addCriterion("storage_quotas >", value, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasGreaterThanOrEqualTo(String value) {
+            addCriterion("storage_quotas >=", value, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasLessThan(String value) {
+            addCriterion("storage_quotas <", value, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasLessThanOrEqualTo(String value) {
+            addCriterion("storage_quotas <=", value, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasLike(String value) {
+            addCriterion("storage_quotas like", value, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasNotLike(String value) {
+            addCriterion("storage_quotas not like", value, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasIn(List<String> values) {
+            addCriterion("storage_quotas in", values, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasNotIn(List<String> values) {
+            addCriterion("storage_quotas not in", values, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasBetween(String value1, String value2) {
+            addCriterion("storage_quotas between", value1, value2, "storageQuotas");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasNotBetween(String value1, String value2) {
+            addCriterion("storage_quotas not between", value1, value2, "storageQuotas");
+            return (Criteria) this;
+        }
+
         public Criteria andUpdateTimeIsNull() {
             addCriterion("update_time is null");
             return (Criteria) this;
@@ -645,6 +715,76 @@ public class TenantClusterQuotaExample {
             return (Criteria) this;
         }
 
+        public Criteria andIcNamesIsNull() {
+            addCriterion("ic_names is null");
+            return (Criteria) this;
+        }
+
+        public Criteria andIcNamesIsNotNull() {
+            addCriterion("ic_names is not null");
+            return (Criteria) this;
+        }
+
+        public Criteria andIcNamesEqualTo(String value) {
+            addCriterion("ic_names =", value, "icNames");
+            return (Criteria) this;
+        }
+
+        public Criteria andIcNamesNotEqualTo(String value) {
+            addCriterion("ic_names <>", value, "icNames");
+            return (Criteria) this;
+        }
+
+        public Criteria andIcNamesGreaterThan(String value) {
+            addCriterion("ic_names >", value, "icNames");
+            return (Criteria) this;
+        }
+
+        public Criteria andIcNamesGreaterThanOrEqualTo(String value) {
+            addCriterion("ic_names >=", value, "icNames");
+            return (Criteria) this;
+        }
+
+        public Criteria andIcNamesLessThan(String value) {
+            addCriterion("ic_names <", value, "icNames");
+            return (Criteria) this;
+        }
+
+        public Criteria andIcNamesLessThanOrEqualTo(String value) {
+            addCriterion("ic_names <=", value, "icNames");
+            return (Criteria) this;
+        }
+
+        public Criteria andIcNamesLike(String value) {
+            addCriterion("ic_names like", value, "icNames");
+            return (Criteria) this;
+        }
+
+        public Criteria andIcNamesNotLike(String value) {
+            addCriterion("ic_names not like", value, "icNames");
+            return (Criteria) this;
+        }
+
+        public Criteria andIcNamesIn(List<String> values) {
+            addCriterion("ic_names in", values, "icNames");
+            return (Criteria) this;
+        }
+
+        public Criteria andIcNamesNotIn(List<String> values) {
+            addCriterion("ic_names not in", values, "icNames");
+            return (Criteria) this;
+        }
+
+        public Criteria andIcNamesBetween(String value1, String value2) {
+            addCriterion("ic_names between", value1, value2, "icNames");
+            return (Criteria) this;
+        }
+
+        public Criteria andIcNamesNotBetween(String value1, String value2) {
+            addCriterion("ic_names not between", value1, value2, "icNames");
+            return (Criteria) this;
+        }
+
         public Criteria andReserve1IsNull() {
             addCriterion("reserve1 is null");
             return (Criteria) this;
@@ -720,8 +860,23 @@ public class TenantClusterQuotaExample {
             return (Criteria) this;
         }
 
+        public Criteria andClusterIdLikeInsensitive(String value) {
+            addCriterion("upper(cluster_id) like", value.toUpperCase(), "clusterId");
+            return (Criteria) this;
+        }
+
+        public Criteria andStorageQuotasLikeInsensitive(String value) {
+            addCriterion("upper(storage_quotas) like", value.toUpperCase(), "storageQuotas");
+            return (Criteria) this;
+        }
+
         public Criteria andClusterNameLikeInsensitive(String value) {
             addCriterion("upper(cluster_name) like", value.toUpperCase(), "clusterName");
+            return (Criteria) this;
+        }
+
+        public Criteria andIcNamesLikeInsensitive(String value) {
+            addCriterion("upper(ic_names) like", value.toUpperCase(), "icNames");
             return (Criteria) this;
         }
 

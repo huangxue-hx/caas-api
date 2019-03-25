@@ -18,7 +18,7 @@ public enum HarborSecurityFlagNameEnum {
         return flagName;
     }
 
-    public void setFlagName(String flagName) {
+    private void setFlagName(String flagName) {
         this.flagName = flagName;
     }
 }

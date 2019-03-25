@@ -1,16 +1,18 @@
 package com.harmonycloud.service.tenant;
 
-import java.util.List;
-import java.util.Map;
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.tenant.bean.Project;
+import com.harmonycloud.dao.tenant.bean.Tenant;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.bean.UserRoleRelationship;
+import com.harmonycloud.dto.cluster.IngressControllerDto;
 import com.harmonycloud.dto.tenant.CDPUserDto;
 import com.harmonycloud.dto.tenant.ClusterQuotaDto;
 import com.harmonycloud.dto.tenant.TenantDto;
 import com.harmonycloud.service.platform.bean.NodeDto;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * 租户业务接口
@@ -87,6 +89,14 @@ public interface TenantService {
      * @return
      */
     public TenantBinding getTenantByTenantid(String tenantid) throws Exception;
+
+    /**
+     * 根据集群id，租户id获取该租户还可以使用的存储资源
+     * @param clusterId
+     * @return
+     * @throws Exception
+     */
+    public Map<String, Integer> getStorageClassUnused(String tenantId, String clusterId) throws Exception;
 
     /**
      * 查询tenant下所有Tm用户
@@ -245,4 +255,26 @@ public interface TenantService {
     public void updateTenantMember(String tenantId, List <String> addUsers, List <String> deleteUsers) throws Exception;
     public List<TenantBinding> testTime(Integer domain) throws Exception;
 
+    /**
+     * 修改租户策略
+     * @param tenantId
+     * @param strategy
+     */
+    public void updateTenantStrategy(String tenantId,Integer strategy) throws Exception;
+
+    /**
+     * 移除租户在集群下的配额
+     * @param tenantId
+     * @param clusterQuota
+     * @throws Exception
+     */
+    public void removeClusterQuota(String tenantName, String tenantId, ClusterQuotaDto clusterQuota) throws Exception;
+
+    /**
+     * 查询某个租户在某个集群下的所有可用负载均衡器
+     * 包括全局负载均衡器和分配给租户的自定义负载均衡器
+     */
+    List<IngressControllerDto> getTenantIngressController(String tenantId, String clusterId) throws Exception;
+
+    List<Tenant> queryTenantByClusterId(String clusterId) throws Exception;
 }

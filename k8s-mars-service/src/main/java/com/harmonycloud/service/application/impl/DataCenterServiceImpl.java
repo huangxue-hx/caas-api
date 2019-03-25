@@ -22,12 +22,14 @@ import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.application.DataCenterService;
 
 
+import com.harmonycloud.service.cluster.ClusterService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.harmonycloud.k8s.util.DefaultClient ;
+import org.springframework.util.CollectionUtils;
 
 
 import java.util.ArrayList;
@@ -35,37 +37,53 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.harmonycloud.service.platform.constant.Constant.TOP_DATACENTER;
+
 @Service
 public class DataCenterServiceImpl implements DataCenterService {
     private static final String  DATACENTER_LABEL = "kind=dataCenter";
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    NamespaceService namespaceService;
+    private ClusterService clusterService;
+    @Autowired
+    private NamespaceService namespaceService;
 
-    ClusterCRDService clusterCRDService = new ClusterCRDService();
+    private ClusterCRDService clusterCRDService = new ClusterCRDService();
 
     @Override
-    public ActionReturnUtil listDataCenter() throws Exception {
+    public ActionReturnUtil listDataCenter(Boolean withCluster,Boolean isEnableCluster) throws Exception {
         Cluster cluster = DefaultClient.getDefaultCluster();
         NamespaceList namespaceList = namespaceService.getNamespacesListbyLabelSelector(DATACENTER_LABEL, cluster);
         if (namespaceList.getItems() != null && namespaceList.getItems().isEmpty()) {
             return ActionReturnUtil.returnSuccessWithData(new ArrayList<>());
         }
         List<DataCenterDto> dataCenterDtoList = new ArrayList<>();
+        Map<String, List<Cluster>> dataCenterClusterMap = null;
+        if(withCluster != null && withCluster){
+            dataCenterClusterMap = clusterService.groupCluster(isEnableCluster);
+        }
+        DataCenterDto topDataCenterDto = null;
         for(Namespace ns : namespaceList.getItems()){
             Map<String, Object> anno = ns.getMetadata().getAnnotations();
             if (null == anno || StringUtils.isBlank((String)anno.get("name"))){
                 continue;
             }
-            dataCenterDtoList.add(this.convertDto(ns));
+            DataCenterDto dataCenterDto = this.convertDto(ns);
+            if(withCluster != null && withCluster && !CollectionUtils.isEmpty(dataCenterClusterMap)){
+                dataCenterDto.setClusters(dataCenterClusterMap.get(dataCenterDto.getAnnotations()));
+            }
+            if(dataCenterDto.getName().equals(TOP_DATACENTER)){
+                topDataCenterDto = dataCenterDto;
+            }else {
+                dataCenterDtoList.add(dataCenterDto);
+            }
         }
-        if (dataCenterDtoList.isEmpty()) {
-            return ActionReturnUtil.returnSuccessWithData(CommonConstant.FALSE);
-        }
-        dataCenterDtoList.sort((dataCenter1, dataCenter2) -> dataCenter2.getCreateDate().compareTo(dataCenter1.getCreateDate()));
-        return ActionReturnUtil.returnSuccessWithData(dataCenterDtoList);
 
+        //将默认数据中心放在最后面，其他数据中心按创建时间排序
+        dataCenterDtoList.sort((dataCenter1, dataCenter2) -> dataCenter1.getCreateDate().compareTo(dataCenter2.getCreateDate()));
+        dataCenterDtoList.add(topDataCenterDto);
+        return ActionReturnUtil.returnSuccessWithData(dataCenterDtoList);
     }
 
     @Override
@@ -115,6 +133,17 @@ public class DataCenterServiceImpl implements DataCenterService {
         } else {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.DATACENTER_NOT_HAS_NICENAME);
         }
+        ActionReturnUtil dataCenterResponse = listDataCenter(null,null);
+        if(!dataCenterResponse.isSuccess()){
+            return dataCenterResponse;
+        }
+        List<DataCenterDto> dataCenterDtoList = (List)dataCenterResponse.getData();
+        for(DataCenterDto dataCenter : dataCenterDtoList){
+            if(!dataCenter.getName().equalsIgnoreCase(name)
+                    && dataCenter.getAnnotations().equalsIgnoreCase(annotations)){
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NAME_EXIST);
+            }
+        }
         Map<String, Object> bodys = new HashMap<String, Object>();
         bodys = CollectionUtil.transBean2Map(ns);
         Map<String, Object> headers = new HashMap<>();
@@ -132,6 +161,19 @@ public class DataCenterServiceImpl implements DataCenterService {
         if (!this.isEmpty(dataCenterDto)) {
             logger.error("dataCeneterDto Object or parameters is null");
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        ActionReturnUtil response = listDataCenter(null,null);
+        if(!response.isSuccess()){
+            return response;
+        }
+        List<DataCenterDto> dataCenterDtoList = (List)response.getData();
+        for(DataCenterDto dataCenter : dataCenterDtoList){
+            if(dataCenter.getName().equalsIgnoreCase(dataCenterDto.getName())){
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.ENGLISH_NAME_EXIST);
+            }
+            if(dataCenter.getAnnotations().equalsIgnoreCase(dataCenterDto.getAnnotations())){
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NAME_EXIST);
+            }
         }
         Cluster cluster = DefaultClient.getDefaultCluster();
         ObjectMeta objectMeta = new ObjectMeta();

@@ -18,7 +18,9 @@ public enum AuditQueryDbEnum {
     HARBORPROJECTSERVICE(8),
     LOCALROLESERVICE(9),
     CLUSTERSERVICE(10),
-    LOGBACKUPRULEMAPPER(11);
+    LOGBACKUPRULEMAPPER(11),
+    CONFIGCENTERSERVICE(12),
+    PROJECT(13);
 
     private final Integer code;
 

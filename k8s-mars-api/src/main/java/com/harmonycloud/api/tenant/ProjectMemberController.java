@@ -3,12 +3,16 @@ package com.harmonycloud.api.tenant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dao.user.bean.UserRoleRelationship;
-import com.harmonycloud.dto.tenant.DevOpsProjectUserDto;
+import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dto.tenant.ProjectDto;
 import com.harmonycloud.dto.user.UserRoleDto;
 import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.user.RolePrivilegeService;
+import com.harmonycloud.service.user.UserService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiImplicitParam;
+import io.swagger.annotations.ApiImplicitParams;
+import io.swagger.annotations.ApiOperation;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,13 +28,16 @@ import java.util.Objects;
 /**
  * Created by zgl on 17-12-19.
  */
+@Api(description = "查询及增删项目成员")
 @Controller
 public class ProjectMemberController {
 
     @Autowired
-    ProjectService projectService;
+    private ProjectService projectService;
     @Autowired
-    RolePrivilegeService rolePrivilegeService;
+    private RolePrivilegeService rolePrivilegeService;
+    @Autowired
+    private UserService userService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -120,5 +127,20 @@ public class ProjectMemberController {
         this.projectService.removeUserRole(userRoleDto);
         return ActionReturnUtil.returnSuccess();
 
+    }
+
+    @ApiOperation(value = "查询项目成员列表")
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "tenantId", value = "租户Id", paramType = "path",dataType = "String"),
+            @ApiImplicitParam(name = "projectId", value = "项目Id", paramType = "path", dataType = "String")})
+    @RequestMapping(value = "/tenants/{tenantId}/projects/{projectId}/user", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil listProjectUser(@PathVariable(value = "tenantId") String tenantId,
+                                          @PathVariable(value = "projectId") String projectId) throws Exception {
+        if (StringUtils.isAnyBlank(tenantId,projectId)){
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        List<User> userList = this.userService.listUserByProjectId(projectId);
+        return ActionReturnUtil.returnSuccessWithData(userList);
     }
 }

@@ -1,12 +1,15 @@
 package com.harmonycloud.service.application.impl;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.dto.application.CreateContainerDto;
+import com.harmonycloud.dto.cluster.ErrDeployDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dto.application.CreateConfigMapDto;
 import com.harmonycloud.k8s.bean.ConfigMap;
@@ -22,6 +25,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.beans.IntrospectionException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
 /**
@@ -31,7 +36,7 @@ import java.util.*;
 public class ConfigMapServiceImpl implements ConfigMapService {
 
 	@Autowired
-	NamespaceLocalService namespaceLocalService;
+	private NamespaceLocalService namespaceLocalService;
     
     @Override
     public ActionReturnUtil getConfigMapByName(String namespace, String name, String method, Cluster cluster) throws Exception {
@@ -93,7 +98,7 @@ public class ConfigMapServiceImpl implements ConfigMapService {
 			Map<String, Object> convertJsonToMap = JsonUtil.convertJsonToMap(responses.getBody());
 			String metadata = convertJsonToMap.get(CommonConstant.METADATA).toString();
 			if (!CommonConstant.EMPTYMETADATA.equals(metadata)) {
-				throw new MarsRuntimeException(ErrorCodeMessage.CONFIGMAP_NOT_EXIST);
+				throw new MarsRuntimeException(DictEnum.CONFIG_MAP.phrase(), ErrorCodeMessage.EXIST);
 			}
 			K8SURL url = new K8SURL();
 			url.setNamespace(namespace).setResource(Resource.CONFIGMAP);
@@ -139,5 +144,79 @@ public class ConfigMapServiceImpl implements ConfigMapService {
 			UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
 			throw new MarsRuntimeException(status.getMessage());
 		}
+	}
+
+    @Override
+    public void createConfigMap(String namespace, String configMapName, String serviceName, List<CreateConfigMapDto> configMaps, Cluster cluster, String serviceLabel) throws Exception {
+        K8SURL url = new K8SURL();
+        url.setNamespace(namespace).setResource(Resource.CONFIGMAP);
+        Map<String, Object> bodys = new HashMap<String, Object>();
+        Map<String, Object> meta = new HashMap<String, Object>();
+        meta.put("namespace", namespace);
+        meta.put("name", configMapName);
+        Map<String, Object> label = new HashMap<String, Object>();
+        label.put(serviceLabel, serviceName);
+        meta.put("labels", label);
+        bodys.put("metadata", meta);
+        Map<String, Object> data = new HashMap<String, Object>();
+        for (CreateConfigMapDto configMap : configMaps) {
+            if (configMap != null && !StringUtils.isEmpty(configMap.getPath())) {
+                if (Objects.isNull(configMap.getValue())){
+                    throw new MarsRuntimeException(ErrorCodeMessage.CONFIGMAP_IS_EMPTY);
+                }
+                if (StringUtils.isEmpty(configMap.getFile())) {
+                    data.put("config.json", configMap.getValue().toString());
+                } else {
+                    data.put(configMap.getFile() + "v" + configMap.getTag(), configMap.getValue().toString());
+                }
+            }
+        }
+        bodys.put("data", data);
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("Content-type", "application/json");
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+            throw new MarsRuntimeException(status.getMessage());
+        }
+    }
+
+    @Override
+    public void createConfigMapForService(String serviceName, List<CreateContainerDto> containers, String namespace, Cluster cluster, String serviceLabel) throws Exception {
+        if (containers != null && !containers.isEmpty()) {
+            for (CreateContainerDto c : containers) {
+                List<CreateConfigMapDto> configMaps = c.getConfigmap();
+                if (configMaps != null && configMaps.size() > 0) {
+                    K8SURL url1 = new K8SURL();
+                    url1.setNamespace(namespace).setResource(Resource.CONFIGMAP).setName(serviceName + c.getName());
+                    K8SClientResponse responses = new K8sMachineClient().exec(url1, HTTPMethod.GET, null, null, cluster);
+                    Map<String, Object> convertJsonToMap = JsonUtil.convertJsonToMap(responses.getBody());
+                    String metadata = convertJsonToMap.get(CommonConstant.METADATA).toString();
+                    if (!CommonConstant.EMPTYMETADATA.equals(metadata)) {
+                        throw new MarsRuntimeException(ErrorCodeMessage.NAME_EXIST,
+                                DictEnum.CONFIG_MAP.phrase() + serviceName + c.getName(), true);
+                    }
+                    this.createConfigMap(namespace, serviceName + c.getName(), serviceName, configMaps, cluster, serviceLabel);
+                }
+            }
+        }
+    }
+
+	@Override
+	public ErrDeployDto transferConfigmap(ConfigMap configMap, Cluster cluster, String deployName)
+			throws IntrospectionException, InvocationTargetException, IllegalAccessException {
+		ErrDeployDto errDeployDto = new ErrDeployDto();
+		Map<String, Object> headers = new HashMap<>();
+		headers.put("Content-type", "application/json");
+		Map<String, Object> bodys = CollectionUtil.transBean2Map(configMap);
+		K8SURL url = new K8SURL();
+		url.setNamespace(CommonConstant.KUBE_SYSTEM).setResource(Resource.CONFIGMAP).setName(configMap.getMetadata().getName());
+		K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.PUT, headers, bodys, cluster);
+		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+			errDeployDto.setDeployName(deployName);
+			errDeployDto.setErrMsg("创建tcpingress错误");
+			return errDeployDto;
+		}
+		return null;
 	}
 }

@@ -1,9 +1,9 @@
 package com.harmonycloud.k8s.bean;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+
+import java.util.List;
 
 /**
  * @author qg
@@ -20,6 +20,8 @@ public class PersistentVolumeClaimSpec {
 	private ResourceRequirements resources;
 	
 	private String volumeName;
+
+    private String storageClassName;
 	
 	public List<String> getAccessModes() {
 		return accessModes;
@@ -52,6 +54,12 @@ public class PersistentVolumeClaimSpec {
 	public void setVolumeName(String volumeName) {
 		this.volumeName = volumeName;
 	}
-	
-	
+
+    public String getStorageClassName() {
+        return storageClassName;
+    }
+
+    public void setStorageClassName(String storageClassName) {
+        this.storageClassName = storageClassName;
+    }
 }

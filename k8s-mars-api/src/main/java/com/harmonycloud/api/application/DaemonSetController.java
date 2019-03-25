@@ -29,7 +29,7 @@ public class DaemonSetController {
     private DaemonSetsService daemonSetsService;
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -77,7 +77,7 @@ public class DaemonSetController {
      */
     @ResponseBody
     @RequestMapping(value = "/{clusterId}/daemonsets/{name}", method = RequestMethod.DELETE)
-    public ActionReturnUtil deleteDeployments(@PathVariable(value = "name") String name,
+    public ActionReturnUtil deleteDaemonsets(@PathVariable(value = "name") String name,
                                               @RequestParam(value = "namespace", required = true) String namespace,
                                               @PathVariable(value = "clusterId") String clusterId) throws Exception {
 //        logger.info("删除DaemonSet");

@@ -56,13 +56,13 @@ import java.util.regex.Pattern;
 public class JobsServiceImpl implements JobsService{
 
     @Autowired
-    JobService jobService;
+    private JobService jobService;
     
     @Autowired
     private PersistentVolumeService volumeSerivce;
 
     @Autowired
-    PodService podService;
+    private PodService podService;
     
     @Autowired
     private ConfigmapService configmapService;
@@ -77,12 +77,12 @@ public class JobsServiceImpl implements JobsService{
     private PvService pvService;
 
 	@Autowired
-	EventService eventService;
+	private EventService eventService;
 
 	@Autowired
-	NamespaceLocalService namespaceLocalService;
+	private NamespaceLocalService namespaceLocalService;
 	@Autowired
-	ClusterService clusterService;
+	private ClusterService clusterService;
 
     @Override
     public ActionReturnUtil createJob(JobsDetailDto detail, String userName) throws Exception {
@@ -101,7 +101,7 @@ public class JobsServiceImpl implements JobsService{
     			//创建PVC
     			if (c.getStorage() != null) {
                     for (PersistentVolumeDto pvc : c.getStorage()) {
-                    	if(pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())){
+                    	if(pvc.getType() != null && Constant.VOLUME_TYPE_NFS.equals(pvc.getType())){
                     		if (pvc.getPvcName() == "" || pvc.getPvcName() == null) {
                                 continue;
                             }
@@ -596,7 +596,7 @@ public class JobsServiceImpl implements JobsService{
 				//创建PVC
 				if (c.getStorage() != null) {
 					for (PersistentVolumeDto pvc : c.getStorage()) {
-						if(pvc.getType() != null && Constant.VOLUME_TYPE_PV.equals(pvc.getType())){
+						if(pvc.getType() != null && Constant.VOLUME_TYPE_NFS.equals(pvc.getType())){
 							if (pvc.getPvcName() == "" || pvc.getPvcName() == null) {
 								continue;
 							}

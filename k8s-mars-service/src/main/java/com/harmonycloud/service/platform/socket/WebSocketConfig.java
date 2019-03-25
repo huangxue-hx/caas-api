@@ -18,15 +18,6 @@ public class WebSocketConfig extends WebMvcConfigurerAdapter implements WebSocke
 
 	@Override
 	public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-		// 注册处理拦截器,拦截url为socketServer的请求
-		//registry.addHandler(systemWebSocketHandler(), "/notification").addInterceptors(webSocketInterceptor())
-		//		.setAllowedOrigins("*");
-
-		// 注册SockJs的处理拦截器,拦截url为/sockjs/socketServer的请求
-		//registry.addHandler(systemWebSocketHandler(), "/notification").addInterceptors(webSocketInterceptor())
-		//		.setAllowedOrigins("*").withSockJS();
-
-
 
         registry.addHandler(cicdWebSocketHandler(), "/cicd/job/log").addInterceptors(webSocketInterceptor())
                 .setAllowedOrigins("*");
@@ -58,11 +49,6 @@ public class WebSocketConfig extends WebMvcConfigurerAdapter implements WebSocke
         registry.addHandler(terminalSocketHandler(), "/terminal").addInterceptors(webSocketInterceptor())
                 .setAllowedOrigins("*").withSockJS();
 
-	}
-
-	@Bean
-	public WebSocketHandler systemWebSocketHandler(){
-		return new SystemWebSocketHandler();
 	}
 
     @Bean

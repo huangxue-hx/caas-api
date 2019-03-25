@@ -5,6 +5,7 @@ import com.harmonycloud.dao.tenant.bean.NamespaceLocalExample;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 
 public interface NamespaceLocalMapper {
     int deleteByExample(NamespaceLocalExample example);
@@ -23,5 +24,7 @@ public interface NamespaceLocalMapper {
 
     int updateByPrimaryKey(NamespaceLocal record);
 
+    Map selectAliasNameByName(@Param("nameSpaceName")String nameSpaceName);
+    Map selectNameByalias_name(@Param("aliasName")String aliasName);
     int deleteByClusterId(@Param("clusterId")String clusterId);
 }

@@ -1,35 +1,67 @@
 package com.harmonycloud.service.platform.convert;
 
 
+import com.google.common.collect.Maps;
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.ServiceTypeEnum;
+import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.HttpStatusUtil;
+import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dto.application.*;
-
 import com.harmonycloud.dto.scale.HPADto;
 import com.harmonycloud.dto.scale.ResourceMetricScaleDto;
-
-import com.harmonycloud.dto.user.PrivilegeApplicationFieldDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.client.K8sMachineClient;
+import com.harmonycloud.k8s.constant.APIGroup;
+import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.constant.Resource;
+import com.harmonycloud.k8s.util.K8SClientResponse;
+import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.k8s.util.RandomNum;
-import com.harmonycloud.service.common.PrivilegeHelper;
+import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
-import com.spotify.docker.client.messages.mount.TmpfsOptions;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
+import com.harmonycloud.service.util.BizUtil;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import static com.harmonycloud.service.platform.constant.Constant.*;
 
 /**
  * @author jmi
  */
+@Component
 public class K8sResultConvert {
+    public static final int TAG_LENGTH = 4;
+    public static final String TAG_PATTERN = "v\\d-\\d";
+    private static StorageClassService storageClassService;
+    private static NamespaceLocalService namespaceLocalService;
+    private static final Logger LOGGER = LoggerFactory.getLogger(K8sResultConvert.class);
+
+
+    @Autowired
+    public void setStorageClassService(StorageClassService storageClassService){
+        K8sResultConvert.storageClassService = storageClassService;
+    }
+    @Autowired
+    public void setNamespaceLocalService(NamespaceLocalService namespaceLocalService){
+        K8sResultConvert.namespaceLocalService = namespaceLocalService;
+    }
 
     public static AppDetail convertAppDetail(Deployment dep, ServiceList serviceList, EventList eventList,
                                              EventList hapEve, PodList podList) throws Exception {
@@ -41,12 +73,6 @@ public class K8sResultConvert {
         appDetail.setNamespace(meta.getNamespace());
         appDetail.setVersion("v" + meta.getAnnotations().get("deployment.kubernetes.io/revision").toString());
         appDetail.setCreateTime(meta.getCreationTimestamp());
-        if (!meta.getAnnotations().containsKey("updateTimestamp")
-                || StringUtils.isEmpty(meta.getAnnotations().get("updateTimestamp").toString())) {
-            appDetail.setUpdateTime(meta.getCreationTimestamp());
-        } else {
-            appDetail.setUpdateTime(meta.getAnnotations().get("updateTimestamp").toString());
-        }
         appDetail.setInstance(dep.getSpec().getReplicas());
         appDetail.setOwner(meta.getLabels().get("nephele/user").toString());
         appDetail.setHostName(dep.getSpec().getTemplate().getSpec().getHostname());
@@ -82,8 +108,16 @@ public class K8sResultConvert {
                 podAntiAffinityDtos = KubeAffinityConvert.convertPodAntiAffinityDto(dep.getSpec().getTemplate().getSpec().getAffinity().getPodAntiAffinity());
                 if (CollectionUtils.isNotEmpty(podAntiAffinityDtos)) {
                     for (AffinityDto affinityDto : podAntiAffinityDtos) {
+                        if (StringUtils.isNotBlank(affinityDto.getNamespace())){
+                            String namespaceAliasName = namespaceLocalService.getNamespaceByName(affinityDto.getNamespace()).getAliasName();
+                            affinityDto.setNamespaceAliasName(namespaceAliasName);
+                        }
                         if (affinityDto.getLabel().equals(Constant.TYPE_DEPLOYMENT + Constant.EQUAL + meta.getName())) {
-                            appDetail.setPodDisperse(affinityDto);
+                            if(null != affinityDto.getType() && affinityDto.getType().equals(Constant.ANTIAFFINITY_TYPE_GROUP_SCHEDULE)){
+                                appDetail.setPodGroupSchedule(affinityDto);
+                            }else {
+                                appDetail.setPodDisperse(affinityDto);
+                            }
                         } else {
                             appDetail.setPodAntiAffinity(affinityDto);
                         }
@@ -96,6 +130,10 @@ public class K8sResultConvert {
             if (Objects.nonNull(dep.getSpec().getTemplate().getSpec().getAffinity().getPodAffinity())) {
                 List<AffinityDto> podAffinityDtos = new ArrayList<>();
                 podAffinityDtos = KubeAffinityConvert.convertPodAffinityDto(dep.getSpec().getTemplate().getSpec().getAffinity().getPodAffinity());
+                if (StringUtils.isNotBlank(podAffinityDtos.get(0).getNamespace())){
+                    String namespaceAliasName = namespaceLocalService.getNamespaceByName(podAffinityDtos.get(0).getNamespace()).getAliasName();
+                    podAffinityDtos.get(0).setNamespaceAliasName(namespaceAliasName);
+                }
                 appDetail.setPodAffinity(podAffinityDtos.get(0));
             }
         }
@@ -110,23 +148,6 @@ public class K8sResultConvert {
             }
         }
         appDetail.setStatus(getDeploymentStatus(dep));
-        if (meta.getAnnotations() != null && meta.getAnnotations().containsKey("nephele/annotation")) {
-            appDetail.setAnnotation(meta.getAnnotations().get("nephele/annotation").toString());
-        }
-        //labels
-        Map<String, Object> labelMap = new HashMap<String, Object>();
-        String labs = null;
-        if (dep.getMetadata().getAnnotations() != null && dep.getMetadata().getAnnotations().containsKey("nephele/labels")) {
-            labs = dep.getMetadata().getAnnotations().get("nephele/labels").toString();
-        }
-        if (!StringUtils.isEmpty(labs)) {
-            String[] arrLabel = labs.split(",");
-            for (String l : arrLabel) {
-                String[] tmp = l.split("=");
-                labelMap.put(tmp[0], tmp[1]);
-            }
-            appDetail.setLabels(labelMap);
-        }
 
         if (CollectionUtils.isNotEmpty(serviceList.getItems())) {
             com.harmonycloud.k8s.bean.Service service = serviceList.getItems().get(0);
@@ -159,7 +180,195 @@ public class K8sResultConvert {
             events.add(eventDetail);
         }
         appDetail.setEvents(events);
+
+        if (dep.getSpec().getTemplate().getMetadata().getLabels().containsKey(Constant.TYPE_DEPLOY_VERSION)){
+            appDetail.setDeployVersion((dep.getSpec().getTemplate().getMetadata().getLabels().get(Constant.TYPE_DEPLOY_VERSION).toString()));
+        }
+
+        convertAnnotation(meta.getAnnotations(), dep.getSpec().getTemplate().getSpec().getContainers(), appDetail);
         return appDetail;
+    }
+
+    public static AppDetail convertAppDetail(String namespace,String name,StatefulSet sta, Service service, EventList eventList, EventList hapEve, PodList podList, Cluster cluster) throws Exception {
+        AppDetail appDetail = new AppDetail();
+        appDetail.setServiceType(Constant.STATEFULSET);
+        // 封装返回值
+        Map<String, Object> bodys = new HashMap<String, Object>();
+        if(StringUtils.isNotBlank(name)) {
+            bodys.put("labelSelector", Constant.TYPE_STATEFULSET + "=" + name);
+        }
+        K8SURL url = new K8SURL();
+        url.setNamespace(namespace).setName(sta.getStatus().getUpdateRevision()).setResource(Resource.CONTROLLERREVISION);
+        K8SClientResponse controllerRevisionRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(controllerRevisionRes.getStatus())) {
+            UnversionedStatus status = JsonUtil.jsonToPojo(controllerRevisionRes.getBody(), UnversionedStatus.class);
+            throw new MarsRuntimeException(status.getMessage());
+        }
+        ControllerRevision controllerRevision = JsonUtil.jsonToPojo(controllerRevisionRes.getBody(),ControllerRevision.class);
+        if(controllerRevision.getRevision() != null) {
+            int version = controllerRevision.getRevision();
+            appDetail.setVersion("v" + version);
+        }
+        ObjectMeta meta = sta.getMetadata();
+        appDetail.setName(meta.getName());
+        appDetail.setNamespace(meta.getNamespace());
+        appDetail.setCreateTime(meta.getCreationTimestamp());
+        appDetail.setInstance(sta.getSpec().getReplicas());
+        appDetail.setOwner(meta.getLabels().get("nephele/user").toString());
+        appDetail.setHostName(sta.getSpec().getTemplate().getSpec().getHostname());
+        appDetail.setRestartPolicy(sta.getSpec().getTemplate().getSpec().getRestartPolicy());
+        appDetail.setPodManagementPolicy(sta.getSpec().getPodManagementPolicy());
+        if (Objects.nonNull(sta.getSpec().getTemplate().getSpec().isHostIPC())) {
+            appDetail.setHostIPC(sta.getSpec().getTemplate().getSpec().isHostIPC());
+        } else {
+            appDetail.setHostIPC(false);
+        }
+        if (Objects.nonNull(sta.getSpec().getTemplate().getSpec().isHostPID())) {
+            appDetail.setHostPID(sta.getSpec().getTemplate().getSpec().isHostPID());
+        } else {
+            appDetail.setHostPID(false);
+        }
+        if (Objects.nonNull(sta.getSpec().getTemplate().getSpec().isHostNetwork())) {
+            appDetail.setHostNetwork(sta.getSpec().getTemplate().getSpec().isHostNetwork());
+        } else {
+            appDetail.setHostNetwork(false);
+        }
+        //亲和度
+        if (Objects.nonNull(sta.getSpec().getTemplate().getSpec().getAffinity())) {
+            //node 亲和度
+            if (Objects.nonNull(sta.getSpec().getTemplate().getSpec().getAffinity().getNodeAffinity())) {
+                List<AffinityDto> list = KubeAffinityConvert.convertNodeAffinityDto(sta.getSpec().getTemplate().getSpec().getAffinity().getNodeAffinity());
+                if (CollectionUtils.isNotEmpty(list)) {
+                    appDetail.setNodeAffinity(list);
+                }
+            }
+
+            //pod非亲和
+            if (Objects.nonNull(sta.getSpec().getTemplate().getSpec().getAffinity().getPodAntiAffinity())) {
+                List<AffinityDto> podAntiAffinityDtos = new ArrayList<>();
+                podAntiAffinityDtos = KubeAffinityConvert.convertPodAntiAffinityDto(sta.getSpec().getTemplate().getSpec().getAffinity().getPodAntiAffinity());
+                if (CollectionUtils.isNotEmpty(podAntiAffinityDtos)) {
+                    for (AffinityDto affinityDto : podAntiAffinityDtos) {
+                        if (affinityDto.getLabel().equals(Constant.TYPE_STATEFULSET + Constant.EQUAL + meta.getName())) {
+                            if(null != affinityDto.getType() && affinityDto.getType().equals(Constant.ANTIAFFINITY_TYPE_GROUP_SCHEDULE)){
+                                appDetail.setPodGroupSchedule(affinityDto);
+                            }else {
+                                appDetail.setPodDisperse(affinityDto);
+                            }
+                        } else {
+                            appDetail.setPodAntiAffinity(affinityDto);
+                        }
+                    }
+                }
+            }
+
+            // pod 亲和
+            if (Objects.nonNull(sta.getSpec().getTemplate().getSpec().getAffinity().getPodAffinity())) {
+                List<AffinityDto> podAffinityDtos = new ArrayList<>();
+                podAffinityDtos = KubeAffinityConvert.convertPodAffinityDto(sta.getSpec().getTemplate().getSpec().getAffinity().getPodAffinity());
+                appDetail.setPodAffinity(podAffinityDtos.get(0));
+            }
+        }
+        appDetail.setMsf(false);
+        Map<String, Object> labels = new HashMap<String, Object>();
+        for (Map.Entry<String, Object> m : meta.getLabels().entrySet()) {
+            if (m.getKey().indexOf("nephele/") > 0) {
+                labels.put(m.getKey(), m.getValue());
+            }
+            if ((Constant.NODESELECTOR_LABELS_PRE + "springcloud").equals(m.getKey())) {
+                appDetail.setMsf(true);
+            }
+        }
+        appDetail.setStatus(getStatefulSetStatus(sta));
+        appDetail.setClusterIP(service.getSpec().getClusterIP());
+        appDetail.setServiceAddress(service.getMetadata().getName() + "." + service.getMetadata().getNamespace());
+        appDetail.setInternalPorts(service.getSpec().getPorts());
+        if (StringUtils.isEmpty(service.getSpec().getSessionAffinity())) {
+            appDetail.setSessionAffinity("false");
+        } else {
+            appDetail.setSessionAffinity(service.getSpec().getSessionAffinity());
+        }
+
+        appDetail.setAutoScalingHistory(hapEve.getItems());
+
+        List<PodDetail> pods = new ArrayList<PodDetail>();
+        for (int i = 0; i < podList.getItems().size(); i++) {
+            Pod pod = podList.getItems().get(i);
+            PodDetail podDetail = new PodDetail(pod.getMetadata().getName(), pod.getMetadata().getNamespace(),
+                    pod.getStatus().getPhase(), pod.getStatus().getPodIP(), pod.getStatus().getHostIP(),
+                    pod.getStatus().getStartTime());
+            pods.add(podDetail);
+        }
+        appDetail.setPodList(pods);
+        List<EventDetail> events = new ArrayList<EventDetail>();
+        for (int i = 0; i < eventList.getItems().size(); i++) {
+            Event event = eventList.getItems().get(i);
+            EventDetail eventDetail = new EventDetail(event.getReason(), event.getMessage(), event.getFirstTimestamp(),
+                    event.getLastTimestamp(), event.getCount(), event.getType());
+            events.add(eventDetail);
+        }
+        appDetail.setEvents(events);
+
+        convertAnnotation(meta.getAnnotations(), sta.getSpec().getTemplate().getSpec().getContainers(), appDetail);
+        return appDetail;
+    }
+
+    private static void convertAnnotation(Map<String, Object> annotations, List<Container> containers, AppDetail appDetail){
+        if (!annotations.containsKey("updateTimestamp")
+                || StringUtils.isEmpty(annotations.get("updateTimestamp").toString())) {
+            appDetail.setUpdateTime(appDetail.getCreateTime());
+        } else {
+            appDetail.setUpdateTime(annotations.get("updateTimestamp").toString());
+        }
+        if (annotations != null && annotations.containsKey("nephele/annotation")) {
+            appDetail.setAnnotation(annotations.get("nephele/annotation").toString());
+        }
+        //labels
+        Map<String, Object> labelMap = new HashMap<String, Object>();
+        String labs = null;
+        if (annotations != null && annotations.containsKey("nephele/labels")) {
+            labs = annotations.get("nephele/labels").toString();
+        }
+        if (!StringUtils.isEmpty(labs)) {
+            String[] arrLabel = labs.split(",");
+            for (String l : arrLabel) {
+                String[] tmp = l.split("=");
+                labelMap.put(tmp[0], tmp[1]);
+            }
+            appDetail.setLabels(labelMap);
+        }
+
+        String repoUrl = (String)annotations.get("pulldep/repoUrl");
+        String branch = (String)annotations.get("pulldep/branch");
+        String tag = (String)annotations.get("pulldep/tag");
+        String containerName = (String)annotations.get("pulldep/container");
+        branch = (StringUtils.isBlank(branch) ? tag : branch);
+        String containerMonutPath = null;
+
+        List<Container> collect = containers.stream().filter(c -> {
+            return c.getName().equals(containerName);
+        }).collect(Collectors.toList());
+        if(CollectionUtils.isNotEmpty(collect)){
+            List<VolumeMount> volumeMounts = collect.get(0).getVolumeMounts();
+            List<VolumeMount> empty = volumeMounts.stream().filter(v -> {
+                return v.getName().equals("empty");
+            }).collect(Collectors.toList());
+            if(CollectionUtils.isNotEmpty(empty)){
+                containerMonutPath = empty.get(0).getMountPath();
+            }
+        }
+
+        Map<String, Object> pullDependence = new HashMap<>();
+        pullDependence.put("repoUrl", repoUrl);
+        pullDependence.put("branch", branch);
+        pullDependence.put("containerName", containerName);
+        pullDependence.put("containerMonutPath", containerMonutPath);
+        appDetail.setPullDependence(pullDependence);
+
+
+        String serviceDependence = (String)annotations.get("svcDepend/name");
+
+        appDetail.setServiceDependence(serviceDependence);
     }
 
     public static List<PodDetail> podListConvert(PodList podList, String tag) throws Exception {
@@ -173,6 +382,11 @@ public class K8sResultConvert {
             podDetail.setTag(tag);
             List<ContainerWithStatus> containers = new ArrayList<ContainerWithStatus>();
             List<ContainerStatus> containerStatues = pods.get(i).getStatus().getContainerStatuses();
+
+            //istio版本标签
+            if (pods.get(i).getMetadata().getLabels().containsKey(Constant.TYPE_DEPLOY_VERSION)){
+                podDetail.setDeployVersion(pods.get(i).getMetadata().getLabels().get(Constant.TYPE_DEPLOY_VERSION).toString());
+            }
 
             //flag的作用标记除了运行状态以外的pod状态：1为等待状态；2为terminated状态
             String podStatus = null;
@@ -213,12 +427,23 @@ public class K8sResultConvert {
         return res;
     }
 
-    public static String convertExpression(Deployment dep, String name) throws Exception {
-        Map<String, Object> selector = dep.getSpec().getSelector().getMatchLabels();
-        if (selector == null || selector.isEmpty()) {
-            selector.put("app", name);
+    public static String convertDeploymentExpression(Deployment dep, String name) throws Exception{
+        Map<String, Object> deploymentSelector = dep.getSpec().getSelector().getMatchLabels();
+        if (deploymentSelector == null || deploymentSelector.isEmpty()) {
+            deploymentSelector.put(Constant.TYPE_DEPLOYMENT, name);
         }
+        return convertExpression(deploymentSelector);
+    }
 
+    public static String convertStatefulSetExpression(StatefulSet sta, String name) throws Exception{
+        Map<String, Object> StatefulSetSelector = sta.getSpec().getSelector().getMatchLabels();
+        if (StatefulSetSelector == null || StatefulSetSelector.isEmpty()) {
+            StatefulSetSelector.put(Constant.TYPE_STATEFULSET, name);
+        }
+        return convertExpression(StatefulSetSelector);
+    }
+
+    public static String convertExpression(Map<String, Object> selector) throws Exception {
         // 获取所有的map的key和value，拼接成字符串
         String selExpression = "";
         for (Map.Entry<String, Object> m : selector.entrySet()) {
@@ -270,7 +495,7 @@ public class K8sResultConvert {
                 try {
                     return Long.valueOf(sdf.parse(o2.getLastTimestamp()).getTime()).compareTo(Long.valueOf(sdf.parse(o1.getLastTimestamp()).getTime()));
                 } catch (ParseException e) {
-                    e.printStackTrace();
+                    LOGGER.warn("sort失败", e);
                     return 0;
                 }
             }
@@ -355,7 +580,7 @@ public class K8sResultConvert {
                                 if (volume.getSecret() != null) {
                                     vmExt.setType("secret");
                                 } else if (volume.getPersistentVolumeClaim() != null) {
-                                    vmExt.setType("nfs");
+                                    vmExt.setType(Constant.VOLUME_TYPE_PVC);
                                     vmExt.setPvcname(volume.getPersistentVolumeClaim().getClaimName());
                                 } else if (volume.getEmptyDir() != null) {
                                     vmExt.setType("emptyDir");
@@ -371,9 +596,21 @@ public class K8sResultConvert {
                                 } else if (volume.getConfigMap() != null) {
                                     Map<String, Object> configMap = new HashMap<String, Object>();
                                     configMap.put("name", volume.getConfigMap().getName());
-                                    configMap.put("path", vm.getMountPath());
+
+                                    String mountPath = null;
+                                    if(vm.getMountPath().contains(vm.getSubPath())){
+                                        int lastIndexOf = vm.getMountPath().lastIndexOf("/");
+                                        String subLastPath = vm.getMountPath().substring(lastIndexOf + 1);
+                                        if(subLastPath.equals(vm.getSubPath())){
+                                            mountPath = vm.getMountPath().substring(0, lastIndexOf);
+                                        }
+
+                                    }
+
+                                    configMap.put("path", mountPath);
                                     vmExt.setType("configMap");
                                     vmExt.setConfigMapName(volume.getConfigMap().getName());
+                                    vmExt.setMountPath(mountPath);
                                 } else if (volume.getHostPath() != null) {
                                     vmExt.setType("hostPath");
                                     vmExt.setHostPath(volume.getHostPath().getPath());
@@ -399,6 +636,227 @@ public class K8sResultConvert {
         return res;
     }
 
+    public static List<ContainerOfPodDetail> convertDeploymentContainer(Deployment deployment, List<Container> containers, Cluster cluster) throws Exception {
+        return convertContainer(deployment, containers, cluster);
+    }
+
+    public static List<ContainerOfPodDetail> convertStatefulSetContainer(StatefulSet statefulSet, List<Container> containers, Cluster cluster) throws Exception {
+        return convertContainer(statefulSet, containers, cluster);
+    }
+
+    public static List<ContainerOfPodDetail> convertReplicaSetContainer(ReplicaSet replicaSet, List<Container> containers, Cluster cluster) throws Exception {
+        return convertContainer(replicaSet, containers, cluster);
+    }
+
+    private static List<ContainerOfPodDetail> convertContainer(Object obj, List<Container> containers, Cluster cluster) throws Exception {
+        List<ContainerOfPodDetail> res = new ArrayList<ContainerOfPodDetail>();
+        PodTemplateSpec podTemplateSpec = null;
+        List<PersistentVolumeClaim> volumeClaimTemplate = null;
+        String name = null;
+        String namespace = null;
+        Map<String, Object> annotations = null;
+        if(obj instanceof Deployment){
+            Deployment deployment = (Deployment)obj;
+            annotations = deployment.getMetadata().getAnnotations();
+            DeploymentSpec deploymentSpec = deployment.getSpec();
+            podTemplateSpec = deploymentSpec.getTemplate();
+            name = deployment.getMetadata().getName();
+            namespace = deployment.getMetadata().getNamespace();
+        }else if(obj instanceof StatefulSet){
+            StatefulSet statefulSet = (StatefulSet)obj;
+            StatefulSetSpec statefulSetSpec = statefulSet.getSpec();
+            podTemplateSpec = statefulSetSpec.getTemplate();
+            volumeClaimTemplate = statefulSetSpec.getVolumeClaimTemplates();
+            name = statefulSet.getMetadata().getName();
+            namespace = statefulSet.getMetadata().getNamespace();
+        }else if(obj instanceof ReplicaSet){
+            ReplicaSet replicaSet = (ReplicaSet)obj;
+            ReplicaSetSpec replicaSetSpec = replicaSet.getSpec();
+            podTemplateSpec = replicaSetSpec.getTemplate();
+            name = replicaSet.getMetadata().getName();
+            namespace = replicaSet.getMetadata().getNamespace();
+        }
+        if (containers != null && containers.size() > 0) {
+            List<StorageClassDto> storageClassList = storageClassService.listStorageClass(cluster.getId());
+            Map<String, StorageClassDto> storageClassMap = storageClassList.stream().collect(Collectors.toMap(StorageClassDto::getName, storageClass -> storageClass));
+            for (Container ct : containers) {
+                ContainerOfPodDetail cOfPodDetail = new ContainerOfPodDetail(ct.getName(), ct.getImage(),
+                        ct.getLivenessProbe(), ct.getReadinessProbe(), ct.getPorts(), ct.getArgs(), ct.getEnv(),
+                        ct.getCommand());
+                if (ct.getImagePullPolicy() != null) {
+                    cOfPodDetail.setImagePullPolicy(ct.getImagePullPolicy());
+                }
+                cOfPodDetail.setDeploymentName(name);
+                //SecurityContext
+                if (ct.getSecurityContext() != null) {
+                    SecurityContextDto newsc = new SecurityContextDto();
+                    SecurityContext sc = ct.getSecurityContext();
+                    boolean flag = false;
+                    newsc.setPrivileged(sc.isPrivileged());
+                    if (sc.isPrivileged()) {
+                        flag = true;
+                    }
+                    if (sc.getCapabilities() != null) {
+                        if (sc.getCapabilities().getAdd() != null && sc.getCapabilities().getAdd().size() > 0) {
+                            flag = true;
+                            newsc.setAdd(sc.getCapabilities().getAdd());
+                        }
+                        if (sc.getCapabilities().getDrop() != null && sc.getCapabilities().getDrop().size() > 0) {
+                            flag = true;
+                            newsc.setDrop(sc.getCapabilities().getDrop());
+                        }
+                    }
+                    newsc.setSecurity(flag);
+                    cOfPodDetail.setSecurityContext(newsc);
+
+                }
+                if (ct.getResources().getLimits() != null) {
+                    String pattern = ".*m.*";
+                    Pattern r = Pattern.compile(pattern);
+                    String cpu = ((Map<Object, Object>) ct.getResources().getLimits()).get("cpu").toString();
+                    Matcher m = r.matcher(cpu);
+                    if (!m.find()) {
+                        ((Map<Object, Object>) ct.getResources().getLimits()).put("cpu",
+                                Integer.valueOf(cpu) * 1000 + "m");
+                    }
+                    cOfPodDetail.setLimit(((Map<String, Object>) ct.getResources().getLimits()));
+
+                } else {
+                    cOfPodDetail.setLimit(null);
+                }
+                if (ct.getResources().getRequests() != null) {
+                    String pattern = ".*m.*";
+                    Pattern r = Pattern.compile(pattern);
+                    String cpu = ((Map<Object, Object>) ct.getResources().getRequests()).get("cpu").toString();
+                    Matcher m = r.matcher(cpu);
+                    if (!m.find()) {
+                        ((Map<Object, Object>) ct.getResources().getRequests()).put("cpu",
+                                Integer.valueOf(cpu) * 1000 + "m");
+                    }
+                    cOfPodDetail.setResource(((Map<String, Object>) ct.getResources().getRequests()));
+                } else {
+                    cOfPodDetail.setResource(cOfPodDetail.getLimit());
+                }
+                List<VolumeMount> volumeMounts = ct.getVolumeMounts();
+                List<VolumeMountExt> vms = new ArrayList<VolumeMountExt>();
+                if (volumeMounts != null && volumeMounts.size() > 0) {
+                    for (VolumeMount vm : volumeMounts) {
+                        VolumeMountExt vmExt = new VolumeMountExt(vm.getName(), vm.isReadOnly(), vm.getMountPath(),
+                                vm.getSubPath());
+                        boolean isAutoProvided = false;
+                        if(CollectionUtils.isNotEmpty(volumeClaimTemplate)){
+                            for(PersistentVolumeClaim pvc : volumeClaimTemplate){
+                                if(vm.getName().equals(pvc.getMetadata().getName())){
+                                    vmExt.setStorageClassName(pvc.getSpec().getStorageClassName());
+                                    StorageClassDto storageClass = storageClassMap.get(pvc.getSpec().getStorageClassName());
+                                    if(storageClass != null) {
+                                        vmExt.setType(storageClass.getType());
+                                    }
+                                    vmExt.setPvcname(pvc.getMetadata().getName());
+                                    isAutoProvided = true;
+                                    vms.add(vmExt);
+                                    break;
+                                }
+                            }
+                        }
+                        if(!isAutoProvided) {
+                            for (Volume volume : podTemplateSpec.getSpec().getVolumes()) {
+                                if (vm.getName().equals(volume.getName())) {
+                                    if (volume.getSecret() != null) {
+                                        vmExt.setType("secret");
+                                    } else if (volume.getPersistentVolumeClaim() != null) {
+                                        PersistentVolumeClaim persistentVolumeClaim = getPvcByName(namespace, volume.getPersistentVolumeClaim().getClaimName(), cluster);
+                                        if (persistentVolumeClaim != null) {
+                                            String storageClassName = (String) persistentVolumeClaim.getMetadata().getAnnotations().get("volume.beta.kubernetes.io/storage-class");
+                                            if(StringUtils.isBlank(storageClassName)){
+                                                storageClassName = persistentVolumeClaim.getSpec().getStorageClassName();
+                                            }
+                                            if(StringUtils.isBlank(storageClassName)){
+                                                storageClassName = (String)persistentVolumeClaim.getMetadata().getAnnotations().get(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.STORAGECLASS);
+                                            }
+                                            vmExt.setStorageClassName(storageClassName);
+                                            StorageClassDto storageClass = storageClassMap.get(storageClassName);
+                                            if(storageClass != null) {
+                                                vmExt.setType(storageClass.getType());
+                                            }
+                                        }
+                                        vmExt.setPvcname(volume.getPersistentVolumeClaim().getClaimName());
+                                    } else if (volume.getEmptyDir() != null) {
+                                        vmExt.setType("emptyDir");
+                                        if (volume.getEmptyDir() != null) {
+                                            vmExt.setEmptyDir(volume.getEmptyDir().getMedium());
+                                        } else {
+                                            vmExt.setEmptyDir(null);
+                                        }
+
+                                        if (vm.getName().indexOf("logdir") == 0) {
+                                            vmExt.setType("logDir");
+                                        }
+                                    } else if (volume.getConfigMap() != null) {
+                                        Map<String, Object> configMap = new HashMap<String, Object>();
+                                        configMap.put("name", volume.getConfigMap().getName());
+                                        vmExt.setOldName(vmExt.getName());
+                                        if(volume.getName().length()>TAG_LENGTH){
+                                            //volume名称为版本号结尾的是之前版本格式，改成新版configmapId结尾的格式
+                                            String tag = volume.getName().substring(volume.getName().length() - TAG_LENGTH);
+                                            if(tag.matches(TAG_PATTERN)){
+                                                if(annotations != null && (annotations.get("configmapid-" + ct.getName()) != null)){
+                                                    vmExt.setName(volume.getName().replace(tag, "") + "-" + annotations.get("configmapid-" + ct.getName()).toString());
+                                                }
+                                            }
+                                        }
+                                        String mountPath = null;
+                                        if (vm.getMountPath().contains(vm.getSubPath())) {
+                                            int lastIndexOf = vm.getMountPath().lastIndexOf("/");
+                                            String subLastPath = vm.getMountPath().substring(lastIndexOf + 1);
+                                            if (subLastPath.equals(vm.getSubPath())) {
+                                                mountPath = vm.getMountPath().substring(0, lastIndexOf+1);
+                                            }
+
+                                        }
+
+                                        configMap.put("path", mountPath);
+                                        vmExt.setType("configMap");
+                                        vmExt.setConfigMapName(volume.getConfigMap().getName());
+                                        vmExt.setMountPath(mountPath);
+                                    } else if (volume.getHostPath() != null) {
+                                        vmExt.setType("hostPath");
+                                        vmExt.setHostPath(volume.getHostPath().getPath());
+                                        if (vm.getName().indexOf("logdir") == 0) {
+                                            vmExt.setType("logDir");
+                                        }
+                                    }
+                                    if (vmExt.getReadOnly() == null) {
+                                        vmExt.setReadOnly(false);
+                                    }
+                                    vms.add(vmExt);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    cOfPodDetail.setStorage(vms);
+                }
+                res.add(cOfPodDetail);
+            }
+        }
+        return res;
+    }
+
+
+    private static PersistentVolumeClaim getPvcByName(String namespace, String pvcName, Cluster cluster) {
+        K8SURL url = new K8SURL();
+        url.setApiGroup(APIGroup.API_V1_VERSION);
+        url.setNamespace(namespace);
+        url.setResource(Resource.PERSISTENTVOLUMECLAIM);
+        url.setSubpath(pvcName);
+        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,null,cluster);
+        if(HttpStatusUtil.isSuccessStatus(response.getStatus())){
+            return K8SClient.converToBean(response, PersistentVolumeClaim.class);
+        }
+        return null;
+    }
+
     public static List<Map<String, Object>> convertAppList(DeploymentList depList, Cluster cluster, String aliasNamespace) throws Exception {
         List<Deployment> deps = depList.getItems();
         List<Map<String, Object>> res = new ArrayList<Map<String, Object>>();
@@ -420,6 +878,23 @@ public class K8sResultConvert {
                     }
                     tMap.put("labels", labelMap);
                 }
+                //服务如果使用PVC，获取PVC名称
+                List<Volume> volumeList = dep.getSpec().getTemplate().getSpec().getVolumes();
+                if (volumeList != null) {
+                    List<String> pvcNameList = new ArrayList<>();
+                    for (Volume volume : volumeList) {
+                        if (volume.getPersistentVolumeClaim() != null) {
+                            pvcNameList.add(volume.getPersistentVolumeClaim().getClaimName());
+
+                        }
+                    }
+                    if (pvcNameList.size() > 0) {
+                        tMap.put("pvcNameList", pvcNameList);
+                    }
+                }
+
+                convertLabels(dep.getMetadata().getLabels(), dep.getSpec().getTemplate().getMetadata().getLabels(), tMap);
+
                 tMap.put("status", getDeploymentStatus(dep));
                 if (dep.getMetadata().getAnnotations() != null && dep.getMetadata().getAnnotations().containsKey("deployment.kubernetes.io/revision")) {
                     tMap.put("version", "v" + dep.getMetadata().getAnnotations().get("deployment.kubernetes.io/revision"));
@@ -469,7 +944,10 @@ public class K8sResultConvert {
                         String appName = array.length > 0 ? array[array.length -1] : null;
                         tMap.put("appName", appName);
                     }
+
                 }
+
+                tMap.put("serviceType","Deployment");
                 tMap.put("isMsf", isMsf);
                 tMap.put("isPV", isPV);
                 tMap.put("cpu", cpu);
@@ -487,31 +965,98 @@ public class K8sResultConvert {
         return res;
     }
 
-    public static Deployment convertAppCreate(DeploymentDetailDto detail, String userName, String applicationName) throws Exception {
-        Deployment dep = new Deployment();
-        ObjectMeta meta = new ObjectMeta();
-        meta.setName(detail.getName());
-        Map<String, Object> lmMap = new HashMap<String, Object>();
-        lmMap.put(Constant.NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID, detail.getProjectId());
-        lmMap.put(Constant.NODESELECTOR_LABELS_PRE + "bluegreen", detail.getName()+ "-1");
-        if (userName != null) {
-            lmMap.put("nephele/user", userName);
+    public static List<Map<String, Object>> convertAppList(StatefulSetList staList, Cluster cluster, String aliasNamespace) throws Exception {
+        List<StatefulSet> stas = staList.getItems();
+        List<Map<String, Object>> res = new ArrayList<Map<String, Object>>();
+        if (stas != null && !stas.isEmpty()) {
+            for (int i = 0; i < stas.size(); i++) {
+                StatefulSet sta = stas.get(i);
+                Map<String, Object> tMap = new HashMap<String, Object>();
+                tMap.put("name", sta.getMetadata().getName());
+                Map<String, Object> labelMap = new HashMap<String, Object>();
+                String labels = null;
+                if (sta.getMetadata().getAnnotations() != null && sta.getMetadata().getAnnotations().containsKey("nephele/labels")) {
+                    labels = sta.getMetadata().getAnnotations().get("nephele/labels").toString();
+                }
+                if (!StringUtils.isEmpty(labels)) {
+                    String[] arrLabel = labels.split(",");
+                    for (String l : arrLabel) {
+                        String[] tmp = l.split("=");
+                        labelMap.put(tmp[0], tmp[1]);
+                    }
+                    tMap.put("labels", labelMap);
+                }
+                convertLabels(sta.getMetadata().getLabels(), sta.getSpec().getTemplate().getMetadata().getLabels(), tMap);
+                tMap.put("status", getStatefulSetStatus(sta));
+                List<String> img = new ArrayList<String>();
+                List<String> cpu = new ArrayList<String>();
+                List<String> memory = new ArrayList<String>();
+                List<Container> containers = sta.getSpec().getTemplate().getSpec().getContainers();
+                boolean isPV = false;
+                for (Container container : containers) {
+                    img.add(container.getImage());
+                    if (container.getResources() != null && container.getResources().getRequests() != null) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, String> res1 = (Map<String, String>) container.getResources().getRequests();
+                        cpu.add(res1.get("cpu"));
+                        memory.add(res1.get("memory"));
+                    } else if (container.getResources() != null && container.getResources().getLimits() != null) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, String> res1 = (Map<String, String>) container.getResources().getLimits();
+                        cpu.add(res1.get("cpu"));
+                        memory.add(res1.get("memory"));
+                    }
+                }
+                if (sta.getSpec().getTemplate().getSpec().getVolumes() != null && sta.getSpec().getTemplate().getSpec().getVolumes().size() > 0) {
+                    for (Volume v : sta.getSpec().getTemplate().getSpec().getVolumes()) {
+                        if (v.getPersistentVolumeClaim() != null) {
+                            isPV = true;
+                            break;
+                        }
+                    }
+                }
+                Map<String, Object> podLabel = sta.getSpec().getTemplate().getMetadata().getLabels();
+                if(podLabel.containsKey(Constant.TYPE_STATEFULSET)){
+                    tMap.put("systemLabel", Constant.TYPE_STATEFULSET+"="+podLabel.get(Constant.TYPE_STATEFULSET));
+                }else{
+                    tMap.put("systemLabel","");
+                }
+                boolean isMsf = false;
+                if (sta.getMetadata().getLabels().containsKey(Constant.NODESELECTOR_LABELS_PRE + "springcloud")) {
+                    isMsf = true;
+                }
+                Map<String, Object> depLabels = sta.getMetadata().getLabels();
+                for (String key : depLabels.keySet()) {
+                    //获取应用名
+                    if (key.contains(Constant.TOPO_LABEL_KEY)) {
+                        String[] array = key.split(CommonConstant.LINE);
+                        String appName = array.length > 0 ? array[array.length -1] : null;
+                        tMap.put("appName", appName);
+                    }
+                }
+                tMap.put("serviceType","StatefulSet");
+                tMap.put("isMsf", isMsf);
+                tMap.put("isPV", isPV);
+                tMap.put("cpu", cpu);
+                tMap.put("memory", memory);
+                tMap.put("img", img);
+                tMap.put("instance", sta.getSpec().getReplicas());
+                tMap.put("createTime", sta.getMetadata().getCreationTimestamp());
+                tMap.put("namespace", sta.getMetadata().getNamespace());
+                tMap.put("selector", sta.getSpec().getSelector());
+                tMap.put("clusterId", cluster.getId());
+                tMap.put("aliasNamespace", aliasNamespace);
+                res.add(tMap);
+            }
         }
-        if (!StringUtils.isEmpty(applicationName)) {
-            lmMap.put("topo-" + detail.getProjectId() + "-" + applicationName, detail.getNamespace());
-        }
-        meta.setLabels(lmMap);
+        return res;
+    }
 
-        Map<String, Object> anno = new HashMap<String, Object>();
-        String annotation = detail.getAnnotation();
-        if (!StringUtils.isEmpty(annotation) && annotation.lastIndexOf(",") == 0) {
-            annotation = annotation.substring(0, annotation.length() - 1);
-        }
-        anno.put("nephele/annotation", annotation == null ? "" : annotation);
-        anno.put("nephele/status", Constant.STARTING);
-        anno.put("nephele/replicas", detail.getInstance());
-        anno.put("nephele/labels", detail.getLabels() == null ? "" : detail.getLabels());
-        meta.setAnnotations(anno);
+
+
+    public static Deployment convertAppCreate(DeploymentDetailDto detail, String userName, String applicationName, List<IngressDto> ingress) throws Exception {
+        Deployment dep = new Deployment();
+        ObjectMeta meta = getMeta(detail, userName, applicationName, ingress);
         dep.setMetadata(meta);
 
         DeploymentSpec depSpec = new DeploymentSpec();
@@ -525,44 +1070,173 @@ public class K8sResultConvert {
         matchLabel.put(Constant.TYPE_DEPLOYMENT, detail.getName());
         labelSelector.setMatchLabels(matchLabel);
         depSpec.setSelector(labelSelector);
+        String podDisperse = Constant.TYPE_DEPLOYMENT + Constant.EQUAL + detail.getName();
+        PodTemplateSpec podTemplateSpec = getPodTemplateSpec(detail,meta,podDisperse,Constant.TYPE_DEPLOYMENT, null);
+        depSpec.setTemplate(podTemplateSpec);
         dep.setSpec(depSpec);
-        Map<String, Object> map = K8sResultConvert.convertContainer(detail.getContainers(), detail.getLogService(), detail.getLogPath(), detail.getName());
+        return dep;
+    }
+
+    public static StatefulSet convertAppCreateForStatefulSet(StatefulSetDetailDto detail, String userName, String applicationName, List<IngressDto> ingress) throws Exception {
+        StatefulSet sta = new StatefulSet();
+        ObjectMeta meta = getMeta(detail,userName,applicationName, ingress);
+        sta.setMetadata(meta);
+
+        if(CollectionUtils.isNotEmpty(detail.getInitContainers())) {
+            for (CreateContainerDto createContainerDto : detail.getInitContainers()) {
+                if (createContainerDto.getResource() == null) {
+                    CreateResourceDto resource = new CreateResourceDto();
+                    resource.setCpu("100m");
+                    resource.setMemory("128Mi");
+                    createContainerDto.setResource(resource);
+                }
+            }
+        }
+
+        StatefulSetSpec staSpec = new StatefulSetSpec();
+        staSpec.setPodManagementPolicy(detail.getPodManagementPolicy());
+        staSpec.setReplicas(Integer.valueOf(detail.getInstance()));
+        StatefulSetUpdateStrategy updateStrategy = new StatefulSetUpdateStrategy();
+        updateStrategy.setType("RollingUpdate");
+        staSpec.setUpdateStrategy(updateStrategy);
+        // selector
+        LabelSelector labelSelector = new LabelSelector();
+        Map<String, Object> matchLabel = new HashMap<String, Object>();
+        matchLabel.put(Constant.TYPE_STATEFULSET, detail.getName());
+        matchLabel.put(Constant.NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID, detail.getProjectId());
+        labelSelector.setMatchLabels(matchLabel);
+        staSpec.setSelector(labelSelector);
+        staSpec.setServiceName(detail.getName());
+        sta.setSpec(staSpec);
+        String podDisperse = Constant.TYPE_STATEFULSET + Constant.EQUAL + detail.getName();
+        PodTemplateSpec podTemplateSpec = getPodTemplateSpec(detail,meta,podDisperse,Constant.TYPE_STATEFULSET, staSpec);
+        staSpec.setTemplate(podTemplateSpec);
+
+        sta.setSpec(staSpec);
+
+        return sta;
+    }
+
+    public static Map<String, Object> getLmMap(DeploymentDetailDto detail, String userName, String applicationName, List<IngressDto> ingress) throws Exception{
+        Map<String, Object> lmMap = new HashMap<String, Object>();
+        lmMap.put(Constant.NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID, detail.getProjectId());
+        lmMap.put(Constant.NODESELECTOR_LABELS_PRE + "bluegreen", detail.getName()+ "-1");
+        if (userName != null) {
+            lmMap.put("nephele/user", userName);
+        }
+        if(ingress != null){
+            lmMap.put(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE, INGRESS_SERVICE_TRUE);
+        }
+        if (!StringUtils.isEmpty(applicationName)) {
+            lmMap.put(BizUtil.getTopoLabelKey(detail.getProjectId(), applicationName), detail.getNamespace());
+        }
+        return lmMap;
+
+    }
+
+    public static ObjectMeta getMeta(DeploymentDetailDto detail, String userName, String applicationName, List<IngressDto> ingress) throws Exception{
+        ObjectMeta meta = new ObjectMeta();
+        meta.setName(detail.getName());
+        Map<String, Object> lmMap = getLmMap(detail, userName, applicationName, ingress);
+        meta.setLabels(lmMap);
+        Map<String, Object> anno = new HashMap<String, Object>();
+        String annotation = detail.getAnnotation();
+        if (!StringUtils.isEmpty(annotation) && annotation.lastIndexOf(",") == 0) {
+            annotation = annotation.substring(0, annotation.length() - 1);
+        }
+
+        anno.put("nephele/annotation", annotation == null ? "" : annotation);
+        anno.put("nephele/status", Constant.STARTING);
+        anno.put("nephele/replicas", detail.getInstance());
+        anno.put("nephele/labels", detail.getLabels() == null ? "" : detail.getLabels());
+
+        PullDependenceDto pullDependence = detail.getPullDependence();
+        if(pullDependence !=null){
+            String repoUrl = pullDependence.getRepoUrl();
+            String branch = pullDependence.getBranch();
+            String tag = pullDependence.getTag();
+            String container = pullDependence.getContainer();
+            anno.put("pulldep/repoUrl",repoUrl == null ? "" : repoUrl);
+            anno.put("pulldep/branch",branch == null ? "" : branch);
+            anno.put("pulldep/tag",tag == null ? "" : tag);
+            anno.put("pulldep/container",container == null ? "" : container);
+        }
+
+
+        ServiceDependenceDto serviceDependence = detail.getServiceDependence();
+        if(serviceDependence != null){
+            String serviceName = serviceDependence.getServiceName();
+            String port = serviceDependence.getPort();
+            String url = serviceDependence.getUrl();
+
+            anno.put("svcDepend/name",serviceName == null ? "" : serviceName);
+            anno.put("svcDepend/port",port == null ? "" : port);
+            anno.put("svcDepend/url",url == null ? "" : url);
+        }
+
+        meta.setAnnotations(anno);
+        return meta;
+    }
+
+    public static PodTemplateSpec getPodTemplateSpec(DeploymentDetailDto detail, ObjectMeta meta, String podDisperse, String serviceType, StatefulSetSpec statefulsetSpec) throws Exception{
+        Map<String, Object> lmMap = meta.getLabels();
+        Map<String, Object> map = K8sResultConvert.convertContainer(detail.getContainers(), detail.getInitContainers(), detail.getLogService(), detail.getLogPath(), detail.getName());
         List<Container> cs = (List<Container>) map.get("container");
         List<Volume> volumes = (List<Volume>) map.get("volume");
+        List<Container> initCs = (List<Container>) map.get("initContainer");
+        if(Constant.TYPE_STATEFULSET.equalsIgnoreCase(serviceType)){
+            statefulsetSpec.setVolumeClaimTemplates((List < PersistentVolumeClaim >) map.get("volumeClaimTemplate"));
+        }
         PodTemplateSpec podTemplateSpec = new PodTemplateSpec();
         PodSpec podSpec = new PodSpec();
         podSpec.setContainers(cs);
         podSpec.setRestartPolicy(detail.getRestartPolicy());
         podSpec.setHostname(detail.getHostName());
+        podSpec.setInitContainers(initCs);
 
         //Affinity
         Affinity affinity = new Affinity();
         List<AffinityDto> list = new ArrayList<>();
         list.add(detail.getPodAntiAffinity());
+        //pod 按主机分组调度
+        if(Objects.nonNull(detail.getPodGroupSchedule())){
+            AffinityDto aff = new AffinityDto();
+            aff.setRequired(detail.getPodGroupSchedule().isRequired());
+            aff.setLabel(serviceType + Constant.EQUAL + detail.getName());
+            aff.setType(detail.getPodGroupSchedule().getType());
+            list.add(aff);
+        }
+        //pod 分散
         if (Objects.nonNull(detail.getPodDisperse())) {
             AffinityDto aff = new AffinityDto();
             aff.setRequired(detail.getPodDisperse().isRequired());
-            aff.setLabel(Constant.TYPE_DEPLOYMENT + Constant.EQUAL + detail.getName());
+            aff.setLabel(podDisperse);
             list.add(aff);
         }
         affinity = KubeAffinityConvert.convertAffinity(detail.getNodeAffinity(), detail.getPodAffinity(), list);
         podSpec.setAffinity(affinity);
+
         //hostIPC hostPID
         podSpec.setHostIPC(detail.isHostIPC());
         podSpec.setHostPID(detail.isHostPID());
         podSpec.setHostNetwork(detail.isHostNetwork());
+        if (detail.isHostNetwork()) {
+            podSpec.setDnsPolicy("ClusterFirstWithHostNet");
+        }
         List<LocalObjectReference> imagePullSecrets = new ArrayList<>();
         LocalObjectReference e = new LocalObjectReference();
         e.setName(CommonConstant.ADMIN + "-secret");
         imagePullSecrets.add(e);
         podSpec.setImagePullSecrets(imagePullSecrets);
+        //存储
         if (CollectionUtils.isNotEmpty(volumes)) {
             podSpec.setVolumes(volumes);
         }
+
         ObjectMeta metadata = new ObjectMeta();
         Map<String, Object> labels = new HashMap<>();
         labels.put(Constant.NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID, detail.getProjectId());
-        labels.put("app", detail.getName());
+        labels.put(serviceType, detail.getName());
         if (!StringUtils.isEmpty(detail.getLabels())) {
             String[] ls = detail.getLabels().split(",");
             for (String label : ls) {
@@ -572,6 +1246,11 @@ public class K8sResultConvert {
                 meta.setLabels(lmMap);
             }
         }
+        // istio服务版本标签
+        if (Objects.nonNull(detail.getDeployVersion())){
+            labels.put(Constant.TYPE_DEPLOY_VERSION, detail.getDeployVersion());
+        }
+
         //labels-QOS
         if (detail.getLabels() != null) {
             if (detail.getLabels().contains(",")) {
@@ -589,31 +1268,238 @@ public class K8sResultConvert {
                 }
             }
         }
+
+        //拉取依赖
+        if(detail.getPullDependence() != null){
+            makePullDependence(detail, meta, cs, podSpec);
+        }
+
+
+        if(detail.getServiceDependence() !=null){
+            makeServiceDependence(meta, cs, podSpec, detail.getServiceDependence());
+        }
+
         labels.put(Constant.NODESELECTOR_LABELS_PRE + "bluegreen", detail.getName() + "-1");
         metadata.setLabels(labels);
-        metadata.setAnnotations(convertQosAnnotation(annotation));
+        metadata.setAnnotations(convertQosAnnotation(detail.getAnnotation()));
+        // 如果存在ip资源池，则设置
+        if (StringUtils.isNotBlank(detail.getIpPoolName())) {
+            if (metadata.getAnnotations() == null) {
+                metadata.setAnnotations(new HashMap<>());
+            }
+            metadata.getAnnotations().put("hcipam_ippool", detail.getIpPoolName());
+        }
         podTemplateSpec.setMetadata(metadata);
         podTemplateSpec.setSpec(podSpec);
-        depSpec.setTemplate(podTemplateSpec);
-        dep.setSpec(depSpec);
-        return dep;
+
+        return podTemplateSpec;
     }
 
-    public static Service convertAppCreateOfService(DeploymentDetailDto detail, String application) throws Exception {
+
+    private static void makeServiceDependence(ObjectMeta meta, List<Container> cs, PodSpec podSpec, ServiceDependenceDto serviceDependence) {
+        String image = cs.get(0).getImage();
+        String harborUrl = image.substring(0,image.indexOf("/"));
+        //创建InitContainers
+        List<Container> initContainers = new ArrayList<>();
+        if (null != podSpec.getInitContainers()){
+            initContainers = podSpec.getInitContainers();
+        }
+        Container c = new Container();
+        c.setName(meta.getName()+"-svc");
+        c.setImage(harborUrl + Constant.SERVICE_DEPENDENCE_IMAGE + ":" + Constant.SERVICE_DEPENDENCE_IMAGE_TAG);
+        List<String> cmdList = new ArrayList<>();
+        cmdList.add("/bin/bash");
+        cmdList.add("-c");
+        StringBuffer sb = new StringBuffer();
+
+        sb.append("cd /root/shell_script ");
+
+        //如果是http
+        if(serviceDependence.getDetectWay().equals(Constant.SERVICE_DETECT_WAY_HTTP)){
+            sb.append("&& ./curl.sh ");
+            sb.append(serviceDependence.getServiceName());
+            sb.append(":" + serviceDependence.getPort());
+        }
+        //如果是tcp
+        if(serviceDependence.getDetectWay().equals(Constant.SERVICE_DETECT_WAY_TCP)){
+            sb.append("&& ./ncat.sh ");
+            sb.append(serviceDependence.getServiceName());
+            sb.append(" " + serviceDependence.getPort());
+        }
+
+
+        if(StringUtils.isNotBlank(serviceDependence.getUrl())){
+            sb.append("/"+ serviceDependence.getUrl());
+        }
+        sb.append(" " + serviceDependence.getIntervalTime() + " " + serviceDependence.getSuccessThreshold()
+                + " " + serviceDependence.getFailThreshold());
+        cmdList.add(sb.toString());
+        c.setCommand(cmdList);
+
+        ResourceRequirements resources = new ResourceRequirements();
+        Map<String, Object> limits = new ConcurrentHashMap<>();
+        limits.put("memory","100Mi");
+        limits.put("cpu","100m");
+        Map<String, Object> requests = limits;
+        resources.setLimits(limits);
+        resources.setRequests(requests);
+        c.setResources(resources);
+
+        initContainers.add(c);
+        podSpec.setInitContainers(initContainers);
+    }
+
+    private static void makePullDependence(DeploymentDetailDto detail, ObjectMeta meta, List<Container> cs, PodSpec podSpec) {
+        String image = cs.get(0).getImage();
+        String harborUrl = image.substring(0,image.indexOf("/"));
+        //创建InitContainers
+        List<Container> initContainers = new ArrayList<>();
+        if(null != podSpec.getInitContainers()){
+            initContainers = podSpec.getInitContainers();
+        }
+        Container c = new Container();
+        c.setName(meta.getName()+"-vcs");
+        c.setImage(harborUrl + Constant.VCS_IMAGE + ":" + Constant.VCS_IMAGE_TAG);
+        List<String> cmdList = new ArrayList<>();
+        PullDependenceDto pullDependence = detail.getPullDependence();
+        String projectName = null;
+        cmdList.add("/bin/bash");
+        cmdList.add("-c");
+        StringBuffer sb = new StringBuffer();
+        if(pullDependence.getPullWay().equals(Constant.PULL_WAY_GIT)){
+            String gitUrl = pullDependence.getRepoUrl();
+            String protocol = gitUrl.substring(0,gitUrl.indexOf("://")+3);
+            String userName = pullDependence.getUsername();
+            String password = pullDependence.getPassword();
+            //git拉取命令中包含@时需替换为%40
+            if(userName.contains("@")){
+                userName = userName.replace("@", "%40");
+            }
+            if(password.contains("@")){
+                password = password.replace("@", "%40");
+            }
+            gitUrl = gitUrl.substring(gitUrl.indexOf("://")+3,gitUrl.length());
+            projectName = gitUrl.substring(gitUrl.lastIndexOf("/")+1,gitUrl.lastIndexOf(".git"));
+            //避免git之https方式unable to get local issuer certificate问题
+            sb.append("git config --global http.sslVerify false");
+            sb.append(" && rm -rf " + projectName + "/* " + projectName + "/.git*");
+            sb.append(" && git clone " + protocol + userName + ":" + password + "@" + gitUrl);
+
+            //指定了分支
+            if(StringUtils.isNotBlank(pullDependence.getBranch()) && !pullDependence.getBranch().equals("master")){
+                sb.append(" && cd " + projectName);
+                sb.append(" && git checkout -b " + pullDependence.getBranch() + " origin/" + pullDependence.getBranch());
+            }
+            //指定了tag
+            if(StringUtils.isNotBlank(pullDependence.getTag())){
+                sb.append(" && cd " + projectName);
+                sb.append(" && git checkout " + pullDependence.getTag());
+            }
+            cmdList.add(sb.toString());
+
+        }else if(pullDependence.getPullWay().equals(Constant.PULL_WAY_SVN)){
+            String svnURL = pullDependence.getRepoUrl();
+            while (svnURL.endsWith("/")){
+                svnURL = svnURL.substring(0, svnURL.length()-1);
+            }
+            projectName = svnURL.substring(svnURL.lastIndexOf("/")+1, svnURL.length());
+            sb.append(" svn co " + svnURL);
+            //指定了分支
+            if(StringUtils.isNotBlank(pullDependence.getBranch()) && !pullDependence.getBranch().equals("master")){
+                sb.append("/" + pullDependence.getBranch());
+            }
+            //指定了tag
+            if(StringUtils.isNotBlank(pullDependence.getTag())){
+                sb.append("/" + pullDependence.getTag());
+            }
+
+            sb.append(" --username ");
+            sb.append(pullDependence.getUsername());
+            sb.append(" --password ");
+            sb.append(pullDependence.getPassword());
+            cmdList.add(sb.toString());
+        }
+        c.setCommand(cmdList);
+
+        if(StringUtils.isNotBlank(pullDependence.getContainer())){
+            List<Volume> volumeList = null;
+            volumeList = podSpec.getVolumes();
+            if(Objects.isNull(volumeList)){
+                volumeList = new ArrayList<>();
+            }
+            Volume volume = new Volume();
+            volume.setName("empty-deploy");
+            volume.setEmptyDir(null);
+            volumeList.add(volume);
+            podSpec.setVolumes(volumeList);
+
+            for (Container container : cs) {
+                if(container.getName().equals(pullDependence.getContainer())){
+                    List<VolumeMount> volumeMounts = container.getVolumeMounts();
+                    VolumeMount vm = new VolumeMount();
+                    if(Objects.isNull(volumeMounts)){
+                        volumeMounts = new ArrayList<>();
+                        container.setVolumeMounts(volumeMounts);
+                    }
+                    vm.setMountPath(pullDependence.getMountPath()+"/"+projectName);
+                    vm.setName("empty-deploy");
+                    volumeMounts.add(vm);
+                }
+            }
+
+
+            List<VolumeMount> volumeMounts = new ArrayList<>();
+            VolumeMount vm = new VolumeMount();
+            vm.setMountPath(projectName);
+            vm.setName("empty-deploy");
+            volumeMounts.add(vm);
+            c.setVolumeMounts(volumeMounts);
+
+        }
+
+
+        ResourceRequirements resources = new ResourceRequirements();
+        Map<String, Object> limits = new ConcurrentHashMap<>();
+        limits.put("memory","100Mi");
+        limits.put("cpu","100m");
+        Map<String, Object> requests = limits;
+        resources.setLimits(limits);
+        resources.setRequests(requests);
+        c.setResources(resources);
+
+        initContainers.add(c);
+        podSpec.setInitContainers(initContainers);
+    }
+
+    public static Service convertAppCreateOfService(DeploymentDetailDto detail, String application,String serviceType) throws Exception {
         Service service = new Service();
         service.setApiVersion("v1");
         service.setKind("Service");
         ObjectMeta meta = new ObjectMeta();
         meta.setName(detail.getName());
         Map<String, Object> labels = new HashMap<String, Object>();
-        labels.put("app", detail.getName());
+        String label = new String();
+        ServiceTypeEnum serviceTypeEnum = ServiceTypeEnum.valueOf(serviceType.toUpperCase());
+        switch (serviceTypeEnum){
+            case DEPLOYMENT:
+                label = Constant.TYPE_DEPLOYMENT;
+                break;
+            case STATEFULSET:
+                label = Constant.TYPE_STATEFULSET;
+                detail.setClusterIP("None");
+                break;
+            default:
+                break;
+        }
+        labels.put(label, detail.getName());
+
         if (!StringUtils.isEmpty(application)) {
-            labels.put("topo-" + detail.getProjectId() + "-" + application, detail.getNamespace());
+            labels.put(BizUtil.getTopoLabelKey(detail.getProjectId(), application), detail.getNamespace());
         }
         meta.setLabels(labels);
         ServiceSpec ss = new ServiceSpec();
         Map<String, Object> selector = new HashMap<String, Object>();
-        selector.put("app", detail.getName());
+        selector.put(label, detail.getName());
         selector.put(Constant.NODESELECTOR_LABELS_PRE + "bluegreen", detail.getName() + "-1");
         ss.setSelector(selector);
         if (!StringUtils.isEmpty(detail.getClusterIP())) {
@@ -633,7 +1519,7 @@ public class K8sResultConvert {
                             sPort.setProtocol(port.getProtocol());
                         }
                         sPort.setPort(Integer.valueOf(port.getPort()));
-                        sPort.setName(detail.getName() + "-" + c.getName() + "-port" + i);
+                        sPort.setName(c.getName() + "-port" + i);
                         spList.add(sPort);
                     }
                 }
@@ -1206,7 +2092,7 @@ public class K8sResultConvert {
                     for (PersistentVolumeDto vm : c.getStorage()) {
                         if (vm.getType() != null) {
                             switch (vm.getType()) {
-                                case Constant.VOLUME_TYPE_PV:
+                                case Constant.VOLUME_TYPE_NFS:
                                     if (!volFlag.containsKey(vm.getPvcName())) {
                                         PersistentVolumeClaimVolumeSource pvClaim = new PersistentVolumeClaimVolumeSource();
                                         volFlag.put(vm.getPvcName(), vm.getPvcName());
@@ -1256,6 +2142,9 @@ public class K8sResultConvert {
                                         if (vm.getEmptyDir() != null && "Memory".equals(vm.getEmptyDir())) {
                                             ed.setMedium(vm.getEmptyDir());//Memory
                                         }
+                                        if (vm.getCapacity() != null){
+                                            ed.setSizeLimit(vm.getCapacity());//sizeLimit
+                                        }
                                         empty.setEmptyDir(ed);
                                         volumes.add(empty);
                                     }
@@ -1301,36 +2190,7 @@ public class K8sResultConvert {
                     volumeMounts.add(volm);
                     container.setVolumeMounts(volumeMounts);
                 }
-
-                if (c.getConfigmap() != null && c.getConfigmap().size() > 0) {
-                    for (CreateConfigMapDto cm : c.getConfigmap()) {
-                        if (cm != null && !StringUtils.isEmpty(cm.getPath())) {
-                            String filename = cm.getFile();
-                            if (cm.getPath().contains("/")) {
-                                int in = cm.getPath().lastIndexOf("/");
-                                filename = cm.getPath().substring(in + 1, cm.getPath().length());
-                            }
-                            Volume cMap = new Volume();
-                            cMap.setName((cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
-                            ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
-                            coMap.setName(name + c.getName());
-                            List<KeyToPath> items = new LinkedList<KeyToPath>();
-                            KeyToPath key = new KeyToPath();
-                            key.setKey(cm.getFile() + "v" + cm.getTag());
-                            key.setPath(filename);
-                            items.add(key);
-                            coMap.setItems(items);
-                            cMap.setConfigMap(coMap);
-                            volumes.add(cMap);
-                            VolumeMount volm = new VolumeMount();
-                            volm.setName((cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
-                            volm.setMountPath(cm.getPath());
-                            volm.setSubPath(filename);
-                            volumeMounts.add(volm);
-                            container.setVolumeMounts(volumeMounts);
-                        }
-                    }
-                }
+                convertConfigMap(name+c.getName(),c.getConfigmap(),volumes,volumeMounts);
                 if (c.getImagePullPolicy() != null) {
                     container.setImagePullPolicy(c.getImagePullPolicy());
                 }
@@ -1548,7 +2408,7 @@ public class K8sResultConvert {
                     for (PersistentVolumeDto vm : c.getStorage()) {
                         if (vm.getType() != null) {
                             switch (vm.getType()) {
-                                case Constant.VOLUME_TYPE_PV:
+                                case Constant.VOLUME_TYPE_NFS:
                                     if (!volFlag.containsKey(vm.getPvcName())) {
                                         PersistentVolumeClaimVolumeSource pvClaim = new PersistentVolumeClaimVolumeSource();
                                         volFlag.put(vm.getPvcName(), vm.getPvcName());
@@ -1598,6 +2458,9 @@ public class K8sResultConvert {
                                         if (vm.getEmptyDir() != null && "Memory".equals(vm.getEmptyDir())) {
                                             ed.setMedium(vm.getEmptyDir());//Memory
                                         }
+                                        if (vm.getCapacity() != null){
+                                            ed.setSizeLimit(vm.getCapacity());//sizeLimit
+                                        }
                                         empty.setEmptyDir(ed);
                                         volumes.add(empty);
                                     }
@@ -1643,36 +2506,7 @@ public class K8sResultConvert {
                     volumeMounts.add(volm);
                     container.setVolumeMounts(volumeMounts);
                 }
-
-                if (c.getConfigmap() != null && c.getConfigmap().size() > 0) {
-                    for (CreateConfigMapDto cm : c.getConfigmap()) {
-                        if (cm != null && !StringUtils.isEmpty(cm.getPath())) {
-                            String filename = cm.getFile();
-                            if (cm.getPath().contains("/")) {
-                                int in = cm.getPath().lastIndexOf("/");
-                                filename = cm.getPath().substring(in + 1, cm.getPath().length());
-                            }
-                            Volume cMap = new Volume();
-                            cMap.setName((cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
-                            ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
-                            coMap.setName(job.getMetadata().getName() + c.getName());
-                            List<KeyToPath> items = new LinkedList<KeyToPath>();
-                            KeyToPath key = new KeyToPath();
-                            key.setKey(cm.getFile() + "v" + cm.getTag());
-                            key.setPath(filename);
-                            items.add(key);
-                            coMap.setItems(items);
-                            cMap.setConfigMap(coMap);
-                            volumes.add(cMap);
-                            VolumeMount volm = new VolumeMount();
-                            volm.setName((cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
-                            volm.setMountPath(cm.getPath());
-                            volm.setSubPath(filename);
-                            volumeMounts.add(volm);
-                            container.setVolumeMounts(volumeMounts);
-                        }
-                    }
-                }
+                convertConfigMap(job.getMetadata().getName()+c.getName(),c.getConfigmap(),volumes,volumeMounts);
                 cs.add(container);
             }
         }
@@ -1776,14 +2610,39 @@ public class K8sResultConvert {
      *
      * @param name
      * @param containers
+     * @param initContainers
      * @param logPath
      * @param logService
      * @return Map<String, Object>
      */
-    public static Map<String, Object> convertContainer(List<CreateContainerDto> containers, String logService, String logPath, String name) throws Exception {
-        List<Container> cs = new ArrayList<Container>();
-        List<Volume> volumes = new ArrayList<Volume>();
+    public static Map<String, Object> convertContainer(List<CreateContainerDto> containers, List<CreateContainerDto> initContainers, String logService, String logPath, String name) throws Exception {
+        Map<String, Object> res = new HashMap<String, Object>();
+        res.put("container", convertContainer(containers, logService, logPath, name, res));
+        res.put("initContainer", convertContainer(initContainers, null, null, name, res));
+        return res;
+    }
+
+    private static List<Container> convertContainer(List<CreateContainerDto> containers, String logService, String logPath, String name, Map<String, Object> res) throws Exception {
+        List<Container> cs = new ArrayList<>();
         if (containers != null && !containers.isEmpty()) {
+            List<Volume> volumes;
+            if(res.containsKey("volume")){
+                volumes = (List<Volume>)res.get("volume");
+            }else{
+                volumes = new ArrayList<>();
+            }
+            List<PersistentVolumeClaim> volumeClaimTemplates = new ArrayList<>();
+            if(res.containsKey("volumeClaimTemplate")){
+                volumeClaimTemplates = (List<PersistentVolumeClaim>)res.get("volumeClaimTemplate");
+            }else{
+                volumeClaimTemplates = new ArrayList<>();
+            }
+            Map<String, Object> volFlag;
+            if(res.containsKey("volFlag")){
+                volFlag = (Map<String, Object>)res.get("volFlag");
+            }else {
+                volFlag = new HashMap<String, Object>();
+            }
             for (CreateContainerDto c : containers) {
                 Container container = new Container();
                 if (c.getSecurityContext() != null && c.getSecurityContext().isSecurity()) {
@@ -1917,32 +2776,52 @@ public class K8sResultConvert {
                 List<VolumeMount> volumeMounts = new ArrayList<VolumeMount>();
                 container.setVolumeMounts(volumeMounts);
                 if (c.getStorage() != null && !c.getStorage().isEmpty()) {
-                    Map<String, Object> volFlag = new HashMap<String, Object>();
+
                     for (PersistentVolumeDto vm : c.getStorage()) {
                         if (vm.getType() != null) {
                             switch (vm.getType()) {
-                                case Constant.VOLUME_TYPE_PV:
+                                case Constant.VOLUME_TYPE_PVC:
+                                    String volumeName = vm.getPvcName().replace(CommonConstant.DOT, CommonConstant.EMPTYSTRING);
+                                    //构建spec.containers.volumeMounts
+                                    VolumeMount volumeMount = new VolumeMount();
+                                    volumeMount.setName(volumeName);
+                                    volumeMount.setMountPath(vm.getPath());
+                                    volumeMount.setReadOnly(vm.getReadOnly());
+                                    volumeMounts.add(volumeMount);
+                                    //构建spec.volumes
                                     if (!volFlag.containsKey(vm.getPvcName())) {
-                                        PersistentVolumeClaimVolumeSource pvClaim = new PersistentVolumeClaimVolumeSource();
                                         volFlag.put(vm.getPvcName(), vm.getPvcName());
-                                        if (vm.getReadOnly().equals("true")) {
-                                            pvClaim.setReadOnly(true);
-                                        }
-                                        if (vm.getReadOnly().equals("false")) {
-                                            pvClaim.setReadOnly(false);
-                                        }
-                                        pvClaim.setClaimName(vm.getPvcName());
-                                        Volume vol = new Volume();
-                                        vol.setPersistentVolumeClaim(pvClaim);
-                                        vol.setName(vm.getPvcName().replace(".", "-"));
-                                        volumes.add(vol);
+                                        Volume pvcVolume = new Volume();
+                                        pvcVolume.setName(volumeName);
+                                        PersistentVolumeClaimVolumeSource persistentVolumeClaimVolumeSource = new PersistentVolumeClaimVolumeSource();
+                                        persistentVolumeClaimVolumeSource.setClaimName(vm.getPvcName());
+                                        pvcVolume.setPersistentVolumeClaim(persistentVolumeClaimVolumeSource);
+                                        volumes.add(pvcVolume);
                                     }
-                                    VolumeMount volm = new VolumeMount();
-                                    volm.setName(vm.getPvcName().replace(".", "-"));
-                                    volm.setReadOnly(vm.getReadOnly());
-                                    volm.setMountPath(vm.getPath());
-                                    volumeMounts.add(volm);
-                                    container.setVolumeMounts(volumeMounts);
+                                    break;
+                                case Constant.VOLUME_TYPE_STORAGECLASS:
+                                    //构建spec.containers.volumeMounts
+                                    VolumeMount volumeMountSC = new VolumeMount();
+                                    volumeMountSC.setName(vm.getVolumeName());
+                                    volumeMountSC.setMountPath(vm.getPath());
+                                    volumeMounts.add(volumeMountSC);
+                                    //构建StatefulSetSpec.volumeClaimTemplates
+                                    if (volumeClaimTemplates.stream().noneMatch(pvc -> vm.getVolumeName().equalsIgnoreCase(pvc.getMetadata().getName()))) {
+                                        PersistentVolumeClaim pvc = new PersistentVolumeClaim();
+                                        ObjectMeta meta = new ObjectMeta();
+                                        meta.setName(vm.getVolumeName());
+                                        pvc.setMetadata(meta);
+                                        PersistentVolumeClaimSpec spec = new PersistentVolumeClaimSpec();
+                                        spec.setStorageClassName(vm.getStorageClassName());
+                                        spec.setAccessModes(getAccessModes(vm.getReadOnly(), vm.getBindOne()));
+                                        ResourceRequirements resource = new ResourceRequirements();
+                                        Map<String, Object> request = new HashMap<>();
+                                        request.put("storage", vm.getCapacity() + CommonConstant.GI);
+                                        resource.setRequests(request);
+                                        spec.setResources(resource);
+                                        pvc.setSpec(spec);
+                                        volumeClaimTemplates.add(pvc);
+                                    }
                                     break;
                                 case Constant.VOLUME_TYPE_GITREPO:
                                     if (!volFlag.containsKey(vm.getGitUrl())) {
@@ -1963,19 +2842,23 @@ public class K8sResultConvert {
                                     container.setVolumeMounts(volumeMounts);
                                     break;
                                 case Constant.VOLUME_TYPE_EMPTYDIR:
-                                    if (!volFlag.containsKey(Constant.VOLUME_TYPE_EMPTYDIR + vm.getEmptyDir() == null ? "" : vm.getEmptyDir())) {
-                                        volFlag.put(Constant.VOLUME_TYPE_EMPTYDIR + vm.getEmptyDir() == null ? "" : vm.getEmptyDir(), RandomNum.getRandomString(8));
+                                    if (!volFlag.containsKey(Constant.VOLUME_TYPE_EMPTYDIR + vm.getVolumeName() == null ? "" : vm.getVolumeName())) {
+                                        volFlag.put(Constant.VOLUME_TYPE_EMPTYDIR + vm.getVolumeName() == null ? "" : vm.getVolumeName(), vm.getVolumeName());
                                         Volume empty = new Volume();
-                                        empty.setName(volFlag.get(Constant.VOLUME_TYPE_EMPTYDIR + vm.getEmptyDir() == null ? "" : vm.getEmptyDir()).toString());
+                                        empty.setName(vm.getVolumeName());
                                         EmptyDirVolumeSource ed = new EmptyDirVolumeSource();
                                         if (vm.getEmptyDir() != null && "Memory".equals(vm.getEmptyDir())) {
                                             ed.setMedium(vm.getEmptyDir());//Memory
+                                        }
+                                        if (vm.getCapacity() != null) {
+                                            ed.setSizeLimit(vm.getCapacity());//sizeLimit
                                         }
                                         empty.setEmptyDir(ed);
                                         volumes.add(empty);
                                     }
                                     VolumeMount volme = new VolumeMount();
-                                    volme.setName(volFlag.get(Constant.VOLUME_TYPE_EMPTYDIR + vm.getEmptyDir() == null ? "" : vm.getEmptyDir()).toString());
+                                    volme.setName(vm.getVolumeName());
+                                    //volme.setName(volFlag.get(Constant.VOLUME_TYPE_EMPTYDIR + vm.getEmptyDir() == null ? "" : vm.getEmptyDir()).toString());
                                     volme.setMountPath(vm.getPath());
                                     volumeMounts.add(volme);
                                     container.setVolumeMounts(volumeMounts);
@@ -2018,36 +2901,7 @@ public class K8sResultConvert {
                     volumeMounts.add(volm);
                     container.setVolumeMounts(volumeMounts);
                 }
-
-                if (c.getConfigmap() != null && c.getConfigmap().size() > 0) {
-                    for (CreateConfigMapDto cm : c.getConfigmap()) {
-                        if (cm != null && !StringUtils.isEmpty(cm.getPath())) {
-                            String filename = cm.getFile();
-                            if (cm.getPath().contains("/")) {
-                                int in = cm.getPath().lastIndexOf("/");
-                                filename = cm.getPath().substring(in + 1, cm.getPath().length());
-                            }
-                            Volume cMap = new Volume();
-                            cMap.setName((cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
-                            ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
-                            coMap.setName(name + c.getName());
-                            List<KeyToPath> items = new LinkedList<KeyToPath>();
-                            KeyToPath key = new KeyToPath();
-                            key.setKey(cm.getFile() + "v" + cm.getTag());
-                            key.setPath(filename);
-                            items.add(key);
-                            coMap.setItems(items);
-                            cMap.setConfigMap(coMap);
-                            volumes.add(cMap);
-                            VolumeMount volm = new VolumeMount();
-                            volm.setName((cm.getFile() + "v" + cm.getTag()).replace(".", "-"));
-                            volm.setMountPath(cm.getPath());
-                            volm.setSubPath(filename);
-                            volumeMounts.add(volm);
-                            container.setVolumeMounts(volumeMounts);
-                        }
-                    }
-                }
+                convertConfigMap(name+c.getName(),c.getConfigmap(),volumes,volumeMounts);
 
                 if (!StringUtils.isEmpty(logService) && !logService.equals("false")) {
                     Volume emp = new Volume();
@@ -2068,11 +2922,12 @@ public class K8sResultConvert {
                 }
                 cs.add(container);
             }
+            res.put("volume", volumes);
+            res.put("volumeClaimTemplate", volumeClaimTemplates);
+            res.put("volFlag", volFlag);
         }
-        Map<String, Object> res = new HashMap<String, Object>();
-        res.put("container", cs);
-        res.put("volume", volumes);
-        return res;
+
+        return cs;
     }
 
     public static ResourceRequirements convertResource(CreateContainerDto c) throws Exception {
@@ -2175,7 +3030,7 @@ public class K8sResultConvert {
 
         //Container
         List<Container> containers = new ArrayList<>();
-        Map<String, Object> map = K8sResultConvert.convertContainer(detail.getContainers(), detail.getLogService(), detail.getLogPath(), detail.getName());
+        Map<String, Object> map = K8sResultConvert.convertContainer(detail.getContainers(), null, detail.getLogService(), detail.getLogPath(), detail.getName());
         containers = (List<Container>) map.get("container");
         podSpec.setContainers(containers);
         //volume
@@ -2387,5 +3242,137 @@ public class K8sResultConvert {
             }
         }
         return depStatus;
+    }
+
+    public static String getStatefulSetStatus(StatefulSet sta) throws Exception {
+        String staStatus = null;
+        if (sta.getMetadata().getAnnotations() != null && sta.getMetadata().getAnnotations().containsKey("nephele/status")) {
+            Integer state = Integer.valueOf(sta.getMetadata().getAnnotations().get("nephele/status").toString());
+            switch (state) {
+                case 3:
+                    if (sta.getSpec().getReplicas() != null && sta.getStatus().getCurrentReplicas() != null && sta.getStatus().getReadyReplicas() != null && sta.getStatus().getReadyReplicas().equals(sta.getStatus().getCurrentReplicas())&& sta.getStatus().getReadyReplicas().equals(sta.getSpec().getReplicas())) {
+                        if (sta.getSpec().getUpdateStrategy() != null && sta.getSpec().getUpdateStrategy().getRollingUpdate() != null
+                                && StringUtils.isNotBlank(String.valueOf(sta.getSpec().getUpdateStrategy().getRollingUpdate().getPartition()))) {
+                            String maxSurge = String.valueOf(sta.getSpec().getUpdateStrategy().getRollingUpdate().getPartition());
+                            int precent = maxSurge.equals(Constant.ROLLINGUPDATE_MAX_UNAVAILABLE)? Integer.valueOf(maxSurge.substring(0, maxSurge.indexOf("%"))) : 0;
+                            int maxSurgeIns = precent/ CommonConstant.PERCENT_HUNDRED * sta.getSpec().getReplicas();
+                            staStatus = sta.getSpec().getReplicas() + maxSurgeIns == sta.getStatus().getReadyReplicas() ? Constant.SERVICE_START : Constant.SERVICE_STARTING;
+                        } else if (sta.getSpec().getReplicas().equals(sta.getStatus().getReadyReplicas())) {
+                            staStatus = Constant.SERVICE_START;
+                        } else {
+                            staStatus = Constant.SERVICE_STARTING;
+                        }
+                    } else {
+                        staStatus = Constant.SERVICE_STARTING;
+                    }
+                    break;
+                case 2:
+                    if (sta.getStatus().getCurrentReplicas() != null && sta.getStatus().getCurrentReplicas() > 0) {
+                        staStatus = Constant.SERVICE_STOPPING;
+                    } else {
+                        staStatus = Constant.SERVICE_STOP;
+                    }
+                    break;
+                default:
+                    if (sta.getStatus().getCurrentReplicas() != null && sta.getStatus().getCurrentReplicas() > 0) {
+                        staStatus = Constant.SERVICE_START;
+                    } else {
+                        staStatus = Constant.SERVICE_STOP;
+                    }
+                    break;
+            }
+        } else {
+            if (sta.getStatus().getCurrentReplicas() != null && sta.getStatus().getCurrentReplicas() > 0) {
+                staStatus = Constant.SERVICE_START;
+            } else {
+                staStatus = Constant.SERVICE_STOP;
+            }
+        }
+        return staStatus;
+    }
+
+    private static List<String> getAccessModes(Boolean isReadonly, Boolean isBindOne) throws MarsRuntimeException {
+        if (isReadonly == null || isBindOne == null) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+        List<String> accessModes = new ArrayList<>();
+        if (isReadonly) {
+            accessModes.add(CommonConstant.READONLYMANY);
+        } else if (isBindOne) {
+            accessModes.add(CommonConstant.READWRITEONCE);
+        } else {
+            accessModes.add(CommonConstant.READWRITEMANY);
+
+        }
+        return accessModes;
+
+    }
+
+    private static void convertLabels(Map<String, Object> labels, Map<String, Object> podLabels ,Map<String, Object> tMap){
+        Map<String, Object> labelMap = (Map<String, Object>)tMap.get("labels");
+        if(labelMap == null){
+            labelMap = new HashMap<>();
+        }
+        //获取对外服务标签
+        String serviceType = null;
+        if (labels != null && labels.containsKey(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE)) {
+            serviceType = labels.get(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE).toString();
+        }
+        if (!StringUtils.isEmpty(serviceType)) {
+            labelMap.put(LABEL_INGRESS_SERVICE, serviceType);
+            tMap.put("labels", labelMap);
+        }
+
+        //获取自动伸缩标签
+        String autoscaleStatus = null;
+        if(labels != null && labels.containsKey(NODESELECTOR_LABELS_PRE + LABEL_AUTOSCALE)) {
+            autoscaleStatus = labels.get(NODESELECTOR_LABELS_PRE + LABEL_AUTOSCALE).toString();
+        }
+        if(!StringUtils.isEmpty(autoscaleStatus)){
+            labelMap.put(LABEL_AUTOSCALE, autoscaleStatus);
+            tMap.put("labels", labelMap);
+        }
+
+        //获取服务版本标签
+        /*String deployVersion = null;
+        if(podLabels != null && podLabels.containsKey(Constant.TYPE_DEPLOY_VERSION)) {
+            deployVersion = podLabels.get(Constant.TYPE_DEPLOY_VERSION).toString();
+        }
+        if(!StringUtils.isEmpty(deployVersion)){
+            labelMap.put(Constant.TYPE_DEPLOY_VERSION, deployVersion);
+            tMap.put("labels", labelMap);
+        }*/
+    }
+
+    public static void convertConfigMap(String name, List<CreateConfigMapDto> configMaps,
+                                        List<Volume> volumes, List<VolumeMount> volumeMounts){
+        if(CollectionUtils.isEmpty(configMaps)){
+            return;
+        }
+        int configMapNo = 1;
+        for (CreateConfigMapDto cm : configMaps) {
+            if (cm == null || StringUtils.isBlank(cm.getPath())) {
+                continue;
+            }
+            String filename = cm.getFile();
+            Volume cMap = new Volume();
+            cMap.setName(configMapNo + "-" + cm.getConfigMapId());
+            ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
+            coMap.setName(name);
+            List<KeyToPath> items = new LinkedList<KeyToPath>();
+            KeyToPath key = new KeyToPath();
+            key.setKey(cm.getFile() + "v" + cm.getTag());
+            key.setPath(filename);
+            items.add(key);
+            coMap.setItems(items);
+            cMap.setConfigMap(coMap);
+            volumes.add(cMap);
+            VolumeMount volm = new VolumeMount();
+            volm.setName(configMapNo + "-" + cm.getConfigMapId());
+            volm.setMountPath((cm.getPath().endsWith("/")?cm.getPath():(cm.getPath() + "/")) + filename);
+            volm.setSubPath(filename);
+            volumeMounts.add(volm);
+            configMapNo++;
+        }
     }
 }

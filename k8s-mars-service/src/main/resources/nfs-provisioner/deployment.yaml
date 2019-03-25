@@ -1,0 +1,36 @@
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  name: nfs-client-provisioner-scName
+  namespace: kube-system
+  annotations:
+    createTime: ""
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: nfs-client-provisioner-scName
+    spec:
+      nodeSelector:
+              HarmonyCloud_Status: A
+      containers:
+        - name: nfs-client-provisioner-scName
+          image: imageName
+          volumeMounts:
+            - name: nfs-client-root
+              mountPath: /persistentvolumes
+          env:
+            - name: PROVISIONER_NAME
+              value: nfs-client-provisioner-scName
+            - name: NFS_SERVER
+              value: nfsAddr
+            - name: NFS_PATH
+              value: nfsPath
+      volumes:
+        - name: nfs-client-root
+          nfs:
+            server: nfsAddr
+            path: nfsPath

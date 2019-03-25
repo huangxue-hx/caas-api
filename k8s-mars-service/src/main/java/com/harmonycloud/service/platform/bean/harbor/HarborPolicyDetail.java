@@ -12,11 +12,29 @@ public class HarborPolicyDetail {
     private String update_time;
     private Integer target_id;
     private String target_name;
+    private String target_project_name;
     private String creation_time;
     private String start_time;
     private Integer error_job_count;
     private HarborPolicyStatus harborPolicyStatus;
+    private HarborPolicyFilter harborPolicyFilter;
+    private String harborPolicyTrigger;
 
+    public String getHarborPolicyTrigger() {
+        return harborPolicyTrigger;
+    }
+
+    public void setHarborPolicyTrigger(String harborPolicyTrigger) {
+        this.harborPolicyTrigger = harborPolicyTrigger;
+    }
+
+    public HarborPolicyFilter getHarborPolicyFilter() {
+        return harborPolicyFilter;
+    }
+
+    public void setHarborPolicyFilter(HarborPolicyFilter harborPolicyFilter) {
+        this.harborPolicyFilter = harborPolicyFilter;
+    }
 
     public Integer getProject_id() {
         return project_id;
@@ -112,5 +130,13 @@ public class HarborPolicyDetail {
 
     public void setTarget_id(Integer target_id) {
         this.target_id = target_id;
+    }
+
+    public String getTarget_project_name() {
+        return target_project_name;
+    }
+
+    public void setTarget_project_name(String target_project_name) {
+        this.target_project_name = target_project_name;
     }
 }

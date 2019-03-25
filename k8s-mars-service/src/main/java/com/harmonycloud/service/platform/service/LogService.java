@@ -3,13 +3,25 @@ package com.harmonycloud.service.platform.service;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.log.LogQueryDto;
 import com.harmonycloud.service.platform.bean.LogQuery;
+import org.springframework.web.socket.WebSocketSession;
 
 import javax.servlet.http.HttpServletResponse;
+import java.util.List;
 
 /**
  * 日志Service接口
  */
 public interface LogService {
+
+    /**
+     * 标准输出
+     */
+    String LOG_TYPE_STDOUT = "stdoutlog";
+
+    /**
+     * 日志文件
+     */
+    String LOG_TYPE_LOGFILE = "filelog";
 
     /**
      * 导出主机上的日志文件
@@ -28,5 +40,7 @@ public interface LogService {
     ActionReturnUtil getProcessLog(String rangeType, String processName, String node, String clusterId) throws Exception;
 
     LogQuery transLogQuery(LogQueryDto logQueryDto) throws Exception;
+
+    List<String> queryLogFile(String pod, String container, String namespace, String path, String clusterId);
 
 }

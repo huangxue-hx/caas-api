@@ -33,7 +33,7 @@ public class SocketIOConfigUtil {
 
 	private static SocketIOServer server;
 
-	static Map<String, SocketIOClient> clientsMap = new HashMap<>();
+	static private Map<String, SocketIOClient> clientsMap = new HashMap<>();
 
 	@Value("#{propertiesReader['socketio.host']}")
 	private String socketIOhost;
@@ -178,7 +178,7 @@ public class SocketIOConfigUtil {
 				}
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			e.printStackTrace();    //==sonar leak==
 		}
 	}
 }

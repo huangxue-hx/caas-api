@@ -31,7 +31,7 @@ public class RoleController {
 
 	@Autowired
 	private RoleLocalService roleLocalService;
-	
+
 	@Autowired
 	private ResourceService resourceService;
 	@Autowired
@@ -42,10 +42,10 @@ public class RoleController {
     @Autowired
 	private LocalRoleService localRoleService;
 	@Autowired
-	ClusterCacheManager clusterCacheManager;
+	private ClusterCacheManager clusterCacheManager;
 
     @Autowired
-	PrivilegeHelper privilegeHelper;
+	private PrivilegeHelper privilegeHelper;
 
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -636,5 +636,10 @@ public class RoleController {
 		privilegeApplicationFieldDtos.add(privilegeApplicationFieldDto1);
 		return ActionReturnUtil.returnSuccessWithData(privilegeHelper.matchAny(privilegeApplicationFieldDtos));
 	}
-
+	@RequestMapping(value = "/roles/initHarborRole", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil initHarborRole() throws Exception {
+		this.roleLocalService.initHarborRole();
+		return ActionReturnUtil.returnSuccess();
+	}
 }

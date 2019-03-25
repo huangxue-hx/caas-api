@@ -2,6 +2,7 @@ package com.harmonycloud.api.application;
 
 import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dto.application.ApplicationDto;
 import com.harmonycloud.dto.application.ApplicationTemplateDto;
 import com.harmonycloud.service.application.ApplicationDeployService;
 import com.harmonycloud.service.application.ApplicationService;
@@ -26,16 +27,16 @@ import javax.servlet.http.HttpSession;
 public class ApplicationDeployController {
 
     @Autowired
-    HttpSession session;
+    private HttpSession session;
 
     @Autowired
-    DeploymentsService dpService;
+    private DeploymentsService dpService;
 
     @Autowired
-    ApplicationService applicationService;
+    private ApplicationService applicationService;
 
     @Autowired
-    ApplicationDeployService applicationDeployService;
+    private ApplicationDeployService applicationDeployService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -58,10 +59,18 @@ public class ApplicationDeployController {
     @RequestMapping(value = "/projects/{projectId}/apps", method = RequestMethod.GET)
     public ActionReturnUtil listApplication(@PathVariable(value = "projectId") String projectId,
                                            @PathVariable(value = "tenantId") String tenantId,
+                                            @RequestParam(value = "clusterId", required = false) String clusterId,
                                            @RequestParam(value = "namespace", required = false) String namespace,
                                            @RequestParam(value = "name", required = false) String name,
                                            @RequestParam(value = "status", required = false) String status) throws Exception {
-        return applicationDeployService.searchApplication(projectId, tenantId, namespace, name, status);
+        ApplicationDto applicationQuery = new ApplicationDto();
+        applicationQuery.setProjectId(projectId);
+        applicationQuery.setTenantId(tenantId);
+        applicationQuery.setClusterId(clusterId);
+        applicationQuery.setNamespace(namespace);
+        applicationQuery.setName(name);
+        applicationQuery.setStatus(status);
+        return applicationDeployService.searchApplication(applicationQuery);
     }
 
     /**
@@ -92,12 +101,15 @@ public class ApplicationDeployController {
      */
     @ResponseBody
     @RequestMapping(value = "/projects/{projectId}/apps", method = RequestMethod.POST)
-    public ActionReturnUtil createDeployments(@ModelAttribute ApplicationDeployDto appDeploy) throws Exception {
+
+    public ActionReturnUtil createDeployments(@PathVariable(value = "tenantId") String tenantId,
+                                              @ModelAttribute ApplicationDeployDto appDeploy) throws Exception {
         logger.info("deploy application");
         String userName = (String) session.getAttribute("username");
         if(userName == null){
             throw new K8sAuthException(Constant.HTTP_401);
         }
+        appDeploy.setTenantId(tenantId);
         return applicationDeployService.deployApplicationTemplate(appDeploy, userName);
     }
 
@@ -128,12 +140,14 @@ public class ApplicationDeployController {
      */
     @ResponseBody
     @RequestMapping(value = "/projects/{projectId}/apps/{appName}/deploys", method = RequestMethod.POST)
-    public ActionReturnUtil deployDeployments(@ModelAttribute ApplicationDeployDto appDeploy) throws Exception {
+    public ActionReturnUtil deployDeployments(@PathVariable(value = "tenantId") String tenantId,
+                                              @ModelAttribute ApplicationDeployDto appDeploy) throws Exception {
         logger.info("deploy service in application");
         String userName = (String) session.getAttribute("username");
         if(userName == null){
             throw new K8sAuthException(Constant.HTTP_401);
         }
+        appDeploy.setTenantId(tenantId);
         return applicationDeployService.addAndDeployApplicationTemplate(appDeploy, userName);
     }
 

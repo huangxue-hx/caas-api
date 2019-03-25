@@ -7,6 +7,7 @@ import com.harmonycloud.dto.application.ServiceDeployDto;
 import com.harmonycloud.dto.application.ServiceTemplateDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -20,7 +21,7 @@ public interface ServiceService {
      */
     public ActionReturnUtil saveServiceTemplate(ServiceTemplateDto serviceTemplate, String username, int type) throws Exception;
 
-    public ActionReturnUtil listServiceTemplate(String name, String clusterId, boolean isPublic, String projectId) throws Exception;
+    public ActionReturnUtil listServiceTemplate(String name, String clusterId, boolean isPublic, String projectId, Integer serviceType) throws Exception;
 
     /**
      * 根据镜像查询服务模板
@@ -40,8 +41,10 @@ public interface ServiceService {
     public ServiceTemplates getSpecificTemplate(String name, String tag, String clusterId, String projectId) throws Exception;
 
     public ActionReturnUtil deleteDeployedService(DeployedServiceNamesDto deployedServiceNamesDto, String userName) throws Exception;
-    
-    public ActionReturnUtil listServiceTemplate(String searchKey, String searchValue, String clusterId, boolean isPublic, String projectId) throws Exception;
+
+    public ActionReturnUtil deleteDeployedServiceByprojectId(String projectId, String tenantId) throws Exception;
+
+    public ActionReturnUtil listServiceTemplate(String searchKey, String searchValue, String clusterId, boolean isPublic, String projectId, Integer serviceType) throws Exception;
     
     public ActionReturnUtil deleteServiceByNamespace(String namespace) throws Exception;
     
@@ -86,4 +89,33 @@ public interface ServiceService {
      * @throws Exception
      */
     ActionReturnUtil checkServiceTemplateName(String name, String projectId, String clusterId) throws Exception;
+
+    /**
+     * 服务停止，启动时 修改metadata中的annotations
+     * @param anno
+     * @param name
+     * @param action
+     * @return
+     * @throws Exception
+     */
+    Map<String, Object> updateAnnotation(Map<String, Object> anno, String name, String action) throws Exception;
+
+    Map<String, Object> updateAnnotationInScale(Map<String, Object> annotation, Integer scale, Integer replicas) throws Exception;
+
+    ActionReturnUtil deleteServiceResource(String name, String namespace, Cluster cluster, Map<String, Object> queryP, String serviceType) throws Exception;
+
+    /**
+     * 根据id删除应用商店应用下的服务模板
+     * @param appId
+     * @throws Exception
+     */
+    void deleteServiceTemplateByAppId(int appId) throws Exception;
+
+    /**
+     * 根据id获取应用商店应用下的服务模板
+     * @param appId
+     * @return
+     * @throws Exception
+     */
+    List<ServiceTemplates> listServiceTemplateByAppId(int appId) throws Exception;
 }

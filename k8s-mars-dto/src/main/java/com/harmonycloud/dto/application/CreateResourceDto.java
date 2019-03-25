@@ -1,7 +1,10 @@
 package com.harmonycloud.dto.application;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.io.Serializable;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CreateResourceDto implements Serializable{
 
 	/**

@@ -7,7 +7,7 @@
     <param-name>contextConfigLocation</param-name>
     <param-value>classpath:applicationContext.xml </param-value>
   </context-param>
-  <span style="white-space:pre">  </span>
+
   <filter>
     <filter-name>springSessionRepositoryFilter</filter-name>
     <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
@@ -16,14 +16,68 @@
     <filter-name>springSessionRepositoryFilter</filter-name>
     <url-pattern>/*</url-pattern>
   </filter-mapping>
+ <!-- <filter>
+    <filter-name>originFilter</filter-name>
+    <filter-class>com.harmonycloud.filters.OriginFilter</filter-class>
+  </filter>
+  <filter-mapping>
+    <filter-name>originFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+  </filter-mapping>
   <filter>
     <filter-name>ssoFilter</filter-name>
-    <filter-class>com.harmonycloud.filters.SsoFilter</filter-class>
+    <filter-class>com.whchem.sso.client.SSOFilter</filter-class>
+    <init-param>
+      <param-name>SERVER_HOST</param-name>
+      <param-value>ssodev.whchem.com/uic</param-value>
+    </init-param>
+
+    &lt;!&ndash; 登出后在登录跳转地址&ndash;&gt;
+    <init-param>
+      <param-name>ABSOLUTE_URL</param-name>
+      <param-value></param-value>
+    </init-param>
+    <init-param>
+      <param-name>RELATIVE_URL</param-name>
+      <param-value></param-value>
+    </init-param>
+    <init-param>
+      <param-name>REDIRECT_MODE</param-name>
+      <param-value>FBS</param-value>
+    </init-param>
+    &lt;!&ndash; 登出地址 （登出地址只需配上访问即可跳转云门户登出，项目自身不需要写controller）&ndash;&gt;
+    <init-param>
+      <param-name>LOGOUT_URI</param-name>
+      <param-value>/rest/users/auth/logout</param-value>
+    </init-param>
+    <init-param>
+      <param-name>EXCLUSIONS</param-name>
+      <param-value>*login*,*token*,*/users,*/system/configs/trialtime*,*/openapi/*,*/clusters,*/clusters/cache,*/testcallback*,*/tenants/addProject*,*/tenants/addUser*,*/tenants/project/addUser*,*/tenants/project/removeUser*,*/msf/tasks*,*/msf/queryInstances*,*/webhook,*/swagger-resources*,*/api-docs*,*/webjars*,*/appimages/*</param-value>
+    </init-param>
+    &lt;!&ndash;加密项&ndash;&gt;
+    <init-param>
+      <param-name>APP_KEY</param-name>
+      <param-value>bda3b49493b7484f94eaa5e92a3e2796</param-value>
+    </init-param>
+    <init-param>
+      <param-name>APP_SECRET</param-name>
+      <param-value>oZI8xeo5GFTpkivnkf+7rSPaap0=</param-value>
+    </init-param>
   </filter>
   <filter-mapping>
     <filter-name>ssoFilter</filter-name>
     <url-pattern>/*</url-pattern>
   </filter-mapping>
+
+  <filter>
+    <filter-name>ssoUserFilter</filter-name>
+    <filter-class>com.harmonycloud.filters.SsoFilter</filter-class>
+  </filter>
+  <filter-mapping>
+    <filter-name>ssoUserFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+  </filter-mapping>-->
+
   <filter>
         <filter-name>DruidWebStatFilter</filter-name>  
         <filter-class>com.alibaba.druid.support.http.WebStatFilter</filter-class>  
@@ -84,6 +138,7 @@
   <servlet-mapping>
     <servlet-name>spring</servlet-name>
     <url-pattern>/rest/*</url-pattern>
+    <url-pattern>/</url-pattern>
   </servlet-mapping>
   <listener>
     <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
