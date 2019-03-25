@@ -24,6 +24,7 @@ import org.influxdb.InfluxDB;
 import org.influxdb.dto.Query;
 import org.influxdb.dto.QueryResult;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
@@ -60,7 +61,8 @@ public class InfluxdbServiceImpl implements InfluxdbService {
     //监控数据最大展示100个监控点
     private static final int MAX_MONITOR_POINT = 100;
     private String nodeName = "nodename";
-
+    @Value("${influxdb.name.nodenetwork:kube}")
+    private String nodeNetworkInfluxdbDbName;
 
 	public ActionReturnUtil podMonit(InfluxdbQuery query, Integer request) throws ParseException,IOException,NoSuchAlgorithmException,KeyManagementException {
 		String interval;
@@ -256,7 +258,12 @@ public class InfluxdbServiceImpl implements InfluxdbService {
                 }
                 break;
         }
-        String influxServer = cluster.getInfluxdbUrl() + "?db=" + cluster.getInfluxdbDb();
+        String influxServer = cluster.getInfluxdbUrl();
+        if (EnumMonitorTarget.RX.name().equalsIgnoreCase(influxdbQuery.getMeasurement()) || EnumMonitorTarget.TX.name().equalsIgnoreCase(influxdbQuery.getMeasurement())){
+            influxServer = influxServer + "?db=" + nodeNetworkInfluxdbDbName;
+        } else {
+            influxServer = cluster.getInfluxdbUrl() + "?db=" + cluster.getInfluxdbDb();
+        }
         influxServer = influxServer + "&&q=" + URLEncoder.encode(sql, "UTF-8");
         HttpClientResponse response = HttpClientUtil.doGet(influxServer, null, null);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
