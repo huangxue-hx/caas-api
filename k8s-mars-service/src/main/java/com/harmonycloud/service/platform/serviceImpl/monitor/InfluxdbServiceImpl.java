@@ -138,7 +138,12 @@ public class InfluxdbServiceImpl implements InfluxdbService {
                 sql = "SELECT mean(" + "\"value\"" + ") FROM " + "\"" + target + "\"" + " WHERE " + "\"type\"" + " = " + "\'" + type + "\'" + " AND " + "\"pod_name\"" + " = " + "\'" + query.getPod() + "\'" + " AND time > now() - " + range + " GROUP BY time(" + interval + ") fill(null)";
             }
         }
-		String influxServer = cluster.getInfluxdbUrl() + "?db="+cluster.getInfluxdbDb();
+        String influxServer = cluster.getInfluxdbUrl();
+        if (EnumMonitorTarget.RX.name().equalsIgnoreCase(query.getMeasurement()) || EnumMonitorTarget.TX.name().equalsIgnoreCase(query.getMeasurement())){
+            influxServer = influxServer + "?db=" + nodeNetworkInfluxdbDbName;
+        } else {
+            influxServer = cluster.getInfluxdbUrl() + "?db=" + cluster.getInfluxdbDb();
+        }
 		influxServer = influxServer + "&&q="+URLEncoder.encode(sql, "UTF-8");
 		HttpClientResponse response = HttpClientUtil.doGet(influxServer, null, null);
 		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
