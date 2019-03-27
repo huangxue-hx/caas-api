@@ -263,6 +263,7 @@ public class JobServiceImpl implements JobService {
             String script = TemplateUtil.generate("pipeline.ftl", dataModel);
             dataModel.put("script", script);
             String body = TemplateUtil.generate("jobConfig.ftl", dataModel);
+            logger.info("构建流水线pod nodeSelector:{}", buildNodeSelector);
             try {
                 jenkinsServer.createJob(folderJob, job.getName(), body);
             } catch (Exception e) {
@@ -2740,7 +2741,7 @@ public class JobServiceImpl implements JobService {
         dataModel.put("timeout", jenkinsTimeout);
         dataModel.put("nodeSelector", buildNodeSelector);
         String script = null;
-
+        logger.info("构建流水线pod nodeSelector:{}", buildNodeSelector);
         try {
             script = TemplateUtil.generate("pipeline.ftl", dataModel);
         } catch (Exception e) {
