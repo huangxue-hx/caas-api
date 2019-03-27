@@ -192,6 +192,10 @@ public class JobServiceImpl implements JobService {
     @Value("#{propertiesReader['jenkins.timeout']}")
     private String jenkinsTimeout;
 
+
+    @Value("${build.nodeselector:HarmonyCloud_Status=E}")
+    private String buildNodeSelector;
+
     @Autowired
     private SecretService secretService;
     private long sleepTime = 2000L;
@@ -254,6 +258,7 @@ public class JobServiceImpl implements JobService {
             dataModel.put("job", job);
             dataModel.put("apiUrl", apiUrl);
             dataModel.put("timeout", jenkinsTimeout);
+            dataModel.put("nodeSelector", buildNodeSelector);
             dataModel.put("harborAddress", clusterService.findClusterById(jobDto.getClusterId()).getHarborServer().getHarborAddress());
             String script = TemplateUtil.generate("pipeline.ftl", dataModel);
             dataModel.put("script", script);
@@ -2733,6 +2738,7 @@ public class JobServiceImpl implements JobService {
         dataModel.put("stageList", stageDtoList);
         dataModel.put("imageBuildStages", imageBuildStages);
         dataModel.put("timeout", jenkinsTimeout);
+        dataModel.put("nodeSelector", buildNodeSelector);
         String script = null;
 
         try {
