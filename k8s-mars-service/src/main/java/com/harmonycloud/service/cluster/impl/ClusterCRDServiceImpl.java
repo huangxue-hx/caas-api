@@ -182,8 +182,7 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
                 throw new MarsRuntimeException(DictEnum.CLUSTER.phrase()
                         + " " + clusterCRDDto.getHost(), ErrorCodeMessage.EXIST);
             }
-            if(cluster.getName().equalsIgnoreCase(clusterCRDDto.getName())
-                    && cluster.getDataCenter().equalsIgnoreCase(clusterCRDDto.getDatacenter())){
+            if(cluster.getName().equalsIgnoreCase(clusterCRDDto.getName())){
                 throw new MarsRuntimeException(DictEnum.NAME.phrase()
                         + " " + clusterCRDDto.getName(), ErrorCodeMessage.EXIST);
             }
@@ -481,6 +480,7 @@ public class ClusterCRDServiceImpl implements ClusterCRDService {
         clusterCRDDto.setEnvLabel(ClusterLevelEnum.getEnvLevel(labelsMap.get(TEMPLATE).toString()).getLevel());
         clusterCRDDto.setNickname(annosMap.get("name").toString());
         clusterCRDDto.setK8sAddress(info.getAddress());
+        clusterCRDDto.setCompAddress(info.getCompAddress());
         clusterCRDDto.setPort(info.getPort());
         clusterCRDDto.setProtocol(info.getProtocol());
         clusterCRDDto.setHarborAddress(info.getHarbor().getAddress());

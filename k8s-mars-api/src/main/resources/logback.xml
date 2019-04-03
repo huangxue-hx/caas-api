@@ -38,7 +38,7 @@
     <logger name="com.spotify" level="WARN"></logger>
     <logger name="org.springframework" level="WARN"></logger>
     <logger name="springfox.documentation" level="WARN"></logger>
-
+    <logger name="com.whchem.sso" level="WARN"></logger>
 
     <root level="INFO">
         <appender-ref ref="Info"/>

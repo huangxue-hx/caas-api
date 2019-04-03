@@ -40,7 +40,6 @@ import javax.servlet.http.HttpSession;
 import java.util.*;
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class DockerFileServiceImpl implements DockerFileService {
     private static final Logger LOGGER = LoggerFactory.getLogger(DockerFileServiceImpl.class);
 

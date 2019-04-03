@@ -24,6 +24,10 @@ public enum AuditUrlEnum {
     USER_DELETE_GROUP("/users/groups/([^//]+)_DELETE", "删除用户组", "deleteUserGroup", 1, "UserService", null, "USER"),
     USER_UPDATE_GROUP("/users/groups/[^//]+_PUT", "修改用户组", "updateUserGroup", null, null, "usergroup.groupname", "USER"),
 
+    CREATE_APP_STORE("/tenants/projects/apptemplates_POST", "创建应用商店应用", "createAppStore", null, null, "name", "APP_STORE"),
+    UPDATE_APP_STORE("/tenants/projects/apptemplates/([^//]+)_PUT", "更新应用商店应用", "updateAppStore", 1, null, null, "APP_STORE"),
+    DELETE_APP_STORE("/tenants/projects/apptemplates/([^//]+)_DELETE", "删除应用商店应用", "deleteAppStore", 1, null, null, "APP_STORE"),
+
     CREATE_APP_TEMPLATE("/tenants/[^//]+/projects/[^//]+/apptemplates_POST", "保存应用模板", "saveAppTemplate",
             null, null, "name", "APP_TEMPLATE"),
     UPDATE_APP_TEMPLATE("/tenants/([^//]+)/projects/([^//]+)/apptemplates/([^//]+)_PUT", "更新应用模板", "updateAppTemplate", 3, null, null, "APP_TEMPLATE"),
@@ -227,7 +231,7 @@ public enum AuditUrlEnum {
     ADD_NODE("/clusters/([^//]+)/nodes/([^//]+)/addNode_POST", "主机上线", "addNodeInCluster", 2, null, null, "CLUSTER"),
     DELETE_NODE("/clusters/([^//]+)/nodes/([^//]+)/removeNode_DELETE", "主机下线", "deleteNodeInCluster", 2, null, null, "CLUSTER"),
     UPDATE_NODE_STATUS("/clusters/([^//]+)/nodes/([^//]+)/schedule_PUT", "修改主机维护状态", "changeNodeStatus", 2, null, null, "CLUSTER"),
-    UPDATE_IDLENODE_STATUS("/clusters/([^//]+)/nodes/([^//]+)_PUT", "修改闲置节点状态", "updateIdleNodeStatus", 2, null, null, "CLUSTER"),
+    UPDATE_IDLENODE_STATUS("/clusters/([^//]+)/nodes/([^//]+)_PUT", "转换主机类型", "changeNodeType", 2, null, null, "CLUSTER"),
     DRAIN_POD("/clusters/([^//]+)/nodes/([^//]+)/drainPod_PUT", "主机POD迁移", "drainPod", 2, null, null, "CLUSTER"),
 
     CREATE_LOG_BACKUP_RULE("/snapshotrules_POST", "创建日志备份规则", "createLogBackupRule", null, "ClusterService", "clusterIds", "LOG"),
@@ -241,7 +245,24 @@ public enum AuditUrlEnum {
 
     ADD_CONFIG("/tenants/([^//]+)/projects/([^//]+)/configmap_POST", "新增配置文件", "addConfigurationFile", null, null, "name", "CONFIG_CENTET"),
     UPDATE_CONFIG("/tenants/([^//]+)/projects/([^//]+)/configmap_PUT", "修改配置文件", "addConfigurationFile", null, null, "name", "CONFIG_CENTET"),
-    DELETE_CONFIG("/tenants/([^//]+)/projects/([^//]+)/configmap_DELETE", "删除配置文件", "addConfigurationFile", null, null, "name", "CONFIG_CENTET");
+    DELETE_CONFIG("/tenants/([^//]+)/projects/([^//]+)/configmap_DELETE", "删除配置文件", "addConfigurationFile", null, null, "name", "CONFIG_CENTET"),
+    //istio policy
+    //开关
+    UPDATE_CLUSTER_POLICY_SWITCH("/clusters/([^//]+)/istiopolicyswitch_PUT", "%sIstio全局开关", "%s cluster istio policy", 1, null, null, "MSF"),
+    UPDATE_NAMESPACE_POLICY_SWITCH("/tenants/([^//]+)/namespaces/([^//]+)/istiopolicyswitch_PUT", "%sIstio分区开关", "%s namespace istio policy", 2, null, null, "MSF"),
+    //policy
+    CREATE_ISTIO_POLICY("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)/istiopolicies_POST", "创建%s策略", "create %s policy", 3, null, null, "MSF"),
+    UPDATE_ISTIO_POLICY("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)/istiopolicies/([^//]+)_PUT", "修改%s策略", "update %s policy", 3, null, null, "MSF"),
+    DELETE_ISTIO_POLICY("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)/istiopolicies/([^//]+)_DELETE", "删除%s策略", "delete %s policy", 3, null, null, "MSF"),
+    CLOSE_ISTIO_POLICY("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)/istiopolicies/([^//]+)/close_PUT", "关闭%s策略", "close %s policy", 3, null, null, "MSF"),
+    OPEN_ISTIO_POLICY("/tenants/([^//]+)/projects/([^//]+)/deploys/([^//]+)/istiopolicies/([^//]+)/open_PUT", "开启%s策略", "open %s policy", 3, null, null, "MSF"),
+    //外部服务入口 service entry
+    CREATE_EXTERNAL_SERVICE_ENTRY("/clusters/([^//]+)/externalserviceentries_POST", "创建Istio域名模式服务入口", "create external service entry", null, null, "name", "MSF"),
+    UPDATE_EXTERNAL_SERVICE_ENTRY("/clusters/([^//]+)/externalserviceentries_PUT", "修改Istio域名模式服务入口", "update external service entry", null, null, "name", "MSF"),
+    DELETE_EXTERNAL_SERVICE_ENTRY("/clusters/([^//]+)/externalserviceentries/([^//]+)_DELETE", "删除Istio域名模式服务入口", "delete external service entry", 2, null, null, "MSF"),
+    CREATE_INTERNAL_SERVICE_ENTRY("/tenants/([^//]+)/projects/([^//]+)/serviceentries/internalserviceentry_POST", "创建Istio IP模式服务入口", "create internal service entry", null, null, "name", "MSF"),
+    UPDATE_INTERNAL_SERVICE_ENTRY("/tenants/([^//]+)/projects/([^//]+)/serviceentries/internalserviceentry_PUT", "修改Istio IP模式服务入口", "update internal service entry", null, null, "name", "MSF"),
+    DELETE_INTERNAL_SERVICE_ENTRY("/tenants/([^//]+)/projects/([^//]+)/serviceentries/([^//]+)_DELETE", "删除Istio IP模式服务入口", "delete internal service entry", 3, null, null, "MSF");
 
 
     //url正则表达式

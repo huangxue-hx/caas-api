@@ -58,7 +58,7 @@ public class DaemonSetDetailDto {
 
     private String clusterName;
 
-    private String aliasName;
+    private String creatorRealName;
 
     private boolean isSystem;
 
@@ -70,12 +70,12 @@ public class DaemonSetDetailDto {
         isSystem = system;
     }
 
-    public String getAliasName() {
-        return aliasName;
+    public String getCreatorRealName() {
+        return creatorRealName;
     }
 
-    public void setAliasName(String aliasName) {
-        this.aliasName = aliasName;
+    public void setCreatorRealName(String creatorRealName) {
+        this.creatorRealName = creatorRealName;
     }
 
     public String getName() {

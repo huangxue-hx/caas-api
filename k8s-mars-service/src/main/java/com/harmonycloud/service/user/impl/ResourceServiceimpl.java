@@ -15,7 +15,6 @@ import com.harmonycloud.k8s.service.APIResourceService;
 import com.harmonycloud.service.user.ResourceService;
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class ResourceServiceimpl implements ResourceService{
     @Autowired
     private ResourceMapper resourceMapper;

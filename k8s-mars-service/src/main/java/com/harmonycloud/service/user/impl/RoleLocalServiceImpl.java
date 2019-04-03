@@ -5,6 +5,7 @@ import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.common.util.UUIDUtil;
 import com.harmonycloud.common.util.date.DateUtil;
@@ -12,9 +13,11 @@ import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.user.RoleMapper;
 import com.harmonycloud.dao.user.bean.*;
+import com.harmonycloud.dto.cluster.DataCenterDto;
 import com.harmonycloud.dto.user.PrivilegeDto;
 import com.harmonycloud.dto.user.RoleDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.service.application.DataCenterService;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.harbor.HarborRole;
@@ -35,8 +38,10 @@ import javax.servlet.http.HttpSession;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.harmonycloud.common.Constant.CommonConstant.PM_ROLEID;
+import static com.harmonycloud.service.platform.constant.Constant.TOP_DATACENTER;
+
 @Service("roleLocalService")
-@Transactional(rollbackFor = Exception.class)
 public class RoleLocalServiceImpl implements RoleLocalService {
     @Autowired
     private RoleMapper roleMapper;
@@ -60,6 +65,11 @@ public class RoleLocalServiceImpl implements RoleLocalService {
     private HarborProjectService harborProjectService;
     @Autowired
     private ProjectService projectService;
+    @Autowired
+    private DataCenterService dataCenterService;
+
+    @Value("#{propertiesReader['harbor.role.enable']}")
+    private boolean enableHarborRole;
 
     private static final Logger log = LoggerFactory.getLogger(RolePrivilegeServiceImpl.class);
 
@@ -172,6 +182,21 @@ public class RoleLocalServiceImpl implements RoleLocalService {
             list.add(role);
             map.put(role.getId(),role);
         }
+        if (StringUtils.isNotBlank(tenantId)){
+            //判断用户在该项目所属的租户下是否为租户管理员
+            Role tm = this.getRoleByRoleName(CommonConstant.TM);
+            Boolean isTm = this.userRoleRelationshipService.isTmUser(tenantId, username, tm.getId());
+            //如果为租户管理员则处理租户管理员
+            if (isTm){
+                if (Objects.isNull(map.get(tm.getId()))){
+                    list.add(tm);
+                    map.put(tm.getId(), tm);
+                }
+            }else if (!Objects.isNull(map.get(tm.getId()))){
+                //如果不为该租户的租户管理员则删除多余数据
+                list.remove(tm);
+            }
+        }
         if (!CollectionUtils.isEmpty(roleByUsername) && status){
             for (Map roleMap:roleByUsername) {
                 Integer roleId = (Integer) roleMap.get(CommonConstant.ROLEID);
@@ -184,20 +209,6 @@ public class RoleLocalServiceImpl implements RoleLocalService {
                         map.put(roleById.getId(),roleById);
                     }
                 }
-            }
-        }
-        if (StringUtils.isNotBlank(tenantId)){
-            //判断用户在该项目所属的租户下是否为租户管理员
-            Role tm = this.getRoleByRoleName(CommonConstant.TM);
-            Boolean isTm = this.userRoleRelationshipService.isTmUser(tenantId, username, tm.getId());
-            //如果为租户管理员则处理租户管理员
-            if (isTm){
-                if (Objects.isNull(map.get(tm.getId()))){
-                    list.add(tm);
-                }
-            }else if (!Objects.isNull(map.get(tm.getId()))){
-                //如果不为该租户的租户管理员则删除多余数据
-                list.remove(tm);
             }
         }
         //除去被禁用的角色
@@ -246,26 +257,36 @@ public class RoleLocalServiceImpl implements RoleLocalService {
         List<Role> roleList = new ArrayList<>();
         roleList.add(role);
         List<Cluster> result = this.dealRoleCluster(roleList);
-        if (CollectionUtils.isEmpty(result) && CommonConstant.ADMIN_ROLEID != this.userService.getCurrentRoleId()){
-            throw new MarsRuntimeException(ErrorCodeMessage.ROLE_HAVE_DISABLE_CLUSTER);
-        }
         return result;
     }
 
     @Override
     public List<Cluster> listCurrentUserRoleCluster() throws Exception {
         Integer roleId = userService.getCurrentRoleId();
-        return this.getClusterListByRoleId(roleId);
+        List<Cluster> clusters = this.getClusterListByRoleId(roleId);
+        String currentDataCenter = this.getCurrentDataCenter();
+        if(currentDataCenter != null){
+            return clusters.stream().filter(cluster -> cluster.getDataCenter().equals(currentDataCenter)).collect(Collectors.toList());
+        }
+        return clusters;
     }
 
     @Override
-    public Set<String> listCurrentUserRoleClusterIds() throws Exception {
+    public List<String> listCurrentUserRoleClusterIds() throws Exception {
         List<Cluster> clusters = this.listCurrentUserRoleCluster();
         if(CollectionUtils.isEmpty(clusters)){
-            return Collections.emptySet();
+            return Collections.emptyList();
         }
-        return clusters.stream().map(Cluster::getId).collect(Collectors.toSet());
+        return clusters.stream().map(Cluster::getId).collect(Collectors.toList());
 
+    }
+
+    @Override
+    public String getCurrentDataCenter() throws Exception {
+        if(session.getAttribute(CommonConstant.DATA_CENTER) != null){
+            return session.getAttribute(CommonConstant.DATA_CENTER).toString();
+        }
+        return "";
     }
 
     private List<Cluster> dealRoleCluster(List<Role> roleList) throws Exception {
@@ -337,6 +358,7 @@ public class RoleLocalServiceImpl implements RoleLocalService {
      * @param roleDto
      * @throws Exception
      */
+    @Transactional
     @Override
     public void createRole(RoleDto roleDto) throws Exception {
 
@@ -440,7 +462,7 @@ public class RoleLocalServiceImpl implements RoleLocalService {
             throw new MarsRuntimeException(ErrorCodeMessage.ROLE_NOT_EXIST);
         }
         //初始化角色不允许禁用
-        if (roleId <= CommonConstant.PM_ROLEID){
+        if (roleId <= PM_ROLEID){
             throw new MarsRuntimeException(ErrorCodeMessage.INIT_ROLE_CANNOT_DISABLE);
         }
         role.setUpdateTime(DateUtil.getCurrentUtcTime());
@@ -449,8 +471,10 @@ public class RoleLocalServiceImpl implements RoleLocalService {
         roleMapper.updateByPrimaryKey(role);
         clusterCacheManager.updateRolePrivilegeStatus(roleId,null,Boolean.TRUE);
         // 删除所有相关user的对应harbor权限
-        List<UserRoleRelationship> users = this.userRoleRelationshipService.listUserByRoleId(roleId);
-        updateHarborMember(HarborMemberEnum.NONE,users);
+        if(enableHarborRole) {
+            List<UserRoleRelationship> users = this.userRoleRelationshipService.listUserByRoleId(roleId);
+            updateHarborMember(HarborMemberEnum.NONE, users);
+        }
 
     }
 
@@ -477,7 +501,7 @@ public class RoleLocalServiceImpl implements RoleLocalService {
             List<Map> userRoleList = userRoleRelationshipService.getRoleByUsernameAndProject(userName,repository.getProjectId());
             for(Map<String,Object> userRole : userRoleList) {
                 Integer id = Integer.valueOf(userRole.get(CommonConstant.ROLEID).toString());
-                if (id <= CommonConstant.PM_ROLEID && id >= CommonConstant.ADMIN_ROLEID) {
+                if (id <= PM_ROLEID && id >= CommonConstant.ADMIN_ROLEID) {
                     level = HarborMemberEnum.PROJECTADMIN.getLevel() ;
                     continue;
                 }
@@ -506,6 +530,7 @@ public class RoleLocalServiceImpl implements RoleLocalService {
      * @param nickName
      * @throws Exception
      */
+    @Transactional
     @Override
     public void copyRoleByRoleId(Integer roleId, String nickName) throws Exception {
         //验证新添加的角色是否存在
@@ -547,6 +572,8 @@ public class RoleLocalServiceImpl implements RoleLocalService {
         }
     }
 
+    @Transactional
+    @Override
     public int deleteRoleCluster(String clusterId) throws Exception{
         AssertUtil.notBlank(clusterId, DictEnum.CLUSTER);
         List<Role> roles = this.getAllRoleList();
@@ -631,9 +658,11 @@ public class RoleLocalServiceImpl implements RoleLocalService {
             clusterCacheManager.updateRolePrivilegeStatus(roleId,null,Boolean.FALSE);
         }
         //创建、更新 harbor  权限
-        HarborMemberEnum targetMember =  rolePrivilegeService.getHarborRole(roleId);
-        List<UserRoleRelationship> users = this.userRoleRelationshipService.listUserByRoleId(roleId);
-        addHarborMember(targetMember,users );
+        if(enableHarborRole) {
+            HarborMemberEnum targetMember = rolePrivilegeService.getHarborRole(roleId);
+            List<UserRoleRelationship> users = this.userRoleRelationshipService.listUserByRoleId(roleId);
+            addHarborMember(targetMember, users);
+        }
     }
     public void addHarborUserRole(HarborMemberEnum targetMember,String projectId,String username,Integer roleId) throws Exception{
 //        UserRoleRelationship user = this.userRoleRelationshipService.getUser(projectId, username, roleId);
@@ -697,6 +726,7 @@ public class RoleLocalServiceImpl implements RoleLocalService {
      * @param nickName
      * @throws Exception
      */
+    @Transactional
     @Override
     public void deleteRoleByNickName(String nickName) throws Exception {
         //判断角色是否存在
@@ -726,6 +756,7 @@ public class RoleLocalServiceImpl implements RoleLocalService {
      * @param id
      * @throws Exception
      */
+    @Transactional
     @Override
     public void deleteRoleById(Integer id) throws Exception {
         Role role = this.roleMapper.selectByPrimaryKey(id);
@@ -756,6 +787,7 @@ public class RoleLocalServiceImpl implements RoleLocalService {
      * @param roleDto
      * @throws Exception
      */
+    @Transactional
     @Override
     public void updateRole(RoleDto roleDto) throws Exception {
         int roleId = roleDto.getId();
@@ -770,7 +802,7 @@ public class RoleLocalServiceImpl implements RoleLocalService {
             throw new MarsRuntimeException(ErrorCodeMessage.ROLE_PRIVILEGE_CANNOT_UPDATE);
         }
         //只修改项目管理员以下的作用域
-        if (roleId > CommonConstant.PM_ROLEID
+        if (roleId > PM_ROLEID
                 && (Objects.isNull(oriRole.getClusterIds())
                 || !oriRole.getClusterIds().equals(roleDto.getClusterIds()))){
             oriRole.setClusterIds(roleDto.getClusterIds());
@@ -784,8 +816,6 @@ public class RoleLocalServiceImpl implements RoleLocalService {
         //3 update role_privilege
         List<PrivilegeDto> rolePrivilegeList = roleDto.getRolePrivilegeList();
 
-        //   获取当前角色的镜像权限
-        HarborMemberEnum currentMember =   rolePrivilegeService.getHarborRole(roleId);
 
         if(!CollectionUtils.isEmpty(rolePrivilegeList)){
             rolePrivilegeService.updateRolePrivilege(roleId, rolePrivilegeList);
@@ -796,18 +826,23 @@ public class RoleLocalServiceImpl implements RoleLocalService {
             return ;
         }
 
-        //   获取修改角色的镜像权限
-        HarborMemberEnum  targetMember = rolePrivilegeService.getHarborRole(roleId);
-        // 判定修改角色 是否导致人员关于镜像库权限变更
-        if (currentMember.getLevel() != targetMember.getLevel()) {
-            if (currentMember == HarborMemberEnum.NONE) {
-                //add
-                addHarborMember(targetMember, users);
-            }  else {
-                //update or delete
-                updateHarborMember(targetMember,users);
-            }
+        if(enableHarborRole) {
+            //   获取当前角色的镜像权限
+            HarborMemberEnum currentMember = rolePrivilegeService.getHarborRole(roleId);
 
+            //   获取修改角色的镜像权限
+            HarborMemberEnum targetMember = rolePrivilegeService.getHarborRole(roleId);
+            // 判定修改角色 是否导致人员关于镜像库权限变更
+            if (currentMember.getLevel() != targetMember.getLevel()) {
+                if (currentMember == HarborMemberEnum.NONE) {
+                    //add
+                    addHarborMember(targetMember, users);
+                } else {
+                    //update or delete
+                    updateHarborMember(targetMember, users);
+                }
+
+            }
         }
 
     }
@@ -872,6 +907,55 @@ public class RoleLocalServiceImpl implements RoleLocalService {
             }
         }
 
+    }
+
+    @Override
+    public void switchDataCenter(Integer roleId, String dataCenter) throws Exception {
+        //项目管理员及以上角色权限拥有所有数据中心的权限，不需要校验数据中心权限
+        if (roleId <= PM_ROLEID) {
+            session.setAttribute(CommonConstant.DATA_CENTER, dataCenter);
+            return;
+        }
+        List<Cluster> clusters = this.getClusterListByRoleId(roleId);
+        List<Cluster> filteredClusters = clusters.stream()
+                .filter(cluster -> cluster.getDataCenter().equals(dataCenter)).collect(Collectors.toList());
+        if(CollectionUtils.isEmpty(filteredClusters)){
+            throw new MarsRuntimeException(ErrorCodeMessage.ROLE_DATA_CENTER_ACCESS_DENIED);
+        }
+        session.setAttribute(CommonConstant.DATA_CENTER, dataCenter);
+    }
+
+    @Override
+    public Set<DataCenterDto> getRoleDataCenter(Integer roleId) throws Exception {
+        Set<DataCenterDto> dataCenterDtos = new HashSet<>();
+        String currentDataCenter = this.getCurrentDataCenter();
+        //项目管理员以上的角色权限拥有所有数据中心
+        if (roleId <= PM_ROLEID) {
+            ActionReturnUtil response = dataCenterService.listDataCenter(false, null);
+            if (response.isSuccess()) {
+                List<DataCenterDto> dataCenters = (List<DataCenterDto>)response.getData();
+                for(DataCenterDto dataCenterDto : dataCenters){
+                    if(dataCenterDto.getName().equals(TOP_DATACENTER)){
+                        continue;
+                    }
+                    if(dataCenterDto.getName().equals(currentDataCenter)){
+                        dataCenterDto.setIsCurrent(Boolean.TRUE);
+                    }
+                    dataCenterDtos.add(dataCenterDto);
+                }
+                return dataCenterDtos;
+            }
+        }
+        List<Cluster> clusters = this.getClusterListByRoleId(roleId);
+        for(Cluster cluster : clusters){
+            DataCenterDto dataCenterDto = new DataCenterDto();
+            dataCenterDto.setName(cluster.getDataCenter());
+            dataCenterDto.setAnnotations(cluster.getDataCenterName());
+            //设置是否是当前用户选择的数据中心
+            dataCenterDto.setIsCurrent(cluster.getDataCenter().equals(currentDataCenter));
+            dataCenterDtos.add(dataCenterDto);
+        }
+        return dataCenterDtos;
     }
 
     private RoleExample getExample() throws Exception {

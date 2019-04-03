@@ -5,6 +5,8 @@ import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dto.application.DeployedServiceNamesDto;
 import com.harmonycloud.dto.application.ServiceDeployDto;
 import com.harmonycloud.dto.application.ServiceTemplateDto;
+import com.harmonycloud.dto.application.StatefulSetDetailDto;
+import com.harmonycloud.k8s.bean.StatefulSet;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 
 import java.util.List;
@@ -118,4 +120,10 @@ public interface ServiceService {
      * @throws Exception
      */
     List<ServiceTemplates> listServiceTemplateByAppId(int appId) throws Exception;
+
+    void checkStsStorageResourceQuota(List<StatefulSet> statefulSetList, String namespace) throws Exception;
+
+    void checkStDtoStorageResourceQuota(List<ServiceTemplateDto> serviceTemplateDtos, String namespace) throws Exception;
+
+    void checkStDtoPvcExist(List<ServiceTemplateDto> serviceList, String namespace, String projectId, Cluster cluster) throws Exception;
 }

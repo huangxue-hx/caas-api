@@ -1,12 +1,11 @@
 package com.harmonycloud.service.tenant;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.dto.cluster.ErrorNamespaceDto;
-import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dto.tenant.NamespaceDto;
+import com.harmonycloud.dto.tenant.NamespaceStorageDto;
 import com.harmonycloud.k8s.bean.ResourceQuotaList;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 
 import java.util.List;
 import java.util.Map;
@@ -134,6 +133,16 @@ public interface NamespaceService {
     public List<Map<String, Object>> getNamespaceListByClusterId(String clusterId)throws Exception;
 
     /**
+     * 获取分区的配额
+     * @param namespaceList
+     * @return
+     * @throws Exception
+     */
+    List<Map<String, Object>>  getNameSpaceQuota(List<NamespaceLocal> namespaceList) throws Exception;
+
+    List<NamespaceStorageDto> listNamespaceStorage(String tenantId, String clusterId) throws Exception;
+
+    /**
      * 根据查询namespace列表详情
      * @param
      * @return
@@ -178,8 +187,10 @@ public interface NamespaceService {
 
     ActionReturnUtil checkResourceInTemplateDeploy(Map<String, Long> requireResource, Map<String, String> remainResource) throws Exception;
 
+    void checkStorageResource(Map<String, Long> serviceRequireRes, Map<String, String> remainResource);
+
     boolean checkTransferResource(List<NamespaceDto> namespaceDtos) throws Exception;
 
     ActionReturnUtil createQuota(NamespaceDto namespaceDto, Cluster cluster) throws Exception;
 
-    }
+}

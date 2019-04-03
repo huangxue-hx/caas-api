@@ -13,6 +13,8 @@ import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
 import com.harmonycloud.dto.application.StorageClassDto;
+import com.harmonycloud.dto.tenant.StorageDto;
+import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8SClient;
@@ -46,7 +48,9 @@ import java.io.InputStream;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.harmonycloud.service.platform.constant.Constant.*;
+import static com.harmonycloud.service.platform.constant.Constant.LABEL_AUTOSCALE;
+import static com.harmonycloud.service.platform.constant.Constant.LABEL_INGRESS_SERVICE;
+import static com.harmonycloud.service.platform.constant.Constant.NODESELECTOR_LABELS_PRE;
 
 /**
  * @author xc
@@ -355,7 +359,7 @@ public class StorageClassServiceImpl implements StorageClassService {
         List<PersistentVolumeClaim> persistentVolumeClaims = persistentVolumeClaimList.getItems();
         for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaims) {
             Map<String,Object> PVCAnnotations = persistentVolumeClaim.getMetadata().getAnnotations();
-            if (PVCAnnotations != null && name.equals(PVCAnnotations.get("volume.beta.kubernetes.io/storage-class"))) {
+            if ((PVCAnnotations != null && name.equals(PVCAnnotations.get("volume.beta.kubernetes.io/storage-class"))) || name.equals(persistentVolumeClaim.getSpec().getStorageClassName())) {
                 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.STORAGECLASS_DELETE_ERROR);
             }
         }
@@ -526,6 +530,31 @@ public class StorageClassServiceImpl implements StorageClassService {
         List<StatefulSet> statefulSetList = statefulSetService.listStatefulSets(null, null, null, cluster).getItems();
         List<String> serviceNameList = new ArrayList<>();
         for (PersistentVolumeClaim pvc : pvcList) {
+            if(CommonConstant.KUBE_SYSTEM.equalsIgnoreCase(pvc.getMetadata().getNamespace())){
+                for(DaemonSet daemonSet : daemonSetList){
+                    boolean isUse = false;
+                    List<Volume> volumeList = daemonSet.getSpec().getTemplate().getSpec().getVolumes();
+                    if(CollectionUtils.isEmpty(volumeList)){
+                        continue;
+                    }
+                    for (Volume volume : volumeList) {
+                        if (volume.getPersistentVolumeClaim() != null && pvc.getMetadata().getName().equals(volume.getPersistentVolumeClaim().getClaimName())) {
+                            isUse = true;
+                            break;
+                        }
+                    }
+                    if(isUse && !serviceNameList.contains(daemonSet.getMetadata().getName() + CommonConstant.DOT  + daemonSet.getMetadata().getNamespace())){
+                        serviceNameList.add(daemonSet.getMetadata().getName() + CommonConstant.DOT  + daemonSet.getMetadata().getNamespace());
+                        Map<String, Object> serviceItem = convertServiceItem(daemonSet.getMetadata(), daemonSet.getSpec().getTemplate());
+                        serviceItem.put("type", CommonConstant.LABEL_KEY_DAEMONSET);
+                        serviceItem.put("status", daemonSetsService.convertDaemonStatus(daemonSet));
+                        serviceList.add(serviceItem);
+                    }
+                }
+            }
+            if (namespaceLocalService.getNamespaceByName(pvc.getMetadata().getNamespace()) == null){
+                continue;
+            }
             for (Deployment deployment : deploymentList) {
                 boolean isUse = false;
                 if (pvc.getMetadata().getNamespace().equalsIgnoreCase(deployment.getMetadata().getNamespace()) && deployment.getSpec().getTemplate().getSpec().getVolumes() != null && deployment.getSpec().getTemplate().getSpec().getVolumes().size() > 0) {
@@ -574,28 +603,7 @@ public class StorageClassServiceImpl implements StorageClassService {
                     serviceList.add(serviceItem);
                 }
             }
-            if(CommonConstant.KUBE_SYSTEM.equalsIgnoreCase(pvc.getMetadata().getNamespace())){
-                for(DaemonSet daemonSet : daemonSetList){
-                    boolean isUse = false;
-                    List<Volume> volumeList = daemonSet.getSpec().getTemplate().getSpec().getVolumes();
-                    if(CollectionUtils.isEmpty(volumeList)){
-                        continue;
-                    }
-                    for (Volume volume : volumeList) {
-                        if (volume.getPersistentVolumeClaim() != null && pvc.getMetadata().getName().equals(volume.getPersistentVolumeClaim().getClaimName())) {
-                            isUse = true;
-                            break;
-                        }
-                    }
-                    if(isUse && !serviceNameList.contains(daemonSet.getMetadata().getName() + CommonConstant.DOT  + daemonSet.getMetadata().getNamespace())){
-                        serviceNameList.add(daemonSet.getMetadata().getName() + CommonConstant.DOT  + daemonSet.getMetadata().getNamespace());
-                        Map<String, Object> serviceItem = convertServiceItem(daemonSet.getMetadata(), daemonSet.getSpec().getTemplate());
-                        serviceItem.put("type", CommonConstant.LABEL_KEY_DAEMONSET);
-                        serviceItem.put("status", daemonSetsService.convertDaemonStatus(daemonSet));
-                        serviceList.add(serviceItem);
-                    }
-                }
-            }
+
         }
         return ActionReturnUtil.returnSuccessWithData(convertScDto(sc, serviceList, cluster));
     }
@@ -641,11 +649,11 @@ public class StorageClassServiceImpl implements StorageClassService {
                 }
             }
         }
-        if ( objectMeta.getLabels().containsKey(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE)) {
+        if (objectMeta.getLabels() != null && objectMeta.getLabels().containsKey(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE)) {
             labelsMap.put(LABEL_INGRESS_SERVICE,
                     objectMeta.getLabels().get(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE).toString());
         }
-        if(objectMeta.getLabels().containsKey(NODESELECTOR_LABELS_PRE + LABEL_AUTOSCALE)) {
+        if (objectMeta.getLabels() != null && objectMeta.getLabels().containsKey(NODESELECTOR_LABELS_PRE + LABEL_AUTOSCALE)) {
             labelsMap.put(LABEL_AUTOSCALE,
                     objectMeta.getLabels().get(NODESELECTOR_LABELS_PRE + LABEL_AUTOSCALE).toString());
         }
@@ -801,7 +809,7 @@ public class StorageClassServiceImpl implements StorageClassService {
     }
 
     @Override
-    public List<StorageClassDto> listStorageClass(String clusterId, String namespace) throws Exception {
+    public List<StorageClassDto> listStorageClass(String clusterId, String namespace, String tenantId) throws Exception {
         AssertUtil.notBlank(clusterId, DictEnum.CLUSTER_ID);
         //获取集群
         Cluster cluster = clusterService.findClusterById(clusterId);
@@ -812,6 +820,20 @@ public class StorageClassServiceImpl implements StorageClassService {
 
         List<StorageClass> storageClasses = scService.litStorageClassByClusterId(cluster);
 
+        if(StringUtils.isNotBlank(tenantId)){
+            List<String> allocatedStorageList = new ArrayList<>();
+            TenantClusterQuota tenantClusterQuota = tenantClusterQuotaService.getClusterQuotaByTenantIdAndClusterId(tenantId, clusterId);
+            if(tenantClusterQuota != null && StringUtils.isNotBlank(tenantClusterQuota.getStorageQuotas())){
+                String[] storageQuotasArray = tenantClusterQuota.getStorageQuotas().split(",");
+                for (String storageQuota : storageQuotasArray) {
+                    String[] storageQuotaArray = storageQuota.split("_");
+                    if(StringUtils.isNotBlank(storageQuotaArray[1]) && Integer.valueOf(storageQuotaArray[1])>0){
+                        allocatedStorageList.add(storageQuotaArray[0]);
+                    }
+                }
+                storageClasses.removeIf(storageClass -> !allocatedStorageList.contains(storageClass.getMetadata().getName()));
+            }
+        }
         //根据分区过滤storageClass
         if(StringUtils.isNotBlank(namespace) && !CommonConstant.KUBE_SYSTEM.equalsIgnoreCase(namespace)){
             ResourceQuotaList resourceQuotaList = namespaceService.getResouceQuota(namespace, cluster);

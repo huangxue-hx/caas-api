@@ -39,14 +39,17 @@ import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRespon
 import org.elasticsearch.action.admin.indices.recovery.RecoveryAction;
 import org.elasticsearch.action.admin.indices.recovery.RecoveryRequestBuilder;
 import org.elasticsearch.action.admin.indices.recovery.RecoveryResponse;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsAction;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequestBuilder;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.cluster.metadata.RepositoryMetaData;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.indices.recovery.RecoveryState;
 import org.elasticsearch.repositories.RepositoryMissingException;
 import org.elasticsearch.snapshots.SnapshotInfo;
+import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,7 +66,7 @@ import static com.harmonycloud.common.Constant.CommonConstant.*;
 
 @Service
 public class EsServiceImpl implements EsService {
-	
+
 	private static Logger LOGGER = LoggerFactory.getLogger(EsServiceImpl.class);
 	private Map<String, TransportClient> esClients = new ConcurrentHashMap<>();
 	private Map<String, List<String>> indexMap = new ConcurrentHashMap<>();
@@ -73,7 +76,7 @@ public class EsServiceImpl implements EsService {
 
 	@Value("${elasticsearch.index.prefix:logstash-}")
 	private String esIndexPrefix;
-	
+
 	@Autowired
 	private ClusterService clusterService;
 	@Autowired
@@ -123,9 +126,9 @@ public class EsServiceImpl implements EsService {
 
 	private TransportClient createEsClient(Cluster cluster){
 		try {
-			Settings settings = Settings.settingsBuilder().put("cluster.name", cluster.getEsClusterName()).build();
-			TransportClient transportClient = TransportClient.builder().settings(settings).build();
-			transportClient.addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName(cluster.getEsHost()), cluster.getEsPort()));
+			Settings settings = Settings.builder().put("cluster.name", cluster.getEsClusterName()).build();
+			TransportClient transportClient = new PreBuiltTransportClient(settings)
+							.addTransportAddress(new TransportAddress(InetAddress.getByName(cluster.getEsHost()), cluster.getEsPort()));
 			return transportClient;
 		}catch (Exception e){
 			LOGGER.error("创建ElasticSearch Client 失败,cluster:{}", JSONObject.toJSONString(cluster), e);
@@ -262,15 +265,15 @@ public class EsServiceImpl implements EsService {
 	 * @return
 	 * @throws Exception
 	 */
-    public List<SnapshotInfoDto> listSnapshots(String clusterId, String[] snapshotNames) throws Exception{
-    	List<Cluster> clusters = new ArrayList<>();
-    	if(StringUtils.isBlank(clusterId)){
+	public List<SnapshotInfoDto> listSnapshots(String clusterId, String[] snapshotNames) throws Exception{
+		List<Cluster> clusters = new ArrayList<>();
+		if(StringUtils.isBlank(clusterId)){
 			clusters.addAll(userService.getCurrentUserCluster().values());
 		}else{
 			clusters.add(clusterService.findClusterById(clusterId));
 		}
 		List<SnapshotInfoDto> snapshotInfoDtos = new ArrayList<>();
-    	for(Cluster cluster : clusters) {
+		for(Cluster cluster : clusters) {
 			try {
 				// 检查仓库是否已经创建，如果没有，也就没有快照
 				List<RepositoryMetaData> repositoryMetaDatas = listSnapshotRepositories(cluster);
@@ -287,14 +290,14 @@ public class EsServiceImpl implements EsService {
 				}
 				GetSnapshotsResponse response = snapshotsRequestBuilder.execute().actionGet();
 				if (response == null || CollectionUtils.isEmpty(response.getSnapshots())) {
-                   continue;
+					continue;
 				}
 				Map<String,LogIndexDate> restoredDate = new HashMap<>();
 				Set<String> inRestoredSnapshot = this.getRestoreSnapshot(client,cluster.getName(),restoredDate);
 				List<String> indexes = this.getIndexes(cluster.getId());
 				snapshotInfoDtos.addAll(response.getSnapshots().stream().map(snapshotInfo -> {
 					SnapshotInfoDto snapshotInfoDto = this.convertFromESBean(snapshotInfo,indexes,restoredDate);
-					snapshotInfoDto.setInRestore(inRestoredSnapshot.contains(snapshotInfo.name()));
+					snapshotInfoDto.setInRestore(inRestoredSnapshot.contains(snapshotInfo.snapshotId().getName()));
 					snapshotInfoDto.setClusterId(cluster.getId());
 					snapshotInfoDto.setClusterAliasName(cluster.getAliasName());
 					return snapshotInfoDto;
@@ -308,7 +311,7 @@ public class EsServiceImpl implements EsService {
 				continue;
 			}
 		}
-        return snapshotInfoDtos;
+		return snapshotInfoDtos;
 	}
 
 	/**
@@ -374,7 +377,7 @@ public class EsServiceImpl implements EsService {
 			}
 			//判断是否已经存在已恢复的索引
 			String restoredIndex = "";
-            for(String indexName : esSnapshotDtoIn.getIndexNames()){
+			for(String indexName : esSnapshotDtoIn.getIndexNames()){
 				if(existIndexes.contains(indexName + ES_INDEX_SNAPSHOT_RESTORE)){
 					String indexDate = indexName.replaceFirst(esIndexPrefix,"");
 					restoredIndex += indexDate.replaceAll("\\.","-") + COMMA;
@@ -446,6 +449,21 @@ public class EsServiceImpl implements EsService {
 	@Override
 	public String getLogIndexPrefix() {
 		return esIndexPrefix;
+	}
+
+	/**
+	 * 更新索引的最大搜索结果记录数量
+	 * @param client
+	 * @param index
+	 */
+	public void updateIndexMaxResultWindow(TransportClient client, String[] index, int maxResultWindow) {
+		UpdateSettingsRequestBuilder request = new UpdateSettingsRequestBuilder(client.admin().cluster(),
+				UpdateSettingsAction.INSTANCE, index);
+		Settings settings = Settings.builder()
+				.put("index.max_result_window", maxResultWindow).build();
+		request.setSettings(settings);
+		request.execute().actionGet();
+
 	}
 
 	/**
@@ -535,12 +553,18 @@ public class EsServiceImpl implements EsService {
 							&& !state.getStage().name().equalsIgnoreCase(CommonConstant.DONE)){
 						restoredDates.get(indexName).setRestoredDone(false);
 					}
-					if(state.getType().name().equalsIgnoreCase("SNAPSHOT")
-							&& state.getRestoreSource() != null
+					if(state.getRecoverySource().getType().name().equalsIgnoreCase("SNAPSHOT")
+							&& state.getRecoverySource() != null
 							&& !state.getStage().name().equalsIgnoreCase(CommonConstant.DONE)){
-						String repository = state.getRestoreSource().snapshotId().getRepository();
-						String snapshot = state.getRestoreSource().snapshotId().getSnapshot();
-						if(repository.equalsIgnoreCase(clusterName)) {
+//                        String repository = state.getRestoreSource().snapshotId().getRepository(); 未知
+//                        String snapshot = state.getRestoreSource().snapshotId().getSnapshot();
+
+						if (state.getRecoverySource().toString().split(":") ==null){
+							continue;
+						}
+						String repository = state.getRecoverySource().toString().split(":")[0];
+						String snapshot = state.getRecoverySource().toString().split(":")[1].split("/")[0];
+						if(repository.contains(clusterName)) {
 							inRestoreSnapshot.add(snapshot);
 						}
 					}
@@ -558,7 +582,7 @@ public class EsServiceImpl implements EsService {
 		List<LogIndexDate> logIndexDates = new ArrayList<>();
 		List<String> indices = snapshotInfo.indices();
 		snapshotInfoDto.setIndices(indices);
-		snapshotInfoDto.setName(snapshotInfo.name());
+		snapshotInfoDto.setName(snapshotInfo.snapshotId().getName());
 		snapshotInfoDto.setState(snapshotInfo.state());
 		snapshotInfoDto.setReason(snapshotInfo.reason());
 		snapshotInfoDto.setStartTime(snapshotInfo.startTime());

@@ -12,6 +12,16 @@ import java.util.Map;
 
 @Service
 public class ServicesService {
+	/**
+	 * service资源 增删改查的公共方法
+	 * @param namespace
+	 * @param headers
+	 * @param bodys
+	 * @param method
+	 * @param cluster
+	 * @return
+	 * @throws Exception
+	 */
 	public K8SClientResponse doServiceByNamespace(String namespace ,Map<String, Object> headers, Map<String, Object> bodys, String method,Cluster cluster) throws Exception {
         K8SURL url = new K8SURL();
         if (StringUtils.isBlank(namespace)) {

@@ -1,6 +1,7 @@
 package com.harmonycloud.service.user;
 
 import com.harmonycloud.common.enumm.HarborMemberEnum;
+import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.dao.user.bean.RolePrivilege;
 import com.harmonycloud.dto.user.PrivilegeDto;
 
@@ -19,6 +20,14 @@ public interface RolePrivilegeService {
      * @throws Exception
      */
     public Map<String, Object> switchRole(Integer roleId) throws Exception;
+
+    /**
+     * 设置当前角色信息到session
+     * @param role
+     * @return
+     * @throws Exception
+     */
+    Map<String, Object> setCurrentRoleInfo(Role role) throws Exception;
 
     /**
      * 更新对应角色的权限列表

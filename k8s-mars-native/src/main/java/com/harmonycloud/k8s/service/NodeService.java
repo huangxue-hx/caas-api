@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.NodeTypeEnum;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -129,16 +129,16 @@ public class NodeService {
 			NodeList nodeList = K8SClient.converToBean(response, NodeList.class);
 			return nodeList;
 		}
-		LOG.error("list node error:" + response.getBody());
+		LOG.error("list node error:{}, clusterId:{}", response.getBody(), cluster.getId());
 		return null;
 	}
 
 	/**
-	 * node 列表
+	 * 获取除共享节点外的节点名称列表
 	 *
 	 * @return NodeList
 	 */
-	public List<String> listNotWorkNode(Cluster cluster) {
+	public List<String> listNotPublicNode(Cluster cluster) {
 		K8SURL url = new K8SURL();
 		url.setResource(Resource.NODE);
 		List<String> list = new ArrayList<>();
@@ -150,30 +150,12 @@ public class NodeService {
 				nodeItems = nodeList.getItems();
 				for(Node node : nodeItems) {
 					Map<String, Object> labels = node.getMetadata().getLabels();
-					if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
-							&& node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_A)) {
-						list.add(node.getMetadata().getName());
+					//是否共享节点，共享节点排除
+					if (labels.get(NodeTypeEnum.PUBLIC.getLabelKey()) != null
+							&& labels.get(NodeTypeEnum.PUBLIC.getLabelKey()).equals(NodeTypeEnum.PUBLIC.getLabelValue())) {
+						continue;
 					}
-
-					if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
-							&& node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_B)) {
-						list.add(node.getMetadata().getName());
-					}
-
-					if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
-							&& node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_D)) {
-						list.add(node.getMetadata().getName());
-					}
-
-					/*if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) != null
-							&& node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_E)){
-						list.add(node.getMetadata().getName());
-					}*/
-
-					if (labels.get(CommonConstant.MASTERNODELABEL) != null) {
-						list.add(node.getMetadata().getName());
-					}
-
+					list.add(node.getMetadata().getName());
 				}
 			}
 

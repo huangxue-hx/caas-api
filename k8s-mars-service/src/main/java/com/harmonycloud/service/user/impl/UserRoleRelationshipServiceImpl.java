@@ -19,10 +19,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class UserRoleRelationshipServiceImpl implements UserRoleRelationshipService {
     @Autowired
     private UserRoleRelationshipMapper userRoleRelationshipMapper;
@@ -131,6 +132,7 @@ public class UserRoleRelationshipServiceImpl implements UserRoleRelationshipServ
             example.createCriteria().andUsernameEqualTo(username);
         }else {
             example.createCriteria().andUsernameEqualTo(username).andProjectIdEqualTo(projectId);
+            example.setOrderByClause("role_id");
         }
         List<UserRoleRelationship> userRoleRelationships = userRoleRelationshipMapper.selectByExample(example);
         return userRoleRelationships;
@@ -217,6 +219,7 @@ public class UserRoleRelationshipServiceImpl implements UserRoleRelationshipServ
         this.userRoleRelationshipMapper.updateByPrimaryKeySelective(userRoleRelationship);
     }
 
+    @Transactional
     @Override
     public void setLocalRoleFlag(String projectId, List<String> usernames) {
         //先将项目的所有成员是否包含局部角色改成false，再将指定成员的局部角色标识改成true
@@ -482,7 +485,7 @@ public class UserRoleRelationshipServiceImpl implements UserRoleRelationshipServ
     public List<TenantBinding> listTenantByUsername(String username) throws Exception {
         List<TenantBinding> list= new ArrayList<TenantBinding>();
         //根据用户名查询用户角色关系
-        List<UserRoleRelationship> userRoleRelationships = this.getUserRoleRelationship(username);
+        List<UserRoleRelationship> userRoleRelationships = userRoleRelationshipMapper.selectByUsername(username);
         //如果为空直接返回
         if (CollectionUtils.isEmpty(userRoleRelationships)){
             return list;
@@ -512,8 +515,18 @@ public class UserRoleRelationshipServiceImpl implements UserRoleRelationshipServ
     public List<Project> listProjectByTenantIdAndUsername(String tenantId, String username) throws Exception {
         //查询用户角色关系
         UserRoleRelationshipExample example = this.getExample();
-        if (CommonConstant.TM_ROLEID.equals(this.userService.getCurrentRoleId())){
-            example.createCriteria().andTenantIdEqualTo(tenantId);
+        Integer currentRoleId = this.userService.getCurrentRoleId();
+        if (CommonConstant.TM_ROLEID.equals(currentRoleId)){
+            List<Role> roleList = roleLocalService.getRoleListByUsernameAndTenantId(username, tenantId);
+            if (CollectionUtils.isEmpty(roleList)) {
+                return new ArrayList<>();
+            }
+            List<Role> collectList = roleList.stream().filter(role -> role.getId().equals(currentRoleId)).collect(Collectors.toList());
+            if (!CollectionUtils.isEmpty(collectList)) {
+                example.createCriteria().andTenantIdEqualTo(tenantId);
+            } else {
+                example.createCriteria().andUsernameEqualTo(username).andTenantIdEqualTo(tenantId);
+            }
         }else {
             example.createCriteria().andUsernameEqualTo(username).andTenantIdEqualTo(tenantId);
         }

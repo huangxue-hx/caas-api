@@ -523,7 +523,15 @@ public class HarborUserServiceImpl implements HarborUserService {
 
     @Override
     public Set<HarborServer> getCurrentUserAvailableHarbor() throws Exception{
-        return this.getUserAvailableHarbor(userService.getCurrentUsername());
+        Set<HarborServer> harborServers = new HashSet<>();
+        List<Cluster> clusters = roleLocalService.listCurrentUserRoleCluster();
+        if(CollectionUtils.isEmpty(clusters)){
+            return harborServers;
+        }
+        for(Cluster cluster : clusters){
+            harborServers.add(cluster.getHarborServer());
+        }
+        return harborServers;
     }
 
     /**

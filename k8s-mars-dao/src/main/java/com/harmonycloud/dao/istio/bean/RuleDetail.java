@@ -7,21 +7,11 @@ import java.util.Date;
 public class RuleDetail implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private Integer id;
     private String ruleId;
     private Integer ruleDetailOrder;
     private Date createTime;
     private Date updateTime;
     private byte[] ruleDetailContent;
-
-
-    public Integer getId() {
-        return id;
-    }
-
-    public void setId(Integer id) {
-        this.id = id;
-    }
 
     public String getRuleId() {
         return ruleId;

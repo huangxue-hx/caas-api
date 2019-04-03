@@ -2,6 +2,7 @@ package com.harmonycloud.task;
 
 
 import com.harmonycloud.service.cache.ImageCacheManager;
+import com.harmonycloud.service.platform.service.ConfigCenterService;
 import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import org.apache.commons.io.FileUtils;
@@ -39,6 +40,7 @@ public class ScheduledTasks {
     private static final String IMAGEREFRESHLOG = "imagerefreshlog";
     private static final String SCHEDULED = "scheduled" ;
     private static final String DELETEBUILDRESULT = "deletebuildresult";
+    private static final String CLEANCONFIGMAP = "cleanconfigmap";
 
     @Autowired
     private TrialtimeTask trialtimeTask;
@@ -54,6 +56,9 @@ public class ScheduledTasks {
 
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
+    private ConfigCenterService configCenterService;
 
     @Autowired
     private JobService jobService;
@@ -188,10 +193,33 @@ public class ScheduledTasks {
     }
 
     /**
+     * 每天6点清理没有使用的历史版本配置文件
+     */
+    @Scheduled(cron = "0 0 6 * * ?")
+    public void cleanConfigMap() {
+        long startTime = System.currentTimeMillis();
+        boolean status = checkLeader(CLEANCONFIGMAP, 12, TimeUnit.HOURS);
+        if(status) {
+            try {
+                configCenterService.cleanHistoryConfigMap();
+            } catch (Exception e) {
+                log.error("cleanConfigMap failed. {}", e);
+            }
+        } else {
+            log.info("cleanConfigMap has been scheduled");
+            return ;
+        }
+        long endTime = System.currentTimeMillis();
+        log.info("task[cleanConfigMap],execute cost time[" + (endTime - startTime)/1000 + "] s");
+    }
+
+    /**
      * 在多后端情况下，认证避免多次定时任务触发
      */
     public boolean checkLeader(String leaderKey, Integer expire, TimeUnit timeUnit) {
         String value  = stringRedisTemplate.opsForValue().get(leaderKey);
+        //防止设置key后设置超时时间失败导致任务状态一直在运行中不能清空
+        stringRedisTemplate.expire(leaderKey, expire, timeUnit);
         if(StringUtils.isBlank(value)){
             boolean status = stringRedisTemplate.opsForValue().setIfAbsent(leaderKey,SCHEDULED);
             if (status) {

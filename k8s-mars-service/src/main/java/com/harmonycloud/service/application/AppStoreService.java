@@ -10,11 +10,11 @@ import java.util.List;
 public interface AppStoreService {
 	/**
 	 * 删除应用商店应用
-	 * @param id
+	 * @param name
 	 * @return
 	 * @throws Exception
 	 */
-	ActionReturnUtil deleteAppStore(Integer id) throws Exception;
+	ActionReturnUtil deleteAppStore(String name, String tag) throws Exception;
 
 	/**
 	 * 增加应用商店应用

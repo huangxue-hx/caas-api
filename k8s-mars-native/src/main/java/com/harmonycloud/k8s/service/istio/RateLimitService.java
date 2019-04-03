@@ -58,17 +58,17 @@ public class RateLimitService {
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setName(name);
         Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
+        headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
 
         List<String> resources = Arrays.asList(Resource.RULE, Resource.QUOTASPECBINDING, Resource.QUOTASPEC, Resource.REDISQUOTA, Resource.QUOTA);
 
-        for (int i = 5 - num; i < 5; i++) {
+        for (int i = CommonConstant.RATE_LIMIT_RESOURCE_COUNT - num; i < CommonConstant.RATE_LIMIT_RESOURCE_COUNT; i++) {
             url.setResource(resources.get(i));
             url.setName(i == 0 ? CommonConstant.RATE_LIMIT_PREFIX + name : name);
             K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, null, cluster);
             if (!HttpStatusUtil.isSuccessStatus(response.getStatus()) && Constant.HTTP_404 != response.getStatus()) {
                 LOGGER.error("delete " + resources.get(i) + " error", response.getBody());
-                resMap.put("faileNum", 5 - i);
+                resMap.put("faileNum", CommonConstant.RATE_LIMIT_RESOURCE_COUNT - i);
                 resMap.put("faileResource", resources.get(i));
                 return resMap;
             }
@@ -76,11 +76,20 @@ public class RateLimitService {
         return resMap;
     }
 
+    public K8SClientResponse updateQuotaInstance(String namespace, String name, QuotaInstance quotaInstance, Cluster cluster) throws MarsRuntimeException, IntrospectionException, InvocationTargetException, IllegalAccessException {
+        K8SURL url = new K8SURL();
+        url.setResource(Resource.QUOTA).setNamespace(namespace).setName(name);
+        Map<String, Object> headers = new HashMap<>();
+        headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
+        Map<String, Object> bodys = CollectionUtil.transBean2Map(quotaInstance);
+        return new K8sMachineClient().exec(url, HTTPMethod.PUT, headers, bodys, cluster);
+    }
+
     public K8SClientResponse updateRedisQuota(String namespace, String name, RedisQuota redisQuota, Cluster cluster) throws MarsRuntimeException, IntrospectionException, InvocationTargetException, IllegalAccessException {
         K8SURL url = new K8SURL();
         url.setResource(Resource.REDISQUOTA).setNamespace(namespace).setName(name);
         Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
+        headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
         Map<String, Object> bodys = CollectionUtil.transBean2Map(redisQuota);
         return new K8sMachineClient().exec(url, HTTPMethod.PUT, headers, bodys, cluster);
     }

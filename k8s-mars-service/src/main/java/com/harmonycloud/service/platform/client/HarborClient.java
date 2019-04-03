@@ -6,6 +6,7 @@ import com.harmonycloud.service.common.HarborHttpsClientUtil;
 import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.codehaus.plexus.util.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +35,11 @@ public class HarborClient {
 
     public static Map<String, Object> getAdminCookieHeader(HarborServer harborServer) throws Exception {
         Map<String, Object> headers = new HashMap<String, Object>();
-        headers.put(COOKIE, checkHarborAdminCookie(harborServer));
+        //使用登录后的cookie验证,高可用harbor如果vip切换会调用失败
+        //headers.put(COOKIE, checkHarborAdminCookie(harborServer));
+        //使用用户名密码基本验证方式
+        String auth = harborServer.getHarborAdminAccount() + ":" + harborServer.getHarborAdminPassword();
+        headers.put("Authorization", "Basic " + new String(Base64.encodeBase64(auth.getBytes())));
         return headers;
     }
 
@@ -81,9 +86,11 @@ public class HarborClient {
         params.put("password", harborServer.getHarborAdminPassword());
         CloseableHttpResponse response = HarborHttpsClientUtil.doPostWithLogin(url, params, null);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatusLine().getStatusCode())){
+            LOGGER.error("harbor登录失败，response：{}", JSONObject.toJSONString(response));
             return null;
         }
         if(response.getHeaders("Set-Cookie") == null){
+            LOGGER.error("harbor登录失败，cookie 为空");
             return null;
         }
         String cookie = response.getHeaders("Set-Cookie")[0].getValue();

@@ -135,10 +135,11 @@ public interface HarborProjectService {
 	 * @param pageSize
 	 * @param pageNo
 	 * @param isPublic
-	 * @return
+	 * @param isAppStore
+     * @return
 	 * @throws Exception
 	 */
-	ActionReturnUtil listImages(String projectId, String clusterId, Integer pageSize, Integer pageNo, Boolean isPublic) throws Exception ;
+	ActionReturnUtil listImages(String projectId, String clusterId, Integer pageSize, Integer pageNo, Boolean isPublic, boolean isAppStore) throws Exception ;
 
 	ActionReturnUtil deleteImage(Integer repositoryId, String image, String tag) throws Exception ;
 

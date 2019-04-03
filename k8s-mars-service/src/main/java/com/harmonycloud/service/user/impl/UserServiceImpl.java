@@ -70,7 +70,6 @@ import static com.harmonycloud.service.platform.constant.Constant.MAX_QUERY_COUN
  * @Modified
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class UserServiceImpl implements UserService {
 
     private static Logger LOGGER = LoggerFactory.getLogger(UserServiceImpl.class);
@@ -111,6 +110,24 @@ public class UserServiceImpl implements UserService {
 
     public String getCurrentUsername() {
         return (String) session.getAttribute("username");
+    }
+
+    @Override
+    public Long getCurrentUserId() throws Exception {
+        if (session.getAttribute(CommonConstant.USERID) == null) {
+            String userName = this.getCurrentUsername();
+            if (StringUtils.isBlank(userName)) {
+                return null;
+            }
+            LOGGER.warn("session用户id为空,username:{}", userName);
+            User user = this.getUser(userName);
+            if (user == null) {
+                return null;
+            }
+            session.setAttribute(CommonConstant.USERID, user.getId());
+        }
+        return (Long) session.getAttribute(CommonConstant.USERID);
+
     }
 
     /**
@@ -160,9 +177,8 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public Map<String, Cluster> getCurrentUserCluster() throws Exception{
-        final Integer currentRoleId = this.getCurrentRoleId();
         //设置集群信息
-        List<Cluster> clusterList = this.roleLocalService.getClusterListByRoleId(currentRoleId);
+        List<Cluster> clusterList = this.roleLocalService.listCurrentUserRoleCluster();
         Map<String, Cluster> clusterMap = clusterList.stream().collect(Collectors.toMap(Cluster::getId, cluster -> cluster));
         return clusterMap;
     }
@@ -227,8 +243,8 @@ public class UserServiceImpl implements UserService {
                 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.USER_NOT_AUTH_OR_TIMEOUT);
             }
             //用户信息写入session
-            request.getSession().setAttribute("userId", user.getId());
-            request.getSession().setAttribute("username", user.getUsername());
+            request.getSession().setAttribute(CommonConstant.USERID, user.getId());
+            request.getSession().setAttribute(CommonConstant.USERNAME, user.getUsername());
             request.getSession().setAttribute("isAdmin", user.getIsAdmin());
 
             if (CommonConstant.PAUSE.equals(user.getPause())) {
@@ -237,56 +253,14 @@ public class UserServiceImpl implements UserService {
             }
 
             //获取用户的租户信息
-            List<TenantDto> tenantDtos = tenantService.tenantList();
+            List<TenantDto> tenantDtos = tenantService.listTenantBrief();
             if (CommonConstant.IS_NOT_ADMIN == user.getIsAdmin() && org.apache.commons.collections.CollectionUtils.isEmpty(tenantDtos)) {
                 SsoClient.redirectLogin(session, request, response);
                 throw new MarsRuntimeException(ErrorCodeMessage.USER_NOT_AUTH);
             }
-            List<Role> roleList = null;
-            if (!CollectionUtils.isEmpty(tenantDtos) && CommonConstant.IS_NOT_ADMIN == user.getIsAdmin()){
-                roleList = this.roleLocalService.getRoleListByUsername(user.getUsername());
-//                List<Role> availableRoleList = roleList.stream().filter(role -> role.getAvailable()).collect(Collectors.toList());
-                if (roleList.size() <= 0){
-                    SsoClient.redirectLogin(session, request, response);
-                    throw new MarsRuntimeException(ErrorCodeMessage.ROLE_DISABLE);
-                }
-                Map<String,Object> map = new HashMap<>();
-                if (!CollectionUtils.isEmpty(roleList)){
-                    Map<String, TenantDto> collect = tenantDtos.stream().collect(Collectors.toMap(TenantDto::getTenantId, tenantDto -> tenantDto));
-                    tenantDtos.clear();
-                    for (Role role:roleList) {
-                        List<UserRoleRelationship> userRoleRelationshipList = this.userRoleRelationshipService.getUserRoleRelationshipList(user.getUsername(), role.getId());
-                        for (UserRoleRelationship userRoleRelationship : userRoleRelationshipList) {
-                            Object object = map.get(userRoleRelationship.getTenantId());
-                            if (Objects.isNull(object)){
-                                TenantDto tenantDto = collect.get(userRoleRelationship.getTenantId());
-                                if (!Objects.isNull(tenantDto)){
-                                    tenantDtos.add(tenantDto);
-                                    map.put(userRoleRelationship.getTenantId(),tenantDto);
-                                }
-                            }
-                        }
-                    }
-                }
-                if (CollectionUtils.isEmpty(roleList)){
-                    //被禁用后该用户在该租户下项目下可用角色为空，处理被禁用的角色
-                    session.setAttribute("roleStatus",Boolean.FALSE);
-                }else {
-                    session.setAttribute("roleStatus",Boolean.TRUE);
-                }
-            }
-            if (CommonConstant.IS_ADMIN == user.getIsAdmin() && roleList == null){
-                roleList = new ArrayList<>();
-                Role role = roleLocalService.getRoleById(CommonConstant.ADMIN_ROLEID);
-                roleList.add(role);
-                res.put("roleList", roleList);
-                if (!org.springframework.util.CollectionUtils.isEmpty(roleList)){
-                    res.put("role", roleList.get(0));
-                }
-            }
             //返回用户信息
             res.put("userId", user.getId());
-            res.put("username", user.getUsername());
+            res.put("username", user.getUsername().toLowerCase());
             res.put("realName", user.getRealName());
             res.put("isAdmin", CommonConstant.IS_ADMIN == user.getIsAdmin());
             res.put("tenants", tenantDtos);
@@ -297,9 +271,8 @@ public class UserServiceImpl implements UserService {
             }
             String userName = user.toString();
             User u = this.userMapper.findByUsername(userName);
-            String userId = session.getAttribute("userId").toString();
             res.put("username", userName);
-            res.put("userId", userId);
+            res.put("userId", u.getId());
             res.put("realName", u.getRealName());
             res.put("isAdmin", u.getIsAdmin() == FLAG_TRUE);
             List<TenantDto> tenantDtos = tenantService.tenantList();
@@ -674,7 +647,7 @@ public class UserServiceImpl implements UserService {
      * @return
      */
     public User getUser(String username) throws Exception {
-        if (username != null) {
+        if (StringUtils.isNotBlank(username)) {
             User user = userMapper.findByUsername(username);
             return user;
         }
@@ -1218,6 +1191,7 @@ public class UserServiceImpl implements UserService {
      * @param
      * @return ActionReturnUtil
      */
+    @Transactional
     public ActionReturnUtil createGroup(UserGroup usergroup) throws Exception {
         AssertUtil.notNull(usergroup, DictEnum.USER_GROUP);
         AssertUtil.notNull(usergroup.getGroupname(), DictEnum.NAME);
@@ -1284,6 +1258,7 @@ public class UserServiceImpl implements UserService {
      * @return
      * @throws Exception
      */
+    @Transactional
     public ActionReturnUtil deleteGroupbyId(int groupid) throws Exception {
         // 删除user_group表中的相关数据同时删除user_group_relation表中的关联数据
         try {
@@ -1318,6 +1293,7 @@ public class UserServiceImpl implements UserService {
      * @param usergroupdto
      * @return ActionReturnUtil
      */
+    @Transactional
     public ActionReturnUtil updateGroup(UserGroupDto usergroupdto) throws Exception {
         AssertUtil.notNull(usergroupdto);
         // 获取修改参数
@@ -1384,7 +1360,7 @@ public class UserServiceImpl implements UserService {
                         List<UserRoleRelationship> userRoles = this.userRoleRelationshipService.
                                 getUserRoleRelationshipList(userName, tenantId);
                         if (!CollectionUtils.isEmpty(userRoles)){
-                            throw new MarsRuntimeException(ErrorCodeMessage.USER_BIND_TENANT,userName,Boolean.TRUE);
+                            throw new MarsRuntimeException(ErrorCodeMessage.USER_BIND_TENANT, true, userName);
                         }
                     }
                     UserGroupRelationExample ugrexample = new UserGroupRelationExample();
@@ -1818,6 +1794,7 @@ public class UserServiceImpl implements UserService {
             user.setCreateTime(DateUtil.getCurrentUtcTime());
             user.setPause(CommonConstant.NORMAL);
             user.setIsAdmin(0);
+            user.setIsMachine(0);
             userMapper.insert(user);
         } else {
             //存在，更新用户信息

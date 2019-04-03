@@ -1,40 +1,19 @@
 package com.harmonycloud.api.monitor;
 
-import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.k8s.bean.Node;
-import com.harmonycloud.k8s.bean.NodeCondition;
-import com.harmonycloud.k8s.bean.NodeList;
-import com.harmonycloud.k8s.client.K8sMachineClient;
-import com.harmonycloud.k8s.constant.HTTPMethod;
-import com.harmonycloud.k8s.constant.Resource;
-import com.harmonycloud.k8s.util.K8SClientResponse;
-import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.EsService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.monitor.InfluxdbQuery;
-import com.harmonycloud.service.platform.service.*;
+import com.harmonycloud.service.platform.service.DashboardService;
+import com.harmonycloud.service.platform.service.InfluxdbService;
+import com.harmonycloud.service.platform.service.LogService;
+import com.harmonycloud.service.platform.service.PodService;
 import com.harmonycloud.service.tenant.TenantService;
-import org.influxdb.dto.QueryResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
-
-import java.io.IOException;
-import java.rmi.MarshalException;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 
 /**
@@ -82,7 +61,7 @@ public class MonitorAlarmController {
 	@RequestMapping(value="/nodes/{nodename}/monitor", method=RequestMethod.GET)
 	public ActionReturnUtil nodeQuery(@RequestParam(value="type") String type,@RequestParam(value="rangeType", required=false) String rangeType,
 			@RequestParam(value="target", required=false) String target, @PathVariable(value="nodename") String name,
-			@RequestParam(value="startTime", required=false) String startTime,
+			@RequestParam(value="startTime", required=false) String startTime, 
 			@RequestParam(value="processName", required=false) String processName,
 			@PathVariable(value = "clusterId") String clusterId) throws Exception{
 		InfluxdbQuery influxdbQuery = new InfluxdbQuery();
@@ -123,10 +102,16 @@ public class MonitorAlarmController {
 	
 	@ResponseBody
 	@RequestMapping(value="/pod/{podName}/container/{containerName}/monitor", method=RequestMethod.GET)
-	public ActionReturnUtil monitorContainer(@RequestParam(value="rangeType") String rangeType, @RequestParam(value="startTime") String startTime,
-			@PathVariable(value="podName") String pod, @PathVariable(value="containerName") String container,
-											 @RequestParam(value="target") String target, @PathVariable(value="clusterId") String clusterId,
-											 @RequestParam(value="request", required = false) Integer request) throws ParseException, IOException, NoSuchAlgorithmException, KeyManagementException {
+	public ActionReturnUtil monitorContainer(@RequestParam(value="rangeType") String rangeType,
+											 @RequestParam(value="startTime") String startTime,
+											 @PathVariable(value="podName") String pod,
+											 @PathVariable(value="containerName") String container,
+											 @RequestParam(value="target") String target,
+											 @PathVariable(value="clusterId") String clusterId,
+                                             @RequestParam(value="request", required = false) Integer request,
+											 @RequestParam(value="serviceName",required = false) String serviceName,
+											 @RequestParam(value="serviceType",required = false) String serviceType,
+											 @RequestParam(value="namespace",required = false) String namespace) throws Exception {
 		try {
 			InfluxdbQuery influxdbQuery = new InfluxdbQuery();
 			influxdbQuery.setRangeType(rangeType);
@@ -135,6 +120,10 @@ public class MonitorAlarmController {
 			influxdbQuery.setClusterId(clusterId);
 			influxdbQuery.setPod(pod);
 			influxdbQuery.setContainer(container);
+			influxdbQuery.setServiceName(serviceName);
+			influxdbQuery.setServiceType(serviceType);
+			influxdbQuery.setServiceName(serviceName);
+			influxdbQuery.setNamespace(namespace);
 			return influxdbService.podMonit(influxdbQuery, request);
 		} catch (MarsRuntimeException e) {
 			throw e;

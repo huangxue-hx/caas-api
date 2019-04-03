@@ -15,6 +15,8 @@ public class CreateResourceDto implements Serializable{
 	private String cpu;
 	
 	private String memory;
+
+	private String gpu;
 	
 	private int currentRate;
 
@@ -32,6 +34,14 @@ public class CreateResourceDto implements Serializable{
 
 	public void setMemory(String memory) {
 		this.memory = memory;
+	}
+
+	public String getGpu() {
+		return gpu;
+	}
+
+	public void setGpu(String gpu) {
+		this.gpu = gpu;
 	}
 
 	public int getCurrentRate() {

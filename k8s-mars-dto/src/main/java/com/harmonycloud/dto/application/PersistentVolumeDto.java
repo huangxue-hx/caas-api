@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class PersistentVolumeDto {
-	
+
+	private String name; //本来就存在的volume名称
+
 	private String type; //pv emptyDir hostPath 
 	
 	private Boolean readOnly;
@@ -46,8 +48,6 @@ public class PersistentVolumeDto {
 	private String storageClassType;
 
 	private String storageClassName;
-
-   private String name;
 
 	public String getName() {
 		return name;

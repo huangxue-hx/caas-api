@@ -73,10 +73,12 @@ public class Constant {
 	public final static String FLAGNAME = "user";
 	
 	public final static Integer HTTP_404 = 404;
-	
+
 	public final static String DEPLOYMENT = "Deployment";
 
     public  final static String STATEFULSET = "StatefulSet";
+
+    public final static String DAEMONSET = "DaemonSet";
 
     public final static String DEPLOYMENT_API_VERSION = "apps/v1";
 
@@ -115,6 +117,7 @@ public class Constant {
 
 
 	//onlineshop
+	public final static String ONLINESHOP = "onlineshop";
 	public final static String CLUSTER_ROLE_ONLINESHOP = "onlineshop";
 	public final static String CLUSTER_ROLE_BINDING_ONLINESHOP = "onlineshop";
 	public final static String SERVICE_ACCOUNT_ONLINESHOP = "onlineshop";
@@ -264,6 +267,10 @@ public class Constant {
 	//volume的logdir的名称:logdir
 	public final static String VOLUME_LOGDIR_NAME = "logdir";
 
+	//log-pilot日志收集环境变量前缀
+	public final static String PILOT_LOG_PREFIX = "logpilot_logs_logstash";
+	public final static String PILOT_LOG_PREFIX_TAG = "logpilot_logs_logstash_tags";
+
 	//同步宿主机时区名称
 //	public final static String VOLUME_SYNC_TIME_ZONE_NAME = "synctimezone-";
 
@@ -314,6 +321,10 @@ public class Constant {
 
 	//灰度升级：当pod的最大可被调度数量和最大不可用数量都为0时，最大不可用数量设置为1
 	public final static int POD_MAX_UNAVAILABLE = 0;
+	//服务修改设置maxSurge=0，先杀pod，再启新pod
+	public final static int DEFAULT_POD_MAX_SURGE = 0;
+	//服务修改设置maxUnavailable=1， 逐个pod滚动升级
+	public final static int DEFAULT_POD_MAX_UNAVAILABLE = 1;
 
 	//灰度升级：自动回滚到最新的版本
 	public final static int ROLLBACK_REVERSION = 0;

@@ -1,6 +1,5 @@
 package com.harmonycloud.service.platform.serviceImpl.ci;
 
-import com.alibaba.druid.pool.DruidDataSource;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DockerfileTypeEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
@@ -16,18 +15,15 @@ import com.harmonycloud.dao.application.bean.ConfigFile;
 import com.harmonycloud.dao.ci.*;
 import com.harmonycloud.dao.ci.bean.*;
 import com.harmonycloud.dto.cicd.StageDto;
-import com.harmonycloud.service.cache.ImageCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.ci.*;
-import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.tenant.ProjectService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.socket.TextMessage;
@@ -37,9 +33,6 @@ import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.*;
 
-//import com.harmonycloud.sonarqube.webapi.client.SonarProjectService;
-//import com.harmonycloud.sonarqube.webapi.client.SonarQualitygatesService;
-//import com.harmonycloud.sonarqube.webapi.client.SonarUserTokensService;
 
 /**
  * Created by anson on 17/7/13.
@@ -59,9 +52,6 @@ public class StageServiceImpl implements StageService {
     private StageBuildMapper stageBuildMapper;
 
     @Autowired
-    private DockerFileMapper dockerFileMapper;
-
-    @Autowired
     private JobMapper jobMapper;
 
     @Autowired
@@ -76,23 +66,11 @@ public class StageServiceImpl implements StageService {
     @Autowired
     private ConfigFileMapper configFileMapper;
 
-//    @Autowired
-//    private SonarProjectService sonarProjectService;
-//
-//    @Autowired
-//    private SonarQualitygatesService sonarQualitygatesService;
-//
-//    @Autowired
-//    private SonarUserTokensService sonarUserTokensService;
-
     @Autowired
     private TriggerService triggerService;
 
     @Autowired
     private ClusterService clusterService;
-
-    @Autowired
-    private ParameterService parameterService;
 
     @Autowired
     private DockerFileService dockerFileService;
@@ -106,17 +84,11 @@ public class StageServiceImpl implements StageService {
     @Autowired
     private StageBuildService stageBuildService;
 
-    @Autowired
-    private DataSourceTransactionManager transactionManager;
-
     @Value("#{propertiesReader['api.url']}")
     private String apiUrl;
 
     @Value("${sonar.url}")
     private String sonarUrl;
-
-    @Autowired
-    private DruidDataSource dataSource;
 
     @Autowired
     private BuildEnvironmentService buildEnvironmentService;
@@ -126,12 +98,6 @@ public class StageServiceImpl implements StageService {
 
     @Autowired
     private JobBuildService jobBuildService;
-
-    @Autowired
-    private HarborProjectService harborProjectService;
-
-    @Autowired
-    private ImageCacheManager imageCacheManager;
 
     private long sleepTime = 2000L;
 
@@ -354,23 +320,29 @@ public class StageServiceImpl implements StageService {
         List<StageBuild> stageBuildList = stageBuildService.selectStageBuildByObject(condition);
         if(CollectionUtils.isNotEmpty(stageBuildList)) {
             StageBuild stageBuild = stageBuildList.get(0);
-            if(!Constant.PIPELINE_STATUS_BUILDING.equals(stageBuild.getStatus()) && !Constant.PIPELINE_STATUS_NOTBUILT.equals(stageBuild.getStatus()) && !Constant.PIPELINE_STATUS_WAITING.equals(stageBuild.getStatus())){
-                return;
-            }
+
+            String currentStatus = null;
             //静态扫描或集成测试的步骤，若步骤最终状态尚未更新，则更新状态
             Stage stage = stageMapper.queryById(stageBuild.getStageId());
             if(StageTemplateTypeEnum.CODESCAN.getCode() == stage.getStageTemplateType() || StageTemplateTypeEnum.INTEGRATIONTEST.getCode() == stage.getStageTemplateType()){
                 if(StringUtils.isNotBlank(stageBuild.getStatus()) && !stageBuild.getStatus().equals(Constant.PIPELINE_STATUS_SUCCESS) && !stageBuild.getStatus().equals(Constant.PIPELINE_STATUS_FAILED)){
                     if(jobBuild !=null && Constant.PIPELINE_STATUS_ABORTED.equals(jobBuild.getStatus()) || Constant.PIPELINE_STATUS_FAILED.equals((String) stageMap.get("status"))){
-                        stageBuild.setStatus(Constant.PIPELINE_STATUS_FAILED);
+                        currentStatus = Constant.PIPELINE_STATUS_FAILED;
                     } else {
-                        stageBuild.setStatus(Constant.PIPELINE_STATUS_BUILDING);
+                        currentStatus = Constant.PIPELINE_STATUS_BUILDING;
                     }
+                }else{
+                    //静态扫描步骤若已有状态则退出
+                    return;
                 }
             }else{
                 //其他步骤则更新Jenkins中获取的状态
-                stageBuild.setStatus(convertStatus((String) stageMap.get("status")));
+                currentStatus = convertStatus((String) stageMap.get("status"));
             }
+            if((currentStatus != null && currentStatus.equals(stageBuild.getStatus()))){
+                return;
+            }
+            stageBuild.setStatus(currentStatus);
             if (stageMap.get("startTimeMillis") instanceof Integer) {
                 stageBuild.setStartTime(new Timestamp(Long.valueOf((Integer) stageMap.get("startTimeMillis"))));
             } else if (stageMap.get("startTimeMillis") instanceof Long) {
@@ -538,7 +510,7 @@ public class StageServiceImpl implements StageService {
             stageMapper.updatePasswordByUsername(username, DesUtil.encrypt(password, null));
             for (Stage stage : stageList) {
                 if ((stage.getCredentialsPassword() == null && StringUtils.isNotBlank(password)) || (stage.getCredentialsPassword() != null && !stage.getCredentialsPassword().equals(DesUtil.encrypt(password, null)))) {
-                    updateCredentials(stage.getId(), username, DesUtil.encrypt(password, null));
+                    updateCredentials(stage.getId(), username, password);
                 }
             }
         }

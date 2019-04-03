@@ -10,7 +10,6 @@ import com.harmonycloud.dao.user.bean.ResourceMenuRole;
 import com.harmonycloud.dao.user.bean.ResourceMenuRoleExample;
 import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.dto.user.MenuDto;
-import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.user.ResourceMenuRoleService;
 import com.harmonycloud.service.user.ResourceMenuService;
 import com.harmonycloud.service.user.RoleLocalService;
@@ -23,7 +22,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class ResourceMenuRoleServiceImpl implements ResourceMenuRoleService{
     @Autowired
     private ResourceMenuRoleMapper resourceMenuRoleMapper;
@@ -31,8 +29,6 @@ public class ResourceMenuRoleServiceImpl implements ResourceMenuRoleService{
     private ResourceMenuService resourceMenuService;
     @Autowired
     private RoleLocalService roleLocalService;
-    @Autowired
-    private ClusterCacheManager clusterCacheManager;
     //项目管理员角色id
     public static final Integer TENANTMGR= 3;
     //项目管理员角色id
@@ -158,6 +154,7 @@ public class ResourceMenuRoleServiceImpl implements ResourceMenuRoleService{
      * @param roleId
      * @throws Exception
      */
+    @Transactional
     @Override
     public void createResourceMenuRole(Integer roleId) throws Exception {
         //获取所有的可用基础菜单项

@@ -6,8 +6,6 @@ import com.harmonycloud.common.enumm.MicroServiceCodeMessage;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.service.util.SsoClient;
-//import com.whchem.sso.client.SSOClient;
-//import com.whchem.sso.client.entity.User;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,17 +51,16 @@ public class SsoFilter implements Filter {
     }
 
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws ServletException, IOException {
-        chain.doFilter(request, response);
-        /*HttpServletRequest httpRequest = (HttpServletRequest)request;
+        HttpServletRequest httpRequest = (HttpServletRequest)request;
         HttpSession session = httpRequest.getSession();
         HttpServletResponse httpResponse = (HttpServletResponse)response;
         String reqUri = httpRequest.getRequestURI();
         String httpMethod = httpRequest.getMethod();
 
         //检查请求中的x-acl-signature，取到该请求则为微服务请求，并获取用户信息
-        User user = SsoClient.getUserByHeader(httpRequest);
+        //User user = SsoClient.getUserByHeader(httpRequest);
         //OPTIONS请求，微服务请求（user不为空），白名单请求不需要验证cookie
-        if (this.isExcluded(reqUri) || HttpMethod.OPTIONS.name().equalsIgnoreCase(httpMethod) || user != null) {
+        if (this.isExcluded(reqUri) || HttpMethod.OPTIONS.name().equalsIgnoreCase(httpMethod)) {
             chain.doFilter(request, response);
         } else {
             //其他系统（oam）登录平台，判断如果已经登录，且账号是机器账号，验证通过
@@ -73,25 +70,27 @@ public class SsoFilter implements Filter {
                     chain.doFilter(request, response);
                 }
             }
-            User ssoUser = null;
+
+            String ssoLoginUser = null;
             try {
-                ssoUser = SSOClient.getLoginUser(httpRequest, httpResponse);
+                ssoLoginUser = (String)session.getAttribute("ssoLoginUser");
             }catch (Exception e){
                 logger.error("sso查询用户异常",e);
                 SsoClient.redirectLogin(session, httpRequest, httpResponse);
             }
-            if(ssoUser != null){
+
+            if (ssoLoginUser != null) {
                 //response中放入user信息，供前端判断用户是否切换过
                 httpResponse.setHeader("Access-Control-Expose-Headers","user");
-                httpResponse.setHeader("user",ssoUser.getName().toLowerCase());
+                httpResponse.setHeader("user",ssoLoginUser.toLowerCase());
                 if(session.getAttribute(CommonConstant.USERNAME) == null){
-                    session.setAttribute(CommonConstant.USERNAME, ssoUser.getName().toLowerCase());
+                    session.setAttribute(CommonConstant.USERNAME, ssoLoginUser.toLowerCase());
                 }else {
                     String username = (String)session.getAttribute(CommonConstant.USERNAME);
                     //用户名与当前session的不一致，在其他平台切换过用户，移除session角色，重新获取角色权限
-                    if(!username.equals(ssoUser.getName())){
+                    if (!username.equalsIgnoreCase(ssoLoginUser.toLowerCase())) {
                         session.removeAttribute(CommonConstant.ROLEID);
-                        session.setAttribute(CommonConstant.USERNAME, ssoUser.getName().toLowerCase());
+                        session.setAttribute(CommonConstant.USERNAME, ssoLoginUser.toLowerCase());
                     }
                 }
             }else  if (!response.isCommitted()) {
@@ -106,7 +105,7 @@ public class SsoFilter implements Filter {
             if (!response.isCommitted()) {
                 chain.doFilter(request, response);
             }
-        }*/
+        }
     }
 
     public void init(FilterConfig filterConfig) throws ServletException {

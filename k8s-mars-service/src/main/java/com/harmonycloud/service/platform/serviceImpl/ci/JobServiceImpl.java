@@ -13,10 +13,11 @@ import com.harmonycloud.dao.application.bean.ConfigFile;
 import com.harmonycloud.dao.application.bean.ConfigFileItem;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dao.ci.*;
-import com.harmonycloud.dao.ci.bean.*;
 import com.harmonycloud.dao.ci.bean.Job;
+import com.harmonycloud.dao.ci.bean.*;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dao.tenant.bean.Project;
+import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.dto.cicd.CicdConfigDto;
 import com.harmonycloud.dto.cicd.JobDto;
@@ -35,7 +36,6 @@ import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.cache.ImageCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.common.DataPrivilegeHelper;
-import com.harmonycloud.service.common.PrivilegeHelper;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeService;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.bean.harbor.HarborProjectInfo;
@@ -71,6 +71,7 @@ import org.dom4j.Element;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -82,6 +83,8 @@ import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeUtility;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -130,15 +133,6 @@ public class JobServiceImpl implements JobService {
     private VersionControlService versionControlService;
 
     @Autowired
-    private ApplicationDeployService applicationDeployService;
-
-    @Autowired
-    private ConfigMapService configMapService;
-
-    @Autowired
-    private DockerFileJobStageMapper dockerFileJobStageMapper;
-
-    @Autowired
     private BuildEnvironmentMapper buildEnvironmentMapper;
 
     @Autowired
@@ -152,8 +146,6 @@ public class JobServiceImpl implements JobService {
 
     @Autowired
     private BlueGreenDeployService blueGreenDeployService;
-    @Autowired
-    private PersistentVolumeService persistentVolumeService;
 
     @Autowired
     private IntegrationTestService integrationTestService;
@@ -178,9 +170,6 @@ public class JobServiceImpl implements JobService {
 
     @Autowired
     private DockerFileService dockerFileService;
-
-    @Autowired
-    private PrivilegeHelper privilegeHelper;
 
     @Autowired
     private HarborService harborService;
@@ -880,7 +869,7 @@ public class JobServiceImpl implements JobService {
                     stageBuild.setStageType(stageType.getName());
                     stageBuild.setStageTemplateTypeId(stageType.getTemplateType());
                     stageBuild.setBuildNum(lastBuildNumber);
-                    stageBuild.setStatus(Constant.PIPELINE_STATUS_WAITING);
+                    stageBuild.setStatus(Constant.PIPELINE_STATUS_NOTBUILT);
                     if (StageTemplateTypeEnum.IMAGEBUILD.getCode() == stage.getStageTemplateType()) {
                         if (CommonConstant.IMAGE_TAG_TIMESTAMP.equals(stage.getImageTagType())) {
                             stageBuild.setImage(stage.getHarborProject() + "/" + stage.getImageName() + ":" + dateTime);
@@ -1381,7 +1370,7 @@ public class JobServiceImpl implements JobService {
             if (StringUtils.isNotBlank(clusterId)) {
                 clusterName = clusterService.getClusterNameByClusterId(clusterId);
             } else {
-                clusterList = roleLocalService.getClusterListByRoleId((Integer) session.getAttributes().get(CommonConstant.ROLEID));
+                clusterList = roleLocalService.listCurrentUserRoleCluster();
             }
             StringBuilder lastStatus = new StringBuilder();
             StringBuilder currentStatus;
@@ -1870,6 +1859,7 @@ public class JobServiceImpl implements JobService {
         return false;
     }
 
+
     public JobBuild syncJobStatus(Job job, Integer buildNum) throws Exception {
         Project project = projectService.getProjectByProjectId(job.getProjectId());
         if (null == project) {
@@ -2041,10 +2031,15 @@ public class JobServiceImpl implements JobService {
                     helper.setTo((String[]) mailList.toArray(new String[mailList.size()]));
                     helper.setSubject(MimeUtility.encodeText("【容器云平台】CICD Notification_" + job.getName() + "_" + jobBuild.getBuildNum(), MimeUtility.mimeCharset("gb2312"), null));
                     Map dataModel = new HashMap<>();
-                    Cluster cluster = clusterService.findClusterById(job.getClusterId());
+                    List<String> statusList = new ArrayList<>();
                     dataModel.put("url", webUrl + "/#/cicd/process/" + job.getId());
                     dataModel.put("jobName", job.getName());
+                    TenantBinding tenant = tenantService.getTenantByTenantid(job.getTenantId());
+                    dataModel.put("tenantName", tenant.getAliasName());
+                    Project project = projectService.getProjectByProjectId(job.getProjectId());
+                    dataModel.put("projectName", project.getAliasName());
                     dataModel.put("status", jobBuild.getStatus());
+                    statusList.add(jobBuild.getStatus());
                     dataModel.put("time", new Date());
                     dataModel.put("startTime", jobBuild.getStartTime());
                     StageBuild stageBuildCondition = new StageBuild();
@@ -2058,6 +2053,7 @@ public class JobServiceImpl implements JobService {
                         Stage stage = stageMapper.queryById(stageBuild.getStageId());
                         stageBuildMap.put("name", stage.getStageName());
                         stageBuildMap.put("status", stageBuild.getStatus());
+                        statusList.add(stageBuild.getStatus());
                         stageBuildMap.put("startTime", stageBuild.getStartTime());
                         int duration = 0;
                         if (StringUtils.isNotBlank(stageBuild.getDuration())) {
@@ -2070,13 +2066,25 @@ public class JobServiceImpl implements JobService {
                     dataModel.put("duration", DateUtil.getDuration(Long.valueOf(jobDuration)));
                     dataModel.put("stageBuildList", stageBuildMapList);
                     helper.setText(TemplateUtil.generate("notification.ftl", dataModel), true);
-//                    ClassLoader classLoader = MailUtil.class.getClassLoader();
-//                    InputStream inputStream = classLoader.getResourceAsStream("icon-info.png");
-//                    byte[] bytes = MailUtil.stream2byte(inputStream);
-//                    helper.addInline("icon-info", new ByteArrayResource(bytes), "image/png");
-//                    inputStream = classLoader.getResourceAsStream("icon-status.png");
-//                    bytes = MailUtil.stream2byte(inputStream);
-//                    helper.addInline("icon-status", new ByteArrayResource(bytes), "image/png");
+                    ClassLoader classLoader = MailUtil.class.getClassLoader();
+                    InputStream inputStream = classLoader.getResourceAsStream("alarm-icon.png");
+                    byte[] bytes = MailUtil.stream2byte(inputStream);
+                    helper.addInline("icon-info", new ByteArrayResource(bytes), "image/png");
+                    if(statusList.contains(Constant.PIPELINE_STATUS_SUCCESS)) {
+                        inputStream = classLoader.getResourceAsStream("icon-status-success.png");
+                        bytes = MailUtil.stream2byte(inputStream);
+                        helper.addInline("icon-status-success", new ByteArrayResource(bytes), "image/png");
+                    }
+                    if(statusList.contains(Constant.PIPELINE_STATUS_FAILED) || statusList.contains(Constant.PIPELINE_STATUS_FAILURE)) {
+                        inputStream = classLoader.getResourceAsStream("icon-status-fail.png");
+                        bytes = MailUtil.stream2byte(inputStream);
+                        helper.addInline("icon-status-fail", new ByteArrayResource(bytes), "image/png");
+                    }
+                    if(statusList.contains(Constant.PIPELINE_STATUS_NOTBUILT)) {
+                        inputStream = classLoader.getResourceAsStream("icon-status-unfinished.png");
+                        bytes = MailUtil.stream2byte(inputStream);
+                        helper.addInline("icon-status-unfinished", new ByteArrayResource(bytes), "image/png");
+                    }
                     MailUtil.sendMimeMessage(mimeMessage);
                 } catch (Exception e) {
                     logger.error("发送邮件失败", e);
@@ -2220,7 +2228,7 @@ public class JobServiceImpl implements JobService {
     }
 
     private void doCanaryRelease(Job job, StageDto stageDto, Cluster cluster, Integer buildNum) throws Exception {
-        verifyUpgrade(stageDto.getServiceName(), stageDto.getNamespace(), false);
+        verifyUpgrade(stageDto.getServiceName(), stageDto.getNamespace(), stageDto.getInstances(), false);
         verifyUpgradeResource(stageDto, cluster);
         K8SClientResponse depRes = deploymentService.doSpecifyDeployment(stageDto.getNamespace(), stageDto.getServiceName(), null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
@@ -2247,13 +2255,18 @@ public class JobServiceImpl implements JobService {
         canaryDeployment.setInstances(stageDto.getInstances());
         canaryDeployment.setNamespace(stageDto.getNamespace());
         canaryDeployment.setSeconds(5);
+        //服务标签
+        Map<String, Object> labels = dep.getSpec().getTemplate().getMetadata().getLabels();
+        if(labels != null && labels.get(Constant.TYPE_DEPLOY_VERSION) != null) {
+            canaryDeployment.setDeployVersion((String)labels.get(Constant.TYPE_DEPLOY_VERSION));
+        }
 
         versionControlService.canaryUpdate(canaryDeployment, canaryDeployment.getInstances(), null);
     }
 
     private void doBlueGreenRelease(Job job, StageDto stageDto, Cluster cluster, Integer buildNum) throws Exception {
-        verifyUpgrade(stageDto.getServiceName(), stageDto.getNamespace(), false);
-
+        verifyUpgrade(stageDto.getServiceName(), stageDto.getNamespace(), stageDto.getInstances(), false);
+        verifyUpgradeResource(stageDto, cluster);
         K8SClientResponse depRes = deploymentService.doSpecifyDeployment(stageDto.getNamespace(), stageDto.getServiceName(), null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
             throw new MarsRuntimeException(ErrorCodeMessage.DEPLOYMENT_GET_FAILURE);
@@ -2265,14 +2278,18 @@ public class JobServiceImpl implements JobService {
         updateDeployment.setNamespace(stageDto.getNamespace());
         updateDeployment.setInstance(String.valueOf(dep.getSpec().getReplicas()));
         updateDeployment.setContainers(updateContainerList);
-
+        //服务标签
+        Map<String, Object> labels = dep.getSpec().getTemplate().getMetadata().getLabels();
+        if(labels != null && labels.get(Constant.TYPE_DEPLOY_VERSION) != null) {
+            updateDeployment.setDeployVersion((String)labels.get(Constant.TYPE_DEPLOY_VERSION));
+        }
 
         blueGreenDeployService.deployByBlueGreen(updateDeployment, null, job.getProjectId());
     }
 
     private List<UpdateContainer> getUpdateContainerList(Deployment dep, Job job, StageDto stageDto, Cluster cluster, Integer buildNum) throws Exception {
 
-        List<ContainerOfPodDetail> containerList = K8sResultConvert.convertContainer(dep);
+        List<ContainerOfPodDetail> containerList = K8sResultConvert.convertDeploymentContainer(dep, dep.getSpec().getTemplate().getSpec().getContainers(), cluster);
         List<UpdateContainer> updateContainerList = new ArrayList<>();
 
         StageBuild stageBuildCondition = new StageBuild();
@@ -2294,25 +2311,25 @@ public class JobServiceImpl implements JobService {
             CreateResourceDto createResourceDto = new CreateResourceDto();
             createResourceDto.setCpu((String) containerOfPodDetail.getResource().get("cpu"));
             createResourceDto.setMemory((String) containerOfPodDetail.getResource().get("memory"));
+            if(containerOfPodDetail.getResource().get(CommonConstant.GPU) != null) {
+                createResourceDto.setGpu((String)containerOfPodDetail.getResource().get(CommonConstant.GPU));
+            }
             updateContainer.setResource(createResourceDto);
             CreateResourceDto limit = new CreateResourceDto();
             limit.setCpu((String) containerOfPodDetail.getLimit().get("cpu"));
             limit.setMemory((String) containerOfPodDetail.getLimit().get("memory"));
+            if(containerOfPodDetail.getLimit().get(CommonConstant.GPU) != null) {
+                limit.setGpu((String)containerOfPodDetail.getResource().get(CommonConstant.GPU));
+            }
             updateContainer.setLimit(limit);
             List<CreateEnvDto> envList = new ArrayList<>();
             if (containerOfPodDetail.getEnv() != null) {
-                for (EnvVar envVar : containerOfPodDetail.getEnv()) {
-                    CreateEnvDto createEnvDto = new CreateEnvDto();
-                    createEnvDto.setKey(envVar.getName());
-                    createEnvDto.setName(envVar.getName());
-                    createEnvDto.setValue(envVar.getValue());
-                    envList.add(createEnvDto);
-                }
-                updateContainer.setEnv(envList);
+                updateContainer.setEnv(containerOfPodDetail.getEnv());
             }
             List<CreatePortDto> portList = new ArrayList<>();
             for (ContainerPort containerPort : containerOfPodDetail.getPorts()) {
                 CreatePortDto createPortDto = new CreatePortDto();
+                createPortDto.setName(containerPort.getName());
                 createPortDto.setProtocol(containerPort.getProtocol());
                 createPortDto.setPort(String.valueOf(containerPort.getContainerPort()));
                 createPortDto.setContainerPort(String.valueOf(containerPort.getContainerPort()));
@@ -2331,46 +2348,49 @@ public class JobServiceImpl implements JobService {
                         logVolumn.setType(volumeMountExt.getType());
 
                         updateContainer.setLog(logVolumn);
-                    } else if (Constant.VOLUME_TYPE_PVC.equals(volumeMountExt.getType()) || "emptyDir".equals(volumeMountExt.getType()) || "hostPath".equals(volumeMountExt.getType())) {
+                    } else if (StringUtils.isNotBlank(volumeMountExt.getPvcname()) || "emptyDir".equals(volumeMountExt.getType()) || "hostPath".equals(volumeMountExt.getType())) {
                         PersistentVolumeDto updateVolume = new PersistentVolumeDto();
                         updateVolume.setType(volumeMountExt.getType());
                         updateVolume.setReadOnly(volumeMountExt.getReadOnly());
                         updateVolume.setPath(volumeMountExt.getMountPath());
                         updateVolume.setEmptyDir(volumeMountExt.getEmptyDir());
+                        updateVolume.setCapacity(volumeMountExt.getCapacity());
                         updateVolume.setHostPath(volumeMountExt.getHostPath());
                         updateVolume.setRevision(volumeMountExt.getRevision());
-                        if (Constant.VOLUME_TYPE_PVC.equals(volumeMountExt.getType())) {
+                        updateVolume.setName(volumeMountExt.getName());
+                        updateVolume.setVolumeName(volumeMountExt.getName());
+                        if (StringUtils.isNotBlank(volumeMountExt.getPvcname())) {
                             updateVolume.setPvcName(volumeMountExt.getPvcname());
                         }
                         updateVolumeList.add(updateVolume);
-                    } else if ("configMap".equals(volumeMountExt.getType())) {
-                        CreateConfigMapDto configMap = new CreateConfigMapDto();
-                        configMap.setPath(volumeMountExt.getMountPath());
-                        configMap.setFile(volumeMountExt.getSubPath());
-                        if (volumeMountExt.getName() != null && volumeMountExt.getName().lastIndexOf("-") > 0) {
-                            int indexByFileName = volumeMountExt.getName().lastIndexOf("-");
-                            configMap.setConfigMapId(volumeMountExt.getName().substring(indexByFileName + 1));
-                        }
-                        //升级时从数据库读取配置文件的内容
-                        ConfigDetailDto configDetailDto = configCenterService.getConfigMap(configMap.getConfigMapId());
-                        if (configDetailDto == null) {
-                            throw new MarsRuntimeException(ErrorCodeMessage.CONFIGMAP_NOT_EXIST);
-                        }
-
-                        ConfigFile configFile = ObjConverter.convert(configDetailDto, ConfigFile.class);
-                        configMap.setTag(configFile.getTags());
-                        if (configFile != null) {
-                            List<ConfigFileItem> configFileItemList = configFile.getConfigFileItemList();
-                            for (ConfigFileItem configFileItem : configFileItemList) {
-                                if (configMap.getFile().equals(configFileItem.getFileName())) {
-                                    configMap.setValue(configFileItem.getContent());
-                                }
+                    } else if ("configMap".equals(volumeMountExt.getType()) && CollectionUtils.isEmpty(configMapList)) {
+                        //非升级容器或cd中不替换配置文件时需要取原有的配置文件信息
+                        if (!stageDto.getContainerName().equals(containerOfPodDetail.getName()) || CollectionUtils.isEmpty(stageDto.getConfigMaps())) {
+                            String configMapId = null;
+                            if (volumeMountExt.getName() != null && volumeMountExt.getName().lastIndexOf("-") > 0) {
+                                int indexByFileName = volumeMountExt.getName().lastIndexOf("-");
+                                configMapId = volumeMountExt.getName().substring(indexByFileName + 1);
+                            }
+                            //升级时从数据库读取配置文件的内容
+                            ConfigDetailDto configDetailDto = configCenterService.getConfigMap(configMapId);
+                            if (configDetailDto == null) {
+                                throw new MarsRuntimeException(ErrorCodeMessage.CONFIGMAP_NOT_EXIST);
                             }
 
-                        } else {
-                            configMap.setValue(null);
+                            ConfigFile configFile = ObjConverter.convert(configDetailDto, ConfigFile.class);
+                            if (configFile != null) {
+                                List<ConfigFileItem> configFileItemList = configFile.getConfigFileItemList();
+                                for (ConfigFileItem configFileItem : configFileItemList) {
+                                    CreateConfigMapDto configMap = new CreateConfigMapDto();
+                                    configMap.setTag(configFile.getTags());
+                                    configMap.setFile(configFileItem.getFileName());
+                                    configMap.setPath(configFileItem.getPath());
+                                    configMap.setValue(configFileItem.getContent());
+                                    configMap.setConfigMapId(configMapId);
+                                    configMapList.add(configMap);
+                                }
+                            }
                         }
-                        configMapList.add(configMap);
                     }
                 }
             }
@@ -2386,25 +2406,23 @@ public class JobServiceImpl implements JobService {
                 //若配置不为空，则查询数据库中的最新配置信息，更新到需要升级的容器配置中
                 if (CollectionUtils.isNotEmpty(stageDto.getConfigMaps())) {
                     configMapList = new ArrayList<>();
-                    for (CreateConfigMapDto createConfigMapDto : stageDto.getConfigMaps()) {
-
-                        ConfigDetailDto configDetailDto = configCenterService.getConfigMap(createConfigMapDto.getConfigMapId());
-                        if(configDetailDto==null){
-                            throw new MarsRuntimeException(ErrorCodeMessage.CONFIGMAP_NOT_EXIST);
+                    String configMapId = stageDto.getConfigMaps().get(0).getConfigMapId();
+                    ConfigDetailDto configDetailDto = configCenterService.getConfigMap(configMapId);
+                    if(configDetailDto==null){
+                        throw new MarsRuntimeException(ErrorCodeMessage.CONFIGMAP_NOT_EXIST);
+                    }
+                    ConfigFile configFile = ObjConverter.convert(configDetailDto, ConfigFile.class);
+                    if (configFile != null) {
+                        List<ConfigFileItem> configFileItemList = configFile.getConfigFileItemList();
+                        for (ConfigFileItem configFileItem : configFileItemList) {
+                            CreateConfigMapDto createConfigMapDto = new CreateConfigMapDto();
+                            createConfigMapDto.setTag(configFile.getTags());
+                            createConfigMapDto.setPath(configFileItem.getPath());
+                            createConfigMapDto.setFile(configFileItem.getFileName());
+                            createConfigMapDto.setValue(configFileItem.getContent());
+                            createConfigMapDto.setConfigMapId(configMapId);
+                            configMapList.add(createConfigMapDto);
                         }
-
-                        ConfigFile configFile = ObjConverter.convert(configDetailDto, ConfigFile.class);
-                        if (configFile != null) {
-                            List<ConfigFileItem> configFileItemList = configFile.getConfigFileItemList();
-                            for (ConfigFileItem configFileItem : configFileItemList) {
-                                if (createConfigMapDto.getFile().equals(configFileItem.getFileName())) {
-                                    createConfigMapDto.setValue(configFileItem.getContent());
-                                }
-                            }
-                        } else {
-                            createConfigMapDto.setValue(null);
-                        }
-                        configMapList.add(createConfigMapDto);
                     }
                     updateContainer.setConfigmap(configMapList);
                 }
@@ -2416,7 +2434,7 @@ public class JobServiceImpl implements JobService {
                 updateContainer.setImg(StringUtils.join(imageArray, CommonConstant.SLASH));
             }
 
-            updateContainer.setImagePullPolicy(CommonConstant.IMAGEPULLPOLICY_ALWAYS);
+            updateContainer.setImagePullPolicy(containerOfPodDetail.getImagePullPolicy());
 
             updateContainerList.add(updateContainer);
         }
@@ -2457,7 +2475,7 @@ public class JobServiceImpl implements JobService {
                     throw new MarsRuntimeException(ErrorCodeMessage.TEST_SUITE_NOT_EXIST);
                 }
             } else if (validateDeploy && StageTemplateTypeEnum.DEPLOY.getCode() == stage.getStageTemplateType()) {
-                verifyUpgrade(stage.getServiceName(), stage.getNamespace(), true);
+                verifyUpgrade(stage.getServiceName(), stage.getNamespace(), stage.getInstances(), true);
             }
         }
     }
@@ -2725,7 +2743,11 @@ public class JobServiceImpl implements JobService {
         return script;
     }
 
-    private void verifyUpgrade(String service, String namespace, boolean manually) throws Exception {
+    private void verifyUpgrade(String service, String namespace, Integer instance, boolean manually) throws Exception {
+        //校验分区
+        if(StringUtils.isEmpty(namespace) || namespaceLocalService.getNamespaceByName(namespace) == null){
+            throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_NOT_FOUND);
+        }
         //判断服务是否启动
         ActionReturnUtil deploymentDetailResult = deploymentsService.getDeploymentDetail(namespace, service,false);
         if (deploymentDetailResult.isSuccess()) {
@@ -2736,6 +2758,14 @@ public class JobServiceImpl implements JobService {
                         throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_NOT_STARTED_INFORM);
                     } else {
                         throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_NOT_STARTED);
+                    }
+                }else{
+                    if(instance != null && instance > appDetail.getInstance()){
+                        if (manually) {
+                            throw new MarsRuntimeException(ErrorCodeMessage.UPGRADE_INSTANCE_EXCEED_SERVICE_INFORM);
+                        } else {
+                            throw new MarsRuntimeException(ErrorCodeMessage.UPGRADE_INSTANCE_EXCEED_SERVICE);
+                        }
                     }
                 }
             }
@@ -2814,22 +2844,26 @@ public class JobServiceImpl implements JobService {
             throw new MarsRuntimeException(ErrorCodeMessage.REPOSITORY_NOT_EXIST);
         }
         if(!stage.getImageName().contains(CommonConstant.SLASH)){
-            stage.setImageName(stage.getHarborProject() + CommonConstant.SLASH + stage.getImageName());
+            stage.setImageName(stage.getHarborProject() + CommonConstant.SLASH +stage.getImageName());
         }
         //校验镜像
-        HarborRepositoryMessage harborRepository = imageCacheManager.getRepoMessage(imageRepository.getHarborHost(), stage.getImageName());
-        if(harborRepository == null){
+        ActionReturnUtil actionReturnUtil = harborProjectService.getImage(imageRepository.getId(), stage.getImageName());
+        if(!actionReturnUtil.isSuccess()){
+            throw new MarsRuntimeException(ErrorCodeMessage.IMAGE_NOT_EXIST);
+        }
+        HarborRepositoryMessage harborRepositoryMessage = (HarborRepositoryMessage)actionReturnUtil.getData();
+        if(harborRepositoryMessage == null){
             throw new MarsRuntimeException(ErrorCodeMessage.IMAGE_NOT_EXIST);
         }
         //校验镜像版本
-        if(StringUtils.isEmpty(stage.getImageTag()) && CollectionUtils.isEmpty(harborRepository.getTags())){
+        if(StringUtils.isEmpty(stage.getImageTag()) && CollectionUtils.isEmpty(harborRepositoryMessage.getTags())){
             throw new MarsRuntimeException(ErrorCodeMessage.IMAGE_TAG_NOT_EXIST);
-        }else if(StringUtils.isNotEmpty(stage.getImageTag()) && !harborRepository.getTags().contains(stage.getImageTag())){
+        }else if(StringUtils.isNotEmpty(stage.getImageTag()) && !harborRepositoryMessage.getTags().contains(stage.getImageTag())){
             throw new MarsRuntimeException(ErrorCodeMessage.IMAGE_TAG_NOT_EXIST);
         }
 
         if(StringUtils.isEmpty(stage.getImageTag())){
-            stage.setImageTag(harborRepository.getTags().get(0));
+            stage.setImageTag(harborRepositoryMessage.getTags().get(0));
         }
         boolean result = harborProjectService.syncImage(stage.getRepositoryId(),stage.getImageName(),stage.getImageTag(),stage.getDestClusterId(),true);
         if(!result){
@@ -2844,74 +2878,97 @@ public class JobServiceImpl implements JobService {
      * @throws Exception
      */
     private void verifyUpgradeResource(StageDto stageDto, Cluster cluster) throws Exception{
-        //不中断服务升级，需校验剩余资源
-        if(stageDto.getMaxSurge() != null && stageDto.getMaxSurge() == 1){
-            K8SClientResponse depRes = deploymentService.doSpecifyDeployment(stageDto.getNamespace(), stageDto.getServiceName(), null, null, HTTPMethod.GET, cluster);
-            if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
-                throw new MarsRuntimeException(depRes.getBody());
-            }
-            Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
-            List<Container> containerList = dep.getSpec().getTemplate().getSpec().getContainers();
-            double instanceCpu = 0;
-            double instanceMemory = 0;
-            //计算每个容器的资源总和
-            for(Container container:containerList){
-                if(container.getResources() != null && container.getResources().getRequests() !=null){
-                    Map<String, Object> request = (Map<String, Object>)container.getResources().getRequests();
-                    String cpu = (String)request.get(CommonConstant.CPU);
-                    String memory = (String)request.get(CommonConstant.MEMORY);
-                    if(cpu.contains(CommonConstant.SMALLM)){
-                        instanceCpu += Double.parseDouble(cpu.split(CommonConstant.SMALLM)[0])/CommonConstant.NUM_THOUSAND;
-                    }else{
-                        instanceCpu += Double.parseDouble(cpu);
-                    }
-                    if(memory.contains(CommonConstant.SMALLM)){
-                        instanceMemory += Double.parseDouble(memory.split(CommonConstant.SMALLM)[0]);
-                    }else if(memory.contains(CommonConstant.MI)){
-                        instanceMemory += Double.parseDouble(memory.split(CommonConstant.MI)[0]);
-                    }else if(memory.contains(CommonConstant.SMALLG)){
-                        instanceMemory +=Double.parseDouble(memory.split(CommonConstant.SMALLG)[0]) * CommonConstant.NUM_SIZE_MEMORY;
-                    }else if(memory.contains(CommonConstant.GI)){
-                        instanceMemory += Double.parseDouble(memory.split(CommonConstant.GI)[0]) * CommonConstant.NUM_SIZE_MEMORY;
-                    }
+        K8SClientResponse depRes = deploymentService.doSpecifyDeployment(stageDto.getNamespace(), stageDto.getServiceName(), null, null, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
+            throw new MarsRuntimeException(depRes.getBody());
+        }
+        Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+        List<Container> containerList = dep.getSpec().getTemplate().getSpec().getContainers();
+        BigDecimal instanceCpu = BigDecimal.ZERO;
+        BigDecimal instanceMemory = BigDecimal.ZERO;
+        Integer instanceGpu = 0;
+        //计算每个容器的资源总和
+        for(Container container:containerList){
+            if(container.getResources() != null && container.getResources().getRequests() !=null){
+                Map<String, Object> request = (Map<String, Object>)container.getResources().getRequests();
+                String cpu = (String)request.get(CommonConstant.CPU);
+                String memory = (String)request.get(CommonConstant.MEMORY);
+                if(cpu.contains(CommonConstant.SMALLM)){
+                    instanceCpu = instanceCpu.add(new BigDecimal(cpu.split(CommonConstant.SMALLM)[0]).divide(new BigDecimal(CommonConstant.NUM_THOUSAND)));
+                }else{
+                    instanceCpu = instanceCpu.add(new BigDecimal(cpu));
+                }
+                if(memory.contains(CommonConstant.SMALLM)){
+                    instanceMemory = instanceMemory.add(new BigDecimal(memory.split(CommonConstant.SMALLM)[0]));
+                }else if(memory.contains(CommonConstant.MI)){
+                    instanceMemory = instanceMemory.add(new BigDecimal(memory.split(CommonConstant.MI)[0]));
+                }else if(memory.contains(CommonConstant.SMALLG)){
+                    instanceMemory = instanceMemory.add(new BigDecimal(memory.split(CommonConstant.SMALLG)[0]).multiply(BigDecimal.valueOf(CommonConstant.NUM_SIZE_MEMORY)));
+                }else if(memory.contains(CommonConstant.GI)){
+                    instanceMemory = instanceMemory.add(new BigDecimal(memory.split(CommonConstant.GI)[0]).multiply(BigDecimal.valueOf(CommonConstant.NUM_SIZE_MEMORY)));
+                }
+                if(request.get(CommonConstant.NVIDIA_GPU) != null){
+                    instanceGpu += Integer.valueOf((String)request.get(CommonConstant.NVIDIA_GPU));
                 }
             }
+        }
+        //获取分区下的资源配额
+        Map<String, Object> quotaMap = namespaceService.getNamespaceQuota(stageDto.getNamespace());
+        List<Object> cpus = (List<Object>)quotaMap.get(CommonConstant.CPU);
+        List<Object> memorys = (List<Object>)quotaMap.get(CommonConstant.MEMORY);
+        List<Object> gpus = (List<Object>)quotaMap.get(CommonConstant.GPU);
+        String hardType = (String)quotaMap.get(CommonConstant.HARDTYPE);
+        String usedType = (String)quotaMap.get(CommonConstant.USEDTYPE);
+        //计算cpu剩余量与服务cpu比较
+        BigDecimal remainCpu = BigDecimal.ZERO;
+        if(CollectionUtils.isNotEmpty(cpus) && cpus.size() == 2) {
+            BigDecimal totalCpu = new BigDecimal((String)cpus.get(0));
+            BigDecimal usedCpu = new BigDecimal((String)cpus.get(1));
+            remainCpu = totalCpu.subtract(usedCpu);
 
-            //获取分区下的资源配额
-            Map<String, Object> quotaMap = namespaceService.getNamespaceQuota(stageDto.getNamespace());
-            List<Object> cpus = (List<Object>)quotaMap.get(CommonConstant.CPU);
-            List<Object> memorys = (List<Object>)quotaMap.get(CommonConstant.MEMORY);
-            String hardType = (String)quotaMap.get(CommonConstant.HARDTYPE);
-            String usedType = (String)quotaMap.get(CommonConstant.USEDTYPE);
-            //计算cpu剩余量与服务cpu比较
-            if(CollectionUtils.isNotEmpty(cpus) && cpus.size() == 2) {
-                double totalCpu = Double.valueOf((String)cpus.get(0));
-                double usedCpu = Double.valueOf((String)cpus.get(1));
-                double remainCpu = totalCpu - usedCpu;
-                if(remainCpu < instanceCpu){
-                    throw new MarsRuntimeException(ErrorCodeMessage.NO_ENOUGH_RESOURCE);
-                }
+        }
+        //计算内存剩余量与服务内存比较
+        BigDecimal remainMemory = BigDecimal.ZERO;
+        if(CollectionUtils.isNotEmpty(memorys) && memorys.size() == 2) {
+            BigDecimal totalMemory = new BigDecimal((String)memorys.get(0));
+            if(CommonConstant.GB.equals(hardType)){
+                totalMemory = totalMemory.multiply(BigDecimal.valueOf(CommonConstant.NUM_SIZE_MEMORY));
+            }else if(CommonConstant.TB.equals(hardType)){
+                totalMemory = totalMemory.multiply(BigDecimal.valueOf(CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY));
             }
-            //计算内存剩余量与服务内存比较
-            if(CollectionUtils.isNotEmpty(memorys) && memorys.size() == 2) {
-                double totalMemory = Double.valueOf((String)memorys.get(0));
-                if(CommonConstant.GB.equals(hardType)){
-                    totalMemory = totalMemory * CommonConstant.NUM_SIZE_MEMORY;
-                }else if(CommonConstant.TB.equals(hardType)){
-                    totalMemory = totalMemory * CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY;
-                }
-                double usedMemory = Double.valueOf((String)memorys.get(1));
-                if(CommonConstant.GB.equals(usedType)){
-                    usedMemory = usedMemory * CommonConstant.NUM_SIZE_MEMORY;
-                }else if(CommonConstant.TB.equals(usedType)){
-                    usedMemory = usedMemory * CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY;
-                }
-                double remainMemory = totalMemory - usedMemory;
-                if(remainMemory < instanceMemory){
-                    throw new MarsRuntimeException(ErrorCodeMessage.NO_ENOUGH_RESOURCE);
-                }
+            BigDecimal usedMemory = new BigDecimal((String)memorys.get(1));
+            if(CommonConstant.GB.equals(usedType)){
+                usedMemory = usedMemory.multiply(BigDecimal.valueOf(CommonConstant.NUM_SIZE_MEMORY));
+            }else if(CommonConstant.TB.equals(usedType)){
+                usedMemory = usedMemory.multiply(BigDecimal.valueOf(CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY));
             }
+            remainMemory = totalMemory.subtract(usedMemory);
 
+        }
+        //GPU校验
+        Integer remainGpu = 0;
+        if(CollectionUtils.isNotEmpty(gpus) && gpus.size() == 2) {
+            Integer totalGpu = Integer.valueOf((String)gpus.get(0));
+            Integer usedGpu = Integer.valueOf((String)gpus.get(1));
+            remainGpu = totalGpu - usedGpu;
+
+        }
+        if(CommonConstant.CANARY_RELEASE.equals(stageDto.getDeployType()) && stageDto.getMaxSurge() != null && stageDto.getMaxSurge() == 1){
+            //不中断服务升级，需校验剩余资源
+            if(remainCpu.compareTo(instanceCpu)<0 || remainMemory.compareTo(instanceMemory) < 0){
+                throw new MarsRuntimeException(ErrorCodeMessage.NO_ENOUGH_RESOURCE);
+            }
+            if(instanceGpu != null && remainGpu < instanceGpu) {
+                throw new MarsRuntimeException(ErrorCodeMessage.NO_ENOUGH_RESOURCE);
+            }
+        }else if(CommonConstant.BLUE_GREEN_RELEASE.equals(stageDto.getDeployType())){
+            int instant = dep.getSpec().getReplicas();
+            if(remainCpu.compareTo(instanceCpu.multiply(BigDecimal.valueOf(instant))) < 0  || remainMemory.compareTo(instanceMemory.multiply(BigDecimal.valueOf(instant))) < 0){
+                throw new MarsRuntimeException(ErrorCodeMessage.NO_ENOUGH_RESOURCE_BLUEGREEN);
+            }
+            if(instanceGpu != null && remainGpu < (instanceGpu*instant)) {
+                throw new MarsRuntimeException(ErrorCodeMessage.NO_ENOUGH_RESOURCE_BLUEGREEN);
+            }
         }
     }
 }

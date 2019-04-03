@@ -1,6 +1,7 @@
 package com.harmonycloud.service.user;
 import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.dao.user.bean.Role;
+import com.harmonycloud.dto.cluster.DataCenterDto;
 import com.harmonycloud.dto.user.RoleDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 
@@ -81,7 +82,14 @@ public interface RoleLocalService {
      * @return
      * @throws Exception
      */
-    public Set<String> listCurrentUserRoleClusterIds() throws Exception;
+    public List<String> listCurrentUserRoleClusterIds() throws Exception;
+
+    /**
+     * 获取当前用户选择的数据中心
+     * @return
+     * @throws Exception
+     */
+    String getCurrentDataCenter() throws Exception;
 
     /**
      * 根据id获取角色
@@ -195,4 +203,19 @@ public interface RoleLocalService {
      * @throws Exception
      */
     public void initHarborRole() throws Exception;
+
+
+    /**
+     * 切换数据中心
+     * @return
+     * @throws Exception
+     */
+    void switchDataCenter(Integer roleId, String dataCenter) throws Exception;
+
+    /**
+     * 切换数据中心
+     * @return
+     * @throws Exception
+     */
+    Set<DataCenterDto> getRoleDataCenter(Integer roleId) throws Exception;
 }

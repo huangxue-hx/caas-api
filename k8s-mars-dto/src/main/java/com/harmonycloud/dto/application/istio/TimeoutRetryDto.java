@@ -18,6 +18,9 @@ public class TimeoutRetryDto extends BaseIstioPolicyDto {
     @ApiModelProperty(value = "重试间隔时间", name = "perTryTimeout", example = "5")
     private String perTryTimeout;
 
+    @ApiModelProperty(value = "服务域名external", name = "host", example = "0", notes = "external时使用")
+    private String host;
+
     public String getTimeout() {
         return timeout;
     }
@@ -40,5 +43,13 @@ public class TimeoutRetryDto extends BaseIstioPolicyDto {
 
     public void setPerTryTimeout(String perTryTimeout) {
         this.perTryTimeout = perTryTimeout;
+    }
+
+    public String getHost() {
+        return host;
+    }
+
+    public void setHost(String host) {
+        this.host = host;
     }
 }

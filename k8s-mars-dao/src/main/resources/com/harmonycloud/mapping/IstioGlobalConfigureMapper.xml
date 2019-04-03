@@ -6,12 +6,12 @@
     <result column="cluster_id" jdbcType="VARCHAR" property="clusterId" />
     <result column="cluster_name" jdbcType="VARCHAR" property="clusterName" />
     <result column="switch_status" jdbcType="INTEGER" property="switchStatus" />
-    <result column="operator_id" jdbcType="BIGINT" property="operatorId" />
+    <result column="user_name" jdbcType="VARCHAR" property="userName" />
     <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
     <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
   </resultMap>
   <sql id="Base_Column_List">
-    id, cluster_id, cluster_name, switch_status, operator_id, create_time, update_time
+    id, cluster_id, cluster_name, switch_status, user_name, create_time, update_time
   </sql>
   <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
     select 
@@ -28,10 +28,10 @@
       SELECT LAST_INSERT_ID()
     </selectKey>
     insert into istio_global_configure (cluster_id, cluster_name, switch_status, 
-      operator_id, create_time
+      user_name, create_time
       )
     values (#{clusterId,jdbcType=VARCHAR}, #{clusterName,jdbcType=VARCHAR}, #{switchStatus,jdbcType=INTEGER}, 
-      #{operatorId,jdbcType=BIGINT}, CURRENT_TIME
+      #{userName,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}
       )
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.istio.bean.IstioGlobalConfigure">
@@ -49,8 +49,8 @@
       <if test="switchStatus != null">
         switch_status,
       </if>
-      <if test="operatorId != null">
-        operator_id,
+      <if test="userName != null">
+        user_name,
       </if>
       <if test="createTime != null">
         create_time,
@@ -69,8 +69,8 @@
       <if test="switchStatus != null">
         #{switchStatus,jdbcType=INTEGER},
       </if>
-      <if test="operatorId != null">
-        #{operatorId,jdbcType=BIGINT},
+      <if test="userName != null">
+        #{userName,jdbcType=VARCHAR},
       </if>
       <if test="createTime != null">
         #{createTime,jdbcType=TIMESTAMP},
@@ -92,8 +92,8 @@
       <if test="switchStatus != null">
         switch_status = #{switchStatus,jdbcType=INTEGER},
       </if>
-      <if test="operatorId != null">
-        operator_id = #{operatorId,jdbcType=BIGINT},
+      <if test="userName != null">
+        user_name = #{userName,jdbcType=VARCHAR},
       </if>
       <if test="createTime != null">
         create_time = #{createTime,jdbcType=TIMESTAMP},
@@ -109,7 +109,7 @@
     set cluster_id = #{clusterId,jdbcType=VARCHAR},
       cluster_name = #{clusterName,jdbcType=VARCHAR},
       switch_status = #{switchStatus,jdbcType=INTEGER},
-      operator_id = #{operatorId,jdbcType=BIGINT},
+      user_name = #{userName,jdbcType=VARCHAR},
       create_time = #{createTime,jdbcType=TIMESTAMP},
       update_time = #{updateTime,jdbcType=TIMESTAMP}
     where id = #{id,jdbcType=INTEGER}
@@ -123,7 +123,7 @@
   <update id="updateByClusterId" parameterType="com.harmonycloud.dao.istio.bean.IstioGlobalConfigure">
     update istio_global_configure
     set  switch_status = #{switchStatus,jdbcType=INTEGER},
-    operator_id = #{operatorId,jdbcType=BIGINT},
+    user_name = #{userName,jdbcType=VARCHAR},
     update_time = #{updateTime,jdbcType=TIMESTAMP}
     where cluster_id = #{clusterId,jdbcType=VARCHAR}
   </update>

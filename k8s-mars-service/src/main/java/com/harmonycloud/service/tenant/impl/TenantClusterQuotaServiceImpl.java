@@ -4,7 +4,9 @@ import com.google.common.collect.Lists;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.NumUtil;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dto.tenant.StorageDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -14,9 +16,11 @@ import com.harmonycloud.dao.tenant.bean.TenantClusterQuotaExample;
 import com.harmonycloud.dto.tenant.ClusterQuotaDto;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.service.DashboardService;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.TenantClusterQuotaService;
 import com.harmonycloud.service.tenant.TenantService;
+import com.harmonycloud.service.user.RoleLocalService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,12 +34,14 @@ import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.util.*;
 
+import static com.harmonycloud.common.Constant.CommonConstant.STORAGE_HARD_INDEX;
+import static com.harmonycloud.common.Constant.CommonConstant.STORAGE_USED_INDEX;
+
 /**
  * Created by andy on 17-1-9.
  */
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService {
 
     @Autowired
@@ -43,18 +49,17 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
     @Autowired
     private ClusterService clusterService;
     @Autowired
-    private DashboardService dashboardService;
+    private RoleLocalService roleLocalService;
     @Autowired
     private NamespaceService namespaceService;
     @Autowired
     private TenantService tenantService;
     @Autowired
-    private HttpSession session;
+    private NamespaceLocalService namespaceLocalService;
 
     private static final Logger logger = LoggerFactory.getLogger(TenantClusterQuotaServiceImpl.class);
     private static final String MEMORYGB = "memoryGb";
     private static final String STORAGE = "storageclasses";
-    private static final int STORAGE_USED_INDEX = 0;
 
     /**
      * 根据租户id查询集群配额列表 clusterId 为空查询该租户下的所有集群配额
@@ -67,7 +72,11 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
     public List<ClusterQuotaDto> listClusterQuotaByTenantid(String tenantId , String clusterId) throws Exception {
         TenantClusterQuotaExample example = this.getExample();
         if (Objects.isNull(clusterId)){
-            example.createCriteria().andTenantIdEqualTo(tenantId).andReserve1EqualTo(CommonConstant.NORMAL);
+            List<String> clusterIds = roleLocalService.listCurrentUserRoleClusterIds();
+            if(CollectionUtils.isEmpty(clusterIds)){
+                return Collections.emptyList();
+            }
+            example.createCriteria().andTenantIdEqualTo(tenantId).andClusterIdIn(clusterIds).andReserve1EqualTo(CommonConstant.NORMAL);
         } else {
             example.createCriteria().andTenantIdEqualTo(tenantId).andClusterIdEqualTo(clusterId).andReserve1EqualTo(CommonConstant.NORMAL);
         }
@@ -128,7 +137,7 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
             //获取集群中除此租户还有多少存储资源可用
             Map<String, Integer> storageClassUnusedMap = tenantService.getStorageClassUnused(tenantId, currentClusterId);
             //获取集群中分区已使用的存储
-            Map<String, Integer> storageUsageMap= getStorageUsage(tenantId, currentClusterId);
+            Map<String, StorageDto> storageUsageMap= getStorageUsage(tenantId, currentClusterId);
             List<StorageDto> storageDtoList = new ArrayList<>();
             //租户集群存储配额
             if (tenantClusterQuota.getStorageQuotas() != null && !tenantClusterQuota.getStorageQuotas().equals("")) {
@@ -145,12 +154,20 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
                     }
                     storageDto.setTotalStorage(String.valueOf(storageClassUnusedMap.get(storageQuotaArray[0])));
                     if (storageUsageMap.get(storageQuotaArray[0]) != null) {
-                        storageDto.setUsedStorage(Integer.toString(storageUsageMap.get(storageQuotaArray[0])));
+                        storageDto.setUsedStorage(storageUsageMap.get(storageQuotaArray[0]).getUsedStorage());
                     } else {
                         storageDto.setUsedStorage("0");
                     }
                     storageDto.setUnUsedStorage(String.valueOf(Integer.valueOf(storageDto.getTotalStorage()) - Integer.valueOf(storageDto.getUsedStorage())));
-                    storageDto.setAllocatableQuota(String.valueOf(Integer.valueOf(storageDto.getStorageQuota()) - Integer.valueOf(storageDto.getUsedStorage())));
+
+                    //可分配份额
+                    if (storageUsageMap.get(storageQuotaArray[0]) == null) {
+                        storageDto.setAllocatableQuota(storageDto.getStorageQuota());
+                    } else {
+                        storageDto.setAllocatedStorage(storageUsageMap.get(storageQuotaArray[0]).getAllocatedStorage());
+                        storageDto.setAllocatableQuota(String.valueOf(Integer.valueOf(storageDto.getStorageQuota())
+                                - storageDto.getAllocatedStorage()));
+                    }
                     storageDtoList.add(storageDto);
                     storageClassUnusedMap.remove(storageDto.getName());
                 }
@@ -162,14 +179,18 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
                 storageDto.setName(storageClassName);
                 storageDto.setTotalStorage(String.valueOf(storageClassUnusedMap.get(storageClassName)));
                 if (storageUsageMap.get(storageClassName) != null) {
-                    storageDto.setUsedStorage(Integer.toString(storageUsageMap.get(storageClassName)));
+                    storageDto.setUsedStorage(storageUsageMap.get(storageClassName).getUsedStorage());
                 }
                 storageDto.setUnUsedStorage(String.valueOf(Integer.valueOf(storageDto.getTotalStorage()) - Integer.valueOf(storageDto.getUsedStorage())));
                 storageDtoList.add(storageDto);
             }
             clusterQuotaDto.setStorageQuota(storageDtoList);
             //租户集群使用量
-            getClusterUsage(tenantId,currentClusterId,clusterQuotaDto);
+            try {
+                getClusterUsage(tenantId, currentClusterId, clusterQuotaDto);
+            }catch (Exception e){
+                logger.error("获取租户集群使用量失败，clusterId:{}", currentClusterId);
+            }
             quotaDtos.add(clusterQuotaDto);
         }
         return quotaDtos;
@@ -185,25 +206,6 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
         //根据tenantid查询集群资源使用列表
         Map<String, List> clusterQuotaListByTenantid = namespaceService.getClusterQuotaListByTenantid(tenantId,clusterId);
         if (!Objects.isNull(clusterId)){
-            //获取集群
-            Cluster cluster = clusterService.findClusterById(clusterId);
-            Map<String, Object> infraInfoWorkNode = this.dashboardService.getInfraInfoWorkNode(cluster);
-            Double memory = null;
-            if (!Objects.isNull(infraInfoWorkNode.get(MEMORYGB))){
-                memory = Double.valueOf(infraInfoWorkNode.get(MEMORYGB).toString());
-            }
-            Double cpu = null;
-            if (!Objects.isNull(infraInfoWorkNode.get(CommonConstant.CPU))){
-                cpu = Double.valueOf(infraInfoWorkNode.get(CommonConstant.CPU).toString());
-            }
-            if (!Objects.isNull(cpu) && !Objects.isNull(memory)){
-                //设置集群总CPU
-                clusterQuotaDto.setTotalCpu(Double.valueOf(cpu.toString()));
-                clusterQuotaDto.setTotalCpuType(CommonConstant.CORE);
-                //设置集群总内存
-                clusterQuotaDto.setTotalMomry(Double.valueOf(memory.toString()));
-                clusterQuotaDto.setTotalMemoryType(CommonConstant.GB);
-            }
             //租户下集群使用量
             List<Map> list = clusterQuotaListByTenantid.get(clusterId.toString());
             Map<String, Object> stringObjectMap = generateClusterUseage(list);
@@ -215,6 +217,14 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
 //            Map<String, List> clusterQuotaListByClusterid = namespaceService.getClusterQuotaListByTenantid(null,clusterId);
             Map<String, Map<String, Object>> clusterAllocatedResources = clusterService.getClusterAllocatedResources(clusterId);
             Map<String, Object> clusterUseage = clusterAllocatedResources.get(clusterId.toString());
+            String clusterCpuCapacity = clusterUseage.get("clusterCpuCapacity").toString();
+            String clusterMemoryCapacity = clusterUseage.get("clusterMemoryCapacity").toString();
+            //设置集群总CPU
+            clusterQuotaDto.setTotalCpu(Double.valueOf(clusterCpuCapacity));
+            clusterQuotaDto.setTotalCpuType(CommonConstant.CORE);
+            //设置集群总内存
+            clusterQuotaDto.setTotalMomry(Double.valueOf(clusterMemoryCapacity));
+            clusterQuotaDto.setTotalMemoryType(CommonConstant.GB);
             String clusterUnUsedMemory = clusterUseage.get("clusterMemoryAllocatedResources").toString();
             String clusterUnUsedCpu = clusterUseage.get("clusterCpuAllocatedResources").toString();
             String clusterCpuType = CommonConstant.CORE;
@@ -256,29 +266,49 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
     }
 
     @Override
-    public Map<String, Integer> getStorageUsage(String tenantId, String clusterId) throws Exception {
-        //根据tenantId查询集群资源使用列表
-        Map<String, List> clusterQuotaListByTenantId = namespaceService.getClusterQuotaListByTenantid(tenantId,clusterId);
-        Map<String, Integer> allStorageUsedMap = new HashMap<>();
-        if (!Objects.isNull(clusterId) && clusterQuotaListByTenantId.size() > 0) {
-            List<Map> list = clusterQuotaListByTenantId.get(clusterId);
-            for (Map map : list) {
-                //分区中storage已使用资源统计
-                Map<String, LinkedList<String>> storageMap = (Map<String, LinkedList<String>>) map.get(STORAGE);
-                if (storageMap != null && storageMap.size() >0) {
-                    for (String storageName : storageMap.keySet()) {
-                        LinkedList<String> storageSetNew = storageMap.get(storageName);
-                        if (allStorageUsedMap.get(storageName) != null) {
-                            Integer storageUsed = allStorageUsedMap.get(storageName) + Integer.parseInt(storageSetNew.get(STORAGE_USED_INDEX));
-                            allStorageUsedMap.put(storageName, storageUsed);
-                        } else {
-                            allStorageUsedMap.put(storageName, Integer.parseInt(storageSetNew.get(STORAGE_USED_INDEX)));
-                        }
+    public Map<String, StorageDto> getStorageUsage(String tenantId, String clusterId) throws Exception {
+        List<NamespaceLocal> namespaceLocals = namespaceLocalService.listNamespace(tenantId, clusterId);
+        List<Map<String, Object>> namespaceQuotas = namespaceService.getNameSpaceQuota(namespaceLocals);
+        Map<String, StorageDto> storageUsageMap = new HashMap<>();
+        Map<String, Integer> storageHardMap = new HashMap<>();
+        Map<String, Integer> storageUsedMap = new HashMap<>();
+        for (Map map : namespaceQuotas) {
+            //分区中storage已使用资源统计
+            if(map == null || map.get(STORAGE) == null){
+                logger.info("租户集群存储配额为空，tenantId：{}，clusterId：{}",tenantId, clusterId);
+                continue;
+            }
+            Map<String, LinkedList<String>> storageMap = (Map<String, LinkedList<String>>) map.get(STORAGE);
+            if (storageMap != null && storageMap.size() >0) {
+                int storageUsed = 0;
+                int storageHard = 0;
+                for (String storageName : storageMap.keySet()) {
+                    LinkedList<String> storageSetNew = storageMap.get(storageName);
+                    //设置存储分配的配额
+                    if (storageHardMap.get(storageName) != null) {
+                        storageHard = storageHardMap.get(storageName) + Integer.parseInt(storageSetNew.get(STORAGE_HARD_INDEX));
+                        storageHardMap.put(storageName, storageHard);
+                    } else {
+                        storageHardMap.put(storageName, Integer.parseInt(storageSetNew.get(STORAGE_HARD_INDEX)));
+                    }
+                    //设置存储实际已经使用的
+                    if (storageUsedMap.get(storageName) != null) {
+                        storageUsed = storageUsedMap.get(storageName) + Integer.parseInt(storageSetNew.get(STORAGE_USED_INDEX));
+                        storageUsedMap.put(storageName, storageUsed);
+                    } else {
+                        storageUsedMap.put(storageName, Integer.parseInt(storageSetNew.get(STORAGE_USED_INDEX)));
                     }
                 }
             }
         }
-        return allStorageUsedMap;
+        for(String storageName : storageUsedMap.keySet()){
+            StorageDto storageDto = new StorageDto();
+            storageDto.setName(storageName);
+            storageDto.setUsedStorage(String.valueOf(storageUsedMap.get(storageName)));
+            storageDto.setAllocatedStorage(storageHardMap.get(storageName));
+            storageUsageMap.put(storageName, storageDto);
+        }
+        return storageUsageMap;
     }
 
     private Map<String,Object> generateClusterUseage(List<Map> list){
@@ -313,9 +343,9 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
                 //如果包含小m则cpu单位为m，转换单位后累加，不包含则cpu单位为core直接累加
                 if (cpuHard.contains(CommonConstant.SMALLM)){
                     cpuHard = cpuHard.split(CommonConstant.SMALLM)[0];
-                    cpu += (Double.valueOf(cpuHard)/1000);
+                    cpu = NumUtil.add(cpu, Double.valueOf(cpuHard) / 1000);
                 }else {
-                    cpu += Double.valueOf(cpuHard);
+                    cpu = NumUtil.add(cpu, Double.valueOf(cpuHard));
                 }
 
             }
@@ -349,22 +379,22 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
                     //累加新的内存
                     switch (hardType){
                         case CommonConstant.MB :
-                            mem += Double.valueOf(memHard);
+                            mem =NumUtil.add(mem, Double.valueOf(memHard));
                             break;
                         case CommonConstant.GB :
-                            mem += Double.valueOf(memHard) * 1024;
+                            mem = NumUtil.add(mem,Double.valueOf(memHard) * 1024);
                             break;
                         case CommonConstant.TB :
-                            mem += Double.valueOf(memHard) * 1024 * 1024;
+                            mem = NumUtil.add(mem,Double.valueOf(memHard) * 1024 * 1024);
                             break;
                         case CommonConstant.PB :
-                            mem += Double.valueOf(memHard) * 1024 * 1024 * 1024;
+                            mem = NumUtil.add(mem, Double.valueOf(memHard) * 1024 * 1024 * 1024);
                             break;
                         default:
                             throw new MarsRuntimeException(ErrorCodeMessage.INVALID_MEMORY_UNIT_TYPE);
                     }
                 }else {
-                    mem += Double.valueOf(memHard);
+                    mem = NumUtil.add(mem, Double.valueOf(memHard));
                 }
             }
 

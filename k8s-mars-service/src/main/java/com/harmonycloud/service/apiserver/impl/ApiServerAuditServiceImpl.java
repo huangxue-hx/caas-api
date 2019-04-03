@@ -37,11 +37,12 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.Aggregations;
-import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramBuilder;
+import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramInterval;
+import org.elasticsearch.search.aggregations.bucket.histogram.ExtendedBounds;
 import org.elasticsearch.search.aggregations.bucket.histogram.Histogram;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
-import org.elasticsearch.search.aggregations.bucket.terms.TermsBuilder;
+import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.hibernate.validator.constraints.NotBlank;
 import org.joda.time.DateTime;
@@ -216,7 +217,7 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
         Aggregations aggregations = response.getAggregations();
         Terms urlTerm = aggregations.get(GROUP_BY_URL);
 
-        List<Terms.Bucket> buckets = urlTerm.getBuckets();
+        List<? extends Terms.Bucket> buckets = urlTerm.getBuckets();
         List<JSONObject> data = Lists.newArrayListWithCapacity(search.getSize());
         String key = search.getClusterId() + CommonConstant.UNDER_LINE + search.getNamespace()  + CommonConstant.UNDER_LINE + search.getVerbName()  + CommonConstant.UNDER_LINE + search.getKeyWords();
 
@@ -286,11 +287,11 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
                 .setFetchSource(FETCH_SOURCE_FILED, ArrayUtils.EMPTY_STRING_ARRAY);
         if (StringUtils.isBlank(search.getUrl())) {
             //.size(0)表示聚合返回所有，默认为10条，0表示返回所有
-            TermsBuilder requestURITerms = AggregationBuilders.terms(GROUP_BY_URL).field(REQUEST_URI).size(0);
-            TermsBuilder verbName = AggregationBuilders.terms(GROUP_BY_VERB).field("verb").size(0);
-            TermsBuilder resource = AggregationBuilders.terms(GROUP_BY_RESOURCE).field("objectRef.resource").size(0);
-            TermsBuilder resourceNamespace = AggregationBuilders.terms(GROUP_BY_RESOURCE_NAMESPACE).field("objectRef.namespace").size(0);
-            TermsBuilder resourceName = AggregationBuilders.terms(GROUP_BY_RESOURCE_NAME).field("objectRef.name").size(0);
+            TermsAggregationBuilder requestURITerms = AggregationBuilders.terms(GROUP_BY_URL).field(REQUEST_URI).size(0);
+            TermsAggregationBuilder verbName = AggregationBuilders.terms(GROUP_BY_VERB).field("verb").size(0);
+            TermsAggregationBuilder resource = AggregationBuilders.terms(GROUP_BY_RESOURCE).field("objectRef.resource").size(0);
+            TermsAggregationBuilder resourceNamespace = AggregationBuilders.terms(GROUP_BY_RESOURCE_NAMESPACE).field("objectRef.namespace").size(0);
+            TermsAggregationBuilder resourceName = AggregationBuilders.terms(GROUP_BY_RESOURCE_NAME).field("objectRef.name").size(0);
             searchRequestBuilder.addAggregation(requestURITerms.subAggregation(verbName).subAggregation(resource).subAggregation(resourceNamespace).subAggregation(resourceName)).setSize(0);
         } else {
             searchRequestBuilder.setFrom((search.getPageNum() - CommonConstant.NUM_ONE) * pageSize).setSize(pageSize).addSort(ACTION_TIME, SortOrder.DESC);
@@ -315,7 +316,7 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
             ApiServerAuditInfo infos = new ApiServerAuditInfo();
             SearchHit hit = it.next();
 
-            Map<String, Object> source = hit.getSource();
+            Map<String, Object> source = hit.getSourceAsMap();
 
             infos.setActionTime(DateUtil.utc2Local((String) source.get(ACTION_TIME), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue(), DateStyle.YYYY_MM_DD_HH_MM_SS.getValue()));
             infos.setRequestUrl((String) source.get(REQUEST_URI));
@@ -426,7 +427,7 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
      */
     private long getCountsGroupByUrl(TransportClient esClient, BoolQueryBuilder query, List<String> indexList) throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
         SearchRequestBuilder searchRequestBuilder = multiIndexSearch(esClient, indexList);
-        TermsBuilder requestURITerms = AggregationBuilders.terms(GROUP_BY_URL).field(REQUEST_URI).size(0);
+        TermsAggregationBuilder requestURITerms = AggregationBuilders.terms(GROUP_BY_URL).field(REQUEST_URI).size(0);
 
         // 计算页数对应的数据行数，先查询出来总的记录个数，计算
         SearchResponse response = searchRequestBuilder
@@ -446,10 +447,8 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
             return CommonConstant.NUM_ZERO;
         }
 
-        List<Terms.Bucket> urlBuckets = urlTerm.getBuckets();
-
         //总数
-        return urlBuckets.size();
+        return urlTerm.getBuckets().size();
     }
 
     @Override
@@ -550,10 +549,10 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
 
         SearchRequestBuilder searchRequestBuilder = multiIndexSearch(esClient, indexList);
 
-        DateHistogramBuilder dateHistogram = AggregationBuilders.dateHistogram("by_time")
-                .interval(new DateHistogramInterval(enumRangeType.getInterval()))
+        DateHistogramAggregationBuilder dateHistogram = AggregationBuilders.dateHistogram("by_time")
+                .dateHistogramInterval(new DateHistogramInterval(enumRangeType.getInterval()))
                 .format(DateStyle.YYYY_MM_DD_HH_MM_SS.getValue())
-                .minDocCount(0).field(ACTION_TIME).extendedBounds(currentTimeMillis - enumRangeType.getMillisecond(), currentTimeMillis);
+                .minDocCount(0).field(ACTION_TIME).extendedBounds(new ExtendedBounds(currentTimeMillis - enumRangeType.getMillisecond(), currentTimeMillis));
         // 计算页数对应的数据行数，先查询出来总的记录个数，计算
         SearchResponse response = searchRequestBuilder
                 .setTypes(API_SERVER_AUDIT_TYPE)

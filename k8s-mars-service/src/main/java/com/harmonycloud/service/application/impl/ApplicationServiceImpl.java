@@ -8,7 +8,9 @@ import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.dao.application.AppStoreMapper;
 import com.harmonycloud.dao.application.ServiceTemplatesMapper;
+import com.harmonycloud.dao.application.bean.AppStore;
 import com.harmonycloud.dao.application.bean.ApplicationTemplates;
 import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dto.application.*;
@@ -52,7 +54,6 @@ import static com.harmonycloud.common.Constant.CommonConstant.BLANKSTRING;
  * Created by root on 3/29/17.
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class ApplicationServiceImpl implements ApplicationService {
     private static Logger logger = LoggerFactory.getLogger(ApplicationServiceImpl.class);
 
@@ -88,6 +89,9 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Autowired
     private ClusterService clusterService;
 
+    @Autowired
+    private AppStoreMapper appStoreMapper;
+
     /**
      * remove appTemplate on 17/04/07.
      *
@@ -95,6 +99,7 @@ public class ApplicationServiceImpl implements ApplicationService {
      * @return ActionReturnUtil
      */
     @Override
+    @Transactional
     public ActionReturnUtil deleteApplicationTemplate(String name, String projectId, String clusterId) throws Exception {
         AssertUtil.notBlank(name, DictEnum.NAME);
         // delete application_template
@@ -258,7 +263,7 @@ public class ApplicationServiceImpl implements ApplicationService {
      */
     private ActionReturnUtil listPrivateAppTemplate(String searchKey, String searchValue, String projectId, String clusterId) throws Exception {
         JSONArray array = new JSONArray();
-        Set<String> clusterIdList = new HashSet<>();
+        List<String> clusterIdList = new ArrayList<>();
         if (StringUtils.isEmpty(clusterId)) {
             //获取当前角色的集群
             clusterIdList = roleLocalService.listCurrentUserRoleClusterIds();
@@ -296,6 +301,11 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Override
     public ActionReturnUtil getApplicationTemplateYaml(ApplicationTemplateDto appTemplate) throws Exception {
         List<Object> applicationToyaml = new ArrayList<>();
+        AppStore app = appStoreMapper.selectById(appTemplate.getId());
+        String serviceAccount = null;
+        if (Objects.nonNull(app)){
+            serviceAccount = app.getServiceAccount();
+        }
         if (appTemplate != null && appTemplate.getServiceList() != null) {
             for (ServiceTemplateDto svcOne : appTemplate.getServiceList()) {
                 if (svcOne.getDeploymentDetail() != null) {
@@ -313,12 +323,21 @@ public class ApplicationServiceImpl implements ApplicationService {
 //                            svcOne.getDeploymentDetail().setNodeSelector(lal);
 //                        }
 //                    }
-
+                    if (StringUtils.isNotBlank(serviceAccount)){
+                        svcOne.getDeploymentDetail().setServiceAccount(serviceAccount);
+                        svcOne.getDeploymentDetail().setServiceAccountName(serviceAccount);
+                        svcOne.getDeploymentDetail().setAutomountServiceAccountToken(true);
+                    }
                     Deployment deploymentToYaml = TemplateToYamlUtil.templateToDeployment(svcOne.getDeploymentDetail());
                     com.harmonycloud.k8s.bean.Service serviceYaml = TemplateToYamlUtil.templateToService(svcOne.getDeploymentDetail());
                     applicationToyaml.add(serviceYaml);
                     applicationToyaml.add(deploymentToYaml);
                 }else if(svcOne.getStatefulSetDetail() != null){
+                    if (StringUtils.isNotBlank(serviceAccount)){
+                        svcOne.getStatefulSetDetail().setServiceAccount(serviceAccount);
+                        svcOne.getStatefulSetDetail().setServiceAccountName(serviceAccount);
+                        svcOne.getStatefulSetDetail().setAutomountServiceAccountToken(true);
+                    }
                     StatefulSet statefulSet = K8sResultConvert.convertAppCreateForStatefulSet(svcOne.getStatefulSetDetail(), null,null,null);
                     com.harmonycloud.k8s.bean.Service serviceYaml = TemplateToYamlUtil.templateToService(svcOne.getStatefulSetDetail());
                     applicationToyaml.add(serviceYaml);
@@ -343,6 +362,7 @@ public class ApplicationServiceImpl implements ApplicationService {
      * @author gurongyun
      */
     @SuppressWarnings("unchecked")
+    @Transactional
     @Override
     public synchronized ActionReturnUtil saveApplicationTemplate(ApplicationTemplateDto appTemplate, String userName) throws Exception {
         // check value
@@ -531,6 +551,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @SuppressWarnings("unchecked")
+    @Transactional
     @Override
     public ActionReturnUtil updateApplicationTemplate(ApplicationTemplateDto appTemplate, String userName)
             throws Exception {
@@ -616,6 +637,7 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     }
 
+    @Transactional
     @Override
     public ActionReturnUtil addServiceTemplateByName(ApplicationTemplateDto appTemplate, String userName)
             throws Exception {
@@ -639,6 +661,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         return ActionReturnUtil.returnSuccessWithData(json);
     }
 
+    @Transactional
     @Override
     public ActionReturnUtil updateServiceTemplateByName(ApplicationTemplateDto appTemplate, String userName)
             throws Exception {
@@ -664,7 +687,9 @@ public class ApplicationServiceImpl implements ApplicationService {
         String line = "";
         try {
             while ((line = br.readLine()) != null) {
-                if (line != null && !line.contains("!!") && !line.contains("null")) {
+                if(line != null && line.startsWith("- !!") && sb.length()>0){
+                    sb.append("---" + "\n");
+                }else if (line != null && !line.contains("!!") && (!line.contains("null") || line.contains("'null'") || line.trim().startsWith("-"))) {
                     if (line.length() > 2) {
                         String lineNew = line.substring(2, line.length());
                         sb.append(lineNew + "\n");
@@ -706,6 +731,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         return ActionReturnUtil.returnSuccess();
     }
 
+    @Transactional
     @Override
     public void deleteTemplatesInProject(String projectId) throws Exception {
         //删除应用模板

@@ -170,6 +170,13 @@ public interface UserService {
      * @return
      */
     public String getCurrentUsername();
+
+    /**
+     * 从session中获取当前用户id
+     * @return
+     */
+    Long getCurrentUserId() throws Exception;
+
     /**
      * 从session中获取当前租户id
      * @return

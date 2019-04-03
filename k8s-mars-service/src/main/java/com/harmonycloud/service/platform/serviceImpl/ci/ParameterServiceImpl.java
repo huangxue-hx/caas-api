@@ -8,7 +8,6 @@ import com.harmonycloud.dao.ci.bean.ParameterExample;
 import com.harmonycloud.dto.cicd.ParameterDto;
 import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.platform.service.ci.ParameterService;
-import com.harmonycloud.service.platform.service.ci.StageService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,13 +26,9 @@ import java.util.Map;
  * @Modified
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class ParameterServiceImpl implements ParameterService{
     @Autowired
     private ParameterMapper parameterMapper;
-
-    @Autowired
-    private StageService stageService;
 
     @Autowired
     private JobService jobService;
@@ -72,6 +67,7 @@ public class ParameterServiceImpl implements ParameterService{
      * @param parameterDto 参数DTO对象
      * @throws Exception
      */
+    @Transactional
     @Override
     public void updateParameter(ParameterDto parameterDto) throws Exception{
         ParameterExample parameterExample = new ParameterExample();

@@ -34,7 +34,6 @@ import java.util.stream.Collectors;
  * Created by chencheng on 18-6-20
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class DataPrivilegeGroupMemberServiceImpl implements DataPrivilegeGroupMemberService {
 
     @Autowired

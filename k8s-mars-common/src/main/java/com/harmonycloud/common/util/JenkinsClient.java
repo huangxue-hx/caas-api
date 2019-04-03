@@ -1,7 +1,6 @@
 package com.harmonycloud.common.util;
 
 import com.offbytwo.jenkins.JenkinsServer;
-import org.elasticsearch.cluster.ClusterService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

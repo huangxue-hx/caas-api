@@ -2,6 +2,7 @@ package com.harmonycloud.service.tenant;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
 import com.harmonycloud.dto.tenant.ClusterQuotaDto;
+import com.harmonycloud.dto.tenant.StorageDto;
 import jnr.ffi.annotations.In;
 
 import java.util.List;
@@ -40,7 +41,7 @@ public interface TenantClusterQuotaService {
      * @param clusterId
      * @throws Exception
      */
-    public Map<String, Integer> getStorageUsage(String tenantId, String clusterId) throws Exception;
+    public Map<String, StorageDto> getStorageUsage(String tenantId, String clusterId) throws Exception;
     /**
      * 根据id查询租户某个集群下的配额
      * @param

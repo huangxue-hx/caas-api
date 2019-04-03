@@ -16,7 +16,6 @@ import com.harmonycloud.dao.user.bean.User;
 
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class AuthService {
     @Autowired
     private UserMapper userMapper;

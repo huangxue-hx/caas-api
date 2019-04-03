@@ -154,7 +154,8 @@ public class MsfApplicationController {
                                              @ModelAttribute LogQueryDto logQueryDto) throws Exception{
 
         try {
-            logQueryDto.setDeployment(deployName);
+            logQueryDto.setAppName(deployName);
+            logQueryDto.setAppType(com.harmonycloud.service.platform.constant.Constant.DEPLOYMENT);
             LogQuery logQuery = logService.transLogQuery(logQueryDto);
             return logService.listfileName(logQuery);
         } catch (Exception e) {
@@ -220,7 +221,8 @@ public class MsfApplicationController {
                                      @ModelAttribute LogQueryDto logQueryDto){
         try {
             logger.debug("根据日志路径获取微服务组件container日志, params: " + logQueryDto.toString());
-            logQueryDto.setDeployment(deployName);
+            logQueryDto.setAppName(deployName);
+            logQueryDto.setAppType(com.harmonycloud.service.platform.constant.Constant.DEPLOYMENT);
             LogQuery logQuery = logService.transLogQuery(logQueryDto);
             return logService.fileLog(logQuery);
         }catch (IllegalArgumentException ie) {

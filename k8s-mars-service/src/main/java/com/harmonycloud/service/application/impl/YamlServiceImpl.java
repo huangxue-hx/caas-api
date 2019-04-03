@@ -39,7 +39,6 @@ import java.util.*;
  * Created by root on 8/11/17.
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class YamlServiceImpl implements YamlService{
     private static final Logger LOGGER = LoggerFactory.getLogger(YamlServiceImpl.class);
 

@@ -15,6 +15,7 @@ public class NodeDto{
     private Boolean scheduable;
     private List<Object> customLabels;
     private String clusterId;
+    private String gpu;
     /**
      * 集群别名
      */
@@ -133,4 +134,11 @@ public class NodeDto{
         this.sortWeight = sortWeight;
     }
 
+    public String getGpu() {
+        return gpu;
+    }
+
+    public void setGpu(String gpu) {
+        this.gpu = gpu;
+    }
 }

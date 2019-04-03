@@ -295,11 +295,8 @@ public class ExternalServiceImpl implements ExternalService {
         for(Cluster cluster : clusters) {
             K8SClientResponse response = sService.doServiceByNamespace(null, null, bodys, HTTPMethod.GET, cluster);
             if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-                if (Objects.isNull(sta)){
-                    return ActionReturnUtil.returnErrorWithMsg(response.getBody());
-                }
-                return ActionReturnUtil.returnErrorWithMsg(sta.getMessage());
+                LOGGER.error("查询分区失败，cluster:{},res:{}",cluster.getId(),JSONObject.toJSONString(response));
+                continue;
             }
             ServiceList svList = JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
             // item为实际service list的metadata，spec，status

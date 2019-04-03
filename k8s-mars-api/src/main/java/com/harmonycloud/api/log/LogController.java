@@ -28,7 +28,7 @@ import java.util.List;
  */
 @Controller
 @Api(description = "应用日志相关控制器")
-@RequestMapping("/tenants/{tenantId}/projects/{projectId}/deploys/{deployName}/applogs")
+@RequestMapping("/tenants/{tenantId}/projects/{projectId}/apps/{appName}/applogs")
 public class LogController {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -41,11 +41,11 @@ public class LogController {
 
     @ResponseBody
     @RequestMapping(method = RequestMethod.GET)
-    public ActionReturnUtil queryLog(@PathVariable("deployName") String deployName,
+    public ActionReturnUtil queryLog(@PathVariable("appName") String appName,
                                      @ModelAttribute LogQueryDto logQueryDto){
         try {
             logger.info("查询文件日志内容,logQuery:{}",JSONObject.toJSONString(logQueryDto));
-            logQueryDto.setDeployment(deployName);
+            logQueryDto.setAppName(appName);
             LogQuery logQuery = logService.transLogQuery(logQueryDto);
             return logService.fileLog(logQuery);
         }catch (IllegalArgumentException ie) {
@@ -61,32 +61,32 @@ public class LogController {
 
     /**
      * 导出查询日志
-     * @param deployName
+     * @param appName
      * @param logQueryDto
      * @param response
      */
     @RequestMapping(value="/export", method= RequestMethod.GET)
-    public void exportLog(@PathVariable("deployName") String deployName,
+    public void exportLog(@PathVariable("appName") String appName,
                                      @ModelAttribute LogQueryDto logQueryDto,
                                       HttpServletResponse response) throws Exception{
 //        logger.info("导出日志, deployName:{},params:{} ", deployName, logQueryDto.toString());
-        logQueryDto.setDeployment(deployName);
+        logQueryDto.setAppName(appName);
         LogQuery logQuery = logService.transLogQuery(logQueryDto);
         logService.exportLog(logQuery, response);
     }
 
     @ResponseBody
     @RequestMapping(value="/filenames", method= RequestMethod.GET)
-    public ActionReturnUtil listLogFilenames(@PathVariable("deployName") String deployName,
+    public ActionReturnUtil listLogFilenames(@PathVariable("appName") String appName,
                                              @ModelAttribute LogQueryDto logQueryDto) throws Exception{
 
         try {
-            logQueryDto.setDeployment(deployName);
+            logQueryDto.setAppName(appName);
             logger.info("获取服务的日志文件列表,logQuery:{}",JSONObject.toJSONString(logQueryDto));
             LogQuery logQuery = logService.transLogQuery(logQueryDto);
             return logService.listfileName(logQuery);
         } catch (Exception e) {
-            logger.error("获取服务日志文件列表失败：deploymentName:{}", deployName, e);
+            logger.error("获取服务日志文件列表失败：deploymentName:{}", appName, e);
             return ActionReturnUtil.returnErrorWithMsg(e.getMessage());
         }
 

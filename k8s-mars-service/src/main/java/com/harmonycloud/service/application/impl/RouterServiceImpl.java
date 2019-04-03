@@ -178,7 +178,7 @@ public class RouterServiceImpl implements RouterService {
 
         Map<String,Object> labels = new HashMap<String,Object>();
         labels.put(NODESELECTOR_LABELS_PRE + LABEL_INGRESS_SERVICE,INGRESS_SERVICE_TRUE);
-        String name = parsedIngressList.getRules().get(0).getService();
+        String name = parsedIngressList.getServiceName();
         switch(serviceType){
             case DEPLOYMENT:
                 deploymentsService.updateLabels(namespace,name,cluster,labels);

@@ -70,7 +70,6 @@ import java.util.*;
  * @Modified
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class MicroServiceServiceImpl implements MicroServiceService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MicroServiceServiceImpl.class);

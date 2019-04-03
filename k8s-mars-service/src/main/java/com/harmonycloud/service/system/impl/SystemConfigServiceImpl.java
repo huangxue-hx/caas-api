@@ -23,7 +23,6 @@ import static com.harmonycloud.common.Constant.CommonConstant.FLAG_TRUE;
  * Created by hongjie
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class SystemConfigServiceImpl implements SystemConfigService {
 
     @Autowired

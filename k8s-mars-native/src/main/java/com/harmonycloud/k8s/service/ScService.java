@@ -1,5 +1,6 @@
 package com.harmonycloud.k8s.service;
 
+import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.HttpStatusUtil;
@@ -14,8 +15,11 @@ import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -24,7 +28,7 @@ import java.util.List;
  */
 @Service
 public class ScService {
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(ScService.class);
     private static final String NFS_PROVISIONER_NAME = "nfs-client-provisioner";
     /**
      * 根据StorageClass名称查询
@@ -95,12 +99,13 @@ public class ScService {
         url.setApiGroup(APIGroup.APIS_STORAGECLASS_VERSION);
         url.setResource(Resource.STORAGECLASS);
         K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET,null,null, cluster);
-        if(HttpStatusUtil.isSuccessStatus(response.getStatus())){
-            StorageClassList storageClassList = K8SClient.converToBean(response, StorageClassList.class);
-            List<StorageClass> storageClasses = storageClassList.getItems();
-            return storageClasses;
+        if(!HttpStatusUtil.isSuccessStatus(response.getStatus())){
+            LOGGER.error("查询集群{}的storageclass 失败,respnose:{}", cluster.getId(),JSONObject.toJSONString(response));
+            return Collections.emptyList();
         }
-        throw new MarsRuntimeException(response.getBody());
+        StorageClassList storageClassList = K8SClient.converToBean(response, StorageClassList.class);
+        List<StorageClass> storageClasses = storageClassList.getItems();
+        return storageClasses;
     }
 
 }

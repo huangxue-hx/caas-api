@@ -11,7 +11,6 @@ import com.harmonycloud.dao.application.bean.AppStoreService;
 import com.harmonycloud.service.application.AppStoreServiceService;
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class AppStoreServiceServiceImpl implements AppStoreServiceService {
 
 	@Autowired

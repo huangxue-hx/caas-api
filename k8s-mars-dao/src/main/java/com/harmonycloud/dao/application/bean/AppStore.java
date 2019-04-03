@@ -22,6 +22,16 @@ public class AppStore {
     
     private String image;
 
+    private String serviceAccount;
+
+	public String getServiceAccount() {
+		return serviceAccount;
+	}
+
+	public void setServiceAccount(String serviceAccount) {
+		this.serviceAccount = serviceAccount;
+	}
+
 	public Integer getId() {
 		return id;
 	}

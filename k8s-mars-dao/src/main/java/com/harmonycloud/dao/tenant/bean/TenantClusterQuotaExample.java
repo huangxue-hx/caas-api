@@ -275,6 +275,11 @@ public class TenantClusterQuotaExample {
             return (Criteria) this;
         }
 
+        public Criteria andClusterIdIn(List<String> values) {
+            addCriterion("cluster_id in", values, "clusterId");
+            return (Criteria) this;
+        }
+
         public Criteria andCpuQuotaIsNull() {
             addCriterion("cpu_quota is null");
             return (Criteria) this;

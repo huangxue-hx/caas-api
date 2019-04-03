@@ -79,6 +79,14 @@ public class DateUtil {
     }
 
     /**
+     * 获取当前utc时区格式的时间字符串
+     * @return
+     */
+    public static String getCurrentUtcTimestamp() {
+        Date currentTime = DateUtil.getCurrentUtcTime();
+        return DateUtil.UTC_FORMAT.format(currentTime);
+    }
+    /**
      * 获取SimpleDateFormat
      * 
      * @param parttern

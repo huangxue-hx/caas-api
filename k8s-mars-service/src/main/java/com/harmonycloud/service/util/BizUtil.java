@@ -3,9 +3,11 @@ package com.harmonycloud.service.util;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.k8s.bean.ObjectMeta;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.util.Assert;
 
+import java.util.Map;
 import java.util.Set;
 
 import static com.harmonycloud.common.Constant.CommonConstant.COLON;
@@ -51,6 +53,22 @@ public class BizUtil {
         Assert.hasText(projectId);
         Assert.hasText(appName);
         return TOPO_LABEL_KEY + LINE + projectId + LINE + appName;
+    }
+
+    /**
+     * 获取资源的修改时间，如果为空，则取创建时间
+     * @param objectMeta
+     * @return
+     */
+    public static String getUpdateTime(ObjectMeta objectMeta){
+        if (objectMeta == null) {
+            return null;
+        }
+        Map<String, Object> annotations = objectMeta.getAnnotations();
+        if (annotations == null || annotations.get("updateTimestamp") == null) {
+            return objectMeta.getCreationTimestamp();
+        }
+        return annotations.get("updateTimestamp").toString();
     }
 
 }

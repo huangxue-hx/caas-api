@@ -9,14 +9,15 @@ import java.util.Date;
 import java.util.List;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.ServiceTypeEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dto.application.*;
-import com.harmonycloud.k8s.bean.StatefulSet;
-import com.harmonycloud.service.platform.convert.K8sResultConvert;
+import com.harmonycloud.service.user.UserService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -48,7 +49,6 @@ import net.sf.json.JSONObject;
 import javax.servlet.http.HttpSession;
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class AppStoreServiceImpl implements AppStoreService{
 	private static final Logger logger = LoggerFactory.getLogger(AppStoreServiceImpl.class);
 	@Autowired
@@ -67,7 +67,7 @@ public class AppStoreServiceImpl implements AppStoreService{
 	private AppStoreServiceMapper appStoreServiceMapper;
 
 	@Autowired
-	private HttpSession session;
+	private UserService userService;
 
 	private static String IMAGE_PATH = "/appimages/";
 
@@ -76,18 +76,23 @@ public class AppStoreServiceImpl implements AppStoreService{
 
 	/**
 	 * 删除应用商店应用
-	 * @param id
 	 * @return
 	 * @throws Exception
 	 */
+	@Transactional
 	@Override
-	public ActionReturnUtil deleteAppStore(Integer id) throws Exception {
+	public ActionReturnUtil deleteAppStore(String name, String tag) throws Exception {
 		try {
+			AppStoreDto appStoreDto = this.getAppStore(name, tag);
+			if (appStoreDto == null) {
+				return ActionReturnUtil.returnErrorWithData(DictEnum.APPLICATION, ErrorCodeMessage.NOT_EXIST);
+			}
+			Integer id = appStoreDto.getId();
 			appStoreMapper.delete(id);
 			serviceService.deleteServiceTemplateByAppId(id);
 			appStoreServiceService.delete(id);
-		}catch (Exception e){
-			logger.error("删除应用商店失败，id:{}", id, e);
+		} catch (Exception e) {
+			logger.error("删除应用商店失败，name:{}, tag:{}", name, tag, e);
 			throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
 		}
 		return ActionReturnUtil.returnSuccess();
@@ -100,6 +105,7 @@ public class AppStoreServiceImpl implements AppStoreService{
 	 * @return
 	 * @throws Exception
 	 */
+	@Transactional
 	@Override
 	public ActionReturnUtil addAppStore(AppStoreDto app, String username) throws Exception {
 		//验证重名
@@ -146,9 +152,16 @@ public class AppStoreServiceImpl implements AppStoreService{
 		app.setImage(appStore.getImage());
 		app.setTag(appStore.getTag());
 		app.setUser(appStore.getUser());
+		User user = userService.getUser(appStore.getUser());
+		if (user != null) {
+			app.setUserRealName(user.getRealName());
+		} else {
+			app.setUserRealName(appStore.getUser());
+		}
 		app.setType(appStore.getType());
 		app.setCreateTime(appStore.getCreateTime());
 		app.setUpdateTime(appStore.getUpdateTime());
+		app.setServiceAccount(appStore.getServiceAccount());
 		List<ServiceTemplates> list= serviceService.listServiceTemplateByAppId(appStore.getId());
 		List<Object> objectListToyaml = new ArrayList<>();
 		JSONArray array = new JSONArray();
@@ -171,6 +184,11 @@ public class AppStoreServiceImpl implements AppStoreService{
 					}
 					json.put("serviceType", serviceTemplates.getServiceType());
 					String content = (serviceTemplates.getDeploymentContent() != null) ? serviceTemplates.getDeploymentContent().toString().replace("null", "\"\"") : "";
+					if (StringUtils.isNotBlank(app.getServiceAccount()) && content.contains("\"serviceAccount\":\"\",\"serviceAccountName\":\"\"") ){
+						content = content.replace("\"automountServiceAccountToken\":false","\"automountServiceAccountToken\":true");
+						content = content.replace("\"serviceAccount\":\"\"", "\"serviceAccount\":\"" + app.getServiceAccount() + "\"");
+						content = content.replace("\"serviceAccountName\":\"\"","\"serviceAccountName\":\"" + app.getServiceAccount() + "\"");
+					}
 					switch(ServiceTypeEnum.valueOf(serviceTemplates.getServiceType())){
 						case DEPLOYMENT:
 							json.put("deployment", content);
@@ -248,6 +266,7 @@ public class AppStoreServiceImpl implements AppStoreService{
 	 * @return
 	 * @throws Exception
 	 */
+	@Transactional
 	@Override
 	public ActionReturnUtil updateAppStore(AppStoreDto app, String username) throws Exception {
 		try {

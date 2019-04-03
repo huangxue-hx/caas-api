@@ -10,7 +10,8 @@ public class LogQuery{
     private String logDateStart;
     private String logDateEnd;
     private String namespace;
-    private String deployment;
+    private String appName;
+    private String appType;
     private String container;
     private String logDir;
     private String pod;
@@ -33,6 +34,22 @@ public class LogQuery{
     private String searchType;
 
     private String[] indexes;
+
+    public String getAppType() {
+        return appType;
+    }
+
+    public void setAppType(String appType) {
+        this.appType = appType;
+    }
+
+    public String getAppName() {
+        return appName;
+    }
+
+    public void setAppName(String appName) {
+        this.appName = appName;
+    }
 
     public String getNamespace() {
         return namespace;
@@ -120,14 +137,6 @@ public class LogQuery{
 
     public void setPod(String pod) {
         this.pod = pod;
-    }
-
-    public String getDeployment() {
-        return deployment;
-    }
-
-    public void setDeployment(String deployment) {
-        this.deployment = deployment;
     }
 
     public String[] getIndexes() {

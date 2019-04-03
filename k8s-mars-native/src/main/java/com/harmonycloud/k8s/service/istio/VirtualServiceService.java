@@ -34,18 +34,14 @@ public class VirtualServiceService {
     }
 
     //修改服务熔断
-    public K8SClientResponse updateVirtualService(String namespace, String name, VirtualService virtualService, Cluster cluster) {
+    public K8SClientResponse updateVirtualService(String namespace, String name, VirtualService virtualService, Cluster cluster) throws IllegalAccessException, IntrospectionException, InvocationTargetException {
         K8SURL url = new K8SURL();
         url.setNamespace(namespace);
         url.setResource(Resource.VIRTUALSERVICE);
         url.setName(name);
-        Map<String, Object> bodys = new HashMap<>();
-        bodys.put(CommonConstant.APIVERSION, CommonConstant.NETWORKING_ISTIO_V1ALPHA3);
-        bodys.put(CommonConstant.KIND, CommonConstant.ISTIO_VIRTUALSERVICE);
-        bodys.put(CommonConstant.METADATA, virtualService.getMetadata());
-        bodys.put(CommonConstant.SPEC, virtualService.getSpec());
         Map<String, Object> headers = new HashMap<>();
         headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
+        Map<String, Object> bodys = CollectionUtil.transBean2Map(virtualService);
         return new K8sMachineClient().exec(url, HTTPMethod.PUT, headers, bodys, cluster);
     }
 
@@ -53,7 +49,7 @@ public class VirtualServiceService {
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.VIRTUALSERVICE);
         Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
+        headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
         Map<String, Object> bodys = CollectionUtil.transBean2Map(virtualService);
         return new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
     }
@@ -63,7 +59,7 @@ public class VirtualServiceService {
         url.setResource(Resource.VIRTUALSERVICE);
         url.setNamespace(namespace).setName(name);
         Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
+        headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
         return new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, null, cluster);
     }
 

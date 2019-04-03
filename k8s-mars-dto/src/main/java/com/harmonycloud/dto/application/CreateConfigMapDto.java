@@ -11,6 +11,8 @@ public class CreateConfigMapDto implements Serializable{
 	 */
 	private static final long serialVersionUID = 1L;
 
+	private String name;//配置文件组名称
+
 	private String configMapId;//配置组id
 	
 	private String path;
@@ -21,7 +23,7 @@ public class CreateConfigMapDto implements Serializable{
 	
 	private Object value;
 
-	private String name;//配置文件组名称
+	private boolean appStore;
 
 	public String getName() {
 		return name;
@@ -71,4 +73,11 @@ public class CreateConfigMapDto implements Serializable{
 		this.value = value;
 	}
 
+	public boolean isAppStore() {
+		return appStore;
+	}
+
+	public void setAppStore(boolean appStore) {
+		this.appStore = appStore;
+	}
 }

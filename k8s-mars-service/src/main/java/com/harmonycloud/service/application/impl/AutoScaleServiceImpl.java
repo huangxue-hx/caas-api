@@ -47,7 +47,6 @@ import static com.harmonycloud.common.Constant.CommonConstant.MEMORY;
 import static com.harmonycloud.service.platform.constant.Constant.*;
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class AutoScaleServiceImpl implements AutoScaleService {
 
 	public static final String AUTO_SCALE_API_VERSION = "harmonycloud.cn/v1";

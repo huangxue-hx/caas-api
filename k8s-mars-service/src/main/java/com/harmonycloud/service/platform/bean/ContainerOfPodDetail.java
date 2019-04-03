@@ -1,12 +1,18 @@
 package com.harmonycloud.service.platform.bean;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.dto.application.CreateEnvDto;
 import com.harmonycloud.dto.application.SecurityContextDto;
 import com.harmonycloud.k8s.bean.ContainerPort;
 import com.harmonycloud.k8s.bean.EnvVar;
 import com.harmonycloud.k8s.bean.Probe;
+import com.harmonycloud.service.platform.constant.Constant;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang.StringUtils;
 
 public class ContainerOfPodDetail {
 	
@@ -27,8 +33,8 @@ public class ContainerOfPodDetail {
 	private List<ContainerPort> ports;
 	
 	private List<String> args;
-	
-	private List<EnvVar> env;
+
+	private List<CreateEnvDto> env;
 	
 	private List<String> command;
 	
@@ -64,8 +70,26 @@ public class ContainerOfPodDetail {
 		this.readinessProbe = readinessProbe;
 		this.ports = ports;
 		this.args = args;
-		this.env = env;
 		this.command = command;
+		if(CollectionUtils.isNotEmpty(env)){
+			this.env = new ArrayList<>();
+			for(EnvVar envVar : env){
+				if (envVar.getName().equals(Constant.PILOT_LOG_PREFIX) || envVar.getName().equals(Constant.PILOT_LOG_PREFIX_TAG)){
+					continue; //过滤log_pilot收集日志设置的环境变量
+				}
+				CreateEnvDto envDto = new CreateEnvDto();
+				envDto.setName(envVar.getName());
+				envDto.setKey(envVar.getName());
+				if(StringUtils.isNotEmpty(envVar.getValue())){
+					envDto.setType(CommonConstant.ENV_TYPE_EQUAL);
+					envDto.setValue(envVar.getValue());
+				}else if(envVar.getValueFrom() != null && envVar.getValueFrom().getFieldRef() != null){
+					envDto.setType(CommonConstant.ENV_TYPE_FROM);
+					envDto.setValue(envVar.getValueFrom().getFieldRef().getFieldPath());
+				}
+				this.env.add(envDto);
+			}
+		}
 	}
 
 	public String getName() {
@@ -132,11 +156,11 @@ public class ContainerOfPodDetail {
 		this.args = args;
 	}
 
-	public List<EnvVar> getEnv() {
+	public List<CreateEnvDto> getEnv() {
 		return env;
 	}
 
-	public void setEnv(List<EnvVar> env) {
+	public void setEnv(List<CreateEnvDto> env) {
 		this.env = env;
 	}
 

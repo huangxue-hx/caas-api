@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
  * @Modified
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class NodePortClusterRangeServiceImpl implements NodePortClusterRangeService{
 
     @Autowired

@@ -195,9 +195,9 @@ public class NodeController {
                                                                     @RequestParam(value = "user", required = true)String user,
                                                                     @RequestParam(value = "passwd", required = true)String passwd,
                                                                     @RequestParam(value = "masterIp", required = true)String masterIp,
-                                                                    @RequestParam(value = "harborIp", required = false)String harborIp,
+                                                                    @RequestParam(value = "isGPU", required = false)Boolean isGPU,
                                                                     @PathVariable(value = "clusterId") String clusterId) throws Exception {
-        return this.nodeService.addNode(host,user,passwd,masterIp,clusterId);
+        return this.nodeService.addNode(host,user,passwd,masterIp,clusterId,isGPU);
     }
 
     @ResponseBody
@@ -238,10 +238,10 @@ public class NodeController {
     @RequestMapping(value = "/{clusterId}/nodes/{nodeName:.+}", method = RequestMethod.PUT)
     public ActionReturnUtil updateIdleNodeStatus(@PathVariable(value = "nodeName") String nodeName,
                                                  @PathVariable(value = "clusterId") String clusterId,
-                                                 Integer nodeType,
+                                                 @RequestParam(value="nodeType",required = false) String nodeType,
                                                  Boolean idleStatus) throws Exception {
         if (idleStatus){
-            this.nodeService.updateIdleNodeStatus(nodeName, clusterId, nodeType);
+            this.nodeService.updateIdleToWorkNodeStatus(nodeName, clusterId, nodeType);
         } else {
             this.nodeService.updateWorkNodeToIdleStatus(nodeName, clusterId);
         }

@@ -19,7 +19,6 @@ import com.harmonycloud.service.tenant.PrivatePartitionService;
  */
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class PrivatePartitionImpl implements PrivatePartitionService {
 
     @Autowired

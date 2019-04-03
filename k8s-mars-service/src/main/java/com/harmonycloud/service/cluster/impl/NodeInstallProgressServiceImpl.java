@@ -12,7 +12,6 @@ import com.harmonycloud.dao.cluster.bean.NodeInstallProgress;
 import com.harmonycloud.dao.cluster.bean.NodeInstallProgressExample;
 import com.harmonycloud.service.cluster.NodeInstallProgressService;
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class NodeInstallProgressServiceImpl implements NodeInstallProgressService{
     @Autowired
     private NodeInstallProgressMapper nodeInstallProgressMapper;

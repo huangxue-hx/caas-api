@@ -22,7 +22,7 @@ import java.util.Map;
  */
 public interface InfluxdbService {
 	
-	public ActionReturnUtil podMonit(InfluxdbQuery query, Integer request) throws ParseException,IOException,NoSuchAlgorithmException,KeyManagementException;
+	public ActionReturnUtil podMonit(InfluxdbQuery query, Integer request) throws Exception;
 	
 	public ActionReturnUtil nodeQuery(InfluxdbQuery query) throws IOException,NoSuchAlgorithmException,KeyManagementException, ParseException;
 	

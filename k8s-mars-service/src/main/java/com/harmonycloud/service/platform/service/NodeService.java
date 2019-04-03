@@ -49,7 +49,6 @@ public interface NodeService {
 	 */
 	void updateNodeLabels(String nodeName, Map<String, String> labels, Cluster cluster) throws Exception;
 
-
 	/**
 	 * 获取node的状态标签
 	 * @param nodeName
@@ -101,7 +100,7 @@ public interface NodeService {
 	 * @return
 	 * @throws Exception
 	 */
-	public ActionReturnUtil addNode(String host,String user,String passwd,String masterIp,String clusterId) throws Exception;
+	public ActionReturnUtil addNode(String host,String user,String passwd,String masterIp,String clusterId, Boolean isGPU) throws Exception;
 	/**
 	 * 检测主机状态
 	 * @param host
@@ -160,13 +159,13 @@ public interface NodeService {
     public String  getOnLineErrorStatus() throws Exception;
 
 	/**
-	 * 更新闲置节点状态
+	 * 更新闲置节点为工作节点状态
 	 * @param nodeName
 	 * @param clusterId
 	 * @param nodeType 1 共享，2负债均衡，3构建节点，4系统节点
 	 * @throws Exception
 	 */
-	public void updateIdleNodeStatus(String nodeName,String clusterId,Integer nodeType) throws Exception;
+	public void updateIdleToWorkNodeStatus(String nodeName,String clusterId,String nodeType) throws Exception;
 
 	/**
 	 * 更新工作节点为闲置节点状态
@@ -227,7 +226,7 @@ public interface NodeService {
 	 */
 	ActionReturnUtil searchNodes(String clusterId, String label, String groupName) throws MarsRuntimeException;
 
-	NodeDto getHostUsege(Node node, NodeDto nodeDto, Cluster cluster);
+	NodeDto getHostUsage(Node node, NodeDto nodeDto, Cluster cluster);
 
 	/**
 	 * 获取分组接口

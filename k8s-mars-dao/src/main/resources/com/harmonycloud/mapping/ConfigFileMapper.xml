@@ -36,11 +36,20 @@
     <select id="getLatestConfig" parameterType="java.lang.String" resultMap="configfileMap">
         SELECT *
         FROM configfile
-        WHERE project_id = #{projectId} AND name = #{name}
+        WHERE name = #{name}
+            <if test="projectId !=null  and projectId != ''  ">
+                AND project_id=#{projectId}
+            </if>
             <if test="repoName !=null  and repoName != ''  ">
               AND reponame = #{repoName}
             </if>
-              AND cluster_id=#{clusterId} AND tags=#{tags}
+            <if test="clusterId !=null  and clusterId != ''  ">
+                AND cluster_id=#{clusterId}
+            </if>
+            <if test="clusterId ==null  or clusterId == ''  ">
+                AND cluster_id is NULL
+            </if>
+             AND tags=#{tags}
         ORDER BY create_time DESC
         LIMIT 1
     </select>
@@ -57,13 +66,18 @@
     <!-- 根据项目、文件名称，repo名称查找安照版本号倒叙 -->
     <select id="listConfigByName" resultMap="configfileMap">
         select * from configfile
-        where project_id=#{projectId}
-        and name=#{name}
+        where name=#{name}
+        <if test="projectId !=null  and projectId != ''  ">
+        and project_id=#{projectId}
+        </if>
         <if test="repoName !=null  and repoName != ''  ">
             and reponame=#{repoName}
         </if>
         <if test="clusterId !=null  and clusterId != ''  ">
             and cluster_id=#{clusterId}
+        </if>
+        <if test="clusterId ==null  or clusterId == ''  ">
+            and cluster_id is NULL
         </if>
         order by tags desc
     </select>
@@ -84,11 +98,14 @@
             <if test="keyword !=null  and keyword != ''  ">
                 and ( name like concat('%',#{keyword},'%') or reponame like concat('%',#{keyword},'%'))
             </if>
-            <if test="clusterIds != null ">
+            <if test="clusterIds != null and clusterIds.size() > 0">
                 and cluster_id in
                 <foreach item="item" index="index" collection="clusterIds" open="(" separator="," close=")">
                     #{item}
                 </foreach>
+            </if>
+            <if test="clusterIds == null or clusterIds.size() == 0">
+                and cluster_id is NULL
             </if>
         </where>
     </select>
@@ -109,6 +126,9 @@
                     #{item}
                 </foreach>
             </if>
+            <if test="clusterIds ==null or clusterIds.size == 0">
+                and cluster_id is NULL
+            </if>
         </where>
         order by name
     </select>
@@ -118,9 +138,15 @@
         DELETE conItem, con FROM configfile_item conItem
         right JOIN configfile con
         ON conItem.configfile_id = con.id
-        where con.project_id=#{projectId} and con.name=#{name}
+        where con.name=#{name}
+        <if test="projectId !=null  and projectId != ''  ">
+            and con.project_id=#{projectId}
+        </if>
         <if test="clusterId !=null  and clusterId != ''  ">
             and con.cluster_id=#{clusterId}
+        </if>
+        <if test="clusterId == null  or clusterId == ''  ">
+            and con.cluster_id is NULL
         </if>
     </delete>
 
@@ -128,7 +154,10 @@
         DELETE conItem, con FROM configfile_item conItem
             right JOIN configfile con
                 ON conItem.configfile_id = con.id
-        WHERE con.id = #{id} AND con.project_id = #{projectId}
+        WHERE con.id = #{id}
+        <if test="projectId !=null  and projectId != ''  ">
+            AND con.project_id=#{projectId}
+        </if>
     </delete>
 
     <delete id="deleteConfigByProject" parameterType="java.lang.String">
@@ -175,6 +204,9 @@
             <if test="clusterId != null and clusterId != ''">
                 and cluster_id=#{clusterId}
             </if>
+            <if test="clusterId == null  or clusterId == ''  ">
+                and cluster_id is NULL
+            </if>
         </where>
     </select>
     <select id="getConfigMapByName" resultMap="configfileMap">
@@ -189,8 +221,10 @@
             <if test="clusterId != null and clusterId != ''">
                 and cluster_id=#{clusterId}
             </if>
+            <if test="clusterId == null or clusterId == ''">
+                and cluster_id is NULL
+            </if>
         </where>
         order by tags desc
     </select>
-
 </mapper>

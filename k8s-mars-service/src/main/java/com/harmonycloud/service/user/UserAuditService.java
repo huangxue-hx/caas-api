@@ -15,9 +15,10 @@ public interface UserAuditService {
     ActionReturnUtil searchByQuery(UserAuditSearch userAuditSearch) throws Exception;
 
     ActionReturnUtil searchModule(String username) throws Exception;
-    
+
     ActionReturnUtil getAuditCount(UserAuditSearch userAuditSearch) throws Exception;
 
     ActionReturnUtil insertToEsIndex(AuditRequestInfo auditRequestInfo) throws Exception;
 
+    void CreateEsIndex(String index,String mappingType) throws Exception;
 }

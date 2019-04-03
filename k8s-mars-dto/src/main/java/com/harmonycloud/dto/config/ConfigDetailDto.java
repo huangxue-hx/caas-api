@@ -29,6 +29,7 @@ public class ConfigDetailDto implements Serializable {
     private String tags;
     private List<ConfigFileItem> configFileItemList;
     private List<Deployment> deploymentList;
+    private boolean appStore;
 
     public List<Deployment> getDeploymentList() {
         return deploymentList;
@@ -134,4 +135,11 @@ public class ConfigDetailDto implements Serializable {
         this.clusterName = clusterName;
     }
 
+    public boolean getAppStore() {
+        return appStore;
+    }
+
+    public void setAppStore(boolean appStore) {
+        this.appStore = appStore;
+    }
 }

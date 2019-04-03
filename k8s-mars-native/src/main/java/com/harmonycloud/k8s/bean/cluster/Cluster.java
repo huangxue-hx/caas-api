@@ -1,8 +1,5 @@
 package com.harmonycloud.k8s.bean.cluster;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
-
 import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
@@ -123,6 +120,10 @@ public class Cluster implements Serializable,Comparable<Cluster> {
 	 * 集群git信息
 	 */
 	private ClusterGit gitInfo;
+	/**
+	 * 平台组件（es,influxdb,node-up-down）访问host
+	 */
+	private String compAddress;
 
 	public Cluster() {
 		super();
@@ -422,5 +423,13 @@ public class Cluster implements Serializable,Comparable<Cluster> {
 
 	public void setGitInfo(ClusterGit gitInfo) {
 		this.gitInfo = gitInfo;
+	}
+
+	public String getCompAddress() {
+		return compAddress;
+	}
+
+	public void setCompAddress(String compAddress) {
+		this.compAddress = compAddress;
 	}
 }

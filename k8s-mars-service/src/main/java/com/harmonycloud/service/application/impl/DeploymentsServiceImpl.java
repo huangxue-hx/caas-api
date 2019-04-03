@@ -7,6 +7,7 @@ import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
+import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dto.application.*;
@@ -29,6 +30,7 @@ import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.common.DataPrivilegeHelper;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeService;
+import com.harmonycloud.service.istio.IstioCommonService;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.bean.monitor.InfluxdbQuery;
 import com.harmonycloud.service.platform.constant.Constant;
@@ -65,6 +67,8 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static com.harmonycloud.common.Constant.CommonConstant.LABEL_KEY_APP;
+import static com.harmonycloud.service.platform.constant.Constant.DEFAULT_POD_MAX_SURGE;
+import static com.harmonycloud.service.platform.constant.Constant.DEFAULT_POD_MAX_UNAVAILABLE;
 import static com.harmonycloud.service.platform.constant.Constant.TYPE_DEPLOYMENT;
 
 @Service
@@ -162,7 +166,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
     private PersistentVolumeService persistentVolumeService;
 
     @Autowired
-    private IstioService istioService;
+    private IstioCommonService istioCommonService;
 
     public ActionReturnUtil listDeployments(String tenantId, String name, String namespace, String labels, String projectId, String clusterId) throws Exception {
         //参数判空
@@ -252,6 +256,10 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             String[] namespaces = namespace.split(",");
             for(String ns : namespaces) {
                 NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByName(ns);
+                //过滤分区和集群不匹配的分区
+                if (StringUtils.isNotBlank(clusterId) && !namespaceLocal.getClusterId().equals(clusterId)) {
+                   continue;
+                }
                 namespaceLocals.add(namespaceLocal);
             }
         }
@@ -344,6 +352,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
         if (Objects.nonNull(dep)) {
             anno = updateAnnotation((Map<String, Object>) dep.getMetadata().getAnnotations(), dep.getMetadata().getName(), Constant.STOPPING);
+            anno.put("nephele/replicas", String.valueOf(dep.getSpec().getReplicas()));
             dep.getSpec().setReplicas(0);
             dep.getMetadata().setAnnotations(anno);
             Map<String, Object> bodys = CollectionUtil.transBean2Map(dep);
@@ -422,7 +431,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
     }
 
     @Override
-    public ActionReturnUtil podList(String name, String namespace) throws Exception {
+    public ActionReturnUtil podList(String name, String namespace, boolean isFilterTerminated) throws Exception {
         if (StringUtils.isEmpty(namespace)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
@@ -480,6 +489,9 @@ public class DeploymentsServiceImpl implements DeploymentsService {
                     }
                     PodList podList = JsonUtil.jsonToPojo(podRes.getBody(), PodList.class);
                     List<PodDetail> podDetails = K8sResultConvert.podListConvert(podList, "v" + tag);
+                    if(isFilterTerminated) {
+                        podDetails.removeIf(podDetail -> podDetail.getTerminating() != null && podDetail.getTerminating());
+                    }
                     podDetails.stream().forEach(pod -> pod.setDeployment(deploymentName));
                     list.addAll(podDetails);
                 }
@@ -487,6 +499,12 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         }
         return ActionReturnUtil.returnSuccessWithData(list);
     }
+
+    @Override
+    public ActionReturnUtil podList(String name, String namespace) throws Exception {
+        return this.podList(name, namespace, false);
+    }
+
 
     @Override
     public ActionReturnUtil getDeploymentDetail(String namespace, String name,boolean isFilter) throws Exception {
@@ -546,9 +564,12 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         AppDetail res = K8sResultConvert.convertAppDetail(dep, serviceList, eventList, hapEve, podList);
         res.setAutoScale(scaleDto);
         res.setClusterId(cluster.getId());
-        res.setAliasNamespace(namespaceLocalService.getNamespaceByName(res.getNamespace()).getAliasName());
+        NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByName(res.getNamespace());
+        res.setAliasNamespace(namespaceLocal.getAliasName());
+        res.setPrivateNamespace(namespaceLocal.getIsPrivate());
         res.setRealName(userService.getUser(res.getOwner()).getRealName());
         res.setHostAliases(podSpec.getHostAliases());
+        res.setServiceType(Constant.DEPLOYMENT);
 
         //判断是否是微服务组件应用是否有权限操作
         boolean isOperationable = true;
@@ -898,11 +919,10 @@ public class DeploymentsServiceImpl implements DeploymentsService {
     public ActionReturnUtil createDeployment(DeploymentDetailDto detail, String userName, String app, Cluster cluster, List<IngressDto> ingress) throws Exception {
         dataPrivilegeService.addResource(detail, app, DataResourceTypeEnum.APPLICATION);
         //参数校验
-        Map<String, Object> namespaceIstioStatus = (Map<String, Object>)(istioService.getNamespaceIstioPolicySwitch(detail.getNamespace(), cluster.getId()).getData());
-        if((boolean)namespaceIstioStatus.get("namespaceIstioStatus") && Objects.isNull(detail.getDeployVersion())){
+        boolean isIstioNamespace = istioCommonService.isIstioEnabled(detail.getNamespace());
+        if(isIstioNamespace && Objects.isNull(detail.getDeployVersion())){
             throw new MarsRuntimeException(ErrorCodeMessage.DEPLOY_VERSION_IS_NULL_WHEN_ISTIO_ENABLE);
         }
-
 
         List<CreateContainerDto> containers = detail.getContainers();
         if (containers != null && !containers.isEmpty()) {
@@ -967,19 +987,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         if(CollectionUtils.isNotEmpty(detail.getHostAliases())){
             dep.getSpec().getTemplate().getSpec().setHostAliases(detail.getHostAliases());
         }
-        //service account
-        if(detail.isAutomountServiceAccountToken()){
-            dep.getSpec().getTemplate().getSpec().setAutomountServiceAccountToken(detail.isAutomountServiceAccountToken());
-            if(null != detail.getServiceAccount()){
-                dep.getSpec().getTemplate().getSpec().setServiceAccount(detail.getServiceAccount());
-            }
-            if(null != detail.getServiceAccountName()){
-                dep.getSpec().getTemplate().getSpec().setServiceAccountName(detail.getServiceAccountName());
-            }
-        }
 
-        //处理集群组件
-        dealWithClusterComponent(dep, service);
 
         bodys = CollectionUtil.transBean2Map(dep);
         K8SClientResponse response = dpService.doSpecifyDeployment(detail.getNamespace(),null, headers, bodys, HTTPMethod.POST,cluster);
@@ -1023,6 +1031,13 @@ public class DeploymentsServiceImpl implements DeploymentsService {
                         }
                     }
                 }
+            }
+        }
+        if (isIstioNamespace) {
+            //create DestinationRule
+            ActionReturnUtil destinationRuleReturn = istioCommonService.createDestinationRule(detail.getName(), detail.getNamespace(), detail.getDeployVersion());
+            if (!destinationRuleReturn.isSuccess()) {
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CREATE_DESTINATIONRULE_IS_ERROR);
             }
         }
 
@@ -1152,6 +1167,13 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
         //删除文件上传到容器记录
         fileUploadToContainerService.deleteUploadRecord(namespace, name);
+
+        //删除已经创建Istio策略
+        boolean isIstioNamespace = istioCommonService.isIstioEnabled(namespace);
+        if (isIstioNamespace) {
+            //delete istio policy resource
+            istioCommonService.deleteIstioPolicy(namespace, name, cluster.getId());
+        }
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -1202,6 +1224,13 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             deleteService(name, namespace, queryStatefulSet, cluster, errorName);
             //删除文件上传到容器记录
             fileUploadToContainerService.deleteUploadRecord(namespace, name);
+
+            //删除已经创建Istio策略
+            boolean isIstioNamespace = istioCommonService.isIstioEnabled(namespace);
+            if (isIstioNamespace) {
+                //delete istio policy resource
+                istioCommonService.deleteIstioPolicy(namespace, name, cluster.getId());
+            }
         } catch (Exception e) {
             LOGGER.error("删除StatefulSet失败");
             return ActionReturnUtil.returnErrorWithData(e.getMessage());
@@ -1519,14 +1548,21 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         if(null != deploymentDetail.getAnnotation()){
             dep.getMetadata().getAnnotations().put("nephele/annotation", deploymentDetail.getAnnotation());
         }
-
+        dep.getMetadata().getAnnotations().put("updateTimestamp", DateUtil.getCurrentUtcTimestamp());
         //更新HostAlias（自定义hosts file）
         if(CollectionUtils.isNotEmpty(deploymentDetail.getHostAliases())){
             dep.getSpec().getTemplate().getSpec().setHostAliases(deploymentDetail.getHostAliases());
         }else{
             dep.getSpec().getTemplate().getSpec().setHostAliases(null);
         }
-
+        //设置修改服务的时候使用滚动升级，先杀pod，逐个pod升级
+        RollingUpdateDeployment rollingUpdateDeployment = new RollingUpdateDeployment();
+        rollingUpdateDeployment.setMaxSurge(DEFAULT_POD_MAX_SURGE);
+        rollingUpdateDeployment.setMaxUnavailable(DEFAULT_POD_MAX_UNAVAILABLE);
+        DeploymentStrategy strategy = new DeploymentStrategy();
+        strategy.setType("RollingUpdate");
+        strategy.setRollingUpdate(rollingUpdateDeployment);
+        dep.getSpec().setStrategy(strategy);
 
         Map<String, Object> bodys = CollectionUtil.transBean2Map(dep);
         Map<String, Object> headers = new HashMap<>();
@@ -1611,6 +1647,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
                 if (c.getConfigmap() != null) {
                     List<CreateConfigMapDto> configMaps = c.getConfigmap();
                     if (configMaps != null && configMaps.size() > 0) {
+                        //配置文件清理根据该格式判断是否需要清理
                         String configmapName = depName + c.getName() + UUIDUtil.get16UUID();
                         this.createConfigMap(namespace, configmapName, depName, configMaps, cluster);
                         containerToConfigmapMap.put(c.getName(), configmapName);
@@ -1696,6 +1733,10 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             return ActionReturnUtil.returnError();
         }
 
+        if (Objects.isNull(cluster)){
+            cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        }
+
         K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, deploymentName, null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
             return ActionReturnUtil.returnErrorWithData(depRes.getBody());
@@ -1760,61 +1801,4 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         return yaml.dump(depRes.getBody());
     }
 
-    //处理集群组件
-    private void dealWithClusterComponent(Deployment deployment, com.harmonycloud.k8s.bean.Service service){
-        List<Container> containers = deployment.getSpec().getTemplate().getSpec().getContainers();
-        int containerIndex = 0;
-        for(Container c : containers){
-
-            //deal with elasticsearch
-            if (c.getImage().contains("elasticsearch")){
-                dealWithElasticSearch(deployment, service, containerIndex);
-            }
-
-            containerIndex++;
-        }
-
-    }
-
-    //处理ElasticSearch
-    private void dealWithElasticSearch(Deployment deployment, com.harmonycloud.k8s.bean.Service service, int containerIndex){
-        //add env
-        EnvVar env = new EnvVar();
-        env.setName("NAMESPACE");
-        EnvVarSource valueFrom = new EnvVarSource();
-        ObjectFieldSelector fieldRef = new ObjectFieldSelector();
-        fieldRef.setFieldPath("metadata.namespace");
-        valueFrom.setFieldRef(fieldRef);
-        env.setValueFrom(valueFrom);
-        deployment.getSpec().getTemplate().getSpec().getContainers().get(containerIndex).getEnv().add(env);
-        env = new EnvVar();
-        env.setName("ELASTICSEARCH_SERVICE_NAME");
-        env.setValue(service.getMetadata().getName());
-        deployment.getSpec().getTemplate().getSpec().getContainers().get(containerIndex).getEnv().add(env);
-
-        //add initContainers
-        String image = deployment.getSpec().getTemplate().getSpec().getContainers().get(containerIndex).getImage();
-        List<Container> initContainers = new ArrayList<>();
-        Container container = new Container();
-        container.setName(deployment.getMetadata().getName() + "-init");
-        String harborHost = image.substring(0,image.lastIndexOf("/")+1);
-        container.setImage(harborHost + Constant.INIT_CONTAINER_IMAGE + ":" + Constant.INIT_CONTAINER_IMAGE_TAG);
-        List<String> command = new ArrayList<>();
-        command.add("/sbin/sysctl");
-        command.add("-w");
-        command.add("vm.max_map_count=262144");
-        container.setCommand(command);
-        SecurityContext securityContext = new SecurityContext();
-        securityContext.setPrivileged(true);
-        container.setSecurityContext(securityContext);
-        ResourceRequirements resources = new ResourceRequirements();
-        Map<String, Object> limits = new HashMap<>();
-        limits.put("memory","100Mi");
-        limits.put("cpu","100m");
-        resources.setLimits(limits);
-        resources.setRequests(limits);
-        container.setResources(resources);
-        initContainers.add(container);
-        deployment.getSpec().getTemplate().getSpec().setInitContainers(initContainers);
-    }
 }

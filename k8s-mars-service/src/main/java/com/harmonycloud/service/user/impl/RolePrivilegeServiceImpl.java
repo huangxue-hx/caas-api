@@ -3,6 +3,9 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.DicUtil;
+import com.harmonycloud.common.util.StringUtil;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.util.SsoClient;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.tenant.bean.Project;
@@ -16,6 +19,7 @@ import com.harmonycloud.service.user.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +33,6 @@ import javax.servlet.http.HttpSession;
  * Created by zgl on 2017/8/10.
  */
 @Service("rolePrivilegeService")
-@Transactional(rollbackFor = Exception.class)
 public class RolePrivilegeServiceImpl implements RolePrivilegeService {
 
     @Autowired
@@ -45,11 +48,11 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
     @Autowired
     private HttpSession session;
     @Autowired
-    private ProjectService projectService;
-    @Autowired
     private UserService userService;
     @Autowired
     private ResourceMenuService resourceMenuService;
+    @Autowired
+    private ClusterService clusterService;
 
     private static final Logger log = LoggerFactory.getLogger(RolePrivilegeServiceImpl.class);
     //租户管理员角色id
@@ -133,10 +136,15 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
         if (!contains){
             SsoClient.dealHeader(session);
             throw new MarsRuntimeException(ErrorCodeMessage.SWITCH_ROLE_INCORRECT);
-//            throw new MarsRuntimeException(ErrorCodeMessage.SWITCH_ROLE_INCORRECT,role.getNickName(),Boolean.TRUE);
         }
+
+        return this.setCurrentRoleInfo(role);
+    }
+
+    @Override
+    public Map<String, Object> setCurrentRoleInfo(Role role) throws Exception{
         Map<String, Object> result = new HashMap<>();
-        Map<String, Object> availablePrivilege = this.getAvailablePrivilegeByRoleId(roleId);
+        Map<String, Object> availablePrivilege = this.getAvailablePrivilegeByRoleId(role.getId());
         for (Map.Entry<String,Object> entry : availablePrivilege.entrySet()) {
             Map<String,List<Privilege>> mapModule = (Map<String,List<Privilege>>)entry.getValue();
             Map<String, Object> resource = new HashMap<>();
@@ -172,7 +180,6 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
                                 break;
                         }
                     }
-//                    privilegeList.stream().forEach(privilege ->{privilegeMap.put(CommonConstant.PRIVILEGE,privilege.getPrivilege());});
                     resource.put(entryResource.getKey(),privilegeMap);
                 }
             }
@@ -181,18 +188,13 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
                 result.put(entry.getKey(),resource);
             }
         }
-        session.setAttribute(CommonConstant.PRIVILEGE,result);
-        session.setAttribute(CommonConstant.ROLEID,roleId);
-        if (roleId == TM_ROLEID){
-            //如果为租户管理员，设置项目信息到session中
-            List<Project> projects = this.projectService.listTenantProjectByUsername(currentTenantId, username);
-            Map<String, Project> projectMap = projects.stream().collect(Collectors.toMap(Project::getProjectId, project -> project));
-//            projects.stream().map(Project::getProjectId).collect(Collectors.toMap(Project::getProjectId,))
-            session.setAttribute(CommonConstant.PROJECT,projectMap);
-        }
+        session.setAttribute(CommonConstant.ROLEID, role.getId());
+        session.setAttribute(CommonConstant.PRIVILEGE, result);
+        session.setAttribute(CommonConstant.DATA_CENTER, this.getCurrentDataCenter(role));
         return result;
     }
 
+    @Transactional
     @Override
     public void updateRolePrivilege(Integer roleId, List<PrivilegeDto> rolePrivilegeList) throws Exception {
         for (PrivilegeDto rolePrivilege : rolePrivilegeList) {
@@ -763,6 +765,7 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
      * @param roleId
      * @throws Exception
      */
+    @Transactional
     @Override
     public void resetRolePrivilegeByRoleId(Integer roleId) throws Exception {
         Role role = this.roleLocalService.getRoleById(roleId);
@@ -798,6 +801,46 @@ public class RolePrivilegeServiceImpl implements RolePrivilegeService {
             Integer pid = rolePrivilege.getPid();
             this.syncRoleMenu(roleId,pid, status);
         }
+    }
+
+    /**
+     * 获取当前角色的数据中心
+     * 根据角色的集群权限，如果切换之前的数据中心切换之后也拥有该数据中心的权限，则数据中心保持不变，否则取最后一个
+     * @param role
+     * @return
+     * @throws Exception
+     */
+    private String getCurrentDataCenter(Role role) throws Exception {
+        String currentDataCenter = roleLocalService.getCurrentDataCenter();
+        String roleClusterIds = role.getClusterIds();
+        String dataCenter = "";
+        if (StringUtils.isNotBlank(roleClusterIds)) {
+            if (roleClusterIds.contains(",")) {
+                String[] clusterIds = roleClusterIds.split(",");
+                Cluster cluster = null;
+                for (String clusterId : clusterIds) {
+                    cluster = clusterService.findClusterById(clusterId);
+                    //根据角色的集群权限，如果切换之前的数据中心切换之后也拥有该数据中心的权限，则数据中心保持不变，否则取最后一个
+                    dataCenter = cluster.getDataCenter();
+                    if (dataCenter.equals(currentDataCenter)) {
+                        break;
+                    }
+                }
+            } else {
+                Cluster cluster = clusterService.findClusterById(roleClusterIds);
+                dataCenter = cluster.getDataCenter();
+            }
+        } else {
+            //全部集群角色（系统，租户管理员等），如果切换之前的数据中心切换之后也拥有该数据中心的权限，则数据中心保持不变，否则取最后一个
+            List<Cluster> clusters = clusterService.listCluster();
+            for (Cluster cluster : clusters) {
+                dataCenter = cluster.getDataCenter();
+                if (dataCenter.equals(currentDataCenter)) {
+                    break;
+                }
+            }
+        }
+        return dataCenter;
     }
 
     private RolePrivilegeExample getExample(){

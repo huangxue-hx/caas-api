@@ -73,6 +73,7 @@
     <select id="queryLogByObject" resultType="java.lang.String">
         SELECT log FROM cicd_job_build
         <include refid="Where_Clause" />
+        LIMIT 1
     </select>
 
     <select id="queryLastBuildNumById" resultType="java.lang.Integer">

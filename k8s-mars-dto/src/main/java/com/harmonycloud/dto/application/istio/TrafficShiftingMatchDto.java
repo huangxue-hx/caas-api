@@ -3,16 +3,16 @@ package com.harmonycloud.dto.application.istio;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 
-import java.util.Map;
+import java.util.List;
 
 /**
  * create by weg on 18-12-3
  */
 @ApiModel(value = "TrafficShiftingSourceDto信息")
-public class TrafficShiftingSourceDto {
+public class TrafficShiftingMatchDto {
 
-    @ApiModelProperty(value = "请求头", name = "headers", example = "", notes = "")
-    private Map<String, String> headers;
+    @ApiModelProperty(value = "请求头", name = "headers", example = "key=value", notes = "'='不可以出现在key或者value中")
+    private List<String> headers;
 
     @ApiModelProperty(value = "请求服务", name = "sourceName", example = "", notes = "")
     private String sourceName;
@@ -23,11 +23,11 @@ public class TrafficShiftingSourceDto {
     @ApiModelProperty(value = "目标服务名称", name = "subset", example = "name")
     private String subset;
 
-    public Map<String, String> getHeaders() {
+    public List<String> getHeaders() {
         return headers;
     }
 
-    public void setHeaders(Map<String, String> headers) {
+    public void setHeaders(List<String> headers) {
         this.headers = headers;
     }
 

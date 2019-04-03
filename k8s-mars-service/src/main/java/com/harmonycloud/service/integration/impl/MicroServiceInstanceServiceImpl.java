@@ -18,7 +18,6 @@ import java.util.List;
  */
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class MicroServiceInstanceServiceImpl implements MicroServiceInstanceService{
 
     @Autowired

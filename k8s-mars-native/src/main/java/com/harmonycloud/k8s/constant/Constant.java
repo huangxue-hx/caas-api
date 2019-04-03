@@ -98,6 +98,9 @@ public class Constant {
 
 	public final static Integer HTTP_404 = 404;
 
+	//AlreadyExists
+	public final static Integer HTTP_409 = 409;
+
 	public final static String INFLUXDB_DB_NAME = "k8s";
 	public final static String ES_CLUSTER_NAME = "kubernetes-logging";
 	public final static String CLUSTER_STATUS_TYPE_READY = "ready";

@@ -16,10 +16,7 @@ import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
-import com.harmonycloud.k8s.service.DeploymentService;
-import com.harmonycloud.k8s.service.PVCService;
-import com.harmonycloud.k8s.service.PodService;
-import com.harmonycloud.k8s.service.PvService;
+import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.PersistentVolumeService;
@@ -73,6 +70,8 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
     private RoleLocalService roleLocalService;
     @Autowired
     private InfluxdbService influxdbService;
+    @Autowired
+    private ScService scService;
 
     @SuppressWarnings("unchecked")
     @Override
@@ -321,15 +320,11 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
     }
 
     @Override
-    public ActionReturnUtil deletePv(String name, String clusterId) throws Exception {
-        Cluster cluster = clusterService.findClusterById(clusterId);
+    public ActionReturnUtil deletePv(String name, String storageClass, Cluster cluster) throws Exception {
         PersistentVolume pvByName = this.pvService.getPvByName(name, cluster);
         if (pvByName == null) {
             LOGGER.info("pv存储券不存在,pvname:{},clusterName:{}", name, cluster.getName());
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PV_QUERY_FAIL);
-        }
-        if (pvByName.getStatus().getPhase().equals(PV_STATUS_BOUND)) {
-            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PV_CAN_NOT_DELETE);
         }
         ActionReturnUtil deletePvRes = pvService.delPvByName(name, cluster);
         if (!deletePvRes.isSuccess()) {
@@ -340,15 +335,16 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         String path = name.replaceFirst("\\.", "/");
         String command = "rm -rf /scrub/"+ path;
         //volumes
-        ClusterStorage storage = this.getProvider(cluster.getId(), CommonConstant.NFS);
-        if (storage == null) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PV_PROVIDER_NOT_EXIST, CommonConstant.NFS, true);
-        }
+        StorageClass sc = scService.getScByName(storageClass, cluster);
         NFSVolumeSource pvNfs = new NFSVolumeSource();
-        pvNfs.setPath(storage.getPath());
-        pvNfs.setServer(storage.getIp());
+
+        if(sc.getMetadata().getAnnotations() != null){
+            pvNfs.setPath((String)sc.getMetadata().getAnnotations().get("NFSPATH"));
+            pvNfs.setServer((String)sc.getMetadata().getAnnotations().get("NFSADDR"));
+        }
+
         Pod pod = createPod(podName, "pv-dir-delete", command, pvNfs, cluster);
-        ActionReturnUtil res = podService.addPod(CommonConstant.DEFAULT_NAMESPACE, pod, cluster);
+        ActionReturnUtil res = podService.addPod(CommonConstant.KUBE_SYSTEM, pod, cluster);
         startThreadDeletePod(podName, cluster);
         return res;
     }
@@ -633,7 +629,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
         //metadata
         ObjectMeta metadata = new ObjectMeta();
         metadata.setName(podName);
-        metadata.setNamespace(CommonConstant.DEFAULT_NAMESPACE);
+        metadata.setNamespace(CommonConstant.KUBE_SYSTEM);
         pod.setMetadata(metadata);
         //spec
         PodSpec spec = new PodSpec();
@@ -677,7 +673,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
                     for (; ; ) {
                         //暂停两秒钟后获取pod
                         Thread.sleep(SLEEP_TIME_TWO_SECONDS);
-                        K8SClientResponse dp = podService.getPod(CommonConstant.DEFAULT_NAMESPACE, name, cluster);
+                        K8SClientResponse dp = podService.getPod(CommonConstant.KUBE_SYSTEM, name, cluster);
                         if (!HttpStatusUtil.isSuccessStatus(dp.getStatus()) && dp.getStatus() != Constant.HTTP_404) {
                             break;
                         }
@@ -685,7 +681,7 @@ public class PersistentVolumeServiceImpl extends VolumeAbstractService implement
                         if (pod != null && pod.getMetadata() != null && pod.getMetadata().getName() != null) {
                             if (pod.getStatus() != null && pod.getStatus().getPhase() != null) {
                                 if (!POD_STATUS_RUNNING.equals(pod.getStatus().getPhase()) && !POD_STATUS_PENDING.equals(pod.getStatus().getPhase())) {
-                                    podService.deletePod(CommonConstant.DEFAULT_NAMESPACE, name, cluster);
+                                    podService.deletePod(CommonConstant.KUBE_SYSTEM, name, cluster);
                                     break;
                                 }
                             }

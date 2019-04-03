@@ -9,6 +9,7 @@ import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.common.util.JSchClient;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
+import com.harmonycloud.dto.config.AuditRequestInfo;
 import com.harmonycloud.dto.log.LogQueryDto;
 import com.harmonycloud.k8s.bean.Pod;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -24,6 +25,7 @@ import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.Session;
 import org.apache.commons.lang3.StringUtils;
+import org.elasticsearch.action.search.SearchPhaseExecutionException;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
@@ -35,7 +37,6 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
-import org.elasticsearch.search.aggregations.bucket.terms.TermsBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +47,10 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 import javax.servlet.http.HttpServletResponse;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -63,14 +67,14 @@ public class LogServiceImpl implements LogService {
 
     private static Logger logger = LoggerFactory.getLogger(LogServiceImpl.class);
 
-    //日志查询分页保留15分钟不失效
-    private static final int SEARCH_TIME = 900000;
     //每次只能查询100个POD的文件
     private static final int MAX_POD_FETCH_COUNT = 100;
     private static final int MAX_EXPORT_LENGTH = 100000;
 
     @Value("${shell:#{null}}")
     private String shellStarter;
+    @Value("${es.scroll.time:600000}")
+    private String scrollTime;
 
     @Autowired
     private NamespaceLocalService namespaceLocalService;
@@ -156,23 +160,38 @@ public class LogServiceImpl implements LogService {
             cluster = namespaceLocalService.getClusterByNamespaceName(logQuery.getNamespace());
         }
         TransportClient client = esService.getEsClient(cluster);
-        if (StringUtils.isBlank(logQuery.getDeployment()) && StringUtils.isBlank(logQuery.getPod())
+        if (StringUtils.isBlank(logQuery.getAppName())
+                && StringUtils.isBlank(logQuery.getPod())
                 && StringUtils.isBlank(logQuery.getContainer())) {
             throw new MarsRuntimeException(ErrorCodeMessage.NS_POD_CONTAINER_NOT_BLANK);
         }
         logQuery.setPageSize(MAX_EXPORT_LENGTH);
         SearchRequestBuilder searchRequestBuilder = this.getSearchRequestBuilder(client, logQuery);
-        SearchResponse scrollResp = searchRequestBuilder.setSize(logQuery.getPageSize()).execute().actionGet();
+        SearchResponse scrollResp = null;
+        try {
+            scrollResp = searchRequestBuilder.setSize(logQuery.getPageSize()).execute().actionGet();
+        } catch (SearchPhaseExecutionException e){
+            if (isExceedMaxResult(e)) {
+                //设置最大查询结果条数
+                logger.info("设置日志条数最大搜索条数,index：{}, clusterId:{}",
+                        JSONObject.toJSONString(logQuery.getIndexes()), cluster.getId());
+                esService.updateIndexMaxResultWindow(client, logQuery.getIndexes(), MAX_EXPORT_LENGTH);
+                scrollResp = searchRequestBuilder.setSize(logQuery.getPageSize()).execute().actionGet();
+            } else {
+                logger.error("导出日志失败，", e);
+                throw new MarsRuntimeException(ErrorCodeMessage.QUERY_FAIL);
+            }
+        }
         Long totalHit = scrollResp.getHits().getTotalHits();
         response.setContentType("multipart/form-data");
-        response.setHeader("Content-Disposition", "attachment;fileName=" + logQuery.getDeployment() + ".log");
+        response.setHeader("Content-Disposition", "attachment;fileName=" + logQuery.getAppName() + ".log");
         outputStream = response.getOutputStream();
         try {
             if (totalHit > MAX_EXPORT_LENGTH) {
                 outputStream.write(("Find total " + totalHit + " line messages, only export " + MAX_EXPORT_LENGTH + " lines.\n").getBytes());
             }
             for (SearchHit it : scrollResp.getHits().getHits()) {
-                outputStream.write((it.getSource().get("message").toString() + "\n").getBytes());
+                outputStream.write((it.getSourceAsMap().get("message").toString() + "\n").getBytes());
             }
         } catch (Exception e) {
             logger.error("导出日志失败", e);
@@ -211,7 +230,7 @@ public class LogServiceImpl implements LogService {
             if (StringUtils.isBlank(logQuery.getNamespace())) {
                 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NAMESPACE_NOT_BLANK);
             }
-            if (StringUtils.isBlank(logQuery.getDeployment()) && StringUtils.isBlank(logQuery.getPod())
+            if (StringUtils.isBlank(logQuery.getAppName()) && StringUtils.isBlank(logQuery.getPod())
                     && StringUtils.isBlank(logQuery.getContainer())) {
                 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.NS_POD_CONTAINER_NOT_BLANK);
             }
@@ -219,10 +238,10 @@ public class LogServiceImpl implements LogService {
             scrollResp = searchRequestBuilder.setSize(logQuery.getPageSize()).execute().actionGet();
             scrollId = scrollResp.getScrollId();
         } else {
-            scrollResp = client.prepareSearchScroll(scrollId).setScroll(new TimeValue(SEARCH_TIME)).execute().actionGet();
+            scrollResp = client.prepareSearchScroll(scrollId).setScroll(new TimeValue(Long.parseLong(scrollTime))).execute().actionGet();
         }
         for (SearchHit it : scrollResp.getHits().getHits()) {
-            log.append(it.getSource().get("message").toString() + "\n");
+            log.append(it.getSourceAsMap().get("message").toString() + "\n");
         }
         if (log.toString().length() == 0) {
             log.append("No log found.");
@@ -272,13 +291,13 @@ public class LogServiceImpl implements LogService {
             QueryBuilder matchBuilder = QueryBuilders.disMaxQuery().add(QueryBuilders.termQuery("tag", processName))
                     .add(QueryBuilders.matchQuery("host_ip", node));
             SearchResponse searchResponse = client.prepareSearch(esService.getLogIndexPrefix() + "*")
-                    .addSort("@timestamp", SortOrder.DESC)
-                    .setScroll(new TimeValue(SEARCH_TIME))
+                    .addSort("offset", SortOrder.DESC)
+                    .setScroll(new TimeValue(Long.parseLong(scrollTime)))
                     .setQuery(matchBuilder)
                     .setQuery(queryBuilder).execute().actionGet();
             for (SearchHit it : searchResponse.getHits().getHits()) {
-                result.add(it.getSource().get("@timestamp").toString() + "  " + it.getSource().get("message").toString() +
-                        "(pid:" + it.getSource().get("pid").toString() + ") and (source:" + it.getSource().get("source").toString() + ")");
+                result.add(it.getSourceAsMap().get("@timestamp").toString() + "  " + it.getSourceAsMap().get("message").toString() +
+                        "(pid:" + it.getSourceAsMap().get("pid").toString() + ") and (source:" + it.getSourceAsMap().get("source").toString() + ")");
             }
         } catch (Exception e) {
             throw e;
@@ -297,45 +316,56 @@ public class LogServiceImpl implements LogService {
         SearchResponse scrollResp = null;
         BoolQueryBuilder queryBuilder = this.getQueryBuilder(logQuery);
         if (StringUtils.isNotBlank(logQuery.getPod())) {
-            queryBuilder.must(QueryBuilders.termQuery("pod_name", logQuery.getPod()));
+            queryBuilder.must(QueryBuilders.termQuery("k8s_pod.keyword", logQuery.getPod()));
             scrollResp = client.prepareSearch(esService.getLogIndexPrefix() + "*")
                     .setIndices(logQuery.getIndexes())
                     .setQuery(queryBuilder)
-                    .addAggregation(AggregationBuilders.terms("logdir").field("logdir"))
-                    .setScroll(new TimeValue(SEARCH_TIME))
+                    .addAggregation(AggregationBuilders.terms("source").field("source.keyword"))
                     .execute().actionGet();
             if (scrollResp.getAggregations() == null) {
                 return logFileNames;
             }
-            Terms agg1 = scrollResp.getAggregations().get("logdir");
-            List<Terms.Bucket> buckets = agg1.getBuckets();
-            for (Terms.Bucket bucket : buckets) {
+            Terms agg1 = scrollResp.getAggregations().get("source");
+            for (Terms.Bucket bucket : agg1.getBuckets()) {
                 String name = bucket.getKey().toString();
+                if (name.contains(CommonConstant.SLASH)){
+                    name = name.substring(name.lastIndexOf(CommonConstant.SLASH)+1);
+                }
                 logFileNames.add(name);
             }
             return logFileNames;
         }
-        TermsBuilder logDirTermsBuilder = AggregationBuilders.terms("logdir").field("logdir").size(MAX_POD_FETCH_COUNT);
-        TermsBuilder podTermsBuilder = AggregationBuilders.terms("pod_name").field("pod_name").size(MAX_POD_FETCH_COUNT);
-        podTermsBuilder.subAggregation(logDirTermsBuilder);
         scrollResp = client.prepareSearch(esService.getLogIndexPrefix() + "*")
                 .setIndices(logQuery.getIndexes())
-                .addSort("@timestamp", SortOrder.DESC)
+                .addSort("offset", SortOrder.DESC)
                 .setQuery(queryBuilder)
-                .addAggregation(podTermsBuilder)
-                .setScroll(new TimeValue(SEARCH_TIME))
+                .addAggregation(
+                        AggregationBuilders.terms("k8s_pod").field("k8s_pod.keyword").size(MAX_POD_FETCH_COUNT)
+                        .subAggregation(AggregationBuilders.terms("source").field("source.keyword").size(MAX_POD_FETCH_COUNT)))
                 .execute().actionGet();
         if (scrollResp.getAggregations() == null) {
             return logFileNames;
         }
-        Terms podTerms = scrollResp.getAggregations().get("pod_name");
-        List<Terms.Bucket> podBuckets = podTerms.getBuckets();
-        for (Terms.Bucket bucket : podBuckets) {
+        Terms podTerms = scrollResp.getAggregations().get("k8s_pod");
+        Iterator<SearchHit> it = scrollResp.getHits().iterator();
+
+        while (it.hasNext()) {
+            SearchHit sh = it.next();
+            Map<String, Object> doc = sh.getSourceAsMap();
+            AuditRequestInfo sr = new AuditRequestInfo();
+        }
+        for (Terms.Bucket bucket : podTerms.getBuckets()) {
             String bucketPodName = bucket.getKey().toString();
-            Terms logDirTerms = bucket.getAggregations().get("logdir");
-            List<Terms.Bucket> logDirBuckets = logDirTerms.getBuckets();
-            for (Terms.Bucket dirBucket : logDirBuckets) {
+            if (!bucketPodName.startsWith(logQuery.getAppName())){  //todo logpilot
+                continue;
+            }
+            Terms logDirTerms = bucket.getAggregations().get("source");
+
+            for (Terms.Bucket dirBucket : logDirTerms.getBuckets()) {
                 String logDir = dirBucket.getKey().toString();
+                if (logDir.contains(CommonConstant.SLASH)){
+                    logDir = logDir.substring(logDir.lastIndexOf(CommonConstant.SLASH)+1);
+                }
                 if (withPodName) {
                     logFileNames.add(bucketPodName + "/" + logDir);
                 } else {
@@ -359,16 +389,16 @@ public class LogServiceImpl implements LogService {
         //日志时间范围查询设置
         BoolQueryBuilder queryBuilder = getQueryBuilder(logQuery);
 
-        if (StringUtils.isNotBlank(logQuery.getLogDir())) {
-            queryBuilder.must(QueryBuilders.termQuery("logdir", logQuery.getLogDir()));
+        if (StringUtils.isNoneBlank(logQuery.getLogDir())){
+            queryBuilder.must(QueryBuilders.wildcardQuery("source.keyword",  "*" + logQuery.getLogDir()));
         }
         if (StringUtils.isNotBlank(logQuery.getPod())) {
-            queryBuilder.must(QueryBuilders.termQuery("pod_name", logQuery.getPod()));
+            queryBuilder.must(QueryBuilders.termQuery("k8s_pod.keyword", logQuery.getPod()));
         }
         SearchRequestBuilder searchRequestBuilder = client.prepareSearch(esService.getLogIndexPrefix() + "*")
                 .setIndices(logQuery.getIndexes())
-                .addSort("log_time", SortOrder.ASC)
-                .setScroll(new TimeValue(SEARCH_TIME))
+                .addSort("offset", SortOrder.ASC)
+                .setScroll(new TimeValue(Long.parseLong(scrollTime)))
                 .setQuery(queryBuilder);
         return searchRequestBuilder;
     }
@@ -390,20 +420,26 @@ public class LogServiceImpl implements LogService {
             LogQuery logQuery = new LogQuery();
             logQuery.setScrollId(logQueryDto.getScrollId());
             logQuery.setNamespace(logQueryDto.getNamespace());
-            logQuery.setDeployment(logQueryDto.getDeployment());
+            logQuery.setAppName(logQueryDto.getAppName());
+            logQuery.setAppType(logQueryDto.getAppType());
             logQuery.setClusterId(logQueryDto.getClusterId());
             return logQuery;
         }
         Assert.notNull(logQueryDto, "查询参数不能为空");
-        Assert.hasText(logQueryDto.getDeployment(), "服务名不能为空");
+        Assert.hasText(logQueryDto.getAppName(), "服务名不能为空");
+        Assert.hasText(logQueryDto.getAppType(), "服务类型不能为空");
         String fromDate = "";
         String toDate = "";
         String[] indexes;
-        String style = DateUtil.getTimezoneFormatStyle(TimeZone.getDefault());
+        //String style = DateUtil.getTimezoneFormatStyle(TimeZone.getDefault());
+        // ES中日志时间戳为0时区
+        String style = DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z_SSS.getValue();
         if (StringUtils.isNotBlank(logQueryDto.getLogTimeStart())
                 && StringUtils.isNotBlank(logQueryDto.getLogTimeEnd())) {
+            fromDate = logQueryDto.getLogTimeStart();
+            toDate = logQueryDto.getLogTimeEnd();
             //零时区格式
-            if (logQueryDto.getLogTimeStart().indexOf("T") > 0
+            /*if (logQueryDto.getLogTimeStart().indexOf("T") > 0
                     && logQueryDto.getLogTimeStart().indexOf("Z") > 0) {
                 //将零时区转换成系统时区的时间
                 Date from = DateUtil.stringToDate(logQueryDto.getLogTimeStart(),
@@ -419,7 +455,7 @@ public class LogServiceImpl implements LogService {
                 //不带时区，默认为云平台主机时区
                 fromDate = logQueryDto.getLogTimeStart();
                 toDate = logQueryDto.getLogTimeEnd();
-            }
+            }*/
         } else {
             if (logQueryDto.getRecentTimeNum() == null || logQueryDto.getRecentTimeNum() == 0) {
                 logQueryDto.setRecentTimeNum(DEFAULT_LOG_QUERY_TIME);
@@ -562,10 +598,11 @@ public class LogServiceImpl implements LogService {
         QueryBuilder timeFilter = QueryBuilders.rangeQuery("@timestamp").from(logQuery.getLogDateStart())
                 .to(logQuery.getLogDateEnd());
         BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery().filter(timeFilter)
-                .filter(QueryBuilders.termQuery("namespace_name", logQuery.getNamespace()));
-        queryBuilder.filter(QueryBuilders.termQuery("deploy_name", logQuery.getDeployment()));
+                .filter(QueryBuilders.termQuery("k8s_pod_namespace.keyword", logQuery.getNamespace()));
+        queryBuilder.filter(QueryBuilders.termQuery("k8s_resource_name.keyword", logQuery.getAppName()));
+        queryBuilder.filter(QueryBuilders.termQuery("k8s_resource_type.keyword", logQuery.getAppType()));
         if (StringUtils.isNotBlank(logQuery.getContainer())) {
-            queryBuilder.filter(QueryBuilders.termQuery("container_name", logQuery.getContainer()));
+            queryBuilder.filter(QueryBuilders.termQuery("k8s_container_name.keyword", logQuery.getContainer()));
         }
         if (StringUtils.isNotBlank(logQuery.getSeverity()) && !logQuery.getSeverity().equalsIgnoreCase("All")) {
             //日志内容过滤 warn, error等信息
@@ -592,5 +629,12 @@ public class LogServiceImpl implements LogService {
         return queryBuilder;
     }
 
+    private boolean isExceedMaxResult(SearchPhaseExecutionException e) {
+        if (e.getCause() != null && e.getCause().getMessage() != null
+                && e.getCause().getMessage().contains("max_result_window")) {
+            return true;
+        }
+        return false;
+    }
 
 }

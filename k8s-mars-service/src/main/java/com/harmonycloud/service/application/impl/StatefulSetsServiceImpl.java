@@ -1,5 +1,6 @@
 package com.harmonycloud.service.application.impl;
 
+import com.github.pagehelper.util.StringUtil;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DataResourceTypeEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
@@ -26,10 +27,8 @@ import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.common.DataPrivilegeHelper;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeService;
-import com.harmonycloud.service.platform.bean.AppDetail;
-import com.harmonycloud.service.platform.bean.ContainerOfPodDetail;
-import com.harmonycloud.service.platform.bean.EventDetail;
-import com.harmonycloud.service.platform.bean.PodDetail;
+import com.harmonycloud.service.istio.IstioCommonService;
+import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.system.SystemConfigService;
@@ -119,7 +118,10 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
     private PersistentVolumeClaimService PersistentVolumeClaimService;
 
     @Autowired
-    private IstioService istioService;
+    private IstioCommonService istioCommonService;
+
+    @Autowired
+    private PersistentVolumeService persistentVolumeService;
 
     @Autowired
     private DeploymentsService dpsService;
@@ -190,7 +192,7 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
         res.setClusterId(cluster.getId());
         res.setAliasNamespace(namespaceLocalService.getNamespaceByName(res.getNamespace()).getAliasName());
         res.setRealName(userService.getUser(res.getOwner()).getRealName());
-
+        res.setServiceType(Constant.STATEFULSET);
 
         return dataPrivilegeHelper.filter(res);
     }
@@ -257,10 +259,17 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
     public ActionReturnUtil createStatefulSet(StatefulSetDetailDto detail, String userName, String app, Cluster cluster, List<IngressDto> ingress) throws Exception {
         dataPrivilegeService.addResource(detail, app, DataResourceTypeEnum.APPLICATION);
         //参数校验
-        Map<String, Object> namespaceIstioStatus = (Map<String, Object>)(istioService.getNamespaceIstioPolicySwitch(detail.getNamespace(), cluster.getId()).getData());
-        if((boolean)namespaceIstioStatus.get("namespaceIstioStatus") && Objects.isNull(detail.getDeployVersion())){
+        /*boolean isIstioNamespace = istioCommonService.isIstioEnabled(detail.getNamespace());
+        if(isIstioNamespace && Objects.isNull(detail.getDeployVersion())){
             throw new MarsRuntimeException(ErrorCodeMessage.DEPLOY_VERSION_IS_NULL_WHEN_ISTIO_ENABLE);
         }
+        if (isIstioNamespace) {
+            //create DestinationRule
+            ActionReturnUtil destinationRuleReturn = istioCommonService.createDestinationRule(detail.getName(), detail.getNamespace(), detail.getDeployVersion());
+            if (!destinationRuleReturn.isSuccess()) {
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CREATE_DESTINATIONRULE_IS_ERROR);
+            }
+        }*/
 
         //创建configmap
         String serviceLabel = Constant.NODESELECTOR_LABELS_PRE + CommonConstant.LABEL_KEY_STATEFULSET;
@@ -459,6 +468,7 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
         StatefulSet statefulSet = statefulSetService.getStatefulSet(namespace, name, cluster);
         Integer replicas = statefulSet.getSpec().getReplicas();
         statefulSet.getSpec().setReplicas(scale);
+        serviceService.checkStsStorageResourceQuota(Arrays.asList(statefulSet), namespace);
         statefulSet.getMetadata().setAnnotations(serviceService.updateAnnotationInScale(statefulSet.getMetadata().getAnnotations(), scale, replicas));
         statefulSetService.updateStatefulSet(namespace, name, statefulSet, cluster);
     }
@@ -471,7 +481,28 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
         StatefulSet statefulSet = statefulSetService.getStatefulSet(namespace, name, cluster);
         List<ContainerOfPodDetail> containerOfPodDetails = K8sResultConvert.convertStatefulSetContainer(statefulSet, statefulSet.getSpec().getTemplate().getSpec().getContainers(), cluster);
-        return containerOfPodDetails;
+        //查询存储容量，并返回新的containerList
+        List<ContainerOfPodDetail> newContainerList = new ArrayList<>();
+        for(ContainerOfPodDetail containers : containerOfPodDetails){
+            List<VolumeMountExt> vms = new ArrayList<>();
+            if(!Objects.isNull(containers.getStorage())) {
+                for (VolumeMountExt vmExt : containers.getStorage()) {
+                    if (StringUtil.isEmpty(vmExt.getCapacity()) && persistentVolumeService.isFsPv(vmExt.getType()) && StringUtils.isNotBlank(vmExt.getPvcname())) {
+                        PersistentVolumeClaim pvcByName = this.pvcService.getPvcByName(namespace, vmExt.getPvcname(), cluster);
+                        if (pvcByName == null) {
+                            LOGGER.info("pvc存储券不存在,pvcname:{},clusterName:{}", name, cluster.getName());
+                            throw new MarsRuntimeException(ErrorCodeMessage.PV_QUERY_FAIL);
+                        }
+                        Map<String, String> request = (Map)pvcByName.getSpec().getResources().getRequests();
+                        vmExt.setCapacity(request.get(CommonConstant.STORAGE));
+                    }
+                    vms.add(vmExt);
+                }
+            }
+            containers.setStorage(vms);
+            newContainerList.add(containers);
+        }
+        return newContainerList;
     }
 
     @Override
@@ -542,7 +573,7 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
     }
 
     @Override
-    public List<PodDetail> podList(String name, String namespace) throws Exception{
+    public List<PodDetail> podList(String name, String namespace, boolean isFilterTerminated) throws Exception{
         if (StringUtils.isEmpty(namespace)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
@@ -550,6 +581,9 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
         List<PodDetail> list = new ArrayList<>();
         try {
             list = podListForStatefulSet(name, namespace, cluster);
+            if(isFilterTerminated) {
+                list.removeIf(podDetail -> podDetail.getTerminating() != null && podDetail.getTerminating());
+            }
         }catch(MarsRuntimeException e){
             throw new MarsRuntimeException(e.getMessage());
         }
@@ -646,6 +680,11 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
     @Override
     public StatefulSetList listStatefulSets(String namespace, String projectId) throws Exception {
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        return this.listStatefulSets(namespace, projectId, cluster);
+    }
+
+    @Override
+    public StatefulSetList listStatefulSets(String namespace, String projectId, Cluster cluster) throws Exception {
         Map<String, Object> body = null;
         if(StringUtils.isNotBlank(projectId)){
             body = new HashMap<>();

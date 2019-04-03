@@ -12,7 +12,8 @@ public enum K8sModuleEnum {
     KUBE_CONTROLLER_MANAGER("kube-controller-manager","kube-controller-manager","pod", "k8s控制管理器"),
     KUBE_SCHEDULER("kube-scheduler","kube-scheduler","pod","k8s调度器"),
     KUBE_DNS("coredns", "coredns","deployment","域名解析"),
-    ELASTICSEARCH("elasticsearch-logging","elasticsearch-logging","deployment","ES日志服务"),
+    ELASTICSEARCH("elasticsearch6-logging","elasticsearch6-logging","deployment","ES日志服务"),
+    LOG_PILOT("log-pilot","log-pilot","daemonset","日志采集服务"),
     FLUENTD("fluentd","fluentd-es-v1.22","daemonset","日志采集服务"),
     //es和fluentd组合的日志组件
     LOGGING("logging","","","日志"),

@@ -1,10 +1,16 @@
 package com.harmonycloud.k8s.bean.istio.trafficmanagement;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+@JsonInclude(value=JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class OutlierDetection {
 
     private Integer consecutiveErrors;
     private String interval;
     private String baseEjectionTime;
+    private Integer maxEjectionPercent;
 
     public Integer getConsecutiveErrors() {
         return consecutiveErrors;
@@ -28,6 +34,14 @@ public class OutlierDetection {
 
     public void setBaseEjectionTime(String baseEjectionTime) {
         this.baseEjectionTime = baseEjectionTime;
+    }
+
+    public Integer getMaxEjectionPercent() {
+        return maxEjectionPercent;
+    }
+
+    public void setMaxEjectionPercent(Integer maxEjectionPercent) {
+        this.maxEjectionPercent = maxEjectionPercent;
     }
 
     @Override
@@ -60,6 +74,17 @@ public class OutlierDetection {
             }
         } else {
             if (outlierDetection.baseEjectionTime != null) {
+                return false;
+            }
+        }
+        if (this.maxEjectionPercent != null) {
+            if (outlierDetection.maxEjectionPercent == null) {
+                return false;
+            } else if (this.maxEjectionPercent.intValue() != outlierDetection.maxEjectionPercent.intValue()) {
+                return false;
+            }
+        } else {
+            if (outlierDetection.maxEjectionPercent != null) {
                 return false;
             }
         }

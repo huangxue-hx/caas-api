@@ -60,6 +60,31 @@ public class RoleController {
 		Map<String, Object> availablePrivilege = this.rolePrivilegeService.switchRole(roleId);
 		return ActionReturnUtil.returnSuccessWithData(availablePrivilege);
 	}
+
+	/**
+	 * 用户切换数据中心
+	 * @param dataCenter
+	 * @return
+	 * @throws Exception
+	 */
+	@ResponseBody
+	@RequestMapping(value = "/roles/{roleId}/datacenters/{dataCenter}/switch", method = RequestMethod.PUT)
+	public ActionReturnUtil switchDateCenter(@PathVariable("roleId") Integer roleId,
+											 @PathVariable(value = "dataCenter") String dataCenter) throws Exception {
+		roleLocalService.switchDataCenter(roleId, dataCenter);
+		return ActionReturnUtil.returnSuccess();
+	}
+
+	/**
+	 * 获取角色的数据中心
+	 * @throws Exception
+	 */
+	@ResponseBody
+	@RequestMapping(value = "/roles/{roleId}/datacenters", method = RequestMethod.GET)
+	public ActionReturnUtil getRoleDateCenter(@PathVariable("roleId") Integer roleId) throws Exception {
+		return ActionReturnUtil.returnSuccessWithData(roleLocalService.getRoleDataCenter(roleId));
+	}
+
 	/**
 	 * 分配角色权限
 	 *  使用场景：
@@ -170,11 +195,18 @@ public class RoleController {
 	 */
 	@RequestMapping(value = "/roles/{roleId}/clusters", method = RequestMethod.GET)
 	@ResponseBody
-	public ActionReturnUtil getClusterListByRoleId(@PathVariable(value = "roleId") Integer roleId) throws Exception {
+	public ActionReturnUtil getClusterListByRoleId(@PathVariable(value = "roleId") Integer roleId,
+												   @RequestParam(value = "currentDataCenter", required = false) Boolean currentDataCenter) throws Exception {
 		if (Objects.isNull(roleId)){
 			throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
 		}
-		List<Cluster> clusterList = roleLocalService.getClusterListByRoleId(roleId);
+		List<Cluster> clusterList = null;
+		//是否返回当前用户选择的数据中心下的集群，如果不传，默认返回当前数据中心下的集群
+		if(currentDataCenter == null || currentDataCenter) {
+			clusterList = roleLocalService.listCurrentUserRoleCluster();
+		} else {
+			clusterList = roleLocalService.getClusterListByRoleId(roleId);
+		}
 		return ActionReturnUtil.returnSuccessWithData(clusterList);
 	}
 

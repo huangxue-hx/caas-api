@@ -4,19 +4,22 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.AssertUtil;
-import com.harmonycloud.common.util.StringUtil;
-import com.harmonycloud.common.util.UUIDUtil;
+import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dao.tenant.NamespaceLocalMapper;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocalExample;
 import com.harmonycloud.dao.user.bean.Privilege;
+import com.harmonycloud.k8s.bean.Namespace;
 import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.dto.cluster.ErrorNamespaceDto;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.cluster.HarborServer;
+import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.istio.IstioCommonService;
+import com.harmonycloud.service.platform.bean.NodeDto;
+import com.harmonycloud.service.platform.service.NodeService;
 import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.user.ResourceMenuRoleService;
@@ -41,7 +44,6 @@ import static com.harmonycloud.common.Constant.CommonConstant.COMMA;
  * Created by zgl on 17-12-7.
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class NamespaceLocalServiceImpl implements NamespaceLocalService {
 
 
@@ -56,9 +58,11 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
     @Autowired
     private HarborProjectService harborProjectService;
     @Autowired
-    private ResourceMenuRoleService resourceMenuRoleService;
-    @Autowired
     private RolePrivilegeService rolePrivilegeService;
+    @Autowired
+    private com.harmonycloud.k8s.service.NamespaceService ns;
+    @Autowired
+    private NodeService nodeService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -134,17 +138,58 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
     @Override
     public List<NamespaceLocal> getNamespaceListByTenantId(String tenantId) throws Exception {
         NamespaceLocalExample example = this.getExample();
-        //获取当前角色id
-        Integer roleId = userService.getCurrentRoleId();
         //获取当前角色的作用域
-        List<Cluster> clusterList = this.roleLocalService.getClusterListByRoleId(roleId);
+        List<Cluster> clusterList = this.roleLocalService.listCurrentUserRoleCluster();
         if (CollectionUtils.isEmpty(clusterList)){
-            throw new MarsRuntimeException(ErrorCodeMessage.ROLE_HAVE_DISABLE_CLUSTER);
+            return Collections.emptyList();
         }
         List<String> clusterIds = clusterList.stream().map(Cluster::getId).collect(Collectors.toList());
         //根据作用域筛选分区列表
         example.createCriteria().andTenantIdEqualTo(tenantId).andClusterIdIn(clusterIds);
         List<NamespaceLocal> namespaceLocals = this.namespaceLocalMapper.selectByExample(example);
+        //将分区istio状态返回
+        if(!CollectionUtils.isEmpty(namespaceLocals)){
+            for(NamespaceLocal namespaceLocal:namespaceLocals){
+                String currentClusterId = namespaceLocal.getClusterId();
+                boolean istioStatus = this.getNamespaceIstioStatus(namespaceLocal.getNamespaceName(), currentClusterId);
+                namespaceLocal.setIstioStatus(istioStatus);
+                if(namespaceLocal.getIsPrivate()){
+                    List<NodeDto> nodeDtos = nodeService.listNodeByNamespaces(namespaceLocal.getNamespaceName());
+                    for(NodeDto nodeDto : nodeDtos){
+                        if(nodeDto.getGpu() != null){
+                            namespaceLocal.setIsGpu(true);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return namespaceLocals;
+    }
+
+    /**
+     * 查询namespace列表，不返回Istio状态以及私有分区信息
+     *
+     * @param tenantId
+     * @return
+     */
+    @Override
+    public List<NamespaceLocal> getSimpleNamespaceListByTenantId(String tenantId, String clusterId) throws Exception {
+        NamespaceLocalExample example = this.getExample();
+        if (StringUtils.isBlank(clusterId)) {
+            //获取当前角色的作用域
+            List<Cluster> clusterList = this.roleLocalService.listCurrentUserRoleCluster();
+            if (CollectionUtils.isEmpty(clusterList)){
+                return Collections.emptyList();
+            }
+            List<String> clusterIds = clusterList.stream().map(Cluster::getId).collect(Collectors.toList());
+            //根据作用域筛选分区列表
+            example.createCriteria().andTenantIdEqualTo(tenantId).andClusterIdIn(clusterIds);
+        } else {
+            example.createCriteria().andTenantIdEqualTo(tenantId).andClusterIdEqualTo(clusterId);
+        }
+        List<NamespaceLocal> namespaceLocals = this.namespaceLocalMapper.selectByExample(example);
+
         return namespaceLocals;
     }
 
@@ -158,24 +203,13 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
     public List<NamespaceLocal> getAllNamespaceListByTenantId(String tenantId) throws Exception {
         NamespaceLocalExample example = this.getExample();
         List<String> disableClusterIds = clusterService.listDisableClusterIds();
-        Integer currentRoleId = this.userService.getCurrentRoleId();
-        Role role = this.roleLocalService.getRoleById(currentRoleId);
-        if (Objects.isNull(role)){
-            return null;
-        }
-        String clusterIds = role.getClusterIds();
         NamespaceLocalExample.Criteria criteria = example.createCriteria();
-        List<String> clusterIdList = null;
-        if (StringUtils.isNotBlank(clusterIds)){
-            clusterIdList = Arrays.stream(clusterIds.split(COMMA)).collect(Collectors.toList());
-        } else {
-            List<Cluster> clusterList = clusterService.listCluster();
-            clusterIdList = clusterList.stream().map(cluster -> cluster.getId()).collect(Collectors.toList());
-        }
+        List<String> clusterIdList = roleLocalService.listCurrentUserRoleClusterIds();
         //过滤角色作用域
-        if (!CollectionUtils.isEmpty(clusterIdList)){
-            criteria.andClusterIdIn(clusterIdList);
+        if (CollectionUtils.isEmpty(clusterIdList)){
+            return Collections.emptyList();
         }
+        criteria.andClusterIdIn(clusterIdList);
         //过滤不可用集群的分区
         if(!CollectionUtils.isEmpty(disableClusterIds)){
             criteria.andTenantIdEqualTo(tenantId).andClusterIdNotIn(disableClusterIds);
@@ -233,9 +267,19 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
                 String currentClusterId = namespaceLocal.getClusterId();
                 Cluster cluster = clusterService.findClusterById(currentClusterId);
                 namespaceLocal.setClusterAliasName(cluster.getAliasName());
+                //添加分区开关字段
+                boolean  istioStatus = getNamespaceIstioStatus(namespaceLocal.getNamespaceName(), currentClusterId);
+                namespaceLocal.setIstioStatus(istioStatus);
             }
         }
         return namespaceLocals;
+    }
+
+    @Override
+    public List<NamespaceLocal> listNamespace(String tenantId, String clusterId) throws Exception {
+        List<String> clusterIds = new ArrayList<>();
+        clusterIds.add(clusterId);
+        return this.getNamespaceListByTenantIdAndClusterId(tenantId, clusterIds);
     }
 
     @Override
@@ -282,9 +326,9 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
      * @throws Exception
      */
     @Override
-    public NamespaceLocal getNamespaceByAliasName(String aliasName) throws Exception {
+    public NamespaceLocal getNamespace(String aliasName, String tenantId) throws Exception {
         NamespaceLocalExample example = this.getExample();
-        example.createCriteria().andAliasNameEqualTo(aliasName);
+        example.createCriteria().andAliasNameEqualTo(aliasName).andTenantIdEqualTo(tenantId);
         List<NamespaceLocal> namespaceLocals = this.namespaceLocalMapper.selectByExample(example);
         if (!CollectionUtils.isEmpty(namespaceLocals)){
             return namespaceLocals.get(0);
@@ -406,6 +450,29 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
         }
         return null;
 
+    }
+    //获取分区开关istio状态
+    public boolean  getNamespaceIstioStatus(String namespace, String  clusterId) throws  Exception{
+        //获取集群信息
+        Cluster  cluster = new Cluster();
+        if(StringUtils.isNotBlank(clusterId)) {
+            cluster = clusterService.findClusterById(clusterId);
+        } else {
+            cluster = this.getClusterByNamespaceName(namespace);
+        }
+        //获取该集群下指定分区是否开启自动注入
+        K8SClientResponse response = ns.getNamespace(namespace, null, null, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_NOT_FOUND);
+        }
+        Namespace namespaceDetail = JsonUtil.jsonToPojo(response.getBody(), Namespace.class);
+        String istioInjectionValue = "";
+        Map<String, Object> labels = namespaceDetail.getMetadata().getLabels();
+        if (Objects.nonNull(labels) && Objects.nonNull(labels.get(CommonConstant.ISTIO_INJECTION))) { //防止分区信息无label
+            istioInjectionValue = labels.get(CommonConstant.ISTIO_INJECTION).toString();
+        }
+        boolean istioStatus = CommonConstant.OPEN_ISTIO_AUTOMATIC_INJECTION.equals(istioInjectionValue);
+        return  istioStatus;
     }
 
     @Override

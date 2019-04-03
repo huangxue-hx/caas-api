@@ -62,7 +62,7 @@ public class AppDetail {
 
 	private String restartPolicy;
 
-	private List<Event> autoScalingHistory;
+	private List<EventDetail> autoScalingHistory;
 
 	private boolean hostIPC;
 
@@ -108,6 +108,8 @@ public class AppDetail {
 	private String serviceDependence;
 
 	private String deployVersion;
+
+	private boolean isPrivateNamespace;
 
 	public String getDeployVersion() {
 		return deployVersion;
@@ -309,11 +311,11 @@ public class AppDetail {
 		this.events = events;
 	}
 
-	public List<Event> getAutoScalingHistory() {
+	public List<EventDetail> getAutoScalingHistory() {
 		return autoScalingHistory;
 	}
 
-	public void setAutoScalingHistory(List<Event> autoScalingHistory) {
+	public void setAutoScalingHistory(List<EventDetail> autoScalingHistory) {
 		this.autoScalingHistory = autoScalingHistory;
 	}
 
@@ -444,4 +446,12 @@ public class AppDetail {
     public void setPodManagementPolicy(String podManagementPolicy) {
         this.podManagementPolicy = podManagementPolicy;
     }
+
+	public boolean isPrivateNamespace() {
+		return isPrivateNamespace;
+	}
+
+	public void setPrivateNamespace(boolean privateNamespace) {
+		isPrivateNamespace = privateNamespace;
+	}
 }

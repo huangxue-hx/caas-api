@@ -11,20 +11,22 @@ import com.harmonycloud.common.enumm.K8sModuleEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
 import com.harmonycloud.dto.application.StorageClassDto;
+import com.harmonycloud.dto.cluster.ClusterCRDDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.*;
+import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.DaemonSetService;
 import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.k8s.service.NodeService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
-import com.harmonycloud.service.application.AppLogService;
-import com.harmonycloud.service.application.ApplicationTemplateService;
-import com.harmonycloud.service.application.ServiceService;
-import com.harmonycloud.service.application.StorageClassService;
+import com.harmonycloud.k8s.util.K8SURL;
+import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.cluster.ClusterCRDService;
@@ -122,6 +124,8 @@ public class ClusterServiceImpl implements ClusterService {
     private DaemonSetService daemonSetService;
     @Autowired
     private StorageClassService storageClassService;
+    @Autowired
+    private StatefulSetsService statefulSetsService;
 
 
 
@@ -141,6 +145,19 @@ public class ClusterServiceImpl implements ClusterService {
             LOG.error("未找到集群，clusterId：{}", clusterId);
             throw new IllegalArgumentException(ErrorCodeMessage.CLUSTER_NOT_FOUND.phrase());
         }
+        return cluster;
+    }
+
+    @Override
+    public Cluster getClusterDetail(String clusterId) throws Exception {
+        Cluster cluster = this.findClusterById(clusterId);
+        ActionReturnUtil response = clusterCRDService.getCluster(cluster.getDataCenter(), cluster.getName());
+        if(!response.isSuccess() || response.getData() == null){
+            LOG.error("查询集群详情失败,clusterId:{},res:{}",clusterId,JSONObject.toJSONString(response));
+            return cluster;
+        }
+        ClusterCRDDto clusterCRDDto = (ClusterCRDDto)response.getData();
+        cluster.setClusterComponent(clusterCRDDto.getTemplate());
         return cluster;
     }
 
@@ -214,7 +231,7 @@ public class ClusterServiceImpl implements ClusterService {
         if(isEnable != null){
             clusters = clusters.stream().filter(cluster -> cluster.getIsEnable() == isEnable).collect(Collectors.toList());
         }
-        return clusters.stream().collect(Collectors.groupingBy(Cluster::getDataCenterName));
+        return clusters.stream().collect(Collectors.groupingBy(Cluster::getDataCenter));
     }
 
     @Override
@@ -366,7 +383,7 @@ public class ClusterServiceImpl implements ClusterService {
 
                 clusterCpuCapacity = Double.parseDouble(allocatableMap.get("cpu").toString()) ;
                 clusterMemoryCapacity = Double.parseDouble(allocatableMap.get("memoryGb").toString()) ;
-                List<String> notWorkNodeList = nodeService.listNotWorkNode(cluster);
+                List<String> notWorkNodeList = nodeService.listNotPublicNode(cluster);
                 clusterCpuUsage = this.influxdbService.getClusterResourceUsage("node", "cpu/usage_rate","nodename", cluster, notWorkNodeList, hostName);
                 clusterCpuUsage = (double) clusterCpuUsage / 1000;
                 clusterCpuUsage = new BigDecimal(clusterCpuUsage).setScale(1, BigDecimal.ROUND_HALF_UP).doubleValue();
@@ -436,12 +453,83 @@ public class ClusterServiceImpl implements ClusterService {
                 map.put("clusterVolumeUsage", clusterVolumeUsage);
                 map.put("clusterVolumeUsageRateValue", new String[]{Double.toString(clusterVolumeUsageRateValue), Double.toString((double) (1 - clusterVolumeUsageRateValue))});
                 map.put("clusterVolumeUsageRateName", String.format("%.0f", clusterVolumeUsageRateValue * 100) + "%");
+                //节点gpu资源总量、使用量
+                if(StringUtils.isNotEmpty(hostName) && allocatableMap.get(CommonConstant.GPU) != null){
+                    int gpuCapacity = Integer.valueOf((String)allocatableMap.get(CommonConstant.GPU));
+                    int gpuUsage = this.getGpuUsage(hostName, cluster);
+                    map.put("gpuCapacity", gpuCapacity);
+                    map.put("gpuUsage", gpuUsage);
+                    String gpuRateName = "0%";
+                    double gpuUsageRate = 0;
+                    if(gpuCapacity != 0) {
+                        gpuUsageRate = new BigDecimal((double) gpuUsage / gpuCapacity).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue();
+                        gpuRateName = String.format("%.0f", gpuUsageRate * 100) + "%";
+                    }
+                    map.put("gpuUsageRateName", gpuRateName);
+                    map.put("gpuUsageRateValue", new String[]{Double.toString(gpuUsageRate), Double.toString((double) (1 - gpuUsageRate))});
+                }
                 mapClusterResourceUsage.put(cluster.getId(), map);
             }
-
         }
-
         return ActionReturnUtil.returnSuccessWithData(mapClusterResourceUsage);
+    }
+
+    /**
+     * 获取节点上的gpu使用量
+     * @param hostName
+     * @param cluster
+     * @return
+     */
+    private Integer getGpuUsage(String hostName, Cluster cluster) {
+        int gpuUsage = 0;
+        Node node = nodeService.getNode(hostName, cluster);
+        if(node != null && node.getMetadata().getLabels() != null){
+            Object privateNamespace = node.getMetadata().getLabels().get(CommonConstant.HARMONYCLOUD_TENANTNAME_NS);
+            if(privateNamespace != null){
+                privateNamespace.toString();
+            }
+        }
+        if(StringUtils.isNotEmpty(hostName)){
+            String selector = CommonConstant.SPEC_NODENAME + "=" + hostName;
+            Map<String, Object> body = new HashMap<>();
+            body.put(CommonConstant.FIELD_SELECTOR, selector);
+            K8SURL url = new K8SURL();
+            url.setResource(Resource.POD);
+            K8SClientResponse podRes = new K8sMachineClient().exec(url, HTTPMethod.GET, null, body, cluster);
+            if(HttpStatusUtil.isSuccessStatus(podRes.getStatus())){
+                PodList podList = JsonUtil.jsonToPojo(podRes.getBody(), PodList.class);
+                if(podList.getItems() != null && !CollectionUtils.isEmpty(podList.getItems())){
+                    for(Pod pod : podList.getItems()){
+                        boolean allocated = false;
+                        if(CommonConstant.POD_STATUS_PENDING.equalsIgnoreCase(pod.getStatus().getPhase())){
+                            List<PodCondition> podConditions = pod.getStatus().getConditions();
+                            if(!CollectionUtils.isEmpty(podConditions)){
+                                for(PodCondition podCondition : podConditions) {
+                                    if (podCondition.getType().equalsIgnoreCase(CommonConstant.POD_CONDITION_PODSCHEDULED)){
+                                        allocated = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }else if(CommonConstant.POD_STATUS_RUNNING.equalsIgnoreCase(pod.getStatus().getPhase())){
+                            allocated = true;
+                        }
+
+                        if(allocated){
+                            for(Container container : pod.getSpec().getContainers()){
+                                if(container.getResources() != null && container.getResources().getLimits() != null){
+                                    Map<String, Object> limits = (Map<String, Object>)container.getResources().getLimits();
+                                    if(limits.get(CommonConstant.NVIDIA_GPU) != null){
+                                        gpuUsage += Integer.valueOf(limits.get(CommonConstant.NVIDIA_GPU).toString());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return gpuUsage;
     }
 
 
@@ -533,11 +621,14 @@ public class ClusterServiceImpl implements ClusterService {
         podComStatus.put(K8sModuleEnum.ETCD.getCode(), Constant.STATUS_NORMAL);
         //deployment方式部署的组件
         Map<String, String> deployComStatus = new HashMap<>();
-        deployComStatus.put(K8sModuleEnum.ELASTICSEARCH.getCode(), Constant.STATUS_NORMAL);
         deployComStatus.put(K8sModuleEnum.KUBE_DNS.getCode(), Constant.STATUS_NORMAL);
         deployComStatus.put(K8sModuleEnum.NFS.getCode(), Constant.STATUS_NORMAL);
         deployComStatus.put(K8sModuleEnum.HEAPSTER.getCode(), Constant.STATUS_NORMAL);
         deployComStatus.put(K8sModuleEnum.INFLUXDB.getCode(), Constant.STATUS_NORMAL);
+        deployComStatus.put(K8sModuleEnum.CALICO_KUBE_CONTROLLER.getCode(), Constant.STATUS_NORMAL);
+        //statefulset方式部署的组件
+        Map<String, String> statefulsetComStatus = new HashMap<>();
+        statefulsetComStatus.put(K8sModuleEnum.ELASTICSEARCH.getCode(), Constant.STATUS_NORMAL);
         if (cluster.getNetworkType().equalsIgnoreCase(K8S_NETWORK_CALICO)) {
             deployComStatus.put(K8sModuleEnum.CALICO_KUBE_CONTROLLER.getCode(), Constant.STATUS_NORMAL);
         }
@@ -549,19 +640,21 @@ public class ClusterServiceImpl implements ClusterService {
             daemonsetComStatus.put(K8sModuleEnum.CALICO.getCode(), Constant.STATUS_NORMAL);
         }
         daemonsetComStatus.put(K8sModuleEnum.SERVICE_LOADBALANCER.getCode(), Constant.STATUS_NORMAL);
-        daemonsetComStatus.put(K8sModuleEnum.FLUENTD.getCode(), Constant.STATUS_NORMAL);
+        daemonsetComStatus.put(K8sModuleEnum.LOG_PILOT.getCode(), Constant.STATUS_NORMAL);
 
         Set<String> createdComponent = new HashSet<>();
         int podAbnormalCount = this.calPodComHealthy(createdComponent, podComStatus, cluster);
         int deployAbnormalCount = this.calDeployComHealthy(createdComponent, deployComStatus, cluster);
         int daemonsetAbnormalCount = this.calDaemonsetComHealthy(createdComponent, daemonsetComStatus, cluster);
-        int abnormalCount = podAbnormalCount + deployAbnormalCount + daemonsetAbnormalCount;
+        int statefulsetAbnormalCount = this.calStatefulsetComHealthy(createdComponent, statefulsetComStatus, cluster);
+        int abnormalCount = podAbnormalCount + deployAbnormalCount + daemonsetAbnormalCount + statefulsetAbnormalCount;
 
         //汇总所有组件的状态
         Map<String, Object> allComStatus = new HashMap<>();
         allComStatus.putAll(podComStatus);
         allComStatus.putAll(deployComStatus);
         allComStatus.putAll(daemonsetComStatus);
+        allComStatus.putAll(statefulsetComStatus);
         //设置组合组件的状态
         abnormalCount += this.calComposeComHealth(createdComponent, allComStatus, cluster);
 
@@ -755,6 +848,34 @@ public class ClusterServiceImpl implements ClusterService {
     }
 
     /**
+     * 查询使用Statefulset方式部署的组件状态
+     */
+    private int calStatefulsetComHealthy(Set<String> createdComponent, Map<String, String> map,
+                                       Cluster cluster) throws Exception {
+        int abnormalCount = 0;
+        StatefulSetList dsRes = statefulSetsService.listStatefulSets(KUBE_SYSTEM, null, cluster);
+        for (StatefulSet statefulSet : dsRes.getItems()) {
+            String statefulSetName = statefulSet.getMetadata().getName();
+            for (String code : map.keySet()) {
+                if (statefulSetName.startsWith(code)) {
+                    //设置已经创建的组件列表
+                    createdComponent.add(code);
+                    //设置状态为异常的组件，如果一个组件有多个pod，每个节点一个pod，如果其中一个pod状态不正常，则该组件状态为异常
+                    if (statefulSet.getStatus().getReplicas() != statefulSet.getStatus().getReadyReplicas()) {
+                        map.put(code, Constant.STATUS_ABNORMAL);
+                        if (!isComposeComponent(statefulSetName)) {
+                            abnormalCount++;
+                        }
+                        LOG.error("集群组件异常，名称：{}, 状态:{}", statefulSetName, JSONObject.toJSONString(statefulSet.getStatus()));
+                        continue;
+                    }
+                }
+            }
+        }
+        return abnormalCount;
+    }
+
+    /**
      * 设置组合组件的状态， 监控由heapster和influxdb组成， 日志由fluentd和es组成
      *
      * @param allComStatus
@@ -773,9 +894,9 @@ public class ClusterServiceImpl implements ClusterService {
             allComStatus.put(K8sModuleEnum.MONITOR.getCode(), Constant.STATUS_ABNORMAL);
         }
         //日志由fluentd和es组成, 前端判断日志根据es的code显示
-        if (createdComponent.contains(K8sModuleEnum.FLUENTD.getCode())
+        if (createdComponent.contains(K8sModuleEnum.LOG_PILOT.getCode())
                 && createdComponent.contains(K8sModuleEnum.ELASTICSEARCH.getCode())
-                && allComStatus.get(K8sModuleEnum.FLUENTD.getCode()).equals(Constant.STATUS_NORMAL)
+                && allComStatus.get(K8sModuleEnum.LOG_PILOT.getCode()).equals(Constant.STATUS_NORMAL)
                 && allComStatus.get(K8sModuleEnum.ELASTICSEARCH.getCode()).equals(Constant.STATUS_NORMAL)) {
             createdComponent.add(K8sModuleEnum.LOGGING.getCode());
             allComStatus.put(K8sModuleEnum.LOGGING.getCode(), Constant.STATUS_NORMAL);
@@ -797,7 +918,7 @@ public class ClusterServiceImpl implements ClusterService {
         }
         allComStatus.remove(K8sModuleEnum.HEAPSTER.getCode());
         allComStatus.remove(K8sModuleEnum.INFLUXDB.getCode());
-        allComStatus.remove(K8sModuleEnum.FLUENTD.getCode());
+        allComStatus.remove(K8sModuleEnum.LOG_PILOT.getCode());
         allComStatus.remove(K8sModuleEnum.ELASTICSEARCH.getCode());
         allComStatus.remove(K8sModuleEnum.CALICO_KUBE_CONTROLLER.getCode());
         return composeComAbnormalCount;
@@ -816,7 +937,7 @@ public class ClusterServiceImpl implements ClusterService {
         if(name.equals(K8sModuleEnum.ELASTICSEARCH.getK8sComponentName())){
             return true;
         }
-        if(name.equals(K8sModuleEnum.FLUENTD.getK8sComponentName())){
+        if(name.equals(K8sModuleEnum.LOG_PILOT.getK8sComponentName())){
             return true;
         }
         if(name.equals(K8sModuleEnum.CALICO.getK8sComponentName())){

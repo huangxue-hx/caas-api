@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.enumm.NodeTypeEnum;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.cluster.bean.NodeDrainProgress;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
@@ -56,7 +57,6 @@ import com.jcraft.jsch.Session;
 import org.springframework.util.CollectionUtils;
 
 import static com.harmonycloud.common.Constant.CommonConstant.*;
-import static com.harmonycloud.common.Constant.IngressControllerConstant.LABEL_VALUE_NGINX_CUSTOM;
 import static com.harmonycloud.service.platform.constant.Constant.NODESELECTOR_LABELS_PRE;
 
 @Service
@@ -91,21 +91,15 @@ public class NodeServiceImpl implements NodeService {
     protected static final ExecutorService executor = Executors.newFixedThreadPool(CommonConstant.NUM_FIVE);
 
     private static final Logger log = LoggerFactory.getLogger(NodeServiceImpl.class);
-    private static final String MASTER = "master";
-    private static final String SLAVE = "slave";
-    private static final String READY = "Ready";
     private static final String LABELSELECTOR = "labelSelector";
     private static final String SECCUSS = "1000";
     private static final int TIMEOUT = 700000;
     private static final String DEFAULT_POD_DRAIN_TIMEOUT = "1800s";
-    //共享
-    private static final int SHARESTATUS = 1;
-    //负债均衡
-    private static final int SLBSTATUS = 2;
-    //构建节点
-    private static final int BUILDSTATUS = 3;
-    //系统节点
-    private static final int SYSTEMSTATUS = 4;
+
+    //可以下线的节点类型，共享和闲置主机可以下线
+    private static final List<String> AVAILABLE_REMOVE_NODE_STATUS = Arrays.asList(
+            DictEnum.NODE_IDLE.getEnPhrase(),DictEnum.NODE_IDLE.getChPhrase(),
+            DictEnum.NODE_PUBLIC.getEnPhrase(),DictEnum.NODE_PUBLIC.getChPhrase());
 
     /**
      * Node列表
@@ -140,20 +134,13 @@ public class NodeServiceImpl implements NodeService {
                 this.addNodeStatus(node.getMetadata().getName(), cluster);
             }
             nodeDto.setNodeShareStatus(nodeSharedStatus);
-            nodeDto.setSortWeight(this.getSortWeight(nodeSharedStatus));
+            nodeDto.setSortWeight(NodeTypeEnum.getWeight(nodeSharedStatus));
             if(DictEnum.NODE_MASTER.phrase().equals(nodeSharedStatus)){
                 nodeDto.setType(CommonConstant.MASTERNODE);
             }
+            nodeDto.setStatus(this.getNodeReadyStatus(node.getStatus().getConditions()));
 
-            List<NodeCondition> conditions = node.getStatus().getConditions();
-            for (NodeCondition nodeCondition : conditions) {
-                if (nodeCondition.getType().equals("Ready")) {
-                    nodeDto.setStatus(nodeCondition.getStatus());
-                    break;
-                }
-            }
-
-            NodeDto dto = this.getHostUsege(node, nodeDto, cluster);
+            NodeDto dto = this.getHostUsage(node, nodeDto, cluster);
             List<Object> list = new ArrayList<Object>();
             // 显示主机标签
             if (labels != null) {
@@ -187,11 +174,11 @@ public class NodeServiceImpl implements NodeService {
         String nodeSharedStatus = this.getNodeSharedStatus(labelsMap);
         nodeDetailDto.setNodeShareStatus(nodeSharedStatus);
         if(DictEnum.NODE_PRIVATE.phrase().equals(nodeSharedStatus)){
-            Object o = labelsMap.get(CommonConstant.HARMONYCLOUD_TENANTNAME_NS);
+            Object o = labelsMap.get(CommonConstant.HARMONYCLOUD_TENANT_ID);
             if (!Objects.isNull(o)){
-                String[] labels = o.toString().split(CommonConstant.LINE);
-                if (labels.length>0){
-                    TenantBinding tenantBinding = this.tenantService.getTenantBytenantName(labels[0]);
+                String tenatId = o.toString();
+                if (StringUtils.isNotBlank(tenatId)){
+                    TenantBinding tenantBinding = this.tenantService.getTenantByTenantid(tenatId);
                     if (Objects.isNull(tenantBinding)){
                         nodeDetailDto.setTenantAliasName(MessageUtil.getMessage(ErrorCodeMessage.TENANTNOTINTHRCLUSTER));
                     } else {
@@ -215,10 +202,11 @@ public class NodeServiceImpl implements NodeService {
         }
 
         NodeDto nodedto = new NodeDto();
-        NodeDto hostUsege = this.getHostUsege(node, nodedto, cluster);
+        NodeDto hostUsege = this.getHostUsage(node, nodedto, cluster);
         nodeDetailDto.setMemory(hostUsege.getMemory());
         nodeDetailDto.setCpu(hostUsege.getCpu());
         nodeDetailDto.setDisk(hostUsege.getDisk());
+        nodeDetailDto.setGpu(hostUsege.getGpu());
         // 设置address
         List<NodeAddress> addresses = node.getStatus().getAddresses();
         nodeDetailDto.setAddresses(addresses);
@@ -226,25 +214,12 @@ public class NodeServiceImpl implements NodeService {
         List<ContainerImage> images = node.getStatus().getImages();
         nodeDetailDto.setImages(images);
         // 设置status
-        List<NodeCondition> conditions = node.getStatus().getConditions();
-        for (NodeCondition nodeCondition : conditions) {
-            if (nodeCondition.getType().equals("Ready")) {
-                nodeDetailDto.setStatus(nodeCondition.getStatus());
-                break;
-            }
-        }
+        nodeDetailDto.setStatus(this.getNodeReadyStatus(node.getStatus().getConditions()));
         nodeDetailDto.setArchitecture(node.getStatus().getNodeInfo().getArchitecture());
         nodeDetailDto.setContainerRuntimeVersion(node.getStatus().getNodeInfo().getContainerRuntimeVersion());
         Map<String, Object> capacity = (Map<String, Object>) node.getStatus().getCapacity();
         nodeDetailDto.setCreationTime(node.getMetadata().getCreationTimestamp());
 
-        Map<String, Object> allocatable = (Map<String, Object>) node.getStatus().getAllocatable();
-        if (allocatable.get("alpha.kubernetes.io/nvidia-gpu") != null) {
-            nodeDetailDto.setGpu(allocatable.get("alpha.kubernetes.io/nvidia-gpu").toString());
-        }
-        if (allocatable.get("gpu") != null) {
-            nodeDetailDto.setGpu(allocatable.get("gpu").toString());
-        }
         nodeDetailDto.setKernelVersion(node.getStatus().getNodeInfo().getKernelVersion());
         nodeDetailDto.setKubeProxyVersion(node.getStatus().getNodeInfo().getKubeProxyVersion());
         nodeDetailDto.setKubeletVersion(node.getStatus().getNodeInfo().getKubeletVersion());
@@ -520,36 +495,24 @@ public class NodeServiceImpl implements NodeService {
         Map<String, Object> headers = new HashMap<>();
         headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
         Map<String, Object> bodys = new HashMap<>();
-        bodys.put(CommonConstant.LABELSELECTOR, CommonConstant.HARMONYCLOUD_STATUS + "=" + CommonConstant.LABEL_STATUS_D);
+        String labelSelector = NodeTypeEnum.getNodeTypeLabel(NodeTypeEnum.PRIVATE);
+        labelSelector += "," + CommonConstant.HARMONYCLOUD_TENANTNAME_NS + "=" + namespace;
+        bodys.put(CommonConstant.LABELSELECTOR, labelSelector);
         NodeList nodeList = nodeService.listNodeByLabel(headers, bodys, cluster);
-        List<String> nodeDtoList = new ArrayList<>();
-        if (nodeList != null && nodeList.getItems() != null && !nodeList.getItems().isEmpty()) {
-            // 处理成为页面需要的值
-            List<Node> items = nodeList.getItems();
-            for (Node node : items) {
-                Map<String, Object> labels = node.getMetadata().getLabels();
-                Set<Entry<String, Object>> entrySet = labels.entrySet();
-                for (Entry<String, Object> entry : entrySet) {
-                    if (entry.getValue().toString().equals(namespace)) {
-                        List<NodeCondition> conditions = node.getStatus().getConditions();
-                        for(NodeCondition nodeCondition : conditions){
-                            if(nodeCondition.getType().equalsIgnoreCase("Ready")
-                                    && nodeCondition.getStatus().equalsIgnoreCase("True")){
-                                nodeDtoList.add(node.getMetadata().getName());
-                                break;
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
+        if(nodeList == null || CollectionUtils.isEmpty(nodeList.getItems())){
+            return Collections.emptyList();
         }
-        return nodeDtoList;
+        List<String> nodeNames = new ArrayList<>();
+        List<Node> items = nodeList.getItems();
+        for (Node node : items) {
+            nodeNames.add(node.getMetadata().getName());
+        }
+        return nodeNames;
     }
 
     @Override
     public List<NodeDto> listAllPrivateNode(Cluster cluster) throws Exception {
-        String label = CommonConstant.HARMONYCLOUD_STATUS + "=" + CommonConstant.LABEL_STATUS_D;
+        String label = NodeTypeEnum.getNodeTypeLabel(NodeTypeEnum.PRIVATE);
         List<NodeDto> nodeDtos = this.listNodeByLabel(label, cluster);
         return nodeDtos;
     }
@@ -599,7 +562,7 @@ public class NodeServiceImpl implements NodeService {
         Map<String, Object> headers = new HashMap<>();
         headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
         Map<String, Object> bodys = new HashMap<>();
-        bodys.put(CommonConstant.LABELSELECTOR, CommonConstant.HARMONYCLOUD_STATUS + "=" + CommonConstant.LABEL_STATUS_B);
+        bodys.put(CommonConstant.LABELSELECTOR,  NodeTypeEnum.getNodeTypeLabel(NodeTypeEnum.IDLE));
         NodeList nodeList = nodeService.listNodeByLabel(headers, bodys, cluster);
         List<String> nodeDtoList = new ArrayList<>();
         if (nodeList != null && nodeList.getItems() != null && !nodeList.getItems().isEmpty()) {
@@ -607,14 +570,14 @@ public class NodeServiceImpl implements NodeService {
             List<Node> items = nodeList.getItems();
             for (Node node : items) {
                 List<NodeCondition> conditions = node.getStatus().getConditions();
-                for(NodeCondition nodeCondition : conditions){
-                    if(nodeCondition.getType().equalsIgnoreCase("Ready")
-                            && nodeCondition.getStatus().equalsIgnoreCase("True")){
-                        nodeDtoList.add(node.getMetadata().getName());
-                        break;
+                if(org.apache.commons.collections.CollectionUtils.isNotEmpty(conditions)){
+                    for(NodeCondition nodeCondition : conditions){
+                        if(CommonConstant.NODE_CONDITION_READY.equals(nodeCondition.getType()) && CommonConstant.TRUE_STRING.equalsIgnoreCase(nodeCondition.getStatus())){
+                            nodeDtoList.add(node.getMetadata().getName());
+                            break;
+                        }
                     }
                 }
-
             }
         }
         return nodeDtoList;
@@ -694,7 +657,7 @@ public class NodeServiceImpl implements NodeService {
     }
 
     @Override
-    public ActionReturnUtil addNode(String host, String user, String passwd, String masterIp, String clusterId) throws Exception {
+    public ActionReturnUtil addNode(String host, String user, String passwd, String masterIp, String clusterId, Boolean isGPU) throws Exception {
         if (StringUtils.isAnyBlank(host, user, passwd, masterIp, clusterId)) {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INVALID_PARAMETER);
         }
@@ -731,6 +694,7 @@ public class NodeServiceImpl implements NodeService {
         params.put("passwd", passwd);
         params.put("masterIp", cluster.getHost());
         params.put("harborIp", harborServer.getHarborAddress());
+        params.put("isGPU", isGPU);
 
 
         Runnable worker = new Runnable() {
@@ -779,7 +743,7 @@ public class NodeServiceImpl implements NodeService {
 
     public void addNodeStatus(String host, Cluster cluster) {
         Map<String, String> newLabels = new HashMap<>();
-        newLabels.put(CommonConstant.HARMONYCLOUD_STATUS, CommonConstant.LABEL_STATUS_B);
+        newLabels.put(NodeTypeEnum.IDLE.getLabelKey(), NodeTypeEnum.IDLE.getLabelValue());
         newLabels.put("alpha.kubernetes.io/fluentd-ds-ready", "true");
         String hostname = null;
         try {
@@ -831,86 +795,29 @@ public class NodeServiceImpl implements NodeService {
         }
         ActionReturnUtil actionReturnUtil = this.listNode(clusterId);
         boolean success = actionReturnUtil.isSuccess();
-        List<NodeDto> nodeList = (List<NodeDto>) actionReturnUtil.get(CommonConstant.DATA);
+        List<NodeDto> nodeList = (List<NodeDto>) actionReturnUtil.getData();
         if (!success || CollectionUtils.isEmpty(nodeList)) {
             throw new MarsRuntimeException(ErrorCodeMessage.UNKNOWN);
         }
         //检查下线节点是否有效
-        boolean removed = Boolean.FALSE;
+        boolean nodeExist = Boolean.FALSE;
         for (NodeDto nodeDto : nodeList) {
-            switch (nodeDto.getNodeShareStatus()) {
-                case CommonConstant.MASTER_CN:
-                    if (host.equals(nodeDto.getIp())) {
-                        throw new MarsRuntimeException(ErrorCodeMessage.WORK_NODE_OFFLINE, CommonConstant.MASTER_CN, Boolean.TRUE);
-                    }
-                    break;
-                case CommonConstant.SYSTEM_CN:
-                    if (host.equals(nodeDto.getIp())) {
-                        throw new MarsRuntimeException(ErrorCodeMessage.WORK_NODE_OFFLINE, CommonConstant.SYSTEM_CN, Boolean.TRUE);
-                    }
-                    break;
-                case CommonConstant.BUILD_CN:
-                    if (host.equals(nodeDto.getIp())) {
-                        throw new MarsRuntimeException(ErrorCodeMessage.WORK_NODE_OFFLINE, CommonConstant.BUILD_CN, Boolean.TRUE);
-                    }
-                    break;
-                case CommonConstant.LBS_CN:
-                    if (host.equals(nodeDto.getIp())) {
-                        throw new MarsRuntimeException(ErrorCodeMessage.WORK_NODE_OFFLINE, CommonConstant.LBS_CN, Boolean.TRUE);
-                    }
-                    break;
-                case CommonConstant.PRIVATE_CN:
-                    if (host.equals(nodeDto.getIp())) {
-                        throw new MarsRuntimeException(ErrorCodeMessage.NODE_CANNOT_REMOVED, CommonConstant.PRIVATE_CN, Boolean.TRUE);
-                    }
-                    break;
-                case CommonConstant.SYSTEM_AND_LBS_CN:
-                    if (host.equals(nodeDto.getIp())) {
-                        throw new MarsRuntimeException(ErrorCodeMessage.NODE_CANNOT_REMOVED, CommonConstant.SYSTEM_AND_LBS_CN, Boolean.TRUE);
-                    }
-                    break;
-                case CommonConstant.MASTER_EN:
-                    if (host.equals(nodeDto.getIp())) {
-                        throw new MarsRuntimeException(ErrorCodeMessage.WORK_NODE_OFFLINE, CommonConstant.MASTER_EN, Boolean.TRUE);
-                    }
-                    break;
-                case CommonConstant.SYSTEM_EN:
-                    if (host.equals(nodeDto.getIp())) {
-                        throw new MarsRuntimeException(ErrorCodeMessage.WORK_NODE_OFFLINE, CommonConstant.SYSTEM_EN, Boolean.TRUE);
-                    }
-                    break;
-                case CommonConstant.BUILD_EN:
-                    if (host.equals(nodeDto.getIp())) {
-                        throw new MarsRuntimeException(ErrorCodeMessage.WORK_NODE_OFFLINE, CommonConstant.BUILD_EN, Boolean.TRUE);
-                    }
-                    break;
-                case CommonConstant.LBS_EN:
-                    if (host.equals(nodeDto.getIp())) {
-                        throw new MarsRuntimeException(ErrorCodeMessage.WORK_NODE_OFFLINE, CommonConstant.LBS_EN, Boolean.TRUE);
-                    }
-                    break;
-                case CommonConstant.PRIVATE_EN:
-                    if (host.equals(nodeDto.getIp())) {
-                        throw new MarsRuntimeException(ErrorCodeMessage.NODE_CANNOT_REMOVED, CommonConstant.PRIVATE_EN, Boolean.TRUE);
-                    }
-                    break;
-                case CommonConstant.SYSTEM_AND_LBS_EN:
-                    if (host.equals(nodeDto.getIp())) {
-                        throw new MarsRuntimeException(ErrorCodeMessage.NODE_CANNOT_REMOVED, CommonConstant.SYSTEM_AND_LBS_EN, Boolean.TRUE);
-                    }
-                    break;
-                default:
-                    if (host.equals(nodeDto.getIp())) {
-                        removed = Boolean.TRUE;
-                        break;
-                    }
+            if (!host.equals(nodeDto.getIp())) {
+                continue;
             }
-            if (removed) {
-                //下线节点正常，跳出检查，进行下线
-                break;
+            //共享和闲置节点可以下线，其他工作节点不能下线
+            if (!AVAILABLE_REMOVE_NODE_STATUS.contains(nodeDto.getNodeShareStatus())) {
+                throw new MarsRuntimeException(ErrorCodeMessage.WORK_NODE_OFFLINE);
             }
+            //检查共享节点下线是否会导致已经分配的集群资源不足
+            if (NodeTypeEnum.matchNodeType(nodeDto.getNodeShareStatus(), NodeTypeEnum.PUBLIC)
+                    && !checkNodeResourceRemovable(nodeDto, cluster)) {
+                throw new MarsRuntimeException(ErrorCodeMessage.NODE_REMOVE_RESOURCE_FAIL);
+            }
+            nodeExist = true;
+            break;
         }
-        if (!removed) {
+        if (!nodeExist) {
             throw new MarsRuntimeException(ErrorCodeMessage.NODE_NOT_EXIST, host, Boolean.TRUE);
         }
         String hostName = this.gethostname(host, cluster);
@@ -976,8 +883,8 @@ public class NodeServiceImpl implements NodeService {
         return map;
     }
 
-    public NodeDto getHostUsege(Node node, NodeDto nodeDto, Cluster cluster) {
-
+    @Override
+    public NodeDto getHostUsage(Node node, NodeDto nodeDto, Cluster cluster) {
         Object object = node.getStatus().getAllocatable();
         if (object != null) {
 
@@ -1009,7 +916,12 @@ public class NodeServiceImpl implements NodeService {
                         / 1024)/** 1.024*1.024*1.024 */
                 ));
             } catch (Exception e) {
-                log.error("获取节点磁盘空间失败,clusterId:{},node:{}", cluster.getId(), node.getMetadata().getName());
+                log.error("influxdb获取节点磁盘总量失败, clusterId:{}", cluster.getId(), e);
+            }
+
+            if(!Objects.isNull(((Map<String, Object>) object).get(CommonConstant.NVIDIA_GPU))) {
+                String gpuStr = ((Map<String, Object>) object).get(CommonConstant.NVIDIA_GPU).toString();
+                nodeDto.setGpu(gpuStr);
             }
         }
         return nodeDto;
@@ -1039,44 +951,31 @@ public class NodeServiceImpl implements NodeService {
      * @throws Exception
      */
     @Override
-    public void updateIdleNodeStatus(String nodeName, String clusterId, Integer nodeType) throws Exception {
+    public void updateIdleToWorkNodeStatus(String nodeName, String clusterId, String nodeType) throws Exception {
+        AssertUtil.notBlank(nodeType,DictEnum.NODE_TYPE);
+        NodeTypeEnum nodeTypeEnum = NodeTypeEnum.getNodeTypeByEnumName(nodeType.toUpperCase());
+        if(nodeTypeEnum == null){
+            throw new MarsRuntimeException(ErrorCodeMessage.NODE_TYPE_UNKNOWN);
+        }
         //获取集群
         Cluster cluster = clusterService.findClusterById(clusterId);
         Node node = this.nodeService.getNode(nodeName, cluster);
-        if (node != null) {
-            //获取节点标签
-            Map<String, Object> oldLabels = node.getMetadata().getLabels();
-            Boolean status= Boolean.FALSE;
-            if (oldLabels.get(CommonConstant.HARMONYCLOUD_STATUS) != null && CommonConstant.LABEL_STATUS_B.equals(oldLabels.get(CommonConstant.HARMONYCLOUD_STATUS))) {
-                status = Boolean.TRUE;
-            } else if (oldLabels.get(CommonConstant.HARMONYCLOUD_STATUS) != null) {
-                throw new MarsRuntimeException(ErrorCodeMessage.NODE_STATUS_REQUIRE);
-            }
-            // 更新labels
-            if (status) {
-                //A 表示关键组件布置的节点,B 表示闲置状态,C 表示共享状态,D 私有状态，可以供私有分区独占使用,E表示构建节点,F表示负载均衡节点
-                switch (nodeType){
-                    case SHARESTATUS :
-                        oldLabels.put(CommonConstant.HARMONYCLOUD_STATUS, CommonConstant.LABEL_STATUS_C);
-                        break;
-                    case SLBSTATUS :
-                        oldLabels.put(CommonConstant.HARMONYCLOUD_STATUS_LBS, CommonConstant.LABEL_STATUS_F);
-                        oldLabels.put(CommonConstant.HARMONYCLOUD_STATUS, CommonConstant.EMPTYSTRING);
-                        break;
-                    case BUILDSTATUS :
-                        oldLabels.put(CommonConstant.HARMONYCLOUD_STATUS, CommonConstant.LABEL_STATUS_E);
-                        break;
-                    case SYSTEMSTATUS :
-                        oldLabels.put(CommonConstant.HARMONYCLOUD_STATUS, CommonConstant.LABEL_STATUS_A);
-                        break;
-                    default :
-                        throw new MarsRuntimeException(ErrorCodeMessage.UNKNOWN);
-                }
-
-            }
-            // 更新K8s 标签
-            this.updateNode(oldLabels,cluster,node,nodeName);
+        if (node == null) {
+            throw new MarsRuntimeException(DictEnum.NODE.phrase(),ErrorCodeMessage.NOT_EXIST);
         }
+        //获取节点标签
+        Map<String, Object> oldLabels = node.getMetadata().getLabels();
+        //只有闲置主机能转换为其他类型节点
+        if (oldLabels.get(NodeTypeEnum.IDLE.getLabelKey()) == null
+                || !NodeTypeEnum.IDLE.getLabelValue().equals(oldLabels.get(NodeTypeEnum.IDLE.getLabelKey()))) {
+            throw new MarsRuntimeException(ErrorCodeMessage.NODE_STATUS_REQUIRE);
+        }
+        //删除闲置节点标签
+        oldLabels.remove(NodeTypeEnum.IDLE.getLabelKey());
+        //添加新类型节点标签
+        oldLabels.put(nodeTypeEnum.getLabelKey(), nodeTypeEnum.getLabelValue());
+        // 更新K8s 标签
+        this.updateNode(oldLabels,cluster,node,nodeName);
     }
 
     @Override
@@ -1098,23 +997,25 @@ public class NodeServiceImpl implements NodeService {
                 }
             }
             //获取节点标签
-            Map<String, Object> oldLabels = node.getMetadata().getLabels();
-            Boolean status= Boolean.FALSE;
-            // 更新labels
-            if (oldLabels.get(CommonConstant.HARMONYCLOUD_STATUS) != null) {
-                status = Boolean.TRUE;
-            } else if (oldLabels.get(CommonConstant.HARMONYCLOUD_STATUS) != null) {
-                throw new MarsRuntimeException(ErrorCodeMessage.NODE_LABEL_ERROR);
+            Map<String, Object> nodeLabels = node.getMetadata().getLabels();
+            //检查共享节点转换其他类型后是否会导致已经分配的集群配额资源不足
+            if(!checkNodeResourceRemovable(node, cluster)){
+                throw new MarsRuntimeException(ErrorCodeMessage.NODE_REMOVE_RESOURCE_FAIL);
             }
-            if (status) {
-                oldLabels.put(CommonConstant.HARMONYCLOUD_STATUS, CommonConstant.LABEL_STATUS_B);
+            Set<String> nodeTypeLabelKeys = NodeTypeEnum.getNodeTypeLabelKeys();
+            //删除除master之外的节点类型标签
+            for(String labelKey : nodeTypeLabelKeys){
+                if(labelKey.equals(NodeTypeEnum.MASTER.getLabelKey())){
+                    continue;
+                }
+                if(nodeLabels.get(labelKey) != null){
+                    nodeLabels.remove(labelKey);
+                }
             }
-            //清除负载均衡标签
-            if (oldLabels.get(CommonConstant.HARMONYCLOUD_STATUS_LBS) != null) {
-                oldLabels.remove(CommonConstant.HARMONYCLOUD_STATUS_LBS);
-            }
+            //添加闲置节点类型标签
+            nodeLabels.put(NodeTypeEnum.IDLE.getLabelKey(),NodeTypeEnum.IDLE.getLabelValue());
             // 更新K8s 标签
-            this.updateNode(oldLabels,cluster,node,nodeName);
+            this.updateNode(nodeLabels,cluster,node,nodeName);
         }
     }
     private void updateNode(Map<String, Object> oldLabels,Cluster cluster,Node node,String nodeName) throws Exception {
@@ -1383,6 +1284,10 @@ public class NodeServiceImpl implements NodeService {
         List<NodeBriefDto> nodeBriefDtoList = new ArrayList<>();
         for (Cluster cluster : clusters){
             NodeList nodeList = nodeService.listNode(cluster);
+            if (Objects.isNull(nodeList) || nodeList.getItems().isEmpty()) {
+                log.warn("获取node列表失败，clusterId:{}", cluster.getId());
+                continue;
+            }
             for (Node node : nodeList.getItems()){
                 NodeBriefDto nodeBriefDto = new NodeBriefDto(cluster.getId(), node.getMetadata().getName());
                 for (NodeCondition condition : node.getStatus().getConditions()){
@@ -1427,81 +1332,69 @@ public class NodeServiceImpl implements NodeService {
      * @return
      */
     private String getNodeSharedStatus(Map<String, Object> nodeLabels) {
-        if (nodeLabels.get(CommonConstant.MASTERNODELABEL) != null) {
-            return DictEnum.NODE_MASTER.phrase();
-        }
-        String nodeSharedStatus = null;
-        boolean lbNode = false;
-        if (nodeLabels.get(HARMONYCLOUD_STATUS_LBS) != null
-                && (nodeLabels.get(HARMONYCLOUD_STATUS_LBS).equals(CommonConstant.LABEL_STATUS_F)
-                || nodeLabels.get(HARMONYCLOUD_STATUS_LBS).equals(LABEL_VALUE_NGINX_CUSTOM))) {
-            lbNode = true;
-            nodeSharedStatus = DictEnum.NODE_LB.phrase();
-        }
-        String nodeStatusLabel = null;
-        if (nodeLabels.get(CommonConstant.HARMONYCLOUD_STATUS) != null) {
-            nodeStatusLabel = nodeLabels.get(CommonConstant.HARMONYCLOUD_STATUS).toString();
-        }
-        if (nodeStatusLabel == null) {
-            return nodeSharedStatus;
-        }
-        switch (nodeStatusLabel) {
-            case LABEL_STATUS_A:
-                if (lbNode) {
-                    return DictEnum.NODE_SYSTEMANDSLB.phrase();
-                } else {
-                    return DictEnum.NODE_SYSTEM.phrase();
+        String nodeSharedStatus = "";
+        Set<String> nodeTypeLabels = NodeTypeEnum.getNodeTypeLabelKeys();
+        for(String labelKey : nodeTypeLabels){
+            if (nodeLabels.get(labelKey) != null) {
+                String value = nodeLabels.get(labelKey).toString();
+                String nodeType = NodeTypeEnum.getNodeType(labelKey, value);
+                if(StringUtils.isBlank(nodeType)){
+                    continue;
                 }
-            case LABEL_STATUS_B:
-                return DictEnum.NODE_IDLE.phrase();
-            case LABEL_STATUS_C:
-                return DictEnum.NODE_PUBLIC.phrase();
-            case LABEL_STATUS_D:
-                return DictEnum.NODE_PRIVATE.phrase();
-            case LABEL_STATUS_E:
-                return DictEnum.NODE_BUILD.phrase();
-            default:
-                return nodeSharedStatus;
+                nodeSharedStatus += nodeType + COMMA;
+            }
         }
+        if(nodeSharedStatus.length() > 0){
+            return nodeSharedStatus.substring(0, nodeSharedStatus.length()-1);
+        }
+        return nodeSharedStatus;
+    }
+
+    private String getNodeReadyStatus(List<NodeCondition> conditions){
+        if(CollectionUtils.isEmpty(conditions)){
+            return null;
+        }
+        for (NodeCondition nodeCondition : conditions) {
+            if (nodeCondition.getType().equalsIgnoreCase(CommonConstant.NODE_CONDITION_READY)) {
+                return nodeCondition.getStatus();
+            }
+        }
+        return null;
     }
 
     /**
-     * 节点列表排序,顺序
+     * 根据共享资源分配情况检查共享节点是否可以下线或者转换为其他类型
+     * @return true-校验通过，可移除，false-校验不通过，不能操作
      */
-    private int getSortWeight(String nodeShareStatus){
-        if(DictEnum.NODE_MASTER.getChPhrase().equals(nodeShareStatus)
-                || DictEnum.NODE_MASTER.getEnPhrase().equals(nodeShareStatus)){
-            return CommonConstant.NUM_ONE;
+    private boolean checkNodeResourceRemovable(Node node, Cluster cluster) throws Exception {
+        Map<String, Object> nodeLabels = node.getMetadata().getLabels();
+        //只有移除共享节点才需要校验资源配额分配
+        if(nodeLabels.get(NodeTypeEnum.PUBLIC.getLabelKey()) == null
+                || !nodeLabels.get(NodeTypeEnum.PUBLIC.getLabelKey()).equals(NodeTypeEnum.PUBLIC.getLabelValue())){
+            return true;
         }
-        if(DictEnum.NODE_SYSTEM.getChPhrase().equals(nodeShareStatus)
-                || DictEnum.NODE_SYSTEM.getEnPhrase().equals(nodeShareStatus)){
-            return CommonConstant.NUM_TWO;
+        NodeDto nodeDto = new NodeDto();
+        this.getHostUsage(node, nodeDto, cluster);
+        return checkNodeResourceRemovable(nodeDto, cluster);
+    }
+
+    /**
+     * 根据共享资源分配情况检查共享节点是否可以下线或者转换为其他类型
+     * @return true-校验通过，可移除，false-校验不通过，不能操作
+     */
+    private boolean checkNodeResourceRemovable(NodeDto nodeDto, Cluster cluster) throws Exception {
+        Map<String, Map<String, Object>> clusterUsageMap = clusterService.getClusterAllocatedResources(cluster.getId());
+        Map<String, Object> clusterUsage = clusterUsageMap.get(cluster.getId());
+        Double clusterUnUsedMemory = Double.parseDouble(clusterUsage.get("clusterMemoryAllocatedResources").toString());
+        //如果移除该共享节点后剩余可分配小于0，则不能移除
+        if (clusterUnUsedMemory - Double.parseDouble(nodeDto.getMemory()) < 0) {
+            return false;
         }
-        if(DictEnum.NODE_SYSTEMANDSLB.getChPhrase().equals(nodeShareStatus)
-                || DictEnum.NODE_SYSTEMANDSLB.getEnPhrase().equals(nodeShareStatus)){
-            return CommonConstant.NUM_THREE;
+        Double clusterUnUsedCpu = Double.parseDouble(clusterUsage.get("clusterCpuAllocatedResources").toString());
+        if (clusterUnUsedCpu - Double.parseDouble(nodeDto.getCpu()) < 0) {
+            return false;
         }
-        if(DictEnum.NODE_BUILD.getChPhrase().equals(nodeShareStatus)
-                || DictEnum.NODE_BUILD.getEnPhrase().equals(nodeShareStatus)){
-            return CommonConstant.NUM_FOUR;
-        }
-        if(DictEnum.NODE_LB.getChPhrase().equals(nodeShareStatus)
-                || DictEnum.NODE_LB.getEnPhrase().equals(nodeShareStatus)){
-            return CommonConstant.NUM_FIVE;
-        }
-        if(DictEnum.NODE_PRIVATE.getChPhrase().equals(nodeShareStatus)
-                || DictEnum.NODE_PRIVATE.getEnPhrase().equals(nodeShareStatus)){
-            return CommonConstant.NUM_SIX;
-        }
-        if(DictEnum.NODE_PUBLIC.getChPhrase().equals(nodeShareStatus)
-                || DictEnum.NODE_PUBLIC.getEnPhrase().equals(nodeShareStatus)){
-            return CommonConstant.NUM_SEVEN;
-        }
-        if(DictEnum.NODE_IDLE.getChPhrase().equals(nodeShareStatus)
-                || DictEnum.NODE_IDLE.getEnPhrase().equals(nodeShareStatus)){
-            return CommonConstant.NUM_EIGHT;
-        }
-        return CommonConstant.NUM_NINE;
+        return true;
     }
 
 

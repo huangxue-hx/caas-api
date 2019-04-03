@@ -8,28 +8,18 @@ package com.harmonycloud.common.enumm;
  */
 public enum AuditQueryDbEnum {
 
-    USERSERVICE(1),
-    ROLELOCALSERVICE(2),
-    BUILDENVIRONMENTSERVICE(3),
-    DOCKERFILESERVICE(4),
-    JOBSERVICE(5),
-    TENANTSERVICE(6),
-    NAMESPACELOCALSERVICE(7),
-    HARBORPROJECTSERVICE(8),
-    LOCALROLESERVICE(9),
-    CLUSTERSERVICE(10),
-    LOGBACKUPRULEMAPPER(11),
-    CONFIGCENTERSERVICE(12),
-    PROJECT(13);
-
-    private final Integer code;
-
-    AuditQueryDbEnum(Integer code) {
-        this.code = code;
-    }
-
-    public Integer getCode() {
-        return code;
-    }
+    USERSERVICE(),
+    ROLELOCALSERVICE(),
+    BUILDENVIRONMENTSERVICE(),
+    DOCKERFILESERVICE(),
+    JOBSERVICE(),
+    TENANTSERVICE(),
+    NAMESPACELOCALSERVICE(),
+    HARBORPROJECTSERVICE(),
+    LOCALROLESERVICE(),
+    CLUSTERSERVICE(),
+    LOGBACKUPRULEMAPPER(),
+    CONFIGCENTERSERVICE(),
+    PROJECT();
 
 }

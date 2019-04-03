@@ -124,6 +124,17 @@ public class HarborProjectController {
 		return ActionReturnUtil.returnSuccessWithData(harborProjectService.findRepositoryById(repositoryId));
 	}
 
+	/**
+	 * 查询镜像可以推送的环境
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/{repositoryId}/syncclusters", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil listSyncClusters(@PathVariable(value = "repositoryId") Integer repositoryId)throws Exception{
+		return ActionReturnUtil.returnSuccessWithData(harborProjectService.listSyncClusters(repositoryId, null, null));
+	}
+
 	/**查找某个镜像仓库的详情,包括各个镜像的详细信息
 	 *
 	 * @return

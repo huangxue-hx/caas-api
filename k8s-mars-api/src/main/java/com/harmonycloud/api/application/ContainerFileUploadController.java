@@ -3,6 +3,7 @@ package com.harmonycloud.api.application;
 
 import javax.servlet.http.HttpServletRequest;
 
+import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import org.apache.commons.lang3.StringUtils;
@@ -15,6 +16,9 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.ContainerFileUploadDto;
 import com.harmonycloud.dto.application.Progress;
 import com.harmonycloud.service.application.FileUploadToContainerService;
+
+import java.util.List;
+
 /**
  *
  * @author jmi
@@ -35,12 +39,12 @@ public class ContainerFileUploadController {
 	@RequestMapping(value="/file/uploadToNode", method = RequestMethod.POST)
 	@ResponseBody
 	public ActionReturnUtil uploadFileToNode(
-            @RequestParam(value="file") MultipartFile file,
+            @RequestParam(value="file") MultipartFile[] files,
             @RequestParam(value="pods") String pods,
             @RequestParam(value="namespace") String namespace,
             @PathVariable(value="deployName") String deployment,
             @RequestParam(value="containerFilePath") String containerFilePath) throws Exception {
-		return fileUploadToContainerService.fileUploadToNode(pods, namespace, deployment, containerFilePath, file);
+		return fileUploadToContainerService.fileUploadToNode(pods, namespace, deployment, containerFilePath, files);
 	}
 	
 	@RequestMapping(value="/file/upload", method = RequestMethod.POST)
@@ -71,15 +75,14 @@ public class ContainerFileUploadController {
 	@RequestMapping(value="/files", method = RequestMethod.GET)
 	@ResponseBody
 	public ActionReturnUtil listFileByPath(@RequestParam(value="namespace") String namespace,
-			                               @RequestParam(value="containerFilePath") String containerFilePath,
-			                               @RequestParam(value="container", required=false) String container,
-			                               @RequestParam(value="pod") String pod) throws Exception {
+										   @RequestParam(value="containerFilePath") String containerFilePath,
+										   @RequestParam(value="containers")String containers) throws Exception {
 		String path = classLoader.getResource("shell/lsContainerFile.sh")
 				.getPath();
 		if (StringUtils.isBlank(path)) {
 			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.SCRIPT_NOT_EXIST);
 		}
-		return fileUploadToContainerService.lsContainerFile(namespace, containerFilePath, container, pod, path);
+		return fileUploadToContainerService.lsContainerFile(namespace, containerFilePath, containers, path);
 	}
 	
 	@RequestMapping(value="/file/upload/record", method = RequestMethod.DELETE)
@@ -92,7 +95,8 @@ public class ContainerFileUploadController {
 	@RequestMapping(value = "/file/upload/progress", method = RequestMethod.GET )
 	@ResponseBody
 	public ActionReturnUtil getUploadFileProgress(HttpServletRequest request) throws Exception {
-		Progress status = (Progress) request.getSession().getAttribute("upload_ps");
+		Object uploadStatus = request.getSession().getAttribute("upload_ps");
+		Progress status = JSONObject.parseObject(uploadStatus.toString(),Progress.class);
 		return ActionReturnUtil.returnSuccessWithData(status);
 	}
 	

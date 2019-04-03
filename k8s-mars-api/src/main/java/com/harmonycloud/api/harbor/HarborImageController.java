@@ -295,8 +295,9 @@ public class HarborImageController {
 	@RequestMapping(value = "/images/search", method = RequestMethod.GET)
 	@ResponseBody
 	public ActionReturnUtil getImage(@PathVariable(value="projectId") String projectId,
-									 @RequestParam(value="clusterId", required = false) String clusterId)throws Exception{
-		return harborService.getImagesByProjectId(projectId, clusterId);
+									 @RequestParam(value="clusterId", required = false) String clusterId,
+									 @RequestParam(value="appStore", required = false) boolean isAppStore)throws Exception{
+		return harborService.getImagesByProjectId(projectId, clusterId, isAppStore);
 	}
 
 	/**
@@ -317,8 +318,9 @@ public class HarborImageController {
 									   @RequestParam(value = "clusterId", required = false) String clusterId,
 									   @RequestParam(value = "pageSize", required = false) Integer pageSize,
 									   @RequestParam(value = "pageNo", required = false) Integer pageNo,
-									   @RequestParam(value = "isPublic", required = false) Boolean isPublic)throws Exception {
-		return harborProjectService.listImages(projectId,clusterId, pageSize, pageNo, isPublic);
+									   @RequestParam(value = "isPublic", required = false) Boolean isPublic,
+									   @RequestParam(value = "appStore", required = false) boolean isAppStore)throws Exception {
+		return harborProjectService.listImages(projectId,clusterId, pageSize, pageNo, isPublic, isAppStore);
 	}
 
 

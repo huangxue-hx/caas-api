@@ -8,7 +8,6 @@ import java.util.Date;
 public class RuleOverview implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private Integer id;
     private String ruleName;
     private String ruleId;
     private String ruleType;
@@ -20,18 +19,9 @@ public class RuleOverview implements Serializable {
     private Integer switchStatus;//0：关闭状态；1：开启状态；
     private Integer dataStatus = CommonConstant.DATA_IS_OK;//0：正常
     private Integer dataErrLoc = CommonConstant.DATA_IS_OK;
-    private String userId;
+    private String userName;
     private Date createTime;
     private Date updateTime;
-
-
-    public Integer getId() {
-        return id;
-    }
-
-    public void setId(Integer id) {
-        this.id = id;
-    }
 
     public String getRuleName() {
         return ruleName;
@@ -121,12 +111,12 @@ public class RuleOverview implements Serializable {
         this.dataErrLoc = dataErrLoc;
     }
 
-    public String getUserId() {
-        return userId;
+    public String getUserName() {
+        return userName;
     }
 
-    public void setUserId(String userId) {
-        this.userId = userId;
+    public void setUserName(String userName) {
+        this.userName = userName;
     }
 
     public Date getCreateTime() {

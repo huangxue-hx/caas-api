@@ -47,6 +47,13 @@ public class MarsRuntimeException extends RuntimeException {
         this.errorMessage = ErrorCodeMessage.getMessageWithLanguage(error,extendMessage,prefix);
     }
 
+    public MarsRuntimeException(ErrorCodeMessage error, boolean isPlaceHolder, String... extendMessage) {
+        this(error,"",false);
+        if(isPlaceHolder) {
+            this.errorMessage = ErrorCodeMessage.getMessageWithLanguage(error, extendMessage);
+        }
+    }
+
     public MarsRuntimeException(String message, Throwable cause) {
         super(message, cause);
     }

@@ -18,6 +18,8 @@ public class StorageDto {
 
     private String allocatableQuota = "0";
 
+    private int allocatedStorage;
+
     private String storageType = "GB";
 
     public String getName() {
@@ -74,5 +76,13 @@ public class StorageDto {
 
     public void setAllocatableQuota(String allocatableQuota) {
         this.allocatableQuota = allocatableQuota;
+    }
+
+    public int getAllocatedStorage() {
+        return allocatedStorage;
+    }
+
+    public void setAllocatedStorage(int allocatedStorage) {
+        this.allocatedStorage = allocatedStorage;
     }
 }

@@ -15,9 +15,9 @@ public enum ClusterLevelEnum {
 	UAT(3),
 	PRD(4);
 
-	private Integer level;
+	private int level;
 
-	ClusterLevelEnum(Integer level) {
+	ClusterLevelEnum(int level) {
 		this.level = level;
 	}
 	
@@ -30,7 +30,7 @@ public enum ClusterLevelEnum {
 		return null;
 	}
 
-	public Integer getLevel() {
+	public int getLevel() {
 		return level;
 	}
 	

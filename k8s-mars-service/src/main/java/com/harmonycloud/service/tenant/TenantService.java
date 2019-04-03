@@ -27,6 +27,8 @@ public interface TenantService {
      */
     public List<TenantDto> tenantList() throws Exception;
 
+    List<TenantDto> listTenantBrief() throws Exception;
+
     /**
      * 切换租户
      * @param tenantId
@@ -34,6 +36,11 @@ public interface TenantService {
      * @throws Exception
      */
     public Map<String,Object> switchTenant(String tenantId) throws Exception;
+
+    /**
+     * 设置当前租户，项目，角色信息
+     */
+    Map<String,Object> setCurrentTenant(String tenantId, String tenantAliasName, String username, boolean isAdmin) throws Exception;
     /**
      * 根据用户名查询租户列表(返回租户表数据)
      * @return

@@ -21,6 +21,9 @@ public class FaultInjectionDto extends BaseIstioPolicyDto {
     @ApiModelProperty(value = "错误code注入百分比", name = "httpStatus", example = "10")
     private String codePercent;
 
+    @ApiModelProperty(value = "服务域名external", name = "host", example = "0", notes = "external时使用")
+    private String host;
+
     public String getFixedDelay() {
         return fixedDelay;
     }
@@ -51,5 +54,13 @@ public class FaultInjectionDto extends BaseIstioPolicyDto {
 
     public void setCodePercent(String codePercent) {
         this.codePercent = codePercent;
+    }
+
+    public String getHost() {
+        return host;
+    }
+
+    public void setHost(String host) {
+        this.host = host;
     }
 }

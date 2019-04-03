@@ -124,7 +124,7 @@ public class AuthController {
             Map<String, Object> data = new HashMap<String, Object>();
             Map<String, Object> token = authService.generateToken(user);
             K8SClient.getTokenMap().put(username, token.get("token"));
-            data.put("username", user.getUsername());
+            data.put("username", user.getUsername().toLowerCase());
             data.put("isSuperAdmin", user.getIsAdmin());
             data.put("token", session.getId());
 //            data.put("secrit",checkedSecret);

@@ -2,22 +2,12 @@ package com.harmonycloud.service.tenant.impl;
 
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.util.AssertUtil;
-import com.harmonycloud.dao.user.RolePrivilegeMapper;
-import com.harmonycloud.dao.user.ResourceMapper;
 import com.harmonycloud.dao.user.RoleMapper;
 import com.harmonycloud.dao.user.bean.*;
-import com.harmonycloud.k8s.service.RoleBindingService;
-import com.harmonycloud.service.user.RolePrivilegeService;
 import com.harmonycloud.service.tenant.RoleService;
-import com.harmonycloud.service.tenant.TenantService;
-import com.harmonycloud.service.user.ResourceService;
-import com.harmonycloud.service.user.UserRoleRelationshipService;
 import com.harmonycloud.service.user.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import javax.servlet.http.HttpSession;
 import java.util.List;
 import java.util.Map;
 
@@ -25,31 +15,12 @@ import java.util.Map;
  * Created by zsl on 16/10/25.
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class RoleServiceImpl implements RoleService {
 
     @Autowired
     private RoleMapper roleMapper;
     @Autowired
     private UserService userService;
-    @Autowired
-    private HttpSession session;
-    @Autowired
-    private RolePrivilegeService rolePrivilegeService;
-    @Autowired
-    private ResourceService resourceService;
-    @Autowired
-    private ResourceMapper resourceMapper;
-    @Autowired
-    private RolePrivilegeMapper rolePrivilegeMapper;
-    @Autowired
-    private TenantService tenantService;
-    @Autowired
-    private RoleBindingService roleBindingService;
-    @Autowired
-    private UserRoleRelationshipService userRoleRelationshipService;
-    @Autowired
-    private com.harmonycloud.service.user.RoleService roleService;
 
     /**
      * 获取role列表

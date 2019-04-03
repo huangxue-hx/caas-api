@@ -191,7 +191,7 @@ public class StatefulSetController {
     public ActionReturnUtil podList(@PathVariable(value = "statefulSetName") String name,
                                     @RequestParam(value = "namespace") String namespace) throws Exception {
 
-        return ActionReturnUtil.returnSuccessWithData(statefulSetsService.podList(name, namespace));
+        return ActionReturnUtil.returnSuccessWithData(statefulSetsService.podList(name, namespace, true));
 
     }
 

@@ -24,4 +24,6 @@ public interface RuleOverviewMapper {
     void updateDataStatus(RuleOverview ruleOverview);
 
     RuleOverview selectByRuleId(String ruleId);
+
+    void  deleteIstioPolicy(Map ruleInfo);
 }

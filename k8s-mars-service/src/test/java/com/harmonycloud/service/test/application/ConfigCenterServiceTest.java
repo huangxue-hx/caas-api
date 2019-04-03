@@ -80,7 +80,7 @@ public class ConfigCenterServiceTest extends BaseTest {
         assertTrue(response.isSuccess());
         JSONObject jsonObject = (JSONObject)response.getData();
         String tag = jsonObject.get("tag").toString();
-        ActionReturnUtil configMap = configCenterService.getLatestConfigMap(testConfigName,projectId,testRepoName,devClusterId,tag);
+        ActionReturnUtil configMap = configCenterService.getLatestConfigMap(testConfigName,projectId,testRepoName,devClusterId,tag, false);
         assertTrue(configMap.isSuccess());
         assertNotNull(configMap.getData());
         ConfigDetailDto configDetailDto = (ConfigDetailDto)configMap.getData();
@@ -106,7 +106,7 @@ public class ConfigCenterServiceTest extends BaseTest {
         assertTrue(response.isSuccess());
         JSONObject jsonObject = (JSONObject)response.getData();
         String tag = jsonObject.get("tag").toString();
-        ActionReturnUtil configMap = configCenterService.getLatestConfigMap(testConfigName,projectId,testRepoName,devClusterId,tag);
+        ActionReturnUtil configMap = configCenterService.getLatestConfigMap(testConfigName,projectId,testRepoName,devClusterId,tag, false);
         assertTrue(configMap.isSuccess());
         assertNotNull(configMap.getData());
         String id = ((ConfigDetailDto)configMap.getData()).getId();
@@ -130,7 +130,7 @@ public class ConfigCenterServiceTest extends BaseTest {
         configFileItemList.add(1,configFileItem1);
         configDetail.setConfigFileItemList(configFileItemList);
         configCenterService.updateConfig(configDetail,adminUserName);
-        configMap = configCenterService.getLatestConfigMap(testConfigName,projectId,testRepoName,devClusterId,tag);
+        configMap = configCenterService.getLatestConfigMap(testConfigName,projectId,testRepoName,devClusterId,tag, false);
         assertTrue(configMap.isSuccess());
         assertNotNull(configMap.getData());
         ConfigDetailDto configDetailDto = (ConfigDetailDto)configMap.getData();
@@ -148,7 +148,7 @@ public class ConfigCenterServiceTest extends BaseTest {
         session.setAttribute(CommonConstant.ROLEID,1);
         ActionReturnUtil response = configCenterService.saveConfig(configDetail,adminUserName);
         assertTrue(response.isSuccess());
-        ActionReturnUtil configMap = configCenterService.searchConfig(projectId,devClusterId,testRepoName,"configtest");
+        ActionReturnUtil configMap = configCenterService.searchConfig(projectId,devClusterId,testRepoName,"configtest", false);
         assertTrue(configMap.isSuccess());
         Collection<ConfigFile> configFiles = (Collection<ConfigFile>)configMap.getData();
         assertTrue(configFiles.size() == 1);
@@ -160,11 +160,11 @@ public class ConfigCenterServiceTest extends BaseTest {
         assertTrue(response.isSuccess());
         JSONObject jsonObject = (JSONObject)response.getData();
         String tag = jsonObject.get("tag").toString();
-        ActionReturnUtil configMap = configCenterService.getLatestConfigMap(testConfigName,projectId,testRepoName,devClusterId,tag);
+        ActionReturnUtil configMap = configCenterService.getLatestConfigMap(testConfigName,projectId,testRepoName,devClusterId,tag, false);
         assertTrue(configMap.isSuccess());
         assertNotNull(configMap.getData());
         ConfigDetailDto data = (ConfigDetailDto) configMap.getData();
-        configCenterService.deleteConfig(data.getId(),configDetail.getProjectId());
+        configCenterService.deleteConfig(data.getId(),configDetail.getProjectId(), false);
         assertNotNull(data.getId());
     }
     @Test
@@ -177,7 +177,7 @@ public class ConfigCenterServiceTest extends BaseTest {
 
     @Test
     public void testDeleteConfigMap() throws Exception {
-        ActionReturnUtil response = configCenterService.deleteConfigMap(testConfigName, configDetail.getProjectId(), devClusterId);
+        ActionReturnUtil response = configCenterService.deleteConfigMap(testConfigName, configDetail.getProjectId(), devClusterId, false);
         assertTrue(response.isSuccess());
     }
 
@@ -187,7 +187,7 @@ public class ConfigCenterServiceTest extends BaseTest {
         assertTrue(response.isSuccess());
         JSONObject jsonObject = (JSONObject)response.getData();
         String tag = jsonObject.get("tag").toString();
-        ActionReturnUtil configMap = configCenterService.getLatestConfigMap(testConfigName,projectId,testRepoName,devClusterId,tag);
+        ActionReturnUtil configMap = configCenterService.getLatestConfigMap(testConfigName,projectId,testRepoName,devClusterId,tag, false);
         assertTrue(configMap.isSuccess());
         assertNotNull(configMap.getData());
         ConfigDetailDto data = (ConfigDetailDto) configMap.getData();
@@ -202,7 +202,7 @@ public class ConfigCenterServiceTest extends BaseTest {
         assertTrue(response.isSuccess());
         JSONObject jsonObject = (JSONObject)response.getData();
         String tag = jsonObject.get("tag").toString();
-        ActionReturnUtil configMap = configCenterService.getLatestConfigMap(testConfigName,projectId,testRepoName,devClusterId,tag);
+        ActionReturnUtil configMap = configCenterService.getLatestConfigMap(testConfigName,projectId,testRepoName,devClusterId,tag, false);
         assertTrue(configMap.isSuccess());
         assertNotNull(configMap.getData());
     }
@@ -226,7 +226,7 @@ public class ConfigCenterServiceTest extends BaseTest {
 
     @Test
     public void testGetConfigMapByName() throws Exception {
-        ActionReturnUtil configMapByName = configCenterService.getConfigMapByName(testConfigName, devClusterId, configDetail.getProjectId(), false);
+        ActionReturnUtil configMapByName = configCenterService.getConfigMapByName(testConfigName, devClusterId, configDetail.getProjectId(), false, false);
         assertTrue(configMapByName.isSuccess());
         assertNotNull(configMapByName.getData());
     }
@@ -253,7 +253,7 @@ public class ConfigCenterServiceTest extends BaseTest {
         assertNotNull(configMapUtil);
         assertNotNull(((ConfigDetailDto)configMapUtil.getData()).getDeploymentList());
 
-        ActionReturnUtil latestConfigMap = configCenterService.getLatestConfigMap(configMap.getName(), projectId, configMap.getRepoName(), configMap.getClusterId(), configMap.getTags());
+        ActionReturnUtil latestConfigMap = configCenterService.getLatestConfigMap(configMap.getName(), projectId, configMap.getRepoName(), configMap.getClusterId(), configMap.getTags(), false);
         assertNotNull(latestConfigMap);
         assertNotNull(((ConfigDetailDto) latestConfigMap.getData()).getDeploymentList());
 
@@ -273,14 +273,14 @@ public class ConfigCenterServiceTest extends BaseTest {
 
     @Test
     public void testGetEditionByConfigName(){
-        ActionReturnUtil tagsUtil= configCenterService.getTagsByConfigName("log-create","cluster-top--dev","aabc0a6f31d543e6a27f6042cddd91ad");
+        ActionReturnUtil tagsUtil= configCenterService.getTagsByConfigName("log-create","cluster-top--dev","aabc0a6f31d543e6a27f6042cddd91ad", false);
         assertNotNull(tagsUtil);
     }
 
     @Test
     public void testGetAllServiceByConfigName() throws Exception{
         //ActionReturnUtil serviceList = configCenterService.getAllServiceByConfigName(testConfigName,"clusterId",projectId,tenantId);
-        ActionReturnUtil serviceList = configCenterService.getAllServiceByConfigName("testconfig","cluster-top--dev","aabc0a6f31d543e6a27f6042cddd91ad","103303bb68ea4511abce4b5da0c054f4");
+        ActionReturnUtil serviceList = configCenterService.getAllServiceByConfigName("testconfig","cluster-top--dev","aabc0a6f31d543e6a27f6042cddd91ad","103303bb68ea4511abce4b5da0c054f4", false);
         assertNotNull(serviceList);
     }
 

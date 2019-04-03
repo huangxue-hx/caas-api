@@ -10,7 +10,7 @@ import java.util.Map;
  * create by weg on 18-12-3
  */
 @ApiModel(value = "TrafficShiftingDesServicesDto信息")
-public class TrafficShiftingDesServicesDto {
+public class TrafficShiftingDesServiceDto {
 
 
     @ApiModelProperty(value = "目标服务名称", name = "subset", example = "name")

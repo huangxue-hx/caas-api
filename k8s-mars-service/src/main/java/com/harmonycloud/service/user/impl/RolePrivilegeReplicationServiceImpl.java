@@ -24,7 +24,6 @@ import java.util.stream.Collectors;
  * Created by zgl on 2018/1/3.
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class RolePrivilegeReplicationServiceImpl implements RolePrivilegeReplicationService {
 
     @Autowired
