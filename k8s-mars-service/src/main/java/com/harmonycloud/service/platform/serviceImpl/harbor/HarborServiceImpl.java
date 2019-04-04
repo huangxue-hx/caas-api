@@ -196,8 +196,20 @@ public class HarborServiceImpl implements HarborService {
             params.put("page", pageNo++);
             ActionReturnUtil response = HarborHttpsClientUtil.httpGetRequest(url, headers, params);
             if (response.isSuccess() && response.get("data") != null) {
-                List<String> repoList = JsonUtil.jsonToList(response.get("data").toString(), String.class);
-                if(CollectionUtils.isEmpty(repoList)){
+                List<String> repoList;
+                if(response.isSuccess() && response.get("data").toString().contains("description")
+                        && response.isSuccess() && response.get("data").toString().contains("project_id") ) {
+                    List<ImageResponseDto> imageRepoList = JsonUtil.jsonToList(response.get("data").toString(), ImageResponseDto.class);
+                    repoList = new ArrayList<>();
+                    if (!CollectionUtils.isEmpty(imageRepoList)) {
+                        for (ImageResponseDto image : imageRepoList) {
+                            repoList.add(image.getName());
+                        }
+                    }
+                }else {
+                    repoList = JsonUtil.jsonToList(response.get("data").toString(), String.class);
+                }
+                if (CollectionUtils.isEmpty(repoList)) {
                     return ActionReturnUtil.returnSuccessWithData(repos);
                 }
                 if (repoList.size() < DEFAULT_PAGE_SIZE) {
