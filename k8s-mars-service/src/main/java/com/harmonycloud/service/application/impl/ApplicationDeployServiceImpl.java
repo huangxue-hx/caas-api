@@ -996,7 +996,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             while (iterator.hasNext()) {
                 BaseResource bs = iterator.next();
                 if (!namespaces.contains(bs.getMetadata().getNamespace())) {
-                    iterator.remove();
+                    blist.remove(bs);    // CopyOnWriteArrayList不能直接使用iterator.remove()，会抛出异常：java.lang.UnsupportedOperationException
                     continue;
                 }
                 Map<String, Object> appLable = new HashedMap();
