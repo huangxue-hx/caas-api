@@ -32,7 +32,7 @@ public interface ProjectService {
      * @param projectDto
      * @throws Exception
      */
-    public void createProject(ProjectDto projectDto) throws Exception;
+    public String createProject(ProjectDto projectDto) throws Exception;
 
     /**
      * 根据项目id删除项目

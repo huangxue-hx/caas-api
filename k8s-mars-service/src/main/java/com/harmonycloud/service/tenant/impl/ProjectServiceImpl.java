@@ -166,7 +166,7 @@ public class ProjectServiceImpl implements ProjectService {
      */
     @Override
     @Transactional
-    public void createProject(ProjectDto projectDto) throws Exception {
+    public String createProject(ProjectDto projectDto) throws Exception {
         String tenantId = projectDto.getTenantId();
         TenantBinding tenant = this.tenantService.getTenantByTenantid(tenantId);
         //有效值判断
@@ -243,6 +243,7 @@ public class ProjectServiceImpl implements ProjectService {
         }catch (Exception e){
             logger.error("sync harbor member failed",e);
         }
+        return project.getProjectId();
     }
 
     /**
