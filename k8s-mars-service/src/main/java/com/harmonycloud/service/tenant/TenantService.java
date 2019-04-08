@@ -66,7 +66,7 @@ public interface TenantService {
      * 创建租户
      * @return
      */
-    public void createTenant(TenantDto tenantDto) throws Exception;
+    public String createTenant(TenantDto tenantDto) throws Exception;
 
     /**
      * 根据id删除租户信息

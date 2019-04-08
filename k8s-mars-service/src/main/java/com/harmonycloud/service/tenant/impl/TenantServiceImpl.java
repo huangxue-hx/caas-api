@@ -370,7 +370,7 @@ public class TenantServiceImpl implements TenantService {
 
     @Override
     @Transactional(propagation = Propagation.REQUIRED)
-    public void createTenant(TenantDto tenantDto) throws Exception {
+    public String createTenant(TenantDto tenantDto) throws Exception {
         //查询要创建的租户是否存在
         String tenantName = tenantDto.getTenantName();
         String tenantId = tenantDto.getTenantId();
@@ -433,6 +433,7 @@ public class TenantServiceImpl implements TenantService {
         dataPrivilegeStrategyMapper.insertSelective(privilegeStrategy);
         String tenantBindingJson = JsonUtil.objectToJson(tenantBinding);
         redisTemplate.opsForValue().set(CommonConstant.TENANT_REDIS_KEY_PREFIX.concat(tenantId), tenantBindingJson);
+        return tenantDto.getTenantId();
     }
 
     @Override
