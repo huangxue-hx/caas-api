@@ -13,6 +13,7 @@ public interface IpPoolService {
 
     /**
      * 获取某个项目下的ip池
+     *
      * @param projectId
      * @param clusterId 如果为空获取所有集群的ip池，不为空则只查询当前集群下的ip池
      * @return
@@ -23,11 +24,6 @@ public interface IpPoolService {
      * 创建ip池
      */
     void create(ProjectIpPoolDto projectIpPoolDto) throws Exception;
-
-    /**
-     * 修改ip池
-     */
-    void update(ProjectIpPoolDto projectIpPoolDto) throws Exception;
 
     /**
      * 删除ip池

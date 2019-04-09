@@ -1,5 +1,6 @@
 package com.harmonycloud.service.platform.serviceImpl.monitor;
 
+import com.google.common.collect.Lists;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.*;
 import com.harmonycloud.common.exception.MarsRuntimeException;
@@ -326,7 +327,11 @@ public class InfluxdbServiceImpl implements InfluxdbService {
                 }
             }
             if (series == null) {
-                queryResult.getResults().get(0).getSeries().get(0).setValues(Collections.emptyList());
+                if (queryResult.getResults().get(0).getSeries() == null) {
+                    queryResult.getResults().get(0).setSeries(Lists.newArrayList());
+                } else {
+                    queryResult.getResults().get(0).getSeries().get(0).setValues(Collections.emptyList());
+                }
                 return ActionReturnUtil.returnSuccessWithData(queryResult);
             }
             if ("CPU".equalsIgnoreCase(influxdbQuery.getMeasurement())) {

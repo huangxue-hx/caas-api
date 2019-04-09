@@ -1,6 +1,7 @@
 package com.harmonycloud.service.application.impl;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -86,14 +87,17 @@ public class IpPoolServiceImpl implements IpPoolService {
             if (cluster != null) {
                 poolDto.setClusterName(cluster.getName());
             }
-            String getUrl = "http://" + cluster.getHost() + ":"+Integer.parseInt(hcIpamServerPort)+"/ippool/" + getPoolName(p.getClusterId(), p.getName());
+            String getUrl = "http://" + cluster.getHost() + ":" + Integer.parseInt(hcIpamServerPort) + "/ippool/" + getPoolName(p.getClusterId(), p.getName());
             // get调用查询接口
             try {
                 JSONObject res = restTemplate.getForObject(getUrl, JSONObject.class);
                 if (res == null || res.isEmpty() || res.containsKey("Error")) {
                     throw new MarsRuntimeException(ErrorCodeMessage.QUERY_FAIL);
                 }
-                // 取出 总数 & 使用数
+                // 取出cidr、开始结束ip、ip总数&使用数
+                poolDto.setCidr(res.getString("cidr"));
+                poolDto.setStartIp(res.getString("start"));
+                poolDto.setEndIp(res.getString("end"));
                 poolDto.setIpTotal(res.getInteger("total"));
                 poolDto.setIpUsedCount(res.getInteger("used"));
                 poolDto.setIpUsedRate(poolDto.getIpTotal() == null || poolDto.getIpTotal() == CommonConstant.NUM_ZERO ?
@@ -111,12 +115,7 @@ public class IpPoolServiceImpl implements IpPoolService {
 
     @Override
     public void create(ProjectIpPoolDto poolDto) throws Exception {
-        if (poolDto == null || StringUtils.isBlank(poolDto.getProjectId()) || StringUtils.isBlank(poolDto.getClusterId())
-                || StringUtils.isBlank(poolDto.getName()) || StringUtils.isBlank(poolDto.getCidr())
-                || StringUtils.isBlank(poolDto.getSubnet())) {
-            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
-        }
-        check(poolDto, true);
+        check(poolDto);    // 校验参数
 
         ProjectIpPool rec = new ProjectIpPool();
         rec.setName(poolDto.getName());
@@ -134,90 +133,12 @@ public class IpPoolServiceImpl implements IpPoolService {
         }
         Cluster cluster = clusterService.findClusterById(poolDto.getClusterId());
         // post调用创建资源池接口
-        String url = "http://" + cluster.getHost() + ":"+Integer.parseInt(hcIpamServerPort)+"/ippool";
+        String url = "http://" + cluster.getHost() + ":" + Integer.parseInt(hcIpamServerPort) + "/ippool";
         try {
-            createIpPool(url, rec);
+            createIpPool(url, poolDto);
         } catch (Exception e) {
             logger.error("调用url:{}，创建ip资源池接口异常：{}", url, e.getMessage());
             throw new MarsRuntimeException(ErrorCodeMessage.CREATE_FAIL);
-        }
-    }
-
-    @Override
-    public void update(ProjectIpPoolDto poolDto) throws Exception {
-        if (poolDto == null || StringUtils.isBlank(poolDto.getProjectId()) || StringUtils.isBlank(poolDto.getClusterId())
-                || StringUtils.isBlank(poolDto.getName())) {
-            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
-        }
-        check(poolDto, false);
-
-        // 校验当前资源池是否已使用
-        // get调用查询接口
-        Cluster cluster = clusterService.findClusterById(poolDto.getClusterId());
-        String url = "http://" + cluster.getHost() + ":"+Integer.parseInt(hcIpamServerPort)+"/ippool";
-        String urlAndPoolName = url + "/" + getPoolName(poolDto.getClusterId(), poolDto.getName());
-
-        try {
-            JSONObject res = restTemplate.getForObject(urlAndPoolName, JSONObject.class);
-            if (res == null || res.isEmpty() || res.containsKey("Error")) {
-                throw new MarsRuntimeException(ErrorCodeMessage.QUERY_FAIL);
-            }
-            // 校验使用数
-            if (res.getIntValue("used") > 0) {
-                throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_CANNOT_MODIFIED);
-            }
-
-        } catch (Exception e) {
-            logger.error("调用url:{}，查询ip资源池接口异常：{}", url, e.getMessage());
-            throw new MarsRuntimeException(ErrorCodeMessage.QUERY_FAIL);
-        }
-
-        ProjectIpPool rec = new ProjectIpPool();
-        rec.setName(poolDto.getName());
-        rec.setClusterId(poolDto.getClusterId());
-        rec.setProjectId(poolDto.getProjectId());
-        rec.setCidr(poolDto.getCidr());
-        rec.setSubnet(poolDto.getSubnet());
-        rec.setGateway(IpUtil.ipv4ToInt(IpUtil.getNetMask(poolDto.getSubnet().split(CommonConstant.SLASH)[CommonConstant.NUM_ONE])));
-        rec.setUpdateTime(new Date());
-
-        int count = projectIpPoolMapper.updateByProjectIdAndClusterIdAndName(rec);
-        if (count != CommonConstant.NUM_ONE) {
-            throw new MarsRuntimeException(ErrorCodeMessage.UPDATE_FAIL);
-        }
-
-        // 先删再增
-        try {
-            // delete调用删除接口
-            HttpClientResponse response = HttpClientUtil.doDelete(urlAndPoolName, null, null);
-            if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                logger.error("调用url:{}，删除ip资源池接口失败：{}:{}", urlAndPoolName, response.getStatus(), response.getBody());
-                throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
-            }
-            String body = response.getBody();
-            if (StringUtils.isBlank(body) || !StringUtils.startsWith(body, "{") || !StringUtils.endsWith(body, "}")) {
-                throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
-            }
-            JSONObject data = JSON.parseObject(body);
-            if (data == null || data.isEmpty() || data.containsKey("Error")) {
-                throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
-            }
-        } catch (Exception e) {
-            logger.error("调用url:{}，ip资源池删除接口异常：{}", url, e.getMessage());
-            throw new MarsRuntimeException(ErrorCodeMessage.OPERATION_FAIL);
-        }
-
-        try {
-            createIpPool(url, rec);
-        } catch (Exception e) {    // 调接口把原本删除调数据新增回去
-            logger.error("调用url:{}，ip资源池创建接口异常：{}", url, e.getMessage());
-            List<ProjectIpPool> poolList = projectIpPoolMapper.selectList(rec.getProjectId(), rec.getClusterId(), rec.getName());
-            if (poolList == null || poolList.size() == CommonConstant.NUM_ZERO) {
-                throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_NOT_EXIST);
-            }
-            ProjectIpPool pool = poolList.get(CommonConstant.NUM_ZERO);
-            createIpPool(url, pool);
-            throw new MarsRuntimeException(ErrorCodeMessage.OPERATION_FAIL);
         }
     }
 
@@ -234,7 +155,7 @@ public class IpPoolServiceImpl implements IpPoolService {
             throw new MarsRuntimeException(ErrorCodeMessage.DELETE_FAIL);
         }
         Cluster cluster = clusterService.findClusterById(clusterId);
-        String url = "http://" + cluster.getHost() + ":"+Integer.parseInt(hcIpamServerPort)+"/ippool/" + getPoolName(pool.getClusterId(), pool.getName());
+        String url = "http://" + cluster.getHost() + ":" + Integer.parseInt(hcIpamServerPort) + "/ippool/" + getPoolName(pool.getClusterId(), pool.getName());
         try {
             // delete调用删除接口
             HttpClientResponse response = HttpClientUtil.doDelete(url, null, null);
@@ -296,55 +217,57 @@ public class IpPoolServiceImpl implements IpPoolService {
 
 
     // 校验
-    private void check(ProjectIpPoolDto poolDto, boolean isCreate) throws MarsRuntimeException {
+    private void check(ProjectIpPoolDto poolDto) throws MarsRuntimeException {
+        // 为空校验
+        if (poolDto == null || StringUtils.isBlank(poolDto.getProjectId()) || StringUtils.isBlank(poolDto.getClusterId())
+                || StringUtils.isBlank(poolDto.getName()) || StringUtils.isBlank(poolDto.getSubnet())
+                || StringUtils.isBlank(poolDto.getCidr()) && (StringUtils.isBlank(poolDto.getStartIp()) || StringUtils.isBlank(poolDto.getEndIp()))) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
         // 格式校验
-        if (!IpUtil.isCidr(poolDto.getCidr()) || !IpUtil.isCidr(poolDto.getSubnet())) {
+        if (!IpUtil.isCidr(poolDto.getSubnet())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_CIDR_ERROR);
         }
+        boolean isCidr = false;
+        if (StringUtils.isNotBlank(poolDto.getCidr())) {    // cidr
+            isCidr = true;
+            if (!IpUtil.isCidr(poolDto.getCidr())) {
+                throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_CIDR_ERROR);
+            }
+            poolDto.setStartIp(IpUtil.getStartIp(poolDto.getCidr()));
+            poolDto.setEndIp(IpUtil.getEndIp(poolDto.getCidr()));
+        } else if (IpUtil.isNotIpv4(poolDto.getStartIp()) || IpUtil.isNotIpv4(poolDto.getEndIp())) {    // 开始结束ip
+            throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_IP_ERROR);
+        }
+
+        // 校验集群的网络是否为hcipam模式
         Cluster cluster = clusterService.findClusterById(poolDto.getClusterId());
         if (cluster == null || cluster.getNetworkType() == null || !cluster.getNetworkType().equals(CommonConstant.K8S_NETWORK_HCIPAM)) {
             throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_MATCH);
         }
 
-        // 填写的cidr和子网的范围校验
-        long cidrStartIp = IpUtil.ipv4ToLong(IpUtil.getStartIp(poolDto.getCidr()));
-        long cidrEndIp = IpUtil.ipv4ToLong(IpUtil.getEndIp(poolDto.getCidr()));
+        // 填写的cidr(或开始结束ip)和子网的范围校验
+        long cidrStartIp = IpUtil.ipv4ToLong(poolDto.getStartIp());
+        long cidrEndIp = IpUtil.ipv4ToLong(poolDto.getEndIp());
         long subnetStartIp = IpUtil.ipv4ToLong(IpUtil.getStartIp(poolDto.getSubnet()));
         long subnetEndIp = IpUtil.ipv4ToLong(IpUtil.getEndIp(poolDto.getSubnet()));
         if (cidrStartIp < subnetStartIp || cidrEndIp > subnetEndIp) {
             throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_CIDR_GREATER_THAN_SUBNET_ERROR);
         }
 
-        // 查询已有的ip资源池
+        // 查询本地已有的ip资源池
         List<ProjectIpPool> existedPoolList = projectIpPoolMapper.selectList(null, null, null);
         if (existedPoolList != null && !existedPoolList.isEmpty()) {    // 不为空才去校验
             int poolNum = 0;
             for (ProjectIpPool pool : existedPoolList) {
-
-                if (isCreate) {    // 新增时
-                    if (poolDto.getClusterId().equals(pool.getClusterId()) && poolDto.getName().equals(pool.getName())) {    // 资源库名已存在
-                        throw new MarsRuntimeException(ErrorCodeMessage.NAME_EXIST);
-                    }
-                    if (poolDto.getProjectId().equals(pool.getProjectId())) {
-                        if (poolDto.getClusterId().equals(pool.getClusterId())) {    // 一个项目、一个集群、一个ip池
-                            throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_EXIST);
-                        }
-                        poolNum++;
-                    }
-                } else {    // 更新时
-                    if (poolDto.getProjectId().equals(pool.getProjectId()) && poolDto.getClusterId().equals(pool.getClusterId())) {    // 当前记录
-                        if (!poolDto.getName().equals(pool.getName())) {
-                            throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_NAME_CANNOT_MODIFIED);
-                        }
-                        continue;    // 不做子网校验
-                    }
+                if (poolDto.getClusterId().equals(pool.getClusterId()) && poolDto.getName().equals(pool.getName())) {    // 资源库名已存在
+                    throw new MarsRuntimeException(ErrorCodeMessage.NAME_EXIST);
                 }
-
-                // 校验cidr已被使用
-                long existCidrStartIp = IpUtil.ipv4ToLong(IpUtil.getStartIp(pool.getCidr()));
-                long existCidrEndIp = IpUtil.ipv4ToLong(IpUtil.getEndIp(pool.getCidr()));
-                if (cidrStartIp <= existCidrEndIp && cidrEndIp >= existCidrStartIp) {
-                    throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_SUBNET_EXIST);
+                if (poolDto.getProjectId().equals(pool.getProjectId())) {
+                    if (poolDto.getClusterId().equals(pool.getClusterId())) {    // 一个项目、一个集群、一个ip池
+                        throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_EXIST);
+                    }
+                    poolNum++;
                 }
             }
 
@@ -363,19 +286,43 @@ public class IpPoolServiceImpl implements IpPoolService {
                 }
             }
         }
+
+        // get查询hcipam已有的ip资源池，校验ip池是否已被使用
+        String getUrl = "http://" + cluster.getHost() + ":" + Integer.parseInt(hcIpamServerPort) + "/getAllPool";
+        // get调用查询接口
+        try {
+            JSONArray res = restTemplate.getForObject(getUrl, JSONArray.class);
+            if (res != null && res.size() > 0) {
+                for (int i = 0; i < res.size(); i++) {
+                    JSONObject j = res.getJSONObject(i);
+                    if (cidrStartIp <= IpUtil.ipv4ToLong(j.getString("end"))
+                            && cidrEndIp >= IpUtil.ipv4ToLong(j.getString("start"))) {
+                        throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_SUBNET_EXIST);
+                    }
+                }
+            }
+        } catch (MarsRuntimeException e) {
+            throw e;
+        } catch (Exception e) {    // 此处不抛出异常，hcipam会再校验是否使用
+            logger.error("调用url:{}，查询ip资源池接口异常：{}", getUrl, e.getMessage());
+        }
     }
 
 
     // 调接口新增ip资源池
-    private void createIpPool(String url, ProjectIpPool pool) throws Exception {
+    private void createIpPool(String url, ProjectIpPoolDto pool) throws Exception {
         // post请求创建接口
         Map<String, Object> headers = Maps.newHashMap();
         headers.put("Content-Type", "application/json; charset=utf-8");
         Map<String, Object> params = Maps.newHashMap();
         params.put("name", getPoolName(pool.getClusterId(), pool.getName()));
-        params.put("cidr", pool.getCidr());
         params.put("subnet", pool.getSubnet());
-//        params.put("gateway", pool.getGateway());
+        if (StringUtils.isNotBlank(pool.getCidr())) {    // cidr
+            params.put("cidr", pool.getCidr());
+        } else {    // 开始结束ip
+            params.put("start", pool.getStartIp());
+            params.put("end", pool.getEndIp());
+        }
 
         HttpClientResponse response = HttpClientUtil.doPost(url, params, headers);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {

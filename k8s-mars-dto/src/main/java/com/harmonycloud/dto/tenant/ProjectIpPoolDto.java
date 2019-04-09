@@ -17,6 +17,10 @@ public class ProjectIpPoolDto {
 
 	private String cidr;
 
+	private String startIp;
+
+	private String endIp;
+
 	private String subnet;
 
 	private String gateway;
@@ -81,6 +85,22 @@ public class ProjectIpPoolDto {
 
 	public void setCidr(String cidr) {
 		this.cidr = cidr;
+	}
+
+	public String getStartIp() {
+		return startIp;
+	}
+
+	public void setStartIp(String startIp) {
+		this.startIp = startIp;
+	}
+
+	public String getEndIp() {
+		return endIp;
+	}
+
+	public void setEndIp(String endIp) {
+		this.endIp = endIp;
 	}
 
 	public String getSubnet() {
