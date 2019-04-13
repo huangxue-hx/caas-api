@@ -195,7 +195,7 @@ public class StageServiceImpl implements StageService {
             stageDto.convertFromBean(stage);
         }
         if (StageTemplateTypeEnum.DEPLOY.getCode() == stageDto.getStageTemplateType()){
-            if(stageDto.getConfigMaps() != null) {
+            if(CollectionUtils.isNotEmpty(stageDto.getConfigMaps())) {
                 ConfigFile configFile = configFileMapper.getConfig(stageDto.getConfigMaps().get(0).getConfigMapId());
                 for (int i = 0; i < stageDto.getConfigMaps().size(); i++) {
                     stageDto.getConfigMaps().get(i).setName(configFile.getName());
