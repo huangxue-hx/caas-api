@@ -648,11 +648,11 @@ public class TenantServiceImpl implements TenantService {
                         Integer storageQuota = Integer.parseInt(storageDto.getStorageQuota());
                         Integer totalStorage = Integer.parseInt(storageDto.getTotalStorage());
                         //用户设定的存储配额值必须不大于总的存储配额
-                        if (storageQuota > totalStorage) {
-                            status = Boolean.FALSE;
+                        if (storageQuota != 0 && storageQuota > totalStorage) {
+                            return Boolean.FALSE;
                         }
                         if (storageClassUnusedMap.size() > 0 && storageClassUnusedMap.get(storageDto.getName()) != null) {
-                            if (Integer.parseInt(storageDto.getStorageQuota()) > storageClassUnusedMap.get(storageDto.getName())) {
+                            if (Integer.parseInt(storageDto.getStorageQuota()) != 0 && Integer.parseInt(storageDto.getStorageQuota()) > storageClassUnusedMap.get(storageDto.getName())) {
                                 throw new MarsRuntimeException(ErrorCodeMessage.RESOURCE_OVER_FLOOR);
                             }
                         }
@@ -669,10 +669,10 @@ public class TenantServiceImpl implements TenantService {
                                 //系统中StorageClass设定的存储最大值
                                 Double storageLimit = Double.valueOf(annotations.get("storageLimit").toString());
                                 //集群配额中对该StorageClass设定的配额  小于等于  storageClass设定的最大存储值，否则检查不通过
-                                if (storageQuota > storageLimit) {
+                                if (storageQuota != 0 && storageQuota > storageLimit) {
                                     status = Boolean.FALSE;
                                 }
-                                if (totalStorage > storageLimit) {
+                                if (totalStorage != -1 && totalStorage > storageLimit) {
                                     status = Boolean.FALSE;
                                 }
                             }
