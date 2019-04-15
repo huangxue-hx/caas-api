@@ -1870,7 +1870,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         K8SClientResponse namespace2 = this.namespaceService.getNamespace(namespace, null, null, cluster);
         if (!HttpStatusUtil.isSuccessStatus(namespace2.getStatus())) {
             logger.error("调用k8s接口查询namespace失败", namespace2.getBody());
-            return ActionReturnUtil.returnErrorWithMsg(namespace2.getBody());
+            return namespace2.getBody() == null ? ActionReturnUtil.returnError() : ActionReturnUtil.returnErrorWithMsg(namespace2.getBody());
         }
         Namespace namespacePojo = JsonUtil.jsonToPojo(namespace2.getBody(), Namespace.class);
         return this.getNamespaceQuota(namespacePojo, cluster);

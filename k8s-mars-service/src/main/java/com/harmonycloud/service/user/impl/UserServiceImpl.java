@@ -271,11 +271,16 @@ public class UserServiceImpl implements UserService {
             }
             String userName = user.toString();
             User u = this.userMapper.findByUsername(userName);
+            if (CommonConstant.PAUSE.equals(u.getPause())) {
+//                SsoClient.redirectLogin(session, request, response);
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.USER_DISABLED);
+            }
+
             res.put("username", userName);
             res.put("userId", u.getId());
             res.put("realName", u.getRealName());
             res.put("isAdmin", u.getIsAdmin() == FLAG_TRUE);
-            List<TenantDto> tenantDtos = tenantService.tenantList();
+            List<TenantDto> tenantDtos = tenantService.listTenantBrief();
             if (org.springframework.util.CollectionUtils.isEmpty(tenantDtos)) {
                 List<Role> roleList = this.roleLocalService.getRoleListByUsernameAndTenantIdAndProjectId(userName, null, null);
                 res.put("roleList", roleList);
