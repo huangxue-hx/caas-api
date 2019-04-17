@@ -150,12 +150,12 @@ public class AppLogServiceImpl implements AppLogService {
                 return Collections.emptyList();
             }
         }
-
+        if (CollectionUtils.isEmpty(clusterIdsChecked)) {
+            return Collections.emptyList();
+        }
         LogBackupRuleExample condition = new LogBackupRuleExample();
         LogBackupRuleExample.Criteria criteria = condition.createCriteria();
-        if (!CollectionUtils.isEmpty(clusterIdsChecked)){
-            criteria.andClusterIdIn(clusterIdsChecked);
-        }
+        criteria.andClusterIdIn(clusterIdsChecked);
         if (null != available){
             criteria.andAvailableEqualTo(available);
         }

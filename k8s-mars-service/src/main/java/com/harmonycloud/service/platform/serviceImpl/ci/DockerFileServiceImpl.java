@@ -105,6 +105,9 @@ public class DockerFileServiceImpl implements DockerFileService {
         }else{
             clusterIdList.add(dockerFileDTO.getClusterId());
         }
+        if (CollectionUtils.isEmpty(clusterIdList)) {
+            return new PageInfo<>(Collections.emptyList());
+        }
         PageHelper.startPage(dockerFileDTO.getCurrentPage(), dockerFileDTO.getPageSize());
         List<DockerFilePage> dockerFiles = dockerFileMapper.findPageByAll(dockerFile, clusterIdList);
 
