@@ -87,6 +87,8 @@ public class BuildEnvironmentServiceImpl implements BuildEnvironmentService {
                     clusterIdList.add(cluster.getId());
                 }
                 criteria.andClusterIdIn(clusterIdList);
+            } else {
+                return Collections.emptyList();
             }
         }
         if (StringUtils.isNotBlank(name)) {
