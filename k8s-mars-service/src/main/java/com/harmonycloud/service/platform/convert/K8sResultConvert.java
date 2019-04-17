@@ -364,7 +364,7 @@ public class K8sResultConvert {
         if(CollectionUtils.isNotEmpty(collect)){
             List<VolumeMount> volumeMounts = collect.get(0).getVolumeMounts();
             List<VolumeMount> empty = volumeMounts.stream().filter(v -> {
-                return v.getName().equals("empty");
+                return v.getName().equals("empty-deploy");
             }).collect(Collectors.toList());
             if(CollectionUtils.isNotEmpty(empty)){
                 containerMonutPath = empty.get(0).getMountPath();

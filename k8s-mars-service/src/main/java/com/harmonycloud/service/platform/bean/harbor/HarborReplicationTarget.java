@@ -8,6 +8,8 @@ public class HarborReplicationTarget {
     private String username;                     
     private String password;
     private String targetHarborHost;
+	private Boolean insecure;
+
 	public String getName() {
 		return name;
 	}
@@ -56,5 +58,13 @@ public class HarborReplicationTarget {
 
 	public void setTargetHarborHost(String targetHarborHost) {
 		this.targetHarborHost = targetHarborHost;
+	}
+
+	public Boolean getInsecure() {
+		return insecure;
+	}
+
+	public void setInsecure(Boolean insecure) {
+		this.insecure = insecure;
 	}
 }

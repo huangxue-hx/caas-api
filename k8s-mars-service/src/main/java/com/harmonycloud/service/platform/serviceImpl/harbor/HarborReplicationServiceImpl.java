@@ -1,28 +1,25 @@
 package com.harmonycloud.service.platform.serviceImpl.harbor;
 
 
-import java.net.URLEncoder;
-import java.text.SimpleDateFormat;
-import java.util.*;
-
 import com.alibaba.fastjson.JSONObject;
-import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.*;
+import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.common.HarborHttpsClientUtil;
 import com.harmonycloud.service.platform.bean.harbor.*;
+import com.harmonycloud.service.platform.client.HarborClient;
 import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
+import com.harmonycloud.service.platform.service.harbor.HarborReplicationService;
 import com.harmonycloud.service.platform.service.harbor.HarborService;
 import com.harmonycloud.service.platform.service.harbor.HarborUserService;
-import freemarker.ext.beans.HashAdapter;
 import org.apache.commons.lang3.StringUtils;
-import com.harmonycloud.service.platform.client.HarborClient;
-import com.harmonycloud.service.platform.service.harbor.HarborReplicationService;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import javax.servlet.http.HttpSession;
+import java.util.*;
 
 import static com.harmonycloud.common.Constant.CommonConstant.FLAG_TRUE;
 
@@ -82,8 +80,8 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
         String url = HarborClient.getHarborUrl(harborServer) + "/api/targets";
         Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
         headers.put("Content-Type","application/json");
+        harborReplicationTarget.setInsecure(true);    // 不验证
         return HarborHttpsClientUtil.httpPostRequestForHarbor(url, headers, convertHarborReplicationTarget(harborReplicationTarget));
-
     }
 
     /**
@@ -873,6 +871,9 @@ public class HarborReplicationServiceImpl implements HarborReplicationService {
             }
             if (StringUtils.isNotEmpty(harborReplicationTarget.getPassword())){
                 map.put("password", harborReplicationTarget.getPassword());
+            }
+            if (harborReplicationTarget.getInsecure() != null) {
+                map.put("insecure", harborReplicationTarget.getInsecure());
             }
         }
         return map;
