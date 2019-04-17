@@ -286,12 +286,12 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
         searchRequestBuilder.setTypes(API_SERVER_AUDIT_TYPE).setQuery(query)
                 .setFetchSource(FETCH_SOURCE_FILED, ArrayUtils.EMPTY_STRING_ARRAY);
         if (StringUtils.isBlank(search.getUrl())) {
-            //.size(0)表示聚合返回所有，默认为10条，0表示返回所有
-            TermsAggregationBuilder requestURITerms = AggregationBuilders.terms(GROUP_BY_URL).field(REQUEST_URI).size(0);
-            TermsAggregationBuilder verbName = AggregationBuilders.terms(GROUP_BY_VERB).field("verb").size(0);
-            TermsAggregationBuilder resource = AggregationBuilders.terms(GROUP_BY_RESOURCE).field("objectRef.resource").size(0);
-            TermsAggregationBuilder resourceNamespace = AggregationBuilders.terms(GROUP_BY_RESOURCE_NAMESPACE).field("objectRef.namespace").size(0);
-            TermsAggregationBuilder resourceName = AggregationBuilders.terms(GROUP_BY_RESOURCE_NAME).field("objectRef.name").size(0);
+            //.size(2^32-1)聚合返回所有，不加.size()默认为10条
+            TermsAggregationBuilder requestURITerms = AggregationBuilders.terms(GROUP_BY_URL).field(REQUEST_URI).size(2147483647);
+            TermsAggregationBuilder verbName = AggregationBuilders.terms(GROUP_BY_VERB).field("verb").size(2147483647);
+            TermsAggregationBuilder resource = AggregationBuilders.terms(GROUP_BY_RESOURCE).field("objectRef.resource").size(2147483647);
+            TermsAggregationBuilder resourceNamespace = AggregationBuilders.terms(GROUP_BY_RESOURCE_NAMESPACE).field("objectRef.namespace").size(2147483647);
+            TermsAggregationBuilder resourceName = AggregationBuilders.terms(GROUP_BY_RESOURCE_NAME).field("objectRef.name").size(2147483647);
             searchRequestBuilder.addAggregation(requestURITerms.subAggregation(verbName).subAggregation(resource).subAggregation(resourceNamespace).subAggregation(resourceName)).setSize(0);
         } else {
             searchRequestBuilder.setFrom((search.getPageNum() - CommonConstant.NUM_ONE) * pageSize).setSize(pageSize).addSort(ACTION_TIME, SortOrder.DESC);
@@ -427,7 +427,8 @@ public class ApiServerAuditServiceImpl extends BaseAuditService implements ApiSe
      */
     private long getCountsGroupByUrl(TransportClient esClient, BoolQueryBuilder query, List<String> indexList) throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
         SearchRequestBuilder searchRequestBuilder = multiIndexSearch(esClient, indexList);
-        TermsAggregationBuilder requestURITerms = AggregationBuilders.terms(GROUP_BY_URL).field(REQUEST_URI).size(0);
+        // ES 1.x/2.x 使用.size(0)来聚合所有数据，ES 5.x/6.x 使用.size(2^32-1)来聚合所有数据
+        TermsAggregationBuilder requestURITerms = AggregationBuilders.terms(GROUP_BY_URL).field(REQUEST_URI).size(2147483647);
 
         // 计算页数对应的数据行数，先查询出来总的记录个数，计算
         SearchResponse response = searchRequestBuilder
