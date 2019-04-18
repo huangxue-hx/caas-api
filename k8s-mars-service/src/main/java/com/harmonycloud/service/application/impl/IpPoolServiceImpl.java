@@ -228,9 +228,7 @@ public class IpPoolServiceImpl implements IpPoolService {
         if (!IpUtil.isCidr(poolDto.getSubnet())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_CIDR_ERROR);
         }
-        boolean isCidr = false;
         if (StringUtils.isNotBlank(poolDto.getCidr())) {    // cidr
-            isCidr = true;
             if (!IpUtil.isCidr(poolDto.getCidr())) {
                 throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_IP_POOL_CIDR_ERROR);
             }

@@ -3021,14 +3021,10 @@ public class K8sResultConvert {
         }
         limit.setLimits(res);
         limit.setRequests(res);
-        if (c.getLimit() != null) {
+        if (c.getLimit() != null && c.getLimit().getCurrentRate() > 1) {
             Map<String, String> resli = new HashMap<String, String>();
-            Matcher l = p.matcher(c.getLimit().getCpu());
-            String resultl = l.replaceAll("").trim();
-            resli.put("cpu", resultl + "m");
-            Matcher ml = p.matcher(c.getLimit().getMemory());
-            String resultml = ml.replaceAll("").trim();
-            resli.put("memory", resultml + "Mi");
+            resli.put("cpu", (Integer.parseInt(result) * c.getLimit().getCurrentRate()) + "m");
+            resli.put("memory", (Integer.parseInt(resultm) * c.getLimit().getCurrentRate()) + "Mi");
             if(StringUtils.isNotEmpty(c.getResource().getGpu())) {
                 resli.put(CommonConstant.NVIDIA_GPU, c.getResource().getGpu());
             }
