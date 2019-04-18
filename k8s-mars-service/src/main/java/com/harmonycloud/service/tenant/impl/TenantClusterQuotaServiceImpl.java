@@ -670,7 +670,8 @@ public class TenantClusterQuotaServiceImpl implements TenantClusterQuotaService 
     public List<ClusterQuotaDto> clusterList(String tenantId, String clusterId) throws Exception {
         TenantClusterQuotaExample example = this.getExample();
         if (Objects.isNull(clusterId)) {
-            example.createCriteria().andTenantIdEqualTo(tenantId).andReserve1EqualTo(CommonConstant.NORMAL);
+            List<String> clusterIdList = roleLocalService.listCurrentUserRoleClusterIds();
+            example.createCriteria().andTenantIdEqualTo(tenantId).andClusterIdIn(clusterIdList).andReserve1EqualTo(CommonConstant.NORMAL);
         } else {
             example.createCriteria().andTenantIdEqualTo(tenantId).andClusterIdEqualTo(clusterId).andReserve1EqualTo(CommonConstant.NORMAL);
         }
