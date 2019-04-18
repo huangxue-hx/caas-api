@@ -67,7 +67,7 @@ public class InfluxdbServiceImpl implements InfluxdbService {
     //监控数据最大展示100个监控点
     private static final int MAX_MONITOR_POINT = 100;
     private String nodeName = "nodename";
-    @Value("${influxdb.name.nodenetwork:kube}")
+    @Value("${influxdb.name.nodenetwork:k8s}")
     private String nodeNetworkInfluxdbDbName;
 
 	public ActionReturnUtil podMonit(InfluxdbQuery query, Integer request) throws Exception {
