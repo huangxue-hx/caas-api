@@ -1,5 +1,5 @@
 <configuration>
-    <property name="LOG_HOME" value="/opt/logs"/>
+    <property name="LOG_HOME" value="../logs"/>
     <appender name="Info"
               class="ch.qos.logback.core.rolling.RollingFileAppender">
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">

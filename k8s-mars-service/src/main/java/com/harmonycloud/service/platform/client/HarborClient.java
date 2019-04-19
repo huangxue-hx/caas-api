@@ -54,6 +54,7 @@ public class HarborClient {
      * @throws Exception
      */
     public static String checkHarborAdminCookie(HarborServer harborServer) throws Exception {
+        System.out.println("我执行了吗");
         if(harborServer == null){
             return null;
         }
@@ -61,6 +62,7 @@ public class HarborClient {
         //不存在该集群对应的admin登录cookie信息，登录并记录cookie
         if(cookieMap == null || cookieMap.get(COOKIE) == null){
             String cookie = loginWithAdmin(harborServer);
+            System.out.println("!!!cookie:" + cookie);
             Map<String, String> adminCookie = new HashMap<>();
             adminCookie.put(COOKIE,cookie);
             adminCookie.put(CREATETIME, String.valueOf(new Date(System.currentTimeMillis()).getTime()));
