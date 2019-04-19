@@ -88,7 +88,7 @@ public class BuildEnvironmentServiceImpl implements BuildEnvironmentService {
                 }
                 criteria.andClusterIdIn(clusterIdList);
             } else {
-                return Collections.emptyList();
+                criteria.andClusterIdIsNull();
             }
         }
         if (StringUtils.isNotBlank(name)) {
