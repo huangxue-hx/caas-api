@@ -526,6 +526,7 @@ public class CommonConstant {
     public static final long ORIGINAL_DATE_MILL_SECOND = 0L;
     public static final String HARBOR_PROJECT_NAME_MSF = "msf-component";
     public static final String HARBOR_PROJECT_NAME_PLATFORM = "k8s-deploy";
+    public static final String HARBOR_PROJECT_ISTIO_DEPLOY = "istio-deploy";
     //uat角色id
     public static final int UAT_ROLEID = 7;
     //角色状态

@@ -970,7 +970,8 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			for(HarborProject harborProject: harborProjects) {
 				//公共镜像仓库过滤容器云平台使用的镜像仓库以及同名的镜像仓库名称, 即平台使用多个harbor，如果各个harbor的projectname相同，则只使用某个harbor的镜像仓库
 				if(harborProject.getIsPublic() == null || harborProject.getIsPublic() == FLAG_FALSE
-						|| HARBOR_PROJECT_NAME_PLATFORM.equalsIgnoreCase(harborProject.getProjectName())){
+						|| HARBOR_PROJECT_NAME_PLATFORM.equalsIgnoreCase(harborProject.getProjectName())
+						|| HARBOR_PROJECT_ISTIO_DEPLOY.equalsIgnoreCase(harborProject.getProjectName())){
 					continue;
 				}
 				ImageRepository repository = new ImageRepository();
