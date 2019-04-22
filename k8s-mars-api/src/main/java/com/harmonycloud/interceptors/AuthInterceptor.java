@@ -124,7 +124,6 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
                 return false; //验证失败
             }
         }*/
-        System.out.println("test interceptor!");
         if(SsoClient.isOpen()){
             return true;
         }
@@ -143,13 +142,11 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
             response.setHeader("Access-Control-Allow-Credentials", "true");
         }
         String httpMethod = request.getMethod();
-        System.out.println("httpMethod:" + httpMethod);
         if (HttpMethod.OPTIONS.name().equalsIgnoreCase(httpMethod)) {
             return true;
         }
         // 获取请求的URL
         String url = request.getRequestURI();
-        System.out.println("url:" + url);
         if(UrlWhiteListHandler.isWhiteUrl(url)){
             return true;
         }
@@ -172,7 +169,7 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         if (cookies != null) {
             for (Cookie cookie : cookies) {
                 if (cookie.getName().equals("crowd.token_key")) {// 是否是自动登录。。。。//要先get /session看返回码。但实际上应该还要有更多的判断条件，比如这个application能否访问这个用户
-                    System.out.println("检测到cookie");
+//                    System.out.println("检测到cookie");
                     String token = cookie.getValue();
                     URL crowdUrl = new URL("http://crowd.harmonycloud.com:8095/crowd/rest/usermanagement/latest/session/" + token);
                     HttpURLConnection connection = (HttpURLConnection) crowdUrl.openConnection();
@@ -185,7 +182,7 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
                     String base64encodedString = Base64.getEncoder().encodeToString("mars:123456".getBytes("utf-8"));
                     connection.setRequestProperty("Authorization", "Basic " + base64encodedString);
                     connection.connect();
-                    System.out.println("返回码：" + connection.getResponseCode());
+//                    System.out.println("返回码：" + connection.getResponseCode());
                     if (connection.getResponseCode() == 200) {
                         //说明用户已经在登录
 //                        flag = false;
@@ -215,7 +212,7 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
 //                        session.setAttribute("language", language);
                     } else {
                         //cookie失效了表示用户已登出
-                        System.out.println("cookie的值是无效的");
+//                        System.out.println("cookie的值是无效的");
                     }
                 }
             }
