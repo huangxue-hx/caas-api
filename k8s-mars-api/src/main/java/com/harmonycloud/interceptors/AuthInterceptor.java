@@ -207,11 +207,11 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
                         }
 
                         //userService这部分可能要改，因为我猜测这部分访问了数据库，但实际数据库应该集成在crowd后台
-                        boolean admin = this.userService.isAdmin(username);
                         session.setAttribute("username", user.getUsername());
                         session.setAttribute("isAdmin", user.getIsAdmin());
                         session.setAttribute("isMachine", user.getIsMachine());
                         session.setAttribute("userId", user.getId());
+                        return true;
 //                        session.setAttribute("language", language);
                     } else {
                         //cookie失效了表示用户已登出
@@ -220,13 +220,11 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
                 }
             }
         }
-
-
-        String username = (String) session.getAttribute("username");
-        System.out.println("username:" + username);
-        if (username != null) {
-            return true;
-        }
+//        String username = (String) session.getAttribute("username");
+//        System.out.println("username:" + username);
+//        if (username != null) {
+//            return true;
+//        }
 
         // 不符合条件的，返回401 Unauthorized
         response.setStatus(401);

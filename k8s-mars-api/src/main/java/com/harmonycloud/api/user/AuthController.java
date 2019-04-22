@@ -260,10 +260,28 @@ public class AuthController {
     @RequestMapping(value = "/logout", method = RequestMethod.POST)
     @ResponseBody
     public ActionReturnUtil logout() throws Exception {
+        //获得当前正在登录的用户名
+        String username = (String) session.getAttribute("username");
         //移除redis中sessionid
         stringRedisTemplate.delete("sessionid:sessionid-"+session.getAttribute("username"));
-        // 清除session
+
+        //在crowd中清除登录信息
+        URL url = new URL("http://crowd.harmonycloud.com:8095/crowd/rest/usermanagement/latest/session?username=" + username);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setDoOutput(true);
+        connection.setRequestMethod("DELETE");
+        String base64encodedString = Base64.getEncoder().encodeToString("mars:123456".getBytes("utf-8"));
+        connection.setRequestProperty("Authorization", "Basic " + base64encodedString);
+        connection.connect();
+        if(connection.getResponseCode() == 204) {
+            System.out.println("删除成功！");
+        }
+        else{
+            System.out.println("删除失败！");
+        }
+        //使session失效
         session.invalidate();
+
         String data = "message" + ":" + "logout successfully!";
         return ActionReturnUtil.returnSuccessWithData(data);
     }
