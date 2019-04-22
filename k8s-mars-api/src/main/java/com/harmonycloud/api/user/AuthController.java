@@ -180,7 +180,7 @@ public class AuthController {
         OutputStreamWriter out = new OutputStreamWriter(connection.getOutputStream());
         InetAddress addr = InetAddress.getLocalHost();
         System.out.println("ip:" + addr.getHostAddress());
-        String jsonData = "{\"username\":\"" + username + "\",\"password\":\""+ password + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"10.100.100.247\"}]}}";
+        String jsonData = "{\"username\":\"" + username + "\",\"password\":\""+ password + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"10.100.100.250\"}]}}";
         out.write(new String(jsonData.getBytes("UTF-8")));
         out.flush();
         out.close();
