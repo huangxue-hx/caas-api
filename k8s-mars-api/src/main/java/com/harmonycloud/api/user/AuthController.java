@@ -33,6 +33,7 @@ import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.service.application.SecretService;
+import java.net.InetAddress;
 
 @RequestMapping(value = "/users/auth")
 @Controller
@@ -153,28 +154,16 @@ public class AuthController {
         SystemConfig trialConfig = this.systemConfigService.findByConfigName(CommonConstant.TRIAL_TIME);
         System.out.println("Hello!" + username);
         System.out.println("Hello!" + password);
+        System.out.println(language);
         if(trialConfig != null) {
             int v = Integer.parseInt(trialConfig.getConfigValue());
             if (v == 0) {
+                System.out.println("error1!");
                 return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.FREE_TRIAL_END);
             }
         }
         LdapConfigDto ldapConfigDto = this.systemConfigService.findLdapConfig();
         String res = null;
-
-        //如果统一使用crowd认证的话而不采用其他的认证方法
-
-//        if(ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1
-//                && !CommonConstant.ADMIN.equals(username)) {
-//            res = this.authManager4Ldap.auth(username, password, ldapConfigDto);
-//            System.out.println("authManager4Ldap");
-//        } else {
-//            //一般都是走Default这种情况
-//            res = authManagerDefault.auth(username, password);
-//            System.out.println("authManagerDefault");
-//        }
-
-
 
         String tokenValue = "";
         URL url = new URL("http://crowd.harmonycloud.com:8095/crowd/rest/usermanagement/latest/session");
@@ -189,10 +178,13 @@ public class AuthController {
         connection.setRequestProperty("Authorization", "Basic " + base64encodedString);
 //
         OutputStreamWriter out = new OutputStreamWriter(connection.getOutputStream());
+        InetAddress addr = InetAddress.getLocalHost();
+        System.out.println("ip:" + addr.getHostAddress());
         String jsonData = "{\"username\":\"" + username + "\",\"password\":\""+ password + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"10.100.100.247\"}]}}";
         out.write(new String(jsonData.getBytes("UTF-8")));
         out.flush();
         out.close();
+        System.out.println(connection.getResponseCode());
         if(connection.getResponseCode()>= 400) {
             System.out.println("login failure!");
         }
@@ -211,14 +203,10 @@ public class AuthController {
             Cookie cookie = new Cookie("crowd.token_key", tokenValue);
             cookie.setPath("/");                //如果路径为/则为整个tomcat目录有用
             cookie.setDomain("harmonycloud.com");    //设置对所有*.harmonycloud.com为后缀的域名
-//            //将token的值存入token
-//            Cookie cookie = new Cookie("crowd.token_key", tokenValue);
-//            cookie.setPath("/");                //如果路径为/则为整个tomcat目录有用
-//            cookie.setDomain("harmonycloud.com");    //设置对所有*.harmonycloud.com为后缀的域名效
+
             response.addCookie(cookie);
             res = username;
         }
-
 
         //如果res不为null，就表示用户名密码正确
         if (StringUtils.isNotBlank(res)) {
@@ -253,7 +241,7 @@ public class AuthController {
             }
             //sessionId存放redis统一管理 默认8小时数据销毁
             stringRedisTemplate.opsForValue().set("sessionid:sessionid-"+username,session.getId(),SESSION_TIMEOUT_HOURS,TimeUnit.HOURS);
-            //TODO 后续
+
 
             Map<String, Object> data = new HashMap<String, Object>();
             Map<String, Object> token = authService.generateToken(user);
@@ -263,7 +251,6 @@ public class AuthController {
             data.put("isSuperAdmin", user.getIsAdmin());
             data.put("token", session.getId());
             JsonUtil.objectToJson(data);
-//            System.out.println("test if I can success!");
 
             return ActionReturnUtil.returnSuccessWithData(data);
         }
