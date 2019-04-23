@@ -1,5 +1,7 @@
 package com.harmonycloud.service.user.impl;
 
+import com.harmonycloud.service.user.*;
+import com.harmonycloud.service.user.auth.AuthManagerCrowd;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
@@ -24,10 +26,6 @@ import com.harmonycloud.service.platform.bean.harbor.HarborUser;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.harbor.HarborUserService;
 import com.harmonycloud.service.tenant.TenantService;
-import com.harmonycloud.service.user.RoleLocalService;
-import com.harmonycloud.service.user.RoleService;
-import com.harmonycloud.service.user.UserRoleRelationshipService;
-import com.harmonycloud.service.user.UserService;
 import com.harmonycloud.service.util.SsoClient;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFCell;
@@ -54,6 +52,8 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -62,6 +62,7 @@ import java.util.stream.Collectors;
 import static com.harmonycloud.common.Constant.CommonConstant.*;
 import static com.harmonycloud.service.platform.constant.Constant.DB_BATCH_INSERT_COUNT;
 import static com.harmonycloud.service.platform.constant.Constant.MAX_QUERY_COUNT_100;
+
 
 /**
  * @Author w_kyzhang
@@ -397,7 +398,6 @@ public class UserServiceImpl implements UserService {
      */
     public ActionReturnUtil addUser(User user) throws Exception {
 
-        System.out.println("test add user");
         // 密码匹配
         String regex = "^(?![0-9]+$)(?![a-zA-Z]+$)[0-9A-Za-z]{7,12}$";
         String regex1 = "^[\u4E00-\u9FA5A-Za-z0-9]+$";
@@ -430,7 +430,6 @@ public class UserServiceImpl implements UserService {
             user.setIsMachine(Constant.NON_MACHINE_ACCOUNT);
         }
         userMapper.insert(user);
-        System.out.println("insert OK");
         return ActionReturnUtil.returnSuccess();
 
     }
@@ -631,6 +630,12 @@ public class UserServiceImpl implements UserService {
                 redisOperationsSessionRepository.delete(sessionId);//session过期设置
                 stringRedisTemplate.delete("sessionid:sessionid-"+userName);//移除redis中sessionid
             }
+            //在crowd中删除相关信息
+            URL url = new URL( AuthManagerCrowd.DOMAIN + "user?username=" + userName);
+
+            HttpURLConnection connection = AuthManagerCrowd.crowdDelete(url);
+            connection.getResponseCode();
+
         }else {
             throw new MarsRuntimeException(ErrorCodeMessage.USER_NOT_EXIST);
         }

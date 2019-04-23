@@ -12,6 +12,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
 
+import com.harmonycloud.service.user.auth.AuthManagerCrowd;
+
 import javax.annotation.PostConstruct;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -20,7 +22,6 @@ import javax.servlet.http.HttpSession;
 import java.io.BufferedReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Base64;
 import java.io.InputStreamReader;
 
 /**
@@ -169,20 +170,9 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         if (cookies != null) {
             for (Cookie cookie : cookies) {
                 if (cookie.getName().equals("crowd.token_key")) {// 是否是自动登录。。。。//要先get /session看返回码。但实际上应该还要有更多的判断条件，比如这个application能否访问这个用户
-//                    System.out.println("检测到cookie");
                     String token = cookie.getValue();
-                    URL crowdUrl = new URL("http://crowd.harmonycloud.com:8095/crowd/rest/usermanagement/latest/session/" + token);
-                    HttpURLConnection connection = (HttpURLConnection) crowdUrl.openConnection();
-
-                    connection.setRequestMethod("GET");
-//						connection.setRequestProperty("Content-Type", "application/json");
-                    connection.setRequestProperty("Charset", "UTF-8");
-                    connection.setRequestProperty("connection", "Keep-Alive");
-                    //http基本认证
-                    String base64encodedString = Base64.getEncoder().encodeToString("mars:123456".getBytes("utf-8"));
-                    connection.setRequestProperty("Authorization", "Basic " + base64encodedString);
-                    connection.connect();
-//                    System.out.println("返回码：" + connection.getResponseCode());
+                    URL crowdUrl = new URL(AuthManagerCrowd.DOMAIN + "session/" + token);
+                    HttpURLConnection connection = AuthManagerCrowd.crowdGet(crowdUrl);
                     if (connection.getResponseCode() == 200) {
                         //说明用户已经在登录
                         BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"));
@@ -208,9 +198,6 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
                         session.setAttribute("userId", user.getId());
                         return true;
 //                        session.setAttribute("language", language);
-                    } else {
-                        //cookie失效了表示用户已登出
-//                        System.out.println("cookie的值是无效的");
                     }
                 }
             }

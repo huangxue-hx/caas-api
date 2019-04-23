@@ -17,6 +17,8 @@ import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dto.user.LdapConfigDto;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.user.*;
+
+import com.harmonycloud.service.user.auth.AuthManagerCrowd;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -160,7 +162,6 @@ public class AuthController {
     public ActionReturnUtil Login(@RequestParam(value = "username") final String username, @RequestParam(value = "password") final String password,
                                   @RequestParam(value = "language", required=false) final String language, HttpServletResponse response) throws Exception {
         SystemConfig trialConfig = this.systemConfigService.findByConfigName(CommonConstant.TRIAL_TIME);
-        System.out.println(language);
         if(trialConfig != null) {
             int v = Integer.parseInt(trialConfig.getConfigValue());
             if (v == 0) {
@@ -184,14 +185,15 @@ public class AuthController {
             cloud = true;
         }
 
-        URL url = new URL( CrowdSSO.DOMAIN + "session");
+        URL url = new URL( AuthManagerCrowd.DOMAIN + "session");
 
-        String jsonData = "{\"username\":\"" + username + "\",\"password\":\""+ password + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"10.100.100.94\"}]}}";
-        HttpURLConnection connection = CrowdSSO.crowdPost(url,"application/json", jsonData);
-        System.out.println(connection.getResponseCode());
+        String jsonData = "{\"username\":\"" + username + "\",\"password\":\""+ password + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"10.100.100.247\"}]}}";
+//        String jsonData = "{\"username\":\"" + username + "\",\"password\":\""+ password + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"10.100.100.94\"}]}}";
+//        String jsonData = "{\"username\":\"" + username + "\",\"password\":\""+ password + "\"}";
+        HttpURLConnection connection = AuthManagerCrowd.crowdPost(url,"application/json", jsonData);
         if(connection.getResponseCode() == 201) {
             crowd = true;
-            String messageBody = CrowdSSO.getMessageBody(connection);
+            String messageBody = AuthManagerCrowd.getMessageBody(connection);
             crowdToken = messageBody.substring(messageBody.indexOf("<token>") + 7, messageBody.lastIndexOf("</token>"));
             //在crowd服务器中找到了相关信息
             res = username;
@@ -201,24 +203,25 @@ public class AuthController {
         if (StringUtils.isNotBlank(res)) {
 //            在crowd的数据库中找到了账户信息，但容器云中没有，需要在容器云中新建用户
             if(!cloud){
-                URL crowdurl = new URL(CrowdSSO.DOMAIN + "user?username=" + username);
-                HttpURLConnection urlConnection = CrowdSSO.crowdGet(crowdurl);
-                String messageBody = CrowdSSO.getMessageBody(urlConnection);
-                System.out.println("Message Body:" + messageBody);
+                URL crowdurl = new URL(AuthManagerCrowd.DOMAIN + "user?username=" + username);
+                HttpURLConnection urlConnection = AuthManagerCrowd.crowdGet(crowdurl);
+                if(urlConnection.getResponseCode() != 200){
+                    return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_INFO_LOST);
+                }
+                String messageBody = AuthManagerCrowd.getMessageBody(urlConnection);
                 String email = messageBody.substring(messageBody.indexOf("<email>") + 7, messageBody.lastIndexOf("</email>"));
-                System.out.println("email:" + email);
-                System.out.println("realname:" + username);
                 //获取phone值
-                URL phoneurl = new URL(CrowdSSO.DOMAIN + "user/attribute?username=" + username);
-                HttpURLConnection urlPhoneConnection = CrowdSSO.crowdGet(phoneurl);
-                messageBody = CrowdSSO.getMessageBody(urlPhoneConnection);
+                URL phoneurl = new URL(AuthManagerCrowd.DOMAIN + "user/attribute?username=" + username);
+                HttpURLConnection urlPhoneConnection = AuthManagerCrowd.crowdGet(phoneurl);
+                if(urlPhoneConnection.getResponseCode() != 200){
+                    return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_INFO_LOST);
+                }
+                messageBody = AuthManagerCrowd.getMessageBody(urlPhoneConnection);
                 String phone = "";
                 if(messageBody.indexOf("<attribute name=\"phone\">") != -1){
                     //有相应的phone属性
                     messageBody = messageBody.substring(messageBody.indexOf("<attribute name=\"phone\">") + "<attribute name=\"phone\">".length());
-                    System.out.println("phone1:"+messageBody);
                     phone = messageBody.substring(messageBody.indexOf("<value>")+ 7, messageBody.indexOf("</value>"));
-                    System.out.println("phone2:"+ phone);
                 }
                 else{
                     //找不到crowd中的phone属性
@@ -233,10 +236,9 @@ public class AuthController {
                 user.setPassword(password);
                 user.setUsername(username);
                 user.setRealName(username);
-                user.setIsAdmin(1);
+                user.setIsAdmin(0);
                 //添加用户
-                System.out.println(userService.addUser(user));
-                System.out.println("1:"+ user.toString());
+                userService.addUser(user);
             }
             User user = userService.getUser(username);
             if (user == null) {
@@ -246,28 +248,26 @@ public class AuthController {
                 user.setIsMachine(0);
             }
 
-            System.out.println("2:" + user.toString());
-
             if(!crowd){
                 //虽然在容器云的数据库找到了正确的账户信息，但是没有在crowd中找到相关信息，需要同步至crowd数据库
                 String realname = user.getRealName();
                 String email = user.getEmail();
-                URL crowdurl = new URL(CrowdSSO.DOMAIN + "user");
-                String xmlData = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><user name=\"" + username + "\" expand=\"attributes\"><first-name>" +realname + "</first-name><last-name>"+ realname +"</last-name><email>" + email + "</email><active>true</active><attributes><link href=\"" + CrowdSSO.DOMAIN + "user/attribute?username=" + username + "\" rel=\"self\"/></attributes><password><link rel=\"edit\" href=\"" + CrowdSSO.DOMAIN + "/user/password?username=" +username + "\"/><value>" + password + "</value></password></user>";
+                URL crowdurl = new URL(AuthManagerCrowd.DOMAIN + "user");
+                String xmlData = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><user name=\"" + username + "\" expand=\"attributes\"><first-name>" +realname + "</first-name><last-name>"+ realname +"</last-name><email>" + email + "</email><active>true</active><attributes><link href=\"" + AuthManagerCrowd.DOMAIN + "user/attribute?username=" + username + "\" rel=\"self\"/></attributes><password><link rel=\"edit\" href=\"" + AuthManagerCrowd.DOMAIN + "/user/password?username=" +username + "\"/><value>" + password + "</value></password></user>";
 //                System.out.println(xmlData);
                 //创建用户
-                HttpURLConnection httpURLConnection = CrowdSSO.crowdPost(crowdurl,"application/xml", xmlData);
+                HttpURLConnection httpURLConnection = AuthManagerCrowd.crowdPost(crowdurl,"application/xml", xmlData);
 //                System.out.println("httpURLConnection.getResponseCode():" + httpURLConnection.getResponseCode());
                 if(httpURLConnection.getResponseCode() == 201){
                     //告知crowd此新建的用户已经登录,并创建相关的cookie
-                    HttpURLConnection con = CrowdSSO.crowdPost(url,"application/json", jsonData);
-                    String messageBody = CrowdSSO.getMessageBody(con);
+                    HttpURLConnection con = AuthManagerCrowd.crowdPost(url,"application/json", jsonData);
+                    String messageBody = AuthManagerCrowd.getMessageBody(con);
                     crowdToken = messageBody.substring(messageBody.indexOf("<token>") + 7, messageBody.lastIndexOf("</token>"));
                     //添加phone属性
                     String phone = user.getPhone();
-                    URL phoneurl = new URL(CrowdSSO.DOMAIN + "user/attribute?username=" + username);
+                    URL phoneurl = new URL(AuthManagerCrowd.DOMAIN + "user/attribute?username=" + username);
                     String phoneJson = "{\"attributes\": [{\"name\": \"phone\",\"values\": [\"" + phone + "\"]}]}";
-                    HttpURLConnection phonecon = CrowdSSO.crowdPost(phoneurl, "application/json", phoneJson);
+                    HttpURLConnection phonecon = AuthManagerCrowd.crowdPost(phoneurl, "application/json", phoneJson);
                     if(phonecon.getResponseCode() != 204){
                         return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_CROWD_CREATE_FAIL);
                     }
@@ -300,7 +300,6 @@ public class AuthController {
 
             Map<String, Object> data = new HashMap<String, Object>();
             Map<String, Object> token = authService.generateToken(user);
-//            System.out.println(token.get("token"));
             K8SClient.getTokenMap().put(username, token.get("token"));
             data.put("username", user.getUsername().toLowerCase());
             data.put("isSuperAdmin", user.getIsAdmin());
@@ -320,13 +319,9 @@ public class AuthController {
         //移除redis中sessionid
         stringRedisTemplate.delete("sessionid:sessionid-"+session.getAttribute("username"));
         //在crowd中清除登录信息
-        URL url = new URL(CrowdSSO.DOMAIN + "session?username=" + username);
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setDoOutput(true);
-        connection.setRequestMethod("DELETE");
-        String base64encodedString = Base64.getEncoder().encodeToString("mars:123456".getBytes("utf-8"));
-        connection.setRequestProperty("Authorization", "Basic " + base64encodedString);
-        connection.connect();
+        URL url = new URL(AuthManagerCrowd.DOMAIN + "session?username=" + username);
+
+        HttpURLConnection connection = AuthManagerCrowd.crowdDelete(url);
         connection.getResponseCode();
         //使session失效
         session.invalidate();
