@@ -185,7 +185,6 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
 //                    System.out.println("返回码：" + connection.getResponseCode());
                     if (connection.getResponseCode() == 200) {
                         //说明用户已经在登录
-//                        flag = false;
                         BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"));
                         String line;
                         String result = "";
@@ -203,7 +202,6 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
                             user.setIsMachine(0);
                         }
 
-                        //userService这部分可能要改，因为我猜测这部分访问了数据库，但实际数据库应该集成在crowd后台
                         session.setAttribute("username", user.getUsername());
                         session.setAttribute("isAdmin", user.getIsAdmin());
                         session.setAttribute("isMachine", user.getIsMachine());

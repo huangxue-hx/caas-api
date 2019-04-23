@@ -396,6 +396,8 @@ public class UserServiceImpl implements UserService {
      * @return
      */
     public ActionReturnUtil addUser(User user) throws Exception {
+
+        System.out.println("test add user");
         // 密码匹配
         String regex = "^(?![0-9]+$)(?![a-zA-Z]+$)[0-9A-Za-z]{7,12}$";
         String regex1 = "^[\u4E00-\u9FA5A-Za-z0-9]+$";
@@ -428,6 +430,7 @@ public class UserServiceImpl implements UserService {
             user.setIsMachine(Constant.NON_MACHINE_ACCOUNT);
         }
         userMapper.insert(user);
+        System.out.println("insert OK");
         return ActionReturnUtil.returnSuccess();
 
     }

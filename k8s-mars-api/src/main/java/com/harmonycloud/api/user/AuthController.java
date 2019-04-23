@@ -12,6 +12,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dto.user.LdapConfigDto;
 import com.harmonycloud.service.system.SystemConfigService;
@@ -33,7 +34,6 @@ import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.service.application.SecretService;
-import java.net.InetAddress;
 
 @RequestMapping(value = "/users/auth")
 @Controller
@@ -146,8 +146,8 @@ public class AuthController {
 //        return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.AUTH_FAIL);
 //    }
 
-
-    public HttpURLConnection CrowdPost(URL url, String contenttype, String data) throws Exception{
+    //向crowd发送POST请求
+    private HttpURLConnection CrowdPost(URL url, String contenttype, String data) throws Exception{
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setDoOutput(true);
         connection.setDoInput(true);
@@ -165,6 +165,144 @@ public class AuthController {
         return connection;
     }
 
+    private HttpURLConnection CrowdGet(URL url) throws Exception{
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+        connection.setRequestMethod("GET");
+        connection.setRequestProperty("Charset", "UTF-8");
+        connection.setRequestProperty("connection", "Keep-Alive");
+        //http基本认证
+        String base64encodedString = Base64.getEncoder().encodeToString("mars:123456".getBytes("utf-8"));
+        connection.setRequestProperty("Authorization", "Basic " + base64encodedString);
+        connection.connect();
+        System.out.println(connection.getResponseCode());
+        return connection;
+    }
+
+    public String getMessageBody(HttpURLConnection connection)throws Exception{
+        BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        String line;
+        StringBuffer result = new StringBuffer();
+        for (line = br.readLine(); line != null; line = br.readLine()) {
+            result.append(line);
+        }
+        System.out.println(result.toString());
+        return result.toString();
+    }
+    private void AddCookie(String crowdToken, HttpServletResponse response) throws Exception{
+        //将crowd中token的值存入token
+        Cookie cookie = new Cookie("crowd.token_key", crowdToken);
+        cookie.setPath("/");                //如果路径为/则为整个tomcat目录有用
+        cookie.setDomain("harmonycloud.com");    //设置对所有*.harmonycloud.com为后缀的域名
+
+        response.addCookie(cookie);
+    }
+
+//    @ResponseBody
+//    @RequestMapping(value = "/login",method = RequestMethod.POST)
+//    public ActionReturnUtil Login(@RequestParam(value = "username") final String username, @RequestParam(value = "password") final String password,
+//                                  @RequestParam(value = "language", required=false) final String language, HttpServletResponse response) throws Exception {
+//        SystemConfig trialConfig = this.systemConfigService.findByConfigName(CommonConstant.TRIAL_TIME);
+//        System.out.println(language);
+//        if(trialConfig != null) {
+//            int v = Integer.parseInt(trialConfig.getConfigValue());
+//            if (v == 0) {
+//                return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.FREE_TRIAL_END);
+//            }
+//        }
+//        LdapConfigDto ldapConfigDto = this.systemConfigService.findLdapConfig();
+//        String res = null;
+//        boolean flag = false;
+//        String tokenValue;
+//        URL url = new URL("http://crowd.harmonycloud.com:8095/crowd/rest/usermanagement/latest/session");
+//
+//        String jsonData = "{\"username\":\"" + username + "\",\"password\":\""+ password + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"10.100.100.250\"}]}}";
+//        HttpURLConnection connection = CrowdPost(url,"application/json", jsonData);
+//        System.out.println(connection.getResponseCode());
+//        //如果crowd服务器中没有相关信息，就在自己的数据库中验证账户和密码
+//        if(connection.getResponseCode() >= 400) {
+//            flag = true;
+//            if (ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1 && !CommonConstant.ADMIN.equals(username)) {
+//                res = this.authManager4Ldap.auth(username, password, ldapConfigDto);
+//            } else {
+//                //一般都是走Default这种情况
+//                res = authManagerDefault.auth(username, password);
+//            }
+//        }
+//        //在crowd服务器中找到了相关信息，直接登录
+//        else {
+//
+//            AddCookie(connection, response);
+//            res = username;
+//        }
+//
+//        //如果res不为null，就表示用户名密码正确
+//        if (StringUtils.isNotBlank(res)) {
+//
+//            User user = userService.getUser(username);
+//            if (user == null) {
+//                user = new User();
+//                user.setUsername(username);
+//                user.setIsAdmin(0);
+//                user.setIsMachine(0);
+//            }
+//            if(flag){
+//                //虽然在容器云的数据库找到了正确的账户信息，但是没有在crowd中找到相关信息，需要同步至数据库
+//                String realname = user.getRealName();
+//                String email = user.getEmail();
+//                URL crowdurl = new URL("http://crowd.harmonycloud.com:8095/crowd/rest/usermanagement/latest/user");
+//                String xmlData = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><user name=\"" + username + "\" expand=\"attributes\"><first-name>" +realname + "</first-name><last-name>"+ realname +"</last-name><email>" + email + "</email><active>true</active><attributes><link href=\"http://crowd.harmonycloud.com:8095/crowd/rest/usermanagement/latest/user/attribute?username=" + username + "\" rel=\"self\"/></attributes><password><link rel=\"edit\" href=\"http://crowd.harmonycloud.com:8095/crowd/rest/usermanagement/latest/user/password?username=" +username + "\"/><value>" + password + "</value></password></user>";
+//                System.out.println(xmlData);
+//                //创建用户
+//                HttpURLConnection httpURLConnection = CrowdPost(crowdurl,"application/xml", xmlData);
+//                System.out.println("httpURLConnection.getResponseCode():" + httpURLConnection.getResponseCode());
+//                if(httpURLConnection.getResponseCode() == 201){
+//                    System.out.println("创建成功！");
+//                    //告知crowd此新建的用户已经登录
+//                    HttpURLConnection con = CrowdPost(url,"application/json", jsonData);
+//                    AddCookie(con, response);
+//                }
+//                else {
+//                    return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_CROWD_CREATE_FAIL);
+//                }
+//
+//            }
+//
+//            boolean admin = this.userService.isAdmin(username);
+//            session.setAttribute("username", user.getUsername());
+//            session.setAttribute("isAdmin", user.getIsAdmin());
+//            session.setAttribute("isMachine", user.getIsMachine());
+//            session.setAttribute("userId", user.getId());
+//            session.setAttribute("language", language);
+//            Boolean hasRole = userRoleRelationshipService.hasRole(username);
+//            if(CommonConstant.PAUSE.equals(user.getPause())){
+//                return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_DISABLED);
+//            }
+//            if (admin){
+//                session.setAttribute(CommonConstant.ROLEID, CommonConstant.ADMIN_ROLEID);
+//                rolePrivilegeService.switchRole(CommonConstant.ADMIN_ROLEID);
+//            }
+//            if(!(hasRole || admin)){
+//                return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_NOT_AUTH);
+//            }
+//            //sessionId存放redis统一管理 默认8小时数据销毁
+//            stringRedisTemplate.opsForValue().set("sessionid:sessionid-"+username,session.getId(),SESSION_TIMEOUT_HOURS,TimeUnit.HOURS);
+//
+//
+//            Map<String, Object> data = new HashMap<String, Object>();
+//            Map<String, Object> token = authService.generateToken(user);
+////            System.out.println(token.get("token"));
+//            K8SClient.getTokenMap().put(username, token.get("token"));
+//            data.put("username", user.getUsername().toLowerCase());
+//            data.put("isSuperAdmin", user.getIsAdmin());
+//            data.put("token", session.getId());
+//            JsonUtil.objectToJson(data);
+//            return ActionReturnUtil.returnSuccessWithData(data);
+//        }
+//        return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.AUTH_FAIL);
+//    }
+
+
     @ResponseBody
     @RequestMapping(value = "/login",method = RequestMethod.POST)
     public ActionReturnUtil Login(@RequestParam(value = "username") final String username, @RequestParam(value = "password") final String password,
@@ -179,48 +317,61 @@ public class AuthController {
         }
         LdapConfigDto ldapConfigDto = this.systemConfigService.findLdapConfig();
         String res = null;
-        boolean flag = false;
-        String tokenValue;
+        //表示容器云自身的数据库是否储存了账户信息
+        boolean cloud = false;
+        //表示crowd连接的数据库中是否储存了账户信息
+        boolean crowd = false;
+        //首先在容器云自身的数据库中验证账号和密码
+        String crowdToken = null;
+        if (ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1 && !CommonConstant.ADMIN.equals(username)) {
+            res = this.authManager4Ldap.auth(username, password, ldapConfigDto);
+        } else {
+            res = authManagerDefault.auth(username, password);
+        }
+        if(StringUtils.isNotBlank(res)){
+            cloud = true;
+        }
+
         URL url = new URL("http://crowd.harmonycloud.com:8095/crowd/rest/usermanagement/latest/session");
 
-        String jsonData = "{\"username\":\"" + username + "\",\"password\":\""+ password + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"10.100.100.250\"}]}}";
+        String jsonData = "{\"username\":\"" + username + "\",\"password\":\""+ password + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"10.100.100.94\"}]}}";
         HttpURLConnection connection = CrowdPost(url,"application/json", jsonData);
         System.out.println(connection.getResponseCode());
-        //如果crowd服务器中没有相关信息，就在自己的数据库中验证账户和密码
-        if(connection.getResponseCode() >= 400) {
-            flag = true;
-            if (ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1 && !CommonConstant.ADMIN.equals(username)) {
-                res = this.authManager4Ldap.auth(username, password, ldapConfigDto);
-            } else {
-                //一般都是走Default这种情况
-                res = authManagerDefault.auth(username, password);
-                System.out.println("default");
-            }
-        }
-        //在crowd服务器中找到了相关信息，直接登录
-        else {
-            BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-            String line = "";
-            String result = "";
-            for (line = br.readLine(); line != null; line = br.readLine()) {
-                result += line + "\n";
-            }
-            System.out.println(result);
-            //获得crowd中token的值
-            tokenValue = result.substring(result.indexOf("<token>") + 7, result.lastIndexOf("</token>"));
-            System.out.println("This is Token:" + tokenValue);
-            //将crowd中token的值存入token
-            Cookie cookie = new Cookie("crowd.token_key", tokenValue);
-            cookie.setPath("/");                //如果路径为/则为整个tomcat目录有用
-            cookie.setDomain("harmonycloud.com");    //设置对所有*.harmonycloud.com为后缀的域名
-
-            response.addCookie(cookie);
+        if(connection.getResponseCode() == 201) {
+            crowd = true;
+            String messageBody = getMessageBody(connection);
+            crowdToken = messageBody.substring(messageBody.indexOf("<token>") + 7, messageBody.lastIndexOf("</token>"));
+            //在crowd服务器中找到了相关信息
             res = username;
         }
 
-        //如果res不为null，就表示用户名密码正确
+        //如果res不为null，就表示至少在一方中找到了账户和密码
         if (StringUtils.isNotBlank(res)) {
-
+            boolean toAuthorize = false;
+//            在crowd的数据库中找到了账户信息，但容器云中没有，需要在容器云中新建用户
+            if(!cloud){
+                URL crowdurl = new URL("http://crowd.harmonycloud.com:8095/crowd/rest/usermanagement/latest/user?username=" + username);
+                HttpURLConnection urlConnection = CrowdGet(crowdurl);
+                String messageBody = getMessageBody(urlConnection);
+                System.out.println("Message Body:" + messageBody);
+                String email = messageBody.substring(messageBody.indexOf("<email>") + 7, messageBody.lastIndexOf("</email>"));
+                String realname = messageBody.substring(messageBody.indexOf("<display-name>") + 14, messageBody.lastIndexOf("</display-name>")).replace(" ", "");
+                System.out.println("email:" + email);
+                System.out.println("realname:" + realname);
+                //组装用户数据
+                User user = new User();
+                user.setCreate_time(DateUtil.getCurrentUtcTime());
+                //user.setPhone(devOpsProjectUserDto.getTel());
+                user.setEmail(email);
+                user.setComment("Created by CROWD");
+                user.setPassword(password);
+                user.setUsername(username);
+                user.setRealName(realname);
+                user.setIsAdmin(1);
+                //添加用户
+                System.out.println(userService.addUser(user));
+                System.out.println("1:"+ user.toString());
+            }
             User user = userService.getUser(username);
             if (user == null) {
                 user = new User();
@@ -228,44 +379,29 @@ public class AuthController {
                 user.setIsAdmin(0);
                 user.setIsMachine(0);
             }
-            if(flag){
-                System.out.println("创建！");
+
+            System.out.println("2:" + user.toString());
+
+            if(!crowd){
                 //虽然在容器云的数据库找到了正确的账户信息，但是没有在crowd中找到相关信息，需要同步至数据库
                 String realname = user.getRealName();
                 String email = user.getEmail();
                 URL crowdurl = new URL("http://crowd.harmonycloud.com:8095/crowd/rest/usermanagement/latest/user");
                 String xmlData = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><user name=\"" + username + "\" expand=\"attributes\"><first-name>" +realname + "</first-name><last-name>"+ realname +"</last-name><email>" + email + "</email><active>true</active><attributes><link href=\"http://crowd.harmonycloud.com:8095/crowd/rest/usermanagement/latest/user/attribute?username=" + username + "\" rel=\"self\"/></attributes><password><link rel=\"edit\" href=\"http://crowd.harmonycloud.com:8095/crowd/rest/usermanagement/latest/user/password?username=" +username + "\"/><value>" + password + "</value></password></user>";
-                System.out.println(xmlData);
+//                System.out.println(xmlData);
                 //创建用户
                 HttpURLConnection httpURLConnection = CrowdPost(crowdurl,"application/xml", xmlData);
-                System.out.println("httpURLConnection.getResponseCode():" + httpURLConnection.getResponseCode());
+//                System.out.println("httpURLConnection.getResponseCode():" + httpURLConnection.getResponseCode());
                 if(httpURLConnection.getResponseCode() == 201){
                     System.out.println("创建成功！");
-                    //告知crowd此新建的用户已经登录
+                    //告知crowd此新建的用户已经登录,并创建相关的cookie
                     HttpURLConnection con = CrowdPost(url,"application/json", jsonData);
-                    System.out.println("aaaaaaaaaaaaa");
-                    BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream()));
-                    String line = "";
-                    String result = "";
-                    for (line = br.readLine(); line != null; line = br.readLine()) {
-                        result += line + "\n";
-                    }
-                    System.out.println(result);
-                    //获得crowd中token的值
-                    tokenValue = result.substring(result.indexOf("<token>") + 7, result.lastIndexOf("</token>"));
-                    System.out.println("This is Token:" + tokenValue);
-                    //将crowd中token的值存入token
-                    Cookie cookie = new Cookie("crowd.token_key", tokenValue);
-                    cookie.setPath("/");                //如果路径为/则为整个tomcat目录有用
-                    cookie.setDomain("harmonycloud.com");    //设置对所有*.harmonycloud.com为后缀的域名
-
-                    response.addCookie(cookie);
-
+                    String messageBody = getMessageBody(con);
+                    crowdToken = messageBody.substring(messageBody.indexOf("<token>") + 7, messageBody.lastIndexOf("</token>"));
                 }
                 else {
-                    System.out.println("创建失败！");
+                    return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_CROWD_CREATE_FAIL);
                 }
-
             }
 
             boolean admin = this.userService.isAdmin(username);
@@ -297,7 +433,7 @@ public class AuthController {
             data.put("isSuperAdmin", user.getIsAdmin());
             data.put("token", session.getId());
             JsonUtil.objectToJson(data);
-
+            AddCookie(crowdToken, response);
             return ActionReturnUtil.returnSuccessWithData(data);
         }
         return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.AUTH_FAIL);
@@ -319,12 +455,7 @@ public class AuthController {
         String base64encodedString = Base64.getEncoder().encodeToString("mars:123456".getBytes("utf-8"));
         connection.setRequestProperty("Authorization", "Basic " + base64encodedString);
         connection.connect();
-        if(connection.getResponseCode() == 204) {
-            System.out.println("删除成功！");
-        }
-        else{
-            System.out.println("删除失败！");
-        }
+        connection.getResponseCode();
         //使session失效
         session.invalidate();
 

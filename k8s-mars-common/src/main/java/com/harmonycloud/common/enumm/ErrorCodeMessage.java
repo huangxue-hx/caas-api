@@ -70,6 +70,7 @@ public enum ErrorCodeMessage {
     INVALID_CHARACTER(100046,"Format is not correct, contains illegal characters", "格式错误, 包含非法字符或组合"),
     ENGLISH_NAME_EXIST(100047,"Short name exists", "简称已经存在"),
 
+
     //用户相关 200xxx
     USER_DISABLED(200001, "User is disabled.","该用户暂时停止使用，请联系管理员"),
     USER_NOT_AUTH(200002, "User is not authorized.","该用户未授权，请联系管理员"),
@@ -106,6 +107,8 @@ public enum ErrorCodeMessage {
     USER_PERMISSION_DENIED_FOR_PRIVILEGE_CHANGE(200033, "Privilege has changed,permission denied.","权限被管理员修改,权限不足"),
     USER_LOCKED(200034, "The account is locked. Please try after 30 minutes ", "账号已锁定，请30分钟后再试"),
     USER_PASSWORD_CHANGE_SELF(200035, "Only change password for yourself", "只能修改自己的账号密码"),
+    //只与单点登录相关
+    USER_CROWD_CREATE_FAIL(20036, "Single sign on fails", "单点登录失败"),
 
     //租户 201xxx
     TENANTNAME_EXIST(201001, "TenantName was existed.","租户简称已经存在"),
