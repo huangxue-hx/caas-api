@@ -347,7 +347,6 @@ public class AuthController {
 
         //如果res不为null，就表示至少在一方中找到了账户和密码
         if (StringUtils.isNotBlank(res)) {
-            boolean toAuthorize = false;
 //            在crowd的数据库中找到了账户信息，但容器云中没有，需要在容器云中新建用户
             if(!cloud){
                 URL crowdurl = new URL("http://crowd.harmonycloud.com:8095/crowd/rest/usermanagement/latest/user?username=" + username);
@@ -355,18 +354,33 @@ public class AuthController {
                 String messageBody = getMessageBody(urlConnection);
                 System.out.println("Message Body:" + messageBody);
                 String email = messageBody.substring(messageBody.indexOf("<email>") + 7, messageBody.lastIndexOf("</email>"));
-                String realname = messageBody.substring(messageBody.indexOf("<display-name>") + 14, messageBody.lastIndexOf("</display-name>")).replace(" ", "");
                 System.out.println("email:" + email);
-                System.out.println("realname:" + realname);
+                System.out.println("realname:" + username);
+                //获取phone值
+                URL phoneurl = new URL("http://crowd.harmonycloud.com:8095/crowd/rest/usermanagement/latest/user/attribute?username=" + username);
+                HttpURLConnection urlPhoneConnection = CrowdGet(phoneurl);
+                messageBody = getMessageBody(urlPhoneConnection);
+                String phone = "";
+                if(messageBody.indexOf("<attribute name=\"phone\">") != -1){
+                    //有相应的phone属性
+                    messageBody = messageBody.substring(messageBody.indexOf("<attribute name=\"phone\">") + "<attribute name=\"phone\">".length());
+                    System.out.println("phone1:"+messageBody);
+                    phone = messageBody.substring(messageBody.indexOf("<value>")+ 7, messageBody.indexOf("</value>"));
+                    System.out.println("phone2:"+ phone);
+                }
+                else{
+                    //找不到crowd中的phone属性
+                    return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_INFO_LOST);
+                }
                 //组装用户数据
                 User user = new User();
                 user.setCreate_time(DateUtil.getCurrentUtcTime());
-                //user.setPhone(devOpsProjectUserDto.getTel());
+                user.setPhone(phone);
                 user.setEmail(email);
                 user.setComment("Created by CROWD");
                 user.setPassword(password);
                 user.setUsername(username);
-                user.setRealName(realname);
+                user.setRealName(username);
                 user.setIsAdmin(1);
                 //添加用户
                 System.out.println(userService.addUser(user));
@@ -383,7 +397,7 @@ public class AuthController {
             System.out.println("2:" + user.toString());
 
             if(!crowd){
-                //虽然在容器云的数据库找到了正确的账户信息，但是没有在crowd中找到相关信息，需要同步至数据库
+                //虽然在容器云的数据库找到了正确的账户信息，但是没有在crowd中找到相关信息，需要同步至crowd数据库
                 String realname = user.getRealName();
                 String email = user.getEmail();
                 URL crowdurl = new URL("http://crowd.harmonycloud.com:8095/crowd/rest/usermanagement/latest/user");
@@ -393,11 +407,18 @@ public class AuthController {
                 HttpURLConnection httpURLConnection = CrowdPost(crowdurl,"application/xml", xmlData);
 //                System.out.println("httpURLConnection.getResponseCode():" + httpURLConnection.getResponseCode());
                 if(httpURLConnection.getResponseCode() == 201){
-                    System.out.println("创建成功！");
                     //告知crowd此新建的用户已经登录,并创建相关的cookie
                     HttpURLConnection con = CrowdPost(url,"application/json", jsonData);
                     String messageBody = getMessageBody(con);
                     crowdToken = messageBody.substring(messageBody.indexOf("<token>") + 7, messageBody.lastIndexOf("</token>"));
+                    //添加phone属性
+                    String phone = user.getPhone();
+                    URL phoneurl = new URL("http://crowd.harmonycloud.com:8095/crowd/rest/usermanagement/latest/user/attribute?username=" + username);
+                    String phoneJson = "{\"attributes\": [{\"name\": \"phone\",\"values\": [\"" + phone + "\"]}]}";
+                    HttpURLConnection phonecon = CrowdPost(phoneurl, "application/json", phoneJson);
+                    if(phonecon.getResponseCode() != 204){
+                        return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_CROWD_CREATE_FAIL);
+                    }
                 }
                 else {
                     return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_CROWD_CREATE_FAIL);

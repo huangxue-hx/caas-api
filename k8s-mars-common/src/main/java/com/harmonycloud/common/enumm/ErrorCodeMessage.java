@@ -108,7 +108,8 @@ public enum ErrorCodeMessage {
     USER_LOCKED(200034, "The account is locked. Please try after 30 minutes ", "账号已锁定，请30分钟后再试"),
     USER_PASSWORD_CHANGE_SELF(200035, "Only change password for yourself", "只能修改自己的账号密码"),
     //只与单点登录相关
-    USER_CROWD_CREATE_FAIL(20036, "Single sign on fails", "单点登录失败"),
+    USER_CROWD_CREATE_FAIL(20036, "User can't be created in CROWD", "在CROWD中同步用户失败，请联系管理员"),
+    USER_INFO_LOST(20037, "User can't be created as CROWD", "与CROWD同步用户失败，请联系管理员"),
 
     //租户 201xxx
     TENANTNAME_EXIST(201001, "TenantName was existed.","租户简称已经存在"),
