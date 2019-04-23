@@ -399,9 +399,12 @@ public class UserServiceImpl implements UserService {
         // 密码匹配
         String regex = "^(?![0-9]+$)(?![a-zA-Z]+$)[0-9A-Za-z]{7,12}$";
         String regex1 = "^[\u4E00-\u9FA5A-Za-z0-9]+$";
-        boolean matches = user.getPassword().matches(regex);
-        if (!matches) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PASSWORD_FORMAT_ERROR);
+
+        if(!user.getIsThirdPartyUser()){
+            boolean matches = user.getPassword().matches(regex);
+            if (!matches) {
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PASSWORD_FORMAT_ERROR);
+            }
         }
         // 用户名非重
         if (this.checkUserName(user.getUsername())) {
@@ -417,8 +420,10 @@ public class UserServiceImpl implements UserService {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.USER_REAL_NAME_ERROR);
         }
         // 密码md5加密
-        String MD5password = StringUtil.convertToMD5(user.getPassword());
-        user.setPassword(MD5password);
+        if(!user.getIsThirdPartyUser()){
+            String MD5password = StringUtil.convertToMD5(user.getPassword());
+            user.setPassword(MD5password);
+        }
         user.setCreateTime(new Date());
         user.setPause(CommonConstant.NORMAL);
         if (user.getIsAdmin() == null) {
