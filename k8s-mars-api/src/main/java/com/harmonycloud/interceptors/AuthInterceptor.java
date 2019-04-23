@@ -42,8 +42,8 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
     private UserService userService;
 
     @PostConstruct
-    public void initWhiteList(){
-        if(StringUtils.isBlank(urlWhiteList) || !urlWhiteList.contains("login")){
+    public void initWhiteList() {
+        if (StringUtils.isBlank(urlWhiteList) || !urlWhiteList.contains("login")) {
             urlWhiteList = urlExclusion;
         }
         UrlWhiteListHandler.initUrlPattern(urlWhiteList);
@@ -113,7 +113,6 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
 //    }
 
 
-
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         //crsf漏洞 HTTP referer验证
@@ -125,11 +124,11 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
                 return false; //验证失败
             }
         }*/
-        if(SsoClient.isOpen()){
+        if (SsoClient.isOpen()) {
             return true;
         }
         // 设置跨域访问header信息
-        if(StringUtils.isNotBlank(allowOrigin)) {
+        if (StringUtils.isNotBlank(allowOrigin)) {
             String origin = allowOrigin;
             String requestOrigin = request.getHeader("Origin");
             if (StringUtils.isNotBlank(requestOrigin)
@@ -148,7 +147,7 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         }
         // 获取请求的URL
         String url = request.getRequestURI();
-        if(UrlWhiteListHandler.isWhiteUrl(url)){
+        if (UrlWhiteListHandler.isWhiteUrl(url)) {
             return true;
         }
        /* //路径包含openapi的不需要验证是否登陆，oam task定时任务没有用户
@@ -185,19 +184,13 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
                         String username = result.substring(result.indexOf("name=\"") + 6, result.indexOf("\"><link"));
                         session.setAttribute("username", username);
                         User user = userService.getUser(username);
-                        if (user == null) {
-                            user = new User();
-                            user.setUsername(username);
-                            user.setIsAdmin(0);
-                            user.setIsMachine(0);
+                        if(user != null) {
+                            session.setAttribute("username", user.getUsername());
+                            session.setAttribute("isAdmin", user.getIsAdmin());
+                            session.setAttribute("isMachine", user.getIsMachine());
+                            session.setAttribute("userId", user.getId());
+                            return true;
                         }
-
-                        session.setAttribute("username", user.getUsername());
-                        session.setAttribute("isAdmin", user.getIsAdmin());
-                        session.setAttribute("isMachine", user.getIsMachine());
-                        session.setAttribute("userId", user.getId());
-                        return true;
-//                        session.setAttribute("language", language);
                     }
                 }
             }

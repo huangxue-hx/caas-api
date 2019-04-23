@@ -148,7 +148,7 @@ public class AuthController {
 //        return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.AUTH_FAIL);
 //    }
 
-    private void AddCookie(String crowdToken, HttpServletResponse response) throws Exception{
+    private void AddCookie(String crowdToken, HttpServletResponse response) throws Exception {
         //将crowd中token的值存入token
         Cookie cookie = new Cookie("crowd.token_key", crowdToken);
         cookie.setPath("/");                //如果路径为/则为整个tomcat目录有用
@@ -158,11 +158,11 @@ public class AuthController {
     }
 
     @ResponseBody
-    @RequestMapping(value = "/login",method = RequestMethod.POST)
+    @RequestMapping(value = "/login", method = RequestMethod.POST)
     public ActionReturnUtil Login(@RequestParam(value = "username") final String username, @RequestParam(value = "password") final String password,
-                                  @RequestParam(value = "language", required=false) final String language, HttpServletResponse response) throws Exception {
+                                  @RequestParam(value = "language", required = false) final String language, HttpServletResponse response) throws Exception {
         SystemConfig trialConfig = this.systemConfigService.findByConfigName(CommonConstant.TRIAL_TIME);
-        if(trialConfig != null) {
+        if (trialConfig != null) {
             int v = Integer.parseInt(trialConfig.getConfigValue());
             if (v == 0) {
                 return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.FREE_TRIAL_END);
@@ -181,17 +181,18 @@ public class AuthController {
         } else {
             res = authManagerDefault.auth(username, password);
         }
-        if(StringUtils.isNotBlank(res)){
+        if (StringUtils.isNotBlank(res)) {
             cloud = true;
         }
 
-        URL url = new URL( AuthManagerCrowd.DOMAIN + "session");
 
-        String jsonData = "{\"username\":\"" + username + "\",\"password\":\""+ password + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"10.100.100.247\"}]}}";
+        //crowd功能开启时
+        URL url = new URL(AuthManagerCrowd.DOMAIN + "session");
+        String jsonData = "{\"username\":\"" + username + "\",\"password\":\"" + password + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"10.100.100.247\"}]}}";
 //        String jsonData = "{\"username\":\"" + username + "\",\"password\":\""+ password + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"10.100.100.94\"}]}}";
 //        String jsonData = "{\"username\":\"" + username + "\",\"password\":\""+ password + "\"}";
-        HttpURLConnection connection = AuthManagerCrowd.crowdPost(url,"application/json", jsonData);
-        if(connection.getResponseCode() == 201) {
+        HttpURLConnection connection = AuthManagerCrowd.crowdPost(url, "application/json", jsonData);
+        if (connection.getResponseCode() == 201) {
             crowd = true;
             String messageBody = AuthManagerCrowd.getMessageBody(connection);
             crowdToken = messageBody.substring(messageBody.indexOf("<token>") + 7, messageBody.lastIndexOf("</token>"));
@@ -202,10 +203,10 @@ public class AuthController {
         //如果res不为null，就表示至少在一方中找到了账户和密码
         if (StringUtils.isNotBlank(res)) {
 //            在crowd的数据库中找到了账户信息，但容器云中没有，需要在容器云中新建用户
-            if(!cloud){
+            if (!cloud) {
                 URL crowdurl = new URL(AuthManagerCrowd.DOMAIN + "user?username=" + username);
                 HttpURLConnection urlConnection = AuthManagerCrowd.crowdGet(crowdurl);
-                if(urlConnection.getResponseCode() != 200){
+                if (urlConnection.getResponseCode() != 200) {
                     return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_INFO_LOST);
                 }
                 String messageBody = AuthManagerCrowd.getMessageBody(urlConnection);
@@ -213,17 +214,16 @@ public class AuthController {
                 //获取phone值
                 URL phoneurl = new URL(AuthManagerCrowd.DOMAIN + "user/attribute?username=" + username);
                 HttpURLConnection urlPhoneConnection = AuthManagerCrowd.crowdGet(phoneurl);
-                if(urlPhoneConnection.getResponseCode() != 200){
+                if (urlPhoneConnection.getResponseCode() != 200) {
                     return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_INFO_LOST);
                 }
                 messageBody = AuthManagerCrowd.getMessageBody(urlPhoneConnection);
                 String phone = "";
-                if(messageBody.indexOf("<attribute name=\"phone\">") != -1){
+                if (messageBody.indexOf("<attribute name=\"phone\">") != -1) {
                     //有相应的phone属性
                     messageBody = messageBody.substring(messageBody.indexOf("<attribute name=\"phone\">") + "<attribute name=\"phone\">".length());
-                    phone = messageBody.substring(messageBody.indexOf("<value>")+ 7, messageBody.indexOf("</value>"));
-                }
-                else{
+                    phone = messageBody.substring(messageBody.indexOf("<value>") + 7, messageBody.indexOf("</value>"));
+                } else {
                     //找不到crowd中的phone属性
                     return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_INFO_LOST);
                 }
@@ -248,19 +248,19 @@ public class AuthController {
                 user.setIsMachine(0);
             }
 
-            if(!crowd){
+            if (!crowd) {
                 //虽然在容器云的数据库找到了正确的账户信息，但是没有在crowd中找到相关信息，需要同步至crowd数据库
                 String realname = user.getRealName();
                 String email = user.getEmail();
                 URL crowdurl = new URL(AuthManagerCrowd.DOMAIN + "user");
-                String xmlData = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><user name=\"" + username + "\" expand=\"attributes\"><first-name>" +realname + "</first-name><last-name>"+ realname +"</last-name><email>" + email + "</email><active>true</active><attributes><link href=\"" + AuthManagerCrowd.DOMAIN + "user/attribute?username=" + username + "\" rel=\"self\"/></attributes><password><link rel=\"edit\" href=\"" + AuthManagerCrowd.DOMAIN + "/user/password?username=" +username + "\"/><value>" + password + "</value></password></user>";
+                String xmlData = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><user name=\"" + username + "\" expand=\"attributes\"><first-name>" + realname + "</first-name><last-name>" + realname + "</last-name><email>" + email + "</email><active>true</active><attributes><link href=\"" + AuthManagerCrowd.DOMAIN + "user/attribute?username=" + username + "\" rel=\"self\"/></attributes><password><link rel=\"edit\" href=\"" + AuthManagerCrowd.DOMAIN + "/user/password?username=" + username + "\"/><value>" + password + "</value></password></user>";
 //                System.out.println(xmlData);
                 //创建用户
-                HttpURLConnection httpURLConnection = AuthManagerCrowd.crowdPost(crowdurl,"application/xml", xmlData);
+                HttpURLConnection httpURLConnection = AuthManagerCrowd.crowdPost(crowdurl, "application/xml", xmlData);
 //                System.out.println("httpURLConnection.getResponseCode():" + httpURLConnection.getResponseCode());
-                if(httpURLConnection.getResponseCode() == 201){
+                if (httpURLConnection.getResponseCode() == 201) {
                     //告知crowd此新建的用户已经登录,并创建相关的cookie
-                    HttpURLConnection con = AuthManagerCrowd.crowdPost(url,"application/json", jsonData);
+                    HttpURLConnection con = AuthManagerCrowd.crowdPost(url, "application/json", jsonData);
                     String messageBody = AuthManagerCrowd.getMessageBody(con);
                     crowdToken = messageBody.substring(messageBody.indexOf("<token>") + 7, messageBody.lastIndexOf("</token>"));
                     //添加phone属性
@@ -268,11 +268,10 @@ public class AuthController {
                     URL phoneurl = new URL(AuthManagerCrowd.DOMAIN + "user/attribute?username=" + username);
                     String phoneJson = "{\"attributes\": [{\"name\": \"phone\",\"values\": [\"" + phone + "\"]}]}";
                     HttpURLConnection phonecon = AuthManagerCrowd.crowdPost(phoneurl, "application/json", phoneJson);
-                    if(phonecon.getResponseCode() != 204){
+                    if (phonecon.getResponseCode() != 204) {
                         return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_CROWD_CREATE_FAIL);
                     }
-                }
-                else {
+                } else {
                     return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_CROWD_CREATE_FAIL);
                 }
             }
@@ -284,19 +283,18 @@ public class AuthController {
             session.setAttribute("userId", user.getId());
             session.setAttribute("language", language);
             Boolean hasRole = userRoleRelationshipService.hasRole(username);
-            if(CommonConstant.PAUSE.equals(user.getPause())){
+            if (CommonConstant.PAUSE.equals(user.getPause())) {
                 return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_DISABLED);
             }
-            if (admin){
+            if (admin) {
                 session.setAttribute(CommonConstant.ROLEID, CommonConstant.ADMIN_ROLEID);
                 rolePrivilegeService.switchRole(CommonConstant.ADMIN_ROLEID);
             }
-            if(!(hasRole || admin)){
+            if (!(hasRole || admin)) {
                 return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_NOT_AUTH);
             }
             //sessionId存放redis统一管理 默认8小时数据销毁
-            stringRedisTemplate.opsForValue().set("sessionid:sessionid-"+username,session.getId(),SESSION_TIMEOUT_HOURS,TimeUnit.HOURS);
-
+            stringRedisTemplate.opsForValue().set("sessionid:sessionid-" + username, session.getId(), SESSION_TIMEOUT_HOURS, TimeUnit.HOURS);
 
             Map<String, Object> data = new HashMap<String, Object>();
             Map<String, Object> token = authService.generateToken(user);
@@ -317,7 +315,7 @@ public class AuthController {
         //获得当前正在登录的用户名
         String username = (String) session.getAttribute("username");
         //移除redis中sessionid
-        stringRedisTemplate.delete("sessionid:sessionid-"+session.getAttribute("username"));
+        stringRedisTemplate.delete("sessionid:sessionid-" + session.getAttribute("username"));
         //在crowd中清除登录信息
         URL url = new URL(AuthManagerCrowd.DOMAIN + "session?username=" + username);
 
@@ -332,7 +330,7 @@ public class AuthController {
 
     /**
      * 验证token有效性
-     * 
+     *
      * @return
      * @throws Exception
      */
@@ -383,27 +381,22 @@ public class AuthController {
 
     /**
      * 根据用户名密码获取token
-     * 
-
+     *
      * @return
      * @throws Exception
      */
     /*
      * @RequestMapping(value = "/getToken", method = RequestMethod.POST)
-     * 
+     *
      * @ResponseBody public ActionReturnUtil getToken(String userName, String
      * password) throws Exception { User user = new User(userName, password);
      * Map<String, Object> token = authService.generateToken(user); if (token !=
      * null) { if(session != null && session.getAttribute("username")){
-     * 
+     *
      * } K8SClient.tokenMap.put(username, token.get("token")); return
      * ActionReturnUtil.returnSuccessWithData(token); } else { return
      * ActionReturnUtil.returnError(); } }
      */
-
-
-
-
     public static final byte[] readBytes(InputStream is, int contentLen) {
         if (contentLen > 0) {
             int readLen = 0;
