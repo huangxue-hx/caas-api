@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.harmonycloud.dao.harbor.ImageTagDescMapper">
+  <resultMap id="BaseResultMap" type="com.harmonycloud.dao.harbor.bean.ImageTagDesc">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="repository_id" jdbcType="INTEGER" property="repositoryId" />
+    <result column="image_name" jdbcType="VARCHAR" property="imageName" />
+    <result column="tag_name" jdbcType="VARCHAR" property="tagName" />
+    <result column="tag_desc" jdbcType="VARCHAR" property="tagDesc" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    id, repository_id, image_name, tag_name, tag_desc
+  </sql>
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from image_tag_desc
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from image_tag_desc
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <insert id="insert" parameterType="com.harmonycloud.dao.harbor.bean.ImageTagDesc">
+    <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
+      SELECT LAST_INSERT_ID()
+    </selectKey>
+    insert into image_tag_desc (repository_id, image_name, tag_name, 
+      tag_desc)
+    values (#{repositoryId,jdbcType=INTEGER}, #{imageName,jdbcType=VARCHAR}, #{tagName,jdbcType=VARCHAR}, 
+      #{tagDesc,jdbcType=VARCHAR})
+  </insert>
+  <insert id="insertSelective" parameterType="com.harmonycloud.dao.harbor.bean.ImageTagDesc">
+    <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
+      SELECT LAST_INSERT_ID()
+    </selectKey>
+    insert into image_tag_desc
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="repositoryId != null">
+        repository_id,
+      </if>
+      <if test="imageName != null">
+        image_name,
+      </if>
+      <if test="tagName != null">
+        tag_name,
+      </if>
+      <if test="tagDesc != null">
+        tag_desc,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="repositoryId != null">
+        #{repositoryId,jdbcType=INTEGER},
+      </if>
+      <if test="imageName != null">
+        #{imageName,jdbcType=VARCHAR},
+      </if>
+      <if test="tagName != null">
+        #{tagName,jdbcType=VARCHAR},
+      </if>
+      <if test="tagDesc != null">
+        #{tagDesc,jdbcType=VARCHAR},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.harbor.bean.ImageTagDesc">
+    update image_tag_desc
+    <set>
+      <if test="repositoryId != null">
+        repository_id = #{repositoryId,jdbcType=INTEGER},
+      </if>
+      <if test="imageName != null">
+        image_name = #{imageName,jdbcType=VARCHAR},
+      </if>
+      <if test="tagName != null">
+        tag_name = #{tagName,jdbcType=VARCHAR},
+      </if>
+      <if test="tagDesc != null">
+        tag_desc = #{tagDesc,jdbcType=VARCHAR},
+      </if>
+    </set>
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.harmonycloud.dao.harbor.bean.ImageTagDesc">
+    update image_tag_desc
+    set repository_id = #{repositoryId,jdbcType=INTEGER},
+      image_name = #{imageName,jdbcType=VARCHAR},
+      tag_name = #{tagName,jdbcType=VARCHAR},
+      tag_desc = #{tagDesc,jdbcType=VARCHAR}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+
+
+  <!--根据条件查询镜像标签描述-->
+  <select id="selectList" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from image_tag_desc
+    where 1=1
+    <if test="repositoryId != null and repositoryId != ''">
+      and repository_id = #{repositoryId}
+    </if>
+    <if test="imageName != null and imageName != ''">
+      and image_name = #{imageName}
+    </if>
+    <if test="tagName != null and tagName != ''">
+      and tag_name = #{tagName}
+    </if>
+  </select>
+
+</mapper>

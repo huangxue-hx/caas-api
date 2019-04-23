@@ -257,4 +257,16 @@ public interface HarborProjectService {
 	ActionReturnUtil updateLabel(String harborHost, Long labelId, HarborProjectLabel harborProjectLabel) throws Exception;
 
 	void syncLocalHarborLog() throws  Exception;
+
+
+	/**
+	 * 查询镜像描述
+	 */
+	ActionReturnUtil getImageTagDesc(Integer repositoryId, String imageName, String tag);
+
+	/**
+	 * 保存镜像描述
+	 */
+	ActionReturnUtil saveImageTagDesc(Integer repositoryId, String imageName, String tag, String tagDesc) throws Exception;
+
 }

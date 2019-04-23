@@ -1,37 +1,29 @@
 package com.harmonycloud.service.platform.serviceImpl.harbor;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.FileNotFoundException;
-import java.net.URI;
-import java.nio.file.Paths;
-import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.stream.Collectors;
-
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ClusterLevelEnum;
-import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.*;
+import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.ci.bean.Trigger;
 import com.harmonycloud.dao.ci.bean.TriggerExample;
 import com.harmonycloud.dao.harbor.ImageRepositoryMapper;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;
+import com.harmonycloud.dao.harbor.bean.ImageTagDesc;
 import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.user.bean.UserRoleRelationship;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import com.harmonycloud.service.cache.ImageCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.common.HarborHttpsClientUtil;
-import com.harmonycloud.service.platform.bean.*;
+import com.harmonycloud.service.platform.bean.RepositoryInfo;
 import com.harmonycloud.service.platform.bean.harbor.*;
 import com.harmonycloud.service.platform.client.HarborClient;
 import com.harmonycloud.service.platform.constant.Constant;
@@ -44,7 +36,10 @@ import com.harmonycloud.service.user.UserService;
 import com.spotify.docker.client.DefaultDockerClient;
 import com.spotify.docker.client.DockerCertificates;
 import com.spotify.docker.client.DockerClient;
-import com.spotify.docker.client.messages.*;
+import com.spotify.docker.client.messages.Image;
+import com.spotify.docker.client.messages.RegistryAuth;
+import com.spotify.docker.client.messages.RemovedImage;
+import com.sun.xml.internal.bind.v2.runtime.unmarshaller.TagName;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,13 +49,20 @@ import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-
-import com.harmonycloud.k8s.bean.cluster.Cluster;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
+import java.io.*;
+import java.net.URI;
+import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Collectors;
 
 import static com.harmonycloud.common.Constant.CommonConstant.*;
 
@@ -95,6 +97,8 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	private HarborImageCleanService harborImageCleanService;
 	@Autowired
 	private TriggerService triggerService;
+	@Autowired
+	private HarborImageTagDescService harborImageTagDescService;
 
 	@Value("#{propertiesReader['upload.path']}")
 	private String uploadPath;
@@ -1528,4 +1532,34 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			logger.error("继续跟踪镜像上传结果失败，",e);
 		}
 	}
+
+
+	@Override
+	public ActionReturnUtil getImageTagDesc(Integer repositoryId, String imageName, String tag) {
+		return ActionReturnUtil.returnSuccessWithData(harborImageTagDescService.select(repositoryId, imageName, tag));
+	}
+
+
+	@Override
+	public ActionReturnUtil saveImageTagDesc(Integer repositoryId, String imageName, String tag, String tagDesc) throws Exception {
+		ImageTagDesc desc = harborImageTagDescService.select(repositoryId, imageName, tag);
+
+		if (desc == null) {    // 新增
+			desc = new ImageTagDesc();
+			desc.setRepositoryId(repositoryId);
+			desc.setImageName(imageName);
+			desc.setTagName(tag);
+			desc.setTagDesc(tagDesc);
+			harborImageTagDescService.create(desc);
+		} else {    // 修改
+			Integer id = desc.getId();
+			desc = new ImageTagDesc();
+			desc.setId(id);
+			desc.setTagDesc(tagDesc);
+			harborImageTagDescService.update(desc);
+		}
+
+		return ActionReturnUtil.returnSuccess();
+	}
+
 }
