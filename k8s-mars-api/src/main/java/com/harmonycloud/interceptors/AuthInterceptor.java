@@ -168,23 +168,13 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {
-                if (cookie.getName().equals("crowd.token_key")) {// 是否是自动登录。。。。//要先get /session看返回码。但实际上应该还要有更多的判断条件，比如这个application能否访问这个用户
+                if (cookie.getName().equals(AuthManagerCrowd.COOKIE_NAME)) {// 是否是自动登录
                     String token = cookie.getValue();
-                    URL crowdUrl = new URL(AuthManagerCrowd.DOMAIN + "session/" + token);
-                    HttpURLConnection connection = AuthManagerCrowd.crowdGet(crowdUrl);
-                    if (connection.getResponseCode() == 200) {
-                        //说明用户已经在登录
-                        BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"));
-                        String line;
-                        String result = "";
-                        //读取返回值，直到为空
-                        while ((line = in.readLine()) != null) {
-                            result = result + line + "\n";
-                        }
-                        String username = result.substring(result.indexOf("name=\"") + 6, result.indexOf("\"><link"));
+                    String username = AuthManagerCrowd.testLogin(token);
+                    if(username != null) {
                         session.setAttribute("username", username);
                         User user = userService.getUser(username);
-                        if(user != null) {
+                        if (user != null) {
                             session.setAttribute("username", user.getUsername());
                             session.setAttribute("isAdmin", user.getIsAdmin());
                             session.setAttribute("isMachine", user.getIsMachine());
