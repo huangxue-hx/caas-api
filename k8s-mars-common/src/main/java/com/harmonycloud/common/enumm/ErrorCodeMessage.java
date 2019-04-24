@@ -69,6 +69,7 @@ public enum ErrorCodeMessage {
     NAME_LENGTH_LIMIT(100045,"name length must be no more than 63 characters", "名称长度不能超过63个字符"),
     INVALID_CHARACTER(100046,"Format is not correct, contains illegal characters", "格式错误, 包含非法字符或组合"),
     ENGLISH_NAME_EXIST(100047,"Short name exists", "简称已经存在"),
+    GET_CROWD_CONF_FAIL(100048, "Get crowd config failed.","获取Crowd配置失败"),
 
 
     //用户相关 200xxx

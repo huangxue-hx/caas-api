@@ -343,6 +343,13 @@ public class CommonConstant {
     public static final String CONFIG_TYPE_FULLLINK = "fulllink";
     public static final String CONFIG_TYPE_LDAP = "ldap";
 
+    public static final String CROWD_ADDRESS="crowd_address";
+    public static final String CROWD_USERNAME="crowd_username";
+    public static final String CROWD_PASSWORD="crowd_password";
+    public static final String CROWD_ISACCESS="crowd_isaccess";
+    public static final String CONFIG_TYPE_CROWD = "crowd";
+
+
     public static final String MAINTENANCE_STATUS = "maintenanceStatus";
     public static final String CONFIG_TYPE_MAINTENANCE = "maintenance";
 

@@ -6,6 +6,7 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.AssertUtil;
 import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dto.cicd.CicdConfigDto;
+import com.harmonycloud.dto.user.CrowdConfigDto;
 import com.harmonycloud.dto.user.LdapConfigDto;
 import com.harmonycloud.service.system.SystemConfigService;
 import org.slf4j.Logger;
@@ -42,6 +43,23 @@ public class SystemConfigController {
 		}
 	}
 
+	//crowd设置
+	@ResponseBody
+	@RequestMapping(value="/crowd", method = RequestMethod.POST)
+	public ActionReturnUtil saveCrowdConfig(@ModelAttribute CrowdConfigDto crowdConfigDto) throws Exception {
+		AssertUtil.notNull(crowdConfigDto);
+		try {
+//			logger.info("save crowdConfig");
+			systemConfigService.addCrowdConfig(crowdConfigDto);
+			return ActionReturnUtil.returnSuccess();
+
+		} catch (Exception e) {
+			logger.warn("saveCrowdConfig失败", e);
+			logger.error("Failed to save systemConfig.", e.getMessage());
+			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.SAVE_FAIL);
+		}
+	}
+
 
 	@ResponseBody
 	@RequestMapping(value = "/{id}", method = RequestMethod.GET)
@@ -71,6 +89,24 @@ public class SystemConfigController {
 			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.GET_LDAP_CONF_FAIL);
 		}
 	}
+
+	//crowd查询
+	@ResponseBody
+	@RequestMapping(value = "/crowd", method = RequestMethod.GET)
+	public ActionReturnUtil  getCrowd()throws Exception{
+		try {
+			CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
+			if (StringUtils.isEmpty(crowdConfigDto)) {
+				return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.GET_CROWD_CONF_FAIL);
+			}
+
+			return ActionReturnUtil.returnSuccessWithData(crowdConfigDto);
+		} catch (Exception e) {
+			logger.error("Failed to get SystemConfig", e);
+			return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.GET_CROWD_CONF_FAIL);
+		}
+	}
+
 
 	@ResponseBody
 	@RequestMapping(value="/localuserflag", method = RequestMethod.GET)
