@@ -16,7 +16,7 @@
 			<property name="suppressDate" value="true" />
 		</commentGenerator>
 		<jdbcConnection driverClass="com.mysql.jdbc.Driver"
-						connectionURL="jdbc:mysql://10.9.171.51:30306/k8s_auth_server?useUnicode=true"
+						connectionURL="jdbc:mysql://10.10.103.60:30306/k8s_auth_server?useUnicode=true"
 						userId="root" password="123456">
 		</jdbcConnection>
 
@@ -24,7 +24,7 @@
 			<property name="forceBigDecimals" value="false" />
 		</javaTypeResolver>
 
-		<javaModelGenerator targetPackage="com.harmonycloud.dao.istio.bean"
+		<javaModelGenerator targetPackage="com.harmonycloud.dao.harbor.bean"
 							targetProject="./src/main/java">
 			<property name="enableSubPackages" value="false" />
 			<property name="trimStrings" value="true" />
@@ -36,12 +36,12 @@
 		</sqlMapGenerator>
 
 		<javaClientGenerator type="XMLMAPPER"
-							 targetPackage="com.harmonycloud.dao.istio" targetProject="./src/main/java">
+							 targetPackage="com.harmonycloud.dao.harbor" targetProject="./src/main/java">
 			<property name="enableSubPackages" value="false" />
 		</javaClientGenerator>
 
-		<table schema="k8s_auth_server" tableName="istio_global_configure"
-			   domainObjectName="IstioGlobalConfigure"
+		<table schema="k8s_auth_server" tableName="image_tag_desc"
+			   domainObjectName="ImageTagDesc"
 			   enableCountByExample="false"
 			   enableUpdateByExample="false" enableDeleteByExample="false"
 			   enableSelectByExample="false" selectByExampleQueryId="false">

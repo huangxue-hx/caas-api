@@ -2,8 +2,11 @@ package com.harmonycloud.service.platform.serviceImpl.harbor;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ClusterLevelEnum;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
@@ -18,17 +21,25 @@ import com.harmonycloud.dao.harbor.bean.ImageRepository;
 import com.harmonycloud.dao.harbor.bean.ImageTagDesc;
 import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.user.bean.UserRoleRelationship;
+import com.harmonycloud.dto.dataprivilege.DataPrivilegeDto;
+import com.harmonycloud.k8s.bean.DeploymentList;
+import com.harmonycloud.k8s.bean.StatefulSetList;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.cluster.HarborServer;
+import com.harmonycloud.k8s.service.StatefulSetService;
+import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.cache.ImageCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.common.DataPrivilegeHelper;
 import com.harmonycloud.service.common.HarborHttpsClientUtil;
 import com.harmonycloud.service.platform.bean.RepositoryInfo;
 import com.harmonycloud.service.platform.bean.harbor.*;
 import com.harmonycloud.service.platform.client.HarborClient;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.platform.service.ci.TriggerService;
 import com.harmonycloud.service.platform.service.harbor.*;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserRoleRelationshipService;
@@ -39,7 +50,6 @@ import com.spotify.docker.client.DockerClient;
 import com.spotify.docker.client.messages.Image;
 import com.spotify.docker.client.messages.RegistryAuth;
 import com.spotify.docker.client.messages.RemovedImage;
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.TagName;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,6 +109,14 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	private TriggerService triggerService;
 	@Autowired
 	private HarborImageTagDescService harborImageTagDescService;
+    @Autowired
+    private NamespaceLocalService namespaceLocalService;
+    @Autowired
+    private DeploymentsService deploymentsService;
+    @Autowired
+    private DataPrivilegeHelper dataPrivilegeHelper;
+    @Autowired
+    private StatefulSetService statefulSetService;
 
 	@Value("#{propertiesReader['upload.path']}")
 	private String uploadPath;
@@ -1561,5 +1579,73 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 
 		return ActionReturnUtil.returnSuccess();
 	}
+
+    @Override
+    public ActionReturnUtil getDeploysByImage(String projectId, String fullImageName, String imageName,
+                                              String tag, String namespace, String clusterId) throws Exception {
+	    // 参数为空判断
+	    if (StringUtils.isBlank(projectId) || StringUtils.isBlank(fullImageName) || StringUtils.isBlank(imageName)
+                || StringUtils.isBlank(tag) || StringUtils.isBlank(namespace) || StringUtils.isBlank(clusterId) ) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+
+        // labels
+        Map<String, Object> bodys = Maps.newHashMap();
+        String labelSelector = Constant.NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId;
+        bodys.put("labelSelector", labelSelector);
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        List<Cluster> clusterList = roleLocalService.listCurrentUserRoleCluster();
+        try {
+            Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+            //判断该namespace是否有权限
+            if (clusterList.stream().noneMatch((c) -> c.getId().equals(cluster.getId()))) {
+                return ActionReturnUtil.returnSuccessWithData(Lists.newArrayList());
+            }
+            if (StringUtils.isNotBlank(clusterId) && !cluster.getId().equals(clusterId)) {
+                return ActionReturnUtil.returnSuccessWithData(Lists.newArrayList());
+            }
+
+            // deployment
+            DeploymentList deployment = deploymentsService.getDeployments(namespace, bodys, cluster);
+            String aliasNamespace = namespaceLocalService.getNamespaceByName(namespace).getAliasName();
+            if (deployment != null  && !CollectionUtils.isEmpty(deployment.getItems())) {
+                result.addAll(K8sResultConvert.convertAppList(deployment, cluster, aliasNamespace));
+            }
+            // statefulset
+            StatefulSetList statefulSet = statefulSetService.listStatefulSets(namespace, null, bodys, cluster);
+            if (statefulSet != null && !CollectionUtils.isEmpty(statefulSet.getItems())) {
+                result.addAll(K8sResultConvert.convertAppList(statefulSet, cluster, aliasNamespace));
+            }
+        } catch (Exception e) {
+            logger.error("查询deployment或statefulset列表失败，namespace：{}", namespace, e);
+        }
+
+        //数据过滤
+        DataPrivilegeDto dataPrivilegeDto = new DataPrivilegeDto();
+        dataPrivilegeDto.setProjectId(projectId);
+        Iterator<Map<String, Object>> iterator = result.iterator();
+        while (iterator.hasNext()) {
+            Map<String, Object> map = iterator.next();
+            dataPrivilegeDto.setData((String) map.get(CommonConstant.NAME));
+            dataPrivilegeDto.setNamespace((String) map.get(CommonConstant.DATA_NAMESPACE));
+            dataPrivilegeDto.setDataResourceType(DataResourceTypeEnum.SERVICE.getCode());
+            Map filteredMap = dataPrivilegeHelper.filterMap(map, dataPrivilegeDto);
+            if (filteredMap == null) {
+                iterator.remove();
+            }
+        }
+
+        // 过滤镜像版本不一样的服务
+        String fullImageTag = fullImageName + COLON + tag;
+        String imageTag = imageName + COLON + tag;
+        for (Map<String, Object> res: result) {
+            @SuppressWarnings("unchecked") List<String> img = (List<String>) res.get("image");
+            img.removeIf(i -> !StringUtils.equals(i, fullImageTag) && !StringUtils.equals(i, imageTag));
+        }
+
+        return ActionReturnUtil.returnSuccessWithData(result);
+    }
+
 
 }

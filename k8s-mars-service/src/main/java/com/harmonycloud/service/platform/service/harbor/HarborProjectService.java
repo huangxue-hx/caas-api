@@ -258,7 +258,6 @@ public interface HarborProjectService {
 
 	void syncLocalHarborLog() throws  Exception;
 
-
 	/**
 	 * 查询镜像描述
 	 */
@@ -268,5 +267,11 @@ public interface HarborProjectService {
 	 * 保存镜像描述
 	 */
 	ActionReturnUtil saveImageTagDesc(Integer repositoryId, String imageName, String tag, String tagDesc) throws Exception;
+
+    /**
+     * 根据镜像查询服务列表
+     */
+    ActionReturnUtil getDeploysByImage(String projectId, String fullImageName, String imageName, String tag,
+                                       String namespace, String clusterId) throws Exception;
 
 }
