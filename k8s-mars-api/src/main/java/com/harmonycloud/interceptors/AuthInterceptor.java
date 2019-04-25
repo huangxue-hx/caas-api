@@ -1,5 +1,6 @@
 package com.harmonycloud.interceptors;
 
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dto.user.CrowdConfigDto;
 import com.harmonycloud.service.system.SystemConfigService;
@@ -166,6 +167,7 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
         if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1) {
             //如果crowd接入了系统，则通过获取 Cookie检测登录状态
+            System.out.println("通过了");
             Cookie[] cookies = request.getCookies();
             if (cookies != null) {
                 for (Cookie cookie : cookies) {
@@ -187,6 +189,7 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
                 }
             }
         } else {
+            System.out.println("没通过");
             //如果未接入crowd，则通过session检测登录状态
             String username = (String)session.getAttribute("username");
             if (username != null) {

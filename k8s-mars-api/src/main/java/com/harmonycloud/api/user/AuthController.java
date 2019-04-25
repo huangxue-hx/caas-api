@@ -1,8 +1,7 @@
 package com.harmonycloud.api.user;
 
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -19,7 +18,6 @@ import com.harmonycloud.dto.user.LdapConfigDto;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.user.*;
 
-//import com.harmonycloud.service.user;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -144,10 +142,7 @@ import com.harmonycloud.service.application.SecretService;
         @RequestParam(value = "language", required = false) final String language, HttpServletResponse response)
         throws Exception {
 
-        //        if(authManagerCrowd != null){
-        //            System.out.println("Hello!!!!!!!!");
-        //            System.out.println(authManagerCrowd.DOMAIN);
-        //        }
+
         SystemConfig trialConfig = this.systemConfigService.findByConfigName(CommonConstant.TRIAL_TIME);
         if (trialConfig != null) {
             int v = Integer.parseInt(trialConfig.getConfigValue());
@@ -159,7 +154,6 @@ import com.harmonycloud.service.application.SecretService;
         LdapConfigDto ldapConfigDto = this.systemConfigService.findLdapConfig();
         //获取crowd的配置信息
         CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
-        //        System.out.println("Crowd接入：" + crowdConfigDto.getIsAccess());
         String res = null;
         //表示容器云自身的数据库是否储存了账户信息
         boolean cloud = false;
@@ -177,8 +171,10 @@ import com.harmonycloud.service.application.SecretService;
         }
 
         String resCrowd = null;
-        if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1) {
+        System.out.println("access" + crowdConfigDto.getIsAccess());
+        if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1 && !CommonConstant.ADMIN.equals(username)) {
             //crowd功能开启时,在crowd中验证用户名和密码
+            System.out.println("我要验证！！！！！！！！！！");
             resCrowd = authManagerCrowd.auth(username, password);
             if (resCrowd != null) {
                 crowd = true;
@@ -188,7 +184,7 @@ import com.harmonycloud.service.application.SecretService;
         //如果res不为null，就表示至少在一方中找到了账户和密码
         if (StringUtils.isNotBlank(res) || StringUtils.isNotBlank(resCrowd)) {
             //            在crowd的数据库中找到了账户信息，但容器云中没有，需要在容器云中新建用户
-            if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1) {
+            if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1 && !CommonConstant.ADMIN.equals(username)) {
                 //只有在crowd接入时才进行用户信息的同步
                 if (!cloud) {
                     User user = authManagerCrowd.getUser(username, password);
@@ -208,7 +204,7 @@ import com.harmonycloud.service.application.SecretService;
                 user.setIsMachine(0);
             }
 
-            if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1) {
+            if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1 && !CommonConstant.ADMIN.equals(username)) {
                 //只有在crowd接入时才进行用户信息的同步
                 if (!crowd) {
                     //虽然在容器云的数据库找到了正确的账户信息，但是没有在crowd中找到相关信息，需要同步至crowd数据库
@@ -249,7 +245,7 @@ import com.harmonycloud.service.application.SecretService;
             data.put("isSuperAdmin", user.getIsAdmin());
             data.put("token", session.getId());
             JsonUtil.objectToJson(data);
-            if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1) {
+            if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1 && !CommonConstant.ADMIN.equals(username)) {
                 //在crowd接入时，添加cookie
                 String crowdToken = authManagerCrowd.getToken(username, password);
                 authManagerCrowd.AddCookie(crowdToken, response);
@@ -267,7 +263,7 @@ import com.harmonycloud.service.application.SecretService;
         stringRedisTemplate.delete("sessionid:sessionid-" + session.getAttribute("username"));
         //获取crowd的配置信息
         CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
-        if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1) {
+        if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1 && !CommonConstant.ADMIN.equals(username)) {
             //在crowd中清除登录信息
             authManagerCrowd.invalidateToken(username);
         }

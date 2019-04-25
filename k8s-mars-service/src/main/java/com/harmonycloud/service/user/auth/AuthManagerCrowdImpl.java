@@ -6,6 +6,7 @@ import com.harmonycloud.dto.user.CrowdConfigDto;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.user.AuthManagerCrowd;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.servlet.http.Cookie;
@@ -14,6 +15,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.URL;
 import java.util.Base64;
 
@@ -27,23 +29,35 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
 
     public static final String COOKIE_NAME = "crowd.token_key";
 
-    public static final String SERVER_IP = "10.100.100.247";
+//    public static final String SERVER_IP = "10.100.100.247";
+    @Value("#{propertiesReader['crowd.cookie.domain']}")
+    private String cookieDomain;
+
+    @Value("#{propertiesReader['crowd.cookie.name']}")
+    private String cookieName;
+
+    @Value("#{propertiesReader['crowd.api.url']}")
+    private String apiUrl;
+
+
 
 
     //获得crowd的域名
     private String getAddress() {
+        System.out.println(cookieDomain);
         CrowdConfigDto crowdConfigDto = systemConfigService.findCrowdConfig();
         String domain = crowdConfigDto.getAddress().trim();
         if (domain.endsWith("/")) {
-            return domain + "crowd/rest/usermanagement/latest/";
+            return domain + apiUrl;
         } else {
-            return domain + "/crowd/rest/usermanagement/latest/";
+            return domain + "/" + apiUrl;
         }
 
     }
 
-    private String getServerIp(){
-        return SERVER_IP;
+    private String getServerIp() throws Exception{
+        InetAddress addr = InetAddress.getLocalHost();
+        return addr.getHostAddress();
     }
 
     //进行http基本认证
@@ -114,11 +128,10 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
 
     @Override
     public String auth(String username, String password) throws Exception {
+        System.out.println(getAddress() + "session");
         URL url = new URL(getAddress() + "session");
         String jsonData = "{\"username\":\"" + username + "\",\"password\":\"" + password
             + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"" + getServerIp() + "\"}]}}";
-        //        String jsonData = "{\"username\":\"" + username + "\",\"password\":\""+ password + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"10.100.100.94\"}]}}";
-        //        String jsonData = "{\"username\":\"" + username + "\",\"password\":\""+ password + "\"}";
         HttpURLConnection connection = this.crowdPost(url, "application/json", jsonData);
         if (connection.getResponseCode() == 201) {
             return username;
@@ -168,7 +181,7 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
             return null;
         }
         String messageBody = this.getMessageBody(urlConnection);
-        String email = messageBody.substring(messageBody.indexOf("<email>") + 7, messageBody.lastIndexOf("</email>"));
+        String email = messageBody.substring(messageBody.indexOf("<email>") + "<email>".length(), messageBody.lastIndexOf("</email>"));
         //获取phone值
         URL phoneurl = new URL(getAddress() + "user/attribute?username=" + username);
         HttpURLConnection urlPhoneConnection = this.crowdGet(phoneurl);
@@ -181,7 +194,7 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
             //有相应的phone属性
             messageBody = messageBody
                 .substring(messageBody.indexOf("<attribute name=\"phone\">") + "<attribute name=\"phone\">".length());
-            phone = messageBody.substring(messageBody.indexOf("<value>") + 7, messageBody.indexOf("</value>"));
+            phone = messageBody.substring(messageBody.indexOf("<value>") + "<value>".length(), messageBody.indexOf("</value>"));
         } else {
             //找不到crowd中的phone属性
             return null;
