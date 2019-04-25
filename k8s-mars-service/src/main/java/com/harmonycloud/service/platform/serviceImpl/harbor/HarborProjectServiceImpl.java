@@ -681,6 +681,11 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 
 	@Override
 	public ActionReturnUtil getImage(Integer repositoryId, String image) throws Exception {
+        return getImage(repositoryId, image, false);
+	}
+
+	@Override
+	public ActionReturnUtil getImage(Integer repositoryId, String image, boolean needSize) throws Exception {
 		ImageRepository imageRepository = imageRepositoryMapper.findRepositoryById(repositoryId);
 		HarborRepositoryMessage harborRepositoryMessage = imageCacheManager.freshRepositoryByTags(imageRepository.getHarborHost(), image);
 		if(harborRepositoryMessage == null){
@@ -689,8 +694,37 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		List<HarborRepositoryMessage> harborRepositoryMessages = new ArrayList<>();
 		harborRepositoryMessages.add(harborRepositoryMessage);
 		this.setImagePullStatus(harborRepositoryMessages);
+        if (needSize) {
+            this.setImageTagSize(harborRepositoryMessage.getRepositoryDetial(), imageRepository.getHarborHost(), image);
+        }
+
         return ActionReturnUtil.returnSuccessWithData(harborRepositoryMessage);
 	}
+
+    // 获取每个版本的镜像大小
+    private void setImageTagSize(List<HarborManifest> repoList, String harborHost, String repoName){
+        if (CollectionUtils.isEmpty(repoList)) {
+            return;
+        }
+        try {
+            ActionReturnUtil response = harborService.getTagsByRepoName(harborHost, repoName);
+            if (response.isSuccess() && response.getData() != null) {
+                Map<String, Long> sizeMap = Maps.newHashMap();
+                List<Map<String, Object>> tagList = JsonUtil.JsonToMapList(response.getData().toString());
+                if (!CollectionUtils.isEmpty(tagList)) {
+                    for (Map<String, Object> tag : tagList) {
+                        if (tag.get("name") != null) {
+                            sizeMap.put(tag.get("name").toString(), Long.valueOf(tag.get("size").toString()));
+                        }
+                    }
+                }
+
+                repoList.forEach(r -> r.setSize(sizeMap.getOrDefault(r.getTag(), 0L)));
+            }
+        } catch (Exception e){
+            logger.error("获取镜像版本的大小时异常：",e);
+        }
+    }
 
 	@Override
 	public ActionReturnUtil getManifests(Integer repositoryId, String image, String tag) throws Exception {

@@ -84,13 +84,15 @@ public class HarborImageController {
 	@ApiOperation(value = "查询镜像信息", notes = "查询某个镜像")
 	@ApiImplicitParams({
 			@ApiImplicitParam(name = "repositoryId", value = "镜像仓库id", paramType = "path",dataType = "Integer"),
-			@ApiImplicitParam(name = "imageName", value = "镜像名称", paramType = "path",dataType = "String")})
+			@ApiImplicitParam(name = "imageName", value = "镜像名称", paramType = "path",dataType = "String"),
+			@ApiImplicitParam(name = "needSize", value = "是否需要返回镜像大小(默认false)", paramType = "path",dataType = "Boolean")})
 	@ResponseBody
 	@RequestMapping(value = "/{repositoryId}/images/{imageName:.+}", method = RequestMethod.GET)
 	public ActionReturnUtil getImage(@PathVariable(value = "repositoryId") Integer repositoryId,
-									 @PathVariable(value="imageName") String imageName) throws Exception{
+									 @PathVariable(value="imageName") String imageName,
+									 @RequestParam(value = "needSize", defaultValue = "false") boolean needSize) throws Exception{
 		String image = URLDecoder.decode(imageName,"UTF-8");
-		return harborProjectService.getImage(repositoryId, image);
+		return harborProjectService.getImage(repositoryId, image, needSize);
 	}
 
 	/**
@@ -420,12 +422,12 @@ public class HarborImageController {
 	}
 
 	/**
-	 * 保存镜像版本描述
+	 * 镜像版本的服务列表
 	 *
 	 * @return
 	 * @throws Exception
 	 */
-	@ApiOperation(value = "保存镜像版本描述", notes = "保存某个镜像仓库里某个镜像的某个版本的描述")
+	@ApiOperation(value = "镜像版本的服务列表", notes = "使用某个镜像某个版本的服务列表")
 	@ApiImplicitParams({
 			@ApiImplicitParam(name = "projectId", value = "租户项目id", paramType = "path",dataType = "Integer"),
 			@ApiImplicitParam(name = "imageName", value = "镜像名称", paramType = "path",dataType = "String"),
