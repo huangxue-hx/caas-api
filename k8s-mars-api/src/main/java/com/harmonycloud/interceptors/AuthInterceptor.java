@@ -165,7 +165,7 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         // 获取Session
         HttpSession session = request.getSession();
         CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
-        if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1) {
+        if (false && crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1) {
             //如果crowd接入了系统，则通过获取 Cookie检测登录状态
             System.out.println("通过了");
             Cookie[] cookies = request.getCookies();

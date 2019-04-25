@@ -643,7 +643,7 @@ public class UserServiceImpl implements UserService {
                 stringRedisTemplate.delete("sessionid:sessionid-"+userName);//移除redis中sessionid
             }
             CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
-            if(crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1 && !CommonConstant.ADMIN.equals(userName)) {
+            if(false && crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1 && !CommonConstant.ADMIN.equals(userName)) {
                 //在crowd中删除相关信息
                 authManagerCrowd.deleteUser(userName);
             }
