@@ -5,6 +5,7 @@ import com.google.gson.reflect.TypeToken;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.NodeTypeEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateStyle;
@@ -48,7 +49,6 @@ import java.io.InputStream;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.harmonycloud.common.Constant.CommonConstant.LABEL_STATUS_A;
 import static com.harmonycloud.service.platform.constant.Constant.*;
 
 /**
@@ -146,7 +146,7 @@ public class StorageClassServiceImpl implements StorageClassService {
             }
             List<SystemConfig> systemConfigList = systemConfigService.findByConfigType(NFS_PROVISIONER);
             String provisionerImage = "";
-            String nodeSelector = LABEL_STATUS_A;
+            String nodeSelector = NodeTypeEnum.SYSTEM.getLabelValue();
             for (SystemConfig systemConfig : systemConfigList) {
                 if (IMAGE_NAME.equals(systemConfig.getConfigName())) {
                     provisionerImage = cluster.getHarborServer().getHarborAddress() + systemConfig.getConfigValue();

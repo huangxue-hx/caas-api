@@ -1585,7 +1585,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
                                               String tag, String namespace, String clusterId) throws Exception {
 	    // 参数为空判断
 	    if (StringUtils.isBlank(projectId) || StringUtils.isBlank(fullImageName) || StringUtils.isBlank(imageName)
-                || StringUtils.isBlank(tag) || StringUtils.isBlank(namespace) || StringUtils.isBlank(clusterId) ) {
+                || StringUtils.isBlank(tag) || StringUtils.isBlank(namespace)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
 
@@ -1639,10 +1639,10 @@ public class HarborProjectServiceImpl implements HarborProjectService {
         // 过滤镜像版本不一样的服务
         String fullImageTag = fullImageName + COLON + tag;
         String imageTag = imageName + COLON + tag;
-        for (Map<String, Object> res: result) {
-            @SuppressWarnings("unchecked") List<String> img = (List<String>) res.get("image");
-            img.removeIf(i -> !StringUtils.equals(i, fullImageTag) && !StringUtils.equals(i, imageTag));
-        }
+		result.removeIf(res -> {
+			@SuppressWarnings("unchecked") List<String> img = (List<String>) res.get("img");
+			return img.stream().noneMatch(i -> StringUtils.equals(i, fullImageTag) || StringUtils.equals(i, imageTag));
+		});
 
         return ActionReturnUtil.returnSuccessWithData(result);
     }
