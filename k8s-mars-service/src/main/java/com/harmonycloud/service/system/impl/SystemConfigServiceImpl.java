@@ -263,18 +263,24 @@ public class SystemConfigServiceImpl implements SystemConfigService {
         List<SystemConfig> list = this.systemConfigMapper.findByConfigType(CommonConstant.CONFIG_TYPE_CROWD);
         if(list != null && list.size() > 0) {
             for(SystemConfig sc : list) {
+                System.out.println("sc："+ sc);
                 switch (sc.getConfigName()){
                     case CommonConstant.CROWD_ADDRESS:
+                        System.out.println("sc.getaddress()" + sc.getConfigValue());
                         crowdConfigDto.setAddress(sc.getConfigValue());
                         break;
                     case CommonConstant.CROWD_USERNAME:
+                        System.out.println("sc.getusername()" + sc.getConfigValue());
                         crowdConfigDto.setUsername(sc.getConfigValue());
                         break;
                     case CommonConstant.CROWD_PASSWORD:
+                        System.out.println("sc.getpassword()" + sc.getConfigValue());
                         crowdConfigDto.setPassword(sc.getConfigValue());
                         break;
                     case CommonConstant.CROWD_ISACCESS:
+                        System.out.println("sc.getConfigValue()" + sc.getConfigValue());
                         crowdConfigDto.setIsAccess(Integer.parseInt(sc.getConfigValue()));
+//                        crowdConfigDto.setIsAccess(1);
                     default:
                         break;
                 }

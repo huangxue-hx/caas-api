@@ -167,11 +167,10 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
         if (false && crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1) {
             //如果crowd接入了系统，则通过获取 Cookie检测登录状态
-            System.out.println("通过了");
             Cookie[] cookies = request.getCookies();
             if (cookies != null) {
                 for (Cookie cookie : cookies) {
-                    if (cookie.getName().equals(authManagerCrowd.getCookieName())) {// 是否是自动登录
+                    if (cookie.getName().equals(authManagerCrowd.getCookieName())) {
                         String token = cookie.getValue();
                         String username = authManagerCrowd.testLogin(token);
                         if (username != null) {

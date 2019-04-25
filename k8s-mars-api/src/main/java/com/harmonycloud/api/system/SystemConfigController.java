@@ -12,9 +12,11 @@ import com.harmonycloud.service.system.SystemConfigService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.SocketUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import javax.swing.plaf.synth.SynthTextAreaUI;
 
 @RestController
 @RequestMapping("/system/configs")
@@ -33,6 +35,7 @@ public class SystemConfigController {
 		AssertUtil.notNull(ldapConfigDto);
 		try {
 //			logger.info("save ldapConfig");
+			System.out.println("ldapConfig:" + ldapConfigDto.getIp());
 			systemConfigService.addLdapConfig(ldapConfigDto);
 			return ActionReturnUtil.returnSuccess();
 
@@ -50,6 +53,7 @@ public class SystemConfigController {
 		AssertUtil.notNull(crowdConfigDto);
 		try {
 //			logger.info("save crowdConfig");
+			System.out.println("Config:" + crowdConfigDto.getAddress());
 			systemConfigService.addCrowdConfig(crowdConfigDto);
 			return ActionReturnUtil.returnSuccess();
 
