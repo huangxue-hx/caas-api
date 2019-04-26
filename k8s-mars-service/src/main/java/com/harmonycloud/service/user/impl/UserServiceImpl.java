@@ -1,7 +1,8 @@
 package com.harmonycloud.service.user.impl;
 
+import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.user.*;
-import com.harmonycloud.service.user.auth.AuthManagerCrowd;
+//import com.harmonycloud.service.user.auth.AuthManagerCrowd;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
@@ -108,6 +109,12 @@ public class UserServiceImpl implements UserService {
     private RedisOperationsSessionRepository redisOperationsSessionRepository;
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
+    private AuthManagerCrowd authManagerCrowd;
+
+    @Autowired
+    private SystemConfigService systemConfigService;
 
     public String getCurrentUsername() {
         return (String) session.getAttribute("username");
@@ -635,12 +642,6 @@ public class UserServiceImpl implements UserService {
                 redisOperationsSessionRepository.delete(sessionId);//session过期设置
                 stringRedisTemplate.delete("sessionid:sessionid-"+userName);//移除redis中sessionid
             }
-            //在crowd中删除相关信息
-            URL url = new URL( AuthManagerCrowd.DOMAIN + "user?username=" + userName);
-
-            HttpURLConnection connection = AuthManagerCrowd.crowdDelete(url);
-            connection.getResponseCode();
-
         }else {
             throw new MarsRuntimeException(ErrorCodeMessage.USER_NOT_EXIST);
         }

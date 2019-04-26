@@ -112,6 +112,7 @@ public enum ErrorCodeMessage {
     USER_CROWD_CREATE_FAIL(20036, "User can't be created in CROWD", "在CROWD中同步用户失败，请联系管理员"),
     USER_INFO_LOST(20037, "User can't be created as CROWD", "与CROWD同步用户失败，请联系管理员"),
 
+
     //租户 201xxx
     TENANTNAME_EXIST(201001, "TenantName was existed.","租户简称已经存在"),
     TENANTALIASNAME_EXIST(201002, "Name was existed.","租户名已经存在"),
