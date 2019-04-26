@@ -165,32 +165,38 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         // 获取Session
         HttpSession session = request.getSession();
         CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
-        if (false && crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1) {
-            //如果crowd接入了系统，则通过获取 Cookie检测登录状态
-            Cookie[] cookies = request.getCookies();
-            if (cookies != null) {
-                for (Cookie cookie : cookies) {
-                    if (cookie.getName().equals(authManagerCrowd.getCookieName())) {
-                        String token = cookie.getValue();
-                        String username = authManagerCrowd.testLogin(token);
-                        if (username != null) {
-                            session.setAttribute("username", username);
-                            User user = userService.getUser(username);
-                            if (user != null) {
-                                session.setAttribute("username", user.getUsername());
-                                session.setAttribute("isAdmin", user.getIsAdmin());
-                                session.setAttribute("isMachine", user.getIsMachine());
-                                session.setAttribute("userId", user.getId());
-                                return true;
+        String username = (String)session.getAttribute("username");
+        if (username == null || username != null && !CommonConstant.ADMIN.equals(username)) {
+
+            if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1
+                && !CommonConstant.ADMIN.equals(username)) {
+                //如果crowd接入了系统，则通过获取 Cookie检测登录状态
+                System.out.println("Auth接入了");
+                Cookie[] cookies = request.getCookies();
+                if (cookies != null) {
+                    for (Cookie cookie : cookies) {
+                        if (cookie.getName().equals(authManagerCrowd.getCookieName())) {
+                            String token = cookie.getValue();
+                            String name = authManagerCrowd.testLogin(token);
+                            if (name != null && !name.equals(CommonConstant.ADMIN)) {
+                                session.setAttribute("username", name);
+                                User user = userService.getUser(name);
+                                if (user != null) {
+                                    session.setAttribute("username", user.getUsername());
+                                    session.setAttribute("isAdmin", user.getIsAdmin());
+                                    session.setAttribute("isMachine", user.getIsMachine());
+                                    session.setAttribute("userId", user.getId());
+                                    return true;
+                                }
                             }
                         }
                     }
                 }
             }
         } else {
-            System.out.println("没通过");
+            System.out.println("Auth没接入");
             //如果未接入crowd，则通过session检测登录状态
-            String username = (String)session.getAttribute("username");
+            //            username = (String)session.getAttribute("username");
             if (username != null) {
                 return true;
             }

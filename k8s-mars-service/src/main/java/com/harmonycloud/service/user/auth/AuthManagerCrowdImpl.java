@@ -5,6 +5,8 @@ import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dto.user.CrowdConfigDto;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.user.AuthManagerCrowd;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -19,28 +21,22 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.util.Base64;
 
-@Service
-public class AuthManagerCrowdImpl implements AuthManagerCrowd {
+@Service public class AuthManagerCrowdImpl implements AuthManagerCrowd {
 
-    @Autowired
-    private SystemConfigService systemConfigService;
+    private Logger logger = LoggerFactory.getLogger(this.getClass());
+
+    @Autowired private SystemConfigService systemConfigService;
 
     public static final String COOKIE_DOMAIN = "harmonycloud.com";
 
     public static final String COOKIE_NAME = "crowd.token_key";
 
-//    public static final String SERVER_IP = "10.100.100.247";
-    @Value("#{propertiesReader['crowd.cookie.domain']}")
-    private String cookieDomain;
+    //    public static final String SERVER_IP = "10.100.100.247";
+    @Value("#{propertiesReader['crowd.cookie.domain']}") private String cookieDomain;
 
-    @Value("#{propertiesReader['crowd.cookie.name']}")
-    private String cookieName;
+    @Value("#{propertiesReader['crowd.cookie.name']}") private String cookieName;
 
-    @Value("#{propertiesReader['crowd.api.url']}")
-    private String apiUrl;
-
-
-
+    @Value("#{propertiesReader['crowd.api.url']}") private String apiUrl;
 
     //获得crowd的域名
     private String getAddress() {
@@ -55,9 +51,10 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
 
     }
 
-    private String getServerIp() throws Exception{
-        InetAddress addr = InetAddress.getLocalHost();
-        return addr.getHostAddress();
+    private String getServerIp() throws Exception {
+        //        InetAddress addr = InetAddress.getLocalHost();
+        //        return addr.getHostAddress();
+        return "10.168.40.192";
     }
 
     //进行http基本认证
@@ -66,7 +63,8 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         CrowdConfigDto crowdConfigDto = systemConfigService.findCrowdConfig();
         String username = crowdConfigDto.getUsername().trim();
         String password = crowdConfigDto.getPassword().trim();
-
+        System.out.print(username);
+        System.out.print(password);
         String base64encodedString = Base64.getEncoder().encodeToString((username + ":" + password).getBytes("utf-8"));
         connection.setRequestProperty("Authorization", "Basic " + base64encodedString);
         return connection;
@@ -126,16 +124,20 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         return result.toString();
     }
 
-    @Override
-    public String auth(String username, String password) throws Exception {
+    @Override public String auth(String username, String password) throws Exception {
         System.out.println(getAddress() + "session");
         URL url = new URL(getAddress() + "session");
         String jsonData = "{\"username\":\"" + username + "\",\"password\":\"" + password
-            + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"" + getServerIp() + "\"}]}}";
+            + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\""
+            + getServerIp() + "\"}]}}";
         HttpURLConnection connection = this.crowdPost(url, "application/json", jsonData);
         if (connection.getResponseCode() == 201) {
+            System.out.println("connection.getResponseCode():" + connection.getResponseCode());
             return username;
         } else {
+            //打日志
+            logger.error("验证出错，crowd返回" + connection.getResponseCode());
+            System.out.println("connection.getResponseCode():" + connection.getResponseCode());
             return null;
         }
     }
@@ -146,8 +148,8 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         URL crowdurl = new URL(getAddress() + "user");
         String xmlData = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><user name=\"" + username
             + "\" expand=\"attributes\"><first-name>" + realname + "</first-name><last-name>" + realname
-            + "</last-name><email>" + email + "</email><active>true</active><attributes><link href=\""
-            + getAddress() + "user/attribute?username=" + username
+            + "</last-name><email>" + email + "</email><active>true</active><attributes><link href=\"" + getAddress()
+            + "user/attribute?username=" + username
             + "\" rel=\"self\"/></attributes><password><link rel=\"edit\" href=\"" + getAddress()
             + "/user/password?username=" + username + "\"/><value>" + password + "</value></password></user>";
         //创建用户
@@ -158,11 +160,13 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
             String phoneJson = "{\"attributes\": [{\"name\": \"phone\",\"values\": [\"" + phone + "\"]}]}";
             HttpURLConnection phonecon = this.crowdPost(phoneurl, "application/json", phoneJson);
             if (phonecon.getResponseCode() != 204) {
+                logger.error("添加用户出错，crowd返回" + phonecon.getResponseCode());
                 return false;
             } else {
                 return true;
             }
         } else {
+            logger.error("添加用户出错，crowd返回" + httpURLConnection.getResponseCode());
             return false;
         }
     }
@@ -178,14 +182,17 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         URL crowdurl = new URL(getAddress() + "user?username=" + username);
         HttpURLConnection urlConnection = this.crowdGet(crowdurl);
         if (urlConnection.getResponseCode() != 200) {
+            logger.error("获取信息出错，crowd返回" + urlConnection.getResponseCode());
             return null;
         }
         String messageBody = this.getMessageBody(urlConnection);
-        String email = messageBody.substring(messageBody.indexOf("<email>") + "<email>".length(), messageBody.lastIndexOf("</email>"));
+        String email = messageBody
+            .substring(messageBody.indexOf("<email>") + "<email>".length(), messageBody.lastIndexOf("</email>"));
         //获取phone值
         URL phoneurl = new URL(getAddress() + "user/attribute?username=" + username);
         HttpURLConnection urlPhoneConnection = this.crowdGet(phoneurl);
         if (urlPhoneConnection.getResponseCode() != 200) {
+            logger.error("获取信息出错，crowd返回" + urlPhoneConnection.getResponseCode());
             return null;
         }
         messageBody = this.getMessageBody(urlPhoneConnection);
@@ -194,8 +201,10 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
             //有相应的phone属性
             messageBody = messageBody
                 .substring(messageBody.indexOf("<attribute name=\"phone\">") + "<attribute name=\"phone\">".length());
-            phone = messageBody.substring(messageBody.indexOf("<value>") + "<value>".length(), messageBody.indexOf("</value>"));
+            phone = messageBody
+                .substring(messageBody.indexOf("<value>") + "<value>".length(), messageBody.indexOf("</value>"));
         } else {
+            logger.error("crowd中用户的信息不全，无法添加用户");
             //找不到crowd中的phone属性
             return null;
         }
@@ -215,12 +224,30 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     public String getToken(String username, String password) throws Exception {
         URL url = new URL(getAddress() + "session");
         String jsonData = "{\"username\":\"" + username + "\",\"password\":\"" + password
-            + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"10.100.100.247\"}]}}";
+            + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\""
+            + getServerIp() + "\"}]}}";
         HttpURLConnection connection = this.crowdPost(url, "application/json", jsonData);
         if (connection.getResponseCode() == 201) {
             String messageBody = this.getMessageBody(connection);
             return messageBody.substring(messageBody.indexOf("<token>") + 7, messageBody.lastIndexOf("</token>"));
         } else {
+            logger.error("获取token信息出错，crowd返回" + connection.getResponseCode());
+            return null;
+        }
+    }
+
+    public String getToken(String username) throws Exception {
+        URL url = new URL(getAddress() + "session?validate-password=false");
+        String jsonData = "{\"username\":\"" + username
+            + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\""
+            + getServerIp() + "\"}]}}";
+        HttpURLConnection connection = this.crowdPost(url, "application/json", jsonData);
+        if (connection.getResponseCode() == 201) {
+            String messageBody = this.getMessageBody(connection);
+            System.out.println("message:" + messageBody);
+            return messageBody.substring(messageBody.indexOf("<token>") + 7, messageBody.lastIndexOf("</token>"));
+        } else {
+            logger.error("获取token信息出错，crowd返回" + connection.getResponseCode());
             return null;
         }
     }
@@ -230,7 +257,9 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         URL url = new URL(getAddress() + "session?username=" + username);
 
         HttpURLConnection connection = this.crowdDelete(url);
-        connection.getResponseCode();
+        if(connection.getResponseCode() != 204){
+            logger.error("删除用户登录信息出错，crowd返回" + connection.getResponseCode());
+        }
     }
 
     public void AddCookie(String crowdToken, HttpServletResponse response) throws Exception {
@@ -238,7 +267,6 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         Cookie cookie = new Cookie(COOKIE_NAME, crowdToken);
         cookie.setPath("/");                //如果路径为/则为整个tomcat目录有用
         cookie.setDomain(COOKIE_DOMAIN);    //设置对所有*.harmonycloud.com为后缀的域名
-
         response.addCookie(cookie);
     }
 
@@ -256,7 +284,7 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         }
     }
 
-    public String getCookieName(){
+    public String getCookieName() {
         return COOKIE_NAME;
     }
 

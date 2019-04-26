@@ -22,5 +22,7 @@ public interface AuthManagerCrowd {
 
     String testLogin(String crowdToken) throws Exception;
 
-    public String getCookieName();
+    String getCookieName();
+
+    String getToken(String username) throws Exception;
 }

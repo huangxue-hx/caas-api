@@ -15,8 +15,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.SocketUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import com.harmonycloud.service.user.*;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 import javax.swing.plaf.synth.SynthTextAreaUI;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 @RestController
 @RequestMapping("/system/configs")
@@ -24,6 +30,9 @@ public class SystemConfigController {
 	
 	@Autowired
 	private SystemConfigService systemConfigService;
+
+	@Autowired
+	private AuthManagerCrowd authManagerCrowd;
 
 
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -49,12 +58,36 @@ public class SystemConfigController {
 	//crowd设置
 	@ResponseBody
 	@RequestMapping(value="/crowd", method = RequestMethod.POST)
-	public ActionReturnUtil saveCrowdConfig(@ModelAttribute CrowdConfigDto crowdConfigDto) throws Exception {
+	public ActionReturnUtil saveCrowdConfig(@ModelAttribute CrowdConfigDto crowdConfigDto, HttpServletRequest request, HttpServletResponse response) throws Exception {
 		AssertUtil.notNull(crowdConfigDto);
 		try {
 //			logger.info("save crowdConfig");
-			System.out.println("Config:" + crowdConfigDto.getAddress());
+
+			//检验是否能连上crowd服务器
+			URL url = new URL(crowdConfigDto.getAddress());
+			HttpURLConnection connection = (HttpURLConnection)url.openConnection();
+			connection.setRequestMethod("GET");
+			connection.setRequestProperty("Charset", "UTF-8");
+			connection.setRequestProperty("connection", "Keep-Alive");
+			connection.connect();
+			if(connection.getResponseCode() != 200){
+				return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.GET_CROWD_CONF_FAIL);
+			}
 			systemConfigService.addCrowdConfig(crowdConfigDto);
+
+			HttpSession session = request.getSession();
+			String username = (String)session.getAttribute("username");
+			if(crowdConfigDto.getIsAccess() == 1) {
+				//开启crowd接入cookie
+				String token = authManagerCrowd.getToken(username);
+				authManagerCrowd.AddCookie(token, response);
+				System.out.println("Add cookie:" + token);
+			}
+			else{
+				authManagerCrowd.invalidateToken(username);
+				System.out.println("清空了cookie信息");
+			}
+
 			return ActionReturnUtil.returnSuccess();
 
 		} catch (Exception e) {
