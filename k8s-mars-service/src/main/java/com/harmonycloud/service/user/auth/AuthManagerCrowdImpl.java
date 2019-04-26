@@ -52,9 +52,9 @@ import java.util.Base64;
     }
 
     private String getServerIp() throws Exception {
-        //        InetAddress addr = InetAddress.getLocalHost();
-        //        return addr.getHostAddress();
-        return "10.168.40.192";
+        InetAddress addr = InetAddress.getLocalHost();
+        return addr.getHostAddress();
+        //        return "10.168.40.192";
     }
 
     //进行http基本认证
@@ -257,7 +257,7 @@ import java.util.Base64;
         URL url = new URL(getAddress() + "session?username=" + username);
 
         HttpURLConnection connection = this.crowdDelete(url);
-        if(connection.getResponseCode() != 204){
+        if (connection.getResponseCode() != 204) {
             logger.error("删除用户登录信息出错，crowd返回" + connection.getResponseCode());
         }
     }
