@@ -1628,55 +1628,66 @@ public class HarborProjectServiceImpl implements HarborProjectService {
         String labelSelector = Constant.NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId;
         bodys.put("labelSelector", labelSelector);
 
-        List<Map<String, Object>> result = new ArrayList<>();
+        List<Map<String, Object>> result = Lists.newArrayList();
         List<Cluster> clusterList = roleLocalService.listCurrentUserRoleCluster();
-        try {
-            Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
-            //判断该namespace是否有权限
-            if (clusterList.stream().noneMatch((c) -> c.getId().equals(cluster.getId()))) {
-                return ActionReturnUtil.returnSuccessWithData(Lists.newArrayList());
-            }
-            if (StringUtils.isNotBlank(clusterId) && !cluster.getId().equals(clusterId)) {
-                return ActionReturnUtil.returnSuccessWithData(Lists.newArrayList());
-            }
+		String[] nsArr = namespace.split(",");
+		for (String ns : nsArr) {
+			if (StringUtils.isNotBlank(ns)) {
+				try {
+					Cluster cluster = namespaceLocalService.getClusterByNamespaceName(ns);
+					//判断该namespace是否有权限
+					if (clusterList.stream().noneMatch(c -> c.getId().equals(cluster.getId()))) {
+						continue;
+					}
+					if (StringUtils.isNotBlank(clusterId) && !cluster.getId().equals(clusterId)) {
+						continue;
+					}
 
-            // deployment
-            DeploymentList deployment = deploymentsService.getDeployments(namespace, bodys, cluster);
-            String aliasNamespace = namespaceLocalService.getNamespaceByName(namespace).getAliasName();
-            if (deployment != null  && !CollectionUtils.isEmpty(deployment.getItems())) {
-                result.addAll(K8sResultConvert.convertAppList(deployment, cluster, aliasNamespace));
-            }
-            // statefulset
-            StatefulSetList statefulSet = statefulSetService.listStatefulSets(namespace, null, bodys, cluster);
-            if (statefulSet != null && !CollectionUtils.isEmpty(statefulSet.getItems())) {
-                result.addAll(K8sResultConvert.convertAppList(statefulSet, cluster, aliasNamespace));
-            }
-        } catch (Exception e) {
-            logger.error("查询deployment或statefulset列表失败，namespace：{}", namespace, e);
-        }
+					// deployment
+					DeploymentList deployment = deploymentsService.getDeployments(ns, bodys, cluster);
+					String aliasNamespace = namespaceLocalService.getNamespaceByName(ns).getAliasName();
+					if (deployment != null  && !CollectionUtils.isEmpty(deployment.getItems())) {
+						result.addAll(K8sResultConvert.convertAppList(deployment, cluster, aliasNamespace));
+					}
+					// statefulset
+					StatefulSetList statefulSet = statefulSetService.listStatefulSets(ns, null, bodys, cluster);
+					if (statefulSet != null && !CollectionUtils.isEmpty(statefulSet.getItems())) {
+						result.addAll(K8sResultConvert.convertAppList(statefulSet, cluster, aliasNamespace));
+					}
+				} catch (Exception e) {
+					logger.error("查询deployment或statefulset列表失败，namespace：{}", ns, e);
+				}
+			}
+		}
 
-        //数据过滤
-        DataPrivilegeDto dataPrivilegeDto = new DataPrivilegeDto();
-        dataPrivilegeDto.setProjectId(projectId);
-        Iterator<Map<String, Object>> iterator = result.iterator();
-        while (iterator.hasNext()) {
-            Map<String, Object> map = iterator.next();
-            dataPrivilegeDto.setData((String) map.get(CommonConstant.NAME));
-            dataPrivilegeDto.setNamespace((String) map.get(CommonConstant.DATA_NAMESPACE));
-            dataPrivilegeDto.setDataResourceType(DataResourceTypeEnum.SERVICE.getCode());
-            Map filteredMap = dataPrivilegeHelper.filterMap(map, dataPrivilegeDto);
-            if (filteredMap == null) {
-                iterator.remove();
-            }
-        }
+		// 有服务，再进行进一步过滤
+		if (!CollectionUtils.isEmpty(result)) {
+			// 权限过滤使用
+			DataPrivilegeDto dataPrivilegeDto = new DataPrivilegeDto();
+			dataPrivilegeDto.setProjectId(projectId);
+			// 镜像名称
+			String fullImageTag = fullImageName + COLON + tag;
+			String imageTag = imageName + COLON + tag;
 
-        // 过滤镜像版本不一样的服务
-        String fullImageTag = fullImageName + COLON + tag;
-        String imageTag = imageName + COLON + tag;
-		result.removeIf(res -> {
-			@SuppressWarnings("unchecked") List<String> img = (List<String>) res.get("img");
-			return img.stream().noneMatch(i -> StringUtils.equals(i, fullImageTag) || StringUtils.equals(i, imageTag));
-		});
+			result.removeIf(res -> {
+				// 过滤镜像版本不一样的服务
+				@SuppressWarnings("unchecked") List<String> img = (List<String>) res.get("img");
+				if (img.stream().noneMatch(i -> StringUtils.equals(i, fullImageTag) || StringUtils.equals(i, imageTag))) {
+					return true;
+				}
+				// 权限过滤
+				dataPrivilegeDto.setData((String) res.get(CommonConstant.NAME));
+				dataPrivilegeDto.setDataResourceType(DataResourceTypeEnum.SERVICE.getCode());
+				dataPrivilegeDto.setNamespace((String) res.get(CommonConstant.DATA_NAMESPACE));
+				Map filteredMap = null;
+				try {
+					filteredMap = dataPrivilegeHelper.filterMap(res, dataPrivilegeDto);
+				} catch (Exception e) {
+					logger.warn("镜像详情服务列表权限过滤异常：", e);
+				}
+				return filteredMap == null;
+			});
+		}
 
         return ActionReturnUtil.returnSuccessWithData(result);
     }
