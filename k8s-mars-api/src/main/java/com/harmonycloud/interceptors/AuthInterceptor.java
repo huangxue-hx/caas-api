@@ -166,12 +166,13 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         HttpSession session = request.getSession();
         CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
         String username = (String)session.getAttribute("username");
+        System.out.println("session name" + username);
+        //容器云平台的admin用户永远不接入crowd进行单点登录
         if (username == null || username != null && !CommonConstant.ADMIN.equals(username)) {
-
+            System.out.println("daozheli");
             if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1
                 && !CommonConstant.ADMIN.equals(username)) {
                 //如果crowd接入了系统，则通过获取 Cookie检测登录状态
-                System.out.println("Auth接入了");
                 Cookie[] cookies = request.getCookies();
                 if (cookies != null) {
                     for (Cookie cookie : cookies) {
@@ -192,22 +193,19 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
                         }
                     }
                 }
+            }else{
+                //如果未接入crowd，则通过session检测登录状态
+                if (username != null) {
+                    return true;
+                }
             }
+
         } else {
-            System.out.println("Auth没接入");
             //如果未接入crowd，则通过session检测登录状态
-            //            username = (String)session.getAttribute("username");
             if (username != null) {
                 return true;
             }
         }
-
-        //todo:这里可能要检查session是否还生效并使其不生效
-        //        String username = (String) session.getAttribute("username");
-        //        System.out.println("username:" + username);
-        //        if (username != null) {
-        //            return true;
-        //        }
 
         // 不符合条件的，返回401 Unauthorized
         response.setStatus(401);
