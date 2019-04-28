@@ -40,7 +40,6 @@ import java.util.Base64;
 
     //获得crowd的域名
     private String getAddress() {
-        System.out.println(cookieDomain);
         CrowdConfigDto crowdConfigDto = systemConfigService.findCrowdConfig();
         String domain = crowdConfigDto.getAddress().trim();
         if (domain.endsWith("/")) {
@@ -52,9 +51,9 @@ import java.util.Base64;
     }
 
     private String getServerIp() throws Exception {
-        InetAddress addr = InetAddress.getLocalHost();
-        return addr.getHostAddress();
-        //        return "10.168.40.192";
+        //        InetAddress addr = InetAddress.getLocalHost();
+        //        return addr.getHostAddress();
+        return "10.168.40.192";
     }
 
     //进行http基本认证
@@ -63,8 +62,6 @@ import java.util.Base64;
         CrowdConfigDto crowdConfigDto = systemConfigService.findCrowdConfig();
         String username = crowdConfigDto.getUsername().trim();
         String password = crowdConfigDto.getPassword().trim();
-        System.out.print(username);
-        System.out.print(password);
         String base64encodedString = Base64.getEncoder().encodeToString((username + ":" + password).getBytes("utf-8"));
         connection.setRequestProperty("Authorization", "Basic " + base64encodedString);
         return connection;
@@ -120,24 +117,20 @@ import java.util.Base64;
         for (line = br.readLine(); line != null; line = br.readLine()) {
             result.append(line);
         }
-        System.out.println(result.toString());
         return result.toString();
     }
 
     @Override public String auth(String username, String password) throws Exception {
-        System.out.println(getAddress() + "session");
         URL url = new URL(getAddress() + "session");
         String jsonData = "{\"username\":\"" + username + "\",\"password\":\"" + password
             + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\""
             + getServerIp() + "\"}]}}";
         HttpURLConnection connection = this.crowdPost(url, "application/json", jsonData);
         if (connection.getResponseCode() == 201) {
-            System.out.println("connection.getResponseCode():" + connection.getResponseCode());
             return username;
         } else {
             //打日志
             logger.error("验证出错，crowd返回" + connection.getResponseCode());
-            System.out.println("connection.getResponseCode():" + connection.getResponseCode());
             return null;
         }
     }
@@ -244,7 +237,6 @@ import java.util.Base64;
         HttpURLConnection connection = this.crowdPost(url, "application/json", jsonData);
         if (connection.getResponseCode() == 201) {
             String messageBody = this.getMessageBody(connection);
-            System.out.println("message:" + messageBody);
             return messageBody.substring(messageBody.indexOf("<token>") + 7, messageBody.lastIndexOf("</token>"));
         } else {
             logger.error("获取token信息出错，crowd返回" + connection.getResponseCode());
