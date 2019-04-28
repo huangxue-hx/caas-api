@@ -1,17 +1,14 @@
 package com.harmonycloud.api.user;
 
 import java.io.*;
-import java.net.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
-import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dto.user.CrowdConfigDto;
 import com.harmonycloud.dto.user.LdapConfigDto;
@@ -63,7 +60,7 @@ import com.harmonycloud.service.application.SecretService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    private boolean isLdapON(LdapConfigDto ldapConfigDto) {
+    private boolean isLdapOn(LdapConfigDto ldapConfigDto) {
         if (ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1) {
             return true;
         }
@@ -95,9 +92,6 @@ import com.harmonycloud.service.application.SecretService;
         //获取crowd的配置信息
         CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
         String res = null;
-        //表示容器云自身的数据库是否储存了账户信息
-
-        String resCrowd = null;
 
         //admin用户不使用Ldap和单点登录
         if (CommonConstant.ADMIN.equals(username)) {
@@ -105,7 +99,7 @@ import com.harmonycloud.service.application.SecretService;
         } else if (isCrowdOn(crowdConfigDto)) {
             //crowd中获取的用户名
             res = authManagerCrowd.auth(username, password);
-        } else if (isLdapON(ldapConfigDto)) {
+        } else if (isLdapOn(ldapConfigDto)) {
             res = authManager4Ldap.auth(username, password, ldapConfigDto);
         } else {
             res = authManagerDefault.auth(username, password);
@@ -113,14 +107,7 @@ import com.harmonycloud.service.application.SecretService;
 
         //如果res不为null，就表示至少在一方中找到了账户和密码
         if (StringUtils.isNotBlank(res)) {
-            //在crowd的数据库中找到了账户信息，但可能容器云平台中没有，需要在容器云中新建用户,但admin用户除外
-            if (isCrowdOn(crowdConfigDto) && !CommonConstant.ADMIN.equals(username)) {
-                User user = authManagerCrowd.getUser(username, password);
-                if (user != null) {
-                    //添加用户
-                    userService.addUser(user);
-                }
-            }
+
             User user = userService.getUser(username);
             if (user == null) {
                 user = new User();
@@ -161,7 +148,7 @@ import com.harmonycloud.service.application.SecretService;
                 && !CommonConstant.ADMIN.equals(username)) {
                 //在crowd接入时，添加cookie
                 String crowdToken = authManagerCrowd.getToken(username, password);
-                authManagerCrowd.AddCookie(crowdToken, response);
+                authManagerCrowd.addCookie(crowdToken, response);
             }
             return ActionReturnUtil.returnSuccessWithData(data);
         }

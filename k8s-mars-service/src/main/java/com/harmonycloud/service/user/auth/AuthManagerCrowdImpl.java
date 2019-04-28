@@ -1,10 +1,14 @@
 package com.harmonycloud.service.user.auth;
 
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dto.user.CrowdConfigDto;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.user.AuthManagerCrowd;
+import com.harmonycloud.service.user.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +31,8 @@ import java.util.Base64;
 
     @Autowired private SystemConfigService systemConfigService;
 
+    @Autowired private UserService userService;
+
     public static final String COOKIE_DOMAIN = "harmonycloud.com";
 
     public static final String COOKIE_NAME = "crowd.token_key";
@@ -37,6 +43,20 @@ import java.util.Base64;
     @Value("#{propertiesReader['crowd.cookie.name']}") private String cookieName;
 
     @Value("#{propertiesReader['crowd.api.url']}") private String apiUrl;
+
+    //测试能否连通crowd服务器
+    public boolean testCrowd(CrowdConfigDto crowdConfigDto) throws Exception {
+        URL url = new URL(crowdConfigDto.getAddress());
+        HttpURLConnection connection = (HttpURLConnection)url.openConnection();
+        connection.setRequestMethod("GET");
+        connection.setRequestProperty("Charset", "UTF-8");
+        connection.setRequestProperty("connection", "Keep-Alive");
+        connection.connect();
+        if (connection.getResponseCode() != 200) {
+            return false;
+        }
+        return true;
+    }
 
     //获得crowd的域名
     private String getAddress() {
@@ -51,9 +71,9 @@ import java.util.Base64;
     }
 
     private String getServerIp() throws Exception {
-        //        InetAddress addr = InetAddress.getLocalHost();
-        //        return addr.getHostAddress();
-        return "10.168.40.192";
+        InetAddress addr = InetAddress.getLocalHost();
+        return addr.getHostAddress();
+        //        return "10.168.40.192";
     }
 
     //进行http基本认证
@@ -127,6 +147,11 @@ import java.util.Base64;
             + getServerIp() + "\"}]}}";
         HttpURLConnection connection = this.crowdPost(url, "application/json", jsonData);
         if (connection.getResponseCode() == 201) {
+            User user = getUser(username, password);
+            if (user != null) {
+                //在容器云平台添加用户
+                userService.addUser(user);
+            }
             return username;
         } else {
             //打日志
@@ -162,13 +187,6 @@ import java.util.Base64;
             logger.error("添加用户出错，crowd返回" + httpURLConnection.getResponseCode());
             return false;
         }
-    }
-
-    public void deleteUser(String username) throws Exception {
-        URL url = new URL(getAddress() + "user?username=" + username);
-
-        HttpURLConnection connection = this.crowdDelete(url);
-        connection.getResponseCode();
     }
 
     public User getUser(String username, String password) throws Exception {
@@ -254,7 +272,7 @@ import java.util.Base64;
         }
     }
 
-    public void AddCookie(String crowdToken, HttpServletResponse response) throws Exception {
+    public void addCookie(String crowdToken, HttpServletResponse response) throws Exception {
         //将crowd中token的值存入token
         Cookie cookie = new Cookie(COOKIE_NAME, crowdToken);
         cookie.setPath("/");                //如果路径为/则为整个tomcat目录有用
