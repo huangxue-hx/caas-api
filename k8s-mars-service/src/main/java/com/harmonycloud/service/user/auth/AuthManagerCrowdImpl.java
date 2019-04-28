@@ -76,9 +76,9 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     }
 
     private String getServerIp() throws Exception {
-        // InetAddress addr = InetAddress.getLocalHost();
-        // return addr.getHostAddress();
-        return "10.168.40.192";
+        InetAddress addr = InetAddress.getLocalHost();
+        return addr.getHostAddress();
+        // return "10.168.40.192";
     }
 
     // 进行http基本认证
@@ -246,7 +246,8 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         HttpURLConnection connection = this.crowdPost(url, "application/json", jsonData);
         if (connection.getResponseCode() == 201) {
             String messageBody = this.getMessageBody(connection);
-            return messageBody.substring(messageBody.indexOf("<token>") + 7, messageBody.lastIndexOf("</token>"));
+            return messageBody.substring(messageBody.indexOf("<token>") + "<token>".length(),
+                messageBody.lastIndexOf("</token>"));
         } else {
             logger.error("获取token信息出错，crowd返回" + connection.getResponseCode());
             return null;
@@ -261,7 +262,8 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         HttpURLConnection connection = this.crowdPost(url, "application/json", jsonData);
         if (connection.getResponseCode() == 201) {
             String messageBody = this.getMessageBody(connection);
-            return messageBody.substring(messageBody.indexOf("<token>") + 7, messageBody.lastIndexOf("</token>"));
+            return messageBody.substring(messageBody.indexOf("<token>") + "<token>".length(),
+                messageBody.lastIndexOf("</token>"));
         } else {
             logger.error("获取token信息出错，crowd返回" + connection.getResponseCode());
             return null;
@@ -293,7 +295,8 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         if (connection.getResponseCode() == 200) {
             // 说明用户已经在登录
             String result = getMessageBody(connection);
-            String username = result.substring(result.indexOf("name=\"") + 6, result.indexOf("\"><link"));
+            String username =
+                result.substring(result.indexOf("name=\"") + "name=\"".length(), result.indexOf("\"><link"));
             return username;
         } else {
             return null;
