@@ -1,8 +1,11 @@
 package com.harmonycloud.dao.tenant.bean;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.io.Serializable;
 import java.util.Date;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class TenantBinding implements Serializable {
     private Integer id;
 

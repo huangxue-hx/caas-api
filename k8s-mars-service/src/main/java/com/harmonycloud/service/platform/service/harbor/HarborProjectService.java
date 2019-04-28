@@ -250,11 +250,11 @@ public interface HarborProjectService {
 	 */
 	ActionReturnUtil getImgLabel(String harborHost, String repoName, String tag) throws Exception;
 
-	ActionReturnUtil getLable(String harborHost,String repoName, String scope, Long projectId) throws Exception;
+	ActionReturnUtil getLabel(String harborHost,String repoName, String scope, Long projectId, String labelName) throws Exception;
 
-	ActionReturnUtil deleteLable(String harborHost, Long lableId)throws Exception;
+	ActionReturnUtil deleteLabel(String harborHost, Long lableId)throws Exception;
 
-	ActionReturnUtil addLable(String harborHost, String name, String desc, String color, String scop, Integer projectId) throws Exception;
+	ActionReturnUtil addLabel(String harborHost, String name, String desc, String color, String scop, Integer projectId) throws Exception;
 
 	ActionReturnUtil updateLabel(String harborHost, Long labelId, HarborProjectLabel harborProjectLabel) throws Exception;
 
@@ -274,6 +274,6 @@ public interface HarborProjectService {
      * 根据镜像查询服务列表
      */
     ActionReturnUtil getDeploysByImage(String projectId, String fullImageName, String imageName, String tag,
-                                       String namespace, String clusterId) throws Exception;
+                                       String namespace, String clusterId, String deployName) throws Exception;
 
 }

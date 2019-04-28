@@ -442,10 +442,11 @@ public class HarborImageController {
 									@PathVariable(value="tagName") String tagName,
 									@RequestParam(value = "fullImageName") String fullImageName,
 									@RequestParam(value = "namespace") String namespace,
-									@RequestParam(value = "clusterId", required = false) String clusterId) throws Exception {
+									@RequestParam(value = "clusterId", required = false) String clusterId,
+                                    @RequestParam(value = "deployName", required = false) String deployName) throws Exception {
         String image = URLDecoder.decode(imageName, "UTF-8");
         String fullImage = URLDecoder.decode(fullImageName, "UTF-8");
-        return harborProjectService.getDeploysByImage(projectId, fullImage, image, tagName, namespace, clusterId);
+        return harborProjectService.getDeploysByImage(projectId, fullImage, image, tagName, namespace, clusterId, deployName);
 	}
 
 }

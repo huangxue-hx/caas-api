@@ -383,7 +383,7 @@ public class HarborProjectController {
 									 @RequestParam(value = "scop",required = false) String scop,
 									 @RequestParam(value = "harborProjectId") Integer harborProjectId) throws Exception{
 
-		return harborProjectService.addLable(harborHost,name,desc,color,scop,harborProjectId);
+		return harborProjectService.addLabel(harborHost,name,desc,color,scop,harborProjectId);
 	}
 
 	/**
@@ -397,7 +397,7 @@ public class HarborProjectController {
 	public ActionReturnUtil delLabel(@RequestParam(value="harborHost") String harborHost,
 									 @RequestParam(value = "lableId") Long lableId) throws Exception{
 
-		return harborProjectService.deleteLable(harborHost,lableId);
+		return harborProjectService.deleteLabel(harborHost,lableId);
 	}
 
 	/**
@@ -411,8 +411,9 @@ public class HarborProjectController {
 	public ActionReturnUtil getLabels(@RequestParam(value="harborHost") String harborHost,
 									  @RequestParam(value = "repoName",required = false) String repoName,
 									  @RequestParam(value = "scope",required = false) String scope,
-									  @RequestParam(value = "harborProjectId") Long harborProjectId) throws Exception{
-		return harborProjectService.getLable(harborHost,repoName,scope,harborProjectId);
+									  @RequestParam(value = "harborProjectId") Long harborProjectId,
+									  @RequestParam(value = "labelName", required = false) String labelName) throws Exception{
+		return harborProjectService.getLabel(harborHost, repoName, scope, harborProjectId, labelName);
 	}
 	/**
 	 * 修改标签

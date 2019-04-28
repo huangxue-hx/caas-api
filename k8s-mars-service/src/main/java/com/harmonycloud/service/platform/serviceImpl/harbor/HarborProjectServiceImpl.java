@@ -1135,7 +1135,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		String url = HarborClient.getHarborUrl(harborServer) + "/api/repositories/"+repoName+"/tags/"+tag+"/labels";
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 		headers.put("Content-type", "application/json");
-		String json = JsonUtil.convertToJson(getLableDetail(harborHost,labelId));
+		String json = JsonUtil.convertToJson(getLabelDetail(harborHost,labelId));
 		ActionReturnUtil response = HarborHttpsClientUtil.httpPostRequestForHarbor(url, headers, JsonUtil.jsonToMap(json));
 		if(!response.isSuccess()){
 			logger.error("select label error. harborHost:{},res:{}", harborHost, JSONObject.toJSONString(response));
@@ -1193,7 +1193,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	}
 
 	@Override
-	public ActionReturnUtil getLable(String harborHost,String repoName, String scope, Long projectId) throws Exception{
+	public ActionReturnUtil getLabel(String harborHost,String repoName, String scope, Long projectId, String labelName) throws Exception{
 		AssertUtil.notNull(projectId,DictEnum.PROJECT_ID);
 		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
 		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels";
@@ -1206,9 +1206,15 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			logger.error("sync registry error. harborHost:{},res:{}", harborHost, JSONObject.toJSONString(response));
 			return response;
 		}
-		return ActionReturnUtil.returnSuccessWithData(JsonUtil.jsonToList(response.getData().toString(),HarborProjectLabel.class));
+
+		List<HarborProjectLabel> labelList = JsonUtil.jsonToList(response.getData().toString(), HarborProjectLabel.class);
+		if (!CollectionUtils.isEmpty(labelList) && StringUtils.isNotBlank(labelName)) {    // 有数据并且labelName不为空，则进行模糊匹配过滤数据
+			labelList.removeIf(label -> !label.getName().contains(labelName));
+		}
+
+		return ActionReturnUtil.returnSuccessWithData(labelList);
 	}
-	public HarborProjectLabel getLableDetail(String harborHost,String labelId) throws Exception{
+	public HarborProjectLabel getLabelDetail(String harborHost,String labelId) throws Exception{
 		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
 		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels/"+labelId;
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
@@ -1219,10 +1225,10 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		return JsonUtil.jsonToPojo(response.getData().toString(),HarborProjectLabel.class);
 	}
 	@Override
-	public ActionReturnUtil deleteLable(String harborHost, Long lableId) throws Exception {
-		AssertUtil.notNull(lableId);
+	public ActionReturnUtil deleteLabel(String harborHost, Long labelId) throws Exception {
+		AssertUtil.notNull(labelId);
 		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
-		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels/"+lableId;
+		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels/"+labelId;
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 		ActionReturnUtil response = HarborHttpsClientUtil.httpDoDelete(url,null, headers);
 		if(!response.isSuccess()){
@@ -1233,7 +1239,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	}
 
 	@Override
-	public ActionReturnUtil addLable(String harborHost, String name, String desc, String color, String scope, Integer projectId) throws Exception {
+	public ActionReturnUtil addLabel(String harborHost, String name, String desc, String color, String scope, Integer projectId) throws Exception {
 		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
 		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels";
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
@@ -1615,8 +1621,8 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	}
 
     @Override
-    public ActionReturnUtil getDeploysByImage(String projectId, String fullImageName, String imageName,
-                                              String tag, String namespace, String clusterId) throws Exception {
+    public ActionReturnUtil getDeploysByImage(String projectId, String fullImageName, String imageName, String tag,
+											  String namespace, String clusterId, String deployName) throws Exception {
 	    // 参数为空判断
 	    if (StringUtils.isBlank(projectId) || StringUtils.isBlank(fullImageName) || StringUtils.isBlank(imageName)
                 || StringUtils.isBlank(tag) || StringUtils.isBlank(namespace)) {
@@ -1670,6 +1676,10 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			String imageTag = imageName + COLON + tag;
 
 			result.removeIf(res -> {
+				// 模糊查询过滤数据
+				if (StringUtils.isNotBlank(deployName) && !res.get("name").toString().contains(deployName)) {
+					return true;
+				}
 				// 过滤镜像版本不一样的服务
 				@SuppressWarnings("unchecked") List<String> img = (List<String>) res.get("img");
 				if (img.stream().noneMatch(i -> StringUtils.equals(i, fullImageTag) || StringUtils.equals(i, imageTag))) {
