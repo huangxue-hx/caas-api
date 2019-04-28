@@ -63,6 +63,20 @@ import com.harmonycloud.service.application.SecretService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
+    private boolean isLdapON(LdapConfigDto ldapConfigDto) {
+        if (ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isCrowdOn(CrowdConfigDto crowdConfigDto) {
+        if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1) {
+            return true;
+        }
+        return false;
+    }
+
     @ResponseBody @RequestMapping(value = "/login", method = RequestMethod.POST)
     public ActionReturnUtil Login(@RequestParam(value = "username") final String username,
         @RequestParam(value = "password") final String password,
@@ -82,46 +96,29 @@ import com.harmonycloud.service.application.SecretService;
         CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
         String res = null;
         //表示容器云自身的数据库是否储存了账户信息
-        boolean cloud = false;
-        //表示crowd连接的数据库中是否储存了账户信息
-        boolean crowd = false;
 
         String resCrowd = null;
-        if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1
-            && !CommonConstant.ADMIN.equals(username)) {
-            //crowd功能开启时,在crowd中验证用户名和密码
-            resCrowd = authManagerCrowd.auth(username, password);
-            if (resCrowd != null) {
-                crowd = true;
-            }
+
+        //admin用户不使用Ldap和单点登录
+        if (CommonConstant.ADMIN.equals(username)) {
+            res = authManagerDefault.auth(username, password);
+        } else if (isCrowdOn(crowdConfigDto)) {
+            //crowd中获取的用户名
+            res = authManagerCrowd.auth(username, password);
+        } else if (isLdapON(ldapConfigDto)) {
+            res = authManager4Ldap.auth(username, password, ldapConfigDto);
         } else {
-            //crowd未接入，在容器云或Ldap中验证账号和密码
-            if (ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1
-                && !CommonConstant.ADMIN.equals(username)) {
-                res = this.authManager4Ldap.auth(username, password, ldapConfigDto);
-            } else {
-                res = authManagerDefault.auth(username, password);
-            }
-            if (StringUtils.isNotBlank(res)) {
-                cloud = true;
-            }
+            res = authManagerDefault.auth(username, password);
         }
 
         //如果res不为null，就表示至少在一方中找到了账户和密码
-        if (StringUtils.isNotBlank(res) || StringUtils.isNotBlank(resCrowd)) {
-            //            在crowd的数据库中找到了账户信息，但容器云中没有，需要在容器云中新建用户
-            if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1
-                && !CommonConstant.ADMIN.equals(username)) {
-                //只有在crowd接入时才进行用户信息的同步
-                if (!cloud) {
-                    User user = authManagerCrowd.getUser(username, password);
-                    if (user != null) {
-                        //添加用户
-                        userService.addUser(user);
-
-                    } else {
-                        return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_INFO_LOST);
-                    }
+        if (StringUtils.isNotBlank(res)) {
+            //在crowd的数据库中找到了账户信息，但可能容器云平台中没有，需要在容器云中新建用户,但admin用户除外
+            if (isCrowdOn(crowdConfigDto) && !CommonConstant.ADMIN.equals(username)) {
+                User user = authManagerCrowd.getUser(username, password);
+                if (user != null) {
+                    //添加用户
+                    userService.addUser(user);
                 }
             }
             User user = userService.getUser(username);
@@ -179,8 +176,7 @@ import com.harmonycloud.service.application.SecretService;
         stringRedisTemplate.delete("sessionid:sessionid-" + session.getAttribute("username"));
         //获取crowd的配置信息
         CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
-        if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1
-            && !CommonConstant.ADMIN.equals(username)) {
+        if (isCrowdOn(crowdConfigDto) && !CommonConstant.ADMIN.equals(username)) {
             //在crowd中清除登录信息
             authManagerCrowd.invalidateToken(username);
         }
