@@ -1199,7 +1199,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels";
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 		Map<String, Object> params = new HashMap<>();
-		params.put("scope","p");
+		params.put("scope", scope);
 		params.put("project_id",projectId);
 		ActionReturnUtil response = HarborHttpsClientUtil.httpGetRequest(url, headers, params);
 		if(!response.isSuccess()){

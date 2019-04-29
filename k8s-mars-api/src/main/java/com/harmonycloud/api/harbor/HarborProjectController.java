@@ -410,7 +410,7 @@ public class HarborProjectController {
 	@ResponseBody
 	public ActionReturnUtil getLabels(@RequestParam(value="harborHost") String harborHost,
 									  @RequestParam(value = "repoName",required = false) String repoName,
-									  @RequestParam(value = "scope",required = false) String scope,
+									  @RequestParam(value = "scope", defaultValue = "p") String scope,
 									  @RequestParam(value = "harborProjectId") Long harborProjectId,
 									  @RequestParam(value = "labelName", required = false) String labelName) throws Exception{
 		return harborProjectService.getLabel(harborHost, repoName, scope, harborProjectId, labelName);
