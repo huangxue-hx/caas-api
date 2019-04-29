@@ -133,7 +133,13 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		List<HarborOverview> harborOverviews = new ArrayList<>();
 		Set<HarborServer> harborServers = new HashSet<>();
 		if(StringUtils.isBlank(harborHost)) {
-			List<Cluster> clusters = roleLocalService.listCurrentUserRoleCluster();
+			List<Cluster> clusters;
+			try {
+				clusters = roleLocalService.listCurrentUserRoleCluster();
+			} catch (IllegalStateException e) {
+				clusters = clusterService.listCluster();
+				logger.info("刷新镜像缓存定时任务，获取集群列表，size:{}", clusters.size());
+			}
 			if (!CollectionUtils.isEmpty(clusters)) {
 				for (Cluster cluster : clusters) {
 					harborServers.add(cluster.getHarborServer());
