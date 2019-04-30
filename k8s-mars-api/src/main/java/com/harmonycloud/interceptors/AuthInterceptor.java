@@ -134,7 +134,7 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
 
     private boolean isCrowdLogin(Cookie cookie, HttpSession session) throws Exception {
         if (cookie.getName().equals(authManagerCrowd.getCookieName())) {
-            String token = cookie.getValue();
+            String token = cookie.getValue().replace("\"", "");;
             String username = authManagerCrowd.testLogin(token);
             // crowd中的admin用户不单点登录
             if (StringUtils.isNotBlank(username) && !isAdmin(username)) {
