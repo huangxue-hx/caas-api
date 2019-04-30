@@ -1,8 +1,11 @@
 package com.harmonycloud.dao.tenant.bean;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.io.Serializable;
 import java.util.Date;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class TenantBinding implements Serializable {
     private Integer id;
 
@@ -187,24 +190,40 @@ public class TenantBinding implements Serializable {
         if (getClass() != that.getClass()) {
             return false;
         }
-        TenantBinding other = (TenantBinding) that;
+        TenantBinding other = (TenantBinding)that;
         return (this.getId() == null ? other.getId() == null : this.getId().equals(other.getId()))
-            && (this.getTenantSystemCode() == null ? other.getTenantSystemCode() == null : this.getTenantSystemCode().equals(other.getTenantSystemCode()))
-            && (this.getTenantId() == null ? other.getTenantId() == null : this.getTenantId().equals(other.getTenantId()))
-            && (this.getTenantName() == null ? other.getTenantName() == null : this.getTenantName().equals(other.getTenantName()))
-            && (this.getTmUsernames() == null ? other.getTmUsernames() == null : this.getTmUsernames().equals(other.getTmUsernames()))
-            && (this.getCreateTime() == null ? other.getCreateTime() == null : this.getCreateTime().equals(other.getCreateTime()))
-            && (this.getUpdateTime() == null ? other.getUpdateTime() == null : this.getUpdateTime().equals(other.getUpdateTime()))
-            && (this.getAnnotation() == null ? other.getAnnotation() == null : this.getAnnotation().equals(other.getAnnotation()))
-            && (this.getUpdateUserAccount() == null ? other.getUpdateUserAccount() == null : this.getUpdateUserAccount().equals(other.getUpdateUserAccount()))
-            && (this.getUpdateUserId() == null ? other.getUpdateUserId() == null : this.getUpdateUserId().equals(other.getUpdateUserId()))
-            && (this.getUpdateUserName() == null ? other.getUpdateUserName() == null : this.getUpdateUserName().equals(other.getUpdateUserName()))
-            && (this.getCreateUserAccount() == null ? other.getCreateUserAccount() == null : this.getCreateUserAccount().equals(other.getCreateUserAccount()))
-            && (this.getCreateUserId() == null ? other.getCreateUserId() == null : this.getCreateUserId().equals(other.getCreateUserId()))
-            && (this.getCreateUserName() == null ? other.getCreateUserName() == null : this.getCreateUserName().equals(other.getCreateUserName()))
-            && (this.getAliasName() == null ? other.getAliasName() == null : this.getAliasName().equals(other.getAliasName()))
-            && (this.getReserve1() == null ? other.getReserve1() == null : this.getReserve1().equals(other.getReserve1()))
-            && (this.getReserve2() == null ? other.getReserve2() == null : this.getReserve2().equals(other.getReserve2()));
+            && (this.getTenantSystemCode() == null ? other.getTenantSystemCode() == null
+                : this.getTenantSystemCode().equals(other.getTenantSystemCode()))
+            && (this.getTenantId() == null ? other.getTenantId() == null
+                : this.getTenantId().equals(other.getTenantId()))
+            && (this.getTenantName() == null ? other.getTenantName() == null
+                : this.getTenantName().equals(other.getTenantName()))
+            && (this.getTmUsernames() == null ? other.getTmUsernames() == null
+                : this.getTmUsernames().equals(other.getTmUsernames()))
+            && (this.getCreateTime() == null ? other.getCreateTime() == null
+                : this.getCreateTime().equals(other.getCreateTime()))
+            && (this.getUpdateTime() == null ? other.getUpdateTime() == null
+                : this.getUpdateTime().equals(other.getUpdateTime()))
+            && (this.getAnnotation() == null ? other.getAnnotation() == null
+                : this.getAnnotation().equals(other.getAnnotation()))
+            && (this.getUpdateUserAccount() == null ? other.getUpdateUserAccount() == null
+                : this.getUpdateUserAccount().equals(other.getUpdateUserAccount()))
+            && (this.getUpdateUserId() == null ? other.getUpdateUserId() == null
+                : this.getUpdateUserId().equals(other.getUpdateUserId()))
+            && (this.getUpdateUserName() == null ? other.getUpdateUserName() == null
+                : this.getUpdateUserName().equals(other.getUpdateUserName()))
+            && (this.getCreateUserAccount() == null ? other.getCreateUserAccount() == null
+                : this.getCreateUserAccount().equals(other.getCreateUserAccount()))
+            && (this.getCreateUserId() == null ? other.getCreateUserId() == null
+                : this.getCreateUserId().equals(other.getCreateUserId()))
+            && (this.getCreateUserName() == null ? other.getCreateUserName() == null
+                : this.getCreateUserName().equals(other.getCreateUserName()))
+            && (this.getAliasName() == null ? other.getAliasName() == null
+                : this.getAliasName().equals(other.getAliasName()))
+            && (this.getReserve1() == null ? other.getReserve1() == null
+                : this.getReserve1().equals(other.getReserve1()))
+            && (this.getReserve2() == null ? other.getReserve2() == null
+                : this.getReserve2().equals(other.getReserve2()));
     }
 
     @Override

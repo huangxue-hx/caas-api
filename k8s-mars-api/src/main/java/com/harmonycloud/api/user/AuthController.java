@@ -33,30 +33,44 @@ import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.service.application.SecretService;
 
-@RequestMapping(value = "/users/auth") @Controller public class AuthController {
+@RequestMapping(value = "/users/auth")
+@Controller
+public class AuthController {
 
     public static final int SESSION_TIMEOUT_HOURS = 8;
 
-    @Autowired private AuthService authService;
+    @Autowired
+    private AuthService authService;
 
-    @Autowired private HttpSession session;
+    @Autowired
+    private HttpSession session;
 
-    @Autowired private UserService userService;
+    @Autowired
+    private UserService userService;
 
-    @Autowired private SecretService secretService;
+    @Autowired
+    private SecretService secretService;
 
-    @Autowired private SystemConfigService systemConfigService;
+    @Autowired
+    private SystemConfigService systemConfigService;
 
-    @Autowired private AuthManagerDefault authManagerDefault;
+    @Autowired
+    private AuthManagerDefault authManagerDefault;
 
-    @Autowired private AuthManager4Ldap authManager4Ldap;
+    @Autowired
+    private AuthManager4Ldap authManager4Ldap;
 
-    @Autowired private UserRoleRelationshipService userRoleRelationshipService;
-    @Autowired private RolePrivilegeService rolePrivilegeService;
-    @Autowired private HttpServletRequest request;
-    @Autowired private StringRedisTemplate stringRedisTemplate;
+    @Autowired
+    private UserRoleRelationshipService userRoleRelationshipService;
+    @Autowired
+    private RolePrivilegeService rolePrivilegeService;
+    @Autowired
+    private HttpServletRequest request;
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
-    @Autowired private AuthManagerCrowd authManagerCrowd;
+    @Autowired
+    private AuthManagerCrowd authManagerCrowd;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -74,12 +88,15 @@ import com.harmonycloud.service.application.SecretService;
         return false;
     }
 
-    @ResponseBody @RequestMapping(value = "/login", method = RequestMethod.POST)
+    @ResponseBody
+    @RequestMapping(value = "/login", method = RequestMethod.POST)
     public ActionReturnUtil Login(@RequestParam(value = "username") final String username,
         @RequestParam(value = "password") final String password,
         @RequestParam(value = "language", required = false) final String language, HttpServletResponse response)
         throws Exception {
-
+        if(StringUtils.isBlank(username) || StringUtils.isBlank(password)){
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.AUTH_FAIL);
+        }
         SystemConfig trialConfig = this.systemConfigService.findByConfigName(CommonConstant.TRIAL_TIME);
         if (trialConfig != null) {
             int v = Integer.parseInt(trialConfig.getConfigValue());
@@ -87,17 +104,17 @@ import com.harmonycloud.service.application.SecretService;
                 return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.FREE_TRIAL_END);
             }
         }
-        //获取Ldap的配置信息
+        // 获取Ldap的配置信息
         LdapConfigDto ldapConfigDto = this.systemConfigService.findLdapConfig();
-        //获取crowd的配置信息
+        // 获取crowd的配置信息
         CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
         String res = null;
 
-        //admin用户不使用Ldap和单点登录
+        // admin用户不使用Ldap和单点登录
         if (CommonConstant.ADMIN.equals(username)) {
             res = authManagerDefault.auth(username, password);
         } else if (isCrowdOn(crowdConfigDto)) {
-            //crowd中获取的用户名
+            // crowd中获取的用户名
             res = authManagerCrowd.auth(username, password);
         } else if (isLdapOn(ldapConfigDto)) {
             res = authManager4Ldap.auth(username, password, ldapConfigDto);
@@ -105,7 +122,7 @@ import com.harmonycloud.service.application.SecretService;
             res = authManagerDefault.auth(username, password);
         }
 
-        //如果res不为null，就表示至少在一方中找到了账户和密码
+        // 如果res不为null，就表示至少在一方中找到了账户和密码
         if (StringUtils.isNotBlank(res)) {
 
             User user = userService.getUser(username);
@@ -133,9 +150,9 @@ import com.harmonycloud.service.application.SecretService;
             if (!(hasRole || admin)) {
                 return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_NOT_AUTH);
             }
-            //sessionId存放redis统一管理 默认8小时数据销毁
-            stringRedisTemplate.opsForValue()
-                .set("sessionid:sessionid-" + username, session.getId(), SESSION_TIMEOUT_HOURS, TimeUnit.HOURS);
+            // sessionId存放redis统一管理 默认8小时数据销毁
+            stringRedisTemplate.opsForValue().set("sessionid:sessionid-" + username, session.getId(),
+                SESSION_TIMEOUT_HOURS, TimeUnit.HOURS);
 
             Map<String, Object> data = new HashMap<String, Object>();
             Map<String, Object> token = authService.generateToken(user);
@@ -146,7 +163,7 @@ import com.harmonycloud.service.application.SecretService;
             JsonUtil.objectToJson(data);
             if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1
                 && !CommonConstant.ADMIN.equals(username)) {
-                //在crowd接入时，添加cookie
+                // 在crowd接入时，添加cookie
                 String crowdToken = authManagerCrowd.getToken(username, password);
                 authManagerCrowd.addCookie(crowdToken, response);
             }
@@ -155,19 +172,20 @@ import com.harmonycloud.service.application.SecretService;
         return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.AUTH_FAIL);
     }
 
-    @RequestMapping(value = "/logout", method = RequestMethod.POST) @ResponseBody public ActionReturnUtil logout()
-        throws Exception {
-        //获得当前正在登录的用户名
+    @RequestMapping(value = "/logout", method = RequestMethod.POST)
+    @ResponseBody
+    public ActionReturnUtil logout() throws Exception {
+        // 获得当前正在登录的用户名
         String username = (String)session.getAttribute("username");
-        //移除redis中sessionid
+        // 移除redis中sessionid
         stringRedisTemplate.delete("sessionid:sessionid-" + session.getAttribute("username"));
-        //获取crowd的配置信息
+        // 获取crowd的配置信息
         CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
         if (isCrowdOn(crowdConfigDto) && !CommonConstant.ADMIN.equals(username)) {
-            //在crowd中清除登录信息
+            // 在crowd中清除登录信息
             authManagerCrowd.invalidateToken(username);
         }
-        //使session失效
+        // 使session失效
         session.invalidate();
 
         String data = "message" + ":" + "logout successfully!";
@@ -180,9 +198,11 @@ import com.harmonycloud.service.application.SecretService;
      * @return
      * @throws Exception
      */
-    @SuppressWarnings("unchecked") @ResponseBody @RequestMapping(value = "/token", method = RequestMethod.POST)
+    @SuppressWarnings("unchecked")
+    @ResponseBody
+    @RequestMapping(value = "/token", method = RequestMethod.POST)
     public Map<String, Object> authToken() throws Exception {
-        //        logger.info("start auth token");
+        // logger.info("start auth token");
         int size = request.getContentLength();
         if (size == 0) {
             logger.error("request is null");
@@ -216,7 +236,8 @@ import com.harmonycloud.service.application.SecretService;
         return data;
     }
 
-    @RequestMapping(value = "/getUserName", method = RequestMethod.GET) @ResponseBody
+    @RequestMapping(value = "/getUserName", method = RequestMethod.GET)
+    @ResponseBody
     public ActionReturnUtil getUserName() throws Exception {
 
         return ActionReturnUtil.returnSuccessWithData(session.getId());

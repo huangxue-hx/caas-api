@@ -16,17 +16,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
 
-//import com.harmonycloud.service.user.auth.AuthManagerCrowd;
+// import com.harmonycloud.service.user.auth.AuthManagerCrowd;
 
 import javax.annotation.PostConstruct;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-import java.io.BufferedReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.io.InputStreamReader;
 
 /**
  * 认证拦截器，
@@ -34,24 +30,32 @@ import java.io.InputStreamReader;
 public class AuthInterceptor extends HandlerInterceptorAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthInterceptor.class);
-    @Value("#{propertiesReader['api.access.allow.origin']}") private String allowOrigin;
-    @Value("#{propertiesReader['api.url.whitelist']}") private String urlWhiteList;
-    @Value("#{propertiesReader['sso.exclusion']}") private String urlExclusion;
+    @Value("#{propertiesReader['api.access.allow.origin']}")
+    private String allowOrigin;
+    @Value("#{propertiesReader['api.url.whitelist']}")
+    private String urlWhiteList;
+    @Value("#{propertiesReader['sso.exclusion']}")
+    private String urlExclusion;
 
-    @Autowired private UserService userService;
+    @Autowired
+    private UserService userService;
 
-    @Autowired private SystemConfigService systemConfigService;
+    @Autowired
+    private SystemConfigService systemConfigService;
 
-    @Autowired private AuthManagerCrowd authManagerCrowd;
+    @Autowired
+    private AuthManagerCrowd authManagerCrowd;
 
-    @PostConstruct public void initWhiteList() {
+    @PostConstruct
+    public void initWhiteList() {
         if (StringUtils.isBlank(urlWhiteList) || !urlWhiteList.contains("login")) {
             urlWhiteList = urlExclusion;
         }
         UrlWhiteListHandler.initUrlPattern(urlWhiteList);
     }
 
-    @Override public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
         throws Exception {
 
         if (SsoClient.isOpen()) {
@@ -61,8 +65,8 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         if (StringUtils.isNotBlank(allowOrigin)) {
             String origin = allowOrigin;
             String requestOrigin = request.getHeader("Origin");
-            if (StringUtils.isNotBlank(requestOrigin) && (allowOrigin.equals("*")
-                || allowOrigin.indexOf(requestOrigin) > -1)) {
+            if (StringUtils.isNotBlank(requestOrigin)
+                && (allowOrigin.equals("*") || allowOrigin.indexOf(requestOrigin) > -1)) {
                 origin = requestOrigin;
             }
             response.setHeader("Access-Control-Allow-Origin", origin);
@@ -85,19 +89,25 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         HttpSession session = request.getSession();
         CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
         String username = (String)session.getAttribute("username");
-        //容器云平台的admin用户永远不接入crowd进行单点登录
-        if (isCrowdOn(crowdConfigDto) && !isAdmin(username)) {
-            //如果crowd接入了系统，则通过获取 Cookie检测登录状态
+        // 容器云平台的admin用户永远不接入crowd进行单点登录
+        // if (isCrowdOn(crowdConfigDto) && !isAdmin(username)) {
+        if (isCrowdOn(crowdConfigDto)) {
+            // 如果crowd接入了系统，则通过获取 Cookie检测登录状态
             Cookie[] cookies = request.getCookies();
             if (cookies != null) {
                 for (Cookie cookie : cookies) {
-                    if(isCrowdLogin(cookie, session)){
+                    // 判断中crowd中用户是否已经登录了
+                    if (isCrowdLogin(cookie, session)) {
                         return true;
                     }
                 }
+                // 如果crowd中没有用户登录，但发现当前session是admin，也登录
+                if (isAdmin(username)) {
+                    return true;
+                }
             }
         } else {
-            //如果未接入crowd，则通过session检测登录状态
+            // 如果未接入crowd，则通过session检测登录状态
             if (StringUtils.isNotBlank(username)) {
                 return true;
             }
@@ -122,12 +132,11 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         return false;
     }
 
-
     private boolean isCrowdLogin(Cookie cookie, HttpSession session) throws Exception {
         if (cookie.getName().equals(authManagerCrowd.getCookieName())) {
             String token = cookie.getValue();
             String username = authManagerCrowd.testLogin(token);
-            //crowd中的admin用户不单点登录
+            // crowd中的admin用户不单点登录
             if (StringUtils.isNotBlank(username) && !isAdmin(username)) {
                 session.setAttribute("username", username);
                 User user = userService.getUser(username);
@@ -143,4 +152,3 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         return false;
     }
 }
-

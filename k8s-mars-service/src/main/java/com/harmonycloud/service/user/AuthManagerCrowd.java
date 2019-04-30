@@ -1,4 +1,5 @@
 package com.harmonycloud.service.user;
+
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dto.user.CrowdConfigDto;
 import javax.servlet.http.HttpServletResponse;
