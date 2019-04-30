@@ -36,10 +36,6 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     @Autowired
     private UserService userService;
 
-    public static final String COOKIE_DOMAIN = "harmonycloud.com";
-
-    public static final String COOKIE_NAME = "crowd.token_key";
-
     @Value("#{propertiesReader['crowd.cookie.domain']}")
     private String cookieDomain;
 
