@@ -46,6 +46,9 @@ public class User implements Serializable {
     private String loginFailTime;//登陆失败时间
     private int loginFailCount;//登陆失败次数
 
+    //用于数据同步标识
+    private Integer crowdUserId;
+
     public String getLoginFailTime() {
         return loginFailTime;
     }
@@ -247,6 +250,14 @@ public class User implements Serializable {
 
     public void setIsThirdPartyUser(Boolean isThirdPartyUser) {
         this.isThirdPartyUser = isThirdPartyUser;
+    }
+
+    public Integer getCrowdUserId() {
+        return crowdUserId;
+    }
+
+    public void setCrowdUserId(Integer crowdUserId) {
+        this.crowdUserId = crowdUserId;
     }
 
     @Override

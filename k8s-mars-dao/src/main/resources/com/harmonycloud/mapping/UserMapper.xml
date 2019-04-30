@@ -19,6 +19,7 @@
     <result column="login_fail_time" property="loginFailTime" jdbcType="VARCHAR" />
     <result column="login_fail_count" property="loginFailCount" jdbcType="INTEGER" />
     <result column="is_ldap_user" property="isLdapUser" jdbcType="INTEGER" />
+    <result column="crowd_user_id" jdbcType="INTEGER" property="crowdUserId"/>
   </resultMap>
 
   <sql id="Example_Where_Clause" >
@@ -52,7 +53,7 @@
   </sql>
   <sql id="Base_Column_List" >
     id, username, password, token, create_time, token_create, is_admin, update_time,
-    email, real_name, is_machine, comment, pause, phone, login_fail_time, login_fail_count,is_ldap_user
+    email, real_name, is_machine, comment, pause, phone, login_fail_time, login_fail_count,is_ldap_user, crowd_user_id
   </sql>
   <select id="selectLikeUsername" resultMap="BaseResultMap" parameterType="com.harmonycloud.dao.user.bean.User" >
     select
@@ -199,7 +200,7 @@
   </select>
 
   <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="java.lang.Long" >
-    select 
+    select
     <include refid="Base_Column_List" />
     from user
     where id = #{id,jdbcType=BIGINT}
@@ -216,12 +217,12 @@
   </delete>
   <insert id="insert" parameterType="com.harmonycloud.dao.user.bean.User" >
     insert into user (username, password,
-      token, create_time, token_create, 
+    token, create_time, token_create,
       is_admin, update_time, email,
       real_name, is_machine, comment,
       pause,phone,is_ldap_user)
     values (#{username,jdbcType=VARCHAR}, #{password,jdbcType=VARCHAR},
-      #{token,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{tokenCreate,jdbcType=TIMESTAMP}, 
+    #{token,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{tokenCreate,jdbcType=TIMESTAMP},
       #{isAdmin,jdbcType=BIT}, #{updateTime,jdbcType=TIMESTAMP}, #{email,jdbcType=VARCHAR},
       #{realName,jdbcType=VARCHAR}, #{isMachine,jdbcType=BIT}, #{comment,jdbcType=VARCHAR},
       #{pause,jdbcType=VARCHAR},#{phone,jdbcType=VARCHAR},#{isLdapUser})
@@ -231,14 +232,15 @@
     token, create_time, token_create,
     is_admin, update_time, email,
     real_name, is_machine, comment,
-    pause,phone,is_ldap_user)
+    pause,phone,is_ldap_user, crowd_user_id)
     values
-    <foreach collection="records" item="record" index="index" separator=",">
+    <foreach collection="list" index="index" item="record" separator=",">
       (#{record.username,jdbcType=VARCHAR}, #{record.password,jdbcType=VARCHAR},
       #{record.token,jdbcType=VARCHAR}, #{record.createTime,jdbcType=TIMESTAMP}, #{record.tokenCreate,jdbcType=TIMESTAMP},
       #{record.isAdmin,jdbcType=BIT}, #{record.updateTime,jdbcType=TIMESTAMP}, #{record.email,jdbcType=VARCHAR},
       #{record.realName,jdbcType=VARCHAR}, #{record.isMachine,jdbcType=BIT}, #{record.comment,jdbcType=VARCHAR},
-      #{record.pause,jdbcType=VARCHAR},#{record.phone,jdbcType=VARCHAR},#{record.isLdapUser,jdbcType=TINYINT})
+      #{record.pause,jdbcType=VARCHAR},#{record.phone,jdbcType=VARCHAR},#{record.isLdapUser,jdbcType=TINYINT},
+      #{record.crowdUserId,jdbcType=INTEGER})
     </foreach>
   </insert>
   <insert id="insertSelective" parameterType="com.harmonycloud.dao.user.bean.User" >
@@ -428,4 +430,31 @@
     and user_role_relationship.project_id=#{projectId}
     order by username
   </select>
+
+  <update id="updateByCrowdUserId" parameterType="com.harmonycloud.dao.user.bean.User">
+    UPDATE user
+    <set>
+      <if test="username!=null">username=#{username},</if>
+      <if test="password!=null">password=#{password},</if>
+      <if test="token!=null">token=#{token,jdbcType=VARCHAR},</if>
+      <if test="createTime!=null">create_time=#{createTime,jdbcType=TIMESTAMP},</if>
+      <if test="tokenCreate!=null">token_create=#{tokenCreate,jdbcType=TIMESTAMP},</if>
+      <if test="isAdmin!=null">is_admin=#{isAdmin},</if>
+      <if test="updateTime!=null">update_time=#{updateTime,jdbcType=TIMESTAMP},</if>
+      <if test="email!=null">email=#{email,jdbcType=VARCHAR},</if>
+      <if test="realName!=null">real_name=#{realName},</if>
+      <if test="isMachine!=null">is_machine=#{isMachine},</if>
+      <if test="comment!=null">comment=#{comment,jdbcType=VARCHAR}</if>
+      <if test="pause!=null">pause=#{pause,jdbcType=VARCHAR}</if>
+      <if test="phone!=null">phone=#{phone,jdbcType=VARCHAR}</if>
+    </set>
+    WHERE crowd_user_id=#{crowdUserId}
+  </update>
+
+  <delete id="batchDeleteByCrowdUserId" parameterType="java.util.List">
+    DELETE from user WHERE crowd_user_id in
+    <foreach collection="list" separator="," item="crowdUserId" open="(" close=")">
+      #{crowdUserId, jdbcType=INTEGER}
+    </foreach>
+  </delete>
 </mapper>

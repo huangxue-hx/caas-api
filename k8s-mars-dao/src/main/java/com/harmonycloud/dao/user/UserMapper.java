@@ -13,7 +13,7 @@ public interface UserMapper {
 
     int insert(User record);
 
-    int batchInsert(@Param("records") List<User> records);
+    int batchInsert(List<User> records);
 
     int insertSelective(User record);
 
@@ -140,4 +140,11 @@ public interface UserMapper {
     User findAthorizeByUsername(String username);
 
     List<User> listUserByProjectId(String projectId);
+
+    //根据crowdUserId更新
+    void updateByCrowdUserId(User user);
+
+    //根据crowdUserId进行批量删除
+    void batchDeleteByCrowdUserId(List<Integer> crowdUserIdList);
+
 }

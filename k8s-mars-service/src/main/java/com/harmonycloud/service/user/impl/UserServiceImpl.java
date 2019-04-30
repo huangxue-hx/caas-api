@@ -1888,4 +1888,29 @@ public class UserServiceImpl implements UserService {
         }
         return userMapper.listUserByProjectId(projectId);
     }
+
+    @Override
+    public void batchInsert(List<UserSyncDto> userSyncDtoList) {
+        if (userSyncDtoList != null && userSyncDtoList.size() > 0) {
+            List<User> userList = new ArrayList<>();
+            userList.addAll(userSyncDtoList);
+            userMapper.batchInsert(userList);
+        }
+    }
+
+    @Override
+    public void updateByCrowdUserId(List<UserSyncDto> userSyncDtoList) {
+        if (userSyncDtoList != null && userSyncDtoList.size() > 0) {
+            for (User user : userSyncDtoList) {
+                userMapper.updateByCrowdUserId(user);
+            }
+        }
+    }
+
+    @Override
+    public void batchDeleteByCrowdUserId(List<Integer> crowdUserIdList) {
+        if (crowdUserIdList != null && crowdUserIdList.size() > 0) {
+            userMapper.batchDeleteByCrowdUserId(crowdUserIdList);
+        }
+    }
 }
