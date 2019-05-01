@@ -36,10 +36,6 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     @Autowired
     private UserService userService;
 
-    public static final String COOKIE_DOMAIN = "harmonycloud.com";
-
-    public static final String COOKIE_NAME = "crowd.token_key";
-
     @Value("#{propertiesReader['crowd.cookie.domain']}")
     private String cookieDomain;
 
@@ -48,6 +44,9 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
 
     @Value("#{propertiesReader['crowd.api.url']}")
     private String apiUrl;
+
+    @Value("#{propertiesReader['ip']}")
+    private String ip;
 
     // 测试能否连通crowd服务器
     public boolean testCrowd(CrowdConfigDto crowdConfigDto) throws Exception {
@@ -76,9 +75,9 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     }
 
     private String getServerIp() throws Exception {
-        InetAddress addr = InetAddress.getLocalHost();
-        return addr.getHostAddress();
-        // return "10.168.40.192";
+//        InetAddress addr = InetAddress.getLocalHost();
+//        return addr.getHostAddress();
+         return ip;
     }
 
     // 进行http基本认证
@@ -148,9 +147,11 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     @Override
     public String auth(String username, String password) throws Exception {
         URL url = new URL(getAddress() + "session");
+//        String jsonData = "{\"username\":\"" + username + "\",\"password\":\"" + password
+//            + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\""
+//            + getServerIp() + "\"}]}}";
         String jsonData = "{\"username\":\"" + username + "\",\"password\":\"" + password
-            + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\""
-            + getServerIp() + "\"}]}}";
+            + "\",\"validation-factors\": {\"validationFactors\": []}}";
         HttpURLConnection connection = this.crowdPost(url, "application/json", jsonData);
         if (connection.getResponseCode() == 201) {
             User user = getUser(username, password);
@@ -241,8 +242,7 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     public String getToken(String username, String password) throws Exception {
         URL url = new URL(getAddress() + "session");
         String jsonData = "{\"username\":\"" + username + "\",\"password\":\"" + password
-            + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\""
-            + getServerIp() + "\"}]}}";
+            + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"" + getServerIp() + "\"}]}}";
         HttpURLConnection connection = this.crowdPost(url, "application/json", jsonData);
         if (connection.getResponseCode() == 201) {
             String messageBody = this.getMessageBody(connection);
@@ -282,9 +282,9 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
 
     public void addCookie(String crowdToken, HttpServletResponse response) throws Exception {
         // 将crowd中token的值存入token
-        Cookie cookie = new Cookie(COOKIE_NAME, crowdToken);
+        Cookie cookie = new Cookie(cookieName, crowdToken);
         cookie.setPath("/"); // 如果路径为/则为整个tomcat目录有用
-        cookie.setDomain(COOKIE_DOMAIN); // 设置对所有*.harmonycloud.com为后缀的域名
+        cookie.setDomain(cookieDomain); // 设置对所有*.harmonycloud.com为后缀的域名
         response.addCookie(cookie);
     }
 
@@ -304,7 +304,7 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     }
 
     public String getCookieName() {
-        return COOKIE_NAME;
+        return cookieName;
     }
 
 }

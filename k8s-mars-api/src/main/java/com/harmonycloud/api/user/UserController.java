@@ -4,6 +4,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -11,7 +12,7 @@ import javax.servlet.http.HttpSession;
 
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.dto.user.UserQueryDto;
+import com.harmonycloud.dto.user.*;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.user.*;
 import io.swagger.annotations.Api;
@@ -21,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -28,9 +30,6 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.bean.UserGroup;
-import com.harmonycloud.dto.user.SummaryUserInfo;
-import com.harmonycloud.dto.user.UserDetailDto;
-import com.harmonycloud.dto.user.UserGroupDto;
 import com.harmonycloud.service.tenant.TenantService;
 
 @Controller
@@ -555,6 +554,25 @@ public class UserController {
     @ResponseBody
     public ActionReturnUtil switchLanguage(@RequestParam(value="language") String language) throws Exception{
         session.setAttribute("language", language);
+        return ActionReturnUtil.returnSuccess();
+    }
+
+    /**
+     * 用户信息数据同步，from crowd to mars
+     *
+     * @return
+     */
+    @RequestMapping(value = "/sync", method = RequestMethod.POST)
+    @ResponseBody
+    public ActionReturnUtil syncUser(@RequestBody List<UserSyncDto> userSyncDtoList) {
+        if (!CollectionUtils.isEmpty(userSyncDtoList)) {
+            Map<Integer, List<UserSyncDto>> operateType2User = userSyncDtoList.stream().collect(Collectors.groupingBy(UserSyncDto::getOperateType));
+            userService.batchInsert(operateType2User.get(1));
+            userService.updateByCrowdUserId(operateType2User.get(2));
+            if (operateType2User.get(3) != null && operateType2User.get(3).size() > 0) {
+                userService.batchDeleteByCrowdUserId(operateType2User.get(3).stream().map(UserSyncDto::getCrowdUserId).collect(Collectors.toList()));
+            }
+        }
         return ActionReturnUtil.returnSuccess();
     }
 }
