@@ -148,7 +148,6 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         String jsonData = "{\"username\":\"" + username + "\",\"password\":\"" + password
             + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\""
             + getServerIp() + "\"}]}}";
-//        String jsonData = "{\"username\":\"" + username + "\",\"password\":\"" + password + "}";
         HttpURLConnection connection = this.crowdPost(url, "application/json", jsonData);
         if (connection.getResponseCode() == 201) {
             User user = getUser(username, password);
