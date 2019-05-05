@@ -75,8 +75,6 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     }
 
     private String getServerIp() throws Exception {
-//        InetAddress addr = InetAddress.getLocalHost();
-//        return addr.getHostAddress();
          return ip;
     }
 
@@ -147,11 +145,10 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     @Override
     public String auth(String username, String password) throws Exception {
         URL url = new URL(getAddress() + "session");
-//        String jsonData = "{\"username\":\"" + username + "\",\"password\":\"" + password
-//            + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\""
-//            + getServerIp() + "\"}]}}";
         String jsonData = "{\"username\":\"" + username + "\",\"password\":\"" + password
-            + "\",\"validation-factors\": {\"validationFactors\": []}}";
+            + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\""
+            + getServerIp() + "\"}]}}";
+//        String jsonData = "{\"username\":\"" + username + "\",\"password\":\"" + password + "}";
         HttpURLConnection connection = this.crowdPost(url, "application/json", jsonData);
         if (connection.getResponseCode() == 201) {
             User user = getUser(username, password);
@@ -164,35 +161,6 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
             // 打日志
             logger.error("验证出错，crowd返回" + connection.getResponseCode());
             return null;
-        }
-    }
-
-    public boolean addUser(String username, String password, String realname, String email, String phone)
-        throws Exception {
-
-        URL crowdurl = new URL(getAddress() + "user");
-        String xmlData = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><user name=\"" + username
-            + "\" expand=\"attributes\"><first-name>" + realname + "</first-name><last-name>" + realname
-            + "</last-name><email>" + email + "</email><active>true</active><attributes><link href=\"" + getAddress()
-            + "user/attribute?username=" + username
-            + "\" rel=\"self\"/></attributes><password><link rel=\"edit\" href=\"" + getAddress()
-            + "/user/password?username=" + username + "\"/><value>" + password + "</value></password></user>";
-        // 创建用户
-        HttpURLConnection httpURLConnection = this.crowdPost(crowdurl, "application/xml", xmlData);
-        if (httpURLConnection.getResponseCode() == 201) {
-            // 添加phone属性
-            URL phoneurl = new URL(getAddress() + "user/attribute?username=" + username);
-            String phoneJson = "{\"attributes\": [{\"name\": \"phone\",\"values\": [\"" + phone + "\"]}]}";
-            HttpURLConnection phonecon = this.crowdPost(phoneurl, "application/json", phoneJson);
-            if (phonecon.getResponseCode() != 204) {
-                logger.error("添加用户出错，crowd返回" + phonecon.getResponseCode());
-                return false;
-            } else {
-                return true;
-            }
-        } else {
-            logger.error("添加用户出错，crowd返回" + httpURLConnection.getResponseCode());
-            return false;
         }
     }
 
@@ -210,7 +178,7 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         URL phoneurl = new URL(getAddress() + "user/attribute?username=" + username);
         HttpURLConnection urlPhoneConnection = this.crowdGet(phoneurl);
         if (urlPhoneConnection.getResponseCode() != 200) {
-            logger.error("获取信息出错，crowd返回" + urlPhoneConnection.getResponseCode());
+            logger.error("获取用户信息出错，crowd返回" + urlPhoneConnection.getResponseCode());
             return null;
         }
         messageBody = this.getMessageBody(urlPhoneConnection);
@@ -222,7 +190,7 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
             phone = messageBody.substring(messageBody.indexOf("<value>") + "<value>".length(),
                 messageBody.indexOf("</value>"));
         } else {
-            logger.error("crowd中用户的信息不全，无法添加用户");
+            logger.error("crowd中用户缺少电话号码信息，无法添加用户");
             // 找不到crowd中的phone属性
             return null;
         }
@@ -280,11 +248,21 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         }
     }
 
-    public void addCookie(String crowdToken, HttpServletResponse response) throws Exception {
+    public void addCookie(String crowdToken, HttpServletResponse response) {
         // 将crowd中token的值存入token
         Cookie cookie = new Cookie(cookieName, crowdToken);
         cookie.setPath("/"); // 如果路径为/则为整个tomcat目录有用
         cookie.setDomain(cookieDomain); // 设置对所有*.harmonycloud.com为后缀的域名
+        response.addCookie(cookie);
+    }
+
+    public void clearCookie(HttpServletResponse response) {
+        // 将crowd中token的值存入token
+        Cookie cookie = new Cookie(cookieName ,"");
+        cookie.setPath("/"); // 如果路径为/则为整个tomcat目录有用
+        cookie.setDomain(cookieDomain); // 设置对所有*.harmonycloud.com为后缀的域名
+        //设置cookie有效时间为0
+        cookie.setMaxAge(0);
         response.addCookie(cookie);
     }
 

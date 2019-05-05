@@ -174,7 +174,7 @@ public class AuthController {
 
     @RequestMapping(value = "/logout", method = RequestMethod.POST)
     @ResponseBody
-    public ActionReturnUtil logout() throws Exception {
+    public ActionReturnUtil logout(HttpServletResponse response) throws Exception {
         // 获得当前正在登录的用户名
         String username = (String)session.getAttribute("username");
         // 移除redis中sessionid
@@ -184,6 +184,7 @@ public class AuthController {
         if (isCrowdOn(crowdConfigDto) && !CommonConstant.ADMIN.equals(username)) {
             // 在crowd中清除登录信息
             authManagerCrowd.invalidateToken(username);
+            authManagerCrowd.clearCookie(response);
         }
         // 使session失效
         session.invalidate();

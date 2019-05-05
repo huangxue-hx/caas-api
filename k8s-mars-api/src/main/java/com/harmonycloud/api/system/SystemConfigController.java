@@ -60,8 +60,13 @@ import static com.harmonycloud.common.Constant.CommonConstant.FLAG_TRUE;
             systemConfigService.addCrowdConfig(crowdConfigDto);
             HttpSession session = request.getSession();
             String username = (String)session.getAttribute("username");
-            String token = authManagerCrowd.getToken(username);
-            authManagerCrowd.addCookie(token,response);
+            if(!CommonConstant.ADMIN.equals(username)) {
+                String token = authManagerCrowd.getToken(username);
+                if(org.apache.commons.lang3.StringUtils.isBlank(username)){
+                    return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.GET_CROWD_CONF_FAIL);
+                }
+                authManagerCrowd.addCookie(token, response);
+            }
 
             return ActionReturnUtil.returnSuccess();
 
