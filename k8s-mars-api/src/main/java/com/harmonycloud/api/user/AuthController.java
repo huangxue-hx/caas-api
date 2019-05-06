@@ -119,8 +119,10 @@ public class AuthController {
             logger.info("通过crowd登录...");
             res = authManagerCrowd.auth(username, password);
         } else if (isLdapOn(ldapConfigDto)) {
+            logger.info("通过ldap登录...");
             res = authManager4Ldap.auth(username, password, ldapConfigDto);
         } else {
+            logger.info("通过default登录...");
             res = authManagerDefault.auth(username, password);
         }
 
