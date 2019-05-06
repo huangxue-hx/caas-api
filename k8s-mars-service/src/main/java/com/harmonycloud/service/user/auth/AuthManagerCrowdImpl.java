@@ -51,12 +51,14 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     // 测试能否连通crowd服务器
     public boolean testCrowd(CrowdConfigDto crowdConfigDto) throws Exception {
         URL url = new URL(crowdConfigDto.getAddress());
+        logger.info("crowd服务器：" + url);
         HttpURLConnection connection = (HttpURLConnection)url.openConnection();
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Charset", "UTF-8");
         connection.setRequestProperty("connection", "Keep-Alive");
         connection.connect();
         if (connection.getResponseCode() != 200) {
+            logger.error("连接crowd失败，返回码" + connection.getResponseCode());
             return false;
         }
         return true;
