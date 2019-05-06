@@ -14,7 +14,7 @@ public enum AuditModuleEnum {
 
     USER("用户", "user"),
     APP_TEMPLATE("应用模板", "appTemplate"),
-    APP_STORE("应用商店", "App Store"),
+    APP_STORE("应用商店", "appStore"),
     APP("应用", "app"),
     SERVICE_TEMPLATE("服务模板", "serviceTemplate"),
     YAML("yaml模板", "yamlTemplate"),

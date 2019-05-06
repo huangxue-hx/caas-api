@@ -16,5 +16,5 @@ public interface RuleDetailMapper {
 
     void updateByPrimaryKey(RuleDetail record);
 
-    List<RuleDetail>  selectByRuleId(String ruleId);
+    List<RuleDetail> selectByRuleId(String ruleId);
 }

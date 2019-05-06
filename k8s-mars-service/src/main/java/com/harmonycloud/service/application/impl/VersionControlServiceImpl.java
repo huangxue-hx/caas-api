@@ -19,6 +19,8 @@ import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.*;
+import com.harmonycloud.service.application.Util.IstioServiceUtil;
+import com.harmonycloud.service.istio.IstioCommonService;
 import com.harmonycloud.service.platform.bean.CanaryDeployment;
 import com.harmonycloud.service.platform.bean.UpdateContainer;
 import com.harmonycloud.service.platform.constant.Constant;
@@ -27,6 +29,7 @@ import com.harmonycloud.service.platform.dto.PodDto;
 import com.harmonycloud.service.platform.dto.ReplicaSetDto;
 import com.harmonycloud.service.platform.service.WatchService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.tenant.NamespaceService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.ListUtils;
 import org.apache.commons.collections.map.HashedMap;
@@ -38,6 +41,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
+import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
@@ -52,6 +56,8 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
 
 
     private static final int RETRY_COUNT = 2;
+
+    private static final int QUERY_RETRY_COUNT = 10;
 
     @Autowired
     private DeploymentService dpService;
@@ -84,6 +90,9 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
     private NamespaceLocalService namespaceLocalService;
 
     @Autowired
+    private NamespaceService namespaceService;
+
+    @Autowired
     private DeploymentsService deploymentsService;
 
     @Autowired
@@ -93,7 +102,7 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
     private PersistentVolumeClaimService persistentVolumeClaimService;
 
     @Autowired
-    private IstioService istioService;
+    private IstioCommonService istioCommonService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -145,6 +154,9 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
             throw new MarsRuntimeException(status.getMessage());
         }
         Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+
+        //校验资源配额
+        checkResource(detail.getNamespace(), detail.getName(), cluster, dep.getSpec().getTemplate().getSpec().getContainers(), detail.getContainers(), instances);
 
         //在这里创建configmap,在convertAppPut当中增加Deployment的注解,返回的是容器和configmap之间的映射关系列表
         Map<String, String> containerToConfigMap = deploymentsService.createConfigMapInUpdate(detail.getNamespace(), detail.getName(), cluster, detail.getContainers());
@@ -325,6 +337,9 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         //更新service端口
         increaseServiceByDeployment(dep.getMetadata(), dep.getSpec().getTemplate(), cluster);
 
+        //udpate DestinationRule
+        IstioServiceUtil.getInstance(istioCommonService).updateDestinationRule(namespace, name, detail.getDeployVersion(), false);
+
         return ActionReturnUtil.returnSuccessWithData("success");
     }
 
@@ -368,15 +383,22 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
             throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
 
-        //获取回滚版本的pvc
+        //获取回滚版本的pvc,quota
         PodTemplateSpec podTemplateSpec = JsonUtil.jsonToPojo(podTemplate, PodTemplateSpec.class);
         List<Volume> rollbackVolumes = new ArrayList<>();
         List<String> rollbackPvc = new ArrayList<>();
-        if (null != podTemplateSpec.getSpec() && null != podTemplateSpec.getSpec().getVolumes()) {
-            rollbackVolumes = podTemplateSpec.getSpec().getVolumes();
-            rollbackPvc = rollbackVolumes.stream().filter(rv->rv.getPersistentVolumeClaim() != null)
-                    .map(rv->rv.getPersistentVolumeClaim().getClaimName()).collect(Collectors.toList());
+        List<Container> containers = new ArrayList<>();
+        if (null != podTemplateSpec.getSpec()) {
+            containers = podTemplateSpec.getSpec().getContainers();
+            if(null != podTemplateSpec.getSpec().getVolumes()) {
+                rollbackVolumes = podTemplateSpec.getSpec().getVolumes();
+                rollbackPvc = rollbackVolumes.stream().filter(rv -> rv.getPersistentVolumeClaim() != null)
+                        .map(rv -> rv.getPersistentVolumeClaim().getClaimName()).collect(Collectors.toList());
+            }
         }
+
+        //校验资源配额
+        checkResource(namespace, name, cluster, containers, null, 0);
 
         List<String> currentPvc = new ArrayList<>();
         PersistentVolumeClaimList currentPvcList = getServicePvcList(name, namespace, cluster);
@@ -409,6 +431,31 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
             }
         }
 
+        //设置rollingupdate的升级参数maxUnavailable为1，maxSurge为0
+        K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
+            UnversionedStatus sta = JsonUtil.jsonToPojo(depRes.getBody(), UnversionedStatus.class);
+            logger.error("回滚服务,获取Deployment出错， {}", sta.getMessage());
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.DEPLOYMENT_GET_FAILURE);
+        }
+        Deployment updateDep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+        RollingUpdateDeployment rollingUpdateDeployment = new RollingUpdateDeployment();
+        rollingUpdateDeployment.setMaxSurge(Constant.DEFAULT_POD_MAX_SURGE);
+        rollingUpdateDeployment.setMaxUnavailable(Constant.DEFAULT_POD_MAX_UNAVAILABLE);
+        DeploymentStrategy strategy = new DeploymentStrategy();
+        strategy.setType("RollingUpdate");
+        strategy.setRollingUpdate(rollingUpdateDeployment);
+        updateDep.getSpec().setStrategy(strategy);
+
+        Map<String, Object> bodys = CollectionUtil.transBean2Map(updateDep);
+        Map<String, Object> updateHeaders = new HashMap<>();
+        updateHeaders.put("Content-Type", "application/json");
+        K8SClientResponse newRes = dpService.doSpecifyDeployment(namespace, name, updateHeaders, bodys, HTTPMethod.PUT, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(newRes.getStatus())) {
+            UnversionedStatus sta = JsonUtil.jsonToPojo(newRes.getBody(), UnversionedStatus.class);
+            logger.error("回滚服务,更新Deployment出错， {}", sta.getMessage());
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.DEPLOYMENT_UPDATE_FAILURE);
+        }
 
         DeploymentRollback deploymentRollback = new DeploymentRollback();
         RollbackConfig rollbackConfig = new RollbackConfig();
@@ -433,10 +480,13 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
             return ActionReturnUtil.returnErrorWithData(sta.getMessage());
         }
         Deployment dep = JsonUtil.jsonToPojo(dp.getBody(), Deployment.class);
-        if (dep != null && dep.getMetadata() != null && dep.getMetadata().getName() != null) {
-            return updateServiceByDeployment(dep, cluster);
+
+        Map<String, Object> labels = dep.getSpec().getTemplate().getMetadata().getLabels();
+        if (Objects.nonNull(labels)) {
+            //update DestinationRule
+            IstioServiceUtil.getInstance(istioCommonService).updateDestinationRule(namespace, name, (String) labels.get(Constant.TYPE_DEPLOY_VERSION), false);
         }
-        return ActionReturnUtil.returnSuccess();
+        return updateServiceByDeployment(dep, cluster);
     }
 
     @Override
@@ -482,6 +532,12 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         ActionReturnUtil result = persistentVolumeClaimService.updatePvcByDeployment(depUpdated, cluster);
         if(!result.isSuccess()){
             return result;
+        }
+
+        Map<String, Object> labels = dep.getSpec().getTemplate().getMetadata().getLabels();
+        if (Objects.nonNull(labels)) {
+            //update DestinationRule
+            IstioServiceUtil.getInstance(istioCommonService).updateDestinationRule(namespace, name, (String) labels.get(Constant.TYPE_DEPLOY_VERSION), false);
         }
         return ActionReturnUtil.returnSuccess();
     }
@@ -660,7 +716,7 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
             reversions.add(rollbackBean);
         }
 
-        reversions.sort((RollbackBean r1, RollbackBean r2) -> r2.getRevision().compareTo(r1.getRevision()));
+        reversions.sort((RollbackBean r1, RollbackBean r2) -> Integer.valueOf(r2.getRevision()) - Integer.valueOf(r1.getRevision()));
 
         return ActionReturnUtil.returnSuccessWithData(reversions);
     }
@@ -698,6 +754,7 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         }
         Deployment dep = JsonUtil.jsonToPojo(dp.getBody(), Deployment.class);
         if (dep != null && dep.getMetadata() != null && dep.getMetadata().getName() != null) {
+            String currentVersion = this.getVersion(dep.getMetadata());
             dep.getSpec().setPaused(false);
             Map<String, Object> bodys = CollectionUtil.transBean2Map(dep);
             K8SClientResponse dpUpdate = dpService.doSpecifyDeployment(namespace, name, headers, bodys, HTTPMethod.PUT, cluster);
@@ -705,18 +762,36 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
                 UnversionedStatus status = JsonUtil.jsonToPojo(dpUpdate.getBody(), UnversionedStatus.class);
                 return ActionReturnUtil.returnErrorWithData(status.getMessage());
             }
-
-            K8SClientResponse dpUpdated = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
-            if (!HttpStatusUtil.isSuccessStatus(dpUpdated.getStatus())) {
-                logger.error("回滚升级,获得Deployment出错");
-                UnversionedStatus status = JsonUtil.jsonToPojo(dpUpdated.getBody(), UnversionedStatus.class);
-                return ActionReturnUtil.returnErrorWithData(status.getMessage());
+            Deployment depUpdated = null;
+            //更新deloyment pause为false后，等待300ms 等k8s进行回滚后查询,
+            Thread.sleep(300);
+            for(int i=0; i< QUERY_RETRY_COUNT; i++) {
+                K8SClientResponse dpUpdated = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
+                if (!HttpStatusUtil.isSuccessStatus(dpUpdated.getStatus())) {
+                    logger.error("回滚升级,获得Deployment出错");
+                    UnversionedStatus status = JsonUtil.jsonToPojo(dpUpdated.getBody(), UnversionedStatus.class);
+                    return ActionReturnUtil.returnErrorWithData(status.getMessage());
+                }
+                depUpdated = JsonUtil.jsonToPojo(dpUpdated.getBody(), Deployment.class);
+                String version = this.getVersion(depUpdated.getMetadata());
+                //版本没有变更，K8S回滚还没有完成，等待300ms重新查询
+                if(!version.equalsIgnoreCase(currentVersion)){
+                    break;
+                }else {
+                    logger.error("300ms后k8s回归操作未完成,deploy:{}", name);
+                    Thread.sleep(300);
+                }
             }
-            Deployment depUpdated = JsonUtil.jsonToPojo(dpUpdated.getBody(), Deployment.class);
             //更新回滚过程中去除的pvc中的服务标签
             ActionReturnUtil result = persistentVolumeClaimService.updatePvcByDeployment(depUpdated, cluster);
             if(!result.isSuccess()){
                 return result;
+            }
+
+            Map<String, Object> labels = depUpdated.getSpec().getTemplate().getMetadata().getLabels();
+            if (Objects.nonNull(labels)) {
+                //update DestinationRule
+                IstioServiceUtil.getInstance(istioCommonService).updateDestinationRule(namespace, name, (String) labels.get(Constant.TYPE_DEPLOY_VERSION), false);
             }
             return updateServiceByDeployment(depUpdated, cluster);
         }
@@ -894,15 +969,70 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         resultMap.put("maxUnavailable", 0);
         resultMap.put("instances", 0);
         List<Integer> counts = new ArrayList<>();
-        //排除蓝绿
-        if ("RollingUpdate".equals(dep.getSpec().getStrategy().getType())) {
-            String maxSurge = String.valueOf(dep.getSpec().getStrategy().getRollingUpdate().getMaxSurge());
-            if (!maxSurge.equals(Constant.ROLLINGUPDATE_MAX_UNAVAILABLE)) {
+        //判断版本数
+        Map<String, Object> body = new HashMap<String, Object>();
+        body.put("labelSelector", "app=" + name);
+
+        K8SClientResponse rsRes = rsService.doRsByNamespace(namespace, null, body, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus())) {
+            return ActionReturnUtil.returnErrorWithData(rsRes.getBody());
+        }
+
+        ReplicaSetList rSetList = JsonUtil.jsonToPojo(rsRes.getBody(), ReplicaSetList.class);
+        if(CollectionUtils.isNotEmpty(rSetList.getItems())){
+            int instance = 0;
+            int validRsCount = 0;
+            for(ReplicaSet replicaSet : rSetList.getItems()) {
+                if (replicaSet.getSpec().getReplicas() != null && replicaSet.getSpec().getReplicas() > 0) {
+                    validRsCount++;
+                    instance = replicaSet.getSpec().getReplicas();
+                }
+            }
+            if (validRsCount == 1) {
+                counts.add(instance);
+                counts.add(0);
+            }
+        }
+        if(CollectionUtils.isEmpty(counts)) {
+            //排除蓝绿
+            if ("RollingUpdate".equals(dep.getSpec().getStrategy().getType())) {
+                String maxSurge = String.valueOf(dep.getSpec().getStrategy().getRollingUpdate().getMaxSurge());
+                if (!maxSurge.equals(Constant.ROLLINGUPDATE_MAX_UNAVAILABLE)) {
+                    Integer updateCounts = 0;
+                    if (dep.getStatus().getUpdatedReplicas() != null && dep.getStatus().getUpdatedReplicas() != 0) {
+                        updateCounts = dep.getStatus().getUpdatedReplicas();
+                        counts.add(updateCounts);
+                        counts.add(dep.getSpec().getReplicas() - updateCounts);
+                    } else {
+                        //如果服务启动失败（如资源不足）没有updatedReplicas, unAvailableReplicas不为0，实际并没有在升级中
+                        if (dep.getStatus().getUnavailableReplicas() != null) {
+                            updateCounts = dep.getSpec().getReplicas() - dep.getStatus().getUnavailableReplicas();
+                            if (updateCounts < 0) {
+                                updateCounts = 0;
+                            }
+                        }
+                        counts.add(updateCounts);
+                        counts.add(0);
+                    }
+                }
+                if (counts != null && counts.size() > 0 && counts.get(CommonConstant.NUM_ONE) > 0) {
+                    Map<String, Object> anno = dep.getMetadata().getAnnotations();
+                    if (Objects.nonNull(anno.get("deployment.canaryupdate/maxsurge"))) {
+                        resultMap.put("maxSurge", Integer.valueOf(anno.get("deployment.canaryupdate/maxsurge").toString()));
+                    }
+                    if (Objects.nonNull(anno.get("deployment.canaryupdate/maxunavailable"))) {
+                        resultMap.put("maxUnavailable", Integer.valueOf(anno.get("deployment.canaryupdate/maxunavailable").toString()));
+                    }
+                    if (Objects.nonNull(anno.get("deployment.canaryupdate/instances"))) {
+                        resultMap.put("instances", Integer.valueOf(anno.get("deployment.canaryupdate/instances").toString()));
+                    }
+                }
+            } else {
                 Integer updateCounts = 0;
                 if (dep.getStatus().getUpdatedReplicas() != null && dep.getStatus().getUpdatedReplicas() != 0) {
                     updateCounts = dep.getStatus().getUpdatedReplicas();
                     counts.add(updateCounts);
-                    counts.add(dep.getSpec().getReplicas() - updateCounts);
+                    counts.add(0);
                 } else {
                     if (dep.getStatus().getUnavailableReplicas() != null) {
                         int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
@@ -911,37 +1041,8 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
                             updateCounts = 0;
                         }
                         counts.add(updateCounts);
-                        counts.add(unavailableReplicas);
+                        counts.add(0);
                     }
-                }
-            }
-            if (counts != null && counts.size() > 0 && counts.get(CommonConstant.NUM_ONE) > 0) {
-                Map<String, Object> anno = dep.getMetadata().getAnnotations();
-                if (Objects.nonNull(anno.get("deployment.canaryupdate/maxsurge"))) {
-                    resultMap.put("maxSurge", Integer.valueOf(anno.get("deployment.canaryupdate/maxsurge").toString()));
-                }
-                if (Objects.nonNull(anno.get("deployment.canaryupdate/maxunavailable"))) {
-                    resultMap.put("maxUnavailable", Integer.valueOf(anno.get("deployment.canaryupdate/maxunavailable").toString()));
-                }
-                if (Objects.nonNull(anno.get("deployment.canaryupdate/instances"))) {
-                    resultMap.put("instances", Integer.valueOf(anno.get("deployment.canaryupdate/instances").toString()));
-                }
-            }
-        } else {
-            Integer updateCounts = 0;
-            if (dep.getStatus().getUpdatedReplicas() != null && dep.getStatus().getUpdatedReplicas() != 0) {
-                updateCounts = dep.getStatus().getUpdatedReplicas();
-                counts.add(updateCounts);
-                counts.add(0);
-            } else {
-                if (dep.getStatus().getUnavailableReplicas() != null) {
-                    int unavailableReplicas = dep.getStatus().getUnavailableReplicas();
-                    updateCounts = dep.getSpec().getReplicas() - unavailableReplicas;
-                    if (updateCounts < 0) {
-                        updateCounts = 0;
-                    }
-                    counts.add(updateCounts);
-                    counts.add(0);
                 }
             }
         }
@@ -949,6 +1050,168 @@ public class VersionControlServiceImpl extends VolumeAbstractService implements 
         resultMap.put("counts", counts);
         resultMap.put("message", dep.getStatus().getConditions());
         return resultMap;
+    }
+
+    private String getVersion(ObjectMeta objectMeta){
+        if(objectMeta == null || objectMeta.getAnnotations() == null){
+            return null;
+        }
+        if (objectMeta.getAnnotations().get("deployment.kubernetes.io/revision") == null) {
+            return null;
+        }
+        return objectMeta.getAnnotations().get("deployment.kubernetes.io/revision").toString();
+
+    }
+
+    private void checkResource(String namespace, String name, Cluster cluster, List<Container> containers, List<UpdateContainer> updateContainers, int instance) throws Exception {
+        //获取deploy计算当前次回滚可以回收持续利用的资源（先杀pod，再启新的）
+        K8SClientResponse deploymentResponse = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(deploymentResponse.getStatus())) {
+            logger.error("灰度升级查询Deployment报错");
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPLOYMENT_NOT_FIND);
+        }
+        Deployment deployment = JsonUtil.jsonToPojo(deploymentResponse.getBody(), Deployment.class);
+        BigDecimal replicas = new BigDecimal(deployment.getSpec().getReplicas() == null ? 0 : deployment.getSpec().getReplicas());
+        if (instance > 0 && replicas.compareTo(new BigDecimal(instance)) > 0) {
+            replicas = new BigDecimal(instance);
+        }
+
+        BigDecimal oldCpu = BigDecimal.ZERO;
+        BigDecimal oldMemory = BigDecimal.ZERO;
+        Integer oldGpu = 0;
+        //相对于回滚的目标container为old
+        List<Container> oldContainers = deployment.getSpec().getTemplate().getSpec().getContainers();
+        if (CollectionUtils.isNotEmpty(oldContainers)) {
+            for (Container container : oldContainers) {
+                Map<String, Object> request = (Map<String, Object>) container.getResources().getRequests();
+                String cpu = (String) request.get(CommonConstant.CPU);
+                String memory = (String) request.get(CommonConstant.MEMORY);
+                if (cpu.contains(CommonConstant.SMALLM)) {
+                    oldCpu = oldCpu.add(new BigDecimal(cpu.split(CommonConstant.SMALLM)[0]).divide(new BigDecimal(CommonConstant.NUM_THOUSAND)));
+                } else {
+                    oldCpu = oldCpu.add(new BigDecimal(cpu));
+                }
+                if (memory.contains(CommonConstant.SMALLM)) {
+                    oldMemory = oldMemory.add(new BigDecimal(memory.split(CommonConstant.SMALLM)[0]));
+                } else if (memory.contains(CommonConstant.MI)) {
+                    oldMemory = oldMemory.add(new BigDecimal(memory.split(CommonConstant.MI)[0]));
+                } else if (memory.contains(CommonConstant.SMALLG)) {
+                    oldMemory = oldMemory.add(new BigDecimal(memory.split(CommonConstant.SMALLG)[0]).multiply(BigDecimal.valueOf(CommonConstant.NUM_SIZE_MEMORY)));
+                } else if (memory.contains(CommonConstant.GI)) {
+                    oldMemory = oldMemory.add(new BigDecimal(memory.split(CommonConstant.GI)[0]).multiply(BigDecimal.valueOf(CommonConstant.NUM_SIZE_MEMORY)));
+                }
+                if (request.get(CommonConstant.NVIDIA_GPU) != null) {
+                    oldGpu += Integer.valueOf((String) request.get(CommonConstant.NVIDIA_GPU));
+                }
+            }
+            oldCpu = oldCpu.multiply(replicas);
+            oldMemory = oldMemory.multiply(replicas);
+            oldGpu = oldGpu * replicas.intValue();
+        }
+
+        BigDecimal instanceCpu = BigDecimal.ZERO;
+        BigDecimal instanceMemory = BigDecimal.ZERO;
+        Integer instanceGpu = 0;
+        //计算每个容器的资源总和
+        if (CollectionUtils.isNotEmpty(updateContainers)) {
+            for (UpdateContainer updateContainer : updateContainers) {
+                String cpu = updateContainer.getResource().getCpu();
+                String memory = updateContainer.getResource().getMemory();
+                if (cpu.contains(CommonConstant.SMALLM)) {
+                    instanceCpu = instanceCpu.add(new BigDecimal(cpu.split(CommonConstant.SMALLM)[0]).divide(new BigDecimal(CommonConstant.NUM_THOUSAND)));
+                } else {
+                    instanceCpu = instanceCpu.add(new BigDecimal(cpu));
+                }
+                if (memory.contains(CommonConstant.SMALLM)) {
+                    instanceMemory = instanceMemory.add(new BigDecimal(memory.split(CommonConstant.SMALLM)[0]));
+                } else if (memory.contains(CommonConstant.MI)) {
+                    instanceMemory = instanceMemory.add(new BigDecimal(memory.split(CommonConstant.MI)[0]));
+                } else if (memory.contains(CommonConstant.SMALLG)) {
+                    instanceMemory = instanceMemory.add(new BigDecimal(memory.split(CommonConstant.SMALLG)[0]).multiply(BigDecimal.valueOf(CommonConstant.NUM_SIZE_MEMORY)));
+                } else if (memory.contains(CommonConstant.GI)) {
+                    instanceMemory = instanceMemory.add(new BigDecimal(memory.split(CommonConstant.GI)[0]).multiply(BigDecimal.valueOf(CommonConstant.NUM_SIZE_MEMORY)));
+                } else {
+                    instanceMemory = instanceMemory.add(new BigDecimal(memory));
+                }
+                if (updateContainer.getResource().getGpu() != null) {
+                    instanceGpu += Integer.valueOf(updateContainer.getResource().getGpu());
+                }
+            }
+        } else {
+            for (Container container : containers) {
+                if (container.getResources() != null && container.getResources().getRequests() != null) {
+                    Map<String, Object> request = (Map<String, Object>) container.getResources().getRequests();
+                    String cpu = (String) request.get(CommonConstant.CPU);
+                    String memory = (String) request.get(CommonConstant.MEMORY);
+                    if (cpu.contains(CommonConstant.SMALLM)) {
+                        instanceCpu = instanceCpu.add(new BigDecimal(cpu.split(CommonConstant.SMALLM)[0]).divide(new BigDecimal(CommonConstant.NUM_THOUSAND)));
+                    } else {
+                        instanceCpu = instanceCpu.add(new BigDecimal(cpu));
+                    }
+                    if (memory.contains(CommonConstant.SMALLM)) {
+                        instanceMemory = instanceMemory.add(new BigDecimal(memory.split(CommonConstant.SMALLM)[0]));
+                    } else if (memory.contains(CommonConstant.MI)) {
+                        instanceMemory = instanceMemory.add(new BigDecimal(memory.split(CommonConstant.MI)[0]));
+                    } else if (memory.contains(CommonConstant.SMALLG)) {
+                        instanceMemory = instanceMemory.add(new BigDecimal(memory.split(CommonConstant.SMALLG)[0]).multiply(BigDecimal.valueOf(CommonConstant.NUM_SIZE_MEMORY)));
+                    } else if (memory.contains(CommonConstant.GI)) {
+                        instanceMemory = instanceMemory.add(new BigDecimal(memory.split(CommonConstant.GI)[0]).multiply(BigDecimal.valueOf(CommonConstant.NUM_SIZE_MEMORY)));
+                    }
+                    if (request.get(CommonConstant.NVIDIA_GPU) != null) {
+                        instanceGpu += Integer.valueOf((String) request.get(CommonConstant.NVIDIA_GPU));
+                    }
+                }
+            }
+        }
+
+        //获取分区下的资源配额
+        Map<String, Object> quotaMap = namespaceService.getNamespaceQuota(namespace);
+        List<Object> cpus = (List<Object>) quotaMap.get(CommonConstant.CPU);
+        List<Object> memorys = (List<Object>) quotaMap.get(CommonConstant.MEMORY);
+        List<Object> gpus = (List<Object>) quotaMap.get(CommonConstant.GPU);
+        String hardType = (String) quotaMap.get(CommonConstant.HARDTYPE);
+        String usedType = (String) quotaMap.get(CommonConstant.USEDTYPE);
+        //计算cpu剩余量与服务cpu比较
+        BigDecimal remainCpu = BigDecimal.ZERO;
+        if (CollectionUtils.isNotEmpty(cpus) && cpus.size() == 2) {
+            BigDecimal totalCpu = new BigDecimal((String) cpus.get(0));
+            BigDecimal usedCpu = new BigDecimal((String) cpus.get(1));
+            //只有滚动，先杀旧的
+            remainCpu = totalCpu.add(oldCpu).subtract(usedCpu);
+        }
+        //计算内存剩余量与服务内存比较
+        BigDecimal remainMemory = BigDecimal.ZERO;
+        if (CollectionUtils.isNotEmpty(memorys) && memorys.size() == 2) {
+            BigDecimal totalMemory = new BigDecimal((String) memorys.get(0));
+            if (CommonConstant.GB.equals(hardType)) {
+                totalMemory = totalMemory.multiply(BigDecimal.valueOf(CommonConstant.NUM_SIZE_MEMORY));
+            } else if (CommonConstant.TB.equals(hardType)) {
+                totalMemory = totalMemory.multiply(BigDecimal.valueOf(CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY));
+            }
+            BigDecimal usedMemory = new BigDecimal((String) memorys.get(1));
+            if (CommonConstant.GB.equals(usedType)) {
+                usedMemory = usedMemory.multiply(BigDecimal.valueOf(CommonConstant.NUM_SIZE_MEMORY));
+            } else if (CommonConstant.TB.equals(usedType)) {
+                usedMemory = usedMemory.multiply(BigDecimal.valueOf(CommonConstant.NUM_SIZE_MEMORY * CommonConstant.NUM_SIZE_MEMORY));
+            }
+            //只有滚动，先杀旧的
+            remainMemory = totalMemory.add(oldMemory).subtract(usedMemory);
+        }
+        //GPU校验
+        Integer remainGpu = 0;
+        if (CollectionUtils.isNotEmpty(gpus) && gpus.size() == 2) {
+            Integer totalGpu = Integer.valueOf((String) gpus.get(0));
+            Integer usedGpu = Integer.valueOf((String) gpus.get(1));
+            //只有滚动，先杀旧的
+            remainGpu = totalGpu + oldGpu - usedGpu;
+        }
+        if (remainCpu.compareTo(instanceCpu.multiply(replicas)) < 0 ||
+                remainMemory.compareTo(instanceMemory.multiply(replicas)) < 0) {
+            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_NO_ENOUGH_RESOURCE);
+        }
+        if (instanceGpu != null && remainGpu < (instanceGpu * replicas.intValue())) {
+            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_NO_ENOUGH_RESOURCE);
+        }
     }
 
 

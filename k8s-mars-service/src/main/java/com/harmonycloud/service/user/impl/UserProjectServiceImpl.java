@@ -1,33 +1,18 @@
 package com.harmonycloud.service.user.impl;
 
-import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.dao.tenant.bean.Project;
-import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.user.UserProjectMapper;
-import com.harmonycloud.dao.user.UserRoleRelationshipMapper;
 import com.harmonycloud.dao.user.bean.*;
-import com.harmonycloud.service.tenant.ProjectService;
-import com.harmonycloud.service.tenant.TenantService;
-import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserProjectService;
-import com.harmonycloud.service.user.UserRoleRelationshipService;
-import com.harmonycloud.service.user.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import javax.servlet.http.HttpSession;
 import java.util.*;
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class UserProjectServiceImpl implements UserProjectService {
     @Autowired
     private UserProjectMapper userProjectMapper;
-    @Autowired
-    private HttpSession session;
 
     /**
      * 根据id获取项目下的用户关系

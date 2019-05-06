@@ -16,7 +16,6 @@ import java.util.List;
  * @Modified
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class NodePortClusterUsageServiceImpl implements NodePortClusterUsageService{
 
     @Autowired

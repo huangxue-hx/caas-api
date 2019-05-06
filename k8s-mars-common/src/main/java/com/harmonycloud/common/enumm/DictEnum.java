@@ -37,6 +37,7 @@ public enum DictEnum {
     CLUSTER_ID("clusterId", "集群id"),
     POD("pod", "pod"),
     NODE("node", "节点"),
+    NODE_TYPE("node type", "节点类型"),
     TENANT("tenant", "租户"),
     TENANT_NAME("tenant name", "租户名称"),
     TENANT_ID("tenantId", "租户编号"),
@@ -86,6 +87,7 @@ public enum DictEnum {
     PVC("PersistentVolumeClaim", "存储卷索取"),
     CONFIG_MAP_ID("configMapId","配置组id"),
     INGRESS_CONTROLLER("ingress controller","负载均衡器"),
+    GLOBAL_INGRESS_CONTROLLER("Global Load Balancer","全局负载均衡"),
     NODE_MASTER("MASTER","主控"),
     NODE_SYSTEM("SYSTEM","系统"),
     NODE_BUILD("BUILDING","构建"),
@@ -93,7 +95,7 @@ public enum DictEnum {
     NODE_PRIVATE("PRIVATE","独占"),
     NODE_IDLE("IDLE","闲置"),
     NODE_PUBLIC("PUBLIC","共享"),
-    NODE_SYSTEMANDSLB("SYSTEM,SLB","系统,负载均衡"),
+    NODE_ISTIO("ISTIO","微服务"),
     RULE_ID("IstioRuleId", "策略id");
 
 

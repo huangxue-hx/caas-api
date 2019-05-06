@@ -181,7 +181,7 @@ public interface HarborService {
 
     HarborRepositoryMessage getHarborRepositoryDetail(String harborHost, String repoName) throws Exception;
 
-    ActionReturnUtil getImagesByProjectId(String projectId, String clusterId) throws Exception;
+    ActionReturnUtil getImagesByProjectId(String projectId, String clusterId, boolean isAppStore) throws Exception;
 
     /**
      * 将harbor的registry镜像信息同步到harbor ui

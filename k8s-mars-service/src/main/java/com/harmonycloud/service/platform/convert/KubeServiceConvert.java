@@ -1,5 +1,6 @@
 package com.harmonycloud.service.platform.convert;
 
+import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.UUIDUtil;
 import com.harmonycloud.dto.application.CreateConfigMapDto;
 import com.harmonycloud.dto.application.CreateEnvDto;
@@ -65,21 +66,69 @@ public class KubeServiceConvert {
         String result = m.replaceAll("").trim();
         res.put("cpu", result + "m");
         res.put("memory", (oldContainer.getResource().getMemory().contains("Mi") || oldContainer.getResource().getMemory().contains("Gi")) ? oldContainer.getResource().getMemory() : oldContainer.getResource().getMemory() + "Mi");
+        if(oldContainer.getResource().getGpu() != null) {
+            res.put(CommonConstant.NVIDIA_GPU, oldContainer.getResource().getGpu());
+        }
+        //get limit rate
+        Integer rate = 1;
+        Map<String, Object> requests = (Map<String, Object>)newContainer.getResources().getRequests();
+        Map<String, Object> limits = (Map<String, Object>)newContainer.getResources().getLimits();
+        if(requests.get(CommonConstant.CPU) != null && limits.get(CommonConstant.CPU) != null){
+            String requestCpu = (String)requests.get(CommonConstant.CPU);
+            String limitCpu = (String)limits.get(CommonConstant.CPU);
+            Integer requestCpuNum = 0;
+            Integer limitCpuNum = 0;
+            if(requestCpu.contains("m")){
+                requestCpuNum = Integer.valueOf(requestCpu.replace("m", ""));
+            }else{
+                requestCpuNum = CommonConstant.NUM_THOUSAND * Integer.valueOf(requestCpu);
+            }
+            if(limitCpu.contains("m")){
+                limitCpuNum = Integer.valueOf(limitCpu.replace("m", ""));
+            }else{
+                limitCpuNum = CommonConstant.NUM_THOUSAND * Integer.valueOf(limitCpu);
+            }
+            if(requestCpuNum != null){
+                rate = limitCpuNum / requestCpuNum;
+            }
+        }
         newContainer.getResources().setLimits(res);
         newContainer.getResources().setRequests(res);
         if (oldContainer.getLimit() != null) {
             //获取倍率
-            int rate = oldContainer.getLimit().getCurrentRate();
+            int rate1 = oldContainer.getLimit().getCurrentRate();
             Map<String, String> resl = new HashMap<String, String>();
-            if (0 == rate) {
+            if (0 == rate1) {
                 resl.put("cpu", oldContainer.getLimit().getCpu());
                 resl.put("memory", (oldContainer.getLimit().getMemory().contains("Mi") || oldContainer.getLimit().getMemory().contains("Gi")) ? oldContainer.getLimit().getMemory() : oldContainer.getLimit().getMemory() + "Mi");
             } else {
-                int resultl = Integer.valueOf(result) * rate;
+                int resultl = Integer.valueOf(result) * rate1;
                 resl.put("cpu", resultl + "m");
                 resl.put("memory", ((Map<String, Object>)newContainer.getResources().getLimits()).get("memory").toString());
             }
+            if(oldContainer.getResource().getGpu() != null) {
+                resl.put(CommonConstant.NVIDIA_GPU, oldContainer.getResource().getGpu());
+            }
             newContainer.getResources().setLimits(resl);
+        }else{
+            Map<String, Object> limitRes = new HashMap<>();
+            limitRes.put(CommonConstant.CPU, Integer.valueOf(result) * rate + "m");
+            Integer requeseMemory = 0;
+            if(oldContainer.getResource().getMemory().contains("Mi")){
+                requeseMemory = Integer.valueOf(oldContainer.getResource().getMemory().replace("Mi", ""));
+            }else if(oldContainer.getResource().getMemory().contains("Gi")){
+                requeseMemory = Integer.valueOf(oldContainer.getResource().getMemory().replace("Gi", "")) * CommonConstant.NUM_SIZE_MEMORY;
+            }else{
+                requeseMemory = Integer.valueOf(oldContainer.getResource().getMemory().replace("Gi", ""));
+            }
+
+            limitRes.put(CommonConstant.MEMORY, requeseMemory * rate + "Mi");
+
+            if(oldContainer.getResource().getGpu() != null) {
+                limitRes.put(CommonConstant.NVIDIA_GPU, oldContainer.getResource().getGpu());
+            }
+
+            newContainer.getResources().setLimits(limitRes);
         }
         return newContainer;
     }
@@ -130,13 +179,15 @@ public class KubeServiceConvert {
                     ContainerPort port = new ContainerPort();
                     port.setContainerPort(Integer.valueOf(p.getContainerPort()));
                     port.setProtocol(p.getProtocol());
+                    String portName = convertPortName(p.getName(), port.getContainerPort());
+                    port.setName(portName);
                     ps.add(port);
                     container.setPorts(ps);
                     ServicePort servicePort = new ServicePort();
                     servicePort.setTargetPort(Integer.valueOf(p.getContainerPort()));
                     servicePort.setPort(Integer.valueOf(p.getContainerPort()));
                     servicePort.setProtocol(p.getProtocol());
-                    servicePort.setName(name + "-port" + ports.size());
+                    servicePort.setName(portName);
                     ports.add(servicePort);
                 }
 
@@ -144,7 +195,7 @@ public class KubeServiceConvert {
 
             List<VolumeMount> volumeMounts = new ArrayList<VolumeMount>();
             container.setVolumeMounts(volumeMounts);
-            K8sResultConvert.convertConfigMap(containerToConfigMap.get(cc.getName()),cc.getConfigmap(),volumes,volumeMounts);
+            K8sResultConvert.convertConfigMap(containerToConfigMap.get(cc.getName()),cc.getName(), cc.getConfigmap(),volumes,volumeMounts);
 
             if (Objects.nonNull(cc.getLog()) && !StringUtils.isEmpty(cc.getLog().getMountPath())) {
                 Volume emp = new Volume();
@@ -157,18 +208,52 @@ public class KubeServiceConvert {
                 volm.setName(Constant.VOLUME_LOGDIR_NAME + cc.getName());
                 volm.setMountPath(cc.getLog().getMountPath());
                 volumeMounts.add(volm);
+                List<CreateEnvDto> envlist = new ArrayList<>();
+                CreateEnvDto env = new CreateEnvDto();
+                env.setKey(Constant.PILOT_LOG_PREFIX);
+                env.setValue(cc.getLog().getMountPath() + "/*");
+                envlist.add(env);
+                env = new CreateEnvDto();
+                env.setKey(Constant.PILOT_LOG_PREFIX_TAG);
+                String parentResourceType = Constant.DEPLOYMENT;
+                if (podTemplateSpec.getMetadata().getLabels().containsKey(Constant.TYPE_STATEFULSET)){
+                    parentResourceType = Constant.STATEFULSET;
+                }else if (podTemplateSpec.getMetadata().getLabels().containsKey(Constant.TYPE_DAEMONSET)){
+                    parentResourceType = Constant.DAEMONSET;
+                }else if (podTemplateSpec.getMetadata().getLabels().containsKey(Constant.TYPE_DEPLOYMENT)){
+                    parentResourceType = Constant.DEPLOYMENT;
+                }
+                env.setValue("k8s_resource_type=" + parentResourceType + ",k8s_resource_name=" + name);
+                envlist.add(env);
+                if (cc.getEnv()!=null){
+                    cc.getEnv().addAll(envlist);
+                }else {
+                    cc.setEnv(envlist);
+                }
             }
 
             //如果volume有更新
             if (cc.getStorage() != null && !cc.getStorage().isEmpty()) {
                 List<PersistentVolumeDto> newVolume = cc.getStorage();
-                Map<String, Object> volFlag = new HashMap<String, Object>();
+                Map<String, Object> volFlag = new HashMap<>();
                 for (int i = 0; i < newVolume.size(); i++) {
                     PersistentVolumeDto vol = newVolume.get(i);
                     String type = vol.getType();
                     if(Constant.VOLUME_TYPE_NFS.equalsIgnoreCase(type)){
                         type = Constant.VOLUME_TYPE_PVC;
                     }
+                    //添加选择了拉取依赖后的特殊处理
+                    if (type.equals(Constant.VOLUME_TYPE_EMPTYDIR) && StringUtils.isNotBlank(vol.getName()) && vol.getName().equals("empty")) {
+                        Volume volumeDep = new Volume();
+                        VolumeMount volumeMountDep = new VolumeMount();
+                        volumeDep.setName(vol.getName());
+                        volumeMountDep.setName(vol.getName());
+                        volumeMountDep.setMountPath(vol.getPath());
+                        volumes.add(volumeDep);
+                        volumeMounts.add(volumeMountDep);
+                        continue;
+                    }
+
                     switch (type) {
                         case Constant.VOLUME_TYPE_PVC:
                             if (!volFlag.containsKey(vol.getPvcName())) {
@@ -177,11 +262,11 @@ public class KubeServiceConvert {
                                 pvClaim.setClaimName(vol.getPvcName());
                                 Volume vole = new Volume();
                                 vole.setPersistentVolumeClaim(pvClaim);
-                                vole.setName(vol.getPvcName());
+                                vole.setName(vol.getPvcName().replace(".", ""));
                                 volumes.add(vole);
                             }
                             VolumeMount volm = new VolumeMount();
-                            volm.setName(vol.getPvcName());
+                            volm.setName(vol.getPvcName().replace(".", ""));
                             volm.setMountPath(vol.getPath());
                             volm.setReadOnly(vol.getReadOnly());
                             volumeMounts.add(volm);
@@ -206,41 +291,38 @@ public class KubeServiceConvert {
                             container.setVolumeMounts(volumeMounts);
                             break;
                         case Constant.VOLUME_TYPE_EMPTYDIR:
-                            if (!volFlag.containsKey(Constant.VOLUME_TYPE_EMPTYDIR+vol.getEmptyDir()==null ? "": vol.getEmptyDir())) {
-                                volFlag.put(Constant.VOLUME_TYPE_EMPTYDIR+vol.getEmptyDir()==null ? "": vol.getEmptyDir(), RandomNum.getRandomString(8));
+                            if (!volFlag.containsKey(Constant.VOLUME_TYPE_EMPTYDIR + (vol.getName() == null ? "" : vol.getName()))) {
+                                volFlag.put(Constant.VOLUME_TYPE_EMPTYDIR + (vol.getName() == null ? "" : vol.getName()), StringUtils.isBlank(vol.getName())?RandomNum.getRandomString(8):vol.getName());
                                 Volume empty = new Volume();
-                                empty.setName(volFlag.get(Constant.VOLUME_TYPE_EMPTYDIR+vol.getEmptyDir()==null ? "": vol.getEmptyDir()).toString());
-                                if (vol.getName().equals("empty-deploy")){
-                                    empty.setName("empty-deploy");
-                                }
-                                EmptyDirVolumeSource ed =new EmptyDirVolumeSource();
-                                if(vol.getEmptyDir() != null && "Memory".equals(vol.getEmptyDir())){
+                                empty.setName(volFlag.get(Constant.VOLUME_TYPE_EMPTYDIR + (vol.getName() == null ? "" : vol.getName())).toString());
+                                EmptyDirVolumeSource ed = new EmptyDirVolumeSource();
+                                if (vol.getEmptyDir() != null && "Memory".equals(vol.getEmptyDir())) {
                                     ed.setMedium(vol.getEmptyDir());//Memory
+                                }
+                                if (vol.getCapacity() != null) {
+                                    ed.setSizeLimit(vol.getCapacity());//sizeLimit
                                 }
                                 empty.setEmptyDir(ed);
                                 volumes.add(empty);
                             }
                             VolumeMount volme = new VolumeMount();
-                            volme.setName(volFlag.get(Constant.VOLUME_TYPE_EMPTYDIR+vol.getEmptyDir()==null ? "": vol.getEmptyDir()).toString());
-                            if (vol.getName().equals("empty-deploy")){
-                                volme.setName("empty-deploy");
-                            }
+                            volme.setName(volFlag.get(Constant.VOLUME_TYPE_EMPTYDIR + (vol.getName() == null ? "" : vol.getName())).toString());
                             volme.setMountPath(vol.getPath());
                             volumeMounts.add(volme);
                             container.setVolumeMounts(volumeMounts);
                             break;
                         case Constant.VOLUME_TYPE_HOSTPASTH:
                             if (!volFlag.containsKey(Constant.VOLUME_TYPE_HOSTPASTH+vol.getHostPath())) {
-                                volFlag.put(Constant.VOLUME_TYPE_HOSTPASTH+vol.getHostPath(), RandomNum.getRandomString(8));
+                                volFlag.put(Constant.VOLUME_TYPE_HOSTPASTH + vol.getHostPath(), StringUtils.isBlank(vol.getName())?RandomNum.getRandomString(8):vol.getName());
                                 Volume empty = new Volume();
-                                empty.setName(volFlag.get(Constant.VOLUME_TYPE_HOSTPASTH+vol.getHostPath()).toString());
+                                empty.setName(volFlag.get(Constant.VOLUME_TYPE_HOSTPASTH + vol.getHostPath()).toString());
                                 HostPath hp =new HostPath();
                                 hp.setPath(vol.getHostPath());
                                 empty.setHostPath(hp);
                                 volumes.add(empty);
                             }
                             VolumeMount volmh = new VolumeMount();
-                            volmh.setName(volFlag.get(Constant.VOLUME_TYPE_HOSTPASTH+vol.getHostPath()).toString());
+                            volmh.setName(volFlag.get(Constant.VOLUME_TYPE_HOSTPASTH + vol.getHostPath()).toString());
                             volmh.setMountPath(vol.getPath());
                             volumeMounts.add(volmh);
                             container.setVolumeMounts(volumeMounts);
@@ -266,7 +348,16 @@ public class KubeServiceConvert {
                 for (CreateEnvDto env : cc.getEnv()) {
                     EnvVar eVar = new EnvVar();
                     eVar.setName(env.getKey());
-                    eVar.setValue(env.getValue());
+                    if(StringUtils.isEmpty(env.getType()) || CommonConstant.ENV_TYPE_EQUAL.equals(env.getType())) {
+                        eVar.setValue(env.getValue());
+                    }else if(CommonConstant.ENV_TYPE_FROM.equals(env.getType())){
+                        EnvVarSource envVarSource = new EnvVarSource();
+                        ObjectFieldSelector objectFieldSelector = new ObjectFieldSelector();
+                        objectFieldSelector.setApiVersion(com.harmonycloud.k8s.constant.Constant.VERSION_V1);
+                        objectFieldSelector.setFieldPath(env.getValue());
+                        envVarSource.setFieldRef(objectFieldSelector);
+                        eVar.setValueFrom(envVarSource);
+                    }
                     envVars.add(eVar);
                 }
                 container.setEnv(envVars);
@@ -363,7 +454,11 @@ public class KubeServiceConvert {
         for (Container container : containerList) {
             for (ContainerPort port : container.getPorts()) {
                 ServicePort servicePort = new ServicePort();
-                servicePort.setName("port-" + UUIDUtil.get16UUID());
+                if(StringUtils.isNotBlank(port.getName())) {
+                    servicePort.setName(port.getName());
+                }else{
+                    servicePort.setName("port-" + port.getContainerPort());
+                }
                 servicePort.setTargetPort(port.getContainerPort());
                 servicePort.setProtocol(port.getProtocol());
                 servicePort.setPort(port.getContainerPort());
@@ -372,4 +467,22 @@ public class KubeServiceConvert {
         }
         return ports;
     }
+
+    /**
+     * 转换端口名称，端口名称前缀为http/http2/grpc/port, 后缀为端口号，以"-"分隔，如http-80,port-80
+     * istio服务以http/http2/grpc开头，默认是port开始
+     * @param portName 端口名
+     * @param port 端口序号
+     * @return
+     */
+    public static String convertPortName(String portName, int port) {
+        if(StringUtils.isBlank(portName)){
+            return "port-" + port;
+        }
+        if(portName.endsWith("-" + port)){
+            return portName;
+        }
+        return portName.toLowerCase() + "-" + port;
+    }
+
 }

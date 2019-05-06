@@ -9,6 +9,7 @@ import java.util.List;
 public class ClusterInfo implements Serializable {
     private static final long serialVersionUID = -6159692303715601870L;
     private String address ;
+    private String compAddress ;
     private Integer port;
     private String protocol;
     private ClusterNetwork network;
@@ -124,5 +125,13 @@ public class ClusterInfo implements Serializable {
 
     public void setGit(ClusterGit git) {
         this.git = git;
+    }
+
+    public String getCompAddress() {
+        return compAddress;
+    }
+
+    public void setCompAddress(String compAddress) {
+        this.compAddress = compAddress;
     }
 }

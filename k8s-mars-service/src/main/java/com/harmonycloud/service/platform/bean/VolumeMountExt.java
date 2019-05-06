@@ -33,12 +33,14 @@ public class VolumeMountExt {
 
 	private String storageClassName;
 
+	private String storageClassType;
+
     private String capacity;
 
 	public VolumeMountExt() {
-		
+
 	}
-	
+
 	public VolumeMountExt(String name, Boolean readOnly, String mountPath, String subPath) {
 		this.name = name;
 		this.readOnly = readOnly;
@@ -142,7 +144,15 @@ public class VolumeMountExt {
 		this.storageClassName = storageClassName;
 	}
 
-    public String getCapacity() {
+	public String getStorageClassType() {
+		return storageClassType;
+	}
+
+	public void setStorageClassType(String storageClassType) {
+		this.storageClassType = storageClassType;
+	}
+
+	public String getCapacity() {
         return capacity;
     }
 

@@ -44,7 +44,7 @@ public class RBACServiceImpl implements RBACService {
             ServiceAccount serviceAccount = JsonUtil.jsonToPojo(response.getBody(), ServiceAccount.class);
             return ActionReturnUtil.returnSuccessWithData(serviceAccount);
         }else {
-            return null;
+            return ActionReturnUtil.returnErrorWithData(response.getBody());
         }
     }
 

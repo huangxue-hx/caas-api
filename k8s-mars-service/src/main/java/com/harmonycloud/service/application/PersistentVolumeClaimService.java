@@ -4,7 +4,9 @@ import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.PersistentVolumeClaimDto;
 import com.harmonycloud.k8s.bean.Deployment;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.service.platform.bean.PvcDto;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -16,6 +18,8 @@ public interface PersistentVolumeClaimService {
     ActionReturnUtil createPersistentVolumeClaim(PersistentVolumeClaimDto persistentVolumeClaimDto) throws Exception;
 
     ActionReturnUtil listPersistentVolumeClaim(String projectId, String tenantId, String clusterId, String namespace) throws Exception;
+
+    List<PvcDto> listPersistentVolumeClaim(String clusterId, String namespace) throws Exception;
 
     ActionReturnUtil deletePersistentVolumeClaim(String namespace, String pvcName, String clusterId) throws Exception;
 

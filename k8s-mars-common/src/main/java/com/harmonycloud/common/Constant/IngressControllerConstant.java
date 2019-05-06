@@ -44,7 +44,6 @@ public class IngressControllerConstant {
 
     public static final String LABEL_VALUE_NGINX_CUSTOM = "nginx-custom";
 
-    public static final String IC_DEFAULT_ALIAS_NAME = "全局负载均衡";
     //全局负载均衡器默认名称
     public final static String IC_DEFAULT_NAME = "nginx-ingress-controller";
     //全局负载均衡器默认端口

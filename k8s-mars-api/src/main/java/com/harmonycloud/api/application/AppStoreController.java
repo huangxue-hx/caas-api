@@ -5,10 +5,8 @@ import javax.servlet.http.HttpSession;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.service.user.UserService;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,18 +14,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-
-import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.application.AppStoreDto;
-import com.harmonycloud.k8s.constant.Constant;
 import com.harmonycloud.service.application.AppStoreService;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.Date;
 
 @RequestMapping("/tenants/projects/apptemplates")
 @Controller
@@ -59,9 +50,10 @@ public class AppStoreController {
     }
     
     @ResponseBody
-    @RequestMapping(value="/{id}", method = RequestMethod.DELETE)
-    public ActionReturnUtil deleteAppStore(@PathVariable(value = "id") Integer id) throws Exception {
-        return appStoreService.deleteAppStore(id);
+    @RequestMapping(value="/{name}", method = RequestMethod.DELETE)
+    public ActionReturnUtil deleteAppStore(@PathVariable(value = "name") String name,
+                                           @RequestParam(value = "tag") String tag) throws Exception {
+        return appStoreService.deleteAppStore(name, tag);
     }
     
     @ResponseBody

@@ -20,10 +20,16 @@ public interface ClusterService {
 	Cluster getPlatformCluster() throws Exception;
 
 	/**
-	 * 根据id 查找cluster
+	 * 根据id 查找cluster，不包括集群模板信息
 	 * @return
 	 */
 	Cluster findClusterById(String clusterId);
+
+	/**
+	 * 根据id 查找cluster详情，包括集群模板信息
+	 * @return
+	 */
+	Cluster getClusterDetail(String clusterId) throws Exception;
 
 	String getHarborHost(String clusterId);
 

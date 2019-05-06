@@ -4,8 +4,8 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dto.tenant.NamespaceDto;
-import com.harmonycloud.service.application.IstioService;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.istio.IstioCommonService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
 import io.swagger.annotations.ApiImplicitParam;
@@ -38,7 +38,7 @@ public class NamespaceController {
     @Autowired
     private HttpSession session;
     @Autowired
-    private IstioService istioService;
+    private IstioCommonService istioCommonService;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -198,9 +198,9 @@ public class NamespaceController {
     @ApiImplicitParams({@ApiImplicitParam(name = "clusterId", value = "集群id", paramType = "query", dataType = "String"), @ApiImplicitParam(name = "namespace", value = "分区名称", paramType = "path", dataType = "String")})
     @ResponseBody
     @RequestMapping(value = "/{namespace}/istiopolicyswitch", method = RequestMethod.GET)
-    public ActionReturnUtil getNamespaceIstioPolicySwitch(@RequestParam("clusterId") String clusterId, @PathVariable("namespace") String namespace)
+    public ActionReturnUtil getNamespaceIstioPolicySwitch(@RequestParam(value = "clusterId", required = false) String clusterId, @PathVariable("namespace") String namespace)
             throws Exception {
-        return istioService.getNamespaceIstioPolicySwitch(namespace, clusterId);
+        return istioCommonService.getNamespaceIstioPolicySwitch(namespace, clusterId);
     }
 
     /**
@@ -221,7 +221,7 @@ public class NamespaceController {
     @RequestMapping(value = "/{namespaceName}/istiopolicyswitch", method = RequestMethod.PUT)
     public ActionReturnUtil updateNamespaceIstioPolicySwitch(@RequestParam("clusterId") String clusterId, @RequestParam("status") boolean status, @PathVariable("namespaceName") String namespaceName)
             throws Exception {
-        return istioService.updateNamespaceIstioPolicySwitch(status, clusterId, namespaceName);
+        return istioCommonService.updateNamespaceIstioPolicySwitch(status, clusterId, namespaceName);
     }
 
     @ApiResponse(code = 200, message = "success", response = ActionReturnUtil.class)
@@ -233,8 +233,9 @@ public class NamespaceController {
     @ResponseBody
     @RequestMapping(value = "/{namespace}/istiopolicies", method = RequestMethod.GET)
     public ActionReturnUtil listIstioPolicies(@PathVariable("namespace") String namespace,
-                                              @RequestParam(value = "ruleType", required = false) String ruleType)
+                                              @RequestParam(value = "ruleType", required = false) String ruleType,
+                                              @RequestParam("clusterId") String clusterId)
             throws Exception {
-        return istioService.listIstioPolicies(null, namespace, ruleType);
+        return istioCommonService.listIstioPolicies(null, namespace, ruleType, clusterId);
     }
 }

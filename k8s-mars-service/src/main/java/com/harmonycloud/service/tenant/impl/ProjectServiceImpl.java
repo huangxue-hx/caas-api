@@ -43,6 +43,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -111,6 +112,9 @@ public class ProjectServiceImpl implements ProjectService {
     @Autowired
     private StatefulSetsService statefulSetsService;
 
+    @Value("#{propertiesReader['harbor.role.enable']}")
+    private boolean enableHarborRole;
+
     private static final Logger logger = LoggerFactory.getLogger(ProjectServiceImpl.class);
 
     /**
@@ -145,8 +149,9 @@ public class ProjectServiceImpl implements ProjectService {
                 session.setAttribute(CommonConstant.ROLEID, roleList.get(0).getId());
             }
         }
-        List<LocalRolePrivilege>  localRolePrivileges = localRoleService.listPrivilegeByProject(projectId, userName);
-        session.setAttribute(CommonConstant.SESSION_DATA_PRIVILEGE_LIST, localRolePrivileges);
+        //局部角色废弃
+        /*List<LocalRolePrivilege>  localRolePrivileges = localRoleService.listPrivilegeByProject(projectId, userName);
+        session.setAttribute(CommonConstant.SESSION_DATA_PRIVILEGE_LIST, localRolePrivileges);*/
         if (CollectionUtils.isEmpty(roleList)){
             SsoClient.dealHeader(session);
             throw new MarsRuntimeException(ErrorCodeMessage.ROLE_DISABLE);
@@ -160,8 +165,8 @@ public class ProjectServiceImpl implements ProjectService {
      * @throws Exception
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void createProject(ProjectDto projectDto) throws Exception {
+    @Transactional
+    public String createProject(ProjectDto projectDto) throws Exception {
         String tenantId = projectDto.getTenantId();
         TenantBinding tenant = this.tenantService.getTenantByTenantid(tenantId);
         //有效值判断
@@ -238,6 +243,7 @@ public class ProjectServiceImpl implements ProjectService {
         }catch (Exception e){
             logger.error("sync harbor member failed",e);
         }
+        return project.getProjectId();
     }
 
     /**
@@ -290,7 +296,7 @@ public class ProjectServiceImpl implements ProjectService {
      * @throws Exception
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional
     public void deleteProjectById(Integer id) throws Exception {
         this.projectMapper.deleteByPrimaryKey(id);
     }
@@ -302,7 +308,7 @@ public class ProjectServiceImpl implements ProjectService {
      * @throws Exception
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional
     public void updateProject(ProjectDto projectDto) throws Exception {
         Project projectByProjectId = this.getProjectByProjectId(projectDto.getProjectId());
         //有效值判断
@@ -314,7 +320,7 @@ public class ProjectServiceImpl implements ProjectService {
         //如果项目名不为空则更新项目名
         if (!Objects.isNull(aliasName)){
             Project projectByAliasName = this.getProjectByAliasName(aliasName);
-            if (!Objects.isNull(projectByAliasName)){
+            if (!Objects.isNull(projectByAliasName) && !projectByAliasName.getProjectId().equals(projectDto.getProjectId())){
                 throw new MarsRuntimeException(ErrorCodeMessage.PROJECTALIASNAME_EXIST,aliasName,Boolean.TRUE);
             }
             projectByProjectId.setAliasName(aliasName);
@@ -632,7 +638,7 @@ public class ProjectServiceImpl implements ProjectService {
      * @throws Exception
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional
     public void syncDevOpsUser(DevOpsProjectUserDto devOpsProjectUserDto) throws Exception {
         //组装用户数据
         User user = new User();
@@ -673,7 +679,7 @@ public class ProjectServiceImpl implements ProjectService {
      * @throws Exception
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional
     public void createPm(String tenantId,String projectId, List<String> pmList) throws Exception {
         //检查租户的有效性
         TenantBinding tenantBinding = this.tenantService.getTenantByTenantid(tenantId);
@@ -723,7 +729,9 @@ public class ProjectServiceImpl implements ProjectService {
                 clusterCacheManager.updateRolePrivilegeStatusForTenantOrProject(roleId,userName,null,projectId,Boolean.FALSE);
             }
             //处理harbor的角色权限关系
-            this.roleLocalService.addHarborUserRole(HarborMemberEnum.PROJECTADMIN,projectId,userName,roleId);
+            if(enableHarborRole) {
+                this.roleLocalService.addHarborUserRole(HarborMemberEnum.PROJECTADMIN, projectId, userName, roleId);
+            }
         }
         //更新PM关系至项目表
         String pmUsernames = project.getPmUsernames();
@@ -785,7 +793,7 @@ public class ProjectServiceImpl implements ProjectService {
      * @throws Exception
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional
     public void deletePm(String tenantId,String projectId, String username,Boolean isCDPOperate) throws Exception {
         //检查项目的有效性
         Project project = this.getProjectByProjectId(projectId);
@@ -817,7 +825,9 @@ public class ProjectServiceImpl implements ProjectService {
         //更新redis中用户的状态
         clusterCacheManager.updateRolePrivilegeStatusForTenantOrProject(roleId,username,null,projectId,Boolean.TRUE);
         //处理harbor的角色权限关系
-        this.roleLocalService.updateHarborUserRole(HarborMemberEnum.NONE,projectId,username);
+        if(enableHarborRole) {
+            this.roleLocalService.updateHarborUserRole(HarborMemberEnum.NONE, projectId, username);
+        }
     }
     private ProjectExample getExample(){
         ProjectExample example = new ProjectExample();
@@ -831,7 +841,7 @@ public class ProjectServiceImpl implements ProjectService {
      * @throws Exception
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional
     public void addUserRole(UserRoleDto userRoleDto) throws Exception {
         String projectId = userRoleDto.getProjectId();
         String tenantId = userRoleDto.getTenantId();
@@ -854,8 +864,10 @@ public class ProjectServiceImpl implements ProjectService {
                     clusterCacheManager.updateRolePrivilegeStatusForTenantOrProject(roleId,username,null,projectId,Boolean.FALSE);
                 }
                 //处理harbor的角色权限关系
-                HarborMemberEnum targetMember =  rolePrivilegeService.getHarborRole(roleId);
-                this.roleLocalService.addHarborUserRole(targetMember,projectId,username,roleId);
+                if(enableHarborRole) {
+                    HarborMemberEnum targetMember = rolePrivilegeService.getHarborRole(roleId);
+                    this.roleLocalService.addHarborUserRole(targetMember, projectId, username, roleId);
+                }
             }
         }
     }
@@ -867,7 +879,7 @@ public class ProjectServiceImpl implements ProjectService {
      * @throws Exception
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional
     public void removeUserRole(UserRoleDto userRoleDto) throws Exception {
         String projectId = userRoleDto.getProjectId();
         String tenantId = userRoleDto.getTenantId();
@@ -883,7 +895,9 @@ public class ProjectServiceImpl implements ProjectService {
         clusterCacheManager.updateRolePrivilegeStatusForTenantOrProject(roleId,username,null,projectId,Boolean.TRUE);
 
         //处理harbor的角色权限关系
-        this.roleLocalService.updateHarborUserRole(HarborMemberEnum.NONE,projectId,username);
+        if(enableHarborRole) {
+            this.roleLocalService.updateHarborUserRole(HarborMemberEnum.NONE, projectId, username);
+        }
     }
 
     @Override

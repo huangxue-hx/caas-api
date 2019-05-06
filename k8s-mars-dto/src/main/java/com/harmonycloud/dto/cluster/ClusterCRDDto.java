@@ -13,6 +13,7 @@ public class ClusterCRDDto {
     private String dataCenter;
     private Integer envLabel;
     private String k8sAddress;
+    private String compAddress;
     private String protocol;
     private Integer port;
     private String harborAddress;
@@ -236,5 +237,13 @@ public class ClusterCRDDto {
 
     public void setGitInfo(ClusterGit gitInfo) {
         this.gitInfo = gitInfo;
+    }
+
+    public String getCompAddress() {
+        return compAddress;
+    }
+
+    public void setCompAddress(String compAddress) {
+        this.compAddress = compAddress;
     }
 }

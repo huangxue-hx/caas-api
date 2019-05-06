@@ -6,6 +6,7 @@ import com.harmonycloud.dto.log.LogQueryDto;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.LogQuery;
+import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.LogService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +41,8 @@ public class PlatformLogController {
                                      @PathVariable("namespace") String namespace,
                                      @ModelAttribute LogQueryDto logQueryDto){
         try {
-            logQueryDto.setDeployment(deployName);
+            logQueryDto.setAppName(deployName);
+            logQueryDto.setAppType(Constant.DEPLOYMENT);
             logQueryDto.setClusterId(clusterId);
             logQueryDto.setNamespace(namespace);
             LogQuery logQuery = logService.transLogQuery(logQueryDto);
@@ -69,7 +71,8 @@ public class PlatformLogController {
                                      @ModelAttribute LogQueryDto logQueryDto,
                                       HttpServletResponse response) throws Exception{
         logger.info("导出日志, deployName:{},params:{} ", deployName, logQueryDto.toString());
-        logQueryDto.setDeployment(deployName);
+        logQueryDto.setAppName(deployName);
+        logQueryDto.setAppType(Constant.DEPLOYMENT);
         logQueryDto.setClusterId(clusterId);
         logQueryDto.setNamespace(namespace);
         LogQuery logQuery = logService.transLogQuery(logQueryDto);
@@ -84,7 +87,8 @@ public class PlatformLogController {
                                              @ModelAttribute LogQueryDto logQueryDto) throws Exception{
 
         try {
-            logQueryDto.setDeployment(deployName);
+            logQueryDto.setAppName(deployName);
+            logQueryDto.setAppType(Constant.DEPLOYMENT);
             logQueryDto.setClusterId(clusterId);
             logQueryDto.setNamespace(namespace);
             LogQuery logQuery = logService.transLogQuery(logQueryDto);

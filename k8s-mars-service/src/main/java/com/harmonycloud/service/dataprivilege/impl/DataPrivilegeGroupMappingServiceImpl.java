@@ -180,9 +180,10 @@ public class DataPrivilegeGroupMappingServiceImpl implements DataPrivilegeGroupM
             }
             case CONFIGFILE: {
                 //获取配置文件最新版本的创建者
-                ActionReturnUtil result = configCenterService.getConfigMapByName(dataPrivilegeDto.getData(), dataPrivilegeDto.getClusterId(), dataPrivilegeDto.getProjectId(), false);
+                ActionReturnUtil result = configCenterService.getConfigMapByName(dataPrivilegeDto.getData(), dataPrivilegeDto.getClusterId(), dataPrivilegeDto.getProjectId(), false, false);
                 if(result.isSuccess()){
-                    List<ConfigFile> list = (List<ConfigFile>)result.getData();
+                    Map<String, List<ConfigFile>> dataMap = (Map<String, List<ConfigFile>>)result.getData();
+                    List<ConfigFile> list = dataMap.get("configList");
                     if(CollectionUtils.isEmpty(list)) {
                         throw new MarsRuntimeException(ErrorCodeMessage.DATA_NOT_FOUND);
                     }

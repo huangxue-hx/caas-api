@@ -12,11 +12,13 @@ import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.harbor.bean.ImageCleanRule;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import com.harmonycloud.service.cache.ImageCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.common.HarborHttpsClientUtil;
 import com.harmonycloud.service.platform.bean.harbor.*;
+import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.client.HarborClient;
 import com.harmonycloud.service.platform.service.harbor.*;
 import com.harmonycloud.service.user.UserService;
@@ -138,7 +140,7 @@ public class HarborServiceImpl implements HarborService {
                     isEnd = true;
                 }
             } else {
-                LOGGER.error("查询harbor项目列表失败，response:{}", JSONObject.toJSONString(response));
+                LOGGER.error("查询harbor项目列表失败，response：{}", JSONObject.toJSONString(response));
                 isEnd = true;
             }
 
@@ -194,13 +196,15 @@ public class HarborServiceImpl implements HarborService {
             params.put("page", pageNo++);
             ActionReturnUtil response = HarborHttpsClientUtil.httpGetRequest(url, headers, params);
             if (response.isSuccess() && response.get("data") != null) {
-                List<String> repoList = new LinkedList<String>();
+                List<String> repoList;
                 if(response.isSuccess() && response.get("data").toString().contains("description")
                         && response.isSuccess() && response.get("data").toString().contains("project_id") ) {
                     List<ImageResponseDto> imageRepoList = JsonUtil.jsonToList(response.get("data").toString(), ImageResponseDto.class);
-                    repoList = new ArrayList<String>();
-                    for (ImageResponseDto image : imageRepoList) {
-                        repoList.add(image.getName());
+                    repoList = new ArrayList<>();
+                    if (!CollectionUtils.isEmpty(imageRepoList)) {
+                        for (ImageResponseDto image : imageRepoList) {
+                            repoList.add(image.getName());
+                        }
                     }
                 }else {
                     repoList = JsonUtil.jsonToList(response.get("data").toString(), String.class);
@@ -781,6 +785,8 @@ public class HarborServiceImpl implements HarborService {
                 }
             }
             repositoryDet = imageCacheManager.sort(repositoryDet);
+        } else {
+            LOGGER.info("harbor:{},镜像{}的tag列表为空", harborHost, repoName);
         }
         HarborServer harborServer = clusterService.findHarborByHost(harborHost);
         harborRepository.setFullNameRepo(harborServer.getHarborAddress() + "/"+repoName);
@@ -852,10 +858,13 @@ public class HarborServiceImpl implements HarborService {
             return ActionReturnUtil.returnSuccessWithData(Collections.emptyList());
         }
         List<String> projectList = imageRepositories.stream().map(ImageRepository::getHarborProjectName).collect(Collectors.toList());
-        Set<HarborServer> harborServers = harborUserService.getUserAvailableHarbor(userService.getCurrentUsername());
+        Set<HarborServer> harborServers = harborUserService.getCurrentUserAvailableHarbor();
         List<HarborProjectInfo> projectRepoList = new ArrayList<>();
         Long begin = System.currentTimeMillis();
         for(HarborServer harborServer : harborServers) {
+            if (!StringUtils.isEmpty(clusterId) && !harborServer.getReferredClusterIds().contains(clusterId)){
+                continue;
+            }
             ActionReturnUtil repoResponse = getFuzzySearch(harborServer.getHarborHost(), query);
             LOGGER.info("search harbor cost:" + (System.currentTimeMillis() - begin));
             // Map<String,List<String>>repoMap= new HashMap<>();
@@ -915,8 +924,13 @@ public class HarborServiceImpl implements HarborService {
                     projectInfo.setHarborHost(harborServer.getHarborHost());
                     if(isPublic) {
                         projectInfo.setReferredClusterNames(harborServer.getReferredClusterNames());
+                        projectInfo.setReferredClusterAliasNames(harborServer.getReferredClusterAliasNames());
+                        projectInfo.setDataCenterName(harborServer.getDataCenterName());
                     }else{
+                        Cluster cluster = clusterService.findClusterById(repository.getClusterId());
                         projectInfo.setReferredClusterNames(repository.getClusterName());
+                        projectInfo.setReferredClusterAliasNames(cluster.getAliasName());
+                        projectInfo.setDataCenterName(cluster.getDataCenterName());
                     }
                     projectRepoList.add(projectInfo);
                 }
@@ -1106,8 +1120,19 @@ public class HarborServiceImpl implements HarborService {
      * @throws Exception
      */
     @Override
-    public ActionReturnUtil getImagesByProjectId(String projectId, String clusterId) throws Exception {
-        List<ImageRepository> imageRepositories = harborProjectService.listRepositories(projectId,clusterId,null,Boolean.TRUE);
+    public ActionReturnUtil getImagesByProjectId(String projectId, String clusterId, boolean isAppStore) throws Exception {
+        List<ImageRepository> imageRepositories;
+        if(isAppStore){
+            List<ImageRepository> publicRepositories = harborProjectService.listRepositories(projectId,null,null,Boolean.TRUE);
+            Optional<ImageRepository> onlineshopRepository= publicRepositories.stream().filter(imageRepository -> Constant.ONLINESHOP.equals(imageRepository.getHarborProjectName())).findFirst();
+            if(onlineshopRepository.isPresent()) {
+                imageRepositories = Arrays.asList(onlineshopRepository.get());
+            }else{
+                imageRepositories = new ArrayList<>();
+            }
+        }else {
+            imageRepositories = harborProjectService.listRepositories(projectId, clusterId, null, Boolean.TRUE);
+        }
         List<HarborProjectInfo> projectRepoList = new ArrayList<>();
         //获取project的repositoryList
         for (ImageRepository repository : imageRepositories) {

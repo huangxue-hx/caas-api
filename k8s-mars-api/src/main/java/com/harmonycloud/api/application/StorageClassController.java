@@ -87,12 +87,14 @@ public class StorageClassController {
     @ApiOperation(value = "查询某个集群下StorageClass存储列表", notes = "在集群内K8S上根据集群名称查询该集群下所有StorageClass存储")
     @ApiImplicitParams({
             @ApiImplicitParam(name = "clusterId", value = "集群ID", required = true, paramType = "path", dataType = "String"),
-            @ApiImplicitParam(name = "namespace", value = "分区", required = false, paramType = "query", dataType = "String")
+            @ApiImplicitParam(name = "namespace", value = "分区", required = false, paramType = "query", dataType = "String"),
+            @ApiImplicitParam(name = "tenantId", value = "租户ID", required = false, paramType = "query", dataType = "String")
     })
     @RequestMapping(method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil listStorageClass(@PathVariable("clusterId") String clusterId,
-                                             @RequestParam(value = "namespace", required = false)String namespace) throws Exception {
-        return ActionReturnUtil.returnSuccessWithData(storageClassService.listStorageClass(clusterId, namespace));
+                                             @RequestParam(value = "namespace", required = false)String namespace,
+                                             @RequestParam(value = "tenantId", required = false)String tenantId) throws Exception {
+        return ActionReturnUtil.returnSuccessWithData(storageClassService.listStorageClass(clusterId, namespace, tenantId));
     }
 }

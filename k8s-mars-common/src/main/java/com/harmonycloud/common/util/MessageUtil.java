@@ -26,6 +26,7 @@ public class MessageUtil {
         messageMap.put("自定义","Custom Step");
         messageMap.put("应用部署","Deploying Applications");
         messageMap.put("集成测试","Integration Testing");
+        messageMap.put("镜像推送","Image Pushing");
     }
     //根据系统语言获取信息
     public static String getMessage(ErrorCodeMessage errorCodeMessage){

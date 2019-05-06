@@ -1,5 +1,6 @@
 package com.harmonycloud.dto.application.istio;
 
+import com.harmonycloud.k8s.bean.istio.policies.Port;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import org.hibernate.validator.constraints.NotBlank;
@@ -13,41 +14,31 @@ import java.util.Map;
  * 服务入口bean
  */
 @ApiModel(value = "ServiceEntryDto信息")
-public class ServiceEntryDto implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+public class ServiceEntryDto {
+    @ApiModelProperty(value = "服务入口名称", name = "name", required = true)
     private String name;
-
-    private String ip;
-
+    @ApiModelProperty(value = "英文简称", name = "namespace", required = true)
     private String namespace;
-
+    @ApiModelProperty(value = "分区名称", name = "namespaceName")
     private String namespaceName;
-
+    @ApiModelProperty(value = "labels", name = "labels")
     private Map<String, Object> labels;
-
+    @ApiModelProperty(value = "创建时间", name = "createTime")
     private String createTime;
-
+    @ApiModelProperty(value = "targetPort", name = "targetPort")
     private String targetPort;
-
-    private String protocol; //协议
-
-    private String port ;
-
-    private String tenantId;
-
-    private String projectId;
-
-    private String clusterId;
-
+    @ApiModelProperty(value = "服务端口列表", name = "ipList", example = "[[\"10.10.10.1\",\"HTTP\"],[\"10.10.10.1\",\"HTTP\"],[\"10.10.10.1\",\"HTTP\"]]", required = true)
+    private  List<ServiceEntryPortDto>  portList; //协议
+    @ApiModelProperty(value = "集群名称", name = "clusterName" , required = true)
     private String  clusterName;
-
+    @ApiModelProperty(value = "服务域名", name = "hosts" , required = true)
     private String  hosts;//服务域名
-
-    private Integer   ServiceEntryType; //  0 为外部服务入口 1为内部服务入口
-
+    @ApiModelProperty(value = "服务入口类型（1为外部服务入口，1为内部服务入口）", name = "ServiceEntryType" )
+    private Integer   serviceEntryType; //  0 为外部服务入口 1为内部服务入口
     @ApiModelProperty(value = "内部服务ip列表", name = "ipList", example = "[\"10.10.10.1\", \"10.10.10.2\", ... ]", required = true)
     private List<String> ipList;
+    @ApiModelProperty(value = "集群id", name = "clusterId" , required = true)
+    private String clusterId;
 
     public String getName() {
         return name;
@@ -55,14 +46,6 @@ public class ServiceEntryDto implements Serializable {
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public String getIp() {
-        return ip;
-    }
-
-    public void setIp(String ip) {
-        this.ip = ip;
     }
 
     public String getNamespace() {
@@ -97,46 +80,6 @@ public class ServiceEntryDto implements Serializable {
         this.targetPort = targetPort;
     }
 
-    public String getProtocol() {
-        return protocol;
-    }
-
-    public void setProtocol(String protocol) {
-        this.protocol = protocol;
-    }
-
-    public String getPort() {
-        return port;
-    }
-
-    public void setPort(String port) {
-        this.port = port;
-    }
-
-    public String getTenantId() {
-        return tenantId;
-    }
-
-    public void setTenantId(String tenantId) {
-        this.tenantId = tenantId;
-    }
-
-    public String getProjectId() {
-        return projectId;
-    }
-
-    public void setProjectId(String projectId) {
-        this.projectId = projectId;
-    }
-
-    public String getClusterId() {
-        return clusterId;
-    }
-
-    public void setClusterId(String clusterId) {
-        this.clusterId = clusterId;
-    }
-
     public String getHosts() {
         return hosts;
     }
@@ -162,11 +105,11 @@ public class ServiceEntryDto implements Serializable {
     }
 
     public Integer getServiceEntryType() {
-        return ServiceEntryType;
+        return serviceEntryType;
     }
 
     public void setServiceEntryType(Integer serviceEntryType) {
-        ServiceEntryType = serviceEntryType;
+        this.serviceEntryType = serviceEntryType;
     }
 
     public String getNamespaceName() {
@@ -175,5 +118,21 @@ public class ServiceEntryDto implements Serializable {
 
     public void setNamespaceName(String namespaceName) {
         this.namespaceName = namespaceName;
+    }
+
+    public String getClusterId() {
+        return clusterId;
+    }
+
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
+    }
+
+    public List<ServiceEntryPortDto> getPortList() {
+        return portList;
+    }
+
+    public void setPortList(List<ServiceEntryPortDto> portList) {
+        this.portList = portList;
     }
 }

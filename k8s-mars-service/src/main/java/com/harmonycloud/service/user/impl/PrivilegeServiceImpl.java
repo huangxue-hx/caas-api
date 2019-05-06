@@ -23,7 +23,6 @@ import java.util.Objects;
  * Created by zgl on 2017/8/10.
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class PrivilegeServiceImpl implements PrivilegeService {
 
     @Autowired

@@ -13,18 +13,18 @@ import com.harmonycloud.dao.application.bean.ConfigFile;
 import com.harmonycloud.dao.application.bean.ConfigFileItem;
 import com.harmonycloud.dao.application.bean.ConfigService;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
+import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dto.application.*;
 import com.harmonycloud.dto.config.ConfigDetailDto;
 import com.harmonycloud.dto.dataprivilege.DataPrivilegeDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.service.ConfigmapService;
 import com.harmonycloud.k8s.service.DaemonSetService;
 import com.harmonycloud.k8s.service.ReplicasetsService;
-import com.harmonycloud.k8s.service.StatefulSetService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
-import com.harmonycloud.service.application.DaemonSetsService;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.StatefulSetsService;
 import com.harmonycloud.service.application.VersionControlService;
@@ -36,7 +36,9 @@ import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.platform.service.ConfigCenterService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
+import com.harmonycloud.service.util.BizUtil;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang3.StringUtils;
@@ -49,12 +51,14 @@ import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
 import javax.servlet.http.HttpSession;
-import java.text.Annotation;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.harmonycloud.common.Constant.CommonConstant.KUBE_SYSTEM;
+import static com.harmonycloud.common.util.UUIDUtil.UUID_LENGTH_16;
+import static com.harmonycloud.common.util.UUIDUtil.UUID_LENGTH_36;
+import static com.harmonycloud.service.platform.constant.Constant.DEPLOYMENT;
 import static com.harmonycloud.service.platform.convert.K8sResultConvert.TAG_LENGTH;
 import static com.harmonycloud.service.platform.convert.K8sResultConvert.TAG_PATTERN;
 
@@ -62,7 +66,6 @@ import static com.harmonycloud.service.platform.convert.K8sResultConvert.TAG_PAT
  * Created by gurongyun on 17/03/24. configcenter serviceImpl
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class ConfigCenterServiceImpl implements ConfigCenterService {
 
     private static final Logger logger = LoggerFactory.getLogger(ConfigCenterServiceImpl.class);
@@ -94,7 +97,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     private HttpSession session;
 
     @Autowired
-    private DaemonSetsService daemonSetsService;
+    private RoleLocalService roleLocalService;
 
     @Autowired
     private DaemonSetService daemonSetService;
@@ -121,12 +124,20 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
      * @return ActionReturnUtil
      * @author gurongyun
      */
+    @Transactional
     @Override
     public ActionReturnUtil saveConfig(ConfigDetailDto configDetail, String userName) throws Exception {
         Assert.notNull(configDetail);
         double tags = Constant.TEMPLATE_TAG;
+        String projectId;
+        if(configDetail.getAppStore()){
+            configDetail.setClusterId(null);
+            projectId = null;
+        }else{
+            projectId = configDetail.getProjectId();
+        }
         // 检查数据库有没有存在
-        List<ConfigFile> list = configFileMapper.listConfigByName(configDetail.getName(), configDetail.getProjectId(), configDetail.getClusterId(), null);
+        List<ConfigFile> list = configFileMapper.listConfigByName(configDetail.getName(), projectId, configDetail.getClusterId(), null);
         if (Objects.nonNull(configDetail.getIsCreate()) && Boolean.valueOf(configDetail.getIsCreate())) {
             if (!CollectionUtils.isEmpty(list)) {
                 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CONFIGMAP_NAME_DUPLICATE);
@@ -146,19 +157,30 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         }else {
             configFile.setCreateTime(list.get(0).getCreateTime());//创建配置时，添加创建时间字段
         }
-
-        if (!"".equals(configFile.getClusterId()) && configFile.getClusterId().length() > 0) {
+        if(StringUtils.isEmpty(configFile.getClusterId())){
+            configFile.setClusterId(null);
+            configFile.setClusterName(null);
+        }else {
             configFile.setClusterName(clusterService.findClusterById(configFile.getClusterId()).getName());
         }
-        dataPrivilegeService.addResource(configDetail, null, null);
+        if(!configDetail.getAppStore() && (configDetail.getIsCreate() == null || Boolean.valueOf(configDetail.getIsCreate()))) {
+            dataPrivilegeService.addResource(configDetail, null, null);
+        }
         return saveConfig(configFile);
     }
 
+    @Transactional
     @Override
     public ActionReturnUtil saveConfig(ConfigFile configFile) throws Exception {
         Assert.notNull(configFile);
-        ConfigFile existFile = this.getConfigByNameAndTag(configFile.getName(),
-                configFile.getTags(),configFile.getProjectId(),configFile.getClusterId());
+        ConfigFile existFile;
+        if(configFile.getAppStore()){
+            existFile = this.getConfigByNameAndTag(configFile.getName(),
+                    configFile.getTags(), null, null);
+        }else {
+            existFile = this.getConfigByNameAndTag(configFile.getName(),
+                    configFile.getTags(), configFile.getProjectId(), configFile.getClusterId());
+        }
         if(existFile != null){
             return ActionReturnUtil.returnErrorWithData(DictEnum.CONFIG_MAP.phrase(),ErrorCodeMessage.EXIST);
         }
@@ -191,6 +213,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
      * @return ActionReturnUtil
      * @author gurongyun
      */
+    @Transactional
     @Override
     public ActionReturnUtil updateConfig(ConfigDetailDto configDetail, String userName) throws Exception {
 
@@ -217,16 +240,30 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
      *
      * @param id        required
      * @param projectId required
+     * @param isAppStore
      * @return ActionReturnUtil
      * @author gurongyun
      */
     @Override
-    public void deleteConfig(String id, String projectId) throws Exception {
+    public void deleteConfig(String id, String projectId, boolean isAppStore) throws Exception {
         Assert.hasText(id);
         Assert.hasText(projectId);
-        //删除配置信息
-        configFileMapper.deleteConfig(id, projectId);
 
+        //删除配置信息
+        if(isAppStore){
+            configFileMapper.deleteConfig(id, null);
+        }else {
+            ConfigFile config = configFileMapper.getConfig(id);
+            configFileMapper.deleteConfig(id, projectId);
+            List<ConfigFile> configList = configFileMapper.listConfigByName(config.getName(), config.getProjectId(), config.getClusterId(), null);
+            if(CollectionUtils.isEmpty(configList)){
+                ConfigDetailDto configDetail = new ConfigDetailDto();
+                configDetail.setName(config.getName());
+                configDetail.setProjectId(config.getProjectId());
+                configDetail.setClusterId(config.getClusterId());
+                dataPrivilegeService.deleteResource(configDetail);
+            }
+        }
     }
 
     /**
@@ -236,7 +273,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
      * @author gurongyun
      */
     @Override
-    public ActionReturnUtil searchConfig(String projectId, String clusterId, String repoName, String keyword) throws Exception {
+    public ActionReturnUtil searchConfig(String projectId, String clusterId, String repoName, String keyword, boolean isAppStore) throws Exception {
         JSONArray array = new JSONArray();
         Set<String> clusterIds = null;
         Map<String, Cluster> userCluster = userService.getCurrentUserCluster();
@@ -248,7 +285,16 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
             clusterIds = new HashSet<>();
             clusterIds.add(clusterId);
         }
-        List<ConfigFile> list = configFileMapper.listConfigSearch(projectId, clusterIds, repoName, keyword, Boolean.TRUE);
+        List<ConfigFile> list = new ArrayList<>();
+        if(StringUtils.isNotBlank(clusterId) || (StringUtils.isBlank(clusterId) && !isAppStore)) {
+            list = configFileMapper.listConfigSearch(projectId, clusterIds, repoName, keyword, Boolean.TRUE);
+        }
+        if(isAppStore || (StringUtils.isBlank(clusterId) && userService.checkCurrentUserIsAdmin())){
+            List<ConfigFile> appStoreConfigList = configFileMapper.listConfigSearch(null, null, repoName, keyword, Boolean.TRUE);
+            if(!CollectionUtils.isEmpty(appStoreConfigList)){
+                list.addAll(appStoreConfigList);
+            }
+        }
         if (CollectionUtils.isEmpty(list)) {
             return ActionReturnUtil.returnSuccessWithData(new HashMap<>().values());
         } else {
@@ -268,7 +314,12 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     public Map<String, ConfigFile> getConfigFileMap(List<ConfigFile> list) {
         Map<String, ConfigFile> configFileMap = new HashMap<>();
         for (ConfigFile configFile : list) {
-            String key = configFile.getName() + configFile.getProjectId() + configFile.getClusterId();
+            String key;
+            if(StringUtils.isNotEmpty(configFile.getClusterId())) {
+                key = configFile.getName() + configFile.getProjectId() + configFile.getClusterId();
+            }else{
+                key = configFile.getName();
+            }
             ConfigFile configFileValue = configFileMap.get(key);
             if (configFileValue == null) {
                 configFileMap.put(key, configFile);
@@ -295,6 +346,12 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         Map<String, Cluster> userCluster = userService.getCurrentUserCluster();
         // 查询同一repo下的所有配置文件
         List<ConfigFile> lists = configFileMapper.listConfigOverview(projectId, repoName, userCluster.keySet());
+        if(userService.checkCurrentUserIsAdmin()){
+            List<ConfigFile> appStoreConfigList = configFileMapper.listConfigOverview(null, repoName, null);
+            if(!CollectionUtils.isEmpty(appStoreConfigList)){
+                lists.addAll(appStoreConfigList);
+            }
+        }
         if (CollectionUtils.isEmpty(lists)) {
             return ActionReturnUtil.returnSuccessWithData(new HashMap<>().values());
         } else {
@@ -317,6 +374,9 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     public ConfigDetailDto getConfigMap(String configMapId) throws Exception {
         // 查找配置文件
         ConfigFile configFile = configFileMapper.getConfig(configMapId);
+        if(configFile == null){
+            throw new MarsRuntimeException(ErrorCodeMessage.CONFIGMAP_NOT_EXIST);
+        }
         List<ConfigFileItem> configFileItemList = configFileItemMapper.getConfigFileItem(configMapId);
         configFile.setConfigFileItemList(configFileItemList);
         ConfigDetailDto configDetailDto = ObjConverter.convert(configFile, ConfigDetailDto.class);
@@ -333,8 +393,11 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     @Override
     public ActionReturnUtil getConfigMapWithService(String configMapId) throws Exception {
         ConfigDetailDto configDetailDto = this.getConfigMap(configMapId);
-        List<Deployment> deploymentList = getServiceList(configDetailDto.getProjectId(), configDetailDto.getTenantId(), configMapId);
-        configDetailDto.setDeploymentList(deploymentList);
+        if(StringUtils.isEmpty(configDetailDto.getClusterId())){
+            configDetailDto.setAppStore(true);
+        }else{
+            configDetailDto.setAppStore(false);
+        }
         return ActionReturnUtil.returnSuccessWithData(configDetailDto);
     }
 
@@ -345,19 +408,23 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
      * @return ActionReturnUtil
      * @author gurongyun
      */
+    @Transactional
     @Override
-    public ActionReturnUtil deleteConfigMap(String name, String projectId, String clusterId) throws Exception {
+    public ActionReturnUtil deleteConfigMap(String name, String projectId, String clusterId, boolean isAppStore) throws Exception {
         Assert.hasText(name);
         Assert.hasText(projectId);
-        Assert.hasText(clusterId);
-        configFileMapper.deleteConfigByName(name, projectId, clusterId);
+        if(isAppStore){
+            configFileMapper.deleteConfigByName(name, null, null);
+        }else{
+            configFileMapper.deleteConfigByName(name, projectId, clusterId);
+            //删除数据权限
+            ConfigDetailDto configDetail = new ConfigDetailDto();
+            configDetail.setName(name);
+            configDetail.setProjectId(projectId);
+            configDetail.setClusterId(clusterId);
+            dataPrivilegeService.deleteResource(configDetail);
+        }
 
-        //删除数据权限
-        ConfigDetailDto configDetail = new ConfigDetailDto();
-        configDetail.setName(name);
-        configDetail.setProjectId(projectId);
-        configDetail.setClusterId(clusterId);
-        dataPrivilegeService.deleteResource(configDetail);
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -390,9 +457,14 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
      * @throws Exception
      */
     @Override
-    public ActionReturnUtil getLatestConfigMap(String name, String projectId, String repoName,String clusterId,String tags) throws Exception {
+    public ActionReturnUtil getLatestConfigMap(String name, String projectId, String repoName,String clusterId,String tags, boolean isAppStore) throws Exception {
+        ConfigFile latestConfig;
+        if(isAppStore){
+            latestConfig = configFileMapper.getLatestConfig(name, null, repoName,null,tags);
+        }else{
+            latestConfig = configFileMapper.getLatestConfig(name, projectId, repoName,clusterId,tags);
+        }
 
-        ConfigFile latestConfig = configFileMapper.getLatestConfig(name, projectId, repoName,clusterId,tags);
         if(latestConfig == null){
             return ActionReturnUtil.returnErrorWithData(DictEnum.CONFIG_MAP.phrase(), ErrorCodeMessage.NOT_FOUND);
         }
@@ -400,14 +472,16 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         latestConfig.setConfigFileItemList(configFileItemList);
         ConfigDetailDto configDetailDto = ObjConverter.convert(latestConfig, ConfigDetailDto.class);
 
-        List<Deployment> serviceList = getServiceList(configDetailDto.getProjectId(), configDetailDto.getTenantId(), configDetailDto.getId());
-        configDetailDto.setDeploymentList(serviceList);
+        if(StringUtils.isNotEmpty(configDetailDto.getClusterId())) {
+            Cluster cluster = clusterService.findClusterById(clusterId);
+            String clusterName = cluster.getName();
+            configDetailDto.setClusterName(clusterName);
 
-        Cluster cluster = clusterService.findClusterById(clusterId);
-        String clusterName = cluster.getName();
-        configDetailDto.setClusterName(clusterName);
-
-        configDetailDto.setClusterAliasName(cluster.getAliasName());
+            configDetailDto.setClusterAliasName(cluster.getAliasName());
+            configDetailDto.setAppStore(false);
+        }else{
+            configDetailDto.setAppStore(true);
+        }
         return ActionReturnUtil.returnSuccessWithData(configDetailDto);
     }
 
@@ -462,34 +536,52 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     }
 
     @Override
-    public ActionReturnUtil getConfigMapByName(String name, String clusterId, String projectId, boolean isFilter) throws Exception  {
-        List<ConfigFile> configFileList =  configFileMapper.getConfigMapByName(name,clusterId,projectId);
-        for(ConfigFile configFile : configFileList){
-            Cluster cluster = clusterService.findClusterById(configFile.getClusterId());
-            configFile.setClusterAliasName(cluster.getAliasName());
+    public ActionReturnUtil getConfigMapByName(String name, String clusterId, String projectId, boolean isAppStore, boolean isFilter) throws Exception  {
+        List<ConfigFile> configFileList;
+        if(isAppStore){
+            configFileList =  configFileMapper.getConfigMapByName(name,null,null);
+        }else{
+            configFileList =  configFileMapper.getConfigMapByName(name,clusterId,projectId);
         }
-        if(isFilter) {
-            Map map = new HashMap();
-            map.put(CONFIGLIST_DATA, configFileList);
+        for(ConfigFile configFile : configFileList){
+            if(StringUtils.isNotEmpty(configFile.getClusterId())) {
+                Cluster cluster = clusterService.findClusterById(configFile.getClusterId());
+                configFile.setClusterAliasName(cluster.getAliasName());
+                configFile.setAppStore(false);
+            }else {
+                configFile.setAppStore(true);
+            }
+            List<ConfigFileItem> configFileItemList = configFileItemMapper.getConfigFileItem(configFile.getId());
+            configFile.setConfigFileItemList(configFileItemList);
+            User user = userService.getUser(configFile.getUser());
+            if (user != null) {
+                configFile.setUserRealName(user.getRealName());
+            } else {
+                configFile.setUserRealName(configFile.getUser());
+            }
+        }
+        Map map = new HashMap();
+        map.put(CONFIGLIST_DATA, configFileList);
+        if(isFilter && !isAppStore) {
             DataPrivilegeDto dataPrivilegeDto = new DataPrivilegeDto();
             dataPrivilegeDto.setData(name);
             dataPrivilegeDto.setDataResourceType(DataResourceTypeEnum.CONFIGFILE.getCode());
             dataPrivilegeDto.setClusterId(clusterId);
             dataPrivilegeDto.setProjectId(projectId);
             dataPrivilegeHelper.filterMap(map, dataPrivilegeDto);
-            return ActionReturnUtil.returnSuccessWithData(map);
         }else {
-            return ActionReturnUtil.returnSuccessWithData(configFileList);
+            map.put(DataPrivilegeHelper.DATA_PRIVILEGE, DataPrivilegeHelper.READWRITE);
         }
+        return ActionReturnUtil.returnSuccessWithData(map);
     }
 
     @Override
-    public  List<Deployment> getServiceList(String projectId, String tenantId, String configMapId) throws Exception {
+    public  List<Deployment> getServiceList(String projectId, String tenantId, String clusterId, String configMapId) throws Exception {
         AssertUtil.notBlank(projectId, DictEnum.PROJECT);
         AssertUtil.notBlank(tenantId,DictEnum.TENANT_ID);
         AssertUtil.notBlank(configMapId,DictEnum.CONFIG_MAP_ID);
 
-        List<NamespaceLocal> namespaceListByTenantId = namespaceLocalService.getNamespaceListByTenantId(tenantId);
+        List<NamespaceLocal> namespaceListByTenantId = namespaceLocalService.getSimpleNamespaceListByTenantId(tenantId, clusterId);
         List<Deployment> deploymentsList = new ArrayList<>();
         for (NamespaceLocal namespaceLocal : namespaceListByTenantId) {
             String namespace = namespaceLocal.getNamespaceName();
@@ -543,6 +635,116 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         return deploymentsList;
     }
 
+    @Override
+    public void cleanHistoryConfigMap() throws Exception {
+        List<Cluster> clusters = clusterService.listCluster();
+        for (Cluster cluster : clusters) {
+            List<NamespaceLocal> namespaceLocals = namespaceLocalService.getNamespaceListByClusterId(cluster.getId());
+            if (CollectionUtils.isEmpty(namespaceLocals)) {
+                continue;
+            }
+            for (NamespaceLocal namespaceLocal : namespaceLocals) {
+                try {
+                    //获取分区下的所有配置文件名称
+                    List<String> configMapNames = this.getConfigMapNames(namespaceLocal.getNamespaceName(), cluster);
+                    if (CollectionUtils.isEmpty(configMapNames)) {
+                        continue;
+                    }
+                    Set<String> usingConfigMapNames = new HashSet<>();
+                    Set<String> appContainerNames = new HashSet<>();
+                    //获取分区下的所有rs，以及rs使用的配置文件
+                    K8SClientResponse rsResponse = replicasetsService.doRsByNamespace(namespaceLocal.getNamespaceName(), null, null, HTTPMethod.GET, cluster);
+                    if (!HttpStatusUtil.isSuccessStatus(rsResponse.getStatus())) {
+                        logger.error("获取rs报错，{}", rsResponse.getBody());
+                        continue;
+                    }
+                    ReplicaSetList rsList = K8SClient.converToBean(rsResponse, ReplicaSetList.class);
+                    List<ReplicaSet> replicaSets = rsList.getItems();
+                    for (ReplicaSet replicaSet : replicaSets) {
+                        List<Volume> volumes = replicaSet.getSpec().getTemplate().getSpec().getVolumes();
+                        //获取rs使用的配置文件
+                        usingConfigMapNames.addAll(this.getUsingConfigMapNames(volumes));
+                        //获取rs对应的deployment名称
+                        if (CollectionUtils.isEmpty(replicaSet.getMetadata().getOwnerReferences())
+                                || !DEPLOYMENT.equalsIgnoreCase(replicaSet.getMetadata().getOwnerReferences().get(0).getKind())) {
+                            logger.error("rs对应的OwnerReferences不存在或不是Deployment，replicaSet:{}",
+                                    com.alibaba.fastjson.JSONObject.toJSONString(replicaSet));
+                            continue;
+                        }
+                        String deployName = replicaSet.getMetadata().getOwnerReferences().get(0).getName();
+                        List<Container> containers = replicaSet.getSpec().getTemplate().getSpec().getContainers();
+                        for (Container container : containers) {
+                            appContainerNames.add(deployName + container.getName());
+                        }
+                    }
+                    for (String configMapName : configMapNames) {
+                        //配置文件被服务使用，不清理
+                        if (usingConfigMapNames.contains(configMapName)) {
+                            continue;
+                        }
+                        //配置文件除去后16位uuid后为服务名+容器名的情况才会清理
+                        if (configMapName.length() > UUID_LENGTH_16) {
+                            String name = configMapName.substring(0, configMapName.length() - UUID_LENGTH_16);
+                            //只清理配置文件名称为服务名+容器名+uuid组成的文件,如果不是这种格式的不清理
+                            if (!appContainerNames.contains(name)) {
+                                //兼容以前配置文件名称使用36位的uuid
+                                if (configMapName.length() > UUID_LENGTH_36) {
+                                    name = configMapName.substring(0, configMapName.length() - UUID_LENGTH_36);
+                                    if (!appContainerNames.contains(name)) {
+                                        continue;
+                                    }
+                                } else {
+                                    continue;
+                                }
+                            }
+                            logger.info("清理配置文件，clusterId:{},namespace:{}, name:{}", cluster.getId(),
+                                    namespaceLocal.getNamespaceName(), configMapName);
+                            configmapService.delete( namespaceLocal.getNamespaceName(), configMapName, cluster);
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.error("清理配置文件异常，namespace:{}", namespaceLocal.getNamespaceName(), e);
+                }
+
+
+            }
+        }
+    }
+
+    /**
+     * 查询某个分区下的所有configmap名称
+     */
+    private List<String> getConfigMapNames(String namespace, Cluster cluster) throws Exception {
+        K8SClientResponse configmapRes = configmapService.doSepcifyConfigmap(namespace, null, null, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(configmapRes.getStatus()) || configmapRes.getBody() == null) {
+            logger.error("查询配置文件失败, namespace:{},res:{}",namespace,
+                    com.alibaba.fastjson.JSONObject.toJSONString(configmapRes));
+        }
+        ConfigMapList cmlist= JsonUtil.jsonToPojo(configmapRes.getBody(), ConfigMapList.class);
+        if (cmlist == null || CollectionUtils.isEmpty(cmlist.getItems())) {
+            return Collections.emptyList();
+        }
+        List<ConfigMap> configMaps = cmlist.getItems();
+        List<String> configMapList = new ArrayList<>();
+        for (ConfigMap config : configMaps) {
+            configMapList.add(config.getMetadata().getName());
+        }
+        return configMapList;
+    }
+
+    private Set<String> getUsingConfigMapNames(List<Volume> volumes) {
+        if (CollectionUtils.isEmpty(volumes)) {
+            return Collections.emptySet();
+        }
+        Set<String> configMapNames = new HashSet<>();
+        for (Volume volume : volumes) {
+            if (volume.getConfigMap() != null) {
+                configMapNames.add(volume.getConfigMap().getName());
+            }
+        }
+        return configMapNames;
+    }
+
     public  List<DaemonSet> getDaemonSetList(String configMapId,String clusterId) throws Exception {
         AssertUtil.notBlank(configMapId,DictEnum.CONFIG_MAP_ID);
         List<DaemonSet> daemonSetList = new ArrayList<>();
@@ -563,22 +765,40 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         return daemonSetList;
     }
 
-    private List<StatefulSet> getStatefulSet(String projectId, String tenantId, String configMapId) throws Exception{
-        AssertUtil.notBlank(projectId, DictEnum.PROJECT);
-        AssertUtil.notBlank(tenantId,DictEnum.TENANT_ID);
+    private List<StatefulSet> getStatefulSet(String projectId, String tenantId, String clusterId, String configMapId, boolean isAppStore) throws Exception{
+        if(!isAppStore) {
+            AssertUtil.notBlank(projectId, DictEnum.PROJECT);
+            AssertUtil.notBlank(tenantId, DictEnum.TENANT_ID);
+        }
         AssertUtil.notBlank(configMapId,DictEnum.CONFIG_MAP_ID);
 
-        List<NamespaceLocal> namespaceListByTenantId = namespaceLocalService.getNamespaceListByTenantId(tenantId);
         List<StatefulSet> statefulSets = new ArrayList<>();
-        for (NamespaceLocal namespaceLocal : namespaceListByTenantId) {
-            String namespace = namespaceLocal.getNamespaceName();
-            StatefulSetList statefulSetList = statefulSetsService.listStatefulSets(namespace, projectId);
-            if (!CollectionUtils.isEmpty(statefulSetList.getItems())) {
-                for (StatefulSet statefulSet : statefulSetList.getItems()) {
-                    List<Volume> volumes = statefulSet.getSpec().getTemplate().getSpec().getVolumes();
-                    boolean isUsingConfigMap = this.isUsingConfigMap(configMapId, volumes);
-                    if(isUsingConfigMap){
-                        statefulSets.add(statefulSet);
+        if(isAppStore){
+            List<Cluster> clusterList = roleLocalService.listCurrentUserRoleCluster();
+            for(Cluster cluster : clusterList){
+                StatefulSetList statefulSetList = statefulSetsService.listStatefulSets(null, null, cluster);
+                if (!CollectionUtils.isEmpty(statefulSetList.getItems())) {
+                    for (StatefulSet statefulSet : statefulSetList.getItems()) {
+                        List<Volume> volumes = statefulSet.getSpec().getTemplate().getSpec().getVolumes();
+                        boolean isUsingConfigMap = this.isUsingConfigMap(configMapId, volumes);
+                        if(isUsingConfigMap){
+                            statefulSets.add(statefulSet);
+                        }
+                    }
+                }
+            }
+        }else {
+            List<NamespaceLocal> namespaceListByTenantId = namespaceLocalService.getSimpleNamespaceListByTenantId(tenantId, clusterId);
+            for (NamespaceLocal namespaceLocal : namespaceListByTenantId) {
+                String namespace = namespaceLocal.getNamespaceName();
+                StatefulSetList statefulSetList = statefulSetsService.listStatefulSets(namespace, projectId);
+                if (!CollectionUtils.isEmpty(statefulSetList.getItems())) {
+                    for (StatefulSet statefulSet : statefulSetList.getItems()) {
+                        List<Volume> volumes = statefulSet.getSpec().getTemplate().getSpec().getVolumes();
+                        boolean isUsingConfigMap = this.isUsingConfigMap(configMapId, volumes);
+                        if (isUsingConfigMap) {
+                            statefulSets.add(statefulSet);
+                        }
                     }
                 }
             }
@@ -606,69 +826,92 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         return false;
     }
 
-    private  List<Deployment> getDeploymentByRs(String projectId, String tenantId, String configMapId) throws Exception {
-        AssertUtil.notBlank(projectId, DictEnum.PROJECT);
-        AssertUtil.notBlank(tenantId,DictEnum.TENANT_ID);
+    private  List<Deployment> getDeploymentByRs(String projectId, String tenantId, String clusterId, String configMapId, boolean isAppStore) throws Exception {
+        if(!isAppStore) {
+            AssertUtil.notBlank(projectId, DictEnum.PROJECT);
+            AssertUtil.notBlank(tenantId, DictEnum.TENANT_ID);
+        }
         AssertUtil.notBlank(configMapId,DictEnum.CONFIG_MAP_ID);
-
-        List<NamespaceLocal> namespaceListByTenantId = namespaceLocalService.getNamespaceListByTenantId(tenantId);
         List<Deployment> deploymentsList = new ArrayList<>();
-        for (NamespaceLocal namespaceLocal : namespaceListByTenantId) {
-            String namespace = namespaceLocal.getNamespaceName();
-            Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
-            List<String> serviceList = new ArrayList<>();
-            Map bodys = new HashMap();
-            bodys.put(CommonConstant.LABELSELECTOR, Constant.NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId);
-            K8SClientResponse rsRes = replicasetsService.doRsByNamespace(namespace, null, bodys, null, HTTPMethod.GET, cluster);
-            if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus())) {
-                logger.error("获取rs失败", rsRes.getBody());
-                return Collections.emptyList();
-            }
-            ReplicaSetList replicaSetList = JsonUtil.jsonToPojo(rsRes.getBody(), ReplicaSetList.class);
-            if (!CollectionUtils.isEmpty(replicaSetList.getItems())) {
-                List<ReplicaSet> replicaSets = replicaSetList.getItems();
-                //判断实例数大于0的rs中是否含有配置文件
-                for (ReplicaSet replicaSet : replicaSets) {
-                    String serviceName = null;
-                    if(replicaSet.getMetadata().getLabels() != null && replicaSet.getMetadata().getLabels().get(CommonConstant.LABEL_KEY_APP) != null){
-                        serviceName = replicaSet.getMetadata().getLabels().get(CommonConstant.LABEL_KEY_APP).toString();
-                    }
-                    if(replicaSet.getSpec().getReplicas() == 0 || serviceList.contains(serviceName)){
-                        continue;
-                    }
-                    Map<String, Object> annotations = replicaSet.getMetadata().getAnnotations();
-                    List<Container> containers = replicaSet.getSpec().getTemplate().getSpec().getContainers();
-                    List<Volume> volumes = replicaSet.getSpec().getTemplate().getSpec().getVolumes();
-                    if (CollectionUtils.isEmpty(volumes)) {
-                        continue;
-                    }
-                    if(existConfig(volumes, containers, annotations, configMapId)){
-                        serviceList.add(serviceName);
-                    }
+        if(isAppStore){
+            List<Cluster> clusterList = roleLocalService.listCurrentUserRoleCluster();
+            for(Cluster cluster : clusterList) {
+                K8SClientResponse rsRes = replicasetsService.doRsByNamespace(null, null, null, null, HTTPMethod.GET, cluster);
+                if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus())) {
+                    logger.error("获取rs失败", rsRes.getBody());
+                    continue;
                 }
-                //根据通过rs获取到的服务，其余的deployment再检验是否包含相应配置文件
-                DeploymentList deploymentList = deploymentsService.listDeployments(namespace, projectId);
-                if (!CollectionUtils.isEmpty(deploymentList.getItems())) {
-                    List<Deployment> deployments = deploymentList.getItems();
-                    for (Deployment deployment : deployments) {
-                        if(serviceList.contains(deployment.getMetadata().getName())){
+                List<String> serviceList = new ArrayList<>();
+                ReplicaSetList replicaSetList = JsonUtil.jsonToPojo(rsRes.getBody(), ReplicaSetList.class);
+                deploymentsList.addAll(this.getDeployment(replicaSetList, configMapId, cluster, null));
+            }
+        }else {
+            List<NamespaceLocal> namespaceListByTenantId = namespaceLocalService.getSimpleNamespaceListByTenantId(tenantId, clusterId);
+            for (NamespaceLocal namespaceLocal : namespaceListByTenantId) {
+                String namespace = namespaceLocal.getNamespaceName();
+                Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+                List<String> serviceList = new ArrayList<>();
+                Map bodys = new HashMap();
+                bodys.put(CommonConstant.LABELSELECTOR, Constant.NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId);
+                K8SClientResponse rsRes = replicasetsService.doRsByNamespace(namespace, null, bodys, null, HTTPMethod.GET, cluster);
+                if (!HttpStatusUtil.isSuccessStatus(rsRes.getStatus())) {
+                    logger.error("获取rs失败", rsRes.getBody());
+                    continue;
+                }
+                ReplicaSetList replicaSetList = JsonUtil.jsonToPojo(rsRes.getBody(), ReplicaSetList.class);
+                deploymentsList.addAll(this.getDeployment(replicaSetList, configMapId, cluster, namespace));
+            }
+        }
+        return deploymentsList;
+    }
+
+    private List<Deployment> getDeployment(ReplicaSetList replicaSetList, String configMapId, Cluster cluster, String namespace) throws Exception {
+        List<String> serviceList = new ArrayList<>();
+        List<Deployment> deploymentsList = new ArrayList<>();
+        if (!CollectionUtils.isEmpty(replicaSetList.getItems())) {
+            List<ReplicaSet> replicaSets = replicaSetList.getItems();
+            //判断实例数大于0的rs中是否含有配置文件
+            for (ReplicaSet replicaSet : replicaSets) {
+                String serviceName = null;
+                String rsNamespace = replicaSet.getMetadata().getNamespace();
+                if (replicaSet.getMetadata().getLabels() != null && replicaSet.getMetadata().getLabels().get(CommonConstant.LABEL_KEY_APP) != null) {
+                    serviceName = replicaSet.getMetadata().getLabels().get(CommonConstant.LABEL_KEY_APP).toString();
+                }
+                if (replicaSet.getSpec().getReplicas() == 0 || serviceList.contains(serviceName + CommonConstant.DOT + rsNamespace)) {
+                    continue;
+                }
+                Map<String, Object> annotations = replicaSet.getMetadata().getAnnotations();
+                List<Container> containers = replicaSet.getSpec().getTemplate().getSpec().getContainers();
+                List<Volume> volumes = replicaSet.getSpec().getTemplate().getSpec().getVolumes();
+                if (CollectionUtils.isEmpty(volumes)) {
+                    continue;
+                }
+                if (existConfig(volumes, containers, annotations, configMapId)) {
+                    serviceList.add(serviceName + CommonConstant.DOT + rsNamespace);
+                }
+            }
+            //根据通过rs获取到的服务，其余的deployment再检验是否包含相应配置文件
+            DeploymentList deploymentList = deploymentsService.getDeployments(namespace, null,  cluster);
+            if (!CollectionUtils.isEmpty(deploymentList.getItems())) {
+                List<Deployment> deployments = deploymentList.getItems();
+                for (Deployment deployment : deployments) {
+                    String depNamespace = deployment.getMetadata().getNamespace();
+                    if (serviceList.contains(deployment.getMetadata().getName() + CommonConstant.DOT + depNamespace)) {
+                        deploymentsList.add(deployment);
+                    } else {
+                        Map<String, Object> annotations = deployment.getMetadata().getAnnotations();
+                        List<Container> containers = deployment.getSpec().getTemplate().getSpec().getContainers();
+                        List<Volume> volumes = deployment.getSpec().getTemplate().getSpec().getVolumes();
+                        if (CollectionUtils.isEmpty(volumes)) {
+                            continue;
+                        }
+                        if (existConfig(volumes, containers, annotations, configMapId)) {
                             deploymentsList.add(deployment);
-                        }else{
-                            Map<String, Object> annotations = deployment.getMetadata().getAnnotations();
-                            List<Container> containers = deployment.getSpec().getTemplate().getSpec().getContainers();
-                            List<Volume> volumes = deployment.getSpec().getTemplate().getSpec().getVolumes();
-                            if (CollectionUtils.isEmpty(volumes)) {
-                                continue;
-                            }
-                            if(existConfig(volumes, containers, annotations, configMapId)){
-                                deploymentsList.add(deployment);
-                            }
                         }
                     }
                 }
             }
         }
-
         return deploymentsList;
     }
 
@@ -714,7 +957,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         List<Deployment> deploymentList = new LinkedList<Deployment>();
 
         for(String configMapId : configMapIds){
-            List<Deployment> deployments = getServiceList(projectId,tenantId,configMapId);
+            List<Deployment> deployments = getServiceList(projectId,tenantId, clusterId, configMapId);
             for(Deployment deployment : deployments){
                 if(serviceNameList.contains(deployment.getMetadata().getName())){
                     deploymentList.add(deployment);
@@ -788,14 +1031,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
 
             List<CreateEnvDto> envList = new ArrayList<>();
             if (containerOfPodDetail.getEnv() != null) {
-                for (EnvVar envVar : containerOfPodDetail.getEnv()) {
-                    CreateEnvDto createEnvDto = new CreateEnvDto();
-                    createEnvDto.setKey(envVar.getName());
-                    createEnvDto.setName(envVar.getName());
-                    createEnvDto.setValue(envVar.getValue());
-                    envList.add(createEnvDto);
-                }
-                updateContainer.setEnv(envList);
+                updateContainer.setEnv(containerOfPodDetail.getEnv());
             }
             List<CreatePortDto> portList = new ArrayList<>();
             for (ContainerPort containerPort : containerOfPodDetail.getPorts()) {
@@ -927,8 +1163,13 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     }
 
     @Override
-    public ActionReturnUtil getTagsByConfigName(String configName,String clusterId,String projectId) {
-        List<ConfigFile> configFiles = configFileMapper.getConfigMapByName(configName,clusterId,projectId);
+    public ActionReturnUtil getTagsByConfigName(String configName, String clusterId, String projectId, boolean isAppStore) {
+        List<ConfigFile> configFiles;
+        if(isAppStore){
+            configFiles = configFileMapper.getConfigMapByName(configName,null,null);
+        }else{
+            configFiles = configFileMapper.getConfigMapByName(configName,clusterId,projectId);
+        }
         List<String> tags = new LinkedList<String>();
         for(ConfigFile configFile : configFiles){
             tags.add(configFile.getTags());
@@ -937,9 +1178,14 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
     }
 
     @Override
-    public ActionReturnUtil  getAllServiceByConfigName(String configName,String clusterId,String projectId,String tenantId) throws Exception{
+    public ActionReturnUtil  getAllServiceByConfigName(String configName, String clusterId, String projectId, String tenantId, boolean isAppStore) throws Exception{
         //根据configName获取所有configMapId
-        List<ConfigFile> configFiles = configFileMapper.getConfigMapByName(configName,clusterId,projectId);
+        List<ConfigFile> configFiles;
+        if(isAppStore){
+            configFiles = configFileMapper.getConfigMapByName(configName,null,null);
+        }else{
+            configFiles = configFileMapper.getConfigMapByName(configName,clusterId,projectId);
+        }
         if(CollectionUtils.isEmpty(configFiles)){
             return ActionReturnUtil.returnSuccess();
         }
@@ -947,9 +1193,14 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         List<ConfigService> configServices = new LinkedList<ConfigService>();
 
         for(String configMapId : configFileMap.keySet()){
-            List<Deployment> deployments = getDeploymentByRs(projectId,tenantId,configMapId);
-            List<DaemonSet> daemonSets = getDaemonSetList(configMapId,clusterId);
-            List<StatefulSet> statefulSets = getStatefulSet(projectId, tenantId, configMapId);
+            List<DaemonSet> daemonSets;
+            if(isAppStore){
+                daemonSets = Collections.emptyList();
+            }else{
+                daemonSets = getDaemonSetList(configMapId,clusterId);
+            }
+            List<Deployment> deployments = getDeploymentByRs(projectId,tenantId, clusterId, configMapId, isAppStore);
+            List<StatefulSet> statefulSets = getStatefulSet(projectId, tenantId, clusterId, configMapId, isAppStore);
 
             for(DaemonSet daemonSet : daemonSets){
                 ConfigService configService = new ConfigService();
@@ -980,12 +1231,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
                 configService.setImage(imageName.substring(firstg+1));
                 configService.setServiceDomainName(deployment.getMetadata().getName()+"."+deployment.getMetadata().getNamespace());
                 configService.setCreateTime(deployment.getMetadata().getCreationTimestamp());
-                String updateTime = deployment.getStatus().getConditions().get(0).getLastUpdateTime();
-                if(updateTime.isEmpty()){
-                    configService.setUpdateTime(deployment.getMetadata().getCreationTimestamp());
-                }else {
-                    configService.setUpdateTime(updateTime);
-                }
+                configService.setUpdateTime(BizUtil.getUpdateTime(deployment.getMetadata()));
                 configService.setConfigName(configName);
                 configService.setProjectId(projectId);
                 configService.setTenantId(tenantId);
@@ -1009,15 +1255,7 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
                 configService.setImage(imageName.substring(firstg+1));
                 configService.setServiceDomainName(statefulSet.getMetadata().getName()+"."+statefulSet.getMetadata().getNamespace());
                 configService.setCreateTime(statefulSet.getMetadata().getCreationTimestamp());
-                String updateTime = null;
-                if(statefulSet.getMetadata().getAnnotations() != null && statefulSet.getMetadata().getAnnotations().get("updateTimestamp") != null){
-                    updateTime = statefulSet.getMetadata().getAnnotations().get("updateTimestamp").toString();
-                }
-                if(StringUtils.isEmpty(updateTime)){
-                    configService.setUpdateTime(statefulSet.getMetadata().getCreationTimestamp());
-                }else {
-                    configService.setUpdateTime(updateTime);
-                }
+                configService.setUpdateTime(BizUtil.getUpdateTime(statefulSet.getMetadata()));
                 configService.setConfigName(configName);
                 configService.setProjectId(projectId);
                 configService.setTenantId(tenantId);
@@ -1052,12 +1290,21 @@ public class ConfigCenterServiceImpl implements ConfigCenterService {
         Iterator<ConfigFile> iterator = configFileList.iterator();
         while(iterator.hasNext()){
             ConfigFile configFile = iterator.next();
-            configFile = dataPrivilegeHelper.filter(configFile);
-            if(configFile == null){
-                iterator.remove();
-                continue;
+            if(StringUtils.isNotEmpty(configFile.getClusterId())) {
+                configFile = dataPrivilegeHelper.filter(configFile);
+                if (configFile == null) {
+                    iterator.remove();
+                    continue;
+                }
+            }else{
+                configFile.setDataPrivilege(DataPrivilegeHelper.READWRITE);
             }
-            configFile.setClusterAliasName(userCluster.get(configFile.getClusterId()).getAliasName());
+            if(StringUtils.isNotEmpty(configFile.getClusterId())) {
+                configFile.setClusterAliasName(userCluster.get(configFile.getClusterId()).getAliasName());
+                configFile.setAppStore(false);
+            }else{
+                configFile.setAppStore(true);
+            }
         }
     }
 }

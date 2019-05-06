@@ -23,7 +23,7 @@ public class ServiceEntrySpec {
 
     private String resolution;
 
-    private List<Map<String,Object>> endpoints;
+    private List<Endpoint> endpoints;
 
     public List<String> getHosts() {
         return hosts;
@@ -65,11 +65,11 @@ public class ServiceEntrySpec {
         this.resolution = resolution;
     }
 
-    public List<Map<String, Object>> getEndpoints() {
+    public List<Endpoint> getEndpoints() {
         return endpoints;
     }
 
-    public void setEndpoints(List<Map<String, Object>> endpoints) {
+    public void setEndpoints(List<Endpoint> endpoints) {
         this.endpoints = endpoints;
     }
 }

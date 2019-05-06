@@ -150,6 +150,9 @@ public class CommonConstant {
     public static final String GB = "GB";
     public static final String TB = "TB";
     public static final String PB = "PB";
+    public static final String GPU = "gpu";
+    public static final String NVIDIA_GPU = "nvidia.com/gpu";
+    public static final String GPU_QUOTA_KEY = "requests.nvidia.com/gpu";
     public static final String RECYCLE = "Recycle";
     public static final String RESULTNAMESPACE = "namespace";
     public static final String BINDING = "binding";
@@ -180,6 +183,7 @@ public class CommonConstant {
     public static final String CLUSTERID = "clusterId";
     public static final String CLUSTERALIASID = "clusterAliasName";
     public static final String CLUSTER_NAME = "clusterName";
+    public static final String DATACENTER_NAME = "dataCenterName";
     public static final String LABELSELECTOR = "labelSelector";
     public static final String PODSELECTOR = "podSelector";
     public static final String NAMESPACES = "namespaces";
@@ -238,8 +242,8 @@ public class CommonConstant {
     public static final String ROLEREF = "roleRef";
     public static final String MASTERNODE = "masterNode";
     public static final String DATANODE = "dataNode";
-    public static final String MASTERNODELABEL = "node-role.kubernetes.io/master";
     public static final String HARMONYCLOUD_TENANTNAME_NS = "HarmonyCloud_TenantName";
+    public static final String HARMONYCLOUD_TENANTNAME = "HarmonyCloud_Tenant";
     public static final String HARMONYCLOUD_TENANT_ID = "HarmonyCloud_TenantId";
 
     //node节点状态
@@ -248,6 +252,7 @@ public class CommonConstant {
     public static final String HARMONYCLOUD_STATUS_LBS = "lb";
     //node节点子状态
     public static final String HARMONYCLOUD_SUBSTATUS = "HarmonyCloud_SubStatus";
+
     //node Condition
     public static final String NODE_CONDITION_READY = "Ready";
     public static final String NODE_CONDITION_OUT_OF_DISK = "OutOfDisk";
@@ -261,14 +266,7 @@ public class CommonConstant {
     //begin节点上线开始状态，done节点上线结束状态
     public static final String BEGIN = "begin";
     public static final String DONE = "done";
-    //A 表示关键组件布置的节点,B 表示闲置状态,C 表示共享状态,D 私有状态，可以供私有分区独占使用,E表示构建节点
-    public static final String LABEL_STATUS_A = "A";//后续修改SYSTEM
-    public static final String LABEL_STATUS_B = "B";//后续修改IDLE
-    public static final String LABEL_STATUS_C = "C";//后续修改SHARE
-    public static final String LABEL_STATUS_D = "D";//后续修改PRIVATE
-    public static final String LABEL_STATUS_E = "E";//后续修改BUILD
-    //F表示负载均衡节点
-    public static final String LABEL_STATUS_F = "nginx";//后续修改LOADBALANCING
+
     public static final String FROM = "from";
     public static final String PAUSE = "pause";
     public static final String NORMAL = "normal";
@@ -444,6 +442,8 @@ public class CommonConstant {
     public static final String MOBILEPHONE = "mobilePhone";
     //用户姓名
     public static final String NICKNAME = "nickName";
+    //数据中心
+    public static final String DATA_CENTER = "datacenter";
     //devops平台推送用户初始密码
     public static final String INITPASSWORD = "Ab123456";
     //模块
@@ -455,6 +455,7 @@ public class CommonConstant {
     public static final String POD_STATUS_PENDING = "Pending";
     public static final String EVENT_TYPE_NORMAL = "Normal";
     public static final String EVENT_TYPE_WARNING = "Warning";
+    public static final String POD_CONDITION_PODSCHEDULED = "PodScheduled";
 
     public static final Integer IS_ADMIN = 1;
     public static final Integer IS_NOT_ADMIN = 0;
@@ -475,20 +476,6 @@ public class CommonConstant {
     public static final short PRIVILEGE_CONDITION_TYPE_CUSTOM = 2;
     public static final int FLAG_TRUE = 1;
     public static final int FLAG_FALSE = 0;
-
-    public static final String MASTER_CN = "主控";
-    public static final String SYSTEM_CN = "系统";
-    public static final String BUILD_CN = "构建";
-    public static final String LBS_CN = "负载均衡";
-    public static final String PRIVATE_CN = "独占";
-    public static final String SYSTEM_AND_LBS_CN = "系统,负载均衡";
-
-    public static final String MASTER_EN = "master";
-    public static final String SYSTEM_EN = "system";
-    public static final String BUILD_EN = "build";
-    public static final String LBS_EN = "slb";
-    public static final String PRIVATE_EN = "private";
-    public static final String SYSTEM_AND_LBS_EN = "system,slb";
 
     //通用规则
     public static final String RULE_ALL = "-1";
@@ -539,6 +526,7 @@ public class CommonConstant {
     public static final long ORIGINAL_DATE_MILL_SECOND = 0L;
     public static final String HARBOR_PROJECT_NAME_MSF = "msf-component";
     public static final String HARBOR_PROJECT_NAME_PLATFORM = "k8s-deploy";
+    public static final String HARBOR_PROJECT_ISTIO_DEPLOY = "istio-deploy";
     //uat角色id
     public static final int UAT_ROLEID = 7;
     //角色状态
@@ -606,8 +594,6 @@ public class CommonConstant {
     public static final String WHITE_LISTS = "whiteLists";
     public static final String WHITE_LISTS_PREFIX = "whitelists-";
     public static final String TIMEOUT_RETRY = "timeoutRetry";
-    public static final String TYPE_TIMEOUT = "timeout";
-    public static final String TYPE_RETRY = "retry";
     public static final String FAULT_INJECTION = "faultInjection";
     public static final String TRAFFIC_SHIFTING = "trafficShifting";
     public static final String RATE_LIMIT_QUOTA = "quota";
@@ -619,19 +605,15 @@ public class CommonConstant {
     public static final String ISTIO_RULE = "rule";
     public static final String ISTIO_VIRTUALSERVICE = "VirtualService";
     public static final String ISTIO_RULE_TYPE = "istioRuleType";
+    public static final String ISTIO_RULE_NAME = "istioRuleName";
     public static final String ISTIO_SERVER_STATUS = "istioStatus";
     public static final int OPEN_GLOBAL_STATUS = 1;
     public static final int CLOSE_GLOBAL_STATUS = 0;
     public static final String OPEN_ISTIO_AUTOMATIC_INJECTION = "enabled";
     public static final String CLOSE_ISTIO_AUTOMATIC_INJECTION = "disabled";
     public static final String ISTIO_INJECTION  =  "istio-injection";
-    public static final String  EXISTS_ISTIO_AUTOMATIC = "集群已有分区开启istio自动注入功能,请关闭分区注入功能后再重试";
-    public static final String  EXISTS_SERVICE = "当前分区有服务，请清空服务后开启istio自动注入";
-    public static final String  ISTIO_GLOBAL_CLOSE = "istio全局开关未开启";
-    public static final int ISTIO_SWITCH_OPEN = 1;
-    public static final int ISTIO_SWITCH_CLOSE = 0;
-    public static final int ISTIO_SWITCH_TIMEOUT_OPEN = 1;
-    public static final int ISTIO_SWITCH_RETRY_OPEN = 2;
+    public static final int ISTIO_POLICY_OPEN = 1;
+    public static final int ISTIO_POLICY_CLOSE = 0;
     public static final int DATA_IS_OK = 0;//策略数据状态正常
     public static final int DATA_IS_ERROR = 1;//策略数据异常（灰度后VirtualService版本与DestinationRule版本不一致）
     public static final int K8S_NO_DATA = 11;
@@ -658,16 +640,45 @@ public class CommonConstant {
     public static final int RATE_LIMIT_RULE_ORDER = 5;
     public static final String RATE_LIMIT_ALGORITHM_ROLLING_WINDOW = "ROLLING_WINDOW";
     public static final String RATE_LIMIT_ALGORITHM_FIXED_WINDOW = "FIXED_WINDOW";
-    public static final String RATE_LIMIT_SCOPE_ALL = "0";
-    public static final String RATE_LIMIT_SCOPE_NAMESPACE = "1";
-    public static final String RATE_LIMIT_SCOPE_SERVICE = "2";
 
     public static final int WHITE_LISTS_RESOURCE_COUNT = 3;
     public static final int WHITE_LISTS_LISTCHECKER_ORDER = 1;
     public static final int WHITE_LISTS_LISTENTRY_ORDER = 2;
     public static final int WHITE_LISTS_RULE_ORDER = 3;
 
+    public static final int TIMEOUT_RETRY_RESOURCE_COUNT = 2;
+    public static final int TIMEOUT_RETRY_TIMEOUT_ORDER = 1;
+    public static final int TIMEOUT_RETRY_RETRY_ORDER = 2;
+
+    public static final int FAULT_INJECTION_RESOURCE_COUNT = 1;
+    public static final int TRAFFIC_SHIFTING_RESOURCE_COUNT = 1;
+    public static final int CIRCUIT_BREAKER_RESOURCE_COUNT = 1;
+
     //serviceEntry的类型定义
     public static final int  EXTERNAL_SERVICE_ENTRY = 0;
     public static final int  INTERNAL_SERVICE_ENTRY = 1;
+    public static final String  RESOLUTION_STATIC = "STATIC";
+    public static final String  RESOLUTION_DNS = "DNS";
+    public static final String  PROTOCOL_TCP = "TCP";
+    public static final String  RESOLUTION_NONE =  "NONE";
+
+    //容器环境变量类型定义
+    public static final String ENV_TYPE_EQUAL = "equal";
+    public static final String ENV_TYPE_FROM = "from";
+
+    public static final String FIELD_SELECTOR = "fieldSelector";
+    public static final String SPEC_NODENAME = "spec.nodeName";
+    public static final String ENV_ERROR_MESSAGE = "field label not supported";
+
+    //数据库策略对应的字段
+    public static final String  RULE_CLUSTER_ID  =  "ruleClusterId";
+    public static final String  RULE_NS = "ruleNs";
+    public static final String  RULE_SVC = "ruleSvc";
+    public static final String  RULE_TYPE = "ruleType";
+    public static final String  PROJECT_ID_SERVICEENTRY = "-serviceentry";
+
+    public static final String TENANT_REDIS_KEY_PREFIX = "tenant_id-";
+
+    public static final int STORAGE_HARD_INDEX = 0;
+    public static final int STORAGE_USED_INDEX = 1;
 }

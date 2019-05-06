@@ -1,32 +1,16 @@
 package com.harmonycloud.service.tenant.impl;
 
-import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.dao.tenant.TenantClusterQuotaMapper;
 import com.harmonycloud.dao.tenant.TenantPrivateNodeMapper;
-import com.harmonycloud.dao.tenant.bean.TenantClusterQuota;
-import com.harmonycloud.dao.tenant.bean.TenantClusterQuotaExample;
 import com.harmonycloud.dao.tenant.bean.TenantPrivateNode;
 import com.harmonycloud.dao.tenant.bean.TenantPrivateNodeExample;
-import com.harmonycloud.dto.tenant.ClusterQuotaDto;
-import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.service.cluster.ClusterService;
-import com.harmonycloud.service.platform.service.DashboardService;
-import com.harmonycloud.service.tenant.NamespaceService;
-import com.harmonycloud.service.tenant.TenantClusterQuotaService;
 import com.harmonycloud.service.tenant.TenantPrivateNodeService;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
-
-import javax.servlet.http.HttpSession;
-import java.math.RoundingMode;
-import java.text.NumberFormat;
 import java.util.*;
 
 /**
@@ -34,17 +18,10 @@ import java.util.*;
  */
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class TenantPrivateNodeServiceImpl implements TenantPrivateNodeService {
 
     @Autowired
     private TenantPrivateNodeMapper tenantPrivateNodeMapper;
-    @Autowired
-    private ClusterService clusterService;
-    @Autowired
-    private NamespaceService namespaceService;
-    @Autowired
-    private HttpSession session;
 
     private static final Logger logger = LoggerFactory.getLogger(TenantPrivateNodeServiceImpl.class);
 

@@ -24,6 +24,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpSession;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 
@@ -190,7 +192,7 @@ public class DeploymentController {
 		if (userName == null) {
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
-		return dpService.podList(name, namespace);
+		return dpService.podList(name, namespace, true);
 
 	}
 
@@ -286,6 +288,28 @@ public class DeploymentController {
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
 		return serviceService.deleteDeployedService(deployedServiceNamesDto, userName);
+	}
+
+	/**
+	 * 更新服务备注
+	 *
+	 * @return ActionReturnUtil
+	 * @throws Exception
+	 */
+	@ResponseBody
+	@RequestMapping(value = "/{deployName}/annotation", method = RequestMethod.PUT)
+	public ActionReturnUtil updateDeployAnnotation(@PathVariable(value = "deployName") String name,
+												   @RequestParam(value = "namespace", required = true) String namespace,
+												   @RequestParam(value = "annotation", required = false) String annotation) throws Exception {
+		logger.info("update deployment annotation");
+		String userName = (String) session.getAttribute("username");
+		if(userName == null){
+			throw new K8sAuthException(Constant.HTTP_401);
+		}
+		Map<String, Object> annotations = new HashMap<>();
+		annotations.put("nephele/annotation", annotation);
+		dpService.updateAnnotations(namespace, name, null, annotations);
+		return ActionReturnUtil.returnSuccess();
 	}
 
 }

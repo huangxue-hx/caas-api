@@ -4,7 +4,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 
-@Transactional(rollbackFor = Exception.class)
 public class ImageRepository {
 
     private Integer id;
@@ -22,8 +21,10 @@ public class ImageRepository {
     private Boolean isDefault;
     private Boolean isPublic;
     private String clusterName;
+    private String clusterAliasName;
     private Boolean isNormal;
     private Integer imageCount;
+    private String dataCenterName;
 
     public Integer getId() {
         return id;
@@ -172,4 +173,19 @@ public class ImageRepository {
         this.harborHost = harborHost;
     }
 
+    public String getClusterAliasName() {
+        return clusterAliasName;
+    }
+
+    public void setClusterAliasName(String clusterAliasName) {
+        this.clusterAliasName = clusterAliasName;
+    }
+
+    public String getDataCenterName() {
+        return dataCenterName;
+    }
+
+    public void setDataCenterName(String dataCenterName) {
+        this.dataCenterName = dataCenterName;
+    }
 }

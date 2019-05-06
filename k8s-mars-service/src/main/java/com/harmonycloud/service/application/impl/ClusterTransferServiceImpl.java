@@ -2007,10 +2007,16 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		}
 
 		dto.setTransferClusterId(backup.getTransferClusterId());
-		Cluster cluster = clusterService.findClusterById(backup.getTransferClusterId());
-		if (cluster != null) {
-			dto.setTransferClusterName(cluster.getName());
-			dto.setTransferClusterAliasName(cluster.getAliasName());
+		try {
+			Cluster cluster = clusterService.findClusterById(backup.getTransferClusterId());
+			if (cluster != null) {
+				dto.setTransferClusterName(cluster.getName());
+				dto.setTransferClusterAliasName(cluster.getAliasName());
+			}
+		} catch (Exception e) {
+			logger.error("集群id未找到对应的集群,clusterId:{}", backup.getTransferClusterId());
+			dto.setTransferClusterName("unknown");
+			dto.setTransferClusterAliasName("unknown");
 		}
 		return dto;
 	}

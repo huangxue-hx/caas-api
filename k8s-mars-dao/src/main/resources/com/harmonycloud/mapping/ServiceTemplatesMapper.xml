@@ -18,7 +18,6 @@
     <result column="is_public" property="isPublic" jdbcType="BOOLEAN" />
     <result column="project_id" property="projectId" jdbcType="VARCHAR"/>
     <result column="cluster_id" property="clusterId" jdbcType="VARCHAR"/>
-    <result column="service_account" property="serviceAccount" jdbcType="VARCHAR"/>
     <result column="service_type" property="serviceType" jdbcType="INTEGER"/>
   </resultMap>
 
@@ -198,9 +197,6 @@
       </if>
       <if test="imageList != null">
         image_list = #{imageList},
-      </if>
-      <if test="serviceAccount != null">
-        service_account = #{serviceAccount},
       </if>
       <if test="serviceType != null">
         service_type = #{serviceType},

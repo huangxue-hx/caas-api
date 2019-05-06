@@ -165,7 +165,7 @@ public class DataPrivilegeAspect {
                 //根据只读组ID，获得只读用户列表
                 List<DataPrivilegeGroupMember> dataPGMemberList = dataPrivilegeGroupMemberService.listMemberInGroup(dataPGMList.get(0).getGroupId()) ;
                 if(dataPGMemberList.size() > 0){
-                    Long userId = (Long) (session.getAttribute("userId"));
+                    Long userId = userService.getCurrentUserId();
                     //检查用户是否有只读权限(用户在读写列表中，则有权限，反之没有)
                     for (int i=0; i<dataPGMemberList.size(); i++) {
                         if((dataPGMemberList.get(i).getMemberId().longValue() == userId)){
@@ -180,7 +180,7 @@ public class DataPrivilegeAspect {
             if(dataPGMList.size() > 0){
                 //根据组ID，获得读写用户列表
                 List<DataPrivilegeGroupMember> dataPGMemberList = dataPrivilegeGroupMemberService.listMemberInGroup(dataPGMapList.get(0).getGroupId()) ;
-                Long userId = (Long) (session.getAttribute("userId"));
+                Long userId = userService.getCurrentUserId();
                 //检查用户是否有读写权限(用户在读写列表中，则有权限，反之没有)
                 for (int i=0; i<dataPGMemberList.size(); i++) {
                     if((dataPGMemberList.get(i).getMemberId().longValue() == userId)){
@@ -201,7 +201,7 @@ public class DataPrivilegeAspect {
             if(dataPGMList.size() > 0){
                 //根据读写组ID，获得读写用户列表
                 List<DataPrivilegeGroupMember> dataPGMemberList = dataPrivilegeGroupMemberService.listMemberInGroup(dataPGMList.get(0).getGroupId()) ;
-                Long userId = (Long) (session.getAttribute("userId"));
+                Long userId = userService.getCurrentUserId();
                 //检查用户是否有读写权限(用户在读写列表中，则有权限，反之没有)
                 for (int i=0; i<dataPGMemberList.size(); i++) {
                     if((dataPGMemberList.get(i).getMemberId().longValue() == userId)){

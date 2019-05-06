@@ -98,6 +98,15 @@ public interface DeploymentsService {
 	public ActionReturnUtil podList(String name, String namespace) throws Exception;
 
 	/**
+	 * 获取pod列表（先获取deployment）
+	 * @param name
+	 * @param namespace
+	 * @return
+	 * @throws Exception
+	 */
+	public ActionReturnUtil podList(String name, String namespace, boolean isFilterTerminated) throws Exception;
+
+	/**
 	 * 获取deployment详情
 	 * @param namespace
 	 * @param name

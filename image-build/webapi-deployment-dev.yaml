@@ -33,15 +33,18 @@ spec:
         env:
         - name: "JAVA_OPTS"
           value: "-Xmx4096m"
+        - name: "logpilot_logs_logstash"
+          value: "/opt/logs/*"
+        - name: "logpilot_logs_logstash_tags"
+          value: "k8s_resource_type=Deployment,k8s_resource_name=webapi"
         name: webapi
         ports:
-        - containerPort: 8080 
-          hostPort: 8080
+        - containerPort: 8080
           protocol: TCP
         readinessProbe:
           failureThreshold: 5
           httpGet:
-            path: /swagger-ui.html
+            path: /rest/clusters
             port: 8080
             scheme: HTTP
           initialDelaySeconds: 60

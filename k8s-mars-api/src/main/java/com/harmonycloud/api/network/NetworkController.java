@@ -26,7 +26,6 @@ import com.harmonycloud.service.tenant.NetworkService;
 
 @Controller
 @RequestMapping("/tenants/{tenantId}")
-@Transactional
 public class NetworkController {
 
     @Autowired

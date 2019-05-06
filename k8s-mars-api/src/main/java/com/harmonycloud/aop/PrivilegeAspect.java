@@ -116,6 +116,7 @@ public class PrivilegeAspect {
 //		long startTime=System.currentTimeMillis();   //获取开始时间
 		ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
 		HttpServletRequest request = attributes.getRequest();
+		HttpServletResponse response = attributes.getResponse();
 		HttpSession session = request.getSession();
 		Map<String,String> attribute = (Map<String,String>)request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
 		String url = (String)request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
@@ -148,9 +149,16 @@ public class PrivilegeAspect {
 		String resourceName = urlDic.getResource();
 		String method = request.getMethod();
 		Map<String, String[]> parameterMap = request.getParameterMap();
+		Integer roleId = this.userService.getCurrentRoleId();
+		if (roleId != null) {
+			Role role = this.roleLocalService.getRoleById(roleId);
+			if (role == null || !role.getAvailable()) {
+				SsoClient.redirectLogin(session, request, response);
+				throw new MarsRuntimeException(ErrorCodeMessage.USER_ROLE_DISABLED);
+			}
+		}
 		//判断url是否在白名单内
 		if (!WHITELIST.equals(moduleName)){
-			Integer roleId = this.userService.getCurrentRoleId();
 			String username = this.userService.getCurrentUsername();
 			SystemConfig systemConfig = systemConfigService.findMaintenanceStatus();
 			if(Boolean.valueOf(systemConfig.getConfigValue()) && !userService.isAdmin(username)){
@@ -170,7 +178,6 @@ public class PrivilegeAspect {
 				}
 				Object requestBody = session.getAttribute(REQUESTBODY);
 				String tenantId = null;
-				Integer currentRoleId = this.userService.getCurrentRoleId();
 				if (!Objects.isNull(requestBody)){
 					Map<String, Object> stringObjectMap = JsonUtil.convertJsonToMap(requestBody.toString());
 					if (stringObjectMap.containsKey(TENANT_ID) && !Objects.isNull(stringObjectMap.get(TENANT_ID))){
@@ -186,7 +193,7 @@ public class PrivilegeAspect {
 			}
 			//不在白名单内,并且不是微服务模块，检查角色是否为空
 			if (Objects.isNull(roleId) && StringUtils.isNotBlank(username)){
-				List<TenantDto> tenantDtos = tenantService.tenantList();
+				List<TenantDto> tenantDtos = tenantService.listTenantBrief();
 				if(CollectionUtils.isEmpty(tenantDtos)){
 					List<Role> roleList = roleLocalService.getRoleListByUsernameAndTenantIdAndProjectId(username, null, null);
 					if (!CollectionUtils.isEmpty(roleList)) {
@@ -206,7 +213,7 @@ public class PrivilegeAspect {
 			//检查用户是否有权限变更或者用户被阻止
 			Boolean userStatus = clusterCacheManager.getUserStatus(username);
 			if (userStatus){
-				this.dealHeader(attributes);
+				SsoClient.redirectLogin(session, request, response);
 				throw new MarsRuntimeException(ErrorCodeMessage.USER_DISABLED);
 			}
 			Boolean rolePrivilegeStatus = clusterCacheManager.getRolePrivilegeStatus(roleId,null);
@@ -365,7 +372,7 @@ public class PrivilegeAspect {
 		String clusterIdUrl = attribute.get(CommonConstant.CLUSTERID);
 		if ((!Objects.isNull(clusterIdParameter) && StringUtils.isNoneBlank(clusterIdParameter) && clusterIdParameter.length > 0)|| StringUtils.isNotBlank(clusterIdUrl)){
 			String clusterId = Objects.isNull(clusterIdParameter)?clusterIdUrl:clusterIdParameter[0];
-			Set<String> currentUserCluster = roleLocalService.listCurrentUserRoleClusterIds();
+			List<String> currentUserCluster = roleLocalService.listCurrentUserRoleClusterIds();
 			//与传入的集群id与当前角色的作用域不匹配
 			if (!currentUserCluster.contains(clusterId)){
 				throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_IN_SCOPE,clusterId,Boolean.TRUE);

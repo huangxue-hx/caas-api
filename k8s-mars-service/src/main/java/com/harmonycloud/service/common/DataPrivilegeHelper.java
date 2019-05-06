@@ -43,10 +43,10 @@ public class DataPrivilegeHelper {
     @Autowired
     private HttpSession session;
 
-    private final String DATA_PRIVILEGE = "dataPrivilege";
-    private final String READONLY = "ro";
-    private final String READWRITE = "rw";
-    private final String READNONE = "rn";
+    public static final String DATA_PRIVILEGE = "dataPrivilege";
+    public static final String READONLY = "ro";
+    public static final String READWRITE = "rw";
+    public static final String READNONE = "rn";
     private final String ID_FILED = "id";
     private final String DATA_FILED = "name";
     private final String CLUSTERID_FIELD = "clusterId";
@@ -374,7 +374,7 @@ public class DataPrivilegeHelper {
         userList.addAll(roList);
         userList.addAll(rwList);
         List<Integer> userIdList = userList.stream().map(DataPrivilegeGroupMember::getMemberId).collect(Collectors.toList());
-        int currentUserId = ((Long)session.getAttribute(CommonConstant.USERID)).intValue();
+        int currentUserId = userService.getCurrentUserId().intValue();
         if(userIdList.contains(currentUserId)){
             return true;
         }else {

@@ -9,3 +9,5 @@ metadata:
       NFSADDR: nfsAddr
       NFSPATH: nfsPath
 provisioner: nfs-client-provisioner-scName
+parameters:
+  archiveOnDelete: "false"

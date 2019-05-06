@@ -1,29 +1,25 @@
 package com.harmonycloud.api.open;
 
-import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dto.cluster.NodeBriefDto;
 import com.harmonycloud.dto.config.ControllerUrlMapping;
 import com.harmonycloud.dto.container.ContainerBriefDto;
 import com.harmonycloud.dto.event.EventBriefDto;
 import com.harmonycloud.k8s.bean.Event;
-import com.harmonycloud.k8s.bean.NodeCondition;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.EventService;
-import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.application.PersistentVolumeClaimService;
 import com.harmonycloud.service.cluster.LoadbalanceService;
 import com.harmonycloud.service.migrate.DataMigrateService;
 import com.harmonycloud.service.platform.bean.ContainerWithStatus;
 import com.harmonycloud.service.platform.bean.KubeModuleStatus;
 import com.harmonycloud.service.platform.bean.PodDetail;
+import com.harmonycloud.service.platform.bean.PvcDto;
 import com.harmonycloud.service.platform.service.NodeService;
 import com.harmonycloud.service.platform.service.PodService;
 import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.system.ApiService;
-import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.user.UrlDicService;
-import com.harmonycloud.service.user.UserService;
-import jnr.x86asm.CONDITION;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,11 +48,6 @@ public class OpenApiController {
 
 	@Autowired
 	private DeploymentsService dpService;
-	
-	@Autowired
-	private ClusterService clusterService;
-	@Autowired
-	private UserService userService;
 	@Autowired
 	private EventService eventService;
 	@Autowired
@@ -66,8 +57,8 @@ public class OpenApiController {
     
     @Autowired
     private LoadbalanceService loadbalanceService;
-    @Autowired
-	private NamespaceLocalService namespaceLocalService;
+	@Autowired
+	private PersistentVolumeClaimService persistentVolumeClaimService;
 	@Autowired
 	private UrlDicService urlDicService;
 	@Autowired
@@ -231,6 +222,46 @@ public class OpenApiController {
 		}
 		List<String> messages = dataMigrateService.migrateData(version,execute);
 		return new ResponseEntity(messages, HttpStatus.OK);
+	}
+
+	/**
+	 * 数据迁移-停挂载存储的服务
+	 * @return
+	 * @throws Exception
+	 */
+	@ResponseBody
+	@RequestMapping(value="/migrate/stopservice", method = RequestMethod.POST)
+	public ResponseEntity stopService(@RequestParam(value = "execute",required = false) boolean execute) throws Exception{
+		String userName = (String) session.getAttribute("username");
+		if(!"admin".equals(userName) && !"xfliang".equals(userName)){
+			return new ResponseEntity(HttpStatus.FORBIDDEN);
+		}
+		List<String> messages = dataMigrateService.stopService(execute);
+		return new ResponseEntity(messages, HttpStatus.OK);
+	}
+
+	/**
+	 * 数据迁移-启挂载存储的服务
+	 * @return
+	 * @throws Exception
+	 */
+	@ResponseBody
+	@RequestMapping(value="/migrate/startservice", method = RequestMethod.POST)
+	public ResponseEntity startService(@RequestParam(value = "execute",required = false) boolean execute) throws Exception{
+		String userName = (String) session.getAttribute("username");
+		if(!"admin".equals(userName) && !"xfliang".equals(userName)){
+			return new ResponseEntity(HttpStatus.FORBIDDEN);
+		}
+		List<String> messages = dataMigrateService.startService(execute);
+		return new ResponseEntity(messages, HttpStatus.OK);
+	}
+
+	@RequestMapping(value = "/clusters/{clusterId}/namespaces/{namespace}/pvcs", method = RequestMethod.GET)
+	@ResponseBody
+	public ResponseEntity<List<PvcDto>> listPvc(@PathVariable(value = "clusterId") String clusterId,
+																	  @PathVariable(value = "namespace") String namespace) throws Exception {
+		List<PvcDto> pvcs = persistentVolumeClaimService.listPersistentVolumeClaim(clusterId, namespace);
+		return new ResponseEntity(pvcs, HttpStatus.OK);
 	}
 
 }

@@ -132,4 +132,6 @@ public interface EsService {
 
 	String getLogIndexPrefix();
 
+	void updateIndexMaxResultWindow(TransportClient client, String[] index, int maxResultWindow);
+
 }

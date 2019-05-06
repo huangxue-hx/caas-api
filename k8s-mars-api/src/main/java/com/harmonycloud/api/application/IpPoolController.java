@@ -75,32 +75,6 @@ public class IpPoolController {
 
 
     /**
-     * 修改ip资源池
-     *
-     * @param poolDto model
-     * @return
-     */
-    @RequestMapping(method = RequestMethod.PUT)
-    public ActionReturnUtil updateIpPool(@RequestBody ProjectIpPoolDto poolDto) {
-        try {
-            ipPoolService.update(poolDto);
-            return ActionReturnUtil.returnSuccess();
-        } catch (MarsRuntimeException e) {
-            if (e.getErrorCode() != null) {
-                return ActionReturnUtil.returnErrorWithData(e.getErrorCode());
-            } else if (StringUtils.isNotBlank(e.getErrorMessage())) {
-                return ActionReturnUtil.returnErrorWithMsg(e.getErrorMessage());
-            } else {
-                return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.UPDATE_FAIL);
-            }
-        } catch (Exception e) {
-            logger.error(ErrorCodeMessage.UPDATE_FAIL.getReasonChPhrase(), e);
-            return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.UPDATE_FAIL);
-        }
-    }
-
-
-    /**
      * 删除ip资源池
      *
      * @param projectId 项目id
@@ -123,6 +97,14 @@ public class IpPoolController {
         }
     }
 
+
+    /**
+     * 校验集群能否创建ip池
+     *
+     * @param tenantId
+     * @param projectId
+     * @return
+     */
     @RequestMapping(value = "/checkcluster", method = RequestMethod.GET)
     public ActionReturnUtil checkCluster(@PathVariable(value = "tenantId") String tenantId,
                                          @PathVariable(value = "projectId") String projectId) {

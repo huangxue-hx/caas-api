@@ -34,6 +34,7 @@ import org.apache.commons.lang3.time.DateUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -78,9 +79,34 @@ public class HarborImageCleanServiceImpl implements HarborImageCleanService {
     private StringRedisTemplate stringRedisTemplate;
     @Autowired
     private UserService userService;
+    /**
+     *  全局镜像版本保留数量，默认为保留200个版本
+     */
+    @Value("${image.tag.keep:200}")
+    private String defaultTagKeepCount;
 
     private List<ImageCleanRule> listAllCleanRules() {
-        return imageCleanRuleMapper.list();
+        List<ImageCleanRule> imageCleanRules = imageCleanRuleMapper.list();
+        Map<Integer, ImageCleanRule> imageCleanRuleMap = imageCleanRules.stream()
+                .collect(Collectors.toMap(ImageCleanRule::getRepositoryId, rule -> rule));
+        try {
+            ImageRepository queryRepository = new ImageRepository();
+            queryRepository.setIsNormal(Boolean.TRUE);
+            List<ImageRepository> imageRepositories = harborProjectService.listRepositories(queryRepository);
+            for (ImageRepository imageRepository : imageRepositories) {
+                //没有创建清理规则的仓库，使用默认的全局镜像版本保留数量进行清理
+                if (imageCleanRuleMap.get(imageRepository.getId()) == null) {
+                    ImageCleanRule imageCleanRule = new ImageCleanRule();
+                    imageCleanRule.setType(Constant.IMAGE_CLEAN_RULE_TYPE_REPOSITORY);
+                    imageCleanRule.setRepositoryId(imageRepository.getId());
+                    imageCleanRule.setKeepTagCount(Integer.parseInt(defaultTagKeepCount));
+                    imageCleanRules.add(imageCleanRule);
+                }
+            }
+        }catch (Exception e){
+            LOGGER.error("添加默认清理规则失败",e);
+        }
+        return imageCleanRules;
     }
 
     /**

@@ -76,7 +76,7 @@ public class PersistentVolumeController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/{pvName:.+}", method = RequestMethod.DELETE)
+    /*@RequestMapping(value = "/{pvName:.+}", method = RequestMethod.DELETE)
     @ResponseBody
     public ActionReturnUtil deletePv(@PathVariable("tenantId") String tenantId,
                                              @PathVariable("projectId") String projectId,
@@ -84,7 +84,7 @@ public class PersistentVolumeController {
                                              @RequestParam(value = "clusterId") String clusterId) throws Exception {
         return persistentVolumeService.deletePv(pvName, clusterId);
 
-    }
+    }*/
 
     /**
      * 根据name查询pv

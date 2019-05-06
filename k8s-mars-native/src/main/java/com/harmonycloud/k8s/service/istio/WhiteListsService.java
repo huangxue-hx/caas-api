@@ -5,11 +5,9 @@ import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.istio.policies.Rule;
 import com.harmonycloud.k8s.bean.istio.policies.whitelists.ListChecker;
-import com.harmonycloud.k8s.bean.istio.policies.whitelists.ListCheckerList;
 import com.harmonycloud.k8s.bean.istio.policies.whitelists.ListEntry;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.Constant;
@@ -43,7 +41,6 @@ public class WhiteListsService {
         Map<String, Object> headers = new HashMap<>();
         headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.NETWORKING_ISTIO_V1ALPHA3);
         return new K8sMachineClient().exec(url, HTTPMethod.GET, headers, null, cluster);
-
     }
 
     public K8SClientResponse getListEntry(String namespace, String name, Cluster cluster) throws MarsRuntimeException {
@@ -52,7 +49,6 @@ public class WhiteListsService {
         Map<String, Object> headers = new HashMap<>();
         headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.NETWORKING_ISTIO_V1ALPHA3);
         return new K8sMachineClient().exec(url, HTTPMethod.GET, headers, null, cluster);
-
     }
 
     public K8SClientResponse getRule(String namespace, String name, Cluster cluster) throws MarsRuntimeException {
@@ -61,48 +57,15 @@ public class WhiteListsService {
         Map<String, Object> headers = new HashMap<>();
         headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.NETWORKING_ISTIO_V1ALPHA3);
         return new K8sMachineClient().exec(url, HTTPMethod.GET, headers, null, cluster);
-
     }
-
-
 
     public K8SClientResponse updateListChecker(String namespace, String name, ListChecker listChecker, Cluster cluster) throws MarsRuntimeException, IntrospectionException, InvocationTargetException, IllegalAccessException {
         K8SURL url = new K8SURL();
         url.setResource(Resource.LISTCHECKER).setNamespace(namespace).setName(name);
         Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
+        headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
         Map<String, Object> bodys = CollectionUtil.transBean2Map(listChecker);
         return  new K8sMachineClient().exec(url, HTTPMethod.PUT, headers, bodys, cluster);
-    }
-
-    public K8SClientResponse updateListEntry(String namespace, String name, ListEntry listEntry, Cluster cluster) throws MarsRuntimeException, IntrospectionException, InvocationTargetException, IllegalAccessException {
-        K8SURL url = new K8SURL();
-        url.setResource(Resource.LISTENTRY).setNamespace(namespace).setName(name);
-        Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
-        Map<String, Object> bodys = CollectionUtil.transBean2Map(listEntry);
-        return  new K8sMachineClient().exec(url, HTTPMethod.PUT, headers, bodys, cluster);
-    }
-
-    public K8SClientResponse updateRule(String namespace, String name, Rule rule, Cluster cluster) throws MarsRuntimeException, IntrospectionException, InvocationTargetException, IllegalAccessException {
-        K8SURL url = new K8SURL();
-        url.setResource(Resource.RULE).setNamespace(namespace).setName(name);
-        Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
-        Map<String, Object> bodys = CollectionUtil.transBean2Map(rule);
-        return  new K8sMachineClient().exec(url, HTTPMethod.PUT, headers, bodys, cluster);
-    }
-
-    public List<ListChecker> listWhiteListsPolicy(String namespace, Map<String, Object> bodys, Cluster cluster) throws MarsRuntimeException {
-        K8SURL url = new K8SURL();
-        url.setResource(Resource.LISTCHECKER).setNamespace(namespace);
-        K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.GET, null, bodys, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-            LOGGER.error("get whiteLists policy error", response.getBody());
-            throw new MarsRuntimeException(ErrorCodeMessage.POLICY_LIST_FAILED);
-        }
-        ListCheckerList listCheckerList = JsonUtil.jsonToPojo(response.getBody(), ListCheckerList.class);
-        return listCheckerList.getItems();
     }
 
     public K8SClientResponse createListChecker(String namespace, ListChecker listChecker, Cluster cluster)
@@ -110,7 +73,7 @@ public class WhiteListsService {
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.LISTCHECKER);
         Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
+        headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
         Map<String, Object> bodys = CollectionUtil.transBean2Map(listChecker);
         return new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
     }
@@ -120,7 +83,7 @@ public class WhiteListsService {
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.LISTENTRY);
         Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
+        headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
         Map<String, Object> bodys = CollectionUtil.transBean2Map(listEntry);
         return  new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
 
@@ -131,45 +94,10 @@ public class WhiteListsService {
         K8SURL url = new K8SURL();
         url.setNamespace(namespace).setResource(Resource.RULE);
         Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
+        headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
         Map<String, Object> bodys = CollectionUtil.transBean2Map(rule);
         return new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
     }
-
-    /**
-     * 删除ListChecker
-     * @param namespace
-     * @param name
-     * @param cluster
-     * @throws MarsRuntimeException
-     */
-    public K8SClientResponse deleteListCheckerPolicy(String namespace, String name, Cluster cluster) throws MarsRuntimeException {
-        K8SURL url = new K8SURL();
-        url.setNamespace(namespace).setName(name);
-        Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
-        url.setResource(Resource.LISTCHECKER);
-        return  new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, null, cluster);
-
-    }
-
-    /***
-     * 删除ListEntry
-     * @param namespace
-     * @param name
-     * @param cluster
-     * @throws MarsRuntimeException
-     */
-    public K8SClientResponse deleteListEntryPolicy(String namespace, String name, Cluster cluster) throws MarsRuntimeException {
-        K8SURL url = new K8SURL();
-        url.setNamespace(namespace).setName(name);
-        Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
-        url.setResource(Resource.LISTENTRY);
-        return  new K8sMachineClient().exec(url, HTTPMethod.DELETE, headers, null, cluster);
-    }
-
-
 
     public K8SClientResponse getWhiteListsResource(String namespace, String name, String resourceType, Cluster cluster) throws MarsRuntimeException {
         K8SURL url = new K8SURL();
@@ -204,7 +132,7 @@ public class WhiteListsService {
         K8SURL url = new K8SURL();
         url.setNamespace(namespace);
         Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
+        headers.put(CommonConstant.CONTENT_TYPE, CommonConstant.APPLICATION_JSON);
         List<String> resources = Arrays.asList(Resource.RULE, Resource.LISTENTRY, Resource.LISTCHECKER);
         for (int i = 3 - num; i < 3; i++) {
             url.setResource(resources.get(i));
@@ -220,19 +148,4 @@ public class WhiteListsService {
         return resMap;
     }
 
-    //通过label删除策略
-    public void deleteWhiteListsPolicyByLabel(String namespace, Map<String, Object> bodys, Cluster cluster) throws MarsRuntimeException {
-        K8SURL url = new K8SURL();
-        K8sMachineClient k8sMachineClient = new K8sMachineClient();
-        url.setNamespace(namespace).setResource(Resource.RULE);
-        Map<String, Object> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
-        k8sMachineClient.exec(url, HTTPMethod.DELETE, headers, bodys, cluster);
-
-        url.setResource(Resource.LISTENTRY);
-        k8sMachineClient.exec(url, HTTPMethod.DELETE, headers, bodys, cluster);
-
-        url.setResource(Resource.LISTCHECKER);
-        k8sMachineClient.exec(url, HTTPMethod.DELETE, headers, bodys, cluster);
-    }
 }

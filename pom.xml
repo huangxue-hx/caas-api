@@ -55,7 +55,7 @@
 		<c3p0.version>0.9.1.1</c3p0.version>
 		<httpclient.version>4.5.2</httpclient.version>
 		<servlet.version>3.1.0</servlet.version>
-		<es.version>2.4.1</es.version>
+		<es.version>6.4.3</es.version>
 		<json-lib.version>2.4</json-lib.version>
 		<socketio.version>1.7.12</socketio.version>
 		<jna-platform.version>4.1.0</jna-platform.version>
@@ -184,8 +184,13 @@
 		</dependency>
 		<!-- es client -->
 		<dependency>
-			<groupId>org.elasticsearch</groupId>
-			<artifactId>elasticsearch</artifactId>
+			<groupId>org.elasticsearch.client</groupId>
+			<artifactId>transport</artifactId>
+			<version>${es.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.elasticsearch.plugin</groupId>
+			<artifactId>transport-netty4-client</artifactId>
 			<version>${es.version}</version>
 		</dependency>
 		<!-- apache 工具包 -->
@@ -275,17 +280,7 @@
 			<artifactId>commons-fileupload</artifactId>
 			<version>1.3.2</version>
 		</dependency>
-		<!-- SSO -->
-		<dependency>
-			<groupId>com.whchem</groupId>
-			<artifactId>paas-sso-common</artifactId>
-			<version>0.0.1</version>
-		</dependency>
-		<dependency>
-			<groupId>com.whchem</groupId>
-			<artifactId>paas-sso-client</artifactId>
-			<version>0.0.1</version>
-		</dependency>
+
 	</dependencies>
 
 	<build>

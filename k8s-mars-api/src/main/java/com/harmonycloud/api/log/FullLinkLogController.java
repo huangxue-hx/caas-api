@@ -9,6 +9,7 @@ import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dto.log.FullLinkQueryDto;
 import com.harmonycloud.dto.log.LogQueryDto;
 import com.harmonycloud.service.platform.bean.LogQuery;
+import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.FullLinkLogService;
 import com.harmonycloud.service.platform.service.LogService;
 import org.apache.commons.lang3.StringUtils;
@@ -81,7 +82,8 @@ public class FullLinkLogController {
         LogQueryDto logQueryDto = new LogQueryDto();
         logQueryDto.setNamespace(namespace);
         logQueryDto.setClusterId(clusterId);
-        logQueryDto.setDeployment(deployName);
+        logQueryDto.setAppName(deployName);
+        logQueryDto.setAppType(Constant.DEPLOYMENT);
         logQueryDto.setPod(pod);
         logQueryDto.setSearchType(EsSearchTypeEnum.MATCH_PHRASE.getCode());
         logQueryDto.setSearchWord(transactionId);

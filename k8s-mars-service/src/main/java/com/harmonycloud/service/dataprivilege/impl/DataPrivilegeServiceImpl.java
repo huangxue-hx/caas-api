@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.servlet.http.HttpSession;
 import java.lang.reflect.Field;
@@ -47,13 +48,7 @@ public class DataPrivilegeServiceImpl implements DataPrivilegeService{
     private DataPrivilegeGroupMemberService dataPrivilegeGroupMemberService;
 
     @Autowired
-    private TenantService tenantService;
-
-    @Autowired
     private UserService userService;
-
-    @Autowired
-    private HttpSession session;
 
     /**
      * 增加资源数据
@@ -61,9 +56,10 @@ public class DataPrivilegeServiceImpl implements DataPrivilegeService{
      * @param <T>
      * @throws Exception
      */
+    @Transactional
     @Override
     public <T> void addResource(T t, String parentData, DataResourceTypeEnum type) throws Exception {
-        Long userId = (Long)session.getAttribute(CommonConstant.USERID);
+        Long userId = userService.getCurrentUserId();
         String projectId = userService.getCurrentProjectId();
         String tenantId = userService.getCurrentTenantId();
         int strategy = CommonConstant.DATA_OPEN_STRATEGY;
@@ -109,6 +105,7 @@ public class DataPrivilegeServiceImpl implements DataPrivilegeService{
      * @param <T>
      * @throws Exception
      */
+    @Transactional
     @Override
     public <T> void deleteResource(T t) throws Exception {
         DataPrivilegeDto dataPrivilegeDto = this.getDataPrivilegeDto(t);

@@ -80,4 +80,11 @@ public class NumUtil {
         BigDecimal c = a.divide(b, 0, BigDecimal.ROUND_HALF_UP);
         return c.intValue();
     }
+
+    public static double add(Double num1, Double num2){
+        BigDecimal b1 = BigDecimal.valueOf(num1);
+        BigDecimal b2 = BigDecimal.valueOf(num2);
+        return b1.add(b2).doubleValue();
+    }
+    
 }

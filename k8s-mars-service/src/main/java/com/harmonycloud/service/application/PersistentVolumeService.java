@@ -85,7 +85,7 @@ public interface PersistentVolumeService {
 	 * @return
 	 * @throws Exception
 	 */
-	public ActionReturnUtil deletePv(String name, String clusterId) throws Exception;
+	public ActionReturnUtil deletePv(String name, String storageClass, Cluster cluster) throws Exception;
 
 
 	/**

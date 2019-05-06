@@ -34,6 +34,7 @@ import com.harmonycloud.service.common.HarborHttpsClientUtil;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.bean.harbor.*;
 import com.harmonycloud.service.platform.client.HarborClient;
+import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.ci.TriggerService;
 import com.harmonycloud.service.platform.service.harbor.*;
 import com.harmonycloud.service.tenant.ProjectService;
@@ -110,7 +111,12 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		List<HarborOverview> harborOverviews = new ArrayList<>();
 		Set<HarborServer> harborServers = new HashSet<>();
 		if(StringUtils.isBlank(harborHost)) {
-			harborServers.addAll(clusterService.listAllHarbors());
+			List<Cluster> clusters = roleLocalService.listCurrentUserRoleCluster();
+			if (!CollectionUtils.isEmpty(clusters)) {
+				for (Cluster cluster : clusters) {
+					harborServers.add(cluster.getHarborServer());
+				}
+			}
 		}else{
 			harborServers.add(clusterService.findHarborByHost(harborHost));
 		}
@@ -139,10 +145,11 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		}
 		if(repositoryInfo.getIsPublic()){
 			ImageRepository imageRepository = new ImageRepository();
+			imageRepository.setHarborHost(repositoryInfo.getHarborHost());
 			imageRepository.setHarborProjectName(repositoryInfo.getHarborProjectName());
 			List<ImageRepository> imageRepositories = this.listRepositories(imageRepository);
 			if (!CollectionUtils.isEmpty(imageRepositories)) {
-				throw new MarsRuntimeException(DictEnum.REPOSITORY.phrase(), ErrorCodeMessage.EXIST);
+				throw new MarsRuntimeException(ErrorCodeMessage.PUBLIC_REPOSITORY_EXIST);
 			}
 			return createPublicRepository(repositoryInfo);
 		}else{
@@ -188,7 +195,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 				ImageRepository imageRepository = new ImageRepository();
 				imageRepository.setProjectId(repositoryInfo.getProjectId());
 				imageRepository.setTenantId(repositoryInfo.getTenantId());
-				imageRepository.setCreateTime(DateUtil.getCurrentUtcTime());
+				imageRepository.setCreateTime(new Date());
 				imageRepository.setIsNormal(Boolean.TRUE);
 				imageRepository.setClusterId(cluster.getId());
 				imageRepository.setClusterName(cluster.getName());
@@ -266,10 +273,13 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		if (!result.isSuccess() || result.getData() == null) {
 			logger.error("创建公共仓库失败，repositoryInfo:{}， message:{}",
 					JSONObject.toJSONString(repositoryInfo),result.getData());
+			if(result.getData() != null && String.valueOf(result.getData()).contains("Conflict")){
+				return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PUBLIC_REPOSITORY_EXIST);
+			}
 			if(result.getData() != null && String.valueOf(result.getData()).contains("contains illegal characters")){
 				return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INVALID_CHARACTER);
 			}
-			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CREATE_FAIL, String.valueOf(result.getData()));
+			return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CREATE_FAIL);
 		}
 		try {
 			Map<String, Object> map = (Map) (result.get("data"));
@@ -355,8 +365,11 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			return Collections.emptyList();
 		}
 		for(ImageRepository imageRepository : imageRepositories){
-			imageRepository.setClusterName(clusterService.findHarborByHost(imageRepository.getHarborHost()).getReferredClusterNames());
-			imageRepository.setClusterId(clusterService.findHarborByHost(imageRepository.getHarborHost()).getReferredClusterIds());
+			HarborServer harborServer = clusterService.findHarborByHost(imageRepository.getHarborHost());
+			imageRepository.setClusterName(harborServer.getReferredClusterNames());
+			imageRepository.setClusterAliasName(harborServer.getReferredClusterAliasNames());
+			imageRepository.setClusterId(harborServer.getReferredClusterIds());
+			imageRepository.setDataCenterName(harborServer.getDataCenterName());
 		}
 		return imageRepositories;
 	}
@@ -371,7 +384,17 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		if (CollectionUtils.isEmpty(clusterIds)){
 			throw new MarsRuntimeException(ErrorCodeMessage.ROLE_HAVE_DISABLE_CLUSTER);
 		}
-		return imageRepositoryMapper.selectRepositories(projectId, null,clusterIds, Boolean.FALSE, isNormal);
+		List<ImageRepository> imageRepositories = imageRepositoryMapper
+				.selectRepositories(projectId, null,clusterIds, Boolean.FALSE, isNormal);
+		if(imageRepositories == null){
+			return Collections.emptyList();
+		}
+		for(ImageRepository imageRepository : imageRepositories){
+			Cluster cluster = clusterService.findClusterById(imageRepository.getClusterId());
+			imageRepository.setClusterAliasName(cluster.getAliasName());
+			imageRepository.setDataCenterName(cluster.getDataCenterName());
+		}
+		return imageRepositories;
 	}
 
 	@Override
@@ -422,7 +445,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		HarborServer harborServer = clusterService.findHarborByHost(imageRepository.getHarborHost());
 		if(imageRepository.getIsPublic()){
 			imageRepository.setClusterId(harborServer.getReferredClusterIds());
-			imageRepository.setClusterName(harborServer.getReferredClusterNames());
+			imageRepository.setClusterName(harborServer.getReferredClusterAliasNames());
 		}
 		try {
 			List<HarborProject> harborProjects = harborService.listProject(imageRepository.getHarborHost(), imageRepository.getHarborProjectName(),null,null);
@@ -587,8 +610,19 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	}
 
 	@Override
-	public ActionReturnUtil listImages(String projectId, String clusterId, Integer pageSize, Integer pageNo, Boolean isPublic) throws Exception {
-		List<ImageRepository> imageRepositories = this.listRepositories(projectId, clusterId,isPublic, Boolean.TRUE);
+	public ActionReturnUtil listImages(String projectId, String clusterId, Integer pageSize, Integer pageNo, Boolean isPublic, boolean isAppStore) throws Exception {
+		List<ImageRepository> imageRepositories;
+		if(isAppStore){
+			List<ImageRepository> publicRepositories = this.listRepositories(projectId,null,null,Boolean.TRUE);
+			Optional<ImageRepository> onlineshopRepository= publicRepositories.stream().filter(imageRepository -> Constant.ONLINESHOP.equals(imageRepository.getHarborProjectName())).findFirst();
+			if(onlineshopRepository.isPresent()) {
+				imageRepositories = Arrays.asList(onlineshopRepository.get());
+			}else{
+				imageRepositories = new ArrayList<>();
+			}
+		}else {
+			imageRepositories = this.listRepositories(projectId, clusterId, isPublic, Boolean.TRUE);
+		}
 		Map<String, List<HarborRepositoryMessage>> imagesMap = new HashMap<>();
 		for(ImageRepository repository : imageRepositories){
 			ActionReturnUtil response = harborService.getRepositoryDetailByProjectId(repository.getHarborHost(),
@@ -633,7 +667,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		List<HarborRepositoryMessage> harborRepositoryMessages = new ArrayList<>();
 		harborRepositoryMessages.add(harborRepositoryMessage);
 		this.setImagePullStatus(harborRepositoryMessages);
-		return ActionReturnUtil.returnSuccessWithData(harborRepositoryMessage);
+        return ActionReturnUtil.returnSuccessWithData(harborRepositoryMessage);
 	}
 
 	@Override
@@ -826,11 +860,11 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			}
 		}
 		//用户授权的集群
-		Map<String,Cluster> userCluster = userService.getCurrentUserCluster();
-		for(String clusterId : userCluster.keySet()){
-			Cluster clusterValue = userCluster.get(clusterId);
-			if(!repository.getClusterId().equals(clusterId) && clusterValue.getLevel()>cluster.getLevel()) {
-				syncCluster.add(clusterValue);
+		Integer roleId = userService.getCurrentRoleId();
+		List<Cluster> roleClusters = roleLocalService.getClusterListByRoleId(roleId);
+		for(Cluster roleCluster : roleClusters){
+        	if(!repository.getClusterId().equals(roleCluster.getId()) && roleCluster.getLevel()>cluster.getLevel()) {
+				syncCluster.add(roleCluster);
 			}
 		}
 		return syncCluster;
@@ -936,7 +970,8 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			for(HarborProject harborProject: harborProjects) {
 				//公共镜像仓库过滤容器云平台使用的镜像仓库以及同名的镜像仓库名称, 即平台使用多个harbor，如果各个harbor的projectname相同，则只使用某个harbor的镜像仓库
 				if(harborProject.getIsPublic() == null || harborProject.getIsPublic() == FLAG_FALSE
-						|| HARBOR_PROJECT_NAME_PLATFORM.equalsIgnoreCase(harborProject.getProjectName())){
+						|| HARBOR_PROJECT_NAME_PLATFORM.equalsIgnoreCase(harborProject.getProjectName())
+						|| HARBOR_PROJECT_ISTIO_DEPLOY.equalsIgnoreCase(harborProject.getProjectName())){
 					continue;
 				}
 				ImageRepository repository = new ImageRepository();
@@ -1271,10 +1306,6 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			repository.setUsageSize(harborProject.getUseSize());
 			repository.setUsageRate(harborProject.getUseRate());
 		}
-		if(repository.getIsPublic()) {
-			repository.setClusterName(clusterService.findHarborByHost(repository.getHarborHost()).getReferredClusterNames());
-			repository.setClusterId(clusterService.findHarborByHost(repository.getHarborHost()).getReferredClusterIds());
-		}
 		return ActionReturnUtil.returnSuccess();
 	}
 
@@ -1336,6 +1367,8 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 					continue;
 				}*/
 			}else {
+				//不使用harbor的数据库，使用外部数据库获取的时间要早8小时，与使用harbor的mysql不一致
+				//imageRepository.setCreateTime(DateUtil.utcToGmtDate(harborProject.getCreateTime()));
 				imageRepository.setImageCount(harborProject.getRepoCount());
 				imageRepository.setQuotaSize(harborProject.getQuotaSize());
 				imageRepository.setUsageSize(harborProject.getUseSize());

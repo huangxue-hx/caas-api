@@ -324,7 +324,8 @@ public class ImageCacheManager {
      * @param repositoryMessage 镜像详细信息
      */
     public void putRepoMessage(String harborHost, String repoName, HarborRepositoryMessage repositoryMessage) {
-        if (repositoryMessage == null) {
+        if (repositoryMessage == null || CollectionUtils.isEmpty(repositoryMessage.getRepositoryDetial())) {
+            LOGGER.error("将要刷新缓存的镜像为空,不更新缓存, harborHost:{}, repoName:{}",harborHost, repoName);
             return;
         }
         //设置tags列表

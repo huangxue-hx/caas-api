@@ -30,7 +30,11 @@ public class NamespaceLocal implements Serializable {
 
     private String reserve2;
 
+    private boolean isGpu;
+
     private static final long serialVersionUID = 1L;
+
+    private Boolean  istioStatus;
 
     public Integer getId() {
         return id;
@@ -136,6 +140,22 @@ public class NamespaceLocal implements Serializable {
         this.reserve2 = reserve2 == null ? null : reserve2.trim();
     }
 
+    public Boolean getIstioStatus() {
+        return istioStatus;
+    }
+
+    public void setIstioStatus(Boolean istioStatus) {
+        this.istioStatus = istioStatus;
+    }
+
+    public boolean getIsGpu() {
+        return isGpu;
+    }
+
+    public void setIsGpu(boolean isGpu) {
+        this.isGpu = isGpu;
+    }
+
     @Override
     public boolean equals(Object that) {
         if (this == that) {
@@ -160,7 +180,8 @@ public class NamespaceLocal implements Serializable {
             && (this.getIsPrivate() == null ? other.getIsPrivate() == null : this.getIsPrivate().equals(other.getIsPrivate()))
             && (this.getClusterName() == null ? other.getClusterName() == null : this.getClusterName().equals(other.getClusterName()))
             && (this.getReserve1() == null ? other.getReserve1() == null : this.getReserve1().equals(other.getReserve1()))
-            && (this.getReserve2() == null ? other.getReserve2() == null : this.getReserve2().equals(other.getReserve2()));
+            && (this.getReserve2() == null ? other.getReserve2() == null : this.getReserve2().equals(other.getReserve2()))
+            && (this.getIstioStatus() == null ? other.getIstioStatus() == null : this.getIstioStatus().equals(other.getIstioStatus()));
     }
 
     @Override
@@ -180,6 +201,7 @@ public class NamespaceLocal implements Serializable {
         result = prime * result + ((getClusterName() == null) ? 0 : getClusterName().hashCode());
         result = prime * result + ((getReserve1() == null) ? 0 : getReserve1().hashCode());
         result = prime * result + ((getReserve2() == null) ? 0 : getReserve2().hashCode());
+        result = prime * result + ((getIstioStatus() == null) ? 0 : getIstioStatus().hashCode());
         return result;
     }
 }

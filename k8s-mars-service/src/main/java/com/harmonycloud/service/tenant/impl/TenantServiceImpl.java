@@ -9,10 +9,7 @@ import com.harmonycloud.common.enumm.HarborMemberEnum;
 import com.harmonycloud.common.enumm.NodeTypeEnum;
 import com.harmonycloud.common.exception.K8sAuthException;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.AssertUtil;
-import com.harmonycloud.common.util.StringUtil;
-import com.harmonycloud.common.util.UUIDUtil;
+import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.dataprivilege.DataPrivilegeStrategyMapper;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeStrategy;
@@ -44,10 +41,13 @@ import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.RolePrivilegeService;
 import com.harmonycloud.service.user.UserRoleRelationshipService;
 import com.harmonycloud.service.user.UserService;
+import com.harmonycloud.service.util.SsoClient;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,7 +69,6 @@ import static com.harmonycloud.common.Constant.CommonConstant.PROTOCOL_HTTPS;
  */
 
 @Service("tenantService")
-@Transactional(rollbackFor = Exception.class)
 public class TenantServiceImpl implements TenantService {
 
     @Autowired
@@ -131,6 +130,12 @@ public class TenantServiceImpl implements TenantService {
     //    @Value("#{propertiesReader['network.networkFlag']}")
     private String networkFlag;
 
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
+    @Value("#{propertiesReader['harbor.role.enable']}")
+    private boolean enableHarborRole;
+
     private static final Logger logger = LoggerFactory.getLogger(TenantServiceImpl.class);
 
     /**
@@ -142,7 +147,6 @@ public class TenantServiceImpl implements TenantService {
      */
     @Override
     public Map<String,Object> switchTenant(String tenantId) throws Exception {
-        Map<String,Object> result = new HashMap<>();
         //有效值判断
         TenantBinding tenant = this.getTenantByTenantid(tenantId);
         if (Objects.isNull(tenant)){
@@ -152,99 +156,63 @@ public class TenantServiceImpl implements TenantService {
         String username = this.userService.getCurrentUsername();
         List<TenantBinding> tenantBindings = this.tenantListByUsernameInner(username);
         //检查切换的租户是否在用户能切换的租户范围之内
-        boolean contains = tenantBindings.contains(tenant);
+        boolean contains = tenantBindings.stream().anyMatch(tenantBinding -> tenantBinding.getId().equals(tenant.getId()));
         if (!contains){
             throw new MarsRuntimeException(ErrorCodeMessage.SWITCH_TENANT_INCORRECT,tenant.getTenantName(),Boolean.TRUE);
         }
-        boolean admin = userService.isAdmin(username);
+        boolean isAdmin = userService.isAdmin(username);
+        Map<String,Object> result = this.setCurrentTenant(tenant.getTenantId(), tenant.getAliasName(), username, isAdmin);
+        return result;
+    }
+
+    @Override
+    public Map<String,Object> setCurrentTenant(String tenantId, String tenantAliasName, String username, boolean isAdmin) throws Exception{
         //设置租户id到session
         session.setAttribute(CommonConstant.TENANT_ID, tenantId);
-        session.setAttribute(CommonConstant.TENANT_ALIASNAME, tenant.getAliasName());
-        String sessionId = session.getId();
-//        logger.info("sessionId:" + sessionId);
+        session.setAttribute(CommonConstant.TENANT_ALIASNAME, tenantAliasName);
         List<Project> projects = null;
-        Boolean tm = this.isTm(tenantId);
-        if(admin || tm){
+        Boolean isTm = this.isTm(tenantId);
+        if(isAdmin || isTm){
             //为系统管理员或者租户管理员获取该租户下所有项目列表
-            session.setAttribute(CommonConstant.ROLEID, CommonConstant.ADMIN_ROLEID);
             projects = this.projectService.listTenantProjectByTenantidInner(tenantId);
         } else {
             //不为系统管理员获取该租户下用户所拥有的项目列表
             projects = this.projectService.listTenantProjectByUsername(tenantId, username);
         }
-        List<Role> roleList = this.roleLocalService.getRoleListByUsernameAndTenantId(username,tenantId);
-        if (!CollectionUtils.isEmpty(projects) && !CollectionUtils.isEmpty(roleList) && !admin && !tm){
-            Map<String, Project> collect = projects.stream().collect(Collectors.toMap(Project::getProjectId, project -> project));
-            projects.clear();
-            Map<String,Object> map = new HashMap<>();
-            for (Role role:roleList) {
-                List<UserRoleRelationship> userRoleRelationshipList = this.userRoleRelationshipService.getUserRoleRelationshipList(username, role.getId());
-                for (UserRoleRelationship userRoleRelationship : userRoleRelationshipList) {
-                    Object object = map.get(userRoleRelationship.getProjectId());
-                    if (Objects.isNull(object)){
-                        Project project = collect.get(userRoleRelationship.getProjectId());
-                        if (!Objects.isNull(project)){
-                            projects.add(project);
-                            map.put(project.getProjectId(),project);
-                        }
-                    }
-                }
-            }
-        }
-        //切换之后的角色列表包含原角色则设置原角色，否则设置默认角色id为角色列表的第一个角色id
-        if (!CollectionUtils.isEmpty(roleList)){
-            List<Integer> roleIds = roleList.stream().map(Role::getId).collect(Collectors.toList());
-            if(session.getAttribute(CommonConstant.ROLEID) == null
-                    || !roleIds.contains(session.getAttribute(CommonConstant.ROLEID))){
-                session.setAttribute(CommonConstant.ROLEID, roleList.get(0).getId());
-            }
-        }
-        if (roleList.size() <= 0){
-            throw new MarsRuntimeException(ErrorCodeMessage.ROLE_DISABLE);
-        }
+        List<Role> roleList = null;
         if (!CollectionUtils.isEmpty(projects)){
             roleList = this.projectService.switchProject(tenantId, projects.get(0).getProjectId());
         } else {
             //项目为空不切换项目
             session.removeAttribute(CommonConstant.PROJECTID);
-            rolePrivilegeService.switchRole(roleList.get(0).getId());
+            roleList = this.roleLocalService.getRoleListByUsernameAndTenantId(username,tenantId);
         }
+        if (roleList.size() <= 0){
+            SsoClient.dealHeader(session);
+            throw new MarsRuntimeException(ErrorCodeMessage.ROLE_DISABLE);
+        }
+        //切换之后的角色列表包含原角色则设置原角色，否则设置默认角色id为角色列表的第一个角色id
+        List<Integer> roleIds = roleList.stream().map(Role::getId).collect(Collectors.toList());
+        if(session.getAttribute(CommonConstant.ROLEID) == null
+                || !roleIds.contains(session.getAttribute(CommonConstant.ROLEID))){
+            session.setAttribute(CommonConstant.ROLEID, roleList.get(0).getId());
+        }
+
+        Map<String,Object> result = new HashMap<>();
         result.put(CommonConstant.PROJECTLIST,projects);
         result.put(CommonConstant.ROLELIST,roleList);
+        //Map<String, Object> privileges = rolePrivilegeService.setCurrentRoleInfo(roleList.get(0));
+        //result.put(CommonConstant.PRIVILEGELIST,privileges);
         return result;
     }
 
     @Override
     public List<TenantDto> tenantList() throws Exception {
-        //获取当前用户名
-        Object usernameObj = session.getAttribute("username");
-        if(usernameObj == null){
-            return Collections.emptyList();
-        }
-        String username = usernameObj.toString();
-        //判断用户是否为系统管理员
-        boolean isAdmin = userService.isAdmin(username);
-        List<TenantBinding> tenantList = null;
-        List<TenantDto> list = new ArrayList<TenantDto>();
-        if (isAdmin){
-            //如果是admin则查询所有的租户
-            tenantList = this.listAllTenant();
-        }else{
-            //如果不是admin则查询当前用户的租户
-            tenantList = userRoleRelationshipService.listTenantByUsername(username);
-        }
+        List<TenantDto> tenantList = this.listTenantBrief();
         //如果租户列表不为空，组装数据返回
         if (!CollectionUtils.isEmpty(tenantList)){
-            for (TenantBinding tenantBinding:tenantList) {
-                TenantDto tenantDto = new TenantDto();
-                String tenantId = tenantBinding.getTenantId();
-                tenantDto.setCreateTime(tenantBinding.getCreateTime());
-                tenantDto.setUpdateTime(tenantBinding.getUpdateTime());
-                tenantDto.setTenantId(tenantId);
-                tenantDto.setAliasName(tenantBinding.getAliasName());
-                tenantDto.setTenantName(tenantBinding.getTenantName());
-                tenantDto.setCreateUserAccount(tenantBinding.getCreateUserAccount());
-                tenantDto.setCreateUserName(tenantBinding.getCreateUserName());
+            for (TenantDto tenantDto : tenantList) {
+                String tenantId = tenantDto.getTenantId();
 
                 //获取租户下的项目简单列表
                 List<Project> projectList = projectService.listTenantProjectByTenantidInner(tenantId);
@@ -262,12 +230,54 @@ public class TenantServiceImpl implements TenantService {
                 }
                 tenantDto.setNamespaceNum(nsNum);
                 tenantDto.setTmNum(tmList.size());
-                list.add(tenantDto);
             }
         }
 
+        return tenantList;
+    }
+
+    @Override
+    public List<TenantDto> listTenantBrief() throws Exception {
+        //获取当前用户名
+        Object usernameObj = session.getAttribute("username");
+        if(usernameObj == null){
+            return Collections.emptyList();
+        }
+        String username = usernameObj.toString();
+        //判断用户是否为系统管理员
+        boolean isAdmin = userService.isAdmin(username);
+        List<TenantBinding> tenantList = null;
+        List<TenantDto> list = new ArrayList<TenantDto>();
+        Map<String, TenantDto> tenantDtoMap = new HashMap<>();
+        if (isAdmin){
+            //如果是admin则查询所有的租户
+            tenantList = this.listAllTenant();
+        }else{
+            //如果不是admin则查询当前用户的租户
+            tenantList = userRoleRelationshipService.listTenantByUsername(username);
+        }
+        //如果租户列表不为空，组装数据返回
+        if (!CollectionUtils.isEmpty(tenantList)){
+            for (TenantBinding tenantBinding:tenantList) {
+                String tenantId = tenantBinding.getTenantId();
+                if (tenantDtoMap.get(tenantId) != null) {
+                    continue;
+                }
+                TenantDto tenantDto = new TenantDto();
+                tenantDto.setCreateTime(tenantBinding.getCreateTime());
+                tenantDto.setUpdateTime(tenantBinding.getUpdateTime());
+                tenantDto.setTenantId(tenantId);
+                tenantDto.setAliasName(tenantBinding.getAliasName());
+                tenantDto.setTenantName(tenantBinding.getTenantName());
+                tenantDto.setCreateUserAccount(tenantBinding.getCreateUserAccount());
+                tenantDto.setCreateUserName(tenantBinding.getCreateUserName());
+                tenantDtoMap.put(tenantId, tenantDto);
+                list.add(tenantDto);
+            }
+        }
         return list;
     }
+
     @Override
     public List<TenantBinding> tenantListByUsernameInner(String username) throws Exception {
         List<TenantBinding> tenantList = null;
@@ -333,16 +343,7 @@ public class TenantServiceImpl implements TenantService {
         //获取租户集群配额
         List<ClusterQuotaDto> tenantClusterQuotas = tenantClusterQuotaService.listClusterQuotaByTenantid(tenantId,null);
         Iterator<ClusterQuotaDto> iterator = tenantClusterQuotas.iterator();
-        Integer currentRoleId = userService.getCurrentRoleId();
-        Role role = roleLocalService.getRoleById(currentRoleId);
-        String clusterIds = role.getClusterIds();
-        List<String> clusterIdList = null;
-        if (StringUtils.isNotBlank(clusterIds)){
-            clusterIdList = Arrays.stream(clusterIds.split(CommonConstant.COMMA)).collect(Collectors.toList());
-        } else {
-            List<Cluster> clusterList = clusterService.listCluster();
-            clusterIdList = clusterList.stream().map(cluster -> cluster.getId()).collect(Collectors.toList());
-        }
+        List<String> clusterIdList = roleLocalService.listCurrentUserRoleClusterIds();
         //如果集群状态不可用，不显示已经设置的配额
         while(iterator.hasNext()){
             ClusterQuotaDto clusterQuotaDto = iterator.next();
@@ -369,7 +370,7 @@ public class TenantServiceImpl implements TenantService {
 
     @Override
     @Transactional(propagation = Propagation.REQUIRED)
-    public void createTenant(TenantDto tenantDto) throws Exception {
+    public String createTenant(TenantDto tenantDto) throws Exception {
         //查询要创建的租户是否存在
         String tenantName = tenantDto.getTenantName();
         String tenantId = tenantDto.getTenantId();
@@ -430,6 +431,9 @@ public class TenantServiceImpl implements TenantService {
         privilegeStrategy.setScopeId(tenantId);
         privilegeStrategy.setStrategy(tenantDto.getStrategy().byteValue());
         dataPrivilegeStrategyMapper.insertSelective(privilegeStrategy);
+        String tenantBindingJson = JsonUtil.objectToJson(tenantBinding);
+        redisTemplate.opsForValue().set(CommonConstant.TENANT_REDIS_KEY_PREFIX.concat(tenantId), tenantBindingJson);
+        return tenantDto.getTenantId();
     }
 
     @Override
@@ -483,6 +487,7 @@ public class TenantServiceImpl implements TenantService {
         for (TenantPrivateNode tenantPrivateNode:tenantPrivateNodes) {
             this.dealDeletePrivateNode(tenantPrivateNode,tenantBinding);
         }
+        redisTemplate.delete(CommonConstant.TENANT_REDIS_KEY_PREFIX.concat(tenantId));
     }
     /**
      * 修改租户在集群下的配额
@@ -490,6 +495,7 @@ public class TenantServiceImpl implements TenantService {
      * @param clusterQuota
      * @throws Exception
      */
+    @Transactional
     @Override
     public void updateTenant(String tenantId,List<ClusterQuotaDto> clusterQuota) throws Exception{
         // 有效值判断
@@ -522,6 +528,10 @@ public class TenantServiceImpl implements TenantService {
         if (storageDtoList != null) {
             String storageQuotasString = "";
             for (StorageDto storageDto : storageDtoList) {
+                //存储配额为0的存储不需要记录租户存储配额表中
+                if (Integer.parseInt(storageDto.getStorageQuota()) <= 0) {
+                    continue;
+                }
                 storageQuotasString = storageDto.getName() + "_" + storageDto.getStorageQuota() + "_" +
                         storageDto.getTotalStorage() + "," + storageQuotasString;
             }
@@ -608,19 +618,20 @@ public class TenantServiceImpl implements TenantService {
                 //存储配额有效值检查
                 List<StorageDto> storageDtoList = clusterQuotaDto.getStorageQuota();
                 //租户内已经使用的存储
-                Map<String, Integer> storageUsedMap = this.tenantClusterQuotaService.getStorageUsage(tenantId, clusterId);
+                Map<String, StorageDto> storageUsedMap = this.tenantClusterQuotaService.getStorageUsage(tenantId, clusterId);
                 if (storageUsedMap.size() > 0) {
                     Map<String, StorageDto> storageDtoMap = new HashMap<>();
                     if (storageDtoList != null) {
                         storageDtoMap = storageDtoList.stream().collect(Collectors.toMap(StorageDto::getName,storage -> storage));
                     }
                     for (String storageName : storageUsedMap.keySet()) {
-                        if(storageUsedMap.get(storageName)>0) {
+                        int storageUsed = Integer.parseInt(storageUsedMap.get(storageName).getUsedStorage());
+                        if (storageUsed > 0) {
                             StorageDto storageDto = storageDtoMap.get(storageName);
                             if(storageDto == null){
                                 throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_QUOTA_DELETE_FAIL);
                             }
-                            if(Integer.parseInt(storageDto.getStorageQuota()) < storageUsedMap.get(storageName)){
+                            if(Integer.parseInt(storageDto.getStorageQuota()) < storageUsed){
                                 logger.warn("设置集群存储配额小于已使用的，used：{}，set：{}",
                                         JSONObject.toJSONString(storageUsedMap),JSONObject.toJSONString(storageDtoList));
                                 throw new MarsRuntimeException(ErrorCodeMessage.RESOURCE_BEHIND_FLOOR);
@@ -701,6 +712,7 @@ public class TenantServiceImpl implements TenantService {
      * @param tenantDto
      * @throws Exception
      */
+    @Transactional
     @Override
     public void updateTenant(TenantDto tenantDto) throws Exception {
         String tenantId = tenantDto.getTenantId();
@@ -732,8 +744,9 @@ public class TenantServiceImpl implements TenantService {
                 this.tenantPrivateNodeService.createTenantPrivateNode(tenantPrivateNode);
                 // 更新node节点状态
                 Map<String, String> newLabels = new HashMap<String, String>();
-                newLabels.put(CommonConstant.HARMONYCLOUD_STATUS, CommonConstant.LABEL_STATUS_D);
+                newLabels.put(NodeTypeEnum.PRIVATE.getLabelKey(), NodeTypeEnum.PRIVATE.getLabelValue());
                 newLabels.put(CommonConstant.HARMONYCLOUD_TENANTNAME_NS, tenant.getTenantName());
+                newLabels.put(CommonConstant.HARMONYCLOUD_TENANT_ID, tenantId);
                 ActionReturnUtil addNodeLabels = nodeService.addNodeLabels(tenantPrivateNode.getNodeName(), newLabels, tenantPrivateNode.getClusterId());
                 if ((Boolean) addNodeLabels.get(CommonConstant.SUCCESS) == false) {
                     throw new MarsRuntimeException(ErrorCodeMessage.NODE_LABEL_CREATE_ERROR);
@@ -748,6 +761,8 @@ public class TenantServiceImpl implements TenantService {
         }
         tenant.setUpdateTime(DateUtil.getCurrentUtcTime());
         this.tenantBindingMapper.updateByPrimaryKeySelective(tenant);
+        String tenantBindingJson = JsonUtil.objectToJson(tenant);
+        redisTemplate.opsForValue().set(CommonConstant.TENANT_REDIS_KEY_PREFIX.concat(tenant.getTenantId()), tenantBindingJson);
     }
     //处理删除租户独占主机
     private void dealDeletePrivateNode(TenantPrivateNode tenantPrivateNode,TenantBinding tenant )throws Exception{
@@ -760,8 +775,8 @@ public class TenantServiceImpl implements TenantService {
             throw new MarsRuntimeException(ErrorCodeMessage.NODE_NOT_EXIST);
         }
         Map<String, String> updateLabels = new HashMap<String, String>();
-        String HarmonyCloud_Status = nodeStatusLabels.get(CommonConstant.HARMONYCLOUD_STATUS);
-        if (StringUtils.isBlank(HarmonyCloud_Status)) {
+        String privateNodeLabelValue = nodeStatusLabels.get(NodeTypeEnum.PRIVATE.getLabelKey());
+        if (StringUtils.isBlank(privateNodeLabelValue)) {
             throw new MarsRuntimeException(ErrorCodeMessage.NODE_LABEL_ERROR);
         }
         String tenantNsLabel = nodeStatusLabels.get(CommonConstant.HARMONYCLOUD_TENANTNAME_NS);
@@ -769,7 +784,7 @@ public class TenantServiceImpl implements TenantService {
         if (StringUtils.isNotBlank(tenantNsLabel) && tenantNsLabel.contains(tenantName) &&!tenantNsLabel.equals(tenantName)) {
             throw new MarsRuntimeException(ErrorCodeMessage.NODE_CANNOT_REMOVED_FORTENANT);
         }
-        if (HarmonyCloud_Status.equals(CommonConstant.LABEL_STATUS_D)) {
+        if (privateNodeLabelValue.equals(NodeTypeEnum.PRIVATE.getLabelValue())) {
             //删除节点的租户标签，增加节点闲置类型标签
             updateLabels.put(CommonConstant.HARMONYCLOUD_TENANTNAME_NS, null);
             updateLabels.put(CommonConstant.HARMONYCLOUD_TENANT_ID, null);
@@ -958,15 +973,17 @@ public class TenantServiceImpl implements TenantService {
             }
 
             // deal harbor user privilege
-            try {
-                List<Project> projectList = this.projectService.listTenantProjectByTenantidInner(tenantId);
-                if (!CollectionUtils.isEmpty(projectList)){
-                    for (Project project : projectList) {
-                        this.roleLocalService.addHarborUserRole(HarborMemberEnum.PROJECTADMIN,project.getProjectId(),user,CommonConstant.TM_ROLEID);
+            if(enableHarborRole) {
+                try {
+                    List<Project> projectList = this.projectService.listTenantProjectByTenantidInner(tenantId);
+                    if (!CollectionUtils.isEmpty(projectList)) {
+                        for (Project project : projectList) {
+                            this.roleLocalService.addHarborUserRole(HarborMemberEnum.PROJECTADMIN, project.getProjectId(), user, CommonConstant.TM_ROLEID);
+                        }
                     }
+                } catch (Exception e) {
+                    logger.error("sync harbor member failed", e);
                 }
-            }catch (Exception e){
-                logger.error("sync harbor member failed",e);
             }
         }
         //更新TM关系至租户表
@@ -1012,6 +1029,7 @@ public class TenantServiceImpl implements TenantService {
      * @param username
      * @throws Exception
      */
+    @Transactional
     @Override
     public void deleteTm(String tenantId, String username) throws Exception {
         //处理空格
@@ -1038,15 +1056,17 @@ public class TenantServiceImpl implements TenantService {
         //更新redis中用户的状态
         clusterCacheManager.updateRolePrivilegeStatusForTenantOrProject(roleId,username,tenantId,null,Boolean.TRUE);
         //处理harbor的角色权限关系
-        try {
-            List<Project> projectList = this.projectService.listTenantProjectByTenantidInner(tenantId);
-            if (!CollectionUtils.isEmpty(projectList)){
-                for (Project project : projectList) {
-                    this.roleLocalService.updateHarborUserRole(HarborMemberEnum.NONE,project.getProjectId(),username);
+        if(enableHarborRole) {
+            try {
+                List<Project> projectList = this.projectService.listTenantProjectByTenantidInner(tenantId);
+                if (!CollectionUtils.isEmpty(projectList)) {
+                    for (Project project : projectList) {
+                        this.roleLocalService.updateHarborUserRole(HarborMemberEnum.NONE, project.getProjectId(), username);
+                    }
                 }
+            } catch (Exception e) {
+                logger.error("sync harbor member failed", e);
             }
-        }catch (Exception e){
-            logger.error("sync harbor member failed",e);
         }
     }
 
@@ -1054,12 +1074,19 @@ public class TenantServiceImpl implements TenantService {
     public TenantBinding getTenantByTenantid(String tenantid) {
         TenantBindingExample example = new TenantBindingExample();
         example.createCriteria().andTenantIdEqualTo(tenantid);
+        String tenantBindingJson = redisTemplate.opsForValue().get(CommonConstant.TENANT_REDIS_KEY_PREFIX.concat(tenantid));
+        if (StringUtils.isNotBlank(tenantBindingJson)) {
+            return JsonUtil.jsonToPojo(new String(tenantBindingJson), TenantBinding.class);
+        }
         // 根据tenantid查询租户绑定信息
         List<TenantBinding> list = tenantBindingMapper.selectByExample(example);
         if (list == null || list.size() <= 0 || list.get(0) == null) {
             return null;
+        } else {
+            tenantBindingJson = JsonUtil.objectToJson(list.get(0));
+            redisTemplate.opsForValue().set(CommonConstant.TENANT_REDIS_KEY_PREFIX.concat(tenantid), tenantBindingJson);
+            return list.get(0);
         }
-        return list.get(0);
 
     }
 
@@ -1517,6 +1544,7 @@ public class TenantServiceImpl implements TenantService {
      * @return
      * @throws Exception
      */
+    @Transactional
     @Override
     public void importCdsUserRelationship(CDPUserDto cdpUserDto) throws Exception {
         String tenantId = null;
@@ -1610,6 +1638,7 @@ public class TenantServiceImpl implements TenantService {
      * @param clusterQuota
      * @throws Exception
      */
+    @Transactional
     @Override
     public void removeClusterQuota(String tenantName, String tenantId, ClusterQuotaDto clusterQuota) throws Exception {
         //更新集群配额

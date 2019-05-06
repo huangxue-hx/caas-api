@@ -17,7 +17,8 @@ public class HarborProjectInfo {
     private List<HarborRepositoryMessage> harborRepositoryMessagesList;
     private String harborHost;
     private String referredClusterNames;
-
+    private String referredClusterAliasNames;
+    private String dataCenterName;
     private Boolean isPublic;
 
     public Integer getProject_id() {
@@ -98,6 +99,22 @@ public class HarborProjectInfo {
 
     public void setReferredClusterNames(String referredClusterNames) {
         this.referredClusterNames = referredClusterNames;
+    }
+
+    public String getReferredClusterAliasNames() {
+        return referredClusterAliasNames;
+    }
+
+    public void setReferredClusterAliasNames(String referredClusterAliasNames) {
+        this.referredClusterAliasNames = referredClusterAliasNames;
+    }
+
+    public String getDataCenterName() {
+        return dataCenterName;
+    }
+
+    public void setDataCenterName(String dataCenterName) {
+        this.dataCenterName = dataCenterName;
     }
 
     public Boolean getIsPublic() {

@@ -36,7 +36,7 @@ public interface StatefulSetsService {
 
     List<EventDetail> getStatefulSetEvents(String namespace, String name) throws Exception;
 
-    List<PodDetail> podList(String name, String namespace) throws Exception;
+    List<PodDetail> podList(String name, String namespace, boolean isFilterTerminated) throws Exception;
 
     ActionReturnUtil deleteStatfulServiceByprojectId(String projectId, String tenantId) throws Exception;
 
@@ -59,4 +59,12 @@ public interface StatefulSetsService {
      * @return
      */
     StatefulSetList listStatefulSets(String namespace, String projectId) throws Exception;
+
+    /**
+     * 查询某分区项目下的有状态服务
+     * @param namespace
+     * @param projectId
+     * @return
+     */
+    StatefulSetList listStatefulSets(String namespace, String projectId, Cluster cluster) throws Exception;
 }

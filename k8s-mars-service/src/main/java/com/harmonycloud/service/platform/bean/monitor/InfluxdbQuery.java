@@ -18,6 +18,9 @@ public class InfluxdbQuery {
     private String clusterId;
     private String container;
     private String pod;
+    private String serviceName;
+    private String serviceType;
+    private String namespace;
 
     public String getType() {
         return type;
@@ -89,5 +92,29 @@ public class InfluxdbQuery {
 
     public void setMeasurement(String measurement) {
         this.measurement = measurement;
+    }
+
+    public String getServiceName() {
+        return serviceName;
+    }
+
+    public void setServiceName(String serviceName) {
+        this.serviceName = serviceName;
+    }
+
+    public String getServiceType() {
+        return serviceType;
+    }
+
+    public void setServiceType(String serviceType) {
+        this.serviceType = serviceType;
+    }
+
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
     }
 }

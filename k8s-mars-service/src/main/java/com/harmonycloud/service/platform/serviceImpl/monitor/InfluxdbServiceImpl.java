@@ -1,17 +1,19 @@
 package com.harmonycloud.service.platform.serviceImpl.monitor;
 
+import com.google.common.collect.Lists;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.*;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateStyle;
-import com.harmonycloud.k8s.bean.Node;
-import com.harmonycloud.k8s.bean.NodeCondition;
-import com.harmonycloud.k8s.bean.NodeList;
+import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8sMachineClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
+import com.harmonycloud.k8s.service.DeploymentService;
+import com.harmonycloud.k8s.service.PodService;
+import com.harmonycloud.k8s.service.StatefulSetService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.cluster.ClusterService;
@@ -49,6 +51,10 @@ public class InfluxdbServiceImpl implements InfluxdbService {
 
     @Autowired
     private ClusterService clusterService;
+    @Autowired
+    private DeploymentService deploymentService;
+    @Autowired
+    private StatefulSetService statefulsetService;
 
     @Autowired
     com.harmonycloud.k8s.service.NodeService nodeService;
@@ -61,10 +67,10 @@ public class InfluxdbServiceImpl implements InfluxdbService {
     //监控数据最大展示100个监控点
     private static final int MAX_MONITOR_POINT = 100;
     private String nodeName = "nodename";
-    @Value("${influxdb.name.nodenetwork:kube}")
+    @Value("${influxdb.name.nodenetwork:k8s}")
     private String nodeNetworkInfluxdbDbName;
 
-	public ActionReturnUtil podMonit(InfluxdbQuery query, Integer request) throws ParseException,IOException,NoSuchAlgorithmException,KeyManagementException {
+	public ActionReturnUtil podMonit(InfluxdbQuery query, Integer request) throws Exception {
 		String interval;
 		String range;
 		Cluster cluster = clusterService.findClusterById(query.getClusterId());
@@ -138,50 +144,83 @@ public class InfluxdbServiceImpl implements InfluxdbService {
                 sql = "SELECT mean(" + "\"value\"" + ") FROM " + "\"" + target + "\"" + " WHERE " + "\"type\"" + " = " + "\'" + type + "\'" + " AND " + "\"pod_name\"" + " = " + "\'" + query.getPod() + "\'" + " AND time > now() - " + range + " GROUP BY time(" + interval + ") fill(null)";
             }
         }
-        String influxServer = cluster.getInfluxdbUrl();
-        if (EnumMonitorTarget.RX.name().equalsIgnoreCase(query.getMeasurement()) || EnumMonitorTarget.TX.name().equalsIgnoreCase(query.getMeasurement())){
-            influxServer = influxServer + "?db=" + nodeNetworkInfluxdbDbName;
-        } else {
-            influxServer = cluster.getInfluxdbUrl() + "?db=" + cluster.getInfluxdbDb();
+
+        String influxServer = cluster.getInfluxdbUrl() + "?db=" + cluster.getInfluxdbDb();
+        influxServer = influxServer + "&&q=" + URLEncoder.encode(sql, "UTF-8");
+        HttpClientResponse response = HttpClientUtil.doGet(influxServer, null, null);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            return ActionReturnUtil.returnErrorWithMsg(response.getBody());
         }
-		influxServer = influxServer + "&&q="+URLEncoder.encode(sql, "UTF-8");
-		HttpClientResponse response = HttpClientUtil.doGet(influxServer, null, null);
-		if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-			return ActionReturnUtil.returnErrorWithMsg(response.getBody());
-		}
-		QueryResult queryResult = JsonUtil.jsonToPojo(response.getBody(),QueryResult.class);
-        if(!Objects.isNull(queryResult) && !CollectionUtils.isEmpty(queryResult.getResults())
-                && !CollectionUtils.isEmpty(queryResult.getResults().get(0).getSeries())) {
-			QueryResult.Series series = queryResult.getResults().get(0).getSeries().get(0);
-            if ("CPU".equalsIgnoreCase(query.getMeasurement())) {
-                if(request != null && request != 0){
-                    List<List<Object>> lists = series.getValues();
-                    for(int i = 0; i < lists.size(); i++){
-                        if(lists.get(i).get(1) != null){
-                            //cpu使用量转换为百分比
-                            lists.get(i).add(CommonConstant.NUM_TWO, String.format("%.0f", Double.parseDouble(String.valueOf(lists.get(i).get(1)))/request*100));
+        if (mTarget.equals(EnumMonitorTarget.VOLUME) && query.getServiceName() != null) {
+            List<String> monitotPvcList = new ArrayList<>();
+            Map<String, String> pvcMap = new HashMap<>();
+            List<String> volumeTemplateList = new ArrayList<>();
+            List<Volume> volumeList = new ArrayList<>();
+            List<Container> containerList = new ArrayList<>();
+            switch(ServiceTypeEnum.valueOf(query.getServiceType().toUpperCase())){
+                case DEPLOYMENT:
+                    K8SClientResponse depResponse = deploymentService.doSpecifyDeployment(query.getNamespace(), query.getServiceName(), null, null, HTTPMethod.GET, cluster);
+                    Deployment deployment = JsonUtil.jsonToPojo(depResponse.getBody(), Deployment.class);
+                    volumeList = deployment.getSpec().getTemplate().getSpec().getVolumes();
+                    containerList = deployment.getSpec().getTemplate().getSpec().getContainers();
+                    break;
+                case STATEFULSET:
+                    K8SClientResponse stsResponse = statefulsetService.doSpecifyStatefulSet(query.getNamespace(), query.getServiceName(), null, null, HTTPMethod.GET, cluster);
+                    StatefulSet statefulSet = JsonUtil.jsonToPojo(stsResponse.getBody(), StatefulSet.class);
+                    volumeList = statefulSet.getSpec().getTemplate().getSpec().getVolumes();
+                    containerList = statefulSet.getSpec().getTemplate().getSpec().getContainers();
+                    List<PersistentVolumeClaim> volumeClaimList = statefulSet.getSpec().getVolumeClaimTemplates();
+                    if(!CollectionUtils.isEmpty(volumeClaimList)){
+                        for(PersistentVolumeClaim persistentVolumeClaim : volumeClaimList){
+                            volumeTemplateList.add(persistentVolumeClaim.getMetadata().getName());
                         }
                     }
-                    queryResult.getResults().get(0).getSeries().get(0).setValues(lists);
-                    return ActionReturnUtil.returnSuccessWithData(queryResult);
+                    break;
+            }
+
+            if(!CollectionUtils.isEmpty(volumeList)){
+                for(Volume volume : volumeList){
+                    if(volume.getPersistentVolumeClaim() != null){
+                        pvcMap.put(volume.getName(), volume.getPersistentVolumeClaim().getClaimName());
+                    }
                 }
             }
-            if ("MEMORY".equalsIgnoreCase(query.getMeasurement())) {
-                if(request != null && request != 0){
-                    List<List<Object>> lists = series.getValues();
-                    for(int i = 0; i < lists.size(); i++){
-                        if(lists.get(i).get(1) != null){
-                            //内存使用量转换为百分比
-                            lists.get(i).add(CommonConstant.NUM_TWO, String.format("%.0f", Double.parseDouble(String.valueOf(lists.get(i).get(1)))/1024/1024/request*100));
+            for(Container container : containerList){
+                if(query.getContainer().equals(container.getName())){
+                    if(!CollectionUtils.isEmpty(container.getVolumeMounts())){
+                        for(VolumeMount volumeMount : container.getVolumeMounts()){
+                            if (pvcMap.get(volumeMount.getName()) != null) {
+                                monitotPvcList.add(pvcMap.get(volumeMount.getName()));
+                            }else if(volumeTemplateList.contains(volumeMount.getName())){
+                                monitotPvcList.add(volumeMount.getName() + CommonConstant.LINE + query.getPod());
+                            }
                         }
                     }
-                    queryResult.getResults().get(0).getSeries().get(0).setValues(lists);
-                    return ActionReturnUtil.returnSuccessWithData(queryResult);
+                    break;
                 }
             }
-		}
-		return ActionReturnUtil.returnSuccessWithData(JsonUtil.convertJsonToMap(response.getBody()));
-	}
+
+            Map data = JsonUtil.convertJsonToMap(response.getBody());
+            List<Map<String, Object>> results = (List<Map<String, Object>>)data.get("results");
+            if(!CollectionUtils.isEmpty(results)){
+                for(Map<String, Object> result : results){
+                    List<Map<String, Object>> series = (List<Map<String, Object>>)result.get("series");
+                    if(!CollectionUtils.isEmpty(series)){
+                        Iterator<Map<String, Object>> it = series.iterator();
+                        while(it.hasNext()){
+                            Map<String, Object> dataMap = it.next();
+                            Map<String, Object> tags = (Map<String, Object>)dataMap.get("tags");
+                            if(tags == null || !monitotPvcList.contains(tags.get("pvc_name"))){
+                                it.remove();
+                            }
+                        }
+                    }
+                }
+            }
+            return ActionReturnUtil.returnSuccessWithData(data);
+        }
+        return ActionReturnUtil.returnSuccessWithData(JsonUtil.convertJsonToMap(response.getBody()));
+    }
 
     /**
      * 获取node的监控数据
@@ -275,7 +314,7 @@ public class InfluxdbServiceImpl implements InfluxdbService {
             return ActionReturnUtil.returnErrorWithMsg(response.getBody());
         }
         Node node = nodeService.getNode(influxdbQuery.getNode(),cluster);
-        NodeDto dto = nodeService1.getHostUsege(node, new NodeDto(), cluster);
+        NodeDto dto = nodeService1.getHostUsage(node, new NodeDto(), cluster);
         Double.parseDouble(dto.getMemory());
         QueryResult queryResult = JsonUtil.jsonToPojo(response.getBody(),QueryResult.class);
         QueryResult.Series series = null;
@@ -288,7 +327,11 @@ public class InfluxdbServiceImpl implements InfluxdbService {
                 }
             }
             if (series == null) {
-                queryResult.getResults().get(0).getSeries().get(0).setValues(Collections.emptyList());
+                if (queryResult.getResults().get(0).getSeries() == null) {
+                    queryResult.getResults().get(0).setSeries(Lists.newArrayList());
+                } else {
+                    queryResult.getResults().get(0).getSeries().get(0).setValues(Collections.emptyList());
+                }
                 return ActionReturnUtil.returnSuccessWithData(queryResult);
             }
             if ("CPU".equalsIgnoreCase(influxdbQuery.getMeasurement())) {
@@ -646,7 +689,6 @@ public class InfluxdbServiceImpl implements InfluxdbService {
                         double memoryDouble = Double.parseDouble(memory);
                         resourceMap.put("memory", String.format("%.1f", memoryDouble));
                     }
-
                     resourceMap.put("disk", String.format("%.0f", nodeFilesystemCapacity / 1024 / 1024 / 1024));
                     res.add(resourceMap);
                 }

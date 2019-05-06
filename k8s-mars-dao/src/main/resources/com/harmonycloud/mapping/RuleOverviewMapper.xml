@@ -2,7 +2,6 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.harmonycloud.dao.istio.RuleOverviewMapper">
   <resultMap id="BaseResultMap" type="com.harmonycloud.dao.istio.bean.RuleOverview">
-    <id column="id" jdbcType="INTEGER" property="id" />
     <result column="rule_name" jdbcType="VARCHAR" property="ruleName" />
     <result column="rule_id" jdbcType="VARCHAR" property="ruleId" />
     <result column="rule_type" jdbcType="VARCHAR" property="ruleType" />
@@ -14,13 +13,13 @@
     <result column="switch_status" jdbcType="INTEGER" property="switchStatus" />
     <result column="data_status" jdbcType="INTEGER" property="dataStatus" />
     <result column="data_err_loc" jdbcType="INTEGER" property="dataErrLoc" />
-    <result column="user_id" jdbcType="VARCHAR" property="userId" />
+    <result column="user_name" jdbcType="VARCHAR" property="userName" />
     <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
     <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
   </resultMap>
   <sql id="Base_Column_List">
     rule_name, rule_id, rule_type, rule_scope, rule_cluster_id, rule_ns, rule_svc,
-    rule_source_num, switch_status, data_status, data_err_loc, user_id, create_time, update_time
+    rule_source_num, switch_status, data_status, data_err_loc, user_name, create_time, update_time
   </sql>
   <select id="selectByRuleInfo" parameterType="java.util.Map" resultMap="BaseResultMap">
     select
@@ -46,7 +45,7 @@
         and rule_type = #{ruleType,jdbcType=VARCHAR}
       </if>
     </where>
-    order by rule_type;
+    order by rule_svc,rule_type;
   </select>
 
   <select id="selectRuleStatus" parameterType="java.lang.String" resultType="java.util.Map">
@@ -57,19 +56,16 @@
   </select>
 
   <insert id="insert" parameterType="com.harmonycloud.dao.istio.bean.RuleOverview">
-    <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
-      SELECT LAST_INSERT_ID()
-    </selectKey>
     insert into rule_overview (rule_name, rule_id, rule_type,
       rule_scope, rule_cluster_id, rule_ns, 
       rule_svc, rule_source_num, switch_status, 
-      data_status, data_err_loc, user_id, 
+      data_status, data_err_loc, user_name, 
       create_time)
     values (#{ruleName,jdbcType=VARCHAR}, #{ruleId,jdbcType=VARCHAR}, #{ruleType,jdbcType=VARCHAR},
       #{ruleScope,jdbcType=VARCHAR}, #{ruleClusterId,jdbcType=VARCHAR}, #{ruleNs,jdbcType=VARCHAR},
       #{ruleSvc,jdbcType=VARCHAR}, #{ruleSourceNum,jdbcType=INTEGER}, #{switchStatus,jdbcType=INTEGER},
-      #{dataStatus,jdbcType=INTEGER}, #{dataErrLoc,jdbcType=INTEGER}, #{userId,jdbcType=VARCHAR},
-      CURRENT_TIME )
+      #{dataStatus,jdbcType=INTEGER}, #{dataErrLoc,jdbcType=INTEGER}, #{userName,jdbcType=VARCHAR},
+      #{createTime,jdbcType=TIMESTAMP} )
   </insert>
   <update id="updateByPrimaryKeySelective" parameterType="com.harmonycloud.dao.istio.bean.RuleOverview">
     update rule_overview
@@ -86,10 +82,10 @@
       <if test="dataErrLoc != null">
         data_err_loc = #{dataErrLoc,jdbcType=INTEGER},
       </if>
-      <if test="userId != null">
-        user_id = #{userId,jdbcType=VARCHAR},
+      <if test="userName != null">
+        user_name = #{userName,jdbcType=VARCHAR},
       </if>
-      update_time = CURRENT_TIME
+      update_time = #{updateTime,jdbcType=TIMESTAMP}
     </set>
     where rule_id = #{ruleId,jdbcType=VARCHAR}
   </update>
@@ -106,26 +102,26 @@
       switch_status = #{switchStatus,jdbcType=INTEGER},
       data_status = #{dataStatus,jdbcType=VARCHAR},
       data_err_loc = #{dataErrLoc,jdbcType=INTEGER},
-      user_id = #{userId,jdbcType=VARCHAR},
+      user_name = #{userName,jdbcType=VARCHAR},
       create_time = #{createTime,jdbcType=TIMESTAMP},
-      update_time = CURRENT_TIME
-    where id = #{id,jdbcType=INTEGER}
+      update_time = #{updateTime,jdbcType=TIMESTAMP}
+    where rule_id = #{ruleId,jdbcType=VARCHAR}
   </update>
 
   <update id="updateSwitchStatus" parameterType="com.harmonycloud.dao.istio.bean.RuleOverview">
     update rule_overview
     set switch_status = #{switchStatus,jdbcType=VARCHAR},
-    user_id = #{userId,jdbcType=VARCHAR},
-    update_time = CURRENT_TIME
+    user_name = #{userName,jdbcType=VARCHAR},
+    update_time = #{updateTime,jdbcType=TIMESTAMP}
     where rule_id = #{ruleId,jdbcType=VARCHAR}
   </update>
 
   <update id="updateDataStatus" parameterType="com.harmonycloud.dao.istio.bean.RuleOverview">
     update rule_overview
     set data_status = #{dataStatus,jdbcType=INTEGER},
-    user_id = #{userId,jdbcType=VARCHAR},
+    user_name = #{userName,jdbcType=VARCHAR},
     data_err_loc = #{dataErrLoc,jdbcType=INTEGER},
-    update_time = CURRENT_TIME
+    update_time = #{updateTime,jdbcType=TIMESTAMP}
     where rule_id = #{ruleId,jdbcType=VARCHAR}
   </update>
 
@@ -140,4 +136,15 @@
     from rule_overview
     where rule_id = #{ruleId,jdbcType=VARCHAR}
   </select>
+  <delete id="deleteIstioPolicy" parameterType="java.util.Map">
+    delete from rule_overview
+    <where>
+      <if test="ruleNs != null">
+        and rule_ns = #{ruleNs,jdbcType=VARCHAR}
+      </if>
+      <if test="ruleSvc != null">
+        and rule_svc = #{ruleSvc,jdbcType=VARCHAR}
+      </if>
+    </where>
+  </delete>
 </mapper>

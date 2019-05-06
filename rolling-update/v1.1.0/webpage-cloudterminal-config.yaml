@@ -39,7 +39,7 @@ data:
     + params[1] + '&namespace=' + params[2] + '&container=' + params[3] + '&clusterId='
     + params[4]);\n        break;    \n    case 'appFileLog':\n        ws = new WebSocket('ws://10.10.103.40:30088/wsmars/terminal?terminalType=filelog&pod='
     + params[1] + '&namespace=' + params[2] + '&logDir=' + params[3] + '&logFile='
-    + params[4] + '&clusterId=' + params[5]);\n        break;\n    default:\n        ws
+    + params[4] + '&clusterId=' + params[5] + '&container=' + params[6]);\n        break;\n    default:\n        ws
     = new WebSocket(\"ws://10.10.103.40:30088/wsmars/terminal?scriptType=\"+params[0]+\"&container=\"+params[1]+\"&pod=\"+params[2]+\"&namespace=\"+params[3]+\"&clusterId=\"+params[4]);\n
     \       break;\n}\n\nws.onopen = function() {\n    init();\n    t.decorate(document.querySelector('#terminal'));\n
     \   t.showOverlay(\"连接成功\", 1000);\n}\n\nws.onerror = function() {\n    t.showOverlay(\"Connection

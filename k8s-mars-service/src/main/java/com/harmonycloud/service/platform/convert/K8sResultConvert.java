@@ -1,7 +1,6 @@
 package com.harmonycloud.service.platform.convert;
 
 
-import com.google.common.collect.Maps;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.enumm.ServiceTypeEnum;
@@ -25,13 +24,14 @@ import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.util.BizUtil;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import com.harmonycloud.service.util.BizUtil;
+
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -112,10 +112,11 @@ public class K8sResultConvert {
                             String namespaceAliasName = namespaceLocalService.getNamespaceByName(affinityDto.getNamespace()).getAliasName();
                             affinityDto.setNamespaceAliasName(namespaceAliasName);
                         }
-                        if (affinityDto.getLabel().equals(Constant.TYPE_DEPLOYMENT + Constant.EQUAL + meta.getName())) {
-                            if(null != affinityDto.getType() && affinityDto.getType().equals(Constant.ANTIAFFINITY_TYPE_GROUP_SCHEDULE)){
+                        if (affinityDto.getLabel().equals(Constant.TYPE_DEPLOYMENT + Constant.EQUAL + meta.getName()) &&
+                                (StringUtils.isBlank(affinityDto.getNamespace()) || meta.getNamespace().equals(affinityDto.getNamespace()))) {
+                            if (null != affinityDto.getType() && affinityDto.getType().equals(Constant.ANTIAFFINITY_TYPE_GROUP_SCHEDULE)) {
                                 appDetail.setPodGroupSchedule(affinityDto);
-                            }else {
+                            } else {
                                 appDetail.setPodDisperse(affinityDto);
                             }
                         } else {
@@ -160,8 +161,10 @@ public class K8sResultConvert {
                 appDetail.setSessionAffinity(service.getSpec().getSessionAffinity());
             }
         }
-
-        appDetail.setAutoScalingHistory(hapEve.getItems());
+        if(CollectionUtils.isNotEmpty(hapEve.getItems())) {
+            List<EventDetail> eventDetailList = K8sResultConvert.convertPodEvent(hapEve.getItems());
+            appDetail.setAutoScalingHistory(K8sResultConvert.sortByDesc(eventDetailList));
+        }
 
         List<PodDetail> pods = new ArrayList<PodDetail>();
         for (int i = 0; i < podList.getItems().size(); i++) {
@@ -249,6 +252,10 @@ public class K8sResultConvert {
                 podAntiAffinityDtos = KubeAffinityConvert.convertPodAntiAffinityDto(sta.getSpec().getTemplate().getSpec().getAffinity().getPodAntiAffinity());
                 if (CollectionUtils.isNotEmpty(podAntiAffinityDtos)) {
                     for (AffinityDto affinityDto : podAntiAffinityDtos) {
+                        if (StringUtils.isNotBlank(affinityDto.getNamespace())){
+                            String namespaceAliasName = namespaceLocalService.getNamespaceByName(affinityDto.getNamespace()).getAliasName();
+                            affinityDto.setNamespaceAliasName(namespaceAliasName);
+                        }
                         if (affinityDto.getLabel().equals(Constant.TYPE_STATEFULSET + Constant.EQUAL + meta.getName())) {
                             if(null != affinityDto.getType() && affinityDto.getType().equals(Constant.ANTIAFFINITY_TYPE_GROUP_SCHEDULE)){
                                 appDetail.setPodGroupSchedule(affinityDto);
@@ -266,6 +273,10 @@ public class K8sResultConvert {
             if (Objects.nonNull(sta.getSpec().getTemplate().getSpec().getAffinity().getPodAffinity())) {
                 List<AffinityDto> podAffinityDtos = new ArrayList<>();
                 podAffinityDtos = KubeAffinityConvert.convertPodAffinityDto(sta.getSpec().getTemplate().getSpec().getAffinity().getPodAffinity());
+                if (StringUtils.isNotBlank(podAffinityDtos.get(0).getNamespace())){
+                    String namespaceAliasName = namespaceLocalService.getNamespaceByName(podAffinityDtos.get(0).getNamespace()).getAliasName();
+                    podAffinityDtos.get(0).setNamespaceAliasName(namespaceAliasName);
+                }
                 appDetail.setPodAffinity(podAffinityDtos.get(0));
             }
         }
@@ -288,8 +299,10 @@ public class K8sResultConvert {
         } else {
             appDetail.setSessionAffinity(service.getSpec().getSessionAffinity());
         }
-
-        appDetail.setAutoScalingHistory(hapEve.getItems());
+        if(CollectionUtils.isNotEmpty(hapEve.getItems())) {
+            List<EventDetail> eventDetailList = K8sResultConvert.convertPodEvent(hapEve.getItems());
+            appDetail.setAutoScalingHistory(K8sResultConvert.sortByDesc(eventDetailList));
+        }
 
         List<PodDetail> pods = new ArrayList<PodDetail>();
         for (int i = 0; i < podList.getItems().size(); i++) {
@@ -351,7 +364,7 @@ public class K8sResultConvert {
         if(CollectionUtils.isNotEmpty(collect)){
             List<VolumeMount> volumeMounts = collect.get(0).getVolumeMounts();
             List<VolumeMount> empty = volumeMounts.stream().filter(v -> {
-                return v.getName().equals("empty");
+                return v.getName().equals("empty-deploy");
             }).collect(Collectors.toList());
             if(CollectionUtils.isNotEmpty(empty)){
                 containerMonutPath = empty.get(0).getMountPath();
@@ -380,6 +393,7 @@ public class K8sResultConvert {
                     pods.get(i).getStatus().getPodIP(), pods.get(i).getStatus().getHostIP(),
                     pods.get(i).getStatus().getStartTime());
             podDetail.setTag(tag);
+            podDetail.setTerminating(pods.get(i).getMetadata().getDeletionTimestamp() != null);
             List<ContainerWithStatus> containers = new ArrayList<ContainerWithStatus>();
             List<ContainerStatus> containerStatues = pods.get(i).getStatus().getContainerStatuses();
 
@@ -518,56 +532,9 @@ public class K8sResultConvert {
                     cOfPodDetail.setImagePullPolicy(ct.getImagePullPolicy());
                 }
                 cOfPodDetail.setDeploymentName(deployment.getMetadata().getName());
-                //SecurityContext
-                if (ct.getSecurityContext() != null) {
-                    SecurityContextDto newsc = new SecurityContextDto();
-                    SecurityContext sc = ct.getSecurityContext();
-                    boolean flag = false;
-                    newsc.setPrivileged(sc.isPrivileged());
-                    if (sc.isPrivileged()) {
-                        flag = true;
-                    }
-                    if (sc.getCapabilities() != null) {
-                        if (sc.getCapabilities().getAdd() != null && sc.getCapabilities().getAdd().size() > 0) {
-                            flag = true;
-                            newsc.setAdd(sc.getCapabilities().getAdd());
-                        }
-                        if (sc.getCapabilities().getDrop() != null && sc.getCapabilities().getDrop().size() > 0) {
-                            flag = true;
-                            newsc.setDrop(sc.getCapabilities().getDrop());
-                        }
-                    }
-                    newsc.setSecurity(flag);
-                    cOfPodDetail.setSecurityContext(newsc);
-
-                }
-                if (ct.getResources().getLimits() != null) {
-                    String pattern = ".*m.*";
-                    Pattern r = Pattern.compile(pattern);
-                    String cpu = ((Map<Object, Object>) ct.getResources().getLimits()).get("cpu").toString();
-                    Matcher m = r.matcher(cpu);
-                    if (!m.find()) {
-                        ((Map<Object, Object>) ct.getResources().getLimits()).put("cpu",
-                                Integer.valueOf(cpu) * 1000 + "m");
-                    }
-                    cOfPodDetail.setLimit(((Map<String, Object>) ct.getResources().getLimits()));
-
-                } else {
-                    cOfPodDetail.setLimit(null);
-                }
-                if (ct.getResources().getRequests() != null) {
-                    String pattern = ".*m.*";
-                    Pattern r = Pattern.compile(pattern);
-                    String cpu = ((Map<Object, Object>) ct.getResources().getRequests()).get("cpu").toString();
-                    Matcher m = r.matcher(cpu);
-                    if (!m.find()) {
-                        ((Map<Object, Object>) ct.getResources().getRequests()).put("cpu",
-                                Integer.valueOf(cpu) * 1000 + "m");
-                    }
-                    cOfPodDetail.setResource(((Map<String, Object>) ct.getResources().getRequests()));
-                } else {
-                    cOfPodDetail.setResource(cOfPodDetail.getLimit());
-                }
+                cOfPodDetail.setSecurityContext(convertSecurityContext(ct.getSecurityContext()));
+                //转换资源的request和limit
+                convertResource(cOfPodDetail, ct.getResources());
 
                 List<VolumeMount> volumeMounts = ct.getVolumeMounts();
                 List<VolumeMountExt> vms = new ArrayList<VolumeMountExt>();
@@ -687,56 +654,9 @@ public class K8sResultConvert {
                     cOfPodDetail.setImagePullPolicy(ct.getImagePullPolicy());
                 }
                 cOfPodDetail.setDeploymentName(name);
-                //SecurityContext
-                if (ct.getSecurityContext() != null) {
-                    SecurityContextDto newsc = new SecurityContextDto();
-                    SecurityContext sc = ct.getSecurityContext();
-                    boolean flag = false;
-                    newsc.setPrivileged(sc.isPrivileged());
-                    if (sc.isPrivileged()) {
-                        flag = true;
-                    }
-                    if (sc.getCapabilities() != null) {
-                        if (sc.getCapabilities().getAdd() != null && sc.getCapabilities().getAdd().size() > 0) {
-                            flag = true;
-                            newsc.setAdd(sc.getCapabilities().getAdd());
-                        }
-                        if (sc.getCapabilities().getDrop() != null && sc.getCapabilities().getDrop().size() > 0) {
-                            flag = true;
-                            newsc.setDrop(sc.getCapabilities().getDrop());
-                        }
-                    }
-                    newsc.setSecurity(flag);
-                    cOfPodDetail.setSecurityContext(newsc);
-
-                }
-                if (ct.getResources().getLimits() != null) {
-                    String pattern = ".*m.*";
-                    Pattern r = Pattern.compile(pattern);
-                    String cpu = ((Map<Object, Object>) ct.getResources().getLimits()).get("cpu").toString();
-                    Matcher m = r.matcher(cpu);
-                    if (!m.find()) {
-                        ((Map<Object, Object>) ct.getResources().getLimits()).put("cpu",
-                                Integer.valueOf(cpu) * 1000 + "m");
-                    }
-                    cOfPodDetail.setLimit(((Map<String, Object>) ct.getResources().getLimits()));
-
-                } else {
-                    cOfPodDetail.setLimit(null);
-                }
-                if (ct.getResources().getRequests() != null) {
-                    String pattern = ".*m.*";
-                    Pattern r = Pattern.compile(pattern);
-                    String cpu = ((Map<Object, Object>) ct.getResources().getRequests()).get("cpu").toString();
-                    Matcher m = r.matcher(cpu);
-                    if (!m.find()) {
-                        ((Map<Object, Object>) ct.getResources().getRequests()).put("cpu",
-                                Integer.valueOf(cpu) * 1000 + "m");
-                    }
-                    cOfPodDetail.setResource(((Map<String, Object>) ct.getResources().getRequests()));
-                } else {
-                    cOfPodDetail.setResource(cOfPodDetail.getLimit());
-                }
+                cOfPodDetail.setSecurityContext(convertSecurityContext(ct.getSecurityContext()));
+                //转换资源的request和limit
+                convertResource(cOfPodDetail, ct.getResources());
                 List<VolumeMount> volumeMounts = ct.getVolumeMounts();
                 List<VolumeMountExt> vms = new ArrayList<VolumeMountExt>();
                 if (volumeMounts != null && volumeMounts.size() > 0) {
@@ -751,8 +671,13 @@ public class K8sResultConvert {
                                     StorageClassDto storageClass = storageClassMap.get(pvc.getSpec().getStorageClassName());
                                     if(storageClass != null) {
                                         vmExt.setType(storageClass.getType());
+                                        vmExt.setStorageClassType(storageClass.getType());
                                     }
                                     vmExt.setPvcname(pvc.getMetadata().getName());
+                                    Map<String, Object> request = (Map<String, Object>)pvc.getSpec().getResources().getRequests();
+                                    if(request != null && request.get(CommonConstant.STORAGE) != null) {
+                                        vmExt.setCapacity((String)request.get(CommonConstant.STORAGE));
+                                    }
                                     isAutoProvided = true;
                                     vms.add(vmExt);
                                     break;
@@ -778,6 +703,7 @@ public class K8sResultConvert {
                                             StorageClassDto storageClass = storageClassMap.get(storageClassName);
                                             if(storageClass != null) {
                                                 vmExt.setType(storageClass.getType());
+                                                vmExt.setStorageClassType(storageClass.getType());
                                             }
                                         }
                                         vmExt.setPvcname(volume.getPersistentVolumeClaim().getClaimName());
@@ -788,6 +714,7 @@ public class K8sResultConvert {
                                         } else {
                                             vmExt.setEmptyDir(null);
                                         }
+                                        vmExt.setCapacity(volume.getEmptyDir().getSizeLimit());
 
                                         if (vm.getName().indexOf("logdir") == 0) {
                                             vmExt.setType("logDir");
@@ -843,6 +770,69 @@ public class K8sResultConvert {
         return res;
     }
 
+    private static SecurityContextDto convertSecurityContext(SecurityContext sc){
+        if(sc == null){
+            return null;
+        }
+        SecurityContextDto securityContextDto = new SecurityContextDto();
+        boolean flag = false;
+        securityContextDto.setPrivileged(sc.isPrivileged());
+        if (sc.isPrivileged()) {
+            flag = true;
+        }
+        if (sc.getCapabilities() != null) {
+            if (sc.getCapabilities().getAdd() != null && sc.getCapabilities().getAdd().size() > 0) {
+                flag = true;
+                securityContextDto.setAdd(sc.getCapabilities().getAdd());
+            }
+            if (sc.getCapabilities().getDrop() != null && sc.getCapabilities().getDrop().size() > 0) {
+                flag = true;
+                securityContextDto.setDrop(sc.getCapabilities().getDrop());
+            }
+        }
+        securityContextDto.setSecurity(flag);
+        return securityContextDto;
+    }
+
+    private static void convertResource(ContainerOfPodDetail cOfPodDetail, ResourceRequirements resourceRequirements){
+        if(resourceRequirements == null){
+            return;
+        }
+        if (resourceRequirements.getLimits() != null) {
+            String pattern = ".*m.*";
+            Pattern r = Pattern.compile(pattern);
+            String cpu = ((Map<Object, Object>) resourceRequirements.getLimits()).get("cpu").toString();
+            Matcher m = r.matcher(cpu);
+            if (!m.find()) {
+                ((Map<Object, Object>) resourceRequirements.getLimits()).put("cpu",
+                        Integer.valueOf(cpu) * 1000 + "m");
+            }
+            cOfPodDetail.setLimit(((Map<String, Object>) resourceRequirements.getLimits()));
+            if(cOfPodDetail.getLimit().get(CommonConstant.NVIDIA_GPU) != null){
+                cOfPodDetail.getLimit().put(CommonConstant.GPU, cOfPodDetail.getLimit().get(CommonConstant.NVIDIA_GPU));
+                cOfPodDetail.getLimit().remove(CommonConstant.NVIDIA_GPU);
+            }
+        } else {
+            cOfPodDetail.setLimit(null);
+        }
+        if (resourceRequirements.getRequests() != null) {
+            String pattern = ".*m.*";
+            Pattern r = Pattern.compile(pattern);
+            String cpu = ((Map<Object, Object>) resourceRequirements.getRequests()).get("cpu").toString();
+            Matcher m = r.matcher(cpu);
+            if (!m.find()) {
+                ((Map<Object, Object>) resourceRequirements.getRequests()).put("cpu",
+                        Integer.valueOf(cpu) * 1000 + "m");
+            }
+            cOfPodDetail.setResource(((Map<String, Object>) resourceRequirements.getRequests()));
+            if(cOfPodDetail.getResource().get(CommonConstant.NVIDIA_GPU) != null){
+                cOfPodDetail.getResource().put(CommonConstant.GPU, cOfPodDetail.getResource().get(CommonConstant.NVIDIA_GPU));
+                cOfPodDetail.getResource().remove(CommonConstant.NVIDIA_GPU);
+            }
+        } else {
+            cOfPodDetail.setResource(cOfPodDetail.getLimit());
+        }
+    }
 
     private static PersistentVolumeClaim getPvcByName(String namespace, String pvcName, Cluster cluster) {
         K8SURL url = new K8SURL();
@@ -902,6 +892,7 @@ public class K8sResultConvert {
                 List<String> img = new ArrayList<String>();
                 List<String> cpu = new ArrayList<String>();
                 List<String> memory = new ArrayList<String>();
+                List<String> gpu = new ArrayList<>();
                 List<Container> containers = dep.getSpec().getTemplate().getSpec().getContainers();
                 boolean isPV = false;
                 for (Container container : containers) {
@@ -911,6 +902,9 @@ public class K8sResultConvert {
                         Map<String, String> res1 = (Map<String, String>) container.getResources().getRequests();
                         cpu.add(res1.get("cpu"));
                         memory.add(res1.get("memory"));
+                        if(res1.get(CommonConstant.NVIDIA_GPU) != null) {
+                            gpu.add(res1.get(CommonConstant.NVIDIA_GPU));
+                        }
                     } else if (container.getResources() != null && container.getResources().getLimits() != null) {
                         @SuppressWarnings("unchecked")
                         Map<String, String> res1 = (Map<String, String>) container.getResources().getLimits();
@@ -952,6 +946,9 @@ public class K8sResultConvert {
                 tMap.put("isPV", isPV);
                 tMap.put("cpu", cpu);
                 tMap.put("memory", memory);
+                if(CollectionUtils.isNotEmpty(gpu)){
+                    tMap.put("gpu", gpu);
+                }
                 tMap.put("img", img);
                 tMap.put("instance", dep.getSpec().getReplicas());
                 tMap.put("createTime", dep.getMetadata().getCreationTimestamp());
@@ -1180,6 +1177,8 @@ public class K8sResultConvert {
 
     public static PodTemplateSpec getPodTemplateSpec(DeploymentDetailDto detail, ObjectMeta meta, String podDisperse, String serviceType, StatefulSetSpec statefulsetSpec) throws Exception{
         Map<String, Object> lmMap = meta.getLabels();
+        setResourceType(detail.getContainers(), serviceType);
+        setResourceType(detail.getInitContainers(), serviceType);
         Map<String, Object> map = K8sResultConvert.convertContainer(detail.getContainers(), detail.getInitContainers(), detail.getLogService(), detail.getLogPath(), detail.getName());
         List<Container> cs = (List<Container>) map.get("container");
         List<Volume> volumes = (List<Volume>) map.get("volume");
@@ -1279,6 +1278,17 @@ public class K8sResultConvert {
             makeServiceDependence(meta, cs, podSpec, detail.getServiceDependence());
         }
 
+        //service account
+        if(detail.isAutomountServiceAccountToken()){
+            podSpec.setAutomountServiceAccountToken(detail.isAutomountServiceAccountToken());
+            if(null != detail.getServiceAccount()){
+                podSpec.setServiceAccount(detail.getServiceAccount());
+            }
+            if(null != detail.getServiceAccountName()){
+                podSpec.setServiceAccountName(detail.getServiceAccountName());
+            }
+        }
+
         labels.put(Constant.NODESELECTOR_LABELS_PRE + "bluegreen", detail.getName() + "-1");
         metadata.setLabels(labels);
         metadata.setAnnotations(convertQosAnnotation(detail.getAnnotation()));
@@ -1295,6 +1305,25 @@ public class K8sResultConvert {
         return podTemplateSpec;
     }
 
+    /**
+     * 设置服务类型StatefulSet/Deployment，用来日志收集的服务类型环境变量设置
+     * @param containerDtos
+     * @param serviceType
+     */
+    private static void setResourceType(List<CreateContainerDto> containerDtos, String serviceType) {
+        if (CollectionUtils.isEmpty(containerDtos) || StringUtils.isBlank(serviceType)) {
+            return;
+        }
+        for (CreateContainerDto containerDto : containerDtos) {
+            if (StringUtils.isBlank(containerDto.getParentResourceType())) {
+                if (Constant.TYPE_STATEFULSET.equalsIgnoreCase(serviceType)) {
+                    containerDto.setParentResourceType(STATEFULSET);
+                } else if (Constant.TYPE_DEPLOYMENT.equalsIgnoreCase(serviceType)) {
+                    containerDto.setParentResourceType(DEPLOYMENT);
+                }
+            }
+        }
+    }
 
     private static void makeServiceDependence(ObjectMeta meta, List<Container> cs, PodSpec podSpec, ServiceDependenceDto serviceDependence) {
         String image = cs.get(0).getImage();
@@ -1519,7 +1548,7 @@ public class K8sResultConvert {
                             sPort.setProtocol(port.getProtocol());
                         }
                         sPort.setPort(Integer.valueOf(port.getPort()));
-                        sPort.setName(c.getName() + "-port" + i);
+                        sPort.setName(KubeServiceConvert.convertPortName(port.getName(),sPort.getPort()));
                         spList.add(sPort);
                     }
                 }
@@ -1569,13 +1598,15 @@ public class K8sResultConvert {
                     ContainerPort port = new ContainerPort();
                     port.setContainerPort(Integer.valueOf(p.getContainerPort()));
                     port.setProtocol(p.getProtocol());
+                    String portName = KubeServiceConvert.convertPortName(p.getName(),port.getContainerPort());
+                    port.setName(portName);
                     ps.add(port);
                     container.setPorts(ps);
                     ServicePort servicePort = new ServicePort();
                     servicePort.setTargetPort(Integer.valueOf(p.getContainerPort()));
                     servicePort.setPort(Integer.valueOf(p.getContainerPort()));
                     servicePort.setProtocol(p.getProtocol());
-                    servicePort.setName(name + "-port" + ports.size());
+                    servicePort.setName(portName);
                     ports.add(servicePort);
                 }
 
@@ -2189,8 +2220,18 @@ public class K8sResultConvert {
                     volm.setMountPath(c.getLog());
                     volumeMounts.add(volm);
                     container.setVolumeMounts(volumeMounts);
+                    List<EnvVar> envlist = new ArrayList<>();
+                    EnvVar env = new EnvVar();
+                    env.setName(Constant.PILOT_LOG_PREFIX);
+                    env.setValue(c.getLog() + "/*");
+                    envlist.add(env);
+                    if (container.getEnv()!=null){
+                        container.getEnv().add(env);
+                    }else {
+                        container.setEnv(envlist);
+                    }
                 }
-                convertConfigMap(name+c.getName(),c.getConfigmap(),volumes,volumeMounts);
+                convertConfigMap(name+c.getName(),c.getName(),c.getConfigmap(),volumes,volumeMounts);
                 if (c.getImagePullPolicy() != null) {
                     container.setImagePullPolicy(c.getImagePullPolicy());
                 }
@@ -2505,8 +2546,18 @@ public class K8sResultConvert {
                     volm.setMountPath(c.getLog());
                     volumeMounts.add(volm);
                     container.setVolumeMounts(volumeMounts);
+                    List<EnvVar> envlist = new ArrayList<>();
+                    EnvVar env = new EnvVar();
+                    env.setName(Constant.PILOT_LOG_PREFIX);
+                    env.setValue(c.getLog() + "/*");
+                    envlist.add(env);
+                    if (container.getEnv()!=null){
+                        container.getEnv().add(env);
+                    }else {
+                        container.setEnv(envlist);
+                    }
                 }
-                convertConfigMap(job.getMetadata().getName()+c.getName(),c.getConfigmap(),volumes,volumeMounts);
+                convertConfigMap(job.getMetadata().getName()+c.getName(),c.getName(),c.getConfigmap(),volumes,volumeMounts);
                 cs.add(container);
             }
         }
@@ -2753,6 +2804,7 @@ public class K8sResultConvert {
                         ContainerPort port = new ContainerPort();
                         port.setContainerPort(Integer.valueOf(p.getPort()));
                         port.setProtocol(p.getProtocol());
+                        port.setName(KubeServiceConvert.convertPortName(p.getName(), port.getContainerPort()));
                         ps.add(port);
                     }
                     container.setPorts(ps);
@@ -2763,7 +2815,16 @@ public class K8sResultConvert {
                     for (CreateEnvDto env : c.getEnv()) {
                         EnvVar eVar = new EnvVar();
                         eVar.setName(env.getKey());
-                        eVar.setValue(env.getValue());
+                        if(StringUtils.isEmpty(env.getType()) || CommonConstant.ENV_TYPE_EQUAL.equals(env.getType())) {
+                            eVar.setValue(env.getValue());
+                        }else if(CommonConstant.ENV_TYPE_FROM.equals(env.getType())){
+                            EnvVarSource envVarSource = new EnvVarSource();
+                            ObjectFieldSelector objectFieldSelector = new ObjectFieldSelector();
+                            objectFieldSelector.setApiVersion(com.harmonycloud.k8s.constant.Constant.VERSION_V1);
+                            objectFieldSelector.setFieldPath(env.getValue());
+                            envVarSource.setFieldRef(objectFieldSelector);
+                            eVar.setValueFrom(envVarSource);
+                        }
                         envVars.add(eVar);
                     }
                     container.setEnv(envVars);
@@ -2900,8 +2961,22 @@ public class K8sResultConvert {
                     volm.setMountPath(c.getLog());
                     volumeMounts.add(volm);
                     container.setVolumeMounts(volumeMounts);
+                    List<EnvVar> envlist = new ArrayList<>();
+                    EnvVar env = new EnvVar();
+                    env.setName(Constant.PILOT_LOG_PREFIX);
+                    env.setValue(c.getLog() + "/*");
+                    envlist.add(env);
+                    env = new EnvVar();
+                    env.setName(Constant.PILOT_LOG_PREFIX_TAG);
+                    env.setValue("k8s_resource_type=" + c.getParentResourceType() + ",k8s_resource_name=" + name);
+                    envlist.add(env);
+                    if (container.getEnv()!=null){
+                        container.getEnv().addAll(envlist);
+                    }else {
+                        container.setEnv(envlist);
+                    }
                 }
-                convertConfigMap(name+c.getName(),c.getConfigmap(),volumes,volumeMounts);
+                convertConfigMap(name+c.getName(),c.getName(), c.getConfigmap(),volumes,volumeMounts);
 
                 if (!StringUtils.isEmpty(logService) && !logService.equals("false")) {
                     Volume emp = new Volume();
@@ -2941,16 +3016,18 @@ public class K8sResultConvert {
         Matcher mm = p.matcher(c.getResource().getMemory());
         String resultm = mm.replaceAll("").trim();
         res.put("memory", resultm + "Mi");
+        if(StringUtils.isNotEmpty(c.getResource().getGpu())) {
+            res.put(CommonConstant.NVIDIA_GPU, c.getResource().getGpu());
+        }
         limit.setLimits(res);
         limit.setRequests(res);
-        if (c.getLimit() != null) {
+        if (c.getLimit() != null && c.getLimit().getCurrentRate() > 1) {
             Map<String, String> resli = new HashMap<String, String>();
-            Matcher l = p.matcher(c.getLimit().getCpu());
-            String resultl = l.replaceAll("").trim();
-            resli.put("cpu", resultl + "m");
-            Matcher ml = p.matcher(c.getLimit().getMemory());
-            String resultml = ml.replaceAll("").trim();
-            resli.put("memory", resultml + "Mi");
+            resli.put("cpu", (Integer.parseInt(result) * c.getLimit().getCurrentRate()) + "m");
+            resli.put("memory", (Integer.parseInt(resultm) * c.getLimit().getCurrentRate()) + "Mi");
+            if(StringUtils.isNotEmpty(c.getResource().getGpu())) {
+                resli.put(CommonConstant.NVIDIA_GPU, c.getResource().getGpu());
+            }
             limit.setLimits(resli);
         }
         return limit;
@@ -3344,7 +3421,7 @@ public class K8sResultConvert {
         }*/
     }
 
-    public static void convertConfigMap(String name, List<CreateConfigMapDto> configMaps,
+    public static void convertConfigMap(String name, String containerName, List<CreateConfigMapDto> configMaps,
                                         List<Volume> volumes, List<VolumeMount> volumeMounts){
         if(CollectionUtils.isEmpty(configMaps)){
             return;
@@ -3356,7 +3433,7 @@ public class K8sResultConvert {
             }
             String filename = cm.getFile();
             Volume cMap = new Volume();
-            cMap.setName(configMapNo + "-" + cm.getConfigMapId());
+            cMap.setName(containerName + "-" + configMapNo + "-" + cm.getConfigMapId());
             ConfigMapVolumeSource coMap = new ConfigMapVolumeSource();
             coMap.setName(name);
             List<KeyToPath> items = new LinkedList<KeyToPath>();
@@ -3368,7 +3445,7 @@ public class K8sResultConvert {
             cMap.setConfigMap(coMap);
             volumes.add(cMap);
             VolumeMount volm = new VolumeMount();
-            volm.setName(configMapNo + "-" + cm.getConfigMapId());
+            volm.setName(containerName + "-" + configMapNo + "-" + cm.getConfigMapId());
             volm.setMountPath((cm.getPath().endsWith("/")?cm.getPath():(cm.getPath() + "/")) + filename);
             volm.setSubPath(filename);
             volumeMounts.add(volm);

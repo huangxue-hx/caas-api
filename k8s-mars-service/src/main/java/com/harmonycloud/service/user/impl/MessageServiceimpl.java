@@ -28,7 +28,6 @@ import com.harmonycloud.dao.message.bean.MessageExample;
 import com.harmonycloud.service.user.MessageService;
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class MessageServiceimpl implements MessageService {
     @Autowired
     private MessageMapper messageMapper;

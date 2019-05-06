@@ -48,10 +48,20 @@ public class CreateContainerDto implements Serializable {
 
 	private Lifecycle lifecycle;
 
+	private String parentResourceType; //Deployment,StatefulSet,DaemonSet
+
 	/**
 	 * 同步主机时区
 	 */
 	private boolean syncTimeZone;
+
+	public String getParentResourceType() {
+		return parentResourceType;
+	}
+
+	public void setParentResourceType(String parentResourceType) {
+		this.parentResourceType = parentResourceType;
+	}
 
 	public Lifecycle getLifecycle() {
 		return lifecycle;

@@ -10,6 +10,7 @@ import com.harmonycloud.common.util.UserAuditSearch;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dto.config.AuditRequestInfo;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.service.application.EsService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.constant.Constant;
@@ -25,13 +26,16 @@ import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.client.Requests;
+import org.elasticsearch.common.document.DocumentField;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.SearchHitField;
+import org.elasticsearch.search.sort.SortBuilder;
+import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,7 +78,8 @@ public class UserAuditServiceImpl extends BaseAuditService implements UserAuditS
     @PostConstruct
     private void initAuditLogIndex(){
         try {
-            platformEsClient = esService.getEsClient(clusterService.getPlatformCluster());
+            Cluster cluster = clusterService.getPlatformCluster();
+            platformEsClient = esService.getEsClient(cluster);
             String indexName = this.generateIndexName();
             if (esService.isExistIndex(indexName, clusterService.getPlatformCluster())) {
                 return;
@@ -127,7 +132,7 @@ public class UserAuditServiceImpl extends BaseAuditService implements UserAuditS
                 break;
         }
         List<String> moduleDesc = new ArrayList<>();
-        moduleDesc.add(CommonConstant.LANGUAGE_ENGLISH.equals(language)? "all" : "全部模块");
+        moduleDesc.add(CommonConstant.LANGUAGE_ENGLISH.equals(language)? "All Module" : "全部模块");
         moduleDesc.addAll(modules);
         return ActionReturnUtil.returnSuccessWithData(moduleDesc);
 
@@ -167,8 +172,13 @@ public class UserAuditServiceImpl extends BaseAuditService implements UserAuditS
                                 .field("requestParams", auditRequestInfo.getRequestParams()).field("remoteIp", auditRequestInfo.getRemoteIp())
                                 .field("response", auditRequestInfo.getResponse()).field("url", auditRequestInfo.getUrl())
                                 .field("status", auditRequestInfo.getStatus()).field("subject", auditRequestInfo.getSubject())
-                                .endObject()).setTTL(ES_TTL).get();
+                                .endObject()).setTimeout(TimeValue.timeValueMillis(ES_TTL)).get();
         return ActionReturnUtil.returnSuccess();
+    }
+
+    @Override
+    public void CreateEsIndex(String index, String mappingType) throws Exception {
+        createIndexMapping(index,mappingType);
     }
 
     /**
@@ -188,14 +198,17 @@ public class UserAuditServiceImpl extends BaseAuditService implements UserAuditS
         if(org.apache.commons.lang3.StringUtils.isNotBlank(sessionLanguage) && !"null".equals(sessionLanguage)){
             language = sessionLanguage;
         }
+        SortBuilder sortBuilder = SortBuilders.fieldSort("actionTime")
+                .order(SortOrder.DESC).unmappedType("integer");
         SearchRequestBuilder searchRequestBuilder = multiIndexSearch(platformEsClient, indexList);
         SearchResponse response;
         response = searchRequestBuilder
                 .setTypes(Constant.ES_INDEX_TYPE_AUDIT_LOG)
-                // .setScroll(new TimeValue(60000))
-                .setQuery(query).addSort("actionTime", SortOrder.DESC)
-                .setFrom((currentPage - CommonConstant.NUM_ONE) * pageSize).setSize(pageSize).setExplain(true) // 这里需要修改整整分页之后
-                .get();
+//                .setScroll(new TimeValue(60000))
+                .setQuery(query)
+                .addSort(sortBuilder)
+                .setFrom((currentPage - CommonConstant.NUM_ONE) * pageSize).setSize(pageSize).setExplain(true).execute().actionGet() ;// 这里需要修改整整分页之后
+//                .get();
         // scrollid的分页,setSize中的5为分片数
 		/*if (StringUtils.isBlank(scrollId)) {
 			response = ESFactory.createES().prepareSearch(Constant.ES_INDEX_AUDIT_LOG).setTypes(Constant.ES_INDEX_TYPE_AUDIT_LOG)
@@ -213,7 +226,7 @@ public class UserAuditServiceImpl extends BaseAuditService implements UserAuditS
 
         while (it.hasNext()) {
             SearchHit sh = it.next();
-            Map<String, Object> doc = sh.getSource();
+            Map<String, Object> doc = sh.getSourceAsMap();
             AuditRequestInfo sr = new AuditRequestInfo();
             if (doc.get("user") != null) {
                 sr.setUser(String.valueOf(doc.get("user")));
@@ -290,15 +303,15 @@ public class UserAuditServiceImpl extends BaseAuditService implements UserAuditS
     public ActionReturnUtil searchFromIndexByUser(BoolQueryBuilder query, String module, List<String> indexList) throws Exception {
         SearchRequestBuilder searchRequestBuilder = multiIndexSearch(platformEsClient, indexList);
         SearchResponse response = searchRequestBuilder.setTypes(Constant.ES_INDEX_TYPE_AUDIT_LOG)
-                .setSearchType(SearchType.QUERY_AND_FETCH).addFields(module).setQuery(query).setFrom(0).setSize(10000)
+                .setSearchType(SearchType.QUERY_AND_FETCH).setQuery(query).setFrom(0).setSize(10000).addStoredField(module)//.addFields(module)2.x
                 .setExplain(true).get();
 
         List<String> searchResults = new ArrayList<String>();
 
         Set<String> searchResults1 = new HashSet<String>();
         for (SearchHit hit : response.getHits().getHits()) {
-            Set<Map.Entry<String, SearchHitField>> fieldEntry = hit.getFields().entrySet();
-            for (Map.Entry<String, SearchHitField> entry : fieldEntry) {
+            Set<Map.Entry<String, DocumentField>> fieldEntry = hit.getFields().entrySet();
+            for (Map.Entry<String, DocumentField> entry : fieldEntry) {
                 searchResults1.add(entry.getValue().getValue().toString());
             }
         }
@@ -336,7 +349,7 @@ public class UserAuditServiceImpl extends BaseAuditService implements UserAuditS
         // 创建索引
         LOGGER.debug("正在创建索引:" + indices);
         platformEsClient.admin().indices().prepareCreate(indices)
-                .setSettings(Settings.settingsBuilder()
+                .setSettings(Settings.builder()
                         .put("number_of_shards", CommonConstant.NUM_FIVE)
                         .put("max_result_window", CommonConstant.ES_MAX_RESULT_WINDOW)
                         .put("number_of_replicas", CommonConstant.NUM_ONE))
@@ -344,21 +357,21 @@ public class UserAuditServiceImpl extends BaseAuditService implements UserAuditS
         LOGGER.debug("创建索引结束:" + indices);
 
         XContentBuilder builder = jsonBuilder().startObject().startObject("properties")
-                .startObject("user").field("type", "string").endObject()
-                .startObject("tenant").field("type", "string").endObject()
-                .startObject("project").field("type", "string").endObject()
-                .startObject("moduleChDesc").field("type", "string").field("index", "not_analyzed").endObject()
-                .startObject("moduleEnDesc").field("type", "string").endObject()
-                .startObject("actionChDesc").field("type", "string").endObject()
-                .startObject("actionEnDesc").field("type", "string").endObject()
-                .startObject("method").field("type", "string").field("index", "not_analyzed").endObject()
-                .startObject("actionTime").field("type", "date").field("format", "yyyy-MM-dd' 'HH:mm:ss").field("index", "not_analyzed").endObject()
-                .startObject("requestParams").field("type", "string").endObject()
-                .startObject("url").field("type", "string").endObject()
-                .startObject("remoteIp").field("type", "string").endObject()
-                .startObject("response").field("type", "string").endObject()
-                .startObject("status").field("type", "boolean").field("index", "not_analyzed").endObject()
-                .startObject("subject").field("type", "string").endObject().endObject().endObject();
+                .startObject("user").field("type", "text").endObject()
+                .startObject("tenant").field("type", "text").endObject()
+                .startObject("project").field("type", "text").endObject()
+                .startObject("moduleChDesc").field("type", "keyword").field("index", true).endObject()
+                .startObject("moduleEnDesc").field("type", "text").endObject()
+                .startObject("actionChDesc").field("type", "text").endObject()
+                .startObject("actionEnDesc").field("type", "text").endObject()
+                .startObject("method").field("type", "keyword").field("index", true).endObject()
+                .startObject("actionTime").field("type", "date").field("format", "yyyy-MM-dd' 'HH:mm:ss").field("index", true).endObject()
+                .startObject("requestParams").field("type", "text").endObject()
+                .startObject("url").field("type", "text").endObject()
+                .startObject("remoteIp").field("type", "text").endObject()
+                .startObject("response").field("type", "text").endObject()
+                .startObject("status").field("type", "text").endObject()
+                .startObject("subject").field("type", "keyword").field("index", true).endObject().endObject().endObject();
 
         // 创建mapping
         LOGGER.debug("正在创建mapping:" + mappingType);
@@ -410,7 +423,7 @@ public class UserAuditServiceImpl extends BaseAuditService implements UserAuditS
             query.must(QueryBuilders.rangeQuery("actionTime").from(startTime).to(endTime));
         }
 
-        if (StringUtils.isNotBlank(moduleName)&&!"all".equals(moduleName)) {
+        if (StringUtils.isNotBlank(moduleName)&&!"all".equals(moduleName) && !"All Module".equals(moduleName)) {
             String regex = "[\u4e00-\u9fa5]";
             Pattern pattern = Pattern.compile(regex);
             Matcher matcher = pattern.matcher(moduleName);

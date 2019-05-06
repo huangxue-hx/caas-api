@@ -18,7 +18,6 @@ import com.harmonycloud.dto.cluster.IngressConfigMap;
 import com.harmonycloud.dto.cluster.IngressControllerDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
-import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.service.ConfigmapService;
 import com.harmonycloud.k8s.service.IcService;
 import com.harmonycloud.k8s.service.ServiceAccountService;
@@ -44,9 +43,8 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.harmonycloud.common.Constant.CommonConstant.*;
+import static com.harmonycloud.common.Constant.CommonConstant.COMMA;
 import static com.harmonycloud.common.Constant.IngressControllerConstant.*;
-import static com.harmonycloud.common.Constant.IngressControllerConstant.LABEL_KEY_APP;
 import static com.harmonycloud.common.util.ActionReturnUtil.returnErrorWithData;
 import static com.harmonycloud.service.platform.constant.Constant.LABEL_INGRESS_CLASS;
 
@@ -671,6 +669,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         }
         ConfigMap tcpConfigMap = JsonUtil.jsonToPojo(tcpCmResponse.getBody(), ConfigMap.class);
         if(!Objects.isNull(tcpConfigMap.getData())){
+            LOGGER.info("{}负载均衡器Tcp已经在使用,服务：{}",icName, JSONObject.toJSONString(tcpConfigMap.getData()));
             return true;
         }
         //查看是否被UDP使用
@@ -681,6 +680,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         }
         ConfigMap udpConfigMap = JsonUtil.jsonToPojo(udpCmResponse.getBody(), ConfigMap.class);
         if(!Objects.isNull(udpConfigMap.getData())){
+            LOGGER.info("{}负载均衡器UDP已经在使用，服务：{}",icName, JSONObject.toJSONString(tcpConfigMap.getData()));
             return true;
         }
         //查看是否被HTTP使用
@@ -692,6 +692,10 @@ public class IngressControllerServiceImpl implements IngressControllerService {
         }
         IngressList ingressList = JsonUtil.jsonToPojo(ingressResponse.getBody(), IngressList.class);
         if(!CollectionUtils.isEmpty(ingressList.getItems())){
+            for(Ingress ingress: ingressList.getItems()){
+                LOGGER.info("{}负载均衡器已创建Ingress，分区：{}，服务：{}",icName,
+                        ingress.getMetadata().getNamespace(),ingress.getMetadata().getName());
+            }
             return true;
         }
         return false;
@@ -939,7 +943,6 @@ public class IngressControllerServiceImpl implements IngressControllerService {
      */
     private void updateNodeLabel(String icName, Cluster cluster, List<String> oldIcNodeNames,
                                  List<String> newIcNodeNames) throws MarsRuntimeException {
-
         Map<String, String> addIcNodeLabels = new HashMap<>();
         addIcNodeLabels.put(NodeTypeEnum.SLB_CUSTOM.getLabelKey(), NodeTypeEnum.SLB_CUSTOM.getLabelValue());
         addIcNodeLabels.put(LABEL_KEY_INGRESS_CONTROLLER_NAME, icName);
@@ -1021,7 +1024,7 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             return daemonSet.getMetadata().getAnnotations().get(ANNOTATIONS_KEY_ALIAS_NAME).toString();
         }
         if (IC_DEFAULT_NAME.equals(daemonSet.getMetadata().getName())) {
-            return IC_DEFAULT_ALIAS_NAME;
+            return DictEnum.GLOBAL_INGRESS_CONTROLLER.phrase();
         }
         return daemonSet.getMetadata().getName();
     }
@@ -1191,5 +1194,5 @@ public class IngressControllerServiceImpl implements IngressControllerService {
             paramMap.remove(key);
         }
     }
-    
+
 }

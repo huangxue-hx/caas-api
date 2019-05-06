@@ -141,6 +141,7 @@
             <if test="clusterId!=null and clusterId!=''">AND cluster_id=#{clusterId} </if>
             <if test="type!=null and type!=''">AND type=#{type} </if>
         </trim>
+        GROUP BY cicd_job.id, build_num
         ORDER BY cicd_job.name
     </select>
 
@@ -148,5 +149,6 @@
         SELECT cicd_job.id, cicd_job.name,cicd_job.type,cicd_job.project_id, cicd_job.cluster_id,job_build.build_num,job_build.status,job_build.start_time FROM cicd_job
         LEFT JOIN  cicd_job_build job_build on cicd_job.id = job_build.job_id and cicd_job.last_build_num = job_build.build_num
         WHERE cicd_job.id = #{jobId}
+        GROUP BY build_num
     </select>
 </mapper>

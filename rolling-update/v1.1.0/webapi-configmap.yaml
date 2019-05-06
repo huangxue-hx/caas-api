@@ -24,3 +24,5 @@ data:
       jenkins.timeout=120
       pod.drain.timeout=1800s
       ic.image.tag=:0.9.0-beta.19
+      harbor.role.enable=false
+      istio.redis.address=istio-redis-quota.istio-system:6379

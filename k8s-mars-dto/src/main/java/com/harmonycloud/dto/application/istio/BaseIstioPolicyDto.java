@@ -28,11 +28,14 @@ public class BaseIstioPolicyDto {
     @ApiModelProperty(value = "策略状态", name = "dataStatus", example = "0（正常）", notes = "0：正常；1：异常；(11/12/13)：告警")
     private String dataStatus;
 
-    @ApiModelProperty(value = "作用域", name = "scope", example = "0", notes = "服务限流：0：全局；1：分区；2：服务;智能路由：0：所有版本；1：指定版本")
+    @ApiModelProperty(value = "作用域", name = "scope", example = "0", notes = "服务限流：0：全局；1：服务;")
     private String scope;
 
     @ApiModelProperty(value = "策略创建时间", name = "createTime", example = "2018-09-13T06:26:34Z")
     private Date createTime;
+
+    @ApiModelProperty(value = "集群id", name = "clusterId", required = true)
+    private String  clusterId;
 
     public String getRuleName() {
         return ruleName;
@@ -107,5 +110,13 @@ public class BaseIstioPolicyDto {
 
     public void setCreateTime(Date createTime) {
         this.createTime = createTime;
+    }
+
+    public String getClusterId() {
+        return clusterId;
+    }
+
+    public void setClusterId(String clusterId) {
+        this.clusterId = clusterId;
     }
 }

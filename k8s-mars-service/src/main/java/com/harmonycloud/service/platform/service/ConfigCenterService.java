@@ -43,9 +43,10 @@ public interface ConfigCenterService {
      *            required
      * @param projectId
      *            required
+     * @param isAppStore
      * @return ActionReturnUtil
      */
-    void deleteConfig(String id, String projectId) throws Exception;
+    void deleteConfig(String id, String projectId, boolean isAppStore) throws Exception;
 
     /**
      * delete configs service on 17/03/24.
@@ -59,7 +60,7 @@ public interface ConfigCenterService {
      *            required
      * @return ActionReturnUtil
      */
-    ActionReturnUtil deleteConfigMap(String name, String projectId, String clusterId) throws Exception;
+    ActionReturnUtil deleteConfigMap(String name, String projectId, String clusterId, boolean isAppStore) throws Exception;
 
     /**
      * find config lists for center service on 17/03/24.
@@ -69,7 +70,7 @@ public interface ConfigCenterService {
      *            required
      * @return ActionReturnUtil
      */
-    ActionReturnUtil searchConfig(String projectId, String clusterId, String repoName, String keyword) throws Exception;
+    ActionReturnUtil searchConfig(String projectId, String clusterId, String repoName, String keyword, boolean isAppStore) throws Exception;
 
     /**
      * find config overview lists service on 17/03/24.
@@ -102,7 +103,7 @@ public interface ConfigCenterService {
      *            required
      * @return ActionReturnUtil
      */
-    ActionReturnUtil getLatestConfigMap(String name, String projectId, String repoName,String clusterId,String tags) throws Exception;
+    ActionReturnUtil getLatestConfigMap(String name, String projectId, String repoName,String clusterId,String tags, boolean isAppStore) throws Exception;
     
     /**
      * check service on 17/03/24.
@@ -148,7 +149,7 @@ public interface ConfigCenterService {
      * @return
      * @throws Exception
      */
-    ActionReturnUtil getConfigMapByName(String name, String clusterId, String projectId, boolean isFilter) throws Exception;
+    ActionReturnUtil getConfigMapByName(String name, String clusterId, String projectId, boolean isAppStore, boolean isFilter) throws Exception;
 
     /**
      * 返回当前配置组的服务列表
@@ -157,7 +158,7 @@ public interface ConfigCenterService {
      * @param configMapId
      * @return
      */
-    List<Deployment> getServiceList(String projectId, String tenantId, String configMapId) throws Exception;
+    List<Deployment> getServiceList(String projectId, String tenantId, String clusterId, String configMapId) throws Exception;
 
     /**
      * 更新服务的配置组版本
@@ -169,15 +170,16 @@ public interface ConfigCenterService {
     /**
      * 返回所有版本号
      * @param configName
+     * @param isAppStore
      * @return
      */
-    ActionReturnUtil getTagsByConfigName(String configName,String clusterId,String projectId);
+    ActionReturnUtil getTagsByConfigName(String configName, String clusterId, String projectId, boolean isAppStore);
 
     /**
      * 根据配置文件名获取服务列表
      * @return
      */
-    ActionReturnUtil getAllServiceByConfigName(String configName,String clusterId,String projectId,String tenantId) throws Exception;
+    ActionReturnUtil getAllServiceByConfigName(String configName, String clusterId, String projectId, String tenantId, boolean isAppStore) throws Exception;
 
     /**
      * 根据租户集群删除配置文件
@@ -188,4 +190,10 @@ public interface ConfigCenterService {
     void deleteConfigMap(String clusterId, String tenantId) throws Exception;
 
     ActionReturnUtil getConfigMapWithService(String configMapId) throws Exception;
+
+    /**
+     * 清理没有使用的配置文件（rs保留10个版本会自动清理，但是configmap没有删）
+     * @throws Exception
+     */
+    void cleanHistoryConfigMap() throws Exception;
 }

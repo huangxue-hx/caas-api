@@ -235,13 +235,11 @@ public class TerminalService {
         try {
             int nRead;
             char[] data = new char[1 * 1024];
-
             while ((nRead = bufferedReader.read(data, 0, data.length)) != -1) {
                 StringBuilder builder = new StringBuilder(nRead);
                 builder.append(data, 0, nRead);
                 print(builder.toString());
             }
-
         } catch (Exception e) {
             LOGGER.warn("printReader失败,destroy process", e);
             process.destroy();

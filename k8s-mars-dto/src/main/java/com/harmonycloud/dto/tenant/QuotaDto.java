@@ -8,6 +8,18 @@ public class QuotaDto {
     private String cpu;
     //内存
     private String memory;
+    //gpu
+    private String gpu;
+
+    public QuotaDto() {
+        super();
+    }
+
+    public QuotaDto(String cpu, String memory, String gpu) {
+        this.cpu = cpu;
+        this.memory = memory;
+        this.gpu = gpu;
+    }
 
     public String getCpu() {
         return cpu;
@@ -25,4 +37,11 @@ public class QuotaDto {
         this.memory = memory;
     }
 
+    public String getGpu() {
+        return gpu;
+    }
+
+    public void setGpu(String gpu) {
+        this.gpu = gpu;
+    }
 }

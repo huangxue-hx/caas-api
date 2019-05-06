@@ -40,6 +40,14 @@ public interface NamespaceLocalService {
      * @return
      */
     public List<NamespaceLocal> getNamespaceListByTenantId(String tenantId) throws Exception;
+
+    /**
+     * 根据tenantId和clusterId查询namespace列表(如果clusterd为空，则查询当前角色的作用域集群), 不返回Isito开关信息以及独占分区信息
+     * @param tenantId
+     * @return
+     */
+    public List<NamespaceLocal> getSimpleNamespaceListByTenantId(String tenantId, String clusterId) throws Exception;
+
     /**
      * 根据clusterIds查询namespace
      * @return NamespaceLocal集合
@@ -77,6 +85,15 @@ public interface NamespaceLocalService {
     public List<NamespaceLocal> getNamespaceListByTenantIdAndClusterId(String tenantId, List<String> clusterIds) throws Exception;
 
     /**
+     * 获取某个租户的某个集群下的分区列表
+     * @param tenantId
+     * @param clusterId
+     * @return
+     * @throws Exception
+     */
+    List<NamespaceLocal> listNamespace(String tenantId, String clusterId) throws Exception;
+
+    /**
      * 根据镜像可以部署的分区列表
      * @return
      * @throws Exception
@@ -102,7 +119,7 @@ public interface NamespaceLocalService {
      * @return
      * @throws Exception
      */
-    public NamespaceLocal getNamespaceByAliasName(String aliasName) throws Exception;
+    public NamespaceLocal getNamespace(String aliasName, String tenantId) throws Exception;
 
     /**
      * 根据namespace name 获取集群

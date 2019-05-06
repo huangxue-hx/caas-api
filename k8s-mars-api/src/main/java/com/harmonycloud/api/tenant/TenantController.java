@@ -112,8 +112,7 @@ public class TenantController {
         if(tenantDto.getStrategy() == null){
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
-        tenantService.createTenant(tenantDto);
-        return ActionReturnUtil.returnSuccess();
+        return ActionReturnUtil.returnSuccessWithData(tenantService.createTenant(tenantDto));
 
     }
 

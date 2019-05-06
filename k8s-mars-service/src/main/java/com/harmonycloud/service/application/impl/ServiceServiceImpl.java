@@ -22,6 +22,7 @@ import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.client.K8sMachineClient;
+import com.harmonycloud.k8s.constant.APIGroup;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.*;
@@ -31,23 +32,20 @@ import com.harmonycloud.service.application.*;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
-import com.harmonycloud.service.tenant.PrivatePartitionService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
-import net.sf.json.util.JSONUtils;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import javax.servlet.http.HttpSession;
 import java.text.SimpleDateFormat;
@@ -55,7 +53,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.harmonycloud.common.Constant.CommonConstant.BLANKSTRING;
-import static com.harmonycloud.service.platform.constant.Constant.LABEL_PROJECT_ID;
 
 
 /**
@@ -63,7 +60,6 @@ import static com.harmonycloud.service.platform.constant.Constant.LABEL_PROJECT_
  */
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class ServiceServiceImpl implements ServiceService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ServiceServiceImpl.class);
 
@@ -81,9 +77,6 @@ public class ServiceServiceImpl implements ServiceService {
 
     @Autowired
     private PersistentVolumeService volumeSerivce;
-
-    @Autowired
-    private PrivatePartitionService privatePartitionService;
 
     @Autowired
     private NamespaceService namespaceService;
@@ -125,9 +118,6 @@ public class ServiceServiceImpl implements ServiceService {
 
     @Autowired
     private AutoScaleService autoScaleService;
-
-    /*@Autowired
-    private PodDisruptionBudgetService pdbService;*/
 
     @Autowired
     private PVCService pvcService;
@@ -376,7 +366,9 @@ public class ServiceServiceImpl implements ServiceService {
                 idAndTag.put("image", serviceTemplatesList.get(i).getImageList());
                 idAndTag.put("user", serviceTemplatesList.get(i).getUser());
                 String content = JSONArray.fromObject(serviceTemplatesList.get(i).getDeploymentContent()).getJSONObject(0).toString().replaceAll(":\"\",", ":" + null + ",").replaceAll(":\"\"", ":" + null + "");
-                if(serviceTemplatesList.get(i).getServiceType() == ServiceTypeEnum.DEPLOYMENT.getCode()){
+                if(serviceTemplatesList.get(i).getServiceType() == null){
+                    continue;
+                }else if(serviceTemplatesList.get(i).getServiceType() == ServiceTypeEnum.DEPLOYMENT.getCode()){
                     DeploymentDetailDto deployment = JsonUtil.jsonToPojo(content, DeploymentDetailDto.class);
                     idAndTag.put("name", deployment.getName());
                 }else if(serviceTemplatesList.get(i).getServiceType() == ServiceTypeEnum.STATEFULSET.getCode()){
@@ -565,7 +557,7 @@ public class ServiceServiceImpl implements ServiceService {
      */
     private List<ServiceTemplates> listPrivateServiceTemplate(String searchKey, String searchValue, String clusterId, String projectId, Integer serviceType) throws Exception {
         List<ServiceTemplates> serviceList = new ArrayList<>();
-        Set<String> clusterIdList = new HashSet<>();
+        List<String> clusterIdList = new ArrayList<>();
         if (StringUtils.isEmpty(clusterId)) {
             //获取当前角色的集群
             clusterIdList = roleLocalService.listCurrentUserRoleClusterIds();
@@ -635,6 +627,13 @@ public class ServiceServiceImpl implements ServiceService {
         if (StringUtils.isBlank(serviceDeploy.getServiceTemplate().getProjectId()) || "null".equals(serviceDeploy.getServiceTemplate().getProjectId())) {
             throw new MarsRuntimeException(ErrorCodeMessage.PROJECT_NOT_EXIST);
         }
+
+        //获取集群
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(serviceDeploy.getNamespace());
+        if (Objects.isNull(cluster)) {
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+        }
+
         ServiceTemplateDto service = serviceDeploy.getServiceTemplate();
         String namespace = serviceDeploy.getNamespace();
         String serviceType = null;
@@ -648,12 +647,20 @@ public class ServiceServiceImpl implements ServiceService {
             initContainers = service.getDeploymentDetail().getInitContainers();
             service.getDeploymentDetail().setNamespace(namespace);
             services.add(service.getDeploymentDetail().getName());
+            this.checkPvcExist(containers, namespace, serviceDeploy.getServiceTemplate().getProjectId(), cluster);
         }else if (serviceDeploy.getServiceTemplate().getStatefulSetDetail() != null) {
             serviceType = Constant.STATEFULSET;
             containers = service.getStatefulSetDetail().getContainers();
             initContainers = service.getStatefulSetDetail().getInitContainers();
             service.getStatefulSetDetail().setNamespace(namespace);
             services.add(service.getStatefulSetDetail().getName());
+            this.checkStDtoStorageResourceQuota(Arrays.asList(service), namespace);
+            List<CreateContainerDto> containerDtoList = new ArrayList<>();
+            containerDtoList.addAll(containers);
+            if(CollectionUtils.isNotEmpty(initContainers)) {
+                containerDtoList.addAll(initContainers);
+            }
+            this.checkPvcExist(containerDtoList, namespace, serviceDeploy.getServiceTemplate().getProjectId(), cluster);
         }else{
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
@@ -662,12 +669,6 @@ public class ServiceServiceImpl implements ServiceService {
             if (StringUtils.isBlank(c.getImg())) {
                 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_TEMPLATE_IMAGE_INFO_NOT_NULL);
             }
-        }
-
-        //获取集群
-        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(serviceDeploy.getNamespace());
-        if (Objects.isNull(cluster)) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.CLUSTER_NOT_FOUND);
         }
 
         // 如果集群网络模式为hcipam，则要求每个项目都要配置ip资源池
@@ -705,6 +706,7 @@ public class ServiceServiceImpl implements ServiceService {
         // todo so bad
 
         for (CreateContainerDto c : containers) {
+            c.setParentResourceType(serviceType);
             c.setImg(cluster.getHarborServer().getHarborAddress() + "/" + c.getImg());
         }
         if(initContainers != null) {
@@ -753,6 +755,13 @@ public class ServiceServiceImpl implements ServiceService {
             if (!rollbackRes.isSuccess()) {
                 return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_CREATE_ROLLBACK_FAILURE);
             }
+            for(Map<String, Object> map : message){
+                for(Object value : map.values()){
+                    if(value != null && value.toString().contains(CommonConstant.ENV_ERROR_MESSAGE)){
+                        return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.ENVIRONMENT_VARIABLE_ERROR);
+                    }
+                }
+            }
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.SERVICE_CREATE_FAILURE);
         }
         return ActionReturnUtil.returnSuccess();
@@ -762,7 +771,6 @@ public class ServiceServiceImpl implements ServiceService {
      * 检查Deployment ingress
      */
     public ActionReturnUtil checkService(ServiceTemplateDto service, Cluster cluster, String namespace) throws Exception {
-        JSONObject msg = new JSONObject();
         //check name
         //service name
         K8SURL url = new K8SURL();
@@ -780,10 +788,9 @@ public class ServiceServiceImpl implements ServiceService {
         }
         StatefulSetList statefulsetList = statefulSetService.listStatefulSets(namespace, null, null, cluster);
         List<StatefulSet> stas = new ArrayList<>();
-        if(statefulsetList  != null && statefulsetList.getItems() != null){
+        if(statefulsetList != null && statefulsetList.getItems() != null){
             stas = statefulsetList.getItems();
         }
-
         //ingress tcp
         ActionReturnUtil tcpRes = routerService.svcList(namespace);
         if (!tcpRes.isSuccess()) {
@@ -791,30 +798,22 @@ public class ServiceServiceImpl implements ServiceService {
         }
         @SuppressWarnings("unchecked")
         List<RouterSvc> tcplist = (List<RouterSvc>) tcpRes.get("data");
-        boolean flag = true;
         String serviceName = null;
         if(service.getDeploymentDetail() != null){
             serviceName = service.getDeploymentDetail().getName();
         }else if(service.getStatefulSetDetail() != null){
             serviceName = service.getStatefulSetDetail().getName();
         }
-        if (StringUtils.isNotEmpty(serviceName)) {
+        if (StringUtils.isNotEmpty(serviceName) && deps != null && deps.size() > 0) {
             for (Deployment dep : deps) {
                 if (serviceName.equals(dep.getMetadata().getName())) {
-                    flag = false;
-                    break;
+                    return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.DEPLOYMENT_NAME_DUPLICATE, serviceName);
                 }
             }
-            if(flag){
-                for(StatefulSet sta : stas){
-                    if(serviceName.equals(sta.getMetadata().getName())){
-                        flag = false;
-                        break;
-                    }
+            for(StatefulSet sta : stas) {
+                if (serviceName.equals(sta.getMetadata().getName())) {
+                    return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.DEPLOYMENT_NAME_DUPLICATE, serviceName);
                 }
-            }
-            if(!flag){
-                msg.put("服务名称:" + serviceName, "重复");
             }
         }
         //check ingress
@@ -824,33 +823,24 @@ public class ServiceServiceImpl implements ServiceService {
                     if (!IngressControllerConstant.IC_DEFAULT_NAME.equals(ing.getParsedIngressList().getIcName())) {
                         K8SClientResponse response = icService.getIngressController(ing.getParsedIngressList().getIcName(), cluster);
                         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
-                            msg.put("Ingress(Http):" + ing.getParsedIngressList().getName(), ErrorCodeMessage.INGRESS_CONTROLLER_NOT_FOUND.phrase());
-                            flag = false;
-                            break;
+                            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.INGRESS_CONTROLLER_NOT_FOUND, ing.getParsedIngressList().getName());
                         }
                     }
                     boolean isExist = routerService.checkIngressName(cluster, ing.getParsedIngressList().getName());
                     if (isExist) {
-                        msg.put("Ingress(Http):" + ing.getParsedIngressList().getName(), "重复");
-                        flag = false;
-                        break;
+                        return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.HTTP_INGRESS_NAME_DUPLICATE, ing.getParsedIngressList().getName());
                     }
                 }
                 if (ing.getType() != null && "TCP".equals(ing.getType()) && tcplist != null && tcplist.size() > 0) {
                     for (RouterSvc tcp : tcplist) {
                         if (("routersvc" + ing.getSvcRouter().getName()).equals(tcp.getName())) {
-                            msg.put("Ingress(Tcp):" + ing.getSvcRouter().getName(), "重复");
-                            flag = false;
+                            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.TCP_NAME_DUPLICATE, ing.getSvcRouter().getName());
                         }
                     }
                 }
             }
         }
-        if (flag) {
-            return ActionReturnUtil.returnSuccess();
-        } else {
-            return ActionReturnUtil.returnErrorWithData(msg);
-        }
+        return ActionReturnUtil.returnSuccess();
     }
 
     @Override
@@ -1250,5 +1240,106 @@ public class ServiceServiceImpl implements ServiceService {
     @Override
     public List<ServiceTemplates> listServiceTemplateByAppId(int appId) throws Exception {
         return serviceTemplatesMapper.listByAPPId(appId);
+    }
+
+    @Override
+    public void checkStsStorageResourceQuota(List<StatefulSet> statefulSetList, String namespace) throws Exception {
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        K8SClientResponse response = pvcService.doSepcifyPVC(namespace, null, HTTPMethod.GET, cluster);
+        List<String> pvcNameList = new ArrayList<>();
+        if(HttpStatusUtil.isSuccessStatus(response.getStatus())){
+            PersistentVolumeClaimList persistentVolumeClaimList = JsonUtil.jsonToPojo(response.getBody(), PersistentVolumeClaimList.class);
+            if(CollectionUtils.isNotEmpty(persistentVolumeClaimList.getItems())){
+                List<PersistentVolumeClaim> pvcList = persistentVolumeClaimList.getItems();
+                pvcNameList =  pvcList.stream().map(persistentVolumeClaim -> persistentVolumeClaim.getMetadata().getName()).collect(Collectors.toList());
+            }
+        }
+
+        Map<String, Long> serviceRequireRes = new HashMap<>();
+        for(StatefulSet statefulSet : statefulSetList) {
+            if (CollectionUtils.isNotEmpty(statefulSet.getSpec().getVolumeClaimTemplates())) {
+                for (PersistentVolumeClaim persistentVolumeClaim : statefulSet.getSpec().getVolumeClaimTemplates()) {
+                    String storageName = persistentVolumeClaim.getSpec().getStorageClassName();
+                    String volumeName = persistentVolumeClaim.getMetadata().getName();
+                    Map<String, Object> request = (Map<String, Object>) persistentVolumeClaim.getSpec().getResources().getRequests();
+                    long requestStorage = 0;
+                    if (request.get(CommonConstant.STORAGE) != null) {
+                        if (request.get(CommonConstant.STORAGE).toString().contains(CommonConstant.GI)) {
+                            requestStorage = Long.valueOf(request.get(CommonConstant.STORAGE).toString().split(CommonConstant.GI)[0]);
+                        }
+                    }
+                    int instant = 0;
+                    for (int i = 0; i < statefulSet.getSpec().getReplicas(); i++) {
+                        String pvcName = volumeName + CommonConstant.LINE + statefulSet.getMetadata().getName() + CommonConstant.LINE + String.valueOf(i);
+                        if (!pvcNameList.contains(pvcName)) {
+                            instant++;
+                        }
+                    }
+                    if(serviceRequireRes.get(CommonConstant.STORAGE + CommonConstant.SLASH + storageName) != null) {
+                        requestStorage = serviceRequireRes.get(CommonConstant.STORAGE + CommonConstant.SLASH + storageName) + requestStorage * instant;
+                        serviceRequireRes.put(CommonConstant.STORAGE + CommonConstant.SLASH + storageName, requestStorage);
+                    }else {
+                        serviceRequireRes.put(CommonConstant.STORAGE + CommonConstant.SLASH + storageName, requestStorage * instant);
+                    }
+                }
+            }
+        }
+        Map<String, String> remainResource = namespaceService.getNamespaceResourceRemainQuota(namespace);
+        namespaceService.checkStorageResource(serviceRequireRes, remainResource);
+    }
+
+
+    @Override
+    public void checkStDtoStorageResourceQuota(List<ServiceTemplateDto> serviceTemplateDtos, String namespace) throws Exception {
+        List<StatefulSet> statefulSetList = new ArrayList<>();
+        for(ServiceTemplateDto serviceTemplateDto : serviceTemplateDtos){
+            if(serviceTemplateDto.getStatefulSetDetail() != null){
+                StatefulSet statefulSet = K8sResultConvert.convertAppCreateForStatefulSet(serviceTemplateDto.getStatefulSetDetail(), null, null, null);
+                statefulSetList.add(statefulSet);
+            }
+        }
+        this.checkStsStorageResourceQuota(statefulSetList, namespace);
+    }
+
+    public void checkPvcExist(List<CreateContainerDto> containerList, String namespace, String projectId, Cluster cluster) throws Exception {
+        K8SURL k8SURL = new K8SURL();
+        k8SURL.setApiGroup(APIGroup.API_V1_VERSION);
+        k8SURL.setNamespace(namespace);
+        k8SURL.setResource(Resource.PERSISTENTVOLUMECLAIM);
+        Map bodys = new HashMap<>();
+        String labelSelector = Constant.NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId;
+        bodys.put("labelSelector", labelSelector);
+        K8SClientResponse pvcResponse = new K8sMachineClient().exec(k8SURL, HTTPMethod.GET, null, bodys, cluster);
+        List<String> pvcList = new ArrayList<>();
+        if (HttpStatusUtil.isSuccessStatus(pvcResponse.getStatus())) {
+            PersistentVolumeClaimList persistentVolumeClaimList = JsonUtil.jsonToPojo(pvcResponse.getBody(), PersistentVolumeClaimList.class);
+            if (CollectionUtils.isNotEmpty(persistentVolumeClaimList.getItems())) {
+                pvcList = persistentVolumeClaimList.getItems().stream().map(persistentVolumeClaim -> persistentVolumeClaim.getMetadata().getName()).collect(Collectors.toList());
+            }
+        }
+        for (CreateContainerDto createContainerDto : containerList) {
+            if (CollectionUtils.isNotEmpty(createContainerDto.getStorage())) {
+                for (PersistentVolumeDto persistentVolumeDto : createContainerDto.getStorage()) {
+                    if (Constant.VOLUME_TYPE_PVC.equals(persistentVolumeDto.getType()) && !pvcList.contains(persistentVolumeDto.getPvcName())) {
+                        throw new MarsRuntimeException(ErrorCodeMessage.PVC_NOT_EXIST);
+                    }
+                }
+            }
+        }
+    }
+
+    public void checkStDtoPvcExist(List<ServiceTemplateDto> serviceTemplateDtos, String namespace, String projectId, Cluster cluster) throws Exception{
+        List<CreateContainerDto> createContainerDtoList = new ArrayList<>();
+        for(ServiceTemplateDto serviceTemplateDto : serviceTemplateDtos){
+            if(serviceTemplateDto.getDeploymentDetail() != null){
+                createContainerDtoList.addAll(serviceTemplateDto.getDeploymentDetail().getContainers());
+            }else if(serviceTemplateDto.getStatefulSetDetail() != null){
+                if (CollectionUtils.isNotEmpty(serviceTemplateDto.getStatefulSetDetail().getInitContainers())) {
+                    createContainerDtoList.addAll(serviceTemplateDto.getStatefulSetDetail().getInitContainers());
+                }
+                createContainerDtoList.addAll(serviceTemplateDto.getStatefulSetDetail().getContainers());
+            }
+        }
+        this.checkPvcExist(createContainerDtoList, namespace, projectId, cluster);
     }
 }

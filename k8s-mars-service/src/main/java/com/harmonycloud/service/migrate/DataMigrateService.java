@@ -14,4 +14,8 @@ public interface DataMigrateService {
      * @return
      */
     List<String> migrateData(String version, boolean execute) throws Exception;
+
+    List<String> stopService(boolean execute) throws Exception;
+
+    List<String> startService(boolean execute) throws Exception;
 }

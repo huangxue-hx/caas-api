@@ -9,6 +9,7 @@ import com.harmonycloud.dao.ci.bean.BuildEnvironment;
 import com.harmonycloud.dao.ci.bean.BuildEnvironmentExample;
 import com.harmonycloud.dao.ci.bean.Stage;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.service.ci.BuildEnvironmentService;
 import com.harmonycloud.service.platform.service.ci.JobService;
 import com.harmonycloud.service.platform.service.ci.StageService;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 
 import javax.servlet.http.HttpSession;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @Author w_kyzhang
@@ -56,6 +58,8 @@ public class BuildEnvironmentServiceImpl implements BuildEnvironmentService {
 
     @Autowired
     private UserService userService;
+    @Autowired
+    private ClusterService clusterService;
 
     /**
      * 查询环境列表
@@ -83,6 +87,8 @@ public class BuildEnvironmentServiceImpl implements BuildEnvironmentService {
                     clusterIdList.add(cluster.getId());
                 }
                 criteria.andClusterIdIn(clusterIdList);
+            } else {
+                criteria.andClusterIdIsNull();
             }
         }
         if (StringUtils.isNotBlank(name)) {
@@ -94,8 +100,8 @@ public class BuildEnvironmentServiceImpl implements BuildEnvironmentService {
             publicCriteria.andNameLike("%" + name + "%");
         }
         buildEnvironmentExample.or(publicCriteria);
-        return buildEnvironmentMapper.selectByExample(buildEnvironmentExample);
-
+        List<BuildEnvironment> buildEnvironments = buildEnvironmentMapper.selectByExample(buildEnvironmentExample);
+        return buildEnvironments;
     }
 
     /**

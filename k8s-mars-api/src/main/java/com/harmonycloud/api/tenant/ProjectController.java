@@ -82,8 +82,7 @@ public class ProjectController {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         projectDto.setTenantId(tenantId);
-        projectService.createProject(projectDto);
-        return ActionReturnUtil.returnSuccess();
+        return ActionReturnUtil.returnSuccessWithData(projectService.createProject(projectDto));
     }
 
     /**

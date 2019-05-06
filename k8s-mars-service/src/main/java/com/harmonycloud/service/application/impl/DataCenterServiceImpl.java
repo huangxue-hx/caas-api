@@ -22,6 +22,7 @@ import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.application.DataCenterService;
 
 
+import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -48,6 +49,8 @@ public class DataCenterServiceImpl implements DataCenterService {
     private ClusterService clusterService;
     @Autowired
     private NamespaceService namespaceService;
+    @Autowired
+    private ClusterCacheManager clusterCacheManager;
 
     private ClusterCRDService clusterCRDService = new ClusterCRDService();
 
@@ -71,7 +74,7 @@ public class DataCenterServiceImpl implements DataCenterService {
             }
             DataCenterDto dataCenterDto = this.convertDto(ns);
             if(withCluster != null && withCluster && !CollectionUtils.isEmpty(dataCenterClusterMap)){
-                dataCenterDto.setClusters(dataCenterClusterMap.get(dataCenterDto.getAnnotations()));
+                dataCenterDto.setClusters(dataCenterClusterMap.get(dataCenterDto.getName()));
             }
             if(dataCenterDto.getName().equals(TOP_DATACENTER)){
                 topDataCenterDto = dataCenterDto;
@@ -152,6 +155,11 @@ public class DataCenterServiceImpl implements DataCenterService {
         if (!HttpStatusUtil.isSuccessStatus(updateResponse.getStatus())) {
             return  ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.DATACENTER_UPDATE_FAIL);
         }
+        List<Cluster> clusters = clusterService.listCluster(name, null, null);
+        clusters.stream().forEach(c -> {
+            c.setDataCenterName(annotations);
+            clusterCacheManager.putCluster(c);
+        });
         return ActionReturnUtil.returnSuccess();
 
     }

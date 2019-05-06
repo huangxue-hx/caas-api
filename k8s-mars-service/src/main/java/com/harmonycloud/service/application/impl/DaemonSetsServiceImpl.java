@@ -140,6 +140,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                     }
                 }
             }
+            c.setParentResourceType(Constant.DAEMONSET);
             c.setImg(cluster.getHarborServer().getHarborAddress() +  "/" + c.getImg());
         }
         //创建组装DaemonSet
@@ -165,9 +166,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
         if (ds != null) {
             //添加updateTime
             Map<String, Object> anno = ds.getMetadata().getAnnotations();
-            Date updateTime = DateUtil.getCurrentUtcTime();
-            String updateTimestamp = DateUtil.UTC_FORMAT.format(updateTime);
-            anno.put("updateTimestamp", updateTimestamp);
+            anno.put("updateTimestamp", DateUtil.getCurrentUtcTimestamp());
             ds.getMetadata().setAnnotations(anno);
             List<Container> cons = ds.getSpec().getTemplate().getSpec().getContainers();
             //更新容器(CPU, memory)
@@ -221,7 +220,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
         DaemonSet ds = dsService.getDaemonSet(namespace, name, cluster);
         if (Objects.nonNull(ds) && Objects.nonNull(ds.getMetadata()) && !StringUtils.isEmpty(ds.getMetadata().getName())) {
             DaemonSetDetailDto detail = K8sResultConvert.convertDaemonSetDetail(ds);
-            detail.setAliasName(StringUtils.isNotBlank(detail.getCreator()) ? userService.getUser(detail.getCreator()).getRealName() : null);
+            detail.setCreatorRealName(StringUtils.isNotBlank(detail.getCreator()) ? userService.getUser(detail.getCreator()).getRealName() : null);
             PodSpec podSpec = ds.getSpec().getTemplate().getSpec();
             //容器
             List<Container> containers = podSpec.getContainers();
@@ -259,6 +258,9 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
                 if (CollectionUtils.isNotEmpty(container.getEnv())) {
                     List<CreateEnvDto> envs = new ArrayList<>();
                     for (EnvVar env : container.getEnv()) {
+                        if (env.getName().equals(Constant.PILOT_LOG_PREFIX) || env.getName().equals(Constant.PILOT_LOG_PREFIX_TAG)){
+                            continue; //过滤log_pilot收集日志设置的环境变量
+                        }
                         CreateEnvDto e = new CreateEnvDto();
                         e.setKey(env.getName());
                         e.setValue(env.getValue());
@@ -438,7 +440,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
         List<Cluster> clusters = roleLocalService.listCurrentUserRoleCluster();
 
         if (CollectionUtils.isEmpty(clusters)) {
-            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+            return ActionReturnUtil.returnSuccessWithData(Collections.emptyList());
         }
 
         //labels

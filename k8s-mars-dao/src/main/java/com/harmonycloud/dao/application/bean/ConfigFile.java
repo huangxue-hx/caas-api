@@ -28,11 +28,13 @@ public class ConfigFile implements Serializable {
 	private String clusterName;
 	private String repoName; // 镜像repo
 	private String user; // 创建者
+	private String userRealName;
 	private String createTime; // 创建时间
 	private String updateTime;	//更新时间
 	private List<ConfigFileItem> configFileItemList;//配置文件的明細列表
 	private String clusterAliasName;//集群的别名
 	private String dataPrivilege;//权限属性
+	private boolean appStore;
 
 	public String getClusterAliasName() {
 		return clusterAliasName;
@@ -154,6 +156,14 @@ public class ConfigFile implements Serializable {
 		this.dataPrivilege = dataPrivilege;
 	}
 
+	public boolean getAppStore() {
+		return appStore;
+	}
+
+	public void setAppStore(boolean appStore) {
+		this.appStore = appStore;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
@@ -198,5 +208,13 @@ public class ConfigFile implements Serializable {
 			result = result.substring(0, result.length()-1)+"]";
 		}
 		return result;
+	}
+
+	public String getUserRealName() {
+		return userRealName;
+	}
+
+	public void setUserRealName(String userRealName) {
+		this.userRealName = userRealName;
 	}
 }

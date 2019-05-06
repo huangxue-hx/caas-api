@@ -15,10 +15,10 @@ public class TrafficShiftingDto extends BaseIstioPolicyDto {
     private String protocol;
 
     @ApiModelProperty(value = "目标分流服务", name = "desServices", example = "")
-    private List<TrafficShiftingDesServicesDto> desServices;
+    private List<TrafficShiftingDesServiceDto> desServices;
 
     @ApiModelProperty(value = "源服务", name = "sourceServices", example = "")
-    private List<TrafficShiftingSourceDto> sourceServices;
+    private List<TrafficShiftingMatchDto> matches;
 
     public String getProtocol() {
         return protocol;
@@ -28,19 +28,19 @@ public class TrafficShiftingDto extends BaseIstioPolicyDto {
         this.protocol = protocol;
     }
 
-    public List<TrafficShiftingDesServicesDto> getDesServices() {
+    public List<TrafficShiftingDesServiceDto> getDesServices() {
         return desServices;
     }
 
-    public void setDesServices(List<TrafficShiftingDesServicesDto> desServices) {
+    public void setDesServices(List<TrafficShiftingDesServiceDto> desServices) {
         this.desServices = desServices;
     }
 
-    public List<TrafficShiftingSourceDto> getSourceServices() {
-        return sourceServices;
+    public List<TrafficShiftingMatchDto> getMatches() {
+        return matches;
     }
 
-    public void setSourceServices(List<TrafficShiftingSourceDto> sourceServices) {
-        this.sourceServices = sourceServices;
+    public void setMatches(List<TrafficShiftingMatchDto> matches) {
+        this.matches = matches;
     }
 }

@@ -15,12 +15,11 @@ public class IstioGlobalConfigure implements Serializable {
 
     private Integer switchStatus;
 
-    private Long operatorId;
+    private String userName;
 
     private Date createTime;
 
     private Date updateTime;
-
 
     public static long getSerialVersionUID() {
         return serialVersionUID;
@@ -58,12 +57,12 @@ public class IstioGlobalConfigure implements Serializable {
         this.switchStatus = switchStatus;
     }
 
-    public Long getOperatorId() {
-        return operatorId;
+    public String getUserName() {
+        return userName;
     }
 
-    public void setOperatorId(Long operatorId) {
-        this.operatorId = operatorId;
+    public void setUserName(String userName) {
+        this.userName = userName;
     }
 
     public Date getCreateTime() {

@@ -7,9 +7,9 @@ import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateUtil;
-import com.harmonycloud.dao.application.ServiceTemplatesMapper;
+import com.harmonycloud.dao.application.AppStoreMapper;
+import com.harmonycloud.dao.application.bean.AppStore;
 import com.harmonycloud.dao.application.bean.ProjectIpPool;
-import com.harmonycloud.dao.application.bean.ServiceTemplates;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
@@ -21,8 +21,8 @@ import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.DeploymentService;
 import com.harmonycloud.k8s.service.IcService;
+import com.harmonycloud.k8s.service.StatefulSetService;
 import com.harmonycloud.k8s.service.TprApplication;
-import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.*;
@@ -35,8 +35,10 @@ import com.harmonycloud.service.platform.bean.ApplicationList;
 import com.harmonycloud.service.platform.bean.RouterSvc;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
-import com.harmonycloud.service.tenant.*;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
+import com.harmonycloud.service.tenant.ProjectService;
+import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserService;
 import com.harmonycloud.service.util.BizUtil;
@@ -50,7 +52,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import javax.servlet.http.HttpSession;
 import java.text.SimpleDateFormat;
@@ -68,7 +69,6 @@ import static com.harmonycloud.service.platform.constant.Constant.*;
  * Created by root on 4/10/17.
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class ApplicationDeployServiceImpl implements ApplicationDeployService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApplicationDeployServiceImpl.class);
@@ -109,6 +109,9 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     @Autowired
     private IcService icService;
 
+    @Autowired
+    private AppStoreMapper appStoreMapper;
+
 
     @Value("#{propertiesReader['kube.topo']}")
     private String kubeTopo;
@@ -141,10 +144,10 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     private RBACService rbacService;
 
     @Autowired
-    private ServiceTemplatesMapper serviceTemplatesMapper;
+    private StatefulSetService statefulSetService;
 
     @Autowired
-    private StatefulSetService statefulSetService;
+    private ServiceService serviceService;
 
     @Autowired
     private IpPoolService ipPoolService;
@@ -204,7 +207,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         }
 
         if (appCrdList != null && appCrdList.size() > 0) {
-            array = convertAppListData(appCrdList, applicationQuery.getStatus());
+            array = convertAppListData(appCrdList, applicationQuery.getStatus(), bodys, applicationQuery.getTenantId(), null);
         }
 
         //数据权限过滤
@@ -263,7 +266,8 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 com.alibaba.fastjson.JSONObject.toJSONString(response));
         return Collections.emptyList();
     }
-    private List<ApplicationDto> convertAppListData(List<BaseResource> appCrdList, String status) throws Exception {
+    private List<ApplicationDto> convertAppListData(List<BaseResource> appCrdList, String status,
+                                                    Map<String, Object> bodys, String tenantId, String namespace) throws Exception {
         List<ApplicationDto> array = new ArrayList<>();
         //获取可用集群
         final List<Cluster> clusterList = this.roleLocalService.listCurrentUserRoleCluster();
@@ -282,7 +286,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 public void run() {
                     try {
                         //deployment
-                        K8SClientResponse responseDep = dpService.doDeploymentsByNamespace(null, null, null, HTTPMethod.GET, cluster);
+                        K8SClientResponse responseDep = dpService.doDeploymentsByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
                         if (HttpStatusUtil.isSuccessStatus(responseDep.getStatus())) {
                             DeploymentList deploymentList = JsonUtil.jsonToPojo(responseDep.getBody(), DeploymentList.class);
                             if (deploymentList != null && !CollectionUtils.isEmpty(deploymentList.getItems())) {
@@ -290,7 +294,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                             }
                         }
                         //statefulset
-                        K8SClientResponse responseSts = statefulSetService.doSpecifyStatefulSet(null, null, null, null, HTTPMethod.GET, cluster);
+                        K8SClientResponse responseSts = statefulSetService.doSpecifyStatefulSet(namespace, null, null, bodys, HTTPMethod.GET, cluster);
                         if (HttpStatusUtil.isSuccessStatus(responseSts.getStatus())) {
                             StatefulSetList statefulSetList = JsonUtil.jsonToPojo(responseSts.getBody(), StatefulSetList.class);
                             if (statefulSetList != null && !CollectionUtils.isEmpty(statefulSetList.getItems())) {
@@ -306,22 +310,20 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
             });
         }
         countDownLatchApp.await();
-//        for (Cluster cluster : clusterList) {
-//            try {
-//                K8SClientResponse responseDep = dpService.doDeploymentsByNamespace(null, null, null, HTTPMethod.GET, cluster);
-//                if (HttpStatusUtil.isSuccessStatus(responseDep.getStatus())) {
-//                    DeploymentList deploymentList = JsonUtil.jsonToPojo(responseDep.getBody(), DeploymentList.class);
-//                    if (deploymentList != null && !CollectionUtils.isEmpty(deploymentList.getItems())) {
-//                        deployments.addAll(deploymentList.getItems());
-//                    }
-//                }
-//            } catch (Exception e) {
-//                LOGGER.error("获取应用数量错误", e);
-//            }
-//        }
+
         //转化为前端显示数据
         Map<String, List<Deployment>> deploymentMap = this.groupByAppLabel(deployments);
         Map<String, List<StatefulSet>> statefulSetMap = this.groupStsByAppLabel(statefulSets);
+        Map<String, NamespaceLocal> namespaceLocals = null;
+        if (StringUtils.isNotBlank(namespace)) {
+            namespaceLocals = new HashMap<>();
+            namespaceLocals.put(namespace, namespaceLocalService.getNamespaceByName(namespace));
+        } else if (StringUtils.isNotBlank(tenantId)) {
+            List<NamespaceLocal> namespaces = namespaceLocalService.getAllNamespaceListByTenantId(tenantId);
+            namespaceLocals = namespaces.stream().collect(Collectors
+                    .toMap(NamespaceLocal::getNamespaceName, namespaceLocal -> namespaceLocal));
+        }
+        Map<String, String> userRealNames = new HashMap<>();
         for (BaseResource bs : appCrdList) {
             ApplicationDto app = new ApplicationDto();
             String label = "";
@@ -351,17 +353,21 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                 app.setDesc(bs.getMetadata().getAnnotations().get("nephele/annotation").toString());
             }
             app.setNamespace(bs.getMetadata().getNamespace());
-            final NamespaceLocal namespaceLocal = namespaceLocalService.getNamespaceByName(app.getNamespace());
-            if(namespaceLocal == null){
-                LOGGER.error("k8s的分区在数据库中不存在，namespace：{}",app.getNamespace());
+            if (namespaceLocals.get(app.getNamespace()) == null) {
                 continue;
             }
-            app.setAliasNamespace(namespaceLocal.getAliasName());
+            app.setAliasNamespace(namespaceLocals.get(app.getNamespace()).getAliasName());
             //获取创建时间
             app.setCreateTime(bs.getMetadata().getCreationTimestamp());
             app.setUser(user);
-            app.setRealName(userService.getUser(user).getRealName());
-            Cluster cluster = clusterMap.get(namespaceLocal.getClusterId());
+            if (userRealNames.get(user) == null) {
+                String userRealName = userService.getUser(user).getRealName();
+                userRealNames.put(user, userRealName);
+                app.setRealName(userRealName);
+            } else {
+                app.setRealName(userRealNames.get(user));
+            }
+            Cluster cluster = clusterMap.get(namespaceLocals.get(app.getNamespace()).getClusterId());
 //            JSONObject serviceJson = listServiceByApplicationId(label, bs.getMetadata().getNamespace(), cluster);
             JSONObject serviceJson = this.getServiceStatus(deploymentMap.get(label), statefulSetMap.get(label));
             app.setClusterId(cluster.getId());
@@ -669,6 +675,8 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         if (!checkRes.isSuccess()) {
             return checkRes;
         }
+        serviceService.checkStDtoStorageResourceQuota(appDeploy.getAppTemplate().getServiceList(), namespace);
+        serviceService.checkStDtoPvcExist(appDeploy.getAppTemplate().getServiceList(), namespace, appDeploy.getProjectId(), cluster);
         deployApplication(appDeploy, username, cluster);
         return ActionReturnUtil.returnSuccess();
     }
@@ -772,6 +780,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         if (errorMessage.size() > 0) {
             throw new MarsRuntimeException(ErrorCodeMessage.APP_DELETE_FAILED);
         }
+
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -930,7 +939,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         // search application
         List<BaseResource> blist = new CopyOnWriteArrayList<>();
         List<Deployment> deployments = new CopyOnWriteArrayList<>();
-        List<String> namespaces = new CopyOnWriteArrayList<>();
+        List<String> namespaces = new ArrayList<>();
         Cluster cluster = clusterService.findClusterById(clusterId);
         List<NamespaceLocal> namespaceList = namespaceLocalService.getNamespaceListByClusterId(clusterId);
         if (CollectionUtils.isEmpty(namespaceList)) {
@@ -965,6 +974,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                     if (HttpStatusUtil.isSuccessStatus(responseDep.getStatus())) {
                         DeploymentList deploymentList = JsonUtil.jsonToPojo(responseDep.getBody(), DeploymentList.class);
                         if (deploymentList != null && !CollectionUtils.isEmpty(deploymentList.getItems())) {
+                            deploymentList.getItems().removeIf(deployment -> !namespaces.contains(deployment.getMetadata().getNamespace()));
                             allDeploymentInCluster.addAndGet(deploymentList.getItems().size());
                             deployments.addAll(deploymentList.getItems());
                         }
@@ -982,13 +992,11 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         //将服务列表根据应用的label标签进行分组,key为某个应用的标签，value为该应用下的服务列表
         Map<String, List<Deployment>> deploymentMap = this.groupByAppLabel(deployments);
         if (blist != null && blist.size() > 0) {
-            List<BaseResource> apps = new ArrayList<>();
-            apps.addAll(blist);
-            Iterator<BaseResource> iterator = apps.iterator();
+            Iterator<BaseResource> iterator = blist.iterator();
             while (iterator.hasNext()) {
                 BaseResource bs = iterator.next();
                 if (!namespaces.contains(bs.getMetadata().getNamespace())) {
-                    iterator.remove();
+                    blist.remove(bs);    // CopyOnWriteArrayList不能直接使用iterator.remove()，会抛出异常：java.lang.UnsupportedOperationException
                     continue;
                 }
                 Map<String, Object> appLable = new HashedMap();
@@ -1307,6 +1315,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         if (!checkRes.isSuccess()) {
             return checkRes;
         }
+        serviceService.checkStDtoPvcExist(servicelist, namespace, projectId, cluster);
         appDeploy.setTenantId(tenantId);
         //发布
         deployApplication(appDeploy, userName, cluster);
@@ -1331,6 +1340,9 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         if (!checkRes.isSuccess()) {
             return checkRes;
         }
+
+        serviceService.checkStDtoStorageResourceQuota(appDeploy.getAppTemplate().getServiceList(), namespace);
+        serviceService.checkStDtoPvcExist(appDeploy.getAppTemplate().getServiceList(), namespace, appDeploy.getProjectId(), cluster);
 
         //获取k8s同namespace相关的资源
         //获取 Deployment name
@@ -1782,6 +1794,11 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         // loop appTemplate】
 
         if (appDeploy.getAppTemplate() != null && appDeploy.getAppTemplate().getServiceList().size() > 0) {
+            AppStore app = appStoreMapper.selectById(appDeploy.getAppTemplate().getId());
+            String serviceAccount = null;
+            if (Objects.nonNull(app)){
+                serviceAccount = app.getServiceAccount();
+            }
             for (ServiceTemplateDto svcTemplate : appDeploy.getAppTemplate().getServiceList()) {
                 // create ingress
                 if (svcTemplate.getIngress() != null) {
@@ -1797,21 +1814,25 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
                     containers = svcTemplate.getDeploymentDetail().getContainers();
                     initContainers = svcTemplate.getDeploymentDetail().getInitContainers();
                     svcTemplate.getDeploymentDetail().setProjectId(appDeploy.getProjectId());
-                    if(svcTemplate.getId() != null) {
-                        ServiceTemplates serviceTemplates = serviceTemplatesMapper.getServiceTemplatesByID(svcTemplate.getId());
-                        if (null != serviceTemplates.getServiceAccount() && serviceTemplates.getServiceAccount().equals(Constant.SERVICE_ACCOUNT_ONLINESHOP)) {
-                            //deal with cluster component
-                            svcTemplate.getDeploymentDetail().setServiceAccount(Constant.SERVICE_ACCOUNT_ONLINESHOP);
-                            svcTemplate.getDeploymentDetail().setServiceAccountName(Constant.SERVICE_ACCOUNT_ONLINESHOP);
-                            svcTemplate.getDeploymentDetail().setAutomountServiceAccountToken(true);
-                            dealWithClusterComponent(Constant.SERVICE_ACCOUNT_ONLINESHOP, appDeploy.getNamespace(), cluster);
-                        }
+                    //deal with rbac for cluster component
+                    if (Constant.SERVICE_ACCOUNT_ONLINESHOP.equals(serviceAccount)){
+                        svcTemplate.getDeploymentDetail().setServiceAccount(Constant.SERVICE_ACCOUNT_ONLINESHOP);
+                        svcTemplate.getDeploymentDetail().setServiceAccountName(Constant.SERVICE_ACCOUNT_ONLINESHOP);
+                        svcTemplate.getDeploymentDetail().setAutomountServiceAccountToken(true);
+                        dealRBACForOnlineshop(Constant.SERVICE_ACCOUNT_ONLINESHOP, appDeploy.getNamespace(), cluster);
                     }
                 }else if(svcTemplate.getStatefulSetDetail() != null){
                     svcTemplate.getStatefulSetDetail().setNamespace(appDeploy.getNamespace());
                     containers = svcTemplate.getStatefulSetDetail().getContainers();
                     initContainers = svcTemplate.getStatefulSetDetail().getInitContainers();
                     svcTemplate.getStatefulSetDetail().setProjectId(appDeploy.getProjectId());
+                    //deal with rbac for cluster component
+                    if (Constant.SERVICE_ACCOUNT_ONLINESHOP.equals(serviceAccount)){
+                        svcTemplate.getStatefulSetDetail().setServiceAccount(Constant.SERVICE_ACCOUNT_ONLINESHOP);
+                        svcTemplate.getStatefulSetDetail().setServiceAccountName(Constant.SERVICE_ACCOUNT_ONLINESHOP);
+                        svcTemplate.getStatefulSetDetail().setAutomountServiceAccountToken(true);
+                        dealRBACForOnlineshop(Constant.SERVICE_ACCOUNT_ONLINESHOP, appDeploy.getNamespace(), cluster);
+                    }
                 }else{
                     throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
                 }
@@ -1949,12 +1970,10 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
     public ActionReturnUtil getApplicationListInNamespace(String namespace) throws Exception {
         //判断用户权限
         boolean isPrivilege = userService.checkCurrentUserIsAdminOrTm();
-        Map<String, Object> msfBody = new HashMap<>();
-        msfBody.put("labelSelector", NODESELECTOR_LABELS_PRE + "springcloud=true");
         List<BaseResource> list = getApplicationList(namespace, null);
         Map<String, Object> appListMap = new HashMap<>();
         if (list != null && list.size() > 0) {
-            List<ApplicationDto> appList = convertAppListData(list, null);
+            List<ApplicationDto> appList = convertAppListData(list, null, null, null, namespace);
             //分组
             Map<Boolean, List<ApplicationDto>> result = appList.stream()
                     .collect(Collectors.groupingBy(ApplicationDto::isMsf, Collectors.toList()));
@@ -2011,7 +2030,7 @@ public class ApplicationDeployServiceImpl implements ApplicationDeployService {
         return ActionReturnUtil.returnSuccess();
     }
 
-    private void dealWithClusterComponent(String serviceAccountName, String namespace, Cluster cluster) throws Exception{
+    private void dealRBACForOnlineshop(String serviceAccountName, String namespace, Cluster cluster) throws Exception{
         //deal with service account
         if(!rbacService.getServiceAccount(namespace, serviceAccountName, cluster).isSuccess()){
             rbacService.createServiceAccount(namespace, serviceAccountName, cluster);

@@ -19,6 +19,8 @@ public interface UserRoleRelationshipMapper {
 
     List<UserRoleRelationship> selectByExample(UserRoleRelationshipExample example);
 
+    List<UserRoleRelationship> selectByUsername(String username);
+
     UserRoleRelationship selectByPrimaryKey(Integer id);
 
     int updateByPrimaryKeySelective(UserRoleRelationship record);

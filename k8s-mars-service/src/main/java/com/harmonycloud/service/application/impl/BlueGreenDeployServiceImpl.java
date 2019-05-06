@@ -1,5 +1,6 @@
 package com.harmonycloud.service.application.impl;
 
+import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
@@ -12,7 +13,12 @@ import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.k8s.constant.HTTPMethod;
 import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
-import com.harmonycloud.service.application.*;
+import com.harmonycloud.service.application.BlueGreenDeployService;
+import com.harmonycloud.service.application.DeploymentsService;
+import com.harmonycloud.service.application.PersistentVolumeClaimService;
+import com.harmonycloud.service.application.PersistentVolumeService;
+import com.harmonycloud.service.application.Util.IstioServiceUtil;
+import com.harmonycloud.service.istio.IstioCommonService;
 import com.harmonycloud.service.platform.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.convert.K8sResultConvert;
@@ -76,7 +82,7 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
     private PersistentVolumeClaimService persistentVolumeClaimService;
 
     @Autowired
-    private IstioService istioService;
+    private IstioCommonService istioCommonService;
 
     @Override
     public ActionReturnUtil deployByBlueGreen(UpdateDeployment updateDeployment, String userName, String projectId) throws Exception {
@@ -111,11 +117,14 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         List<UpdateContainer> containers = updateDeployment.getContainers();
         for (UpdateContainer container : containers) {
             List<PersistentVolumeDto> storage = container.getStorage();
-            if(storage!=null){
+            if (storage != null) {
                 for (PersistentVolumeDto persistentVolumeDto : storage) {
+                    if (!persistentVolumeDto.getType().equals(Constant.VOLUME_TYPE_PVC)) {
+                        continue;
+                    }
                     String pvcName = persistentVolumeDto.getPvcName();
                     PersistentVolumeClaim pvcByName = pvcService.getPvcByName(namespace, pvcName, cluster);
-                    if (null ==pvcByName){
+                    if (null == pvcByName){
                         break;
                     }
                     Map<String, Object> newLabels = pvcByName.getMetadata().getLabels();
@@ -265,9 +274,10 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         K8SClientResponse putRes = dpService.doSpecifyDeployment(namespace, name, headers, bodys, HTTPMethod.PUT,
                 cluster);
         if (!HttpStatusUtil.isSuccessStatus(putRes.getStatus())) {
-            logger.error("蓝绿发布失败", putRes.getBody());
+            logger.error("蓝绿发布失败,response:{}", JSONObject.toJSONString(putRes));
             throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_BLUE_GREEN_FAILURE);
         }
+
         return ActionReturnUtil.returnSuccess();
     }
 
@@ -316,6 +326,12 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         if (isSwitchNew) {
             selector.put(Constant.NODESELECTOR_LABELS_PRE + "bluegreen", blueGreenLabelValue);
             ports = KubeServiceConvert.convertServicePort(dep.getSpec().getTemplate().getSpec().getContainers());
+
+            //update DestinationRule
+            Map<String, Object> labels = dep.getSpec().getTemplate().getMetadata().getLabels();
+            if (Objects.nonNull(labels)) {
+                IstioServiceUtil.getInstance(istioCommonService).updateDestinationRule(namespace, name, (String) labels.get(Constant.TYPE_DEPLOY_VERSION), true);
+            }
         } else {
             Integer version = Integer.valueOf(blueGreenLabelValue.substring(blueGreenLabelValue.lastIndexOf("-") + 1));
             version--;
@@ -331,11 +347,18 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
             }
             ReplicaSetList rsList = K8SClient.converToBean(rsResponse, ReplicaSetList.class);
             List<ReplicaSet> replicaSets = rsList.getItems();
+            ReplicaSet rsCurrent = null;
             for (ReplicaSet rs : replicaSets) {
                 if (rs.getSpec().getReplicas() > 0) {
                     ports = KubeServiceConvert.convertServicePort(rs.getSpec().getTemplate().getSpec().getContainers());
+                    rsCurrent = rs;
                     break;
                 }
+            }
+            //update DestinationRule
+            Map<String, Object> labels = rsCurrent.getSpec().getTemplate().getMetadata().getLabels();
+            if (Objects.nonNull(labels)) {
+                IstioServiceUtil.getInstance(istioCommonService).updateDestinationRule(namespace, name, (String) labels.get(Constant.TYPE_DEPLOY_VERSION), true);
             }
         }
         service.getSpec().setPorts(ports);
@@ -535,7 +558,7 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
                 podDetails.addAll(K8sResultConvert.podListConvert(podList, "v" + tag));
                 //组装container信息
                 List<ContainerOfPodDetail> containerOfPodDetails = K8sResultConvert.convertReplicaSetContainer(rs,
-                                                rs.getSpec().getTemplate().getSpec().getContainers(), cluster);
+                        rs.getSpec().getTemplate().getSpec().getContainers(), cluster);
                 Map<String, Object> tmMap = new HashMap<>();
                 tmMap.put("pods", podDetails);
                 tmMap.put("containers", containerOfPodDetails);
@@ -551,7 +574,6 @@ public class BlueGreenDeployServiceImpl extends VolumeAbstractService implements
         }
         return res;
     }
-
 
     /**
      * 确认更新到新版本

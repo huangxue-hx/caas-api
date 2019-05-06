@@ -11,15 +11,12 @@ import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.stereotype.Service;;
 
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.CollectionUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
 import com.harmonycloud.common.util.JsonUtil;
-import com.harmonycloud.dao.tenant.TenantBindingMapper;
-import com.harmonycloud.dao.user.RoleMapper;
 import com.harmonycloud.dao.user.bean.InitClusterRole;
 import com.harmonycloud.dao.user.bean.InitClusterRoleEnum;
 import com.harmonycloud.dao.user.bean.RoleResource;
@@ -39,7 +36,6 @@ import com.harmonycloud.k8s.service.APIResourceService;
 import com.harmonycloud.k8s.service.ClusterRoleService;
 import com.harmonycloud.k8s.service.RoleBindingService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
-import com.harmonycloud.service.tenant.TenantService;
 
 
 
@@ -50,7 +46,6 @@ import com.harmonycloud.service.tenant.TenantService;
  * @date 2017年1月6日
  */
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class RoleService {
     private static final Logger LOGGER = LoggerFactory.getLogger(RoleService.class);
 
@@ -58,22 +53,9 @@ public class RoleService {
     private RoleBindingService roleBindingService;
     @Autowired
     private ClusterRoleService clusterRoleService;
-    @Autowired
-    private RoleMapper roleMapper;
-    @Autowired
-    private TenantService tenantService;
-
-    @Autowired
-    private TenantBindingMapper tenantBindingMapper;
 
     @Autowired
     private APIResourceService apiResourceService;
-
-    private static String ROLE_DEV_RB = "dev-rb";
-    private static String ROLE_PM_RB = "pm-rb";
-    private static String ROLE_TEST_RB = "test-rb";
-    private static String ROLE_TM_RB = "tm-rb";
-
     /**
      * 获取所有clusterRoles
      */

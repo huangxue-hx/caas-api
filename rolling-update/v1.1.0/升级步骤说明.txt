@@ -150,3 +150,39 @@ kubectl create -f fluentd-daemonset.yaml
 --------------------------------------------------sprint2--------------------------------------------------------
 1.webapi-config配置文件中ic.image.tag配置改成:0.9.0-beta.19， upload.path改成/usr/local/k8s-mars-api/fsfiles/
 2.webapi-deployment.yaml 文件的webapi-storage的mountPath路径改为/usr/local/k8s-mars-api/fsfiles
+
+--------------------------------------------------sprint3--------------------------------------------------------
+1.执行db-upgrade-oam-v1.1.0.sql, db-upgrade-webapi-v1.1.0.sql脚本中的sprint3部分的sql
+2.执行日志收集及es版本升级操作文档步骤
+3.执行mixer日志收集插件部署文档步骤
+4.更新webapi-configmap.yaml
+-------------------------------------sprint-test1----------------------------------------------
+1.oam增加配置
+  spring.redis.host=api-redis-service
+  spring.redis.password=123456
+  spring.redis.port=6379
+2.Harbor仓库增加镜像 k8s-deploy/nfs-client-provisioner:v3.1.0
+3.数据迁移步骤中所有创建的storageclass的yaml中增加parameters:archiveOnDelete:"false",如下
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  annotations:
+    NFSADDR: 10.10.100.101
+    NFSPATH: /tst_caas_dev00
+    storageLimit: "10"
+    storageUsed: usedNum
+    type: NFS
+  name: scname
+provisioner: nfs-client-provisioner-scname
+reclaimPolicy: Delete
+parameters:
+  archiveOnDelete: "false"
+4.数据迁移步骤中所有对应的nfs-client-provisioner中的镜像版本换成v3.1.0
+
+-------------------------------------sprint-test2----------------------------------------------
+1.webapi-config配置文件中增加配置harbor.role.enable=false
+2.更新webpage-cloudterminal-config.yaml 配置文件
+
+--------------------------20190218-----------------------------------------
+1. oam数据库脚本更新 执行 db-upgrade-oam-v1.1.0.sql --20190218下的脚本
+2. 修改autoscale-controller，执行autoscale-controller流水线

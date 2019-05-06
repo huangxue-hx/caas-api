@@ -40,7 +40,6 @@ import javax.servlet.http.HttpSession;
 import java.util.*;
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class DockerFileServiceImpl implements DockerFileService {
     private static final Logger LOGGER = LoggerFactory.getLogger(DockerFileServiceImpl.class);
 
@@ -105,6 +104,9 @@ public class DockerFileServiceImpl implements DockerFileService {
             }
         }else{
             clusterIdList.add(dockerFileDTO.getClusterId());
+        }
+        if (CollectionUtils.isEmpty(clusterIdList)) {
+            return new PageInfo<>(Collections.emptyList());
         }
         PageHelper.startPage(dockerFileDTO.getCurrentPage(), dockerFileDTO.getPageSize());
         List<DockerFilePage> dockerFiles = dockerFileMapper.findPageByAll(dockerFile, clusterIdList);

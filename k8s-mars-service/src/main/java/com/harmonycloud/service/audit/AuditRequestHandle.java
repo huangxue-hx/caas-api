@@ -4,6 +4,7 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.AuditModuleEnum;
 import com.harmonycloud.common.enumm.AuditQueryDbEnum;
 import com.harmonycloud.common.enumm.AuditUrlEnum;
+import com.harmonycloud.common.enumm.IstioPolicyEnum;
 import com.harmonycloud.common.util.HttpClientUtil;
 import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.application.LogBackupRuleMapper;
@@ -150,8 +151,17 @@ public class AuditRequestHandle {
                 //判断是否用数据库查询
                 if (StringUtils.isNotBlank(urlEnum.getQueryDb()) && StringUtils.isNotBlank(subject)) {
                     //查询service对应的code
-                    Integer code = AuditQueryDbEnum.valueOf(urlEnum.getQueryDb().toUpperCase()).getCode();
-                    subject = queryDb(code, subject);
+                    AuditQueryDbEnum auditQueryDbEnum = AuditQueryDbEnum.valueOf(urlEnum.getQueryDb().toUpperCase());
+                    subject = queryDb(auditQueryDbEnum, subject);
+                }
+
+                if (StringUtils.isBlank(tenant) && !url.contains("/tenants/projects")) {
+                    String regexUrl = "(?<=tenants/)[0-9a-zA-Z]*";
+                    Pattern urlCompile = Pattern.compile(regexUrl);
+                    Matcher matcher = urlCompile.matcher(url);
+                    if (matcher.find()) {
+                        tenant = tenantService.getTenantByTenantid(matcher.group(0)).getAliasName();
+                    }
                 }
 
                 //组装
@@ -160,8 +170,21 @@ public class AuditRequestHandle {
                 requestInfo.setUrl(request.getRequestURI());
                 requestInfo.setModuleChDesc(AuditModuleEnum.valueOf(urlEnum.getModule()).getChDesc());
                 requestInfo.setModuleEnDesc(AuditModuleEnum.valueOf(urlEnum.getModule()).getEnDesc());
-                requestInfo.setActionChDesc(urlEnum.getChDesc());
-                requestInfo.setActionEnDesc(urlEnum.getEnDesc());
+                //istio 策略操作
+                if (urlMap.getValue().toString().contains("ISTIO_POLICY") && StringUtils.isNotEmpty(params) && params.contains("ruleType")) {
+                    String typeParam = request.getParameter("ruleType");
+                    String chPolicyName = IstioPolicyEnum.valueOf(typeParam.toUpperCase()).getChPolicyName();
+                    String enPolicyName = IstioPolicyEnum.valueOf(typeParam.toUpperCase()).getEnPolicyName();
+                    requestInfo.setActionChDesc(String.format(urlEnum.getChDesc(), chPolicyName));
+                    requestInfo.setActionEnDesc(String.format(urlEnum.getEnDesc(), enPolicyName));
+                } else if (urlMap.getValue().toString().contains("POLICY_SWITCH") && StringUtils.isNotEmpty(params) && params.contains("status")) {
+                    boolean isOpen = Boolean.parseBoolean(request.getParameter("status"));
+                    requestInfo.setActionChDesc(String.format(urlEnum.getChDesc(), isOpen ? "开启" : "关闭"));
+                    requestInfo.setActionEnDesc(String.format(urlEnum.getEnDesc(), isOpen ? "open" : "close"));
+                } else {
+                    requestInfo.setActionChDesc(urlEnum.getChDesc());
+                    requestInfo.setActionEnDesc(urlEnum.getEnDesc());
+                }
                 requestInfo.setRequestParams(params);
                 requestInfo.setSubject(subject);
                 requestInfo.setTenant(tenant);
@@ -170,9 +193,12 @@ public class AuditRequestHandle {
                 //单点登录
                 if ("/users/current_GET".equals(url)) {
                     if (StringUtils.isNotBlank(subject) && Boolean.valueOf(subject)) {
-                        User user = SsoClient.getLoginUser(request,response);
-                        requestInfo.setUser(null != user? user.getUsername():null);
-                        requestInfo.setSubject(null != user? user.getUsername():null);
+                        //User user = SsoClient.getLoginUser(request,response);
+                        HttpServletRequest httpRequest = (HttpServletRequest)request;
+                        HttpSession session = httpRequest.getSession();
+                        String userName = (String)session.getAttribute("username");
+                        requestInfo.setUser(userName);
+                        requestInfo.setSubject(userName);
                     } else {
                         requestInfo.setUser(null);
                     }
@@ -190,11 +216,11 @@ public class AuditRequestHandle {
                     requestInfo.setUser(username);
                     requestInfo.setSubject(username);
                 }
-                if(url.indexOf("/msf/") < 0) {
-                    HttpSession session = request.getSession();
-                    requestInfo.setTenant((String) session.getAttribute(CommonConstant.TENANT_ALIASNAME));
-                    requestInfo.setProject((String) session.getAttribute(CommonConstant.PROJECT_ALIASNAME));
-                }
+//                if(url.indexOf("/msf/") < 0) {
+//                    HttpSession session = request.getSession();
+//                    requestInfo.setTenant((String) session.getAttribute(CommonConstant.TENANT_ALIASNAME));
+//                    requestInfo.setProject((String) session.getAttribute(CommonConstant.PROJECT_ALIASNAME));
+//                }
                 if (CDP.equals(requestInfo.getModuleEnDesc())) {
                     requestInfo.setUser(CDP_DEFAULT_USER);
                 }
@@ -246,10 +272,10 @@ public class AuditRequestHandle {
         return res;
     }
 
-    private String queryDb(Integer code, String query) {
+    private String queryDb(AuditQueryDbEnum auditQueryDbEnum, String query) {
         try {
-            switch (code) {
-                case CommonConstant.NUM_ONE:
+            switch (auditQueryDbEnum) {
+                case USERSERVICE:
                     List<UserGroup> groups = userService.get_groups();
                     for (UserGroup  userGroup : groups) {
                         if (String.valueOf(userGroup.getId()).equals(query) ) {
@@ -257,38 +283,38 @@ public class AuditRequestHandle {
                         }
                     }
                     break;
-                case CommonConstant.NUM_TWO:
+                case ROLELOCALSERVICE:
                     Role role = roleLocalService.getRoleById(Integer.valueOf(query));
                     return role.getNickName();
-                case CommonConstant.NUM_THREE:
+                case BUILDENVIRONMENTSERVICE:
                     BuildEnvironment buildEnvironment = buildEnvironmentService.getBuildEnvironment(Integer.valueOf(query));
                     return buildEnvironment.getName();
-                case CommonConstant.NUM_FOUR:
+                case DOCKERFILESERVICE:
                     DockerFile dockerFile = dockerFileService.selectDockerFileById(Integer.valueOf(query));
                     return dockerFile.getName();
-                case CommonConstant.NUM_FIVE:
+                case JOBSERVICE:
                     Job job = jobService.getJobById(Integer.valueOf(query));
                     return job.getName();
-                case CommonConstant.NUM_SIX:
+                case TENANTSERVICE:
                     TenantBinding tenant = tenantService.getTenantByTenantid(query);
                     return tenant.getAliasName();
-                case CommonConstant.NUM_SEVEN:
+                case NAMESPACELOCALSERVICE:
                     NamespaceLocal namespace = namespaceLocalService.getNamespaceByNamespaceId(query);
                     return namespace.getAliasName();
-                case CommonConstant.NUM_EIGHT:
+                case HARBORPROJECTSERVICE:
                     ImageRepository repo = harborProjectService.findRepositoryById(Integer.valueOf(query));
                     return repo.getRepositoryName();
-                case CommonConstant.NUM_NINE:
+                case LOCALROLESERVICE:
                     LocalRole localRole = localRoleService.getLocalRoleById(Integer.valueOf(query));
                     return localRole.getDescription();
-                case CommonConstant.NUM_TEN:
+                case CLUSTERSERVICE:
                     Cluster cluster = clusterService.findClusterById(query);
                     return cluster.getAliasName();
-                case CommonConstant.NUM_ELEVEN:
+                case LOGBACKUPRULEMAPPER:
                     LogBackupRule logBackupRule = logBackupRuleMapper.selectByPrimaryKey(Integer.valueOf(query));
                     Cluster cluster2 = clusterService.findClusterById(logBackupRule.getClusterId());
                     return cluster2.getAliasName();
-                case CommonConstant.NUM_TWELVE:
+                case PROJECT:
                     return projectService.getProjectNameByProjectId(query);
                 default: return null;
             }

@@ -49,11 +49,7 @@ import com.harmonycloud.service.tenant.TenantService;
 
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class NetworkServiceImpl implements NetworkService {
-
-    @Autowired
-    private TenantBindingMapper tenantBindingMapper;
 
     @Autowired
     private NetworkCalicoMapper networkCalicoMapper;
@@ -63,9 +59,6 @@ public class NetworkServiceImpl implements NetworkService {
 
     @Autowired
     private NetworkTopologyMapper networkTopologyMapper;
-
-    @Autowired
-    private TenantService tenantService;
 
     @Value("#{propertiesReader['network.openstackurl']}")
     private String openstackUrl;

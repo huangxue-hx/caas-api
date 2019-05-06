@@ -2,9 +2,6 @@ package com.harmonycloud.k8s.bean.istio.policies;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import org.apache.commons.collections.CollectionUtils;
-
-import java.util.List;
 
 /**
  * create  by  ljf  18/12/6
@@ -13,13 +10,11 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Port {
 
-    private  Integer  number;
+    private Integer number;
 
-    private  String   name;
+    private String name;
 
     private  String  protocol;
-
-
 
     public Integer getNumber() {
         return number;

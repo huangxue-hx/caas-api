@@ -19,6 +19,8 @@ public interface AppStoreMapper {
     List<AppStore> listApps(@Param("name") String name);
     
     List<AppStore> list();
+
+    AppStore selectById(@Param("id") Integer id);
     
     void update(AppStore record);
 

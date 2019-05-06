@@ -39,7 +39,7 @@ public class RestExceptionHandler{
         MarsRuntimeException exception =(MarsRuntimeException)e;
         String errorMessage = exception.getErrorMessage() == null?(e.getMessage()):exception.getErrorMessage();
         logger.warn(errorMessage,e);
-        return ActionReturnUtil.returnErrorWithData(errorMessage);
+        return ActionReturnUtil.returnErrorWithCodeAndMsg(errorMessage,exception.getErrorCode());
     }
 
 

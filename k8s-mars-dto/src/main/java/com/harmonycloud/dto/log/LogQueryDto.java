@@ -9,7 +9,8 @@ public class LogQueryDto{
 
     private String namespace;
     private String container;
-    private String deployment;
+    private String appName;
+    private String appType;
     /**
      * 查询近XXX时间对应的单位，有分，小时，天（m,h,d）. 与recentTimeNum一起使用
      * 例：查询近30分钟内的log（recentTimeUnit=m,recentTimeNum=30）
@@ -53,6 +54,22 @@ public class LogQueryDto{
     private String clusterId;
 
     private String searchType;
+
+    public String getAppName() {
+        return appName;
+    }
+
+    public void setAppName(String appName) {
+        this.appName = appName;
+    }
+
+    public String getAppType() {
+        return appType;
+    }
+
+    public void setAppType(String appType) {
+        this.appType = appType;
+    }
 
     public String getLogFile() {
         return logFile;
@@ -182,14 +199,6 @@ public class LogQueryDto{
 
     public void setPod(String pod) {
         this.pod = pod;
-    }
-
-    public String getDeployment() {
-        return deployment;
-    }
-
-    public void setDeployment(String deployment) {
-        this.deployment = deployment;
     }
 
     public String getClusterId() {

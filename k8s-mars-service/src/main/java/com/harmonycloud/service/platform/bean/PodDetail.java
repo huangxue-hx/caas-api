@@ -23,6 +23,8 @@ public class PodDetail {
 	private String deployment;
 
 	private String deployVersion;
+
+	private Boolean isTerminating;
 	
 	public PodDetail() {
 		
@@ -115,5 +117,13 @@ public class PodDetail {
 
 	public void setDeployment(String deployment) {
 		this.deployment = deployment;
+	}
+
+	public Boolean getTerminating() {
+		return isTerminating;
+	}
+
+	public void setTerminating(Boolean terminating) {
+		isTerminating = terminating;
 	}
 }

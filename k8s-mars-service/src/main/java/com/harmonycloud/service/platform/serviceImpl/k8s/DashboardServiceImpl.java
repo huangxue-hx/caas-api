@@ -2,6 +2,7 @@ package com.harmonycloud.service.platform.serviceImpl.k8s;
 
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.NodeTypeEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.HttpStatusUtil;
@@ -162,6 +163,9 @@ public class DashboardServiceImpl implements DashboardService {
 
 				memGb += new BigDecimal(db).setScale(1, BigDecimal.ROUND_HALF_UP).doubleValue();
 
+				if(((Map<String, Object>)object).get(CommonConstant.NVIDIA_GPU) != null){
+					res.put(CommonConstant.GPU, ((Map<String, Object>)object).get(CommonConstant.NVIDIA_GPU));
+				}
 				res.put("cpu", cpu);
 				res.put("memory", mem);
 				res.put("memoryGb", memGb);
@@ -261,10 +265,10 @@ public class DashboardServiceImpl implements DashboardService {
 			for (Node node : nodes) {
 				Map<String, Object> labels = node.getMetadata().getLabels();
 				//只累加共享节点的资源
-				if (labels.get(CommonConstant.HARMONYCLOUD_STATUS) == null) {
+				if (labels.get(NodeTypeEnum.PUBLIC.getLabelKey()) == null) {
 					continue;
 				}
-				if ( !labels.get(CommonConstant.HARMONYCLOUD_STATUS).equals(CommonConstant.LABEL_STATUS_C)) {
+				if ( !labels.get(NodeTypeEnum.PUBLIC.getLabelKey()).equals(NodeTypeEnum.PUBLIC.getLabelValue())) {
 					continue;
 				}
 				Object object = node.getStatus().getAllocatable();

@@ -19,6 +19,8 @@ public class CreatePortDto implements Serializable{
 	
 	private String containerPort;
 
+	private String name;
+
 	public String getProtocol() {
 		return protocol;
 	}
@@ -50,4 +52,11 @@ public class CreatePortDto implements Serializable{
 		this.containerPort = containerPort;
 	}
 
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
 }

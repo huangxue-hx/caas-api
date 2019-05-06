@@ -6,6 +6,8 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.servlet.http.HttpServletRequest;
 
+import java.text.MessageFormat;
+
 import static com.harmonycloud.common.Constant.CommonConstant.DEFAULT_LANGUAGE_CHINESE;
 import static com.harmonycloud.common.Constant.CommonConstant.LANGUAGE_CHINESE;
 import static com.harmonycloud.common.Constant.CommonConstant.LANGUAGE_ENGLISH;
@@ -66,14 +68,14 @@ public enum ErrorCodeMessage {
     EXCEED_MAX_QUERY_COUNT(100044,"Can not query over 100 records at once", "一次查询不能超过100条记录"),
     NAME_LENGTH_LIMIT(100045,"name length must be no more than 63 characters", "名称长度不能超过63个字符"),
     INVALID_CHARACTER(100046,"Format is not correct, contains illegal characters", "格式错误, 包含非法字符或组合"),
-    ENGLISH_NAME_EXIST(100047,"English short name exists", "英文简称已经存在"),
+    ENGLISH_NAME_EXIST(100047,"Short name exists", "简称已经存在"),
 
     //用户相关 200xxx
     USER_DISABLED(200001, "User is disabled.","该用户暂时停止使用，请联系管理员"),
     USER_NOT_AUTH(200002, "User is not authorized.","该用户未授权，请联系管理员"),
     ONLY_FOR_MANAGER(200003, "Operation is only allowed by admin.","只有管理员用户可以操作"),
     USER_ROLE_DISABLED(200004, "User role is disabled .","当前用户所属角色被禁用"),
-    CANNOT_OPERATE_YOURSELF(200005, "The operation is not allowed.","管理员不能操作自己账户"),
+    CANNOT_OPERATE_YOURSELF(200005, "The operation is not allowed for yourself account.","管理员不能操作自己账户"),
     USERNAME_BLANK(200006, "Username can not be blank.","用户名不能为空"),
     USER_REAL_NAME_BLANK(200007, "User real name can not be blank.","用户真实姓名不能为空"),
     USER_REAL_NAME_ERROR(200008, "User real name is not correct.","用户真实姓名错误"),
@@ -99,7 +101,7 @@ public enum ErrorCodeMessage {
     USER_GROUP_CREATE_FAIL(200028, "Create user group failed.","创建用户组失败"),
     USER_GROUP_NOT_EXIST(200029, "User group not exist.","用户组不存在"),
     USER_GROUP_BIND_TENANT(200030, "The user group is already bound to the tenant.","用户组已经绑定租户"),
-    USER_BIND_TENANT(200031, "The user is already bound to the role.","用户已经绑定角色"),
+    USER_BIND_TENANT(200031, "The user {0} is already bound to the role.","用户{0}已经绑定角色"),
     USER_GROUP_EXIST(200032, "User group was exist.","用户组已经存在"),
     USER_PERMISSION_DENIED_FOR_PRIVILEGE_CHANGE(200033, "Privilege has changed,permission denied.","权限被管理员修改,权限不足"),
     USER_LOCKED(200034, "The account is locked. Please try after 30 minutes ", "账号已锁定，请30分钟后再试"),
@@ -170,6 +172,7 @@ public enum ErrorCodeMessage {
     ROLE_PRIVILEGE_NOT_BLANK(203025, "Role privilege can not be blank.","角色权限不能为空!"),
     ROLE_PRIVILEGE_CANNOT_UPDATE(203026, "Admin role privilege can not be update.","管理员角色权限不能被修改"),
     ADMIN_ROLE_CANNOT_DISABLE(203027, "Admin cannot be disabled.","不能禁用管理员"),
+    ROLE_DATA_CENTER_ACCESS_DENIED(203028, "Current role do not have access for this data center.","当前角色无该数据中心的访问权限"),
 
     //数据权限204xxx
     GROUP_EDIT_NO_PRIVILEGE(204001, "You cannot edit the privilege group for this data.", "无权限修改该数据的用户权限列表"),
@@ -258,10 +261,12 @@ public enum ErrorCodeMessage {
     NODE_NOT_REMOVE(301010, "The node has other pods ,please delete it.","主机有其他应用pod，请删除pod后再移除"),
     NODE_POD_NONE(301011, "There is no pod on the node.","主机上没有运行pod"),
     NODE_CANNOT_REMOVED(301012, "Node can not be removed.","主机已经分配给租户不能下线，请在对应的租户配额中移除该主机后下线!"),
-    NODE_CANNOT_REMOVED_FORTENANT(301013, "Node can not be removed.","主机已经分配给分区不能移除，请在对应的分区中移除该主机!"),
+    NODE_CANNOT_REMOVED_FORTENANT(301013, "Node can not be removed as it is allocated to a namespace, please remove it from the namespace first.","主机已经分配给分区不能移除，请在对应的分区中移除该主机!"),
     NODE_LABEL_UPDATE_ERROR(301014, "Node status update failed.","主机状态更新失败"),
     NODE_UNSCHEDULABLE_ONLY(301015, "Only allow for maintain node.","只允许操作维护状态主机"),
     NODE_STATUS_NOT_REMOVE(301016, "The node has other pods ,please drain application.","主机有其他应用pod，请应用迁移后再修改"),
+    NODE_TYPE_UNKNOWN(301017, "Unknown node type.","节点类型不能识别"),
+    NODE_REMOVE_RESOURCE_FAIL(301018, "Allocated resource quota need this public node resource, please change tenant cluster quota.","已分配的集群配额需要包括该共享节点的资源，请先调整租户集群配额"),
 
     //分区 302xxx
     NAMESPACE_NOT_BLANK(302001, "Namespace name can not be blank.","分区名不能为空"),
@@ -292,7 +297,7 @@ public enum ErrorCodeMessage {
     DEPLOYMENT_NOT_FIND(400013, "Service not found.", "服务未找到"),
     DEPLOYMENT_GET_FAILURE(400014, "Get Service failure.", "获取服务失败"),
     DEPLOYMENT_UPDATE_FAILURE(400015, "Update Service failure.", "更新服务失败"),
-    DEPLOYMENT_NAME_DUPLICATE(400016, "Service name duplicate:", "服务名称已存在:"),
+    DEPLOYMENT_NAME_DUPLICATE(400016, "Service name duplicate:", "服务名称已存在"),
     HTTP_INGRESS_NAME_DUPLICATE(400017, "HTTP Service name duplicate.", "HTTP服务名称已存在"),
     TCP_INGRESS_NAME_DUPLICATE(400018, "Expose port in use or HTTP Service name duplicate.", "对外暴露端口被使用或HTTP服务名称已存在"),
     APPLICATION_NAME_DUPLICATE(400019, "Application name duplicate.", "应用名称已存在"),
@@ -325,13 +330,20 @@ public enum ErrorCodeMessage {
     SERVICE_TYPE_NOT_EXIST(400046, "ServiceType was not existed.", "服务类型不存在"),
     TCP_IC_DEFAULT_ONLY(400047, "Please choose default ingress controller for tcp/udp port.", "TCP/UDP协议请选择全局负载均衡器"),
     DEPLOY_VERSION_IS_NULL_WHEN_ISTIO_ENABLE(400048, "Deploy version can not be null when istio injection is enable.", "开启Istio注入，服务版本标签不能为空"),
-    SERVICE_ENTRY_DUPLICATE(400049, "ServiceEntry duplicate:", "服务入口已存在:"),
+    SERVICE_ENTRY_DUPLICATE(400049, "ServiceEntry duplicate:", "服务入口已存在"),
     SERVICE_ENTRY_FAILED(400050, "ServiceEntry access failure:", "服务入口获取失败:"),
-    SERVICE_DELETE(400051,"return to modify  successfully but old domain names deletion failed",
+    SERVICE_DELETE(400051,"returns that the modification was successful,but the old service deletion failed.please contact the administrator to delete the old service",
                "修改成功，但是旧的服务删除失败，请联系管理员删除旧的service资源"),
     NAMESPACE_STORAGE_RESOURCE_INSUFFICIENT(400053, "Namespace storage resource insufficient.","分区存储资源不足"),
-    TRANSFER_NOT_EXIST(400054, "Transfer Service was not existed.", "所迁移的集群信息为空"),
-    SERVICE_IS_UPDATING(400055, "the service is updating.","服务正在滚动或蓝绿升级中"),
+    ISTIO_GLOBAL_NOT_TURN(400052,"istio global switch  not turned on","未开启istio全局开关"),
+    SERVICE_DOMIAN_DUPLICATE(400053, "Service  domain duplicate:", "服务域名已存在"),
+    DESTINATIONRULE_DELETE(400054,"returns that the modification was successful,but the old destinationrule deletion failed.please contact the administrator to delete the old destinationrule",
+            "修改成功，但是旧的destinationrule删除失败，请联系管理员删除旧的destinationrule资源"),
+    ENVIRONMENT_VARIABLE_ERROR(400055,"Environment variables configuration error.","容器环境变量设置有误"),
+    SERVICE_NO_ENOUGH_RESOURCE(400056, "Not enough resource，please check the current quota and try again",
+            "资源配额不足，请确保当前系统有足够资源"),
+    TRANSFER_NOT_EXIST(400057, "Transfer Service was not existed.", "所迁移的集群信息为空"),
+    SERVICE_IS_UPDATING(400058, "the service is updating.","服务正在滚动或蓝绿升级中"),
 
     //模板 401xxx
     SERVICE_TEMPLATE_NOT_EXIST(401001, "Service template not exist.", "服务模板不存在"),
@@ -343,6 +355,7 @@ public enum ErrorCodeMessage {
     SERVICE_TEMPLATE_IMAGE_INFO_NOT_NULL(401007, "Image info not exist in service template.", "服务模板内不存在镜像信息"),
     APPLICATION_TEMPLATE_NAME_DUPLICATE(401008, "Application template name duplicate", "应用模板名称已存在"),
     SERVICE_TEMPLATE_NAME_DUPLICATE(401009, "Service template name duplicate", "服务模板名称已存在"),
+    TCP_NAME_DUPLICATE(400058, "TCP Service name duplicate.", "TCP服务名称已存在"),
     //存储 402xxx
     PV_DELETE_FAIL(402001, "Fail to delete PV.", "PV删除失败"),
     PV_CREATE_FAIL(402002, "Fail to create PV.", "PV创建失败"),
@@ -352,7 +365,7 @@ public enum ErrorCodeMessage {
     PV_RELEASE_FAIL(402006, "PV released failed.", "PV释放失败"),
     NFS_PROVISIONER_CREATE_FAIL(402007, "NFS server address or directory parameter error.", "NFS服务器地址或目录参数错误"),
     STORAGECLASS_TYPE_ERROR(402008, "The storage type is not supported", "StorageClass使用的存储类型目前尚不支持"),
-    STORAGECLASS_DELETE_ERROR(402009, "Failed to delete StorageClass. StorageClass is already used. Please delete related storage volume first.", "StorageClass删除失败，StorageClass已经被使用，请先删除相关存储卷"),
+    STORAGECLASS_DELETE_ERROR(402009, "Failed to delete StorageClass. StorageClass is already used. Please delete related storage volume first.", "存储服务删除失败，存储服务已经被使用，请先删除相关存储卷"),
     PVC_CAN_NOT_DELETE(402010, "The storage has been used, not to delete.", "该存储已经被使用，不允许删除"),
     NFS_PROVISIONER_CONFIG_ERROR(402011, "The configuration of the nfs plugin image is not found in the system configuration", "系统配置中没有找到nfs插件镜像的配置"),
     RECYCLE_POD_CONFIG_ERROR(402012, "The configuration to clear the storage plugin image was not found in the system configuration.", "系统配置中没有找到清空存储插件镜像的配置"),
@@ -364,6 +377,8 @@ public enum ErrorCodeMessage {
     PV_CAN_NOT_DELETE(402018, "PV status is bound， not to delete.", "PV状态为bound，不允许删除"),
 
     MYSQL_INSERT_FAIL(402019, "DB insert fail", "数据插入失败"),
+    PV_RECYCLE(402020, "Volume is being cleared, please wait", "正在清理，请稍后"),
+    PVC_NOT_EXIST(402021,"Storage not found in this namespace, please create or modify volume","分区下未找到挂载的存储卷，请先创建或修改挂载卷"),
 
     //弹性伸缩 403xxx
     SERVICE_AUTOSCALE_CREATE_FAILURE(403001, "Create autoScale failure.", "自动伸缩创建失败"),
@@ -450,6 +465,7 @@ public enum ErrorCodeMessage {
     IMAGE_IN_DELETING(405043, "This image is in deleting, please check later.", "镜像正在删除中,请稍后查看删除结果"),
     LARGE_IMAGE_DELETE(405044, "As image is large,it take some time to delete, please check later.", "由于镜像文件较大，需要一些时间删除，请稍后查看删除结果"),
     HARBOR_PROJECT_NOT_FOUND(405045, "Project not found on harbor.", "在harbor上未找到该镜像仓库，或已被删除"),
+    PUBLIC_REPOSITORY_EXIST(405046, "Public harbor project name already exists.", "公共镜像仓库名称已存在"),
 
     //CICD 406xxx
     ENVIRONMENT_NAME_NOT_BLANK(406001, "Build environment name can not be blank.", "环境名称不能为空"),
@@ -533,10 +549,16 @@ public enum ErrorCodeMessage {
     DEPENDENCE_DIRECTORY_QUERY_ERROR(406072, "Get dependence directory failed", "获取依赖目录失败"),
     NO_ENOUGH_RESOURCE(406073, "Not enough resource，please check the current quota and try again",
             "Not enough resource，please check the current quota and try again(资源配额不足，灰度升级过程中会额外启动一个新实例以确保升级可以顺利进行，请确保当前系统有足够资源)"),
-    REPOSITORY_NOT_EXIST(406075, "Image repository not found.", "Image repository not found(镜像仓库不存在)"),
+    NO_ENOUGH_RESOURCE_BLUEGREEN(406074, "Not enough resource，please check the current quota and try again",
+            "Not enough resource，please check the current quota and try again(资源配额不足，请确保当前系统有足够资源)"),
+    REPOSITORY_NOT_EXIST(406075,"Image repository not found.","Image repository not found(镜像仓库不存在)"),
     IMAGE_NOT_EXIST(406076, "Image not found.", "Image not found(镜像不存在)"),
     IMAGE_TAG_NOT_EXIST(406077, "Image tag not found.", "Image tag not found(镜像版本不存在)"),
     IMAGE_PUSH_ERROR(406078, "Image push failed.", "Image push failed(镜像推送失败)"),
+    UPGRADE_INSTANCE_EXCEED_SERVICE(406078, "Upgrade instance cannot exceed the service instance.", "Upgrade instance cannot exceed the service instance(升级实例数不能超过服务实例数)"),
+    UPGRADE_INSTANCE_EXCEED_SERVICE_INFORM(406079, "Upgrade instance cannot exceed the service instance.", "升级实例数不能超过服务实例数"),
+
+
 
     //配置文件 407xxx
     CONFIGMAP_NAME_DUPLICATE(407001, "ConfigMap name duplicate.", "配置文件名称已存在"),
@@ -552,13 +574,13 @@ public enum ErrorCodeMessage {
     POLICY_CREATE_FAILED(409004, "Policy create failed.", "服务治理策略创建失败"),
     POLICY_DELETE_FAILED(409005, "Policy delete failed.", "服务治理策略删除失败"),
     POLICY_UPDATE_FAILED(409006, "Policy update failed.", "服务治理策略更新失败"),
-    ISTIO_NAMESPACE_GET_FAILED(409007, "Querying istio namespace failed.", "查询Istio分区失败"),
+    ISTIO_SERVICE_GET_FAILED(409007, "Querying istio service failed.", "未检测到Istio服务，请确保Istio已经安装并且正常运行"),
     ISTIO_STATUS_UPDATE_FAILED(409008, "Update istio status failed.", "更新Istio状态失败"),
-    INJECTION_IS_OPENED(409009, "Partition open istio automatic injection under Cluser", "集群下已存在分区开启istio自动注入"),
-    NAMESPACE_GET_FAILED(409010, "Querying  namespace failed.", "查询Istio分区失败"),
+    INJECTION_IS_OPENED(409009, "Partition open istio automatic injection under Cluser", "集群下已存在分区开启Istio自动注入"),
+    NAMESPACE_GET_FAILED(409010, "Querying  namespace failed.", "分区查询失败"),
     FRONT_DATA_ERROR(409011, "FRONT DATA ERROR.", "前端传入数据异常"),
     DB_DATA_ERROR(409012, "DB DATA ERROR.", "数据库中数据异常"),
-    DATA_STATUS_ERROR(409013, "DATA IS ERROR.", "该条策略状态异常，不允许更新操作"),
+    DATA_VERSION_ERROR(409013, "Policy data is error.", "该条策略版本信息异常，不允许开启操作"),
     POLICY_CLOSE_FAILED(409014, "Policy close failed.", "服务治理策略关闭失败"),
     POLICY_OPEN_FAILED(409015, "Policy open failed.", "服务治理策略开启失败"),
     CREATE_POLICY_DATA_IS_EMPTY(409016, "Policy create failed because data is empty.", "创建策略信息为空"),
@@ -567,12 +589,20 @@ public enum ErrorCodeMessage {
     CLOSE_POLICY_RULETYPE_IS_WRONG(409019, "Close policy failed because ruleType is wrong.", "无法关闭该类型策略"),
     OPEN_POLICY_RULETYPE_IS_WRONG(409020, "Open policy failed because ruleType is wrong.", "无法开启该类型策略"),
     GET_POLICY_RULETYPE_IS_WRONG(409021, "Get policy detail failed because ruleType is wrong.", "无法获取该类型策略详情"),
+    CREATE_DESTINATIONRULE_IS_ERROR(409022, "Create DestinationRule failed.", "DestinationRule创建失败"),
+    UPDATE_DESTINATIONRULE_IS_ERROR(409023, "Update DestinationRule failed.", "DestinationRule更新失败"),
+    DESTINATIONRULE_GET_FAILED(409024, "DestinationRule get failed.", "DestinationRule获取失败"),
     //istio 成功 4091xx
     POLICY_CREATE_SUCCESS(409101, "Policy create success.", "服务治理策略创建成功"),
     POLICY_DELETE_SUCCESS(409102, "Policy delete success.", "服务治理策略删除成功"),
     POLICY_UPDATE_SUCCESS(409103, "Policy update success.", "服务治理策略更新成功"),
     POLICY_CLOSE_SUCCESS(409104, "Policy close success.", "服务治理策略关闭成功"),
     POLICY_OPEN_SUCCESS(409105, "Policy open success.", "服务治理策略开启成功"),
+    DESTINATIONRULE_NAME_DUPLICATE(409106, "DestinationRule name duplicate:", "DestinationRule名称已存在:"),
+
+    EXISTS_ISTIO_AUTOMATIC(409107, "Cluster has namespace with Istio injected automatically. Please close namespace injection function and try again.", "集群已有分区开启Istio自动注入功能,请关闭分区注入功能后再重试"),
+    EXISTS_SERVICE(409108, "The current namespace has services. Please delete the services and try again.", "当前分区有服务，请清空服务后再重试"),
+    ISTIO_GLOBAL_CLOSE(409109, "Istio global switch is not turned on", "Istio全局开关未开启"),
 
     TENANTNOTINTHRCLUSTER(951001, "The tenant is not in the current platform","当前主机的租户不在本集群的库中，请切换其他集群的云管平台查看"),
     LOG_NULL(951002, "No log information","没有日志信息"),
@@ -665,4 +695,29 @@ public enum ErrorCodeMessage {
                 return error.getReasonEnPhrase();
         }
     }
+
+    public static String getMessageWithLanguage(ErrorCodeMessage error, String... extendMessage){
+        String message;
+        String language = DEFAULT_LANGUAGE_CHINESE;
+        if(RequestContextHolder.getRequestAttributes() != null
+                && ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest() != null){
+            HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+            String sessionLanguage = String.valueOf( request.getSession().getAttribute("language"));
+            if(StringUtils.isNotBlank(sessionLanguage) && !"null".equals(sessionLanguage)){
+                language = sessionLanguage;
+            }
+        }
+        switch (language){
+            case LANGUAGE_CHINESE:
+                message = MessageFormat.format(error.getReasonChPhrase(), extendMessage);
+                return message;
+            case LANGUAGE_ENGLISH:
+                message = MessageFormat.format(error.getReasonEnPhrase(), extendMessage);
+                return message;
+            default:
+                return error.getReasonEnPhrase();
+        }
+    }
+
+
 }

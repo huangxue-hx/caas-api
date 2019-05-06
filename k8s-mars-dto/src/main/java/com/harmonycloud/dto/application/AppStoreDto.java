@@ -24,6 +24,8 @@ public class AppStoreDto {
 
     private String user;
 
+    private String userRealName;
+
     private Date createTime;
 
     private Date updateTime;
@@ -37,6 +39,16 @@ public class AppStoreDto {
     private List<TagDto> tags;
     
     private List<ServiceTemplateDto> serviceList;
+
+    private String serviceAccount;
+
+	public String getServiceAccount() {
+		return serviceAccount;
+	}
+
+	public void setServiceAccount(String serviceAccount) {
+		this.serviceAccount = serviceAccount;
+	}
 
 	public Integer getId() {
 		return id;
@@ -149,6 +161,13 @@ public class AppStoreDto {
 	public void setDesc(String desc) {
 		this.desc = desc;
 	}
-    
-    
+
+
+	public String getUserRealName() {
+		return userRealName;
+	}
+
+	public void setUserRealName(String userRealName) {
+		this.userRealName = userRealName;
+	}
 }

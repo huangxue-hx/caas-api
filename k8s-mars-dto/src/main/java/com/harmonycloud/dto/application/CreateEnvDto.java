@@ -10,6 +10,8 @@ public class CreateEnvDto {
 
 	private String value;
 
+	private String type;
+
 	public String getName() {
 		return name;
 	}
@@ -34,4 +36,11 @@ public class CreateEnvDto {
 		this.value = value;
 	}
 
+	public String getType() {
+		return type;
+	}
+
+	public void setType(String type) {
+		this.type = type;
+	}
 }

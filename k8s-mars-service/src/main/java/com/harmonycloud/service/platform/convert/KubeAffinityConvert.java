@@ -1,6 +1,7 @@
 package com.harmonycloud.service.platform.convert;
 
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.enumm.NodeTypeEnum;
 import com.harmonycloud.dto.application.AffinityDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.service.platform.constant.Constant;
@@ -10,6 +11,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * @Author jiangmi
@@ -328,7 +330,8 @@ public class KubeAffinityConvert {
         String[] labels = nodeLabel.split(Constant.EQUAL);
         if (labels != null && labels.length == 2) {
             List<String> values = new ArrayList<>();
-            if (CommonConstant.HARMONYCLOUD_STATUS.equals(labels[0]) || CommonConstant.HARMONYCLOUD_TENANTNAME_NS.equals(labels[0])) {
+            Set<String> nodeTypeLabelKeys = NodeTypeEnum.getNodeTypeLabelKeys();
+            if (nodeTypeLabelKeys.contains(labels[0]) || CommonConstant.HARMONYCLOUD_TENANTNAME_NS.equals(labels[0])) {
                 nsr.setKey(labels[0]);
             } else {
                 nsr.setKey(Constant.NODESELECTOR_LABELS_PRE + labels[0]);

@@ -6,14 +6,14 @@ metadata:
   name: webapi
   namespace: kube-system
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: webapi
   strategy:
     rollingUpdate:
       maxSurge: 1
-      maxUnavailable: 0
+      maxUnavailable: 1
     type: RollingUpdate
   template:
     metadata:
@@ -24,25 +24,31 @@ spec:
       - image: library/k8s-webapi:uat
         resources:
           limits:
-            cpu: 2000m
-            memory: 4096Mi
+            cpu: 4000m
+            memory: 8192Mi
           requests:
             cpu: 1000m
             memory: 2048Mi
         imagePullPolicy: Always
         env:
         - name: "JAVA_OPTS"
-          value: "-Xmx4096m"
+          value: "-Xmx8192m"
+        - name: "logpilot_logs_logstash"
+          value: "/opt/logs/*"
+        - name: "logpilot_logs_logstash_tags"
+          value: "k8s_resource_type=Deployment,k8s_resource_name=webapi"
         name: webapi
         ports:
         - containerPort: 8080
-          hostPort: 8080
           protocol: TCP
         volumeMounts:
         - mountPath: /usr/local/k8s-mars-api/WEB-INF/classes/constant.properties
           subPath: constant.properties
           name: webapi-config-volume
-        - mountPath: /home
+        - mountPath: /usr/local/k8s-mars-api/WEB-INF/web.xml
+          subPath: web.xml
+          name: webapi-cm-webxml-volume
+        - mountPath: /usr/local/k8s-mars-api/fsfiles
           name: webapi-storage
         - mountPath: /var/run
           name: docker
@@ -51,7 +57,7 @@ spec:
         readinessProbe:
           failureThreshold: 5
           httpGet:
-            path: /swagger-ui.html
+            path: /rest/clusters
             port: 8080
             scheme: HTTP
           initialDelaySeconds: 60
@@ -70,6 +76,12 @@ spec:
           - key: constant.properties
             path: constant.properties
         name: webapi-config-volume
+      - configMap:
+          name: webapi-cm-webxml
+          items:
+          - key: web.xml
+            path: web.xml
+        name: webapi-cm-webxml-volume
       - name: webapi-storage
         persistentVolumeClaim:
           claimName: webapi-claim

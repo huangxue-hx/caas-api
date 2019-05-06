@@ -66,6 +66,14 @@
         from user_role_relationship
         where id = #{id,jdbcType=INTEGER}
     </select>
+
+    <select id="selectByUsername" resultMap="BaseResultMap" parameterType="java.lang.String" >
+        select
+        relation.id, relation.tenant_id, relation.username, relation.create_time, relation.project_id, relation.role_id, relation.has_local_role
+        from user_role_relationship relation, role_new role
+        where relation.role_id = role.id and role.available = 1 and relation.username = #{username}
+    </select>
+
     <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer" >
         delete from user_role_relationship
         where id = #{id,jdbcType=INTEGER}

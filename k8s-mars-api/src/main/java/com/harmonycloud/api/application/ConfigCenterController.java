@@ -77,9 +77,10 @@ public class ConfigCenterController {
 	@RequestMapping(value = "/{configMapId}",method = RequestMethod.DELETE)
 	public ActionReturnUtil deleteConfigMap(@PathVariable("tenantId") String tenantId,
 											@PathVariable("projectId") String projectId,
-											@PathVariable("configMapId") String configMapId) throws Exception {
+											@PathVariable("configMapId") String configMapId,
+											@RequestParam(value = "appStore", required = false)boolean isAppStore) throws Exception {
 		logger.info("删除配置文件,projectId:{},configMapId:{}",projectId,configMapId);
-		configCenterService.deleteConfig(configMapId, projectId);
+		configCenterService.deleteConfig(configMapId, projectId, isAppStore);
 		return ActionReturnUtil.returnSuccess();
 	}
 
@@ -96,9 +97,10 @@ public class ConfigCenterController {
 	public ActionReturnUtil deleteConfig(@PathVariable("tenantId") String tenantId,
 												  @PathVariable("projectId") String projectId,
 			                                      @RequestParam(value = "name") String name,
-			                                      @RequestParam(value = "clusterId") String clusterId) throws Exception {
+			                                      @RequestParam(value = "clusterId", required = false) String clusterId,
+										          @RequestParam(value = "appStore", required = false)boolean isAppStore) throws Exception {
 		logger.info("删除配置文件");
-		return configCenterService.deleteConfigMap(name, projectId, clusterId);
+		return configCenterService.deleteConfigMap(name, projectId, clusterId, isAppStore);
 	}
 
 	/**
@@ -123,8 +125,9 @@ public class ConfigCenterController {
 	public ActionReturnUtil getAllServiceByConfigName(@PathVariable("configMapName") String configName,
 													  @PathVariable("projectId") String projectId,
 													  @PathVariable("tenantId") String tenantId,
-													  @RequestParam(value = "clusterId")String clusterId) throws Exception{
-		return configCenterService.getAllServiceByConfigName(configName,clusterId,projectId,tenantId);
+													  @RequestParam(value = "clusterId", required = false)String clusterId,
+													  @RequestParam(value = "appStore", required = false)boolean isAppStore) throws Exception{
+		return configCenterService.getAllServiceByConfigName(configName,clusterId,projectId,tenantId, isAppStore);
 	}
 
 	/**
@@ -147,8 +150,9 @@ public class ConfigCenterController {
 	public ActionReturnUtil getTagsByConfigName(@PathVariable("configMapName") String configName,
 												   @PathVariable("projectId") String projectId,
 												   @PathVariable("tenantId") String tenantId,
-												   @RequestParam(value = "clusterId")String clusterId){
-		return configCenterService.getTagsByConfigName(configName,clusterId,projectId);
+												   @RequestParam(value = "clusterId", required = false)String clusterId,
+												@RequestParam(value = "appStore", required = false) boolean isAppStore){
+		return configCenterService.getTagsByConfigName(configName,clusterId,projectId, isAppStore);
 	}
 
 	/**
@@ -165,8 +169,9 @@ public class ConfigCenterController {
 	public ActionReturnUtil listConfigMapByName(@PathVariable("tenantId") String tenantId,
 										 @PathVariable("projectId") String projectId,
 										 @PathVariable("configMapName") String configMapName,
-										 @RequestParam(value = "clusterId")String clusterId) throws Exception {
-		return configCenterService.getConfigMapByName(configMapName,clusterId,projectId, true);
+										 @RequestParam(value = "clusterId", required = false)String clusterId,
+										 @RequestParam(value="appStore", required = false)boolean isAppStore) throws Exception {
+		return configCenterService.getConfigMapByName(configMapName,clusterId,projectId, isAppStore, true);
 	}
 
 
@@ -186,8 +191,9 @@ public class ConfigCenterController {
 											@RequestParam(value = "name") String name,
 											@RequestParam(value = "reponame",required = false) String repoName,
 											   @RequestParam(value = "clusterId",required = false)String clusterId,
-											   @RequestParam(value = "tags") String tags) throws Exception {
-		return configCenterService.getLatestConfigMap(name, projectId, repoName,clusterId,tags);
+											   @RequestParam(value = "tags") String tags,
+											   @RequestParam(value = "appStore", required = false) boolean isAppStore) throws Exception {
+		return configCenterService.getLatestConfigMap(name, projectId, repoName,clusterId,tags, isAppStore);
 	}
 
 	/**
@@ -204,8 +210,9 @@ public class ConfigCenterController {
 	public ActionReturnUtil searchConfigMap(@PathVariable("projectId") String projectId,
 											@RequestParam(value = "clusterId",required = false) String clusterId,
 											@RequestParam(value = "reponame", required = false) String repoName,
-			                                @RequestParam(value = "keyword", required = false) String keyword) throws Exception {
-		return configCenterService.searchConfig(projectId, clusterId, repoName, keyword);
+			                                @RequestParam(value = "keyword", required = false) String keyword,
+											@RequestParam(value = "appStore", required = false) boolean isAppStore) throws Exception {
+		return configCenterService.searchConfig(projectId, clusterId, repoName, keyword, isAppStore);
 	}
 
 	/**
@@ -251,6 +258,7 @@ public class ConfigCenterController {
 											   @RequestParam(value = "name")String name) throws Exception {
 		return configCenterService.getConfigMapByName(namespace, name);
 	}
+
 
 //	@ResponseBody
 //	@RequestMapping(value = "/services", method = RequestMethod.GET)

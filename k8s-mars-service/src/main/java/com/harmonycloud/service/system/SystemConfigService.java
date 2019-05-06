@@ -10,7 +10,6 @@ import java.util.List;
 
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 public interface SystemConfigService {
 
     SystemConfig findById(String id);

@@ -1,8 +1,10 @@
 package com.harmonycloud.service.application.impl;
 
+import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.NodeTypeEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.common.util.AssertUtil;
@@ -23,10 +25,12 @@ import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.PVCService;
 import com.harmonycloud.k8s.service.PodService;
 import com.harmonycloud.k8s.service.PvService;
+import com.harmonycloud.k8s.service.ScService;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.PersistentVolumeClaimService;
+import com.harmonycloud.service.application.PersistentVolumeService;
 import com.harmonycloud.service.application.StorageClassService;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.common.DataPrivilegeHelper;
@@ -117,6 +121,9 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
     private DataPrivilegeHelper dataPrivilegeHelper;
     @Autowired
     private InfluxdbService influxdbService;
+
+    @Autowired
+    private PersistentVolumeService persistentVolumeService;
 
     @Override
     public ActionReturnUtil createPersistentVolumeClaim(PersistentVolumeClaimDto persistentVolumeClaim) throws Exception {
@@ -244,7 +251,12 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                             pvcDto.setNamespace(namespaceLocal.getNamespaceName());
                             pvcDto.setNamespaceAliasName(namespaceLocal.getAliasName());
                             pvcDto.setCapacity(((Map<String, String>)(persistentVolumeClaim.getSpec().getResources().getRequests())).get(STORAGE_CAPACITY));
-                            double pvused = influxdbService.getPvResourceUsage("volume/usage", cluster, pvcDto.getName());
+                            double pvused = 0.0;
+                            try {
+                                pvused = influxdbService.getPvResourceUsage("volume/usage", cluster, pvcDto.getName());
+                            }catch (Exception e){
+                                LOGGER.error("查询influxdb pv使用量失败，clusterId:{}",cluster.getId(),e);
+                            }
                             pvused = pvused / 1024 / 1024 / 1024;
                             pvcDto.setUsed(String.format("%.2f", pvused) + "Gi");
                             pvcDto.setStorageClassName((String) (persistentVolumeClaim.getMetadata().getAnnotations().get(STORAGE_ANNOTATION)));
@@ -287,7 +299,7 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                             }
                             pvcDto.setBindingServices(serviceNameList);
 
-                            pvcDto.setCreateTime(DateUtil.StringToDate(persistentVolumeClaim.getMetadata().getCreationTimestamp(), DateStyle.YYYY_MM_DD_T_HH_MM_SS_Z.getValue()));
+                            pvcDto.setCreateTime(DateUtil.utcToGmtDate(persistentVolumeClaim.getMetadata().getCreationTimestamp()));
                             //ReadWriteOne,ReadWriteMany, split("ReadWrite")  > 1
                             if (persistentVolumeClaim.getSpec().getAccessModes().get(0).equalsIgnoreCase(CommonConstant.READONLYMANY)) {
                                 pvcDto.setReadOnly(true);
@@ -306,6 +318,32 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
             }
         }
         return ActionReturnUtil.returnSuccessWithData(pvcDtoList);
+    }
+
+    @Override
+    public List<PvcDto> listPersistentVolumeClaim(String clusterId, String namespace) throws Exception {
+        Cluster cluster = clusterService.findClusterById(clusterId);
+        K8SClientResponse response = pvcService.doSepcifyPVC(namespace, null, null, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            LOGGER.error("查询pvc失败，cluster：{}，namespace：{}", cluster.getId(), namespace);
+            throw new MarsRuntimeException(response.getBody());
+        }
+        PersistentVolumeClaimList persistentVolumeClaimList = JsonUtil.jsonToPojo(response.getBody(),
+                PersistentVolumeClaimList.class);
+        if (persistentVolumeClaimList == null || CollectionUtils.isEmpty(persistentVolumeClaimList.getItems())) {
+            return Collections.emptyList();
+        }
+        List<PvcDto> pvcDtos = new ArrayList<>();
+        for (PersistentVolumeClaim persistentVolumeClaim : persistentVolumeClaimList.getItems()) {
+            PvcDto pvcDto = new PvcDto();
+            pvcDto.setName(persistentVolumeClaim.getMetadata().getName());
+            pvcDto.setClusterId(cluster.getId());
+            pvcDto.setClusterAliasName(cluster.getAliasName());
+            pvcDto.setNamespace(namespace);
+            pvcDto.setCapacity(((Map<String, String>) (persistentVolumeClaim.getSpec().getResources().getRequests())).get(STORAGE_CAPACITY));
+            pvcDtos.add(pvcDto);
+        }
+        return pvcDtos;
     }
 
     @Override
@@ -335,6 +373,10 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         }
         K8SClientResponse pvcResponse = new K8sMachineClient().exec(k8SURL, HTTPMethod.DELETE, null, null, cluster);
         if (HttpStatusUtil.isSuccessStatus(pvcResponse.getStatus())) {
+            if(pvcByName.getMetadata().getAnnotations() != null && pvcByName.getMetadata().getAnnotations().get(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.STORAGECLASS) != null){
+                String storageClass = (String)pvcByName.getMetadata().getAnnotations().get(Constant.NODESELECTOR_LABELS_PRE + CommonConstant.STORAGECLASS);
+                return  persistentVolumeService.deletePv(pvcName, storageClass, cluster);
+            }
             return ActionReturnUtil.returnSuccess();
         } else {
             return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.PVC_CAN_NOT_DELETE);
@@ -430,10 +472,13 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         //metadata
         ObjectMeta metadata = new ObjectMeta();
         metadata.setName(podName);
-        metadata.setNamespace(CommonConstant.DEFAULT_NAMESPACE);
+        metadata.setNamespace(CommonConstant.KUBE_SYSTEM);
         pod.setMetadata(metadata);
         //spec
         PodSpec spec = new PodSpec();
+        Map<String, Object> nodeSelector = new HashMap<>();
+        nodeSelector.put(NodeTypeEnum.SYSTEM.getLabelKey(), NodeTypeEnum.SYSTEM.getLabelValue());
+        spec.setNodeSelector(nodeSelector);
         spec.setRestartPolicy(CommonConstant.RESTARTPOLICY_NEVER);
         //container
         List<Container> containerList = new ArrayList<>();
@@ -479,7 +524,11 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         K8SClientResponse response = new K8sMachineClient().exec(url, HTTPMethod.POST, headers, bodys, cluster);
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             UnversionedStatus us = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnErrorWithData(us.getMessage());
+            if(StringUtils.isNotEmpty(us.getMessage()) && us.getMessage().contains("already exists")){
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PV_RECYCLE);
+            }else {
+                return ActionReturnUtil.returnErrorWithData(us.getMessage());
+            }
         }
         return ActionReturnUtil.returnSuccess();
     }
@@ -491,7 +540,7 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                 for (; ; ) {
                     //暂停两秒钟后获取pod
                     Thread.sleep(SLEEP_TIME_TWO_SECONDS);
-                    K8SClientResponse dp = podService.getPod(CommonConstant.DEFAULT_NAMESPACE, podName, cluster);
+                    K8SClientResponse dp = podService.getPod(CommonConstant.KUBE_SYSTEM, podName, cluster);
                     if (!HttpStatusUtil.isSuccessStatus(dp.getStatus()) && dp.getStatus() != Constant.HTTP_404) {
                         break;
                     }
@@ -499,7 +548,7 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
                     if (pod != null && pod.getMetadata() != null && pod.getMetadata().getName() != null) {
                         if (pod.getStatus() != null && pod.getStatus().getPhase() != null) {
                             if (!POD_STATUS_RUNNING.equals(pod.getStatus().getPhase()) && !POD_STATUS_PENDING.equals(pod.getStatus().getPhase())) {
-                                podService.deletePod(CommonConstant.DEFAULT_NAMESPACE, podName, cluster);
+                                podService.deletePod(CommonConstant.KUBE_SYSTEM, podName, cluster);
                                 break;
                             }
                         }
@@ -558,6 +607,7 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
             for(Volume volume : volumeList){
                 if(volume.getPersistentVolumeClaim() != null){
                     currentBoundPvcList.add(volume.getPersistentVolumeClaim().getClaimName());
+                    LOGGER.info("deploy {} have pvc {}",dep.getMetadata().getName(), volume.getPersistentVolumeClaim().getClaimName());
                 }
             }
         }
@@ -568,19 +618,27 @@ public class PersistentVolumeClaimServiceImpl implements PersistentVolumeClaimSe
         bodys.put(CommonConstant.LABELSELECTOR, label);
         K8SClientResponse response = pvcService.doSepcifyPVC(dep.getMetadata().getNamespace() , bodys, HTTPMethod.GET, cluster);
         if(!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+            LOGGER.error("查询pvc 列表失败, label:{},res:{}", label, JSONObject.toJSONString(response));
             return ActionReturnUtil.returnErrorWithData(response.getBody());
         }else{
             PersistentVolumeClaimList pvcList = JsonUtil.jsonToPojo(response.getBody(), PersistentVolumeClaimList.class);
             if(CollectionUtils.isNotEmpty(pvcList.getItems())){
                 for(PersistentVolumeClaim pvc : pvcList.getItems()){
+                    LOGGER.info("app {} have pvc {}",dep.getMetadata().getName(), pvc.getMetadata().getName());
                     if(!currentBoundPvcList.contains(pvc.getMetadata().getName())){
+                        LOGGER.info("pvc {} remove key {}",pvc.getMetadata().getName(), key);
                         pvc.getMetadata().getLabels().remove(key);
-                        pvcService.updatePvcByName(pvc, cluster);
+                        K8SClientResponse res = pvcService.updatePvcByName(pvc, cluster);
+                        if(!HttpStatusUtil.isSuccessStatus(res.getStatus())) {
+                            LOGGER.error("pvc{}被使用服务标签更新失败,res:{}",
+                                    pvc.getMetadata().getName(), JSONObject.toJSONString(res));
+                        }
                     }
                 }
             }
         }
         return ActionReturnUtil.returnSuccess();
     }
+
 
 }
