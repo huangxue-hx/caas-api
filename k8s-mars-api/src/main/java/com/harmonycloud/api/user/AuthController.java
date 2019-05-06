@@ -104,6 +104,7 @@ public class AuthController {
                 return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.FREE_TRIAL_END);
             }
         }
+        logger.info("正在登录...");
         // 获取Ldap的配置信息
         LdapConfigDto ldapConfigDto = this.systemConfigService.findLdapConfig();
         // 获取crowd的配置信息
@@ -115,6 +116,7 @@ public class AuthController {
             res = authManagerDefault.auth(username, password);
         } else if (isCrowdOn(crowdConfigDto)) {
             // crowd中获取的用户名
+            logger.info("通过crowd登录...");
             res = authManagerCrowd.auth(username, password);
         } else if (isLdapOn(ldapConfigDto)) {
             res = authManager4Ldap.auth(username, password, ldapConfigDto);
@@ -167,8 +169,12 @@ public class AuthController {
                 String crowdToken = authManagerCrowd.getToken(username, password);
                 authManagerCrowd.addCookie(crowdToken, response);
             }
+            if(CommonConstant.ADMIN.equals(username)){
+                authManagerCrowd.clearCookie(response);
+            }
             return ActionReturnUtil.returnSuccessWithData(data);
         }
+        logger.error("认证失败");
         return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.AUTH_FAIL);
     }
 
