@@ -140,7 +140,8 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
             if (StringUtils.isNotBlank(username) && !isAdmin(username)) {
                 session.setAttribute("username", username);
                 User user = userService.getUser(username);
-                if (user != null) {
+                //用户不为空且不是黑名单
+                if (user != null && !CommonConstant.PAUSE.equals(user.getPause())) {
                     session.setAttribute("username", user.getUsername());
                     session.setAttribute("isAdmin", user.getIsAdmin());
                     session.setAttribute("isMachine", user.getIsMachine());
