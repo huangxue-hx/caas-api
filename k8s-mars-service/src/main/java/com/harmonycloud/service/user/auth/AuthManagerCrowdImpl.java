@@ -255,16 +255,6 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         response.addCookie(cookie);
     }
 
-    public void clearCookie(HttpServletResponse response) {
-        // 将crowd中token的值存入token
-        Cookie cookie = new Cookie(cookieName ,null);
-        cookie.setPath("/"); // 如果路径为/则为整个tomcat目录有用
-        cookie.setDomain(cookieDomain); // 设置对所有*.harmonycloud.com为后缀的域名
-        //设置cookie有效时间为0
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
-    }
-
     // 用于检测用户是否登录
     public String testLogin(String crowdToken) throws Exception {
         URL crowdUrl = new URL(getAddress() + "session/" + crowdToken);

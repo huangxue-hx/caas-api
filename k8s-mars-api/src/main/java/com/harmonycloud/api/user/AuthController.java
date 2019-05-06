@@ -171,9 +171,7 @@ public class AuthController {
                 String crowdToken = authManagerCrowd.getToken(username, password);
                 authManagerCrowd.addCookie(crowdToken, response);
             }
-            if(CommonConstant.ADMIN.equals(username)){
-                authManagerCrowd.clearCookie(response);
-            }
+
             return ActionReturnUtil.returnSuccessWithData(data);
         }
         logger.error("认证失败");
@@ -192,7 +190,7 @@ public class AuthController {
         if (isCrowdOn(crowdConfigDto) && !CommonConstant.ADMIN.equals(username)) {
             // 在crowd中清除登录信息
             authManagerCrowd.invalidateToken(username);
-            authManagerCrowd.clearCookie(response);
+//            authManagerCrowd.clearCookie(response);
         }
         // 使session失效
         session.invalidate();

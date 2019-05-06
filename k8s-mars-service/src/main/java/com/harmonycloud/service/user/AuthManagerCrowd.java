@@ -18,7 +18,6 @@ public interface AuthManagerCrowd {
 
     void addCookie(String crowdToken, HttpServletResponse response);
 
-    void clearCookie(HttpServletResponse response);
 
     String testLogin(String crowdToken) throws Exception;
 
