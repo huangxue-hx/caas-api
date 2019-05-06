@@ -1908,6 +1908,13 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public void updateByUserName(User user) {
+        if (user != null && user.getUsername() != null) {
+            userMapper.updateByUserName(user);
+        }
+    }
+
+    @Override
     public void batchDeleteByCrowdUserId(List<Integer> crowdUserIdList) {
         if (crowdUserIdList != null && crowdUserIdList.size() > 0) {
             userMapper.batchDeleteByCrowdUserId(crowdUserIdList);
