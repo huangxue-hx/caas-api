@@ -66,6 +66,10 @@ public class NetworkUtil {
                 }
             }
         }
+        if(ip.indexOf(",") != -1){
+            logger.info("找到多个ip，取第一个ip");
+            return ip.split("，")[0];
+        }
         return ip;
     }
 
