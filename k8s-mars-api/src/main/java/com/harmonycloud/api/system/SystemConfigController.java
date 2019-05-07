@@ -20,6 +20,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import com.harmonycloud.service.util.NetworkUtil;
+import sun.nio.ch.Net;
+
 import static com.harmonycloud.common.Constant.CommonConstant.FLAG_TRUE;
 
 @RestController @RequestMapping("/system/configs") public class SystemConfigController {
@@ -61,6 +64,8 @@ import static com.harmonycloud.common.Constant.CommonConstant.FLAG_TRUE;
             HttpSession session = request.getSession();
             String username = (String)session.getAttribute("username");
             if(!CommonConstant.ADMIN.equals(username)) {
+                String ip = NetworkUtil.getIpAddress(request);
+                authManagerCrowd.setClientIp(ip);
                 String token = authManagerCrowd.getToken(username);
                 if(org.apache.commons.lang3.StringUtils.isBlank(username)){
                     return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.GET_CROWD_CONF_FAIL);

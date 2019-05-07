@@ -18,6 +18,8 @@ public interface AuthManagerCrowd {
 
     void addCookie(String crowdToken, HttpServletResponse response);
 
+    void setClientIp(String ip);
+
 
     String testLogin(String crowdToken) throws Exception;
 

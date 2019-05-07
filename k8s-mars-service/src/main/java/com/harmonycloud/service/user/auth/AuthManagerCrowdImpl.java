@@ -9,6 +9,7 @@ import com.harmonycloud.dto.user.CrowdConfigDto;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.user.AuthManagerCrowd;
 import com.harmonycloud.service.user.UserService;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +22,6 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
-import java.net.InetAddress;
 import java.net.URL;
 import java.util.Base64;
 
@@ -45,10 +45,8 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     @Value("#{propertiesReader['crowd.api.url']}")
     private String apiUrl;
 
-    @Value("#{propertiesReader['ip']}")
-    private String ip;
-
-    private String IP = "";
+//    @Value("#{propertiesReader['ip']}")
+    private String ip = "";
 
     // 测试能否连通crowd服务器
     public boolean testCrowd(CrowdConfigDto crowdConfigDto) throws Exception {
@@ -78,13 +76,19 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
 
     }
 
-    private String getServerIp() throws Exception {
-        if(IP.equals("")){
+    public void setClientIp(String ip){
+        this.ip = ip;
+    }
+
+    private String getClientIp(){
+        if(StringUtils.isNotBlank(ip)) {
             return ip;
         }
-        else{
-            return IP;
+        else {
+            logger.error("ip未正确设置");
+            return null;
         }
+
     }
 
     // 进行http基本认证
@@ -155,9 +159,10 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     public String auth(String username, String password) throws Exception {
         URL url = new URL(getAddress() + "session");
         logger.error("crowd url：" + url);
+        //remote_address 的值是访问这个应用的客户端的真实的ip
         String jsonData = "{\"username\":\"" + username + "\",\"password\":\"" + password
             + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\""
-            + getServerIp() + "\"}]}}";
+            + getClientIp() + "\"}]}}";
         HttpURLConnection connection = this.crowdPost(url, "application/json", jsonData);
         if (connection.getResponseCode() == 201) {
             User user = getUser(username, password);
@@ -169,16 +174,6 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         } else {
             // 打日志
             logger.error("验证出错，crowd返回" + connection.getResponseCode());
-            BufferedReader br = new BufferedReader(new InputStreamReader(connection.getErrorStream()));
-            String line;
-            StringBuffer result = new StringBuffer();
-            for (line = br.readLine(); line != null; line = br.readLine()) {
-                result.append(line);
-            }
-            String messageBody = result.toString();
-            logger.error("返回内容：" + messageBody);
-            IP = messageBody.substring(messageBody.indexOf("address &quot;") + "address &quot;".length(), messageBody.lastIndexOf("&quot; is forbidden"));
-            logger.error(IP);
             return null;
         }
     }
@@ -229,7 +224,8 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     public String getToken(String username, String password) throws Exception {
         URL url = new URL(getAddress() + "session");
         String jsonData = "{\"username\":\"" + username + "\",\"password\":\"" + password
-            + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\"" + getServerIp() + "\"}]}}";
+            + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\""
+            + getClientIp() + "\"}]}}";
         HttpURLConnection connection = this.crowdPost(url, "application/json", jsonData);
         if (connection.getResponseCode() == 201) {
             String messageBody = this.getMessageBody(connection);
@@ -245,7 +241,7 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         URL url = new URL(getAddress() + "session?validate-password=false");
         String jsonData = "{\"username\":\"" + username
             + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\""
-            + getServerIp() + "\"}]}}";
+            + getClientIp() + "\"}]}}";
         HttpURLConnection connection = this.crowdPost(url, "application/json", jsonData);
         if (connection.getResponseCode() == 201) {
             String messageBody = this.getMessageBody(connection);

@@ -33,6 +33,8 @@ import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.service.application.SecretService;
 
+import com.harmonycloud.service.util.NetworkUtil;
+
 @RequestMapping(value = "/users/auth")
 @Controller
 public class AuthController {
@@ -92,7 +94,7 @@ public class AuthController {
     @RequestMapping(value = "/login", method = RequestMethod.POST)
     public ActionReturnUtil Login(@RequestParam(value = "username") final String username,
         @RequestParam(value = "password") final String password,
-        @RequestParam(value = "language", required = false) final String language, HttpServletResponse response)
+        @RequestParam(value = "language", required = false) final String language, HttpServletRequest request, HttpServletResponse response)
         throws Exception {
         if(StringUtils.isBlank(username) || StringUtils.isBlank(password)){
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.AUTH_FAIL);
@@ -116,7 +118,9 @@ public class AuthController {
             res = authManagerDefault.auth(username, password);
         } else if (isCrowdOn(crowdConfigDto)) {
             // crowd中获取的用户名
+            String ip = NetworkUtil.getIpAddress(request);
             logger.info("通过crowd登录...");
+            authManagerCrowd.setClientIp(ip);
             res = authManagerCrowd.auth(username, password);
         } else if (isLdapOn(ldapConfigDto)) {
             logger.info("通过ldap登录...");
