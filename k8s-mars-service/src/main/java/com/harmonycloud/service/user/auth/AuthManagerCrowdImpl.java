@@ -48,6 +48,8 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     @Value("#{propertiesReader['ip']}")
     private String ip;
 
+    private String IP = "";
+
     // 测试能否连通crowd服务器
     public boolean testCrowd(CrowdConfigDto crowdConfigDto) throws Exception {
         URL url = new URL(crowdConfigDto.getAddress());
@@ -77,7 +79,12 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     }
 
     private String getServerIp() throws Exception {
-         return ip;
+        if(IP.equals("")){
+            return ip;
+        }
+        else{
+            return IP;
+        }
     }
 
     // 进行http基本认证
@@ -162,6 +169,16 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         } else {
             // 打日志
             logger.error("验证出错，crowd返回" + connection.getResponseCode());
+            BufferedReader br = new BufferedReader(new InputStreamReader(connection.getErrorStream()));
+            String line;
+            StringBuffer result = new StringBuffer();
+            for (line = br.readLine(); line != null; line = br.readLine()) {
+                result.append(line);
+            }
+            String messageBody = result.toString();
+            logger.error("返回内容：" + messageBody);
+            IP = messageBody.substring(messageBody.indexOf("address &quot;") + "address &quot;".length(), messageBody.lastIndexOf("&quot; is forbidden"));
+            logger.error(IP);
             return null;
         }
     }

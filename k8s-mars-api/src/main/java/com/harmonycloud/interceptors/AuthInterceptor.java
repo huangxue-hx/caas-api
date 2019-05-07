@@ -103,7 +103,6 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
                 }
                 // 如果crowd中没有用户登录，但发现当前session是admin，也登录
                 if (isAdmin(username)) {
-                    System.out.println("检测到admin用户");
                     return true;
                 }
             }
