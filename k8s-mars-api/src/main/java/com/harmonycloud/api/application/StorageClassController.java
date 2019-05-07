@@ -94,7 +94,8 @@ public class StorageClassController {
     @ResponseBody
     public ActionReturnUtil listStorageClass(@PathVariable("clusterId") String clusterId,
                                              @RequestParam(value = "namespace", required = false)String namespace,
-                                             @RequestParam(value = "tenantId", required = false)String tenantId) throws Exception {
-        return ActionReturnUtil.returnSuccessWithData(storageClassService.listStorageClass(clusterId, namespace, tenantId));
+                                             @RequestParam(value = "tenantId", required = false)String tenantId,
+        @RequestParam(value = "isUnused", required = false)String isUnused) throws Exception {
+        return ActionReturnUtil.returnSuccessWithData(storageClassService.listStorageClass(clusterId, namespace, tenantId, isUnused));
     }
 }
