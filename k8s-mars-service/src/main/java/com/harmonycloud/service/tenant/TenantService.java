@@ -106,6 +106,13 @@ public interface TenantService {
     public Map<String, Integer> getStorageClassUnused(String tenantId, String clusterId) throws Exception;
 
     /**
+     * 根据集群id，获取新租户可以使用的存储资源
+     * @param clusterId
+     * @return
+     * @throws Exception
+     */
+    public Map<String, Integer> getStorageClassUnused(String clusterId) throws Exception;
+    /**
      * 查询tenant下所有Tm用户
      * @param tenantid
      * @return
