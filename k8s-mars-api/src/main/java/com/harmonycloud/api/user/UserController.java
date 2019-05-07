@@ -567,7 +567,20 @@ public class UserController {
     public ActionReturnUtil syncUser(@RequestBody List<UserSyncDto> userSyncDtoList) {
         if (!CollectionUtils.isEmpty(userSyncDtoList)) {
             Map<Integer, List<UserSyncDto>> operateType2User = userSyncDtoList.stream().collect(Collectors.groupingBy(UserSyncDto::getOperateType));
-            userService.batchInsert(operateType2User.get(1));
+            List<UserSyncDto> userSyncDtoInsert = operateType2User.get(1);
+            if (!CollectionUtils.isEmpty(userSyncDtoInsert)) {
+                try {
+                    userService.batchInsert(userSyncDtoInsert);
+                } catch (Exception e1) {
+                    for (UserSyncDto userSyncDto : userSyncDtoInsert) {
+                        try {
+                            userService.insertUser(userSyncDto);
+                        } catch (Exception e2) {
+                            userService.updateByUserName(userSyncDto);
+                        }
+                    }
+                }
+            }
             userService.updateByCrowdUserId(operateType2User.get(2));
             if (operateType2User.get(3) != null && operateType2User.get(3).size() > 0) {
                 userService.batchDeleteByCrowdUserId(operateType2User.get(3).stream().map(UserSyncDto::getCrowdUserId).collect(Collectors.toList()));

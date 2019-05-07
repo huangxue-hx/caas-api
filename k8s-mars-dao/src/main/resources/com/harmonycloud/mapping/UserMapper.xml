@@ -451,6 +451,26 @@
     WHERE crowd_user_id=#{crowdUserId}
   </update>
 
+  <update id="updateByUserName" parameterType="com.harmonycloud.dao.user.bean.User">
+    UPDATE user
+    <set>
+      <if test="password!=null">password=#{password},</if>
+      <if test="token!=null">token=#{token,jdbcType=VARCHAR},</if>
+      <if test="createTime!=null">create_time=#{createTime,jdbcType=TIMESTAMP},</if>
+      <if test="tokenCreate!=null">token_create=#{tokenCreate,jdbcType=TIMESTAMP},</if>
+      <if test="isAdmin!=null">is_admin=#{isAdmin},</if>
+      <if test="updateTime!=null">update_time=#{updateTime,jdbcType=TIMESTAMP},</if>
+      <if test="email!=null">email=#{email,jdbcType=VARCHAR},</if>
+      <if test="realName!=null">real_name=#{realName},</if>
+      <if test="isMachine!=null">is_machine=#{isMachine},</if>
+      <if test="comment!=null">comment=#{comment,jdbcType=VARCHAR}</if>
+      <if test="pause!=null">pause=#{pause,jdbcType=VARCHAR}</if>
+      <if test="phone!=null">phone=#{phone,jdbcType=VARCHAR}</if>
+      <if test="crowdUserId!=null">crowd_user_id=#{crowdUserId,jdbcType=INTEGER}</if>
+    </set>
+    WHERE username=#{username}
+  </update>
+
   <delete id="batchDeleteByCrowdUserId" parameterType="java.util.List">
     DELETE from user WHERE crowd_user_id in
     <foreach collection="list" separator="," item="crowdUserId" open="(" close=")">

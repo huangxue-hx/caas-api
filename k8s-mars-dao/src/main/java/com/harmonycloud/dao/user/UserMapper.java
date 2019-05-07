@@ -144,6 +144,9 @@ public interface UserMapper {
     //根据crowdUserId更新
     void updateByCrowdUserId(User user);
 
+    //根据username更新用户
+    void updateByUserName(User user);
+
     //根据crowdUserId进行批量删除
     void batchDeleteByCrowdUserId(List<Integer> crowdUserIdList);
 

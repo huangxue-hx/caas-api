@@ -266,6 +266,13 @@ public interface UserService {
     void updateByCrowdUserId(List<UserSyncDto> userSyncDtoList);
 
     /**
+     * 根据用户名更新用户
+     *
+     * @param user
+     */
+    void updateByUserName(User user);
+
+    /**
      * 根据crowdUserId进行批量删除
      *
      * @param crowdUserIdList
