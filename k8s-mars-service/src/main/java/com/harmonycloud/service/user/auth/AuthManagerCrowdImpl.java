@@ -147,6 +147,7 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     @Override
     public String auth(String username, String password) throws Exception {
         URL url = new URL(getAddress() + "session");
+        logger.error("crowd url：" + url);
         String jsonData = "{\"username\":\"" + username + "\",\"password\":\"" + password
             + "\",\"validation-factors\": {\"validationFactors\": [{\"name\":\"remote_address\",\"value\":\""
             + getServerIp() + "\"}]}}";
