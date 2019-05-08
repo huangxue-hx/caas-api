@@ -90,8 +90,8 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
         String username = (String)session.getAttribute("username");
         // 容器云平台的admin用户永远不接入crowd进行单点登录
-        // if (isCrowdOn(crowdConfigDto) && !isAdmin(username)) {
-        if (isCrowdOn(crowdConfigDto)) {
+         if (isCrowdOn(crowdConfigDto) && !isAdmin(username)) {
+//        if (isCrowdOn(crowdConfigDto)) {
             // 如果crowd接入了系统，则通过获取 Cookie检测登录状态
             Cookie[] cookies = request.getCookies();
             if (cookies != null) {
