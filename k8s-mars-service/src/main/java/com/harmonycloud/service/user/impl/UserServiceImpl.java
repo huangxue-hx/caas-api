@@ -1902,7 +1902,13 @@ public class UserServiceImpl implements UserService {
     public void updateByCrowdUserId(List<UserSyncDto> userSyncDtoList) {
         if (userSyncDtoList != null && userSyncDtoList.size() > 0) {
             for (User user : userSyncDtoList) {
-                userMapper.updateByCrowdUserId(user);
+                User userU = new User();
+                userU.setUsername(user.getUsername());
+                userU.setRealName(user.getRealName());
+                userU.setEmail(user.getEmail());
+                userU.setPhone(user.getPhone());
+                userU.setCrowdUserId(user.getCrowdUserId());
+                userMapper.updateByCrowdUserId(userU);
             }
         }
     }

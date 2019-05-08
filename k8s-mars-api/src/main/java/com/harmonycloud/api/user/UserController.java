@@ -576,7 +576,13 @@ public class UserController {
                         try {
                             userService.insertUser(userSyncDto);
                         } catch (Exception e2) {
-                            userService.updateByUserName(userSyncDto);
+                            User user = new User();
+                            user.setUsername(userSyncDto.getUsername());
+                            user.setRealName(userSyncDto.getRealName());
+                            user.setEmail(userSyncDto.getEmail());
+                            user.setPhone(userSyncDto.getPhone());
+                            user.setCrowdUserId(userSyncDto.getCrowdUserId());
+                            userService.updateByUserName(user);
                         }
                     }
                 }
