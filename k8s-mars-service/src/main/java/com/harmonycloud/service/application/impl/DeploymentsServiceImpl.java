@@ -507,7 +507,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
 
     @Override
-    public ActionReturnUtil getDeploymentDetail(String namespace, String name,boolean isFilter) throws Exception {
+    public ActionReturnUtil getDeploymentDetail(String namespace, String name,boolean isFilter, String projectId) throws Exception {
         if (StringUtils.isEmpty(namespace) || StringUtils.isEmpty(name)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
@@ -536,7 +536,8 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
         // 获取service
         bodys.clear();
-        bodys.put("labelSelector", Constant.TYPE_DEPLOYMENT + "=" + name);
+        bodys.put("labelSelector", Constant.TYPE_DEPLOYMENT + "=" + name
+                + (StringUtils.isBlank(projectId) ? "" : ("," + Constant.LABEL_PROJECT_ID + "=" + projectId)));
         K8SClientResponse sRes = sService.doServiceByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(sRes.getStatus())) {
             return ActionReturnUtil.returnErrorWithData(sRes.getBody());

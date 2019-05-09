@@ -130,7 +130,7 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
     private HttpSession session;
 
     @Override
-    public AppDetail getStatefulSetDetail(String namespace, String name) throws Exception {
+    public AppDetail getStatefulSetDetail(String namespace, String name, String projectId) throws Exception {
         if (StringUtils.isEmpty(namespace) || StringUtils.isEmpty(name)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
@@ -152,6 +152,14 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
         }
         // 获取特定的statefulSet
         StatefulSet sta = statefulSetService.getStatefulSet(namespace, name, cluster);
+        Map<String, Object> stsLabels = sta.getSpec().getSelector().getMatchLabels();
+
+        // 根据项目过滤，不匹配直接返回
+        if (StringUtils.isNotBlank(projectId) && stsLabels.get(Constant.TYPE_PROJECT_ID) != null
+                && !stsLabels.get(Constant.TYPE_PROJECT_ID).toString().equals(projectId)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_NOT_MATCH_PROJECT);
+        }
+
         // 获取statefulSet的events
         bodys.clear();
         bodys.put("fieldSelector", "involvedObject.uid=" + sta.getMetadata().getUid());

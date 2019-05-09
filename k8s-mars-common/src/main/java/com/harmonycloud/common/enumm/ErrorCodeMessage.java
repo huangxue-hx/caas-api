@@ -344,6 +344,7 @@ public enum ErrorCodeMessage {
             "资源配额不足，请确保当前系统有足够资源"),
     TRANSFER_NOT_EXIST(400057, "Transfer Service was not existed.", "所迁移的集群信息为空"),
     SERVICE_IS_UPDATING(400058, "the service is updating.","服务正在滚动或蓝绿升级中"),
+    SERVICE_NOT_MATCH_PROJECT(400059, "the service is not match this project.","服务与项目不匹配"),
 
     //模板 401xxx
     SERVICE_TEMPLATE_NOT_EXIST(401001, "Service template not exist.", "服务模板不存在"),
