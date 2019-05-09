@@ -524,7 +524,7 @@ public class DeploymentsServiceImpl implements DeploymentsService {
         }
 
         // 根据项目过滤，不匹配直接返回
-        Map<String, Object> depLabels = dep.getSpec().getSelector().getMatchLabels();
+        Map<String, Object> depLabels = dep.getMetadata().getLabels();
         if (StringUtils.isNotBlank(projectId) && depLabels.get(Constant.TYPE_PROJECT_ID) != null
                 && !depLabels.get(Constant.TYPE_PROJECT_ID).toString().equals(projectId)) {
             throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_NOT_MATCH_PROJECT);

@@ -144,7 +144,7 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
         }
 
         // 根据项目过滤，不匹配直接返回
-        Map<String, Object> stsLabels = sta.getSpec().getSelector().getMatchLabels();
+        Map<String, Object> stsLabels = sta.getMetadata().getLabels();
         if (StringUtils.isNotBlank(projectId) && stsLabels.get(Constant.TYPE_PROJECT_ID) != null
                 && !stsLabels.get(Constant.TYPE_PROJECT_ID).toString().equals(projectId)) {
             throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_NOT_MATCH_PROJECT);
