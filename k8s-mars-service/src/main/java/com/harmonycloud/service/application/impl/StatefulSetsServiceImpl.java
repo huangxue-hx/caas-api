@@ -136,10 +136,22 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
         }
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
         AppDetail res = null;
-        Map<String, Object> bodys = new HashMap<String, Object>();
 
+        // 获取特定的statefulSet
+        StatefulSet sta = statefulSetService.getStatefulSet(namespace, name, cluster);
+        if (sta == null) {
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPLOYMENT_NOT_FIND);
+        }
+
+        // 根据项目过滤，不匹配直接返回
+        Map<String, Object> stsLabels = sta.getSpec().getSelector().getMatchLabels();
+        if (StringUtils.isNotBlank(projectId) && stsLabels.get(Constant.TYPE_PROJECT_ID) != null
+                && !stsLabels.get(Constant.TYPE_PROJECT_ID).toString().equals(projectId)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_NOT_MATCH_PROJECT);
+        }
+
+        Map<String, Object> bodys = new HashMap<String, Object>();
         // 获取cpaEvents
-        bodys.clear();
         AutoScaleDto scaleDto  = autoScaleService.get(namespace, name);
         EventList hapEve = new EventList();
         if (scaleDto != null ){
@@ -149,15 +161,6 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
                 throw new MarsRuntimeException(hpaeRes.getBody());
             }
             hapEve = JsonUtil.jsonToPojo(hpaeRes.getBody(), EventList.class);
-        }
-        // 获取特定的statefulSet
-        StatefulSet sta = statefulSetService.getStatefulSet(namespace, name, cluster);
-        Map<String, Object> stsLabels = sta.getSpec().getSelector().getMatchLabels();
-
-        // 根据项目过滤，不匹配直接返回
-        if (StringUtils.isNotBlank(projectId) && stsLabels.get(Constant.TYPE_PROJECT_ID) != null
-                && !stsLabels.get(Constant.TYPE_PROJECT_ID).toString().equals(projectId)) {
-            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_NOT_MATCH_PROJECT);
         }
 
         // 获取statefulSet的events
