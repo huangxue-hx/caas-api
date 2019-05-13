@@ -11,8 +11,14 @@ import javax.servlet.http.HttpSession;
 
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.dao.tenant.bean.Tenant;
+import com.harmonycloud.dao.tenant.bean.TenantBinding;
+import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
 import com.harmonycloud.dto.user.UserQueryDto;
+import com.harmonycloud.k8s.bean.Namespace;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.user.*;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -56,6 +62,11 @@ public class UserController {
     @Autowired
     private RolePrivilegeService rolePrivilegeService;
 
+    @Autowired
+    private TenantService tenantService;
+
+    @Autowired
+    private NamespaceService namespaceService;
 
     /**
      * 是否为系统管理员
@@ -556,5 +567,29 @@ public class UserController {
     public ActionReturnUtil switchLanguage(@RequestParam(value="language") String language) throws Exception{
         session.setAttribute("language", language);
         return ActionReturnUtil.returnSuccess();
+    }
+
+
+    /**
+     * 根据用户名获取所有的租户下的分区
+     *
+     * @param username
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/namespace/username/{username}", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getTenantsByUsername( @PathVariable("username") String username) throws Exception {
+        List<TenantBinding> tenants=tenantService.listTenantsByUserName(username);
+        List<NamespaceShowDto> finalNamespaces=new ArrayList<>();
+        List<NamespaceShowDto> namespaces=new ArrayList<>();
+        for (TenantBinding tb:tenants) {
+            namespaces=(List<NamespaceShowDto>)namespaceService.getNamespaceList(tb.getTenantId()).getData();
+            if(namespaces==null)continue;
+            for (NamespaceShowDto n:namespaces) {
+                finalNamespaces.add(n);
+            }
+        }
+        return ActionReturnUtil.returnSuccessWithData(finalNamespaces);
     }
 }

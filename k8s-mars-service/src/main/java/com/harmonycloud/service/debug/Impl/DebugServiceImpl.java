@@ -1,0 +1,269 @@
+package com.harmonycloud.service.debug.Impl;
+
+import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.CollectionUtil;
+import com.harmonycloud.common.util.HttpStatusUtil;
+import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.dao.debug.DebugMapper;
+import com.harmonycloud.dao.debug.bean.DebugState;
+import com.harmonycloud.dto.application.istio.ServiceEntryDto;
+import com.harmonycloud.k8s.bean.*;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.service.PodService;
+import com.harmonycloud.k8s.service.ServicesService;
+import com.harmonycloud.k8s.service.istio.ServiceEntryServices;
+import com.harmonycloud.k8s.util.K8SClientResponse;
+import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.debug.DebugService;
+import com.harmonycloud.service.istio.IstioServiceEntryService;
+import com.harmonycloud.service.platform.socketio.test.App;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
+import net.sf.json.JSONObject;
+import org.bouncycastle.asn1.cms.MetaData;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.yaml.snakeyaml.Yaml;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.*;
+
+import static com.harmonycloud.service.platform.constant.Constant.LABEL_PROJECT_ID;
+
+/**
+ * Created by fengjinliu on 2019/5/5.
+ */
+@Service
+public class DebugServiceImpl implements DebugService {
+
+    @Autowired
+    private DebugMapper debugMapper;
+
+    @Autowired
+    private PodService podService;
+
+    @Autowired
+    private NamespaceLocalService namespaceLocalService;
+
+    @Autowired
+    private ServiceEntryServices serviceEntryService;
+
+    @Autowired
+    private ServicesService servicesService;
+
+    @Autowired
+    private ClusterService clusterService;
+
+    @Autowired
+    private ServicesService sService;
+    @Override
+    /*
+    author fjl
+     */
+    public boolean start(String namespace, String username, String service, String port) throws Exception {
+        //1. 调用service接口，在namespace下启动pod.拼装pod,addPod
+        //2. 调用service接口，修改service
+        //3. 调用mapper,存储user的debug状态信息
+
+        DebugState ds = debugMapper.getState(username);
+        String state = "debugging";
+
+        if(ds!=null)
+            if(ds.getState().equals(state))return false;
+
+        //拼接pod
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+
+        Pod pod = new Pod();
+        pod.setKind("Pod");
+        pod.setApiVersion("v1");
+        //metadata
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName("debug-proxy-"+username);
+        metadata.setNamespace(namespace);
+        Map<String,Object> map=new HashMap<>();
+        map.put("app",service+"-debug");
+        map.put("debug","proxy");
+        metadata.setLabels(map);
+        pod.setMetadata(metadata);
+        //spec
+        PodSpec spec = new PodSpec();
+        spec.setRestartPolicy("Always");
+        spec.setDnsPolicy("ClusterFirst");
+        spec.setSchedulerName("default-scheduler");
+        List<LocalObjectReference> lolist=new ArrayList<LocalObjectReference>();
+        LocalObjectReference lo=new LocalObjectReference();
+        lo.setName("admin-secret");
+        lolist.add(lo);
+        spec.setImagePullSecrets(lolist);
+        //container
+        List<Container> cs = new ArrayList<Container>();
+        Container con = new Container();
+        con.setName("proxy");
+        con.setImage("10.10.103.59/library/debug-proxy:1");
+        con.setImagePullPolicy("IfNotPresent");
+        ResourceRequirements resourceRequirements = new ResourceRequirements();
+        Map<String, Object> limits = new HashMap<>();
+        limits.put(CommonConstant.CPU, "100m");
+        limits.put(CommonConstant.MEMORY, "128Mi");
+        Map<String, Object> requests = new HashMap<>();
+        requests.put(CommonConstant.CPU, "100m");
+        requests.put(CommonConstant.MEMORY, "128Mi");
+        resourceRequirements.setLimits(limits);
+        resourceRequirements.setRequests(requests);
+        con.setResources(resourceRequirements);
+        List<String> command = new ArrayList<String>();
+        command.add("/usr/sbin/sshd");
+        command.add("-D");
+        con.setCommand(command);
+        cs.add(con);
+        spec.setContainers(cs);
+        pod.setSpec(spec);
+        ActionReturnUtil ac=podService.addPod(namespace,pod, cluster);
+//        podService.addPod(namespace, debugPod, cluster);
+
+        // 启动service
+        K8SClientResponse getResponse = serviceEntryService.getService(namespace, null, cluster, service);
+        //不存在service,创建新的 service。拼接
+        if (!HttpStatusUtil.isSuccessStatus(getResponse.getStatus())){
+            com.harmonycloud.k8s.bean.Service newService = new com.harmonycloud.k8s.bean.Service();
+            // ObejectMeta
+            // “metedata”，为了防止与内部service重名，所以在name前加.labels若没有传入，则定义other，labels作用一是租户、二是区分类别
+
+            if(port==null)return false;//需要创建新的service时若未能获取到需要的port，返回失败
+            ObjectMeta meta = new ObjectMeta();
+            meta.setName(service);
+            Map<String, Object> labels = new HashMap<String, Object>();
+            labels.put("app",service);
+            meta.setNamespace(namespace);
+            meta.setLabels(labels);
+            // 增加spec
+            ServiceSpec serviceSpec = new ServiceSpec();
+            serviceSpec.setType("ClusterIP");
+            Map<String,Object> rawSelector =new HashMap<>();
+            rawSelector.put("app",service);
+            serviceSpec.setSelector(rawSelector);
+
+            List<ServicePort> ports = new ArrayList<ServicePort>();
+            ServicePort servicePort = new ServicePort();
+            servicePort.setProtocol("TCP");
+            servicePort.setPort(Integer.valueOf(port));
+            servicePort.setTargetPort(Integer.valueOf(port));
+            ports.add(servicePort);
+            serviceSpec.setPorts(ports);
+
+            newService.setMetadata(meta);
+            newService.setSpec(serviceSpec);
+            Map<String, Object> bodys = new HashMap<String, Object>();
+            bodys = CollectionUtil.transBean2Map(newService);
+            Map<String, Object> head = new HashMap<String, Object>();
+            head.put("Content-Type", "application/json");
+            K8SClientResponse response = sService.doServiceByNamespace(namespace, head, bodys, HTTPMethod.POST, cluster);
+            //创建失败了
+            if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
+                UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
+                return false;
+            }
+        }
+        K8SClientResponse getResponseAgain = serviceEntryService.getService(namespace, null, cluster, service);
+        if (!HttpStatusUtil.isSuccessStatus(getResponseAgain.getStatus())) {
+            return false;
+        }
+        com.harmonycloud.k8s.bean.Service newService = JsonUtil.jsonToPojo(getResponseAgain.getBody(), com.harmonycloud.k8s.bean.Service.class);
+        Map<String, String> selector = (Map<String, String>) newService.getSpec().getSelector();
+        String app = selector.get("app");
+            //若是已被修改为debug模式。执行退出
+            if(app.contains("-debug"))return false;
+
+        selector.put("app", app + "-debug");
+        newService.getSpec().setSelector(selector);
+
+        K8SClientResponse updateResponse = serviceEntryService.updateService(namespace, service, newService, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(updateResponse.getStatus()))
+            return false;
+        //用户未曾debug过，新建debug_state信息。设置为debug中
+        if (ds == null) {
+            debugMapper.insert(username, state, pod.getMetadata().getName(),namespace,service,port);
+        }
+        else {
+            debugMapper.update(username, state, pod.getMetadata().getName(),namespace,service,port);
+            return true;
+        }
+        return true;
+    }
+
+    @Override
+    public ActionReturnUtil getCommands(String namespace, String username, String service) throws Exception {
+        //1. 通过服务拿到端口号。
+        //2. 拼装成命令
+
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+
+        K8SClientResponse response = serviceEntryService.getService(namespace, null, cluster, service);
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus()))
+            return ActionReturnUtil.returnError();
+        com.harmonycloud.k8s.bean.Service service1 = JsonUtil.jsonToPojo(response.getBody(), com.harmonycloud.k8s.bean.Service.class);
+
+        String targetPort = String.valueOf(service1.getSpec().getPorts().get(0).getTargetPort());
+        String[] commandlist = new String[4];
+        String lastAdd="";
+        commandlist[0] = "./hcdb start -n " + namespace + " -u " + username + " -d";
+        commandlist[1] = "./hcdb forward -p " + targetPort;
+        commandlist[2] = "./hcdb connection";
+        commandlist[3] = "(密码：123456，更多详情使用./hcdb --help)";
+        return ActionReturnUtil.returnSuccessWithData(commandlist);
+    }
+
+    @Override
+    public Boolean checkLink(String namespace, String username, String service) throws Exception {
+        //等待接口ing。
+        return true;
+    }
+
+    @Override
+    public DebugState checkUser(String username) throws Exception {
+        //检查数据库的表
+        return debugMapper.getState(username);
+    }
+
+    @Override
+    public boolean end(String namespace, String username, String service,String port) throws Exception {
+        //1. 调用service接口，在namespace下关闭pod1
+        //2. 调用service接口，修改service
+        //3. 调用mapper,存储user的debug状态信息1
+
+        DebugState ds = debugMapper.getState(username);
+        //用户正在debug才可以结束。
+        if(ds==null||ds.getState().equals("stopped"))return false;
+
+        //删除Pod
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        podService.deletePod(namespace, ds.getPodname(), cluster);
+
+        //修改service
+        K8SClientResponse getResponse = serviceEntryService.getService(namespace, null, cluster, service);
+        if (!HttpStatusUtil.isSuccessStatus(getResponse.getStatus()))
+            return false;
+        com.harmonycloud.k8s.bean.Service newService = JsonUtil.jsonToPojo(getResponse.getBody(), com.harmonycloud.k8s.bean.Service.class);
+        Map<String, String> selector = (Map<String, String>) newService.getSpec().getSelector();
+        String app = selector.get("app");
+        //如果
+        if(app.contains("-debug"))
+        selector.put("app", app.substring(0,app.length()-6));//去掉-debug
+        newService.getSpec().setSelector(selector);
+
+        K8SClientResponse updateResponse = serviceEntryService.updateService(namespace, service, newService, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(updateResponse.getStatus()))
+            return false;
+
+        //修改用户debug状态。
+        debugMapper.update(username, "stopped", ds.getPodname(),namespace,service,port);
+        return true;
+    }
+}

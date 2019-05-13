@@ -84,6 +84,7 @@
                     <include>**/*.dylib</include>
                     <include>**/*.dll</include>
                     <include>**/*.exe</include>
+                    <include>**</include>
                 </includes>
                 <filtering>false</filtering>
             </resource>

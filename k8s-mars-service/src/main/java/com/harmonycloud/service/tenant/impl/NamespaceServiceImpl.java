@@ -1019,7 +1019,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         K8SClientResponse deploymentResponse = deploymentService.doDeploymentsByNamespace(namespace, null, null, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(deploymentResponse.getStatus())) {
             logger.error("调用k8s接口查询namespace下deployment列表失败", deploymentResponse.getBody());
-            return ActionReturnUtil.returnErrorWithMsg(deploymentResponse.getBody());
+            return ActionReturnUtil.returnSuccessWithData(deploymentResponse.getBody());
         }
 
         DeploymentList deploymentList = JsonUtil.jsonToPojo(deploymentResponse.getBody(), DeploymentList.class);
