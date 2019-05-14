@@ -573,13 +573,14 @@ public class UserController {
     /**
      * 根据用户名获取所有的租户下的分区
      *
-     * @param username
+     * @param
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/namespace/username/{username}", method = RequestMethod.GET)
+    @RequestMapping(value = "/namespaces", method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil getTenantsByUsername( @PathVariable("username") String username) throws Exception {
+    public ActionReturnUtil getTenantsByUsername() throws Exception {
+        String username=session.getAttribute("username").toString();
         List<TenantBinding> tenants=tenantService.listTenantsByUserName(username);
         List<NamespaceShowDto> finalNamespaces=new ArrayList<>();
         List<NamespaceShowDto> namespaces=new ArrayList<>();

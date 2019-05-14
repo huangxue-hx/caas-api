@@ -15,7 +15,10 @@ import org.springframework.util.ResourceUtils;
 import org.springframework.web.bind.annotation.*;
 import retrofit2.http.Url;
 
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -31,11 +34,14 @@ import java.util.zip.ZipOutputStream;
 /**
  * Created by fengjinliu on 2019/5/5.
  */
-@RequestMapping("/debug/namespace/{namespace}/username/{username}/service/{service}")
+@RequestMapping("/namespaces/{namespace}/services/{service}/debug")
 @RestController
 public class DebugController {
 
     private final static Logger logger= LoggerFactory.getLogger(DebugController.class);
+
+    @Autowired
+    private HttpSession session;
 
     @Autowired
     private DebugService debugService;
@@ -46,9 +52,9 @@ public class DebugController {
     @RequestMapping(value="/start",method = RequestMethod.POST)
     @ResponseBody
     public ActionReturnUtil establishEnvironment (@PathVariable("namespace")String namespace
-            , @PathVariable(value="username")String username, @PathVariable(value="service")String service
+            , @PathVariable(value="service")String service
             , @RequestParam(value = "port",required = false)String port)throws Exception{
-
+        String username=session.getAttribute("username").toString();
         return debugService.start(namespace,username,service,port)? ActionReturnUtil.returnSuccess():ActionReturnUtil.returnError();
     }
 
@@ -98,11 +104,12 @@ public class DebugController {
     @RequestMapping(value="/command",method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil getCommands(@PathVariable("namespace")String namespace
-            , @PathVariable(value="username")String username, @PathVariable(value="service")String service
+            , @PathVariable(value="service")String service
             , @RequestParam(value = "port",required = false)String port )throws Exception{
 
         //1. 通过服务拿到端口号。
         //2. 拼装成命令
+        String username=session.getAttribute("username").toString();
         return ActionReturnUtil.returnSuccessWithData(debugService.getCommands(namespace,username,service).getData());
     }
 
@@ -114,7 +121,8 @@ public class DebugController {
     @RequestMapping(value="/test/link",method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil checkLink(@PathVariable("namespace")String namespace
-            , @PathVariable(value="username")String username, @PathVariable(value="service")String service)throws Exception{
+            , @PathVariable(value="service")String service)throws Exception{
+        String username=session.getAttribute("username").toString();
         if(debugService.checkLink(namespace,username,service))
             return ActionReturnUtil.returnSuccess();
         else return ActionReturnUtil.returnError();
@@ -127,12 +135,13 @@ public class DebugController {
     @RequestMapping(value="/end",method = RequestMethod.POST)
     @ResponseBody
     public ActionReturnUtil endDebug(@PathVariable("namespace")String namespace
-            , @PathVariable(value="username")String username, @PathVariable(value="service")String service,@RequestParam(value="port",required = false)String port)throws Exception{
+            , @PathVariable(value="service")String service,@RequestParam(value="port",required = false)String port)throws Exception{
         // 1. 恢复service
 
         // 2. 下线pod
 
         //3. 修改用户debug状态
+        String username=session.getAttribute("username").toString();
         if(debugService.end(namespace,username,service,port))
         return  ActionReturnUtil.returnSuccess();
         else return ActionReturnUtil.returnError();
@@ -145,8 +154,8 @@ public class DebugController {
     @ResponseStatus(value= HttpStatus.OK)
     @RequestMapping(value="/test/user",method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil checkUser(
-            @PathVariable(value="username")String username)throws Exception{
+    public ActionReturnUtil checkUser()throws Exception{
+        String username=session.getAttribute("username").toString();
         return ActionReturnUtil.returnSuccessWithData(debugService.checkUser(username));
     }
 
