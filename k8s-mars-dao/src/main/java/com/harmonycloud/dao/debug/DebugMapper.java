@@ -10,9 +10,11 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface DebugMapper {
 
-    void insert(@Param("username")String username, @Param("state") String state,@Param("podname")String podname,@Param("namespace")String namespace,@Param("service")String service,@Param("port")String port);
+    void insert(DebugState debugState);
 
-    DebugState getState(String username);
+    DebugState getStateByUsername(@Param("username")String username);
 
-    void update(@Param("username")String username, @Param("state") String state,@Param("podname")String podname,@Param("namespace")String namespace,@Param("service")String service,@Param("port")String port);
+    DebugState getStateByService(@Param("namespace")String namespace,@Param("service")String service);
+
+    void update(DebugState debugState);
 }

@@ -1,4 +1,4 @@
-package com.harmonycloud.api.debug.Utils;
+package com.harmonycloud.common.util;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -12,7 +12,7 @@ import java.util.zip.ZipOutputStream;
  * Created by fengjinliu on 2019/5/7.
  */
 
-public class ZipUtils {
+public class ZipUtil {
     private static final int  BUFFER_SIZE = 2 * 1024;
 
     public static void toZip(List<File> srcFiles , OutputStream out)throws RuntimeException {

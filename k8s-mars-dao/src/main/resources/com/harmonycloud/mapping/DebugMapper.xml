@@ -2,13 +2,13 @@
         <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
         <!-- namespace必须指向Dao接口 -->
 <mapper namespace="com.harmonycloud.dao.debug.DebugMapper">
-        <insert id="insert">
+        <insert id="insert" parameterType="com.harmonycloud.dao.debug.bean.DebugState">
                 insert into debug_state
                 (username,state,updatetime,namespace,service,port)
                 values(#{username},#{state},sysdate(),#{namespace},#{service},#{port})
         </insert>
 
-        <update id="update">
+        <update id="update" parameterType="com.harmonycloud.dao.debug.bean.DebugState">
                 update debug_state
                 set state=#{state},
                     podname=#{podname},
@@ -18,8 +18,11 @@
                 WHERE username=#{username}
         </update>
 
-        <select id="getState" resultType="com.harmonycloud.dao.debug.bean.DebugState">
+        <select id="getStateByUsername" resultType="com.harmonycloud.dao.debug.bean.DebugState">
                 select * from debug_state where username=#{username}
         </select>
 
+        <select id="getStateByService" resultType="com.harmonycloud.dao.debug.bean.DebugState">
+            select * from debug_state where service=#{service} and namespace=#{namespace} and state!='stop'
+        </select>
 </mapper>

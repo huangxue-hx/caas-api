@@ -21,4 +21,6 @@ public interface DebugService {
     DebugState checkUser(String username) throws Exception;
 
     boolean end(String namespace, String username, String service,String port) throws Exception;
+
+    DebugState checkService(String namespace,String service)throws Exception;
 }
