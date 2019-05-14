@@ -72,10 +72,10 @@ public class DebugServiceImpl implements DebugService {
         //3. 调用mapper,存储user的debug状态信息
 
         DebugState ds = debugMapper.getState(username);
-        String state = "debugging";
+        String state = "stop";
 
         if(ds!=null)
-            if(ds.getState().equals(state))return false;
+            if(!ds.getState().equals(state))return false;
 
         //拼接pod
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
@@ -189,10 +189,10 @@ public class DebugServiceImpl implements DebugService {
             return false;
         //用户未曾debug过，新建debug_state信息。设置为debug中
         if (ds == null) {
-            debugMapper.insert(username, state, pod.getMetadata().getName(),namespace,service,port);
+            debugMapper.insert(username, "build", pod.getMetadata().getName(),namespace,service,port);
         }
         else {
-            debugMapper.update(username, state, pod.getMetadata().getName(),namespace,service,port);
+            debugMapper.update(username, "build", pod.getMetadata().getName(),namespace,service,port);
             return true;
         }
         return true;
@@ -223,6 +223,8 @@ public class DebugServiceImpl implements DebugService {
     @Override
     public Boolean checkLink(String namespace, String username, String service) throws Exception {
         //等待接口ing。
+        DebugState ds=debugMapper.getState(username);
+        debugMapper.update(username,"debug",ds.getPodname(),namespace,service,ds.getPort());
         return true;
     }
 
@@ -240,7 +242,7 @@ public class DebugServiceImpl implements DebugService {
 
         DebugState ds = debugMapper.getState(username);
         //用户正在debug才可以结束。
-        if(ds==null||ds.getState().equals("stopped"))return false;
+        if(ds==null||ds.getState().equals("stop"))return false;
 
         //删除Pod
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
@@ -263,7 +265,7 @@ public class DebugServiceImpl implements DebugService {
             return false;
 
         //修改用户debug状态。
-        debugMapper.update(username, "stopped", ds.getPodname(),namespace,service,port);
+        debugMapper.update(username, "stop", ds.getPodname(),namespace,service,port);
         return true;
     }
 }
