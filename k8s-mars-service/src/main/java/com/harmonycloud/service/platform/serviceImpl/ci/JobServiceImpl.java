@@ -192,6 +192,10 @@ public class JobServiceImpl implements JobService {
     @Value("#{propertiesReader['jenkins.timeout']}")
     private String jenkinsTimeout;
 
+
+    @Value("${build.nodeselector:HarmonyCloud_Status=E}")
+    private String buildNodeSelector;
+
     @Autowired
     private SecretService secretService;
     private long sleepTime = 2000L;
@@ -254,10 +258,12 @@ public class JobServiceImpl implements JobService {
             dataModel.put("job", job);
             dataModel.put("apiUrl", apiUrl);
             dataModel.put("timeout", jenkinsTimeout);
+            dataModel.put("nodeSelector", buildNodeSelector);
             dataModel.put("harborAddress", clusterService.findClusterById(jobDto.getClusterId()).getHarborServer().getHarborAddress());
             String script = TemplateUtil.generate("pipeline.ftl", dataModel);
             dataModel.put("script", script);
             String body = TemplateUtil.generate("jobConfig.ftl", dataModel);
+            logger.info("构建流水线pod nodeSelector:{}", buildNodeSelector);
             try {
                 jenkinsServer.createJob(folderJob, job.getName(), body);
             } catch (Exception e) {
@@ -1599,7 +1605,7 @@ public class JobServiceImpl implements JobService {
                     Thread.sleep(Constant.THREAD_SLEEP_TIME_10000);
                     serviceStarted = true;
                     repeat--;
-                    ActionReturnUtil result = deploymentsService.getDeploymentDetail(namespace, serviceName,false);
+                    ActionReturnUtil result = deploymentsService.getDeploymentDetail(namespace, serviceName,false, null);
                     if (result.isSuccess()) {
                         //获取服务状态，并判断
                         AppDetail appDetail = (AppDetail) result.get("data");
@@ -2733,8 +2739,9 @@ public class JobServiceImpl implements JobService {
         dataModel.put("stageList", stageDtoList);
         dataModel.put("imageBuildStages", imageBuildStages);
         dataModel.put("timeout", jenkinsTimeout);
+        dataModel.put("nodeSelector", buildNodeSelector);
         String script = null;
-
+        logger.info("构建流水线pod nodeSelector:{}", buildNodeSelector);
         try {
             script = TemplateUtil.generate("pipeline.ftl", dataModel);
         } catch (Exception e) {
@@ -2749,7 +2756,7 @@ public class JobServiceImpl implements JobService {
             throw new MarsRuntimeException(ErrorCodeMessage.NAMESPACE_NOT_FOUND);
         }
         //判断服务是否启动
-        ActionReturnUtil deploymentDetailResult = deploymentsService.getDeploymentDetail(namespace, service,false);
+        ActionReturnUtil deploymentDetailResult = deploymentsService.getDeploymentDetail(namespace, service,false, null);
         if (deploymentDetailResult.isSuccess()) {
             AppDetail appDetail = (AppDetail) deploymentDetailResult.getData();
             if (appDetail != null) {

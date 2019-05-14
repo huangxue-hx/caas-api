@@ -151,6 +151,7 @@
         <mapper resource="com/harmonycloud/mapping/TransferStepMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/TransferClusterMapper.xml" />
         <mapper resource="com/harmonycloud/mapping/TransferBindNamespaceMapper.xml" />
+        <mapper resource="com/harmonycloud/mapping/ImageTagDescMapper.xml" />
     </mappers>
 </configuration>
 

@@ -1,42 +1,45 @@
 package com.harmonycloud.service.platform.serviceImpl.harbor;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.FileNotFoundException;
-import java.net.URI;
-import java.nio.file.Paths;
-import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.stream.Collectors;
-
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ClusterLevelEnum;
-import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.DataResourceTypeEnum;
 import com.harmonycloud.common.enumm.DictEnum;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
-import com.harmonycloud.common.util.*;
+import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.common.util.AssertUtil;
+import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.ci.bean.Trigger;
 import com.harmonycloud.dao.ci.bean.TriggerExample;
 import com.harmonycloud.dao.harbor.ImageRepositoryMapper;
 import com.harmonycloud.dao.harbor.bean.ImageRepository;
+import com.harmonycloud.dao.harbor.bean.ImageTagDesc;
 import com.harmonycloud.dao.tenant.bean.Project;
 import com.harmonycloud.dao.user.bean.UserRoleRelationship;
+import com.harmonycloud.dto.dataprivilege.DataPrivilegeDto;
+import com.harmonycloud.k8s.bean.DeploymentList;
+import com.harmonycloud.k8s.bean.StatefulSetList;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.cluster.HarborServer;
+import com.harmonycloud.k8s.service.StatefulSetService;
+import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.cache.ImageCacheManager;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.common.DataPrivilegeHelper;
 import com.harmonycloud.service.common.HarborHttpsClientUtil;
-import com.harmonycloud.service.platform.bean.*;
+import com.harmonycloud.service.platform.bean.RepositoryInfo;
 import com.harmonycloud.service.platform.bean.harbor.*;
 import com.harmonycloud.service.platform.client.HarborClient;
 import com.harmonycloud.service.platform.constant.Constant;
+import com.harmonycloud.service.platform.convert.K8sResultConvert;
 import com.harmonycloud.service.platform.service.ci.TriggerService;
 import com.harmonycloud.service.platform.service.harbor.*;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.ProjectService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.UserRoleRelationshipService;
@@ -44,7 +47,9 @@ import com.harmonycloud.service.user.UserService;
 import com.spotify.docker.client.DefaultDockerClient;
 import com.spotify.docker.client.DockerCertificates;
 import com.spotify.docker.client.DockerClient;
-import com.spotify.docker.client.messages.*;
+import com.spotify.docker.client.messages.Image;
+import com.spotify.docker.client.messages.RegistryAuth;
+import com.spotify.docker.client.messages.RemovedImage;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,13 +59,20 @@ import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-
-import com.harmonycloud.k8s.bean.cluster.Cluster;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
+import java.io.*;
+import java.net.URI;
+import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Collectors;
 
 import static com.harmonycloud.common.Constant.CommonConstant.*;
 
@@ -95,6 +107,16 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	private HarborImageCleanService harborImageCleanService;
 	@Autowired
 	private TriggerService triggerService;
+	@Autowired
+	private HarborImageTagDescService harborImageTagDescService;
+    @Autowired
+    private NamespaceLocalService namespaceLocalService;
+    @Autowired
+    private DeploymentsService deploymentsService;
+    @Autowired
+    private DataPrivilegeHelper dataPrivilegeHelper;
+    @Autowired
+    private StatefulSetService statefulSetService;
 
 	@Value("#{propertiesReader['upload.path']}")
 	private String uploadPath;
@@ -111,7 +133,13 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		List<HarborOverview> harborOverviews = new ArrayList<>();
 		Set<HarborServer> harborServers = new HashSet<>();
 		if(StringUtils.isBlank(harborHost)) {
-			List<Cluster> clusters = roleLocalService.listCurrentUserRoleCluster();
+			List<Cluster> clusters;
+			try {
+				clusters = roleLocalService.listCurrentUserRoleCluster();
+			} catch (IllegalStateException e) {
+				clusters = clusterService.listCluster();
+				logger.info("刷新镜像缓存定时任务，获取集群列表，size:{}", clusters.size());
+			}
 			if (!CollectionUtils.isEmpty(clusters)) {
 				for (Cluster cluster : clusters) {
 					harborServers.add(cluster.getHarborServer());
@@ -659,6 +687,11 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 
 	@Override
 	public ActionReturnUtil getImage(Integer repositoryId, String image) throws Exception {
+        return getImage(repositoryId, image, false);
+	}
+
+	@Override
+	public ActionReturnUtil getImage(Integer repositoryId, String image, boolean needSize) throws Exception {
 		ImageRepository imageRepository = imageRepositoryMapper.findRepositoryById(repositoryId);
 		HarborRepositoryMessage harborRepositoryMessage = imageCacheManager.freshRepositoryByTags(imageRepository.getHarborHost(), image);
 		if(harborRepositoryMessage == null){
@@ -667,8 +700,37 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		List<HarborRepositoryMessage> harborRepositoryMessages = new ArrayList<>();
 		harborRepositoryMessages.add(harborRepositoryMessage);
 		this.setImagePullStatus(harborRepositoryMessages);
+        if (needSize) {
+            this.setImageTagSize(harborRepositoryMessage.getRepositoryDetial(), imageRepository.getHarborHost(), image);
+        }
+
         return ActionReturnUtil.returnSuccessWithData(harborRepositoryMessage);
 	}
+
+    // 获取每个版本的镜像大小
+    private void setImageTagSize(List<HarborManifest> repoList, String harborHost, String repoName){
+        if (CollectionUtils.isEmpty(repoList)) {
+            return;
+        }
+        try {
+            ActionReturnUtil response = harborService.getTagsByRepoName(harborHost, repoName);
+            if (response.isSuccess() && response.getData() != null) {
+                Map<String, Long> sizeMap = Maps.newHashMap();
+                List<Map<String, Object>> tagList = JsonUtil.JsonToMapList(response.getData().toString());
+                if (!CollectionUtils.isEmpty(tagList)) {
+                    for (Map<String, Object> tag : tagList) {
+                        if (tag.get("name") != null) {
+                            sizeMap.put(tag.get("name").toString(), Long.valueOf(tag.get("size").toString()));
+                        }
+                    }
+                }
+
+                repoList.forEach(r -> r.setSize(sizeMap.getOrDefault(r.getTag(), 0L)));
+            }
+        } catch (Exception e){
+            logger.error("获取镜像版本的大小时异常：",e);
+        }
+    }
 
 	@Override
 	public ActionReturnUtil getManifests(Integer repositoryId, String image, String tag) throws Exception {
@@ -1079,7 +1141,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		String url = HarborClient.getHarborUrl(harborServer) + "/api/repositories/"+repoName+"/tags/"+tag+"/labels";
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 		headers.put("Content-type", "application/json");
-		String json = JsonUtil.convertToJson(getLableDetail(harborHost,labelId));
+		String json = JsonUtil.convertToJson(getLabelDetail(harborHost,labelId));
 		ActionReturnUtil response = HarborHttpsClientUtil.httpPostRequestForHarbor(url, headers, JsonUtil.jsonToMap(json));
 		if(!response.isSuccess()){
 			logger.error("select label error. harborHost:{},res:{}", harborHost, JSONObject.toJSONString(response));
@@ -1137,22 +1199,28 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	}
 
 	@Override
-	public ActionReturnUtil getLable(String harborHost,String repoName, String scope, Long projectId) throws Exception{
+	public ActionReturnUtil getLabel(String harborHost,String repoName, String scope, Long projectId, String labelName) throws Exception{
 		AssertUtil.notNull(projectId,DictEnum.PROJECT_ID);
 		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
 		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels";
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 		Map<String, Object> params = new HashMap<>();
-		params.put("scope","p");
+		params.put("scope", scope);
 		params.put("project_id",projectId);
 		ActionReturnUtil response = HarborHttpsClientUtil.httpGetRequest(url, headers, params);
 		if(!response.isSuccess()){
 			logger.error("sync registry error. harborHost:{},res:{}", harborHost, JSONObject.toJSONString(response));
 			return response;
 		}
-		return ActionReturnUtil.returnSuccessWithData(JsonUtil.jsonToList(response.getData().toString(),HarborProjectLabel.class));
+
+		List<HarborProjectLabel> labelList = JsonUtil.jsonToList(response.getData().toString(), HarborProjectLabel.class);
+		if (!CollectionUtils.isEmpty(labelList) && StringUtils.isNotBlank(labelName)) {    // 有数据并且labelName不为空，则进行模糊匹配过滤数据
+			labelList.removeIf(label -> !label.getName().contains(labelName));
+		}
+
+		return ActionReturnUtil.returnSuccessWithData(labelList);
 	}
-	public HarborProjectLabel getLableDetail(String harborHost,String labelId) throws Exception{
+	public HarborProjectLabel getLabelDetail(String harborHost,String labelId) throws Exception{
 		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
 		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels/"+labelId;
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
@@ -1163,10 +1231,10 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		return JsonUtil.jsonToPojo(response.getData().toString(),HarborProjectLabel.class);
 	}
 	@Override
-	public ActionReturnUtil deleteLable(String harborHost, Long lableId) throws Exception {
-		AssertUtil.notNull(lableId);
+	public ActionReturnUtil deleteLabel(String harborHost, Long labelId) throws Exception {
+		AssertUtil.notNull(labelId);
 		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
-		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels/"+lableId;
+		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels/"+labelId;
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 		ActionReturnUtil response = HarborHttpsClientUtil.httpDoDelete(url,null, headers);
 		if(!response.isSuccess()){
@@ -1177,7 +1245,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	}
 
 	@Override
-	public ActionReturnUtil addLable(String harborHost, String name, String desc, String color, String scope, Integer projectId) throws Exception {
+	public ActionReturnUtil addLabel(String harborHost, String name, String desc, String color, String scope, Integer projectId) throws Exception {
 		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
 		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels";
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
@@ -1528,4 +1596,114 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			logger.error("继续跟踪镜像上传结果失败，",e);
 		}
 	}
+
+
+	@Override
+	public ActionReturnUtil getImageTagDesc(Integer repositoryId, String imageName, String tag) {
+		return ActionReturnUtil.returnSuccessWithData(harborImageTagDescService.select(repositoryId, imageName, tag));
+	}
+
+
+	@Override
+	public ActionReturnUtil saveImageTagDesc(Integer repositoryId, String imageName, String tag, String tagDesc) throws Exception {
+		ImageTagDesc desc = harborImageTagDescService.select(repositoryId, imageName, tag);
+
+		if (desc == null) {    // 新增
+			desc = new ImageTagDesc();
+			desc.setRepositoryId(repositoryId);
+			desc.setImageName(imageName);
+			desc.setTagName(tag);
+			desc.setTagDesc(tagDesc);
+			harborImageTagDescService.create(desc);
+		} else {    // 修改
+			desc.setTagDesc(tagDesc);
+			harborImageTagDescService.update(desc);
+		}
+
+		return ActionReturnUtil.returnSuccess();
+	}
+
+    @Override
+    public ActionReturnUtil getDeploysByImage(String projectId, String fullImageName, String imageName, String tag,
+											  String namespace, String clusterId, String deployName) throws Exception {
+	    // 参数为空判断
+	    if (StringUtils.isBlank(projectId) || StringUtils.isBlank(fullImageName) || StringUtils.isBlank(imageName)
+                || StringUtils.isBlank(tag) || StringUtils.isBlank(namespace)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
+        }
+
+        // labels
+        Map<String, Object> bodys = Maps.newHashMap();
+        String labelSelector = Constant.NODESELECTOR_LABELS_PRE + Constant.LABEL_PROJECT_ID + "=" + projectId;
+        bodys.put("labelSelector", labelSelector);
+
+        List<Map<String, Object>> result = Lists.newArrayList();
+        List<Cluster> clusterList = roleLocalService.listCurrentUserRoleCluster();
+		String[] nsArr = namespace.split(",");
+		for (String ns : nsArr) {
+			if (StringUtils.isNotBlank(ns)) {
+				try {
+					Cluster cluster = namespaceLocalService.getClusterByNamespaceName(ns);
+					//判断该namespace是否有权限
+					if (clusterList.stream().noneMatch(c -> c.getId().equals(cluster.getId()))) {
+						continue;
+					}
+					if (StringUtils.isNotBlank(clusterId) && !cluster.getId().equals(clusterId)) {
+						continue;
+					}
+
+					// deployment
+					DeploymentList deployment = deploymentsService.getDeployments(ns, bodys, cluster);
+					String aliasNamespace = namespaceLocalService.getNamespaceByName(ns).getAliasName();
+					if (deployment != null  && !CollectionUtils.isEmpty(deployment.getItems())) {
+						result.addAll(K8sResultConvert.convertAppList(deployment, cluster, aliasNamespace));
+					}
+					// statefulset
+					StatefulSetList statefulSet = statefulSetService.listStatefulSets(ns, null, bodys, cluster);
+					if (statefulSet != null && !CollectionUtils.isEmpty(statefulSet.getItems())) {
+						result.addAll(K8sResultConvert.convertAppList(statefulSet, cluster, aliasNamespace));
+					}
+				} catch (Exception e) {
+					logger.error("查询deployment或statefulset列表失败，namespace：{}", ns, e);
+				}
+			}
+		}
+
+		// 有服务，再进行进一步过滤
+		if (!CollectionUtils.isEmpty(result)) {
+			// 权限过滤使用
+			DataPrivilegeDto dataPrivilegeDto = new DataPrivilegeDto();
+			dataPrivilegeDto.setProjectId(projectId);
+			// 镜像名称
+			String fullImageTag = fullImageName + COLON + tag;
+			String imageTag = imageName + COLON + tag;
+
+			result.removeIf(res -> {
+				// 模糊查询过滤数据
+				if (StringUtils.isNotBlank(deployName) && !res.get("name").toString().contains(deployName)) {
+					return true;
+				}
+				// 过滤镜像版本不一样的服务
+				@SuppressWarnings("unchecked") List<String> img = (List<String>) res.get("img");
+				if (img.stream().noneMatch(i -> StringUtils.equals(i, fullImageTag) || StringUtils.equals(i, imageTag))) {
+					return true;
+				}
+				// 权限过滤
+				dataPrivilegeDto.setData((String) res.get(CommonConstant.NAME));
+				dataPrivilegeDto.setDataResourceType(DataResourceTypeEnum.SERVICE.getCode());
+				dataPrivilegeDto.setNamespace((String) res.get(CommonConstant.DATA_NAMESPACE));
+				Map filteredMap = null;
+				try {
+					filteredMap = dataPrivilegeHelper.filterMap(res, dataPrivilegeDto);
+				} catch (Exception e) {
+					logger.warn("镜像详情服务列表权限过滤异常：", e);
+				}
+				return filteredMap == null;
+			});
+		}
+
+        return ActionReturnUtil.returnSuccessWithData(result);
+    }
+
+
 }

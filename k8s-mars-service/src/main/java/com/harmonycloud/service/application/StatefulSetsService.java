@@ -18,7 +18,7 @@ import java.util.Map;
  */
 public interface StatefulSetsService {
 
-    AppDetail getStatefulSetDetail(String namespace, String name) throws Exception;
+    AppDetail getStatefulSetDetail(String namespace, String name, String projectId) throws Exception;
 
     List<Map<String, Object>> listStatefulSets(String tenantId, String name, String namespace, String labels, String projectId, String clusterId) throws Exception;
 

@@ -25,6 +25,7 @@ public class HarborManifest implements Serializable {
     private boolean notSupported = false;
     private String pullStatus;
     private String digest;
+    private Long size;    // 镜像大小，默认为空，如若使用请另行赋值
 
     public Integer getVulnerabilityNum() {
         return vulnerabilityNum;
@@ -104,5 +105,13 @@ public class HarborManifest implements Serializable {
 
     public void setDigest(String digest) {
         this.digest = digest;
+    }
+
+    public Long getSize() {
+        return size;
+    }
+
+    public void setSize(Long size) {
+        this.size = size;
     }
 }

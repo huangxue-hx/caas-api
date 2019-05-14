@@ -507,15 +507,31 @@ public class DeploymentsServiceImpl implements DeploymentsService {
 
 
     @Override
-    public ActionReturnUtil getDeploymentDetail(String namespace, String name,boolean isFilter) throws Exception {
+    public ActionReturnUtil getDeploymentDetail(String namespace, String name,boolean isFilter, String projectId) throws Exception {
         if (StringUtils.isEmpty(namespace) || StringUtils.isEmpty(name)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
-        Map<String, Object> bodys = new HashMap<String, Object>();
+
+        // 获取特定的deployment
+        K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
+        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
+            return ActionReturnUtil.returnErrorWithData(depRes.getBody());
+        }
+        Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
+        if (dep == null) {
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPLOYMENT_NOT_FIND);
+        }
+
+        // 根据项目过滤，不匹配直接返回
+        Map<String, Object> depLabels = dep.getMetadata().getLabels();
+        if (StringUtils.isNotBlank(projectId) && depLabels.get(Constant.TYPE_PROJECT_ID) != null
+                && !depLabels.get(Constant.TYPE_PROJECT_ID).toString().equals(projectId)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_NOT_MATCH_PROJECT);
+        }
 
         // 获取cpaEvents
-        bodys.clear();
+        Map<String, Object> bodys = new HashMap<String, Object>();
         AutoScaleDto scaleDto  = autoScaleService.get(namespace, name);
         EventList hapEve = new EventList();
         if (scaleDto != null ){
@@ -527,16 +543,10 @@ public class DeploymentsServiceImpl implements DeploymentsService {
             hapEve = JsonUtil.jsonToPojo(hpaeRes.getBody(), EventList.class);
         }
 
-        // 获取特定的deployment
-        K8SClientResponse depRes = dpService.doSpecifyDeployment(namespace, name, null, null, HTTPMethod.GET, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(depRes.getStatus())) {
-            return ActionReturnUtil.returnErrorWithData(depRes.getBody());
-        }
-        Deployment dep = JsonUtil.jsonToPojo(depRes.getBody(), Deployment.class);
-
         // 获取service
         bodys.clear();
-        bodys.put("labelSelector", Constant.TYPE_DEPLOYMENT + "=" + name);
+        bodys.put("labelSelector", Constant.TYPE_DEPLOYMENT + "=" + name
+                + (StringUtils.isBlank(projectId) ? "" : ("," + Constant.LABEL_PROJECT_ID + "=" + projectId)));
         K8SClientResponse sRes = sService.doServiceByNamespace(namespace, null, bodys, HTTPMethod.GET, cluster);
         if (!HttpStatusUtil.isSuccessStatus(sRes.getStatus())) {
             return ActionReturnUtil.returnErrorWithData(sRes.getBody());
