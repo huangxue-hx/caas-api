@@ -67,14 +67,18 @@ public class DebugController {
         // 1.根据分区所在的集群拼装config文件
         // 2.提供下载
 
-        String f2="";
-        if(system.equals("windows"))f2="hcdb.exe";
-        else f2="hcdb";
+        String systemFile="";
+        if(system.equals("windows")) {
+            systemFile="hcdb.exe";
+        }
+        else {
+            systemFile="hcdb";
+        }
 
         List<File> fileList=new ArrayList<>();
 
         //从build完的target/classes下查找文件。一个为config。一个为对应系统的文件
-        URL sysurl = DebugController.class.getClassLoader().getResource("hcdb/"+system+"/"+f2);
+        URL sysurl = DebugController.class.getClassLoader().getResource("hcdb/"+system+"/"+systemFile);
         File sys = new File(sysurl.getFile());
 
         URL configurl=DebugController.class.getClassLoader().getResource("hcdb/config");
@@ -89,7 +93,7 @@ public class DebugController {
             //压缩zip文件工具类
             ZipUtil.toZip(fileList, fo);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("压缩文件失败,请重试");
         }
 
     }
@@ -126,7 +130,7 @@ public class DebugController {
     }
 
     /**
-     *测试连接是否可用
+     *测试服务是否被占用debug
      */
     @ResponseStatus(value= HttpStatus.OK)
     @RequestMapping(value="/namespaces/{namespace}/services/{service}/debug/test/service",method = RequestMethod.GET)

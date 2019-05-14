@@ -74,8 +74,11 @@ public class DebugServiceImpl implements DebugService {
         //2. 调用service接口，修改service
         //3. 调用mapper,存储user的debug状态信息
         DebugState ds = debugMapper.getStateByUsername(username);
-        if(ds!=null)
-            if(!ds.getState().equals("stop"))return false;
+        if(ds!=null) {
+            if (!ds.getState().equals("stop")) {
+                return false;
+            }
+        }
         //拼接pod
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
         //创建新的pod
@@ -89,29 +92,38 @@ public class DebugServiceImpl implements DebugService {
         //不存在service,创建新的 service。拼接
         if (!HttpStatusUtil.isSuccessStatus(getResponse.getStatus())){
             Object getService=createDebugService(namespace,cluster,service,port).getData();
-            if(getService==null)return false;}
+            if(getService==null){
+                return false;
+            }
+        }
         K8SClientResponse getResponseAgain = serviceEntryService.getService(namespace, null, cluster, service);
         com.harmonycloud.k8s.bean.Service newService = JsonUtil.jsonToPojo(getResponseAgain.getBody(), com.harmonycloud.k8s.bean.Service.class);
         //修改service,与debugPod关联
         Map<String, String> selector = (Map<String, String>) newService.getSpec().getSelector();
         String app = selector.get("app");
             //若是已被修改为debug模式。执行退出
-            if(app.contains("-debug"))return false;
+            if(app.contains("-debug")){
+                return false;
+            }
         selector.put("app", app + "-debug");
         newService.getSpec().setSelector(selector);
         //修改service
         K8SClientResponse updateResponse = serviceEntryService.updateService(namespace, service, newService, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(updateResponse.getStatus()))
+        if (!HttpStatusUtil.isSuccessStatus(updateResponse.getStatus())) {
             return false;
+        }
         //用户未曾debug过，新建debug_state信息。设置为debug中
-        ds.setNamespace(namespace);
-        ds.setPodname(pod.getMetadata().getName());
-        ds.setPort(port);
-        ds.setService(service);
-        ds.setState("build");
-        ds.setUsername(username);
-        if (ds == null) {
-            debugMapper.insert(ds);}
+        if(ds==null) {
+            ds = new DebugState();
+
+            ds.setNamespace(namespace);
+            ds.setPodname(pod.getMetadata().getName());
+            ds.setPort(port);
+            ds.setService(service);
+            ds.setState("build");
+            ds.setUsername(username);
+            debugMapper.insert(ds);
+        }
         else {
             debugMapper.update(ds);
             return true;}
@@ -176,7 +188,9 @@ public class DebugServiceImpl implements DebugService {
         com.harmonycloud.k8s.bean.Service newService = new com.harmonycloud.k8s.bean.Service();
         // ObejectMeta
         // “metedata”，为了防止与内部service重名，所以在name前加.labels若没有传入，则定义other，labels作用一是租户、二是区分类别
-        if(port==null)return ActionReturnUtil.returnError();//需要创建新的service时若未能获取到需要的port，返回失败
+        if(port==null){
+            return ActionReturnUtil.returnError();//需要创建新的service时若未能获取到需要的port，返回失败
+        }
         ObjectMeta meta = new ObjectMeta();
         meta.setName(service);
         Map<String, Object> labels = new HashMap<String, Object>();
@@ -221,8 +235,9 @@ public class DebugServiceImpl implements DebugService {
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
 
         K8SClientResponse response = serviceEntryService.getService(namespace, null, cluster, service);
-        if (!HttpStatusUtil.isSuccessStatus(response.getStatus()))
+        if (!HttpStatusUtil.isSuccessStatus(response.getStatus())){
             return ActionReturnUtil.returnError();
+        }
         com.harmonycloud.k8s.bean.Service service1 = JsonUtil.jsonToPojo(response.getBody(), com.harmonycloud.k8s.bean.Service.class);
 
         String targetPort = String.valueOf(service1.getSpec().getPorts().get(0).getTargetPort());
@@ -263,27 +278,31 @@ public class DebugServiceImpl implements DebugService {
 
         DebugState ds = debugMapper.getStateByUsername(username);
         //用户正在debug才可以结束。
-        if(ds==null||ds.getState().equals("stop"))return false;
-
+        if(ds==null||ds.getState().equals("stop")){
+            return false;
+        }
         //删除Pod
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
         podService.deletePod(namespace, ds.getPodname(), cluster);
 
         //修改service
         K8SClientResponse getResponse = serviceEntryService.getService(namespace, null, cluster, service);
-        if (!HttpStatusUtil.isSuccessStatus(getResponse.getStatus()))
+        if (!HttpStatusUtil.isSuccessStatus(getResponse.getStatus())) {
             return false;
+        }
         com.harmonycloud.k8s.bean.Service newService = JsonUtil.jsonToPojo(getResponse.getBody(), com.harmonycloud.k8s.bean.Service.class);
         Map<String, String> selector = (Map<String, String>) newService.getSpec().getSelector();
         String app = selector.get("app");
         //如果
-        if(app.contains("-debug"))
-        selector.put("app", app.substring(0,app.length()-6));//去掉-debug
+        if(app.contains("-debug")) {
+            selector.put("app", app.substring(0, app.length() - 6));//去掉-debug
+        }
         newService.getSpec().setSelector(selector);
 
         K8SClientResponse updateResponse = serviceEntryService.updateService(namespace, service, newService, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(updateResponse.getStatus()))
+        if (!HttpStatusUtil.isSuccessStatus(updateResponse.getStatus())) {
             return false;
+        }
         ds.setState("stop");
         //修改用户debug状态。
         debugMapper.update(ds);
