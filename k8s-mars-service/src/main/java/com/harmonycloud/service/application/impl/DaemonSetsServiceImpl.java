@@ -440,7 +440,7 @@ public class DaemonSetsServiceImpl implements DaemonSetsService {
         List<Cluster> clusters = roleLocalService.listCurrentUserRoleCluster();
 
         if (CollectionUtils.isEmpty(clusters)) {
-            throw new MarsRuntimeException(ErrorCodeMessage.CLUSTER_NOT_FOUND);
+            return ActionReturnUtil.returnSuccessWithData(Collections.emptyList());
         }
 
         //labels

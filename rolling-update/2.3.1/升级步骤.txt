@@ -1,0 +1,6 @@
+1. 执行数据库脚本db-upgrade-webapi-v2.3.1.sql
+2. oam-config增加配置(oam.properties和oamschedule.properties都要加，host地址要换掉)
+    k8s.mars.address.host=http://10.10.103.60:30088
+    k8s.mars.address.cluster=${k8s.mars.address.host}/#/cluster/clusterDetail
+    k8s.mars.address.component=${k8s.mars.address.host}/#/overview/overviewNormal/
+    k8s.mars.address.service=${k8s.mars.address.host}/#/manage/serviceDetail/

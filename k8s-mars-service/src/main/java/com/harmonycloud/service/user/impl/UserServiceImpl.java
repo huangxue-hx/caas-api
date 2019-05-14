@@ -332,7 +332,7 @@ public class UserServiceImpl implements UserService {
         MimeMessage mimeMessage = MailUtil.getJavaMailSender().createMimeMessage();
         try {
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
-            helper.setFrom("k8sdev@harmonycloud.cn");
+//            helper.setFrom("k8sdev@harmonycloud.cn");    // 使用oam配置的邮件发送人，注释掉这行
             helper.setTo(email);
             helper.setSubject("密码重置通知");
             Map dataModel = new HashMap<>();

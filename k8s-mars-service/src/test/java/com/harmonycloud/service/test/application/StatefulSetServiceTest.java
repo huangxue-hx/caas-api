@@ -49,7 +49,7 @@ public class StatefulSetServiceTest extends BaseTest {
     public void test1CreateStatefulSet() throws Exception {
         LOGGER.info("testCreateStatefulSet.");
         serviceService.deployService(serviceDeployDto, adminUserName);
-        assertNotNull(statefulSetsService.getStatefulSetDetail(namespaceName, name));
+        assertNotNull(statefulSetsService.getStatefulSetDetail(namespaceName, name, null));
     }
 
     @Test
@@ -66,7 +66,7 @@ public class StatefulSetServiceTest extends BaseTest {
     @Test
     public void test3StopStatefulSet() throws Exception {
         statefulSetsService.stopStatefulSet(name, namespaceName, adminUserName);
-        AppDetail detail = statefulSetsService.getStatefulSetDetail(namespaceName, name);
+        AppDetail detail = statefulSetsService.getStatefulSetDetail(namespaceName, name, null);
         assertTrue(Constant.SERVICE_START.equals(detail.getStatus()) || Constant.SERVICE_STARTING.equals(detail.getStatus()));
 
     }
@@ -74,7 +74,7 @@ public class StatefulSetServiceTest extends BaseTest {
     @Test
     public void test4StartStatefulSet() throws Exception {
         statefulSetsService.startStatefulSet(name, namespaceName, adminUserName);
-        AppDetail detail = statefulSetsService.getStatefulSetDetail(namespaceName, name);
+        AppDetail detail = statefulSetsService.getStatefulSetDetail(namespaceName, name, null);
         assertTrue(Constant.SERVICE_STOP.equals(detail.getStatus()) || Constant.SERVICE_STOPPING.equals(detail.getStatus()));
     }
 
@@ -88,7 +88,7 @@ public class StatefulSetServiceTest extends BaseTest {
         deployedServiceNamesDto.setServiceList(Arrays.asList(serviceNameNamespace));
         serviceService.deleteDeployedService(deployedServiceNamesDto, adminUserName);
         try {
-            statefulSetsService.getStatefulSetDetail(namespaceName, name);
+            statefulSetsService.getStatefulSetDetail(namespaceName, name, null);
             Assert.fail();
         }catch(MarsRuntimeException e){
             assertEquals(ErrorCodeMessage.DEPLOYMENT_GET_FAILURE,e.getErrorCode());

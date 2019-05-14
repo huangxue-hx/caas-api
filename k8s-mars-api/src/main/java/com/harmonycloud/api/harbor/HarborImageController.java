@@ -1,10 +1,11 @@
 package com.harmonycloud.api.harbor;
 
-import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.platform.service.harbor.HarborSecurityService;
+import com.harmonycloud.service.platform.service.harbor.HarborService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiImplicitParams;
@@ -14,12 +15,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.service.platform.service.harbor.HarborService;
 import org.springframework.web.multipart.MultipartFile;
+
 import javax.servlet.http.HttpServletResponse;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.URLDecoder;
 
 /**
@@ -86,13 +84,15 @@ public class HarborImageController {
 	@ApiOperation(value = "查询镜像信息", notes = "查询某个镜像")
 	@ApiImplicitParams({
 			@ApiImplicitParam(name = "repositoryId", value = "镜像仓库id", paramType = "path",dataType = "Integer"),
-			@ApiImplicitParam(name = "imageName", value = "镜像名称", paramType = "path",dataType = "String")})
+			@ApiImplicitParam(name = "imageName", value = "镜像名称", paramType = "path",dataType = "String"),
+			@ApiImplicitParam(name = "needSize", value = "是否需要返回镜像大小(默认false)", paramType = "path",dataType = "Boolean")})
 	@ResponseBody
 	@RequestMapping(value = "/{repositoryId}/images/{imageName:.+}", method = RequestMethod.GET)
 	public ActionReturnUtil getImage(@PathVariable(value = "repositoryId") Integer repositoryId,
-									 @PathVariable(value="imageName") String imageName) throws Exception{
+									 @PathVariable(value="imageName") String imageName,
+									 @RequestParam(value = "needSize", defaultValue = "false") boolean needSize) throws Exception{
 		String image = URLDecoder.decode(imageName,"UTF-8");
-		return harborProjectService.getImage(repositoryId, image);
+		return harborProjectService.getImage(repositoryId, image, needSize);
 	}
 
 	/**
@@ -379,5 +379,74 @@ public class HarborImageController {
 		return harborProjectService.getImgLabel(harborHost, repoName, tag);
 	}
 
+	/**
+	 * 查询镜像版本描述
+	 *
+	 * @return
+	 * @throws Exception
+	 */
+	@ApiOperation(value = "查询镜像版本描述", notes = "查询某个镜像仓库里某个镜像的某个版本的描述")
+	@ApiImplicitParams({
+			@ApiImplicitParam(name = "repositoryId", value = "镜像仓库id", paramType = "path",dataType = "Integer"),
+			@ApiImplicitParam(name = "imageName", value = "镜像名称", paramType = "path",dataType = "String"),
+			@ApiImplicitParam(name = "tagName", value = "镜像版本名称", paramType = "path",dataType = "String")})
+	@RequestMapping(value = "/{repositoryId}/images/{imageName:.+}/tags/{tagName}/desc", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil getImageTagDesc(@PathVariable(value = "repositoryId") Integer repositoryId,
+											@PathVariable(value = "imageName") String imageName,
+											@PathVariable(value = "tagName") String tagName) throws Exception {
+		String image = URLDecoder.decode(imageName,"UTF-8");
+		return harborProjectService.getImageTagDesc(repositoryId, image, tagName);
+	}
+
+	/**
+	 * 保存镜像版本描述
+	 *
+	 * @return
+	 * @throws Exception
+	 */
+	@ApiOperation(value = "保存镜像版本描述", notes = "保存某个镜像仓库里某个镜像的某个版本的描述")
+	@ApiImplicitParams({
+			@ApiImplicitParam(name = "repositoryId", value = "镜像仓库id", paramType = "path",dataType = "Integer"),
+			@ApiImplicitParam(name = "imageName", value = "镜像名称", paramType = "path",dataType = "String"),
+			@ApiImplicitParam(name = "tagName", value = "镜像版本名称", paramType = "path",dataType = "String"),
+			@ApiImplicitParam(name = "tagDesc", value = "镜像版本描述", paramType = "query",dataType = "String")})
+	@RequestMapping(value = "/{repositoryId}/images/{imageName:.+}/tags/{tagName}/desc", method = RequestMethod.POST)
+	@ResponseBody
+	public ActionReturnUtil saveImageTagDesc(@PathVariable(value = "repositoryId") Integer repositoryId,
+											 @PathVariable(value="imageName") String imageName,
+											 @PathVariable(value="tagName") String tagName,
+											 @RequestParam(value = "tagDesc") String tagDesc) throws Exception {
+		String image = URLDecoder.decode(imageName,"UTF-8");
+		return harborProjectService.saveImageTagDesc(repositoryId, image, tagName, tagDesc);
+	}
+
+	/**
+	 * 镜像版本的服务列表
+	 *
+	 * @return
+	 * @throws Exception
+	 */
+	@ApiOperation(value = "镜像版本的服务列表", notes = "使用某个镜像某个版本的服务列表")
+	@ApiImplicitParams({
+			@ApiImplicitParam(name = "projectId", value = "租户项目id", paramType = "path",dataType = "Integer"),
+			@ApiImplicitParam(name = "imageName", value = "镜像名称", paramType = "path",dataType = "String"),
+			@ApiImplicitParam(name = "tagName", value = "镜像版本名称", paramType = "path",dataType = "String"),
+			@ApiImplicitParam(name = "fullImageName", value = "镜像全称", paramType = "query",dataType = "String"),
+			@ApiImplicitParam(name = "namespace", value = "分区名称", paramType = "query",dataType = "String"),
+			@ApiImplicitParam(name = "clusterId", value = "集群id", paramType = "query",dataType = "String")})
+	@RequestMapping(value = "/{repositoryId}/images/{imageName:.+}/tags/{tagName}/deploys", method = RequestMethod.GET)
+	@ResponseBody
+	public ActionReturnUtil deploys(@PathVariable(value = "projectId") String projectId,
+									@PathVariable(value="imageName") String imageName,
+									@PathVariable(value="tagName") String tagName,
+									@RequestParam(value = "fullImageName") String fullImageName,
+									@RequestParam(value = "namespace") String namespace,
+									@RequestParam(value = "clusterId", required = false) String clusterId,
+                                    @RequestParam(value = "deployName", required = false) String deployName) throws Exception {
+        String image = URLDecoder.decode(imageName, "UTF-8");
+        String fullImage = URLDecoder.decode(fullImageName, "UTF-8");
+        return harborProjectService.getDeploysByImage(projectId, fullImage, image, tagName, namespace, clusterId, deployName);
+	}
 
 }

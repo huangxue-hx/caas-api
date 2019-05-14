@@ -117,14 +117,15 @@ public class DeploymentController {
 	 */
 	@ResponseBody
 	@RequestMapping(value = "/{deployName}", method = RequestMethod.GET)
-	public ActionReturnUtil deploymentDetail(@PathVariable(value = "deployName") String name,
-			@RequestParam(value = "namespace", required = true) String namespace) throws Exception {
+	public ActionReturnUtil deploymentDetail(@PathVariable(value = "projectId") String projectId,
+											 @PathVariable(value = "deployName") String name,
+											 @RequestParam(value = "namespace") String namespace) throws Exception {
 
 		String userName = (String) session.getAttribute("username");
 		if (userName == null) {
 			throw new K8sAuthException(Constant.HTTP_401);
 		}
-		return dpService.getDeploymentDetail(namespace, name,true);
+		return dpService.getDeploymentDetail(namespace, name, true, projectId);
 
 	}
 

@@ -10,6 +10,7 @@ import com.harmonycloud.dao.istio.RuleDetailMapper;
 import com.harmonycloud.dao.istio.RuleOverviewMapper;
 import com.harmonycloud.dao.istio.bean.IstioGlobalConfigure;
 import com.harmonycloud.dao.istio.bean.RuleOverview;
+import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dto.cluster.IstioClusterDto;
 import com.harmonycloud.k8s.bean.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -155,7 +156,13 @@ public class IstioCommonServiceImpl implements IstioCommonService {
             }
             NamespaceList namespaceList = JsonUtil.jsonToPojo(response.getBody(), NamespaceList.class);
             if (CollectionUtils.isNotEmpty(namespaceList.getItems())) {
-                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.EXISTS_ISTIO_AUTOMATIC);
+                List<NamespaceLocal> namespaceLocalList = namespaceLocalService.getNamespaceListByClusterId(clusterId);
+                Map<String, NamespaceLocal> namespaceLocalMap = namespaceLocalList.stream().collect(Collectors.toMap(NamespaceLocal::getNamespaceName, ns -> ns));
+                for (Namespace item : namespaceList.getItems()) {
+                    if (namespaceLocalMap.containsKey(item.getMetadata().getName())) {
+                        return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.EXISTS_ISTIO_AUTOMATIC);
+                    }
+                }
             }
             //将数据库的全局开关更新为关闭
             IstioPolicyUtil.updateGlobalStatus(clusterId, CommonConstant.CLOSE_GLOBAL_STATUS, userName, istioGlobalConfigureMapper);

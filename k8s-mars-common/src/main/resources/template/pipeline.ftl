@@ -37,7 +37,7 @@ podTemplate(
     inheritFrom: '',
     label: "build-${r'${label}'}",
     name: "build-${r'${label}'}",
-    nodeSelector: 'HarmonyCloud_Status=E',
+    nodeSelector: '${nodeSelector}',
     serviceAccount: '',
     volumes: [
     <#if imageBuildStages?size !=0>

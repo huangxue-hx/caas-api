@@ -142,6 +142,7 @@ public class Constant {
 	public final static String TYPE_JOB = "jobs";
 	public final static String TYPE_DEPLOYMENT = "app";
     public final static String TYPE_STATEFULSET = "harmonycloud.cn/statefulset";
+    public final static String TYPE_PROJECT_ID = "harmonycloud.cn/projectId";
     public final static String TYPE_DATACENTER = "dataCenter";
 	public final static String TOP_DATACENTER = "cluster-top";
     public final static String TYPE_CONTROLLERREVISIONNAME = "controller-revision-hash";

@@ -590,3 +590,8 @@ MODIFY COLUMN `configuration`  mediumtext CHARACTER SET utf8 COLLATE utf8_genera
 ALTER TABLE `role_new`
 MODIFY COLUMN `name`  varchar(128) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '角色名称' AFTER `id`,
 MODIFY COLUMN `nick_name`  varchar(128) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '描述' AFTER `name`;
+
+ALTER TABLE project_ip_pool MODIFY `cidr` varchar(20) DEFAULT NULL COMMENT 'CIDR';
+ALTER TABLE project_ip_pool MODIFY `gateway` int(11) DEFAULT NULL COMMENT '网关';
+
+INSERT INTO `k8s_auth_server`.`url_dic` ( `url`, `module`, `resource`) VALUES ( '/tenants/*/projects/*/repositories/*/images/*/tags/*/syncImage', 'delivery', 'image');

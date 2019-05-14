@@ -5,6 +5,7 @@ import com.google.gson.reflect.TypeToken;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.enumm.NodeTypeEnum;
 import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateStyle;
@@ -49,9 +50,7 @@ import java.io.InputStream;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.harmonycloud.service.platform.constant.Constant.LABEL_AUTOSCALE;
-import static com.harmonycloud.service.platform.constant.Constant.LABEL_INGRESS_SERVICE;
-import static com.harmonycloud.service.platform.constant.Constant.NODESELECTOR_LABELS_PRE;
+import static com.harmonycloud.service.platform.constant.Constant.*;
 
 /**
  * @author xc
@@ -77,6 +76,8 @@ public class StorageClassServiceImpl implements StorageClassService {
     private static final int NFS_PROVISIONER_USED_TIME = 180;
 
     private static final String IMAGE_NAME = "provisionerImageName";
+
+    private static final String NODE_SELECTOR_TYPE = "node-selector-node-type";
 
     private static final String CEPH_RBD_IMAGE_NAME = "cephRBDImageName";
 
@@ -149,16 +150,20 @@ public class StorageClassServiceImpl implements StorageClassService {
             }
             List<SystemConfig> systemConfigList = systemConfigService.findByConfigType(NFS_PROVISIONER);
             String provisionerImage = "";
+            String nodeSelector = NodeTypeEnum.SYSTEM.getLabelValue();
             for (SystemConfig systemConfig : systemConfigList) {
                 if (IMAGE_NAME.equals(systemConfig.getConfigName())) {
                     provisionerImage = cluster.getHarborServer().getHarborAddress() + systemConfig.getConfigValue();
+                }
+                if (NODE_SELECTOR_TYPE.equals(systemConfig.getConfigName())) {
+                    nodeSelector = systemConfig.getConfigValue();
                 }
             }
             if (StringUtils.isBlank(provisionerImage)) {
                 throw new MarsRuntimeException(ErrorCodeMessage.NFS_PROVISIONER_CONFIG_ERROR);
             }
             //K8S Storage Class不支持NFS存储，这里需创建支持NFS的插件
-            Map<String, Object> nfsProvisionerMap = buildNfsProvisionerMap(storageClass.getName(), nfsAddr, nfsPath, provisionerImage);
+            Map<String, Object> nfsProvisionerMap = buildNfsProvisionerMap(storageClass.getName(), nfsAddr, nfsPath, provisionerImage, nodeSelector);
             ((Map<String, Object>)nfsProvisionerMap.get("spec")).put("replicas", 1);
             String createTime = Long.toString((new Date()).getTime());
             ((Map<String, Object>)((Map<String, Object>)nfsProvisionerMap.get("metadata")).get("annotations")).put("createTime", createTime);
@@ -237,12 +242,12 @@ public class StorageClassServiceImpl implements StorageClassService {
 
 }
 
-    private Map<String, Object> buildNfsProvisionerMap(String scName, String nfsAddr, String nfsPath, String provisionerImage) throws Exception {
+    private Map<String, Object> buildNfsProvisionerMap(String scName, String nfsAddr, String nfsPath, String provisionerImage, String nodeSelector) throws Exception {
         Map<String, Object> jsonMap = yamlToMap(NFS_PROVISIONER + "/deployment.yaml");
         Gson gson = new Gson();
         String jsonString = gson.toJson(jsonMap);
         String nfsProvisionerString = jsonString.replaceAll("nfsAddr", nfsAddr).replaceAll("nfsPath", nfsPath)
-                .replaceAll("scName", scName).replace("imageName", provisionerImage);
+                .replaceAll("scName", scName).replace("imageName", provisionerImage).replace("nodeSelectorNodeType", nodeSelector);
         return gson.fromJson(nfsProvisionerString, new TypeToken<Map<String, Object>>(){}.getType());
     }
 
