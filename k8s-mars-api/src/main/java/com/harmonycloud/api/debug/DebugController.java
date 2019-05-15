@@ -3,33 +3,21 @@ package com.harmonycloud.api.debug;
 import com.harmonycloud.common.util.ZipUtil;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.service.debug.DebugService;
-import com.harmonycloud.service.platform.socketio.test.App;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Controller;
-import org.springframework.util.ResourceUtils;
 import org.springframework.web.bind.annotation.*;
-import retrofit2.http.Url;
 
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.net.URL;
 import java.util.List;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 /**
  * Created by fengjinliu on 2019/5/5.
@@ -44,6 +32,9 @@ public class DebugController {
 
     @Autowired
     private DebugService debugService;
+
+    @Value("#{propertiesReader['upload.path']}")
+    private String uploadPath;
     /*
     **建立debug环境。传入参数为分区名称，租户名称，服务名称
      */
@@ -63,30 +54,10 @@ public class DebugController {
     @ResponseStatus(value= HttpStatus.OK)
     @RequestMapping(value="/namespaces/{namespace}/services/{service}/debug/download/{system}",method = RequestMethod.GET)
     @ResponseBody
-    public void downloadCli(@PathVariable(value="system")String system, HttpServletResponse response) throws Exception{
+    public void downloadCli(@PathVariable(value="system")String system,@PathVariable(value="namespace")String namespace, HttpServletResponse response) throws Exception{
         // 1.根据分区所在的集群拼装config文件
         // 2.提供下载
-
-        String systemFile="";
-        if(system.equals("windows")) {
-            systemFile="hcdb.exe";
-        }
-        else {
-            systemFile="hcdb";
-        }
-
-        List<File> fileList=new ArrayList<>();
-
-        //从build完的target/classes下查找文件。一个为config。一个为对应系统的文件
-        URL sysurl = DebugController.class.getClassLoader().getResource("hcdb/"+system+"/"+systemFile);
-        File sys = new File(sysurl.getFile());
-
-        URL configurl=DebugController.class.getClassLoader().getResource("hcdb/config");
-        File config =new File(configurl.getFile());
-
-        fileList.add(config);
-        fileList.add(sys);
-
+        List<File> fileList=debugService.getConfig(namespace,system);
         OutputStream fo = null;
         try {
             fo = new BufferedOutputStream(response.getOutputStream());

@@ -23,4 +23,6 @@ public interface DebugService {
     boolean end(String namespace, String username, String service,String port) throws Exception;
 
     DebugState checkService(String namespace,String service)throws Exception;
+
+    List<File> getConfig(String namespace,String system)throws Exception;
 }

@@ -1,10 +1,7 @@
 package com.harmonycloud.service.debug.Impl;
 
 import com.harmonycloud.common.Constant.CommonConstant;
-import com.harmonycloud.common.util.ActionReturnUtil;
-import com.harmonycloud.common.util.CollectionUtil;
-import com.harmonycloud.common.util.HttpStatusUtil;
-import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.debug.DebugMapper;
 import com.harmonycloud.dao.debug.bean.DebugState;
 import com.harmonycloud.dto.application.istio.ServiceEntryDto;
@@ -16,6 +13,9 @@ import com.harmonycloud.k8s.service.PodService;
 import com.harmonycloud.k8s.service.ServicesService;
 import com.harmonycloud.k8s.service.istio.ServiceEntryServices;
 import com.harmonycloud.k8s.util.K8SClientResponse;
+import com.harmonycloud.service.application.ConfigMapService;
+import com.harmonycloud.service.application.FileUploadToContainerService;
+import com.harmonycloud.service.application.impl.FileUploadToContainerServiceImpl;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.debug.DebugService;
 import com.harmonycloud.service.istio.IstioServiceEntryService;
@@ -23,16 +23,17 @@ import com.harmonycloud.service.platform.socketio.test.App;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import net.sf.json.JSONObject;
 import org.bouncycastle.asn1.cms.MetaData;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;
 
 import java.beans.IntrospectionException;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.InputStream;
+import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.util.*;
@@ -44,6 +45,8 @@ import static com.harmonycloud.service.platform.constant.Constant.LABEL_PROJECT_
  */
 @Service
 public class DebugServiceImpl implements DebugService {
+
+    private final static Logger logger= LoggerFactory.getLogger(DebugServiceImpl.class);
 
     @Autowired
     private DebugMapper debugMapper;
@@ -61,7 +64,10 @@ public class DebugServiceImpl implements DebugService {
     private ServicesService servicesService;
 
     @Autowired
-    private ClusterService clusterService;
+    private ConfigMapService configMapService;
+
+    @Value("#{propertiesReader['upload.path']}")
+    private String uploadPath;
 
     @Autowired
     private ServicesService sService;
@@ -125,6 +131,11 @@ public class DebugServiceImpl implements DebugService {
             debugMapper.insert(ds);
         }
         else {
+            ds.setNamespace(namespace);
+            ds.setPodname(pod.getMetadata().getName());
+            ds.setPort(port);
+            ds.setService(service);
+            ds.setUsername(username);
             ds.setState("build");
             debugMapper.update(ds);
             return true;}
@@ -253,10 +264,18 @@ public class DebugServiceImpl implements DebugService {
 
     @Override
     public Boolean checkLink(String namespace, String username, String service) throws Exception {
-        //等待接口ing。
-        DebugState ds=debugMapper.getStateByUsername(username);
-        ds.setState("debug");
-        debugMapper.update(ds);
+
+        //DebugState ds=debugMapper.getStateByUsername(username);
+        //ds.setState("debug");
+        //debugMapper.update(ds);
+        Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
+        K8SClientResponse getResponseAgain = serviceEntryService.getService(namespace, null, cluster, service);
+        if (!HttpStatusUtil.isSuccessStatus(getResponseAgain.getStatus())){
+            return false;
+        }
+        com.harmonycloud.k8s.bean.Service newService = JsonUtil.jsonToPojo(getResponseAgain.getBody(), com.harmonycloud.k8s.bean.Service.class);
+        String port = String.valueOf(newService.getSpec().getPorts().get(0).getPort());
+        ActionReturnUtil result = HttpsClientUtil.httpGetRequest("http://"+service+"."+namespace+":"+port,null,null);
         return true;
     }
 
@@ -310,4 +329,42 @@ public class DebugServiceImpl implements DebugService {
         return true;
     }
 
+    @Override
+    public List<File> getConfig(String namespace,String system)throws Exception{
+        List<File> fileList=new ArrayList<>();
+        String systemFile="";
+        if(system.equals("windows")) {
+            systemFile="hcdb.exe";
+        }
+        else {
+            systemFile="hcdb";
+        }
+        Cluster cluster=namespaceLocalService.getClusterByNamespaceName(namespace);
+        ConfigMap configMap=new ConfigMap();
+        ActionReturnUtil result=configMapService.getConfigMapByName("kube-system","admin-conf",HTTPMethod.GET,cluster);
+        if(result.getData()!=null){
+            configMap=(ConfigMap)result.getData();
+        }
+        String dir=uploadPath+"admin-config/"+cluster.getId();
+        File configDir=new File(dir);
+        if(!configDir.exists()){
+            configDir.mkdir();
+        }
+        File newConfigFile=new File(dir+"/config");
+        if(!newConfigFile.exists()){
+            newConfigFile.createNewFile();
+            Map<String,Object> config=(Map<String,Object>)(configMap.getData());
+            Object data=config.get("admin.conf");
+            FileWriter fileWriter = new FileWriter(newConfigFile,false);
+            fileWriter.write(data.toString());
+            fileWriter.flush();
+            fileWriter.close();
+        }
+        URL sysurl = DebugServiceImpl.class.getClassLoader().getResource("hcdb/"+system+"/"+systemFile);
+        File sys = new File(sysurl.getFile());
+        fileList.add(newConfigFile);
+        fileList.add(sys);
+
+        return fileList;
+    }
 }
