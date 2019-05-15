@@ -125,6 +125,7 @@ public class DebugServiceImpl implements DebugService {
             debugMapper.insert(ds);
         }
         else {
+            ds.setState("build");
             debugMapper.update(ds);
             return true;}
         return true;
