@@ -276,7 +276,7 @@ public class DebugServiceImpl implements DebugService {
         com.harmonycloud.k8s.bean.Service newService = JsonUtil.jsonToPojo(getResponseAgain.getBody(), com.harmonycloud.k8s.bean.Service.class);
         String port = String.valueOf(newService.getSpec().getPorts().get(0).getPort());
         HttpClientResponse result = HttpsClientUtil.doGet("http://"+service+"."+namespace+":"+port,null,null);
-        logger.info(result.toString());
+        logger.info(String.valueOf(result.getStatus()));
         return true;
     }
 
