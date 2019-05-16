@@ -153,6 +153,7 @@ public class DebugServiceImpl implements DebugService {
         Map<String,Object> map=new HashMap<>();
         map.put("app",service+"-debug");
         map.put("debug","proxy");
+        map.put("harmonycloud.cn/bluegreen",service+"-1");
         metadata.setLabels(map);
         pod.setMetadata(metadata);
         //spec
@@ -214,6 +215,7 @@ public class DebugServiceImpl implements DebugService {
         serviceSpec.setType("ClusterIP");
         Map<String,Object> rawSelector =new HashMap<>();
         rawSelector.put("app",service);
+        rawSelector.put("harmonycloud.cn/bluegreen",service+"-1");
         serviceSpec.setSelector(rawSelector);
 
         List<ServicePort> ports = new ArrayList<ServicePort>();
@@ -265,9 +267,6 @@ public class DebugServiceImpl implements DebugService {
     @Override
     public Boolean checkLink(String namespace, String username, String service) throws Exception {
 
-        DebugState ds=debugMapper.getStateByUsername(username);
-        ds.setState("debug");
-        debugMapper.update(ds);
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
         K8SClientResponse getResponseAgain = serviceEntryService.getService(namespace, null, cluster, service);
         if (!HttpStatusUtil.isSuccessStatus(getResponseAgain.getStatus())){
@@ -275,9 +274,19 @@ public class DebugServiceImpl implements DebugService {
         }
         com.harmonycloud.k8s.bean.Service newService = JsonUtil.jsonToPojo(getResponseAgain.getBody(), com.harmonycloud.k8s.bean.Service.class);
         String port = String.valueOf(newService.getSpec().getPorts().get(0).getPort());
+        Map<String,Object> selector=(Map)newService.getSpec().getSelector();
+        if(!selector.get("app").toString().contains("-debug")){
+            return false;
+        }
         HttpClientResponse result = HttpsClientUtil.doGet("http://"+service+"."+namespace+":"+port,null,null);
         logger.info(String.valueOf(result.getStatus()));
-        return true;
+        if(String.valueOf(result.getStatus())!=null){
+            DebugState ds=debugMapper.getStateByUsername(username);
+            ds.setState("debug");
+            debugMapper.update(ds);
+            return true;
+        }
+        return false;
     }
 
     @Override
