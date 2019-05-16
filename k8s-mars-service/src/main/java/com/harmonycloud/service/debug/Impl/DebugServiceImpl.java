@@ -275,7 +275,7 @@ public class DebugServiceImpl implements DebugService {
         }
         com.harmonycloud.k8s.bean.Service newService = JsonUtil.jsonToPojo(getResponseAgain.getBody(), com.harmonycloud.k8s.bean.Service.class);
         String port = String.valueOf(newService.getSpec().getPorts().get(0).getPort());
-        ActionReturnUtil result = HttpsClientUtil.httpGetRequest("http://"+service+"."+namespace+":"+port,null,null);
+        HttpClientResponse result = HttpsClientUtil.doGet("http://"+service+"."+namespace+":"+port,null,null);
         logger.info(result.toString());
         return true;
     }
@@ -352,6 +352,7 @@ public class DebugServiceImpl implements DebugService {
             configDir.mkdir();
         }
         File newConfigFile=new File(dir+"/config");
+        logger.info(dir+"/config");
         if(!newConfigFile.exists()){
             newConfigFile.createNewFile();
             Map<String,Object> config=(Map<String,Object>)(configMap.getData());

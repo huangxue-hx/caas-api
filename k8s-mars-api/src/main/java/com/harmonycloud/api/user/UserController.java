@@ -11,11 +11,21 @@ import javax.servlet.http.HttpSession;
 
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.Tenant;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dto.tenant.show.NamespaceShowDto;
 import com.harmonycloud.dto.user.UserQueryDto;
 import com.harmonycloud.k8s.bean.Namespace;
+import com.harmonycloud.k8s.bean.NamespaceList;
+import com.harmonycloud.k8s.bean.Service;
+import com.harmonycloud.k8s.bean.ServiceList;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.client.K8SClient;
+import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.service.ServicesService;
+import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.cluster.ClusterService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
@@ -67,6 +77,12 @@ public class UserController {
 
     @Autowired
     private NamespaceService namespaceService;
+
+    @Autowired
+    private NamespaceLocalService namespaceLocalService;
+
+    @Autowired
+    private ServicesService servicesService;
 
     /**
      * 是否为系统管理员
@@ -582,15 +598,29 @@ public class UserController {
     public ActionReturnUtil getTenantsByUsername() throws Exception {
         String username=session.getAttribute("username").toString();
         List<TenantBinding> tenants=tenantService.listTenantsByUserName(username);
-        List<NamespaceShowDto> finalNamespaces=new ArrayList<>();
-        List<NamespaceShowDto> namespaces=new ArrayList<>();
+        List<String> finalNamespaces=new ArrayList<>();
+        NamespaceList namespaces=new NamespaceList();
         for (TenantBinding tb:tenants) {
-            namespaces=(List<NamespaceShowDto>)namespaceService.getNamespaceList(tb.getTenantId()).getData();
+            namespaces= (NamespaceList)namespaceService.getSimpleNamespaceListByTenant(tb.getTenantId()).getData();
             if(namespaces==null)continue;
-            for (NamespaceShowDto n:namespaces) {
-                finalNamespaces.add(n);
+            for (Namespace n:namespaces.getItems()) {
+                finalNamespaces.add(n.getMetadata().getName());
             }
         }
         return ActionReturnUtil.returnSuccessWithData(finalNamespaces);
+    }
+
+    @RequestMapping(value="/namespaces/{namespace}/services",method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getServicesByNamespaces(@PathVariable(value="namespace")String namespace)throws Exception{
+        Cluster cluster=namespaceLocalService.getClusterByNamespaceName(namespace);
+        K8SClientResponse response=servicesService.doServiceByNamespace(namespace,null,null,HTTPMethod.GET,cluster);
+        ServiceList serviceList= JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
+        List<String> serviceNameList=new ArrayList<>();
+        if(serviceList==null)return ActionReturnUtil.returnSuccessWithData(null);
+        for(Service service : serviceList.getItems()){
+            serviceNameList.add(service.getMetadata().getName());
+        }
+        return ActionReturnUtil.returnSuccessWithData(serviceNameList);
     }
 }
