@@ -349,7 +349,7 @@ public class DebugServiceImpl implements DebugService {
         String dir=uploadPath+"admin-config/"+cluster.getId();
         File configDir=new File(dir);
         if(!configDir.exists()){
-            configDir.mkdir();
+            configDir.mkdirs();
         }
         File newConfigFile=new File(dir+"/config");
         logger.info(dir+"/config");
