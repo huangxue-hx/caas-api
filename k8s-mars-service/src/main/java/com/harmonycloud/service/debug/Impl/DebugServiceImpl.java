@@ -265,9 +265,9 @@ public class DebugServiceImpl implements DebugService {
     @Override
     public Boolean checkLink(String namespace, String username, String service) throws Exception {
 
-        //DebugState ds=debugMapper.getStateByUsername(username);
-        //ds.setState("debug");
-        //debugMapper.update(ds);
+        DebugState ds=debugMapper.getStateByUsername(username);
+        ds.setState("debug");
+        debugMapper.update(ds);
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
         K8SClientResponse getResponseAgain = serviceEntryService.getService(namespace, null, cluster, service);
         if (!HttpStatusUtil.isSuccessStatus(getResponseAgain.getStatus())){
@@ -276,6 +276,7 @@ public class DebugServiceImpl implements DebugService {
         com.harmonycloud.k8s.bean.Service newService = JsonUtil.jsonToPojo(getResponseAgain.getBody(), com.harmonycloud.k8s.bean.Service.class);
         String port = String.valueOf(newService.getSpec().getPorts().get(0).getPort());
         ActionReturnUtil result = HttpsClientUtil.httpGetRequest("http://"+service+"."+namespace+":"+port,null,null);
+        logger.info(result.toString());
         return true;
     }
 
