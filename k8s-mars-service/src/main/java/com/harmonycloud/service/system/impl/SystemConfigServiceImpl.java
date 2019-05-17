@@ -331,6 +331,10 @@ public class SystemConfigServiceImpl implements SystemConfigService {
         if(ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == FLAG_TRUE){
             return false;
         }
+        CrowdConfigDto crowdConfigDto = this.findCrowdConfig();
+        if(crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == FLAG_TRUE){
+            return false;
+        }
         return true;
     }
 
