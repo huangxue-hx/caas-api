@@ -80,10 +80,11 @@ public class StatefulSetController {
             @ApiImplicitParam(name = "namespace", value = "分区", paramType = "query", dataType = "String")})
     @ResponseBody
     @RequestMapping(value = "/{statefulSetName}", method = RequestMethod.GET)
-    public ActionReturnUtil statefulSetDetail(@PathVariable(value = "statefulSetName") String name,
-                                             @RequestParam(value = "namespace", required = true) String namespace) throws Exception {
+    public ActionReturnUtil statefulSetDetail(@PathVariable(value = "projectId") String projectId,
+                                              @PathVariable(value = "statefulSetName") String name,
+                                              @RequestParam(value = "namespace") String namespace) throws Exception {
 
-        return ActionReturnUtil.returnSuccessWithData(statefulSetsService.getStatefulSetDetail(namespace, name));
+        return ActionReturnUtil.returnSuccessWithData(statefulSetsService.getStatefulSetDetail(namespace, name, projectId));
 
     }
 

@@ -5,6 +5,7 @@ import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.system.SystemConfigMapper;
 import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dto.cicd.CicdConfigDto;
+import com.harmonycloud.dto.user.CrowdConfigDto;
 import com.harmonycloud.dto.user.LdapConfigDto;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.util.SsoClient;
@@ -169,6 +170,117 @@ public class SystemConfigServiceImpl implements SystemConfigService {
         }
 
 
+    }
+
+    //addCrowd
+    @Override
+    public void addCrowdConfig(CrowdConfigDto crowdConfigDto) {
+        String username = (String) session.getAttribute("username");
+
+        SystemConfig crowdAddressConfig = this.systemConfigMapper.findByConfigName(CommonConstant.CROWD_ADDRESS);
+        boolean crowdAddressBool = false;
+        if(crowdAddressConfig == null ){
+            crowdAddressConfig = new SystemConfig();
+            crowdAddressConfig.setCreateTime(new Date());
+            crowdAddressConfig.setCreateUser(username);
+            crowdAddressBool=true;
+        }
+        crowdAddressConfig.setConfigName(CommonConstant.CROWD_ADDRESS);
+        crowdAddressConfig.setConfigValue(crowdConfigDto.getAddress());
+        crowdAddressConfig.setUpdateTime(new Date());
+        crowdAddressConfig.setUpdateUser(username);
+        crowdAddressConfig.setConfigType(CommonConstant.CONFIG_TYPE_CROWD);
+        if(crowdAddressBool){
+            this.systemConfigMapper.addSystemConfig(crowdAddressConfig);
+        }else {
+            this.systemConfigMapper.updateSystemConfig(crowdAddressConfig);
+        }
+
+        SystemConfig usernameConfig  = this.systemConfigMapper.findByConfigName(CommonConstant.CROWD_USERNAME);
+        boolean usernameBool = false;
+        if(usernameConfig == null) {
+            usernameConfig = new SystemConfig();
+            usernameConfig.setCreateTime(new Date());
+            usernameConfig.setCreateUser(username);
+            usernameBool = true;
+        }
+        usernameConfig.setConfigName(CommonConstant.CROWD_USERNAME);
+        usernameConfig.setConfigValue(crowdConfigDto.getUsername());
+        usernameConfig.setUpdateTime(new Date());
+        usernameConfig.setUpdateUser(username);
+        usernameConfig.setConfigType(CommonConstant.CONFIG_TYPE_CROWD);
+        if(usernameBool) {
+            this.systemConfigMapper.addSystemConfig(usernameConfig);
+        } else {
+            this.systemConfigMapper.updateSystemConfig(usernameConfig);
+        }
+
+        SystemConfig passwordConfig  = this.systemConfigMapper.findByConfigName(CommonConstant.CROWD_PASSWORD);
+        boolean passwordBool = false;
+        if(passwordConfig == null) {
+            passwordConfig = new SystemConfig();
+            passwordConfig.setCreateTime(new Date());
+            passwordConfig.setCreateUser(username);
+            passwordBool = true;
+        }
+        passwordConfig.setConfigName(CommonConstant.CROWD_PASSWORD);
+        passwordConfig.setConfigValue(crowdConfigDto.getPassword());
+        passwordConfig.setUpdateTime(new Date());
+        passwordConfig.setUpdateUser(username);
+        passwordConfig.setConfigType(CommonConstant.CONFIG_TYPE_CROWD);
+        if(passwordBool) {
+            this.systemConfigMapper.addSystemConfig(passwordConfig);
+        } else {
+            this.systemConfigMapper.updateSystemConfig(passwordConfig);
+        }
+
+        SystemConfig isAccessConfig  = this.systemConfigMapper.findByConfigName(CommonConstant.CROWD_ISACCESS);
+        boolean isAccessBool = false;
+        if(isAccessConfig == null) {
+            isAccessConfig = new SystemConfig();
+            isAccessConfig.setCreateTime(new Date());
+            isAccessConfig.setCreateUser(username);
+            isAccessBool = true;
+        }
+        isAccessConfig.setConfigName(CommonConstant.CROWD_ISACCESS);
+        isAccessConfig.setConfigValue(crowdConfigDto.getIsAccess()+"");
+        isAccessConfig.setUpdateTime(new Date());
+        isAccessConfig.setUpdateUser(username);
+        isAccessConfig.setConfigType(CommonConstant.CONFIG_TYPE_CROWD);
+        if(isAccessBool) {
+            this.systemConfigMapper.addSystemConfig(isAccessConfig);
+        } else {
+            this.systemConfigMapper.updateSystemConfig(isAccessConfig);
+        }
+
+
+    }
+
+    //findCrowd
+    @Override
+    public CrowdConfigDto findCrowdConfig() {
+        CrowdConfigDto crowdConfigDto = new CrowdConfigDto();
+        List<SystemConfig> list = this.systemConfigMapper.findByConfigType(CommonConstant.CONFIG_TYPE_CROWD);
+        if(list != null && list.size() > 0) {
+            for(SystemConfig sc : list) {
+                switch (sc.getConfigName()){
+                    case CommonConstant.CROWD_ADDRESS:
+                        crowdConfigDto.setAddress(sc.getConfigValue());
+                        break;
+                    case CommonConstant.CROWD_USERNAME:
+                        crowdConfigDto.setUsername(sc.getConfigValue());
+                        break;
+                    case CommonConstant.CROWD_PASSWORD:
+                        crowdConfigDto.setPassword(sc.getConfigValue());
+                        break;
+                    case CommonConstant.CROWD_ISACCESS:
+                        crowdConfigDto.setIsAccess(Integer.parseInt(sc.getConfigValue()));
+                    default:
+                        break;
+                }
+            }
+        }
+        return crowdConfigDto;
     }
 
     @Override

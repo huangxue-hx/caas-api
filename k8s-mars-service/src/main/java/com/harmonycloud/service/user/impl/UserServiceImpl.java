@@ -1,5 +1,8 @@
 package com.harmonycloud.service.user.impl;
 
+import com.harmonycloud.service.system.SystemConfigService;
+import com.harmonycloud.service.user.*;
+//import com.harmonycloud.service.user.auth.AuthManagerCrowd;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
@@ -24,10 +27,6 @@ import com.harmonycloud.service.platform.bean.harbor.HarborUser;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.harbor.HarborUserService;
 import com.harmonycloud.service.tenant.TenantService;
-import com.harmonycloud.service.user.RoleLocalService;
-import com.harmonycloud.service.user.RoleService;
-import com.harmonycloud.service.user.UserRoleRelationshipService;
-import com.harmonycloud.service.user.UserService;
 import com.harmonycloud.service.util.SsoClient;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFCell;
@@ -54,6 +53,8 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -62,6 +63,7 @@ import java.util.stream.Collectors;
 import static com.harmonycloud.common.Constant.CommonConstant.*;
 import static com.harmonycloud.service.platform.constant.Constant.DB_BATCH_INSERT_COUNT;
 import static com.harmonycloud.service.platform.constant.Constant.MAX_QUERY_COUNT_100;
+
 
 /**
  * @Author w_kyzhang
@@ -107,6 +109,12 @@ public class UserServiceImpl implements UserService {
     private RedisOperationsSessionRepository redisOperationsSessionRepository;
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
+    private AuthManagerCrowd authManagerCrowd;
+
+    @Autowired
+    private SystemConfigService systemConfigService;
 
     public String getCurrentUsername() {
         return (String) session.getAttribute("username");
@@ -396,12 +404,16 @@ public class UserServiceImpl implements UserService {
      * @return
      */
     public ActionReturnUtil addUser(User user) throws Exception {
+
         // 密码匹配
         String regex = "^(?![0-9]+$)(?![a-zA-Z]+$)[0-9A-Za-z]{7,12}$";
         String regex1 = "^[\u4E00-\u9FA5A-Za-z0-9]+$";
-        boolean matches = user.getPassword().matches(regex);
-        if (!matches) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PASSWORD_FORMAT_ERROR);
+
+        if(!user.getIsThirdPartyUser()){
+            boolean matches = user.getPassword().matches(regex);
+            if (!matches) {
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PASSWORD_FORMAT_ERROR);
+            }
         }
         // 用户名非重
         if (this.checkUserName(user.getUsername())) {
@@ -417,8 +429,10 @@ public class UserServiceImpl implements UserService {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.USER_REAL_NAME_ERROR);
         }
         // 密码md5加密
-        String MD5password = StringUtil.convertToMD5(user.getPassword());
-        user.setPassword(MD5password);
+        if(!user.getIsThirdPartyUser()){
+            String MD5password = StringUtil.convertToMD5(user.getPassword());
+            user.setPassword(MD5password);
+        }
         user.setCreateTime(new Date());
         user.setPause(CommonConstant.NORMAL);
         if (user.getIsAdmin() == null) {
@@ -1873,5 +1887,72 @@ public class UserServiceImpl implements UserService {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         return userMapper.listUserByProjectId(projectId);
+    }
+
+    @Override
+    public void batchInsert(List<UserSyncDto> userSyncDtoList) {
+        if (userSyncDtoList != null && userSyncDtoList.size() > 0) {
+            List<User> userList = new ArrayList<>();
+            userList.addAll(userSyncDtoList);
+            userMapper.batchInsert(userList);
+        }
+    }
+
+    @Override
+    public void updateByCrowdUserId(List<UserSyncDto> userSyncDtoList) {
+        if (userSyncDtoList != null && userSyncDtoList.size() > 0) {
+            for (User user : userSyncDtoList) {
+                User userU = new User();
+                userU.setUsername(user.getUsername());
+                userU.setRealName(user.getRealName());
+                userU.setEmail(user.getEmail());
+                userU.setPhone(user.getPhone());
+                userU.setCrowdUserId(user.getCrowdUserId());
+                userMapper.updateByCrowdUserId(userU);
+            }
+        }
+    }
+
+    @Override
+    public void updateByUserName(User user) {
+        if (user != null && user.getUsername() != null) {
+            userMapper.updateByUserName(user);
+        }
+    }
+
+    @Override
+    public void batchDeleteByCrowdUserId(List<Integer> crowdUserIdList) {
+        if (crowdUserIdList != null && crowdUserIdList.size() > 0) {
+            userMapper.batchDeleteByCrowdUserId(crowdUserIdList);
+        }
+    }
+
+    @Override
+    public void syncCrowdUser(List<UserSyncDto> userSyncDtoList) {
+        Map<Integer, List<UserSyncDto>> operateType2User = userSyncDtoList.stream().collect(Collectors.groupingBy(UserSyncDto::getOperateType));
+        List<UserSyncDto> userSyncDtoInsert = operateType2User.get(1);
+        if (!CollectionUtils.isEmpty(userSyncDtoInsert)) {
+            try {
+                this.batchInsert(userSyncDtoInsert);
+            } catch (Exception e1) {
+                for (UserSyncDto userSyncDto : userSyncDtoInsert) {
+                    try {
+                        this.insertUser(userSyncDto);
+                    } catch (Exception e2) {
+                        User user = new User();
+                        user.setUsername(userSyncDto.getUsername());
+                        user.setRealName(userSyncDto.getRealName());
+                        user.setEmail(userSyncDto.getEmail());
+                        user.setPhone(userSyncDto.getPhone());
+                        user.setCrowdUserId(userSyncDto.getCrowdUserId());
+                        this.updateByUserName(user);
+                    }
+                }
+            }
+        }
+        this.updateByCrowdUserId(operateType2User.get(2));
+        if (operateType2User.get(3) != null && operateType2User.get(3).size() > 0) {
+            this.batchDeleteByCrowdUserId(operateType2User.get(3).stream().map(UserSyncDto::getCrowdUserId).collect(Collectors.toList()));
+        }
     }
 }

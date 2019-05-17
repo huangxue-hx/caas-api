@@ -2,6 +2,7 @@ package com.harmonycloud.service.system;
 
 import com.harmonycloud.dao.system.bean.SystemConfig;
 import com.harmonycloud.dto.cicd.CicdConfigDto;
+import com.harmonycloud.dto.user.CrowdConfigDto;
 import com.harmonycloud.dto.user.LdapConfigDto;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +21,11 @@ public interface SystemConfigService {
 
     void addLdapConfig(LdapConfigDto ldapConfigDto);
 
+    void addCrowdConfig(CrowdConfigDto crowdConfigDto);
+
     LdapConfigDto findLdapConfig();
+
+    CrowdConfigDto findCrowdConfig();
 
     /**
      * 获取是否使用平台自身的用户系统

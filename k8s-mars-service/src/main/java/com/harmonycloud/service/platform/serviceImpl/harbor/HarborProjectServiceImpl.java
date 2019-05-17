@@ -1649,9 +1649,6 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 			desc.setTagDesc(tagDesc);
 			harborImageTagDescService.create(desc);
 		} else {    // 修改
-			Integer id = desc.getId();
-			desc = new ImageTagDesc();
-			desc.setId(id);
 			desc.setTagDesc(tagDesc);
 			harborImageTagDescService.update(desc);
 		}

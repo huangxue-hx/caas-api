@@ -397,7 +397,7 @@ public class LogServiceImpl implements LogService {
         }
         SearchRequestBuilder searchRequestBuilder = client.prepareSearch(esService.getLogIndexPrefix() + "*")
                 .setIndices(logQuery.getIndexes())
-                .addSort("offset", SortOrder.ASC)
+                .addSort("@timestamp", SortOrder.ASC).addSort("offset", SortOrder.ASC)
                 .setScroll(new TimeValue(Long.parseLong(scrollTime)))
                 .setQuery(queryBuilder);
         return searchRequestBuilder;

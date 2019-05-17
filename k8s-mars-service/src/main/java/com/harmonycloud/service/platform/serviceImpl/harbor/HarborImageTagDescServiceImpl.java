@@ -51,7 +51,7 @@ public class HarborImageTagDescServiceImpl implements HarborImageTagDescService 
     @Transactional(rollbackFor = Exception.class)
     @Override
     public boolean update(ImageTagDesc desc) throws Exception {
-        if (imageTagDescMapper.updateByPrimaryKeySelective(desc) != CommonConstant.NUM_ONE) {
+        if (imageTagDescMapper.updateByPrimaryKey(desc) != CommonConstant.NUM_ONE) {
             throw new MarsRuntimeException(ErrorCodeMessage.SAVE_FAIL);
         }
 

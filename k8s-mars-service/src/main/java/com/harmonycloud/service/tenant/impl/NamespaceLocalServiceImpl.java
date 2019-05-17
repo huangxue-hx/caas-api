@@ -256,8 +256,16 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
      * @throws Exception
      */
     public List<NamespaceLocal> getNamespaceListByTenantIdAndClusterId(String tenantId, List<String> clusterIds) throws Exception{
-        Map<String,Cluster> userClusters = userService.getCurrentUserCluster();
-        List<String> clusters = clusterIds.stream().filter(clusterId -> userClusters.get(clusterId) != null).collect(Collectors.toList());
+        if (CollectionUtils.isEmpty(clusterIds)) {
+            return Collections.emptyList();
+        }
+        List<String> clusters = null;
+        if (clusterIds.size() == 1) {
+            clusters = clusterIds;
+        } else {
+            Map<String, Cluster> userClusters = userService.getCurrentUserCluster();
+            clusters = clusterIds.stream().filter(clusterId -> userClusters.get(clusterId) != null).collect(Collectors.toList());
+        }
         NamespaceLocalExample example = this.getExample();
         example.createCriteria().andTenantIdEqualTo(tenantId).andClusterIdIn(clusters);
         List<NamespaceLocal> namespaceLocals = this.namespaceLocalMapper.selectByExample(example);

@@ -6,10 +6,7 @@ import com.harmonycloud.dao.user.bean.LocalRolePrivilege;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.bean.UserGroup;
 import com.harmonycloud.dao.user.bean.UserGroupRelation;
-import com.harmonycloud.dto.user.SummaryUserInfo;
-import com.harmonycloud.dto.user.UserDetailDto;
-import com.harmonycloud.dto.user.UserGroupDto;
-import com.harmonycloud.dto.user.UserQueryDto;
+import com.harmonycloud.dto.user.*;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -253,4 +250,34 @@ public interface UserService {
      * @return
      */
     List<User> listUserByProjectId(String projectId);
+
+    /**
+     * 批量插入
+     *
+     * @param userSyncDtoList
+     */
+    void batchInsert(List<UserSyncDto> userSyncDtoList);
+
+    /**
+     * 根据crowdUserId更新用户，用于数据同步
+     *
+     * @param userSyncDtoList
+     */
+    void updateByCrowdUserId(List<UserSyncDto> userSyncDtoList);
+
+    /**
+     * 根据用户名更新用户
+     *
+     * @param user
+     */
+    void updateByUserName(User user);
+
+    /**
+     * 根据crowdUserId进行批量删除
+     *
+     * @param crowdUserIdList
+     */
+    void batchDeleteByCrowdUserId(List<Integer> crowdUserIdList);
+
+    void syncCrowdUser(List<UserSyncDto> userSyncDtoList);
 }

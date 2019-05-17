@@ -69,6 +69,8 @@ public enum ErrorCodeMessage {
     NAME_LENGTH_LIMIT(100045,"name length must be no more than 63 characters", "名称长度不能超过63个字符"),
     INVALID_CHARACTER(100046,"Format is not correct, contains illegal characters", "格式错误, 包含非法字符或组合"),
     ENGLISH_NAME_EXIST(100047,"Short name exists", "简称已经存在"),
+    GET_CROWD_CONF_FAIL(100048, "Get crowd config failed.","获取Crowd配置失败"),
+
 
     //用户相关 200xxx
     USER_DISABLED(200001, "User is disabled.","该用户暂时停止使用，请联系管理员"),
@@ -106,6 +108,10 @@ public enum ErrorCodeMessage {
     USER_PERMISSION_DENIED_FOR_PRIVILEGE_CHANGE(200033, "Privilege has changed,permission denied.","权限被管理员修改,权限不足"),
     USER_LOCKED(200034, "The account is locked. Please try after 30 minutes ", "账号已锁定，请30分钟后再试"),
     USER_PASSWORD_CHANGE_SELF(200035, "Only change password for yourself", "只能修改自己的账号密码"),
+    //只与单点登录相关
+    USER_CROWD_CREATE_FAIL(20036, "User can't be created in CROWD", "在CROWD中同步用户失败，请联系管理员"),
+    USER_INFO_LOST(20037, "User can't be created as CROWD", "与CROWD同步用户失败，请联系管理员"),
+
 
     //租户 201xxx
     TENANTNAME_EXIST(201001, "TenantName was existed.","租户简称已经存在"),
@@ -344,6 +350,7 @@ public enum ErrorCodeMessage {
             "资源配额不足，请确保当前系统有足够资源"),
     TRANSFER_NOT_EXIST(400057, "Transfer Service was not existed.", "所迁移的集群信息为空"),
     SERVICE_IS_UPDATING(400058, "the service is updating.","服务正在滚动或蓝绿升级中"),
+    SERVICE_NOT_MATCH_PROJECT(400059, "the service is not match this project.","服务与项目不匹配"),
 
     //模板 401xxx
     SERVICE_TEMPLATE_NOT_EXIST(401001, "Service template not exist.", "服务模板不存在"),

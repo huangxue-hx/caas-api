@@ -113,7 +113,7 @@ public interface DeploymentsService {
 	 * @return
 	 * @throws Exception
 	 */
-	public ActionReturnUtil getDeploymentDetail(String namespace, String name,boolean isFilter) throws Exception;
+	public ActionReturnUtil getDeploymentDetail(String namespace, String name,boolean isFilter, String projectId) throws Exception;
 
 	/**
 	 * 获取deployment事件
