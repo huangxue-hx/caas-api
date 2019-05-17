@@ -1,8 +1,6 @@
 package com.harmonycloud.service.user.auth;
 
-import com.harmonycloud.common.Constant.CommonConstant;
-import com.harmonycloud.common.enumm.ErrorCodeMessage;
-import com.harmonycloud.common.util.ActionReturnUtil;
+import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dto.user.CrowdConfigDto;
@@ -56,7 +54,12 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Charset", "UTF-8");
         connection.setRequestProperty("connection", "Keep-Alive");
-        connection.connect();
+        try {
+            connection.connect();
+        } catch (Exception e) {
+            logger.error("连接crowd失败，config:{}", JSONObject.toJSONString(crowdConfigDto), e);
+            return false;
+        }
         if (connection.getResponseCode() != 200) {
             logger.error("连接crowd失败，返回码" + connection.getResponseCode());
             return false;

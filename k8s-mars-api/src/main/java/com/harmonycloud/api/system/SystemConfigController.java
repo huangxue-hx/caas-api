@@ -55,10 +55,9 @@ import static com.harmonycloud.common.Constant.CommonConstant.FLAG_TRUE;
         HttpServletResponse response) throws Exception {
         AssertUtil.notNull(crowdConfigDto);
         try {
-            //			logger.info("save crowdConfig");
             //如果crowd要开启，判断这个crowd是否可以连通
             if (crowdConfigDto.getIsAccess() == FLAG_TRUE && !authManagerCrowd.testCrowd(crowdConfigDto)) {
-                return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.GET_CROWD_CONF_FAIL);
+                return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.CONNECT_FAIL);
             }
             systemConfigService.addCrowdConfig(crowdConfigDto);
             HttpSession session = request.getSession();
