@@ -4,14 +4,15 @@
 <mapper namespace="com.harmonycloud.dao.debug.DebugMapper">
         <insert id="insert" parameterType="com.harmonycloud.dao.debug.bean.DebugState">
                 insert into debug_state
-                (username,state,updatetime,namespace,service,port,podname)
+                (username,state,update_time,namespace,service,port,podname)
                 values(#{username},#{state},sysdate(),#{namespace},#{service},#{port},#{podname})
         </insert>
 
         <update id="update" parameterType="com.harmonycloud.dao.debug.bean.DebugState">
                 update debug_state
                 set state=#{state},
-                    podname=#{podname},
+                    pod_name=#{podname},
+                    update_time=sysdate(),
                     namespace=#{namespace},
                     service=#{service},
                     port=#{port}

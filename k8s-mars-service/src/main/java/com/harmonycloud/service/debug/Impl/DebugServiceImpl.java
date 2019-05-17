@@ -87,12 +87,6 @@ public class DebugServiceImpl implements DebugService {
         }
         //拼接pod
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
-        //创建新的pod
-        Pod pod=new Pod();
-        Object newpod=createDebugPod(namespace,service,username,cluster).getData();
-        if(newpod!=null) {
-            pod = (Pod) newpod;}
-        else return false;
         // 启动service
         K8SClientResponse getResponse = serviceEntryService.getService(namespace, null, cluster, service);
         //不存在service,创建新的 service。拼接
@@ -105,8 +99,8 @@ public class DebugServiceImpl implements DebugService {
         K8SClientResponse getResponseAgain = serviceEntryService.getService(namespace, null, cluster, service);
         com.harmonycloud.k8s.bean.Service newService = JsonUtil.jsonToPojo(getResponseAgain.getBody(), com.harmonycloud.k8s.bean.Service.class);
         //修改service,与debugPod关联
-        Map<String, String> selector = (Map<String, String>) newService.getSpec().getSelector();
-        String app = selector.get("app");
+        Map<String, Object> selector = (Map<String, Object>) newService.getSpec().getSelector();
+        String app = selector.get("app").toString();
             //若是已被修改为debug模式。执行退出
             if(app.contains("-debug")){
                 return false;
@@ -118,7 +112,14 @@ public class DebugServiceImpl implements DebugService {
         if (!HttpStatusUtil.isSuccessStatus(updateResponse.getStatus())) {
             return false;
         }
-        //用户未曾debug过，新建debug_state信息。设置为debug中
+        //创建新的pod
+        Pod pod=new Pod();
+        Object newpod=createDebugPod(selector,namespace,service,username,cluster).getData();
+        if(newpod!=null) {
+            pod = (Pod) newpod;}
+        else return false;
+
+        //用户未曾debug过，新建debug_state信息。设置为build，即已建立环境
         if(ds==null) {
             ds = new DebugState();
 
@@ -142,7 +143,7 @@ public class DebugServiceImpl implements DebugService {
         return true;
     }
 
-    public ActionReturnUtil createDebugPod(String namespace,String service,String username,Cluster cluster)throws Exception{
+    public ActionReturnUtil createDebugPod(Map<String,Object> selectormap,String namespace,String service,String username,Cluster cluster)throws Exception{
         Pod pod = new Pod();
         pod.setKind("Pod");
         pod.setApiVersion("v1");
@@ -150,11 +151,10 @@ public class DebugServiceImpl implements DebugService {
         ObjectMeta metadata = new ObjectMeta();
         metadata.setName("debug-proxy-"+username);
         metadata.setNamespace(namespace);
-        Map<String,Object> map=new HashMap<>();
-        map.put("app",service+"-debug");
-        map.put("debug","proxy");
-        map.put("harmonycloud.cn/bluegreen",service+"-1");
-        metadata.setLabels(map);
+        Map<String,Object> labelMap=selectormap;
+        labelMap.put("app",service+"-debug");
+        labelMap.put("debug","proxy");
+        metadata.setLabels(labelMap);
         pod.setMetadata(metadata);
         //spec
         PodSpec spec = new PodSpec();
@@ -194,7 +194,10 @@ public class DebugServiceImpl implements DebugService {
         spec.getNodeSelector();
         pod.setSpec(spec);
         ActionReturnUtil ac=podService.addPod(namespace,pod, cluster);
-        return ActionReturnUtil.returnSuccessWithData(pod);
+        if((boolean)ac.get("success")){
+            return ActionReturnUtil.returnSuccessWithData(pod);
+        }
+        else return ActionReturnUtil.returnError();
     }
 
     public ActionReturnUtil createDebugService(String namespace, Cluster cluster, String service, String port) throws Exception {
@@ -215,7 +218,6 @@ public class DebugServiceImpl implements DebugService {
         serviceSpec.setType("ClusterIP");
         Map<String,Object> rawSelector =new HashMap<>();
         rawSelector.put("app",service);
-        rawSelector.put("harmonycloud.cn/bluegreen",service+"-1");
         serviceSpec.setSelector(rawSelector);
 
         List<ServicePort> ports = new ArrayList<ServicePort>();
@@ -236,7 +238,7 @@ public class DebugServiceImpl implements DebugService {
         //创建失败了
         if (!HttpStatusUtil.isSuccessStatus(response.getStatus())) {
             UnversionedStatus sta = JsonUtil.jsonToPojo(response.getBody(), UnversionedStatus.class);
-            return ActionReturnUtil.returnError();
+            return ActionReturnUtil.returnErrorWithData(sta);
         }
         return ActionReturnUtil.returnSuccessWithData(newService);
     }
