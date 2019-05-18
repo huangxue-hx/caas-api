@@ -280,4 +280,9 @@ public interface UserService {
     void batchDeleteByCrowdUserId(List<Integer> crowdUserIdList);
 
     void syncCrowdUser(List<UserSyncDto> userSyncDtoList);
+
+    List<String> listNamespaceNameByUser()throws Exception;
+
+    List<String> listServiceNameByNamespaceName(String namespace)throws Exception;
+
 }

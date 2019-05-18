@@ -20,13 +20,25 @@ import com.harmonycloud.dao.user.bean.*;
 import com.harmonycloud.dto.tenant.TenantDto;
 import com.harmonycloud.dto.tenant.show.UserShowDto;
 import com.harmonycloud.dto.user.*;
+import com.harmonycloud.k8s.bean.Namespace;
+import com.harmonycloud.k8s.bean.NamespaceList;
+import com.harmonycloud.k8s.bean.ServiceList;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.service.ServicesService;
+import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
 import com.harmonycloud.service.platform.bean.harbor.HarborUser;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.harbor.HarborUserService;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.TenantService;
+import com.harmonycloud.service.user.RoleLocalService;
+import com.harmonycloud.service.user.RoleService;
+import com.harmonycloud.service.user.UserRoleRelationshipService;
+import com.harmonycloud.service.user.UserService;
 import com.harmonycloud.service.util.SsoClient;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFCell;
@@ -109,6 +121,12 @@ public class UserServiceImpl implements UserService {
     private RedisOperationsSessionRepository redisOperationsSessionRepository;
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+    @Autowired
+    private NamespaceService namespaceService;
+    @Autowired
+    private ServicesService servicesService;
+    @Autowired
+    private NamespaceLocalService namespaceLocalService;
 
     @Autowired
     private AuthManagerCrowd authManagerCrowd;
@@ -1954,5 +1972,34 @@ public class UserServiceImpl implements UserService {
         if (operateType2User.get(3) != null && operateType2User.get(3).size() > 0) {
             this.batchDeleteByCrowdUserId(operateType2User.get(3).stream().map(UserSyncDto::getCrowdUserId).collect(Collectors.toList()));
         }
+    }
+
+    @Override
+    public List<String> listNamespaceNameByUser() throws Exception{
+        String username=session.getAttribute("username").toString();
+        List<TenantBinding> tenants=tenantService.listTenantsByUserName(username);
+        List<String> finalNamespaces=new ArrayList<>();
+        NamespaceList namespaces=new NamespaceList();
+        for (TenantBinding tb:tenants) {
+            namespaces= (NamespaceList)namespaceService.getSimpleNamespaceListByTenant(tb.getTenantId()).getData();
+            if(namespaces==null)continue;
+            for (Namespace n:namespaces.getItems()) {
+                finalNamespaces.add(n.getMetadata().getName());
+            }
+        }
+        return finalNamespaces;
+    }
+
+    @Override
+    public List<String> listServiceNameByNamespaceName(String namespace)throws Exception {
+        Cluster cluster=namespaceLocalService.getClusterByNamespaceName(namespace);
+        K8SClientResponse response=servicesService.doServiceByNamespace(namespace,null,null, HTTPMethod.GET,cluster);
+        ServiceList serviceList= JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
+        List<String> serviceNameList=new ArrayList<>();
+        if(serviceList==null)return null;
+        for(com.harmonycloud.k8s.bean.Service service : serviceList.getItems()){
+            serviceNameList.add(service.getMetadata().getName());
+        }
+        return serviceNameList;
     }
 }

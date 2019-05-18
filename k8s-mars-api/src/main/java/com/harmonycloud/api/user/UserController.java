@@ -591,31 +591,14 @@ public class UserController {
     @RequestMapping(value = "/namespaces", method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil getTenantsByUsername() throws Exception {
-        String username=session.getAttribute("username").toString();
-        List<TenantBinding> tenants=tenantService.listTenantsByUserName(username);
-        List<String> finalNamespaces=new ArrayList<>();
-        NamespaceList namespaces=new NamespaceList();
-        for (TenantBinding tb:tenants) {
-            namespaces= (NamespaceList)namespaceService.getSimpleNamespaceListByTenant(tb.getTenantId()).getData();
-            if(namespaces==null){continue;}
-            for (Namespace n:namespaces.getItems()) {
-                finalNamespaces.add(n.getMetadata().getName());
-            }
-        }
+        List<String> finalNamespaces=userService.listNamespaceNameByUser();
         return ActionReturnUtil.returnSuccessWithData(finalNamespaces);
     }
 
     @RequestMapping(value="/namespaces/{namespace}/services",method = RequestMethod.GET)
     @ResponseBody
     public ActionReturnUtil getServicesByNamespaces(@PathVariable(value="namespace")String namespace)throws Exception{
-        Cluster cluster=namespaceLocalService.getClusterByNamespaceName(namespace);
-        K8SClientResponse response=servicesService.doServiceByNamespace(namespace,null,null,HTTPMethod.GET,cluster);
-        ServiceList serviceList= JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
-        List<String> serviceNameList=new ArrayList<>();
-        if(serviceList==null)return ActionReturnUtil.returnSuccessWithData(null);
-        for(Service service : serviceList.getItems()){
-            serviceNameList.add(service.getMetadata().getName());
-        }
+        List<String> serviceNameList=userService.listServiceNameByNamespaceName(namespace);
         return ActionReturnUtil.returnSuccessWithData(serviceNameList);
     }
 
