@@ -1,4 +1,4 @@
 1.  集群部署增加admin-conf的配置文件
   kubectl create cm admin-conf -n kube-system --from-file=/etc/kubernetes/admin.conf
 
-2.  修改新建pod的label与service一致，数据库debug_state的命名规范
+2. 增加 k8s-deploy/debug-proxy:v1.0 镜像
