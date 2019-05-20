@@ -235,7 +235,7 @@ public class PodService {
 	 * @param cluster
 	 * @return Job
 	 */
-	public ActionReturnUtil addPod(String namespace, Pod pod, Cluster cluster) throws Exception {
+	public ActionReturnUtil addPod(String namespace, Pod pod, Cluster cluster) {
 		K8SURL url = new K8SURL();
 		url.setNamespace(namespace).setResource(Resource.POD);
 		Map<String, Object> bodys = new HashMap<>();

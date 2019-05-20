@@ -1,6 +1,10 @@
 package com.harmonycloud.service.debug.Impl;
 
+import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.Constant.CommonConstant;
+import com.harmonycloud.common.Constant.K8sErrorMessageConstant;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.*;
 import com.harmonycloud.dao.debug.DebugMapper;
 import com.harmonycloud.dao.debug.bean.DebugState;
@@ -22,7 +26,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import java.io.*;
 import java.net.URL;
+import java.text.MessageFormat;
 import java.util.*;
+
+import static com.harmonycloud.common.enumm.ErrorCodeMessage.NAMESPACE_QUOTA_EXCEEDED;
 
 /**
  * Created by fengjinliu on 2019/5/5.
@@ -64,7 +71,8 @@ public class DebugServiceImpl implements DebugService {
         DebugState ds = debugMapper.getStateByUsername(username);
         if (ds != null) {
             if (!ds.getState().equals("stop")) {
-                return false;
+                logger.warn("当前用户已经在debug中");
+                throw new MarsRuntimeException(ErrorCodeMessage.USER_IN_DEBUG);
             }
         }
         // 拼接pod
@@ -85,31 +93,27 @@ public class DebugServiceImpl implements DebugService {
         Map<String, Object> selector = (Map<String, Object>)newService.getSpec().getSelector();
         String app = selector.get("app").toString();
         // 若是已被修改为debug模式。执行退出
-        if (app.contains("-debug")) {
+        if (!app.endsWith("-debug")) {
+            selector.put("app", app + "-debug");
+            newService.getSpec().setSelector(selector);
+        }
+
+        // 创建debug pod
+        Pod debugPod = createDebugPod(selector, namespace, service, username, cluster);
+        if (debugPod == null) {
             return false;
         }
-        selector.put("app", app + "-debug");
-        newService.getSpec().setSelector(selector);
         // 修改service
         K8SClientResponse updateResponse = serviceEntryService.updateService(namespace, service, newService, cluster);
         if (!HttpStatusUtil.isSuccessStatus(updateResponse.getStatus())) {
-            return false;
-        }
-        // 创建新的pod
-        Pod pod = new Pod();
-        Object newpod = createDebugPod(selector, namespace, service, username, cluster).getData();
-        if (newpod != null) {
-            pod = (Pod)newpod;
-        } else {
             return false;
         }
 
         // 用户未曾debug过，新建debug_state信息。设置为build，即已建立环境
         if (ds == null) {
             ds = new DebugState();
-
             ds.setNamespace(namespace);
-            ds.setPodname(pod.getMetadata().getName());
+            ds.setPodname(debugPod.getMetadata().getName());
             ds.setPort(port);
             ds.setService(service);
             ds.setState("build");
@@ -117,7 +121,7 @@ public class DebugServiceImpl implements DebugService {
             debugMapper.insert(ds);
         } else {
             ds.setNamespace(namespace);
-            ds.setPodname(pod.getMetadata().getName());
+            ds.setPodname(debugPod.getMetadata().getName());
             ds.setPort(port);
             ds.setService(service);
             ds.setUsername(username);
@@ -128,8 +132,8 @@ public class DebugServiceImpl implements DebugService {
         return true;
     }
 
-    public ActionReturnUtil createDebugPod(Map<String, Object> selectormap, String namespace, String service,
-        String username, Cluster cluster) throws Exception {
+    public Pod createDebugPod(Map<String, Object> selectormap, String namespace, String service,
+        String username, Cluster cluster) throws MarsRuntimeException {
         Pod pod = new Pod();
         pod.setKind("Pod");
         pod.setApiVersion("v1");
@@ -177,13 +181,16 @@ public class DebugServiceImpl implements DebugService {
         Map<String, Object> nodeSelector = new HashMap<>();
         nodeSelector.put("HarmonyCloud_Status", "A");
         spec.setNodeSelector(nodeSelector);
-        spec.getNodeSelector();
         pod.setSpec(spec);
         ActionReturnUtil ac = podService.addPod(namespace, pod, cluster);
         if ((boolean)ac.get("success")) {
-            return ActionReturnUtil.returnSuccessWithData(pod);
+            return pod;
         } else {
-            return ActionReturnUtil.returnError();
+            if (ac.getData() != null && ac.getData().toString().contains(K8sErrorMessageConstant.EXCEEDED_QUOTA)){
+                throw new MarsRuntimeException(NAMESPACE_QUOTA_EXCEEDED);
+            }
+            logger.error("创建debug pod失败，message:{}", JSONObject.toJSONString(ac));
+            return null;
         }
     }
 
@@ -271,6 +278,23 @@ public class DebugServiceImpl implements DebugService {
         if (!selector.get("app").toString().contains("-debug")) {
             return false;
         }
+        try {
+            String command = MessageFormat.format("kubectl exec {0} -n {2} --server={3} --token={4} --insecure-skip-tls-verify=true -- curl {5}.{6}:{7}",
+                    "debug-proxy-" + username, namespace, cluster.getApiServerUrl(), cluster.getMachineToken(), service, namespace, port);
+            Process process = Runtime.getRuntime().exec(command);
+            BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+            String line;
+            while ((line = stdInput.readLine()) != null) {
+                logger.info("执行指令成功:{}", line);
+            }
+            while ((line = stdError.readLine()) != null) {
+                logger.error("执行指令错误:{}", line);
+            }
+        } catch (Exception e){
+            logger.error("执行检查网络联通指令错误", e);
+        }
+
         HttpClientResponse result =
             HttpsClientUtil.doGet("http://" + service + "." + namespace + ":" + port, null, null);
         logger.info(String.valueOf(result.getStatus()));
@@ -326,6 +350,7 @@ public class DebugServiceImpl implements DebugService {
 
         K8SClientResponse updateResponse = serviceEntryService.updateService(namespace, service, newService, cluster);
         if (!HttpStatusUtil.isSuccessStatus(updateResponse.getStatus())) {
+            logger.error("更新服务debug的selector失败,response:{}", JSONObject.toJSONString(updateResponse));
             return false;
         }
         ds.setState("stop");

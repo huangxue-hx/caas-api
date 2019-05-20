@@ -287,6 +287,7 @@ public enum ErrorCodeMessage {
     NAMESPACE_DELETE_FIRST(302010,"Please delete namespace first","请先删除分区"),
     PRIVATE_NAMESPACE_ONLY(302011,"Only private namespaces are allowed.","只允许操作私有分区"),
     NAMESPACE_CREATE_ERROR_DELETED(302012, "Namespace is being deleted: namespaces already exists.","分区正在被删除的过程中,请稍后创建!"),
+    NAMESPACE_QUOTA_EXCEEDED(302013, "Namespace quota exceeded.","分区配额不足"),
     //应用 400xxx
     SCRIPT_NOT_EXIST(400001, "Script file not found.","脚本文件未找到"),
     TOPOLOGY_NOT_EXIST(400002, "Network topology not existed.","网络拓扑图不存在"),
@@ -351,6 +352,7 @@ public enum ErrorCodeMessage {
     TRANSFER_NOT_EXIST(400057, "Transfer Service was not existed.", "所迁移的集群信息为空"),
     SERVICE_IS_UPDATING(400058, "the service is updating.","服务正在滚动或蓝绿升级中"),
     SERVICE_NOT_MATCH_PROJECT(400059, "the service is not match this project.","服务与项目不匹配"),
+    USER_IN_DEBUG(400060, "Current user is in Debug.","当前用户正在debug中"),
 
     //模板 401xxx
     SERVICE_TEMPLATE_NOT_EXIST(401001, "Service template not exist.", "服务模板不存在"),
