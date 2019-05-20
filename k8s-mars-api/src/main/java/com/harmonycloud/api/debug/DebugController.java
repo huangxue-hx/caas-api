@@ -75,14 +75,15 @@ public class DebugController {
     @ResponseStatus(value= HttpStatus.OK)
     @RequestMapping(value="/namespaces/{namespace}/services/{service}/debug/command",method = RequestMethod.GET)
     @ResponseBody
-    public ActionReturnUtil getCommands(@PathVariable("namespace")String namespace
-            , @PathVariable(value="service")String service
-            , @RequestParam(value = "port",required = false)String port )throws Exception{
+    public ActionReturnUtil getCommands(@PathVariable("namespace")String namespace,
+                                        @PathVariable(value="service")String service,
+                                        @RequestParam(value = "port",required = false)String port,
+                                        @RequestParam(value = "system",required = false)String system)throws Exception{
 
         //1. 通过服务拿到端口号。
         //2. 拼装成命令
         String username=session.getAttribute("username").toString();
-        return ActionReturnUtil.returnSuccessWithData(debugService.getCommands(namespace,username,service).getData());
+        return ActionReturnUtil.returnSuccessWithData(debugService.getCommands(namespace,username,service,system).getData());
     }
 
 

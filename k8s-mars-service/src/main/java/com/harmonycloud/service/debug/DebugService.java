@@ -14,7 +14,7 @@ import java.util.List;
 public interface DebugService {
     boolean start(String namespace, String username, String service,String port) throws Exception;
 
-    ActionReturnUtil getCommands(String namespace, String username, String service)throws Exception;
+    ActionReturnUtil getCommands(String namespace, String username, String service, String system)throws Exception;
 
     Boolean checkLink(String namespace,String username,String service)throws Exception ;
 
