@@ -571,6 +571,7 @@ public enum ErrorCodeMessage {
 
     //配置文件 407xxx
     CONFIGMAP_NAME_DUPLICATE(407001, "ConfigMap name duplicate.", "配置文件名称已存在"),
+    CONFIGMAP_ADMIN_CONF_NOT_FOUND(407002, "ConfigMap of admin conf not exist, please contact system manager.", "admin.conf配置文件不存在，请联系系统管理员"),
 
     //其他9xxxxx
     FREE_TRIAL_END(900001, "Free trial end, please contact admin.","试用已结束，请联系管理员"),

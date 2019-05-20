@@ -29,6 +29,7 @@ import java.net.URL;
 import java.text.MessageFormat;
 import java.util.*;
 
+import static com.harmonycloud.common.enumm.ErrorCodeMessage.CONFIGMAP_ADMIN_CONF_NOT_FOUND;
 import static com.harmonycloud.common.enumm.ErrorCodeMessage.NAMESPACE_QUOTA_EXCEEDED;
 
 /**
@@ -113,7 +114,7 @@ public class DebugServiceImpl implements DebugService {
         if (ds == null) {
             ds = new DebugState();
             ds.setNamespace(namespace);
-            ds.setPodname(debugPod.getMetadata().getName());
+            ds.setPodName(debugPod.getMetadata().getName());
             ds.setPort(port);
             ds.setService(service);
             ds.setState("build");
@@ -121,7 +122,7 @@ public class DebugServiceImpl implements DebugService {
             debugMapper.insert(ds);
         } else {
             ds.setNamespace(namespace);
-            ds.setPodname(debugPod.getMetadata().getName());
+            ds.setPodName(debugPod.getMetadata().getName());
             ds.setPort(port);
             ds.setService(service);
             ds.setUsername(username);
@@ -279,32 +280,26 @@ public class DebugServiceImpl implements DebugService {
             return false;
         }
         try {
-            String command = MessageFormat.format("kubectl exec {0} -n {2} --server={3} --token={4} --insecure-skip-tls-verify=true -- curl {5}.{6}:{7}",
+            String command = MessageFormat.format("kubectl exec {0} -n {1} --server={2} --token={3} --insecure-skip-tls-verify=true -- curl --connect-timeout 5 -m 10 {4}.{5}:{6}",
                     "debug-proxy-" + username, namespace, cluster.getApiServerUrl(), cluster.getMachineToken(), service, namespace, port);
             Process process = Runtime.getRuntime().exec(command);
-            BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
             BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
             String line;
-            while ((line = stdInput.readLine()) != null) {
-                logger.info("执行指令成功:{}", line);
-            }
             while ((line = stdError.readLine()) != null) {
-                logger.error("执行指令错误:{}", line);
+                logger.info("连接测试:{}", line);
+                if (line.contains("timed out") || line.contains("Connection refused") || line.contains("error")) {
+                    logger.info("{}.{}服务连接失败", service, namespace);
+                    return false;
+                }
             }
         } catch (Exception e){
             logger.error("执行检查网络联通指令错误", e);
+            return false;
         }
-
-        HttpClientResponse result =
-            HttpsClientUtil.doGet("http://" + service + "." + namespace + ":" + port, null, null);
-        logger.info(String.valueOf(result.getStatus()));
-        if (String.valueOf(result.getStatus()) != null) {
-            DebugState ds = debugMapper.getStateByUsername(username);
-            ds.setState("debug");
-            debugMapper.update(ds);
-            return true;
-        }
-        return false;
+        DebugState ds = debugMapper.getStateByUsername(username);
+        ds.setState("debug");
+        debugMapper.update(ds);
+        return true;
     }
 
     @Override
@@ -331,8 +326,11 @@ public class DebugServiceImpl implements DebugService {
         }
         // 删除Pod
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
-        podService.deletePod(namespace, ds.getPodname(), cluster);
-
+        K8SClientResponse clientResponse = podService.deletePod(namespace, ds.getPodName(), cluster);
+        if (!HttpStatusUtil.isSuccessStatus(clientResponse.getStatus())) {
+            logger.error("删除debug pod 失败：{}", JSONObject.toJSONString(clientResponse));
+            return false;
+        }
         // 修改service
         K8SClientResponse getResponse = serviceEntryService.getService(namespace, null, cluster, service);
         if (!HttpStatusUtil.isSuccessStatus(getResponse.getStatus())) {
@@ -369,12 +367,12 @@ public class DebugServiceImpl implements DebugService {
             systemFile = "hcdb";
         }
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
-        ConfigMap configMap = new ConfigMap();
         ActionReturnUtil result =
             configMapService.getConfigMapByName("kube-system", "admin-conf", HTTPMethod.GET, cluster);
-        if (result.getData() != null) {
-            configMap = (ConfigMap)result.getData();
+        if (!result.isSuccess() || result.getData() == null) {
+            throw new MarsRuntimeException(CONFIGMAP_ADMIN_CONF_NOT_FOUND);
         }
+        ConfigMap configMap = (ConfigMap)result.getData();
         String dir = uploadPath + "admin-config/" + cluster.getId();
         File configDir = new File(dir);
         if (!configDir.exists()) {
