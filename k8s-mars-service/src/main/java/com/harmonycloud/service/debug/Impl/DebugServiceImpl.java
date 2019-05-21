@@ -287,7 +287,8 @@ public class DebugServiceImpl implements DebugService {
             String line;
             while ((line = stdError.readLine()) != null) {
                 logger.info("连接测试:{}", line);
-                if (line.contains("timed out") || line.contains("Connection refused") || line.contains("error")) {
+                if (line.contains("timed out") || line.contains("Connection refused") || line.contains("error")
+                        || line.contains("Empty reply from server")) {
                     logger.info("{}.{}服务连接失败", service, namespace);
                     return false;
                 }
