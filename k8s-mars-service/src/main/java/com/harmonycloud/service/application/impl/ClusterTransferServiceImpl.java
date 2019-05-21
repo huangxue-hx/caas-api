@@ -52,6 +52,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.beans.IntrospectionException;
@@ -61,9 +62,7 @@ import java.text.NumberFormat;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 
-import static com.harmonycloud.common.Constant.CommonConstant.LABEL_KEY_APP;
-import static com.harmonycloud.common.Constant.CommonConstant.MB;
-import static com.harmonycloud.common.Constant.CommonConstant.MI;
+import static com.harmonycloud.common.Constant.CommonConstant.*;
 import static com.harmonycloud.service.platform.constant.Constant.TOPO_LABEL_KEY;
 
 @Service
@@ -159,6 +158,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
         if (!actionReturn.isSuccess()){
 			return actionReturn;
 		}
+
 		Cluster sourceCluster = clusterService.findClusterById(clusterTransferDto.get(0).getCurrentClusterId());
 		Cluster targetCluster = clusterService.findClusterById(clusterTransferDto.get(0).getTargetClusterId());
 		TransferClusterBackup transferClusterBackup = generateTransferClusterBackup(clusterTransferDto);
@@ -1808,10 +1808,11 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		transferClusterBackUpMapper.insert(transferClusterBackup);
 		// 这个地方应该是创建成功的namespaces
 		List<ErrorNamespaceDto> namespaces = param.get(Constant.TRANSFER_NAMESPACE_SUCCESS);
-		Map<String,Object> params = transferDeploy(namespaces, transferClusterBackup, clusterTransferDto, targetCluster, isContinue, sourceCluster);
-		List<ErrDeployDto> errDeployDtos = (List<ErrDeployDto>) params.get(Constant.ERR_DEPLOY_DTOS);
-		//updateDeployResult(params);
-		transferResultDto.setErrDeployDtos(errDeployDtos);
+
+		// 异步执行服务迁移
+		transferDeploy(namespaces, transferClusterBackup, clusterTransferDto, targetCluster, isContinue, sourceCluster);
+
+		transferResultDto.setStatus(true);
 		transferResultDto.setErrNamespaceDtos(param.get(Constant.TRANSFER_NAMESPACE_ERROR));
 		return transferResultDto;
 	}
@@ -1840,8 +1841,8 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		return isContinue?transferBindNamespaceMapper.queryErrorNamespace(clusterTransferDto.get(0).getTenantId(),clusterTransferDto.get(0).getTargetClusterId()):addBindNamespaceData(clusterTransferDto);
 	}
 
-
-	private Map<String,Object> transferDeploy(List<ErrorNamespaceDto> namespaces,TransferClusterBackup transferClusterBackup,
+	@Async
+	protected Map<String,Object> transferDeploy(List<ErrorNamespaceDto> namespaces,TransferClusterBackup transferClusterBackup,
 											  List<ClusterTransferDto> clusterTransferDto,
 											  Cluster targetCluster,boolean isContinue,Cluster sourceCluster) throws Exception {
 		DeployResultDto deployResultDto= generateTransferDeploymentAndTransferDeploy(namespaces, clusterTransferDto, transferClusterBackup, sourceCluster);
@@ -1853,7 +1854,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		//
 		List<DeploymentTransferDto> deploymentTransferDtos =  deployResultDto.getDeploymentTransferDtos();
 		if(isContinue){
-            //断点续传
+			//断点续传
 			List<TransferBindDeploy> transferBindDeploys = transferDeployMapper.queryErrorBindDeploy(clusterTransferDto.get(0).getTenantId(), clusterTransferDto.get(0).getTargetClusterId());
 			deploymentTransferDtos = generateTransferDtoList(transferBindDeploys);
 			deploymentTransferDtos.addAll(deployResultDto.getDeploymentTransferDtos());
