@@ -1,5 +1,8 @@
 package com.harmonycloud.service.user.impl;
 
+import com.harmonycloud.service.system.SystemConfigService;
+import com.harmonycloud.service.user.*;
+//import com.harmonycloud.service.user.auth.AuthManagerCrowd;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
@@ -17,12 +20,20 @@ import com.harmonycloud.dao.user.bean.*;
 import com.harmonycloud.dto.tenant.TenantDto;
 import com.harmonycloud.dto.tenant.show.UserShowDto;
 import com.harmonycloud.dto.user.*;
+import com.harmonycloud.k8s.bean.Namespace;
+import com.harmonycloud.k8s.bean.NamespaceList;
+import com.harmonycloud.k8s.bean.ServiceList;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.service.ServicesService;
+import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.cache.ClusterCacheManager;
 import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
 import com.harmonycloud.service.platform.bean.harbor.HarborUser;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.harbor.HarborUserService;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.RoleService;
@@ -54,6 +65,8 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -62,6 +75,7 @@ import java.util.stream.Collectors;
 import static com.harmonycloud.common.Constant.CommonConstant.*;
 import static com.harmonycloud.service.platform.constant.Constant.DB_BATCH_INSERT_COUNT;
 import static com.harmonycloud.service.platform.constant.Constant.MAX_QUERY_COUNT_100;
+
 
 /**
  * @Author w_kyzhang
@@ -107,6 +121,18 @@ public class UserServiceImpl implements UserService {
     private RedisOperationsSessionRepository redisOperationsSessionRepository;
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+    @Autowired
+    private NamespaceService namespaceService;
+    @Autowired
+    private ServicesService servicesService;
+    @Autowired
+    private NamespaceLocalService namespaceLocalService;
+
+    @Autowired
+    private AuthManagerCrowd authManagerCrowd;
+
+    @Autowired
+    private SystemConfigService systemConfigService;
 
     public String getCurrentUsername() {
         return (String) session.getAttribute("username");
@@ -396,12 +422,16 @@ public class UserServiceImpl implements UserService {
      * @return
      */
     public ActionReturnUtil addUser(User user) throws Exception {
+
         // 密码匹配
         String regex = "^(?![0-9]+$)(?![a-zA-Z]+$)[0-9A-Za-z]{7,12}$";
         String regex1 = "^[\u4E00-\u9FA5A-Za-z0-9]+$";
-        boolean matches = user.getPassword().matches(regex);
-        if (!matches) {
-            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PASSWORD_FORMAT_ERROR);
+
+        if(!user.getIsThirdPartyUser()){
+            boolean matches = user.getPassword().matches(regex);
+            if (!matches) {
+                return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.PASSWORD_FORMAT_ERROR);
+            }
         }
         // 用户名非重
         if (this.checkUserName(user.getUsername())) {
@@ -417,8 +447,10 @@ public class UserServiceImpl implements UserService {
             return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.USER_REAL_NAME_ERROR);
         }
         // 密码md5加密
-        String MD5password = StringUtil.convertToMD5(user.getPassword());
-        user.setPassword(MD5password);
+        if(!user.getIsThirdPartyUser()){
+            String MD5password = StringUtil.convertToMD5(user.getPassword());
+            user.setPassword(MD5password);
+        }
         user.setCreateTime(new Date());
         user.setPause(CommonConstant.NORMAL);
         if (user.getIsAdmin() == null) {
@@ -1873,5 +1905,101 @@ public class UserServiceImpl implements UserService {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         return userMapper.listUserByProjectId(projectId);
+    }
+
+    @Override
+    public void batchInsert(List<UserSyncDto> userSyncDtoList) {
+        if (userSyncDtoList != null && userSyncDtoList.size() > 0) {
+            List<User> userList = new ArrayList<>();
+            userList.addAll(userSyncDtoList);
+            userMapper.batchInsert(userList);
+        }
+    }
+
+    @Override
+    public void updateByCrowdUserId(List<UserSyncDto> userSyncDtoList) {
+        if (userSyncDtoList != null && userSyncDtoList.size() > 0) {
+            for (User user : userSyncDtoList) {
+                User userU = new User();
+                userU.setUsername(user.getUsername());
+                userU.setRealName(user.getRealName());
+                userU.setEmail(user.getEmail());
+                userU.setPhone(user.getPhone());
+                userU.setCrowdUserId(user.getCrowdUserId());
+                userMapper.updateByCrowdUserId(userU);
+            }
+        }
+    }
+
+    @Override
+    public void updateByUserName(User user) {
+        if (user != null && user.getUsername() != null) {
+            userMapper.updateByUserName(user);
+        }
+    }
+
+    @Override
+    public void batchDeleteByCrowdUserId(List<Integer> crowdUserIdList) {
+        if (crowdUserIdList != null && crowdUserIdList.size() > 0) {
+            userMapper.batchDeleteByCrowdUserId(crowdUserIdList);
+        }
+    }
+
+    @Override
+    public void syncCrowdUser(List<UserSyncDto> userSyncDtoList) {
+        Map<Integer, List<UserSyncDto>> operateType2User = userSyncDtoList.stream().collect(Collectors.groupingBy(UserSyncDto::getOperateType));
+        List<UserSyncDto> userSyncDtoInsert = operateType2User.get(1);
+        if (!CollectionUtils.isEmpty(userSyncDtoInsert)) {
+            try {
+                this.batchInsert(userSyncDtoInsert);
+            } catch (Exception e1) {
+                for (UserSyncDto userSyncDto : userSyncDtoInsert) {
+                    try {
+                        this.insertUser(userSyncDto);
+                    } catch (Exception e2) {
+                        User user = new User();
+                        user.setUsername(userSyncDto.getUsername());
+                        user.setRealName(userSyncDto.getRealName());
+                        user.setEmail(userSyncDto.getEmail());
+                        user.setPhone(userSyncDto.getPhone());
+                        user.setCrowdUserId(userSyncDto.getCrowdUserId());
+                        this.updateByUserName(user);
+                    }
+                }
+            }
+        }
+        this.updateByCrowdUserId(operateType2User.get(2));
+        if (operateType2User.get(3) != null && operateType2User.get(3).size() > 0) {
+            this.batchDeleteByCrowdUserId(operateType2User.get(3).stream().map(UserSyncDto::getCrowdUserId).collect(Collectors.toList()));
+        }
+    }
+
+    @Override
+    public List<String> listNamespaceNameByUser() throws Exception{
+        String username=session.getAttribute("username").toString();
+        List<TenantBinding> tenants=tenantService.listTenantsByUserName(username);
+        List<String> finalNamespaces=new ArrayList<>();
+        NamespaceList namespaces=new NamespaceList();
+        for (TenantBinding tb:tenants) {
+            namespaces= (NamespaceList)namespaceService.getSimpleNamespaceListByTenant(tb.getTenantId()).getData();
+            if(namespaces==null)continue;
+            for (Namespace n:namespaces.getItems()) {
+                finalNamespaces.add(n.getMetadata().getName());
+            }
+        }
+        return finalNamespaces;
+    }
+
+    @Override
+    public List<String> listServiceNameByNamespaceName(String namespace)throws Exception {
+        Cluster cluster=namespaceLocalService.getClusterByNamespaceName(namespace);
+        K8SClientResponse response=servicesService.doServiceByNamespace(namespace,null,null, HTTPMethod.GET,cluster);
+        ServiceList serviceList= JsonUtil.jsonToPojo(response.getBody(), ServiceList.class);
+        List<String> serviceNameList=new ArrayList<>();
+        if(serviceList==null)return null;
+        for(com.harmonycloud.k8s.bean.Service service : serviceList.getItems()){
+            serviceNameList.add(service.getMetadata().getName());
+        }
+        return serviceNameList;
     }
 }

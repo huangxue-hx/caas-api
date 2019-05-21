@@ -12,7 +12,7 @@ CREATE TABLE `image_tag_desc` (
   `repository_id` int(11) NOT NULL COMMENT '镜像仓库表id',
   `image_name` varchar(128) NOT NULL COMMENT '镜像名称',
   `tag_name` varchar(15) NOT NULL COMMENT '镜像版本名称',
-  `tag_desc` varchar(500) NOT NULL COMMENT '镜像版本描述',
+  `tag_desc` varchar(500) COMMENT '镜像版本描述',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='镜像版本描述表';
 

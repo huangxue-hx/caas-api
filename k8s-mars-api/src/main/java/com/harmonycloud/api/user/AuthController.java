@@ -1,21 +1,20 @@
 package com.harmonycloud.api.user;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.*;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.Objects;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.dao.system.bean.SystemConfig;
+import com.harmonycloud.dto.user.CrowdConfigDto;
 import com.harmonycloud.dto.user.LdapConfigDto;
 import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.user.*;
+
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +32,8 @@ import com.harmonycloud.common.util.JsonUtil;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.k8s.client.K8SClient;
 import com.harmonycloud.service.application.SecretService;
+
+import com.harmonycloud.service.util.NetworkUtil;
 
 @RequestMapping(value = "/users/auth")
 @Controller
@@ -70,28 +71,68 @@ public class AuthController {
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
 
+    @Autowired
+    private AuthManagerCrowd authManagerCrowd;
+
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
+    private boolean isLdapOn(LdapConfigDto ldapConfigDto) {
+        if (ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isCrowdOn(CrowdConfigDto crowdConfigDto) {
+        if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1) {
+            return true;
+        }
+        return false;
+    }
+
     @ResponseBody
-    @RequestMapping(value = "/login",method = RequestMethod.POST)
-    public ActionReturnUtil Login(@RequestParam(value = "username") final String username, @RequestParam(value = "password") final String password,
-                                  @RequestParam(value = "language", required=false) final String language) throws Exception {
+    @RequestMapping(value = "/login", method = RequestMethod.POST)
+    public ActionReturnUtil Login(@RequestParam(value = "username") final String username,
+        @RequestParam(value = "password") final String password,
+        @RequestParam(value = "language", required = false) final String language, HttpServletRequest request, HttpServletResponse response)
+        throws Exception {
+        if(StringUtils.isBlank(username) || StringUtils.isBlank(password)){
+            return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.AUTH_FAIL);
+        }
         SystemConfig trialConfig = this.systemConfigService.findByConfigName(CommonConstant.TRIAL_TIME);
-        if(trialConfig != null) {
+        if (trialConfig != null) {
             int v = Integer.parseInt(trialConfig.getConfigValue());
             if (v == 0) {
                 return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.FREE_TRIAL_END);
             }
         }
+        logger.info("正在登录...");
+        // 获取Ldap的配置信息
         LdapConfigDto ldapConfigDto = this.systemConfigService.findLdapConfig();
+        // 获取crowd的配置信息
+        CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
         String res = null;
-        if(ldapConfigDto != null && ldapConfigDto.getIsOn() != null && ldapConfigDto.getIsOn() == 1
-                && !CommonConstant.ADMIN.equals(username)) {
-            res = this.authManager4Ldap.auth(username, password, ldapConfigDto);
+
+        // admin用户不使用Ldap和单点登录
+        if (CommonConstant.ADMIN.equals(username)) {
+            res = authManagerDefault.auth(username, password);
+        } else if (isCrowdOn(crowdConfigDto)) {
+            // crowd中获取的用户名
+            String ip = NetworkUtil.getIpAddress(request);
+            logger.info("通过crowd登录...");
+            authManagerCrowd.setClientIp(ip);
+            res = authManagerCrowd.auth(username, password);
+        } else if (isLdapOn(ldapConfigDto)) {
+            logger.info("通过ldap登录...");
+            res = authManager4Ldap.auth(username, password, ldapConfigDto);
         } else {
+            logger.info("通过default登录...");
             res = authManagerDefault.auth(username, password);
         }
+
+        // 如果res不为null，就表示至少在一方中找到了账户和密码
         if (StringUtils.isNotBlank(res)) {
+
             User user = userService.getUser(username);
             if (user == null) {
                 user = new User();
@@ -99,6 +140,7 @@ public class AuthController {
                 user.setIsAdmin(0);
                 user.setIsMachine(0);
             }
+
             boolean admin = this.userService.isAdmin(username);
             session.setAttribute("username", user.getUsername());
             session.setAttribute("isAdmin", user.getIsAdmin());
@@ -106,48 +148,64 @@ public class AuthController {
             session.setAttribute("userId", user.getId());
             session.setAttribute("language", language);
             Boolean hasRole = userRoleRelationshipService.hasRole(username);
-            if(CommonConstant.PAUSE.equals(user.getPause())){
+            if (CommonConstant.PAUSE.equals(user.getPause())) {
                 return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_DISABLED);
             }
-            if (admin){
+            if (admin) {
                 session.setAttribute(CommonConstant.ROLEID, CommonConstant.ADMIN_ROLEID);
                 rolePrivilegeService.switchRole(CommonConstant.ADMIN_ROLEID);
             }
-            if(!(hasRole || admin)){
+            if (!(hasRole || admin)) {
                 return ActionReturnUtil.returnErrorWithMsg(ErrorCodeMessage.USER_NOT_AUTH);
             }
-            //sessionId存放redis统一管理 默认8小时数据销毁
-            stringRedisTemplate.opsForValue().set("sessionid:sessionid-"+username,session.getId(),SESSION_TIMEOUT_HOURS,TimeUnit.HOURS);
-            //TODO 后续
-//            ActionReturnUtil checkedSecret = this.secretService.checkedSecret(username, password);
-            
+            // sessionId存放redis统一管理 默认8小时数据销毁
+            stringRedisTemplate.opsForValue().set("sessionid:sessionid-" + username, session.getId(),
+                SESSION_TIMEOUT_HOURS, TimeUnit.HOURS);
+
             Map<String, Object> data = new HashMap<String, Object>();
             Map<String, Object> token = authService.generateToken(user);
             K8SClient.getTokenMap().put(username, token.get("token"));
             data.put("username", user.getUsername().toLowerCase());
             data.put("isSuperAdmin", user.getIsAdmin());
             data.put("token", session.getId());
-//            data.put("secrit",checkedSecret);
             JsonUtil.objectToJson(data);
+            if (crowdConfigDto != null && crowdConfigDto.getIsAccess() != null && crowdConfigDto.getIsAccess() == 1
+                && !CommonConstant.ADMIN.equals(username)) {
+                // 在crowd接入时，添加cookie
+                String crowdToken = authManagerCrowd.getToken(username, password);
+                authManagerCrowd.addCookie(crowdToken, response);
+            }
+
             return ActionReturnUtil.returnSuccessWithData(data);
         }
+        logger.error("认证失败");
         return ActionReturnUtil.returnErrorWithData(ErrorCodeMessage.AUTH_FAIL);
     }
 
     @RequestMapping(value = "/logout", method = RequestMethod.POST)
     @ResponseBody
-    public ActionReturnUtil logout() throws Exception {
-        //移除redis中sessionid
-        stringRedisTemplate.delete("sessionid:sessionid-"+session.getAttribute("username"));
-        // 清除session
+    public ActionReturnUtil logout(HttpServletResponse response) throws Exception {
+        // 获得当前正在登录的用户名
+        String username = (String)session.getAttribute("username");
+        // 移除redis中sessionid
+        stringRedisTemplate.delete("sessionid:sessionid-" + session.getAttribute("username"));
+        // 获取crowd的配置信息
+        CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
+        if (isCrowdOn(crowdConfigDto) && !CommonConstant.ADMIN.equals(username)) {
+            // 在crowd中清除登录信息
+            authManagerCrowd.invalidateToken(username);
+//            authManagerCrowd.clearCookie(response);
+        }
+        // 使session失效
         session.invalidate();
+
         String data = "message" + ":" + "logout successfully!";
         return ActionReturnUtil.returnSuccessWithData(data);
     }
 
     /**
      * 验证token有效性
-     * 
+     *
      * @return
      * @throws Exception
      */
@@ -155,7 +213,7 @@ public class AuthController {
     @ResponseBody
     @RequestMapping(value = "/token", method = RequestMethod.POST)
     public Map<String, Object> authToken() throws Exception {
-//        logger.info("start auth token");
+        // logger.info("start auth token");
         int size = request.getContentLength();
         if (size == 0) {
             logger.error("request is null");
@@ -166,7 +224,7 @@ public class AuthController {
         String res = new String(reqBodyBytes);
         // 将string 转成map
         Map<String, Object> params = JsonUtil.convertJsonToMap(res);
-        String token = ((Map<String, Object>) params.get("spec")).get("token").toString();
+        String token = ((Map<String, Object>)params.get("spec")).get("token").toString();
         Map<String, Object> data = new HashMap<String, Object>();
         User vUser = authService.validateToken(token);
         data.put("apiVersion", params.get("apiVersion").toString());
@@ -198,27 +256,22 @@ public class AuthController {
 
     /**
      * 根据用户名密码获取token
-     * 
-
+     *
      * @return
      * @throws Exception
      */
     /*
      * @RequestMapping(value = "/getToken", method = RequestMethod.POST)
-     * 
+     *
      * @ResponseBody public ActionReturnUtil getToken(String userName, String
      * password) throws Exception { User user = new User(userName, password);
      * Map<String, Object> token = authService.generateToken(user); if (token !=
      * null) { if(session != null && session.getAttribute("username")){
-     * 
+     *
      * } K8SClient.tokenMap.put(username, token.get("token")); return
      * ActionReturnUtil.returnSuccessWithData(token); } else { return
      * ActionReturnUtil.returnError(); } }
      */
-
-
-
-
     public static final byte[] readBytes(InputStream is, int contentLen) {
         if (contentLen > 0) {
             int readLen = 0;
@@ -237,6 +290,6 @@ public class AuthController {
             } catch (IOException e) {
             }
         }
-        return new byte[]{};
+        return new byte[] {};
     }
 }

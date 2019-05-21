@@ -1,6 +1,5 @@
 package com.harmonycloud.service.debug;
 
-
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.debug.bean.DebugState;
 
@@ -14,7 +13,7 @@ import java.util.List;
 public interface DebugService {
     boolean start(String namespace, String username, String service,String port) throws Exception;
 
-    ActionReturnUtil getCommands(String namespace, String username, String service)throws Exception;
+    ActionReturnUtil getCommands(String namespace, String username, String service, String system)throws Exception;
 
     Boolean checkLink(String namespace,String username,String service)throws Exception ;
 
@@ -23,4 +22,6 @@ public interface DebugService {
     boolean end(String namespace, String username, String service,String port) throws Exception;
 
     DebugState checkService(String namespace,String service)throws Exception;
+
+    List<File> getConfig(String namespace,String system)throws Exception;
 }

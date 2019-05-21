@@ -69,6 +69,8 @@ public enum ErrorCodeMessage {
     NAME_LENGTH_LIMIT(100045,"name length must be no more than 63 characters", "名称长度不能超过63个字符"),
     INVALID_CHARACTER(100046,"Format is not correct, contains illegal characters", "格式错误, 包含非法字符或组合"),
     ENGLISH_NAME_EXIST(100047,"Short name exists", "简称已经存在"),
+    GET_CROWD_CONF_FAIL(100048, "Get crowd config failed.","获取Crowd配置失败"),
+
 
     //用户相关 200xxx
     USER_DISABLED(200001, "User is disabled.","该用户暂时停止使用，请联系管理员"),
@@ -106,6 +108,10 @@ public enum ErrorCodeMessage {
     USER_PERMISSION_DENIED_FOR_PRIVILEGE_CHANGE(200033, "Privilege has changed,permission denied.","权限被管理员修改,权限不足"),
     USER_LOCKED(200034, "The account is locked. Please try after 30 minutes ", "账号已锁定，请30分钟后再试"),
     USER_PASSWORD_CHANGE_SELF(200035, "Only change password for yourself", "只能修改自己的账号密码"),
+    //只与单点登录相关
+    USER_CROWD_CREATE_FAIL(20036, "User can't be created in CROWD", "在CROWD中同步用户失败，请联系管理员"),
+    USER_INFO_LOST(20037, "User can't be created as CROWD", "与CROWD同步用户失败，请联系管理员"),
+
 
     //租户 201xxx
     TENANTNAME_EXIST(201001, "TenantName was existed.","租户简称已经存在"),
@@ -281,6 +287,7 @@ public enum ErrorCodeMessage {
     NAMESPACE_DELETE_FIRST(302010,"Please delete namespace first","请先删除分区"),
     PRIVATE_NAMESPACE_ONLY(302011,"Only private namespaces are allowed.","只允许操作私有分区"),
     NAMESPACE_CREATE_ERROR_DELETED(302012, "Namespace is being deleted: namespaces already exists.","分区正在被删除的过程中,请稍后创建!"),
+    NAMESPACE_QUOTA_EXCEEDED(302013, "Namespace quota exceeded.","分区配额不足"),
     //应用 400xxx
     SCRIPT_NOT_EXIST(400001, "Script file not found.","脚本文件未找到"),
     TOPOLOGY_NOT_EXIST(400002, "Network topology not existed.","网络拓扑图不存在"),
@@ -344,6 +351,8 @@ public enum ErrorCodeMessage {
             "资源配额不足，请确保当前系统有足够资源"),
     TRANSFER_NOT_EXIST(400057, "Transfer Service was not existed.", "所迁移的集群信息为空"),
     SERVICE_IS_UPDATING(400058, "the service is updating.","服务正在滚动或蓝绿升级中"),
+    SERVICE_NOT_MATCH_PROJECT(400059, "the service is not match this project.","服务与项目不匹配"),
+    USER_IN_DEBUG(400060, "Current user is in Debug.","当前用户正在debug中"),
 
     //模板 401xxx
     SERVICE_TEMPLATE_NOT_EXIST(401001, "Service template not exist.", "服务模板不存在"),
@@ -562,6 +571,7 @@ public enum ErrorCodeMessage {
 
     //配置文件 407xxx
     CONFIGMAP_NAME_DUPLICATE(407001, "ConfigMap name duplicate.", "配置文件名称已存在"),
+    CONFIGMAP_ADMIN_CONF_NOT_FOUND(407002, "ConfigMap of admin conf not exist, please contact system manager.", "admin.conf配置文件不存在，请联系系统管理员"),
 
     //其他9xxxxx
     FREE_TRIAL_END(900001, "Free trial end, please contact admin.","试用已结束，请联系管理员"),

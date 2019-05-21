@@ -9,18 +9,18 @@ public class DebugState {
     private Integer id;
     private String username;
     private String state;
-    private Date updatetime;
-    private String podname;
+    private Date updateTime;
+    private String podName;
     private String namespace;
     private String service;
     private String port;
 
-    public String getPodname() {
-        return podname;
+    public String getPodName() {
+        return podName;
     }
 
-    public void setPodname(String podname) {
-        this.podname = podname;
+    public void setPodName(String podName) {
+        this.podName = podName;
     }
 
     public Integer getId() {
@@ -47,12 +47,12 @@ public class DebugState {
         this.state = state;
     }
 
-    public Date getUpdatetime() {
-        return updatetime;
+    public Date getUpdateTime() {
+        return updateTime;
     }
 
-    public void setUpdatetime(Date updatetime) {
-        this.updatetime = updatetime;
+    public void setUpdateTime(Date updateTime) {
+        this.updateTime = updateTime;
     }
 
     public String getNamespace() {

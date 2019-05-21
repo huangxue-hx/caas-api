@@ -36,7 +36,6 @@ public class OriginFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest)request;
         HttpServletResponse httpResponse = (HttpServletResponse)response;
 
-
         //检查跨域请求的origin是否在允许范围内
         if(StringUtils.isNotBlank(allowOrigin)) {
             String origin = allowOrigin;

@@ -32,6 +32,9 @@ public class User implements Serializable {
     private Date rightTime;
     private String phone;
 
+    //devops创建用户
+    private boolean isThirdPartyUser;
+
     //完善功能dingwei
     private String real_name;
     private Date create_time;
@@ -42,6 +45,9 @@ public class User implements Serializable {
 
     private String loginFailTime;//登陆失败时间
     private int loginFailCount;//登陆失败次数
+
+    //用于数据同步标识
+    private Integer crowdUserId;
 
     public String getLoginFailTime() {
         return loginFailTime;
@@ -236,6 +242,22 @@ public class User implements Serializable {
 
     public void setIsLdapUser(Boolean ldapUser) {
         isLdapUser = ldapUser;
+    }
+
+    public Boolean getIsThirdPartyUser() {
+        return isThirdPartyUser;
+    }
+
+    public void setIsThirdPartyUser(Boolean isThirdPartyUser) {
+        this.isThirdPartyUser = isThirdPartyUser;
+    }
+
+    public Integer getCrowdUserId() {
+        return crowdUserId;
+    }
+
+    public void setCrowdUserId(Integer crowdUserId) {
+        this.crowdUserId = crowdUserId;
     }
 
     @Override

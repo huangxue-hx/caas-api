@@ -130,16 +130,28 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
     private HttpSession session;
 
     @Override
-    public AppDetail getStatefulSetDetail(String namespace, String name) throws Exception {
+    public AppDetail getStatefulSetDetail(String namespace, String name, String projectId) throws Exception {
         if (StringUtils.isEmpty(namespace) || StringUtils.isEmpty(name)) {
             throw new MarsRuntimeException(ErrorCodeMessage.PARAMETER_VALUE_NOT_PROVIDE);
         }
         Cluster cluster = namespaceLocalService.getClusterByNamespaceName(namespace);
         AppDetail res = null;
-        Map<String, Object> bodys = new HashMap<String, Object>();
 
+        // 获取特定的statefulSet
+        StatefulSet sta = statefulSetService.getStatefulSet(namespace, name, cluster);
+        if (sta == null) {
+            throw new MarsRuntimeException(ErrorCodeMessage.DEPLOYMENT_NOT_FIND);
+        }
+
+        // 根据项目过滤，不匹配直接返回
+        Map<String, Object> stsLabels = sta.getMetadata().getLabels();
+        if (StringUtils.isNotBlank(projectId) && stsLabels.get(Constant.TYPE_PROJECT_ID) != null
+                && !stsLabels.get(Constant.TYPE_PROJECT_ID).toString().equals(projectId)) {
+            throw new MarsRuntimeException(ErrorCodeMessage.SERVICE_NOT_MATCH_PROJECT);
+        }
+
+        Map<String, Object> bodys = new HashMap<String, Object>();
         // 获取cpaEvents
-        bodys.clear();
         AutoScaleDto scaleDto  = autoScaleService.get(namespace, name);
         EventList hapEve = new EventList();
         if (scaleDto != null ){
@@ -150,8 +162,7 @@ public class StatefulSetsServiceImpl implements StatefulSetsService {
             }
             hapEve = JsonUtil.jsonToPojo(hpaeRes.getBody(), EventList.class);
         }
-        // 获取特定的statefulSet
-        StatefulSet sta = statefulSetService.getStatefulSet(namespace, name, cluster);
+
         // 获取statefulSet的events
         bodys.clear();
         bodys.put("fieldSelector", "involvedObject.uid=" + sta.getMetadata().getUid());
