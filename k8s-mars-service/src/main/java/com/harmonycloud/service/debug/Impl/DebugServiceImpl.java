@@ -322,6 +322,7 @@ public class DebugServiceImpl implements DebugService {
         DebugState ds = debugMapper.getStateByUsername(username);
         // 用户正在debug才可以结束。
         if (ds == null || ds.getState().equals("stop")) {
+            logger.warn("debug状态不存在或已stop，state:{}", JSONObject.toJSONString(ds));
             return false;
         }
         // 删除Pod
@@ -334,15 +335,16 @@ public class DebugServiceImpl implements DebugService {
         // 修改service
         K8SClientResponse getResponse = serviceEntryService.getService(namespace, null, cluster, service);
         if (!HttpStatusUtil.isSuccessStatus(getResponse.getStatus())) {
+            logger.error("查询service 失败，namespace:{},service:{},message:{}", namespace, service, JSONObject.toJSONString(getResponse));
             return false;
         }
         com.harmonycloud.k8s.bean.Service newService =
             JsonUtil.jsonToPojo(getResponse.getBody(), com.harmonycloud.k8s.bean.Service.class);
         Map<String, String> selector = (Map<String, String>)newService.getSpec().getSelector();
         String app = selector.get("app");
-        // 如果
+        // 去掉-debug
         if (app.contains("-debug")) {
-            selector.put("app", app.substring(0, app.length() - 6));// 去掉-debug
+            selector.put("app", app.substring(0, app.length() - 6));
         }
         newService.getSpec().setSelector(selector);
 
