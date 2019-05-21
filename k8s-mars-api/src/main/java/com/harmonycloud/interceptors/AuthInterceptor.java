@@ -89,13 +89,16 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         HttpSession session = request.getSession();
         CrowdConfigDto crowdConfigDto = this.systemConfigService.findCrowdConfig();
         String username = (String)session.getAttribute("username");
+        LOGGER.info("当前用户：{}", username);
         // 容器云平台的admin用户永远不接入crowd进行单点登录
          if (isCrowdOn(crowdConfigDto) && !isAdmin(username)) {
 //        if (isCrowdOn(crowdConfigDto)) {
             // 如果crowd接入了系统，则通过获取 Cookie检测登录状态
+             LOGGER.info("进入单点登录验证...");
             Cookie[] cookies = request.getCookies();
             if (cookies != null) {
                 for (Cookie cookie : cookies) {
+                    LOGGER.info("cookie:{}", cookie.getName());
                     // 判断中crowd中用户是否已经登录了
                     if (isCrowdLogin(cookie, session)) {
                         return true;
@@ -136,6 +139,7 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
         if (cookie.getName().equals(authManagerCrowd.getCookieName())) {
             String token = cookie.getValue().replace("\"", "");;
             String username = authManagerCrowd.testLogin(token);
+            LOGGER.info("单点token 验证用户:{}", username);
             // crowd中的admin用户不单点登录
             if (StringUtils.isNotBlank(username) && !isAdmin(username)) {
                 session.setAttribute("username", username);
