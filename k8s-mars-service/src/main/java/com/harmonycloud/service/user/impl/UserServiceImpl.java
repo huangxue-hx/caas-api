@@ -1,8 +1,5 @@
 package com.harmonycloud.service.user.impl;
 
-import com.harmonycloud.service.system.SystemConfigService;
-import com.harmonycloud.service.user.*;
-//import com.harmonycloud.service.user.auth.AuthManagerCrowd;
 import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.enumm.DictEnum;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
@@ -12,6 +9,7 @@ import com.harmonycloud.common.util.*;
 import com.harmonycloud.common.util.date.DateStyle;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.dataprivilege.bean.DataPrivilegeGroupMember;
+import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dao.user.UserGroupMapper;
 import com.harmonycloud.dao.user.UserGroupRelationMapper;
@@ -20,7 +18,6 @@ import com.harmonycloud.dao.user.bean.*;
 import com.harmonycloud.dto.tenant.TenantDto;
 import com.harmonycloud.dto.tenant.show.UserShowDto;
 import com.harmonycloud.dto.user.*;
-import com.harmonycloud.k8s.bean.Namespace;
 import com.harmonycloud.k8s.bean.NamespaceList;
 import com.harmonycloud.k8s.bean.ServiceList;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
@@ -32,13 +29,11 @@ import com.harmonycloud.service.dataprivilege.DataPrivilegeGroupMemberService;
 import com.harmonycloud.service.platform.bean.harbor.HarborUser;
 import com.harmonycloud.service.platform.constant.Constant;
 import com.harmonycloud.service.platform.service.harbor.HarborUserService;
+import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.TenantService;
-import com.harmonycloud.service.user.RoleLocalService;
-import com.harmonycloud.service.user.RoleService;
-import com.harmonycloud.service.user.UserRoleRelationshipService;
-import com.harmonycloud.service.user.UserService;
+import com.harmonycloud.service.user.*;
 import com.harmonycloud.service.util.SsoClient;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFCell;
@@ -65,8 +60,6 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -75,6 +68,8 @@ import java.util.stream.Collectors;
 import static com.harmonycloud.common.Constant.CommonConstant.*;
 import static com.harmonycloud.service.platform.constant.Constant.DB_BATCH_INSERT_COUNT;
 import static com.harmonycloud.service.platform.constant.Constant.MAX_QUERY_COUNT_100;
+
+//import com.harmonycloud.service.user.auth.AuthManagerCrowd;
 
 
 /**
@@ -1981,10 +1976,11 @@ public class UserServiceImpl implements UserService {
         List<String> finalNamespaces=new ArrayList<>();
         NamespaceList namespaces=new NamespaceList();
         for (TenantBinding tb:tenants) {
-            namespaces= (NamespaceList)namespaceService.getSimpleNamespaceListByTenant(tb.getTenantId()).getData();
-            if(namespaces==null)continue;
-            for (Namespace n:namespaces.getItems()) {
-                finalNamespaces.add(n.getMetadata().getName());
+            List<NamespaceLocal> list = namespaceLocalService.getNamespaceListByTenantId(tb.getTenantId());
+//            namespaces= (NamespaceList)namespaceService.getSimpleNamespaceListByTenant(tb.getTenantId()).getData();
+            if(CollectionUtils.isEmpty(list)) continue;
+            for (NamespaceLocal n: list) {
+                finalNamespaces.add(n.getNamespaceName());
             }
         }
         return finalNamespaces;
