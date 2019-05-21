@@ -2,3 +2,9 @@
   kubectl create cm admin-conf -n kube-system --from-file=/etc/kubernetes/admin.conf
 
 2. 增加 k8s-deploy/debug-proxy:v1.0 镜像
+
+3. 增加配置
+#crowd配置
+crowd.cookie.domain=harmonycloud.com
+crowd.cookie.name=crowd.token_key
+crowd.api.url=crowd/rest/usermanagement/latest/
