@@ -39,6 +39,7 @@ import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
+import com.harmonycloud.schedule.AsyncClusterTransfer;
 import com.harmonycloud.service.application.ClusterTransferService;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.PersistentVolumeService;
@@ -52,7 +53,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.beans.IntrospectionException;
@@ -140,6 +140,9 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 
 	@Autowired
     private ReplicasetsService rsService;
+
+	@Autowired
+	private AsyncClusterTransfer asyncClusterTransfer;
 
     /**
      * 迁移对应的服务 在新集群上创建相同的服务 需要创建的有 ingress namespce configmap pv pvc deployment或者statefulset
@@ -1810,7 +1813,8 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		List<ErrorNamespaceDto> namespaces = param.get(Constant.TRANSFER_NAMESPACE_SUCCESS);
 
 		// 异步执行服务迁移
-		transferDeploy(namespaces, transferClusterBackup, clusterTransferDto, targetCluster, isContinue, sourceCluster);
+		asyncClusterTransfer.transferDeploy(namespaces, transferClusterBackup, clusterTransferDto, targetCluster, isContinue, sourceCluster);
+
 
 		transferResultDto.setStatus(true);
 		transferResultDto.setErrNamespaceDtos(param.get(Constant.TRANSFER_NAMESPACE_ERROR));
@@ -1841,14 +1845,14 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		return isContinue?transferBindNamespaceMapper.queryErrorNamespace(clusterTransferDto.get(0).getTenantId(),clusterTransferDto.get(0).getTargetClusterId()):addBindNamespaceData(clusterTransferDto);
 	}
 
-	@Async
-	protected Map<String,Object> transferDeploy(List<ErrorNamespaceDto> namespaces,TransferClusterBackup transferClusterBackup,
+	@Override
+	public void transferDeploy(List<ErrorNamespaceDto> namespaces,TransferClusterBackup transferClusterBackup,
 											  List<ClusterTransferDto> clusterTransferDto,
 											  Cluster targetCluster,boolean isContinue,Cluster sourceCluster) throws Exception {
 		DeployResultDto deployResultDto= generateTransferDeploymentAndTransferDeploy(namespaces, clusterTransferDto, transferClusterBackup, sourceCluster);
 		List<TransferBindDeploy> deployList = deployResultDto.getDeploys();
 		if (deployList.isEmpty()) {
-			return null;
+			return ;
 		}
 		transferDeployMapper.saveTransferList(deployList);
 		//
@@ -1859,7 +1863,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 			deploymentTransferDtos = generateTransferDtoList(transferBindDeploys);
 			deploymentTransferDtos.addAll(deployResultDto.getDeploymentTransferDtos());
 		}
-		return createDeployment(deploymentTransferDtos, transferClusterBackup, sourceCluster, targetCluster);
+		createDeployment(deploymentTransferDtos, transferClusterBackup, sourceCluster, targetCluster);
 	}
 
 	private void updateDeployResult(Map<String,Object> params){

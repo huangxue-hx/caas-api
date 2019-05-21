@@ -1,16 +1,15 @@
 
 package com.harmonycloud.service.application;
 
-import java.beans.IntrospectionException;
-import java.io.UnsupportedEncodingException;
-import java.lang.reflect.InvocationTargetException;
-import java.util.List;
-
-import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.ActionReturnUtil;
+import com.harmonycloud.dao.cluster.bean.TransferClusterBackup;
 import com.harmonycloud.dto.application.DeploymentTransferDto;
 import com.harmonycloud.dto.cluster.ClusterTransferDetailDto;
 import com.harmonycloud.dto.cluster.ClusterTransferDto;
+import com.harmonycloud.dto.cluster.ErrorNamespaceDto;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+
+import java.util.List;
 
 /**
  * 集群迁移服务
@@ -27,6 +26,11 @@ public interface ClusterTransferService {
 	 * @return
 	 */
 	ActionReturnUtil transferCluster(List<ClusterTransferDto> clusterTransferDto) throws Exception;
+
+
+	void transferDeploy(List<ErrorNamespaceDto> namespaces, TransferClusterBackup transferClusterBackup,
+						List<ClusterTransferDto> clusterTransferDto,
+						Cluster targetCluster, boolean isContinue, Cluster sourceCluster) throws Exception;
 
 	ActionReturnUtil getTransferCluster(ClusterTransferDetailDto clusterTransferDto);
 
