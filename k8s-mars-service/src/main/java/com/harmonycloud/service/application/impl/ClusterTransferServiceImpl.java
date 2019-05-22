@@ -1749,7 +1749,30 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		}
 		List<ClusterTransferBackupDto> resList = Lists.newArrayList();
 		backupList.forEach(backup -> {
-			resList.add(this.convert(backup));
+			ClusterTransferBackupDto dto = this.convert(backup);
+
+			// 返回迁移状态：1-迁移失败 2-迁移中 3-部分完成 4-迁移完成
+			if (StringUtils.isBlank(dto.getTransferClusterPercent()) || StringUtils.isNotBlank(dto.getErrMsg())) {
+				// 迁移失败，状态置为1
+				dto.setTransferStatus(NUM_ONE);
+			} else if ("100%".equals(dto.getTransferClusterPercent())) {
+				// 迁移操作完成，但是得区分3-部分完成和4-全部完成
+				List<TransferBindDeploy> deploys = transferDeployMapper.listTransferDeploys(dto.getId());
+				int failNum = (int) deploys.stream().filter(deploy ->
+						deploy.getStatus() == null || deploy.getStatus() != NUM_ONE).count();
+				if (failNum == NUM_ZERO) {
+					dto.setTransferStatus(NUM_FOUR);
+				} else if (failNum == deploys.size()) {
+					dto.setTransferStatus(NUM_ONE);
+				} else {
+					dto.setTransferStatus(NUM_THREE);
+				}
+			} else {
+				// 迁移中，状态置为2
+				dto.setTransferStatus(NUM_TWO);
+			}
+
+			resList.add(dto);
 		});
 		return ActionReturnUtil.returnSuccessWithData(resList);
 	}

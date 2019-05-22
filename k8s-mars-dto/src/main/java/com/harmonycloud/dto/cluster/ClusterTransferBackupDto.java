@@ -39,6 +39,7 @@ public class ClusterTransferBackupDto implements Serializable {
 
     private List<TransferBindDeploy> transferBindDeploys;
 
+    private Integer transferStatus;
 
     public Integer getId() {
         return id;
@@ -142,5 +143,13 @@ public class ClusterTransferBackupDto implements Serializable {
 
     public void setTransferClusterAliasName(String transferClusterAliasName) {
         this.transferClusterAliasName = transferClusterAliasName;
+    }
+
+    public Integer getTransferStatus() {
+        return transferStatus;
+    }
+
+    public void setTransferStatus(Integer transferStatus) {
+        this.transferStatus = transferStatus;
     }
 }
