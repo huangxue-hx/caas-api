@@ -111,7 +111,7 @@ public enum ErrorCodeMessage {
     //只与单点登录相关
     USER_CROWD_CREATE_FAIL(20036, "User can't be created in CROWD", "在CROWD中同步用户失败，请联系管理员"),
     USER_INFO_LOST(20037, "User can't be created as CROWD", "与CROWD同步用户失败，请联系管理员"),
-
+    USER_INFO_UPDATE_FAIL(200038, "Fail to update user info","更新用户信息失败"),
 
     //租户 201xxx
     TENANTNAME_EXIST(201001, "TenantName was existed.","租户简称已经存在"),

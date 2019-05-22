@@ -1,6 +1,8 @@
 package com.harmonycloud.service.user.auth;
 
 import com.alibaba.fastjson.JSONObject;
+import com.harmonycloud.common.enumm.ErrorCodeMessage;
+import com.harmonycloud.common.exception.MarsRuntimeException;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dto.user.CrowdConfigDto;
@@ -12,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import javax.servlet.http.Cookie;
@@ -22,6 +25,9 @@ import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Base64;
+
+import static com.harmonycloud.common.Constant.CommonConstant.EMAIL;
+import static com.harmonycloud.common.Constant.CommonConstant.FLAG_FALSE;
 
 @Service
 public class AuthManagerCrowdImpl implements AuthManagerCrowd {
@@ -170,8 +176,25 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         if (connection.getResponseCode() == 201) {
             User user = getUser(username, password);
             if (user != null) {
-                // 在容器云平台添加用户
-                userService.addUser(user);
+                try {
+                    // 在容器云平台添加用户
+                    User existUser = userService.getUser(username);
+                    if (existUser == null) {
+                        userService.addUser(user);
+                    } else {
+                        existUser.setRealName(user.getRealName());
+                        existUser.setEmail(user.getEmail());
+                        existUser.setPhone(user.getPhone());
+                        userService.updateUser(existUser);
+                    }
+                } catch (DuplicateKeyException e) {
+                    logger.error("保存或更新用户信息失败", e);
+                    if (e.getMessage().contains(EMAIL)) {
+                        throw new MarsRuntimeException(ErrorCodeMessage.USER_INFO_UPDATE_FAIL.phrase() + ": ", ErrorCodeMessage.USER_EMAIL_DUPLICATE);
+                    } else {
+                        throw new MarsRuntimeException(ErrorCodeMessage.USER_INFO_UPDATE_FAIL);
+                    }
+                }
             }
             return username;
         } else {
@@ -191,6 +214,8 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         String messageBody = this.getMessageBody(urlConnection);
         String email = messageBody.substring(messageBody.indexOf("<email>") + "<email>".length(),
             messageBody.lastIndexOf("</email>"));
+        String displayName = messageBody.substring(messageBody.indexOf("<display-name>") + "<display-name>".length(),
+                messageBody.lastIndexOf("</display-name>"));
         // 获取phone值
         URL phoneurl = new URL(getAddress() + "user/attribute?username=" + username);
         HttpURLConnection urlPhoneConnection = this.crowdGet(phoneurl);
@@ -206,21 +231,19 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
                 .substring(messageBody.indexOf("<attribute name=\"phone\">") + "<attribute name=\"phone\">".length());
             phone = messageBody.substring(messageBody.indexOf("<value>") + "<value>".length(),
                 messageBody.indexOf("</value>"));
-        } else {
-            logger.error("crowd中用户缺少电话号码信息，无法添加用户");
-            // 找不到crowd中的phone属性
-            return null;
         }
         // 组装用户数据
         User user = new User();
         user.setCreate_time(DateUtil.getCurrentUtcTime());
         user.setPhone(phone);
         user.setEmail(email);
-        user.setComment("Created by CROWD");
+        user.setComment("From CROWD");
         user.setPassword(password);
         user.setUsername(username);
-        user.setRealName(username);
-        user.setIsAdmin(0);
+        user.setRealName(displayName);
+        user.setIsThirdPartyUser(true);
+        user.setIsAdmin(FLAG_FALSE);
+        user.setIsMachine(FLAG_FALSE);
         return user;
     }
 
