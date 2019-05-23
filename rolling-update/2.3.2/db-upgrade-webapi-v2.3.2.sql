@@ -17,18 +17,18 @@ CREATE TABLE `debug_state` (
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8;
 
 
-insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'namespace', '/users/namespace/username/*', 'namespace');
-insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'namespace', '/users/namespace/username', 'namespace');
-insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'debug', '/namespaces/*/services/*/debug/start', 'debug');
-insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'debug', '/namespaces/*/services/*/debug/end', 'debug');
-insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'debug', '/namespaces/*/services/*/debug/command', 'debug');
-insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'debug', '/namespaces/*/services/*/debug/download/*', 'debug');
-insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'debug', '/namespaces/*/services/*/debug/test/link', 'debug');
-insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'debug', '/namespaces/*/services/*/debug/download', 'debug');
-insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'namespace', '/users/namespaces', 'namespace');
-insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'debug', '/users/debug/test', 'debug');
-insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'debug', '/namespaces/*/services/*/debug/test/service', 'debug');
-insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'service', '/users/namespaces/*/services', 'service');
+insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'appcenter', '/namespaces/*/services/*/debug/start', 'app');
+insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'appcenter', '/namespaces/*/services/*/debug/end', 'app');
+insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'appcenter', '/namespaces/*/services/*/debug/command', 'app');
+insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'appcenter', '/namespaces/*/services/*/debug/download/*', 'app');
+insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'appcenter', '/namespaces/*/services/*/debug/test/link', 'app');
+insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'appcenter', '/namespaces/*/services/*/debug/download', 'app');
+insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'appcenter', '/users/namespaces', 'app');
+insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'appcenter', '/users/debug/test', 'app');
+insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'appcenter', '/namespaces/*/services/*/debug/test/service', 'app');
+insert into `k8s_auth_server`.`url_dic` ( `module`, `url`, `resource`) values ( 'appcenter', '/users/namespaces/*/services', 'app');
+
+
 -- crowd用户认证
 alter table user add `crowd_user_id` int(11) DEFAULT NULL;
 
