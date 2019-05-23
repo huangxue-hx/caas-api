@@ -300,16 +300,20 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
     // 用于检测用户是否登录
     public String testLogin(String crowdToken) throws Exception {
         URL crowdUrl = new URL(getAddress() + "session/" + crowdToken);
-        HttpURLConnection connection = this.crowdGet(crowdUrl);
-        logger.info("单点token认证状态:{}", connection.getResponseCode());
-        if (connection.getResponseCode() == 200) {
-            // 说明用户已经在登录
-            String result = getMessageBody(connection);
-            String username =
-                result.substring(result.indexOf("name=\"") + "name=\"".length(), result.indexOf("\"><link"));
-            return username;
-        } else {
-            logger.error("单点token认证失败:{}", getMessageBody(connection));
+        try {
+            HttpURLConnection connection = this.crowdGet(crowdUrl);
+            if (connection.getResponseCode() == 200) {
+                // 说明用户已经在登录
+                String result = getMessageBody(connection);
+                String username =
+                        result.substring(result.indexOf("name=\"") + "name=\"".length(), result.indexOf("\"><link"));
+                return username;
+            } else {
+                logger.info("单点token认证失败，返回状态码:{}", connection.getResponseCode());
+                return null;
+            }
+        } catch (Exception e) {
+            logger.error("单点token认证失败异常", e);
             return null;
         }
     }

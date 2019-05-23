@@ -95,7 +95,6 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
             Cookie[] cookies = request.getCookies();
             if (cookies != null) {
                 for (Cookie cookie : cookies) {
-                    LOGGER.info("cookie:{}, value:{}", cookie.getName(), cookie.getValue());
                     // 判断中crowd中用户是否已经登录了
                     if (isCrowdLogin(cookie, session)) {
                         return true;
