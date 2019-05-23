@@ -3,6 +3,7 @@ package com.harmonycloud.service.user.auth;
 import com.alibaba.fastjson.JSONObject;
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.StringUtil;
 import com.harmonycloud.common.util.date.DateUtil;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dto.user.CrowdConfigDto;
@@ -175,25 +176,29 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
         HttpURLConnection connection = this.crowdPost(url, "application/json", jsonData);
         if (connection.getResponseCode() == 201) {
             User user = getUser(username, password);
-            if (user != null) {
-                try {
-                    // 在容器云平台添加用户
-                    User existUser = userService.getUser(username);
-                    if (existUser == null) {
-                        userService.addUser(user);
-                    } else {
+            if (user == null) {
+                return null;
+            }
+            try {
+                // 在容器云平台添加用户
+                User existUser = userService.getUser(username);
+                if (existUser == null) {
+                    userService.addUser(user);
+                } else {
+                    if (isUserInfoChanged(existUser, user)) {
                         existUser.setRealName(user.getRealName());
                         existUser.setEmail(user.getEmail());
                         existUser.setPhone(user.getPhone());
+                        existUser.setPassword(StringUtil.convertToMD5(user.getPassword()));
                         userService.updateUser(existUser);
                     }
-                } catch (DuplicateKeyException e) {
-                    logger.error("保存或更新用户信息失败", e);
-                    if (e.getMessage().contains(EMAIL)) {
-                        throw new MarsRuntimeException(ErrorCodeMessage.USER_INFO_UPDATE_FAIL.phrase() + ": ", ErrorCodeMessage.USER_EMAIL_DUPLICATE);
-                    } else {
-                        throw new MarsRuntimeException(ErrorCodeMessage.USER_INFO_UPDATE_FAIL);
-                    }
+                }
+            } catch (DuplicateKeyException e) {
+                logger.error("保存或更新用户信息失败", e);
+                if (e.getMessage().contains(EMAIL)) {
+                    throw new MarsRuntimeException(ErrorCodeMessage.USER_INFO_UPDATE_FAIL.phrase() + ": ", ErrorCodeMessage.USER_EMAIL_DUPLICATE);
+                } else {
+                    throw new MarsRuntimeException(ErrorCodeMessage.USER_INFO_UPDATE_FAIL);
                 }
             }
             return username;
@@ -320,6 +325,22 @@ public class AuthManagerCrowdImpl implements AuthManagerCrowd {
 
     public String getCookieName() {
         return cookieName;
+    }
+
+    private boolean isUserInfoChanged(User oldUser, User newUser) throws Exception {
+        if (!oldUser.getEmail().equals(newUser.getEmail())) {
+            return true;
+        }
+        if (!oldUser.getPhone().equals(newUser.getPhone())) {
+            return true;
+        }
+        if (!oldUser.getRealName().equals(newUser.getRealName())) {
+            return true;
+        }
+        if (!oldUser.getPassword().equals(StringUtil.convertToMD5(newUser.getPassword()))) {
+            return true;
+        }
+        return false;
     }
 
 }

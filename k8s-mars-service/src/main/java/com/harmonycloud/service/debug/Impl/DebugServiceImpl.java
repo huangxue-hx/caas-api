@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import java.io.*;
 import java.net.URL;
@@ -331,28 +332,34 @@ public class DebugServiceImpl implements DebugService {
         K8SClientResponse clientResponse = podService.deletePod(namespace, ds.getPodName(), cluster);
         if (!HttpStatusUtil.isSuccessStatus(clientResponse.getStatus())) {
             logger.error("删除debug pod 失败：{}", JSONObject.toJSONString(clientResponse));
-            return false;
+            if (HttpStatus.NOT_FOUND.value() != clientResponse.getStatus()) {
+                return false;
+            }
         }
         // 修改service
         K8SClientResponse getResponse = serviceEntryService.getService(namespace, null, cluster, service);
-        if (!HttpStatusUtil.isSuccessStatus(getResponse.getStatus())) {
+        int responseStatusCode = getResponse.getStatus();
+        if (!HttpStatusUtil.isSuccessStatus(responseStatusCode)) {
             logger.error("查询service 失败，namespace:{},service:{},message:{}", namespace, service, JSONObject.toJSONString(getResponse));
-            return false;
-        }
-        com.harmonycloud.k8s.bean.Service newService =
-            JsonUtil.jsonToPojo(getResponse.getBody(), com.harmonycloud.k8s.bean.Service.class);
-        Map<String, String> selector = (Map<String, String>)newService.getSpec().getSelector();
-        String app = selector.get("app");
-        // 去掉-debug
-        if (app.contains("-debug")) {
-            selector.put("app", app.substring(0, app.length() - 6));
-        }
-        newService.getSpec().setSelector(selector);
+            if (HttpStatus.NOT_FOUND.value() != getResponse.getStatus()) {
+                return false;
+            }
+        } else {
+            com.harmonycloud.k8s.bean.Service newService =
+                    JsonUtil.jsonToPojo(getResponse.getBody(), com.harmonycloud.k8s.bean.Service.class);
+            Map<String, String> selector = (Map<String, String>) newService.getSpec().getSelector();
+            String app = selector.get("app");
+            // 去掉-debug
+            if (app.endsWith("-debug")) {
+                selector.put("app", app.substring(0, app.length() - 6));
+            }
+            newService.getSpec().setSelector(selector);
 
-        K8SClientResponse updateResponse = serviceEntryService.updateService(namespace, service, newService, cluster);
-        if (!HttpStatusUtil.isSuccessStatus(updateResponse.getStatus())) {
-            logger.error("更新服务debug的selector失败,response:{}", JSONObject.toJSONString(updateResponse));
-            return false;
+            K8SClientResponse updateResponse = serviceEntryService.updateService(namespace, service, newService, cluster);
+            if (!HttpStatusUtil.isSuccessStatus(updateResponse.getStatus())) {
+                logger.error("更新服务debug的selector失败,response:{}", JSONObject.toJSONString(updateResponse));
+                return false;
+            }
         }
         ds.setState("stop");
         // 修改用户debug状态。
