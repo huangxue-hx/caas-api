@@ -416,7 +416,7 @@ public class HarborImageController {
 	public ActionReturnUtil saveImageTagDesc(@PathVariable(value = "repositoryId") Integer repositoryId,
 											 @PathVariable(value="imageName") String imageName,
 											 @PathVariable(value="tagName") String tagName,
-											 @RequestParam(value = "tagDesc") String tagDesc) throws Exception {
+											 @RequestParam(value = "tagDesc", required = false) String tagDesc) throws Exception {
 		String image = URLDecoder.decode(imageName,"UTF-8");
 		return harborProjectService.saveImageTagDesc(repositoryId, image, tagName, tagDesc);
 	}
