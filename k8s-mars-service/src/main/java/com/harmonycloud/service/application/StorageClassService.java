@@ -22,5 +22,7 @@ public interface StorageClassService {
 
     List<StorageClassDto> listStorageClass(String clusterId) throws Exception;
 
-    List<StorageClassDto> listStorageClass(String clusterId,String namespace, String tenantId) throws Exception;
+    List<StorageClassDto> listUnusedStorageClass(String clusterId) throws Exception;
+
+    List<StorageClassDto> listStorageClass(String clusterId,String namespace, String tenantId, String isUnused) throws Exception;
 }

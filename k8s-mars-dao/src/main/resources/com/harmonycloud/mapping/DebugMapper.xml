@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+        <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+        <!-- namespace必须指向Dao接口 -->
+<mapper namespace="com.harmonycloud.dao.debug.DebugMapper">
+    <resultMap id="BaseResultMap" type="com.harmonycloud.dao.debug.bean.DebugState" >
+        <id column="id" property="id" jdbcType="INTEGER" />
+        <result column="username" property="username" jdbcType="VARCHAR" />
+        <result column="state" property="state" jdbcType="VARCHAR" />
+        <result column="namespace" property="namespace" jdbcType="VARCHAR" />
+        <result column="service" property="service" jdbcType="TIMESTAMP" />
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
+        <result column="pod_name" property="podName" jdbcType="VARCHAR" />
+    </resultMap>
+    <sql id="Base_Column_List">
+        id,username,state,update_time,namespace,service,port,pod_name
+    </sql>
+    <insert id="insert" parameterType="com.harmonycloud.dao.debug.bean.DebugState">
+            insert into debug_state
+            (username,state,update_time,namespace,service,port,pod_name)
+            values(#{username},#{state},sysdate(),#{namespace},#{service},#{port},#{podName})
+    </insert>
+
+    <update id="update" parameterType="com.harmonycloud.dao.debug.bean.DebugState">
+            update debug_state
+            set state=#{state},
+                pod_name=#{podName},
+                update_time=sysdate(),
+                namespace=#{namespace},
+                service=#{service},
+                port=#{port}
+            WHERE username=#{username}
+    </update>
+
+    <select id="getStateByUsername" resultMap="BaseResultMap">
+            select <include refid="Base_Column_List" /> from debug_state where username=#{username}
+    </select>
+
+    <select id="getStateByService" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List" /> from debug_state where service=#{service} and namespace=#{namespace} and state!='stop'
+    </select>
+</mapper>

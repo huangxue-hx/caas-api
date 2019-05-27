@@ -11,8 +11,22 @@ import javax.servlet.http.HttpSession;
 
 import com.harmonycloud.common.enumm.ErrorCodeMessage;
 import com.harmonycloud.common.exception.MarsRuntimeException;
+import com.harmonycloud.common.util.JsonUtil;
+import com.harmonycloud.dao.tenant.bean.TenantBinding;
 import com.harmonycloud.dto.user.UserQueryDto;
+import com.harmonycloud.dto.user.*;
+import com.harmonycloud.k8s.bean.Namespace;
+import com.harmonycloud.k8s.bean.NamespaceList;
+import com.harmonycloud.k8s.bean.Service;
+import com.harmonycloud.k8s.bean.ServiceList;
+import com.harmonycloud.k8s.bean.cluster.Cluster;
+import com.harmonycloud.k8s.constant.HTTPMethod;
+import com.harmonycloud.k8s.service.ServicesService;
+import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.cluster.ClusterService;
+import com.harmonycloud.service.tenant.NamespaceLocalService;
+import com.harmonycloud.service.tenant.NamespaceService;
+import com.harmonycloud.service.tenant.TenantService;
 import com.harmonycloud.service.user.*;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -21,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -28,10 +43,6 @@ import com.harmonycloud.common.Constant.CommonConstant;
 import com.harmonycloud.common.util.ActionReturnUtil;
 import com.harmonycloud.dao.user.bean.User;
 import com.harmonycloud.dao.user.bean.UserGroup;
-import com.harmonycloud.dto.user.SummaryUserInfo;
-import com.harmonycloud.dto.user.UserDetailDto;
-import com.harmonycloud.dto.user.UserGroupDto;
-import com.harmonycloud.service.tenant.TenantService;
 
 @Controller
 @Api(description = "用户相关操作")
@@ -56,6 +67,17 @@ public class UserController {
     @Autowired
     private RolePrivilegeService rolePrivilegeService;
 
+    @Autowired
+    private TenantService tenantService;
+
+    @Autowired
+    private NamespaceService namespaceService;
+
+    @Autowired
+    private NamespaceLocalService namespaceLocalService;
+
+    @Autowired
+    private ServicesService servicesService;
 
     /**
      * 是否为系统管理员
@@ -555,6 +577,43 @@ public class UserController {
     @ResponseBody
     public ActionReturnUtil switchLanguage(@RequestParam(value="language") String language) throws Exception{
         session.setAttribute("language", language);
+        return ActionReturnUtil.returnSuccess();
+    }
+
+
+    /**
+     * 根据用户名获取所有的租户下的分区
+     *
+     * @param
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/namespaces", method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getTenantsByUsername() throws Exception {
+        List<String> finalNamespaces=userService.listNamespaceNameByUser();
+        return ActionReturnUtil.returnSuccessWithData(finalNamespaces);
+    }
+
+    @RequestMapping(value="/namespaces/{namespace}/services",method = RequestMethod.GET)
+    @ResponseBody
+    public ActionReturnUtil getServicesByNamespaces(@PathVariable(value="namespace")String namespace)throws Exception{
+        List<String> serviceNameList=userService.listServiceNameByNamespaceName(namespace);
+        return ActionReturnUtil.returnSuccessWithData(serviceNameList);
+    }
+
+    /**
+     * 用户信息数据同步，from crowd to mars
+     *
+     * @return
+     */
+    @RequestMapping(value = "/sync", method = RequestMethod.POST)
+    @ResponseBody
+    public ActionReturnUtil syncUser(@RequestBody List<UserSyncDto> userSyncDtoList) {
+        if (CollectionUtils.isEmpty(userSyncDtoList)) {
+            return ActionReturnUtil.returnSuccess();
+        }
+        userService.syncCrowdUser(userSyncDtoList);
         return ActionReturnUtil.returnSuccess();
     }
 }

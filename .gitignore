@@ -6,6 +6,8 @@ target/
 .settings
 .classpath
 .project
+*/.DS_Store
+.DS_Store
 bin/
 k8s-mars-api/src/main/java/META-INF/
 k8s-mars-api/src/main/resources/constant.properties

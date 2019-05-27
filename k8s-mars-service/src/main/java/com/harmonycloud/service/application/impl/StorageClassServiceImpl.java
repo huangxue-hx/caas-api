@@ -36,6 +36,7 @@ import com.harmonycloud.service.system.SystemConfigService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
 import com.harmonycloud.service.tenant.NamespaceService;
 import com.harmonycloud.service.tenant.TenantClusterQuotaService;
+import com.harmonycloud.service.tenant.TenantService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -91,6 +92,9 @@ public class StorageClassServiceImpl implements StorageClassService {
 
     @Autowired
     private ScService scService;
+
+    @Autowired
+    private TenantService tenantService;
 
     @Autowired
     private DeploymentService deploymentService;
@@ -814,8 +818,29 @@ public class StorageClassServiceImpl implements StorageClassService {
     }
 
     @Override
-    public List<StorageClassDto> listStorageClass(String clusterId, String namespace, String tenantId) throws Exception {
+    public List<StorageClassDto> listUnusedStorageClass(String clusterId) throws Exception {
+        Map<String, Integer> storageClassUnusedMap = tenantService.getStorageClassUnused(clusterId);
+        if(storageClassUnusedMap == null){
+            return Collections.emptyList();
+        }
+        List<StorageClassDto> storageClassDtos = new LinkedList<>();
+        for(String name: storageClassUnusedMap.keySet()){
+            Integer unusedStorage = storageClassUnusedMap.get(name);
+            StorageClassDto storageClassDto = new StorageClassDto();
+            storageClassDto.setClusterId(clusterId);
+            storageClassDto.setName(name);
+            storageClassDto.setStorageLimit(String.valueOf(unusedStorage));
+            storageClassDtos.add(storageClassDto);
+        }
+        return storageClassDtos;
+    }
+
+    @Override
+    public List<StorageClassDto> listStorageClass(String clusterId, String namespace, String tenantId, String isUnused) throws Exception {
         AssertUtil.notBlank(clusterId, DictEnum.CLUSTER_ID);
+        if(StringUtils.isNotBlank(isUnused) && Boolean.valueOf(isUnused)){
+            return listUnusedStorageClass(clusterId);
+        }
         //获取集群
         Cluster cluster = clusterService.findClusterById(clusterId);
         if (Objects.isNull(cluster)) {

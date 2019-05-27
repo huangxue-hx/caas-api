@@ -1114,6 +1114,26 @@ public class TenantServiceImpl implements TenantService {
         return storageClassUnusedMap;
     }
 
+    @Override public Map<String, Integer> getStorageClassUnused(String clusterId) throws Exception {
+        List<StorageClassDto> storageClassDtoList = storageClassService.listStorageClass(clusterId);
+        Map<String, Integer> storageClassUnusedMap = storageClassDtoList.stream().filter(storageDto -> storageDto.getStorageLimit() != null).collect(Collectors.toMap(StorageClassDto::getName, storageDto -> Integer.valueOf(storageDto.getStorageLimit())));
+        List<TenantClusterQuota> tenantClusterQuotaList = tenantClusterQuotaService.getClusterQuotaByClusterId(clusterId, false);
+        //StorageClass剩余的存储容量
+        for (TenantClusterQuota tenantClusterQuota : tenantClusterQuotaList) {
+            String storageQuotas = tenantClusterQuota.getStorageQuotas();
+            if (!StringUtils.isBlank(storageQuotas)) {
+                String[] storageQuotasArray = storageQuotas.split(",");
+                for (String storageQuota : storageQuotasArray) {
+                    String[] storageQuotaArray = storageQuota.split("_");
+                    if (storageClassUnusedMap.get(storageQuotaArray[0]) != null) {
+                        storageClassUnusedMap.put(storageQuotaArray[0], storageClassUnusedMap.get(storageQuotaArray[0]) - Integer.parseInt(storageQuotaArray[1]));
+                    }
+                }
+            }
+        }
+        return storageClassUnusedMap;
+    }
+
     @Override
     public Boolean isTm(String tenantId) throws Exception {
         //获取session的用户名

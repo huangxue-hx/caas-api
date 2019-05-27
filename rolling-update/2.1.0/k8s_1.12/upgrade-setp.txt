@@ -1,3 +1,0 @@
-#节点上下线
- 修改AnsibleApi里面 settings.py的数据库地址
- 修改/root/k8s-upgrade-deploy/deploy-k8s/install-node-sub.sh里面的数据

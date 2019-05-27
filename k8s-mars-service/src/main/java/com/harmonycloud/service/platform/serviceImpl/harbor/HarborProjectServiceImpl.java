@@ -1199,27 +1199,59 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 	}
 
 	@Override
-	public ActionReturnUtil getLabel(String harborHost,String repoName, String scope, Long projectId, String labelName) throws Exception{
-		AssertUtil.notNull(projectId,DictEnum.PROJECT_ID);
+	public ActionReturnUtil getLabel(String harborHost, String repoName, String scope, Long projectId, String labelName) throws Exception {
+		AssertUtil.notNull(projectId, DictEnum.PROJECT_ID);
 		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
 		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels";
 		Map<String, Object> headers = HarborClient.getAdminCookieHeader(harborServer);
 		Map<String, Object> params = new HashMap<>();
-		params.put("scope", scope);
-		params.put("project_id",projectId);
-		ActionReturnUtil response = HarborHttpsClientUtil.httpGetRequest(url, headers, params);
-		if(!response.isSuccess()){
-			logger.error("sync registry error. harborHost:{},res:{}", harborHost, JSONObject.toJSONString(response));
-			return response;
+		params.put("project_id", projectId);
+
+		List<HarborProjectLabel> labelList;
+
+		// 查询所有的label
+		if ("all".equals(scope)) {
+			labelList = Lists.newArrayList();
+			// 查询全局label
+			params.put("scope", "g");
+			ActionReturnUtil response = HarborHttpsClientUtil.httpGetRequest(url, headers, params);
+			if (!response.isSuccess()) {
+				logger.error("query registry error. harborHost:{},res:{}", harborHost, JSONObject.toJSONString(response));
+				return response;
+			}
+			List<HarborProjectLabel> labels = JsonUtil.jsonToList(response.getData().toString(), HarborProjectLabel.class);
+			if (!CollectionUtils.isEmpty(labels)) {
+				labelList.addAll(labels);
+			}
+
+			// 查询项目label
+			params.put("scope", "p");
+			response = HarborHttpsClientUtil.httpGetRequest(url, headers, params);
+			if (!response.isSuccess()) {
+				logger.error("query registry error. harborHost:{},res:{}", harborHost, JSONObject.toJSONString(response));
+				return response;
+			}
+			labels = JsonUtil.jsonToList(response.getData().toString(), HarborProjectLabel.class);
+			if (!CollectionUtils.isEmpty(labels)) {
+				labelList.addAll(labels);
+			}
+		} else {
+			params.put("scope", scope);
+			ActionReturnUtil response = HarborHttpsClientUtil.httpGetRequest(url, headers, params);
+			if (!response.isSuccess()) {
+				logger.error("query registry error. harborHost:{},res:{}", harborHost, JSONObject.toJSONString(response));
+				return response;
+			}
+			labelList = JsonUtil.jsonToList(response.getData().toString(), HarborProjectLabel.class);
 		}
 
-		List<HarborProjectLabel> labelList = JsonUtil.jsonToList(response.getData().toString(), HarborProjectLabel.class);
 		if (!CollectionUtils.isEmpty(labelList) && StringUtils.isNotBlank(labelName)) {    // 有数据并且labelName不为空，则进行模糊匹配过滤数据
 			labelList.removeIf(label -> !label.getName().contains(labelName));
 		}
 
 		return ActionReturnUtil.returnSuccessWithData(labelList);
 	}
+
 	public HarborProjectLabel getLabelDetail(String harborHost,String labelId) throws Exception{
 		HarborServer harborServer = clusterService.findHarborByHost(harborHost);
 		String url = HarborClient.getHarborUrl(harborServer) + "/api/labels/"+labelId;
@@ -1230,6 +1262,7 @@ public class HarborProjectServiceImpl implements HarborProjectService {
 		}
 		return JsonUtil.jsonToPojo(response.getData().toString(),HarborProjectLabel.class);
 	}
+
 	@Override
 	public ActionReturnUtil deleteLabel(String harborHost, Long labelId) throws Exception {
 		AssertUtil.notNull(labelId);

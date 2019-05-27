@@ -39,6 +39,7 @@ import com.harmonycloud.k8s.constant.Resource;
 import com.harmonycloud.k8s.service.*;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.k8s.util.K8SURL;
+import com.harmonycloud.schedule.AsyncClusterTransfer;
 import com.harmonycloud.service.application.ClusterTransferService;
 import com.harmonycloud.service.application.DeploymentsService;
 import com.harmonycloud.service.application.PersistentVolumeService;
@@ -61,9 +62,7 @@ import java.text.NumberFormat;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 
-import static com.harmonycloud.common.Constant.CommonConstant.LABEL_KEY_APP;
-import static com.harmonycloud.common.Constant.CommonConstant.MB;
-import static com.harmonycloud.common.Constant.CommonConstant.MI;
+import static com.harmonycloud.common.Constant.CommonConstant.*;
 import static com.harmonycloud.service.platform.constant.Constant.TOPO_LABEL_KEY;
 
 @Service
@@ -142,6 +141,9 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 	@Autowired
     private ReplicasetsService rsService;
 
+	@Autowired
+	private AsyncClusterTransfer asyncClusterTransfer;
+
     /**
      * 迁移对应的服务 在新集群上创建相同的服务 需要创建的有 ingress namespce configmap pv pvc deployment或者statefulset
      */
@@ -159,6 +161,7 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
         if (!actionReturn.isSuccess()){
 			return actionReturn;
 		}
+
 		Cluster sourceCluster = clusterService.findClusterById(clusterTransferDto.get(0).getCurrentClusterId());
 		Cluster targetCluster = clusterService.findClusterById(clusterTransferDto.get(0).getTargetClusterId());
 		TransferClusterBackup transferClusterBackup = generateTransferClusterBackup(clusterTransferDto);
@@ -1746,7 +1749,30 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		}
 		List<ClusterTransferBackupDto> resList = Lists.newArrayList();
 		backupList.forEach(backup -> {
-			resList.add(this.convert(backup));
+			ClusterTransferBackupDto dto = this.convert(backup);
+
+			// 返回迁移状态：1-迁移失败 2-迁移中 3-部分完成 4-迁移完成
+			if (StringUtils.isBlank(dto.getTransferClusterPercent()) || StringUtils.isNotBlank(dto.getErrMsg())) {
+				// 迁移失败，状态置为1
+				dto.setTransferStatus(NUM_ONE);
+			} else if ("100%".equals(dto.getTransferClusterPercent())) {
+				// 迁移操作完成，但是得区分3-部分完成和4-全部完成
+				List<TransferBindDeploy> deploys = transferDeployMapper.listTransferDeploys(dto.getId());
+				int failNum = (int) deploys.stream().filter(deploy ->
+						deploy.getStatus() == null || deploy.getStatus() != NUM_ONE).count();
+				if (failNum == NUM_ZERO) {
+					dto.setTransferStatus(NUM_FOUR);
+				} else if (failNum == deploys.size()) {
+					dto.setTransferStatus(NUM_ONE);
+				} else {
+					dto.setTransferStatus(NUM_THREE);
+				}
+			} else {
+				// 迁移中，状态置为2
+				dto.setTransferStatus(NUM_TWO);
+			}
+
+			resList.add(dto);
 		});
 		return ActionReturnUtil.returnSuccessWithData(resList);
 	}
@@ -1808,10 +1834,12 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		transferClusterBackUpMapper.insert(transferClusterBackup);
 		// 这个地方应该是创建成功的namespaces
 		List<ErrorNamespaceDto> namespaces = param.get(Constant.TRANSFER_NAMESPACE_SUCCESS);
-		Map<String,Object> params = transferDeploy(namespaces, transferClusterBackup, clusterTransferDto, targetCluster, isContinue, sourceCluster);
-		List<ErrDeployDto> errDeployDtos = (List<ErrDeployDto>) params.get(Constant.ERR_DEPLOY_DTOS);
-		//updateDeployResult(params);
-		transferResultDto.setErrDeployDtos(errDeployDtos);
+
+		// 异步执行服务迁移
+		asyncClusterTransfer.transferDeploy(namespaces, transferClusterBackup, clusterTransferDto, targetCluster, isContinue, sourceCluster);
+
+
+		transferResultDto.setStatus(true);
 		transferResultDto.setErrNamespaceDtos(param.get(Constant.TRANSFER_NAMESPACE_ERROR));
 		return transferResultDto;
 	}
@@ -1840,25 +1868,25 @@ public class ClusterTransferServiceImpl implements ClusterTransferService {
 		return isContinue?transferBindNamespaceMapper.queryErrorNamespace(clusterTransferDto.get(0).getTenantId(),clusterTransferDto.get(0).getTargetClusterId()):addBindNamespaceData(clusterTransferDto);
 	}
 
-
-	private Map<String,Object> transferDeploy(List<ErrorNamespaceDto> namespaces,TransferClusterBackup transferClusterBackup,
+	@Override
+	public void transferDeploy(List<ErrorNamespaceDto> namespaces,TransferClusterBackup transferClusterBackup,
 											  List<ClusterTransferDto> clusterTransferDto,
 											  Cluster targetCluster,boolean isContinue,Cluster sourceCluster) throws Exception {
 		DeployResultDto deployResultDto= generateTransferDeploymentAndTransferDeploy(namespaces, clusterTransferDto, transferClusterBackup, sourceCluster);
 		List<TransferBindDeploy> deployList = deployResultDto.getDeploys();
 		if (deployList.isEmpty()) {
-			return null;
+			return ;
 		}
 		transferDeployMapper.saveTransferList(deployList);
 		//
 		List<DeploymentTransferDto> deploymentTransferDtos =  deployResultDto.getDeploymentTransferDtos();
 		if(isContinue){
-            //断点续传
+			//断点续传
 			List<TransferBindDeploy> transferBindDeploys = transferDeployMapper.queryErrorBindDeploy(clusterTransferDto.get(0).getTenantId(), clusterTransferDto.get(0).getTargetClusterId());
 			deploymentTransferDtos = generateTransferDtoList(transferBindDeploys);
 			deploymentTransferDtos.addAll(deployResultDto.getDeploymentTransferDtos());
 		}
-		return createDeployment(deploymentTransferDtos, transferClusterBackup, sourceCluster, targetCluster);
+		createDeployment(deploymentTransferDtos, transferClusterBackup, sourceCluster, targetCluster);
 	}
 
 	private void updateDeployResult(Map<String,Object> params){

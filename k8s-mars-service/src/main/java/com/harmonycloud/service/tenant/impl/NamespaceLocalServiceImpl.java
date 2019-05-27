@@ -10,19 +10,15 @@ import com.harmonycloud.dao.tenant.NamespaceLocalMapper;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocal;
 import com.harmonycloud.dao.tenant.bean.NamespaceLocalExample;
 import com.harmonycloud.dao.user.bean.Privilege;
-import com.harmonycloud.k8s.bean.Namespace;
-import com.harmonycloud.dao.user.bean.Role;
 import com.harmonycloud.dto.cluster.ErrorNamespaceDto;
+import com.harmonycloud.k8s.bean.Namespace;
 import com.harmonycloud.k8s.bean.cluster.Cluster;
 import com.harmonycloud.k8s.bean.cluster.HarborServer;
 import com.harmonycloud.k8s.util.K8SClientResponse;
 import com.harmonycloud.service.cluster.ClusterService;
-import com.harmonycloud.service.istio.IstioCommonService;
-import com.harmonycloud.service.platform.bean.NodeDto;
 import com.harmonycloud.service.platform.service.NodeService;
 import com.harmonycloud.service.platform.service.harbor.HarborProjectService;
 import com.harmonycloud.service.tenant.NamespaceLocalService;
-import com.harmonycloud.service.user.ResourceMenuRoleService;
 import com.harmonycloud.service.user.RoleLocalService;
 import com.harmonycloud.service.user.RolePrivilegeService;
 import com.harmonycloud.service.user.UserService;
@@ -31,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.util.*;
@@ -154,9 +149,10 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
                 boolean istioStatus = this.getNamespaceIstioStatus(namespaceLocal.getNamespaceName(), currentClusterId);
                 namespaceLocal.setIstioStatus(istioStatus);
                 if(namespaceLocal.getIsPrivate()){
-                    List<NodeDto> nodeDtos = nodeService.listNodeByNamespaces(namespaceLocal.getNamespaceName());
-                    for(NodeDto nodeDto : nodeDtos){
-                        if(nodeDto.getGpu() != null){
+//                  List<NodeDto> nodeDtos = nodeService.listNodeByNamespaces(namespaceLocal.getNamespaceName());
+                    List<NamespaceLocal> namespaceLocalList= getSimpleNamespaceListByTenantId(namespaceLocal.getTenantId(),namespaceLocal.getClusterId());
+                    for(NamespaceLocal namespaceLocalTemp : namespaceLocalList){
+                        if(namespaceLocalTemp.getIsGpu()){
                             namespaceLocal.setIsGpu(true);
                             break;
                         }
@@ -256,8 +252,16 @@ public class NamespaceLocalServiceImpl implements NamespaceLocalService {
      * @throws Exception
      */
     public List<NamespaceLocal> getNamespaceListByTenantIdAndClusterId(String tenantId, List<String> clusterIds) throws Exception{
-        Map<String,Cluster> userClusters = userService.getCurrentUserCluster();
-        List<String> clusters = clusterIds.stream().filter(clusterId -> userClusters.get(clusterId) != null).collect(Collectors.toList());
+        if (CollectionUtils.isEmpty(clusterIds)) {
+            return Collections.emptyList();
+        }
+        List<String> clusters = null;
+        if (clusterIds.size() == 1) {
+            clusters = clusterIds;
+        } else {
+            Map<String, Cluster> userClusters = userService.getCurrentUserCluster();
+            clusters = clusterIds.stream().filter(clusterId -> userClusters.get(clusterId) != null).collect(Collectors.toList());
+        }
         NamespaceLocalExample example = this.getExample();
         example.createCriteria().andTenantIdEqualTo(tenantId).andClusterIdIn(clusters);
         List<NamespaceLocal> namespaceLocals = this.namespaceLocalMapper.selectByExample(example);

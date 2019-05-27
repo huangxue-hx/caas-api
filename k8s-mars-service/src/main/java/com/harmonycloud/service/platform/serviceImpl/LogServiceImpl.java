@@ -590,6 +590,16 @@ public class LogServiceImpl implements LogService {
         if (existIndexes.contains(lastSnapshotIndex) && !indexes.contains(lastSnapshotIndex)) {
             indexes.add(lastSnapshotIndex);
         }
+        //兼容日志收集filebeat升级前后创建索引时间问题,
+        Date next = DateUtil.addDay(to, 1);
+        String nextIndex= esService.getLogIndexPrefix() + DateUtil.DateToString(next, DateStyle.YYYYMMDD_DOT);
+        String nextSnapshotIndex = nextIndex + ES_INDEX_SNAPSHOT_RESTORE;
+        if (existIndexes.contains(nextIndex) && !indexes.contains(nextIndex)) {
+            indexes.add(nextIndex);
+        }
+        if (existIndexes.contains(nextSnapshotIndex) && !indexes.contains(nextSnapshotIndex)) {
+            indexes.add(nextSnapshotIndex);
+        }
         return indexes.toArray(new String[0]);
     }
 
